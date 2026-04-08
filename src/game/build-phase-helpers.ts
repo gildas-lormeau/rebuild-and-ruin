@@ -10,37 +10,8 @@ import { MASTER_BUILDER_BONUS_SECONDS } from "../shared/game-constants.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { unpackTile } from "../shared/spatial.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
-
-/** Finalize cannon controllers at end of cannon placement phase.
- *
- *  LOAD-BEARING SPLIT (do not merge local/remote):
- *    Remote humans: call initCannons() only (their cannons were flushed client-side).
- *    Local controllers: call finalizeCannonPhase() which flushes then inits.
- *    Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
- *    double-flushes; initCannons on a local skips the flush entirely.
- *
- *  CONTRAST with build finalization: build skips remote humans entirely because bag
- *  state is re-initialized via startBuildPhase. Cannon has no equivalent re-init step.
- *
- *  NOTE: Intentionally includes eliminated players — they need cannon state
- *  cleanup (flush + round-1 init) for potential castle reselection. */
-export function finalizeCannonControllers(
-  state: GameState,
-  localControllers: readonly PlayerController[],
-  remoteControllers: readonly PlayerController[],
-): void {
-  for (const ctrl of remoteControllers) {
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    ctrl.initCannons(state, max);
-  }
-  for (const ctrl of localControllers) {
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    ctrl.finalizeCannonPhase(state, max);
-  }
-}
 
 /** Snapshot all walls THEN finalize the build phase. Enforces the invariant
  *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls.

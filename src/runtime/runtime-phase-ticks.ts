@@ -8,11 +8,16 @@
  *   For local play the callbacks are omitted; for online they send to the wire.
  */
 
-import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
+import {
+  type BattleEvent,
+  type CannonFiredMessage,
+  MESSAGE,
+} from "../../server/protocol.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import {
   ageImpacts,
   type BalloonFlight,
+  type Crosshair,
   clearImpacts,
 } from "../shared/battle-types.ts";
 import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
@@ -150,13 +155,34 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    runtimeState.frame.crosshairs = phaseTickFacade.collectLocalCrosshairs({
-      state: runtimeState.state,
-      controllers: runtimeState.controllers,
-      canFireNow: weaponsActive,
-      skipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
-      onCrosshairCollected: deps.onLocalCrosshairCollected,
-    });
+    const { state, controllers } = runtimeState;
+    const crosshairs: Crosshair[] = [];
+
+    for (const ctrl of controllers) {
+      if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+      const readyCannon = phaseTickFacade.nextReadyCombined(
+        state,
+        ctrl.playerId,
+      );
+      const anyReloading =
+        !readyCannon &&
+        state.cannonballs.some(
+          (ball) =>
+            ball.playerId === ctrl.playerId ||
+            ball.scoringPlayerId === ctrl.playerId,
+        );
+      if (!readyCannon && !anyReloading) continue;
+      const ch = ctrl.getCrosshair();
+      crosshairs.push({
+        x: ch.x,
+        y: ch.y,
+        playerId: ctrl.playerId,
+        cannonReady: weaponsActive && !!readyCannon,
+      });
+      deps.onLocalCrosshairCollected?.(ctrl, ch, !!readyCannon);
+    }
+
+    runtimeState.frame.crosshairs = crosshairs;
     if (deps.extendCrosshairs) {
       runtimeState.frame.crosshairs = deps.extendCrosshairs(
         runtimeState.frame.crosshairs,
@@ -195,10 +221,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       initControllers: () => {
         for (const ctrl of runtimeState.controllers) {
           if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
-          phaseTickFacade.initControllerForCannonPhase(
-            ctrl,
+          const prep = phaseTickFacade.prepareControllerCannonPhase(
+            ctrl.playerId,
             runtimeState.state,
           );
+          if (!prep) continue;
+          ctrl.placeCannons(runtimeState.state, prep.maxSlots);
+          ctrl.cannonCursor = prep.cursorPos;
+          ctrl.startCannonPhase(runtimeState.state);
         }
       },
     });
@@ -334,10 +364,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function beginBattle() {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    phaseTickFacade.initBattleControllers(
-      localControllers(runtimeState.controllers, remoteHumanSlots),
-      runtimeState.state,
-    );
+    for (const ctrl of localControllers(
+      runtimeState.controllers,
+      remoteHumanSlots,
+    )) {
+      ctrl.initBattleState(runtimeState.state);
+    }
     runtimeState.state.battleCountdown = BATTLE_COUNTDOWN;
     resetAccum(runtimeState.accum, ACCUM_BATTLE);
     setMode(runtimeState, Mode.GAME);
@@ -358,13 +390,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
     deps.scoreDelta.capturePreScores();
-    phaseTickFacade.initBuildPhaseControllers(
-      runtimeState.state,
-      runtimeState.controllers,
-      (pid) =>
-        isRemoteHuman(pid, remoteHumanSlots) ||
-        !!runtimeState.state.players[pid]?.eliminated,
-    );
+    phaseTickFacade.resetCannonFacings(runtimeState.state);
+    for (const ctrl of runtimeState.controllers) {
+      if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+      if (runtimeState.state.players[ctrl.playerId]?.eliminated) continue;
+      ctrl.startBuildPhase(runtimeState.state);
+    }
     clearImpacts(runtimeState.battleAnim);
     resetAccum(runtimeState.accum, ACCUM_GRUNT);
     resetAccum(runtimeState.accum, ACCUM_BUILD);
@@ -463,7 +494,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const remote = runtimeState.controllers.filter((ctrl) =>
       isRemoteHuman(ctrl.playerId, remoteHumanSlots),
     );
-    phaseTickFacade.finalizeCannonControllers(state, local, remote);
+    // LOAD-BEARING SPLIT (do not merge local/remote):
+    //   Remote humans: call initCannons() only (their cannons were flushed client-side).
+    //   Local controllers: call finalizeCannonPhase() which flushes then inits.
+    //   Using the wrong method corrupts cannon state.
+    for (const ctrl of remote) {
+      const max = state.cannonLimits[ctrl.playerId] ?? 0;
+      ctrl.initCannons(state, max);
+    }
+    for (const ctrl of local) {
+      const max = state.cannonLimits[ctrl.playerId] ?? 0;
+      ctrl.finalizeCannonPhase(state, max);
+    }
     startBattle();
     return true;
   }
@@ -493,14 +535,32 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     advancePhaseTimer(runtimeState.accum, "battle", state, dt, BATTLE_TIMER);
 
-    // Collect events (pure game logic — load-bearing order preserved inside)
-    const result = phaseTickFacade.collectBattleFrameEvents({
-      state,
-      dt,
-      localControllers: local,
-      collectTowerEvents: phaseTickFacade.gruntAttackTowers,
-      tickCannonballsWithEvents: phaseTickFacade.tickCannonballs,
-    });
+    // Event collection order (LOAD-BEARING — do not reorder):
+    //   1. Tick controllers → fire events (new cannonballs from battleTick)
+    //   2. Tower kill/damage events (gruntAttackTowers)
+    //   3. Cannonball impacts (tickCannonballs)
+    // Steps 1→3 are sequential — each depends on state produced by the prior.
+
+    // Step 1: tick controllers → fire events
+    const ballsBefore = state.cannonballs.length;
+    for (const ctrl of local) {
+      ctrl.battleTick(state, dt);
+    }
+    const fireEvents: CannonFiredMessage[] = [];
+    for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
+      fireEvents.push(
+        phaseTickFacade.createCannonFiredMsg(state.cannonballs[idx]!),
+      );
+    }
+
+    // Step 2: tower kill/damage events
+    const towerEvents = phaseTickFacade.gruntAttackTowers(state, dt);
+
+    // Step 3: advance cannonballs → impact events
+    const { impacts: newImpacts, events: impactEvents } =
+      phaseTickFacade.tickCannonballs(state, dt);
+
+    const result = { fireEvents, towerEvents, impactEvents, newImpacts };
 
     // Broadcast events to network
     if (broadcast) {

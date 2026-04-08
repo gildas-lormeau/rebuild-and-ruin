@@ -9,7 +9,7 @@ import {
   snapshotEntities,
 } from "../game/phase-banner.ts";
 import {
-  initControllerForCannonPhase,
+  prepareControllerCannonPhase,
   resetZoneState,
   setPhase,
 } from "../game/phase-setup.ts";
@@ -235,7 +235,12 @@ export function handleCannonStartTransition(
   const initLocalController = () => {
     if (isActivePlayer(myPlayerId)) {
       const ctrl = transitionCtx.getControllers()[myPlayerId];
-      if (ctrl) initControllerForCannonPhase(ctrl, state);
+      if (!ctrl) return;
+      const prep = prepareControllerCannonPhase(ctrl.playerId, state);
+      if (!prep) return;
+      ctrl.placeCannons(state, prep.maxSlots);
+      ctrl.cannonCursor = prep.cursorPos;
+      ctrl.startCannonPhase(state);
     }
   };
 

@@ -26,7 +26,7 @@ import {
 } from "./scenario-helpers.ts";
 import { assert } from "@std/assert";
 import { enterCannonPlacePhase } from "../src/game/game-engine.ts";
-import { enterBattleFromCannon, initControllerForCannonPhase, prepareCannonPhase } from "../src/game/phase-setup.ts";
+import { enterBattleFromCannon, prepareCannonPhase, prepareControllerCannonPhase } from "../src/game/phase-setup.ts";
 import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import type { BannerState } from "../src/shared/ui-contracts.ts";
@@ -145,7 +145,7 @@ Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpo
 // Cannon-start: host and watcher init controller the same way
 // ---------------------------------------------------------------------------
 
-Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host", async () => {
+Deno.test("cannon-start: watcher uses same prepareControllerCannonPhase as host", async () => {
   const s = await createScenario();
   s.runCannon();
   s.runBattle();
@@ -160,7 +160,12 @@ Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host"
   prepareCannonPhase(s.state);
   enterCannonPlacePhase(s.state);
   const hostCtrl = s.controllers[0]!;
-  initControllerForCannonPhase(hostCtrl, s.state);
+  const prep = prepareControllerCannonPhase(0 as ValidPlayerSlot, s.state);
+  if (prep) {
+    hostCtrl.placeCannons(s.state, prep.maxSlots);
+    hostCtrl.cannonCursor = prep.cursorPos;
+    hostCtrl.startCannonPhase(s.state);
+  }
   const hostCursor = { ...hostCtrl.cannonCursor };
 
   // --- Watcher path: reset cursor and phase, then apply transition ---

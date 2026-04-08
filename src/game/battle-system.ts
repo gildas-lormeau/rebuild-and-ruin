@@ -13,7 +13,6 @@ import type {
   Cannonball,
   CapturedCannon,
   CombinedCannonResult,
-  Crosshair,
 } from "../shared/battle-types.ts";
 import {
   deletePlayerWallBattle,
@@ -52,11 +51,7 @@ import {
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "../shared/spatial.ts";
-import type {
-  BattleController,
-  ControllerIdentity,
-  GameViewState,
-} from "../shared/system-interfaces.ts";
+import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import {
@@ -99,6 +94,16 @@ const SALVAGE_CAP = 2;
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
 const CANNON_NOT_FOUND = -1;
+
+/** Decrement the battle countdown timer and return announcement text.
+ *  Pure game logic — no rendering or crosshair sync. */
+export function advanceBattleCountdown(
+  state: GameState,
+  dt: number,
+): string | undefined {
+  state.battleCountdown = Math.max(0, state.battleCountdown - dt);
+  return getCountdownAnnouncement(state.battleCountdown);
+}
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function getCountdownAnnouncement(
@@ -547,56 +552,6 @@ export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
     for (const key of player.walls) combined.add(key);
     return combined;
   });
-}
-
-/** Collect crosshairs from local controllers. */
-export function collectLocalCrosshairs<
-  T extends ControllerIdentity & BattleController = ControllerIdentity &
-    BattleController,
->(params: {
-  state: GameState;
-  controllers: T[];
-  canFireNow: boolean;
-  skipController?: (playerId: ValidPlayerSlot) => boolean;
-  onCrosshairCollected?: (
-    ctrl: T,
-    ch: { x: number; y: number },
-    readyCannon: boolean,
-  ) => void;
-}): Crosshair[] {
-  const {
-    state,
-    controllers,
-    canFireNow,
-    skipController,
-    onCrosshairCollected,
-  } = params;
-  const crosshairs: Crosshair[] = [];
-
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    // Check if any cannon (own or captured) can fire right now
-    const readyCannon = nextReadyCombined(state, ctrl.playerId);
-    // If none ready, check if any ball is in flight (own or captured) — still reloading
-    const anyReloading =
-      !readyCannon &&
-      state.cannonballs.some(
-        (b) =>
-          b.playerId === ctrl.playerId || b.scoringPlayerId === ctrl.playerId,
-      );
-    // Hide crosshair only when nothing can fire and nothing is reloading
-    if (!readyCannon && !anyReloading) continue;
-    const ch = ctrl.getCrosshair();
-    crosshairs.push({
-      x: ch.x,
-      y: ch.y,
-      playerId: ctrl.playerId,
-      cannonReady: canFireNow && !!readyCannon,
-    });
-    onCrosshairCollected?.(ctrl, ch, !!readyCannon);
-  }
-
-  return crosshairs;
 }
 
 /**

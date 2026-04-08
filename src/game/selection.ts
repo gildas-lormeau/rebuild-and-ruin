@@ -2,14 +2,8 @@ import { getInterior } from "../shared/board-occupancy.ts";
 import { SELECT_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type {
-  ControllerIdentity,
-  SelectionController,
-} from "../shared/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import { selectPlayerTower } from "./game-engine.ts";
-
-type SelectionCapable = ControllerIdentity & SelectionController;
 
 export function initTowerSelection(
   state: GameState,
@@ -58,9 +52,9 @@ export function highlightTowerSelection(
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  controllers: readonly SelectionCapable[],
   playerId: ValidPlayerSlot,
   isReselect: boolean,
+  onConfirmed?: (row: number, col: number) => void,
 ): { towerIdx: number; allDone: boolean; isReselect: boolean } | null {
   const selectionState = selectionStates.get(playerId);
   if (!isSelectionPending(selectionState)) return null;
@@ -68,7 +62,7 @@ export function confirmTowerSelection(
 
   const player = state.players[playerId]!;
   if (player.homeTower) {
-    controllers[playerId]!.centerOn(player.homeTower.row, player.homeTower.col);
+    onConfirmed?.(player.homeTower.row, player.homeTower.col);
   }
 
   return {

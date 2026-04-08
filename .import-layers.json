@@ -139,7 +139,7 @@
       "src/ai/ai-build-fallback.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
-      "src/game/host-phase-ticks.ts",
+      "src/game/build-phase-helpers.ts",
       "src/game/round-modifiers.ts",
       "src/render/render-map.ts",
       "src/runtime/runtime-banner.ts",
@@ -170,7 +170,6 @@
     "files": [
       "src/ai/ai-strategy-build.ts",
       "src/game/game-engine.ts",
-      "src/game/host-battle-ticks.ts",
       "src/online/online-phase-transitions.ts",
       "src/online/online-serialize.ts",
       "src/online/online-watcher-tick.ts",

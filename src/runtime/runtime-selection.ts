@@ -237,9 +237,9 @@ export function createSelectionSystem(
     const result = selectionFacade.confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
-      runtimeState.controllers,
       pid,
       isReselect,
+      (row, col) => runtimeState.controllers[pid]!.centerOn(row, col),
     );
     if (!result)
       return selectionFacade.allSelectionsConfirmed(

@@ -42,7 +42,6 @@ import {
 } from "../shared/spatial.ts";
 import type {
   ControllerIdentity,
-  PlayerController,
   SelectionController,
 } from "../shared/system-interfaces.ts";
 import {
@@ -68,7 +67,6 @@ import {
   filterActiveFiringCannons,
   findNearestValidCannonPlacement,
   isCannonEnclosed,
-  resetCannonFacings,
 } from "./cannon-system.ts";
 import {
   applyClumsyBuilders,
@@ -156,42 +154,45 @@ export function finalizeCastleConstruction(state: GameState): void {
 /** Prepare state for cannon phase: compute limits and default facings.
  *  Does NOT apply facings to existing cannons (the banner captures old
  *  facings first, then applyDefaultFacings runs after the snapshot).
- *  Does NOT init controllers — call initControllerForCannonPhase separately. */
+ *  Does NOT init controllers — call prepareControllerCannonPhase separately. */
 export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
   computeDefaultFacings(state);
   state.timer = state.cannonPlaceTimer;
 }
 
-/** Initialize a single controller for the cannon phase: place cannons, snap
- *  cursor to nearest valid position near home tower, fire startCannonPhase.
+/** Compute cannon-phase init data for a single player.
+ *  Pure computation — no controller interaction.
  *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition).
- *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase). */
-export function initControllerForCannonPhase(
-  ctrl: PlayerController,
+ *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase).
+ *  Returns null for eliminated players (no init needed). */
+export function prepareControllerCannonPhase(
+  playerId: ValidPlayerSlot,
   state: GameState,
-): void {
+): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
   if (state.phase !== Phase.CANNON_PLACE) {
     throw new Error(
-      `initControllerForCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
+      `prepareControllerCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
     );
   }
-  const player = state.players[ctrl.playerId];
-  if (!isPlayerAlive(player)) return;
-  const max = state.cannonLimits[player.id] ?? 0;
-  ctrl.placeCannons(state, max);
+  const player = state.players[playerId];
+  if (!isPlayerAlive(player)) return null;
+  const maxSlots = state.cannonLimits[player.id] ?? 0;
+  let cursorPos = {
+    row: player.homeTower?.row ?? 0,
+    col: player.homeTower?.col ?? 0,
+  };
   if (player.homeTower) {
-    const tower = player.homeTower;
     const snapped = findNearestValidCannonPlacement(
       player,
-      tower.row,
-      tower.col,
+      player.homeTower.row,
+      player.homeTower.col,
       CannonMode.NORMAL,
       state,
     );
-    ctrl.cannonCursor = snapped ?? { row: tower.row, col: tower.col };
+    if (snapped) cursorPos = snapped;
   }
-  ctrl.startCannonPhase(state);
+  return { maxSlots, cursorPos };
 }
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
@@ -208,29 +209,8 @@ export function computeCannonLimitsForPhase(state: GameState): void {
   state.reselectedPlayers.clear();
 }
 
-/** Initialize build phase controllers — reset facings, clear accumulators.
- *  PRECONDITION: phase must already be WALL_BUILD (set by enterBuildFrom*). */
-export function initBuildPhaseControllers(
-  state: GameState,
-  controllers: readonly PlayerController[],
-  skipController?: (playerId: ValidPlayerSlot) => boolean,
-): void {
-  if (state.phase !== Phase.WALL_BUILD) {
-    throw new Error(
-      `initBuildPhaseControllers called in ${Phase[state.phase]} — must be WALL_BUILD`,
-    );
-  }
-  resetCannonFacings(state);
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId];
-    if (player?.eliminated) continue;
-    ctrl.startBuildPhase(state);
-  }
-}
-
 /** Enter build from initial castle selection — builds castles first.
- *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
+ *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
 export function enterBuildFromSelect(state: GameState): void {
   autoBuildCastles(state);
   replenishBonusSquares(state);
@@ -239,7 +219,7 @@ export function enterBuildFromSelect(state: GameState): void {
 }
 
 /** Enter build from reselection — castles already exist, just set phase.
- *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
+ *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
 export function enterBuildFromReselect(state: GameState): void {
   if (hasFeature(state, FID.UPGRADES)) {
     state.modern!.masterBuilderLockout = 0;
@@ -290,7 +270,7 @@ export function enterBuildSkippingBattle(state: GameState): void {
 }
 
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
- *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
+ *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
 export function enterBuildFromBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);

@@ -7,28 +7,24 @@
  */
 
 import {
-  collectLocalCrosshairs,
+  advanceBattleCountdown,
+  createCannonFiredMsg,
+  nextReadyCombined,
   resolveBalloons,
   snapshotTerritory,
   tickCannonballs,
 } from "./battle-system.ts";
-import { applyDefaultFacings } from "./cannon-system.ts";
+import {
+  buildTimerMax,
+  diffNewWalls,
+  snapshotThenFinalize,
+  tickMasterBuilderLockout,
+} from "./build-phase-helpers.ts";
+import { applyDefaultFacings, resetCannonFacings } from "./cannon-system.ts";
 import { localFire, localPlacePiece } from "./game-actions.ts";
 import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
-import {
-  advanceBattleCountdown,
-  collectBattleFrameEvents,
-  initBattleControllers,
-} from "./host-battle-ticks.ts";
-import {
-  buildTimerMax,
-  diffNewWalls,
-  finalizeCannonControllers,
-  snapshotThenFinalize,
-  tickMasterBuilderLockout,
-} from "./host-phase-ticks.ts";
 import {
   BANNER_BATTLE,
   BANNER_BUILD,
@@ -39,9 +35,8 @@ import {
   enterBattleFromCannon,
   enterBuildSkippingBattle,
   finalizeBuildPhase,
-  initBuildPhaseControllers,
-  initControllerForCannonPhase,
   prepareCannonPhase,
+  prepareControllerCannonPhase,
 } from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,
@@ -58,11 +53,13 @@ import {
 } from "./phase-transition-steps.ts";
 
 export const phaseTickFacade = {
-  collectLocalCrosshairs,
+  createCannonFiredMsg,
+  nextReadyCombined,
   resolveBalloons,
   snapshotTerritory,
   tickCannonballs,
   applyDefaultFacings,
+  resetCannonFacings,
   isCeasefireActive,
   localFire,
   localPlacePiece,
@@ -71,13 +68,10 @@ export const phaseTickFacade = {
   gruntAttackTowers,
   tickBreachSpawnQueue,
   advanceBattleCountdown,
-  collectBattleFrameEvents,
-  initBattleControllers,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
   buildTimerMax,
   diffNewWalls,
-  finalizeCannonControllers,
   snapshotThenFinalize,
   tickMasterBuilderLockout,
   BANNER_BATTLE,
@@ -85,8 +79,7 @@ export const phaseTickFacade = {
   capturePrevBattleScene,
   computeScoreDeltas,
   finalizeBuildPhase,
-  initBuildPhaseControllers,
-  initControllerForCannonPhase,
+  prepareControllerCannonPhase,
   prepareCannonPhase,
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
