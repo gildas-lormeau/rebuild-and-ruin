@@ -1,11 +1,12 @@
 /**
  * Life-lost dialog sub-system factory.
  *
- * Completion callback pattern: no onDone param — resolution is a method
- * (`onResolved`) because life-lost has multi-path outcomes (game over,
- * reselection, or advance to cannon). host-phase-ticks calls onResolved
- * directly when all entries were pre-resolved at dialog creation time.
- * See runtime-types.ts for CONTRAST with score-delta and upgrade-pick patterns.
+ * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
+ * in runtime-types.ts. Life-lost diverges from upgrade-pick in completion:
+ * resolution is a separate method (`onResolved`) because life-lost has
+ * multi-path outcomes (game over, reselection, or advance to cannon).
+ * host-phase-ticks calls onResolved directly when all entries were
+ * pre-resolved at dialog creation time.
  *
  * Extracted from runtime.ts. Follows the same factory-with-deps
  * pattern as runtime-camera.ts and runtime-selection.ts.
@@ -99,7 +100,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       afterLifeLostResolved();
       return false;
     }
-    runtimeState.lifeLostDialog = dialog;
+    runtimeState.dialogs.lifeLost = dialog;
     setMode(runtimeState, Mode.LIFE_LOST);
     return true;
   }
@@ -113,7 +114,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *   Mode.GAME, waiting for the server to drive the next phase.
    */
   function tickLifeLostDialogSystem(dt: number) {
-    const dialog = runtimeState.lifeLostDialog;
+    const dialog = runtimeState.dialogs.lifeLost;
     if (!dialog) return;
 
     const dialogResolved = dialogFacade.tickLifeLostDialog(
@@ -138,7 +139,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     } else {
       setMode(runtimeState, Mode.GAME);
     }
-    runtimeState.lifeLostDialog = null;
+    runtimeState.dialogs.lifeLost = null;
   }
 
   function afterLifeLostResolved(
@@ -149,7 +150,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       continuing,
       onGameOver: deps.endGame,
       onReselect: (players) => {
-        runtimeState.reselectQueue = [...players];
+        runtimeState.selection.reselectQueue = [...players];
         deps.startReselection();
         setMode(runtimeState, Mode.SELECTION);
       },
@@ -165,7 +166,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function findPendingEntry(playerId: ValidPlayerSlot) {
-    return runtimeState.lifeLostDialog?.entries.find(
+    return runtimeState.dialogs.lifeLost?.entries.find(
       (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
     );
   }
@@ -203,10 +204,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   return {
     /** Read current dialog state. Used by watcher-mode to sync overlay display. */
-    get: () => runtimeState.lifeLostDialog,
+    get: () => runtimeState.dialogs.lifeLost,
     /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
     set: (dialog: LifeLostDialogState | null) => {
-      runtimeState.lifeLostDialog = dialog;
+      runtimeState.dialogs.lifeLost = dialog;
     },
     tryShow,
     tick: tickLifeLostDialogSystem,

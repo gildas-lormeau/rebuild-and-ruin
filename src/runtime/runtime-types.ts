@@ -304,7 +304,9 @@ export interface RuntimeScoreDelta {
 }
 
 export interface RuntimeLifeLost {
+  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
   get: () => LifeLostDialogState | null;
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
   set: (d: LifeLostDialogState | null) => void;
   /** Show life-lost dialog. Returns false if all entries were pre-resolved (dialog skipped). */
   tryShow: (
@@ -312,21 +314,25 @@ export interface RuntimeLifeLost {
     eliminated: readonly ValidPlayerSlot[],
   ) => boolean;
   tick: (dt: number) => void;
-  /** Resolve life-lost outcome. Multi-path: may end game, start reselection, or advance
-   *  to cannon phase. No callback param — resolution logic is internal to the system. */
+  /** Resolve life-lost outcome (life-lost only — multi-path).
+   *  May end game, start reselection, or advance to cannon phase.
+   *  No callback param — resolution logic is internal to the system. */
   onResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 }
 
 export interface RuntimeUpgradePick {
-  /** Pre-create dialog for progressive reveal during banner sweep. */
-  prepare: () => boolean;
+  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
+  get: () => UpgradePickDialogState | null;
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
+  set: (dialog: UpgradePickDialogState | null) => void;
   /** Show upgrade pick dialog. Returns false if no offers (dialog skipped).
    *  `onDone` stored in a local closure — single path (resume build-phase banner). */
   tryShow: (onDone: () => void) => boolean;
   tick: (dt: number) => void;
-  get: () => UpgradePickDialogState | null;
-  set: (dialog: UpgradePickDialogState | null) => void;
+  /** Pre-create dialog for progressive reveal during banner sweep (upgrade-pick only).
+   *  Does NOT activate Mode.UPGRADE_PICK — call tryShow() after the banner ends. */
+  prepare: () => boolean;
 }
 
 export interface RuntimeLobby {

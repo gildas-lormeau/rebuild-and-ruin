@@ -1,10 +1,12 @@
 /**
  * Upgrade pick dialog sub-system factory.
  *
- * Completion callback pattern: `onDone` passed to tryShow() and stored in a
- * local closure variable. It's a single-path callback (resume build-phase
- * banner) and is transient per dialog instance — cleared after invocation.
- * See runtime-types.ts for CONTRAST with life-lost and score-delta patterns.
+ * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
+ * in runtime-types.ts. Upgrade-pick diverges from life-lost in two ways:
+ *   - `prepare()` pre-creates the dialog for progressive reveal during the
+ *     banner sweep, before tryShow() activates Mode.UPGRADE_PICK.
+ *   - Completion uses a single `onDone` closure passed to tryShow() (always
+ *     resumes the build-phase banner), vs life-lost's multi-path `onResolved`.
  *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
  * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
@@ -38,17 +40,17 @@ interface UpgradePickSystemDeps {
 }
 
 export interface UpgradePickSystem {
-  /** Pre-create the dialog so it can render during the banner sweep.
-   *  Does NOT set Mode.UPGRADE_PICK — call tryShow after the banner ends. */
-  prepare: () => boolean;
+  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
+  get: () => UpgradePickDialogState | null;
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
+  set: (dialog: UpgradePickDialogState | null) => void;
   /** Try to show the upgrade pick dialog. Returns true if shown, false if skipped. */
   tryShow: (onDone: () => void) => boolean;
   /** Tick the dialog (AI auto-pick, timer). */
   tick: (dt: number) => void;
-  /** Get the current dialog state. */
-  get: () => UpgradePickDialogState | null;
-  /** Set the dialog state (for online watcher). */
-  set: (dialog: UpgradePickDialogState | null) => void;
+  /** Pre-create the dialog so it can render during the banner sweep (upgrade-pick only).
+   *  Does NOT set Mode.UPGRADE_PICK — call tryShow after the banner ends. */
+  prepare: () => boolean;
   /** Navigate focus left/right. */
   moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
   /** Confirm the currently focused choice. */
@@ -69,7 +71,8 @@ export function createUpgradePickSystem(
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
-    if (runtimeState.upgradePickDialog) return runtimeState.upgradePickDialog;
+    if (runtimeState.dialogs.upgradePick)
+      return runtimeState.dialogs.upgradePick;
     const dialog = dialogFacade.createUpgradePickDialog({
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
@@ -79,7 +82,7 @@ export function createUpgradePickSystem(
         isHuman(runtimeState.controllers[playerId]!),
     });
     if (!dialog) return null;
-    runtimeState.upgradePickDialog = dialog;
+    runtimeState.dialogs.upgradePick = dialog;
     return dialog;
   }
 
@@ -107,7 +110,7 @@ export function createUpgradePickSystem(
   }
 
   function tick(dt: number): void {
-    const dialog = runtimeState.upgradePickDialog;
+    const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
 
     const allResolved = dialogFacade.tickUpgradePickDialog(
@@ -125,7 +128,7 @@ export function createUpgradePickSystem(
         `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
       );
       dialogFacade.applyUpgradePicks(runtimeState.state, dialog);
-      runtimeState.upgradePickDialog = null;
+      runtimeState.dialogs.upgradePick = null;
       const callback = resolveCallback;
       resolveCallback = undefined;
       callback?.();
@@ -163,7 +166,7 @@ export function createUpgradePickSystem(
   }
 
   function findPendingEntry(playerId: ValidPlayerSlot) {
-    return runtimeState.upgradePickDialog?.entries.find(
+    return runtimeState.dialogs.upgradePick?.entries.find(
       (entry) => entry.playerId === playerId && entry.choice === null,
     );
   }
@@ -171,7 +174,7 @@ export function createUpgradePickSystem(
   /** Compute which player's upgrade pick entry accepts local input.
    *  Returns the player ID, or SPECTATOR_SLOT if no local player is picking. */
   function interactivePlayerId(): PlayerSlotId {
-    const dialog = runtimeState.upgradePickDialog;
+    const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return SPECTATOR_SLOT;
     const myId = runtimeState.frameMeta.myPlayerId;
     const entry = dialog.entries.find(
@@ -181,15 +184,13 @@ export function createUpgradePickSystem(
   }
 
   return {
-    prepare,
+    get: () => runtimeState.dialogs.upgradePick,
+    set: (dialog) => {
+      runtimeState.dialogs.upgradePick = dialog;
+    },
     tryShow,
     tick,
-    /** Read current dialog state. Used by watcher-mode to sync overlay display. */
-    get: () => runtimeState.upgradePickDialog,
-    /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
-    set: (dialog) => {
-      runtimeState.upgradePickDialog = dialog;
-    },
+    prepare,
     moveFocus,
     confirmChoice,
     pickDirect,

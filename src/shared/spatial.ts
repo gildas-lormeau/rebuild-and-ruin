@@ -143,6 +143,18 @@ export function towerCenter(tilePos: TilePos): {
   return { row: tilePos.row + half - 0.5, col: tilePos.col + half - 0.5 };
 }
 
+/** Pixel center of the home tower owned by the player in `zone`, or null
+ *  if no player occupies that zone or the player has no tower. */
+export function zoneTowerCenterPx(
+  playerZones: readonly number[],
+  players: readonly ({ homeTower: Tower | null } | null | undefined)[],
+  zone: number,
+): PixelPos | null {
+  const pid = playerZones.indexOf(zone);
+  const tower = pid >= 0 ? players[pid]?.homeTower : null;
+  return tower ? towerCenterPx(tower) : null;
+}
+
 /** Pixel center of a tower footprint. */
 export function towerCenterPx(tilePos: TilePos): PixelPos {
   const half = TOWER_SIZE / 2;

@@ -523,20 +523,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     gameContainer,
     hitTests: {
       lifeLostDialogClick: (screenX, screenY) => {
-        if (!runtimeState.lifeLostDialog) return null;
+        if (!runtimeState.dialogs.lifeLost) return null;
         return handleLifeLostDialogClick({
           state: runtimeState.state,
-          lifeLostDialog: runtimeState.lifeLostDialog,
+          lifeLostDialog: runtimeState.dialogs.lifeLost,
           screenX,
           screenY,
         });
       },
       upgradePickClick: (screenX, screenY) => {
-        if (!runtimeState.upgradePickDialog) return null;
+        if (!runtimeState.dialogs.upgradePick) return null;
         return handleUpgradePickClick({
           W: MAP_PX_W,
           H: MAP_PX_H,
-          dialog: runtimeState.upgradePickDialog,
+          dialog: runtimeState.dialogs.upgradePick,
           screenX,
           screenY,
         });

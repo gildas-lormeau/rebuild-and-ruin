@@ -135,7 +135,7 @@ function buildIncrementalDeps() {
     // should still be buffered in earlyUpgradePickChoices.
     getUpgradePickDialog: () =>
       _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK
-        ? _g.runtime.runtimeState.upgradePickDialog
+        ? _g.runtime.runtimeState.dialogs.upgradePick
         : null,
   };
 }
@@ -156,9 +156,9 @@ function buildUiDeps() {
       _g.runtime.lifeLost.set(null);
     },
     isLifeLostMode: () => _g.runtime.runtimeState.mode === Mode.LIFE_LOST,
-    getUpgradePickDialog: () => _g.runtime.runtimeState.upgradePickDialog,
+    getUpgradePickDialog: () => _g.runtime.runtimeState.dialogs.upgradePick,
     clearUpgradePickDialog: () => {
-      _g.runtime.runtimeState.upgradePickDialog = null;
+      _g.runtime.runtimeState.dialogs.upgradePick = null;
     },
     isUpgradePickMode: () => _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
     setModeToGame: () => {

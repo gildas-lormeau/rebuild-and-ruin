@@ -127,13 +127,13 @@ function buildTransitionSelectionCtx(
     getStates: () => deps.getRuntime().selection.getStates(),
     setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
       const runtime = deps.getRuntime();
-      runtime.runtimeState.castleBuilds.push({
+      runtime.runtimeState.selection.castleBuilds.push({
         wallPlans: plans,
         maxTiles,
         tileIdx: 0,
         accum: 0,
       });
-      runtime.runtimeState.castleBuildOnDone = onDone;
+      runtime.runtimeState.selection.castleBuildOnDone = onDone;
     },
     setCastleBuildViewport: (plans) =>
       deps.getRuntime().selection.setCastleBuildViewport(plans),

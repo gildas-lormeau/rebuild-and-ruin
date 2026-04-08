@@ -138,7 +138,7 @@ export function createOnlineRuntimeSessionHelpers(
           else runtime.sound.drumsStop();
         },
         clearCastleBuilds: () => {
-          runtime.runtimeState.castleBuilds = [];
+          runtime.runtimeState.selection.castleBuilds = [];
         },
         clearLifeLostDialog: () => {
           runtime.lifeLost.set(null);

@@ -12,7 +12,7 @@ import type {
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { OPT_CONTROLS } from "../shared/settings-defs.ts";
-import { towerCenterPx } from "../shared/spatial.ts";
+import { zoneTowerCenterPx } from "../shared/spatial.ts";
 import {
   type BattleViewState,
   type BuildViewState,
@@ -389,7 +389,7 @@ function buildDialogActionHandler(
   upgradePick: InputSystemDeps["upgradePick"],
 ): RegisterOnlineInputDeps["dialogAction"] {
   return (playerId: ValidPlayerSlot, action: Action) => {
-    if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.lifeLostDialog) {
+    if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.dialogs.lifeLost) {
       if (action === Action.LEFT || action === Action.RIGHT) {
         lifeLost.toggleFocus(playerId);
         return true;
@@ -401,7 +401,7 @@ function buildDialogActionHandler(
     }
     if (
       runtimeState.mode === Mode.UPGRADE_PICK &&
-      runtimeState.upgradePickDialog
+      runtimeState.dialogs.upgradePick
     ) {
       if (action === Action.LEFT) {
         upgradePick.moveFocus(playerId, -1);
@@ -427,7 +427,7 @@ function buildLifeLostClickDeps(
   hitTest: InputSystemDeps["hitTests"]["lifeLostDialogClick"],
 ): RegisterOnlineInputDeps["lifeLost"] {
   return {
-    get: () => runtimeState.lifeLostDialog,
+    get: () => runtimeState.dialogs.lifeLost,
     click: guardedDialogClick(pointerPlayer, hitTest, (hit) =>
       lifeLost.applyChoice(hit.playerId, hit.choice),
     ),
@@ -441,7 +441,7 @@ function buildUpgradePickClickDeps(
   hitTest: InputSystemDeps["hitTests"]["upgradePickClick"],
 ): RegisterOnlineInputDeps["upgradePick"] {
   return {
-    get: () => runtimeState.upgradePickDialog,
+    get: () => runtimeState.dialogs.upgradePick,
     click: guardedDialogClick(pointerPlayer, hitTest, (hit) =>
       upgradePick.pickDirect(hit.playerId, hit.cardIdx),
     ),
@@ -505,7 +505,7 @@ function buildGameActionDeps(
   fireAndSend: InputSystemDeps["network"]["fireAndSend"],
 ) {
   return {
-    getSelectionStates: () => runtimeState.selectionStates,
+    getSelectionStates: () => runtimeState.selection.states,
     highlightTowerForPlayer: selection.highlight,
     confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
     isSelectionReady: selection.isReady,
@@ -554,7 +554,7 @@ function setupDpadAndActions(
         runtimeState.inputTracking.directTouchActive = false;
       },
       gameAction: {
-        getSelectionStates: () => runtimeState.selectionStates,
+        getSelectionStates: () => runtimeState.selection.states,
         highlightTowerForPlayer: selection.highlight,
         confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
         isSelectionReady: selection.isReady,
@@ -670,13 +670,10 @@ function buildZoomDeps(deps: InputSystemDeps) {
     aimAtZone: (zone: number) => {
       const state = safeState(runtimeState);
       if (!state) return;
+      const px = zoneTowerCenterPx(state.playerZones, state.players, zone);
+      if (!px) return;
       const human = pointerPlayer();
-      if (!human) return;
-      const pid = state.playerZones.indexOf(zone);
-      const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
-      if (!tower) return;
-      const px = towerCenterPx(tower);
-      human.setCrosshair(px.x, px.y);
+      if (human) human.setCrosshair(px.x, px.y);
     },
   };
 }

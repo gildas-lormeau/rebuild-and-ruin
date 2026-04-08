@@ -81,7 +81,7 @@ function skipPendingAnimations(): void {
   const mode = _runtime.runtimeState.mode;
   switch (mode) {
     case Mode.CASTLE_BUILD:
-      _runtime.runtimeState.castleBuilds = [];
+      _runtime.runtimeState.selection.castleBuilds = [];
       skipCastleBuildAnimation(state);
       _runtime.phaseTicks.startCannonPhase();
       setMode(_runtime.runtimeState, Mode.GAME);
@@ -98,7 +98,7 @@ function skipPendingAnimations(): void {
       _client.devLog("Skipped banner/animation → game mode");
       break;
     case Mode.UPGRADE_PICK:
-      _runtime.runtimeState.upgradePickDialog = null;
+      _runtime.runtimeState.dialogs.upgradePick = null;
       setMode(_runtime.runtimeState, Mode.GAME);
       _client.devLog("Cleared upgrade pick dialog → game mode");
       break;

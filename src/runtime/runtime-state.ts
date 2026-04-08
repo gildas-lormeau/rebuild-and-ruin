@@ -72,6 +72,25 @@ export interface InputTrackingState {
   directTouchActive: boolean;
 }
 
+export interface DialogRuntimeState {
+  lifeLost: LifeLostDialogState | null;
+  upgradePick: UpgradePickDialogState | null;
+}
+
+export interface SelectionRuntimeState {
+  /** Players awaiting reselection UI (queued by life-lost resolution).
+   *  Drained one-by-one as each player's selection dialog completes.
+   *  Set in runtime-life-lost, consumed in runtime-selection. */
+  reselectQueue: ValidPlayerSlot[];
+  /** Snapshot of player IDs currently in the reselection flow (copied from
+   *  reselectQueue at reselection start). Used by camera/render to know which
+   *  players are reselecting. Cleared when reselection completes. */
+  reselectionPids: ValidPlayerSlot[];
+  states: Map<number, SelectionState>;
+  castleBuilds: CastleBuildState[];
+  castleBuildOnDone: (() => void) | null;
+}
+
 /** Mutable runtime state bag for the game loop.
  *
  *  SENTINEL GUARD: `state` and `frameCtx` are initialized via Proxy sentinels
@@ -88,19 +107,8 @@ export interface RuntimeState {
   controllers: PlayerController[];
 
   // Phase / selection
-  /** Players awaiting reselection UI (queued by life-lost resolution).
-   *  Drained one-by-one as each player's selection dialog completes.
-   *  Set in runtime-life-lost, consumed in runtime-selection. */
-  reselectQueue: ValidPlayerSlot[];
-  /** Snapshot of player IDs currently in the reselection flow (copied from
-   *  reselectQueue at reselection start). Used by camera/render to know which
-   *  players are reselecting. Cleared when reselection completes. */
-  reselectionPids: ValidPlayerSlot[];
-  selectionStates: Map<number, SelectionState>;
-  castleBuilds: CastleBuildState[];
-  castleBuildOnDone: (() => void) | null;
-  lifeLostDialog: LifeLostDialogState | null;
-  upgradePickDialog: UpgradePickDialogState | null;
+  selection: SelectionRuntimeState;
+  dialogs: DialogRuntimeState;
 
   // Timers / accumulators
   accum: TimerAccums;
@@ -204,13 +212,14 @@ export function createRuntimeState(): RuntimeState {
     overlay: { selection: { highlighted: null, selected: null } },
     controllers: [],
 
-    reselectQueue: [],
-    reselectionPids: [],
-    selectionStates: new Map(),
-    castleBuilds: [],
-    castleBuildOnDone: null,
-    lifeLostDialog: null,
-    upgradePickDialog: null,
+    selection: {
+      reselectQueue: [],
+      reselectionPids: [],
+      states: new Map(),
+      castleBuilds: [],
+      castleBuildOnDone: null,
+    },
+    dialogs: { lifeLost: null, upgradePick: null },
 
     accum: createTimerAccums(),
     lastTime: 0,

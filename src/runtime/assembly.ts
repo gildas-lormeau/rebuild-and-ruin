@@ -89,11 +89,11 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
         : 0,
       paused: deps.runtimeState.paused,
       quitPending: deps.runtimeState.quit.pending,
-      hasLifeLostDialog: deps.runtimeState.lifeLostDialog !== null,
+      hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
       isSelectionReady: deps.isSelectionReady(),
       humanIsReselecting:
         pointer !== null &&
-        deps.runtimeState.reselectQueue.includes(pointer.playerId),
+        deps.runtimeState.selection.reselectQueue.includes(pointer.playerId),
       hasPointerPlayer: pointer !== null,
       myPlayerId: deps.getMyPlayerId(),
       hostAtFrameStart: deps.getIsHost(),
