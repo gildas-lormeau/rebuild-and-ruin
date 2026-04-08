@@ -123,10 +123,15 @@ const RUNTIME_SUBSYSTEMS = new Set([
   "runtime-upgrade-pick.ts",
 ]);
 
-/** Domains that runtime subsystems are allowed to import from.
- *  game/ is allowed for now (value imports — subsystems call game functions
- *  directly). A future refactor will inject these through deps. */
-const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
+/** Domains that runtime subsystems are allowed to import from. */
+const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime"]);
+
+/** game/ facade files that runtime subsystems may import. */
+const ALLOWED_GAME_FACADES = new Set([
+  "dialog-facade.ts",
+  "selection-facade.ts",
+  "phase-tick-facade.ts",
+]);
 
 function checkRuntimeSubsystemImports(
   file: string,
@@ -141,8 +146,18 @@ function checkRuntimeSubsystemImports(
     const ln = lines[idx]!;
     const sourceMatch = ln.match(/from\s+"(\.\.\/(\w+)\/[^"]+)"/);
     if (!sourceMatch) continue;
+    const importPath = sourceMatch[1]!;
     const domain = sourceMatch[2]!;
-    if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
+    if (domain === "game") {
+      const importFile = basename(importPath);
+      if (!ALLOWED_GAME_FACADES.has(importFile)) {
+        violations.push({
+          file: relative(process.cwd(), file),
+          line: idx + 1,
+          message: `Runtime subsystem imports directly from game/${importFile} — use a facade (${[...ALLOWED_GAME_FACADES].join(", ")}) instead.`,
+        });
+      }
+    } else if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
       violations.push({
         file: relative(process.cwd(), file),
         line: idx + 1,

@@ -5,11 +5,7 @@
  * camera unzoom, haptics, and sound.
  */
 
-import {
-  createBannerState,
-  showBannerTransition,
-  tickBannerTransition,
-} from "../game/phase-banner.ts";
+import { dialogFacade } from "../game/dialog-facade.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
@@ -67,7 +63,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
       );
     }
-    showBannerTransition({
+    dialogFacade.showBannerTransition({
       banner: runtimeState.banner,
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
@@ -85,7 +81,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   }
 
   function tickBanner(dt: number) {
-    tickBannerTransition(runtimeState.banner, dt, BANNER_DURATION, render);
+    dialogFacade.tickBannerTransition(
+      runtimeState.banner,
+      dt,
+      BANNER_DURATION,
+      render,
+    );
   }
 
   function clearSnapshots(): void {
@@ -94,7 +95,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   }
 
   function reset(): void {
-    runtimeState.banner = createBannerState();
+    runtimeState.banner = dialogFacade.createBannerState();
   }
 
   return { showBanner, tickBanner, clearSnapshots, reset };

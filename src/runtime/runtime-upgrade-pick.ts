@@ -12,13 +12,7 @@
  */
 
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
-import {
-  applyUpgradePicks,
-  createUpgradePickDialog,
-  tickUpgradePickDialog,
-  UPGRADE_PICK_AUTO_DELAY,
-  UPGRADE_PICK_MAX_TIMER,
-} from "../game/upgrade-pick.ts";
+import { dialogFacade } from "../game/dialog-facade.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,
@@ -70,7 +64,7 @@ export function createUpgradePickSystem(
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
     if (runtimeState.upgradePickDialog) return runtimeState.upgradePickDialog;
-    const dialog = createUpgradePickDialog({
+    const dialog = dialogFacade.createUpgradePickDialog({
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
@@ -110,11 +104,11 @@ export function createUpgradePickSystem(
     const dialog = runtimeState.upgradePickDialog;
     if (!dialog) return;
 
-    const allResolved = tickUpgradePickDialog(
+    const allResolved = dialogFacade.tickUpgradePickDialog(
       dialog,
       dt,
-      UPGRADE_PICK_AUTO_DELAY,
-      UPGRADE_PICK_MAX_TIMER,
+      dialogFacade.UPGRADE_PICK_AUTO_DELAY,
+      dialogFacade.UPGRADE_PICK_MAX_TIMER,
       runtimeState.state,
     );
 
@@ -124,7 +118,7 @@ export function createUpgradePickSystem(
       deps.log(
         `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
       );
-      applyUpgradePicks(runtimeState.state, dialog);
+      dialogFacade.applyUpgradePicks(runtimeState.state, dialog);
       runtimeState.upgradePickDialog = null;
       const callback = resolveCallback;
       resolveCallback = undefined;

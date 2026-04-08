@@ -10,51 +10,7 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
-import {
-  accumulateBattleStats,
-  collectLocalCrosshairs,
-  resolveBalloons,
-  tickCannonballs,
-} from "../game/battle-system.ts";
-import { applyDefaultFacings } from "../game/cannon-system.ts";
-import {
-  isCeasefireActive,
-  nextPhase,
-  tickGameCore,
-} from "../game/game-engine.ts";
-import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
-import {
-  gruntAttackTowers,
-  tickBreachSpawnQueue,
-} from "../game/grunt-system.ts";
-import {
-  beginHostBattle,
-  LOCAL_BATTLE_START_NET,
-  startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
-  tickHostBattlePhase,
-} from "../game/host-battle-ticks.ts";
-import {
-  tickHostBuildPhase,
-  tickHostCannonPhase,
-} from "../game/host-phase-ticks.ts";
-import { BANNER_BUILD, capturePrevBattleScene } from "../game/phase-banner.ts";
-import {
-  finalizeBuildPhase,
-  initBuildPhaseControllers,
-  initControllerForCannonPhase,
-  prepareCannonPhase,
-} from "../game/phase-setup.ts";
-import {
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  gateUpgradePick,
-  NOOP_STEP,
-  showBuildPhaseBanner,
-  showCannonPhaseBanner,
-} from "../game/phase-transition-steps.ts";
+import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { ageImpacts } from "../shared/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -170,7 +126,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    runtimeState.frame.crosshairs = collectLocalCrosshairs({
+    runtimeState.frame.crosshairs = phaseTickFacade.collectLocalCrosshairs({
       state: runtimeState.state,
       controllers: runtimeState.controllers,
       canFireNow: weaponsActive,
@@ -193,18 +149,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.sound.drumsQuiet();
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
-    executeTransition(CANNON_START_STEPS, {
+    phaseTickFacade.executeTransition(phaseTickFacade.CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
           // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
           // executeTransition guarantees this ordering via CANNON_START_STEPS.
-          showCannonPhaseBanner(deps.showBanner, onBannerDone);
+          phaseTickFacade.showCannonPhaseBanner(deps.showBanner, onBannerDone);
         }
       },
       applyCheckpoint: () => {
-        prepareCannonPhase(runtimeState.state);
+        phaseTickFacade.prepareCannonPhase(runtimeState.state);
         // Apply reset facings — hidden behind the banner overlay.
-        applyDefaultFacings(runtimeState.state);
+        phaseTickFacade.applyDefaultFacings(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
@@ -216,7 +172,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       initControllers: () => {
         for (const ctrl of runtimeState.controllers) {
           if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
-          initControllerForCannonPhase(ctrl, runtimeState.state);
+          phaseTickFacade.initControllerForCannonPhase(
+            ctrl,
+            runtimeState.state,
+          );
         }
       },
     });
@@ -236,16 +195,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function enterBuildViaUpgradePick(): void {
     const showBannerAndEnterBuild = () => {
-      executeTransition(BUILD_START_STEPS, {
+      phaseTickFacade.executeTransition(phaseTickFacade.BUILD_START_STEPS, {
         showBanner: () =>
-          showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-            setMode(runtimeState, Mode.GAME);
-          }),
-        applyCheckpoint: NOOP_STEP,
+          phaseTickFacade.showBuildPhaseBanner(
+            deps.showBanner,
+            phaseTickFacade.BANNER_BUILD,
+            () => {
+              setMode(runtimeState, Mode.GAME);
+            },
+          ),
+        applyCheckpoint: phaseTickFacade.NOOP_STEP,
         initControllers: () => startBuildPhase(),
       });
     };
-    gateUpgradePick(
+    phaseTickFacade.gateUpgradePick(
       deps.showBanner,
       deps.tryShowUpgradePick,
       !!runtimeState.state.modern?.pendingUpgradeOffers,
@@ -259,14 +222,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBattle (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
 
-    startHostBattleLifecycle({
+    phaseTickFacade.startHostBattleLifecycle({
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
       banner: runtimeState.banner,
-      resolveBalloons,
+      resolveBalloons: phaseTickFacade.resolveBalloons,
       snapshotTerritory: deps.snapshotTerritory,
       showBanner: deps.showBanner,
-      nextPhase,
+      nextPhase: phaseTickFacade.nextPhase,
       setModeBalloonAnim: () => {
         setMode(runtimeState, Mode.BALLOON_ANIM);
       },
@@ -284,8 +247,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
               );
             },
           }
-        : LOCAL_BATTLE_START_NET,
-      ceasefireActive: isCeasefireActive(runtimeState.state),
+        : phaseTickFacade.LOCAL_BATTLE_START_NET,
+      ceasefireActive: phaseTickFacade.isCeasefireActive(runtimeState.state),
       onCeasefire: () => {
         deps.log("ceasefire: skipping battle");
         sendBuildCheckpointIfHost();
@@ -295,7 +258,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBalloonAnim(dt: number) {
-    tickHostBalloonAnim({
+    phaseTickFacade.tickHostBalloonAnim({
       dt,
       balloonFlightDuration: BALLOON_FLIGHT_DURATION,
       battleAnim: runtimeState.battleAnim,
@@ -305,7 +268,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function beginBattle() {
-    beginHostBattle({
+    phaseTickFacade.beginHostBattle({
       state: runtimeState.state,
       controllers: runtimeState.controllers,
       accum: runtimeState.accum,
@@ -331,7 +294,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
     deps.scoreDelta.capturePreScores();
-    initBuildPhaseControllers(
+    phaseTickFacade.initBuildPhaseControllers(
       runtimeState.state,
       runtimeState.controllers,
       (pid) =>
@@ -348,7 +311,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function tickCannonPhase(dt: number): boolean {
-    return tickHostCannonPhase({
+    return phaseTickFacade.tickHostCannonPhase({
       dt,
       state: runtimeState.state,
       accum: runtimeState.accum,
@@ -371,7 +334,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBattleCountdown(dt: number): void {
-    tickHostBattleCountdown({
+    phaseTickFacade.tickHostBattleCountdown({
       dt,
       state: runtimeState.state,
       frame: runtimeState.frame,
@@ -383,7 +346,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBattlePhase(dt: number): boolean {
-    return tickHostBattlePhase({
+    return phaseTickFacade.tickHostBattlePhase({
       dt,
       state: runtimeState.state,
       battleTimer: BATTLE_TIMER,
@@ -392,26 +355,29 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleAnim: runtimeState.battleAnim,
       render: deps.render,
       syncCrosshairs,
-      collectTowerEvents: gruntAttackTowers,
-      tickCannonballsWithEvents: tickCannonballs,
+      collectTowerEvents: phaseTickFacade.gruntAttackTowers,
+      tickCannonballsWithEvents: phaseTickFacade.tickCannonballs,
       onBattleEvents: (events: ReadonlyArray<BattleEvent>) => {
         const pov = runtimeState.frameMeta.povPlayerId;
         deps.haptics.battleEvents(events, pov);
         deps.sound.battleEvents(events, pov);
-        accumulateBattleStats(events, runtimeState.scoreDisplay.gameStats);
+        phaseTickFacade.accumulateBattleStats(
+          events,
+          runtimeState.scoreDisplay.gameStats,
+        );
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
 
         // Pre-capture old battle scene before nextPhase mutates state
-        capturePrevBattleScene(
+        phaseTickFacade.capturePrevBattleScene(
           runtimeState.banner,
           runtimeState.state,
           runtimeState.battleAnim.territory,
           runtimeState.battleAnim.walls,
         );
 
-        nextPhase(runtimeState.state);
+        phaseTickFacade.nextPhase(runtimeState.state);
         sendBuildCheckpointIfHost();
         enterBuildViaUpgradePick();
       },
@@ -428,7 +394,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       deps.render();
       return false;
     }
-    return tickHostBuildPhase({
+    return phaseTickFacade.tickHostBuildPhase({
       dt,
       state: runtimeState.state,
       banner: runtimeState.banner,
@@ -437,11 +403,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       controllers: runtimeState.controllers,
       render: deps.render,
       tickGrunts: (gameState: GameState) => {
-        tickBreachSpawnQueue(gameState);
-        moveGrunts(gameState);
+        phaseTickFacade.tickBreachSpawnQueue(gameState);
+        phaseTickFacade.tickGrunts(gameState);
       },
       isHuman,
-      finalizeBuildPhase,
+      finalizeBuildPhase: phaseTickFacade.finalizeBuildPhase,
       showLifeLostDialog: (needsReselect, eliminated) => {
         deps.sound.lifeLost();
         deps.lifeLost.tryShow(needsReselect, eliminated);
@@ -474,7 +440,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
     if (runtimeState.frameMeta.hostAtFrameStart) {
-      tickGameCore({
+      phaseTickFacade.tickGameCore({
         dt,
         state: runtimeState.state,
         battleAnim: runtimeState.battleAnim,

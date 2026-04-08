@@ -1,0 +1,43 @@
+/**
+ * Dialog facade — explicit contract boundary between game/ and runtime/
+ * for the three dialog-related subsystems (banner, life-lost, upgrade-pick).
+ *
+ * Runtime subsystems import this single facade instead of reaching into
+ * individual game/ files.
+ */
+
+import {
+  continuingPlayers,
+  createLifeLostDialogState,
+  resolveAfterLifeLost,
+  tickLifeLostDialog,
+} from "./life-lost.ts";
+import {
+  createBannerState,
+  showBannerTransition,
+  tickBannerTransition,
+} from "./phase-banner.ts";
+import { eliminatePlayer } from "./phase-setup.ts";
+import {
+  applyUpgradePicks,
+  createUpgradePickDialog,
+  tickUpgradePickDialog,
+  UPGRADE_PICK_AUTO_DELAY,
+  UPGRADE_PICK_MAX_TIMER,
+} from "./upgrade-pick.ts";
+
+export const dialogFacade = {
+  createLifeLostDialog: createLifeLostDialogState,
+  tickLifeLostDialog,
+  continuingPlayers,
+  resolveAfterLifeLost,
+  eliminatePlayer,
+  createUpgradePickDialog,
+  tickUpgradePickDialog,
+  applyUpgradePicks,
+  UPGRADE_PICK_AUTO_DELAY,
+  UPGRADE_PICK_MAX_TIMER,
+  createBannerState,
+  showBannerTransition,
+  tickBannerTransition,
+};

@@ -134,14 +134,12 @@
       "src/game/round-modifiers.ts",
       "src/render/render-map.ts",
       "src/runtime/dev-console.ts",
-      "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-types.ts"
     ]
   },
   {
@@ -166,26 +164,29 @@
     "name": "controllers",
     "files": [
       "src/ai/ai-strategy-build.ts",
+      "src/game/dialog-facade.ts",
       "src/game/game-engine.ts",
       "src/game/host-battle-ticks.ts",
       "src/online/online-phase-transitions.ts",
       "src/online/online-serialize.ts",
       "src/online/online-watcher-tick.ts",
       "src/player/controller-human.ts",
-      "src/runtime/assembly.ts",
-      "src/runtime/runtime-life-lost.ts"
+      "src/runtime/assembly.ts"
     ]
   },
   {
     "name": "orchestration",
     "files": [
       "src/ai/ai-strategy.ts",
+      "src/game/phase-tick-facade.ts",
       "src/game/selection.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-stores.ts",
       "src/player/controller-factory.ts",
-      "src/runtime/runtime-phase-ticks.ts"
+      "src/runtime/runtime-banner.ts",
+      "src/runtime/runtime-life-lost.ts",
+      "src/runtime/runtime-upgrade-pick.ts"
     ]
   },
   {
@@ -195,11 +196,12 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
+      "src/game/selection-facade.ts",
       "src/online/online-runtime-transition.ts",
       "src/online/online-server-events.ts",
       "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-headless.ts",
-      "src/runtime/runtime-selection.ts"
+      "src/runtime/runtime-phase-ticks.ts"
     ]
   },
   {
@@ -208,19 +210,20 @@
       "src/ai/controller-ai.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-session.ts",
-      "src/runtime/runtime.ts"
+      "src/runtime/runtime-selection.ts"
     ]
   },
   {
     "name": "app roots",
     "files": [
-      "src/main.ts",
-      "src/online/online-runtime-deps.ts"
+      "src/online/online-runtime-deps.ts",
+      "src/runtime/runtime.ts"
     ]
   },
   {
     "name": "online logic",
     "files": [
+      "src/main.ts",
       "src/online/online-runtime-ws.ts"
     ]
   },

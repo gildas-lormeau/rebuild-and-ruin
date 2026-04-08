@@ -12,13 +12,7 @@
  */
 
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
-import {
-  continuingPlayers,
-  createLifeLostDialogState,
-  resolveAfterLifeLost,
-  tickLifeLostDialog,
-} from "../game/life-lost.ts";
-import { eliminatePlayer } from "../game/phase-setup.ts";
+import { dialogFacade } from "../game/dialog-facade.ts";
 import {
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
@@ -76,7 +70,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       if (entry.choice !== LifeLostChoice.ABANDON) continue;
       const player = runtimeState.state.players[entry.playerId];
       if (!player) continue;
-      eliminatePlayer(player);
+      dialogFacade.eliminatePlayer(player);
     }
   }
 
@@ -88,7 +82,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     deps.log(
       `tryShow lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
-    const dialog = createLifeLostDialogState({
+    const dialog = dialogFacade.createLifeLostDialog({
       needsReselect,
       eliminated,
       state: runtimeState.state,
@@ -122,7 +116,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const dialog = runtimeState.lifeLostDialog;
     if (!dialog) return;
 
-    const dialogResolved = tickLifeLostDialog(
+    const dialogResolved = dialogFacade.tickLifeLostDialog(
       dialog,
       dt,
       LIFE_LOST_AUTO_DELAY,
@@ -140,7 +134,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     eliminateAbandoned(dialog);
 
     if (runtimeState.frameMeta.hostAtFrameStart) {
-      afterLifeLostResolved(continuingPlayers(dialog));
+      afterLifeLostResolved(dialogFacade.continuingPlayers(dialog));
     } else {
       setMode(runtimeState, Mode.GAME);
     }
@@ -150,7 +144,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   function afterLifeLostResolved(
     continuing: readonly ValidPlayerSlot[] = [],
   ): boolean {
-    return resolveAfterLifeLost({
+    return dialogFacade.resolveAfterLifeLost({
       state: runtimeState.state,
       continuing,
       onGameOver: deps.endGame,
