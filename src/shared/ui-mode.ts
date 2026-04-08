@@ -1,4 +1,20 @@
-/** Top-level UI mode — controls which screen/phase main loop renders. */
+/** Top-level UI mode — controls which screen/phase main loop renders.
+ *
+ * Classification table:
+ * | Mode          | Gameplay | Interactive | Transition |
+ * |---------------|----------|-------------|------------|
+ * | LOBBY         |          |             |            |
+ * | OPTIONS       |          |             |            |
+ * | CONTROLS      |          |             |            |
+ * | SELECTION     | x        | x           |            |
+ * | BANNER        | x        |             | x          |
+ * | BALLOON_ANIM  | x        |             | x          |
+ * | CASTLE_BUILD  | x        |             | x          |
+ * | LIFE_LOST     | x        |             |            |
+ * | UPGRADE_PICK  | x        |             | x          |
+ * | GAME          | x        | x           |            |
+ * | STOPPED       |          |             |            |
+ */
 
 export enum Mode {
   LOBBY,

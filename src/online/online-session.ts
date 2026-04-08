@@ -47,7 +47,9 @@ export interface OnlineSession {
    *  Both sets are maintained atomically by clearLobbySlot/occupyLobbySlot in
    *  online-server-lifecycle.ts — never mutate one without the other. */
   occupiedSlots: Set<number>;
-  /** Remote human player slots only (excludes self and AI-controlled slots).
+  /** Non-local player slots (excludes self; includes remote humans and
+   *  AI-controlled remote players despite the "human" name — kept for
+   *  backward compatibility). Used for auto-resolve logic and POV.
    *  INVARIANT: remoteHumanSlots ⊆ occupiedSlots. */
   remoteHumanSlots: Set<number>;
   roomWaitTimerSec: number;

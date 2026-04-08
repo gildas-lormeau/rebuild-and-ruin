@@ -66,7 +66,7 @@ interface DepsInit {
 //  3. Guard with `if (!_ref) throw "called before initXxx()"` in public API
 // This avoids circular imports between the composition root (online-runtime-game.ts)
 // and domain modules. All three init functions are called once from createOnlineGame().
-let _g: DepsInit;
+let _depsInit: DepsInit;
 let _client: OnlineClient;
 let _lifecycleDeps: HandleServerLifecycleDeps;
 let _incrementalDeps: HandleServerIncrementalDeps;
@@ -74,14 +74,15 @@ let _incrementalDeps: HandleServerIncrementalDeps;
 /** Bind runtime-dependent values and build deps objects. Called once from
  *  online-runtime-game.ts after the GameRuntime is created. */
 export function initDeps(init: DepsInit): void {
-  _g = init;
+  _depsInit = init;
   _client = init.client;
   _lifecycleDeps = buildLifecycleDeps();
   _incrementalDeps = buildIncrementalDeps();
 }
 
 export async function handleServerMessage(msg: ServerMessage): Promise<void> {
-  if (!_g) throw new Error("handleServerMessage() called before initDeps()");
+  if (!_depsInit)
+    throw new Error("handleServerMessage() called before initDeps()");
   _client.devLog(`received: ${msg.type}`);
   if (await handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
   const result = handleServerIncrementalMessage(msg, _incrementalDeps);
@@ -113,56 +114,59 @@ function buildIncrementalDeps() {
     log: _client.devLog,
     session: _client.ctx.session,
     watcher: _client.ctx.watcher,
-    getState: () => _g.runtime.runtimeState.state,
-    selectionStates: _g.runtime.selection.getStates(),
-    syncSelectionOverlay: () => _g.runtime.selection.syncOverlay(),
+    getState: () => _depsInit.runtime.runtimeState.state,
+    selectionStates: _depsInit.runtime.selection.getStates(),
+    syncSelectionOverlay: () => _depsInit.runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
-      isReselectPhase(_g.runtime.runtimeState.state.phase),
+      isReselectPhase(_depsInit.runtime.runtimeState.state.phase),
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
       isReselect: boolean,
     ) => {
-      _g.runtime.selection.confirmAndStartBuild(playerId, isReselect);
+      _depsInit.runtime.selection.confirmAndStartBuild(playerId, isReselect);
     },
-    allSelectionsConfirmed: () => _g.runtime.selection.allConfirmed(),
-    finishReselection: () => _g.runtime.selection.finishReselection(),
-    finishSelection: () => _g.runtime.selection.finish(),
+    allSelectionsConfirmed: () => _depsInit.runtime.selection.allConfirmed(),
+    finishReselection: () => _depsInit.runtime.selection.finishReselection(),
+    finishSelection: () => _depsInit.runtime.selection.finish(),
     onFirstEnclosure: (pid: ValidPlayerSlot) =>
-      _g.runtime.sound.chargeFanfare(pid),
-    getLifeLostDialog: () => _g.runtime.lifeLost.get(),
+      _depsInit.runtime.sound.chargeFanfare(pid),
+    getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
     // Only expose the dialog once Mode.UPGRADE_PICK is active — during the
     // banner preview (prepare) the dialog exists for rendering but picks
     // should still be buffered in earlyUpgradePickChoices.
     getUpgradePickDialog: () =>
-      _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK
-        ? _g.runtime.runtimeState.dialogs.upgradePick
+      _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK
+        ? _depsInit.runtime.runtimeState.dialogs.upgradePick
         : null,
   };
 }
 
 function buildLobbyDeps() {
   return {
-    showWaitingRoom: _g.showWaitingRoom,
+    showWaitingRoom: _depsInit.showWaitingRoom,
     get joined() {
-      return _g.runtime.runtimeState.lobby.joined;
+      return _depsInit.runtime.runtimeState.lobby.joined;
     },
   };
 }
 
 function buildUiDeps() {
   return {
-    getLifeLostDialog: () => _g.runtime.lifeLost.get(),
+    getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
     clearLifeLostDialog: () => {
-      _g.runtime.lifeLost.set(null);
+      _depsInit.runtime.lifeLost.set(null);
     },
-    isLifeLostMode: () => _g.runtime.runtimeState.mode === Mode.LIFE_LOST,
-    getUpgradePickDialog: () => _g.runtime.runtimeState.dialogs.upgradePick,
+    isLifeLostMode: () =>
+      _depsInit.runtime.runtimeState.mode === Mode.LIFE_LOST,
+    getUpgradePickDialog: () =>
+      _depsInit.runtime.runtimeState.dialogs.upgradePick,
     clearUpgradePickDialog: () => {
-      _g.runtime.runtimeState.dialogs.upgradePick = null;
+      _depsInit.runtime.runtimeState.dialogs.upgradePick = null;
     },
-    isUpgradePickMode: () => _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
+    isUpgradePickMode: () =>
+      _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
     setModeToGame: () => {
-      setMode(_g.runtime.runtimeState, Mode.GAME);
+      setMode(_depsInit.runtime.runtimeState, Mode.GAME);
     },
     setAnnouncement: (text: string) => {
       _client.ctx.watcher.hostMigrationText = text;
@@ -175,26 +179,26 @@ function buildUiDeps() {
 
 function buildGameDeps() {
   return {
-    getState: () => _g.runtime.runtimeState.state,
-    initFromServer: _g.initFromServer,
-    enterTowerSelection: () => _g.runtime.selection.enter(),
+    getState: () => _depsInit.runtime.runtimeState.state,
+    initFromServer: _depsInit.initFromServer,
+    enterTowerSelection: () => _depsInit.runtime.selection.enter(),
   };
 }
 
 function buildTransitionDeps() {
   return {
     onCastleWalls: (msg: ServerMessage) =>
-      handleCastleWallsTransition(msg, _g.transitionCtx),
+      handleCastleWallsTransition(msg, _depsInit.transitionCtx),
     onCannonStart: (msg: ServerMessage) =>
-      handleCannonStartTransition(msg, _g.transitionCtx),
+      handleCannonStartTransition(msg, _depsInit.transitionCtx),
     onBattleStart: (msg: ServerMessage) =>
-      handleBattleStartTransition(msg, _g.transitionCtx),
+      handleBattleStartTransition(msg, _depsInit.transitionCtx),
     onBuildStart: (msg: ServerMessage) =>
-      handleBuildStartTransition(msg, _g.transitionCtx),
+      handleBuildStartTransition(msg, _depsInit.transitionCtx),
     onBuildEnd: (msg: ServerMessage) =>
-      handleBuildEndTransition(msg, _g.transitionCtx),
+      handleBuildEndTransition(msg, _depsInit.transitionCtx),
     onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, _g.transitionCtx),
+      handleGameOverTransition(msg, _depsInit.transitionCtx),
   };
 }
 
@@ -202,6 +206,6 @@ function buildMigrationDeps() {
   return {
     playerNames: PLAYER_NAMES,
     promoteToHost,
-    restoreFullState: _g.restoreFullState,
+    restoreFullState: _depsInit.restoreFullState,
   };
 }

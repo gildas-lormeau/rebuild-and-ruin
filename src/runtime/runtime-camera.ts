@@ -3,6 +3,11 @@
  *
  * Owns all viewport state (zone bounds, pinch zoom, auto-zoom, lerp)
  * and exposes a pure API for the runtime to call.
+ *
+ * NOTE: Uses the all-getters deps pattern (not destructured runtimeState) because
+ * camera state can change during host migration — every field must be re-read via
+ * getter to avoid stale references. See CameraDeps interface below and the
+ * convention note in runtime-types.ts.
  */
 
 import {

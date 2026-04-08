@@ -281,6 +281,19 @@ export interface RuntimeSelection {
   reset: () => void;
 }
 
+/**
+ * Dialog/animation completion callback patterns — three distinct approaches by design:
+ *
+ * | System       | Storage            | Invocation       | Reason                             |
+ * |--------------|--------------------|------------------|------------------------------------|
+ * | ScoreDelta   | runtimeState field | fireOnce()       | Ticks mode-independently (banner)  |
+ * | LifeLost     | method on system   | onResolved()     | Multi-path (game-over/reselect/go) |
+ * | UpgradePick  | local closure      | tryShow(onDone)  | Single-path (resume build banner)  |
+ *
+ * For new dialogs: use the UpgradePick closure pattern (simplest) unless the dialog
+ * has multiple resolution paths (use LifeLost method) or must tick during banners
+ * (use ScoreDelta runtimeState pattern).
+ */
 export interface RuntimeScoreDelta {
   /** Show animated score deltas after build phase. `onDone` is invoked exactly once
    *  when the animation finishes (or immediately if there are no deltas to show).

@@ -20,12 +20,13 @@ import {
   ROUNDS_OPTIONS,
   SOUND_LABELS,
 } from "./settings-defs.ts";
+import type { Mode } from "./ui-mode.ts";
 
 export type CycleOptionFn = (
   dir: number,
   optionsCursor: number,
   settings: GameSettings,
-  optionsReturnMode: unknown,
+  optionsReturnMode: Mode | null,
   state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ) => void;
@@ -46,7 +47,7 @@ export function cycleOption(
   dir: number,
   optionsCursor: number,
   settings: GameSettings,
-  optionsReturnMode: unknown,
+  optionsReturnMode: Mode | null,
   state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ): void {

@@ -183,8 +183,10 @@ export const DIFFICULTY_PARAMS = [
 /** Extra build seconds granted by the Master Builder upgrade. */
 export const MASTER_BUILDER_BONUS_SECONDS = 5;
 /** Haptics/sound level encoding shared across settings UI and subsystems.
- *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
+ *  0=off, 1=phase changes only, 2=all. */
+// HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)
 export const HAPTICS_PHASE_ONLY = 1;
 export const HAPTICS_ALL = 2;
+// SOUND_OFF = 0  (implicit — checked via >= SOUND_PHASE_ONLY)
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;

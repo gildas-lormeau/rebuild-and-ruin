@@ -51,6 +51,7 @@ import type { GameState } from "./types.ts";
  *  VOLATILE: `isHost` can flip mid-session during host promotion.
  *  Always read inline — never cache in a local variable across ticks. */
 interface HostNetContext {
+  /** Non-local player slots. See OnlineSession.remoteHumanSlots for full docs. */
   remoteHumanSlots: ReadonlySet<number>;
   isHost: boolean;
 }
