@@ -31,11 +31,17 @@ export function tickCastleBuildAnimation(params: {
   dt: number;
   wallBuildIntervalMs: number;
   state: GameState;
-  render?: () => void;
+  onProgress?: () => void;
   onWallsPlaced?: () => void;
 }): { next: CastleBuildState | null } {
-  const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } =
-    params;
+  const {
+    castleBuild,
+    dt,
+    wallBuildIntervalMs,
+    state,
+    onProgress,
+    onWallsPlaced,
+  } = params;
   if (!castleBuild) return { next: null };
 
   castleBuild.accum += dt * 1000; // dt is seconds; accum and wallBuildIntervalMs are ms
@@ -58,7 +64,7 @@ export function tickCastleBuildAnimation(params: {
   }
 
   if (placed) onWallsPlaced?.();
-  render?.();
+  onProgress?.();
 
   if (castleBuild.tileIdx < castleBuild.maxTiles) {
     return { next: castleBuild };

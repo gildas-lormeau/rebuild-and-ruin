@@ -2,8 +2,6 @@ import { MESSAGE, type ServerMessage } from "../../server/protocol.ts";
 import { prepareControllerCannonPhase } from "../game/cannon-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import {
-  BANNER_BATTLE_ONLINE,
-  BANNER_REPAIR_ONLINE,
   capturePrevBattleScene,
   snapshotCastles,
   snapshotEntities,
@@ -176,6 +174,10 @@ export interface TransitionContext {
     prepare: () => boolean;
   };
 }
+
+/** Online-specific banner variants — shorter text for multi-player context. */
+const BANNER_BATTLE_ONLINE = "Battle!";
+const BANNER_REPAIR_ONLINE = "Repair!";
 
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
 export function handleCastleWallsTransition(

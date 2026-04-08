@@ -10,9 +10,6 @@ export const BANNER_BUILD_SUB = "Surround castles, repair walls";
 export const BANNER_UPGRADE_PICK = "Choose Upgrade";
 export const BANNER_UPGRADE_PICK_SUB = "Pick one upgrade per player";
 export const BANNER_SELECT = "Select your home castle";
-/** Online-specific variants — shorter text for multi-player context. */
-export const BANNER_BATTLE_ONLINE = "Battle!";
-export const BANNER_REPAIR_ONLINE = "Repair!";
 
 /** Pre-capture old battle scene into banner state before nextPhase/checkpoint
  *  mutates the game state.  Must be called while state.phase is still BATTLE.
