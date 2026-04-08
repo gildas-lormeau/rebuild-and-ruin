@@ -19,7 +19,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
   showModifierRevealBanner,
-} from "../game/phase-transition-steps.ts";
+} from "../runtime/runtime-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,

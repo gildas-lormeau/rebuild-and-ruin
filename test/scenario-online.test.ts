@@ -18,7 +18,7 @@ import {
   BATTLE_START_STEPS,
   executeTransition,
   showBattlePhaseBanner,
-} from "../src/game/phase-transition-steps.ts";
+} from "../src/runtime/runtime-transition-steps.ts";
 import { showBannerTransition } from "../src/runtime/runtime-banner.ts";
 import {
   assertPhase,

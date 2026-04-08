@@ -500,14 +500,14 @@ export function createSelectionSystem(
   }
 
   function finishReselection() {
-    selectionFacade.completeReselection({
-      state: runtimeState.state,
-      selectionStates: runtimeState.selection.states,
-      resetOverlaySelection,
-      reselectQueue: runtimeState.selection.reselectQueue,
-      reselectionPids: runtimeState.selection.reselectionPids,
-      finalizeAndAdvance,
-    });
+    runtimeState.selection.states.clear();
+    resetOverlaySelection();
+    runtimeState.selection.reselectQueue.length = 0;
+    selectionFacade.finalizeReselectedPlayers(
+      runtimeState.state,
+      runtimeState.selection.reselectionPids,
+    );
+    finalizeAndAdvance();
   }
 
   /** Full reset for game restart / rematch. Clears all selection, reselection,

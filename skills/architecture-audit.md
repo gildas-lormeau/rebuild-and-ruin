@@ -81,7 +81,7 @@ render/render-ui-screens, render/render-ui-settings, runtime/runtime-state
 ### 8. Handlers — L7 (16 files)
 ```
 ai/ai-build-score, ai/ai-strategy-cannon, game/dialog-facade, game/grunt-system,
-game/phase-transition-steps, input/input-keyboard, input/input-mouse,
+runtime/runtime-transition-steps, input/input-keyboard, input/input-mouse,
 input/input-touch-canvas, input/input-touch-ui, render/render-ui,
 runtime/dev-console, runtime/runtime-human, runtime/runtime-lobby,
 runtime/runtime-options, runtime/runtime-render, runtime/runtime-types

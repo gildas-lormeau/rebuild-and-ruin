@@ -21,7 +21,7 @@ import {
 } from "./game-engine.ts";
 import { BANNER_SELECT, snapshotEntities } from "./phase-banner.ts";
 import {
-  completeReselection,
+  finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
 } from "./phase-setup.ts";
@@ -46,7 +46,7 @@ export const selectionFacade = {
   enterCastleReselectPhase,
   snapshotAndFinalizeForCannonPhase,
   markPlayerReselected,
-  completeReselection,
+  finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
   allSelectionsConfirmed,

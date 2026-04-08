@@ -6,6 +6,7 @@
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
+import { aiPickUpgrade } from "./ai/ai-upgrade-pick.ts";
 import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
 import { createGameRuntime } from "./runtime/runtime.ts";
@@ -22,6 +23,7 @@ const emptySet = new Set<number>();
 const runtime = createGameRuntime({
   renderer,
   send: () => {},
+  aiPick: aiPickUpgrade,
   getIsHost: () => true,
   getMyPlayerId: () => SPECTATOR_SLOT,
   getRemoteHumanSlots: () => emptySet,

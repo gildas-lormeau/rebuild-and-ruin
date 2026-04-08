@@ -1,4 +1,3 @@
-import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { createEmptyFrameData } from "../shared/overlay-types.ts";
@@ -136,10 +135,14 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
 export function createRuntimeInputAdapters(params: {
   config: RuntimeConfig;
-  runtimeState: RuntimeState;
   isOnline: boolean;
+  localPlacePiece: (
+    ctrl: PlayerController & InputReceiver,
+    gameState: BuildViewState,
+  ) => boolean;
+  localFire: (ctrl: PlayerController, gameState: BattleViewState) => void;
 }): RuntimeInputAdapters {
-  const { config, runtimeState, isOnline } = params;
+  const { config, isOnline } = params;
   return {
     network: {
       isOnline,
@@ -147,12 +150,10 @@ export function createRuntimeInputAdapters(params: {
       tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
       tryPlacePieceAndSend:
         config.onlineConfig?.tryPlacePieceAndSend ??
-        ((ctrl, gameState) =>
-          phaseTickFacade.localPlacePiece(runtimeState.state, ctrl, gameState)),
+        ((ctrl, gameState) => params.localPlacePiece(ctrl, gameState)),
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
-        ((ctrl, gameState) =>
-          phaseTickFacade.localFire(runtimeState.state, ctrl, gameState)),
+        ((ctrl, gameState) => params.localFire(ctrl, gameState)),
       getIsHost: config.getIsHost,
     },
   };

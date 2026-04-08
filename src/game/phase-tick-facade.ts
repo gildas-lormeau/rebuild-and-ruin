@@ -41,19 +41,6 @@ import {
   enterBuildSkippingBattle,
   finalizeBuildPhase,
 } from "./phase-setup.ts";
-import {
-  BATTLE_START_STEPS,
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  gateUpgradePick,
-  NOOP_STEP,
-  runBuildEndSequence,
-  showBattlePhaseBanner,
-  showBuildPhaseBanner,
-  showCannonPhaseBanner,
-  showModifierRevealBanner,
-} from "./phase-transition-steps.ts";
 
 export const phaseTickFacade = {
   createCannonFiredMsg,
@@ -84,15 +71,4 @@ export const phaseTickFacade = {
   finalizeBuildPhase,
   prepareControllerCannonPhase,
   prepareCannonPhase,
-  BATTLE_START_STEPS,
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  gateUpgradePick,
-  NOOP_STEP,
-  runBuildEndSequence,
-  showBattlePhaseBanner,
-  showBuildPhaseBanner,
-  showCannonPhaseBanner,
-  showModifierRevealBanner,
 };

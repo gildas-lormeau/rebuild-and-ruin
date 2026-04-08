@@ -10,7 +10,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
 import { createDedupChannel } from "../src/shared/phantom-types.ts";
-import { runBuildEndSequence } from "../src/game/phase-transition-steps.ts";
+import { runBuildEndSequence } from "../src/runtime/runtime-transition-steps.ts";
 import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import type { GameMode } from "../src/shared/game-constants.ts";

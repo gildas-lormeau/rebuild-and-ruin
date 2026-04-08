@@ -11,7 +11,7 @@
  * Consumer files to update for a new modifier:
  *   - src/game/round-modifiers.ts — apply function (core mutation logic)
  *   - src/game/phase-setup.ts — applyBattleStartModifiers() dispatch
- *   - src/game/phase-transition-steps.ts — banner display
+ *   - src/runtime/runtime-transition-steps.ts — banner display
  *   - src/online/online-serialize.ts — serialization of modifier-specific state
  *   - src/online/online-checkpoints.ts — checkpoint data structures
  *   - src/online/online-phase-transitions.ts — watcher-side handling

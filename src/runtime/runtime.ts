@@ -10,7 +10,6 @@
  */
 
 import { MESSAGE } from "../../server/protocol.ts";
-import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -398,7 +397,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           config.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
     aiPick: (offers, playerId) =>
-      aiPickUpgrade(offers, runtimeState.state, playerId),
+      config.aiPick(offers, runtimeState.state, playerId),
   });
 
   // -------------------------------------------------------------------------
@@ -492,8 +491,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   };
   const inputAdapters = createRuntimeInputAdapters({
     config,
-    runtimeState,
     isOnline,
+    localPlacePiece: (ctrl, gameState) =>
+      phaseTickFacade.localPlacePiece(runtimeState.state, ctrl, gameState),
+    localFire: (ctrl, gameState) =>
+      phaseTickFacade.localFire(runtimeState.state, ctrl, gameState),
   });
   const optionsDeps = {
     runtimeState,

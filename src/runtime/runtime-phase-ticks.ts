@@ -66,6 +66,18 @@ import {
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
+import {
+  BATTLE_START_STEPS,
+  BUILD_START_STEPS,
+  CANNON_START_STEPS,
+  executeTransition,
+  gateUpgradePick,
+  NOOP_STEP,
+  runBuildEndSequence,
+  showBattlePhaseBanner,
+  showBuildPhaseBanner,
+  showCannonPhaseBanner,
+} from "./runtime-transition-steps.ts";
 import type {
   OnlineRuntimeConfig,
   RuntimeConfig,
@@ -198,12 +210,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.sound.drumsQuiet();
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
-    phaseTickFacade.executeTransition(phaseTickFacade.CANNON_START_STEPS, {
+    executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
           // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
           // executeTransition guarantees this ordering via CANNON_START_STEPS.
-          phaseTickFacade.showCannonPhaseBanner(deps.showBanner, onBannerDone);
+          showCannonPhaseBanner(deps.showBanner, onBannerDone);
         }
       },
       applyCheckpoint: () => {
@@ -247,20 +259,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       );
     }
     const showBannerAndEnterBuild = () => {
-      phaseTickFacade.executeTransition(phaseTickFacade.BUILD_START_STEPS, {
+      executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
-          phaseTickFacade.showBuildPhaseBanner(
+          showBuildPhaseBanner(
             deps.showBanner,
             phaseTickFacade.BANNER_BUILD,
             () => {
               setMode(runtimeState, Mode.GAME);
             },
           ),
-        applyCheckpoint: phaseTickFacade.NOOP_STEP,
+        applyCheckpoint: NOOP_STEP,
         initControllers: () => startBuildPhase(),
       });
     };
-    phaseTickFacade.gateUpgradePick(
+    gateUpgradePick(
       deps.showBanner,
       deps.tryShowUpgradePick,
       !!runtimeState.state.modern?.pendingUpgradeOffers,
@@ -297,13 +309,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     };
 
-    phaseTickFacade.executeTransition(phaseTickFacade.BATTLE_START_STEPS, {
+    executeTransition(BATTLE_START_STEPS, {
       showBanner: () => {
         // Always start with the battle banner — this captures prev-scene
         // state before applyCheckpoint mutates it.  If a modifier is rolled,
         // applyCheckpoint replaces the banner content (same frame, before
         // any rendering) so the user sees the modifier reveal first.
-        phaseTickFacade.showBattlePhaseBanner(
+        showBattlePhaseBanner(
           deps.showBanner,
           phaseTickFacade.BANNER_BATTLE,
           proceedToBattle,
@@ -319,7 +331,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           banner.text = diff.label;
           banner.subtitle = undefined;
           banner.callback = () => {
-            phaseTickFacade.showBattlePhaseBanner(
+            showBattlePhaseBanner(
               deps.showBanner,
               phaseTickFacade.BANNER_BATTLE,
               proceedToBattle,
@@ -745,7 +757,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
 
     // Life-lost dialog + score deltas
-    phaseTickFacade.runBuildEndSequence({
+    runBuildEndSequence({
       needsReselect,
       eliminated,
       showScoreDeltas: deps.scoreDelta.show,

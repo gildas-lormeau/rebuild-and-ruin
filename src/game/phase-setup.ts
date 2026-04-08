@@ -281,21 +281,13 @@ export function processReselectionQueue<
   return { remaining, needsUI };
 }
 
-/** Finish reselection — clear selection state, reset reselecting players, animate castles. */
-export function completeReselection(params: {
-  state: GameState;
-  selectionStates: Map<number, { highlighted: number; confirmed: boolean }>;
-  resetOverlaySelection: () => void;
-  reselectQueue: ValidPlayerSlot[];
-  reselectionPids: ValidPlayerSlot[];
-  finalizeAndAdvance: () => void;
-}): void {
-  const { state, selectionStates, resetOverlaySelection, reselectionPids } =
-    params;
-  selectionStates.clear();
-  resetOverlaySelection();
-  params.reselectQueue.length = 0;
-
+/** Finalize game state for reselected players — protect walls from debris
+ *  sweep and destroy houses under rebuilt castle walls.
+ *  Runtime caller is responsible for clearing its own selection/overlay state. */
+export function finalizeReselectedPlayers(
+  state: GameState,
+  reselectionPids: readonly ValidPlayerSlot[],
+): void {
   // The castle build animation already placed walls (including clumsy extras)
   // via addPlayerWall. Don't rebuild — just do cleanup.
   const pids = new Set(reselectionPids);
@@ -312,8 +304,6 @@ export function completeReselection(params: {
       }
     }
   }
-
-  params.finalizeAndAdvance();
 }
 
 /** Compute per-player score deltas from the build phase.

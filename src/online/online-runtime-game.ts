@@ -3,6 +3,7 @@ import {
   type InitMessage,
   MESSAGE,
 } from "../../server/protocol.ts";
+import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
 import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
@@ -91,6 +92,7 @@ const watcherTickCtx: WatcherTickContext = {
 const runtime: GameRuntime = createGameRuntime({
   renderer,
   send,
+  aiPick: aiPickUpgrade,
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
   getIsHost: () => ctx.session.isHost,
   getMyPlayerId: () => ctx.session.myPlayerId,

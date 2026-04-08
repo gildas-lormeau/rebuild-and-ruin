@@ -56,7 +56,6 @@
       "src/game/build-phase-helpers.ts",
       "src/game/life-lost.ts",
       "src/game/phase-banner.ts",
-      "src/game/phase-transition-steps.ts",
       "src/game/castle-build.ts",
       "src/game/upgrade-pick.ts",
       "src/game/bootstrap-facade.ts",
@@ -157,6 +156,7 @@
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-game-lifecycle.ts",
+      "src/runtime/runtime-transition-steps.ts",
       "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-render.ts",
@@ -201,6 +201,7 @@
     "online": [
       "shared",
       "game",
+      "ai",
       "render",
       "runtime"
     ],
@@ -219,6 +220,7 @@
     "entry": [
       "shared",
       "game",
+      "ai",
       "player",
       "input",
       "render",

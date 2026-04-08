@@ -33,6 +33,7 @@ const EXEMPT = new Set([
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-e2e-bridge.ts", // e2e test bridge, not a factory sub-system
+  "runtime-transition-steps.ts", // shared transition recipes, not a factory sub-system
 ]);
 
 /** Prefixes for runtime-layer file families that are not sub-systems. */
@@ -45,6 +46,7 @@ const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-bootstrap.ts", // consumed by runtime-selection
+  "./runtime-transition-steps.ts", // shared transition recipes
 ]);
 
 interface Violation {

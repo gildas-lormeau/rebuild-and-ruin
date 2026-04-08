@@ -1,5 +1,3 @@
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { BannerShow } from "../shared/ui-contracts.ts";
 import {
   BANNER_BATTLE_SUB,
   BANNER_BUILD_SUB,
@@ -7,7 +5,9 @@ import {
   BANNER_PLACE_CANNONS_SUB,
   BANNER_UPGRADE_PICK,
   BANNER_UPGRADE_PICK_SUB,
-} from "./phase-banner.ts";
+} from "../game/phase-banner.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { BannerShow } from "../shared/ui-contracts.ts";
 
 interface BuildEndSequenceDeps {
   readonly needsReselect: readonly ValidPlayerSlot[];

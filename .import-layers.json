@@ -119,7 +119,7 @@
       "src/ai/ai-strategy-cannon.ts",
       "src/game/dialog-facade.ts",
       "src/game/grunt-system.ts",
-      "src/game/phase-transition-steps.ts",
+      "src/runtime/runtime-transition-steps.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
