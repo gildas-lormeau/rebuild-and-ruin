@@ -21,7 +21,6 @@ import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
 import {
   beginHostBattle,
-  LOCAL_BATTLE_START_NET,
   startHostBattleLifecycle,
   tickHostBalloonAnim,
   tickHostBattleCountdown,
@@ -72,7 +71,6 @@ export const phaseTickFacade = {
   gruntAttackTowers,
   tickBreachSpawnQueue,
   beginHostBattle,
-  LOCAL_BATTLE_START_NET,
   startHostBattleLifecycle,
   tickHostBalloonAnim,
   tickHostBattleCountdown,

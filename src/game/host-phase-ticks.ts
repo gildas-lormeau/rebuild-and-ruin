@@ -2,21 +2,17 @@
  * Host-side tick functions for the cannon placement and wall build phases.
  *
  * Contains the pure tick logic (tickHostCannonPhase, tickHostBuildPhase)
- * consumed by runtime-phase-ticks.ts. Networking deps are optional so the
- * same functions serve both local and online play.
+ * consumed by runtime-phase-ticks.ts.
  *
- * Net destructuring convention (shared with runtime-host-battle-ticks.ts):
- *   const remoteHumanSlots = getRemoteSlots(deps.net);
- *   const sendXxx = deps.net?.sendXxx;          // optional send callbacks
- * Always destructure net at the top of each tick function for consistency.
- * Use isHostInContext(deps.net) inline — never cache in a local variable
- * (isHost is volatile during host promotion; see online-session.ts).
+ * Network-agnostic: callers pre-filter controllers into local vs remote
+ * arrays and provide optional callbacks for event broadcasting. The game
+ * domain has zero knowledge of host/watcher topology or remote human slots.
  *
  * PASS 1 / PASS 2 pattern (tickHostCannonPhase & tickHostBuildPhase):
- *   PASS 1 (per-frame): tick LOCAL controllers only — remote human placements arrive
- *     via network messages and are applied by the server-event handler, not here.
- *   PASS 2 (phase end): finalize ALL controllers for phase transition. The finalization
- *     method differs by role and phase — see CONTRAST comments inside each function.
+ *   PASS 1 (per-frame): tick `localControllers` only — remote human placements
+ *     arrive via network messages and are applied by the server-event handler.
+ *   PASS 2 (phase end): finalize controllers. The finalization method differs
+ *     by phase — see CONTRAST comments inside each function.
  */
 
 import { CannonMode } from "../shared/battle-types.ts";
@@ -29,7 +25,6 @@ import {
   type CannonPhantom,
   cannonPhantomKey,
   type DedupChannel,
-  filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
   type PiecePhantom,
   phantomWireMode,
@@ -41,11 +36,6 @@ import type { PlayerController } from "../shared/system-interfaces.ts";
 import {
   ACCUM_CANNON,
   advancePhaseTimer,
-  getRemoteSlots,
-  type HostNetContext,
-  isHostInContext,
-  isRemoteHuman,
-  localControllers,
   tickGruntsIfDue,
 } from "../shared/tick-context.ts";
 import {
@@ -85,27 +75,6 @@ export interface BuildEndPayload {
   players: SerializedPlayer[];
 }
 
-/** Networking context for the cannon placement phase.
- *  Optional (`net?`) — when omitted, the tick function runs in local-play mode
- *  with no-op networking (no broadcasts, no remote phantom merging). */
-interface CannonPhaseNet extends HostNetContext {
-  remoteCannonPhantoms: readonly CannonPhantom[];
-  lastSentCannonPhantom: DedupChannel;
-  sendOpponentCannonPlaced: (msg: CannonPlacedPayload) => void;
-  sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
-}
-
-/** Networking context for the wall build phase.
- *  Optional (`net?`) — when omitted, defaults to local-play no-ops. */
-interface BuildPhaseNet extends HostNetContext {
-  remotePiecePhantoms: readonly PiecePhantom[];
-  lastSentPiecePhantom: DedupChannel;
-  serializePlayers?: (state: GameState) => SerializedPlayer[];
-  sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
-  sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
-  sendBuildEnd: (msg: BuildEndPayload) => void;
-}
-
 interface HostFrame {
   phantoms: {
     cannonPhantoms?: CannonPhantom[];
@@ -119,11 +88,21 @@ interface TickHostCannonPhaseDeps {
   state: GameState;
   accum: { cannon: number };
   frame: HostFrame;
-  controllers: PlayerController[];
+  /** Pre-filtered to local controllers only (PASS 1: per-frame tick). */
+  localControllers: PlayerController[];
+  /** Remote controllers that get initCannons-only finalization (PASS 2). */
+  remoteControllers: PlayerController[];
   render: () => void;
   startBattle: () => void;
-  /** Network context. Pass LOCAL_NET (spread with cannon-phase stubs) for local play. */
-  net: CannonPhaseNet;
+  /** Optional: called when a local controller places a cannon. */
+  onCannonPlaced?: (msg: CannonPlacedPayload) => void;
+  /** Optional: called when a local controller produces a phantom.
+   *  Dedup is handled internally via lastSentCannonPhantom. */
+  onCannonPhantom?: (msg: CannonPhantomPayload) => void;
+  /** Remote cannon phantoms to merge into the frame (pre-filtered by caller). */
+  remoteCannonPhantoms?: readonly CannonPhantom[];
+  /** Dedup channel for phantom broadcasts. Defaults to no-op. */
+  lastSentCannonPhantom?: DedupChannel;
 }
 
 interface TickHostBuildPhaseDeps {
@@ -132,7 +111,10 @@ interface TickHostBuildPhaseDeps {
   banner: { wallsBeforeSweep?: Set<number>[]; prevEntities?: EntityOverlay };
   accum: { build: number; grunt: number };
   frame: HostFrame;
-  controllers: PlayerController[];
+  /** Pre-filtered to local controllers only (PASS 1: per-frame tick + PASS 2: finalize). */
+  localControllers: PlayerController[];
+  /** Full controller array indexed by player slot (for pid-keyed lookups like onLifeLost). */
+  allControllers: PlayerController[];
   render: () => void;
   tickGrunts: (state: GameState) => void;
   isHuman: (controller: PlayerController) => boolean;
@@ -147,8 +129,23 @@ interface TickHostBuildPhaseDeps {
   onLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
-  /** Network context. Pass LOCAL_NET (spread with build-phase stubs) for local play. */
-  net: BuildPhaseNet;
+  /** Whether a controller should NOT receive onLifeLost notification
+   *  (e.g. remote humans whose notifications arrive via network). */
+  shouldSkipLifeLostNotify?: (pid: ValidPlayerSlot) => boolean;
+  /** Optional: called when a local AI controller places walls. */
+  onPiecePlaced?: (msg: PiecePlacedPayload) => void;
+  /** Optional: called when a local controller produces a phantom. */
+  onPhantom?: (msg: PiecePhantomPayload) => void;
+  /** Whether this client should broadcast AI wall diffs (host only). */
+  shouldBroadcastWalls?: boolean;
+  /** Remote piece phantoms to merge into the frame (pre-filtered by caller). */
+  remotePiecePhantoms?: readonly PiecePhantom[];
+  /** Dedup channel for phantom broadcasts. Defaults to no-op. */
+  lastSentPiecePhantom?: DedupChannel;
+  /** Serialize players for the build-end checkpoint. */
+  serializePlayers?: (state: GameState) => SerializedPlayer[];
+  /** Optional: called at end of build phase with the build-end payload. */
+  onBuildEnd?: (msg: BuildEndPayload) => void;
 }
 
 /** Sentinel channel for local play — never blocks sends.
@@ -181,14 +178,17 @@ const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
  *   Using the wrong method corrupts state. Do NOT unify these two approaches.
  */
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
-  const { dt, state, accum, frame, controllers, render, startBattle } = deps;
-  // Networking defaults (no-op for local play)
-  const remoteHumanSlots = getRemoteSlots(deps.net);
-  const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
-  const lastSentCannonPhantom =
-    deps.net?.lastSentCannonPhantom ?? LOCAL_CHANNEL;
-  const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
-  const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
+  const {
+    dt,
+    state,
+    accum,
+    frame,
+    localControllers,
+    remoteControllers,
+    render,
+    startBattle,
+  } = deps;
+  const lastSentCannonPhantom = deps.lastSentCannonPhantom ?? LOCAL_CHANNEL;
 
   advancePhaseTimer(accum, ACCUM_CANNON, state, dt, state.cannonPlaceTimer);
 
@@ -198,23 +198,23 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   }
   frame.phantoms = { cannonPhantoms: [], defaultFacings };
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+  for (const ctrl of localControllers) {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
-    if (isHostInContext(deps.net) && sendOpponentCannonPlaced) {
+    if (deps.onCannonPlaced) {
       const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
       for (
         let cannonIdx = cannonsBefore;
         cannonIdx < cannonsAfter;
         cannonIdx++
       ) {
-        const c = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
-        sendOpponentCannonPlaced({
+        const cannon = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
+        deps.onCannonPlaced({
           playerId: ctrl.playerId,
-          row: c.row,
-          col: c.col,
-          mode: c.mode,
+          row: cannon.row,
+          col: cannon.col,
+          mode: cannon.mode,
         });
       }
     }
@@ -222,7 +222,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!phantom) continue;
 
     frame.phantoms.cannonPhantoms!.push(phantom);
-    if (!isHostInContext(deps.net) || !sendOpponentCannonPhantom) continue;
+    if (!deps.onCannonPhantom) continue;
 
     if (
       !lastSentCannonPhantom.shouldSend(
@@ -231,7 +231,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
       )
     )
       continue;
-    sendOpponentCannonPhantom({
+    deps.onCannonPhantom({
       playerId: ctrl.playerId,
       row: phantom.row,
       col: phantom.col,
@@ -240,18 +240,15 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     });
   }
 
+  // Merge remote phantoms (pre-filtered by caller)
+  const remoteCannonPhantoms = deps.remoteCannonPhantoms ?? [];
   if (remoteCannonPhantoms.length > 0) {
-    frame.phantoms.cannonPhantoms!.push(
-      ...filterAlivePhantoms(remoteCannonPhantoms, state.players).filter(
-        (player) => !isRemoteHuman(player.playerId, remoteHumanSlots),
-      ),
-    );
+    frame.phantoms.cannonPhantoms!.push(...remoteCannonPhantoms);
   }
 
   render();
 
-  const allDone = controllers.every((ctrl) => {
-    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) return true;
+  const allDone = localControllers.every((ctrl) => {
     const player = state.players[ctrl.playerId]!;
     if (player.eliminated) return true;
     const max = state.cannonLimits[player.id] ?? 0;
@@ -260,24 +257,22 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   if (state.timer > 0 && !allDone) return false;
 
-  // ── PASS 2: Finalize all controllers (including remote) for phase transition ──
-  // Controller finalization — LOAD-BEARING SPLIT (do not merge):
+  // ── PASS 2: Finalize all controllers for phase transition ──
+  // LOAD-BEARING SPLIT (do not merge):
   // Remote humans: call initCannons() only (their cannons were flushed client-side).
   // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
   // Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
   // double-flushes; initCannons on a local skips the flush entirely.
-  // CONTRAST with build finalization (finalizeBuildEnd, ~line 454): build skips remote
-  // humans entirely because bag state is re-initialized via startBuildPhase at the start
-  // of the next build phase. Cannon has no equivalent re-init step, so initCannons must
-  // run here explicitly.
+  // CONTRAST with build finalization: build skips remote humans entirely because bag
+  // state is re-initialized via startBuildPhase. Cannon has no equivalent re-init step.
   // NOTE: Intentionally includes eliminated players — they need cannon state
   // cleanup (flush + round-1 init) for potential castle reselection.
-  for (const ctrl of controllers) {
+  for (const ctrl of remoteControllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) {
-      ctrl.initCannons(state, max);
-      continue;
-    }
+    ctrl.initCannons(state, max);
+  }
+  for (const ctrl of localControllers) {
+    const max = state.cannonLimits[ctrl.playerId] ?? 0;
     ctrl.finalizeCannonPhase(state, max);
   }
 
@@ -299,9 +294,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
  *    Cannon: remote humans call initCannons() (no equivalent re-init step exists).
  *    Using the wrong method corrupts state. Do NOT unify these two approaches. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
-  const { dt, state, accum, frame, controllers, render } = deps;
-  // Networking defaults (no-op for local play)
-  const remoteHumanSlots = getRemoteSlots(deps.net);
+  const { dt, state, accum, frame, localControllers, render } = deps;
 
   // --- Timer + grunt tick ---
   const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
@@ -322,16 +315,19 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
 
   // --- Process each controller's build actions, collect phantoms ---
   frame.phantoms = { piecePhantoms: [] };
-  processControllerBuildActions(deps, frame, remoteHumanSlots);
+  processControllerBuildActions(deps, frame);
 
-  // --- Merge remote phantoms from non-host players ---
-  mergeRemotePiecePhantoms(frame, deps.net, remoteHumanSlots, state);
+  // --- Merge remote phantoms (pre-filtered by caller) ---
+  const remotePiecePhantoms = deps.remotePiecePhantoms ?? [];
+  if (remotePiecePhantoms.length > 0) {
+    frame.phantoms.piecePhantoms!.push(...remotePiecePhantoms);
+  }
 
   render();
   if (state.timer > 0) return false;
 
   // --- End of phase: finalize and handle life loss ---
-  finalizeBuildAndShowDialogs(deps, controllers, remoteHumanSlots);
+  finalizeBuildAndShowDialogs(deps, localControllers);
   return true;
 }
 
@@ -339,15 +335,12 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
 function processControllerBuildActions(
   deps: TickHostBuildPhaseDeps,
   frame: HostFrame,
-  remoteHumanSlots: ReadonlySet<number>,
 ): void {
-  const { state, dt, controllers } = deps;
-  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? LOCAL_CHANNEL;
-  const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
-  const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
+  const { state, dt, localControllers } = deps;
+  const lastSentPiecePhantom = deps.lastSentPiecePhantom ?? LOCAL_CHANNEL;
 
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+  for (const ctrl of localControllers) {
     // Master Builder lockout: skip non-owners during the exclusive window
     if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId];
@@ -359,21 +352,15 @@ function processControllerBuildActions(
       player,
       state,
       dt,
-      isHostInContext(deps.net) && !deps.isHuman(ctrl),
-      sendOpponentPiecePlaced,
+      !!deps.shouldBroadcastWalls && !deps.isHuman(ctrl),
+      deps.onPiecePlaced,
     );
 
     if (!hadInterior && getInterior(player).size > 0) {
       deps.onFirstEnclosure?.(ctrl.playerId);
     }
 
-    collectBuildPhantoms(
-      phantoms,
-      frame,
-      isHostInContext(deps.net),
-      lastSentPiecePhantom,
-      sendOpponentPhantom,
-    );
+    collectBuildPhantoms(phantoms, frame, lastSentPiecePhantom, deps.onPhantom);
   }
 }
 
@@ -386,7 +373,7 @@ function buildTickWithWallBroadcast(
   state: GameState,
   dt: number,
   shouldSnapshot: boolean,
-  sendOpponentPiecePlaced?: (msg: {
+  onPiecePlaced?: (msg: {
     playerId: ValidPlayerSlot;
     row: number;
     col: number;
@@ -395,32 +382,18 @@ function buildTickWithWallBroadcast(
 ): readonly (PiecePhantom & { valid?: boolean })[] {
   const wallSnapshot = shouldSnapshot ? new Set(player.walls) : null;
   const phantoms = ctrl.buildTick(state, dt);
-  if (wallSnapshot && sendOpponentPiecePlaced) {
-    broadcastNewWalls(
-      state,
-      ctrl.playerId,
-      wallSnapshot,
-      sendOpponentPiecePlaced,
-    );
+  if (wallSnapshot && onPiecePlaced) {
+    emitNewWalls(state, ctrl.playerId, wallSnapshot, onPiecePlaced);
   }
   return phantoms;
 }
 
-/** Collect build-phase phantoms into the frame and broadcast new ones to peers. */
+/** Collect build-phase phantoms into the frame and emit new ones via callback. */
 function collectBuildPhantoms(
   phantoms: readonly (PiecePhantom & { valid?: boolean })[],
   frame: HostFrame,
-  isHost: boolean,
   lastSentPiecePhantom: DedupChannel,
-  sendOpponentPhantom:
-    | ((msg: {
-        playerId: ValidPlayerSlot;
-        row: number;
-        col: number;
-        offsets: [number, number][];
-        valid: boolean;
-      }) => void)
-    | undefined,
+  onPhantom: ((msg: PiecePhantomPayload) => void) | undefined,
 ): void {
   for (const phantom of phantoms) {
     frame.phantoms.piecePhantoms!.push({
@@ -431,7 +404,7 @@ function collectBuildPhantoms(
       valid: phantom.valid ?? true,
     });
 
-    if (!isHost || !sendOpponentPhantom) continue;
+    if (!onPhantom) continue;
     if (
       !lastSentPiecePhantom.shouldSend(
         phantom.playerId,
@@ -439,7 +412,7 @@ function collectBuildPhantoms(
       )
     )
       continue;
-    sendOpponentPhantom({
+    onPhantom({
       playerId: phantom.playerId,
       row: phantom.row,
       col: phantom.col,
@@ -449,12 +422,12 @@ function collectBuildPhantoms(
   }
 }
 
-/** Detect walls added by an AI controller tick and broadcast them. */
-function broadcastNewWalls(
+/** Detect walls added by an AI controller tick and emit them via callback. */
+function emitNewWalls(
   state: GameState,
   playerId: ValidPlayerSlot,
   wallSnapshot: ReadonlySet<number>,
-  sendOpponentPiecePlaced: (msg: {
+  onPiecePlaced: (msg: {
     playerId: ValidPlayerSlot;
     row: number;
     col: number;
@@ -471,50 +444,27 @@ function broadcastNewWalls(
     }
   }
   if (offsets.length > 0) {
-    sendOpponentPiecePlaced({ playerId, ...PLACEHOLDER_ORIGIN, offsets });
+    onPiecePlaced({ playerId, ...PLACEHOLDER_ORIGIN, offsets });
   }
 }
 
-/** Add remote piece phantoms from non-host players into the frame. */
-function mergeRemotePiecePhantoms(
-  frame: HostFrame,
-  net: BuildPhaseNet | undefined,
-  remoteHumanSlots: ReadonlySet<number>,
-  state: GameState,
-): void {
-  const remotePiecePhantoms = net?.remotePiecePhantoms ?? [];
-  if (remotePiecePhantoms.length > 0) {
-    frame.phantoms.piecePhantoms!.push(
-      ...filterAlivePhantoms(remotePiecePhantoms, state.players).filter(
-        (player) => !isRemoteHuman(player.playerId, remoteHumanSlots),
-      ),
-    );
-  }
-}
-
-/** End build phase: finalize, broadcast, and show life-lost dialogs. */
+/** End build phase: finalize, emit build-end, and show life-lost dialogs. */
 function finalizeBuildAndShowDialogs(
   deps: TickHostBuildPhaseDeps,
-  controllers: readonly PlayerController[],
-  remoteHumanSlots: ReadonlySet<number>,
+  localControllers: readonly PlayerController[],
 ): void {
   const { state } = deps;
-  const serializePlayers = deps.net?.serializePlayers ?? (() => []);
-  const sendBuildEnd = deps.net?.sendBuildEnd;
+  const serializePlayers = deps.serializePlayers ?? (() => []);
 
-  // ── PASS 2: Finalize all controllers for phase transition ──
-  // Controller finalization — load-bearing split:
+  // ── PASS 2: Finalize local controllers for phase transition ──
   // Remote humans: skipped (their build was finalized client-side; bag state is
   // re-initialized at the start of the next build phase via startBuildPhase).
-  // Local controllers (AI + local human): call finalizeBuildPhase() which flushes then inits.
-  // Using the wrong method corrupts piece-bag state.
-  // CONTRAST with cannon finalization (~line 236): cannon calls initCannons() on remote
-  // humans because cannon state must be ready for the immediate battle transition —
-  // there is no "startCannonPhase" re-init step.
+  // Local controllers (AI + local human): call finalizeBuildPhase().
+  // CONTRAST with cannon finalization: cannon calls initCannons() on remote
+  // humans because cannon state must be ready for the immediate battle transition.
   // NOTE: Intentionally includes eliminated players — they need state cleanup
   // (bag/piece nulling) for potential castle reselection.
-  for (const ctrl of controllers) {
-    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+  for (const ctrl of localControllers) {
     ctrl.finalizeBuildPhase(state);
   }
 
@@ -525,8 +475,8 @@ function finalizeBuildAndShowDialogs(
     snapshotThenFinalize(state, deps.finalizeBuildPhase);
   deps.banner.wallsBeforeSweep = wallsBeforeSweep;
   deps.banner.prevEntities = prevEntities;
-  if (isHostInContext(deps.net) && sendBuildEnd) {
-    sendBuildEnd({
+  if (deps.onBuildEnd) {
+    deps.onBuildEnd({
       needsReselect,
       eliminated,
       scores: state.players.map((player) => player.score),
@@ -534,12 +484,13 @@ function finalizeBuildAndShowDialogs(
     });
   }
 
+  const shouldSkipNotify = deps.shouldSkipLifeLostNotify ?? (() => false);
   runBuildEndSequence({
     needsReselect,
     eliminated,
     showScoreDeltas: deps.showScoreDeltas,
     notifyLifeLost: (pid) => {
-      if (!isRemoteHuman(pid, remoteHumanSlots)) controllers[pid]!.onLifeLost();
+      if (!shouldSkipNotify(pid)) deps.allControllers[pid]!.onLifeLost();
     },
     showLifeLostDialog: deps.showLifeLostDialog,
     onLifeLostResolved: deps.onLifeLostResolved,

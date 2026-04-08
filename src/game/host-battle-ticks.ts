@@ -3,14 +3,16 @@
  *
  * Contains the pure tick logic (tickHostBattleCountdown, tickHostBattlePhase,
  * startHostBattleLifecycle, tickHostBalloonAnim, beginHostBattle) consumed by
- * runtime-phase-ticks.ts. Networking deps are optional so the same functions
- * serve both local and online play.
+ * runtime-phase-ticks.ts.
+ *
+ * Network-agnostic: callers pre-filter controllers and provide optional
+ * callbacks for event broadcasting. The game domain has zero knowledge of
+ * host/watcher topology or remote human slots.
  */
 
 import type {
   BattleEvent,
   CannonFiredMessage,
-  GameMessage,
   ImpactEvent,
 } from "../../server/protocol.ts";
 import type {
@@ -26,15 +28,7 @@ import type {
   BattleController,
   ControllerIdentity,
 } from "../shared/system-interfaces.ts";
-import {
-  advancePhaseTimer,
-  getRemoteSlots,
-  type HostNetContext,
-  isHostInContext,
-  isRemoteHuman,
-  localControllers,
-  type WatcherTimingState,
-} from "../shared/tick-context.ts";
+import { advancePhaseTimer } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import type { BannerState } from "../shared/ui-contracts.ts";
 import {
@@ -56,18 +50,10 @@ interface TickHostBattleCountdownDeps {
   dt: number;
   state: GameState;
   frame: { announcement?: string };
+  /** Pre-filtered to local controllers only. Remote controllers are not ticked. */
   controllers: BattleCapable[];
   syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
   render: () => void;
-  /** Network context. Pass LOCAL_NET for local play, full context for online. */
-  net: Pick<HostNetContext, "remoteHumanSlots">;
-}
-
-/** Networking context for the battle phase.
- *  Optional (`net?`) — when omitted, no fire events are broadcast and
- *  all controllers are treated as local. */
-interface BattlePhaseNet extends HostNetContext {
-  sendBattleEvent: (msg: GameMessage) => void;
 }
 
 interface TickHostBattlePhaseDeps {
@@ -75,7 +61,11 @@ interface TickHostBattlePhaseDeps {
   state: GameState;
   battleTimer: number;
   accum: { battle: number };
-  controllers: BattleCapable[];
+  /** Pre-filtered to local controllers only (PASS 1: per-frame tick). */
+  localControllers: BattleCapable[];
+  /** Pre-filtered to controllers that need end-of-battle cleanup
+   *  (local controllers only — remote humans are skipped). */
+  controllersToFinalize: BattleCapable[];
   battleAnim: { impacts: Impact[] };
   render: () => void;
   syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
@@ -89,17 +79,10 @@ interface TickHostBattlePhaseDeps {
   };
   onBattlePhaseEnded: () => void;
   onBattleEvents?: (events: ReadonlyArray<BattleEvent>) => void;
-  /** Network context. Pass LOCAL_NET (spread with sendBattleEvent no-op) for local play. */
-  net: BattlePhaseNet;
-}
-
-/** Networking context for starting battle. */
-interface BattleStartNet {
-  isHost: boolean;
-  sendBattleStart: (
-    flights: readonly BalloonFlight[],
-    modifierDiff: ModifierDiff | null,
-  ) => void;
+  /** Optional: broadcast a battle event to network peers.
+   *  Called per-event as they are generated (fire, tower, impact).
+   *  Omit for local play. */
+  broadcastEvent?: (evt: BattleEvent) => void;
 }
 
 interface StartHostBattleLifecycleDeps {
@@ -112,8 +95,11 @@ interface StartHostBattleLifecycleDeps {
   nextPhase: (state: GameState) => ModifierDiff | null;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
-  /** Network context. Pass LOCAL_BATTLE_START_NET for local play. */
-  net: BattleStartNet;
+  /** Optional: broadcast battle start to network peers. Omit for local play. */
+  sendBattleStart?: (
+    flights: readonly BalloonFlight[],
+    modifierDiff: ModifierDiff | null,
+  ) => void;
   /** When true, battle is skipped: game state is updated (enterBuildSkippingBattle)
    *  and onCeasefire is called instead of proceeding to battle. */
   ceasefireActive?: boolean;
@@ -130,37 +116,22 @@ interface TickHostBalloonAnimDeps {
   beginBattle: () => void;
 }
 
-/** Networking context for beginning battle. */
-interface BattleBeginNet extends HostNetContext {
-  watcherTiming: WatcherTimingState;
-}
-
 interface BeginHostBattleDeps {
   state: GameState;
+  /** Pre-filtered to local controllers only. */
   controllers: BattleCapable[];
   accum: { battle: number };
   battleCountdown: number;
   setModeGame: () => void;
-  /** Network context. Pass LOCAL_NET (spread with watcherTiming/now stubs) for local play. */
-  net: BattleBeginNet;
 }
-
-/** Local-play stub for BattleStartNet. No-op broadcast, always host. */
-export const LOCAL_BATTLE_START_NET: BattleStartNet = {
-  isHost: true,
-  sendBattleStart: () => {
-    /* no network in local play */
-  },
-};
 
 export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
 ): void {
   const { dt, state, frame, controllers, syncCrosshairs, render } = deps;
-  const remoteHumanSlots = getRemoteSlots(deps.net);
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+  for (const ctrl of controllers) {
     ctrl.battleTick(state, dt);
   }
 
@@ -180,17 +151,18 @@ export function tickHostBattleCountdown(
  *    4. Broadcast all events to network
  *  Events in each category are collected by comparing array lengths before/after.
  *
- *  Remote vs local dispatch:
- *    Per-frame: ticks LOCAL controllers only (remote crosshairs arrive via network).
- *    Fire events from local controllers are broadcast to remotes.
- *    All controllers (local + remote) contribute to grunt/tower event collection. */
+ *  Controller dispatch:
+ *    Per-frame: ticks `localControllers` only (caller pre-filters).
+ *    `controllersToFinalize` receive endBattle() at phase end.
+ *    Tower/cannonball events are collected from game state (not controllers). */
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
     dt,
     state,
     battleTimer,
     accum,
-    controllers,
+    localControllers,
+    controllersToFinalize,
     battleAnim,
     render,
     syncCrosshairs,
@@ -198,9 +170,8 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     tickCannonballsWithEvents,
     onBattlePhaseEnded,
     onBattleEvents,
+    broadcastEvent,
   } = deps;
-  const remoteHumanSlots = getRemoteSlots(deps.net);
-  const sendBattleEvent = deps.net?.sendBattleEvent;
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
@@ -212,21 +183,19 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const fireEvents = tickControllersAndCollectFires(
     state,
     dt,
-    controllers,
-    remoteHumanSlots,
-    isHostInContext(deps.net),
-    sendBattleEvent,
+    localControllers,
+    broadcastEvent,
   );
   const towerEvents = collectTowerEvents(state, dt);
-  if (isHostInContext(deps.net) && sendBattleEvent) {
-    for (const evt of towerEvents) sendBattleEvent(evt);
+  if (broadcastEvent) {
+    for (const evt of towerEvents) broadcastEvent(evt);
   }
   const impactEvents = tickCannonballsAndRecordImpacts(
     state,
     dt,
     battleAnim,
     tickCannonballsWithEvents,
-    sendBattleEvent,
+    broadcastEvent,
   );
 
   // Step 4: notify sound/haptics
@@ -242,8 +211,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   // NOTE: Intentionally includes eliminated players — they need battle state
   // cleanup (clear fire targets, etc.) for potential castle reselection.
-  for (const ctrl of controllers) {
-    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+  for (const ctrl of controllersToFinalize) {
     ctrl.endBattle();
   }
   onBattlePhaseEnded();
@@ -270,8 +238,6 @@ export function startHostBattleLifecycle(
     setModeBalloonAnim,
     beginBattle,
   } = deps;
-  const sendBattleStart = deps.net?.sendBattleStart;
-
   let flights: BalloonFlight[] = [];
   const activeModifier = state.modern?.activeModifier ?? null;
 
@@ -310,8 +276,7 @@ export function startHostBattleLifecycle(
       // are applied before the enclosure check picks targets.
       flights = resolveBalloons(state);
       battleAnim.impacts = [];
-      if (isHostInContext(deps.net) && sendBattleStart)
-        sendBattleStart(flights, diff);
+      deps.sendBattleStart?.(flights, diff);
     },
     snapshotForBanner: () => {
       const postTerritory = snapshotTerritory();
@@ -343,20 +308,13 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
 
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
-  const remoteHumanSlots = getRemoteSlots(deps.net);
 
-  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+  for (const ctrl of controllers) {
     ctrl.initBattleState(state);
   }
 
   state.battleCountdown = battleCountdown;
   accum.battle = 0;
-  if (!isHostInContext(deps.net) && deps.net) {
-    const { watcherTiming } = deps.net;
-    watcherTiming.countdownStartTime = performance.now();
-    watcherTiming.countdownDuration = battleCountdown;
-  }
-
   setModeGame();
 }
 
@@ -365,19 +323,17 @@ function tickControllersAndCollectFires(
   state: GameState,
   dt: number,
   controllers: readonly BattleCapable[],
-  remoteHumanSlots: ReadonlySet<number>,
-  isHost: boolean,
-  sendBattleEvent: ((msg: GameMessage) => void) | undefined,
+  broadcastEvent: ((evt: BattleEvent) => void) | undefined,
 ): CannonFiredMessage[] {
   const ballsBefore = state.cannonballs.length;
-  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+  for (const ctrl of controllers) {
     ctrl.battleTick(state, dt);
   }
   const fireEvents: CannonFiredMessage[] = [];
   for (let i = ballsBefore; i < state.cannonballs.length; i++) {
     const msg = createCannonFiredMsg(state.cannonballs[i]!);
     fireEvents.push(msg);
-    if (isHost && sendBattleEvent) sendBattleEvent(msg);
+    broadcastEvent?.(msg);
   }
   return fireEvents;
 }
@@ -388,15 +344,15 @@ function tickCannonballsAndRecordImpacts(
   dt: number,
   battleAnim: { impacts: Impact[] },
   tickCannonballsWithEvents: TickHostBattlePhaseDeps["tickCannonballsWithEvents"],
-  sendBattleEvent: ((msg: GameMessage) => void) | undefined,
+  broadcastEvent: ((evt: BattleEvent) => void) | undefined,
 ): ImpactEvent[] {
   const { impacts: newImpacts, events: impactEvents } =
     tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {
     battleAnim.impacts.push({ ...imp, age: 0 });
   }
-  if (sendBattleEvent) {
-    for (const evt of impactEvents) sendBattleEvent(evt);
+  if (broadcastEvent) {
+    for (const evt of impactEvents) broadcastEvent(evt);
   }
   return impactEvents;
 }

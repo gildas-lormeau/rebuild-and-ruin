@@ -14,7 +14,6 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "../shared/system-interfaces.ts";
-import { isRemoteHuman } from "../shared/tick-context.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
@@ -29,7 +28,9 @@ interface TickSelectionPhaseDeps {
   /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
   accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
-  remoteHumanSlots: ReadonlySet<number>;
+  /** Return true for controller slots that should be skipped during the
+   *  selection tick (e.g. remote human players whose input arrives via network). */
+  shouldSkipController: (pid: ValidPlayerSlot) => boolean;
   controllers: SelectionCapable[];
   render: () => void;
   confirmSelectionAndStartBuild: (
@@ -126,7 +127,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     myPlayerId,
     accum,
     selectionStates,
-    remoteHumanSlots,
+    shouldSkipController,
     controllers,
     render,
     confirmSelectionAndStartBuild,
@@ -179,7 +180,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   for (const [rawPid, selectionState] of selectionStates) {
     const pid = rawPid as ValidPlayerSlot;
     if (selectionState.confirmed) continue;
-    if (isRemoteHuman(pid, remoteHumanSlots)) continue;
+    if (shouldSkipController(pid)) continue;
 
     const towerBefore = state.players[pid]!.homeTower;
     if (controllers[pid]!.selectionTick(dt, state)) {

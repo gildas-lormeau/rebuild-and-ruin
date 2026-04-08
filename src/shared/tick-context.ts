@@ -50,7 +50,7 @@ import type { GameState } from "./types.ts";
 /** Base networking context shared by all phase ticks.
  *  VOLATILE: `isHost` can flip mid-session during host promotion.
  *  Always read inline — never cache in a local variable across ticks. */
-export interface HostNetContext {
+interface HostNetContext {
   remoteHumanSlots: ReadonlySet<number>;
   isHost: boolean;
 }
@@ -96,8 +96,6 @@ export interface WatcherTimingState {
   countdownDuration: number;
 }
 
-/** Empty set used as default when no remote players exist (local play). */
-const NO_REMOTE_SLOTS: ReadonlySet<number> = Object.freeze(new Set<number>());
 /** Timer accumulator key constants. */
 export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
 export const ACCUM_GRUNT = "grunt" satisfies keyof TimerAccums;
@@ -109,13 +107,6 @@ export const ACCUM_SELECT = "select" satisfies keyof TimerAccums;
 export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
   // eslint-disable-next-line no-restricted-syntax -- canonical implementation
   return net?.isHost ?? true;
-}
-
-/** Extract remote human slots from optional net context, defaulting to empty for local play. */
-export function getRemoteSlots(
-  net?: Pick<HostNetContext, "remoteHumanSlots">,
-): ReadonlySet<number> {
-  return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
 /** Advance a phase timer: accum += dt, state.timer = max - accum.

@@ -280,7 +280,7 @@ export function createSelectionSystem(
       myPlayerId: runtimeState.frameMeta.myPlayerId,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selection.states,
-      remoteHumanSlots,
+      shouldSkipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
       controllers: runtimeState.controllers,
       render: deps.render,
       confirmSelectionAndStartBuild: (pid, isReselect) =>

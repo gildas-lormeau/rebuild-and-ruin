@@ -1,12 +1,11 @@
 /**
  * Phase tick wrappers — thin glue between config/runtimeState and the imported
- * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
+ * tick functions from game/host-battle-ticks.ts, game/host-phase-ticks.ts.
  *
  * Network wiring convention:
- *   `net` is REQUIRED on all tick deps interfaces. For online play, pass the
- *   full networking context. For local play, pass LOCAL_BATTLE_START_NET or
- *   build the net object with no-op sends and empty remote slots.
- *   This prevents accidental omission — the compiler enforces the choice.
+ *   Game-domain tick functions are network-agnostic. This module pre-filters
+ *   controllers (local vs remote) and provides optional broadcast callbacks.
+ *   For local play the callbacks are omitted; for online they send to the wire.
  */
 
 import type {
@@ -23,7 +22,10 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
-import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
+import {
+  filterAlivePhantoms,
+  NOOP_DEDUP_CHANNEL,
+} from "../shared/phantom-types.ts";
 import {
   type HapticsSystem,
   isHuman,
@@ -34,8 +36,8 @@ import {
   ACCUM_CANNON,
   ACCUM_GRUNT,
   isRemoteHuman,
+  localControllers,
   resetAccum,
-  type WatcherTimingState,
 } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
@@ -117,14 +119,6 @@ export interface PhaseTicksSystem {
   tickGame: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
 }
-
-/** Zeroed watcher timing for local play (no server-driven phase timing). */
-const LOCAL_WATCHER_TIMING: WatcherTimingState = {
-  phaseStartTime: 0,
-  phaseDuration: 0,
-  countdownStartTime: 0,
-  countdownDuration: 0,
-};
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   if (deps.tickNonHost && !deps.hostNetworking) {
@@ -247,10 +241,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         setMode(runtimeState, Mode.BALLOON_ANIM);
       },
       beginBattle,
-      net: deps.hostNetworking
-        ? {
-            isHost: runtimeState.frameMeta.hostAtFrameStart,
-            sendBattleStart: (flights, diff) => {
+      sendBattleStart:
+        deps.hostNetworking && runtimeState.frameMeta.hostAtFrameStart
+          ? (flights, diff) => {
               deps.send(
                 deps.hostNetworking!.createBattleStartMessage(
                   runtimeState.state,
@@ -258,9 +251,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
                   diff,
                 ),
               );
-            },
-          }
-        : phaseTickFacade.LOCAL_BATTLE_START_NET,
+            }
+          : undefined,
       ceasefireActive: phaseTickFacade.isCeasefireActive(runtimeState.state),
       onCeasefire: () => {
         deps.log("ceasefire: skipping battle");
@@ -280,20 +272,21 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function beginBattle() {
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     phaseTickFacade.beginHostBattle({
       state: runtimeState.state,
-      controllers: runtimeState.controllers,
+      controllers: localControllers(runtimeState.controllers, remoteHumanSlots),
       accum: runtimeState.accum,
       battleCountdown: BATTLE_COUNTDOWN,
       setModeGame: () => {
         setMode(runtimeState, Mode.GAME);
       },
-      net: {
-        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
-        isHost: runtimeState.frameMeta.hostAtFrameStart,
-        watcherTiming: deps.watcherTiming ?? LOCAL_WATCHER_TIMING,
-      },
     });
+    // Watcher timing: record countdown start for non-host clients
+    if (!runtimeState.frameMeta.hostAtFrameStart && deps.watcherTiming) {
+      deps.watcherTiming.countdownStartTime = performance.now();
+      deps.watcherTiming.countdownDuration = BATTLE_COUNTDOWN;
+    }
     deps.onBeginBattle?.();
   }
 
@@ -323,45 +316,56 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function tickCannonPhase(dt: number): boolean {
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     return phaseTickFacade.tickHostCannonPhase({
       dt,
       state: runtimeState.state,
       accum: runtimeState.accum,
       frame: runtimeState.frame,
-      controllers: runtimeState.controllers,
+      localControllers: localControllers(
+        runtimeState.controllers,
+        remoteHumanSlots,
+      ),
+      remoteControllers: runtimeState.controllers.filter((ctrl) =>
+        isRemoteHuman(ctrl.playerId, remoteHumanSlots),
+      ),
       render: deps.render,
       startBattle,
-      net: {
-        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
-        isHost: runtimeState.frameMeta.hostAtFrameStart,
-        remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
-        lastSentCannonPhantom:
-          deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
-        sendOpponentCannonPlaced: deps.sendOpponentCannonPlaced,
-        sendOpponentCannonPhantom: deps.sendOpponentCannonPhantom,
-      },
+      onCannonPlaced: isHost ? deps.sendOpponentCannonPlaced : undefined,
+      onCannonPhantom: isHost ? deps.sendOpponentCannonPhantom : undefined,
+      remoteCannonPhantoms: filterAlivePhantoms(
+        deps.hostNetworking?.remoteCannonPhantoms() ?? [],
+        runtimeState.state.players,
+      ),
+      lastSentCannonPhantom:
+        deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
     });
   }
 
   function tickBattleCountdown(dt: number): void {
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     phaseTickFacade.tickHostBattleCountdown({
       dt,
       state: runtimeState.state,
       frame: runtimeState.frame,
-      controllers: runtimeState.controllers,
+      controllers: localControllers(runtimeState.controllers, remoteHumanSlots),
       syncCrosshairs,
       render: deps.render,
-      net: { remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots },
     });
   }
 
   function tickBattlePhase(dt: number): boolean {
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const isHost = runtimeState.frameMeta.hostAtFrameStart;
+    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
     return phaseTickFacade.tickHostBattlePhase({
       dt,
       state: runtimeState.state,
       battleTimer: BATTLE_TIMER,
       accum: runtimeState.accum,
-      controllers: runtimeState.controllers,
+      localControllers: local,
+      controllersToFinalize: local,
       battleAnim: runtimeState.battleAnim,
       render: deps.render,
       syncCrosshairs,
@@ -390,11 +394,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         phaseTickFacade.nextPhase(runtimeState.state);
         enterBuildViaUpgradePick();
       },
-      net: {
-        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
-        isHost: runtimeState.frameMeta.hostAtFrameStart,
-        sendBattleEvent: deps.send,
-      },
+      broadcastEvent: isHost ? deps.send : undefined,
     });
   }
 
@@ -403,13 +403,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       deps.render();
       return false;
     }
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     return phaseTickFacade.tickHostBuildPhase({
       dt,
       state: runtimeState.state,
       banner: runtimeState.banner,
       accum: runtimeState.accum,
       frame: runtimeState.frame,
-      controllers: runtimeState.controllers,
+      localControllers: localControllers(
+        runtimeState.controllers,
+        remoteHumanSlots,
+      ),
+      allControllers: runtimeState.controllers,
       render: deps.render,
       tickGrunts: (gameState: GameState) => {
         phaseTickFacade.tickBreachSpawnQueue(gameState);
@@ -424,17 +430,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       onLifeLostResolved: deps.lifeLost.onResolved,
       showScoreDeltas: deps.scoreDelta.show,
       onFirstEnclosure: deps.sound.chargeFanfare,
-      net: {
-        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
-        isHost: runtimeState.frameMeta.hostAtFrameStart,
-        remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
-        lastSentPiecePhantom:
-          deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
-        serializePlayers: deps.hostNetworking?.serializePlayers,
-        sendOpponentPiecePlaced: deps.sendOpponentPiecePlaced,
-        sendOpponentPhantom: deps.sendOpponentPhantom,
-        sendBuildEnd: deps.sendBuildEnd,
-      },
+      shouldSkipLifeLostNotify: (pid) => isRemoteHuman(pid, remoteHumanSlots),
+      shouldBroadcastWalls: isHost,
+      onPiecePlaced: isHost ? deps.sendOpponentPiecePlaced : undefined,
+      onPhantom: isHost ? deps.sendOpponentPhantom : undefined,
+      remotePiecePhantoms: filterAlivePhantoms(
+        deps.hostNetworking?.remotePiecePhantoms() ?? [],
+        runtimeState.state.players,
+      ),
+      lastSentPiecePhantom:
+        deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
+      serializePlayers: deps.hostNetworking?.serializePlayers,
+      onBuildEnd: isHost ? deps.sendBuildEnd : undefined,
     });
   }
 
