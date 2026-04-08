@@ -1,6 +1,5 @@
 import type { FullStateMessage, InitMessage } from "../../server/protocol.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
-import { GAME_CONTAINER_ACTIVE, navigateTo } from "../runtime/router.ts";
 import {
   bootstrapGame,
   initWaitingRoom,
@@ -8,6 +7,7 @@ import {
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
+import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/router.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
 import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";

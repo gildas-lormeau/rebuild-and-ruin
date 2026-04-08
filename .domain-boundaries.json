@@ -35,7 +35,8 @@
       "src/shared/input-action.ts",
       "src/shared/ui-contracts.ts",
       "server/protocol.ts",
-      "src/shared/feature-defs.ts"
+      "src/shared/feature-defs.ts",
+      "src/shared/router.ts"
     ],
     "game": [
       "src/game/cannon-system.ts",
@@ -142,7 +143,6 @@
       "server/room-manager.ts"
     ],
     "runtime": [
-      "src/runtime/router.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",

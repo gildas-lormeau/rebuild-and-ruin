@@ -5,7 +5,6 @@ import {
 } from "../../server/protocol.ts";
 import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
-import { GAME_EXIT_EVENT } from "../runtime/router.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
@@ -16,6 +15,7 @@ import {
 } from "../shared/game-constants.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { GAME_EXIT_EVENT } from "../shared/router.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { canvas } from "./online-dom.ts";

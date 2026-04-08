@@ -8,7 +8,7 @@
       "src/input/input.ts",
       "src/online/online-config.ts",
       "src/online/online-dom.ts",
-      "src/runtime/router.ts",
+      "src/shared/router.ts",
       "src/shared/canvas-layout.ts",
       "src/shared/feature-defs.ts",
       "src/shared/game-constants.ts",
