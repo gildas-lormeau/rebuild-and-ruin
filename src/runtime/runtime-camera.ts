@@ -98,7 +98,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
   const cachedZoneBounds: Map<
     number,
-    { viewport: Viewport; wallCount: number }
+    { viewport: Viewport; wallHash: number }
   > = new Map();
 
   const fullMapVp: Viewport = {
@@ -139,9 +139,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const pid = state.playerZones.indexOf(zoneId);
     const player = pid >= 0 ? state.players[pid] : undefined;
 
+    const hash = wallSetHash(player?.walls);
     const cached = cachedZoneBounds.get(zoneId);
-    if (cached && cached.wallCount === (player?.walls.size ?? 0))
-      return cached.viewport;
+    if (cached && cached.wallHash === hash) return cached.viewport;
 
     const { bounds, pad } = zoneTileBounds(
       zoneId,
@@ -158,10 +158,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       bounds.maxC,
       pad,
     );
-    cachedZoneBounds.set(zoneId, {
-      viewport: result,
-      wallCount: player?.walls.size ?? 0,
-    });
+    cachedZoneBounds.set(zoneId, { viewport: result, wallHash: hash });
     return result;
   }
 
@@ -680,4 +677,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     saveBattleCrosshair,
     resetBattleCrosshair,
   };
+}
+
+/** Cheap fingerprint for a wall set — count combined with sum of keys. */
+function wallSetHash(walls: ReadonlySet<number> | undefined): number {
+  if (!walls || walls.size === 0) return 0;
+  let sum = 0;
+  for (const key of walls) sum = (sum + key) | 0;
+  return (walls.size << 20) ^ sum;
 }

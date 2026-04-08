@@ -256,15 +256,18 @@ export function computeCardinalObstacleMask(
   return obstacles;
 }
 
-/** Return the player id that owns the zone at (row, col), or 0 if no owner found. */
+/** Return the player id that owns the zone at (row, col), or 0 if no owner found.
+ *  Uses playerZones (stable across elimination) rather than homeTower (nulled on elimination). */
 export function zoneOwnerIdAt(
-  state: GameViewState,
+  state: GameViewState & { readonly playerZones: readonly number[] },
   row: number,
   col: number,
 ): ValidPlayerSlot {
   const zone = state.map.zones[row]?.[col] ?? -1;
-  const owner = state.players.find((player) => player.homeTower?.zone === zone);
-  return owner?.id ?? (0 as ValidPlayerSlot);
+  for (let pid = 0; pid < state.playerZones.length; pid++) {
+    if (state.playerZones[pid] === zone) return pid as ValidPlayerSlot;
+  }
+  return 0 as ValidPlayerSlot;
 }
 
 export function hasTowerAt(

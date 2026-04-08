@@ -138,7 +138,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       onReselect: (players) => {
         runtimeState.selection.reselectQueue = [...players];
         deps.startReselection();
-        setMode(runtimeState, Mode.SELECTION);
       },
       onContinue: deps.advanceToCannonPhase,
     });

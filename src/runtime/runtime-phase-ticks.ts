@@ -448,6 +448,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // PASS 1: tick local controllers, collect placements + phantoms
     for (const ctrl of local) {
+      if (state.players[ctrl.playerId]?.eliminated) continue;
       const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
       const phantom = ctrl.cannonTick(state, dt);
 

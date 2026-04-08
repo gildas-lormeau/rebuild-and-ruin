@@ -95,7 +95,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       isSelectionReady: deps.isSelectionReady(),
       humanIsReselecting:
         pointer !== null &&
-        deps.runtimeState.selection.reselectQueue.includes(pointer.playerId),
+        deps.runtimeState.selection.reselectionPids.includes(pointer.playerId),
       hasPointerPlayer: pointer !== null,
       myPlayerId: deps.getMyPlayerId(),
       hostAtFrameStart: deps.getIsHost(),

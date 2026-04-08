@@ -213,6 +213,8 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.paused = false;
   runtimeState.speedMultiplier = 1;
   runtimeState.quit.pending = false;
+  runtimeState.quit.timer = 0;
+  runtimeState.quit.message = "";
   runtimeState.optionsUI.returnMode = null;
   runtimeState.inputTracking.directTouchActive = false;
 }

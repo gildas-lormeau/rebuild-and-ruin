@@ -28,6 +28,7 @@ import {
   hasPitAt,
   inBounds,
   isGrass,
+  isTowerTile,
   manhattanDistance,
   packTile,
 } from "../shared/spatial.ts";
@@ -97,6 +98,21 @@ export function getLiveTargetTower(
   if (!tower || grunt.targetTowerIdx === undefined) return null;
   if (!state.towerAlive[grunt.targetTowerIdx]!) return null;
   return { towerIndex: grunt.targetTowerIdx, tower };
+}
+
+export function adjacentLivingTowerIndex(
+  state: GameState,
+  row: number,
+  col: number,
+  deadZones?: ReadonlySet<number>,
+): number | null {
+  for (const [dr, dc] of DIRS_4) {
+    const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
+    if (towerIndex === null) continue;
+    if (deadZones?.has(state.map.towers[towerIndex]!.zone)) continue;
+    return towerIndex;
+  }
+  return null;
 }
 
 /**
@@ -215,22 +231,12 @@ export function isAdjacentToLivingTower(
   col: number,
   towerIndex: number,
 ): boolean {
-  return adjacentLivingTowerIndex(state, row, col) === towerIndex;
-}
-
-export function adjacentLivingTowerIndex(
-  state: GameState,
-  row: number,
-  col: number,
-  deadZones?: ReadonlySet<number>,
-): number | null {
+  if (!state.towerAlive[towerIndex]) return false;
+  const tower = state.map.towers[towerIndex]!;
   for (const [dr, dc] of DIRS_4) {
-    const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
-    if (towerIndex === null) continue;
-    if (deadZones?.has(state.map.towers[towerIndex]!.zone)) continue;
-    return towerIndex;
+    if (isTowerTile(tower, row + dr, col + dc)) return true;
   }
-  return null;
+  return false;
 }
 
 /**

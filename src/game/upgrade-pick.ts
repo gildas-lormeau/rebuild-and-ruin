@@ -85,7 +85,7 @@ export function tickUpgradePickDialog(
       if (entry.autoTimer >= autoDelay) {
         entry.choice = aiPick
           ? aiPick(entry.offers, entry.playerId)
-          : randomPickUpgrade(entry.offers);
+          : randomPickUpgrade(entry.offers, state);
       }
     }
   }

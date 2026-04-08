@@ -33,6 +33,7 @@ import {
   distanceToTower,
   inBounds,
   isGrass,
+  isTowerTile,
   isWater,
   manhattanDistance,
   packTile,
@@ -224,23 +225,38 @@ export function gruntAttackTowers(
       grunt.attackingWall = false;
     }
 
-    // Check if adjacent to an alive tower (skip eliminated players)
-    const adjacentTowerIndex = adjacentLivingTowerIndex(
-      state,
-      grunt.row,
-      grunt.col,
-      deadZones,
-    );
-    if (adjacentTowerIndex !== null) {
+    // Grunts with a locked target only attack that specific tower
+    let attackTarget: number | undefined;
+    if (
+      grunt.targetTowerIdx !== undefined &&
+      state.towerAlive[grunt.targetTowerIdx]
+    ) {
+      const towerZone = state.map.towers[grunt.targetTowerIdx]!.zone;
+      if (!deadZones.has(towerZone)) {
+        const tower = state.map.towers[grunt.targetTowerIdx]!;
+        for (const [dr, dc] of DIRS_4) {
+          if (isTowerTile(tower, grunt.row + dr, grunt.col + dc)) {
+            attackTarget = grunt.targetTowerIdx;
+            break;
+          }
+        }
+      }
+    } else if (grunt.targetTowerIdx === undefined) {
+      // Untargeted grunt — attack any adjacent living tower
+      attackTarget =
+        adjacentLivingTowerIndex(state, grunt.row, grunt.col, deadZones) ??
+        undefined;
+    }
+    if (attackTarget !== undefined) {
       if (tickGruntAttackTimer(grunt, dt)) {
-        state.towerAlive[adjacentTowerIndex] = false;
+        state.towerAlive[attackTarget] = false;
         events.push({
           type: BATTLE_MESSAGE.TOWER_KILLED,
-          towerIdx: adjacentTowerIndex,
+          towerIdx: attackTarget,
         });
       }
     } else {
-      // Reset timer if no longer adjacent to a tower
+      // Reset timer if no longer adjacent to attackable tower
       grunt.attackCountdown = undefined;
     }
   }

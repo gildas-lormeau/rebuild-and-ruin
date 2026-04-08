@@ -180,7 +180,8 @@ export function createUpgradePickSystem(
     if (!dialog) return SPECTATOR_SLOT;
     const myId = runtimeState.frameMeta.myPlayerId;
     const entry = dialog.entries.find(
-      (entry) => entry.playerId === myId && !entry.autoResolve,
+      (entry) =>
+        entry.playerId === myId && !entry.autoResolve && entry.choice === null,
     );
     return entry ? (entry.playerId as PlayerSlotId) : SPECTATOR_SLOT;
   }
