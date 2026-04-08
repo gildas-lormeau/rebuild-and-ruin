@@ -1,0 +1,65 @@
+{
+  "_description": "Maps each modifier to consumer files by role. lint-modifiers.ts verifies exhaustiveness. Modifiers with needsCheckpoint must declare checkpoint, serialize, and reapply consumers.",
+  "_roles": {
+    "apply": "Apply function that mutates game state when modifier fires",
+    "dispatch": "Phase-setup dispatch that calls the apply function at battle start",
+    "clear": "Clear function that reverts temporary tile state before next battle",
+    "reapply": "Reapply function that re-mutates map tiles on checkpoint restore",
+    "serialize": "Serializes modifier tile state for online sync",
+    "checkpoint": "Restores modifier tile state from checkpoint data",
+    "zoneReset": "Reverts modifier tiles when a zone resets after life loss"
+  },
+  "modifiers": {
+    "wildfire": {
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts"
+      }
+    },
+    "crumbling_walls": {
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts"
+      }
+    },
+    "grunt_surge": {
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts"
+      }
+    },
+    "frozen_river": {
+      "stateField": "frozenTiles",
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts",
+        "clear": "src/game/round-modifiers.ts",
+        "serialize": "src/online/online-serialize.ts",
+        "checkpoint": "src/online/online-checkpoints.ts"
+      }
+    },
+    "sinkhole": {
+      "stateField": "sinkholeTiles",
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts",
+        "reapply": "src/game/round-modifiers.ts",
+        "serialize": "src/online/online-serialize.ts",
+        "checkpoint": "src/online/online-checkpoints.ts",
+        "zoneReset": "src/game/phase-setup.ts"
+      }
+    },
+    "high_tide": {
+      "stateField": "highTideTiles",
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts",
+        "clear": "src/game/round-modifiers.ts",
+        "reapply": "src/game/round-modifiers.ts",
+        "serialize": "src/online/online-serialize.ts",
+        "checkpoint": "src/online/online-checkpoints.ts",
+        "zoneReset": "src/game/phase-setup.ts"
+      }
+    }
+  }
+}
