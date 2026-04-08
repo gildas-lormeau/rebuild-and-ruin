@@ -188,6 +188,10 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   // `fromFile` should now import it from `toFile`
   rewriteImports(project, fromFile, toFile, name);
 
+  // If fromFile still references the moved symbol (e.g. calls it), add an
+  // import pointing at the new location.
+  addBackImportIfStillUsed(fromFile, toFile, name);
+
   // If toFile already imported `name` from fromFile, remove that import
   cleanSelfImport(toFile, name);
 
@@ -561,6 +565,38 @@ function rewriteImports(
 
 function findNamedImport(imp: ImportDeclaration, name: string): ImportSpecifier | undefined {
   return imp.getNamedImports().find((n) => n.getName() === name);
+}
+
+/** If fromFile still references `symbolName` after removing its declaration,
+ *  add an import from toFile so the source file compiles. */
+function addBackImportIfStillUsed(fromFile: SourceFile, toFile: SourceFile, symbolName: string): void {
+  const stillUsed = fromFile
+    .getDescendantsOfKind(SyntaxKind.Identifier)
+    .some((id) => {
+      if (id.getText() !== symbolName) return false;
+      // Exclude property-access names (obj.foo) — those don't need an import
+      const parent = id.getParentIfKind(SyntaxKind.PropertyAccessExpression);
+      if (parent && parent.getNameNode() === id) return false;
+      return true;
+    });
+  if (!stillUsed) return;
+
+  const rawSpec = fromFile.getRelativePathAsModuleSpecifierTo(toFile);
+  const moduleSpec = rawSpec.endsWith(".ts") ? rawSpec : rawSpec + ".ts";
+
+  // Merge into existing import from toFile if present
+  const existing = fromFile
+    .getImportDeclarations()
+    .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === toFile.getFilePath());
+  if (existing) {
+    const alreadyImported = existing.getNamedImports().some((n) => n.getName() === symbolName);
+    if (!alreadyImported) existing.addNamedImport(symbolName);
+  } else {
+    fromFile.addImportDeclaration({
+      moduleSpecifier: moduleSpec,
+      namedImports: [symbolName],
+    });
+  }
 }
 
 function cleanSelfImport(file: SourceFile, symbolName: string): void {
