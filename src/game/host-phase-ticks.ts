@@ -56,25 +56,43 @@ import {
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-steps.ts";
 
+export interface CannonPlacedPayload {
+  playerId: ValidPlayerSlot;
+  row: number;
+  col: number;
+  mode: CannonMode;
+}
+
+export interface CannonPhantomPayload extends CannonPlacedPayload {
+  valid: boolean;
+}
+
+export interface PiecePlacedPayload {
+  playerId: ValidPlayerSlot;
+  row: number;
+  col: number;
+  offsets: [number, number][];
+}
+
+export interface PiecePhantomPayload extends PiecePlacedPayload {
+  valid: boolean;
+}
+
+export interface BuildEndPayload {
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
+  scores: number[];
+  players: SerializedPlayer[];
+}
+
 /** Networking context for the cannon placement phase.
  *  Optional (`net?`) — when omitted, the tick function runs in local-play mode
  *  with no-op networking (no broadcasts, no remote phantom merging). */
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
-  sendOpponentCannonPlaced: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    mode: CannonMode;
-  }) => void;
-  sendOpponentCannonPhantom: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    mode: CannonMode;
-    valid: boolean;
-  }) => void;
+  sendOpponentCannonPlaced: (msg: CannonPlacedPayload) => void;
+  sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
 }
 
 /** Networking context for the wall build phase.
@@ -83,25 +101,9 @@ interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
   serializePlayers?: (state: GameState) => SerializedPlayer[];
-  sendOpponentPiecePlaced: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-  }) => void;
-  sendOpponentPhantom: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-    valid: boolean;
-  }) => void;
-  sendBuildEnd: (msg: {
-    needsReselect: ValidPlayerSlot[];
-    eliminated: ValidPlayerSlot[];
-    scores: number[];
-    players: SerializedPlayer[];
-  }) => void;
+  sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
+  sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
+  sendBuildEnd: (msg: BuildEndPayload) => void;
 }
 
 interface HostFrame {

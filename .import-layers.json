@@ -169,6 +169,7 @@
     "name": "controllers",
     "files": [
       "src/ai/ai-strategy-build.ts",
+      "src/game/bootstrap-facade.ts",
       "src/game/dialog-facade.ts",
       "src/game/game-engine.ts",
       "src/game/host-battle-ticks.ts",

@@ -1,4 +1,4 @@
-import { applyGameConfig, createGameFromSeed } from "../game/game-engine.ts";
+import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { selectionFacade } from "../game/selection-facade.ts";
 import {
   createController,
@@ -172,12 +172,12 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   deps.resetUIState();
   deps.clearFrameData();
 
-  const { state, playerCount } = createGameFromSeed(
+  const { state, playerCount } = bootstrapFacade.createGameFromSeed(
     deps.seed,
     deps.maxPlayers,
     deps.existingMap,
   );
-  applyGameConfig(state, {
+  bootstrapFacade.applyGameConfig(state, {
     maxRounds: deps.maxRounds,
     cannonMaxHp: deps.cannonMaxHp,
     buildTimer: deps.buildTimer,

@@ -59,6 +59,7 @@
       "src/game/phase-transition-steps.ts",
       "src/game/castle-build.ts",
       "src/game/upgrade-pick.ts",
+      "src/game/bootstrap-facade.ts",
       "src/game/dialog-facade.ts",
       "src/game/selection-facade.ts",
       "src/game/phase-tick-facade.ts"

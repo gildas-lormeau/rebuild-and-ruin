@@ -9,7 +9,13 @@
  *   This prevents accidental omission — the compiler enforces the choice.
  */
 
-import type { BattleEvent, MsgPayload } from "../../server/protocol.ts";
+import type {
+  BuildEndPayload,
+  CannonPhantomPayload,
+  CannonPlacedPayload,
+  PiecePhantomPayload,
+  PiecePlacedPayload,
+} from "../game/phase-tick-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -61,12 +67,12 @@ interface PhaseTicksDeps
 
   // Pre-built message senders — protocol knowledge stays in composition root.
   // For local play these close over the config no-op send; for online they
-  // construct the typed GameMessage and send it over the wire.
-  sendOpponentCannonPlaced: (msg: MsgPayload<"opponentCannonPlaced">) => void;
-  sendOpponentCannonPhantom: (msg: MsgPayload<"opponentCannonPhantom">) => void;
-  sendOpponentPiecePlaced: (msg: MsgPayload<"opponentPiecePlaced">) => void;
-  sendOpponentPhantom: (msg: MsgPayload<"opponentPhantom">) => void;
-  sendBuildEnd: (msg: MsgPayload<"buildEnd">) => void;
+  // construct the typed message and send it over the wire.
+  sendOpponentCannonPlaced: (msg: CannonPlacedPayload) => void;
+  sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
+  sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
+  sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
+  sendBuildEnd: (msg: BuildEndPayload) => void;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -362,7 +368,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       syncCrosshairs,
       collectTowerEvents: phaseTickFacade.gruntAttackTowers,
       tickCannonballsWithEvents: phaseTickFacade.tickCannonballs,
-      onBattleEvents: (events: ReadonlyArray<BattleEvent>) => {
+      onBattleEvents: (events) => {
         const pov = runtimeState.frameMeta.povPlayerId;
         deps.haptics.battleEvents(events, pov);
         deps.sound.battleEvents(events, pov);

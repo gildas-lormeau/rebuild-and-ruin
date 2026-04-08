@@ -44,6 +44,14 @@ import {
   showCannonPhaseBanner,
 } from "./phase-transition-steps.ts";
 
+export type {
+  BuildEndPayload,
+  CannonPhantomPayload,
+  CannonPlacedPayload,
+  PiecePhantomPayload,
+  PiecePlacedPayload,
+} from "./host-phase-ticks.ts";
+
 export const phaseTickFacade = {
   ageImpacts,
   clearImpacts,
