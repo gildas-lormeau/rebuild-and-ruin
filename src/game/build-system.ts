@@ -356,9 +356,10 @@ function awardEndOfBuildPoints(
   territorySize: number,
 ): void {
   // Territory points (tiered by interior size)
+  const territoryMult = player.upgrades.get(UID.TERRITORIAL_AMBITION) ? 2 : 1;
   for (const [threshold, points] of TERRITORY_POINT_TIERS) {
     if (territorySize >= threshold) {
-      player.score += points;
+      player.score += points * territoryMult;
       break;
     }
   }

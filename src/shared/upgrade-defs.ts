@@ -21,7 +21,8 @@ export type UpgradeId =
   | "shield_battery"
   | "architect"
   | "double_time"
-  | "conscription";
+  | "conscription"
+  | "territorial_ambition";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -82,6 +83,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   ARCHITECT: "architect",
   DOUBLE_TIME: "double_time",
   CONSCRIPTION: "conscription",
+  TERRITORIAL_AMBITION: "territorial_ambition",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -187,6 +189,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     implemented: true,
   },
   // Strategic
+  {
+    id: "territorial_ambition",
+    label: "Territorial Ambition",
+    description: "Territory points doubled at end of build",
+    category: STRATEGIC,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: false,
+    implemented: true,
+  },
   {
     id: "conscription",
     label: "Conscription",
