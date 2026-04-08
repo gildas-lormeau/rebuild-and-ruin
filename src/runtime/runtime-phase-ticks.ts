@@ -28,7 +28,6 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import { modifierDef } from "../shared/modifier-defs.ts";
 import type { PlayerStats } from "../shared/overlay-types.ts";
 import type {
   BuildEndPayload,
@@ -285,7 +284,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
 
     let flights: BalloonFlight[] = [];
-    const activeModifier = state.modern?.activeModifier ?? null;
 
     const proceedToBattle = () => {
       if (flights.length > 0) {
@@ -301,29 +299,33 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     phaseTickFacade.executeTransition(phaseTickFacade.BATTLE_START_STEPS, {
       showBanner: () => {
-        if (activeModifier) {
-          phaseTickFacade.showModifierRevealBanner(
-            deps.showBanner,
-            modifierDef(activeModifier).label,
-            () => {
-              phaseTickFacade.showBattlePhaseBanner(
-                deps.showBanner,
-                phaseTickFacade.BANNER_BATTLE,
-                proceedToBattle,
-              );
-            },
-          );
-        } else {
-          phaseTickFacade.showBattlePhaseBanner(
-            deps.showBanner,
-            phaseTickFacade.BANNER_BATTLE,
-            proceedToBattle,
-          );
-        }
+        // Always start with the battle banner — this captures prev-scene
+        // state before applyCheckpoint mutates it.  If a modifier is rolled,
+        // applyCheckpoint replaces the banner content (same frame, before
+        // any rendering) so the user sees the modifier reveal first.
+        phaseTickFacade.showBattlePhaseBanner(
+          deps.showBanner,
+          phaseTickFacade.BANNER_BATTLE,
+          proceedToBattle,
+        );
       },
       applyCheckpoint: () => {
         const diff = phaseTickFacade.enterBattleFromCannon(state);
-        if (diff) banner.modifierDiff = diff;
+        if (diff) {
+          // Modifier rolled — replace the banner with the modifier reveal,
+          // then chain the battle banner as follow-up.  All in the same frame
+          // before any rendering, so the user only ever sees the correct text.
+          banner.modifierDiff = diff;
+          banner.text = diff.label;
+          banner.subtitle = undefined;
+          banner.callback = () => {
+            phaseTickFacade.showBattlePhaseBanner(
+              deps.showBanner,
+              phaseTickFacade.BANNER_BATTLE,
+              proceedToBattle,
+            );
+          };
+        }
         // Resolve balloons AFTER enterBattleFromCannon so modifiers
         // (crumbling walls, etc.) are applied before the enclosure check picks targets.
         flights = phaseTickFacade.resolveBalloons(state);
