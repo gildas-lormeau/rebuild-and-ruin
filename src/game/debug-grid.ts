@@ -67,6 +67,8 @@ export function buildGrid(
   for (const player of state.players) {
     if (player.eliminated) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
+    // Intentionally reads player.interior directly (no getInterior) —
+    // debug grid must work during battle when interior is stale by design.
     for (const key of player.interior) {
       const { r, c } = unpackTile(key);
       setCell(grid, r, c, CellKind.Interior, "░", player.id);

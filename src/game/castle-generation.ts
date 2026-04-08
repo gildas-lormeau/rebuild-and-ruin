@@ -163,9 +163,12 @@ export function createCastle(
   ];
 
   // Phase 2: Start with ideal gaps, shrink where wall ring is invalid
-  const initial: Gaps = ALL_SIDES.map((side) =>
-    Math.min(IDEAL_GAP, quickMax[side]),
-  ) as unknown as Gaps;
+  const initial: Gaps = [
+    Math.min(IDEAL_GAP, quickMax[Side.L]),
+    Math.min(IDEAL_GAP, quickMax[Side.R]),
+    Math.min(IDEAL_GAP, quickMax[Side.T]),
+    Math.min(IDEAL_GAP, quickMax[Side.B]),
+  ];
 
   const gaps = shrinkGapsUntilValid(isWallRingValid, initial);
 

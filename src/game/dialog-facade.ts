@@ -6,7 +6,6 @@
  * individual game/ files.
  */
 
-import { createBannerState } from "../shared/ui-contracts.ts";
 import {
   applyLifeLostChoice,
   confirmLifeLostFocusedChoice,
@@ -46,7 +45,6 @@ export const dialogFacade = {
   resolveUpgradePickEntry,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
-  createBannerState,
   snapshotCastles,
   snapshotEntities,
 };

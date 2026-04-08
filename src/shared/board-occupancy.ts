@@ -45,11 +45,8 @@ export const HOUSE_SPAWN_BLOCKED = {
   includePits: true,
 } as const;
 
-export function isTileOwnedByPlayer(
-  player: Pick<Player, "id" | "interior" | "walls">,
-  key: number,
-): boolean {
-  assertInteriorFresh(player as Player);
+export function isTileOwnedByPlayer(player: Player, key: number): boolean {
+  assertInteriorFresh(player);
   return player.interior.has(key) || player.walls.has(key);
 }
 

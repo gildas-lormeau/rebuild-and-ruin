@@ -9,16 +9,13 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
-import type {
-  BuildEndPayload,
-  CannonPhantomPayload,
-  CannonPlacedPayload,
-  PiecePhantomPayload,
-  PiecePlacedPayload,
-} from "../game/phase-tick-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
-import { ageImpacts, type BalloonFlight } from "../shared/battle-types.ts";
-import { getInterior } from "../shared/board-occupancy.ts";
+import {
+  ageImpacts,
+  type BalloonFlight,
+  clearImpacts,
+} from "../shared/battle-types.ts";
+import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -26,7 +23,15 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
 import type { PlayerStats } from "../shared/overlay-types.ts";
+import type {
+  BuildEndPayload,
+  CannonPhantomPayload,
+  CannonPlacedPayload,
+  PiecePhantomPayload,
+  PiecePlacedPayload,
+} from "../shared/phantom-types.ts";
 import {
   cannonPhantomKey,
   filterAlivePhantoms,
@@ -269,7 +274,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         if (activeModifier) {
           phaseTickFacade.showModifierRevealBanner(
             deps.showBanner,
-            phaseTickFacade.modifierDef(activeModifier).label,
+            modifierDef(activeModifier).label,
             () => {
               phaseTickFacade.showBattlePhaseBanner(
                 deps.showBanner,
@@ -301,7 +306,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       snapshotForBanner: () => {
         const postTerritory = deps.snapshotTerritory();
-        const postWalls = phaseTickFacade.snapshotAllWalls(state);
+        const postWalls = snapshotAllWalls(state);
         battleAnim.territory = postTerritory;
         battleAnim.walls = postWalls;
         banner.newTerritory = postTerritory;
@@ -360,7 +365,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         isRemoteHuman(pid, remoteHumanSlots) ||
         !!runtimeState.state.players[pid]?.eliminated,
     );
-    phaseTickFacade.clearImpacts(runtimeState.battleAnim);
+    clearImpacts(runtimeState.battleAnim);
     resetAccum(runtimeState.accum, ACCUM_GRUNT);
     resetAccum(runtimeState.accum, ACCUM_BUILD);
   }

@@ -52,11 +52,8 @@ const CANNON_SNAP_RADIUS = 2;
  *    3. isCannonEnclosed()   — reads the freshly computed interior
  *  Skipping step 2 is caught by assertInteriorFresh() at runtime when
  *  epoch tracking is active (all production code paths call markWallsDirty). */
-export function isCannonEnclosed(
-  cannon: Cannon,
-  player: Pick<Player, "id" | "interior">,
-): boolean {
-  assertInteriorFresh(player as Player);
+export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
+  assertInteriorFresh(player);
   const { interior } = player;
   const sz = cannonSize(cannon.mode);
   for (let dr = 0; dr < sz; dr++) {

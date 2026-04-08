@@ -25,7 +25,7 @@ import {
   type ModifierDiff,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   eliminatePlayer,
@@ -38,7 +38,6 @@ import {
   isBalloonCannon,
   packTile,
   setGrass,
-  towerCenterPx,
   unpackTile,
 } from "../shared/spatial.ts";
 import type {
@@ -104,8 +103,6 @@ interface ScoreDelta {
   playerId: ValidPlayerSlot;
   delta: number;
   total: number;
-  cx: number;
-  cy: number;
 }
 
 /** Grunts spawned per player on first battle when nobody fires. */
@@ -404,7 +401,7 @@ export function completeReselection(params: {
   state: GameState;
   selectionStates: Map<number, { highlighted: number; confirmed: boolean }>;
   resetOverlaySelection: () => void;
-  reselectQueue: { length: number };
+  reselectQueue: ValidPlayerSlot[];
   reselectionPids: ValidPlayerSlot[];
   finalizeAndAdvance: () => void;
 }): void {
@@ -412,7 +409,7 @@ export function completeReselection(params: {
     params;
   selectionStates.clear();
   resetOverlaySelection();
-  (params.reselectQueue as number[]).length = 0;
+  params.reselectQueue.length = 0;
 
   // The castle build animation already placed walls (including clumsy extras)
   // via addPlayerWall. Don't rebuild — just do cleanup.
@@ -435,24 +432,18 @@ export function completeReselection(params: {
 }
 
 /** Compute per-player score deltas from the build phase.
- *  Returns only positive deltas for non-eliminated players,
- *  positioned just above each player's home tower. */
+ *  Returns only positive deltas for non-eliminated players.
+ *  Callers add pixel positions for rendering (see runtime-score-deltas.ts). */
 export function computeScoreDeltas(
   players: GameState["players"],
   preScores: readonly number[],
 ): ScoreDelta[] {
   return players
-    .map((player, idx) => {
-      const homeTower = player.homeTower;
-      const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
-      return {
-        playerId: idx as ValidPlayerSlot,
-        delta: player.score - (preScores[idx] ?? 0),
-        total: player.score,
-        cx: px.x,
-        cy: px.y - TILE_SIZE,
-      };
-    })
+    .map((player, idx) => ({
+      playerId: idx as ValidPlayerSlot,
+      delta: player.score - (preScores[idx] ?? 0),
+      total: player.score,
+    }))
     .filter((entry) => entry.delta > 0 && !players[entry.playerId]!.eliminated);
 }
 
@@ -620,53 +611,29 @@ function decayBurningPits(state: GameState): void {
 function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
   if (!mod) return null;
+  const { label } = modifierDef(mod);
   if (mod === MODIFIER_ID.WILDFIRE) {
     const scar = applyWildfire(state);
     recheckTerritoryOnly(state);
-    return {
-      id: mod,
-      label: "Wildfire",
-      changedTiles: [...scar],
-      gruntsSpawned: 0,
-    };
+    return { id: mod, label, changedTiles: [...scar], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.CRUMBLING_WALLS) {
     const destroyed = applyCrumblingWalls(state);
     recheckTerritoryOnly(state);
-    return {
-      id: mod,
-      label: "Crumbling Walls",
-      changedTiles: destroyed,
-      gruntsSpawned: 0,
-    };
+    return { id: mod, label, changedTiles: destroyed, gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.GRUNT_SURGE) {
     const count = applyGruntSurge(state);
-    return {
-      id: mod,
-      label: "Grunt Surge",
-      changedTiles: [],
-      gruntsSpawned: count,
-    };
+    return { id: mod, label, changedTiles: [], gruntsSpawned: count };
   }
   if (mod === MODIFIER_ID.FROZEN_RIVER) {
     const frozen = applyFrozenRiver(state);
-    return {
-      id: mod,
-      label: "Frozen River",
-      changedTiles: [...frozen],
-      gruntsSpawned: 0,
-    };
+    return { id: mod, label, changedTiles: [...frozen], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.SINKHOLE) {
     const sunk = applySinkhole(state);
     recheckTerritoryOnly(state);
-    return {
-      id: mod,
-      label: "Sinkhole",
-      changedTiles: [...sunk],
-      gruntsSpawned: 0,
-    };
+    return { id: mod, label, changedTiles: [...sunk], gruntsSpawned: 0 };
   }
   return null;
 }

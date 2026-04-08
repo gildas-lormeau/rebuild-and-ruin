@@ -6,9 +6,6 @@
  * individual game/ files.
  */
 
-import { clearImpacts } from "../shared/battle-types.ts";
-import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { modifierDef } from "../shared/modifier-defs.ts";
 import {
   collectLocalCrosshairs,
   resolveBalloons,
@@ -60,16 +57,7 @@ import {
   showModifierRevealBanner,
 } from "./phase-transition-steps.ts";
 
-export type {
-  BuildEndPayload,
-  CannonPhantomPayload,
-  CannonPlacedPayload,
-  PiecePhantomPayload,
-  PiecePlacedPayload,
-} from "../shared/phantom-types.ts";
-
 export const phaseTickFacade = {
-  clearImpacts,
   collectLocalCrosshairs,
   resolveBalloons,
   snapshotTerritory,
@@ -85,8 +73,6 @@ export const phaseTickFacade = {
   advanceBattleCountdown,
   collectBattleFrameEvents,
   initBattleControllers,
-  snapshotAllWalls,
-  modifierDef,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
   buildTimerMax,

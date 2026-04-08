@@ -512,10 +512,7 @@ function territoryBonusSquarePoints(territorySize: number): number {
 }
 
 /** Check if all tiles in a tower's footprint are owned by the given player. */
-function isTowerOwnedByPlayer(
-  tower: TilePos,
-  player: Pick<Player, "id" | "interior" | "walls">,
-): boolean {
+function isTowerOwnedByPlayer(tower: TilePos, player: Player): boolean {
   // Towers occupy a TOWER_SIZE×TOWER_SIZE footprint — check all tiles
   for (let dr = 0; dr < TOWER_SIZE; dr++) {
     for (let dc = 0; dc < TOWER_SIZE; dc++) {
