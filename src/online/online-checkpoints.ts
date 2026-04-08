@@ -1,6 +1,9 @@
 import { resetCannonFacings } from "../game/cannon-system.ts";
 import { createComboTracker, isCombosEnabled } from "../game/combo-system.ts";
-import { reapplySinkholeTiles } from "../game/round-modifiers.ts";
+import {
+  reapplyHighTideTiles,
+  reapplySinkholeTiles,
+} from "../game/round-modifiers.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,
@@ -76,18 +79,8 @@ export function applyCannonStartCheckpoint(
   deps.state.salvageSlots =
     data.salvageSlots ?? deps.state.players.map(() => 0);
   deps.state.timer = data.timer;
-  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
-    row: entry.row,
-    col: entry.col,
-    victimPlayerId: entry.victimPlayerId,
-  }));
-  // Restore sinkhole tiles (permanent map mutations from prior rounds)
-  if (hasFeature(deps.state, FID.MODIFIERS)) {
-    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
-      ? new Set(data.sinkholeTiles)
-      : null;
-    reapplySinkholeTiles(deps.state);
-  }
+  restoreSpawnQueue(deps.state, data);
+  restoreModifierTileState(deps.state, data);
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
@@ -112,22 +105,8 @@ export function applyBattleStartCheckpoint(
   deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   applyCapturedCannons(deps.state, data.capturedCannons);
-  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
-    row: entry.row,
-    col: entry.col,
-    victimPlayerId: entry.victimPlayerId,
-  }));
-
-  // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
-  if (hasFeature(deps.state, FID.MODIFIERS)) {
-    deps.state.modern!.frozenTiles = data.frozenTiles
-      ? new Set(data.frozenTiles)
-      : null;
-    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
-      ? new Set(data.sinkholeTiles)
-      : null;
-    reapplySinkholeTiles(deps.state);
-  }
+  restoreSpawnQueue(deps.state, data);
+  restoreModifierTileState(deps.state, data);
 
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
@@ -160,14 +139,7 @@ export function applyBuildStartCheckpoint(
   if (hasFeature(deps.state, FID.MODIFIERS)) {
     // Modifier is rolled at battle start now — clear it for the build phase
     deps.state.modern!.activeModifier = null;
-    // Frozen river persists through build phase (thawed at next battle start)
-    deps.state.modern!.frozenTiles = data.frozenTiles
-      ? new Set(data.frozenTiles)
-      : null;
-    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
-      ? new Set(data.sinkholeTiles)
-      : null;
-    reapplySinkholeTiles(deps.state);
+    restoreModifierTileState(deps.state, data);
   }
   if (hasFeature(deps.state, FID.UPGRADES)) {
     deps.state.modern!.pendingUpgradeOffers = data.pendingUpgradeOffers
@@ -234,6 +206,50 @@ function applyCommonCheckpoint(
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;
+}
+
+function restoreSpawnQueue(
+  state: GameState,
+  data: {
+    gruntSpawnQueue?: {
+      row: number;
+      col: number;
+      victimPlayerId: ValidPlayerSlot;
+    }[];
+  },
+): void {
+  state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
+    row: entry.row,
+    col: entry.col,
+    victimPlayerId: entry.victimPlayerId,
+  }));
+}
+
+/** Restore tile-mutating modifier state from checkpoint data.
+ *  Handles frozenTiles (optional), highTideTiles, and sinkholeTiles.
+ *  Calls reapply functions to re-mutate the map tiles (which are regenerated from seed). */
+function restoreModifierTileState(
+  state: GameState,
+  data: {
+    frozenTiles?: number[] | null;
+    highTideTiles?: number[] | null;
+    sinkholeTiles?: number[] | null;
+  },
+): void {
+  if (!hasFeature(state, FID.MODIFIERS)) return;
+  if ("frozenTiles" in data) {
+    state.modern!.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
+  }
+  state.modern!.highTideTiles = data.highTideTiles
+    ? new Set(data.highTideTiles)
+    : null;
+  state.modern!.sinkholeTiles = data.sinkholeTiles
+    ? new Set(data.sinkholeTiles)
+    : null;
+  reapplyHighTideTiles(state);
+  reapplySinkholeTiles(state);
 }
 
 /** Clear in-flight cannonballs and visual impacts.

@@ -32,6 +32,12 @@ interface ModifierDef {
   readonly weight: number;
   /** Whether gameplay code exists for this modifier. */
   readonly implemented: boolean;
+  /** Whether this modifier stores tile state that must be serialized in
+   *  checkpoints, restored via reapply on join/reconnect, and reverted
+   *  on zone reset. When true, ensure matching entries in:
+   *  online-checkpoints.ts (restore), online-serialize.ts (serialize),
+   *  phase-setup.ts resetZoneState (cleanup). */
+  readonly needsCheckpoint: boolean;
 }
 
 /** Compile-time exhaustiveness: every ModifierId must appear in the pool.
@@ -49,6 +55,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
       "Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares",
     weight: 3,
     implemented: true,
+    needsCheckpoint: false,
   },
   {
     id: "crumbling_walls",
@@ -56,6 +63,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     description: "Destroys 15-20% of outer walls, protects castle walls",
     weight: 3,
     implemented: true,
+    needsCheckpoint: false,
   },
   {
     id: "grunt_surge",
@@ -63,6 +71,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     description: "Spawns 6-10 extra grunts distributed across alive towers",
     weight: 2,
     implemented: true,
+    needsCheckpoint: false,
   },
   {
     id: "frozen_river",
@@ -71,6 +80,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
       "Water tiles become traversable by grunts, thawed by cannonball impact",
     weight: 2,
     implemented: true,
+    needsCheckpoint: true,
   },
   {
     id: "sinkhole",
@@ -79,6 +89,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
       "Cluster of grass tiles permanently collapses into water, destroying structures",
     weight: 2,
     implemented: true,
+    needsCheckpoint: true,
   },
   {
     id: "high_tide",
@@ -87,6 +98,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
       "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
     weight: 2,
     implemented: true,
+    needsCheckpoint: true,
   },
 ];
 /** Modifiers with gameplay code — used for random selection. */

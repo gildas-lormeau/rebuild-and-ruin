@@ -392,6 +392,19 @@ export function resetZoneState(state: GameState, zone: number): void {
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
+  // Revert high tide tiles on this zone back to grass
+  const highTide = state.modern?.highTideTiles;
+  if (highTide) {
+    for (const key of highTide) {
+      const { r, c } = unpackTile(key);
+      if (state.map.zones[r]?.[c] === zone) {
+        setGrass(state.map.tiles, r, c);
+        highTide.delete(key);
+      }
+    }
+    if (highTide.size === 0) state.modern!.highTideTiles = null;
+    state.map.mapVersion++;
+  }
   // Revert sinkhole tiles on this zone back to grass
   const sinkhole = state.modern?.sinkholeTiles;
   if (sinkhole) {

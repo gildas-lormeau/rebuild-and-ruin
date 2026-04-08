@@ -26,6 +26,7 @@ import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { IMPLEMENTED_MODIFIERS } from "../shared/modifier-defs.ts";
 import { isPlayerSeated } from "../shared/player-types.ts";
 import {
+  cannonSize,
   DIRS_4,
   isGrass,
   isWater,
@@ -241,7 +242,7 @@ export function applyHighTide(state: GameState): ReadonlySet<number> {
   // Remove cannons on flooded tiles
   for (const player of state.players) {
     player.cannons = player.cannons.filter((cannon) => {
-      const sz = cannon.mode === "super" ? 3 : 2;
+      const sz = cannonSize(cannon.mode);
       for (let dr = 0; dr < sz; dr++) {
         for (let dc = 0; dc < sz; dc++) {
           if (flooded.has(packTile(cannon.row + dr, cannon.col + dc)))

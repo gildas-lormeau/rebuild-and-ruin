@@ -85,6 +85,8 @@ export interface CannonStartData {
   gruntSpawnQueue?: SerializedBreachSpawnEntry[];
   /** Bonus cannon slots from Salvage upgrade (cannon kills). */
   salvageSlots?: number[];
+  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
+  highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
 }
