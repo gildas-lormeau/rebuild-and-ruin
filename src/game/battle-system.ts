@@ -765,7 +765,7 @@ function canFireCapturedCannon(
 }
 
 /**
- * Compute impact events at a tile position (pure — reads state, no mutation).
+ * Compute impact events at a tile position (no state mutation except RNG consumption).
  * Returns events describing what should happen: wall destroyed, wall absorbed,
  * cannon damaged, etc. All state mutations happen in applyImpactEvent.
  *

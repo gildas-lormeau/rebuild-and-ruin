@@ -390,6 +390,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
     deps.scoreDelta.capturePreScores();
+    console.assert(
+      runtimeState.state.phase === Phase.WALL_BUILD,
+      "startBuildPhase called outside WALL_BUILD",
+    );
     phaseTickFacade.resetCannonFacings(runtimeState.state);
     for (const ctrl of runtimeState.controllers) {
       if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
