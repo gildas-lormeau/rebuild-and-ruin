@@ -9,7 +9,6 @@
  * Used by both main.ts (local play) and online-runtime-game.ts (online).
  */
 
-import { MESSAGE } from "../../server/protocol.ts";
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -62,6 +61,7 @@ import {
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
+import { MESSAGE } from "../shared/protocol.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import type { UIContext } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";

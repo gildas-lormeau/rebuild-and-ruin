@@ -167,7 +167,7 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 
 #### Battle Event Unions
 
-The battle impact messages are grouped into type aliases in `server/protocol.ts` for type-safe handling:
+The battle impact messages are grouped into type aliases in `src/shared/battle-events.ts` for type-safe handling:
 
 - **`ImpactEvent`** = `wallDestroyed` | `cannonDamaged` | `houseDestroyed` | `gruntKilled` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
 - **`BattleEvent`** = `cannonFired` | `towerKilled` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.

@@ -9,7 +9,6 @@
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 
-import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import {
   aimCannons,
   canPlayerFire,
@@ -20,6 +19,7 @@ import type { PixelPos } from "../shared/geometry-types.ts";
 import type { DedupChannel } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";
+import { type GameMessage, MESSAGE } from "../shared/protocol.ts";
 import {
   type BattleViewState,
   type ControllerIdentity,

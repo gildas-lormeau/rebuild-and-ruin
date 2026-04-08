@@ -1,56 +1,22 @@
 // ---------------------------------------------------------------------------
-// Message type constants
+// Network protocol — lobby, checkpoints, build/cannon events, host migration.
+// Battle event types live in battle-events.ts (game-domain, lower layer).
 // ---------------------------------------------------------------------------
 
-export const MESSAGE = {
-  // Client → Server
-  CREATE_ROOM: "createRoom",
-  JOIN_ROOM: "joinRoom",
-  SELECT_SLOT: "selectSlot",
-  LIFE_LOST_CHOICE: "lifeLostChoice",
-  UPGRADE_PICK: "upgradePick",
-  PING: "ping",
-  // Lobby
-  ROOM_CREATED: "roomCreated",
-  ROOM_JOINED: "roomJoined",
-  ROOM_ERROR: "roomError",
-  JOINED: "joined",
-  PLAYER_JOINED: "playerJoined",
-  PLAYER_LEFT: "playerLeft",
-  // Checkpoints
-  INIT: "init",
-  SELECT_START: "selectStart",
-  BUILD_START: "buildStart",
-  CANNON_START: "cannonStart",
-  BATTLE_START: "battleStart",
-  BUILD_END: "buildEnd",
-  GAME_OVER: "gameOver",
-  FULL_STATE: "fullState",
-  // Build/Cannon events
-  OPPONENT_PIECE_PLACED: "opponentPiecePlaced",
-  OPPONENT_PHANTOM: "opponentPhantom",
-  OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
-  OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
-  OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
-  // Animation
-  CASTLE_WALLS: "castleWalls",
-  // Battle events
-  CANNON_FIRED: "cannonFired",
-  WALL_DESTROYED: "wallDestroyed",
-  CANNON_DAMAGED: "cannonDamaged",
-  GRUNT_KILLED: "gruntKilled",
-  HOUSE_DESTROYED: "houseDestroyed",
-  GRUNT_SPAWNED: "gruntSpawned",
-  PIT_CREATED: "pitCreated",
-  ICE_THAWED: "iceThawed",
-  TOWER_KILLED: "towerKilled",
-  WALL_ABSORBED: "wallAbsorbed",
-  AIM_UPDATE: "aimUpdate",
-  // Host migration
-  HOST_LEFT: "hostLeft",
-} as const;
-
-import type { CannonMode } from "../src/shared/battle-types.ts";
+import type {
+  CannonDamagedMessage,
+  CannonFiredMessage,
+  GruntKilledMessage,
+  GruntSpawnedMessage,
+  HouseDestroyedMessage,
+  IceThawedMessage,
+  PitCreatedMessage,
+  TowerKilledMessage,
+  WallAbsorbedMessage,
+  WallDestroyedMessage,
+} from "./battle-events.ts";
+import { BATTLE_MESSAGE } from "./battle-events.ts";
+import type { CannonMode } from "./battle-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
@@ -62,13 +28,9 @@ import type {
   SerializedGrunt,
   SerializedHouse,
   SerializedPlayer,
-} from "../src/shared/checkpoint-data.ts";
-import type { ResolvedChoice } from "../src/shared/interaction-types.ts";
-import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
-
-// ---------------------------------------------------------------------------
-// Room settings
-// ---------------------------------------------------------------------------
+} from "./checkpoint-data.ts";
+import type { ResolvedChoice } from "./interaction-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface RoomSettings {
   maxRounds: number; // 0 (unlimited), 1 (e2e testing), 3, 5, 8, or 12
@@ -77,39 +39,6 @@ export interface RoomSettings {
   seed?: number; // optional map seed (server generates random if omitted)
   gameMode?: string; // "classic" or "modern" (default "classic")
 }
-
-const VALID_MAX_ROUNDS = [0, 1, 3, 5, 8, 12];
-const VALID_CANNON_HP = [3, 6, 9, 12];
-export const DEFAULT_CANNON_HP = 3;
-const MAX_WAIT_TIMER_SEC = 120;
-const DEFAULT_WAIT_TIMER_SEC = 60;
-
-const VALID_GAME_MODES = ["classic", "modern"];
-
-/** Clamp untrusted client settings to valid ranges. */
-export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
-  const maxRounds = Number(raw.maxRounds);
-  const cannonMaxHp = Number(raw.cannonMaxHp);
-  const wait = Number(raw.waitTimerSec);
-  const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
-  const gameMode = String(raw.gameMode ?? "classic");
-  return {
-    maxRounds: VALID_MAX_ROUNDS.includes(maxRounds) ? maxRounds : 0,
-    cannonMaxHp: VALID_CANNON_HP.includes(cannonMaxHp)
-      ? cannonMaxHp
-      : DEFAULT_CANNON_HP,
-    waitTimerSec:
-      Number.isFinite(wait) && wait >= 0
-        ? Math.min(wait, MAX_WAIT_TIMER_SEC)
-        : DEFAULT_WAIT_TIMER_SEC,
-    seed: Number.isFinite(seed) ? seed : undefined,
-    gameMode: VALID_GAME_MODES.includes(gameMode) ? gameMode : "classic",
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Client → Server
-// ---------------------------------------------------------------------------
 
 export type ClientMessage =
   // Lobby (pre-game)
@@ -121,10 +50,6 @@ export type ClientMessage =
   | { type: "lifeLostChoice"; choice: ResolvedChoice; playerId?: number }
   | { type: "upgradePick"; playerId: ValidPlayerSlot; choice: string }
   | { type: "ping" };
-
-// ---------------------------------------------------------------------------
-// Server → Client: Connection
-// ---------------------------------------------------------------------------
 
 /** Sent once when a client connects. All clients derive map/houses/zones from the seed. */
 export interface InitMessage {
@@ -150,10 +75,6 @@ export interface JoinedMessage {
    *  reselected the same slot (avoids UI thrashing on no-op reselections). */
   previousPlayerId?: ValidPlayerSlot;
 }
-
-// ---------------------------------------------------------------------------
-// Server → Client: Lobby
-// ---------------------------------------------------------------------------
 
 /** Room was created successfully. */
 export interface RoomCreatedMessage {
@@ -198,20 +119,11 @@ export interface RoomErrorMessage {
   message: string;
 }
 
-// ---------------------------------------------------------------------------
-// Server → Client: Checkpoints (full state for reconciliation)
-// ---------------------------------------------------------------------------
-
 /** Start tower selection (first round or reselection after life loss). */
 export interface SelectStartMessage {
   type: "selectStart";
   timer: number;
 }
-
-// ---------------------------------------------------------------------------
-// Protocol messages — add wire-format `type` discriminant to data payloads.
-// Data types (CannonStartData, etc.) are defined in src/checkpoint-data.ts.
-// ---------------------------------------------------------------------------
 
 /** Start of cannon placement phase. */
 export interface CannonStartMessage extends CannonStartData {
@@ -243,10 +155,6 @@ export interface GameOverMessage {
   winner: string;
   scores: { name: string; score: number; eliminated: boolean }[];
 }
-
-// ---------------------------------------------------------------------------
-// Host migration
-// ---------------------------------------------------------------------------
 
 /** Host disconnected — server tells all clients who the new host is. */
 export interface HostLeftMessage {
@@ -327,10 +235,6 @@ export interface FullStateMessage {
   }[];
 }
 
-// ---------------------------------------------------------------------------
-// Server → Client: Build/Cannon events (opponent activity)
-// ---------------------------------------------------------------------------
-
 /** An opponent (AI) placed a wall piece. */
 export interface OpponentPiecePlacedMessage {
   type: "opponentPiecePlaced";
@@ -377,102 +281,10 @@ export interface OpponentTowerSelectedMessage {
   confirmed?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Server → Client: Animation events
-// ---------------------------------------------------------------------------
-
 /** Ordered wall tiles for castle construction animation (round 1 / reselection). */
 export interface CastleWallsMessage {
   type: "castleWalls";
   plans: { playerId: ValidPlayerSlot; tiles: number[] }[];
-}
-
-// ---------------------------------------------------------------------------
-// Server → Client: Battle events
-// ---------------------------------------------------------------------------
-
-/** A cannon was fired (own or opponent). Client creates local cannonball. */
-export interface CannonFiredMessage {
-  type: "cannonFired";
-  playerId: ValidPlayerSlot;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: true;
-  mortar?: true;
-}
-
-/** A wall tile was destroyed by impact. */
-export interface WallDestroyedMessage {
-  type: "wallDestroyed";
-  row: number;
-  col: number;
-  playerId: ValidPlayerSlot;
-  shooterId?: number;
-}
-
-/** A cannon took damage (destroyed when newHp <= 0). */
-export interface CannonDamagedMessage {
-  type: "cannonDamaged";
-  playerId: ValidPlayerSlot;
-  cannonIdx: number;
-  newHp: number;
-  shooterId?: number;
-}
-
-/** A grunt was killed by a cannonball. */
-export interface GruntKilledMessage {
-  type: "gruntKilled";
-  row: number;
-  col: number;
-  shooterId?: number;
-}
-
-/** A house was destroyed by a cannonball. */
-export interface HouseDestroyedMessage {
-  type: "houseDestroyed";
-  row: number;
-  col: number;
-}
-
-/** A grunt was spawned (from house destruction or inter-battle).
- *  victimPlayerId = the zone owner where the grunt spawned. */
-export interface GruntSpawnedMessage {
-  type: "gruntSpawned";
-  row: number;
-  col: number;
-  victimPlayerId: ValidPlayerSlot;
-}
-
-/** A burning pit was created by an incendiary cannonball. */
-export interface PitCreatedMessage {
-  type: "pitCreated";
-  row: number;
-  col: number;
-  roundsLeft: number;
-}
-
-/** A frozen water tile was thawed by a cannonball impact. */
-export interface IceThawedMessage {
-  type: "iceThawed";
-  row: number;
-  col: number;
-}
-
-/** A reinforced wall absorbed a hit (first hit only — wall survives, marked as damaged). */
-export interface WallAbsorbedMessage {
-  type: "wallAbsorbed";
-  playerId: ValidPlayerSlot;
-  tileKey: number;
-}
-
-/** A tower was destroyed by a grunt. */
-export interface TowerKilledMessage {
-  type: "towerKilled";
-  towerIdx: number;
 }
 
 /** Life-lost choice forwarded from a non-host client to the host. */
@@ -498,29 +310,6 @@ export interface AimUpdateMessage {
   /** Optional orbit parameters (sent once at countdown start). */
   orbit?: { rx: number; ry: number; speed: number; phaseAngle: number };
 }
-
-// ---------------------------------------------------------------------------
-// Battle event unions (used by game engine, sound, haptics)
-// ---------------------------------------------------------------------------
-
-/** Impact events — effects from cannonball/grunt interactions. */
-export type ImpactEvent =
-  | WallDestroyedMessage
-  | WallAbsorbedMessage
-  | CannonDamagedMessage
-  | HouseDestroyedMessage
-  | GruntKilledMessage
-  | GruntSpawnedMessage
-  | PitCreatedMessage
-  | IceThawedMessage;
-
-/** All events emitted during battle — fire, tower kill, and impact.
- *  Discriminated on `type` (MESSAGE.* string literal). */
-export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
-
-// ---------------------------------------------------------------------------
-// Union types
-// ---------------------------------------------------------------------------
 
 export type ServerMessage =
   // Connection
@@ -569,8 +358,67 @@ export type ServerMessage =
 /** Any message sent over the wire (client or server). */
 export type GameMessage = ClientMessage | ServerMessage;
 
-/** Extract the payload (all fields except `type`) from a discriminated GameMessage variant. */
-export type MsgPayload<T extends GameMessage["type"]> = Omit<
-  Extract<GameMessage, { type: T }>,
-  "type"
->;
+const VALID_MAX_ROUNDS = [0, 1, 3, 5, 8, 12];
+const VALID_CANNON_HP = [3, 6, 9, 12];
+const MAX_WAIT_TIMER_SEC = 120;
+const DEFAULT_WAIT_TIMER_SEC = 60;
+const VALID_GAME_MODES = ["classic", "modern"];
+export const MESSAGE = {
+  ...BATTLE_MESSAGE,
+  // Client → Server
+  CREATE_ROOM: "createRoom",
+  JOIN_ROOM: "joinRoom",
+  SELECT_SLOT: "selectSlot",
+  LIFE_LOST_CHOICE: "lifeLostChoice",
+  UPGRADE_PICK: "upgradePick",
+  PING: "ping",
+  // Lobby
+  ROOM_CREATED: "roomCreated",
+  ROOM_JOINED: "roomJoined",
+  ROOM_ERROR: "roomError",
+  JOINED: "joined",
+  PLAYER_JOINED: "playerJoined",
+  PLAYER_LEFT: "playerLeft",
+  // Checkpoints
+  INIT: "init",
+  SELECT_START: "selectStart",
+  BUILD_START: "buildStart",
+  CANNON_START: "cannonStart",
+  BATTLE_START: "battleStart",
+  BUILD_END: "buildEnd",
+  GAME_OVER: "gameOver",
+  FULL_STATE: "fullState",
+  // Build/Cannon events
+  OPPONENT_PIECE_PLACED: "opponentPiecePlaced",
+  OPPONENT_PHANTOM: "opponentPhantom",
+  OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
+  OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
+  OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
+  // Animation
+  CASTLE_WALLS: "castleWalls",
+  AIM_UPDATE: "aimUpdate",
+  // Host migration
+  HOST_LEFT: "hostLeft",
+} as const;
+export const DEFAULT_CANNON_HP = 3;
+
+/** Clamp untrusted client settings to valid ranges. */
+export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
+  const maxRounds = Number(raw.maxRounds);
+  const cannonMaxHp = Number(raw.cannonMaxHp);
+  const wait = Number(raw.waitTimerSec);
+  const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
+  const gameMode = String(raw.gameMode ?? "classic");
+  return {
+    maxRounds: VALID_MAX_ROUNDS.includes(maxRounds) ? maxRounds : 0,
+    cannonMaxHp: VALID_CANNON_HP.includes(cannonMaxHp)
+      ? cannonMaxHp
+      : DEFAULT_CANNON_HP,
+    waitTimerSec:
+      Number.isFinite(wait) && wait >= 0
+        ? Math.min(wait, MAX_WAIT_TIMER_SEC)
+        : DEFAULT_WAIT_TIMER_SEC,
+    seed: Number.isFinite(seed) ? seed : undefined,
+    gameMode: VALID_GAME_MODES.includes(gameMode) ? gameMode : "classic",
+  };
+}

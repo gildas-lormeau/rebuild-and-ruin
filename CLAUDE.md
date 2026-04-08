@@ -70,10 +70,11 @@ When adding a new entry: add the ID to the type union, add a pool entry with `im
 
 ### Battle event catalog (`.battle-event-catalog.json`)
 Maps every BattleEvent/ImpactEvent union member to its consumer files by role (stateApply, sound, haptics, networkHandle, networkRelay, orchestrator, combo). When adding a new battle event type:
-1. Define the message type in `server/protocol.ts`, add to BattleEvent or ImpactEvent union
-2. Add a MESSAGE constant
-3. Add a catalog entry listing all consumer files
-4. Implement handlers in each declared consumer
+1. Define the message type in `src/shared/battle-events.ts`, add to BattleEvent or ImpactEvent union
+2. Add a BATTLE_MESSAGE constant in `battle-events.ts` (protocol.ts spreads it into MESSAGE automatically)
+3. Add the type to the ServerMessage union in `src/shared/protocol.ts`
+4. Add a catalog entry listing all consumer files
+5. Implement handlers in each declared consumer
 The `lint-battle-events` pre-commit check verifies exhaustiveness.
 
 ### Feature catalog (`.feature-catalog.json`)

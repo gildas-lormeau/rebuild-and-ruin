@@ -4,7 +4,10 @@
  * Movement and pathfinding live in grunt-movement.ts.
  */
 
-import { MESSAGE, type TowerKilledMessage } from "../../server/protocol.ts";
+import {
+  BATTLE_MESSAGE,
+  type TowerKilledMessage,
+} from "../shared/battle-events.ts";
 import type { Grunt } from "../shared/battle-types.ts";
 import {
   hasGruntAt,
@@ -232,7 +235,7 @@ export function gruntAttackTowers(
       if (tickGruntAttackTimer(grunt, dt)) {
         state.towerAlive[adjacentTowerIndex] = false;
         events.push({
-          type: MESSAGE.TOWER_KILLED,
+          type: BATTLE_MESSAGE.TOWER_KILLED,
           towerIdx: adjacentTowerIndex,
         });
       }

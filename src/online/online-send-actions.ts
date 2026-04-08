@@ -1,6 +1,6 @@
-import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { createCannonFiredMsg } from "../game/battle-system.ts";
 import type { Cannonball } from "../shared/battle-types.ts";
+import { type GameMessage, MESSAGE } from "../shared/protocol.ts";
 import type {
   BattleController,
   BattleViewState,

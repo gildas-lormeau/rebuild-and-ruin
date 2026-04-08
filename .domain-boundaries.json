@@ -23,6 +23,7 @@
       "src/shared/tick-context.ts",
       "src/shared/player-slot.ts",
       "src/shared/game-phase.ts",
+      "src/shared/battle-events.ts",
       "src/shared/battle-types.ts",
       "src/shared/interaction-types.ts",
       "src/shared/upgrade-defs.ts",
@@ -34,7 +35,7 @@
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
       "src/shared/ui-contracts.ts",
-      "server/protocol.ts",
+      "src/shared/protocol.ts",
       "src/shared/feature-defs.ts",
       "src/shared/router.ts"
     ],

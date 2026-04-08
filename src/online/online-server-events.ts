@@ -27,11 +27,6 @@
  * through isHostInContext() from tick-context.ts (enforced by ESLint).
  */
 
-import {
-  type ImpactEvent,
-  MESSAGE,
-  type ServerMessage,
-} from "../../server/protocol.ts";
 import { applyImpactEvent } from "../game/battle-system.ts";
 import {
   applyPiecePlacement,
@@ -44,6 +39,7 @@ import {
   canPlaceCannon,
 } from "../game/cannon-system.ts";
 import { highlightTowerSelection } from "../game/selection.ts";
+import type { ImpactEvent } from "../shared/battle-events.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
 import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
 import {
@@ -51,6 +47,7 @@ import {
   type ResolvedChoice,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { MESSAGE, type ServerMessage } from "../shared/protocol.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
 import { isHostInContext, isRemoteHuman } from "../shared/tick-context.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";

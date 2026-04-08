@@ -1,7 +1,11 @@
 import { MAX_PLAYERS, PLAYER_NAMES } from "../src/shared/player-config.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import {
+  MESSAGE,
+  type RoomSettings,
+  type ServerMessage,
+} from "../src/shared/protocol.ts";
 import { GameRoom } from "./game-room.ts";
-import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
 const MAX_ROOMS = 50;
@@ -12,7 +16,7 @@ const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 /** 4 chars from 24-letter alphabet ≈ 330K combinations — sufficient for concurrent rooms. */
 const ROOM_CODE_LENGTH = 4; // 24^4 = 331,776 combinations
 
-export interface RoomEntry {
+interface RoomEntry {
   room: GameRoom;
   code: string;
   hostSocket: WebSocket;

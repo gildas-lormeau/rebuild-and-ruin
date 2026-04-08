@@ -6,14 +6,14 @@
  * The host-check guards on phase-transition cases ensure that only watchers
  * apply host-sent checkpoints — the host computes its own. */
 
+import { GAME_MODE_CLASSIC, type GameMode } from "../shared/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type FullStateMessage,
   type InitMessage,
   MESSAGE,
   type ServerMessage,
-} from "../../server/protocol.ts";
-import { GAME_MODE_CLASSIC, type GameMode } from "../shared/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/protocol.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import type { OnlineSession } from "./online-session.ts";

@@ -2,11 +2,11 @@
  * lint-battle-events — verify .battle-event-catalog.json is exhaustive and accurate.
  *
  * Checks:
- * 1. Every member of the BattleEvent / ImpactEvent union in server/protocol.ts
+ * 1. Every member of the BattleEvent / ImpactEvent union in src/shared/battle-events.ts
  *    has an entry in the catalog.
  * 2. Every consumer file declared in the catalog actually references the
- *    MESSAGE constant for that event (grep for MESSAGE.KEY_NAME).
- * 3. No catalog entries reference events that don't exist in protocol.ts.
+ *    BATTLE_MESSAGE constant for that event (grep for BATTLE_MESSAGE.KEY_NAME or MESSAGE.KEY_NAME).
+ * 3. No catalog entries reference events that don't exist in battle-events.ts.
  *
  * Usage:
  *   deno run -A scripts/lint-battle-events.ts
@@ -20,7 +20,7 @@ import process from "node:process";
 
 const ROOT = process.cwd();
 const CATALOG_PATH = join(ROOT, ".battle-event-catalog.json");
-const PROTOCOL_PATH = join(ROOT, "server/protocol.ts");
+const PROTOCOL_PATH = join(ROOT, "src/shared/battle-events.ts");
 
 interface CatalogEvent {
   messageKey: string;
@@ -100,8 +100,9 @@ function consumerReferencesEvent(
   const fullPath = join(ROOT, consumerPath);
   try {
     const content = readFileSync(fullPath, "utf-8");
-    // Check for MESSAGE.KEY_NAME or the string literal "eventType"
+    // Check for BATTLE_MESSAGE.KEY_NAME, MESSAGE.KEY_NAME, or the string literal "eventType"
     return (
+      content.includes(`BATTLE_MESSAGE.${messageKey}`) ||
       content.includes(`MESSAGE.${messageKey}`) ||
       content.includes(`"${messageKey}"`)
     );

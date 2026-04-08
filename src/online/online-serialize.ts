@@ -11,7 +11,6 @@
  *     use `?? defaultValue`.
  */
 
-import { type FullStateMessage, MESSAGE } from "../../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import { setPhase } from "../game/phase-setup.ts";
@@ -31,6 +30,7 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { type FullStateMessage, MESSAGE } from "../shared/protocol.ts";
 import { Rng } from "../shared/rng.ts";
 import {
   type GameState,

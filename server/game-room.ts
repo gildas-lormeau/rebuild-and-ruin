@@ -24,7 +24,7 @@ import {
   MESSAGE,
   type RoomSettings,
   sanitizeRoomSettings,
-} from "./protocol.ts";
+} from "../src/shared/protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
 /** Phase values the server tracks for message gating.

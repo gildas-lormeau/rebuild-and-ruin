@@ -3,10 +3,10 @@
  */
 
 import {
+  BATTLE_MESSAGE,
   type CannonFiredMessage,
   type ImpactEvent,
-  MESSAGE,
-} from "../../server/protocol.ts";
+} from "../shared/battle-events.ts";
 import type {
   BalloonFlight,
   Cannon,
@@ -210,7 +210,7 @@ export function tickCannonballs(
               isCenter,
             );
             for (const evt of splashEvents) {
-              if (evt.type === MESSAGE.CANNON_DAMAGED) {
+              if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
                 const key = `${evt.playerId}:${evt.cannonIdx}`;
                 if (hitCannons.has(key)) continue;
                 hitCannons.add(key);
@@ -237,7 +237,7 @@ export function tickCannonballs(
         if (state.players[shooterId]?.upgrades.get(UID.RICOCHET)) {
           const hitCannons = new Set<string>();
           for (const evt of impactEvents) {
-            if (evt.type === MESSAGE.CANNON_DAMAGED) {
+            if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
               hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);
             }
           }
@@ -262,7 +262,7 @@ export function tickCannonballs(
               false,
             );
             for (const evt of bounceEvents) {
-              if (evt.type === MESSAGE.CANNON_DAMAGED) {
+              if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
                 const key = `${evt.playerId}:${evt.cannonIdx}`;
                 if (hitCannons.has(key)) continue;
                 hitCannons.add(key);
@@ -341,7 +341,7 @@ export function applyImpactEvent(
       : shooterId
   ) as ValidPlayerSlot | undefined;
   switch (event.type) {
-    case MESSAGE.WALL_DESTROYED: {
+    case BATTLE_MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
         // Interior intentionally stale during battle; recheckTerritoryOnly() runs at next build phase.
@@ -355,7 +355,7 @@ export function applyImpactEvent(
       }
       break;
     }
-    case MESSAGE.CANNON_DAMAGED: {
+    case BATTLE_MESSAGE.CANNON_DAMAGED: {
       const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
       if (cannon) {
         cannon.hp = event.newHp;
@@ -376,21 +376,21 @@ export function applyImpactEvent(
       }
       break;
     }
-    case MESSAGE.PIT_CREATED:
+    case BATTLE_MESSAGE.PIT_CREATED:
       state.burningPits.push({
         row: event.row,
         col: event.col,
         roundsLeft: event.roundsLeft,
       });
       break;
-    case MESSAGE.HOUSE_DESTROYED:
+    case BATTLE_MESSAGE.HOUSE_DESTROYED:
       for (const house of state.map.houses) {
         if (house.alive && isAtTile(house, event.row, event.col)) {
           house.alive = false;
         }
       }
       break;
-    case MESSAGE.GRUNT_SPAWNED:
+    case BATTLE_MESSAGE.GRUNT_SPAWNED:
       state.grunts.push({
         row: event.row,
         col: event.col,
@@ -398,7 +398,7 @@ export function applyImpactEvent(
         blockedRounds: 0,
       });
       break;
-    case MESSAGE.GRUNT_KILLED: {
+    case BATTLE_MESSAGE.GRUNT_KILLED: {
       const shooter = sid !== undefined ? state.players[sid] : undefined;
       state.grunts = state.grunts.filter(
         (grunt) => !isAtTile(grunt, event.row, event.col),
@@ -410,10 +410,10 @@ export function applyImpactEvent(
       }
       break;
     }
-    case MESSAGE.ICE_THAWED:
+    case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
       break;
-    case MESSAGE.WALL_ABSORBED: {
+    case BATTLE_MESSAGE.WALL_ABSORBED: {
       const player = state.players[event.playerId];
       if (player) player.damagedWalls.add(event.tileKey);
       break;
@@ -532,7 +532,7 @@ export function createCannonFiredMsg(ball: {
   mortar?: boolean;
 }): CannonFiredMessage {
   return {
-    type: MESSAGE.CANNON_FIRED,
+    type: BATTLE_MESSAGE.CANNON_FIRED,
     playerId: ball.playerId,
     cannonIdx: ball.cannonIdx,
     startX: ball.startX,
@@ -803,7 +803,7 @@ function computeImpact(
     incendiary && hitWall && !hasPitAt(state.burningPits, row, col)
       ? [
           {
-            type: MESSAGE.PIT_CREATED,
+            type: BATTLE_MESSAGE.PIT_CREATED,
             row,
             col,
             roundsLeft: BURNING_PIT_DURATION,
@@ -847,7 +847,7 @@ function collectWallImpacts(
         !player.damagedWalls.has(key)
       ) {
         events.push({
-          type: MESSAGE.WALL_ABSORBED,
+          type: BATTLE_MESSAGE.WALL_ABSORBED,
           playerId: player.id,
           tileKey: key,
         });
@@ -855,7 +855,7 @@ function collectWallImpacts(
       }
       hitWall = true;
       events.push({
-        type: MESSAGE.WALL_DESTROYED,
+        type: BATTLE_MESSAGE.WALL_DESTROYED,
         row,
         col,
         playerId: player.id,
@@ -880,7 +880,7 @@ function collectCannonImpacts(
       if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
-          type: MESSAGE.CANNON_DAMAGED,
+          type: BATTLE_MESSAGE.CANNON_DAMAGED,
           playerId: player.id,
           cannonIdx,
           newHp: cannon.hp - 1,
@@ -901,13 +901,13 @@ function collectHouseImpacts(
   const events: ImpactEvent[] = [];
   for (const house of state.map.houses) {
     if (house.alive && isAtTile(house, row, col)) {
-      events.push({ type: MESSAGE.HOUSE_DESTROYED, row, col });
+      events.push({ type: BATTLE_MESSAGE.HOUSE_DESTROYED, row, col });
       // Grunt spawn is RNG-based — compute it here so the host decides
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
           events.push({
-            type: MESSAGE.GRUNT_SPAWNED,
+            type: BATTLE_MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
             victimPlayerId: zoneOwnerIdAt(state, spawnPos.row, spawnPos.col),
@@ -930,7 +930,7 @@ function collectGruntImpacts(
   for (const grunt of state.grunts) {
     if (isAtTile(grunt, row, col)) {
       events.push({
-        type: MESSAGE.GRUNT_KILLED,
+        type: BATTLE_MESSAGE.GRUNT_KILLED,
         row: grunt.row,
         col: grunt.col,
         shooterId,
@@ -953,7 +953,7 @@ function collectFrozenWaterImpacts(
   const key = packTile(row, col);
   if (!state.modern.frozenTiles.has(key)) return [];
   if (!isWater(state.map.tiles, row, col)) return [];
-  return [{ type: MESSAGE.ICE_THAWED, row, col }];
+  return [{ type: BATTLE_MESSAGE.ICE_THAWED, row, col }];
 }
 
 /** Collect all active balloons across all players. */

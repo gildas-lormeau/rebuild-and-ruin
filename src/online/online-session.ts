@@ -7,12 +7,6 @@
  */
 
 import {
-  DEFAULT_CANNON_HP,
-  type GameMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../../server/protocol.ts";
-import {
   GAME_MODE_CLASSIC,
   type GameMode,
   LOBBY_TIMER,
@@ -27,6 +21,12 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
+import {
+  DEFAULT_CANNON_HP,
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../shared/protocol.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;

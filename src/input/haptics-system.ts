@@ -6,7 +6,7 @@
  * Follows the factory-with-deps pattern used by sound, camera, selection, etc.
  */
 
-import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
+import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/game-constants.ts";
 import { CAN_VIBRATE } from "../shared/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -48,18 +48,21 @@ export function createHapticsSystem(): HapticsSystem {
   ): void {
     if (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL) return;
     for (const evt of events) {
-      if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === povPlayerId) {
+      if (
+        evt.type === BATTLE_MESSAGE.WALL_DESTROYED &&
+        evt.playerId === povPlayerId
+      ) {
         vibrate(HAPTIC_WALL_HIT_MS, HAPTICS_ALL);
       } else if (
-        evt.type === MESSAGE.CANNON_DAMAGED &&
+        evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
         evt.playerId === povPlayerId
       ) {
         if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, HAPTICS_ALL);
         else vibrate(HAPTIC_CANNON_DAMAGED_MS, HAPTICS_ALL);
-      } else if (evt.type === MESSAGE.TOWER_KILLED) {
+      } else if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) {
         vibrate(HAPTIC_TOWER_KILLED_MS, HAPTICS_ALL);
       } else if (
-        evt.type === MESSAGE.CANNON_FIRED &&
+        evt.type === BATTLE_MESSAGE.CANNON_FIRED &&
         evt.playerId === povPlayerId
       ) {
         vibrate(HAPTIC_CANNON_FIRED_MS, HAPTICS_ALL);

@@ -8,7 +8,7 @@
  */
 
 import { sfxr } from "jsfxr";
-import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
+import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
@@ -577,16 +577,16 @@ export function createSoundSystem(): SoundSystem {
     battleEvents(events, povPlayerId) {
       if (soundLevel < SOUND_ALL) return;
       for (const evt of events) {
-        if (evt.type === MESSAGE.CANNON_FIRED) {
+        if (evt.type === BATTLE_MESSAGE.CANNON_FIRED) {
           cannonBoom();
           cannonWhistle(evt, povPlayerId);
         } else if (
-          evt.type === MESSAGE.WALL_DESTROYED &&
+          evt.type === BATTLE_MESSAGE.WALL_DESTROYED &&
           evt.playerId === povPlayerId
         ) {
           impact();
         } else if (
-          evt.type === MESSAGE.CANNON_DAMAGED &&
+          evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
           evt.newHp !== 0 &&
           evt.playerId === povPlayerId
         ) {
@@ -923,11 +923,14 @@ function battleEventSound(
   evt: BattleEvent,
   povPlayerId: ValidPlayerSlot,
 ): SfxKey | null {
-  if (evt.type === MESSAGE.CANNON_DAMAGED && evt.playerId === povPlayerId)
+  if (
+    evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
+    evt.playerId === povPlayerId
+  )
     return evt.newHp === 0 ? "cannonKilled" : null;
-  if (evt.type === MESSAGE.GRUNT_SPAWNED) return "gruntSpawned";
-  if (evt.type === MESSAGE.GRUNT_KILLED) return "gruntKilled";
-  if (evt.type === MESSAGE.TOWER_KILLED) return "towerKilled";
+  if (evt.type === BATTLE_MESSAGE.GRUNT_SPAWNED) return "gruntSpawned";
+  if (evt.type === BATTLE_MESSAGE.GRUNT_KILLED) return "gruntKilled";
+  if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) return "towerKilled";
   return null;
 }
 

@@ -1,4 +1,3 @@
-import type { FullStateMessage, InitMessage } from "../../server/protocol.ts";
 import {
   bootstrapGame,
   initWaitingRoom,
@@ -7,6 +6,7 @@ import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
+import type { FullStateMessage, InitMessage } from "../shared/protocol.ts";
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/router.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";

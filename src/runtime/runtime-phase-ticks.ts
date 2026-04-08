@@ -8,12 +8,12 @@
  *   For local play the callbacks are omitted; for online they send to the wire.
  */
 
+import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import {
+  BATTLE_MESSAGE,
   type BattleEvent,
   type CannonFiredMessage,
-  MESSAGE,
-} from "../../server/protocol.ts";
-import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
+} from "../shared/battle-events.ts";
 import {
   ageImpacts,
   type BalloonFlight,
@@ -814,11 +814,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     gameStats: readonly PlayerStats[],
   ): void {
     for (const evt of events) {
-      if (evt.type === MESSAGE.WALL_DESTROYED) {
+      if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED) {
         const stats =
           evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
         if (stats) stats.wallsDestroyed++;
-      } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
+      } else if (
+        evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
+        evt.newHp === 0
+      ) {
         const stats =
           evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
         if (stats) stats.cannonsKilled++;

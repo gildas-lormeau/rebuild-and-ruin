@@ -1,4 +1,4 @@
-import type { BattleEvent } from "../../server/protocol.ts";
+import type { BattleEvent } from "./battle-events.ts";
 import {
   type BurningPit,
   type Cannonball,

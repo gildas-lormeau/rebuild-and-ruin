@@ -5,7 +5,6 @@
  * functions that online-client.ts wires into the game runtime.
  */
 
-import { MESSAGE } from "../../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
 import { tickBreachSpawnQueue } from "../game/grunt-system.ts";
@@ -15,6 +14,7 @@ import { Phase } from "../shared/game-phase.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { FrameData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
+import { MESSAGE } from "../shared/protocol.ts";
 import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
 import {
   type TimerAccums,

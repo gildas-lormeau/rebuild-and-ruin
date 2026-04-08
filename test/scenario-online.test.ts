@@ -1,4 +1,4 @@
-import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../src/shared/protocol.ts";
 import { applyImpactEvent, resolveBalloons } from "../src/game/battle-system.ts";
 import { snapshotAllWalls } from "../src/shared/board-occupancy.ts";
 import { createOnlineOverlay } from "../src/render/render-composition.ts";

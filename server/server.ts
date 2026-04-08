@@ -1,6 +1,6 @@
 import { PLAYER_NAMES } from "../src/shared/player-config.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
-import { MESSAGE, type RoomSettings } from "./protocol.ts";
+import { MESSAGE, type RoomSettings } from "../src/shared/protocol.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
@@ -179,7 +179,7 @@ function handleMessage(
  *  For relaying client messages, use safeSendRaw() to avoid re-serialization. */
 function send(
   socket: WebSocket,
-  msg: import("./protocol.ts").ServerMessage,
+  msg: import("../src/shared/protocol.ts").ServerMessage,
 ): void {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));

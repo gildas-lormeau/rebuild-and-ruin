@@ -1,4 +1,3 @@
-import { MESSAGE, type ServerMessage } from "../../server/protocol.ts";
 import { prepareControllerCannonPhase } from "../game/cannon-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import {
@@ -35,6 +34,7 @@ import {
 } from "../shared/interaction-types.ts";
 import type { CastleData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
+import { MESSAGE, type ServerMessage } from "../shared/protocol.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { RGB } from "../shared/theme.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";

@@ -47,7 +47,7 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "./runtime-headless.ts";
-import { MESSAGE } from "../server/protocol.ts";
+import { MESSAGE } from "../src/shared/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online/online-types.ts";
 import { isMasterBuilderLocked, setGameMode, type SelectionState } from "../src/shared/types.ts";

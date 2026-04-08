@@ -34,6 +34,7 @@
       "src/render/render-sprites.ts",
       "src/shared/checkpoint-data.ts",
       "src/shared/geometry-types.ts",
+      "src/shared/battle-events.ts",
       "src/shared/interaction-types.ts",
       "src/shared/modifier-defs.ts",
       "src/shared/pieces.ts",
@@ -52,7 +53,7 @@
   {
     "name": "core game types",
     "files": [
-      "server/protocol.ts",
+      "src/shared/protocol.ts",
       "src/shared/cannon-mode-defs.ts",
       "src/shared/phantom-types.ts",
       "src/shared/player-types.ts",
@@ -130,7 +131,8 @@
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-types.ts"
+      "src/runtime/runtime-types.ts",
+      "src/game/build-phase-helpers.ts"
     ]
   },
   {
@@ -139,7 +141,6 @@
       "src/ai/ai-build-fallback.ts",
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
-      "src/game/build-phase-helpers.ts",
       "src/game/round-modifiers.ts",
       "src/render/render-map.ts",
       "src/runtime/runtime-banner.ts",
@@ -148,7 +149,8 @@
       "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-upgrade-pick.ts",
+      "src/runtime/assembly.ts"
     ]
   },
   {
@@ -199,7 +201,7 @@
       "src/game/selection-facade.ts",
       "src/online/online-runtime-transition.ts",
       "src/online/online-server-events.ts",
-      "src/runtime/assembly.ts",
+      "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-score-deltas.ts"
     ]
@@ -208,7 +210,6 @@
     "name": "wiring",
     "files": [
       "src/ai/controller-ai.ts",
-      "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-selection.ts"
     ]
   },

@@ -58,7 +58,6 @@
  *   - `isStateReady(runtimeState)` → boolean guard
  */
 
-import type { GameMessage, ServerMessage } from "../../server/protocol.ts";
 import type { BalloonFlight, Crosshair } from "../shared/battle-types.ts";
 import type {
   BattleStartData,
@@ -76,6 +75,7 @@ import type {
   PiecePhantom,
 } from "../shared/phantom-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { GameMessage, ServerMessage } from "../shared/protocol.ts";
 import type {
   BattleController,
   BattleViewState,

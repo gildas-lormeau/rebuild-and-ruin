@@ -1,5 +1,5 @@
-import { type ClientMessage, MESSAGE } from "../../server/protocol.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
+import { type ClientMessage, MESSAGE } from "../shared/protocol.ts";
 import { GOLD, PANEL_BG } from "../shared/theme.ts";
 import { computeApiUrl } from "./online-config.ts";
 
