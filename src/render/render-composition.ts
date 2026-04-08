@@ -362,6 +362,7 @@ export function createOnlineOverlay(
     playerNames,
     playerColors,
     getLifeLostPanelPos,
+    masterBuilderLockout,
   } = params;
 
   const homeTowers = buildHomeTowersByIndex(state);
@@ -438,6 +439,10 @@ export function createOnlineOverlay(
         playerNames,
         playerColors,
       ),
+      masterBuilderLockout:
+        masterBuilderLockout != null && masterBuilderLockout > 0
+          ? masterBuilderLockout
+          : undefined,
     },
   };
 }

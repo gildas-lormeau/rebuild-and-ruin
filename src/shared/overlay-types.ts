@@ -285,6 +285,9 @@ export interface RendererInterface {
     viewport: Viewport | null | undefined,
     now: number,
   ): void;
+  /** Pre-compute terrain image caches so the first render of a new map
+   *  doesn't stall the frame. Call after generating/receiving a map. */
+  warmMapCache(map: GameMap): void;
   /** Convert pointer event client coordinates (MouseEvent.clientX/Y) to
    *  surface world-pixel coordinates (tile grid at TILE_SIZE scale).
    *  Accounts for canvas position, letterboxing, and DPR. */

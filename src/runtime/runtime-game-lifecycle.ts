@@ -51,7 +51,6 @@ interface GameLifecycleDeps {
   // Subsystem resets
   readonly resetAll: () => void;
   readonly resetScoreDeltas: () => void;
-  readonly resetDialogs: () => void;
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
   readonly resetInputForLobby: () => void;
@@ -252,10 +251,6 @@ export function buildLifecycleDeps(
       wiringDeps.sound.reset();
     },
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
-    resetDialogs: () => {
-      wiringDeps.getLifeLost().set(null);
-      wiringDeps.getUpgradePick().set(null);
-    },
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     resetInputForLobby: () =>

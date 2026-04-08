@@ -35,6 +35,8 @@ interface ScoreDeltaSystem {
   show: (onDone: () => void) => void;
   /** Tick the display timer (called every frame from mainLoop). */
   tick: (dt: number) => void;
+  /** Animation progress 0→1 (0 = just started, 1 = done). */
+  progress: () => number;
   /** True while the score delta animation is playing (blocks build phase tick). */
   isActive: () => boolean;
   /** Clear all score delta state. Safe to call at any time. */
@@ -106,6 +108,12 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     }
   }
 
+  function progress(): number {
+    const { deltaTimer } = runtimeState.scoreDisplay;
+    if (deltaTimer <= 0) return 1;
+    return 1 - deltaTimer / SCORE_DELTA_DISPLAY_TIME;
+  }
+
   function isActive(): boolean {
     return runtimeState.scoreDisplay.deltaOnDone !== null;
   }
@@ -117,5 +125,13 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     runtimeState.scoreDisplay.preScores = [];
   }
 
-  return { capturePreScores, setPreScores, show, tick, isActive, reset };
+  return {
+    capturePreScores,
+    setPreScores,
+    show,
+    tick,
+    progress,
+    isActive,
+    reset,
+  };
 }

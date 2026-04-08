@@ -17,7 +17,11 @@ import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "../shared/interaction-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  type PlayerSlotId,
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
@@ -51,6 +55,8 @@ export interface UpgradePickSystem {
   confirmChoice: (playerId: ValidPlayerSlot) => void;
   /** Pick a specific card directly (e.g. from a click). */
   pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
+  /** Which player's entry accepts local input (SPECTATOR_SLOT if none). */
+  interactivePlayerId: () => PlayerSlotId;
 }
 
 export function createUpgradePickSystem(
@@ -162,6 +168,18 @@ export function createUpgradePickSystem(
     );
   }
 
+  /** Compute which player's upgrade pick entry accepts local input.
+   *  Returns the player ID, or SPECTATOR_SLOT if no local player is picking. */
+  function interactivePlayerId(): PlayerSlotId {
+    const dialog = runtimeState.upgradePickDialog;
+    if (!dialog) return SPECTATOR_SLOT;
+    const myId = runtimeState.frameMeta.myPlayerId;
+    const entry = dialog.entries.find(
+      (entry) => entry.playerId === myId && !entry.autoResolve,
+    );
+    return entry ? (entry.playerId as PlayerSlotId) : SPECTATOR_SLOT;
+  }
+
   return {
     prepare,
     tryShow,
@@ -175,5 +193,6 @@ export function createUpgradePickSystem(
     moveFocus,
     confirmChoice,
     pickDirect,
+    interactivePlayerId,
   };
 }

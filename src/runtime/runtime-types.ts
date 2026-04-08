@@ -64,7 +64,7 @@ import type {
   BattleStartData,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
-import type { Viewport, WorldPos } from "../shared/geometry-types.ts";
+import type { GameMap, Viewport, WorldPos } from "../shared/geometry-types.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
@@ -265,7 +265,6 @@ export interface EnterTowerSelectionDeps {
   initTowerSelection: (playerId: ValidPlayerSlot, zone: number) => void;
   syncSelectionOverlay: () => void;
   setOverlaySelection: () => void;
-  selectTimer: number;
   accum: { select: number };
   enterCastleReselectPhase: (state: GameState) => void;
   setModeSelection: () => void;
@@ -374,4 +373,6 @@ export interface GameRuntime {
   ) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
+  /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */
+  warmMapCache: (map: GameMap) => void;
 }

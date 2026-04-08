@@ -236,6 +236,8 @@ export interface OnlineOverlayParams {
     px: number;
     py: number;
   };
+  /** Master Builder lockout timer (seconds remaining). 0 or undefined = no lockout. */
+  masterBuilderLockout?: number;
 }
 
 export interface BannerState {

@@ -24,15 +24,19 @@ import {
   processReselectionQueue,
 } from "./phase-setup.ts";
 import {
+  allPlayersHaveTerritory,
   allSelectionsConfirmed,
   confirmTowerSelection,
   finishSelectionPhase,
   highlightTowerSelection,
+  initSelectionTimer,
   initTowerSelection,
   tickSelectionPhase,
 } from "./selection.ts";
 
 export const selectionFacade = {
+  allPlayersHaveTerritory,
+  initSelectionTimer,
   recheckTerritoryOnly,
   createCastleBuildState,
   tickCastleBuildAnimation,

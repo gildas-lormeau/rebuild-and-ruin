@@ -11,13 +11,14 @@ import {
 } from "../shared/canvas-layout.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import { createLoupe } from "./render-loupe.ts";
-import { drawMap, sceneCanvas } from "./render-map.ts";
+import { drawMap, precomputeTerrainCache, sceneCanvas } from "./render-map.ts";
 
 export function createCanvasRenderer(
   canvas: HTMLCanvasElement,
 ): RendererInterface {
   const container = canvas.parentElement as HTMLElement;
   return {
+    warmMapCache: precomputeTerrainCache,
     drawFrame: (map, overlay, viewport, now) =>
       drawMap(map, canvas, overlay, viewport, now),
     clientToSurface: (cx, cy) => clientToCanvas(cx, cy, canvas),

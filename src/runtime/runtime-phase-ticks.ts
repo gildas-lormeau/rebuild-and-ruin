@@ -11,7 +11,6 @@
 
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
-import { ageImpacts } from "../shared/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -162,7 +161,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         // Apply reset facings — hidden behind the banner overlay.
         phaseTickFacade.applyDefaultFacings(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
-        runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
             deps.hostNetworking.createCannonStartMessage(runtimeState.state),
@@ -301,7 +299,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         isRemoteHuman(pid, remoteHumanSlots) ||
         !!runtimeState.state.players[pid]?.eliminated,
     );
-    runtimeState.battleAnim.impacts = [];
+    phaseTickFacade.clearImpacts(runtimeState.battleAnim);
     resetAccum(runtimeState.accum, ACCUM_GRUNT);
     resetAccum(runtimeState.accum, ACCUM_BUILD);
   }
@@ -451,7 +449,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         tickBuildPhase,
       });
     } else {
-      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
+      phaseTickFacade.ageImpacts(
+        runtimeState.battleAnim,
+        dt,
+        IMPACT_FLASH_DURATION,
+      );
       deps.tickNonHost?.(dt);
       deps.render();
     }

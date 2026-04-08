@@ -1,5 +1,4 @@
 import type { FullStateMessage, InitMessage } from "../../server/protocol.ts";
-import { precomputeTerrainCache } from "../render/render-map.ts";
 import {
   bootstrapGame,
   initWaitingRoom,
@@ -78,7 +77,7 @@ export function createOnlineRuntimeSessionHelpers(
         requestAnimationFrame(runtime.mainLoop);
       },
     });
-    precomputeTerrainCache(runtime.runtimeState.lobby.map!);
+    runtime.warmMapCache(runtime.runtimeState.lobby.map!);
   }
 
   async function initFromServer(msg: InitMessage): Promise<void> {

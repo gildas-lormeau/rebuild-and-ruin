@@ -152,6 +152,7 @@ export function finalizeCastleConstruction(state: GameState): void {
 export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
   computeDefaultFacings(state);
+  state.timer = state.cannonPlaceTimer;
 }
 
 /** Initialize a single controller for the cannon phase: place cannons, snap

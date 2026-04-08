@@ -140,6 +140,11 @@ export function createBattleAnimState(): BattleAnimState {
   return { territory: [], walls: [], flights: [], impacts: [] };
 }
 
+/** Clear all impact flashes (e.g. on phase transition to build). */
+export function clearImpacts(battleAnim: { impacts: Impact[] }): void {
+  battleAnim.impacts = [];
+}
+
 /** Age impact flashes by `dt` seconds and remove expired ones. */
 export function ageImpacts(
   battleAnim: { impacts: Impact[] },

@@ -1,3 +1,5 @@
+import { getInterior } from "../shared/board-occupancy.ts";
+import { SELECT_TIMER } from "../shared/game-constants.ts";
 import {
   isReselectPhase,
   isSelectionPhase,
@@ -24,7 +26,6 @@ interface TickSelectionPhaseDeps {
   state: GameState;
   isHost: boolean;
   myPlayerId: PlayerSlotId;
-  selectTimer: number;
   /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
   accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
@@ -123,7 +124,6 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     state,
     isHost,
     myPlayerId,
-    selectTimer,
     accum,
     selectionStates,
     remoteHumanSlots,
@@ -150,7 +150,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     state.timer = 0;
   } else {
     accum.select += dt;
-    state.timer = Math.max(0, selectTimer - accum.select);
+    state.timer = Math.max(0, SELECT_TIMER - accum.select);
   }
   if (!isHost && !isActivePlayer(myPlayerId)) {
     render();
@@ -158,7 +158,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   }
 
   if (!isHost && isActivePlayer(myPlayerId)) {
-    if (accum.select >= selectTimer) {
+    if (accum.select >= SELECT_TIMER) {
       confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
     }
     render();
@@ -202,7 +202,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 
   render();
 
-  if (accum.select >= selectTimer) {
+  if (accum.select >= SELECT_TIMER) {
     // Guard: only pending (unconfirmed) selections get auto-confirmed on timer expiry.
     // Equivalent to isSelectionPending() — uses loop-level check for iteration efficiency.
     for (const [rawPid, selectionState] of selectionStates) {
@@ -224,6 +224,21 @@ export function allSelectionsConfirmed(
     if (!selectionState.confirmed) return false;
   }
   return true;
+}
+
+/** Set the game timer for the selection phase. Keeps timer initialization
+ *  inside the game domain instead of runtime directly mutating state.timer. */
+export function initSelectionTimer(state: GameState): void {
+  state.timer = SELECT_TIMER;
+}
+
+/** True when every player with a home tower has non-empty territory (or is eliminated).
+ *  Game-rule check used by the selection tick to decide when castle builds are done. */
+export function allPlayersHaveTerritory(state: GameState): boolean {
+  return state.players.every(
+    (player) =>
+      !player.homeTower || getInterior(player).size > 0 || player.eliminated,
+  );
 }
 
 /** Clear selection state if in CASTLE_SELECT phase. Returns true if cleared. */

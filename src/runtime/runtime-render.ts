@@ -5,17 +5,11 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
-import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/player-config.ts";
-import {
-  type PlayerSlotId,
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   InputReceiver,
   PlayerController,
@@ -49,6 +43,8 @@ interface RenderSystemDeps {
     now: number,
   ) => void;
   readonly logThrottled: (key: string, msg: string) => void;
+  readonly scoreDeltaProgress: () => number;
+  readonly upgradePickInteractiveId: () => PlayerSlotId;
   readonly syncCrosshairs: (weaponsActive: boolean) => void;
   readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
     px: number;
@@ -126,13 +122,12 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       upgradePickDialog: runtimeState.upgradePickDialog,
       povPlayerId: runtimeState.frameMeta.povPlayerId,
       hasPointerPlayer: runtimeState.frameMeta.hasPointerPlayer,
-      upgradePickInteractiveId: computeUpgradePickInteractiveId(
-        runtimeState.upgradePickDialog,
-        runtimeState.frameMeta.myPlayerId,
-      ),
+      upgradePickInteractiveId: deps.upgradePickInteractiveId(),
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
+      masterBuilderLockout:
+        runtimeState.state.modern?.masterBuilderLockout ?? 0,
     });
 
     // Status bar (rendered inside canvas)
@@ -143,11 +138,6 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.frameMeta.povPlayerId,
         runtimeState.frameMeta.hasPointerPlayer,
       );
-      // Master Builder lockout effect — visible to everyone during exclusive window
-      const lockout = runtimeState.state.modern?.masterBuilderLockout ?? 0;
-      if (lockout > 0) {
-        runtimeState.overlay.ui.masterBuilderLockout = lockout;
-      }
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
@@ -156,8 +146,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui
     ) {
       runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDisplay.deltas;
-      runtimeState.overlay.ui.scoreDeltaProgress =
-        1 - runtimeState.scoreDisplay.deltaTimer / SCORE_DELTA_DISPLAY_TIME;
+      runtimeState.overlay.ui.scoreDeltaProgress = deps.scoreDeltaProgress();
     }
 
     deps.drawFrame(
@@ -190,17 +179,4 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       containerHeight: deps.getContainerHeight(),
     });
   };
-}
-
-/** Compute which player's upgrade pick entry accepts local input.
- *  Returns the player ID, or -1 if no local player is picking. */
-function computeUpgradePickInteractiveId(
-  dialog: UpgradePickDialogState | null,
-  myPlayerId: PlayerSlotId,
-): PlayerSlotId {
-  if (!dialog) return SPECTATOR_SLOT;
-  const entry = dialog.entries.find(
-    (e) => e.playerId === myPlayerId && !e.autoResolve,
-  );
-  return entry ? (entry.playerId as PlayerSlotId) : SPECTATOR_SLOT;
 }

@@ -8,7 +8,6 @@
 
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { selectionFacade } from "../game/selection-facade.ts";
-import { getInterior } from "../shared/board-occupancy.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -129,7 +128,6 @@ export function createSelectionSystem(
           selection: { highlighted: null, selected: null },
         };
       },
-      selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       enterCastleReselectPhase: selectionFacade.enterCastleReselectPhase,
       setModeSelection: () => {
@@ -256,7 +254,6 @@ export function createSelectionSystem(
       state: runtimeState.state,
       isHost: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
-      selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selectionStates,
       remoteHumanSlots,
@@ -267,12 +264,7 @@ export function createSelectionSystem(
       allSelectionsConfirmed,
       allBuildsComplete: () =>
         runtimeState.castleBuilds.length === 0 &&
-        runtimeState.state.players.every(
-          (player) =>
-            !player.homeTower ||
-            getInterior(player).size > 0 ||
-            player.eliminated,
-        ),
+        selectionFacade.allPlayersHaveTerritory(runtimeState.state),
       tickActiveBuilds: (dt: number) => {
         if (tickAllCastleBuilds(dt))
           selectionFacade.recheckTerritoryOnly(runtimeState.state);
@@ -418,7 +410,7 @@ export function createSelectionSystem(
     if (needsUI) {
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
-      runtimeState.state.timer = SELECT_TIMER;
+      selectionFacade.initSelectionTimer(runtimeState.state);
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
       if (runtimeState.frameMeta.hostAtFrameStart) {

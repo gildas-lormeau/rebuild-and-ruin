@@ -40,7 +40,6 @@ import {
   lobbyClickHitTest,
   updateSelectionOverlay,
 } from "../render/render-composition.ts";
-import { precomputeTerrainCache } from "../render/render-map.ts";
 import {
   createControlsOverlay,
   createLobbyOverlay,
@@ -133,7 +132,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       runtimeState.lobby.seed = newSeed;
       config.log(`[lobby] seed: ${newSeed}`);
       runtimeState.lobby.map = generateMap(newSeed);
-      precomputeTerrainCache(runtimeState.lobby.map);
+      renderer.warmMapCache(runtimeState.lobby.map);
     }
   }
 
@@ -297,6 +296,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     drawFrame: (map, overlay, viewport, now) =>
       renderer.drawFrame(map, overlay, viewport, now),
     logThrottled: config.logThrottled,
+    scoreDeltaProgress: () => scoreDelta.progress(),
+    upgradePickInteractiveId: () => upgradePick.interactivePlayerId(),
     syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
@@ -614,6 +615,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
+    warmMapCache: (map) => renderer.warmMapCache(map),
   };
 }
 

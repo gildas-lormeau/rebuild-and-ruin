@@ -6,6 +6,7 @@
  * individual game/ files.
  */
 
+import { ageImpacts, clearImpacts } from "../shared/battle-types.ts";
 import {
   accumulateBattleStats,
   collectLocalCrosshairs,
@@ -43,6 +44,8 @@ import {
 } from "./phase-transition-steps.ts";
 
 export const phaseTickFacade = {
+  ageImpacts,
+  clearImpacts,
   accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,

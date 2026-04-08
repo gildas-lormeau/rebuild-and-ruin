@@ -3,7 +3,7 @@ import {
   createBattleAnimState,
 } from "../shared/battle-types.ts";
 import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
-import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
+import { isTimedPhase, type Phase } from "../shared/game-phase.ts";
 import {
   type CastleBuildState,
   type ControlsState,
@@ -337,12 +337,11 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
 
-  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
   const phaseEnding =
     !mobileAutoZoom &&
     timer > 0 &&
     timer <= PHASE_ENDING_THRESHOLD &&
-    timedPhase;
+    isTimedPhase(phase);
 
   const shouldUnzoom = uiBlocking || phaseEnding;
   const isTransition = isTransitionMode(mode);

@@ -22,6 +22,7 @@ import {
   CANNON_PLACE_TIMER,
   FIRST_ROUND_CANNONS,
   GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
@@ -29,7 +30,7 @@ import type { GameMap, Tower } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
-import type { GameState } from "../shared/types.ts";
+import { type GameState, setGameMode } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { assertNever } from "../shared/utils.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
@@ -118,6 +119,31 @@ export function createGameState(
     activeFeatures: EMPTY_FEATURES,
     modern: null,
   };
+}
+
+/** Apply per-match game configuration to a freshly created GameState.
+ *  Called by bootstrapGame after createGameFromSeed. Keeps all game-config
+ *  mutation inside the game domain. */
+export function applyGameConfig(
+  state: GameState,
+  config: {
+    maxRounds: number;
+    cannonMaxHp: number;
+    buildTimer: number;
+    cannonPlaceTimer: number;
+    firstRoundCannons: number;
+    gameMode: string;
+  },
+): void {
+  state.maxRounds = config.maxRounds > 0 ? config.maxRounds : Infinity;
+  state.cannonMaxHp = config.cannonMaxHp;
+  state.buildTimer = config.buildTimer;
+  state.cannonPlaceTimer = config.cannonPlaceTimer;
+  state.firstRoundCannons = config.firstRoundCannons;
+  setGameMode(
+    state,
+    config.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
+  );
 }
 
 export function enterCastleReselectPhase(state: GameState): void {

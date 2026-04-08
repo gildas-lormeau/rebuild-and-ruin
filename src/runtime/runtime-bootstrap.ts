@@ -1,5 +1,6 @@
-import { createGameFromSeed } from "../game/game-engine.ts";
+import { applyGameConfig, createGameFromSeed } from "../game/game-engine.ts";
 import { generateMap } from "../game/map-generation.ts";
+import { selectionFacade } from "../game/selection-facade.ts";
 import {
   createController,
   ensureAiModulesLoaded,
@@ -22,11 +23,7 @@ import { MAX_UINT32 } from "../shared/rng.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
-import {
-  type GameState,
-  type LobbyState,
-  setGameMode,
-} from "../shared/types.ts";
+import type { GameState, LobbyState } from "../shared/types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { EnterTowerSelectionDeps } from "./runtime-types.ts";
 
@@ -117,7 +114,6 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     initTowerSelection,
     syncSelectionOverlay,
     setOverlaySelection,
-    selectTimer,
     accum,
     enterCastleReselectPhase,
     setModeSelection,
@@ -163,7 +159,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   setOverlaySelection();
   syncSelectionOverlay();
   accum.select = 0;
-  state.timer = selectTimer;
+  selectionFacade.initSelectionTimer(state);
   setModeSelection();
   setLastTime(performance.now());
   requestFrame();
@@ -241,15 +237,14 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
     deps.maxPlayers,
     deps.existingMap,
   );
-  state.maxRounds = deps.maxRounds > 0 ? deps.maxRounds : Infinity;
-  state.cannonMaxHp = deps.cannonMaxHp;
-  state.buildTimer = deps.buildTimer;
-  state.cannonPlaceTimer = deps.cannonPlaceTimer;
-  state.firstRoundCannons = deps.firstRoundCannons;
-  setGameMode(
-    state,
-    deps.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
-  );
+  applyGameConfig(state, {
+    maxRounds: deps.maxRounds,
+    cannonMaxHp: deps.cannonMaxHp,
+    buildTimer: deps.buildTimer,
+    cannonPlaceTimer: deps.cannonPlaceTimer,
+    firstRoundCannons: deps.firstRoundCannons,
+    gameMode: deps.gameMode,
+  });
 
   deps.log(
     `initGame: ${playerCount} players, seed=${deps.seed}, maxRounds=${state.maxRounds}`,
