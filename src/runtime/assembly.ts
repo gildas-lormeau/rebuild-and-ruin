@@ -1,4 +1,4 @@
-import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
+import { localFire, localPlacePiece } from "../game/game-actions.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -144,18 +144,11 @@ export function createRuntimeInputAdapters(params: {
       tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
       tryPlacePieceAndSend:
         config.onlineConfig?.tryPlacePieceAndSend ??
-        ((ctrl, gameState) => {
-          const intent = ctrl.tryPlacePiece(gameState);
-          if (!intent) return false;
-          return executePlacePiece(runtimeState.state, intent, ctrl);
-        }),
+        ((ctrl, gameState) =>
+          localPlacePiece(runtimeState.state, ctrl, gameState)),
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
-        ((ctrl, gameState) => {
-          const intent = ctrl.fire(gameState);
-          if (!intent) return;
-          executeCannonFire(runtimeState.state, intent, ctrl);
-        }),
+        ((ctrl, gameState) => localFire(runtimeState.state, ctrl, gameState)),
       getIsHost: config.getIsHost,
     },
   };

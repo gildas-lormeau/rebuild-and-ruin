@@ -173,19 +173,39 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   // Coordinate space: canvasX/canvasY are CSS pixels (from getBoundingClientRect).
-  // Hit-test functions expect backing-store pixels, so divide by SCALE here.
-  // CONTRAST with runtime-lobby.ts which passes raw canvas coords — lobby hit-tests
-  // handle TILE_SIZE internally and expect CSS-pixel input directly.
+  // Hit-test functions expect backing-store pixels — the two helpers below
+  // centralise the CSS → backing-store (÷ SCALE) conversion so callers
+  // always pass raw CSS coords.  (Lobby hit-tests handle scaling internally,
+  // so runtime-lobby.ts passes CSS coords directly without a wrapper.)
 
-  function clickOptions(canvasX: number, canvasY: number): void {
-    const visible = visibleOptionsForCtx();
-    const hit = deps.optionsScreenHitTest(
+  function optionsHitTest(
+    canvasX: number,
+    canvasY: number,
+    optionCount?: number,
+  ) {
+    return deps.optionsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
       MAP_PX_W,
       MAP_PX_H,
-      visible.length,
+      optionCount ?? visibleOptionsForCtx().length,
     );
+  }
+
+  function controlsHitTest(canvasX: number, canvasY: number) {
+    return deps.controlsScreenHitTest(
+      canvasX / SCALE,
+      canvasY / SCALE,
+      MAP_PX_W,
+      MAP_PX_H,
+      IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS,
+      ACTION_KEYS.length,
+    );
+  }
+
+  function clickOptions(canvasX: number, canvasY: number): void {
+    const visible = visibleOptionsForCtx();
+    const hit = optionsHitTest(canvasX, canvasY, visible.length);
     if (!hit) return;
     if (hit.type === HIT_CLOSE) {
       closeOptions();
@@ -206,25 +226,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function cursorAt(canvasX: number, canvasY: number): string {
-    const hit = deps.optionsScreenHitTest(
-      canvasX / SCALE,
-      canvasY / SCALE,
-      MAP_PX_W,
-      MAP_PX_H,
-      visibleOptionsForCtx().length,
-    );
-    return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
-  }
-
-  function controlsHitTest(canvasX: number, canvasY: number) {
-    return deps.controlsScreenHitTest(
-      canvasX / SCALE,
-      canvasY / SCALE,
-      MAP_PX_W,
-      MAP_PX_H,
-      IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS,
-      ACTION_KEYS.length,
-    );
+    return optionsHitTest(canvasX, canvasY) ? CURSOR_POINTER : CURSOR_DEFAULT;
   }
 
   function clickControls(canvasX: number, canvasY: number): void {

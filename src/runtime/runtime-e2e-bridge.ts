@@ -173,6 +173,9 @@ interface E2EBridgeDeps {
   };
 }
 
+/** Module-scoped singleton — created on first call, reused across frames.
+ *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
+ *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
 
 /** Update the E2E bridge on `window.__e2e` with the current frame's state.

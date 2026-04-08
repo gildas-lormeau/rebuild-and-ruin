@@ -81,6 +81,9 @@ const HEADING_CSS = "font-weight:bold;color:#8be9fd";
 /** Player label chars for plain-text mode (R=Red, B=Blue, G=Gold). */
 const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 
+/** Attach `window.__dev` once (dev-only, guarded by IS_DEV at call site).
+ *  The console object closes over runtimeState but reads it on-demand —
+ *  no stale snapshots are retained between invocations. */
 export function exposeDevConsole(runtimeState: RuntimeState): void {
   if (typeof window === "undefined") return;
 

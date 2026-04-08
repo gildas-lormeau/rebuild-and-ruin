@@ -115,7 +115,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   sound.setLevel(runtimeState.settings.sound);
 
   // Touch handles created early — render, options, and lifecycle read them
-  // via closure. Populated later when createInputSystem() wires DOM handlers.
+  // via closure. Populated once by createInputSystem(), then frozen (see below).
   const touchHandles: TouchHandles = {
     dpad: null,
     floatingActions: null,
@@ -579,6 +579,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pointerPlayer,
     withPointerPlayer,
   });
+
+  // All touch handle fields are now assigned — freeze to prevent accidental
+  // reassignment. Subsystems call handle.update(), never reassign the slot.
+  Object.freeze(touchHandles);
 
   // -------------------------------------------------------------------------
   // Return the runtime object

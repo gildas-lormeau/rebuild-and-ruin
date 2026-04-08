@@ -194,22 +194,25 @@ type PlaceCannonFn = (
 ) => boolean;
 
 export interface TouchHandles {
-  dpad: DpadHandle | null;
-  floatingActions: FloatingActionsHandle | null;
-  homeZoomButton: ZoomButtonHandle | null;
-  enemyZoomButton: ZoomButtonHandle | null;
-  quitButton: QuitButtonHandle | null;
-  loupeHandle: LoupeHandle | null;
+  readonly dpad: DpadHandle | null;
+  readonly floatingActions: FloatingActionsHandle | null;
+  readonly homeZoomButton: ZoomButtonHandle | null;
+  readonly enemyZoomButton: ZoomButtonHandle | null;
+  readonly quitButton: QuitButtonHandle | null;
+  readonly loupeHandle: LoupeHandle | null;
 }
+
+/** Mutable during initial wiring inside createInputSystem; frozen afterward. */
+type MutableTouchHandles = {
+  -readonly [K in keyof TouchHandles]: TouchHandles[K];
+};
 
 interface InputSystem {
   resetForLobby(runtimeState: RuntimeState): void;
 }
 
-const NOOP = () => {};
-
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
-  const touch = deps.touchHandles;
+  const touch = deps.touchHandles as MutableTouchHandles;
   const runtimeState = deps.runtimeState;
   const { camera, sound, lobby, selection } = deps;
 
@@ -273,7 +276,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
 function setupTouchControls(
   inputDeps: RegisterOnlineInputDeps,
-  touch: TouchHandles,
+  touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
   const { gameContainer, renderer, camera } = deps;
@@ -309,7 +312,7 @@ function buildInputDeps(
     withPointerPlayer,
     showLobby: deps.lifecycle.returnToLobby,
     rematch: deps.lifecycle.rematch,
-    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? NOOP,
+    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? (() => {}),
     setDirectTouchActive: (active) => {
       runtimeState.inputTracking.directTouchActive = active;
     },
@@ -521,7 +524,7 @@ function buildGameActionDeps(
 
 function setupDpadAndActions(
   inputDeps: RegisterOnlineInputDeps,
-  touch: TouchHandles,
+  touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
   const {
@@ -622,7 +625,10 @@ function buildOverlayActionDeps(
   };
 }
 
-function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
+function setupZoomButtons(
+  touch: MutableTouchHandles,
+  deps: InputSystemDeps,
+): void {
   const { runtimeState, gameContainer } = deps;
   const zoomDeps = buildZoomDeps(deps);
 
@@ -680,7 +686,7 @@ function buildZoomDeps(deps: InputSystemDeps) {
 
 function setupFloatingActions(
   inputDeps: RegisterOnlineInputDeps,
-  touch: TouchHandles,
+  touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
   const { runtimeState, renderer, sound, haptics, withPointerPlayer } = deps;
