@@ -61,11 +61,6 @@ export type LifeLostSystem = RuntimeLifeLost & {
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { runtimeState } = deps;
 
-  /** True when every entry has been resolved (no PENDING choices remain). */
-  function allResolved(dialog: LifeLostDialogState): boolean {
-    return dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING);
-  }
-
   function tryShow(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
@@ -85,7 +80,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
         isHuman(runtimeState.controllers[playerId]!),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
-    if (allResolved(dialog)) {
+    if (dialogFacade.isLifeLostAllResolved(dialog)) {
       deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
       dialogFacade.eliminateAbandoned(dialog, runtimeState.state.players);
       afterLifeLostResolved();

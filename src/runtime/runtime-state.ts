@@ -3,7 +3,7 @@ import {
   createBattleAnimState,
 } from "../shared/battle-types.ts";
 import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
-import { isTimedPhase, type Phase } from "../shared/game-phase.ts";
+import { isTimedPhase, Phase } from "../shared/game-phase.ts";
 import {
   type CastleBuildState,
   type ControlsState,
@@ -184,10 +184,24 @@ const DEFAULT_FRAME_DT = 1 / 60;
  */
 const SENTINEL = Symbol("uninitialized");
 
+/** Create zeroed per-player game stats array for a new match. */
+export function createEmptyGameStats(): PlayerStats[] {
+  return Array.from({ length: MAX_PLAYERS }, () => ({
+    wallsDestroyed: 0,
+    cannonsKilled: 0,
+  }));
+}
+
 /** Centralized mode transition — all mode changes MUST go through this function.
  * Single mutation point makes the state machine traceable and validatable. */
 export function setMode(runtimeState: RuntimeState, mode: Mode): void {
   runtimeState.mode = mode;
+}
+
+/** Reset frame timing to avoid a large dt spike on the next tick.
+ *  Call when resuming the loop after a gap (mode transition, options screen). */
+export function resetFrameTiming(runtimeState: RuntimeState): void {
+  runtimeState.lastTime = performance.now();
 }
 
 /** Reset transient RuntimeState fields between games (restart / rematch).
@@ -352,6 +366,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     timer <= PHASE_ENDING_THRESHOLD &&
     isTimedPhase(phase);
 
+  const inBattle = phase === Phase.BATTLE;
   const shouldUnzoom = uiBlocking || phaseEnding;
   const isTransition = isTransitionMode(mode);
 
@@ -366,6 +381,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     remoteHumanSlots,
     mode,
     phase,
+    inBattle,
     paused,
     quitPending,
     hasLifeLostDialog,

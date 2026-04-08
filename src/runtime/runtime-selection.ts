@@ -30,7 +30,11 @@ import {
 import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+import {
+  type RuntimeState,
+  resetFrameTiming,
+  setMode,
+} from "./runtime-state.ts";
 import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
@@ -167,7 +171,7 @@ export function createSelectionSystem(
     selectionFacade.initSelectionTimer(state);
     setMode(runtimeState, Mode.SELECTION);
     deps.sound.drumsStart();
-    runtimeState.lastTime = performance.now();
+    resetFrameTiming(runtimeState);
     deps.requestFrame();
   }
 

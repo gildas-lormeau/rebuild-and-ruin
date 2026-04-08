@@ -98,7 +98,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     );
 
     // Refresh crosshairs from controller state when paused
-    if (runtimeState.state.phase === Phase.BATTLE && runtimeState.paused) {
+    if (runtimeState.frameMeta.inBattle && runtimeState.paused) {
       deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
     }
 
@@ -117,7 +117,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       battleAnim: runtimeState.battleAnim,
       frame: runtimeState.frame,
       bannerUi,
-      inBattle: runtimeState.state.phase === Phase.BATTLE,
+      inBattle: runtimeState.frameMeta.inBattle,
       lifeLostDialog: runtimeState.dialogs.lifeLost,
       upgradePickDialog: runtimeState.dialogs.upgradePick,
       povPlayerId: runtimeState.frameMeta.povPlayerId,

@@ -1,6 +1,7 @@
 import { localFire, localPlacePiece } from "../game/game-actions.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
+import { createEmptyFrameData } from "../shared/overlay-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   BattleViewState,
@@ -57,9 +58,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   mainLoop: (now: number) => void;
 } {
   function clearFrameData(): void {
-    const { gameOver } = deps.runtimeState.frame;
-    deps.runtimeState.frame = { crosshairs: [], phantoms: {} };
-    if (gameOver) deps.runtimeState.frame.gameOver = gameOver;
+    deps.runtimeState.frame = createEmptyFrameData(deps.runtimeState.frame);
     deps.clearHumanCache();
   }
 

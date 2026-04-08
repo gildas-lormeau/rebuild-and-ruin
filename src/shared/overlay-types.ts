@@ -336,3 +336,14 @@ export interface PlayerStats {
   wallsDestroyed: number;
   cannonsKilled: number;
 }
+
+/** Create a fresh FrameData, preserving sticky fields from a previous frame.
+ *  Sticky fields (gameOver) survive frame clears because they outlive a single tick.
+ *  If you add a sticky field to FrameData, preserve it here. */
+export function createEmptyFrameData(prev?: FrameData): FrameData {
+  return {
+    crosshairs: [],
+    phantoms: {},
+    ...(prev?.gameOver !== undefined ? { gameOver: prev.gameOver } : {}),
+  };
+}

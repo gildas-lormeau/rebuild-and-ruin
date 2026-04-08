@@ -53,6 +53,11 @@ export function tickLifeLostDialog(
     }
   }
 
+  return isLifeLostAllResolved(dialog);
+}
+
+/** True when every entry has been resolved (no PENDING choices remain). */
+export function isLifeLostAllResolved(dialog: LifeLostDialogState): boolean {
   return dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING);
 }
 

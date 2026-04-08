@@ -195,6 +195,9 @@ export interface FrameContext {
   readonly mode: Mode;
   readonly phase: Phase;
 
+  /** True when the current game phase is BATTLE. */
+  readonly inBattle: boolean;
+
   // Overlay flags
   readonly paused: boolean;
   readonly quitPending: boolean;

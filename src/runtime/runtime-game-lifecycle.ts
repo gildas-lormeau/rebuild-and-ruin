@@ -15,11 +15,11 @@ import {
   type GameOverFocus,
 } from "../shared/interaction-types.ts";
 import type { GameOverOverlay } from "../shared/overlay-types.ts";
-import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
+  createEmptyGameStats,
   type RuntimeState,
   resetTransientState,
   setMode,
@@ -243,10 +243,7 @@ export function buildLifecycleDeps(
       wiringDeps.getUpgradePick().set(null);
       wiringDeps.scoreDelta.reset();
       wiringDeps.camera.resetBattleCrosshair();
-      runtimeState.scoreDisplay.gameStats = Array.from(
-        { length: MAX_PLAYERS },
-        () => ({ wallsDestroyed: 0, cannonsKilled: 0 }),
-      );
+      runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
       wiringDeps.camera.resetCamera();
       wiringDeps.sound.reset();
     },

@@ -67,7 +67,7 @@ interface TickHostBattleCountdownDeps {
  *  Optional (`net?`) — when omitted, no fire events are broadcast and
  *  all controllers are treated as local. */
 interface BattlePhaseNet extends HostNetContext {
-  sendMessage: (msg: GameMessage) => void;
+  sendBattleEvent: (msg: GameMessage) => void;
 }
 
 interface TickHostBattlePhaseDeps {
@@ -89,7 +89,7 @@ interface TickHostBattlePhaseDeps {
   };
   onBattlePhaseEnded: () => void;
   onBattleEvents?: (events: ReadonlyArray<BattleEvent>) => void;
-  /** Network context. Pass LOCAL_NET (spread with sendMessage no-op) for local play. */
+  /** Network context. Pass LOCAL_NET (spread with sendBattleEvent no-op) for local play. */
   net: BattlePhaseNet;
 }
 
@@ -200,7 +200,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const sendMessage = deps.net?.sendMessage;
+  const sendBattleEvent = deps.net?.sendBattleEvent;
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
@@ -215,18 +215,18 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     controllers,
     remoteHumanSlots,
     isHostInContext(deps.net),
-    sendMessage,
+    sendBattleEvent,
   );
   const towerEvents = collectTowerEvents(state, dt);
-  if (isHostInContext(deps.net) && sendMessage) {
-    for (const evt of towerEvents) sendMessage(evt);
+  if (isHostInContext(deps.net) && sendBattleEvent) {
+    for (const evt of towerEvents) sendBattleEvent(evt);
   }
   const impactEvents = tickCannonballsAndRecordImpacts(
     state,
     dt,
     battleAnim,
     tickCannonballsWithEvents,
-    sendMessage,
+    sendBattleEvent,
   );
 
   // Step 4: notify sound/haptics
@@ -367,7 +367,7 @@ function tickControllersAndCollectFires(
   controllers: readonly BattleCapable[],
   remoteHumanSlots: ReadonlySet<number>,
   isHost: boolean,
-  sendMessage: ((msg: GameMessage) => void) | undefined,
+  sendBattleEvent: ((msg: GameMessage) => void) | undefined,
 ): CannonFiredMessage[] {
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
@@ -377,7 +377,7 @@ function tickControllersAndCollectFires(
   for (let i = ballsBefore; i < state.cannonballs.length; i++) {
     const msg = createCannonFiredMsg(state.cannonballs[i]!);
     fireEvents.push(msg);
-    if (isHost && sendMessage) sendMessage(msg);
+    if (isHost && sendBattleEvent) sendBattleEvent(msg);
   }
   return fireEvents;
 }
@@ -388,15 +388,15 @@ function tickCannonballsAndRecordImpacts(
   dt: number,
   battleAnim: { impacts: Impact[] },
   tickCannonballsWithEvents: TickHostBattlePhaseDeps["tickCannonballsWithEvents"],
-  sendMessage: ((msg: GameMessage) => void) | undefined,
+  sendBattleEvent: ((msg: GameMessage) => void) | undefined,
 ): ImpactEvent[] {
   const { impacts: newImpacts, events: impactEvents } =
     tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {
     battleAnim.impacts.push({ ...imp, age: 0 });
   }
-  if (sendMessage) {
-    for (const evt of impactEvents) sendMessage(evt);
+  if (sendBattleEvent) {
+    for (const evt of impactEvents) sendBattleEvent(evt);
   }
   return impactEvents;
 }

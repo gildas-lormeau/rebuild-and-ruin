@@ -33,7 +33,11 @@ import type {
   VisibleOptionsFn,
 } from "../shared/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
-import { type RuntimeState, safeState } from "./runtime-state.ts";
+import {
+  type RuntimeState,
+  resetFrameTiming,
+  safeState,
+} from "./runtime-state.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
@@ -138,7 +142,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     if (returnMode !== null) {
       uiCtx.setMode(returnMode);
       uiCtx.setOptionsReturnMode(null);
-      runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
+      resetFrameTiming(runtimeState);
     } else {
       uiCtx.setMode(Mode.LOBBY);
       saveSettings(uiCtx.settings);

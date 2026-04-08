@@ -395,7 +395,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
         isHost: runtimeState.frameMeta.hostAtFrameStart,
-        sendMessage: deps.send,
+        sendBattleEvent: deps.send,
       },
     });
   }

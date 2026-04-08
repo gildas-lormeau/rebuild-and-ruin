@@ -283,7 +283,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     handleSelectionZoom(mobileAuto, state, frameCtx);
     const notTransition = !frameCtx.isTransition;
     handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
-    followCrosshairInBattle(mobileAuto, state, frameCtx, notTransition);
+    followCrosshairInBattle(mobileAuto, frameCtx, notTransition);
   }
 
   /** Clear zoom when UI overlays or phase-end unzoom is active. */
@@ -372,13 +372,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Track crosshair zone during battle for camera follow (mobile only). */
   function followCrosshairInBattle(
     mobileAuto: boolean,
-    state: GameState,
     frameCtx: FrameContext,
     notTransition: boolean,
   ): void {
     if (
       !mobileAuto ||
-      state.phase !== Phase.BATTLE ||
+      !frameCtx.inBattle ||
       pinchVp ||
       frameCtx.shouldUnzoom ||
       !notTransition

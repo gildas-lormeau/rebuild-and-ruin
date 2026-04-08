@@ -13,6 +13,7 @@ import {
   continuingPlayers,
   createLifeLostDialogState,
   eliminateAbandoned,
+  isLifeLostAllResolved,
   resolveAfterLifeLost,
   tickLifeLostDialog,
   toggleLifeLostFocus,
@@ -30,6 +31,7 @@ import {
 
 export const dialogFacade = {
   createLifeLostDialog: createLifeLostDialogState,
+  isLifeLostAllResolved,
   tickLifeLostDialog,
   continuingPlayers,
   resolveAfterLifeLost,
