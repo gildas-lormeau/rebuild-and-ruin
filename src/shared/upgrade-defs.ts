@@ -20,7 +20,8 @@ export type UpgradeId =
   | "ricochet"
   | "shield_battery"
   | "architect"
-  | "double_time";
+  | "double_time"
+  | "conscription";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -80,6 +81,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   SHIELD_BATTERY: "shield_battery",
   ARCHITECT: "architect",
   DOUBLE_TIME: "double_time",
+  CONSCRIPTION: "conscription",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -185,6 +187,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     implemented: true,
   },
   // Strategic
+  {
+    id: "conscription",
+    label: "Conscription",
+    description: "Killed grunts have 75% chance to respawn on an enemy zone",
+    category: STRATEGIC,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: false,
+    implemented: true,
+  },
   {
     id: "salvage",
     label: "Salvage",

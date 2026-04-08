@@ -99,6 +99,8 @@ export const BALLOON_HITS_NEEDED = 1;
 export const SUPER_BALLOON_HITS_NEEDED = 2;
 /** Probability that a cannonball-destroyed house spawns a grunt. */
 export const HOUSE_GRUNT_SPAWN_CHANCE = 0.5;
+/** Chance a killed grunt respawns on an enemy zone when the Conscription upgrade is active. */
+export const CONSCRIPTION_SPAWN_CHANCE = 0.75;
 /** Probability that a blocked grunt rolls a wall attack each battle. */
 export const GRUNT_WALL_ATTACK_CHANCE = 0.25;
 /** Minimum consecutive blocked battles before a grunt is eligible for a wall attack. */

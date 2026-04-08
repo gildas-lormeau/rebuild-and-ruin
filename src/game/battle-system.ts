@@ -24,6 +24,7 @@ import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
   BURNING_PIT_DURATION,
+  CONSCRIPTION_SPAWN_CHANCE,
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
@@ -920,7 +921,8 @@ function collectHouseImpacts(
   return events;
 }
 
-/** Collect grunt kill events at a tile. */
+/** Collect grunt kill events at a tile.
+ *  Conscription: killed grunts have a chance to respawn on a random enemy zone. */
 function collectGruntImpacts(
   state: GameState,
   row: number,
@@ -928,6 +930,8 @@ function collectGruntImpacts(
   shooterId: number,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
+  const shooter = state.players[shooterId];
+  const hasConscription = !!shooter?.upgrades.get(UID.CONSCRIPTION);
   for (const grunt of state.grunts) {
     if (isAtTile(grunt, row, col)) {
       events.push({
@@ -936,6 +940,28 @@ function collectGruntImpacts(
         col: grunt.col,
         shooterId,
       });
+      if (hasConscription && state.rng.bool(CONSCRIPTION_SPAWN_CHANCE)) {
+        const enemies = state.players.filter(
+          (player) =>
+            !player.eliminated && player.id !== shooterId && player.homeTower,
+        );
+        if (enemies.length > 0) {
+          const victim = state.rng.pick(enemies);
+          const spawnPos = findGruntSpawnNear(
+            state,
+            victim.homeTower!.row,
+            victim.homeTower!.col,
+          );
+          if (spawnPos) {
+            events.push({
+              type: BATTLE_MESSAGE.GRUNT_SPAWNED,
+              row: spawnPos.row,
+              col: spawnPos.col,
+              victimPlayerId: victim.id,
+            });
+          }
+        }
+      }
     }
   }
   return events;
