@@ -33,7 +33,6 @@ import {
   distanceToTower,
   inBounds,
   isGrass,
-  isTowerTile,
   isWater,
   manhattanDistance,
   packTile,
@@ -225,24 +224,24 @@ export function gruntAttackTowers(
       grunt.attackingWall = false;
     }
 
-    // Grunts with a locked target only attack that specific tower
+    // Grunts with a locked target only attack that specific tower.
+    // Untargeted grunts (e.g. spawned by grunt-surge modifier at battle start)
+    // attack any adjacent living tower.
     let attackTarget: number | undefined;
-    if (
-      grunt.targetTowerIdx !== undefined &&
-      state.towerAlive[grunt.targetTowerIdx]
-    ) {
-      const towerZone = state.map.towers[grunt.targetTowerIdx]!.zone;
-      if (!deadZones.has(towerZone)) {
-        const tower = state.map.towers[grunt.targetTowerIdx]!;
-        for (const [dr, dc] of DIRS_4) {
-          if (isTowerTile(tower, grunt.row + dr, grunt.col + dc)) {
-            attackTarget = grunt.targetTowerIdx;
-            break;
-          }
-        }
+    if (grunt.targetTowerIdx !== undefined) {
+      if (
+        !deadZones.has(state.map.towers[grunt.targetTowerIdx]!.zone) &&
+        isAdjacentToLivingTower(
+          state,
+          grunt.row,
+          grunt.col,
+          grunt.targetTowerIdx,
+        )
+      ) {
+        attackTarget = grunt.targetTowerIdx;
       }
-    } else if (grunt.targetTowerIdx === undefined) {
-      // Untargeted grunt — attack any adjacent living tower
+      // else: target dead or in dead zone — no retargeting (per game rules)
+    } else {
       attackTarget =
         adjacentLivingTowerIndex(state, grunt.row, grunt.col, deadZones) ??
         undefined;
