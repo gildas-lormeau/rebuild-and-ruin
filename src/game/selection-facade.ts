@@ -19,7 +19,7 @@ import {
   finalizeAndEnterCannonPhase,
   markPlayerReselected,
 } from "./game-engine.ts";
-import { snapshotEntities } from "./phase-banner.ts";
+import { BANNER_SELECT, snapshotEntities } from "./phase-banner.ts";
 import {
   completeReselection,
   prepareCastleWallsForPlayer,
@@ -33,10 +33,10 @@ import {
   highlightTowerSelection,
   initSelectionTimer,
   initTowerSelection,
-  tickSelectionPhase,
 } from "./selection.ts";
 
 export const selectionFacade = {
+  BANNER_SELECT,
   allPlayersHaveTerritory,
   initSelectionTimer,
   recheckTerritoryOnly,
@@ -54,7 +54,6 @@ export const selectionFacade = {
   finishSelectionPhase,
   highlightTowerSelection,
   initTowerSelection,
-  tickSelectionPhase,
 };
 
 /** Snapshot entities THEN finalize castle construction and enter cannon phase.

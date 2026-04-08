@@ -1,56 +1,15 @@
 import { getInterior } from "../shared/board-occupancy.ts";
 import { SELECT_TIMER } from "../shared/game-constants.ts";
-import {
-  isReselectPhase,
-  isSelectionPhase,
-  Phase,
-} from "../shared/game-phase.ts";
-import {
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
+import { Phase } from "../shared/game-phase.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   ControllerIdentity,
   SelectionController,
 } from "../shared/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import { selectPlayerTower } from "./game-engine.ts";
-import { BANNER_SELECT } from "./phase-banner.ts";
 
 type SelectionCapable = ControllerIdentity & SelectionController;
-
-interface TickSelectionPhaseDeps {
-  dt: number;
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: PlayerSlotId;
-  /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
-  accum: { select: number; selectAnnouncement: number };
-  selectionStates: Map<number, SelectionState>;
-  /** Return true for controller slots that should be skipped during the
-   *  selection tick (e.g. remote human players whose input arrives via network). */
-  shouldSkipController: (pid: ValidPlayerSlot) => boolean;
-  controllers: SelectionCapable[];
-  render: () => void;
-  confirmSelectionAndStartBuild: (
-    playerId: ValidPlayerSlot,
-    isReselect?: boolean,
-  ) => void;
-  allSelectionsConfirmed: () => boolean;
-  allBuildsComplete: () => boolean;
-  tickActiveBuilds: (dt: number) => void;
-  announcementDuration: number;
-  setFrameAnnouncement: (text: string) => void;
-  finishReselection: () => void;
-  finishSelection: () => void;
-  syncSelectionOverlay: () => void;
-  sendOpponentTowerSelected: (
-    playerId: ValidPlayerSlot,
-    towerIdx: number,
-    confirmed: boolean,
-  ) => void;
-}
 
 export function initTowerSelection(
   state: GameState,
@@ -117,105 +76,6 @@ export function confirmTowerSelection(
     allDone: allSelectionsConfirmed(selectionStates),
     isReselect,
   };
-}
-
-export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
-  const {
-    dt,
-    state,
-    isHost,
-    myPlayerId,
-    accum,
-    selectionStates,
-    shouldSkipController,
-    controllers,
-    render,
-    confirmSelectionAndStartBuild,
-    allSelectionsConfirmed,
-    allBuildsComplete,
-    tickActiveBuilds,
-    announcementDuration,
-    setFrameAnnouncement,
-    finishReselection,
-    finishSelection,
-    syncSelectionOverlay,
-    sendOpponentTowerSelected,
-  } = deps;
-
-  if (!isSelectionPhase(state.phase)) return;
-
-  // Show announcement before timer starts (first selection only)
-  if (accum.selectAnnouncement < announcementDuration) {
-    accum.selectAnnouncement += dt;
-    setFrameAnnouncement(BANNER_SELECT);
-    state.timer = 0;
-  } else {
-    accum.select += dt;
-    state.timer = Math.max(0, SELECT_TIMER - accum.select);
-  }
-  if (!isHost && !isActivePlayer(myPlayerId)) {
-    render();
-    return;
-  }
-
-  if (!isHost && isActivePlayer(myPlayerId)) {
-    if (accum.select >= SELECT_TIMER) {
-      confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
-    }
-    render();
-    return;
-  }
-
-  // Block all selection (AI + human) until the announcement finishes
-  if (accum.selectAnnouncement < announcementDuration) {
-    render();
-    return;
-  }
-  // First frame after announcement: sync overlay so human cursor appears immediately
-  if (accum.selectAnnouncement - dt < announcementDuration) {
-    syncSelectionOverlay();
-  }
-
-  const isReselect = isReselectPhase(state.phase);
-  for (const [rawPid, selectionState] of selectionStates) {
-    const pid = rawPid as ValidPlayerSlot;
-    if (selectionState.confirmed) continue;
-    if (shouldSkipController(pid)) continue;
-
-    const towerBefore = state.players[pid]!.homeTower;
-    if (controllers[pid]!.selectionTick(dt, state)) {
-      confirmSelectionAndStartBuild(pid, isReselect);
-      continue;
-    }
-
-    if (state.players[pid]!.homeTower !== towerBefore) {
-      const newTower = state.players[pid]!.homeTower;
-      if (newTower) {
-        selectionState.highlighted = newTower.index;
-        syncSelectionOverlay();
-        sendOpponentTowerSelected(pid, newTower.index, false);
-      }
-    }
-  }
-
-  // Tick active castle builds during selection
-  tickActiveBuilds(dt);
-
-  render();
-
-  if (accum.select >= SELECT_TIMER) {
-    // Guard: only pending (unconfirmed) selections get auto-confirmed on timer expiry.
-    // Equivalent to isSelectionPending() — uses loop-level check for iteration efficiency.
-    for (const [rawPid, selectionState] of selectionStates) {
-      if (selectionState.confirmed) continue;
-      confirmSelectionAndStartBuild(rawPid as ValidPlayerSlot, isReselect);
-    }
-  }
-
-  if (allSelectionsConfirmed() && allBuildsComplete()) {
-    if (isReselect) finishReselection();
-    else finishSelection();
-  }
 }
 
 export function allSelectionsConfirmed(

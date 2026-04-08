@@ -25,6 +25,7 @@ import {
 import {
   ACCUM_SELECT,
   isRemoteHuman,
+  type MutableAccums,
   resetAccum,
 } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
@@ -272,36 +273,94 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function tickSelection(dt: number) {
+    const { state, accum, selection } = runtimeState;
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    selectionFacade.tickSelectionPhase({
-      dt,
-      state: runtimeState.state,
-      isHost: deps.hostAtFrameStart(),
-      myPlayerId: runtimeState.frameMeta.myPlayerId,
-      accum: runtimeState.accum,
-      selectionStates: runtimeState.selection.states,
-      shouldSkipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
-      controllers: runtimeState.controllers,
-      render: deps.render,
-      confirmSelectionAndStartBuild: (pid, isReselect) =>
-        confirmSelectionAndStartBuild(pid, isReselect ?? false),
-      allSelectionsConfirmed,
-      allBuildsComplete: () =>
-        runtimeState.selection.castleBuilds.length === 0 &&
-        selectionFacade.allPlayersHaveTerritory(runtimeState.state),
-      tickActiveBuilds: (dt: number) => {
-        if (tickAllCastleBuilds(dt))
-          selectionFacade.recheckTerritoryOnly(runtimeState.state);
-      },
-      announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
-      setFrameAnnouncement: (text) => {
-        runtimeState.frame.announcement = text;
-      },
-      finishReselection,
-      finishSelection,
-      syncSelectionOverlay,
-      sendOpponentTowerSelected: deps.sendTowerSelected,
-    });
+    const isHost = deps.hostAtFrameStart();
+    const myPlayerId = runtimeState.frameMeta.myPlayerId;
+
+    // Advance announcement / selection timer (blessed mutation site — see MutableAccums)
+    const mutAccum = accum as MutableAccums;
+    if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
+      mutAccum.selectAnnouncement += dt;
+      runtimeState.frame.announcement = selectionFacade.BANNER_SELECT;
+      state.timer = 0;
+    } else {
+      mutAccum.select += dt;
+      state.timer = Math.max(0, SELECT_TIMER - accum.select);
+    }
+
+    // Non-host watcher: just render
+    if (!isHost && !isActivePlayer(myPlayerId)) {
+      deps.render();
+      return;
+    }
+
+    // Non-host active player: auto-confirm on timer expiry
+    if (!isHost && isActivePlayer(myPlayerId)) {
+      if (accum.select >= SELECT_TIMER) {
+        confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
+      }
+      deps.render();
+      return;
+    }
+
+    // Host: block selection until announcement finishes
+    if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
+      deps.render();
+      return;
+    }
+    // First frame after announcement: sync overlay so cursor appears
+    if (accum.selectAnnouncement - dt < SELECT_ANNOUNCEMENT_DURATION) {
+      syncSelectionOverlay();
+    }
+
+    // Tick controllers (AI + local human)
+    const isReselect = isReselectPhase(state.phase);
+    for (const [rawPid, selectionState] of selection.states) {
+      const pid = rawPid as ValidPlayerSlot;
+      if (selectionState.confirmed) continue;
+      if (isRemoteHuman(pid, remoteHumanSlots)) continue;
+
+      const towerBefore = state.players[pid]!.homeTower;
+      if (runtimeState.controllers[pid]!.selectionTick(dt, state)) {
+        confirmSelectionAndStartBuild(pid, isReselect);
+        continue;
+      }
+
+      if (state.players[pid]!.homeTower !== towerBefore) {
+        const newTower = state.players[pid]!.homeTower;
+        if (newTower) {
+          selectionState.highlighted = newTower.index;
+          syncSelectionOverlay();
+          deps.sendTowerSelected(pid, newTower.index, false);
+        }
+      }
+    }
+
+    // Tick castle build animations during selection
+    if (tickAllCastleBuilds(dt)) {
+      selectionFacade.recheckTerritoryOnly(state);
+    }
+
+    deps.render();
+
+    // Auto-confirm pending selections on timer expiry
+    if (accum.select >= SELECT_TIMER) {
+      for (const [rawPid, selectionState] of selection.states) {
+        if (selectionState.confirmed) continue;
+        confirmSelectionAndStartBuild(rawPid as ValidPlayerSlot, isReselect);
+      }
+    }
+
+    // Advance to next phase when all confirmed and builds complete
+    if (
+      allSelectionsConfirmed() &&
+      selection.castleBuilds.length === 0 &&
+      selectionFacade.allPlayersHaveTerritory(state)
+    ) {
+      if (isReselect) finishReselection();
+      else finishSelection();
+    }
   }
 
   /** Reset the overlay selection to its clean initial state (no highlights, no selection). */
