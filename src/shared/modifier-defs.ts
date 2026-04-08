@@ -80,6 +80,14 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
   },
+  {
+    id: "high_tide",
+    label: "High Tide",
+    description:
+      "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
+    weight: 2,
+    implemented: true,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =

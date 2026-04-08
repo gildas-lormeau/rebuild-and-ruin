@@ -12,7 +12,8 @@ export type ModifierId =
   | "crumbling_walls"
   | "grunt_surge"
   | "frozen_river"
-  | "sinkhole";
+  | "sinkhole"
+  | "high_tide";
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
@@ -31,6 +32,7 @@ export const MODIFIER_ID = {
   GRUNT_SURGE: "grunt_surge",
   FROZEN_RIVER: "frozen_river",
   SINKHOLE: "sinkhole",
+  HIGH_TIDE: "high_tide",
 } as const satisfies Record<string, ModifierId>;
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";

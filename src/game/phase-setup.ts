@@ -76,9 +76,11 @@ import {
   applyCrumblingWalls,
   applyFrozenRiver,
   applyGruntSurge,
+  applyHighTide,
   applySinkhole,
   applyWildfire,
   clearFrozenRiver,
+  clearHighTide,
   rollModifier,
 } from "./round-modifiers.ts";
 import { generateUpgradeOffers, resetPlayerUpgrades } from "./upgrade-pick.ts";
@@ -158,6 +160,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   recheckTerritoryOnly(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
+  clearHighTide(state);
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
   // Assignment order matters: save current modifier BEFORE rolling, because
   // rollModifier filters out lastModifierId to prevent back-to-back repeats.
@@ -190,6 +193,7 @@ export function enterBuildSkippingBattle(state: GameState): void {
   recheckTerritoryOnly(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
+  clearHighTide(state);
   enterBuildFromBattle(state);
 }
 
@@ -520,6 +524,11 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
     const sunk = applySinkhole(state);
     recheckTerritoryOnly(state);
     return { id: mod, label, changedTiles: [...sunk], gruntsSpawned: 0 };
+  }
+  if (mod === MODIFIER_ID.HIGH_TIDE) {
+    const flooded = applyHighTide(state);
+    recheckTerritoryOnly(state);
+    return { id: mod, label, changedTiles: [...flooded], gruntsSpawned: 0 };
   }
   return null;
 }

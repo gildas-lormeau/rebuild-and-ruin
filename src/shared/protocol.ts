@@ -195,6 +195,7 @@ export interface FullStateMessage {
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
   frozenTiles: number[] | null;
+  highTideTiles?: number[] | null;
   sinkholeTiles?: number[] | null;
   towerPendingRevive: number[];
   capturedCannons: {

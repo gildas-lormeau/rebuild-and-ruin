@@ -14,7 +14,10 @@
 import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import { setPhase } from "../game/phase-setup.ts";
-import { reapplySinkholeTiles } from "../game/round-modifiers.ts";
+import {
+  reapplyHighTideTiles,
+  reapplySinkholeTiles,
+} from "../game/round-modifiers.ts";
 import type { BalloonFlight, Cannonball } from "../shared/battle-types.ts";
 import type {
   BattleStartData,
@@ -96,6 +99,9 @@ export function createCannonStartMessage(state: GameState) {
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]
       : null,
+    highTideTiles: state.modern?.highTideTiles
+      ? [...state.modern.highTideTiles]
+      : null,
   };
 }
 
@@ -124,12 +130,7 @@ export function createBattleStartMessage(
             endY: flight.endY,
           }))
         : null,
-    frozenTiles: state.modern?.frozenTiles
-      ? [...state.modern.frozenTiles]
-      : null,
-    sinkholeTiles: state.modern?.sinkholeTiles
-      ? [...state.modern.sinkholeTiles]
-      : null,
+    ...serializeModifierTileSets(state),
     gruntSpawnQueue: serializeSpawnQueue(state),
     modifierDiff: modifierDiff
       ? {
@@ -293,9 +294,13 @@ export function restoreFullStateSnapshot(
     state.modern!.frozenTiles = msg.frozenTiles
       ? new Set(msg.frozenTiles)
       : null;
+    state.modern!.highTideTiles = msg.highTideTiles
+      ? new Set(msg.highTideTiles)
+      : null;
     state.modern!.sinkholeTiles = msg.sinkholeTiles
       ? new Set(msg.sinkholeTiles)
       : null;
+    reapplyHighTideTiles(state);
     reapplySinkholeTiles(state);
   }
   if (hasFeature(state, FID.UPGRADES)) {
@@ -467,8 +472,17 @@ function serializeModernFields(state: GameState) {
     masterBuilderOwners: state.modern?.masterBuilderOwners
       ? [...state.modern.masterBuilderOwners]
       : null,
+    ...serializeModifierTileSets(state),
+  };
+}
+
+function serializeModifierTileSets(state: GameState) {
+  return {
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
+      : null,
+    highTideTiles: state.modern?.highTideTiles
+      ? [...state.modern.highTideTiles]
       : null,
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]

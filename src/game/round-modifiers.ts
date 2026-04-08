@@ -30,6 +30,7 @@ import {
   isGrass,
   isWater,
   packTile,
+  setGrass,
   setWater,
   unpackTile,
 } from "../shared/spatial.ts";
@@ -188,6 +189,98 @@ export function clearFrozenRiver(state: GameState): void {
     );
   }
   modern.frozenTiles = null;
+}
+
+/** Apply high tide: flood grass tiles adjacent to water (river banks widen by 1 tile).
+ *  Destroys walls, houses, grunts, bonus squares, and burning pits on flooded tiles.
+ *  Returns the set of flooded tile keys for the reveal banner. */
+export function applyHighTide(state: GameState): ReadonlySet<number> {
+  const modern = state.modern;
+  if (!modern) return new Set();
+  const tiles = state.map.tiles;
+  const flooded = new Set<number>();
+  // Find all grass tiles that are 4-dir adjacent to water
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (!isGrass(tiles, r, c)) continue;
+      if (hasTowerAt(state, r, c)) continue;
+      for (const [dr, dc] of DIRS_4) {
+        if (isWater(tiles, r + dr, c + dc)) {
+          flooded.add(packTile(r, c));
+          break;
+        }
+      }
+    }
+  }
+  if (flooded.size === 0) return flooded;
+  // Convert to water
+  for (const key of flooded) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+  // Destroy structures on flooded tiles
+  for (const key of flooded) {
+    removeWallFromAllPlayers(state, key);
+  }
+  for (const key of flooded) {
+    const { r, c } = unpackTile(key);
+    for (const house of state.map.houses) {
+      if (house.alive && house.row === r && house.col === c)
+        house.alive = false;
+    }
+  }
+  state.grunts = state.grunts.filter(
+    (gr) => !flooded.has(packTile(gr.row, gr.col)),
+  );
+  state.bonusSquares = state.bonusSquares.filter(
+    (bonus) => !flooded.has(packTile(bonus.row, bonus.col)),
+  );
+  state.burningPits = state.burningPits.filter(
+    (pit) => !flooded.has(packTile(pit.row, pit.col)),
+  );
+  // Remove cannons on flooded tiles
+  for (const player of state.players) {
+    player.cannons = player.cannons.filter((cannon) => {
+      const sz = cannon.mode === "super" ? 3 : 2;
+      for (let dr = 0; dr < sz; dr++) {
+        for (let dc = 0; dc < sz; dc++) {
+          if (flooded.has(packTile(cannon.row + dr, cannon.col + dc)))
+            return false;
+        }
+      }
+      return true;
+    });
+  }
+  modern.highTideTiles = flooded;
+  state.map.mapVersion++;
+  return flooded;
+}
+
+/** Revert high tide: restore flooded tiles back to grass. */
+export function clearHighTide(state: GameState): void {
+  const modern = state.modern;
+  if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
+  if (!modern.highTideTiles) return;
+  const tiles = state.map.tiles;
+  for (const key of modern.highTideTiles) {
+    const { r, c } = unpackTile(key);
+    setGrass(tiles, r, c);
+  }
+  modern.highTideTiles = null;
+  state.map.mapVersion++;
+}
+
+/** Re-apply high tide tile mutations on a map regenerated from seed.
+ *  Called during checkpoint restore and full-state recovery. Idempotent. */
+export function reapplyHighTideTiles(state: GameState): void {
+  const highTide = state.modern?.highTideTiles;
+  if (!highTide || highTide.size === 0) return;
+  const tiles = state.map.tiles;
+  for (const key of highTide) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+  state.map.mapVersion++;
 }
 
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water.

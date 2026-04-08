@@ -106,6 +106,8 @@ export interface BattleStartData {
     | null;
   /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
   frozenTiles: number[] | null;
+  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
+  highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
   /** Modifier visual diff for the reveal banner. null = no modifier this round. */
@@ -144,6 +146,8 @@ export interface BuildStartData {
   masterBuilderOwners?: number[] | null;
   /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
   frozenTiles: number[] | null;
+  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
+  highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
   /** Grunts queued to spawn through wall breaches during build phase. */
