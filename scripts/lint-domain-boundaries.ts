@@ -22,11 +22,30 @@ interface Config {
   allowed: Record<string, string[]>;
   /** Domain pairs where only type-only imports are permitted. */
   typeOnlyFrom?: Record<string, string[]>;
-  /** Files exempt from typeOnlyFrom (e.g. composition roots). */
-  typeOnlyExempt?: string[];
+}
+
+interface LayerGroup {
+  name: string;
+  tier?: string;
+  files: string[];
 }
 
 const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+
+// Build set of files in the "roots" tier — these are composition roots,
+// automatically exempt from typeOnlyFrom restrictions.
+const LAYER_FILE = path.join(ROOT, ".import-layers.json");
+const rootsTierFiles = new Set<string>();
+try {
+  const layers: LayerGroup[] = JSON.parse(readFileSync(LAYER_FILE, "utf-8"));
+  for (const group of layers) {
+    if (group.tier === "roots") {
+      for (const file of group.files) rootsTierFiles.add(file);
+    }
+  }
+} catch {
+  // layer file missing — no tier-based exemptions
+}
 
 // Build reverse map: file → domain
 const fileToDomain = new Map<string, string>();
@@ -153,7 +172,8 @@ if (config.typeOnlyFrom) {
     typeOnlyFrom.set(domain, new Set(deps));
   }
 }
-const typeOnlyExempt = new Set(config.typeOnlyExempt ?? []);
+// Composition roots (files in the "roots" tier) are exempt from typeOnlyFrom.
+const typeOnlyExempt = rootsTierFiles;
 
 interface TypeOnlyViolation {
   file: string;
