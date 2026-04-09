@@ -116,6 +116,7 @@ The `lint-cannon-modes` pre-commit check verifies exhaustiveness (pool ↔ catal
 ## Refactoring
 - When making type/rename refactors, always grep for the old name in Pick<>, local variables, comments, interfaces, and type aliases after the refactor tool runs. Run a full build to catch missed sites.
 - After any multi-file rename or type change, run a full build (`tsc --noEmit` or equivalent) AND knip/lint before committing. Fix all propagation errors in the same commit.
+- Use `npx knip --fix` to auto-remove unused exports/files/dependencies. Run after refactors instead of manually deleting dead exports.
 
 ## Architecture Audits
 - Check git history for context before analyzing code. Start analysis immediately — do not spend excessive time on file discovery/glob calls.
