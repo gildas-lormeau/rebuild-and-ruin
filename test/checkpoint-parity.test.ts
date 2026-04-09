@@ -37,6 +37,8 @@ import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
 import {
   createBuildStartMessage,
   createCannonStartMessage,
+  createFullStateMessage,
+  restoreFullStateSnapshot,
 } from "../src/online/online-serialize.ts";
 import type { Player } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
@@ -138,6 +140,21 @@ function assertBuildMsgParity(local: GameState, network: GameState, label: strin
 }
 
 // ---------------------------------------------------------------------------
+// Full-state restore roundtrip
+// ---------------------------------------------------------------------------
+
+/** Serialize the entire game state via createFullStateMessage, roundtrip
+ *  through JSON, then restore via restoreFullStateSnapshot. Exercises the
+ *  join/reconnect code path (homeTowerIdx, castleWallTiles, createCastle,
+ *  full RNG state, cannonballs, etc.). */
+function fullStateRoundtrip(state: GameState, label: string): void {
+  const msg = createFullStateMessage(state, 0);
+  const parsed = JSON.parse(JSON.stringify(msg));
+  const result = restoreFullStateSnapshot(state, parsed);
+  assert(result !== null, `Full-state restore failed validation at ${label}`);
+}
+
+// ---------------------------------------------------------------------------
 // Rendering snapshot assertion
 // ---------------------------------------------------------------------------
 
@@ -213,6 +230,7 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
     }
   };
 
+  let fullStateTestedAt = -1;
   while (local.state.players.filter((p) => !p.eliminated).length > 1) {
     const round = local.state.round;
 
@@ -234,6 +252,15 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
     const nr = network.finalizeBuild();
     assertParity(local, network, `round ${round} after-finalize`);
     assertCannonMsgParity(local.state, network.state, `round ${round} after-finalize`);
+
+    // Full-state restore roundtrip: exercises the join/reconnect path once
+    // per game at round 3 (enough state for modifiers/upgrades/grunts).
+    if (round === 3 && fullStateTestedAt < 0) {
+      fullStateTestedAt = round;
+      fullStateRoundtrip(local.state, `local round ${round}`);
+      fullStateRoundtrip(network.state, `network round ${round}`);
+      assertParity(local, network, `round ${round} after-full-state-restore`);
+    }
 
     local.processReselection(lr.needsReselect);
     network.processReselection(nr.needsReselect);
