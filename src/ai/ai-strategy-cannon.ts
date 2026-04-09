@@ -68,11 +68,11 @@ const SUPER_GUN_PROBABILITY = 1 / 3;
 /** Probability gate for rampart placement by defensiveness trait. */
 const RAMPART_PROBABILITY: readonly [number, number, number] = [
   0,
-  1 / 4,
-  1 / 2,
+  1 / 3,
+  2 / 3,
 ];
 /** Minimum cannon slots before the AI considers a rampart. */
-const RAMPART_SLOT_THRESHOLD = 6;
+const RAMPART_SLOT_THRESHOLD = 4;
 
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
 export function autoSelectTower(

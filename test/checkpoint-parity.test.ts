@@ -96,7 +96,7 @@ function stateFingerprint(state: GameState): string {
 
 function playerFingerprint(player: Player): string {
   const cannonsDetail = player.cannons
-    .map((c) => `${c.hp}@${(c.facing ?? 0).toFixed(2)}${c.mortar ? "M" : ""}${c.shielded ? "S" : ""}b${c.balloonHits ?? 0}`)
+    .map((c) => `${c.hp}@${(c.facing ?? 0).toFixed(2)}${c.mortar ? "M" : ""}${c.shielded ? "S" : ""}${c.shieldHp !== undefined ? `R${c.shieldHp}` : ""}b${c.balloonHits ?? 0}`)
     .join(",");
   return `P${player.id}: lives=${player.lives} score=${player.score} elim=${player.eliminated} walls=${player.walls.size} interior=${player.interior.size} cannons=[${cannonsDetail}] defFacing=${player.defaultFacing.toFixed(4)} towers=${player.ownedTowers.length} castle=${player.castleWallTiles.size} dmg=${player.damagedWalls.size} upgrades=[${[...player.upgrades.entries()]}]`;
 }

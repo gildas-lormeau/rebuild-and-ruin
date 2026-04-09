@@ -23,7 +23,8 @@ export type UpgradeId =
   | "double_time"
   | "conscription"
   | "territorial_ambition"
-  | "reclamation";
+  | "reclamation"
+  | "demolition";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -86,6 +87,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   CONSCRIPTION: "conscription",
   TERRITORIAL_AMBITION: "territorial_ambition",
   RECLAMATION: "reclamation",
+  DEMOLITION: "demolition",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -256,6 +258,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "second_wind",
     label: "Second Wind",
     description: "Revive all towers for all players",
+    category: ONE_USE,
+    weight: WEIGHT_RARE,
+    oneUse: true,
+    global: true,
+    implemented: true,
+  },
+  {
+    id: "demolition",
+    label: "Demolition",
+    description: "Strip all non-load-bearing walls (can merge castles)",
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,

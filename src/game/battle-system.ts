@@ -429,7 +429,9 @@ export function applyImpactEvent(
     }
     case BATTLE_MESSAGE.WALL_SHIELDED: {
       const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
-      if (cannon) cannon.shieldHp = event.newShieldHp;
+      // Normalize 0 → undefined so serialization roundtrips are lossless
+      if (cannon)
+        cannon.shieldHp = event.newShieldHp > 0 ? event.newShieldHp : undefined;
       break;
     }
   }

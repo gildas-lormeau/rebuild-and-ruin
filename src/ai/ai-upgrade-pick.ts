@@ -51,6 +51,8 @@ export function aiPickUpgrade(
   if (!hasPits) excluded.add(UID.FOUNDATIONS);
   if (!hasDeadCannons) excluded.add(UID.RECLAMATION);
   if (!largeTerritory) excluded.add(UID.SMALL_PIECES);
+  // Demolition: exclude when AI has thin walls (nothing to gain from stripping)
+  if (!playerHasThickWalls(state, playerId)) excluded.add(UID.DEMOLITION);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
   return pool[Math.floor(state.rng.next() * pool.length)]!;
@@ -117,6 +119,17 @@ function playerHasDeadCannons(
   const player = state.players[playerId];
   if (!player) return false;
   return player.cannons.some((cannon) => cannon.hp <= 0);
+}
+
+/** True if the player has many non-load-bearing (inner) walls — Demolition would hurt them. */
+function playerHasThickWalls(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  const player = state.players[playerId];
+  if (!player || player.walls.size === 0) return false;
+  // Rough heuristic: if walls outnumber interior tiles, walls are thick
+  return player.walls.size > player.interior.size;
 }
 
 function playerCannonCount(

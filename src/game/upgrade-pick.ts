@@ -1,3 +1,4 @@
+import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
 import {
   type AutoResolveDeps,
@@ -6,8 +7,14 @@ import {
   type UpgradePickEntry,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerSeated } from "../shared/player-types.ts";
-import { isCannonAlive } from "../shared/spatial.ts";
+import { isPlayerEliminated, isPlayerSeated } from "../shared/player-types.ts";
+import {
+  computeOutside,
+  DIRS_8,
+  isCannonAlive,
+  packTile,
+  unpackTile,
+} from "../shared/spatial.ts";
 import {
   type GameState,
   hasFeature,
@@ -134,6 +141,7 @@ export function applyUpgradePicks(
 ): void {
   let secondWind = false;
   let clearTheField = false;
+  let demolition = false;
   const reclamationPlayers: ValidPlayerSlot[] = [];
   for (const entry of dialog.entries) {
     if (entry.choice === null) continue;
@@ -142,6 +150,7 @@ export function applyUpgradePicks(
     player.upgrades.set(entry.choice, 1);
     if (entry.choice === UID.SECOND_WIND) secondWind = true;
     if (entry.choice === UID.CLEAR_THE_FIELD) clearTheField = true;
+    if (entry.choice === UID.DEMOLITION) demolition = true;
     if (entry.choice === UID.RECLAMATION)
       reclamationPlayers.push(entry.playerId);
   }
@@ -154,6 +163,9 @@ export function applyUpgradePicks(
   if (clearTheField) {
     state.grunts.length = 0;
     state.gruntSpawnQueue.length = 0;
+  }
+  if (demolition) {
+    stripInnerWalls(state);
   }
   for (const pid of reclamationPlayers) {
     const player = state.players[pid];
@@ -218,4 +230,31 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   }
 
   return picked as [UpgradeId, UpgradeId, UpgradeId];
+}
+
+/** Strip non-load-bearing walls from all players.
+ *  A wall is "inner" (safe to remove) if none of its 8-dir neighbors are
+ *  outside (reachable from map edges). Enclosures remain intact; thick walls
+ *  are thinned to a single-tile shell. Can merge adjacent castles.
+ *  Uses deletePlayerWallsBatch (skips markWallsDirty) — interior is rechecked
+ *  at the next piece placement or end-of-build via recheckTerritoryOnly. */
+function stripInnerWalls(state: GameState): void {
+  for (const player of state.players) {
+    if (isPlayerEliminated(player)) continue;
+    if (player.walls.size === 0) continue;
+    const outside = computeOutside(player.walls);
+    const inner: number[] = [];
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      let loadBearing = false;
+      for (const [dr, dc] of DIRS_8) {
+        if (outside.has(packTile(r + dr, c + dc))) {
+          loadBearing = true;
+          break;
+        }
+      }
+      if (!loadBearing) inner.push(key);
+    }
+    if (inner.length > 0) deletePlayerWallsBatch(player, inner);
+  }
 }
