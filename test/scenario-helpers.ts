@@ -125,6 +125,13 @@ export interface Scenario {
   /** Enable checkpoint relay: phase boundaries go through
    *  serialize → JSON string → parse → apply, same as a real WebSocket. */
   enableCheckpointRelay(): void;
+
+  /** Hook: called before each relay apply to capture pre-state. */
+  onRelayCapture: (() => { grid: string; state: string }) | null;
+  /** Hook: called after each relay apply with pre-state for self-check. */
+  onRelayVerify: ((label: string, before: { grid: string; state: string }) => void) | null;
+  /** Access battleAnim from relay deps (null if relay not enabled or not yet initialized). */
+  getRelayBattleAnim(): BattleAnimState | null;
 }
 
 export interface TransitionTestDeps {
@@ -164,9 +171,12 @@ export async function createScenario(seed = 42): Promise<Scenario> {
 
   let relayEnabled = false;
   let relayDeps: CheckpointDeps | null = null;
+  let onRelayCapture: (() => { grid: string; state: string }) | null = null;
+  let onRelayVerify: ((label: string, before: { grid: string; state: string }) => void) | null = null;
 
-  /** Simulate JSON wire roundtrip: serialize → string → parse → apply. */
-  function relay<T>(data: T, apply: (parsed: T, deps: CheckpointDeps) => void): void {
+  /** Simulate JSON wire roundtrip: serialize → string → parse → apply.
+   *  Fires onRelayCapture/onRelayVerify hooks for self-check. */
+  function relay<T>(label: string, data: T, apply: (parsed: T, deps: CheckpointDeps) => void): void {
     if (!relayEnabled) return;
     if (!relayDeps) {
       relayDeps = {
@@ -180,11 +190,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         snapshotTerritory: () => state.players.map((p) => new Set(p.interior)),
       };
     }
+    const before = onRelayCapture ? onRelayCapture() : null;
     apply(JSON.parse(JSON.stringify(data)), relayDeps);
+    if (before && onRelayVerify) onRelayVerify(label, before);
   }
 
   function runCannon(): void {
-    relay(createCannonStartMessage(state), applyCannonStartCheckpoint);
+    relay("cannon-start", createCannonStartMessage(state), applyCannonStartCheckpoint);
     resetCannonFacings(state);
     computeCannonLimitsForPhase(state);
     for (let i = 0; i < playerCount; i++) {
@@ -198,7 +210,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
 
   function runBattle(durationSec = BATTLE_TIMER): void {
     nextPhase(state);
-    relay(createBattleStartMessage(state), applyBattleStartCheckpoint);
+    relay("battle-start", createBattleStartMessage(state), applyBattleStartCheckpoint);
     resolveBalloons(state);
     for (const ctrl of controllers) ctrl.initBattleState(state);
 
@@ -220,7 +232,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function runBuild(durationSec = BUILD_TIMER + 1): void {
-    relay(createBuildStartMessage(state), applyBuildStartCheckpoint);
+    relay("build-start", createBuildStartMessage(state), applyBuildStartCheckpoint);
     for (let i = 0; i < playerCount; i++) {
       if (state.players[i]!.eliminated) continue;
       controllers[i]!.startBuildPhase(state);
@@ -246,6 +258,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
 
   function doFinalizeBuild() {
     relay(
+      "build-end",
       { players: serializePlayersCheckpoint(state), scores: state.players.map((p) => p.score) },
       applyBuildEndCheckpoint,
     );
@@ -631,6 +644,11 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
     enableCheckpointRelay: () => { relayEnabled = true; },
+    get onRelayCapture() { return onRelayCapture; },
+    set onRelayCapture(fn) { onRelayCapture = fn; },
+    get onRelayVerify() { return onRelayVerify; },
+    set onRelayVerify(fn) { onRelayVerify = fn; },
+    getRelayBattleAnim: () => relayDeps?.battleAnim ?? null,
   };
 }
 

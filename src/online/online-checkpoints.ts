@@ -96,8 +96,9 @@ export function applyBattleStartCheckpoint(
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
-  // No territory recompute: interior is intentionally stale during battle —
-  // map tiles changed after the last recheckTerritoryOnly (modifiers, high tide).
+  // No territory recompute here — the watcher's map is pre-modifier at this point,
+  // so callers that need fresh territory (handleBattleStartTransition) recompute
+  // after this call, before modifier tiles are restored.
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;

@@ -1,6 +1,6 @@
 /**
- * Checkpoint parity test — proves that checkpoint serialize→apply roundtrips
- * do not lose game state.
+ * Checkpoint parity test — the primary validation gate for agent-contributed
+ * features that touch online play.
  *
  * Runs two headless games with the same seed and 3 AIs:
  *   - local: normal path (reference)
@@ -8,9 +8,15 @@
  *     serialize → JSON string → parse → apply via a fake WebSocket stub,
  *     exercising the full network code path
  *
- * After each round, both games are compared via buildGrid() (ASCII map)
- * plus a structured state snapshot. Any divergence means checkpoint
- * serialization dropped state.
+ * Three layers of assertion:
+ *   1. Per-phase parity: after every phase transition (cannon, battle, build,
+ *      finalize), both games are compared via buildGrid() ASCII map + structured
+ *      state fingerprint. Any divergence means checkpoint serialization dropped state.
+ *   2. Relay self-check: within the network game, state is fingerprinted before
+ *      and after each relay apply. Any change means the roundtrip is not lossless.
+ *   3. Rendering snapshot check: after battle-start, verifies battleAnim.walls
+ *      and battleAnim.territory match actual player state (catches watcher
+ *      rendering bugs where the watcher sees stale walls/territory).
  *
  * Code under test (online/ net layer):
  *   - online-checkpoints.ts  — applyCannonStart/BattleStart/BuildStart/BuildEnd
@@ -65,22 +71,28 @@ function tileHash(state: GameState): number {
 
 function stateFingerprint(state: GameState): string {
   const aliveHouses = state.map.houses.filter((house) => house.alive).length;
+  const modern = state.modern;
   const parts = [
     `phase=${state.phase} round=${state.round} rng=${state.rng.getState()}`,
     `grunts=[${state.grunts.map((grunt) => `${grunt.row},${grunt.col}→t${grunt.targetTowerIdx ?? "?"}`).join(";")}] pits=${state.burningPits.length} bonus=${state.bonusSquares.length}`,
     `captured=${state.capturedCannons.length}`,
     `towerAlive=[${state.towerAlive}] pendRevive=[${[...state.towerPendingRevive].sort()}]`,
     `spawnQ=${state.gruntSpawnQueue.length} houses=${aliveHouses} tileHash=${tileHash(state)}`,
-    `frozen=${state.modern?.frozenTiles?.size ?? 0} highTide=${state.modern?.highTideTiles?.size ?? 0} sinkhole=${state.modern?.sinkholeTiles?.size ?? 0}`,
+    `frozen=[${modern?.frozenTiles ? [...modern.frozenTiles].sort() : ""}] highTide=[${modern?.highTideTiles ? [...modern.highTideTiles].sort() : ""}] sinkhole=[${modern?.sinkholeTiles ? [...modern.sinkholeTiles].sort() : ""}]`,
+    `modifier=${modern?.activeModifier ?? "none"} lastMod=${modern?.lastModifierId ?? "none"}`,
+    `offers=${modern?.pendingUpgradeOffers ? [...modern.pendingUpgradeOffers.entries()].map(([pid, tu]) => `${pid}:${tu.join(",")}`).sort().join(";") : "none"}`,
+    `masterLockout=${modern?.masterBuilderLockout ?? 0} masterOwners=[${modern?.masterBuilderOwners ? [...modern.masterBuilderOwners].sort() : ""}]`,
+    `salvage=[${state.players.map((_, idx) => state.salvageSlots[idx] ?? 0)}]`,
     ...state.players.map(playerFingerprint),
   ];
   return parts.join("\n");
 }
 
 function playerFingerprint(player: Player): string {
-  const cannonHp = player.cannons.map((c) => c.hp).join(",");
-  const cannonsDetail = player.cannons.map((c) => `${c.hp}@${(c.facing ?? 0).toFixed(2)}`).join(",");
-  return `P${player.id}: lives=${player.lives} score=${player.score} elim=${player.eliminated} walls=${player.walls.size} interior=${player.interior.size} cannons=[${cannonHp}] facing=[${cannonsDetail}] defFacing=${player.defaultFacing.toFixed(4)} towers=${player.ownedTowers.length} castle=${player.castleWallTiles.size} dmg=${player.damagedWalls.size} upgrades=[${[...player.upgrades.entries()]}]`;
+  const cannonsDetail = player.cannons
+    .map((c) => `${c.hp}@${(c.facing ?? 0).toFixed(2)}${c.mortar ? "M" : ""}${c.shielded ? "S" : ""}b${c.balloonHits ?? 0}`)
+    .join(",");
+  return `P${player.id}: lives=${player.lives} score=${player.score} elim=${player.eliminated} walls=${player.walls.size} interior=${player.interior.size} cannons=[${cannonsDetail}] defFacing=${player.defaultFacing.toFixed(4)} towers=${player.ownedTowers.length} castle=${player.castleWallTiles.size} dmg=${player.damagedWalls.size} upgrades=[${[...player.upgrades.entries()]}]`;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +116,38 @@ function assertParity(local: Scenario, network: Scenario, label: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Rendering snapshot assertion
+// ---------------------------------------------------------------------------
+
+/** Verify that battleAnim.walls and battleAnim.territory (what the watcher
+ *  renderer actually uses during battle) match the current player state. */
+function assertBattleAnimParity(network: Scenario, label: string): void {
+  const battleAnim = network.getRelayBattleAnim();
+  if (!battleAnim) return;
+  for (let pi = 0; pi < network.state.players.length; pi++) {
+    const player = network.state.players[pi]!;
+    const snapWalls = battleAnim.walls[pi];
+    if (snapWalls) {
+      const missing = [...player.walls].filter((w) => !snapWalls.has(w));
+      const extra = [...snapWalls].filter((w) => !player.walls.has(w));
+      assert(
+        missing.length === 0 && extra.length === 0,
+        `battleAnim.walls[${pi}] diverges at ${label}: ${missing.length} missing, ${extra.length} extra`,
+      );
+    }
+    const snapTerritory = battleAnim.territory[pi];
+    if (snapTerritory) {
+      const missing = [...(player.interior as ReadonlySet<number>)].filter((t) => !snapTerritory.has(t));
+      const extra = [...snapTerritory].filter((t) => !(player.interior as ReadonlySet<number>).has(t));
+      assert(
+        missing.length === 0 && extra.length === 0,
+        `battleAnim.territory[${pi}] diverges at ${label}: ${missing.length} missing, ${extra.length} extra`,
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Test runner
 // ---------------------------------------------------------------------------
 
@@ -116,15 +160,58 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
   }
   network.enableCheckpointRelay();
 
+  // Relay self-check: serialize→apply on own state must be lossless
+  network.onRelayCapture = () => ({
+    grid: gridFingerprint(network.state),
+    state: stateFingerprint(network.state),
+  });
+  network.onRelayVerify = (label, before) => {
+    if (label === "battle-start") {
+      // Self-check skipped: territory recompute is non-idempotent at battle-start
+      // because the host's map was mutated by modifiers/clearHighTide after the
+      // last recheckTerritoryOnly. The per-phase parity comparison validates instead.
+      // Still check that watcher rendering snapshots match post-recompute state.
+      assertBattleAnimParity(network, `${label} (seed ${seed} ${mode})`);
+      return;
+    }
+    const afterState = stateFingerprint(network.state);
+    if (before.state !== afterState) {
+      const bl = before.state.split("\n"), al = afterState.split("\n");
+      const parts = [`Relay roundtrip changed state at ${label} (seed ${seed} ${mode})`];
+      for (let idx = 0; idx < bl.length; idx++) {
+        if (bl[idx] !== al[idx]) parts.push(`  before: ${bl[idx]}`, `  after:  ${al[idx]}`);
+      }
+      assert(false, parts.join("\n"));
+    }
+    const afterGrid = gridFingerprint(network.state);
+    if (before.grid !== afterGrid) {
+      assert(false, `Relay roundtrip changed grid at ${label} (seed ${seed} ${mode})`);
+    }
+  };
+
   while (local.state.players.filter((p) => !p.eliminated).length > 1) {
-    const lr = local.playRound();
-    const nr = network.playRound();
-    assertParity(local, network, `round ${local.state.round}`);
+    const round = local.state.round;
+
+    local.runCannon();
+    network.runCannon();
+    assertParity(local, network, `round ${round} after-cannon`);
+
+    local.runBattle();
+    network.runBattle();
+    assertParity(local, network, `round ${round} after-battle`);
+
+    local.runBuild();
+    network.runBuild();
+    assertParity(local, network, `round ${round} after-build`);
+
+    const lr = local.finalizeBuild();
+    const nr = network.finalizeBuild();
+    assertParity(local, network, `round ${round} after-finalize`);
 
     local.processReselection(lr.needsReselect);
     network.processReselection(nr.needsReselect);
     if (lr.needsReselect.length > 0) {
-      assertParity(local, network, `round ${local.state.round} post-reselect`);
+      assertParity(local, network, `round ${round} post-reselect`);
     }
   }
 }
