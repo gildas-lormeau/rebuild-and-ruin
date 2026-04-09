@@ -74,7 +74,21 @@ export function spawnGruntNearPos(
   )
     return;
   const pos = findGruntSpawnNear(state, posRow, posCol);
-  if (pos) addGrunt(state, pos.row, pos.col);
+  if (pos) {
+    addGrunt(state, pos.row, pos.col);
+  } else {
+    const victimId = state.players.find(
+      (player) => player.id !== excludePlayerId && !player.eliminated,
+    )?.id;
+    if (victimId !== undefined) {
+      state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
+        type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
+        playerId: victimId,
+        requested: 1,
+        placed: 0,
+      });
+    }
+  }
 }
 
 /** Find a bank-first spawn position, preferring tiles close to (posRow, posCol).
@@ -161,6 +175,14 @@ export function spawnGruntSurgeOnZone(
     used.add(bestIdx);
     const pick = positions[bestIdx]!;
     addGrunt(state, pick.row, pick.col);
+  }
+  if (positions.length < totalCount) {
+    state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
+      type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
+      playerId,
+      requested: totalCount,
+      placed: positions.length,
+    });
   }
 }
 
