@@ -28,6 +28,7 @@ import { isPlayerSeated } from "../shared/player-types.ts";
 import {
   cannonSize,
   DIRS_4,
+  DIRS_8,
   isGrass,
   isWater,
   packTile,
@@ -455,7 +456,7 @@ function buildCanSinkPredicate(
     // 1-tile gap from map edges, towers, and water so players can wall around
     if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)
       return false;
-    for (const [dr, dc] of DIRS_4) {
+    for (const [dr, dc] of DIRS_8) {
       if (isWater(tiles, row + dr, col + dc)) return false;
       if (hasTowerAt(state, row + dr, col + dc)) return false;
     }
