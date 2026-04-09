@@ -55,7 +55,7 @@ import {
 import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-types.ts";
 import { emptyFreshInterior } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
-import { GAME_EVENT, emitGameEvent, type GameEventHandler } from "../src/shared/game-event-bus.ts";
+import { GAME_EVENT, emitGameEvent, type GameEventBus } from "../src/shared/game-event-bus.ts";
 import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
@@ -74,31 +74,10 @@ import { createBannerState } from "../src/shared/ui-contracts.ts";
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Event system
+// Tick callback (scenario-internal, not part of the bus)
 // ---------------------------------------------------------------------------
 
-export type ScenarioEventType =
-  | "tick-start"
-  | "tick-end"
-  | "phase-start"
-  | "phase-end"
-  | "round-start"
-  | "round-end"
-  | "game-start"
-  | "game-end";
-
-export interface ScenarioEvent {
-  /** Event type. */
-  readonly type: ScenarioEventType;
-  /** Current phase when the event fired. */
-  readonly phase: Phase;
-  /** Current round when the event fired. */
-  readonly round: number;
-  /** Delta time for tick events (seconds). 0 for phase/round events. */
-  readonly dt: number;
-}
-
-export type ScenarioEventHandler = (event: ScenarioEvent) => void;
+type TickHandler = (dt: number) => void;
 
 // ---------------------------------------------------------------------------
 // Scenario
@@ -106,6 +85,7 @@ export type ScenarioEventHandler = (event: ScenarioEvent) => void;
 
 export interface Scenario {
   readonly state: GameState;
+  readonly bus: GameEventBus;
   readonly controllers: PlayerController[];
   readonly runtime: HeadlessRuntime;
 
@@ -120,9 +100,9 @@ export interface Scenario {
   playRounds(n: number): void;
   runGame(maxRounds?: number): void;
 
-  // Event system — DOM-style listeners for game lifecycle
-  addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler): void;
-  removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler): void;
+  // Tick hooks (scenario-internal; lifecycle events use state.bus directly)
+  onTick(type: "tick-start" | "tick-end", handler: TickHandler): void;
+  offTick(type: "tick-start" | "tick-end", handler: TickHandler): void;
 
   // State inspection
   describe(): string;
@@ -207,45 +187,15 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
-  // Track wrapper handlers so removeEventListener can unsubscribe from the bus.
-  const busWrappers = new Map<ScenarioEventHandler, { key: string; wrapper: (event: unknown) => void }>();
-
-  /** Map ScenarioEventType → bus event key. Returns undefined for tick events. */
-  function scenarioToBusKey(type: ScenarioEventType): string | undefined {
-    switch (type) {
-      case "phase-start": return GAME_EVENT.PHASE_START;
-      case "phase-end": return GAME_EVENT.PHASE_END;
-      case "round-start": return GAME_EVENT.ROUND_START;
-      case "round-end": return GAME_EVENT.ROUND_END;
-      case "game-start": return GAME_EVENT.GAME_START;
-      case "game-end": return GAME_EVENT.GAME_END;
-      default: return undefined;
-    }
+  // Tick emitter — scenario-internal, not on the bus (tick events are test instrumentation).
+  const tickListeners = new Map<string, Set<TickHandler>>();
+  function emitTick(type: "tick-start" | "tick-end", dt: number): void {
+    const handlers = tickListeners.get(type);
+    if (handlers) for (const handler of handlers) handler(dt);
   }
-
-  // Helpers for dynamic bus subscription — scenarioToBusKey only returns valid
-  // GAME_EVENT values, so the string→literal cast is safe.
-  type BusHandler = (event: unknown) => void;
-  function busOn(key: string, handler: BusHandler): void {
-    state.bus.on(key as "phaseStart", handler as GameEventHandler<"phaseStart">);
-  }
-  function busOff(key: string, handler: BusHandler): void {
-    state.bus.off(key as "phaseStart", handler as GameEventHandler<"phaseStart">);
-  }
-
-  // Event emitter — tick events use the private emitter; lifecycle events are on the bus.
-  // gameStart/gameEnd are scenario-only (no production emission site yet).
-  const listeners = new Map<ScenarioEventType, Set<ScenarioEventHandler>>();
-  function emit(type: ScenarioEventType, dt = 0): void {
-    const handlers = listeners.get(type);
-    if (handlers && handlers.size > 0) {
-      const event: ScenarioEvent = { type, phase: state.phase, round: state.round, dt };
-      for (const handler of handlers) handler(event);
-    }
-    // gameEnd has no production emission in the headless flow — emit on bus from here.
-    if (type === "game-end") {
-      emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
-    }
+  // gameEnd has no production emission in the headless flow — emit on bus from here.
+  function emitGameEnd(): void {
+    emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
   }
 
   let relayEnabled = false;
@@ -275,7 +225,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function runCannon(): void {
-    emit("phase-start");
     relay("cannon-start", createCannonStartMessage(state), applyCannonStartCheckpoint);
     resetCannonFacings(state);
     computeCannonLimitsForPhase(state);
@@ -286,7 +235,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       ctrl.placeCannons(state, state.cannonLimits[i]!);
       ctrl.finalizeCannonPhase(state, state.cannonLimits[i]!);
     }
-    emit("phase-end");
   }
 
   function runBattle(durationSec = BATTLE_TIMER): void {
@@ -294,7 +242,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     const flights = resolveBalloons(state);
     relay("battle-start", createBattleStartMessage(state, flights, diff ?? undefined), applyBattleStartCheckpoint);
     for (const ctrl of controllers) ctrl.initBattleState(state);
-    emit("phase-start");
 
     let t = 0;
     const dt = 0.1;
@@ -305,14 +252,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
           controllers[i]!.battleTick(state, dt);
         }
       }
-      emit("tick-start", dt);
+      emitTick("tick-start", dt);
       gruntAttackTowers(state, dt);
       tickCannonballs(state, dt);
-      emit("tick-end", dt);
+      emitTick("tick-end", dt);
       t += dt;
     }
     for (const ctrl of controllers) ctrl.endBattle();
-    emit("phase-end");
     nextPhase(state);
   }
 
@@ -322,13 +268,12 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       if (state.players[i]!.eliminated) continue;
       controllers[i]!.startBuildPhase(state);
     }
-    emit("phase-start");
 
     let t = 0;
     let gruntAccum = 0;
     const dt = 0.5;
     while (t < durationSec) {
-      emit("tick-start", dt);
+      emitTick("tick-start", dt);
       gruntAccum += dt;
       if (gruntAccum >= 1.0) {
         gruntAccum -= 1.0;
@@ -338,11 +283,10 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         if (state.players[i]!.eliminated) continue;
         controllers[i]!.buildTick(state, dt);
       }
-      emit("tick-end", dt);
+      emitTick("tick-end", dt);
       t += dt;
     }
     for (const ctrl of controllers) ctrl.finalizeBuildPhase(state);
-    emit("phase-end");
   }
 
   function doFinalizeBuild() {
@@ -359,13 +303,10 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function playRound() {
-    emit("round-start");
     runCannon();
     runBattle();
     runBuild();
-    const result = doFinalizeBuild();
-    emit("round-end");
-    return result;
+    return doFinalizeBuild();
   }
 
   function doPlayRounds(n: number): void {
@@ -375,13 +316,11 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         doProcessReselection(needsReselect);
       }
       if (state.players.every((p) => p.eliminated)) break;
-      // Advance back to CANNON_PLACE for the next round
       if (i < n - 1) advanceTo(Phase.CANNON_PLACE);
     }
   }
 
   function runGame(maxRounds = 12): void {
-    emit("game-start");
     while (
       state.players.filter((player) => !player.eliminated).length > 1 &&
       state.round <= maxRounds
@@ -389,7 +328,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       const { needsReselect } = playRound();
       if (needsReselect.length > 0) doProcessReselection(needsReselect);
     }
-    emit("game-end");
+    emitGameEnd();
   }
 
   function setLives(playerId: ValidPlayerSlot, lives: number) {
@@ -721,6 +660,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
 
   return {
     state,
+    bus: state.bus,
     controllers,
     runtime,
     advanceTo,
@@ -750,32 +690,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     createLifeLostDialog: doCreateLifeLostDialog,
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
-    addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      const busKey = scenarioToBusKey(type);
-      if (busKey) {
-        const wrapper = (event: unknown) => {
-          const payload = event as { phase?: Phase; round: number };
-          handler({ type, phase: payload.phase ?? state.phase, round: payload.round, dt: 0 });
-        };
-        busWrappers.set(handler, { key: busKey, wrapper });
-        busOn(busKey, wrapper);
-      } else {
-        let set = listeners.get(type);
-        if (!set) { set = new Set(); listeners.set(type, set); }
-        set.add(handler);
-      }
+    onTick(type: "tick-start" | "tick-end", handler: TickHandler) {
+      let set = tickListeners.get(type);
+      if (!set) { set = new Set(); tickListeners.set(type, set); }
+      set.add(handler);
     },
-    removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      const busKey = scenarioToBusKey(type);
-      if (busKey) {
-        const entry = busWrappers.get(handler);
-        if (entry) {
-          busOff(entry.key, entry.wrapper);
-          busWrappers.delete(handler);
-        }
-      } else {
-        listeners.get(type)?.delete(handler);
-      }
+    offTick(type: "tick-start" | "tick-end", handler: TickHandler) {
+      tickListeners.get(type)?.delete(handler);
     },
     enableCheckpointRelay: () => { relayEnabled = true; },
     get onRelayCapture() { return onRelayCapture; },

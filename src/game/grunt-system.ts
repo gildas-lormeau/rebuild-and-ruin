@@ -24,6 +24,7 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
 } from "../shared/game-constants.ts";
+import { GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -302,11 +303,13 @@ export function spawnGruntOnZone(
  *  based on the actual target tower's zone (e.g. during frozen river crossings). */
 function addGrunt(state: GameState, row: number, col: number): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
-  state.grunts.push({
+  const victimPlayerId = zoneOwnerIdAt(state, row, col);
+  state.grunts.push({ row, col, victimPlayerId, blockedRounds: 0 });
+  state.bus.emit(GAME_EVENT.GRUNT_SPAWN, {
+    type: GAME_EVENT.GRUNT_SPAWN,
     row,
     col,
-    victimPlayerId: zoneOwnerIdAt(state, row, col),
-    blockedRounds: 0,
+    victimPlayerId,
   });
 }
 
