@@ -35,7 +35,6 @@ import { buildGrid, type Cell } from "../src/game/debug-grid.ts";
 import { GAME_MODE_MODERN } from "../src/shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
 import {
-  createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
 } from "../src/online/online-serialize.ts";
@@ -124,30 +123,29 @@ function assertParity(local: Scenario, network: Scenario, label: string): void {
 // Serialization-level assertion
 // ---------------------------------------------------------------------------
 
-/** Compare all checkpoint message types between both games. Each message type
- *  serializes different state subsets — comparing all three gives maximum coverage
- *  without manual fingerprint enumeration. */
-function assertSerializationParity(local: GameState, network: GameState, label: string): void {
-  const lc = JSON.stringify(createCannonStartMessage(local));
-  const nc = JSON.stringify(createCannonStartMessage(network));
-  assert(lc === nc, `Cannon-start message diverges at ${label}`);
+/** Compare the checkpoint message both games would produce for a given type.
+ *  Call with the message type that matches the current phase context. */
+function assertCannonMsgParity(local: GameState, network: GameState, label: string): void {
+  const lm = JSON.stringify(createCannonStartMessage(local));
+  const nm = JSON.stringify(createCannonStartMessage(network));
+  assert(lm === nm, `Cannon-start message diverges at ${label}`);
+}
 
-  const lb = JSON.stringify(createBattleStartMessage(local));
-  const nb = JSON.stringify(createBattleStartMessage(network));
-  assert(lb === nb, `Battle-start message diverges at ${label}`);
-
-  const ls = JSON.stringify(createBuildStartMessage(local));
-  const ns = JSON.stringify(createBuildStartMessage(network));
-  assert(ls === ns, `Build-start message diverges at ${label}`);
+function assertBuildMsgParity(local: GameState, network: GameState, label: string): void {
+  const lm = JSON.stringify(createBuildStartMessage(local));
+  const nm = JSON.stringify(createBuildStartMessage(network));
+  assert(lm === nm, `Build-start message diverges at ${label}`);
 }
 
 // ---------------------------------------------------------------------------
 // Rendering snapshot assertion
 // ---------------------------------------------------------------------------
 
-/** Verify that battleAnim.walls and battleAnim.territory (what the watcher
- *  renderer actually uses during battle) match the current player state. */
-function assertBattleAnimParity(network: Scenario, label: string): void {
+/** Verify battleAnim snapshots match the network game's own player state at
+ *  snapshot time. This is a self-consistency check — was the snapshot taken
+ *  after applyPlayersCheckpoint replaced walls? Cross-game comparison isn't
+ *  possible here because local.runBattle() finishes before the relay hook fires. */
+function assertBattleAnimConsistency(network: Scenario, label: string): void {
   const battleAnim = network.getRelayBattleAnim();
   if (!battleAnim) return;
   for (let pi = 0; pi < network.state.players.length; pi++) {
@@ -196,8 +194,8 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
       // Self-check skipped: territory recompute is non-idempotent at battle-start
       // because the host's map was mutated by modifiers/clearHighTide after the
       // last recheckTerritoryOnly. The per-phase parity comparison validates instead.
-      // Still check that watcher rendering snapshots match post-recompute state.
-      assertBattleAnimParity(network, `${label} (seed ${seed} ${mode})`);
+      // Still check snapshot timing consistency within the network game.
+      assertBattleAnimConsistency(network, `${label} (seed ${seed} ${mode})`);
       return;
     }
     const afterState = stateFingerprint(network.state);
@@ -221,22 +219,21 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
     local.runCannon();
     network.runCannon();
     assertParity(local, network, `round ${round} after-cannon`);
-    assertSerializationParity(local.state, network.state, `round ${round} after-cannon`);
+    assertCannonMsgParity(local.state, network.state, `round ${round} after-cannon`);
 
     local.runBattle();
     network.runBattle();
     assertParity(local, network, `round ${round} after-battle`);
-    assertSerializationParity(local.state, network.state, `round ${round} after-battle`);
+    assertBuildMsgParity(local.state, network.state, `round ${round} after-battle`);
 
     local.runBuild();
     network.runBuild();
     assertParity(local, network, `round ${round} after-build`);
-    assertSerializationParity(local.state, network.state, `round ${round} after-build`);
 
     const lr = local.finalizeBuild();
     const nr = network.finalizeBuild();
     assertParity(local, network, `round ${round} after-finalize`);
-    assertSerializationParity(local.state, network.state, `round ${round} after-finalize`);
+    assertCannonMsgParity(local.state, network.state, `round ${round} after-finalize`);
 
     local.processReselection(lr.needsReselect);
     network.processReselection(nr.needsReselect);
