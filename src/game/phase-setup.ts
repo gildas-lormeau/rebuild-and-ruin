@@ -24,6 +24,7 @@ import {
   MODIFIER_ID,
   type ModifierDiff,
 } from "../shared/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { modifierDef } from "../shared/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -212,7 +213,9 @@ export function enterBuildFromBattle(state: GameState): void {
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.lastModifierId = state.modern!.activeModifier;
   }
+  emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
   state.round++;
+  emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
@@ -261,7 +264,15 @@ export function enterBuildFromBattle(state: GameState): void {
  * Online mode uses this to reconcile client phase with server checkpoints.
  */
 export function setPhase(state: GameState, phase: Phase): void {
+  emitGameEvent(state.bus, GAME_EVENT.PHASE_END, {
+    phase: state.phase,
+    round: state.round,
+  });
   state.phase = phase;
+  emitGameEvent(state.bus, GAME_EVENT.PHASE_START, {
+    phase: state.phase,
+    round: state.round,
+  });
 }
 
 /** Process the reselection queue. Returns players still needing UI interaction.
