@@ -153,6 +153,11 @@ export interface PhaseTicksSystem {
   syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
 }
 
+/** Set of all battle event type strings — used to filter bus events. */
+const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
+  Object.values(BATTLE_MESSAGE),
+);
+
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   if (deps.tickNonHost && !deps.hostNetworking) {
     throw new Error(
@@ -160,6 +165,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
   }
   const { runtimeState } = deps;
+
+  // -------------------------------------------------------------------------
+  // Bus → sound / haptics / stats (observation subscribers)
+  // -------------------------------------------------------------------------
+
+  runtimeState.state.bus.onAny((type, event) => {
+    if (!BATTLE_EVENT_TYPES.has(type)) return;
+    const pov = runtimeState.frameMeta.povPlayerId;
+    const evt = event as BattleEvent;
+    deps.sound.battleEvents([evt], pov);
+    deps.haptics.battleEvents([evt], pov);
+    accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
+  });
 
   // -------------------------------------------------------------------------
   // Crosshairs
@@ -600,18 +618,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleAnim.impacts.push({ ...imp, age: 0 });
     }
 
-    // Notify sound/haptics
-    const allEvents = [
-      ...result.fireEvents,
-      ...result.towerEvents,
-      ...result.impactEvents,
-    ];
-    if (allEvents.length > 0) {
-      const pov = runtimeState.frameMeta.povPlayerId;
-      deps.haptics.battleEvents(allEvents, pov);
-      deps.sound.battleEvents(allEvents, pov);
-      accumulateBattleStats(allEvents, runtimeState.scoreDisplay.gameStats);
-    }
+    // Sound, haptics, and stats are now handled by bus subscribers (onAny above).
 
     syncCrosshairs(/* weaponsActive */ true, dt);
     deps.render();
