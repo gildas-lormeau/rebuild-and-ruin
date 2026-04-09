@@ -9,7 +9,7 @@ import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { handleServerMessage } from "./online-runtime-deps.ts";
-import { connectRelayWebSocket, connectWebSocket } from "./online-session.ts";
+import { connectWebSocket } from "./online-session.ts";
 import {
   MAX_RECONNECT_ATTEMPTS,
   type OnlineClient,
@@ -45,7 +45,6 @@ export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
 export function connect(onConnectError?: () => void): void {
   if (!_rt) throw new Error("connect() called before initWs()");
   if (onConnectError) _onConnectError = onConnectError;
-  const session = _client.ctx.session;
   const handlers = {
     onMessage: async (msg: import("../shared/protocol.ts").ServerMessage) => {
       if (_client.isReconnecting()) {
@@ -95,9 +94,5 @@ export function connect(onConnectError?: () => void): void {
       _onConnectError?.();
     },
   };
-  if (session.relay) {
-    connectRelayWebSocket(session, handlers);
-  } else {
-    connectWebSocket(session, computeWsUrl(), handlers);
-  }
+  connectWebSocket(_client.ctx.session, computeWsUrl(), handlers);
 }
