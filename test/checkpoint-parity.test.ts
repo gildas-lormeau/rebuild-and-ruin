@@ -45,20 +45,32 @@ function gridFingerprint(state: GameState): string {
     for (let col = 0; col < GRID_COLS; col++) {
       const cell: Cell = grid[row]![col]!;
       const owner = cell.playerId >= 0 ? String(cell.playerId) : ".";
-      line += cell.char + owner;
+      const extra = cell.extra !== undefined ? `[${cell.extra}]` : "";
+      line += cell.char + owner + extra;
     }
     lines.push(line);
   }
   return lines.join("\n");
 }
 
+function tileHash(state: GameState): number {
+  let hash = 0;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      hash = ((hash << 5) - hash + state.map.tiles[row]![col]!) | 0;
+    }
+  }
+  return hash;
+}
+
 function stateFingerprint(state: GameState): string {
+  const aliveHouses = state.map.houses.filter((house) => house.alive).length;
   const parts = [
     `phase=${state.phase} round=${state.round} rng=${state.rng.getState()}`,
-    `grunts=${state.grunts.length} pits=${state.burningPits.length} bonus=${state.bonusSquares.length}`,
+    `grunts=[${state.grunts.map((grunt) => `${grunt.row},${grunt.col}→t${grunt.targetTowerIdx ?? "?"}`).join(";")}] pits=${state.burningPits.length} bonus=${state.bonusSquares.length}`,
     `captured=${state.capturedCannons.length}`,
     `towerAlive=[${state.towerAlive}] pendRevive=[${[...state.towerPendingRevive].sort()}]`,
-    `spawnQ=${state.gruntSpawnQueue.length}`,
+    `spawnQ=${state.gruntSpawnQueue.length} houses=${aliveHouses} tileHash=${tileHash(state)}`,
     `frozen=${state.modern?.frozenTiles?.size ?? 0} highTide=${state.modern?.highTideTiles?.size ?? 0} sinkhole=${state.modern?.sinkholeTiles?.size ?? 0}`,
     ...state.players.map(playerFingerprint),
   ];
@@ -66,7 +78,9 @@ function stateFingerprint(state: GameState): string {
 }
 
 function playerFingerprint(player: Player): string {
-  return `P${player.id}: lives=${player.lives} score=${player.score} elim=${player.eliminated} walls=${player.walls.size} interior=${player.interior.size} cannons=${player.cannons.filter((c) => c.hp > 0).length}/${player.cannons.length} towers=${player.ownedTowers.length} castle=${player.castleWallTiles.size} dmg=${player.damagedWalls.size} upgrades=[${[...player.upgrades.entries()]}]`;
+  const cannonHp = player.cannons.map((c) => c.hp).join(",");
+  const cannonsDetail = player.cannons.map((c) => `${c.hp}@${(c.facing ?? 0).toFixed(2)}`).join(",");
+  return `P${player.id}: lives=${player.lives} score=${player.score} elim=${player.eliminated} walls=${player.walls.size} interior=${player.interior.size} cannons=[${cannonHp}] facing=[${cannonsDetail}] defFacing=${player.defaultFacing.toFixed(4)} towers=${player.ownedTowers.length} castle=${player.castleWallTiles.size} dmg=${player.damagedWalls.size} upgrades=[${[...player.upgrades.entries()]}]`;
 }
 
 // ---------------------------------------------------------------------------

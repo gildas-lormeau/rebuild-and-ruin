@@ -34,6 +34,8 @@ export interface Cell {
   kind: CellKind;
   char: string;
   playerId: number;
+  /** Extra state for parity testing (hp, facing, alive, target, etc.). */
+  extra?: number;
 }
 
 export interface Rect {
@@ -101,11 +103,18 @@ export function buildGrid(
     setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", -1);
   }
 
-  // Houses
+  // Houses (alive and dead)
   for (const house of state.map.houses) {
-    if (house.alive) {
-      setCell(grid, house.row, house.col, CellKind.House, "H", -1);
-    }
+    const char = house.alive ? "H" : "h";
+    setCell(
+      grid,
+      house.row,
+      house.col,
+      CellKind.House,
+      char,
+      -1,
+      house.alive ? 1 : 0,
+    );
   }
 
   // Towers (2×2)
@@ -127,13 +136,29 @@ export function buildGrid(
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const cannon of player.cannons) {
       const char = cannon.hp <= 0 ? "x" : "C";
-      setCell(grid, cannon.row, cannon.col, CellKind.Cannon, char, player.id);
+      setCell(
+        grid,
+        cannon.row,
+        cannon.col,
+        CellKind.Cannon,
+        char,
+        player.id,
+        cannon.hp,
+      );
     }
   }
 
   // Grunts
   for (const grunt of state.grunts) {
-    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", -1);
+    setCell(
+      grid,
+      grunt.row,
+      grunt.col,
+      CellKind.Grunt,
+      "!",
+      -1,
+      grunt.targetTowerIdx ?? -1,
+    );
   }
 
   // Cannonballs (snap to nearest tile)
@@ -199,10 +224,14 @@ function setCell(
   kind: CellKind,
   char: string,
   playerId: number,
+  extra?: number,
 ): void {
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
   const existing = grid[row]![col]!;
   if (kind >= existing.kind) {
-    grid[row]![col] = { kind, char, playerId };
+    grid[row]![col] =
+      extra !== undefined
+        ? { kind, char, playerId, extra }
+        : { kind, char, playerId };
   }
 }

@@ -204,7 +204,7 @@ export function createFullStateMessage(
 }
 
 /** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
- *  castleWallTiles) and computed fields (facing, mortar, shielded) that are
+ *  castleWallTiles) and computed fields (mortar, shielded) that are
  *  recomputed at phase entry. Smaller wire footprint for frequent messages. */
 export function serializePlayersCheckpoint(state: GameState) {
   return state.players.map((player) => ({
@@ -214,6 +214,7 @@ export function serializePlayersCheckpoint(state: GameState) {
       col: c.col,
       hp: c.hp,
       mode: c.mode,
+      facing: c.facing ?? 0,
       balloonHits: c.balloonHits || undefined,
       balloonCapturerIds: c.balloonCapturerIds?.length
         ? c.balloonCapturerIds

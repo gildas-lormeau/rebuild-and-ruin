@@ -1,4 +1,3 @@
-import { resetCannonFacings } from "../game/cannon-system.ts";
 import { createComboTracker, isCombosEnabled } from "../game/combo-system.ts";
 import {
   reapplyHighTideTiles,
@@ -83,7 +82,6 @@ export function applyCannonStartCheckpoint(
   restoreModifierTileState(deps.state, data);
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
-  resetCannonFacings(deps.state);
 }
 
 /** Apply a battle-start checkpoint received from the host.
@@ -161,7 +159,6 @@ export function applyBuildStartCheckpoint(
   }));
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
-  resetCannonFacings(deps.state);
 }
 
 /** Apply a build-end checkpoint: players + host-computed scores.
