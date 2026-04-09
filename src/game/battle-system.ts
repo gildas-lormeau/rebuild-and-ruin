@@ -28,7 +28,9 @@ import {
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
+  DUST_STORM_JITTER_DEG,
   HOUSE_GRUNT_SPAWN_CHANCE,
+  MODIFIER_ID,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/game-constants.ts";
@@ -428,12 +430,12 @@ export function applyImpactEvent(
  * Returns flight paths for animation.
  *
  * Balloon hit lifecycle (persistent counts, per-battle capturers):
- *   - state.balloonHits.count accumulates across battles — a cannon that
+ *   - cannon.balloonHits accumulates across battles — a cannon that
  *     survives multiple rounds keeps its prior hit count toward capture.
- *   - state.balloonHits.capturerIds tracks which players contributed hits
+ *   - cannon.balloonCapturerIds tracks which players contributed hits
  *     THIS battle only — cleared each round by cleanupBalloonHitTrackingAfterBattle()
  *     so only the deciding battle's contributors can claim the capture.
- *   - Entries are deleted when a cannon is captured or destroyed.
+ *   - Fields are cleared when a cannon is captured or destroyed.
  */
 export function resolveBalloons(state: GameState): BalloonFlight[] {
   const flights: BalloonFlight[] = [];
@@ -467,13 +469,10 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
 
   // Apply hit updates and build flight animations
   for (const { balloon, ownerId, target, victimId } of assignments) {
-    const entry = state.balloonHits.get(target) ?? {
-      count: 0,
-      capturerIds: [] as number[],
-    };
-    entry.count++;
-    if (!entry.capturerIds.includes(ownerId)) entry.capturerIds.push(ownerId);
-    state.balloonHits.set(target, entry);
+    target.balloonHits = (target.balloonHits ?? 0) + 1;
+    const capturerIds = target.balloonCapturerIds ?? [];
+    if (!capturerIds.includes(ownerId)) capturerIds.push(ownerId);
+    target.balloonCapturerIds = capturerIds;
     thisRoundTargets.set(target, { victimId });
 
     const start = cannonCenter(balloon);
@@ -503,20 +502,28 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
  *  cannons that died from capture-related combat this round.
  */
 export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
-  // 1. Remove entries for captured cannons (capture is resolved)
+  // 1. Clear balloon state on captured cannons (capture is resolved)
   for (const captured of state.capturedCannons) {
-    state.balloonHits.delete(captured.cannon);
+    captured.cannon.balloonHits = undefined;
+    captured.cannon.balloonCapturerIds = undefined;
   }
 
-  // 2. Remove entries for destroyed cannons (no longer targetable)
-  for (const [cannon] of state.balloonHits) {
-    if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
+  // 2. Clear balloon state on destroyed cannons (no longer targetable)
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (!isCannonAlive(cannon)) {
+        cannon.balloonHits = undefined;
+        cannon.balloonCapturerIds = undefined;
+      }
+    }
   }
 
-  // 3. Clear capturerIds for survivors — hit count persists across battles,
+  // 3. Clear capturerIds on survivors — hit count persists across battles,
   //    but only the deciding battle's contributors can claim a capture
-  for (const [, hit] of state.balloonHits) {
-    hit.capturerIds = [];
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (cannon.balloonCapturerIds) cannon.balloonCapturerIds = undefined;
+    }
   }
 }
 
@@ -721,9 +728,23 @@ function launchCannonball(
   scoringPlayerId?: number,
 ): void {
   const { x: startX, y: startY } = cannonCenter(cannon);
-  const targetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
-  const targetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
-  cannon.facing = computeFacing45(startX, startY, targetX, targetY);
+  let finalTargetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
+  let finalTargetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
+  // Dust Storm: apply random angle jitter to the trajectory
+  if (state.modern?.activeModifier === MODIFIER_ID.DUST_STORM) {
+    const dx = finalTargetX - startX;
+    const dy = finalTargetY - startY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0) {
+      const jitterRad =
+        ((state.rng.next() * 2 - 1) * DUST_STORM_JITTER_DEG * Math.PI) / 180;
+      const cosJ = Math.cos(jitterRad);
+      const sinJ = Math.sin(jitterRad);
+      finalTargetX = startX + (dx * cosJ - dy * sinJ);
+      finalTargetY = startY + (dx * sinJ + dy * cosJ);
+    }
+  }
+  cannon.facing = computeFacing45(startX, startY, finalTargetX, finalTargetY);
   const hasRapidFire = !!state.players[playerId]?.upgrades.get(UID.RAPID_FIRE);
   const isMortar = !!cannon.mortar;
   // Rapid Fire + Mortar cancel out on speed (normal speed mortar shots)
@@ -737,8 +758,8 @@ function launchCannonball(
     startY,
     x: startX,
     y: startY,
-    targetX,
-    targetY,
+    targetX: finalTargetX,
+    targetY: finalTargetY,
     speed: BALL_SPEED * speedMult,
     playerId,
     scoringPlayerId,
@@ -1011,7 +1032,7 @@ function findBestBalloonTarget(
   for (const other of filterActiveEnemies(state, ownerId)) {
     for (const cannon of filterActiveFiringCannons(other)) {
       const needed = balloonHitThreshold(cannon);
-      const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
+      const prevHits = cannon.balloonHits ?? 0;
       const roundHits = balloonCountPerTarget.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
       if (!isCannonEnclosed(cannon, other)) continue;
@@ -1037,23 +1058,16 @@ function resolveBalloonCaptures(
   thisRoundTargets: Map<Cannon, { victimId: ValidPlayerSlot }>,
 ): void {
   state.capturedCannons = [];
-  for (const [cannon, hit] of state.balloonHits) {
-    const needed = balloonHitThreshold(cannon);
-    if (hit.count >= needed) {
+  for (const player of state.players) {
+    for (let cannonIdx = 0; cannonIdx < player.cannons.length; cannonIdx++) {
+      const cannon = player.cannons[cannonIdx]!;
+      const hits = cannon.balloonHits ?? 0;
+      if (hits < balloonHitThreshold(cannon)) continue;
+      const capturerIds = cannon.balloonCapturerIds ?? [];
+      if (capturerIds.length === 0) continue;
       const target = thisRoundTargets.get(cannon);
-      let victimId: ValidPlayerSlot | number =
-        target?.victimId ?? VICTIM_ID_UNKNOWN;
-      if (victimId === VICTIM_ID_UNKNOWN) {
-        for (const player of state.players) {
-          if (player.cannons.includes(cannon)) {
-            victimId = player.id;
-            break;
-          }
-        }
-      }
-      const winnerId = state.rng.pick(hit.capturerIds);
-      const cannonIdx =
-        state.players[victimId]?.cannons.indexOf(cannon) ?? CANNON_NOT_FOUND;
+      const victimId = target?.victimId ?? player.id;
+      const winnerId = state.rng.pick(capturerIds);
       state.capturedCannons.push({
         cannon,
         cannonIdx,

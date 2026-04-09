@@ -106,7 +106,6 @@ export function createGameState(
     towerPendingRevive: new Set(),
     burningPits: [],
     capturedCannons: [],
-    balloonHits: new Map(),
     bonusSquares: [],
     battleCountdown: 0,
     reselectedPlayers: new Set(),

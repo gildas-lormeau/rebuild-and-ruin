@@ -203,12 +203,6 @@ export interface FullStateMessage {
     capturerId: number;
     cannonIdx: number;
   }[];
-  balloonHits: {
-    playerId: ValidPlayerSlot;
-    cannonIdx: number;
-    count: number;
-    capturerIds: number[];
-  }[];
   cannonballs: {
     cannonIdx: number;
     startX: number;

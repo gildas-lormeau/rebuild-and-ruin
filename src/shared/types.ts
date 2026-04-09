@@ -5,7 +5,6 @@
 import type {
   BreachSpawnEntry,
   BurningPit,
-  Cannon,
   Cannonball,
   CapturedCannon,
   Grunt,
@@ -80,7 +79,6 @@ export interface GameState {
    *  Hit count persists across battles (cumulative toward capture threshold).
    *  capturerIds resets each battle — tracks which players contributed hits this round.
    *  Cleared by cleanupBalloonHitTrackingAfterBattle() at battle end. */
-  balloonHits: Map<Cannon, { count: number; capturerIds: number[] }>;
   /** Bonus squares on the map (3 per zone). */
   bonusSquares: BonusSquare[];
   /** Pre-battle countdown (Ready/Aim/Fire). Only meaningful during BATTLE phase.

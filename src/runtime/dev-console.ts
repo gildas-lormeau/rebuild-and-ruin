@@ -241,6 +241,7 @@ function cellCss(cell: Cell): string {
   }
   switch (cell.kind) {
     case CellKind.Water:
+    case CellKind.FrozenWater:
       return WATER_CSS;
     case CellKind.Grass:
       return DIM_CSS;

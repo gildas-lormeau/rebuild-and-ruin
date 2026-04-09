@@ -237,7 +237,6 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     playerZones: [],
     towerPendingRevive: [],
     capturedCannons: [],
-    balloonHits: [],
     cannonballs: [],
     gameMode: "classic",
     activeModifier: null,

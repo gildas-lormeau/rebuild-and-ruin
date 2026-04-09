@@ -188,30 +188,6 @@ export function createFullStateMessage(
       capturerId: captured.capturerId,
       cannonIdx: captured.cannonIdx,
     })),
-    balloonHits: (() => {
-      const hits: {
-        playerId: ValidPlayerSlot;
-        cannonIdx: number;
-        count: number;
-        capturerIds: number[];
-      }[] = [];
-      for (const [cannon, hit] of state.balloonHits) {
-        // Find which player owns this cannon
-        for (const player of state.players) {
-          const idx = player.cannons.indexOf(cannon);
-          if (idx >= 0) {
-            hits.push({
-              playerId: player.id,
-              cannonIdx: idx,
-              count: hit.count,
-              capturerIds: hit.capturerIds,
-            });
-            break;
-          }
-        }
-      }
-      return hits;
-    })(),
     cannonballs: state.cannonballs.map((b) => ({
       ...copyCannonballCore(b),
       incendiary: b.incendiary ? true : undefined,
@@ -238,6 +214,10 @@ export function serializePlayers(state: GameState) {
       facing: c.facing ?? 0,
       mortar: c.mortar || undefined,
       shielded: c.shielded || undefined,
+      balloonHits: c.balloonHits || undefined,
+      balloonCapturerIds: c.balloonCapturerIds?.length
+        ? c.balloonCapturerIds
+        : undefined,
     })),
     homeTowerIdx: player.homeTower?.index ?? null,
     castleWallTiles: [...player.castleWallTiles],
@@ -341,7 +321,6 @@ export function restoreFullStateSnapshot(
 
   restoreCannonballs(state, msg);
   applyCapturedCannons(state, msg.capturedCannons);
-  restoreBalloonHits(state, msg);
 
   return {
     balloonFlights: msg.balloonFlights?.map((flight) => ({
@@ -386,6 +365,10 @@ export function applyPlayersCheckpoint(
       facing: c.facing ?? 0,
       mortar: c.mortar || undefined,
       shielded: c.shielded || undefined,
+      balloonHits: c.balloonHits || undefined,
+      balloonCapturerIds: c.balloonCapturerIds?.length
+        ? [...c.balloonCapturerIds]
+        : undefined,
     }));
     player.homeTower =
       entry.homeTowerIdx !== null &&
@@ -632,17 +615,4 @@ function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
     playerId: b.playerId,
     scoringPlayerId: b.scoringPlayerId,
   };
-}
-
-/** Restore balloon hit map, reconstructing Cannon object references as Map keys. */
-function restoreBalloonHits(state: GameState, msg: FullStateMessage): void {
-  state.balloonHits = new Map();
-  for (const hit of msg.balloonHits) {
-    const cannon = state.players[hit.playerId]?.cannons[hit.cannonIdx];
-    if (cannon)
-      state.balloonHits.set(cannon, {
-        count: hit.count,
-        capturerIds: hit.capturerIds,
-      });
-  }
 }

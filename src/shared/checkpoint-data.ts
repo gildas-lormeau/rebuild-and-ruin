@@ -23,6 +23,10 @@ export interface SerializedCannon {
   facing?: number;
   mortar?: true;
   shielded?: true;
+  /** Cumulative balloon hits toward capture (omitted when 0). */
+  balloonHits?: number;
+  /** Players who contributed balloon hits this battle (omitted when empty). */
+  balloonCapturerIds?: number[];
 }
 
 export interface SerializedHouse {

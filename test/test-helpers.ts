@@ -188,7 +188,6 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     towerPendingRevive: new Set(),
     burningPits,
     capturedCannons: [],
-    balloonHits: new Map(),
     bonusSquares: [],
     battleCountdown: 0,
     reselectedPlayers: new Set(),

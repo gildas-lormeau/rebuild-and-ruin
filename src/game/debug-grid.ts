@@ -17,6 +17,7 @@ export type MapLayer = "all" | "terrain" | "walls";
 export const enum CellKind {
   Grass,
   Water,
+  FrozenWater,
   Interior,
   BonusSquare,
   Wall,
@@ -59,6 +60,15 @@ export function buildGrid(
       }
     }
     grid.push(rowCells);
+  }
+
+  // Frozen tiles (overlay on water — must come before territory)
+  const frozenTiles = state.modern?.frozenTiles;
+  if (frozenTiles) {
+    for (const key of frozenTiles) {
+      const { r, c } = unpackTile(key);
+      setCell(grid, r, c, CellKind.FrozenWater, "f", -1);
+    }
   }
 
   if (layer === "terrain") return grid;
@@ -176,7 +186,7 @@ export function buildLegend(state: GameState): string {
 
   return [
     `Round ${state.round}  |  ${playerInfo}`,
-    ". grass  ~ water  : territory  # wall  T tower  t dead tower",
+    ". grass  ~ water  f frozen  : territory  # wall  T tower  t dead tower",
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
     "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
   ].join("\n");

@@ -35,6 +35,13 @@ export interface Cannon extends TilePos {
   mortar?: boolean;
   /** True when this cannon is shielded (immune to damage) for the current battle round. */
   shielded?: boolean;
+  /** Cumulative balloon hits toward capture threshold. Persists across battles.
+   *  Cleared when cannon is captured or destroyed. */
+  balloonHits?: number;
+  /** Players who contributed balloon hits THIS battle. Reset each battle by
+   *  cleanupBalloonHitTrackingAfterBattle — only the deciding battle's
+   *  contributors can claim the capture. */
+  balloonCapturerIds?: number[];
 }
 
 export interface Cannonball {

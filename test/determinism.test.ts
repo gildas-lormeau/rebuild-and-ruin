@@ -89,7 +89,7 @@ const EXPECTED: readonly GameExpectation[] = [
   },
   {
     seed: 65,
-    totalRounds: 17,
+    totalRounds: 22,
     winner: 1,
     checkpoints: [
       {
@@ -101,11 +101,11 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 17,
+        round: 22,
         players: [
           { lives: 0, score: 6176, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 3, score: 27384, walls: 158, cannons: 21, interior: 111, eliminated: false },
-          { lives: 0, score: 21184, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 1, score: 28778, walls: 104, cannons: 13, interior: 36, eliminated: false },
+          { lives: 0, score: 29338, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
