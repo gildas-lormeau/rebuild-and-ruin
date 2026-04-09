@@ -207,8 +207,21 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
-  // Event emitter — scenario-local listeners for tick events + legacy lifecycle hooks.
-  // Lifecycle events (phase/round/game) now come from production code via setPhase/enterBuildFromBattle.
+  // Maps ScenarioEventType → bus event key for lifecycle events.
+  // Tick events (tick-start, tick-end) have no bus equivalent and stay on the private emitter.
+  // Maps ScenarioEventType → bus event key for lifecycle events.
+  const SCENARIO_TO_BUS: Record<string, string | undefined> = {
+    "phase-start": GAME_EVENT.PHASE_START,
+    "phase-end": GAME_EVENT.PHASE_END,
+    "round-start": GAME_EVENT.ROUND_START,
+    "round-end": GAME_EVENT.ROUND_END,
+    "game-start": GAME_EVENT.GAME_START,
+    "game-end": GAME_EVENT.GAME_END,
+  };
+  // Track wrapper handlers so removeEventListener can unsubscribe from the bus.
+  const busWrappers = new Map<ScenarioEventHandler, (event: never) => void>();
+
+  // Event emitter — tick events use the private emitter; lifecycle events are on the bus.
   // gameStart/gameEnd are scenario-only (no production emission site yet).
   const listeners = new Map<ScenarioEventType, Set<ScenarioEventHandler>>();
   function emit(type: ScenarioEventType, dt = 0): void {
@@ -728,12 +741,31 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
     addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      let set = listeners.get(type);
-      if (!set) { set = new Set(); listeners.set(type, set); }
-      set.add(handler);
+      const busKey = SCENARIO_TO_BUS[type];
+      if (busKey) {
+        const wrapper = (event: never) => {
+          const payload = event as { phase?: Phase; round: number };
+          handler({ type, phase: payload.phase ?? state.phase, round: payload.round, dt: 0 });
+        };
+        busWrappers.set(handler, wrapper);
+        state.bus.on(busKey as never, wrapper);
+      } else {
+        let set = listeners.get(type);
+        if (!set) { set = new Set(); listeners.set(type, set); }
+        set.add(handler);
+      }
     },
     removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      listeners.get(type)?.delete(handler);
+      const busKey = SCENARIO_TO_BUS[type];
+      if (busKey) {
+        const wrapper = busWrappers.get(handler);
+        if (wrapper) {
+          state.bus.off(busKey as never, wrapper);
+          busWrappers.delete(handler);
+        }
+      } else {
+        listeners.get(type)?.delete(handler);
+      }
     },
     enableCheckpointRelay: () => { relayEnabled = true; },
     get onRelayCapture() { return onRelayCapture; },
