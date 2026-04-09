@@ -227,6 +227,7 @@ export function tickCannonballs(
               // Only center tile feeds into combo tracker
               applyImpactEvent(state, evt, shooterId, !isCenter);
               events.push(evt);
+              state.bus.emit(evt.type, evt);
             }
           }
         }
@@ -241,6 +242,7 @@ export function tickCannonballs(
         for (const evt of impactEvents) {
           applyImpactEvent(state, evt, shooterId);
           events.push(evt);
+          state.bus.emit(evt.type, evt);
         }
         // Ricochet: 2 additional bounces at random nearby positions
         if (state.players[shooterId]?.upgrades.get(UID.RICOCHET)) {
@@ -279,6 +281,7 @@ export function tickCannonballs(
               // Ricochet bounces don't feed into combo tracker
               applyImpactEvent(state, evt, shooterId, true);
               events.push(evt);
+              state.bus.emit(evt.type, evt);
             }
             impacts.push({ row: bounceRow, col: bounceCol });
           }
@@ -540,32 +543,6 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
   }
 }
 
-/** Create a CANNON_FIRED message from a cannonball's launch data. */
-export function createCannonFiredMsg(ball: {
-  playerId: ValidPlayerSlot;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: boolean;
-  mortar?: boolean;
-}): CannonFiredMessage {
-  return {
-    type: BATTLE_MESSAGE.CANNON_FIRED,
-    playerId: ball.playerId,
-    cannonIdx: ball.cannonIdx,
-    startX: ball.startX,
-    startY: ball.startY,
-    targetX: ball.targetX,
-    targetY: ball.targetY,
-    speed: ball.speed,
-    incendiary: ball.incendiary ? true : undefined,
-    mortar: ball.mortar ? true : undefined,
-  };
-}
-
 /** Snapshot per-player territory (interior + walls) for battle rendering. */
 export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
   return players.map((player) => {
@@ -613,6 +590,8 @@ export function fireCannon(
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
   launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
   state.shotsFired++;
+  const ball = state.cannonballs[state.cannonballs.length - 1]!;
+  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
 }
 
@@ -724,7 +703,35 @@ function fireCapturedCannon(
     captured.capturerId,
   );
   state.shotsFired++;
+  const ball = state.cannonballs[state.cannonballs.length - 1]!;
+  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
+}
+
+/** Create a CANNON_FIRED message from a cannonball's launch data. */
+export function createCannonFiredMsg(ball: {
+  playerId: ValidPlayerSlot;
+  cannonIdx: number;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  incendiary?: boolean;
+  mortar?: boolean;
+}): CannonFiredMessage {
+  return {
+    type: BATTLE_MESSAGE.CANNON_FIRED,
+    playerId: ball.playerId,
+    cannonIdx: ball.cannonIdx,
+    startX: ball.startX,
+    startY: ball.startY,
+    targetX: ball.targetX,
+    targetY: ball.targetY,
+    speed: ball.speed,
+    incendiary: ball.incendiary ? true : undefined,
+    mortar: ball.mortar ? true : undefined,
+  };
 }
 
 /**

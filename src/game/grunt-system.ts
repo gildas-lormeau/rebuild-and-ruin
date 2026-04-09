@@ -209,10 +209,12 @@ export function gruntAttackTowers(
     if (attackTarget !== undefined) {
       if (tickGruntAttackTimer(grunt, dt)) {
         state.towerAlive[attackTarget] = false;
-        events.push({
+        const towerEvent = {
           type: BATTLE_MESSAGE.TOWER_KILLED,
           towerIdx: attackTarget,
-        });
+        } as const;
+        events.push(towerEvent);
+        state.bus.emit(BATTLE_MESSAGE.TOWER_KILLED, towerEvent);
       }
     } else {
       // Reset timer if no longer adjacent to attackable tower
