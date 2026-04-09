@@ -34,8 +34,9 @@ export interface Cell {
   kind: CellKind;
   char: string;
   playerId: number;
-  /** Extra state for parity testing (hp, facing, alive, target, etc.). */
-  extra?: number;
+  /** Serialized entity state for parity testing. Encodes all renderer-visible
+   *  fields so checkpoint roundtrip bugs show up in grid comparison. */
+  extra?: string;
 }
 
 export interface Rect {
@@ -69,7 +70,7 @@ export function buildGrid(
   if (frozenTiles) {
     for (const key of frozenTiles) {
       const { r, c } = unpackTile(key);
-      setCell(grid, r, c, CellKind.FrozenWater, "f", -1);
+      setCell(grid, r, c, CellKind.FrozenWater, "f", -1, "frozen");
     }
   }
 
@@ -95,12 +96,28 @@ export function buildGrid(
 
   // Bonus squares
   for (const bonus of state.bonusSquares) {
-    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", -1);
+    setCell(
+      grid,
+      bonus.row,
+      bonus.col,
+      CellKind.BonusSquare,
+      "+",
+      -1,
+      `z${bonus.zone}`,
+    );
   }
 
   // Burning pits
   for (const pit of state.burningPits) {
-    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", -1);
+    setCell(
+      grid,
+      pit.row,
+      pit.col,
+      CellKind.BurningPit,
+      "*",
+      -1,
+      `r${pit.roundsLeft}`,
+    );
   }
 
   // Houses (alive and dead)
@@ -113,7 +130,7 @@ export function buildGrid(
       CellKind.House,
       char,
       -1,
-      house.alive ? 1 : 0,
+      `z${house.zone}${house.alive ? "a" : "d"}`,
     );
   }
 
@@ -123,9 +140,11 @@ export function buildGrid(
     const alive = state.towerAlive[tIdx]!;
     const kind = alive ? CellKind.TowerAlive : CellKind.TowerDead;
     const char = alive ? "T" : "t";
+    const pending = state.towerPendingRevive.has(tIdx);
+    const extra = `i${tIdx}z${tower.zone}${alive ? "a" : "d"}${pending ? "p" : ""}`;
     for (let dr = 0; dr < TOWER_SIZE; dr++) {
       for (let dc = 0; dc < TOWER_SIZE; dc++) {
-        setCell(grid, tower.row + dr, tower.col + dc, kind, char, -1);
+        setCell(grid, tower.row + dr, tower.col + dc, kind, char, -1, extra);
       }
     }
   }
@@ -136,6 +155,11 @@ export function buildGrid(
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const cannon of player.cannons) {
       const char = cannon.hp <= 0 ? "x" : "C";
+      const facing = Math.round((cannon.facing ?? 0) * 100);
+      let extra = `${cannon.mode}h${cannon.hp}f${facing}`;
+      if (cannon.mortar) extra += "m";
+      if (cannon.shielded) extra += "s";
+      if (cannon.balloonHits) extra += `b${cannon.balloonHits}`;
       setCell(
         grid,
         cannon.row,
@@ -143,22 +167,21 @@ export function buildGrid(
         CellKind.Cannon,
         char,
         player.id,
-        cannon.hp,
+        extra,
       );
     }
   }
 
   // Grunts
   for (const grunt of state.grunts) {
-    setCell(
-      grid,
-      grunt.row,
-      grunt.col,
-      CellKind.Grunt,
-      "!",
-      -1,
-      grunt.targetTowerIdx ?? -1,
-    );
+    const facing =
+      grunt.facing !== undefined ? Math.round(grunt.facing * 100) : "";
+    let extra = `v${grunt.victimPlayerId}t${grunt.targetTowerIdx ?? "?"}b${grunt.blockedRounds}`;
+    if (grunt.attackingWall) extra += "w";
+    if (grunt.attackCountdown !== undefined)
+      extra += `c${grunt.attackCountdown.toFixed(1)}`;
+    if (facing !== "") extra += `f${facing}`;
+    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", -1, extra);
   }
 
   // Cannonballs (snap to nearest tile)
@@ -166,7 +189,8 @@ export function buildGrid(
     const row = Math.round(ball.y / TILE_SIZE);
     const col = Math.round(ball.x / TILE_SIZE);
     if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
-      setCell(grid, row, col, CellKind.Cannonball, "o", -1);
+      const extra = `p${ball.playerId}${ball.incendiary ? "i" : ""}`;
+      setCell(grid, row, col, CellKind.Cannonball, "o", -1, extra);
     }
   }
 
@@ -224,14 +248,13 @@ function setCell(
   kind: CellKind,
   char: string,
   playerId: number,
-  extra?: number,
+  extra?: string,
 ): void {
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
   const existing = grid[row]![col]!;
   if (kind >= existing.kind) {
-    grid[row]![col] =
-      extra !== undefined
-        ? { kind, char, playerId, extra }
-        : { kind, char, playerId };
+    grid[row]![col] = extra
+      ? { kind, char, playerId, extra }
+      : { kind, char, playerId };
   }
 }
