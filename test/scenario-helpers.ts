@@ -72,6 +72,37 @@ import { createBannerState } from "../src/shared/ui-contracts.ts";
 // Scenario factory
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Event system
+// ---------------------------------------------------------------------------
+
+export type ScenarioEventType =
+  | "tick-start"
+  | "tick-end"
+  | "phase-start"
+  | "phase-end"
+  | "round-start"
+  | "round-end"
+  | "game-start"
+  | "game-end";
+
+export interface ScenarioEvent {
+  /** Event type. */
+  readonly type: ScenarioEventType;
+  /** Current phase when the event fired. */
+  readonly phase: Phase;
+  /** Current round when the event fired. */
+  readonly round: number;
+  /** Delta time for tick events (seconds). 0 for phase/round events. */
+  readonly dt: number;
+}
+
+export type ScenarioEventHandler = (event: ScenarioEvent) => void;
+
+// ---------------------------------------------------------------------------
+// Scenario
+// ---------------------------------------------------------------------------
+
 export interface Scenario {
   readonly state: GameState;
   readonly controllers: PlayerController[];
@@ -86,6 +117,11 @@ export interface Scenario {
   processReselection(needsReselect: readonly ValidPlayerSlot[]): void;
   playRound(): { needsReselect: ValidPlayerSlot[]; eliminated: ValidPlayerSlot[] };
   playRounds(n: number): void;
+  runGame(maxRounds?: number): void;
+
+  // Event system — DOM-style listeners for game lifecycle
+  addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler): void;
+  removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler): void;
 
   // State inspection
   describe(): string;
@@ -170,6 +206,15 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
+  // Event emitter
+  const listeners = new Map<ScenarioEventType, Set<ScenarioEventHandler>>();
+  function emit(type: ScenarioEventType, dt = 0): void {
+    const handlers = listeners.get(type);
+    if (!handlers || handlers.size === 0) return;
+    const event: ScenarioEvent = { type, phase: state.phase, round: state.round, dt };
+    for (const handler of handlers) handler(event);
+  }
+
   let relayEnabled = false;
   let relayDeps: CheckpointDeps | null = null;
   let onRelayCapture: (() => { grid: string; state: string }) | null = null;
@@ -197,6 +242,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function runCannon(): void {
+    emit("phase-start");
     relay("cannon-start", createCannonStartMessage(state), applyCannonStartCheckpoint);
     resetCannonFacings(state);
     computeCannonLimitsForPhase(state);
@@ -207,16 +253,15 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       ctrl.placeCannons(state, state.cannonLimits[i]!);
       ctrl.finalizeCannonPhase(state, state.cannonLimits[i]!);
     }
+    emit("phase-end");
   }
 
   function runBattle(durationSec = BATTLE_TIMER): void {
-    // Match real host ordering: enterBattleFromCannon → resolveBalloons → send message.
-    // nextPhase discards the modifier diff; calling enterBattleFromCannon directly
-    // lets us pass flights + diff into the checkpoint message.
     const diff = enterBattleFromCannon(state);
     const flights = resolveBalloons(state);
     relay("battle-start", createBattleStartMessage(state, flights, diff ?? undefined), applyBattleStartCheckpoint);
     for (const ctrl of controllers) ctrl.initBattleState(state);
+    emit("phase-start");
 
     let t = 0;
     const dt = 0.1;
@@ -227,11 +272,14 @@ export async function createScenario(seed = 42): Promise<Scenario> {
           controllers[i]!.battleTick(state, dt);
         }
       }
+      emit("tick-start", dt);
       gruntAttackTowers(state, dt);
       tickCannonballs(state, dt);
+      emit("tick-end", dt);
       t += dt;
     }
     for (const ctrl of controllers) ctrl.endBattle();
+    emit("phase-end");
     nextPhase(state);
   }
 
@@ -241,11 +289,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       if (state.players[i]!.eliminated) continue;
       controllers[i]!.startBuildPhase(state);
     }
+    emit("phase-start");
 
     let t = 0;
     let gruntAccum = 0;
     const dt = 0.5;
     while (t < durationSec) {
+      emit("tick-start", dt);
       gruntAccum += dt;
       if (gruntAccum >= 1.0) {
         gruntAccum -= 1.0;
@@ -255,9 +305,11 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         if (state.players[i]!.eliminated) continue;
         controllers[i]!.buildTick(state, dt);
       }
+      emit("tick-end", dt);
       t += dt;
     }
     for (const ctrl of controllers) ctrl.finalizeBuildPhase(state);
+    emit("phase-end");
   }
 
   function doFinalizeBuild() {
@@ -274,10 +326,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function playRound() {
+    emit("round-start");
     runCannon();
     runBattle();
     runBuild();
-    return doFinalizeBuild();
+    const result = doFinalizeBuild();
+    emit("round-end");
+    return result;
   }
 
   function doPlayRounds(n: number): void {
@@ -290,6 +345,18 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       // Advance back to CANNON_PLACE for the next round
       if (i < n - 1) advanceTo(Phase.CANNON_PLACE);
     }
+  }
+
+  function runGame(maxRounds = 12): void {
+    emit("game-start");
+    while (
+      state.players.filter((player) => !player.eliminated).length > 1 &&
+      state.round <= maxRounds
+    ) {
+      const { needsReselect } = playRound();
+      if (needsReselect.length > 0) doProcessReselection(needsReselect);
+    }
+    emit("game-end");
   }
 
   function setLives(playerId: ValidPlayerSlot, lives: number) {
@@ -631,6 +698,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     processReselection: doProcessReselection,
     playRound,
     playRounds: doPlayRounds,
+    runGame,
     setLives,
     clearWalls,
     describe,
@@ -649,6 +717,14 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     createLifeLostDialog: doCreateLifeLostDialog,
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
+    addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
+      let set = listeners.get(type);
+      if (!set) { set = new Set(); listeners.set(type, set); }
+      set.add(handler);
+    },
+    removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
+      listeners.get(type)?.delete(handler);
+    },
     enableCheckpointRelay: () => { relayEnabled = true; },
     get onRelayCapture() { return onRelayCapture; },
     set onRelayCapture(fn) { onRelayCapture = fn; },

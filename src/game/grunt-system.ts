@@ -57,9 +57,9 @@ const WATER_SEARCH_RADIUS = 5;
 /** Minimum Manhattan distance between spawn candidates so grunts don't cluster on arrival. */
 const GRUNT_SPAWN_MIN_DISTANCE = 2;
 
-/** Spawn a grunt near (posRow, posCol) if there is at least one other alive player.
- *  Optimization: skips the spawn if excludePlayerId is the only non-eliminated player
- *  (the grunt would have no valid target tower and sit idle). */
+/** Spawn a grunt on the bank/edge of the zone containing (posRow, posCol),
+ *  picking the bank-first position closest to (posRow, posCol).
+ *  Skips if excludePlayerId is the only non-eliminated player. */
 export function spawnGruntNearPos(
   state: GameState,
   excludePlayerId: ValidPlayerSlot,
@@ -76,34 +76,25 @@ export function spawnGruntNearPos(
   if (pos) addGrunt(state, pos.row, pos.col);
 }
 
-/** Find the nearest free grass tile for a grunt spawn (BFS from position). Returns null if none found. */
+/** Find a bank-first spawn position, preferring tiles close to (posRow, posCol).
+ *  Bank (adjacent to water) first, edges second. */
 export function findGruntSpawnNear(
   state: GameState,
   posRow: number,
   posCol: number,
 ): TilePos | null {
-  const visited = new Set<number>();
-  const queue: TilePos[] = [{ row: posRow, col: posCol }];
-  visited.add(packTile(posRow, posCol));
-
-  let head = 0;
-  while (head < queue.length) {
-    const { row: r, col: c } = queue[head++]!;
-
-    if (isValidGruntSpawnTile(state, r, c)) {
-      return { row: r, col: c };
-    }
-
-    for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr,
-        nc = c + dc;
-      enqueueUnvisitedTile(visited, queue, nr, nc);
-    }
-  }
-  return null;
+  const zone = state.map.zones[posRow]?.[posCol];
+  if (zone === undefined || zone < 0) return null;
+  const player = state.players.find(
+    (candidate) =>
+      isPlayerSeated(candidate) && candidate.homeTower.zone === zone,
+  );
+  if (!player) return null;
+  const candidates = findGruntSpawnPositions(state, player, 1, posRow, posCol);
+  return candidates[0] ?? null;
 }
 
-/** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower. */
+/** Spawn a group of grunts on a player's zone (bank-first). */
 export function spawnGruntGroupOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -111,40 +102,9 @@ export function spawnGruntGroupOnZone(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
-
-  const zone = player.homeTower.zone;
-
-  // Find one anchor position, then cluster remaining grunts on adjacent tiles
-  const anchorPos = findGruntSpawnPositions(state, player, 1);
-  if (anchorPos.length === 0) return;
-  const anchor = anchorPos[0]!;
-  const occupied = new Set<number>();
-  let placed = 0;
-
-  const pushGrunt = (r: number, c: number) => {
-    occupied.add(packTile(r, c));
-    addGrunt(state, r, c);
-    placed++;
-  };
-  pushGrunt(anchor.row, anchor.col);
-
-  // Place remaining grunts on adjacent free tiles (BFS outward from anchor)
-  const queue: TilePos[] = [{ row: anchor.row, col: anchor.col }];
-  const visited = new Set<number>([packTile(anchor.row, anchor.col)]);
-  while (placed < count && queue.length > 0) {
-    const { row: r, col: c } = queue.shift()!;
-    for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr,
-        nc = c + dc;
-      const neighborKey = packTile(nr, nc);
-      if (visited.has(neighborKey)) continue;
-      visited.add(neighborKey);
-      if (!canUseGroupSpawnTile(state, zone, occupied, nr, nc, neighborKey))
-        continue;
-      pushGrunt(nr, nc);
-      queue.push({ row: nr, col: nc });
-      if (placed >= count) break;
-    }
+  const positions = findGruntSpawnPositions(state, player, count);
+  for (const pos of positions) {
+    addGrunt(state, pos.row, pos.col);
   }
 }
 
@@ -348,77 +308,88 @@ function addGrunt(state: GameState, row: number, col: number): void {
   });
 }
 
-function enqueueUnvisitedTile(
-  visited: Set<number>,
-  queue: TilePos[],
-  row: number,
-  col: number,
-): void {
-  if (!inBounds(row, col)) return;
-  const key = packTile(row, col);
-  if (visited.has(key)) return;
-  visited.add(key);
-  queue.push({ row, col });
-}
-
-function canUseGroupSpawnTile(
-  state: GameState,
-  zone: number,
-  occupied: ReadonlySet<number>,
-  row: number,
-  col: number,
-  key: number,
-): boolean {
-  if (occupied.has(key)) return false;
-  if (state.map.zones[row]?.[col] !== zone) return false;
-  return isValidGruntSpawnTile(state, row, col);
-}
-
-/** Find spawn positions for grunts in an enemy's zone, along the river bank. */
+/** Find spawn positions for grunts in an enemy's zone.
+ *  Priority: bank (adjacent to water, waterDist=1) → edge (row/col 0 or max) → nothing.
+ *  Within each tier, tiles closer to targetRow/targetCol are preferred.
+ *  If targetRow/targetCol are not provided, uses the zone's alive towers as targets. */
 function findGruntSpawnPositions(
   state: GameState,
   enemy: Player,
   count: number,
+  targetRow?: number,
+  targetCol?: number,
 ): TilePos[] {
   const zone = enemy.homeTower?.zone;
   if (zone === undefined) return [];
 
-  // Collect available grass tiles in zone, sorted by proximity to water
-  const candidates: {
-    row: number;
-    col: number;
-    waterDist: number;
-    borderDist: number;
-  }[] = [];
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (state.map.zones[r]![c] !== zone) continue;
-      if (!isValidGruntSpawnTile(state, r, c)) continue;
-
-      const waterDist = minWaterDistance(state, r, c);
-      const borderDist = Math.min(r, c, GRID_ROWS - 1 - r, GRID_COLS - 1 - c);
-      candidates.push({ row: r, col: c, waterDist, borderDist });
+  const bank: { row: number; col: number }[] = [];
+  const edge: { row: number; col: number }[] = [];
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (state.map.zones[row]![col] !== zone) continue;
+      if (!isValidGruntSpawnTile(state, row, col)) continue;
+      if (minWaterDistance(state, row, col) <= 1) {
+        bank.push({ row, col });
+      } else if (isEdgeTile(row, col)) {
+        edge.push({ row, col });
+      }
     }
   }
 
-  // Prefer tiles near water (bank) first, then map borders as tiebreaker
-  candidates.sort(
-    (a, b) => a.waterDist - b.waterDist || a.borderDist - b.borderDist,
-  );
-
-  const result: TilePos[] = [];
-  for (const cand of candidates) {
-    if (result.length >= count) break;
-    const tooClose = result.some(
-      (r) =>
-        manhattanDistance(r.row, r.col, cand.row, cand.col) <
-        GRUNT_SPAWN_MIN_DISTANCE,
+  // Determine sort target: explicit position or nearest alive tower center
+  let sortRow = targetRow;
+  let sortCol = targetCol;
+  if (sortRow === undefined || sortCol === undefined) {
+    const aliveTower = state.map.towers.find(
+      (tower) =>
+        tower.zone === zone &&
+        state.towerAlive[state.map.towers.indexOf(tower)],
     );
-    if (tooClose) continue;
-    result.push({ row: cand.row, col: cand.col });
+    if (aliveTower) {
+      sortRow = aliveTower.row + 1;
+      sortCol = aliveTower.col + 1;
+    }
   }
 
+  // Sort each tier by distance to target (closest first)
+  const sortByTarget = (
+    arr: { row: number; col: number }[],
+  ): { row: number; col: number }[] => {
+    if (sortRow !== undefined && sortCol !== undefined) {
+      const sr = sortRow;
+      const sc = sortCol;
+      arr.sort(
+        (tileA, tileB) =>
+          manhattanDistance(tileA.row, tileA.col, sr, sc) -
+          manhattanDistance(tileB.row, tileB.col, sr, sc),
+      );
+    }
+    return arr;
+  };
+  sortByTarget(bank);
+  sortByTarget(edge);
+
+  // Pick from bank first, then edge, with min spacing
+  const result: TilePos[] = [];
+  const pick = (candidates: readonly { row: number; col: number }[]) => {
+    for (const cand of candidates) {
+      if (result.length >= count) return;
+      const tooClose = result.some(
+        (existing) =>
+          manhattanDistance(existing.row, existing.col, cand.row, cand.col) <
+          GRUNT_SPAWN_MIN_DISTANCE,
+      );
+      if (tooClose) continue;
+      result.push({ row: cand.row, col: cand.col });
+    }
+  };
+  pick(bank);
+  pick(edge);
   return result;
+}
+
+function isEdgeTile(row: number, col: number): boolean {
+  return row <= 0 || col <= 0 || row >= GRID_ROWS - 1 || col >= GRID_COLS - 1;
 }
 
 /** Core validity check for grunt spawning. Rejects frozen water (grunts
