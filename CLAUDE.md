@@ -14,6 +14,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, deno-lint, test:territory, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
+- Checkpoint parity: `npm run test:parity` (10 random seeds) or `npm run test:parity:quick` (seed 42). **Primary test for network/checkpoint bugs.** Runs local vs network games, compares at every phase boundary. Run after ANY change to online/, checkpoint, or serialization code. Custom seeds: `deno test --no-check test/checkpoint-parity.test.ts -- 9941 52 66`
 - E2E: `deno run -A test/e2e-<name>.ts` (requires `npm run dev`); Playwright + E2EGame + render spy
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.
 - Refactor: `npm run refactor` — AST CLI (rename-symbol, move-export, rename-prop, rename-in-file, rename-file)
