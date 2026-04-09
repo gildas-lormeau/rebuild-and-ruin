@@ -341,6 +341,7 @@ function handleCannonFired(
     incendiary: msg.incendiary,
     mortar: msg.mortar,
   });
+  state.bus.emit(msg.type, msg);
   return APPLIED;
 }
 
@@ -370,6 +371,7 @@ function handleImpactEvent(
     );
   }
   applyImpactEvent(state, msg as ImpactEvent);
+  state.bus.emit(msg.type as ImpactEvent["type"], msg as ImpactEvent);
   return APPLIED;
 }
 
@@ -396,6 +398,7 @@ function handleTowerKilled(
   if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
     return DROPPED;
   state.towerAlive[msg.towerIdx] = false;
+  state.bus.emit(msg.type, msg);
   return APPLIED;
 }
 

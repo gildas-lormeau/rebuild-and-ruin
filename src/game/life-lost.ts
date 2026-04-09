@@ -162,6 +162,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
       state.players.reduce((best, player) =>
         player.score > best.score ? player : best,
       );
+    emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
     onGameOver(winner);
     return true;
   }
@@ -171,6 +172,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
       (best, player) => (player.score > best.score ? player : best),
       alive[0]!,
     );
+    emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
     onGameOver(winner);
     return true;
   }

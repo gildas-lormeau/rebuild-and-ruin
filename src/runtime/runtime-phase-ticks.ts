@@ -232,6 +232,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startCannonPhase(onBannerDone?: () => void) {
+    subscribeBus();
     deps.sound.drumsQuiet();
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);

@@ -20,6 +20,7 @@ import {
   STARTING_LIVES,
   TOWER_SIZE,
 } from "../shared/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
@@ -155,6 +156,12 @@ export function placeCannon(
   if (used + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, mode, state)) return false;
   applyCannonPlacement(player, row, col, mode, state);
+  emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
+    playerId: player.id,
+    row,
+    col,
+    cannonIdx: player.cannons.length - 1,
+  });
   return true;
 }
 

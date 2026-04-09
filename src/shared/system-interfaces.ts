@@ -8,6 +8,7 @@ import {
   type Grunt,
 } from "./battle-types.ts";
 import type { GameMode, ModifierId } from "./game-constants.ts";
+import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type {
   BonusSquare,
@@ -35,6 +36,7 @@ export interface GameViewState {
   readonly phase: Phase;
   readonly players: readonly Player[];
   readonly map: GameMap;
+  readonly bus: GameEventBus;
 }
 
 /** Build-phase state slice.  9 fields (vs 25 on GameState). */

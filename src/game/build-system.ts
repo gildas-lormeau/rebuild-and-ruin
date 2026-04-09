@@ -218,10 +218,6 @@ export function recheckTerritoryOnly(state: GameState): void {
     removeEnclosedGruntsAndRespawn(state, player, interior);
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
     captureEnclosedBonusSquares(state, player, interior);
-    emitGameEvent(state.bus, GAME_EVENT.TERRITORY_CHANGED, {
-      playerId: player.id,
-      interior: interior.size,
-    });
   }
   sweepMisplacedGrunts(state);
 }
@@ -245,10 +241,6 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
     captureEnclosedBonusSquares(state, player, interior);
     awardEndOfBuildPoints(state, player, interior.size);
-    emitGameEvent(state.bus, GAME_EVENT.TERRITORY_CHANGED, {
-      playerId: player.id,
-      interior: interior.size,
-    });
   }
   // ── Post-loop: global finalization ──
   sweepMisplacedGrunts(state);

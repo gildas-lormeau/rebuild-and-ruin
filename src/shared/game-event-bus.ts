@@ -41,11 +41,6 @@ export type EntityEvent =
       row: number;
       col: number;
       cannonIdx: number;
-    }
-  | {
-      type: "territoryChanged";
-      playerId: ValidPlayerSlot;
-      interior: number;
     };
 
 export type ModernEvent =
@@ -150,7 +145,6 @@ const LIFECYCLE_EVENT = {
 const ENTITY_EVENT = {
   WALL_PLACED: "wallPlaced",
   CANNON_PLACED: "cannonPlaced",
-  TERRITORY_CHANGED: "territoryChanged",
 } as const;
 const MODERN_EVENT = {
   MODIFIER_APPLIED: "modifierApplied",

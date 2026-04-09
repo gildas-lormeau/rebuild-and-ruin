@@ -55,7 +55,7 @@ import {
 import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-types.ts";
 import { emptyFreshInterior } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
-import { GAME_EVENT, emitGameEvent } from "../src/shared/game-event-bus.ts";
+import { GAME_EVENT, emitGameEvent, type GameEventHandler } from "../src/shared/game-event-bus.ts";
 import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
@@ -207,19 +207,31 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
-  // Maps ScenarioEventType → bus event key for lifecycle events.
-  // Tick events (tick-start, tick-end) have no bus equivalent and stay on the private emitter.
-  // Maps ScenarioEventType → bus event key for lifecycle events.
-  const SCENARIO_TO_BUS: Record<string, string | undefined> = {
-    "phase-start": GAME_EVENT.PHASE_START,
-    "phase-end": GAME_EVENT.PHASE_END,
-    "round-start": GAME_EVENT.ROUND_START,
-    "round-end": GAME_EVENT.ROUND_END,
-    "game-start": GAME_EVENT.GAME_START,
-    "game-end": GAME_EVENT.GAME_END,
-  };
   // Track wrapper handlers so removeEventListener can unsubscribe from the bus.
-  const busWrappers = new Map<ScenarioEventHandler, (event: never) => void>();
+  const busWrappers = new Map<ScenarioEventHandler, { key: string; wrapper: (event: unknown) => void }>();
+
+  /** Map ScenarioEventType → bus event key. Returns undefined for tick events. */
+  function scenarioToBusKey(type: ScenarioEventType): string | undefined {
+    switch (type) {
+      case "phase-start": return GAME_EVENT.PHASE_START;
+      case "phase-end": return GAME_EVENT.PHASE_END;
+      case "round-start": return GAME_EVENT.ROUND_START;
+      case "round-end": return GAME_EVENT.ROUND_END;
+      case "game-start": return GAME_EVENT.GAME_START;
+      case "game-end": return GAME_EVENT.GAME_END;
+      default: return undefined;
+    }
+  }
+
+  // Helpers for dynamic bus subscription — scenarioToBusKey only returns valid
+  // GAME_EVENT values, so the string→literal cast is safe.
+  type BusHandler = (event: unknown) => void;
+  function busOn(key: string, handler: BusHandler): void {
+    state.bus.on(key as "phaseStart", handler as GameEventHandler<"phaseStart">);
+  }
+  function busOff(key: string, handler: BusHandler): void {
+    state.bus.off(key as "phaseStart", handler as GameEventHandler<"phaseStart">);
+  }
 
   // Event emitter — tick events use the private emitter; lifecycle events are on the bus.
   // gameStart/gameEnd are scenario-only (no production emission site yet).
@@ -230,10 +242,8 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       const event: ScenarioEvent = { type, phase: state.phase, round: state.round, dt };
       for (const handler of handlers) handler(event);
     }
-    // gameStart/gameEnd have no production emission site — emit on bus from here.
-    if (type === "game-start") {
-      emitGameEvent(state.bus, GAME_EVENT.GAME_START, { round: state.round });
-    } else if (type === "game-end") {
+    // gameEnd has no production emission in the headless flow — emit on bus from here.
+    if (type === "game-end") {
       emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
     }
   }
@@ -741,14 +751,14 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
     addEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      const busKey = SCENARIO_TO_BUS[type];
+      const busKey = scenarioToBusKey(type);
       if (busKey) {
-        const wrapper = (event: never) => {
+        const wrapper = (event: unknown) => {
           const payload = event as { phase?: Phase; round: number };
           handler({ type, phase: payload.phase ?? state.phase, round: payload.round, dt: 0 });
         };
-        busWrappers.set(handler, wrapper);
-        state.bus.on(busKey as never, wrapper);
+        busWrappers.set(handler, { key: busKey, wrapper });
+        busOn(busKey, wrapper);
       } else {
         let set = listeners.get(type);
         if (!set) { set = new Set(); listeners.set(type, set); }
@@ -756,11 +766,11 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       }
     },
     removeEventListener(type: ScenarioEventType, handler: ScenarioEventHandler) {
-      const busKey = SCENARIO_TO_BUS[type];
+      const busKey = scenarioToBusKey(type);
       if (busKey) {
-        const wrapper = busWrappers.get(handler);
-        if (wrapper) {
-          state.bus.off(busKey as never, wrapper);
+        const entry = busWrappers.get(handler);
+        if (entry) {
+          busOff(entry.key, entry.wrapper);
           busWrappers.delete(handler);
         }
       } else {

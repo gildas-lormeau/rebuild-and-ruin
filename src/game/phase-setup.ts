@@ -141,6 +141,7 @@ export function finalizeCastleConstruction(state: GameState): void {
 /** Enter build from initial castle selection — builds castles first.
  *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
 export function enterBuildFromSelect(state: GameState): void {
+  emitGameEvent(state.bus, GAME_EVENT.GAME_START, { round: state.round });
   autoBuildCastles(state);
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
