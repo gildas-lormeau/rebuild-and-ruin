@@ -1,6 +1,7 @@
 import {
   type CannonMode,
   isBalloonMode,
+  isRampartMode,
   isSuperMode,
 } from "../shared/battle-types.ts";
 import { IMPACT_FLASH_DURATION } from "../shared/game-constants.ts";
@@ -722,6 +723,19 @@ function drawPhantomCannon(
 
   if (isBalloonMode(mode)) {
     drawBalloonPhantom(overlayCtx, cx, cy, size, valid);
+    overlayCtx.restore();
+    return;
+  }
+
+  if (isRampartMode(mode)) {
+    // Rampart phantom: stone block with shield circle
+    overlayCtx.fillStyle = valid ? "#556677" : "#774444";
+    overlayCtx.fillRect(cx + 2, cy + 2, size - 4, size - 4);
+    overlayCtx.strokeStyle = valid ? "#33cc33" : "#cc4444";
+    overlayCtx.lineWidth = 2;
+    overlayCtx.beginPath();
+    overlayCtx.arc(cx + mid, cy + mid, mid - 4, 0, Math.PI * 2);
+    overlayCtx.stroke();
     overlayCtx.restore();
     return;
   }

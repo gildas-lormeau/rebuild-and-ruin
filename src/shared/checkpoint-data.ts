@@ -23,6 +23,8 @@ export interface SerializedCannon {
   facing?: number;
   mortar?: true;
   shielded?: true;
+  /** Shield HP for rampart mode (omitted when 0 or non-rampart). */
+  shieldHp?: number;
   /** Cumulative balloon hits toward capture (omitted when 0). */
   balloonHits?: number;
   /** Players who contributed balloon hits this battle (omitted when empty). */

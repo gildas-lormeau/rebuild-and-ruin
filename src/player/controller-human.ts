@@ -14,7 +14,7 @@ import {
 import { CannonMode } from "../shared/battle-types.ts";
 import {
   cannonModeDef,
-  IMPLEMENTED_CANNON_MODES,
+  cannonModesForGame,
 } from "../shared/cannon-mode-defs.ts";
 import {
   GRID_COLS,
@@ -52,6 +52,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
+  /** Whether this game is modern mode (gates modern-only cannon modes). */
+  private modern = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -73,9 +75,10 @@ export class HumanController extends BaseController implements InputReceiver {
     // Same as selectInitialTower — human reselects via UI
   }
 
-  placeCannons(_state: CannonViewState, _maxSlots: number): void {
+  placeCannons(state: CannonViewState, _maxSlots: number): void {
     // Human places cannons interactively — nothing to do here
     this.cannonPlaceMode = CannonMode.NORMAL;
+    this.modern = state.gameMode === "modern";
   }
 
   isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean {
@@ -284,7 +287,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
     const used = cannonSlotsUsed(state.players[this.playerId]!);
-    const modes = IMPLEMENTED_CANNON_MODES;
+    const modes = cannonModesForGame(this.modern);
     const currentIdx = modes.findIndex(
       (def) => def.id === this.cannonPlaceMode,
     );

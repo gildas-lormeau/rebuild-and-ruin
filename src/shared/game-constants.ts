@@ -14,7 +14,8 @@ export type ModifierId =
   | "frozen_river"
   | "sinkhole"
   | "high_tide"
-  | "dust_storm";
+  | "dust_storm"
+  | "rubble_clearing";
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
@@ -35,6 +36,7 @@ export const MODIFIER_ID = {
   SINKHOLE: "sinkhole",
   HIGH_TIDE: "high_tide",
   DUST_STORM: "dust_storm",
+  RUBBLE_CLEARING: "rubble_clearing",
 } as const satisfies Record<string, ModifierId>;
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";
@@ -127,6 +129,10 @@ export const BALL_SPEED = 150;
 export const GRUNT_TICK_INTERVAL = 1.0;
 /** Scoring weight for super guns in balloon threat evaluation. */
 export const SUPER_GUN_THREAT_WEIGHT = 100;
+/** Shield HP pool for rampart cannons (absorbs wall hits in 2-tile Chebyshev radius). */
+export const RAMPART_SHIELD_HP = 6;
+/** Chebyshev distance (tiles) for rampart wall absorption radius. */
+export const RAMPART_SHIELD_RADIUS = 2;
 /** Maximum total cannon slots a reselecting player can earn. */
 export const MAX_CANNON_LIMIT_ON_RESELECT = 8;
 /** Balloon flight animation duration in seconds. */

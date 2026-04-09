@@ -22,6 +22,7 @@ export enum CannonMode {
   NORMAL = "normal",
   SUPER = "super",
   BALLOON = "balloon",
+  RAMPART = "rampart",
 }
 
 export interface Cannon extends TilePos {
@@ -35,6 +36,9 @@ export interface Cannon extends TilePos {
   mortar?: boolean;
   /** True when this cannon is shielded (immune to damage) for the current battle round. */
   shielded?: boolean;
+  /** Shield HP pool for rampart mode. Decremented when rampart absorbs a nearby wall hit.
+   *  Separate from `hp` (direct-hit durability). Only used for RAMPART cannons. */
+  shieldHp?: number;
   /** Cumulative balloon hits toward capture threshold. Persists across battles.
    *  Cleared when cannon is captured or destroyed. */
   balloonHits?: number;
@@ -143,6 +147,11 @@ export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
 /** True if the cannon mode is balloon. */
 export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
   return mode === CannonMode.BALLOON;
+}
+
+/** True if the cannon mode is rampart (defensive wall shield). */
+export function isRampartMode(mode: CannonMode): mode is CannonMode.RAMPART {
+  return mode === CannonMode.RAMPART;
 }
 
 export function createBattleAnimState(): BattleAnimState {

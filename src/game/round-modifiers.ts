@@ -29,6 +29,7 @@ import {
   cannonSize,
   DIRS_4,
   DIRS_8,
+  isCannonAlive,
   isGrass,
   isWater,
   packTile,
@@ -357,6 +358,32 @@ export function reapplySinkholeTiles(state: GameState): void {
     setWater(tiles, r, c);
   }
   state.map.mapVersion++;
+}
+
+/** Apply rubble clearing: remove all dead cannon debris and burning pits.
+ *  Returns the tile keys of cleared positions for the reveal banner. */
+export function applyRubbleClearing(state: GameState): readonly number[] {
+  const cleared: number[] = [];
+  // Collect dead cannon tile positions before removal
+  for (const player of state.players) {
+    if (isPlayerEliminated(player)) continue;
+    for (const cannon of player.cannons) {
+      if (isCannonAlive(cannon)) continue;
+      const sz = cannonSize(cannon.mode);
+      for (let dr = 0; dr < sz; dr++) {
+        for (let dc = 0; dc < sz; dc++) {
+          cleared.push(packTile(cannon.row + dr, cannon.col + dc));
+        }
+      }
+    }
+    player.cannons = player.cannons.filter(isCannonAlive);
+  }
+  // Collect burning pit positions before removal
+  for (const pit of state.burningPits) {
+    cleared.push(packTile(pit.row, pit.col));
+  }
+  state.burningPits.length = 0;
+  return cleared;
 }
 
 /** Generate a sinkhole cluster via BFS flood-fill from a random seed tile.

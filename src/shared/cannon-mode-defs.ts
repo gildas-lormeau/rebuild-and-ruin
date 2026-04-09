@@ -31,6 +31,8 @@ interface CannonModeDef {
   readonly slotCost: number;
   /** Whether gameplay code exists for this mode. */
   readonly implemented: boolean;
+  /** Whether this mode is only available in modern game mode. */
+  readonly modernOnly?: boolean;
 }
 
 /** Compile-time exhaustiveness: every CannonMode value must appear in the pool. */
@@ -65,6 +67,16 @@ const CANNON_MODE_POOL: readonly CannonModeDef[] = [
     slotCost: 3,
     implemented: true,
   },
+  {
+    id: CannonMode.RAMPART,
+    label: "Rampart",
+    description:
+      "2×2 defensive structure, absorbs cannonball hits on nearby walls",
+    size: 2,
+    slotCost: 3,
+    implemented: true,
+    modernOnly: true,
+  },
 ];
 /** Cannon modes with gameplay code. */
 export const IMPLEMENTED_CANNON_MODES: readonly CannonModeDef[] =
@@ -74,6 +86,13 @@ export const IMPLEMENTED_CANNON_MODES: readonly CannonModeDef[] =
 export const CANNON_MODE_IDS: ReadonlySet<CannonMode> = new Set(
   CANNON_MODE_POOL.map((def) => def.id),
 );
+
+/** Cannon modes available for a given game mode (classic excludes modernOnly). */
+export function cannonModesForGame(modern: boolean): readonly CannonModeDef[] {
+  return modern
+    ? IMPLEMENTED_CANNON_MODES
+    : IMPLEMENTED_CANNON_MODES.filter((def) => !def.modernOnly);
+}
 
 /** Look up a cannon mode definition by id. */
 export function cannonModeDef(mode: CannonMode): CannonModeDef {

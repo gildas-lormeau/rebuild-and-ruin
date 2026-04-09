@@ -31,6 +31,7 @@ import {
   DUST_STORM_JITTER_DEG,
   HOUSE_GRUNT_SPAWN_CHANCE,
   MODIFIER_ID,
+  RAMPART_SHIELD_RADIUS,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/game-constants.ts";
@@ -51,6 +52,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
   isCannonTile,
+  isRampartCannon,
   isSuperCannon,
   isWater,
   packTile,
@@ -425,6 +427,11 @@ export function applyImpactEvent(
       if (player) player.damagedWalls.add(event.tileKey);
       break;
     }
+    case BATTLE_MESSAGE.WALL_SHIELDED: {
+      const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
+      if (cannon) cannon.shieldHp = event.newShieldHp;
+      break;
+    }
   }
 }
 
@@ -660,7 +667,7 @@ export function canFireOwnCannon(
   if (!player) return false;
   const cannon = player.cannons[cannonIdx];
   if (!cannon || !isCannonAlive(cannon)) return false;
-  if (isBalloonCannon(cannon)) return false;
+  if (isBalloonCannon(cannon) || isRampartCannon(cannon)) return false;
   // Captured cannons cannot be fired by their original owner
   if (
     state.capturedCannons.some(
@@ -879,6 +886,17 @@ function collectWallImpacts(
         });
         continue;
       }
+      // Rampart absorption: allied rampart within shield radius saves the wall
+      const rampart = findShieldingRampart(player, row, col);
+      if (rampart) {
+        events.push({
+          type: BATTLE_MESSAGE.WALL_SHIELDED,
+          playerId: player.id,
+          cannonIdx: rampart.idx,
+          newShieldHp: (rampart.cannon.shieldHp ?? 0) - 1,
+        });
+        continue;
+      }
       hitWall = true;
       events.push({
         type: BATTLE_MESSAGE.WALL_DESTROYED,
@@ -890,6 +908,27 @@ function collectWallImpacts(
     }
   }
   return { events, hitWall };
+}
+
+/** Find a rampart that can shield a wall tile at (row, col).
+ *  Returns the first alive rampart within RAMPART_SHIELD_RADIUS with shieldHp > 0. */
+function findShieldingRampart(
+  wallOwner: Player,
+  wallRow: number,
+  wallCol: number,
+): { cannon: Cannon; idx: number } | null {
+  for (let idx = 0; idx < wallOwner.cannons.length; idx++) {
+    const cannon = wallOwner.cannons[idx]!;
+    if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
+    if ((cannon.shieldHp ?? 0) <= 0) continue;
+    // Chebyshev distance from rampart center (2×2 → center at +1,+1) to wall tile
+    const dist = Math.max(
+      Math.abs(wallRow - (cannon.row + 1)),
+      Math.abs(wallCol - (cannon.col + 1)),
+    );
+    if (dist <= RAMPART_SHIELD_RADIUS) return { cannon, idx };
+  }
+  return null;
 }
 
 /** Collect cannon damage events at a tile. */

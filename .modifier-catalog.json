@@ -66,6 +66,12 @@
         "apply": "src/game/battle-system.ts",
         "dispatch": "src/game/phase-setup.ts"
       }
+    },
+    "rubble_clearing": {
+      "consumers": {
+        "apply": "src/game/round-modifiers.ts",
+        "dispatch": "src/game/phase-setup.ts"
+      }
     }
   }
 }

@@ -11,7 +11,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.readonly-literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
-- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, deno-lint, test:territory, export-index, hot-exports, readonly-params
+- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, modifiers, cannon-modes, deno-lint, test:territory, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
 - Checkpoint parity: `npm run test:parity` (10 random seeds) or `npm run test:parity:quick` (seed 42). **Primary test for network/checkpoint bugs.** Runs local vs network games, compares at every phase boundary. Run after ANY change to online/, checkpoint, or serialization code. Custom seeds: `deno test --no-check test/checkpoint-parity.test.ts -- 9941 52 66`
@@ -87,6 +87,14 @@ Maps every FeatureId to its consumer files by role (gate, stateAccess, serialize
 4. Add `hasFeature(state, "id")` guards in gate consumer files
 5. Implement feature logic in each declared consumer
 The `lint-features` pre-commit check verifies exhaustiveness (pool ↔ catalog ↔ consumer files).
+
+### Cannon mode catalog (`.cannon-mode-catalog.json`)
+Maps every CannonMode enum value to its consumer files by role (placement, firing, impact, lifecycle, render, phantom, ai, ui, serialize). When adding a new cannon mode:
+1. Add the enum value to `CannonMode` in `battle-types.ts`
+2. Add a pool entry in `cannon-mode-defs.ts` with `implemented: false`
+3. Add a catalog entry listing all consumer files
+4. Implement mode-specific logic in each declared consumer
+The `lint-cannon-modes` pre-commit check verifies exhaustiveness (pool ↔ catalog ↔ consumer files).
 
 ### Game rules (non-obvious, guide correctness)
 - Territory: flood-fill from edges, interior = not-outside, not-wall

@@ -84,6 +84,14 @@ export interface WallAbsorbedMessage {
   tileKey: number;
 }
 
+/** A rampart shielded a nearby wall from destruction (wall survives, rampart loses 1 shield HP). */
+export interface WallShieldedMessage {
+  type: "wallShielded";
+  playerId: ValidPlayerSlot;
+  cannonIdx: number;
+  newShieldHp: number;
+}
+
 /** A tower was destroyed by a grunt. */
 export interface TowerKilledMessage {
   type: "towerKilled";
@@ -94,6 +102,7 @@ export interface TowerKilledMessage {
 export type ImpactEvent =
   | WallDestroyedMessage
   | WallAbsorbedMessage
+  | WallShieldedMessage
   | CannonDamagedMessage
   | HouseDestroyedMessage
   | GruntKilledMessage
@@ -116,4 +125,5 @@ export const BATTLE_MESSAGE = {
   ICE_THAWED: "iceThawed",
   TOWER_KILLED: "towerKilled",
   WALL_ABSORBED: "wallAbsorbed",
+  WALL_SHIELDED: "wallShielded",
 } as const;

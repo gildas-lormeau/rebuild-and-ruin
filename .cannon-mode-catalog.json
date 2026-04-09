@@ -1,0 +1,63 @@
+{
+  "_description": "Maps each cannon mode to consumer files by role. lint-cannon-modes.ts verifies exhaustiveness. When adding a new cannon mode, add entries for every role that needs mode-specific branching.",
+  "_roles": {
+    "placement": "Placement validation, slot cost, round-1 auto-placement (cannon-system.ts)",
+    "firing": "Fire behavior: projectile type, speed, cooldown, eligibility (battle-system.ts)",
+    "impact": "Impact damage rules: burning pits, balloon capture thresholds (battle-system.ts)",
+    "lifecycle": "Cleanup at battle end: balloon removal, capture clearing (phase-setup.ts)",
+    "render": "Cannon sprite selection: alive, dead/debris, shield/mortar overlays (render-map.ts)",
+    "phantom": "Phantom preview drawing during cannon placement (render-effects.ts)",
+    "ai": "AI placement strategy: when to choose this mode (ai-strategy-cannon.ts)",
+    "ui": "Human controller mode cycling and downgrade logic (controller-human.ts)",
+    "serialize": "Online mode string parsing and validation (online-types.ts)"
+  },
+  "modes": {
+    "normal": {
+      "consumers": {
+        "placement": "src/game/cannon-system.ts",
+        "firing": "src/game/battle-system.ts",
+        "render": "src/render/render-map.ts",
+        "phantom": "src/render/render-effects.ts",
+        "ai": "src/ai/ai-strategy-cannon.ts",
+        "ui": "src/player/controller-human.ts",
+        "serialize": "src/online/online-types.ts"
+      }
+    },
+    "super": {
+      "consumers": {
+        "placement": "src/game/cannon-system.ts",
+        "firing": "src/game/battle-system.ts",
+        "impact": "src/game/battle-system.ts",
+        "render": "src/render/render-map.ts",
+        "phantom": "src/render/render-effects.ts",
+        "ai": "src/ai/ai-strategy-cannon.ts",
+        "ui": "src/player/controller-human.ts",
+        "serialize": "src/online/online-types.ts"
+      }
+    },
+    "balloon": {
+      "consumers": {
+        "placement": "src/game/cannon-system.ts",
+        "firing": "src/game/battle-system.ts",
+        "impact": "src/game/battle-system.ts",
+        "lifecycle": "src/game/phase-setup.ts",
+        "render": "src/render/render-map.ts",
+        "phantom": "src/render/render-effects.ts",
+        "ai": "src/ai/ai-strategy-cannon.ts",
+        "ui": "src/player/controller-human.ts",
+        "serialize": "src/online/online-types.ts"
+      }
+    },
+    "rampart": {
+      "consumers": {
+        "placement": "src/game/cannon-system.ts",
+        "firing": "src/game/battle-system.ts",
+        "render": "src/render/render-map.ts",
+        "phantom": "src/render/render-effects.ts",
+        "ai": "src/ai/ai-strategy-cannon.ts",
+        "ui": "src/player/controller-human.ts",
+        "serialize": "src/online/online-types.ts"
+      }
+    }
+  }
+}

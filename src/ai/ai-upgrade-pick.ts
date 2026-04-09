@@ -31,6 +31,10 @@ export function aiPickUpgrade(
   if (hasPits && offers.includes(UID.FOUNDATIONS)) {
     return UID.FOUNDATIONS;
   }
+  const hasDeadCannons = playerHasDeadCannons(state, playerId);
+  if (hasDeadCannons && offers.includes(UID.RECLAMATION)) {
+    return UID.RECLAMATION;
+  }
   // Mortar is strong when player has few cannons (catch-up mechanic)
   if (offers.includes(UID.MORTAR) && playerCannonCount(state, playerId) <= 3) {
     return UID.MORTAR;
@@ -45,6 +49,7 @@ export function aiPickUpgrade(
   if (!hasDeadTowers) excluded.add(UID.SECOND_WIND);
   if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD);
   if (!hasPits) excluded.add(UID.FOUNDATIONS);
+  if (!hasDeadCannons) excluded.add(UID.RECLAMATION);
   if (!largeTerritory) excluded.add(UID.SMALL_PIECES);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
@@ -103,6 +108,15 @@ function playerHasBurningPitsInZone(
   return state.burningPits.some(
     (pit) => state.map.zones[pit.row]?.[pit.col] === zone,
   );
+}
+
+function playerHasDeadCannons(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  const player = state.players[playerId];
+  if (!player) return false;
+  return player.cannons.some((cannon) => cannon.hp <= 0);
 }
 
 function playerCannonCount(

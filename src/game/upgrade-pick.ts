@@ -7,6 +7,7 @@ import {
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerSeated } from "../shared/player-types.ts";
+import { isCannonAlive } from "../shared/spatial.ts";
 import {
   type GameState,
   hasFeature,
@@ -133,6 +134,7 @@ export function applyUpgradePicks(
 ): void {
   let secondWind = false;
   let clearTheField = false;
+  const reclamationPlayers: ValidPlayerSlot[] = [];
   for (const entry of dialog.entries) {
     if (entry.choice === null) continue;
     const player = state.players[entry.playerId];
@@ -140,6 +142,8 @@ export function applyUpgradePicks(
     player.upgrades.set(entry.choice, 1);
     if (entry.choice === UID.SECOND_WIND) secondWind = true;
     if (entry.choice === UID.CLEAR_THE_FIELD) clearTheField = true;
+    if (entry.choice === UID.RECLAMATION)
+      reclamationPlayers.push(entry.playerId);
   }
   if (secondWind) {
     for (let idx = 0; idx < state.towerAlive.length; idx++) {
@@ -150,6 +154,12 @@ export function applyUpgradePicks(
   if (clearTheField) {
     state.grunts.length = 0;
     state.gruntSpawnQueue.length = 0;
+  }
+  for (const pid of reclamationPlayers) {
+    const player = state.players[pid];
+    if (player) {
+      player.cannons = player.cannons.filter(isCannonAlive);
+    }
   }
 }
 

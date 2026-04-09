@@ -27,6 +27,7 @@ import {
   facingToDir8,
   isBalloonCannon,
   isCannonAlive,
+  isRampartCannon,
   isSuperCannon,
   packTile,
   pxToTile,
@@ -953,12 +954,55 @@ function drawCastleCannons(
     const cx = cannon.col * TILE_SIZE;
     const cy = cannon.row * TILE_SIZE;
     if (!isCannonAlive(cannon)) {
-      drawSprite(
-        overlayCtx,
-        isSuperCannon(cannon) ? "super_debris" : "cannon_debris",
-        cx,
-        cy,
+      if (isRampartCannon(cannon)) {
+        // Dead rampart: dark cracked block spanning 2×2
+        overlayCtx.fillStyle = "#3a3a3a";
+        overlayCtx.fillRect(
+          cx + 2,
+          cy + 2,
+          TILE_SIZE * 2 - 4,
+          TILE_SIZE * 2 - 4,
+        );
+        overlayCtx.strokeStyle = "#222";
+        overlayCtx.lineWidth = 1;
+        overlayCtx.strokeRect(
+          cx + 2,
+          cy + 2,
+          TILE_SIZE * 2 - 4,
+          TILE_SIZE * 2 - 4,
+        );
+      } else {
+        drawSprite(
+          overlayCtx,
+          isSuperCannon(cannon) ? "super_debris" : "cannon_debris",
+          cx,
+          cy,
+        );
+      }
+      continue;
+    }
+    if (isRampartCannon(cannon)) {
+      // Rampart base: solid stone block, no barrel
+      overlayCtx.fillStyle = "#556677";
+      overlayCtx.fillRect(cx + 2, cy + 2, TILE_SIZE * 2 - 4, TILE_SIZE * 2 - 4);
+      overlayCtx.strokeStyle = "#334455";
+      overlayCtx.lineWidth = 2;
+      overlayCtx.strokeRect(
+        cx + 2,
+        cy + 2,
+        TILE_SIZE * 2 - 4,
+        TILE_SIZE * 2 - 4,
       );
+      // Shield HP overlay: green circle when shieldHp > 0
+      if ((cannon.shieldHp ?? 0) > 0) {
+        const size = TILE_SIZE * 2;
+        const mid = size / 2;
+        overlayCtx.strokeStyle = "#33cc33";
+        overlayCtx.lineWidth = 2;
+        overlayCtx.beginPath();
+        overlayCtx.arc(cx + mid, cy + mid, mid - 2, 0, Math.PI * 2);
+        overlayCtx.stroke();
+      }
       continue;
     }
     if (isBalloonCannon(cannon)) {

@@ -17,6 +17,7 @@ import {
   type Cannon,
   CannonMode,
   isBalloonMode,
+  isRampartMode,
   isSuperMode,
 } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
@@ -246,6 +247,13 @@ export function isSuperCannon(cannon: {
   mode: CannonMode;
 }): cannon is { mode: CannonMode.SUPER } {
   return isSuperMode(cannon.mode);
+}
+
+/** True if a cannon is a rampart (defensive wall shield). */
+export function isRampartCannon(cannon: {
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.RAMPART } {
+  return isRampartMode(cannon.mode);
 }
 
 /** True if (r,c) is occupied by a burning pit. */

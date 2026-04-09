@@ -7,7 +7,7 @@ import {
   type Crosshair,
   type Grunt,
 } from "./battle-types.ts";
-import type { ModifierId } from "./game-constants.ts";
+import type { GameMode, ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
 import type {
   BonusSquare,
@@ -48,12 +48,13 @@ export interface BuildViewState extends GameViewState {
   readonly grunts: readonly Grunt[];
 }
 
-/** Cannon-phase state slice.  6 fields. */
+/** Cannon-phase state slice.  7 fields. */
 export interface CannonViewState extends GameViewState {
   readonly cannonLimits: readonly number[];
   readonly capturedCannons: readonly CapturedCannon[];
   readonly burningPits: readonly BurningPit[];
   readonly cannonMaxHp: number;
+  readonly gameMode: GameMode;
 }
 
 /** Battle-phase state slice.  14 fields.

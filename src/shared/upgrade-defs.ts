@@ -22,7 +22,8 @@ export type UpgradeId =
   | "architect"
   | "double_time"
   | "conscription"
-  | "territorial_ambition";
+  | "territorial_ambition"
+  | "reclamation";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -84,6 +85,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   DOUBLE_TIME: "double_time",
   CONSCRIPTION: "conscription",
   TERRITORIAL_AMBITION: "territorial_ambition",
+  RECLAMATION: "reclamation",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -182,6 +184,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "foundations",
     label: "Foundations",
     description: "Walls can be placed on burning pits",
+    category: BUILD,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: false,
+    implemented: true,
+  },
+  {
+    id: "reclamation",
+    label: "Reclamation",
+    description: "Dead cannon debris auto-cleared at build start",
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,

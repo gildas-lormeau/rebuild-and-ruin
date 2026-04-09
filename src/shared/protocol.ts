@@ -14,6 +14,7 @@ import type {
   TowerKilledMessage,
   WallAbsorbedMessage,
   WallDestroyedMessage,
+  WallShieldedMessage,
 } from "./battle-events.ts";
 import { BATTLE_MESSAGE } from "./battle-events.ts";
 import type { CannonMode } from "./battle-types.ts";
@@ -343,6 +344,7 @@ export type ServerMessage =
   | PitCreatedMessage
   | IceThawedMessage
   | WallAbsorbedMessage
+  | WallShieldedMessage
   | TowerKilledMessage
   | AimUpdateMessage
   // Forwarded client messages

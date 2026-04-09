@@ -79,6 +79,7 @@ import {
   applyFrozenRiver,
   applyGruntSurge,
   applyHighTide,
+  applyRubbleClearing,
   applySinkhole,
   applyWildfire,
   clearFrozenRiver,
@@ -555,6 +556,10 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   }
   if (mod === MODIFIER_ID.DUST_STORM) {
     return { id: mod, label, changedTiles: [], gruntsSpawned: 0 };
+  }
+  if (mod === MODIFIER_ID.RUBBLE_CLEARING) {
+    const cleared = applyRubbleClearing(state);
+    return { id: mod, label, changedTiles: cleared, gruntsSpawned: 0 };
   }
   return null;
 }

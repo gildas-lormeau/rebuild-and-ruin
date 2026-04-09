@@ -65,6 +65,14 @@ const SCORE_NOISE_RANGE = 2;
 const SUPER_GUN_SLOT_THRESHOLD = 8;
 /** Chance to attempt a super gun when slot threshold is met. */
 const SUPER_GUN_PROBABILITY = 1 / 3;
+/** Probability gate for rampart placement by defensiveness trait. */
+const RAMPART_PROBABILITY: readonly [number, number, number] = [
+  0,
+  1 / 4,
+  1 / 2,
+];
+/** Minimum cannon slots before the AI considers a rampart. */
+const RAMPART_SLOT_THRESHOLD = 6;
 
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
 export function autoSelectTower(
@@ -169,6 +177,9 @@ export function autoPlaceCannons(
     noiseScale,
     towerCenters,
   );
+
+  // Place a rampart — controlled by defensiveness (modern mode only)
+  tryPlaceRampart(player, count, state, rng, defensiveness, normalCandidates);
 
   // Place a propaganda balloon — controlled by defensiveness
   // 1 = never, 2 = react to enemy super guns or space constraint,
@@ -461,6 +472,36 @@ function shouldPlaceBalloon(
     (hasEnemyCannons && normalCandidateCount <= 1) ||
     (defensiveness >= 3 && hasEnemyCannons)
   );
+}
+
+function tryPlaceRampart(
+  player: Player,
+  count: number,
+  state: CannonViewState,
+  rng: Rng,
+  defensiveness: number,
+  normalCandidates: readonly CannonCandidate[],
+): void {
+  if (defensiveness < 2) return;
+  if (state.gameMode !== "modern") return;
+  if (count < RAMPART_SLOT_THRESHOLD) return;
+  const slotsLeft = count - cannonSlotsUsed(player);
+  if (slotsLeft < cannonSlotCost(CannonMode.RAMPART)) return;
+  // Probability gate — only sometimes place a rampart
+  const prob = traitLookup(defensiveness, RAMPART_PROBABILITY);
+  if (!rng.bool(prob)) return;
+  if (normalCandidates.length < 4) return;
+  const position = normalCandidates[0];
+  if (position) {
+    placeCannon(
+      player,
+      position.row,
+      position.col,
+      count,
+      CannonMode.RAMPART,
+      state,
+    );
+  }
 }
 
 function enemyHasLiveCannon(enemy: Player): boolean {

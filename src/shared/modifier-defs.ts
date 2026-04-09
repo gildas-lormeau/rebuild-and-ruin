@@ -109,6 +109,15 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     implemented: true,
     needsCheckpoint: false,
   },
+  {
+    id: "rubble_clearing",
+    label: "Rubble Clearing",
+    description:
+      "All dead cannon debris and burning pits are removed from the map",
+    weight: 3,
+    implemented: true,
+    needsCheckpoint: false,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =

@@ -16,6 +16,7 @@ import {
 import { cannonModeDef } from "../shared/cannon-mode-defs.ts";
 import {
   MAX_CANNON_LIMIT_ON_RESELECT,
+  RAMPART_SHIELD_HP,
   STARTING_LIVES,
   TOWER_SIZE,
 } from "../shared/game-constants.ts";
@@ -35,6 +36,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
   isCannonTile,
+  isRampartCannon,
   isTowerTile,
   packTile,
   snapAngle,
@@ -171,6 +173,7 @@ export function applyCannonPlacement(
     hp: state.cannonMaxHp,
     mode,
     facing: player.defaultFacing,
+    shieldHp: mode === CannonMode.RAMPART ? RAMPART_SHIELD_HP : undefined,
   });
 }
 
@@ -263,7 +266,12 @@ export function electShieldedCannons(state: GameState): void {
     if (!player.homeTower) continue;
     const region = homeEnclosedRegion(player);
     for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+      if (
+        !isCannonAlive(cannon) ||
+        isBalloonCannon(cannon) ||
+        isRampartCannon(cannon)
+      )
+        continue;
       const sz = cannonSize(cannon.mode);
       let allInside = true;
       for (let dr = 0; dr < sz && allInside; dr++) {
@@ -302,7 +310,9 @@ export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
 
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
 export function filterActiveFiringCannons(player: Player): Cannon[] {
-  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
+  return player.cannons.filter(
+    (c) => isCannonAlive(c) && !isBalloonCannon(c) && !isRampartCannon(c),
+  );
 }
 
 /** BFS from home tower tiles through interior + owned tower tiles.
