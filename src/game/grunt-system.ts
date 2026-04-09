@@ -27,7 +27,11 @@ import {
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerSeated, type Player } from "../shared/player-types.ts";
+import {
+  isPlayerEliminated,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -64,7 +68,7 @@ export function spawnGruntNearPos(
 ): void {
   if (
     state.players.every(
-      (player) => player.id === excludePlayerId || player.eliminated,
+      (player) => player.id === excludePlayerId || isPlayerEliminated(player),
     )
   )
     return;

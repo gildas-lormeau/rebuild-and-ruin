@@ -9,6 +9,7 @@
 import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   clearRenderSpy,
   enableRenderSpy,
@@ -484,7 +485,7 @@ function collectEnemyTargets(
 } {
   const enemyCannons: { x: number; y: number }[] = [];
   for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
+    if (player.id === myPid || isPlayerEliminated(player)) continue;
     for (const cannon of player.cannons) {
       if (cannon.hp > 0)
         enemyCannons.push(tileCenterPx(cannon.row, cannon.col));
@@ -493,7 +494,7 @@ function collectEnemyTargets(
 
   const enemyTargets: { x: number; y: number }[] = [...enemyCannons];
   for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
+    if (player.id === myPid || isPlayerEliminated(player)) continue;
     for (const key of player.walls) {
       const { r, c } = unpackTile(key);
       enemyTargets.push(tileCenterPx(r, c));

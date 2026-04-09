@@ -47,6 +47,7 @@ import {
   type ResolvedChoice,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { MESSAGE, type ServerMessage } from "../shared/protocol.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
 import { isHostInContext, isRemotePlayer } from "../shared/tick-context.ts";
@@ -201,7 +202,7 @@ function handleTowerSelected(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (state.players[msg.playerId]!.eliminated) return DROPPED;
+  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
     return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -241,7 +242,7 @@ function handlePiecePlaced(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (state.players[msg.playerId]!.eliminated) return DROPPED;
+  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -269,7 +270,7 @@ function handleCannonPlaced(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (state.players[msg.playerId]!.eliminated) return DROPPED;
+  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODE_IDS.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -308,7 +309,7 @@ function handleCannonFired(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (state.players[msg.playerId]!.eliminated) return DROPPED;
+  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
   if (!Number.isFinite(msg.speed) || msg.speed <= 0) return DROPPED;
   if (
     !Number.isFinite(msg.startX) ||
@@ -377,7 +378,7 @@ function handleAimUpdate(
 ): HandleResult {
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return DROPPED;
   if (state && !validPid(msg.playerId, state)) return DROPPED;
-  if (state?.players[msg.playerId]?.eliminated) return DROPPED;
+  if (isPlayerEliminated(state?.players[msg.playerId])) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
   if (msg.orbit) deps.watcher.watcherOrbitParams.set(msg.playerId, msg.orbit);

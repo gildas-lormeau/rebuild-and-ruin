@@ -22,6 +22,7 @@ import {
 } from "../shared/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -83,7 +84,7 @@ export function tickGrunts(state: GameState): boolean {
 export function getDeadZones(state: GameState): ReadonlySet<number> {
   const zones = new Set<number>();
   for (const player of state.players) {
-    if (!player.eliminated) continue;
+    if (!isPlayerEliminated(player)) continue;
     const zone = state.playerZones[player.id];
     if (zone !== undefined) zones.add(zone);
   }

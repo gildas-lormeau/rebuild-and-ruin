@@ -1,6 +1,7 @@
 import { CannonMode } from "./battle-types.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
+import { isPlayerEliminated } from "./player-types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
 export type CannonPhantom = {
@@ -99,7 +100,9 @@ export function filterAlivePhantoms<T extends { playerId: ValidPlayerSlot }>(
   phantoms: readonly T[],
   players: readonly { eliminated?: boolean }[],
 ): T[] {
-  return phantoms.filter((phantom) => !players[phantom.playerId]?.eliminated);
+  return phantoms.filter(
+    (phantom) => !isPlayerEliminated(players[phantom.playerId]),
+  );
 }
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display.

@@ -11,7 +11,6 @@ import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
 import { towerCenterTile } from "../shared/spatial.ts";
 import type { PiecePlacementPreview } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
@@ -98,8 +97,6 @@ export function initBuild(
   phase: BuildPhase,
   state: GameState,
 ): void {
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return;
   const target = computeNextPlacement(host, state);
   if (target) {
     phase.state = {
@@ -128,8 +125,6 @@ export function tickBuild(
   dt: number,
 ): PiecePlacementPreview[] {
   if (!host.currentPiece) return [];
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return [];
 
   // Clamp cursor so phantom never extends beyond the grid
   const clampPiece =
@@ -168,9 +163,8 @@ export function tickBuild(
 
     case STEP.GAVE_UP: {
       const phaseState = phase.state;
-      const home = player.homeTower
-        ? towerCenterTile(player.homeTower)
-        : host.buildCursor;
+      const homeTower = state.players[host.playerId]?.homeTower;
+      const home = homeTower ? towerCenterTile(homeTower) : host.buildCursor;
       host.stepTileCursorToward(
         host.buildCursor,
         home.row,

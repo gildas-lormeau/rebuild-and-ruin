@@ -22,7 +22,7 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
-  isPlayerAlive,
+  isPlayerEliminated,
   isPlayerSeated,
   type Player,
 } from "../shared/player-types.ts";
@@ -97,7 +97,8 @@ export function autoPlaceRound1Cannons(
 ): void {
   if (state.round !== 1) return;
   const player = state.players[playerId];
-  if (!isPlayerAlive(player) || player.cannons.length > 0) return;
+  if (!player || isPlayerEliminated(player) || player.cannons.length > 0)
+    return;
 
   const interior = getInterior(player);
   const candidates: { row: number; col: number }[] = [];
@@ -146,7 +147,7 @@ export function placeCannon(
     readonly cannonMaxHp: number;
   },
 ): boolean {
-  if (player.eliminated) return false;
+  if (isPlayerEliminated(player)) return false;
   const used = cannonSlotsUsed(player);
   const cost = cannonSlotCost(mode);
   if (used + cost > maxCannons) return false;
@@ -163,7 +164,7 @@ export function applyCannonPlacement(
   mode: CannonMode,
   state: { readonly cannonMaxHp: number },
 ): void {
-  if (player.eliminated) return;
+  if (isPlayerEliminated(player)) return;
   player.cannons.push({
     row,
     col,
@@ -198,7 +199,7 @@ export function prepareControllerCannonPhase(
     );
   }
   const player = state.players[playerId];
-  if (!isPlayerAlive(player)) return null;
+  if (!player || isPlayerEliminated(player)) return null;
   const maxSlots = state.cannonLimits[player.id] ?? 0;
   let cursorPos = {
     row: player.homeTower?.row ?? 0,
@@ -239,7 +240,7 @@ export function computeCannonLimitsForPhase(state: GameState): void {
  *  code that follows in the battle-start sequence. */
 export function electMortarCannons(state: GameState): void {
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     if (!player.upgrades.get(UID.MORTAR)) continue;
     const normalCannons = filterActiveFiringCannons(player).filter(
       (cannon) =>
@@ -257,7 +258,7 @@ export function electMortarCannons(state: GameState): void {
  *  Must be called after setPhase(BATTLE) alongside electMortarCannons. */
 export function electShieldedCannons(state: GameState): void {
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     if (!player.upgrades.get(UID.SHIELD_BATTERY)) continue;
     if (!player.homeTower) continue;
     const region = homeEnclosedRegion(player);

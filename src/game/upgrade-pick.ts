@@ -6,6 +6,7 @@ import {
   type UpgradePickEntry,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerSeated } from "../shared/player-types.ts";
 import {
   type GameState,
   hasFeature,
@@ -163,7 +164,7 @@ export function generateUpgradeOffers(
 
   const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
   for (const player of state.players) {
-    if (player.eliminated || !player.homeTower) continue;
+    if (!isPlayerSeated(player)) continue;
     offers.set(player.id, drawOffers(state));
   }
   return offers.size > 0 ? offers : null;

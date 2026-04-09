@@ -22,7 +22,7 @@ import {
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import type {
   OrbitParams,
   PlayerController,
@@ -195,7 +195,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   for (const [rawPid, target] of remoteCrosshairs) {
     const pid = rawPid as ValidPlayerSlot;
     const player = state.players[pid];
-    if (!isPlayerAlive(player)) continue;
+    if (isPlayerEliminated(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
 
     let visualPos = watcherCrosshairPos.get(pid);

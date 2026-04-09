@@ -10,7 +10,7 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { MutableAccums } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
@@ -37,7 +37,7 @@ export function rebuildControllersForPhase(
     controllers.map(async (existing, i) => {
       if (i === myPlayerId) return existing;
       const player = state.players[i];
-      if (!isPlayerAlive(player)) return existing;
+      if (!player || isPlayerEliminated(player)) return existing;
 
       const pid = i as ValidPlayerSlot;
       const strategySeed = deriveAiStrategySeed(

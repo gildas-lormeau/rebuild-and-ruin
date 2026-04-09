@@ -43,6 +43,7 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   type HapticsSystem,
   isHuman,
@@ -382,6 +383,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.controllers,
       remotePlayerSlots,
     )) {
+      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
+        continue;
       ctrl.initBattleState(runtimeState.state);
     }
     runtimeState.state.battleCountdown = BATTLE_COUNTDOWN;
@@ -411,7 +414,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     phaseTickFacade.resetCannonFacings(runtimeState.state);
     for (const ctrl of runtimeState.controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      if (runtimeState.state.players[ctrl.playerId]?.eliminated) continue;
+      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
+        continue;
       ctrl.startBuildPhase(runtimeState.state);
     }
     clearImpacts(runtimeState.battleAnim);
@@ -448,7 +452,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // PASS 1: tick local controllers, collect placements + phantoms
     for (const ctrl of local) {
-      if (state.players[ctrl.playerId]?.eliminated) continue;
+      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
       const phantom = ctrl.cannonTick(state, dt);
 
@@ -502,7 +506,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     const allDone = local.every((ctrl) => {
       const player = state.players[ctrl.playerId]!;
-      if (player.eliminated) return true;
+      if (isPlayerEliminated(player)) return true;
       const max = state.cannonLimits[player.id] ?? 0;
       return ctrl.isCannonPhaseDone(state, max);
     });
@@ -539,6 +543,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.controllers,
       remotePlayerSlots,
     )) {
+      if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
+        continue;
       ctrl.battleTick(runtimeState.state, dt);
     }
     syncCrosshairs(/* weaponsActive */ false, dt);
@@ -563,6 +569,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Step 1: tick controllers → fire events
     const ballsBefore = state.cannonballs.length;
     for (const ctrl of local) {
+      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       ctrl.battleTick(state, dt);
     }
     const fireEvents: CannonFiredMessage[] = [];
@@ -658,9 +665,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
     frame.phantoms = { piecePhantoms: [] };
     for (const ctrl of local) {
+      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
-      const player = state.players[ctrl.playerId];
-      if (!player) continue;
+      const player = state.players[ctrl.playerId]!;
       const hadInterior = getInterior(player).size > 0;
 
       // Snapshot walls BEFORE tick so we can diff new AI placements

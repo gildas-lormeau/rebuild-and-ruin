@@ -9,7 +9,6 @@
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
 import { packTile, tileCenterPx } from "../shared/spatial.ts";
 import type {
   BattleViewState,
@@ -129,8 +128,6 @@ export function tickBattle(
   dt: number,
   executeFire: ExecuteFireFn,
 ): void {
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return;
   if (!nextReadyCombined(state, host.playerId)) return;
 
   const aimAt = phase.crosshairTarget ?? host.crosshair;
@@ -224,8 +221,6 @@ function tickCountdown(
   state: BattleViewState,
   dt: number,
 ): void {
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return;
   if (!phase.crosshairTarget) {
     phase.crosshairTarget = host.strategy.pickTarget(
       state,

@@ -33,6 +33,7 @@ import type { PieceShape } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type FreshInterior,
+  isPlayerEliminated,
   isPlayerSeated,
   type Player,
 } from "../shared/player-types.ts";
@@ -60,7 +61,7 @@ export function placePiece(
   row: number,
   col: number,
 ): boolean {
-  if (state.players[playerId]?.eliminated) return false;
+  if (isPlayerEliminated(state.players[playerId])) return false;
   if (!canPlacePiece(state, playerId, piece, row, col)) return false;
   applyPiecePlacement(state, playerId, piece.offsets, row, col);
   return true;
@@ -164,7 +165,7 @@ export function applyPiecePlacement(
   row: number,
   col: number,
 ): void {
-  if (state.players[playerId]?.eliminated) return;
+  if (isPlayerEliminated(state.players[playerId])) return;
   const player = state.players[playerId]!;
   const destroyedHousePositions: TilePos[] = [];
   const pieceKeys = new Set(
@@ -253,7 +254,7 @@ export function replenishBonusSquares(state: GameState): void {
   // Identify the 3 main zones, skip zones of eliminated players
   const eliminatedZones = new Set(
     state.players
-      .filter((player) => player.eliminated)
+      .filter((player) => isPlayerEliminated(player))
       .map((player) => state.playerZones[player.id]),
   );
   const mainZones = topZonesBySize(map, 3)

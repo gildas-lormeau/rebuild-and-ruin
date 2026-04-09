@@ -9,6 +9,7 @@
 import { TOWER_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import { PLAYER_NAMES } from "../shared/player-config.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { isWater, unpackTile } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
 
@@ -78,7 +79,7 @@ export function buildGrid(
 
   // Territory + walls
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     // Intentionally reads player.interior directly (no getInterior) —
     // debug grid must work during battle when interior is stale by design.
@@ -151,7 +152,7 @@ export function buildGrid(
 
   // Cannons
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const cannon of player.cannons) {
       const char = cannon.hp <= 0 ? "x" : "C";
@@ -229,7 +230,7 @@ export function buildLegend(state: GameState): string {
   const playerInfo = state.players
     .map(
       (player) =>
-        `${PLAYER_NAMES[player.id] ?? `P${player.id}`}: ${player.eliminated ? "ELIMINATED" : `${player.lives}♥ ${player.score}pts ${player.walls.size}w ${player.cannons.length}c`}`,
+        `${PLAYER_NAMES[player.id] ?? `P${player.id}`}: ${isPlayerEliminated(player) ? "ELIMINATED" : `${player.lives}♥ ${player.score}pts ${player.walls.size}w ${player.cannons.length}c`}`,
     )
     .join("  |  ");
 

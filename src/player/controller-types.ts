@@ -286,10 +286,9 @@ export abstract class BaseController implements PlayerController {
   }
 
   /** Compute a fire intent at the current crosshair position.
-   *  Returns null if the player can't fire (eliminated, timer, no cannon ready).
+   *  Returns null if the player can't fire (timer expired, no cannon ready).
    *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
   fire(state: BattleViewState): FireIntent | null {
-    if (state.players[this.playerId]?.eliminated) return null;
     if (state.timer <= 0 || state.battleCountdown > 0) return null;
     const targetRow = pxToTile(this.crosshair.y);
     const targetCol = pxToTile(this.crosshair.x);

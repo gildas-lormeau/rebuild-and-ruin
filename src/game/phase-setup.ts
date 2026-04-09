@@ -30,6 +30,8 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   eliminatePlayer,
   emptyFreshInterior,
+  isPlayerAlive,
+  isPlayerEliminated,
   isPlayerSeated,
   type Player,
 } from "../shared/player-types.ts";
@@ -228,7 +230,8 @@ export function enterBuildFromBattle(state: GameState): void {
   // - 0 owners → normal timer
   if (hasFeature(state, FID.UPGRADES)) {
     const mbPlayers = state.players.filter(
-      (player) => !player.eliminated && player.upgrades.get(UID.MASTER_BUILDER),
+      (player) =>
+        isPlayerAlive(player) && player.upgrades.get(UID.MASTER_BUILDER),
     );
     const hasMasterBuilder = mbPlayers.length > 0;
     state.modern!.masterBuilderOwners = hasMasterBuilder
@@ -335,7 +338,9 @@ export function computeScoreDeltas(
       delta: player.score - (preScores[idx] ?? 0),
       total: player.score,
     }))
-    .filter((entry) => entry.delta > 0 && !players[entry.playerId]!.eliminated);
+    .filter(
+      (entry) => entry.delta > 0 && isPlayerAlive(players[entry.playerId]),
+    );
 }
 
 function sweepAllPlayersWalls(state: GameState): void {
@@ -355,7 +360,7 @@ function applyLifePenalties(state: GameState): {
   const needsReselect: ValidPlayerSlot[] = [];
   const eliminated: ValidPlayerSlot[] = [];
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;
     if (!hasAliveTower) {
       player.lives--;
@@ -560,7 +565,7 @@ function awardComboBonuses(state: GameState): void {
   if (!tracker) return;
   const bonuses = comboDemolitionBonus(tracker);
   for (let i = 0; i < bonuses.length; i++) {
-    if (bonuses[i]! > 0 && !state.players[i]!.eliminated) {
+    if (bonuses[i]! > 0 && isPlayerAlive(state.players[i])) {
       state.players[i]!.score += bonuses[i]!;
     }
   }

@@ -15,6 +15,7 @@ import { FID } from "../shared/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerSeated } from "../shared/player-types.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
 import type { OrbitParams } from "../shared/system-interfaces.ts";
 import {
@@ -120,7 +121,7 @@ export function applyBattleStartCheckpoint(
   }
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
-    if (player.eliminated || !player.homeTower) continue;
+    if (!isPlayerSeated(player)) continue;
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
 }

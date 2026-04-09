@@ -14,6 +14,7 @@ import { Phase } from "../shared/game-phase.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { FrameData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { MESSAGE } from "../shared/protocol.ts";
 import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
 import {
@@ -232,7 +233,10 @@ function getLocalController(
   controllers: readonly PlayerController[],
   myPlayerId: PlayerSlotId,
 ): PlayerController | null {
-  if (!isActivePlayer(myPlayerId) || state.players[myPlayerId]?.eliminated)
+  if (
+    !isActivePlayer(myPlayerId) ||
+    isPlayerEliminated(state.players[myPlayerId])
+  )
     return null;
   const ctrl = controllers[myPlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;

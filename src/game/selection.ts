@@ -2,6 +2,7 @@ import { getInterior } from "../shared/board-occupancy.ts";
 import { SELECT_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 
@@ -92,7 +93,9 @@ export function initSelectionTimer(state: GameState): void {
 export function allPlayersHaveTerritory(state: GameState): boolean {
   return state.players.every(
     (player) =>
-      !player.homeTower || getInterior(player).size > 0 || player.eliminated,
+      !player.homeTower ||
+      getInterior(player).size > 0 ||
+      isPlayerEliminated(player),
   );
 }
 

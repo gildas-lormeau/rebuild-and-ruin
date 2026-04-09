@@ -31,6 +31,7 @@ import {
   Tile,
 } from "./grid.ts";
 import { Action } from "./input-action.ts";
+import { isPlayerEliminated } from "./player-types.ts";
 
 /** Tile bounding rect (row/col extremes). */
 interface TileBounds {
@@ -522,7 +523,7 @@ export function enemyZones(
 ): number[] {
   const zones: number[] = [];
   for (let i = 0; i < players.length; i++) {
-    if (i === myPid || players[i]!.eliminated) continue;
+    if (i === myPid || isPlayerEliminated(players[i])) continue;
     const zone = playerZones[i];
     if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
   }
@@ -630,7 +631,7 @@ export function battleTargetPosition(
     const zone = zones[row]?.[col];
     if (zone !== undefined) {
       const pid = playerZones.indexOf(zone);
-      if (pid >= 0 && pid !== myPid && !players[pid]?.eliminated) {
+      if (pid >= 0 && pid !== myPid && !isPlayerEliminated(players[pid])) {
         return { x: lastPos.x, y: lastPos.y };
       }
     }
@@ -668,7 +669,7 @@ export function bestEnemyZone(
   let bestPid = -1;
   let bestScore = -1;
   for (let i = 0; i < players.length; i++) {
-    if (i === myPid || players[i]!.eliminated) continue;
+    if (i === myPid || isPlayerEliminated(players[i])) continue;
     if (players[i]!.score > bestScore) {
       bestScore = players[i]!.score;
       bestPid = i;

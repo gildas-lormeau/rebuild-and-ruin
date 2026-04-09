@@ -17,6 +17,7 @@ import { MODIFIER_ID, TOWER_SIZE } from "../shared/game-constants.ts";
 import type { GameMap, PixelPos, TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import type { Rng } from "../shared/rng.ts";
 import {
   cannonSize,
@@ -119,7 +120,7 @@ export function planCharitySweep(
   rng: Rng,
 ): TilePos[] | null {
   for (const enemy of state.players) {
-    if (enemy.id === playerId || enemy.eliminated) continue;
+    if (enemy.id === playerId || isPlayerEliminated(enemy)) continue;
     if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD)
       continue;
     const targets = planGruntTargets(state, enemy.id, usableCannonCount, rng);
@@ -611,7 +612,7 @@ function collectGruntBlockingWallTargets(
     const tower = state.map.towers[grunt.targetTowerIdx];
     if (!tower) continue;
     const enemy = state.players[grunt.victimPlayerId];
-    if (!enemy || enemy.eliminated) continue;
+    if (!enemy || isPlayerEliminated(enemy)) continue;
     let bestTowerRow = tower.row,
       bestTowerCol = tower.col,
       bestDistance = Infinity;

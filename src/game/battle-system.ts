@@ -37,7 +37,11 @@ import {
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { Player } from "../shared/player-types.ts";
+import {
+  isPlayerEliminated,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
 import {
   cannonCenter,
   computeFacing45,
@@ -595,7 +599,7 @@ export function fireCannon(
   targetRow: number,
   targetCol: number,
 ): boolean {
-  if (state.players[playerId]?.eliminated) return false;
+  if (isPlayerEliminated(state.players[playerId])) return false;
   if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
   launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
@@ -963,8 +967,7 @@ function collectGruntImpacts(
       });
       if (hasConscription && state.rng.bool(CONSCRIPTION_SPAWN_CHANCE)) {
         const enemies = state.players.filter(
-          (player) =>
-            !player.eliminated && player.id !== shooterId && player.homeTower,
+          (player) => isPlayerSeated(player) && player.id !== shooterId,
         );
         if (enemies.length > 0) {
           const victim = state.rng.pick(enemies);
@@ -1010,7 +1013,7 @@ function collectAllBalloons(
 ): { balloon: Cannon; ownerId: ValidPlayerSlot }[] {
   const result: { balloon: Cannon; ownerId: ValidPlayerSlot }[] = [];
   for (const player of state.players) {
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     for (const c of player.cannons) {
       if (isBalloonCannon(c) && isCannonAlive(c))
         result.push({ balloon: c, ownerId: player.id });

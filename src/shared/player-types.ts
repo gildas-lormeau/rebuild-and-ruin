@@ -79,6 +79,14 @@ export function isPlayerAlive(
   return !!player && !player.eliminated;
 }
 
+/** Check if a player is eliminated (or absent). Works with Player and structural types.
+ *  Returns true for null/undefined — a missing player is effectively eliminated. */
+export function isPlayerEliminated(
+  player: { readonly eliminated?: boolean } | null | undefined,
+): boolean {
+  return !player || player.eliminated === true;
+}
+
 /** Mark a player as eliminated (lives = 0, eliminated = true). */
 export function eliminatePlayer(player: Player): void {
   player.eliminated = true;

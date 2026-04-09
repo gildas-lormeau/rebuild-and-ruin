@@ -7,6 +7,7 @@
  * (mouseJoinedSlot), falling back to the first human controller.
  */
 
+import { isPlayerAlive } from "../shared/player-types.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -41,14 +42,14 @@ export function createPointerPlayerLookup(
       if (
         ctrl &&
         isHuman(ctrl) &&
-        !runtimeState.state.players[ctrl.playerId]?.eliminated
+        isPlayerAlive(runtimeState.state.players[ctrl.playerId])
       )
         return (cached = ctrl);
     }
     for (const ctrl of runtimeState.controllers) {
       if (
         isHuman(ctrl) &&
-        !runtimeState.state.players[ctrl.playerId]?.eliminated
+        isPlayerAlive(runtimeState.state.players[ctrl.playerId])
       )
         return (cached = ctrl);
     }

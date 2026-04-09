@@ -20,6 +20,7 @@ import {
   type UpgradePickCard,
 } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import type { RGB } from "../shared/theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
@@ -298,7 +299,7 @@ export function drawStatusBar(
   let rx = W - PAD;
   for (let i = statusBar.players.length - 1; i >= 0; i--) {
     const player = statusBar.players[i]!;
-    if (player.eliminated) continue;
+    if (isPlayerEliminated(player)) continue;
     const c = player.color;
     // Lives
     overlayCtx.fillStyle = LIVES_HEART_COLOR;
@@ -701,7 +702,7 @@ function drawGameOverScores(
     const entry = sorted[i]!;
     const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
     const c = entry.color;
-    const alpha = entry.eliminated ? OP_ACCENT : 1;
+    const alpha = isPlayerEliminated(entry) ? OP_ACCENT : 1;
     overlayCtx.fillStyle = rgb(c, alpha);
     overlayCtx.textAlign = TEXT_ALIGN_LEFT;
     overlayCtx.fillText(entry.name, colNameX, y);

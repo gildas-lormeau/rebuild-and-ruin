@@ -10,7 +10,7 @@ import { canPlaceCannon, placeCannon } from "../game/cannon-system.ts";
 import { CannonMode } from "../shared/battle-types.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive, type Player } from "../shared/player-types.ts";
+import { type Player } from "../shared/player-types.ts";
 import type {
   CannonPlacementPreview,
   CannonViewState,
@@ -86,9 +86,11 @@ export function initCannon(
   state: CannonViewState,
   maxSlots: number,
 ): void {
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return;
-  phase.plannedPlacements = host.strategy.placeCannons(player, maxSlots, state);
+  phase.plannedPlacements = host.strategy.placeCannons(
+    state.players[host.playerId]!,
+    maxSlots,
+    state,
+  );
   phase.maxSlots = maxSlots;
   phase.displayedMode = undefined;
   phase.state = {
@@ -108,8 +110,7 @@ export function flushCannon(
   playerId: ValidPlayerSlot,
   maxSlots: number,
 ): void {
-  const player = state.players[playerId];
-  if (!isPlayerAlive(player)) return;
+  const player = state.players[playerId]!;
   for (const target of phase.plannedPlacements) {
     const mode = target.mode;
     if (canPlaceCannon(player, target.row, target.col, mode, state)) {
@@ -126,8 +127,7 @@ export function tickCannon(
   state: CannonViewState,
   dt: number,
 ): CannonPlacementPreview | null {
-  const player = state.players[host.playerId];
-  if (!isPlayerAlive(player)) return null;
+  const player = state.players[host.playerId]!;
 
   switch (phase.state.step) {
     case STEP.IDLE:

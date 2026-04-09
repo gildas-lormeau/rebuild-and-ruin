@@ -1,7 +1,11 @@
 import type { BurningPit, Grunt } from "./battle-types.ts";
 import type { BonusSquare } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import type { FreshInterior, Player } from "./player-types.ts";
+import {
+  type FreshInterior,
+  isPlayerAlive,
+  type Player,
+} from "./player-types.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,
@@ -320,7 +324,7 @@ export function filterActiveEnemies(
   playerId: ValidPlayerSlot,
 ) {
   return state.players.filter(
-    (player) => player.id !== playerId && !player.eliminated,
+    (player) => player.id !== playerId && isPlayerAlive(player),
   );
 }
 

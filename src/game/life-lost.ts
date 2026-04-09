@@ -9,7 +9,11 @@ import {
   shouldAutoResolve,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { eliminatePlayer, type Player } from "../shared/player-types.ts";
+import {
+  eliminatePlayer,
+  isPlayerAlive,
+  type Player,
+} from "../shared/player-types.ts";
 import { type GameState } from "../shared/types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
@@ -148,7 +152,7 @@ export function applyLifeLostChoice(
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
   const { state, continuing, onGameOver, onReselect, onContinue } = deps;
 
-  const alive = state.players.filter((player) => !player.eliminated);
+  const alive = state.players.filter(isPlayerAlive);
   if (alive.length <= 1) {
     const winner =
       alive[0] ??

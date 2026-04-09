@@ -27,7 +27,7 @@ import { Action } from "../shared/input-action.ts";
 import { rotateCW } from "../shared/pieces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive, type Player } from "../shared/player-types.ts";
+import { type Player } from "../shared/player-types.ts";
 import { cannonSize } from "../shared/spatial.ts";
 import {
   type BattleViewState,
@@ -79,17 +79,14 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return true;
-    return cannonSlotsUsed(player) >= maxSlots;
+    return cannonSlotsUsed(state.players[this.playerId]!) >= maxSlots;
   }
 
   cannonTick(
     state: CannonViewState,
     _dt: number,
   ): CannonPlacementPreview | null {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return null;
+    const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
     if (remaining <= 0) return null;
@@ -192,8 +189,6 @@ export class HumanController extends BaseController implements InputReceiver {
   // No onStartBuildPhase override needed — human has no AI targeting setup.
 
   buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return [];
     if (!this.currentPiece) return [];
     const valid = canPlacePiece(
       state,
@@ -214,8 +209,6 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   battleTick(state: BattleViewState, dt: number): void {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return;
     this.moveCrosshairFromInput(dt);
     aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
   }
@@ -242,10 +235,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */
   tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return false;
     const placed = placeCannon(
-      player,
+      state.players[this.playerId]!,
       this.cannonCursor.row,
       this.cannonCursor.col,
       maxSlots,
@@ -292,9 +283,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Skips modes whose slot cost exceeds remaining slots.
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player)) return;
-    const used = cannonSlotsUsed(player);
+    const used = cannonSlotsUsed(state.players[this.playerId]!);
     const modes = IMPLEMENTED_CANNON_MODES;
     const currentIdx = modes.findIndex(
       (def) => def.id === this.cannonPlaceMode,

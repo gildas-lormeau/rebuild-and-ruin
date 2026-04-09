@@ -24,7 +24,7 @@ import {
 } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { IMPLEMENTED_MODIFIERS } from "../shared/modifier-defs.ts";
-import { isPlayerSeated } from "../shared/player-types.ts";
+import { isPlayerEliminated, isPlayerSeated } from "../shared/player-types.ts";
 import {
   cannonSize,
   DIRS_4,
@@ -105,7 +105,7 @@ export function applyCrumblingWalls(state: GameState): readonly number[] {
   const destroyed: number[] = [];
 
   for (const player of state.players) {
-    if (player.eliminated || player.walls.size === 0) continue;
+    if (isPlayerEliminated(player) || player.walls.size === 0) continue;
 
     // Outer walls: wall tiles with at least one non-wall non-interior neighbor
     const interior = getInterior(player);

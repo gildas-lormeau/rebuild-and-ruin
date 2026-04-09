@@ -35,6 +35,7 @@ import {
 } from "../shared/interaction-types.ts";
 import type { CastleData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import { MESSAGE, type ServerMessage } from "../shared/protocol.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { RGB } from "../shared/theme.ts";
@@ -402,7 +403,7 @@ export function handleBuildStartTransition(
       initControllers: () => {
         if (isActivePlayer(myPlayerId)) {
           const player = state.players[myPlayerId];
-          if (player && !player.eliminated) {
+          if (isPlayerAlive(player)) {
             transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
           }
         }

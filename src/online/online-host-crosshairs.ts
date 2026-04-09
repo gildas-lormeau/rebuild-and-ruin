@@ -18,7 +18,7 @@ import type { Crosshair } from "../shared/battle-types.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { DedupChannel } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { type GameMessage, MESSAGE } from "../shared/protocol.ts";
 import {
   type BattleViewState,
@@ -76,7 +76,7 @@ export function extendWithRemoteCrosshairs(
     const pid = rawPid as ValidPlayerSlot;
     if (!isRemotePlayer(pid, deps.remotePlayerSlots)) continue;
     const player = state.players[pid];
-    if (!isPlayerAlive(player)) continue;
+    if (isPlayerEliminated(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
     const readyCannon = nextReadyCombined(state, pid);
     let visualPos = deps.watcherCrosshairPos.get(pid);

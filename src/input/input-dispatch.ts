@@ -40,6 +40,7 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/interaction-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
   type InputReceiver,
@@ -299,7 +300,7 @@ export function dispatchGameAction(
   state: GameState,
   deps: GameActionDeps,
 ): boolean {
-  if (state.players[ctrl.playerId]?.eliminated) return false;
+  if (isPlayerEliminated(state.players[ctrl.playerId])) return false;
 
   if (isSelectionPhase(state.phase)) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return false;
