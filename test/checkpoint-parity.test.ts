@@ -119,7 +119,6 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
   while (local.state.players.filter((p) => !p.eliminated).length > 1) {
     const lr = local.playRound();
     const nr = network.playRound();
-
     assertParity(local, network, `round ${local.state.round}`);
 
     local.processReselection(lr.needsReselect);
@@ -131,29 +130,16 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Fixed seeds — classic
+// Seeds — custom via CLI args, or random
+// Usage: deno test --no-check test/checkpoint-parity.test.ts -- 9941 52 66
 // ---------------------------------------------------------------------------
 
-for (const seed of [52, 66, 65, 56, 2]) {
+const customSeeds = Deno.args.map(Number).filter((n) => !Number.isNaN(n));
+const seeds = customSeeds.length > 0
+  ? customSeeds
+  : Array.from({ length: 10 }, () => Math.floor(Math.random() * 10000));
+
+for (const seed of seeds) {
   Deno.test(`classic seed ${seed}: checkpoint parity`, () => runParityTest(seed, "classic"));
-}
-
-// ---------------------------------------------------------------------------
-// Fixed seeds — modern (exercises modifiers + upgrades)
-// ---------------------------------------------------------------------------
-
-for (const seed of [52, 66, 65, 56, 2]) {
   Deno.test(`modern seed ${seed}: checkpoint parity`, () => runParityTest(seed, "modern"));
-}
-
-// ---------------------------------------------------------------------------
-// Random seeds — both modes
-// ---------------------------------------------------------------------------
-
-const RANDOM_COUNT = 5;
-
-for (let idx = 0; idx < RANDOM_COUNT; idx++) {
-  const seed = Math.floor(Math.random() * 10000);
-  Deno.test(`random classic seed ${seed}: checkpoint parity`, () => runParityTest(seed, "classic"));
-  Deno.test(`random modern seed ${seed}: checkpoint parity`, () => runParityTest(seed, "modern"));
 }

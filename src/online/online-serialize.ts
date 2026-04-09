@@ -18,7 +18,11 @@ import {
   reapplyHighTideTiles,
   reapplySinkholeTiles,
 } from "../game/round-modifiers.ts";
-import type { BalloonFlight, Cannonball } from "../shared/battle-types.ts";
+import type {
+  BalloonFlight,
+  Cannon,
+  Cannonball,
+} from "../shared/battle-types.ts";
 import type {
   BattleStartData,
   SerializedGrunt,
@@ -204,22 +208,11 @@ export function createFullStateMessage(
 }
 
 /** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
- *  castleWallTiles) and computed fields (mortar, shielded) that are
- *  recomputed at phase entry. Smaller wire footprint for frequent messages. */
+ *  castleWallTiles). Smaller wire footprint for frequent messages. */
 export function serializePlayersCheckpoint(state: GameState) {
   return state.players.map((player) => ({
     ...serializePlayerCore(player),
-    cannons: player.cannons.map((c) => ({
-      row: c.row,
-      col: c.col,
-      hp: c.hp,
-      mode: c.mode,
-      facing: c.facing ?? 0,
-      balloonHits: c.balloonHits || undefined,
-      balloonCapturerIds: c.balloonCapturerIds?.length
-        ? c.balloonCapturerIds
-        : undefined,
-    })),
+    cannons: player.cannons.map(serializeCannon),
   }));
 }
 
@@ -307,6 +300,9 @@ export function restoreFullStateSnapshot(
 
   // Reuse existing checkpoint helpers
   applyPlayersCheckpoint(state, msg.players);
+  for (const player of state.players) {
+    recomputeTerritoryFromWalls(state, player);
+  }
   applyGruntsCheckpoint(state, msg.grunts);
 
   applyHousesCheckpoint(state, msg.houses);
@@ -340,6 +336,10 @@ export function applyHousesCheckpoint(
   }));
 }
 
+/** Apply serialized player data to the game state.
+ *  Does NOT recompute territory — callers decide whether to call
+ *  recomputeTerritoryFromWalls based on phase context (interior is
+ *  intentionally stale during battle). */
 export function applyPlayersCheckpoint(
   state: GameState,
   serialized: readonly SerializedPlayer[],
@@ -386,7 +386,6 @@ export function applyPlayersCheckpoint(
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set(entry.damagedWalls ?? []);
-    recomputeTerritoryFromWalls(state, player);
   }
 }
 
@@ -448,19 +447,7 @@ export function applyCapturedCannons(
 function serializePlayers(state: GameState) {
   return state.players.map((player) => ({
     ...serializePlayerCore(player),
-    cannons: player.cannons.map((c) => ({
-      row: c.row,
-      col: c.col,
-      hp: c.hp,
-      mode: c.mode,
-      facing: c.facing ?? 0,
-      mortar: c.mortar || undefined,
-      shielded: c.shielded || undefined,
-      balloonHits: c.balloonHits || undefined,
-      balloonCapturerIds: c.balloonCapturerIds?.length
-        ? c.balloonCapturerIds
-        : undefined,
-    })),
+    cannons: player.cannons.map(serializeCannon),
     homeTowerIdx: player.homeTower?.index ?? null,
     castleWallTiles: [...player.castleWallTiles],
   }));
@@ -478,6 +465,22 @@ function serializePlayerCore(player: Player) {
       player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
     damagedWalls:
       player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
+  };
+}
+
+function serializeCannon(cannon: Cannon) {
+  return {
+    row: cannon.row,
+    col: cannon.col,
+    hp: cannon.hp,
+    mode: cannon.mode,
+    facing: cannon.facing ?? 0,
+    mortar: cannon.mortar || undefined,
+    shielded: cannon.shielded || undefined,
+    balloonHits: cannon.balloonHits || undefined,
+    balloonCapturerIds: cannon.balloonCapturerIds?.length
+      ? cannon.balloonCapturerIds
+      : undefined,
   };
 }
 

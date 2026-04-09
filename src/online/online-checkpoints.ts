@@ -1,3 +1,4 @@
+import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
 import { createComboTracker, isCombosEnabled } from "../game/combo-system.ts";
 import {
   reapplyHighTideTiles,
@@ -95,6 +96,8 @@ export function applyBattleStartCheckpoint(
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
+  // No territory recompute: interior is intentionally stale during battle —
+  // map tiles changed after the last recheckTerritoryOnly (modifiers, high tide).
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
@@ -172,6 +175,7 @@ export function applyBuildEndCheckpoint(
 ): void {
   capturePreState?.();
   applyPlayersCheckpoint(deps.state, data.players);
+  recomputeAllTerritory(deps.state);
   for (let idx = 0; idx < deps.state.players.length; idx++) {
     deps.state.players[idx]!.score =
       data.scores[idx] ?? deps.state.players[idx]!.score;
@@ -180,7 +184,7 @@ export function applyBuildEndCheckpoint(
 
 /** Shared preamble for cannon-start and build-start checkpoints:
  *  runs capturePreState hook, then restores players, grunts, houses, bonus squares,
- *  tower liveness, and burning pits from the checkpoint data. */
+ *  tower liveness, burning pits, and recomputes territory from walls. */
 function applyCommonCheckpoint(
   data: Pick<
     CannonStartData,
@@ -196,6 +200,7 @@ function applyCommonCheckpoint(
 ): void {
   capturePreState?.();
   applyPlayersCheckpoint(deps.state, data.players);
+  recomputeAllTerritory(deps.state);
   applyGruntsCheckpoint(deps.state, data.grunts);
   applyHousesCheckpoint(deps.state, data.houses);
   deps.state.bonusSquares = data.bonusSquares;
@@ -250,6 +255,15 @@ function restoreModifierTileState(
 /** Clear in-flight cannonballs and visual impacts.
  *  Named clearBattleProjectiles to avoid confusion with the controller method
  *  initBattleState() which resets cannon rotation and cursors (different concern). */
+/** Recompute interior + ownedTowers for all players after a checkpoint
+ *  replaced their wall sets. NOT called during battle-start — interior is
+ *  intentionally stale while map tiles are mutated by modifiers. */
+function recomputeAllTerritory(state: GameState): void {
+  for (const player of state.players) {
+    recomputeTerritoryFromWalls(state, player);
+  }
+}
+
 function clearBattleProjectiles(deps: CheckpointDeps): void {
   deps.state.cannonballs = [];
   deps.battleAnim.impacts = [];
