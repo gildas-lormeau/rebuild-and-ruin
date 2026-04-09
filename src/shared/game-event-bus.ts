@@ -245,4 +245,25 @@ export function createGameLogger(
   };
 }
 
+/** Subscribe to the bus and format events as readable log lines via a sink function.
+ *  Returns a detach function. Filters can narrow which events are logged. */
+export function createBusLog(
+  bus: GameEventBus,
+  sink: (line: string) => void,
+  filter?: ReadonlySet<string>,
+): () => void {
+  const handler: AnyEventHandler = (type, event) => {
+    if (filter && !filter.has(type)) return;
+    const parts: string[] = [type as string];
+    const record = event as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      if (key === "type") continue;
+      parts.push(`${key}=${record[key]}`);
+    }
+    sink(parts.join(" "));
+  };
+  bus.onAny(handler);
+  return () => bus.offAny(handler);
+}
+
 void busComplete;
