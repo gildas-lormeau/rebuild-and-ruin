@@ -168,16 +168,22 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   // -------------------------------------------------------------------------
   // Bus → sound / haptics / stats (observation subscribers)
+  // Deferred: state.bus isn't available at system creation time.
   // -------------------------------------------------------------------------
 
-  runtimeState.state.bus.onAny((type, event) => {
-    if (!BATTLE_EVENT_TYPES.has(type)) return;
-    const pov = runtimeState.frameMeta.povPlayerId;
-    const evt = event as BattleEvent;
-    deps.sound.battleEvents([evt], pov);
-    deps.haptics.battleEvents([evt], pov);
-    accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
-  });
+  let busSubscribed = false;
+  function subscribeBus(): void {
+    if (busSubscribed) return;
+    busSubscribed = true;
+    runtimeState.state.bus.onAny((type, event) => {
+      if (!BATTLE_EVENT_TYPES.has(type)) return;
+      const pov = runtimeState.frameMeta.povPlayerId;
+      const evt = event as BattleEvent;
+      deps.sound.battleEvents([evt], pov);
+      deps.haptics.battleEvents([evt], pov);
+      accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Crosshairs
@@ -301,6 +307,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function startBattle() {
+    subscribeBus();
     const { state, battleAnim, banner } = runtimeState;
     deps.sound.drumsStop();
     deps.log(`startBattle (round=${state.round})`);
