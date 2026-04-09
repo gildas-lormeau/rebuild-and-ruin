@@ -22,6 +22,7 @@ import {
 } from "../src/shared/game-constants.ts";
 import { nextPhase } from "../src/game/game-engine.ts";
 import {
+  enterBattleFromCannon,
   finalizeBuildPhase,
 } from "../src/game/phase-setup.ts";
 import { eliminatePlayer } from "../src/shared/player-types.ts";
@@ -209,9 +210,12 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function runBattle(durationSec = BATTLE_TIMER): void {
-    nextPhase(state);
-    relay("battle-start", createBattleStartMessage(state), applyBattleStartCheckpoint);
-    resolveBalloons(state);
+    // Match real host ordering: enterBattleFromCannon → resolveBalloons → send message.
+    // nextPhase discards the modifier diff; calling enterBattleFromCannon directly
+    // lets us pass flights + diff into the checkpoint message.
+    const diff = enterBattleFromCannon(state);
+    const flights = resolveBalloons(state);
+    relay("battle-start", createBattleStartMessage(state, flights, diff ?? undefined), applyBattleStartCheckpoint);
     for (const ctrl of controllers) ctrl.initBattleState(state);
 
     let t = 0;
