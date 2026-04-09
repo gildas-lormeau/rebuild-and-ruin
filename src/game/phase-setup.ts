@@ -204,8 +204,8 @@ export function enterBuildFromBattle(state: GameState): void {
   recheckTerritoryOnly(state);
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
-  // Must happen here (not in enterBattleFromCannon) so the value survives the
-  // checkpoint roundtrip (applyBuildStartCheckpoint clears activeModifier).
+  // Must happen here (not in enterBattleFromCannon) so watchers see the same
+  // lastModifierId when rollModifier runs at battle start.
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.lastModifierId = state.modern!.activeModifier;
   }
