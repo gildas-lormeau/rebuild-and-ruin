@@ -39,7 +39,7 @@ import {
   createBuildStartMessage,
   createCannonStartMessage,
   createGameOverPayload,
-  serializePlayers,
+  serializePlayersCheckpoint,
 } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
 import {
@@ -164,7 +164,7 @@ const runtime: GameRuntime = createGameRuntime({
         logThrottled: devLogThrottled,
       }),
     hostNetworking: {
-      serializePlayers,
+      serializePlayers: serializePlayersCheckpoint,
       createCannonStartMessage,
       createBattleStartMessage,
       createBuildStartMessage,

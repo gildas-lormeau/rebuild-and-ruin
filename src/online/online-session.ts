@@ -60,6 +60,10 @@ export interface OnlineSession {
   lobbyStartTime: number;
   earlyLifeLostChoices: Map<number, LifeLostChoice>;
   earlyUpgradePickChoices: Map<number, string>;
+  /** Log every ws.send payload to console. */
+  debugWs: boolean;
+  /** Use loopback relay instead of real WebSocket. */
+  relay: boolean;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each
@@ -99,6 +103,8 @@ export function createSession(): OnlineSession {
     lobbyStartTime: 0,
     earlyLifeLostChoices: new Map(),
     earlyUpgradePickChoices: new Map(),
+    debugWs: false,
+    relay: false,
   };
 }
 
@@ -148,7 +154,9 @@ export function sendAimUpdate(
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
   if (isSocketOpen(session)) {
-    session.socket!.send(JSON.stringify(msg));
+    const data = JSON.stringify(msg);
+    if (session.debugWs) console.log(`[ws.send] ${msg.type}: ${data}`);
+    session.socket!.send(data);
   }
 }
 
@@ -188,6 +196,29 @@ export function connectWebSocket(
   session.socket.onerror = () => {
     handlers.onError();
   };
+}
+
+/** Loopback WebSocket for relay testing.
+ *  send() delivers to onmessage instantly as a JSON string — same as a real
+ *  WebSocket but with no network. readyState is always OPEN. */
+export function connectRelayWebSocket(
+  session: OnlineSession,
+  handlers: ConnectHandlers,
+): void {
+  const fake = {
+    readyState: WebSocket.OPEN,
+    send(data: string) {
+      void handlers.onMessage(JSON.parse(data) as ServerMessage);
+    },
+    close() {
+      (fake as { readyState: number }).readyState = WebSocket.CLOSED;
+    },
+    onmessage: null,
+    onopen: null,
+    onclose: null,
+    onerror: null,
+  };
+  session.socket = fake as unknown as WebSocket;
 }
 
 /** True when the socket is fully connected and can transmit.

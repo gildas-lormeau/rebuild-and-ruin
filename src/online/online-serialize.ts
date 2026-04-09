@@ -33,6 +33,7 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { Player } from "../shared/player-types.ts";
 import { type FullStateMessage, MESSAGE } from "../shared/protocol.ts";
 import { Rng } from "../shared/rng.ts";
 import {
@@ -59,7 +60,7 @@ export function createBuildStartMessage(state: GameState) {
     type: MESSAGE.BUILD_START,
     round: state.round,
     timer: state.timer,
-    players: serializePlayers(state),
+    players: serializePlayersCheckpoint(state),
     houses: state.map.houses.map((h) => ({
       row: h.row,
       col: h.col,
@@ -84,7 +85,7 @@ export function createCannonStartMessage(state: GameState) {
     salvageSlots: state.salvageSlots.some((slot) => slot > 0)
       ? [...state.salvageSlots]
       : undefined,
-    players: serializePlayers(state),
+    players: serializePlayersCheckpoint(state),
     grunts: serializeGrunts(state),
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
@@ -112,7 +113,7 @@ export function createBattleStartMessage(
 ) {
   return {
     type: MESSAGE.BATTLE_START,
-    players: serializePlayers(state),
+    players: serializePlayersCheckpoint(state),
     grunts: serializeGrunts(state),
     capturedCannons: state.capturedCannons.map((captured) => ({
       victimId: captured.victimId,
@@ -202,32 +203,22 @@ export function createFullStateMessage(
   };
 }
 
-export function serializePlayers(state: GameState) {
+/** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
+ *  castleWallTiles) and computed fields (facing, mortar, shielded) that are
+ *  recomputed at phase entry. Smaller wire footprint for frequent messages. */
+export function serializePlayersCheckpoint(state: GameState) {
   return state.players.map((player) => ({
-    id: player.id,
-    walls: [...player.walls],
+    ...serializePlayerCore(player),
     cannons: player.cannons.map((c) => ({
       row: c.row,
       col: c.col,
       hp: c.hp,
       mode: c.mode,
-      facing: c.facing ?? 0,
-      mortar: c.mortar || undefined,
-      shielded: c.shielded || undefined,
       balloonHits: c.balloonHits || undefined,
       balloonCapturerIds: c.balloonCapturerIds?.length
         ? c.balloonCapturerIds
         : undefined,
     })),
-    homeTowerIdx: player.homeTower?.index ?? null,
-    castleWallTiles: [...player.castleWallTiles],
-    lives: player.lives,
-    eliminated: player.eliminated,
-    score: player.score,
-    upgrades:
-      player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
-    damagedWalls:
-      player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
   }));
 }
 
@@ -362,7 +353,7 @@ export function applyPlayersCheckpoint(
       col: c.col,
       hp: c.hp,
       mode: toCannonMode(c.mode),
-      facing: c.facing ?? 0,
+      facing: c.facing ?? player.defaultFacing,
       mortar: c.mortar || undefined,
       shielded: c.shielded || undefined,
       balloonHits: c.balloonHits || undefined,
@@ -370,23 +361,30 @@ export function applyPlayersCheckpoint(
         ? [...c.balloonCapturerIds]
         : undefined,
     }));
-    player.homeTower =
-      entry.homeTowerIdx !== null &&
-      entry.homeTowerIdx >= 0 &&
-      entry.homeTowerIdx < state.map.towers.length
-        ? state.map.towers[entry.homeTowerIdx]!
+    // homeTowerIdx and castleWallTiles are immutable after castle selection.
+    // Checkpoint messages omit them; only full-state (join/reconnect) sends them.
+    const homeTowerIdx = entry.homeTowerIdx;
+    if (homeTowerIdx !== undefined) {
+      player.homeTower =
+        homeTowerIdx !== null &&
+        homeTowerIdx >= 0 &&
+        homeTowerIdx < state.map.towers.length
+          ? state.map.towers[homeTowerIdx]!
+          : null;
+      // Castle geometry depends on the original map tiles at selection time.
+      // Rebuild only on full-state restore (join/reconnect), never on checkpoints.
+      player.castle = player.homeTower
+        ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
         : null;
-    player.castleWallTiles = new Set(entry.castleWallTiles ?? []);
+    }
+    if (entry.castleWallTiles !== undefined) {
+      player.castleWallTiles = new Set(entry.castleWallTiles);
+    }
     player.lives = entry.lives;
     player.eliminated = entry.eliminated;
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set(entry.damagedWalls ?? []);
-    // Rebuild castle geometry from home tower (deterministic from map)
-    player.castle = player.homeTower
-      ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
-      : null;
-    // Recompute interior + ownedTowers from walls (deterministic)
     recomputeTerritoryFromWalls(state, player);
   }
 }
@@ -443,6 +441,43 @@ export function applyCapturedCannons(
       capturerId: captured.capturerId as ValidPlayerSlot,
     });
   }
+}
+
+/** Full player serialization — includes all fields for join/reconnect (full-state). */
+function serializePlayers(state: GameState) {
+  return state.players.map((player) => ({
+    ...serializePlayerCore(player),
+    cannons: player.cannons.map((c) => ({
+      row: c.row,
+      col: c.col,
+      hp: c.hp,
+      mode: c.mode,
+      facing: c.facing ?? 0,
+      mortar: c.mortar || undefined,
+      shielded: c.shielded || undefined,
+      balloonHits: c.balloonHits || undefined,
+      balloonCapturerIds: c.balloonCapturerIds?.length
+        ? c.balloonCapturerIds
+        : undefined,
+    })),
+    homeTowerIdx: player.homeTower?.index ?? null,
+    castleWallTiles: [...player.castleWallTiles],
+  }));
+}
+
+/** Shared core fields for both full and checkpoint serialization. */
+function serializePlayerCore(player: Player) {
+  return {
+    id: player.id,
+    walls: [...player.walls],
+    lives: player.lives,
+    eliminated: player.eliminated,
+    score: player.score,
+    upgrades:
+      player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
+    damagedWalls:
+      player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
+  };
 }
 
 /** Serialize modern-mode fields shared by build-start and full-state messages. */
@@ -507,7 +542,7 @@ function validateFullState(
         return `player ${entry.id} cannon at ${c.row},${c.col} out of bounds`;
     }
     if (
-      entry.homeTowerIdx !== null &&
+      entry.homeTowerIdx != null &&
       (entry.homeTowerIdx < 0 || entry.homeTowerIdx >= towerCount)
     ) {
       return `player ${entry.id} homeTowerIdx ${entry.homeTowerIdx} out of bounds`;

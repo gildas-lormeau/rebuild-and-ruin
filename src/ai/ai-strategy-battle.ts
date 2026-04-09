@@ -7,7 +7,7 @@
 
 import { canFireOwnCannon } from "../game/battle-system.ts";
 import { filterActiveFiringCannons } from "../game/cannon-system.ts";
-import type { Cannon, Cannonball } from "../shared/battle-types.ts";
+import type { Cannonball } from "../shared/battle-types.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
@@ -25,6 +25,7 @@ import {
   DIRS_8,
   inBounds,
   isBalloonCannon,
+  isCannonAlive,
   isCannonTile,
   isGrass,
   manhattanDistance,
@@ -438,7 +439,7 @@ export function pickTarget(
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
   focusFirePlayerId: ValidPlayerSlot | undefined,
-  shotCounts: WeakMap<Cannon, number>,
+  shotCounts: Map<number, number>,
   wallsOnly?: boolean,
   battleTactics = 2,
   rng: Rng = state.rng,
@@ -555,15 +556,17 @@ export function trackShot(
   state: BattleViewState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
-  shotCounts: WeakMap<Cannon, number>,
+  shotCounts: Map<number, number>,
 ): void {
   const row = pxToTile(crosshair.y);
   const col = pxToTile(crosshair.x);
   for (const other of filterActiveEnemies(state, playerId)) {
-    for (const cannon of other.cannons) {
+    for (let idx = 0; idx < other.cannons.length; idx++) {
+      const cannon = other.cannons[idx]!;
       if (isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
-        shotCounts.set(cannon, (shotCounts.get(cannon) ?? 0) + 1);
+        const key = shotCountKey(other.id, idx);
+        shotCounts.set(key, (shotCounts.get(key) ?? 0) + 1);
         return;
       }
     }
@@ -656,7 +659,7 @@ function collectEnemyTargets(
   playerId: ValidPlayerSlot,
   focusFirePlayerId: ValidPlayerSlot | undefined,
   switchTarget: boolean,
-  shotCounts: WeakMap<Cannon, number>,
+  shotCounts: Map<number, number>,
   wallsOnly?: boolean,
 ): TargetCandidate[] {
   const targets: TargetCandidate[] = [];
@@ -665,7 +668,9 @@ function collectEnemyTargets(
       continue;
 
     if (!wallsOnly) {
-      for (const cannon of filterActiveFiringCannons(other)) {
+      for (let idx = 0; idx < other.cannons.length; idx++) {
+        const cannon = other.cannons[idx]!;
+        if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
         if (
           state.capturedCannons.some(
             (cc) => cc.cannon === cannon && cc.capturerId === playerId,
@@ -674,7 +679,8 @@ function collectEnemyTargets(
           continue;
         }
         // Skip if we've already fired enough shots to destroy it
-        const shots = shotCounts.get(cannon) ?? 0;
+        const key = shotCountKey(other.id, idx);
+        const shots = shotCounts.get(key) ?? 0;
         if (shots >= state.cannonMaxHp) continue;
         const size = cannonSize(cannon.mode);
         const targetRow = cannon.row + (size - 1) / 2;
@@ -695,6 +701,11 @@ function collectEnemyTargets(
   }
 
   return targets;
+}
+
+/** Stable numeric key for shotCounts: survives cannon object replacement. */
+function shotCountKey(playerId: number, cannonIdx: number): number {
+  return (playerId << 8) | cannonIdx;
 }
 
 /** Pick a random enclosure of an eligible enemy, then return a random wall

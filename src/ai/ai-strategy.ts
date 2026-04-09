@@ -12,7 +12,7 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
-import { type Cannon, CannonMode } from "../shared/battle-types.ts";
+import { CannonMode } from "../shared/battle-types.ts";
 import { filterActiveEnemies } from "../shared/board-occupancy.ts";
 import {
   DIFFICULTY_EASY,
@@ -271,8 +271,9 @@ export const CHAIN = {
 } as const;
 
 export class DefaultStrategy implements AiStrategy {
-  /** Shot count per cannon — tracks hits to know when to stop targeting. */
-  private shotCounts = new WeakMap<Cannon, number>();
+  /** Shot count per cannon — tracks hits to know when to stop targeting.
+   *  Keyed by (playerId << 8 | cannonIdx) to survive checkpoint cannon replacement. */
+  private shotCounts = new Map<number, number>();
   /** Focus fire on this player during battle. */
   private focusFirePlayerId: ValidPlayerSlot | undefined;
   /** Whether home tower was not enclosed at the end of last build phase. */
@@ -599,7 +600,7 @@ export class DefaultStrategy implements AiStrategy {
 
   reset(): void {
     this.onLifeLost();
-    this.shotCounts = new WeakMap();
+    this.shotCounts = new Map();
   }
 }
 

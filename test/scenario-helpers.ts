@@ -58,6 +58,7 @@ import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online/online-checkpoints.ts";
+import { createBuildStartMessage, createCannonStartMessage, serializePlayersCheckpoint } from "../src/online/online-serialize.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { Mode } from "../src/shared/ui-mode.ts";
 import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/interaction-types.ts";
@@ -120,6 +121,13 @@ export interface Scenario {
 
   // Online transition testing
   createTransitionContext(overrides?: Partial<TransitionTestDeps>): TransitionContext;
+
+  /** Enable checkpoint relay: phase boundaries go through
+   *  serialize → JSON string → parse → apply, same as WebSocket. */
+  enableCheckpointRelay(): void;
+
+  /** Messages sent through the fake WebSocket (JSON strings). */
+  readonly wsLog: readonly string[];
 }
 
 export interface TransitionTestDeps {
@@ -157,7 +165,34 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
+  // Fake WebSocket: send delivers to onmessage instantly as a JSON string
+  const wsLog: string[] = [];
+  const ws = {
+    send(data: string) { wsLog.push(data); this.onmessage?.({ data }); },
+    onmessage: null as ((event: { data: string }) => void) | null,
+  };
+
+  let checkpointDepsCache: CheckpointDeps | null = null;
+  function getCheckpointDeps(): CheckpointDeps {
+    if (checkpointDepsCache) return checkpointDepsCache;
+    checkpointDepsCache = {
+      state,
+      battleAnim: createBattleAnimState(),
+      accum: { battle: 0, cannon: 0, select: 0, build: 0, grunt: 0 },
+      remoteCrosshairs: new Map(),
+      watcherCrosshairPos: new Map(),
+      watcherOrbitParams: new Map(),
+      watcherOrbitAngles: new Map(),
+      snapshotTerritory: () => state.players.map((p) => new Set(p.interior)),
+    };
+    return checkpointDepsCache;
+  }
+
   function runCannon(): void {
+    if (ws.onmessage) {
+      ws.onmessage = (event) => applyCannonStartCheckpoint(JSON.parse(event.data), getCheckpointDeps());
+      ws.send(JSON.stringify(createCannonStartMessage(state)));
+    }
     resetCannonFacings(state);
     computeCannonLimitsForPhase(state);
     for (let i = 0; i < playerCount; i++) {
@@ -192,6 +227,10 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function runBuild(durationSec = BUILD_TIMER + 1): void {
+    if (ws.onmessage) {
+      ws.onmessage = (event) => applyBuildStartCheckpoint(JSON.parse(event.data), getCheckpointDeps());
+      ws.send(JSON.stringify(createBuildStartMessage(state)));
+    }
     for (let i = 0; i < playerCount; i++) {
       if (state.players[i]!.eliminated) continue;
       controllers[i]!.startBuildPhase(state);
@@ -216,6 +255,11 @@ export async function createScenario(seed = 42): Promise<Scenario> {
   }
 
   function doFinalizeBuild() {
+    if (ws.onmessage) {
+      const msg = JSON.stringify({ players: serializePlayersCheckpoint(state), scores: state.players.map((p) => p.score) });
+      ws.onmessage = (event) => applyBuildEndCheckpoint(JSON.parse(event.data), getCheckpointDeps());
+      ws.send(msg);
+    }
     return finalizeBuildPhase(state);
   }
 
@@ -597,6 +641,8 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     createLifeLostDialog: doCreateLifeLostDialog,
     tickLifeLostDialog: doTickLifeLostDialog,
     createTransitionContext: doCreateTransitionContext,
+    enableCheckpointRelay: () => { ws.onmessage = () => {}; },
+    wsLog,
   };
 }
 
