@@ -24,6 +24,7 @@ import {
   GAME_MODE_MODERN,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
+import { createGameEventBus } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Tower } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -90,6 +91,7 @@ export function createGameState(
   return {
     rng: new Rng(seed),
     map,
+    bus: createGameEventBus(),
     phase: Phase.CASTLE_SELECT,
     round: 1,
     maxRounds: Infinity,

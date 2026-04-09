@@ -38,6 +38,7 @@
       "src/shared/checkpoint-data.ts",
       "src/shared/geometry-types.ts",
       "src/shared/battle-events.ts",
+      "src/shared/game-event-bus.ts",
       "src/shared/interaction-types.ts",
       "src/shared/modifier-defs.ts",
       "src/shared/pieces.ts",

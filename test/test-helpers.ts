@@ -2,6 +2,7 @@ import { GRID_ROWS, GRID_COLS, Tile } from "../src/shared/grid.ts";
 import type { Castle, GameMap, Tower } from "../src/shared/geometry-types.ts";
 import { pickPlacementStandalone as pickPlacement } from "../src/ai/ai-strategy.ts";
 import { placePiece, recheckTerritoryOnly } from "../src/game/build-system.ts";
+import { createGameEventBus } from "../src/shared/game-event-bus.ts";
 import type { PieceShape } from "../src/shared/pieces.ts";
 import { Rng } from "../src/shared/rng.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
@@ -194,6 +195,7 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     playerZones: [0],
     cannonLimits: [0],
     salvageSlots: [0],
+    bus: createGameEventBus(),
     buildTimer: 25,
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,

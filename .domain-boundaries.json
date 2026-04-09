@@ -24,6 +24,7 @@
       "src/shared/player-slot.ts",
       "src/shared/game-phase.ts",
       "src/shared/battle-events.ts",
+      "src/shared/game-event-bus.ts",
       "src/shared/battle-types.ts",
       "src/shared/interaction-types.ts",
       "src/shared/upgrade-defs.ts",

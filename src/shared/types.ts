@@ -19,6 +19,7 @@ import {
   type GameMode,
   type ModifierId,
 } from "./game-constants.ts";
+import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
@@ -95,6 +96,9 @@ export interface GameState {
   /** Bonus cannon slots earned via Salvage upgrade (cannon kills during battle).
    *  Consumed by computeCannonLimitsForPhase at cannon phase start, then zeroed. */
   salvageSlots: number[];
+  /** Typed event bus for game-domain pub/sub. Transient — not serialized.
+   *  Created by createGameEventBus() at game start. */
+  bus: GameEventBus;
   /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
   gameMode: GameMode;
   /** Active feature capabilities for this match. Empty in classic mode.
