@@ -207,8 +207,9 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
-  // Event emitter — fires on both the legacy scenario listeners AND the bus.
-  // Tick events (tick-start, tick-end) are scenario-only; lifecycle events go through the bus.
+  // Event emitter — scenario-local listeners for tick events + legacy lifecycle hooks.
+  // Lifecycle events (phase/round/game) now come from production code via setPhase/enterBuildFromBattle.
+  // gameStart/gameEnd are scenario-only (no production emission site yet).
   const listeners = new Map<ScenarioEventType, Set<ScenarioEventHandler>>();
   function emit(type: ScenarioEventType, dt = 0): void {
     const handlers = listeners.get(type);
@@ -216,15 +217,8 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       const event: ScenarioEvent = { type, phase: state.phase, round: state.round, dt };
       for (const handler of handlers) handler(event);
     }
-    if (type === "phase-start") {
-      emitGameEvent(state.bus, GAME_EVENT.PHASE_START, { phase: state.phase, round: state.round });
-    } else if (type === "phase-end") {
-      emitGameEvent(state.bus, GAME_EVENT.PHASE_END, { phase: state.phase, round: state.round });
-    } else if (type === "round-start") {
-      emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
-    } else if (type === "round-end") {
-      emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
-    } else if (type === "game-start") {
+    // gameStart/gameEnd have no production emission site — emit on bus from here.
+    if (type === "game-start") {
       emitGameEvent(state.bus, GAME_EVENT.GAME_START, { round: state.round });
     } else if (type === "game-end") {
       emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
