@@ -162,10 +162,8 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   clearFrozenRiver(state);
   clearHighTide(state);
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
-  // Assignment order matters: save current modifier BEFORE rolling, because
-  // rollModifier filters out lastModifierId to prevent back-to-back repeats.
+  // lastModifierId was already saved in enterBuildFromBattle (before the checkpoint).
   if (hasFeature(state, FID.MODIFIERS)) {
-    state.modern!.lastModifierId = state.modern!.activeModifier;
     state.modern!.activeModifier = rollModifier(state);
   }
   const diff = applyBattleStartModifiers(state);
@@ -204,6 +202,13 @@ export function enterBuildFromBattle(state: GameState): void {
   cleanupBattleArtifacts(state);
   spawnIdleFirstBattleGrunts(state);
   recheckTerritoryOnly(state);
+  // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
+  // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
+  // Must happen here (not in enterBattleFromCannon) so the value survives the
+  // checkpoint roundtrip (applyBuildStartCheckpoint clears activeModifier).
+  if (hasFeature(state, FID.MODIFIERS)) {
+    state.modern!.lastModifierId = state.modern!.activeModifier;
+  }
   state.round++;
 
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──

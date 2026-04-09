@@ -137,8 +137,6 @@ export function applyBuildStartCheckpoint(
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   if (hasFeature(deps.state, FID.MODIFIERS)) {
-    // Modifier is rolled at battle start now — clear it for the build phase
-    deps.state.modern!.activeModifier = null;
     restoreModifierTileState(deps.state, data);
   }
   if (hasFeature(deps.state, FID.UPGRADES)) {
