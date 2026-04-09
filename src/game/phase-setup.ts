@@ -169,6 +169,12 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   // lastModifierId was already saved in enterBuildFromBattle (before the checkpoint).
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
+    if (state.modern!.activeModifier !== null) {
+      emitGameEvent(state.bus, GAME_EVENT.MODIFIER_APPLIED, {
+        modifierId: state.modern!.activeModifier,
+        round: state.round,
+      });
+    }
   }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);

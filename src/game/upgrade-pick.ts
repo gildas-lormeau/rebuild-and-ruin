@@ -1,5 +1,6 @@
 import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
@@ -148,6 +149,10 @@ export function applyUpgradePicks(
     const player = state.players[entry.playerId];
     if (!player) continue;
     player.upgrades.set(entry.choice, 1);
+    emitGameEvent(state.bus, GAME_EVENT.UPGRADE_PICKED, {
+      playerId: entry.playerId,
+      upgradeId: entry.choice,
+    });
     if (entry.choice === UID.SECOND_WIND) secondWind = true;
     if (entry.choice === UID.CLEAR_THE_FIELD) clearTheField = true;
     if (entry.choice === UID.DEMOLITION) demolition = true;

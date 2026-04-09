@@ -27,6 +27,7 @@ import {
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
 } from "../shared/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
 import type { PieceShape } from "../shared/pieces.ts";
@@ -172,6 +173,10 @@ export function applyPiecePlacement(
     offsets.map(([dr, dc]) => packTile(row + dr, col + dc)),
   );
   addPlayerWalls(player, pieceKeys);
+  emitGameEvent(state.bus, GAME_EVENT.WALL_PLACED, {
+    playerId,
+    tileKeys: [...pieceKeys],
+  });
   for (const house of state.map.houses) {
     if (!house.alive) continue;
     const houseKey = packTile(house.row, house.col);
@@ -213,6 +218,10 @@ export function recheckTerritoryOnly(state: GameState): void {
     removeEnclosedGruntsAndRespawn(state, player, interior);
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
     captureEnclosedBonusSquares(state, player, interior);
+    emitGameEvent(state.bus, GAME_EVENT.TERRITORY_CHANGED, {
+      playerId: player.id,
+      interior: interior.size,
+    });
   }
   sweepMisplacedGrunts(state);
 }
@@ -236,6 +245,10 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
     destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
     captureEnclosedBonusSquares(state, player, interior);
     awardEndOfBuildPoints(state, player, interior.size);
+    emitGameEvent(state.bus, GAME_EVENT.TERRITORY_CHANGED, {
+      playerId: player.id,
+      interior: interior.size,
+    });
   }
   // ── Post-loop: global finalization ──
   sweepMisplacedGrunts(state);
