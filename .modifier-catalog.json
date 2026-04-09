@@ -60,6 +60,12 @@
         "checkpoint": "src/online/online-checkpoints.ts",
         "zoneReset": "src/game/phase-setup.ts"
       }
+    },
+    "dust_storm": {
+      "consumers": {
+        "apply": "src/game/battle-system.ts",
+        "dispatch": "src/game/phase-setup.ts"
+      }
     }
   }
 }

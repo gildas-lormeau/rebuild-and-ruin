@@ -13,7 +13,8 @@ export type ModifierId =
   | "grunt_surge"
   | "frozen_river"
   | "sinkhole"
-  | "high_tide";
+  | "high_tide"
+  | "dust_storm";
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
@@ -33,6 +34,7 @@ export const MODIFIER_ID = {
   FROZEN_RIVER: "frozen_river",
   SINKHOLE: "sinkhole",
   HIGH_TIDE: "high_tide",
+  DUST_STORM: "dust_storm",
 } as const satisfies Record<string, ModifierId>;
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";
@@ -40,6 +42,8 @@ export const GAME_MODE_MODERN: GameMode = "modern";
 export const MODIFIER_FIRST_ROUND = 3;
 /** Probability that any modifier fires on an eligible round. */
 export const MODIFIER_ROLL_CHANCE = 0.65;
+/** Maximum trajectory jitter (degrees) applied by the Dust Storm modifier. */
+export const DUST_STORM_JITTER_DEG = 15;
 export const CANNON_MAX_HP = 3;
 /** Size of a normal cannon in tiles (2x2). */
 export const NORMAL_CANNON_SIZE = 2;

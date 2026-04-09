@@ -100,6 +100,15 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     implemented: true,
     needsCheckpoint: true,
   },
+  {
+    id: "dust_storm",
+    label: "Dust Storm",
+    description:
+      "All cannonballs gain ±15° angle jitter on launch, reducing accuracy",
+    weight: 2,
+    implemented: true,
+    needsCheckpoint: false,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =

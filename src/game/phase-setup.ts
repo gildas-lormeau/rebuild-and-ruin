@@ -543,6 +543,9 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
     recheckTerritoryOnly(state);
     return { id: mod, label, changedTiles: [...flooded], gruntsSpawned: 0 };
   }
+  if (mod === MODIFIER_ID.DUST_STORM) {
+    return { id: mod, label, changedTiles: [], gruntsSpawned: 0 };
+  }
   return null;
 }
 
