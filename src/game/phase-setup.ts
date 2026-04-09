@@ -382,10 +382,19 @@ function applyLifePenalties(state: GameState): {
     const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;
     if (!hasAliveTower) {
       player.lives--;
+      emitGameEvent(state.bus, GAME_EVENT.LIFE_LOST, {
+        playerId: player.id,
+        livesRemaining: player.lives,
+        round: state.round,
+      });
       const zone = state.playerZones[player.id];
       resetPlayerBoardState(player);
       if (player.lives <= 0) {
         eliminatePlayer(player);
+        emitGameEvent(state.bus, GAME_EVENT.PLAYER_ELIMINATED, {
+          playerId: player.id,
+          round: state.round,
+        });
         eliminated.push(player.id);
       } else {
         needsReselect.push(player.id);

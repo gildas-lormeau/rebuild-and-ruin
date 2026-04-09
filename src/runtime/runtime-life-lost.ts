@@ -82,7 +82,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
     if (dialogFacade.isLifeLostAllResolved(dialog)) {
       deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
-      dialogFacade.eliminateAbandoned(dialog, runtimeState.state.players);
+      dialogFacade.eliminateAbandoned(dialog, runtimeState.state);
       afterLifeLostResolved();
       return false;
     }
@@ -118,7 +118,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
-    dialogFacade.eliminateAbandoned(dialog, runtimeState.state.players);
+    dialogFacade.eliminateAbandoned(dialog, runtimeState.state);
 
     if (runtimeState.frameMeta.hostAtFrameStart) {
       afterLifeLostResolved(dialogFacade.continuingPlayers(dialog));

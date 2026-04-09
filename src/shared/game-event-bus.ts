@@ -20,7 +20,14 @@ export type LifecycleEvent =
   | { type: "roundStart"; round: number }
   | { type: "roundEnd"; round: number }
   | { type: "gameStart"; round: number }
-  | { type: "gameEnd"; round: number };
+  | { type: "gameEnd"; round: number }
+  | { type: "playerEliminated"; playerId: ValidPlayerSlot; round: number }
+  | {
+      type: "lifeLost";
+      playerId: ValidPlayerSlot;
+      livesRemaining: number;
+      round: number;
+    };
 
 export type EntityEvent =
   | {
@@ -137,6 +144,8 @@ const LIFECYCLE_EVENT = {
   ROUND_END: "roundEnd",
   GAME_START: "gameStart",
   GAME_END: "gameEnd",
+  PLAYER_ELIMINATED: "playerEliminated",
+  LIFE_LOST: "lifeLost",
 } as const;
 const ENTITY_EVENT = {
   WALL_PLACED: "wallPlaced",

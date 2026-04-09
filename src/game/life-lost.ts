@@ -1,3 +1,4 @@
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import {
   type AutoResolveDeps,
   LIFE_LOST_FOCUS_ABANDON,
@@ -9,11 +10,7 @@ import {
   shouldAutoResolve,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import {
-  eliminatePlayer,
-  isPlayerAlive,
-  type Player,
-} from "../shared/player-types.ts";
+import { eliminatePlayer, isPlayerAlive } from "../shared/player-types.ts";
 import { type GameState } from "../shared/types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
@@ -109,12 +106,18 @@ export function createLifeLostDialogState(
  *  Game rule: iterates entries, marks each ABANDON player as eliminated. */
 export function eliminateAbandoned(
   dialog: LifeLostDialogState,
-  players: readonly Player[],
+  state: GameState,
 ): void {
   for (const entry of dialog.entries) {
     if (entry.choice !== LifeLostChoice.ABANDON) continue;
-    const player = players[entry.playerId];
-    if (player) eliminatePlayer(player);
+    const player = state.players[entry.playerId];
+    if (player) {
+      eliminatePlayer(player);
+      emitGameEvent(state.bus, GAME_EVENT.PLAYER_ELIMINATED, {
+        playerId: player.id,
+        round: state.round,
+      });
+    }
   }
 }
 
