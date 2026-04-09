@@ -50,6 +50,7 @@ import {
 import { MESSAGE } from "../src/shared/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online/online-types.ts";
+import { eliminatePlayer } from "../src/shared/player-types.ts";
 import { isMasterBuilderLocked, setGameMode, type SelectionState } from "../src/shared/types.ts";
 import { UID } from "../src/shared/upgrade-defs.ts";
 import { showUpgradePickBanner } from "../src/runtime/runtime-transition-steps.ts";
@@ -135,7 +136,7 @@ Deno.test("Master Builder ignores eliminated players", async () => {
   const baseBuildTimer = s.state.buildTimer;
 
   s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
-  s.eliminatePlayer(1 as ValidPlayerSlot);
+  eliminatePlayer(s.state.players[1]!);
   s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   const result = s.playRound();
@@ -223,7 +224,7 @@ Deno.test("Master Builder lockout: eliminated owner does not trigger lockout", a
 
   // P0 gets MB but is eliminated — only P0's upgrade should be ignored
   s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
-  s.eliminatePlayer(0 as ValidPlayerSlot);
+  eliminatePlayer(s.state.players[0]!);
 
   const baseBuildTimer = s.state.buildTimer;
   const result = s.playRound();

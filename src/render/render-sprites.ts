@@ -7,8 +7,6 @@
  *   drawSprite(ctx, "house", x, y); // blit a sprite onto a canvas
  */
 
-import { recordSpriteDraw } from "../shared/render-spy.ts";
-
 interface SpriteRect {
   x: number;
   y: number;
@@ -140,7 +138,6 @@ export function drawSprite(
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
-  recordSpriteDraw(name, dx, dy);
   blitSprite(canvasCtx, sprite, dx, dy);
   return true;
 }
@@ -157,7 +154,6 @@ export function drawSpriteCentered(
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
-  recordSpriteDraw(name, cx, cy);
   blitSprite(canvasCtx, sprite, cx - sprite.rect.w / 2, cy - sprite.rect.h / 2);
   return true;
 }

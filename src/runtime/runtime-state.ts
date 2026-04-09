@@ -157,8 +157,7 @@ type TickableMode = Exclude<Mode, Mode.STOPPED>;
  *  a handler.  Adding a new Mode without a handler is a compile error. */
 type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
 
-/** Exported for headless camera testing (test/scenario-helpers.ts). */
-export interface FrameContextInputs {
+interface FrameContextInputs {
   mode: Mode;
   phase: Phase;
   timer: number;

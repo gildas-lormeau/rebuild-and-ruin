@@ -18,7 +18,6 @@
       "src/shared/jsfxr.d.ts",
       "src/shared/platform.ts",
       "src/shared/player-slot.ts",
-      "src/shared/render-spy.ts",
       "src/shared/rng.ts",
       "src/shared/routes.ts",
       "src/shared/router.ts",

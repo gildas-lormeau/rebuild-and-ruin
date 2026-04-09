@@ -32,7 +32,6 @@
       "src/shared/cannon-mode-defs.ts",
       "src/shared/settings-defs.ts",
       "src/shared/settings-ui.ts",
-      "src/shared/render-spy.ts",
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
       "src/shared/ui-contracts.ts",

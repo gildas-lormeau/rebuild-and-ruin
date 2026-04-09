@@ -73,15 +73,31 @@ related yet — that's what the logs will tell you.
 ### Step 3: Write a test that triggers the bug
 Create a test file in test/. Use one of these approaches:
 
-**For state/logic bugs** — use scenario helpers:
+**For state/logic bugs** — use scenario helpers (play the game, observe events):
 ```typescript
 import { createScenario } from "./scenario-helpers.ts";
-// s.advanceTo(Phase.X), s.playRounds(n), etc.
+import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
+
+const s = await createScenario(42);
+const events: unknown[] = [];
+s.bus.on(GAME_EVENT.SOME_EVENT, (e) => events.push(e));
+s.playRounds(3); // or s.runGame()
+assert(events.length > 0);
 ```
+
+Scenario API:
+- `s.playRound()` / `s.playRounds(n)` / `s.runGame(maxRounds?)` — play the game
+- `s.advanceTo(Phase.X)` — jump to a phase within the current round
+- `s.placeCannonAt(pid, row, col, mode?)` / `s.placePieceAt(pid, piece, row, col)` / `s.fireAt(pid, idx, row, col)` — scripted actions
+- `s.findGrassTile(pid)` / `s.findInteriorTile(pid)` / `s.findEnemyWallTile(pid)` — tile finders
+- `s.state` / `s.bus` / `s.controllers` — read-only access
+- `s.enableCheckpointRelay()` — enable online serialize→parse→apply round-trips
+
+**NEVER** hack runtime state in tests (`state.phase =`, `state.lives =`), construct subsystems in isolation, or bypass game flow. Tests must play the game and observe via `s.state` reads or `s.bus` event listeners.
 
 **For input/rendering/browser bugs** — use the E2E helpers:
 ```typescript
-import { E2EGame, E2ETest, COLOR_TEXT_WHITE } from "./e2e-helpers.ts";
+import { E2EGame, E2ETest } from "./e2e-helpers.ts";
 const test = new E2ETest("my test");
 const game = await E2EGame.create({ seed: 42, humans: 1, headless: true });
 // ... assertions ...
@@ -93,14 +109,13 @@ test.done(); // prints summary, exits with code 1 on failure
 Create options: `{ seed?, humans?, headless?, rounds?, mode? }`.
 `mode: "modern"` passes `?mode=modern` URL param for modern-mode games.
 
-The E2E bridge (`window.__e2e`) exposes:
+The E2E bridge (`window.__e2e`) exposes structured state snapshots each frame:
 - **Game state**: `mode`, `phase`, `round`, `timer`, `players`
-- **Render overlay**: `overlay.entities` (houses, grunts, towers), `overlay.phantoms`, `overlay.banner`, `overlay.battle`, `overlay.ui.masterBuilderLockout`
+- **Render overlay**: `overlay.entities` (houses, grunts, towers, frozenTiles), `overlay.phantoms`, `overlay.banner`, `overlay.battle`, `overlay.ui`
 - **Banner prev entities**: `overlay.bannerPrevEntities` (old scene during banner sweep)
 - **Controller**: `controller.cannonCursor`, `controller.buildCursor`, `controller.crosshair`
 - **Camera**: `camera.viewport`
 - **Coord conversion**: `worldToClient(wx, wy)`, `tileToClient(row, col)` — callable from page.evaluate
-- **Render spy**: auto-enabled on create. `renderSpy` = sprite draws `{name, x, y}`, `textSpy` = text draws `{text, color, x, y, scale}` — both snapshot per frame
 - **Targeting**: `targeting.enemyCannons`, `targeting.enemyTargets` — pixel positions of enemy entities
 - **Pause/step**: set `paused = true` to freeze, `step = true` to advance one frame
 
@@ -121,40 +136,11 @@ The E2E bridge (`window.__e2e`) exposes:
 - `game.query.state()` / `game.query.phase()` / `game.query.timer()`
 - `game.query.controller()` / `game.query.overlay()` / `game.query.players()`
 
-**Render spy** (preferred for verifying visual output):
-- `game.spy.spriteDraws()` — current frame's sprite draws
-- `game.spy.textDraws()` — current frame's text draws
-- `game.spy.waitForSpriteData()` — wait until sprites are drawn this frame
-- `game.spy.collect(filterBody, { source?, maxPerBucket? })` — install per-frame collector with bucketing. The filter is a JS function body receiving `draw` and `e2e`, returning a bucket name or null. `source: "text"` (default) or `"sprite"`.
-- `game.spy.collected()` — read accumulated buckets
-
-**Render spy collect examples:**
-```typescript
-// Collect text draws by color
-await game.spy.collect(`
-  if (draw.color === "${COLOR_LOCKOUT_AMBER}" && draw.scale > 1) return "lockout";
-  if (draw.color === "${COLOR_TEXT_WHITE}" && draw.scale === 1) return "normal";
-  return null;
-`);
-
-// Collect sprite draws during banners
-await game.spy.collect(`
-  if (!e2e?.overlay?.banner) return null;
-  if (draw.name.startsWith("tower_")) return "towers";
-  return null;
-`, { source: "sprite", maxPerBucket: 50 });
-
-await game.waitForGameOver();
-const results = await game.spy.collected();
-test.check("towers drawn", results.towers?.length > 0);
-```
-
-**Color constants** (exported from e2e-helpers):
-`COLOR_LOCKOUT_AMBER`, `COLOR_TEXT_WHITE`
-
-Fast mode is ON by default (accelerates lobby + phase timers). The render spy
-is auto-enabled from the first frame. Disable fast mode with
+Fast mode is ON by default (accelerates lobby + phase timers). Disable fast mode with
 `game.setFastMode(false)` when you need precise mouse/timing interaction.
+
+Use bridge state snapshots for render verification — `overlay.entities`,
+`overlay.banner`, `overlay.ui`, `players` are all updated every frame.
 
 Run with: `deno run -A test/your-file.ts`
 No external `timeout` command needed — tests handle their own lifecycle.
@@ -185,7 +171,6 @@ Return:
 ```sh
 npm run test:e2e:cannon-cursor     # cannon phantom stability (9s)
 npm run test:e2e:banner            # banner entity rendering (5s)
-npm run test:e2e:lockout           # Master Builder lockout timer (15s)
 npm run test:e2e:all               # all focused e2e tests
 npm run test:e2e:local:quick       # legacy full simulation (headless, 1 round)
 ```

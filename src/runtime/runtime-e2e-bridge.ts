@@ -10,13 +10,6 @@ import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
-import {
-  clearRenderSpy,
-  enableRenderSpy,
-  getRenderSpyLog,
-  getTextSpyLog,
-  type TextDraw,
-} from "../shared/render-spy.ts";
 import { tileCenterPx, unpackTile } from "../shared/spatial.ts";
 import { type GameViewState, isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
@@ -71,8 +64,6 @@ interface E2EUISnapshot {
     timer: string;
     modifier?: string;
   } | null;
-  /** Master Builder lockout seconds remaining (0 = inactive). */
-  masterBuilderLockout: number;
   gameOver: { winner: string } | null;
   lifeLostDialog: {
     entries: { playerId: number; choice: string }[];
@@ -142,11 +133,6 @@ interface E2EBridge {
   paused: boolean;
   step: boolean;
 
-  // Render spy — records drawSprite/text calls per frame (call enableRenderSpy to start)
-  enableRenderSpy: () => void;
-  renderSpy: { name: string; x: number; y: number }[] | null;
-  textSpy: TextDraw[] | null;
-
   // Battle targeting (computed from state for e2e battle simulation)
   targeting: {
     enemyCannons: { x: number; y: number }[];
@@ -201,7 +187,6 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
         battle: null,
         ui: {
           statusBar: null,
-          masterBuilderLockout: 0,
           gameOver: null,
           lifeLostDialog: null,
           upgradePick: null,
@@ -212,9 +197,6 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       camera: { viewport: undefined },
       worldToClient,
       tileToClient: makeTileToClient(worldToClient),
-      enableRenderSpy,
-      renderSpy: null,
-      textSpy: null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
       step: false,
@@ -267,13 +249,6 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Camera ---
   ref.camera.viewport = deps.camera.getViewport();
-
-  // --- Render spy (snapshot then clear for next frame) ---
-  const spyLog = getRenderSpyLog();
-  ref.renderSpy = spyLog ? [...spyLog] : null;
-  const textLog = getTextSpyLog();
-  ref.textSpy = textLog ? [...textLog] : null;
-  clearRenderSpy();
 
   // --- Targeting (battle simulation) ---
   if (ready) {
@@ -423,7 +398,6 @@ function snapshotUI(runtimeState: RuntimeState): E2EUISnapshot {
           modifier: ui.statusBar.modifier,
         }
       : null,
-    masterBuilderLockout: ui?.masterBuilderLockout ?? 0,
     gameOver: ui?.gameOver ? { winner: ui.gameOver.winner } : null,
     lifeLostDialog: ui?.lifeLostDialog
       ? {

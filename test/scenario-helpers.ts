@@ -9,65 +9,36 @@
  */
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/game/battle-system.ts";
-import { clearPlayerWalls, deletePlayerWallBattle } from "../src/shared/board-occupancy.ts";
-import { recheckTerritoryOnly, placePiece } from "../src/game/build-system.ts";
+import { placePiece } from "../src/game/build-system.ts";
 import { placeCannon, resetCannonFacings, computeCannonLimitsForPhase } from "../src/game/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
 import type { PlayerController } from "../src/shared/system-interfaces.ts";
 import {
   BATTLE_TIMER,
   BUILD_TIMER,
-  LIFE_LOST_AUTO_DELAY,
-  LIFE_LOST_MAX_TIMER
 } from "../src/shared/game-constants.ts";
 import { nextPhase } from "../src/game/game-engine.ts";
 import {
   enterBattleFromCannon,
   finalizeBuildPhase,
 } from "../src/game/phase-setup.ts";
-import { eliminatePlayer } from "../src/shared/player-types.ts";
 import { tickGrunts } from "../src/game/grunt-movement.ts";
 import { gruntAttackTowers } from "../src/game/grunt-system.ts";
-import {
-  createLifeLostDialogState,
-  tickLifeLostDialog,
-} from "../src/game/life-lost.ts";
-import type {
-  BattleStartData,
-  BuildEndData,
-  BuildStartData,
-  CannonStartData,
-} from "../src/shared/checkpoint-data.ts";
-import type { TransitionContext } from "../src/online/online-phase-transitions.ts";
-import { showBannerTransition } from "../src/runtime/runtime-banner.ts";
-import { PLAYER_COLORS } from "../src/shared/player-config.ts";
-import { createCameraSystem } from "../src/runtime/runtime-camera.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
   processHeadlessReselection,
 } from "./runtime-headless.ts";
 import type { PieceShape } from "../src/shared/pieces.ts";
-import {
-  computeFrameContext,
-  type FrameContextInputs,
-} from "../src/runtime/runtime-state.ts";
-import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-types.ts";
-import { emptyFreshInterior } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { GAME_EVENT, emitGameEvent, type GameEventBus } from "../src/shared/game-event-bus.ts";
 import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "@std/assert";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online/online-checkpoints.ts";
 import { createBattleStartMessage, createBuildStartMessage, createCannonStartMessage, serializePlayersCheckpoint } from "../src/online/online-serialize.ts";
 import { Phase } from "../src/shared/game-phase.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
-import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/interaction-types.ts";
 import { CannonMode, type BattleAnimState } from "../src/shared/battle-types.ts";
-import type { WatcherTimingState } from "../src/shared/tick-context.ts";
-import type { BannerState } from "../src/shared/ui-contracts.ts";
-import { createBannerState } from "../src/shared/ui-contracts.ts";
 
 // ---------------------------------------------------------------------------
 // Scenario factory
@@ -76,8 +47,6 @@ import { createBannerState } from "../src/shared/ui-contracts.ts";
 // ---------------------------------------------------------------------------
 // Tick callback (scenario-internal, not part of the bus)
 // ---------------------------------------------------------------------------
-
-type TickHandler = (dt: number) => void;
 
 // ---------------------------------------------------------------------------
 // Scenario
@@ -100,19 +69,8 @@ export interface Scenario {
   playRounds(n: number): void;
   runGame(maxRounds?: number): void;
 
-  // Tick hooks (scenario-internal; lifecycle events use state.bus directly)
-  onTick(type: "tick-start" | "tick-end", handler: TickHandler): void;
-  offTick(type: "tick-start" | "tick-end", handler: TickHandler): void;
-
   // State inspection
   describe(): string;
-
-  // State manipulation
-  setLives(playerId: ValidPlayerSlot, lives: number): void;
-  clearWalls(playerId: ValidPlayerSlot): void;
-  eliminatePlayer(playerId: ValidPlayerSlot): void;
-  destroyWalls(playerId: ValidPlayerSlot, count: number): number;
-  destroyCannon(playerId: ValidPlayerSlot, cannonIdx: number): void;
 
   // Tile finders
   findGrassTile(playerId: ValidPlayerSlot): { row: number; col: number } | null;
@@ -124,22 +82,6 @@ export interface Scenario {
   placePieceAt(playerId: ValidPlayerSlot, piece: PieceShape, row: number, col: number): boolean;
   fireAt(playerId: ValidPlayerSlot, cannonIdx: number, row: number, col: number): boolean;
 
-  // Sub-system creation for isolated testing
-  createCamera(overrides?: Partial<CameraTestDeps>): CameraTestHandle;
-  createBanner(): BannerState;
-  createBattleAnim(): BattleAnimState;
-  createLifeLostDialog(
-    needsReselect: ValidPlayerSlot[],
-    eliminated?: ValidPlayerSlot[],
-  ): LifeLostDialogState;
-  tickLifeLostDialog(
-    dialog: LifeLostDialogState,
-    dt: number,
-  ): LifeLostDialogState | null;
-
-  // Online transition testing
-  createTransitionContext(overrides?: Partial<TransitionTestDeps>): TransitionContext;
-
   /** Enable checkpoint relay: phase boundaries go through
    *  serialize → JSON string → parse → apply, same as a real WebSocket. */
   enableCheckpointRelay(): void;
@@ -150,26 +92,6 @@ export interface Scenario {
   onRelayVerify: ((label: string, before: { grid: string; state: string }) => void) | null;
   /** Access battleAnim from relay deps (null if relay not enabled or not yet initialized). */
   getRelayBattleAnim(): BattleAnimState | null;
-}
-
-export interface TransitionTestDeps {
-  myPlayerId: PlayerSlotId;
-}
-
-export interface CameraTestDeps {
-  mode: Mode;
-  phase: Phase;
-  myPlayerId: PlayerSlotId;
-  isSelectionReady: boolean;
-  humanIsReselecting: boolean;
-  mobileAutoZoom: boolean;
-  hasPointerPlayer: boolean;
-}
-
-export interface CameraTestHandle {
-  camera: CameraSystem;
-  tick: () => void;
-  setCtx: (overrides: Partial<CameraTestDeps>) => void;
 }
 
 export async function createScenario(seed = 42): Promise<Scenario> {
@@ -187,12 +109,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     );
   }
 
-  // Tick emitter — scenario-internal, not on the bus (tick events are test instrumentation).
-  const tickListeners = new Map<string, Set<TickHandler>>();
-  function emitTick(type: "tick-start" | "tick-end", dt: number): void {
-    const handlers = tickListeners.get(type);
-    if (handlers) for (const handler of handlers) handler(dt);
-  }
   // gameEnd has no production emission in the headless flow — emit on bus from here.
   function emitGameEnd(): void {
     emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
@@ -210,7 +126,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     if (!relayDeps) {
       relayDeps = {
         state,
-        battleAnim: createBattleAnimState(),
+        battleAnim: { impacts: [], territory: [], walls: [], flights: [] },
         accum: { battle: 0, cannon: 0, select: 0, build: 0, grunt: 0 },
         remoteCrosshairs: new Map(),
         watcherCrosshairPos: new Map(),
@@ -252,10 +168,10 @@ export async function createScenario(seed = 42): Promise<Scenario> {
           controllers[i]!.battleTick(state, dt);
         }
       }
-      emitTick("tick-start", dt);
+
       gruntAttackTowers(state, dt);
       tickCannonballs(state, dt);
-      emitTick("tick-end", dt);
+
       t += dt;
     }
     for (const ctrl of controllers) ctrl.endBattle();
@@ -273,7 +189,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     let gruntAccum = 0;
     const dt = 0.5;
     while (t < durationSec) {
-      emitTick("tick-start", dt);
+
       gruntAccum += dt;
       if (gruntAccum >= 1.0) {
         gruntAccum -= 1.0;
@@ -283,7 +199,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         if (state.players[i]!.eliminated) continue;
         controllers[i]!.buildTick(state, dt);
       }
-      emitTick("tick-end", dt);
+
       t += dt;
     }
     for (const ctrl of controllers) ctrl.finalizeBuildPhase(state);
@@ -331,19 +247,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     emitGameEnd();
   }
 
-  function setLives(playerId: ValidPlayerSlot, lives: number) {
-    state.players[playerId]!.lives = lives;
-  }
-
-  function clearWalls(playerId: ValidPlayerSlot) {
-    clearPlayerWalls(state.players[playerId]!);
-    state.players[playerId]!.interior = emptyFreshInterior();
-  }
-
-  function doEliminatePlayer(playerId: ValidPlayerSlot) {
-    eliminatePlayer(state.players[playerId]!);
-  }
-
   function describe(): string {
     const phaseName = Object.entries(Phase).find(
       ([, v]) => v === state.phase,
@@ -362,23 +265,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     }
     parts.push(`round:${state.round}`);
     return parts.join(" | ");
-  }
-
-  function doDestroyWalls(playerId: ValidPlayerSlot, count: number): number {
-    const player = state.players[playerId]!;
-    let removed = 0;
-    for (const key of player.walls) {
-      if (removed >= count) break;
-      deletePlayerWallBattle(player, key);
-      removed++;
-    }
-    recheckTerritoryOnly(state);
-    return removed;
-  }
-
-  function doDestroyCannon(playerId: ValidPlayerSlot, cannonIdx: number): void {
-    const cannon = state.players[playerId]?.cannons[cannonIdx];
-    if (cannon) cannon.hp = 0;
   }
 
   function doPlaceCannonAt(
@@ -479,185 +365,6 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     return null;
   }
 
-  function createCamera(
-    overrides: Partial<CameraTestDeps> = {},
-  ): CameraTestHandle {
-    const defaults: CameraTestDeps = {
-      mode: Mode.GAME,
-      phase: state.phase,
-      myPlayerId: 0 as PlayerSlotId,
-      isSelectionReady: false,
-      humanIsReselecting: false,
-      mobileAutoZoom: true,
-      hasPointerPlayer: true,
-    };
-    let merged = { ...defaults, ...overrides };
-    let ctx: FrameContext = buildFrameCtx(merged);
-
-    function buildFrameCtx(deps: CameraTestDeps): FrameContext {
-      const inputs: FrameContextInputs = {
-        mode: deps.mode,
-        phase: deps.phase,
-        timer: state.timer,
-        paused: false,
-        quitPending: false,
-        hasLifeLostDialog: false,
-        isSelectionReady: deps.isSelectionReady,
-        humanIsReselecting: deps.humanIsReselecting,
-        hasPointerPlayer: deps.hasPointerPlayer,
-        myPlayerId: deps.myPlayerId,
-        hostAtFrameStart: true,
-        remotePlayerSlots: new Set(),
-        mobileAutoZoom: deps.mobileAutoZoom,
-      };
-      return computeFrameContext(inputs);
-    }
-
-    const camera = createCameraSystem({
-      getState: () => state,
-      getCtx: () => ctx,
-      getFrameDt: () => 1 / 60,
-      setFrameAnnouncement: () => {},
-    });
-    camera.enableMobileZoom();
-
-    return {
-      camera,
-      tick: () => {
-        camera.tickCamera();
-        camera.updateViewport();
-      },
-      setCtx: (o) => {
-        merged = { ...defaults, ...overrides, ...o };
-        ctx = buildFrameCtx(merged);
-      },
-    };
-  }
-
-  function createBanner(): BannerState {
-    return createBannerState();
-  }
-
-  function createBattleAnimState(): BattleAnimState {
-    return {
-      impacts: [],
-      territory: [],
-      walls: [],
-      flights: [],
-    };
-  }
-
-  function doCreateLifeLostDialog(
-    needsReselect: ValidPlayerSlot[],
-    eliminated: ValidPlayerSlot[] = [],
-  ): LifeLostDialogState {
-    return createLifeLostDialogState({
-      needsReselect,
-      eliminated,
-      state,
-      hostAtFrameStart: true,
-      myPlayerId: 0 as ValidPlayerSlot,
-      remotePlayerSlots: new Set(),
-      isHumanController: () => false,
-    });
-  }
-
-  function doTickLifeLostDialog(
-    dialog: LifeLostDialogState,
-    dt: number,
-  ): LifeLostDialogState | null {
-    const allResolved = tickLifeLostDialog(
-      dialog,
-      dt,
-      LIFE_LOST_AUTO_DELAY,
-      LIFE_LOST_MAX_TIMER,
-    );
-    return allResolved ? null : dialog;
-  }
-
-  function doCreateTransitionContext(
-    overrides: Partial<TransitionTestDeps> = {},
-  ): TransitionContext {
-    const myPlayerId = overrides.myPlayerId ?? (0 as PlayerSlotId);
-    const banner = createBannerState();
-    const battleAnim = createBattleAnimState();
-    const watcherTiming: WatcherTimingState = {
-      phaseStartTime: 0,
-      phaseDuration: 0,
-      countdownStartTime: 0,
-      countdownDuration: 0,
-    };
-    const checkpointDeps: CheckpointDeps = {
-      state,
-      battleAnim,
-      accum: { battle: 0, cannon: 0, select: 0, build: 0, grunt: 0 },
-      remoteCrosshairs: new Map(),
-      watcherCrosshairPos: new Map(),
-      watcherOrbitParams: new Map(),
-      watcherOrbitAngles: new Map(),
-      snapshotTerritory: () =>
-        state.players.map((p) => new Set(p.interior)),
-    };
-
-    return {
-      getState: () => state,
-      session: { myPlayerId },
-      getControllers: () => controllers,
-      setMode: () => {},
-      ui: {
-        showBanner: (text: string, onDone: () => void, preservePrevScene?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => {
-          showBannerTransition({
-            banner,
-            state,
-            battleAnim,
-            text,
-            subtitle,
-            onDone,
-            preservePrevScene,
-            newBattle,
-            setModeBanner: () => {},
-          });
-        },
-        banner,
-        render: () => {},
-        watcherTiming,
-        bannerDuration: 3,
-      },
-      checkpoint: {
-        applyCannonStart: (data: CannonStartData, capturePreState?: () => void) =>
-          applyCannonStartCheckpoint(data, checkpointDeps, capturePreState),
-        applyBattleStart: (data: BattleStartData, capturePreState?: () => void) =>
-          applyBattleStartCheckpoint(data, checkpointDeps, capturePreState),
-        applyBuildStart: (data: BuildStartData, capturePreState?: () => void) =>
-          applyBuildStartCheckpoint(data, checkpointDeps, capturePreState),
-        applyBuildEnd: (data: BuildEndData, capturePreState?: () => void) =>
-          applyBuildEndCheckpoint(data, checkpointDeps, capturePreState),
-      },
-      selection: {
-        clearSelectionOverlay: () => {},
-        getStates: () => new Map(),
-        setCastleBuildFromPlans: () => {},
-        setCastleBuildViewport: () => {},
-      },
-      battleLifecycle: {
-        setFlights: () => {},
-        snapshotTerritory: () =>
-          state.players.map((p) => new Set(p.interior)),
-        getTerritory: () => [],
-        getWalls: () => [],
-        setTerritory: () => {},
-        setWalls: () => {},
-        beginBattle: () => {},
-      },
-      endPhase: {
-        showLifeLostDialog: () => {},
-        showScoreDeltas: (_pre: readonly number[], onDone: () => void) => onDone(),
-        setGameOverFrame: () => {},
-        playerColors: PLAYER_COLORS,
-      },
-    };
-  }
-
   return {
     state,
     bus: state.bus,
@@ -672,32 +379,13 @@ export async function createScenario(seed = 42): Promise<Scenario> {
     playRound,
     playRounds: doPlayRounds,
     runGame,
-    setLives,
-    clearWalls,
     describe,
-    eliminatePlayer: doEliminatePlayer,
-    destroyWalls: doDestroyWalls,
-    destroyCannon: doDestroyCannon,
     findGrassTile: doFindGrassTile,
     findInteriorTile: doFindInteriorTile,
     findEnemyWallTile: doFindEnemyWallTile,
     placeCannonAt: doPlaceCannonAt,
     placePieceAt: doPlacePieceAt,
     fireAt: doFireAt,
-    createCamera,
-    createBanner,
-    createBattleAnim: createBattleAnimState,
-    createLifeLostDialog: doCreateLifeLostDialog,
-    tickLifeLostDialog: doTickLifeLostDialog,
-    createTransitionContext: doCreateTransitionContext,
-    onTick(type: "tick-start" | "tick-end", handler: TickHandler) {
-      let set = tickListeners.get(type);
-      if (!set) { set = new Set(); tickListeners.set(type, set); }
-      set.add(handler);
-    },
-    offTick(type: "tick-start" | "tick-end", handler: TickHandler) {
-      tickListeners.get(type)?.delete(handler);
-    },
     enableCheckpointRelay: () => { relayEnabled = true; },
     get onRelayCapture() { return onRelayCapture; },
     set onRelayCapture(fn) { onRelayCapture = fn; },
@@ -718,96 +406,4 @@ export function assertPhase(s: Scenario, expected: Phase): void {
   );
 }
 
-export function assertLives(
-  s: Scenario,
-  playerId: ValidPlayerSlot,
-  expected: number,
-): void {
-  const actual = s.state.players[playerId]!.lives;
-  assert(
-    actual === expected,
-    `Expected player ${playerId} lives=${expected}, got ${actual}`,
-  );
-}
 
-export function assertEliminated(s: Scenario, playerId: ValidPlayerSlot): void {
-  assert(
-    s.state.players[playerId]!.eliminated,
-    `Expected player ${playerId} to be eliminated`,
-  );
-}
-
-export function assertNotEliminated(s: Scenario, playerId: ValidPlayerSlot): void {
-  assert(
-    !s.state.players[playerId]!.eliminated,
-    `Expected player ${playerId} to NOT be eliminated`,
-  );
-}
-
-export function assertHasWalls(s: Scenario, playerId: ValidPlayerSlot): void {
-  assert(
-    s.state.players[playerId]!.walls.size > 0,
-    `Expected player ${playerId} to have walls`,
-  );
-}
-
-export function assertNoWalls(s: Scenario, playerId: ValidPlayerSlot): void {
-  assert(
-    s.state.players[playerId]!.walls.size === 0,
-    `Expected player ${playerId} to have no walls`,
-  );
-}
-
-export function assertCameraZone(
-  handle: CameraTestHandle,
-  expected: number | undefined,
-): void {
-  const actual = handle.camera.getCameraZone();
-  assert(
-    actual === expected,
-    `Expected camera zone ${expected}, got ${actual}`,
-  );
-}
-
-export function assertBannerNewWallsMatch(
-  banner: BannerState,
-  state: GameState,
-): void {
-  assert(
-    banner.newWalls !== undefined,
-    "Expected banner.newWalls to be defined",
-  );
-  for (let pid = 0; pid < state.players.length; pid++) {
-    const bannerWalls = banner.newWalls![pid];
-    const stateWalls = state.players[pid]!.walls;
-    if (!bannerWalls) continue;
-    for (const key of bannerWalls) {
-      assert(
-        stateWalls.has(key),
-        `banner.newWalls[${pid}] has tile ${key} not in player walls (debris leak)`,
-      );
-    }
-  }
-}
-
-export function assertLifeLostLabel(
-  entry: { choice: LifeLostChoice; lives: number },
-  expected: "Continuing..." | "Abandoned" | "none",
-): void {
-  if (expected === "none") {
-    assert(entry.lives === 0, "Expected eliminated entry (lives=0)");
-    return;
-  }
-  assert(entry.lives > 0, `Expected lives > 0 for label "${expected}"`);
-  if (expected === "Continuing...") {
-    assert(
-      entry.choice === LifeLostChoice.CONTINUE,
-      `Expected CONTINUE choice, got ${entry.choice}`,
-    );
-  } else {
-    assert(
-      entry.choice === LifeLostChoice.ABANDON,
-      `Expected ABANDON choice, got ${entry.choice}`,
-    );
-  }
-}

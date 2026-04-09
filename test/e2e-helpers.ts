@@ -20,34 +20,31 @@ import {
   type Page,
 } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
+import {
+  BANNER_DURATION,
+  BATTLE_TIMER,
+  BUILD_TIMER,
+  CANNON_PLACE_TIMER,
+  LOBBY_TIMER,
+  SELECT_TIMER,
+} from "../src/shared/game-constants.ts";
 
 // ---------------------------------------------------------------------------
-// Game constants (mirrored from src/shared — avoid importing game code)
+// Game constants
 // ---------------------------------------------------------------------------
 
 const TILE_SIZE = 16;
 const BASE_URL = "http://localhost:5173";
 
-// ---------------------------------------------------------------------------
-// Render constants — use these in spy.collect filters and assertions
-// instead of hardcoding color strings. Mirrors values from src/shared/theme.ts
-// and src/render/render-effects.ts.
-// ---------------------------------------------------------------------------
-
-/** Timer text color during Master Builder lockout (amber pulse). */
-export const COLOR_LOCKOUT_AMBER = "rgba(255,180,50,1)";
-/** Default timer / announcement text color (white). */
-export const COLOR_TEXT_WHITE = "#fff";
-
 /** Known phase durations (seconds). Used to compute advanceTo timeouts. */
 const PHASE_DURATIONS: Record<string, number> = {
-  LOBBY: 15,
-  CASTLE_SELECT: 10,
-  BANNER: 3,
-  CASTLE_BUILD: 5,
-  WALL_BUILD: 25,
-  CANNON_PLACE: 15,
-  BATTLE: 10,
+  LOBBY: LOBBY_TIMER,
+  CASTLE_SELECT: SELECT_TIMER,
+  BANNER: BANNER_DURATION,
+  CASTLE_BUILD: 5, // animation-driven, no constant
+  WALL_BUILD: BUILD_TIMER,
+  CANNON_PLACE: CANNON_PLACE_TIMER,
+  BATTLE: BATTLE_TIMER,
 };
 
 /** Approximate max seconds from game start to reach a given phase. */
@@ -264,21 +261,12 @@ export class E2EGame {
     await page.waitForSelector("#game-container.active", { timeout: 5000 });
 
     // Fast mode — always on by default, can be toggled via setFastMode()
-    // Also enables the render spy on the first frame so all phases are captured.
     await page.evaluate(() => {
       const win = globalThis as unknown as Record<string, unknown>;
       win.__e2eOriginalRAF = globalThis.requestAnimationFrame;
-      let spyEnabled = false;
       let fakeTime = performance.now();
       globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) =>
         setTimeout(() => {
-          if (!spyEnabled) {
-            const e2e = win.__e2e as { enableRenderSpy?: () => void } | undefined;
-            if (e2e?.enableRenderSpy) {
-              e2e.enableRenderSpy();
-              spyEnabled = true;
-            }
-          }
           fakeTime += 100;
           cb(fakeTime);
         }, 1) as unknown) as typeof requestAnimationFrame;
@@ -476,114 +464,6 @@ export class E2EGame {
     phantoms: async (): Promise<E2EBridgeSnapshot["overlay"]["phantoms"]> => {
       const snap = await this.query.state();
       return snap.overlay.phantoms;
-    },
-  };
-
-  // --- Render spy ---
-
-  readonly spy = {
-    /** Wait until the sprite spy has data (at least one draw this frame). */
-    waitForSpriteData: (opts?: { timeout?: number }): Promise<void> => {
-      return this.page.waitForFunction(() => {
-        const e2e = (globalThis as unknown as Record<string, unknown>)
-          .__e2e as { renderSpy?: unknown[] | null } | undefined;
-        return e2e?.renderSpy && e2e.renderSpy.length > 0;
-      }, { timeout: opts?.timeout ?? 5000 }).then(() => {});
-    },
-    /** Get the current frame's text draws from the bridge. */
-    textDraws: (): Promise<
-      { text: string; color: string; x: number; y: number; scale: number }[]
-    > => {
-      return this.page.evaluate(() => {
-        const e2e = (globalThis as unknown as Record<string, unknown>)
-          .__e2e as { textSpy?: unknown[] | null } | undefined;
-        return (e2e?.textSpy ?? []) as {
-          text: string;
-          color: string;
-          x: number;
-          y: number;
-          scale: number;
-        }[];
-      });
-    },
-    /** Get the current frame's sprite draws from the bridge. */
-    spriteDraws: (): Promise<
-      { name: string; x: number; y: number }[]
-    > => {
-      return this.page.evaluate(() => {
-        const e2e = (globalThis as unknown as Record<string, unknown>)
-          .__e2e as { renderSpy?: unknown[] | null } | undefined;
-        return (e2e?.renderSpy ?? []) as { name: string; x: number; y: number }[];
-      });
-    },
-    /**
-     * Install a per-frame collector that accumulates draws matching a filter.
-     * The filter runs in page context — pass a JS function body that
-     * receives `draw` and `e2e` (bridge) and returns a bucket name, or null.
-     *
-     * `source` selects which spy to read: `"text"` (default) or `"sprite"`.
-     *
-     * Example (text draws):
-     *   await game.spy.collect(`
-     *     if (draw.color === "${COLOR_LOCKOUT_AMBER}" && draw.scale > 1) return "lockout";
-     *     if (draw.color === "${COLOR_TEXT_WHITE}" && draw.scale === 1) return "normal";
-     *     return null;
-     *   `);
-     *
-     * Example (sprite draws):
-     *   await game.spy.collect(`
-     *     if (draw.name.startsWith("tower_")) return "towers";
-     *     if (draw.name.startsWith("house")) return "houses";
-     *     return null;
-     *   `, { source: "sprite" });
-     *
-     *   const results = await game.spy.collected();
-     */
-    collect: async (
-      filterBody: string,
-      opts?: { source?: "text" | "sprite"; maxPerBucket?: number },
-    ): Promise<void> => {
-      const max = opts?.maxPerBucket ?? 10;
-      const source = opts?.source ?? "text";
-      await this.page.evaluate(
-        ([body, limit, src]: [string, number, string]) => {
-          const win = globalThis as unknown as Record<string, unknown>;
-          const buckets: Record<string, unknown[]> = {};
-          win.__spyCollector = buckets;
-          const classify = new Function("draw", "e2e", body) as (
-            draw: unknown,
-            e2e: unknown,
-          ) => string | null;
-          const spyKey = src === "sprite" ? "renderSpy" : "textSpy";
-
-          const prevRAF = globalThis.requestAnimationFrame;
-          globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
-            prevRAF((time: number) => {
-              cb(time);
-              const e2e = win.__e2e as Record<string, unknown> | undefined;
-              const draws = e2e?.[spyKey] as unknown[] | undefined;
-              if (!draws) return;
-              for (const draw of draws) {
-                const bucket = classify(draw, e2e);
-                if (!bucket) continue;
-                if (!buckets[bucket]) buckets[bucket] = [];
-                if (buckets[bucket]!.length < limit) {
-                  buckets[bucket]!.push(
-                    typeof draw === "object" && draw ? { ...draw } : draw,
-                  );
-                }
-              }
-            });
-        },
-        [filterBody, max, source] as [string, number, string],
-      );
-    },
-    /** Read the collected buckets from a prior `collect()` call. */
-    collected: <T = Record<string, unknown>>(): Promise<Record<string, T[]>> => {
-      return this.page.evaluate(() => {
-        const win = globalThis as unknown as Record<string, unknown>;
-        return (win.__spyCollector ?? {}) as Record<string, unknown[]>;
-      }) as Promise<Record<string, T[]>>;
     },
   };
 

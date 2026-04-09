@@ -140,7 +140,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 /** Set up banner state for a phase transition.
  *  Snapshots castles/territory/entities when preservePrevScene is true
  *  so the banner can show a before/after visual comparison. */
-export function showBannerTransition(deps: ShowBannerDeps): void {
+function showBannerTransition(deps: ShowBannerDeps): void {
   const {
     banner,
     state,

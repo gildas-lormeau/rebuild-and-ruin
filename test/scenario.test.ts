@@ -4,38 +4,14 @@ import { isCannonEnclosed } from "../src/game/cannon-system.ts";
 import { GRID_COLS } from "../src/shared/grid.ts";
 import { createSession, resetSessionState } from "../src/online/online-session.ts";
 import {
-  assertLifeLostLabel,
   assertPhase,
   createScenario,
 } from "./scenario-helpers.ts";
 import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
-import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/interaction-types.ts";
+import { LifeLostChoice } from "../src/shared/interaction-types.ts";
 import { CannonMode } from "../src/shared/battle-types.ts";
-
-// ---------------------------------------------------------------------------
-// Game-over overlay cleared on returnToLobby
-// ---------------------------------------------------------------------------
-
-Deno.test("frame.gameOver is undefined after game ends and lobby is requested", async () => {
-  const s = await createScenario();
-
-  // Simulate game ending: eliminate all but player 0
-  for (let i = 1; i < s.state.players.length; i++) {
-    s.eliminatePlayer(i as ValidPlayerSlot);
-  }
-
-  // Simulate what endGame does: set frame.gameOver
-  const frame: { gameOver?: { winner: string } } = {};
-  frame.gameOver = { winner: "Player 1" };
-
-  // Simulate what returnToLobby must do: clear gameOver
-  frame.gameOver = undefined;
-
-  assert(frame.gameOver === undefined, "gameOver should be cleared after returnToLobby");
-});
 
 // ---------------------------------------------------------------------------
 // Swept wall debris not visible in banner new scene
@@ -88,36 +64,6 @@ Deno.test("isolated walls are swept before battle banner captures newWalls", asy
 });
 
 // ---------------------------------------------------------------------------
-// Settings screen overlay includes castles when in-game
-// ---------------------------------------------------------------------------
-
-Deno.test("options overlay has castle data when game state exists", async () => {
-  const s = await createScenario();
-
-  // Verify the state has castles with walls
-  const player = s.state.players[0]!;
-  assert(player.walls.size > 0, "Player should have walls");
-  assert(player.castle !== null, "Player should have a castle");
-
-  // The fix ensures createOptionsOverlay populates castles from state.
-  // We can verify the data that would feed it is present.
-  const castles = s.state.players
-    .filter((p) => p.castle)
-    .map((p) => ({
-      walls: p.walls,
-      interior: p.interior,
-      cannons: p.cannons,
-      playerId: p.id,
-    }));
-
-  assert(castles.length > 0, "Should have castle overlay data from state");
-  assert(
-    castles[0]!.walls.size > 0,
-    "Castle overlay should include player walls",
-  );
-});
-
-// ---------------------------------------------------------------------------
 // Cannon phantom snaps after placement
 // ---------------------------------------------------------------------------
 
@@ -140,51 +86,6 @@ Deno.test("cannon cursor needs snap after successful placement", async () => {
     ctrl.isCannonPhaseDone(s.state, maxSlots),
     "Controller should be done after placing cannons",
   );
-});
-
-// ---------------------------------------------------------------------------
-// Life-lost dialog: eliminated player shows no bottom label
-// ---------------------------------------------------------------------------
-
-Deno.test("eliminated player entry has lives=0 and ABANDON choice", async () => {
-  const s = await createScenario();
-
-  // Set player 2 to 0 lives (will be auto-eliminated)
-  s.setLives(2 as ValidPlayerSlot, 0);
-
-  // Create dialog with player 1 needing reselect, player 2 eliminated
-  const dialog = s.createLifeLostDialog([1 as ValidPlayerSlot], [2 as ValidPlayerSlot]);
-
-  // Find player 2's entry
-  const entry = dialog.entries.find((e) => e.playerId === 2);
-  assert(entry !== undefined, "Should have entry for eliminated player");
-  assert(entry!.lives === 0, "Eliminated entry should have lives=0");
-  assert(
-    entry!.choice === LifeLostChoice.ABANDON,
-    "Eliminated entry should be pre-resolved as ABANDON",
-  );
-
-  // The rendering rule: lives=0 means no bottom label (title says "Eliminated")
-  assertLifeLostLabel(entry!, "none");
-});
-
-Deno.test("continuing player entry shows Continuing label", async () => {
-  const s = await createScenario();
-
-  const dialog = s.createLifeLostDialog([0 as ValidPlayerSlot, 1 as ValidPlayerSlot]);
-
-  // Tick until all AI resolve (they auto-continue after delay)
-  let d: LifeLostDialogState | null = dialog;
-  for (let i = 0; i < 100 && d !== null; i++) {
-    d = s.tickLifeLostDialog(d, 0.1);
-  }
-
-  // All entries should have resolved to CONTINUE
-  for (const entry of dialog.entries) {
-    if (entry.lives > 0) {
-      assertLifeLostLabel(entry, "Continuing...");
-    }
-  }
 });
 
 // ---------------------------------------------------------------------------
@@ -212,49 +113,6 @@ Deno.test("resetSessionState closes WebSocket and resets all fields", () => {
   assert(session.occupiedSlots.size === 0, "occupiedSlots should be empty");
   assert(session.remotePlayerSlots.size === 0, "remotePlayerSlots should be empty");
   assert(session.earlyLifeLostChoices.size === 0, "earlyLifeLostChoices should be empty");
-});
-
-// ---------------------------------------------------------------------------
-// Demo mode auto-returns to lobby after game over
-// ---------------------------------------------------------------------------
-
-Deno.test("demo mode auto-returns to lobby after game ends (all-AI)", async () => {
-  // Simulate the demo timer logic from endGame
-  let returnCalled = false;
-  const mode = { current: Mode.STOPPED };
-  const joined = [false, false, false];
-  const allAi = joined.every((j) => !j);
-  assert(allAi, "All-false joined should be all-AI");
-
-  const timer = setTimeout(() => {
-    if (mode.current === Mode.STOPPED) returnCalled = true;
-  }, 20);
-
-  assert(!returnCalled, "Should not return immediately");
-  await new Promise((r) => setTimeout(r, 50));
-  assert(returnCalled, "Should auto-return after delay");
-  clearTimeout(timer);
-});
-
-Deno.test("demo timer does not fire if user clicks rematch first", async () => {
-  let returnCalled = false;
-  const mode = { current: Mode.STOPPED };
-
-  const timer = setTimeout(() => {
-    if (mode.current === Mode.STOPPED) returnCalled = true;
-  }, 20);
-
-  // User clicks rematch — mode changes before timer fires
-  mode.current = Mode.SELECTION;
-  await new Promise((r) => setTimeout(r, 50));
-  assert(!returnCalled, "Should not return if mode changed away from STOPPED");
-  clearTimeout(timer);
-});
-
-Deno.test("demo timer not started when human is playing", () => {
-  const joined = [true, false, false];
-  const allAi = joined.every((j) => !j);
-  assert(!allAi, "Should not be all-AI when a human joined");
 });
 
 // ---------------------------------------------------------------------------
