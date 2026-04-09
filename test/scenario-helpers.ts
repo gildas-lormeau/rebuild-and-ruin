@@ -606,6 +606,8 @@ export async function createScenario(seed = 42): Promise<Scenario> {
           state.players.map((p) => new Set(p.interior)),
         getTerritory: () => [],
         getWalls: () => [],
+        setTerritory: () => {},
+        setWalls: () => {},
         beginBattle: () => {},
       },
       endPhase: {

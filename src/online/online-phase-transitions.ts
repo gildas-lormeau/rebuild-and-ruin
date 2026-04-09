@@ -139,6 +139,10 @@ export interface TransitionContext {
     getTerritory: () => Set<number>[];
     /** Battle-start wall snapshot (for banner old-scene rendering). */
     getWalls: () => Set<number>[];
+    /** Update battleAnim territory snapshot (after watcher territory recompute). */
+    setTerritory: (territory: readonly Set<number>[]) => void;
+    /** Update battleAnim wall snapshot. */
+    setWalls: (walls: readonly Set<number>[]) => void;
     /** Initiate the battle countdown.  Handles initBattleState, countdown,
      *  watcher timing, aimAtEnemyCastle, and Mode.GAME — so the banner
      *  callback doesn't need to duplicate any of it. */
@@ -339,9 +343,13 @@ export function handleBattleStartTransition(
       setPhase(state, Phase.BATTLE);
     },
     snapshotForBanner: () => {
-      transitionCtx.ui.banner.newTerritory =
-        transitionCtx.battleLifecycle.snapshotTerritory();
-      transitionCtx.ui.banner.newWalls = snapshotAllWalls(state);
+      // Match host's snapshotForBanner: set both banner and battleAnim snapshots.
+      const postTerritory = transitionCtx.battleLifecycle.snapshotTerritory();
+      const postWalls = snapshotAllWalls(state);
+      transitionCtx.battleLifecycle.setTerritory(postTerritory);
+      transitionCtx.battleLifecycle.setWalls(postWalls);
+      transitionCtx.ui.banner.newTerritory = postTerritory;
+      transitionCtx.ui.banner.newWalls = postWalls;
     },
   });
 }

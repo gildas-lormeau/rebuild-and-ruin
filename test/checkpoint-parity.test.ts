@@ -34,6 +34,11 @@ import { assert } from "@std/assert";
 import { buildGrid, type Cell } from "../src/game/debug-grid.ts";
 import { GAME_MODE_MODERN } from "../src/shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
+import {
+  createBattleStartMessage,
+  createBuildStartMessage,
+  createCannonStartMessage,
+} from "../src/online/online-serialize.ts";
 import type { Player } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { setGameMode } from "../src/shared/types.ts";
@@ -116,6 +121,27 @@ function assertParity(local: Scenario, network: Scenario, label: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Serialization-level assertion
+// ---------------------------------------------------------------------------
+
+/** Compare all checkpoint message types between both games. Each message type
+ *  serializes different state subsets — comparing all three gives maximum coverage
+ *  without manual fingerprint enumeration. */
+function assertSerializationParity(local: GameState, network: GameState, label: string): void {
+  const lc = JSON.stringify(createCannonStartMessage(local));
+  const nc = JSON.stringify(createCannonStartMessage(network));
+  assert(lc === nc, `Cannon-start message diverges at ${label}`);
+
+  const lb = JSON.stringify(createBattleStartMessage(local));
+  const nb = JSON.stringify(createBattleStartMessage(network));
+  assert(lb === nb, `Battle-start message diverges at ${label}`);
+
+  const ls = JSON.stringify(createBuildStartMessage(local));
+  const ns = JSON.stringify(createBuildStartMessage(network));
+  assert(ls === ns, `Build-start message diverges at ${label}`);
+}
+
+// ---------------------------------------------------------------------------
 // Rendering snapshot assertion
 // ---------------------------------------------------------------------------
 
@@ -195,18 +221,22 @@ async function runParityTest(seed: number, mode: "classic" | "modern"): Promise<
     local.runCannon();
     network.runCannon();
     assertParity(local, network, `round ${round} after-cannon`);
+    assertSerializationParity(local.state, network.state, `round ${round} after-cannon`);
 
     local.runBattle();
     network.runBattle();
     assertParity(local, network, `round ${round} after-battle`);
+    assertSerializationParity(local.state, network.state, `round ${round} after-battle`);
 
     local.runBuild();
     network.runBuild();
     assertParity(local, network, `round ${round} after-build`);
+    assertSerializationParity(local.state, network.state, `round ${round} after-build`);
 
     const lr = local.finalizeBuild();
     const nr = network.finalizeBuild();
     assertParity(local, network, `round ${round} after-finalize`);
+    assertSerializationParity(local.state, network.state, `round ${round} after-finalize`);
 
     local.processReselection(lr.needsReselect);
     network.processReselection(nr.needsReselect);

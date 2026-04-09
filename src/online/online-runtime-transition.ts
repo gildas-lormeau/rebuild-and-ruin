@@ -155,6 +155,13 @@ function buildTransitionBattleCtx(
     snapshotTerritory: () => deps.getRuntime().snapshotTerritory(),
     getTerritory: () => deps.getRuntime().runtimeState.battleAnim.territory,
     getWalls: () => deps.getRuntime().runtimeState.battleAnim.walls,
+    setTerritory: (territory) => {
+      deps.getRuntime().runtimeState.battleAnim.territory =
+        territory as Set<number>[];
+    },
+    setWalls: (walls) => {
+      deps.getRuntime().runtimeState.battleAnim.walls = walls as Set<number>[];
+    },
     beginBattle: () => deps.getRuntime().phaseTicks.beginBattle(),
   };
 }
