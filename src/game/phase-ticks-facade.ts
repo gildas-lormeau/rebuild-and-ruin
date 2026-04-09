@@ -29,7 +29,7 @@ import {
 import { localFire, localPlacePiece } from "./game-actions.ts";
 import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
-import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
+import { gruntAttackTowers } from "./grunt-system.ts";
 import {
   BANNER_BATTLE,
   BANNER_BUILD,
@@ -56,7 +56,6 @@ export const phaseTickFacade = {
   nextPhase,
   tickGrunts,
   gruntAttackTowers,
-  tickBreachSpawnQueue,
   advanceBattleCountdown,
   enterBattleFromCannon,
   enterBuildSkippingBattle,

@@ -658,7 +658,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
     phaseTickFacade.tickMasterBuilderLockout(state, dt);
     tickGruntsIfDue(accum, dt, state, (gameState: GameState) => {
-      phaseTickFacade.tickBreachSpawnQueue(gameState);
       phaseTickFacade.tickGrunts(gameState);
     });
 

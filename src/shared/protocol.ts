@@ -217,12 +217,6 @@ export interface FullStateMessage {
     scoringPlayerId?: number;
     incendiary?: boolean;
   }[];
-  /** Grunts queued to spawn through wall breaches during build phase. */
-  gruntSpawnQueue?: {
-    row: number;
-    col: number;
-    victimPlayerId: ValidPlayerSlot;
-  }[];
   /** In-flight balloon animations (present only during BALLOON_ANIM mode). */
   balloonFlights?: {
     startX: number;

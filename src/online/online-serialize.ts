@@ -77,7 +77,6 @@ export function createBuildStartMessage(state: GameState) {
     burningPits: serializeBurningPits(state),
     rngSeed: state.rng.seed,
     ...serializeModernFields(state),
-    gruntSpawnQueue: serializeSpawnQueue(state),
   };
 }
 
@@ -100,7 +99,6 @@ export function createCannonStartMessage(state: GameState) {
       zone: h.zone,
       alive: h.alive,
     })),
-    gruntSpawnQueue: serializeSpawnQueue(state),
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]
       : null,
@@ -136,7 +134,6 @@ export function createBattleStartMessage(
           }))
         : null,
     ...serializeModifierTileSets(state),
-    gruntSpawnQueue: serializeSpawnQueue(state),
     modifierDiff: modifierDiff
       ? {
           id: modifierDiff.id,
@@ -186,7 +183,6 @@ export function createFullStateMessage(
     activeModifier: state.modern?.activeModifier ?? null,
     lastModifierId: state.modern?.lastModifierId ?? null,
     ...serializeModernFields(state),
-    gruntSpawnQueue: serializeSpawnQueue(state),
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((captured) => ({
       victimId: captured.victimId,
@@ -238,11 +234,6 @@ export function restoreFullStateSnapshot(
   state.playerZones = msg.playerZones;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
-  state.gruntSpawnQueue = (msg.gruntSpawnQueue ?? []).map((entry) => ({
-    row: entry.row,
-    col: entry.col,
-    victimPlayerId: entry.victimPlayerId,
-  }));
   setGameMode(
     state,
     msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
@@ -606,16 +597,6 @@ function serializeBurningPits(state: GameState) {
     col: pit.col,
     roundsLeft: pit.roundsLeft,
   }));
-}
-
-function serializeSpawnQueue(state: GameState) {
-  return state.gruntSpawnQueue.length > 0
-    ? state.gruntSpawnQueue.map((entry) => ({
-        row: entry.row,
-        col: entry.col,
-        victimPlayerId: entry.victimPlayerId,
-      }))
-    : undefined;
 }
 
 function serializeBonusSquares(state: GameState) {

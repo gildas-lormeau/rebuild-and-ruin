@@ -3,7 +3,6 @@
  */
 
 import type {
-  BreachSpawnEntry,
   BurningPit,
   Cannonball,
   CapturedCannon,
@@ -96,10 +95,6 @@ export interface GameState {
   /** Bonus cannon slots earned via Salvage upgrade (cannon kills during battle).
    *  Consumed by computeCannonLimitsForPhase at cannon phase start, then zeroed. */
   salvageSlots: number[];
-  /** Grunts waiting to spawn through wall breaches during build phase.
-   *  Queued in enterBuildFromBattle, drained one-per-tick by tickBreachSpawnQueue.
-   *  Empty when no breach spawning is pending. */
-  gruntSpawnQueue: BreachSpawnEntry[];
   /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
   gameMode: GameMode;
   /** Active feature capabilities for this match. Empty in classic mode.

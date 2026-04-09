@@ -83,7 +83,7 @@ function stateFingerprint(state: GameState): string {
     `grunts=[${state.grunts.map((grunt) => `${grunt.row},${grunt.col}→t${grunt.targetTowerIdx ?? "?"}`).join(";")}] pits=${state.burningPits.length} bonus=${state.bonusSquares.length}`,
     `captured=${state.capturedCannons.length}`,
     `towerAlive=[${state.towerAlive}] pendRevive=[${[...state.towerPendingRevive].sort()}]`,
-    `spawnQ=${state.gruntSpawnQueue.length} houses=${aliveHouses} tileHash=${tileHash(state)}`,
+    `houses=${aliveHouses} tileHash=${tileHash(state)}`,
     `frozen=[${modern?.frozenTiles ? [...modern.frozenTiles].sort() : ""}] highTide=[${modern?.highTideTiles ? [...modern.highTideTiles].sort() : ""}] sinkhole=[${modern?.sinkholeTiles ? [...modern.sinkholeTiles].sort() : ""}]`,
     `modifier=${modern?.activeModifier ?? "none"} lastMod=${modern?.lastModifierId ?? "none"}`,
     `offers=${modern?.pendingUpgradeOffers ? [...modern.pendingUpgradeOffers.entries()].map(([pid, tu]) => `${pid}:${tu.join(",")}`).sort().join(";") : "none"}`,

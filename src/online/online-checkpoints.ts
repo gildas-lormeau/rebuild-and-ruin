@@ -80,7 +80,7 @@ export function applyCannonStartCheckpoint(
   deps.state.salvageSlots =
     data.salvageSlots ?? deps.state.players.map(() => 0);
   deps.state.timer = data.timer;
-  restoreSpawnQueue(deps.state, data);
+
   restoreModifierTileState(deps.state, data);
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
@@ -108,7 +108,7 @@ export function applyBattleStartCheckpoint(
   deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   applyCapturedCannons(deps.state, data.capturedCannons);
-  restoreSpawnQueue(deps.state, data);
+
   restoreModifierTileState(deps.state, data);
 
   clearBattleProjectiles(deps);
@@ -157,11 +157,6 @@ export function applyBuildStartCheckpoint(
       ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
       : null;
   }
-  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
-    row: entry.row,
-    col: entry.col,
-    victimPlayerId: entry.victimPlayerId,
-  }));
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
 }
@@ -208,23 +203,6 @@ function applyCommonCheckpoint(
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;
-}
-
-function restoreSpawnQueue(
-  state: GameState,
-  data: {
-    gruntSpawnQueue?: {
-      row: number;
-      col: number;
-      victimPlayerId: ValidPlayerSlot;
-    }[];
-  },
-): void {
-  state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
-    row: entry.row,
-    col: entry.col,
-    victimPlayerId: entry.victimPlayerId,
-  }));
 }
 
 /** Restore tile-mutating modifier state from checkpoint data.

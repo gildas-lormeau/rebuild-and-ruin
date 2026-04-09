@@ -491,24 +491,20 @@ Deno.test("applyGruntSurge spawns extra grunts", async () => {
   s.state.round = 3; // past FIRST_GRUNT_SPAWN_ROUND
   const gruntsBefore = s.state.grunts.length;
 
-  const queueBefore = s.state.gruntSpawnQueue.length;
   applyGruntSurge(s.state);
 
-  // Grunts may be queued at breaches or spawned instantly depending on wall layout
   const spawned = s.state.grunts.length - gruntsBefore;
-  const queued = s.state.gruntSpawnQueue.length - queueBefore;
-  const added = spawned + queued;
   assert(
-    added > 0,
-    `grunt surge should add grunts: spawned=${spawned} queued=${queued}`,
+    spawned > 0,
+    `grunt surge should add grunts: spawned=${spawned}`,
   );
   // Should add at least 6 per alive player (GRUNT_SURGE_COUNT_MIN=6, 3 players)
   const aliveCount = s.state.players.filter(
     (pl) => !pl.eliminated && pl.homeTower,
   ).length;
   assert(
-    added >= 6 * aliveCount,
-    `should add at least ${6 * aliveCount} grunts, added ${added}`,
+    spawned >= 6 * aliveCount,
+    `should add at least ${6 * aliveCount} grunts, spawned ${spawned}`,
   );
 });
 

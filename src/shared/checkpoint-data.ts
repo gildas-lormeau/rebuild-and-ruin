@@ -90,8 +90,6 @@ export interface CannonStartData {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   houses: SerializedHouse[];
-  /** Grunts queued to spawn through wall breaches (persists across phases). */
-  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
   /** Bonus cannon slots from Salvage upgrade (cannon kills). */
   salvageSlots?: number[];
   /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
@@ -128,15 +126,6 @@ export interface BattleStartData {
     changedTiles: readonly number[];
     gruntsSpawned: number;
   } | null;
-  /** Grunts queued to spawn through wall breaches (persists across phases). */
-  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
-}
-
-/** Serialized breach spawn queue entry. */
-export interface SerializedBreachSpawnEntry {
-  row: number;
-  col: number;
-  victimPlayerId: ValidPlayerSlot;
 }
 
 /** Data needed to sync state at build phase start. */
@@ -161,8 +150,6 @@ export interface BuildStartData {
   highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
-  /** Grunts queued to spawn through wall breaches during build phase. */
-  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
 }
 
 /** Data needed to sync state at build phase end. */

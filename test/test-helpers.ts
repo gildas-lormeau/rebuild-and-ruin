@@ -197,7 +197,6 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     buildTimer: 25,
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,
-    gruntSpawnQueue: [],
     gameMode: "classic",
     activeFeatures: new Set(),
     modern: null,

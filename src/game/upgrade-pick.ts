@@ -162,7 +162,6 @@ export function applyUpgradePicks(
   }
   if (clearTheField) {
     state.grunts.length = 0;
-    state.gruntSpawnQueue.length = 0;
   }
   if (demolition) {
     stripInnerWalls(state);

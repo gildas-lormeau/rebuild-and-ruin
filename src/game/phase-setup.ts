@@ -69,9 +69,9 @@ import {
   isCombosEnabled,
 } from "./combo-system.ts";
 import {
-  queueInterbattleGrunts,
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
+  spawnInterbattleGrunts,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
 import {
@@ -217,7 +217,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
-  queueInterbattleGrunts(state);
+  spawnInterbattleGrunts(state);
   if (hasFeature(state, FID.UPGRADES)) {
     state.modern!.pendingUpgradeOffers = generateUpgradeOffers(state);
   }
@@ -392,10 +392,6 @@ export function resetZoneState(state: GameState, zone: number): void {
     }
     return true;
   });
-  // Clear breach-queued grunts targeting this zone's player
-  state.gruntSpawnQueue = state.gruntSpawnQueue.filter(
-    (entry) => state.playerZones[entry.victimPlayerId] !== zone,
-  );
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
   state.bonusSquares = state.bonusSquares.filter(
     (bonus) => bonus.zone !== zone,

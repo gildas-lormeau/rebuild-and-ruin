@@ -103,8 +103,7 @@ export function findGruntSpawnNear(
   return null;
 }
 
-/** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower.
- *  Uses breach queue when wall breaches exist. */
+/** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower. */
 export function spawnGruntGroupOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -112,7 +111,6 @@ export function spawnGruntGroupOnZone(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
-  if (tryQueueAtBreach(state, player, count)) return;
 
   const zone = player.homeTower.zone;
 
@@ -152,8 +150,7 @@ export function spawnGruntGroupOnZone(
 
 /** Spawn grunts distributed evenly across alive towers in a player's zone.
  *  Uses the same bank/edge spawn logic as regular grunt spawning, then
- *  round-robin assigns each position to the nearest alive tower.
- *  Uses breach queue when wall breaches exist. */
+ *  round-robin assigns each position to the nearest alive tower. */
 export function spawnGruntSurgeOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -161,7 +158,6 @@ export function spawnGruntSurgeOnZone(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
-  if (tryQueueAtBreach(state, player, totalCount)) return;
 
   const zone = player.homeTower.zone;
 
@@ -308,11 +304,9 @@ export function rollGruntWallAttacks(state: GameState): void {
   }
 }
 
-/** Queue interbattle grunts for staggered breach spawning during build phase.
- *  If wall breaches exist, grunts are queued and drip-fed one-per-tick.
- *  If no breaches (no walls or wide open), grunts spawn immediately.
+/** Spawn interbattle grunts on each player's zone (bank-first).
  *  PRECONDITION: interior must be fresh (recheckTerritoryOnly already called). */
-export function queueInterbattleGrunts(state: GameState): void {
+export function spawnInterbattleGrunts(state: GameState): void {
   if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
 
   for (const player of state.players.filter(isPlayerSeated)) {
@@ -321,57 +315,22 @@ export function queueInterbattleGrunts(state: GameState): void {
       if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) spawnCount++;
     }
     if (spawnCount === 0) continue;
-
-    // tryQueueAtBreach handles breach detection + queuing; falls back to instant
-    if (!tryQueueAtBreach(state, player, spawnCount)) {
-      for (let spawnIdx = 0; spawnIdx < spawnCount; spawnIdx++) {
-        spawnGruntOnZone(state, player.id);
-      }
+    for (let spawnIdx = 0; spawnIdx < spawnCount; spawnIdx++) {
+      spawnGruntOnZone(state, player.id);
     }
   }
 }
 
-/** Spawn a single grunt on the given player's zone.
- *  Uses breach queue when wall breaches exist. */
+/** Spawn a single grunt on the given player's zone (bank-first). */
 export function spawnGruntOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
-  if (tryQueueAtBreach(state, player, 1)) return;
   const spawnPos = findGruntSpawnPositions(state, player, 1);
   for (const pos of spawnPos) {
     addGrunt(state, pos.row, pos.col);
-  }
-}
-
-/** Drain one grunt from the breach spawn queue per call. Called each grunt tick
- *  during build phase. Skips sealed breaches (player repaired the wall),
- *  waits on occupied breaches (previous grunt hasn't moved yet). */
-export function tickBreachSpawnQueue(state: GameState): void {
-  const queue = state.gruntSpawnQueue;
-  let idx = 0;
-
-  while (idx < queue.length) {
-    const entry = queue[idx]!;
-
-    if (!isGruntPassableTile(state, entry.row, entry.col)) {
-      // Breach sealed by wall repair — drop this entry
-      queue.splice(idx, 1);
-      continue;
-    }
-
-    if (hasGruntAt(state.grunts, entry.row, entry.col)) {
-      // Occupied by previous grunt — try next breach position
-      idx++;
-      continue;
-    }
-
-    // Spawn one grunt and exit
-    queue.splice(idx, 1);
-    addGrunt(state, entry.row, entry.col);
-    return;
   }
 }
 
@@ -566,131 +525,4 @@ function adjacentWallKeys(
     walls.push(packTile(nr, nc));
   }
   return walls;
-}
-
-/** Try to queue `count` grunts at the player's wall breaches.
- *  Returns true if breaches were found and grunts were queued.
- *  Returns false if no breaches exist (caller should fall back to instant spawn). */
-function tryQueueAtBreach(
-  state: GameState,
-  player: Player,
-  count: number = 1,
-): boolean {
-  if (player.walls.size === 0) return false;
-  const breaches = findBreachTiles(state, player);
-  if (breaches.length === 0) return false;
-  for (let idx = 0; idx < count; idx++) {
-    const breach = breaches[idx % breaches.length]!;
-    state.gruntSpawnQueue.push({
-      row: breach.row,
-      col: breach.col,
-      victimPlayerId: player.id,
-    });
-  }
-  return true;
-}
-
-/** Find breach spawn tiles — the outside entry point of gaps in a player's walls.
- *  First detects chokepoints (grass tiles flanked by barriers on opposite sides),
- *  then returns the passable neighbor on the outside (away from the tower)
- *  so grunts visually enter through the gap rather than popping inside. */
-function findBreachTiles(state: GameState, player: Player): TilePos[] {
-  const zone = player.homeTower?.zone;
-  if (zone === undefined) return [];
-
-  const towerRow = player.homeTower!.row;
-  const towerCol = player.homeTower!.col;
-
-  const isBarrier = (row: number, col: number): boolean => {
-    if (!inBounds(row, col)) return true;
-    if (isWater(state.map.tiles, row, col)) return true;
-    return player.walls.has(packTile(row, col));
-  };
-
-  const spawnTiles: TilePos[] = [];
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      if (state.map.zones[row]![col] !== zone) continue;
-      const key = packTile(row, col);
-      if (player.walls.has(key)) continue;
-      if (!isGrass(state.map.tiles, row, col)) continue;
-      if (hasInteriorAt(state, key)) continue;
-
-      // Must have at least one wall neighbor
-      let hasWallNeighbor = false;
-      for (const [dr, dc] of DIRS_4) {
-        if (
-          inBounds(row + dr, col + dc) &&
-          player.walls.has(packTile(row + dr, col + dc))
-        ) {
-          hasWallNeighbor = true;
-          break;
-        }
-      }
-      if (!hasWallNeighbor) continue;
-
-      // Flanked by barriers on opposite sides = chokepoint (the gap itself)
-      const verticalFlanked =
-        isBarrier(row - 1, col) && isBarrier(row + 1, col);
-      const horizontalFlanked =
-        isBarrier(row, col - 1) && isBarrier(row, col + 1);
-      if (!verticalFlanked && !horizontalFlanked) continue;
-
-      // Find the outside neighbor: the passable cardinal neighbor farthest from the tower.
-      // Grunts spawn there and walk through the gap toward the tower.
-      const outside = findOutsideNeighbor(
-        state,
-        player,
-        row,
-        col,
-        towerRow,
-        towerCol,
-      );
-      if (outside) spawnTiles.push(outside);
-    }
-  }
-
-  return deduplicateBreaches(spawnTiles);
-}
-
-/** Pick the cardinal neighbor of a gap tile that is farthest from the tower
- *  and passable for grunt spawning. This is the "outside" entry point. */
-function findOutsideNeighbor(
-  state: GameState,
-  player: Player,
-  gapRow: number,
-  gapCol: number,
-  towerRow: number,
-  towerCol: number,
-): TilePos | undefined {
-  let best: TilePos | undefined;
-  let bestDist = -1;
-  for (const [dr, dc] of DIRS_4) {
-    const nr = gapRow + dr;
-    const nc = gapCol + dc;
-    if (!inBounds(nr, nc)) continue;
-    if (!isGrass(state.map.tiles, nr, nc)) continue;
-    if (player.walls.has(packTile(nr, nc))) continue;
-    // Pick the neighbor farthest from the tower (= outside direction)
-    const dist = manhattanDistance(nr, nc, towerRow, towerCol);
-    if (dist > bestDist) {
-      bestDist = dist;
-      best = { row: nr, col: nc };
-    }
-  }
-  return best;
-}
-
-/** Keep only breach tiles with minimum spacing to avoid clustering. */
-function deduplicateBreaches(breaches: readonly TilePos[]): TilePos[] {
-  const result: TilePos[] = [];
-  for (const breach of breaches) {
-    const tooClose = result.some(
-      (existing) =>
-        manhattanDistance(existing.row, existing.col, breach.row, breach.col) <
-        GRUNT_SPAWN_MIN_DISTANCE,
-    );
-    if (!tooClose) result.push(breach);
-  }
-  return result;
 }

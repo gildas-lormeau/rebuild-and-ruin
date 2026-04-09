@@ -7,7 +7,6 @@
 
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
-import { tickBreachSpawnQueue } from "../game/grunt-system.ts";
 import type { BattleAnimState } from "../shared/battle-types.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { Phase } from "../shared/game-phase.ts";
@@ -219,7 +218,6 @@ export function tickWatcher(
   // Grunt movement during build phase (deterministic — runs locally)
   if (state.phase === Phase.WALL_BUILD) {
     tickGruntsIfDue(accum, dt, state, (gameState) => {
-      tickBreachSpawnQueue(gameState);
       moveGrunts(gameState);
     });
   }
