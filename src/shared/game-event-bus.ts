@@ -47,6 +47,12 @@ export type EntityEvent =
       row: number;
       col: number;
       victimPlayerId: ValidPlayerSlot;
+    }
+  | {
+      type: "gruntSpawnBlocked";
+      playerId: ValidPlayerSlot;
+      requested: number;
+      placed: number;
     };
 
 export type ModernEvent =
@@ -152,6 +158,7 @@ const ENTITY_EVENT = {
   WALL_PLACED: "wallPlaced",
   CANNON_PLACED: "cannonPlaced",
   GRUNT_SPAWN: "gruntSpawn",
+  GRUNT_SPAWN_BLOCKED: "gruntSpawnBlocked",
 } as const;
 const MODERN_EVENT = {
   MODIFIER_APPLIED: "modifierApplied",

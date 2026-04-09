@@ -107,6 +107,14 @@ export function spawnGruntGroupOnZone(
   for (const pos of positions) {
     addGrunt(state, pos.row, pos.col);
   }
+  if (positions.length < count) {
+    state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
+      type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
+      playerId,
+      requested: count,
+      placed: positions.length,
+    });
+  }
 }
 
 /** Spawn grunts distributed evenly across alive towers in a player's zone.
@@ -294,6 +302,14 @@ export function spawnGruntOnZone(
   const spawnPos = findGruntSpawnPositions(state, player, 1);
   for (const pos of spawnPos) {
     addGrunt(state, pos.row, pos.col);
+  }
+  if (spawnPos.length === 0) {
+    state.bus.emit(GAME_EVENT.GRUNT_SPAWN_BLOCKED, {
+      type: GAME_EVENT.GRUNT_SPAWN_BLOCKED,
+      playerId,
+      requested: 1,
+      placed: 0,
+    });
   }
 }
 
