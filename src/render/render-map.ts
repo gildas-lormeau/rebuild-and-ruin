@@ -22,8 +22,10 @@ import {
   TILE_SIZE,
 } from "../shared/grid.ts";
 import type { CastleData, RenderOverlay } from "../shared/overlay-types.ts";
-import { getPlayerColor } from "../shared/player-config.ts";
+import { getPlayerColor, MAX_PLAYERS } from "../shared/player-config.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
+  DIRS_4,
   facingToDir8,
   isBalloonCannon,
   isCannonAlive,
@@ -47,7 +49,6 @@ import {
   drawGrunts,
   drawHouses,
   drawPhantoms,
-  drawSinkholeTiles,
   drawWaterAnimation,
 } from "./render-effects.ts";
 import { drawSprite } from "./render-sprites.ts";
@@ -72,6 +73,25 @@ interface TerrainImageCache {
   mapVersion: number;
   normal?: ImageData;
   battle?: ImageData;
+  /** One entry per connected sinkhole cluster (built from sinkholeTiles set
+   *  the first time the cache is rebuilt with sinkholes present). Each cluster
+   *  carries per-tile patches: 16×16 ImageData rendered with each possible
+   *  enclosing-player color, so the right variant can be blitted on top of the
+   *  base terrain at render time once we know the current owner. */
+  sinkholeClusters?: SinkholeCluster[];
+}
+
+/** A connected group of sinkhole tiles (4-cardinal connectivity). */
+interface SinkholeCluster {
+  tiles: SinkholeTilePatches[];
+}
+
+/** Per-tile precomputed bank/water bitmaps, one per (phase × owner) variant.
+ *  Variant key is built by `variantId(inBattle, playerId)`. */
+interface SinkholeTilePatches {
+  row: number;
+  col: number;
+  patches: Map<string, ImageData>;
 }
 
 type BannerCacheEntry = {
@@ -81,6 +101,24 @@ type BannerCacheEntry = {
   walls: Set<number>[] | undefined;
 };
 
+/** Tile-key → owning player tables built from the current overlay (one
+ *  entry per non-cluster collidable tile). Used to classify cluster cardinal
+ *  neighbors as "interior of player X", "wall", or "open grass". */
+interface OwnerTables {
+  interiorOwners: Map<number, ValidPlayerSlot>;
+  wallTiles: Set<number>;
+}
+
+// Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
+// GRASS_TO_BANK_DIST: start bank texture blend at this distance from water edge
+// BANK_TO_WATER_DIST: complete transition to water texture at this distance
+// TRANSITION_WIDTH: smoothstep blend width (larger = softer edge)
+// Tuned so a 4-tile sinkhole cluster (raw peak distance ~8-9 px, down to
+// ~5-6 px after the radius-2 blur) still reaches the water zone at its
+// deepest point instead of rendering entirely as bank.
+const GRASS_TO_BANK_DIST = 2;
+const BANK_TO_WATER_DIST = 4;
+const TRANSITION_WIDTH = 1.5;
 // Tile fill colors — RGB tuples fed into ImageData pixel arrays.
 const GRASS_DARK: RGB = [45, 140, 45];
 // checkerboard dark square
@@ -98,6 +136,10 @@ const BANK_COLOR: RGB = [139, 58, 26];
 // river bank / shoreline
 // Neutral stone color used for all walls during battle phase
 const NEUTRAL_WALL: RGB = [140, 130, 120];
+// Cobblestone sprite stone-gray base — must mirror scripts/generate-sprites.html
+// drawCobblestone(): final color = COBBLESTONE_BASE + interiorLight * tint factor.
+const COBBLESTONE_BASE: RGB = [90, 85, 80];
+const COBBLESTONE_TINT_FACTOR = 0.15;
 // Grass blade texture pattern (local pixel offsets within a 16x16 tile)
 const BLADE_DARK: [number, number][] = [
   [2, 1],
@@ -204,6 +246,7 @@ export function drawMap(
   //   2. Water animation      — wave shimmer (battle only)
   //   3. Frozen tiles         — ice overlay on frozen river
   //   4. Castles              — wall tiles per player
+  //   4b. Sinkhole overlays   — recolor enclosed lake banks to match owner
   //   5. Bonus squares        — flashing green diamonds
   //   6. Houses               — settler tents/huts
   //   7. Towers               — 2×2 tower sprites (alive/dead/pending)
@@ -225,9 +268,9 @@ export function drawMap(
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
   drawWaterAnimation(overlayCtx, map, overlay, now);
-  drawSinkholeTiles(overlayCtx, overlay, now);
   drawFrozenTiles(overlayCtx, overlay, now);
   drawCastles(overlayCtx, overlay);
+  drawSinkholeOverlays(overlayCtx, map, overlay);
   drawBonusSquares(overlayCtx, overlay, now);
   drawHouses(overlayCtx, overlay);
   drawTowers(overlayCtx, map, overlay, now);
@@ -420,8 +463,8 @@ function drawBannerPrevScene(
     drawTerrain(tmpCtx, W, H, map, prevOverlay);
     drawWaterAnimation(tmpCtx, map, prevOverlay, now);
     drawFrozenTiles(tmpCtx, prevOverlay, now);
-    drawSinkholeTiles(tmpCtx, prevOverlay, now);
     drawCastles(tmpCtx, prevOverlay);
+    drawSinkholeOverlays(tmpCtx, map, prevOverlay);
     drawBonusSquares(tmpCtx, prevOverlay, now);
     drawHouses(tmpCtx, prevOverlay);
     drawTowers(tmpCtx, map, prevOverlay, now);
@@ -475,7 +518,10 @@ function drawTerrain(
   const inBattle = !!overlay?.battle?.inBattle;
   const cache = getTerrainCache(map, W, H);
   const cachedImage = inBattle ? cache.battle : cache.normal;
-  if (cachedImage) {
+  const sinkholeTiles = overlay?.entities?.sinkholeTiles;
+  const needsSinkholeClusters =
+    !!sinkholeTiles && sinkholeTiles.size > 0 && !cache.sinkholeClusters;
+  if (cachedImage && !needsSinkholeClusters) {
     overlayCtx.putImageData(cachedImage, 0, 0);
     return;
   }
@@ -483,12 +529,19 @@ function drawTerrain(
   const sdf = computeSignedDistanceField(W, H, map);
   blurSignedDistanceField(sdf, W, H);
 
-  const imgData = overlayCtx.createImageData(W, H);
-  renderTerrainPixels(imgData, sdf, W, H, map, inBattle);
+  if (!cachedImage) {
+    const imgData = overlayCtx.createImageData(W, H);
+    renderTerrainPixels(imgData, sdf, W, H, map, inBattle);
+    overlayCtx.putImageData(imgData, 0, 0);
+    if (inBattle) cache.battle = imgData;
+    else cache.normal = imgData;
+  } else {
+    overlayCtx.putImageData(cachedImage, 0, 0);
+  }
 
-  overlayCtx.putImageData(imgData, 0, 0);
-  if (inBattle) cache.battle = imgData;
-  else cache.normal = imgData;
+  if (needsSinkholeClusters && sinkholeTiles) {
+    cache.sinkholeClusters = buildSinkholeClusters(sdf, W, map, sinkholeTiles);
+  }
 }
 
 /** Forward + backward SDF passes for water/grass boundary distances. */
@@ -585,7 +638,13 @@ function blurSignedDistanceField(
   H: number,
 ): void {
   const tmp = new Float32Array(W * H);
-  const BLUR_R = 5;
+  // Blur radius: tuned to smooth chamfer-distance aliasing on diagonal river
+  // banks without flattening the distance peaks inside small water clusters
+  // (sinkholes). A 4-tile T-shaped cluster has a max raw distance of ~9 px at
+  // its deepest point; radius 2 (two passes) keeps that peak above the
+  // BANK_TO_WATER_DIST threshold so small pools render as real water, while
+  // still smoothing out the 1-pixel chamfer stair-steps on river edges.
+  const BLUR_R = 2;
   const BLUR_D = 2 * BLUR_R + 1;
 
   function boxBlurH(src: Float32Array, dst: Float32Array): void {
@@ -636,13 +695,6 @@ function renderTerrainPixels(
   inBattle: boolean,
 ): void {
   const data = imgData.data;
-  // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
-  // GRASS_TO_BANK_DIST: start bank texture blend at this distance from water edge
-  // BANK_TO_WATER_DIST: complete transition to water texture at this distance
-  // TRANSITION_WIDTH: smoothstep blend width (larger = softer edge)
-  const GRASS_TO_BANK_DIST = 3;
-  const BANK_TO_WATER_DIST = 6;
-  const TRANSITION_WIDTH = 1.5;
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
@@ -670,9 +722,6 @@ function renderTerrainPixels(
         distance,
         grass,
         water,
-        GRASS_TO_BANK_DIST,
-        BANK_TO_WATER_DIST,
-        TRANSITION_WIDTH,
       );
 
       const idx = (py * W + px) * 4;
@@ -690,6 +739,156 @@ function grassBaseColor(tr: number, tc: number, inBattle: boolean): RGB {
     : (tr + tc) % 2 === 0
       ? GRASS_DARK
       : GRASS_LIGHT;
+}
+
+/** Build the cluster + per-tile-variant table from the current sinkhole set.
+ *  Called once per terrain-cache rebuild (mapVersion bump). For each cluster
+ *  we precompute one 16×16 ImageData per (phase × player) combination so the
+ *  draw pass can blit the right variant once it knows who currently encloses
+ *  the lake (which may change as walls go up during WALL_BUILD). */
+function buildSinkholeClusters(
+  sdf: Float32Array,
+  W: number,
+  map: GameMap,
+  sinkholeTiles: ReadonlySet<number>,
+): SinkholeCluster[] {
+  const clusters: SinkholeCluster[] = [];
+  const visited = new Set<number>();
+  for (const seedKey of sinkholeTiles) {
+    if (visited.has(seedKey)) continue;
+    // BFS by 4-cardinal connectivity to gather one connected cluster.
+    const tileKeys: number[] = [];
+    const queue = [seedKey];
+    visited.add(seedKey);
+    while (queue.length > 0) {
+      const tileKey = queue.shift()!;
+      tileKeys.push(tileKey);
+      const { r, c } = unpackTile(tileKey);
+      for (const [dr, dc] of DIRS_4) {
+        const neighborKey = packTile(r + dr, c + dc);
+        if (!sinkholeTiles.has(neighborKey)) continue;
+        if (visited.has(neighborKey)) continue;
+        visited.add(neighborKey);
+        queue.push(neighborKey);
+      }
+    }
+    const tiles: SinkholeTilePatches[] = tileKeys.map((tileKey) => {
+      const { r, c } = unpackTile(tileKey);
+      return {
+        row: r,
+        col: c,
+        patches: buildSinkholeTilePatches(sdf, W, map, r, c),
+      };
+    });
+    clusters.push({ tiles });
+  }
+  return clusters;
+}
+
+/** Render every (phase × player) variant for a single sinkhole tile.
+ *  Each patch is a 16×16 ImageData that exactly replaces the base terrain on
+ *  that tile, with the bank gradient blending into the player's interior or
+ *  cobblestone color instead of grass green. */
+function buildSinkholeTilePatches(
+  sdf: Float32Array,
+  W: number,
+  map: GameMap,
+  tileRow: number,
+  tileCol: number,
+): Map<string, ImageData> {
+  const patches = new Map<string, ImageData>();
+  const isWaterTile = tileAt(map, tileRow, tileCol) === 1;
+  // Loop index bounded by MAX_PLAYERS — safe ValidPlayerSlot cast.
+  for (let raw = 0; raw < MAX_PLAYERS; raw++) {
+    const playerId = raw as unknown as ValidPlayerSlot;
+    for (const inBattle of [false, true] as const) {
+      const grassBase = ownerGrassBase(playerId, tileRow, tileCol, inBattle);
+      patches.set(
+        variantId(inBattle, playerId),
+        renderSinkholeTilePatch(
+          sdf,
+          W,
+          tileRow,
+          tileCol,
+          inBattle,
+          isWaterTile,
+          grassBase,
+        ),
+      );
+    }
+  }
+  return patches;
+}
+
+/** Pick the "grass" base color the bank gradient should fade INTO when the
+ *  sinkhole is enclosed by `playerId`. Cardinal neighbors of any tile have the
+ *  opposite checker parity, so we invert the sinkhole tile's parity to match
+ *  the interior sprite that will be rendered on those neighbor tiles.
+ *  In battle, cobblestone is uniform per player so parity is ignored. */
+function ownerGrassBase(
+  playerId: ValidPlayerSlot,
+  tileRow: number,
+  tileCol: number,
+  inBattle: boolean,
+): RGB {
+  const colors = getPlayerColor(playerId);
+  if (inBattle) return cobblestoneBaseColor(colors.interiorLight);
+  // Interior sprite uses (r+c)%2==0 → interior_light. Cardinal neighbors of
+  // (tileRow,tileCol) have opposite parity, so invert here.
+  const neighborIsLight = (tileRow + tileCol) % 2 === 1;
+  return neighborIsLight ? colors.interiorLight : colors.interiorDark;
+}
+
+/** Mirror of the cobblestone sprite's base fill — see scripts/generate-sprites.html
+ *  drawCobblestone(). The sprite tints a stone-gray base with the player's
+ *  interiorLight color; we reproduce that base so the lake bank fades into a
+ *  matching gray instead of green during battle. */
+function cobblestoneBaseColor(interiorLight: RGB): RGB {
+  return [
+    Math.floor(
+      COBBLESTONE_BASE[0] + interiorLight[0] * COBBLESTONE_TINT_FACTOR,
+    ),
+    Math.floor(
+      COBBLESTONE_BASE[1] + interiorLight[1] * COBBLESTONE_TINT_FACTOR,
+    ),
+    Math.floor(
+      COBBLESTONE_BASE[2] + interiorLight[2] * COBBLESTONE_TINT_FACTOR,
+    ),
+  ];
+}
+
+/** Render a single 16×16 sinkhole-tile patch with a custom grass base color.
+ *  Reuses the same SDF distance values as the base terrain — only the grass
+ *  color the bank gradient blends INTO changes per variant. */
+function renderSinkholeTilePatch(
+  sdf: Float32Array,
+  W: number,
+  tileRow: number,
+  tileCol: number,
+  inBattle: boolean,
+  isWaterTile: boolean,
+  grassBase: RGB,
+): ImageData {
+  const patch = new ImageData(TILE_SIZE, TILE_SIZE);
+  const data = patch.data;
+  const tileX0 = tileCol * TILE_SIZE;
+  const tileY0 = tileRow * TILE_SIZE;
+  for (let ly = 0; ly < TILE_SIZE; ly++) {
+    for (let lx = 0; lx < TILE_SIZE; lx++) {
+      const px = tileX0 + lx;
+      const py = tileY0 + ly;
+      const distance = sdf[py * W + px]!;
+      const grass = texturedColor(GRASS_TEX, grassBase, inBattle, lx, ly);
+      const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
+      const color = selectTerrainColor(isWaterTile, distance, grass, water);
+      const idx = (ly * TILE_SIZE + lx) * 4;
+      data[idx] = color[0];
+      data[idx + 1] = color[1];
+      data[idx + 2] = color[2];
+      data[idx + 3] = 255;
+    }
+  }
+  return patch;
 }
 
 /** Apply a per-pixel texture offset to a base color, only in battle mode. */
@@ -715,26 +914,166 @@ function selectTerrainColor(
   distance: number,
   grass: RGB,
   water: RGB,
-  grassToBankDist: number,
-  bankToWaterDist: number,
-  transitionWidth: number,
 ): RGB {
   if (!isWater) return grass;
-  if (distance < grassToBankDist) return grass;
-  if (distance < grassToBankDist + transitionWidth)
+  if (distance < GRASS_TO_BANK_DIST) return grass;
+  if (distance < GRASS_TO_BANK_DIST + TRANSITION_WIDTH)
     return lerp3(
       grass,
       BANK_COLOR,
-      smoothClamp((distance - grassToBankDist) / transitionWidth),
+      smoothClamp((distance - GRASS_TO_BANK_DIST) / TRANSITION_WIDTH),
     );
-  if (distance < bankToWaterDist) return BANK_COLOR;
-  if (distance < bankToWaterDist + transitionWidth)
+  if (distance < BANK_TO_WATER_DIST) return BANK_COLOR;
+  if (distance < BANK_TO_WATER_DIST + TRANSITION_WIDTH)
     return lerp3(
       BANK_COLOR,
       water,
-      smoothClamp((distance - bankToWaterDist) / transitionWidth),
+      smoothClamp((distance - BANK_TO_WATER_DIST) / TRANSITION_WIDTH),
     );
   return water;
+}
+
+/** Recolor the bank pixels of every owned sinkhole tile so they blend into
+ *  the surrounding interior/cobblestone color instead of the green that the
+ *  base terrain bitmap painted. Unowned sinkholes are left untouched (the
+ *  base bitmap already renders them correctly against grass).
+ *
+ *  The cluster cache is shared between the main scene and the banner prev
+ *  scene (both key off map reference), but each scene has its own
+ *  `sinkholeTiles` set — the prev scene can be a stale snapshot from before
+ *  a new sinkhole was applied. Filter clusters by the scene's own set so we
+ *  never blit an owner variant for a lake that the prev overlay doesn't know
+ *  about (which would read ownership from stale castles and paint the wrong
+ *  color on the first frame of a reveal banner). */
+function drawSinkholeOverlays(
+  overlayCtx: CanvasRenderingContext2D,
+  map: GameMap,
+  overlay?: RenderOverlay,
+): void {
+  const sinkholeTiles = overlay?.entities?.sinkholeTiles;
+  if (!sinkholeTiles || sinkholeTiles.size === 0) return;
+  const cache = terrainImageCache.get(map);
+  if (!cache?.sinkholeClusters) return;
+  const inBattle = !!overlay.battle?.inBattle;
+  const owners = buildOwnerTables(overlay, inBattle);
+  for (const cluster of cache.sinkholeClusters) {
+    // Skip clusters whose tiles aren't in this scene's set — the prev scene
+    // during a reveal banner only knows about pre-existing lakes.
+    const clusterKeys = collectClusterKeys(cluster);
+    if (!clusterBelongsToScene(clusterKeys, sinkholeTiles)) continue;
+    const owner = findSinkholeOwner(cluster, clusterKeys, owners, map);
+    if (owner === undefined) continue;
+    const key = variantId(inBattle, owner);
+    for (const tile of cluster.tiles) {
+      const patch = tile.patches.get(key);
+      if (!patch) continue;
+      overlayCtx.putImageData(
+        patch,
+        tile.col * TILE_SIZE,
+        tile.row * TILE_SIZE,
+      );
+    }
+  }
+}
+
+/** Variant cache key — `n0`/`b1`/etc. (phase × player). */
+function variantId(inBattle: boolean, playerId: ValidPlayerSlot): string {
+  return `${inBattle ? "b" : "n"}${playerId}`;
+}
+
+function buildOwnerTables(
+  overlay: RenderOverlay,
+  inBattle: boolean,
+): OwnerTables {
+  const interiorOwners = new Map<number, ValidPlayerSlot>();
+  const wallTiles = new Set<number>();
+  if (inBattle) {
+    const territories = overlay.battle?.battleTerritory;
+    const walls = overlay.battle?.battleWalls;
+    if (territories) {
+      for (let pid = 0; pid < territories.length; pid++) {
+        const territory = territories[pid];
+        if (!territory) continue;
+        const playerSlot = pid as unknown as ValidPlayerSlot;
+        for (const key of territory) interiorOwners.set(key, playerSlot);
+      }
+    }
+    if (walls) {
+      for (const set of walls) {
+        if (!set) continue;
+        for (const key of set) wallTiles.add(key);
+      }
+    }
+  } else if (overlay.castles) {
+    for (const castle of overlay.castles) {
+      for (const key of castle.interior) {
+        interiorOwners.set(key, castle.playerId);
+      }
+      for (const key of castle.walls) wallTiles.add(key);
+    }
+  }
+  return { interiorOwners, wallTiles };
+}
+
+/** Decide which player encloses a sinkhole cluster, if any. A cluster is
+ *  enclosed iff every cardinal neighbor of every cluster tile is one of:
+ *    - water (river / another lake tile / cluster member)
+ *    - a wall tile
+ *    - interior of one specific player (no two-player ambiguity allowed)
+ *  Any "open grass" cardinal neighbor (grass not in any interior) means the
+ *  lake escapes to the outside, so we return null and the base terrain — with
+ *  green/cobblestone bank — is left untouched. This matters because a lake
+ *  can sit *next* to a player's territory (the water itself acts as the
+ *  enclosure boundary on that side) without actually being inside it; the
+ *  earlier "any neighbor in interior" check classified those as enclosed. */
+function findSinkholeOwner(
+  cluster: SinkholeCluster,
+  clusterKeys: ReadonlySet<number>,
+  owners: OwnerTables,
+  map: GameMap,
+): ValidPlayerSlot | undefined {
+  let candidate: ValidPlayerSlot | undefined;
+  for (const tile of cluster.tiles) {
+    for (const [dr, dc] of DIRS_4) {
+      const nr = tile.row + dr;
+      const nc = tile.col + dc;
+      const neighborKey = packTile(nr, nc);
+      if (clusterKeys.has(neighborKey)) continue;
+      const interiorOwner = owners.interiorOwners.get(neighborKey);
+      if (interiorOwner !== undefined) {
+        if (candidate === undefined) candidate = interiorOwner;
+        else if (candidate !== interiorOwner) return undefined;
+        continue;
+      }
+      if (owners.wallTiles.has(neighborKey)) continue;
+      const tileType = tileAt(map, nr, nc);
+      // Water (river / another lake tile) is a benign neighbor — the wall
+      // could go around the larger water system. Anything else (grass not in
+      // any interior, or off-map) means the lake is open on that side.
+      if (tileType !== 1) return undefined;
+    }
+  }
+  return candidate;
+}
+
+/** Pack the cluster's tile coordinates into a key set for fast neighbor
+ *  membership tests inside the cluster. */
+function collectClusterKeys(cluster: SinkholeCluster): Set<number> {
+  const keys = new Set<number>();
+  for (const tile of cluster.tiles) keys.add(packTile(tile.row, tile.col));
+  return keys;
+}
+
+/** A cluster belongs to the scene iff every one of its tiles is present in
+ *  that scene's `sinkholeTiles` set. */
+function clusterBelongsToScene(
+  clusterKeys: ReadonlySet<number>,
+  sceneSinkholeTiles: ReadonlySet<number>,
+): boolean {
+  for (const key of clusterKeys) {
+    if (!sceneSinkholeTiles.has(key)) return false;
+  }
+  return true;
 }
 
 function getTerrainCache(

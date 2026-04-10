@@ -363,39 +363,6 @@ export function drawFrozenTiles(
   overlayCtx.restore();
 }
 
-/** Draw murky pool overlay on sinkhole tiles.
- *  Opaque fill covers SDF bank artifacts for small water clusters. */
-export function drawSinkholeTiles(
-  overlayCtx: CanvasRenderingContext2D,
-  overlay?: RenderOverlay,
-  now: number = performance.now(),
-): void {
-  const sinkhole = overlay?.entities?.sinkholeTiles;
-  if (!sinkhole || sinkhole.size === 0) return;
-  overlayCtx.save();
-  const time = now / 1000;
-
-  for (const key of sinkhole) {
-    const { r, c } = unpackTile(key);
-    const px = c * TILE_SIZE;
-    const py = r * TILE_SIZE;
-
-    // Muddy brown edge (1px border simulating eroded bank)
-    overlayCtx.fillStyle = "rgb(90, 55, 30)";
-    overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-
-    // Dark murky water fill (inset 1px)
-    overlayCtx.fillStyle = "rgb(25, 60, 75)";
-    overlayCtx.fillRect(px + 1, py + 1, TILE_SIZE - 2, TILE_SIZE - 2);
-
-    // Subtle animated ripple
-    const ripple = Math.sin(time * 0.8 + r * 0.4 + c * 0.6) * 0.5 + 0.5;
-    overlayCtx.fillStyle = `rgba(50, 90, 110, ${(0.1 + ripple * 0.15).toFixed(3)})`;
-    overlayCtx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
-  }
-  overlayCtx.restore();
-}
-
 function drawImpacts(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,

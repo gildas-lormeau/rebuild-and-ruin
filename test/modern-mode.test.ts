@@ -585,7 +585,7 @@ Deno.test("sinkhole cumulative cap prevents excessive map destruction", async ()
     if (sunk.size === 0) break;
   }
 
-  assert(total <= 24, `cumulative tiles should not exceed 24, got ${total}`);
+  assert(total <= 36, `cumulative tiles should not exceed 36, got ${total}`);
 });
 
 Deno.test("reapplySinkholeTiles restores water after map regeneration", async () => {

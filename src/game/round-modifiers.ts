@@ -40,6 +40,17 @@ import {
 import { type GameState, hasFeature } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
+/** A sinkhole shape is a list of (row, col) offsets from a top-left anchor.
+ *  Only shapes that render as recognizable pools through the SDF terrain
+ *  pipeline are allowed: short straight runs, 3-cell L corners, and 2×2
+ *  squares. T- and +-junctions are intentionally absent — the inside corner
+ *  of a junction has too low a peak distance for the SDF to color it as
+ *  water, so it would render as a brown blob with disconnected blue dots. */
+type SinkholeShape = readonly (readonly [number, number])[];
+
+/** A concrete shape placement: which template, anchored where on the grid. */
+type ShapePlacement = { shape: SinkholeShape; row: number; col: number };
+
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
  *  so 6-10 extra is a serious but not overwhelming spike. */
@@ -55,13 +66,74 @@ const WILDFIRE_FATTEN_CHANCE = 0.35;
 const CRUMBLE_FRACTION = 0.09;
 const CRUMBLE_MIN = 2;
 const CRUMBLE_MAX = 6;
-/** Sinkhole: BFS cluster size range. */
+/** Sinkhole: shape size range (per zone). Only shapes from SINKHOLE_SHAPES
+ *  are used — we never grow free-form clusters because the SDF renderer
+ *  can't make a brown banana with bead junctions look like a lake. */
 const SINKHOLE_MIN_SIZE = 2;
-const SINKHOLE_MAX_SIZE = 3;
-/** Sinkhole: probability each BFS neighbor joins the cluster. */
-const SINKHOLE_FATTEN_CHANCE = 0.4;
+const SINKHOLE_MAX_SIZE = 4;
 /** Sinkhole: cumulative cap across all rounds (prevents excessive map destruction). */
-const SINKHOLE_MAX_TOTAL = 24;
+const SINKHOLE_MAX_TOTAL = 36;
+const SINKHOLE_SHAPES: ReadonlyMap<number, readonly SinkholeShape[]> = new Map([
+  [
+    2,
+    [
+      [
+        [0, 0],
+        [0, 1],
+      ], // horizontal pair
+      [
+        [0, 0],
+        [1, 0],
+      ], // vertical pair
+    ],
+  ],
+  [
+    3,
+    [
+      [
+        [0, 0],
+        [0, 1],
+        [0, 2],
+      ], // horizontal line
+      [
+        [0, 0],
+        [1, 0],
+        [2, 0],
+      ], // vertical line
+      [
+        [0, 0],
+        [0, 1],
+        [1, 0],
+      ], // ⌐ corner
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+      ], // ¬ corner
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+      ], // L corner
+      [
+        [0, 1],
+        [1, 0],
+        [1, 1],
+      ], // ⌟ corner
+    ],
+  ],
+  [
+    4,
+    [
+      [
+        [0, 0],
+        [0, 1],
+        [1, 0],
+        [1, 1],
+      ], // 2×2 square
+    ],
+  ],
+]);
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
@@ -295,20 +367,39 @@ export function applySinkhole(state: GameState): ReadonlySet<number> {
   const existing = modern.sinkholeTiles?.size ?? 0;
   if (existing >= SINKHOLE_MAX_TOTAL) return new Set();
 
-  // One cluster per active zone — same tile count for fairness
+  // One shape per active zone — same tile count for fairness
   const activeZones = state.players
     .filter(isPlayerSeated)
     .map((player) => player.homeTower.zone);
-  const budget = Math.min(
+  const candidateBudget = Math.min(
     state.rng.int(SINKHOLE_MIN_SIZE, SINKHOLE_MAX_SIZE),
     Math.floor((SINKHOLE_MAX_TOTAL - existing) / activeZones.length),
   );
-  if (budget <= 0) return new Set();
-  const allSunk = new Set<number>();
+  if (candidateBudget < SINKHOLE_MIN_SIZE) return new Set();
 
-  for (const zone of activeZones) {
-    const cluster = generateSinkholeCluster(state, budget, zone);
-    for (const key of cluster) allSunk.add(key);
+  // Find the largest shape size where every active zone has at least one
+  // valid placement. Fall back to smaller sizes if a zone is too crowded.
+  let chosenSize = 0;
+  let placementsPerZone: ShapePlacement[][] = [];
+  for (let size = candidateBudget; size >= SINKHOLE_MIN_SIZE; size--) {
+    const allZones = activeZones.map((zone) =>
+      findValidShapePlacements(state, zone, size),
+    );
+    if (allZones.every((placements) => placements.length > 0)) {
+      chosenSize = size;
+      placementsPerZone = allZones;
+      break;
+    }
+  }
+  if (chosenSize === 0) return new Set();
+
+  const allSunk = new Set<number>();
+  for (let i = 0; i < activeZones.length; i++) {
+    const placements = placementsPerZone[i]!;
+    const pick = state.rng.pick(placements);
+    for (const [dr, dc] of pick.shape) {
+      allSunk.add(packTile(pick.row + dr, pick.col + dc));
+    }
   }
   if (allSunk.size === 0) return allSunk;
 
@@ -386,84 +477,32 @@ export function applyRubbleClearing(state: GameState): readonly number[] {
   return cleared;
 }
 
-/** Generate a sinkhole cluster via BFS flood-fill from a random seed tile.
- *  Retries with a new seed if the cluster is undersized (e.g., boxed in by obstacles). */
-function generateSinkholeCluster(
+/** Enumerate every legal anchor position for every allowed shape of the
+ *  given size in the target zone. The result is small enough (a few hundred
+ *  entries on a fresh map) that we can pick uniformly at random. */
+function findValidShapePlacements(
   state: GameState,
-  budget: number,
   zone: number,
-): Set<number> {
+  size: number,
+): ShapePlacement[] {
   const canSink = buildCanSinkPredicate(state, zone);
-
-  // Collect candidates (interior tiles only — skip map border)
-  const candidates: { row: number; col: number }[] = [];
-  for (let r = 1; r < GRID_ROWS - 1; r++) {
-    for (let c = 1; c < GRID_COLS - 1; c++) {
-      if (canSink(r, c)) candidates.push({ row: r, col: c });
-    }
-  }
-  if (candidates.length === 0) return new Set();
-
-  let best = new Set<number>();
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const cluster = growSinkholeFromSeed(state, canSink, candidates, budget);
-    if (cluster.size >= budget) return cluster;
-    if (cluster.size > best.size) best = cluster;
-  }
-  return best;
-}
-
-/** BFS-grow a sinkhole cluster from a random seed tile.
- *  Uses probabilistic neighbor selection for shape variety, then force-fills
- *  any remaining budget so every zone gets exactly the same tile count. */
-function growSinkholeFromSeed(
-  state: GameState,
-  canSink: (row: number, col: number) => boolean,
-  candidates: readonly { row: number; col: number }[],
-  budget: number,
-): Set<number> {
-  const seed = state.rng.pick(candidates);
-  const cluster = new Set<number>();
-  cluster.add(packTile(seed.row, seed.col));
-
-  // Phase 1: probabilistic BFS for organic shape
-  const frontier = [seed];
-  const skipped: { row: number; col: number }[] = [];
-  while (cluster.size < budget && frontier.length > 0) {
-    const idx = state.rng.int(0, frontier.length - 1);
-    const tile = frontier[idx]!;
-    frontier[idx] = frontier[frontier.length - 1]!;
-    frontier.pop();
-
-    for (const [dr, dc] of DIRS_4) {
-      const nr = tile.row + dr;
-      const nc = tile.col + dc;
-      const key = packTile(nr, nc);
-      if (cluster.has(key)) continue;
-      if (!canSink(nr, nc)) continue;
-      if (!state.rng.bool(SINKHOLE_FATTEN_CHANCE)) {
-        skipped.push({ row: nr, col: nc });
-        continue;
+  const shapes = SINKHOLE_SHAPES.get(size) ?? [];
+  const placements: ShapePlacement[] = [];
+  for (const shape of shapes) {
+    for (let r = 1; r < GRID_ROWS - 1; r++) {
+      for (let c = 1; c < GRID_COLS - 1; c++) {
+        let fits = true;
+        for (const [dr, dc] of shape) {
+          if (!canSink(r + dr, c + dc)) {
+            fits = false;
+            break;
+          }
+        }
+        if (fits) placements.push({ shape, row: r, col: c });
       }
-      cluster.add(key);
-      frontier.push({ row: nr, col: nc });
-      if (cluster.size >= budget) break;
     }
   }
-
-  // Phase 2: force-fill from skipped neighbors to guarantee budget is met
-  if (cluster.size < budget && skipped.length > 0) {
-    state.rng.shuffle(skipped);
-    for (const tile of skipped) {
-      const key = packTile(tile.row, tile.col);
-      if (cluster.has(key)) continue;
-      if (!canSink(tile.row, tile.col)) continue;
-      cluster.add(key);
-      if (cluster.size >= budget) break;
-    }
-  }
-
-  return cluster;
+  return placements;
 }
 
 /** Build a predicate for whether a tile can become a sinkhole in a specific zone. */

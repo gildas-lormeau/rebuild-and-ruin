@@ -4,7 +4,7 @@
  * Bug: seed 742237, round 4, modern mode — two AIs get 3-tile sinkholes,
  * one gets 2. The budget is rolled once and shared, so counts should match.
  *
- * Root cause: growSinkholeFromSeed uses SINKHOLE_FATTEN_CHANCE (0.4) which
+ * Root cause: growSinkholeFromSeed uses SINKHOLE_FATTEN_CHANCE (0.65) which
  * can reject all BFS neighbors, leaving the cluster undersized even after
  * 3 retry attempts.
  *
@@ -87,7 +87,7 @@ Deno.test("sinkhole fairness: multi-seed survey — counts match across zones", 
 
 Deno.test("sinkhole fairness: budget always met per zone", async () => {
   // Verify that each zone's cluster size equals the shared budget.
-  // The budget is min(rng.int(2,3), floor((24 - existing) / activeZones)).
+  // The budget is min(rng.int(4,6), floor((36 - existing) / activeZones)).
   // We can infer the budget from the max cluster size across zones.
   const seeds = [42, 100, 742237, 999, 1234, 5678, 9999, 31415];
 
