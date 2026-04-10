@@ -87,7 +87,7 @@ import type {
 } from "./runtime-types.ts";
 
 interface PhaseTicksDeps
-  extends Pick<RuntimeConfig, "send" | "log">,
+  extends Pick<RuntimeConfig, "log">,
     Partial<
       Pick<
         OnlineRuntimeConfig,
@@ -102,6 +102,8 @@ interface PhaseTicksDeps
   runtimeState: RuntimeState;
   /** Injected timing primitives — replaces bare `performance.now()` access. */
   timing: TimingApi;
+  /** Network send — closes over RuntimeConfig.network.send at the call site. */
+  send: RuntimeConfig["network"]["send"];
 
   // Pre-built message senders — protocol knowledge stays in composition root.
   // For local play these close over the config no-op send; for online they

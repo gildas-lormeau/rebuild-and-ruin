@@ -157,7 +157,7 @@ export function createRuntimeInputAdapters(params: {
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
         ((ctrl, gameState) => params.localFire(ctrl, gameState)),
-      getIsHost: config.getIsHost,
+      getIsHost: config.network.getIsHost,
     },
   };
 }

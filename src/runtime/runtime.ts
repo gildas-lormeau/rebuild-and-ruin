@@ -165,9 +165,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
     timing,
-    getMyPlayerId: config.getMyPlayerId,
-    getIsHost: config.getIsHost,
-    getRemotePlayerSlots: config.getRemotePlayerSlots,
+    getMyPlayerId: config.network.getMyPlayerId,
+    getIsHost: config.network.getIsHost,
+    getRemotePlayerSlots: config.network.getRemotePlayerSlots,
     getPointerPlayer: () => pointerPlayer(),
     clearHumanCache: () => clearHumanCache(),
     isSelectionReady,
@@ -270,18 +270,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const selection = createSelectionSystem({
     runtimeState,
     timing,
-    hostAtFrameStart: config.getIsHost,
+    hostAtFrameStart: config.network.getIsHost,
     sendTowerSelected: (pid, idx, confirmed) =>
-      config.send({
+      config.network.send({
         type: MESSAGE.OPPONENT_TOWER_SELECTED,
         playerId: pid,
         towerIdx: idx,
         confirmed,
       }),
     sendCastleWalls: (plans) =>
-      config.send({ type: MESSAGE.CASTLE_WALLS, plans: [...plans] }),
+      config.network.send({ type: MESSAGE.CASTLE_WALLS, plans: [...plans] }),
     sendSelectStart: (timer) =>
-      config.send({ type: MESSAGE.SELECT_START, timer }),
+      config.network.send({ type: MESSAGE.SELECT_START, timer }),
     log: config.log,
     camera,
     sound,
@@ -379,7 +379,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
     sendLifeLostChoice: (choice, playerId) =>
-      config.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
+      config.network.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
     log: config.log,
     render,
     panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
@@ -398,7 +398,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     sendUpgradePick: isOnline
       ? (playerId, choice) =>
-          config.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
+          config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
     aiPick: (offers, playerId) =>
       config.aiPick(offers, runtimeState.state, playerId),
@@ -422,17 +422,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
     timing,
-    send: config.send,
+    send: config.network.send,
     log: config.log,
     sendOpponentCannonPlaced: (msg) =>
-      config.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
+      config.network.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
     sendOpponentCannonPhantom: (msg) =>
-      config.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
+      config.network.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
     sendOpponentPiecePlaced: (msg) =>
-      config.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
+      config.network.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
     sendOpponentPhantom: (msg) =>
-      config.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
-    sendBuildEnd: (msg) => config.send({ type: MESSAGE.BUILD_END, ...msg }),
+      config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
+    sendBuildEnd: (msg) =>
+      config.network.send({ type: MESSAGE.BUILD_END, ...msg }),
     hostNetworking: config.onlineConfig?.hostNetworking,
     watcherTiming: config.onlineConfig?.watcherTiming,
     extendCrosshairs: config.onlineConfig?.extendCrosshairs,
@@ -515,7 +516,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     haptics,
     isOnline,
-    getRemotePlayerSlots: config.getRemotePlayerSlots,
+    getRemotePlayerSlots: config.network.getRemotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;

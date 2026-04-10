@@ -148,7 +148,7 @@ interface E2EBridge {
 
 interface E2EBridgeDeps {
   runtimeState: RuntimeState;
-  config: Pick<RuntimeConfig, "getMyPlayerId">;
+  config: Pick<RuntimeConfig, "network">;
   camera: {
     worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
     getViewport: () =>
@@ -244,7 +244,8 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Controller ---
   // In local mode getMyPlayerId() returns -1; fall back to slot 0 (first human)
-  const myPid = config.getMyPlayerId() >= 0 ? config.getMyPlayerId() : 0;
+  const myPid =
+    config.network.getMyPlayerId() >= 0 ? config.network.getMyPlayerId() : 0;
   ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
 
   // --- Camera ---

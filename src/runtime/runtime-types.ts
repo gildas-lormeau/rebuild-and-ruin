@@ -158,6 +158,44 @@ export interface OnlineRuntimeConfig {
   onEndGame: (winner: { id: number }, state: GameState) => void;
 }
 
+/** Networking primitives for a single runtime instance ("machine"). All
+ *  cross-machine communication flows through this interface — sub-systems
+ *  must not reach for sockets, sessions, or remote-player state directly.
+ *
+ *  Production wiring:
+ *    - Local play (main.ts): no-op `send`, always host, spectator slot,
+ *      empty remote set.
+ *    - Online (online-runtime-game.ts): WebSocket `send`, host/slot/remote
+ *      state read from `ctx.session`.
+ *    - Tests (runtime-headless.ts): no-op send + spectator slot. The future
+ *      test-side "machines" abstraction will wire multiple NetworkApi
+ *      instances together via an in-memory message bus to exercise the
+ *      online code path without WebSockets.
+ *
+ *  Naming uses noun form (`isHost`, `myPlayerId`) — the `network.` namespace
+ *  already signals "callback bag", same convention as `timing.now()`.
+ */
+export interface NetworkApi {
+  /** Send a message from this machine to its peers. */
+  readonly send: (msg: GameMessage) => void;
+  /** Whether this machine currently acts as host. May change after host
+   *  migration — read fresh, do not cache. Used at frame start to snapshot
+   *  hostAtFrameStart. For runtime volatile checks in tick/handler code,
+   *  use isHostInContext(net) from tick-context.ts instead.
+   *
+   *  Named `getIsHost` (not `isHost`) so callsites read as a callback rather
+   *  than a volatile boolean field — the eslint rule banning `.isHost` access
+   *  exists to prevent caching the session's volatile host flag. */
+  readonly getIsHost: () => boolean;
+  /** This client's player slot in online mode, or SPECTATOR_SLOT (-1) in
+   *  local (shared-screen) mode. Only meaningful for online play — local
+   *  consumers should use povPlayerId instead. */
+  readonly getMyPlayerId: () => PlayerSlotId;
+  /** Slots controlled by other machines (need network sync). Empty set
+   *  for local play. */
+  readonly getRemotePlayerSlots: () => Set<number>;
+}
+
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
  *  bind to `performance.now`, `setTimeout`, `clearTimeout`, `requestAnimationFrame`.
  *  Tests pass deterministic stubs or Deno's natives. Following the project's
@@ -190,17 +228,12 @@ export interface RuntimeConfig {
     Document,
     "addEventListener" | "removeEventListener"
   >;
-  /** noop for local, ws.send for online. */
-  send: (msg: GameMessage) => void;
-  /** Config-level host check: () => true for local play, () => session.isHost for online.
-   *  Used at frame start to snapshot hostAtFrameStart. For runtime volatile checks in
-   *  tick/handler code, use isHostInContext(net) from tick-context.ts instead. */
-  getIsHost: () => boolean;
-  /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
-   *  Only meaningful for online play — local consumers should use povPlayerId instead. */
-  getMyPlayerId: () => PlayerSlotId;
-  /** () => emptySet for local. */
-  getRemotePlayerSlots: () => Set<number>;
+  /** Networking primitives — see `NetworkApi`. Sub-systems read all
+   *  network-related state (send, host, slot, remote players) through this
+   *  bag rather than via scattered config fields. Slice 1 of the
+   *  NetworkApi extraction; later slices will fold `onlineConfig` fields
+   *  into this same interface. */
+  network: NetworkApi;
   /** noop for local. */
   log: (msg: string) => void;
   /** noop for local. */

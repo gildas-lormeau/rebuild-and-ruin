@@ -1,5 +1,4 @@
 import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
-import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
 import { createBrowserTimingApi } from "../runtime/runtime-browser-timing.ts";
@@ -30,11 +29,7 @@ import { initPromote } from "./online-runtime-promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
 import { createOnlineTransitionContext } from "./online-runtime-transition.ts";
 import { initWs } from "./online-runtime-ws.ts";
-import {
-  fireAndSend,
-  tryPlaceCannonAndSend,
-  tryPlacePieceAndSend,
-} from "./online-send-actions.ts";
+import { createOnlineSendActions } from "./online-send-actions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -79,6 +74,13 @@ const transitionCtx = createOnlineTransitionContext({
   session: ctx.session,
   watcher: ctx.watcher,
 });
+// ── Send-on-success action wrappers ────────────────────────────────
+// `send` and `getState` are bound once here so individual call sites
+// (input dispatch, AI tick) don't have to plumb them through.
+const sendActions = createOnlineSendActions({
+  send,
+  getState: () => runtime.runtimeState.state,
+});
 // ── Watcher tick context ────────────────────────────────────────────
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.runtimeState.state,
@@ -99,12 +101,14 @@ const runtime: GameRuntime = createGameRuntime({
   renderer,
   timing,
   keyboardEventSource: document,
-  send,
+  network: {
+    send,
+    // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
+    getIsHost: () => ctx.session.isHost,
+    getMyPlayerId: () => ctx.session.myPlayerId,
+    getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
+  },
   aiPick: aiPickUpgrade,
-  // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
-  getIsHost: () => ctx.session.isHost,
-  getMyPlayerId: () => ctx.session.myPlayerId,
-  getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
   log: devLog,
   logThrottled: devLogThrottled,
   // -1 grace: server fires setTimeout(waitSec * 1000) exactly at waitSec.
@@ -183,22 +187,9 @@ const runtime: GameRuntime = createGameRuntime({
     },
     watcherTiming: ctx.watcher.timing,
     maybeSendAimUpdate,
-    tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
-      tryPlaceCannonAndSend(ctrl, state, maxSlots, send),
-    tryPlacePieceAndSend: (ctrl, state) =>
-      tryPlacePieceAndSend(
-        ctrl,
-        state,
-        (intent) => executePlacePiece(runtime.runtimeState.state, intent, ctrl),
-        send,
-      ),
-    fireAndSend: (ctrl, state) =>
-      fireAndSend(
-        ctrl,
-        state,
-        (intent) => executeCannonFire(runtime.runtimeState.state, intent, ctrl),
-        send,
-      ),
+    tryPlaceCannonAndSend: sendActions.tryPlaceCannonAndSend,
+    tryPlacePieceAndSend: sendActions.tryPlacePieceAndSend,
+    fireAndSend: sendActions.fireAndSend,
     onEndGame: (winner, gameState) => {
       const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
       devLog(

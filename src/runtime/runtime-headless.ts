@@ -98,14 +98,16 @@ export async function createHeadlessRuntime(
     renderer,
     timing,
     keyboardEventSource,
-    send: () => {},
+    network: {
+      send: () => {},
+      getIsHost: () => true,
+      getMyPlayerId: () => SPECTATOR_SLOT,
+      getRemotePlayerSlots: () => new Set<number>(),
+    },
     // Deterministic upgrade pick: always take the first offer. Headless tests
     // care about whether the upgrade flow runs, not which option is chosen.
     // (Domain rule: runtime/ cannot import from ai/.)
     aiPick: (offers) => offers[0],
-    getIsHost: () => true,
-    getMyPlayerId: () => SPECTATOR_SLOT,
-    getRemotePlayerSlots: () => new Set<number>(),
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},
     logThrottled: () => {},
     getLobbyRemaining: () => 0,
