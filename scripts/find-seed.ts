@@ -13,6 +13,8 @@
  *   crumblingWalls         — crumbling walls modifier active
  *   gruntSurge             — grunt surge modifier active
  *   frozenRiver            — frozen river modifier active
+ *   highTide               — high tide modifier active
+ *   sinkhole               — sinkhole modifier active
  *   anyModifier            — any environmental modifier active
  *   manyGrunts             — 10+ grunts alive during battle
  *
@@ -54,6 +56,12 @@ const CONDITIONS: Record<string, Condition> = {
 
   frozenRiver: (state) =>
     state.modern?.activeModifier === "frozen_river",
+
+  highTide: (state) =>
+    state.modern?.activeModifier === "high_tide",
+
+  sinkhole: (state) =>
+    state.modern?.activeModifier === "sinkhole",
 
   anyModifier: (state) =>
     state.modern?.activeModifier != null,
