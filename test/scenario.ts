@@ -34,7 +34,10 @@
  */
 
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
-import { setCanvasFactory } from "../src/render/render-map.ts";
+import {
+  setCanvasFactory,
+  setRenderObserver,
+} from "../src/render/render-map.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -73,7 +76,7 @@ export interface ScenarioOptions {
   recorder?: CanvasRecorder;
 }
 
-export interface Scenario {
+export interface Scenario extends Disposable {
   /** Game state — read for assertions, NEVER mutate. */
   readonly state: GameState;
   /** Typed event bus — `sc.bus.on(GAME_EVENT.X, handler)`. */
@@ -101,6 +104,7 @@ export async function createScenario(
   // setters reset on re-call, so multiple recorder-backed scenarios in the
   // same test file remain isolated.
   let renderer: ReturnType<typeof createCanvasRenderer> | undefined;
+  const usedRecorder = opts.recorder !== undefined;
   if (opts.recorder) {
     setCanvasFactory(opts.recorder.factory);
     renderer = createCanvasRenderer(opts.recorder.displayCanvas);
@@ -112,10 +116,10 @@ export async function createScenario(
     hostMode: opts.hostMode ?? false,
     renderer,
   });
-  return wrap(headless);
+  return wrap(headless, usedRecorder);
 }
 
-function wrap(headless: HeadlessRuntime): Scenario {
+function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
   return {
     get state() {
       return headless.runtime.runtimeState.state;
@@ -126,6 +130,18 @@ function wrap(headless: HeadlessRuntime): Scenario {
     now: headless.now,
     runUntil: headless.runUntil,
     runGame: headless.runGame,
+    [Symbol.dispose]: () => {
+      // When the test installed a recorder, restore module-level render
+      // state so a follow-on test in the same file isn't poisoned by stale
+      // canvases or a leftover observer. The default factory's body only
+      // dereferences `document` when invoked, so it stays safe to install
+      // even from deno — non-recorder scenarios use the no-op stub renderer
+      // and never call the factory at all.
+      if (usedRecorder) {
+        setCanvasFactory(() => document.createElement("canvas"));
+        setRenderObserver(undefined);
+      }
+    },
   };
 }
 

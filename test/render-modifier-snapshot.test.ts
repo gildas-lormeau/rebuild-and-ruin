@@ -41,42 +41,38 @@ Deno.test("high_tide banner: drawTerrain on banner canvas uses snapshot map", as
   setRenderObserver({
     terrainDrawn: (target, mapRef) => events.push({ target, mapRef }),
   });
-  try {
-    const recorder = createCanvasRecorder();
-    const sc = await createScenario({
-      seed: 6,
-      mode: "modern",
-      rounds: 4,
-      recorder,
-    });
+  const recorder = createCanvasRecorder();
+  using sc = await createScenario({
+    seed: 6,
+    mode: "modern",
+    rounds: 4,
+    recorder,
+  });
 
-    // seed=6 modern produces high_tide on round 3 — skip there cheaply.
-    waitUntilRound(sc, 3, 20000);
-    waitForModifier(sc, "high_tide", 5000);
+  // seed=6 modern produces high_tide on round 3 — skip there cheaply.
+  waitUntilRound(sc, 3, 20000);
+  waitForModifier(sc, "high_tide", 5000);
 
-    // Drive frames until drawBannerPrevScene actually runs the terrain pass
-    // on the banner canvas (the banner needs a few frames to sweep on-screen
-    // before clipY < H gates it through).
-    events.length = 0;
-    sc.runUntil(() => events.some((ev) => ev.target === "banner"), 300);
+  // Drive frames until drawBannerPrevScene actually runs the terrain pass
+  // on the banner canvas (the banner needs a few frames to sweep on-screen
+  // before clipY < H gates it through).
+  events.length = 0;
+  sc.runUntil(() => events.some((ev) => ev.target === "banner"), 300);
 
-    const main = events.findLast((ev) => ev.target === "main");
-    const banner = events.findLast((ev) => ev.target === "banner");
-    if (!main || !banner) {
-      throw new Error(
-        `expected both main and banner terrainDrawn events; got ${events.length}: ${events.map((e) => e.target).join(",")}`,
-      );
-    }
-
-    // The snapshot map is a *new* object built by buildModifierSnapshotMap —
-    // reference inequality with the live map is the load-bearing signal that
-    // the prev-scene rendered the OLD terrain, not the post-mutation tiles.
-    assertNotStrictEquals(
-      banner.mapRef,
-      main.mapRef,
-      "banner prev-scene should render a snapshot map distinct from the live map",
+  const main = events.findLast((ev) => ev.target === "main");
+  const banner = events.findLast((ev) => ev.target === "banner");
+  if (!main || !banner) {
+    throw new Error(
+      `expected both main and banner terrainDrawn events; got ${events.length}: ${events.map((e) => e.target).join(",")}`,
     );
-  } finally {
-    setRenderObserver(undefined);
   }
+
+  // The snapshot map is a *new* object built by buildModifierSnapshotMap —
+  // reference inequality with the live map is the load-bearing signal that
+  // the prev-scene rendered the OLD terrain, not the post-mutation tiles.
+  assertNotStrictEquals(
+    banner.mapRef,
+    main.mapRef,
+    "banner prev-scene should render a snapshot map distinct from the live map",
+  );
 });
