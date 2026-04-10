@@ -57,6 +57,11 @@ export interface ScenarioOptions {
   mode?: "classic" | "modern";
   /** Number of rounds before the game ends. Defaults to 3. */
   rounds?: number;
+  /** When true, runs the runtime in "online host" mode with no-op
+   *  network broadcasts. Used by host-vs-local sync tests to verify that
+   *  the online code path produces the same state as the local one. The
+   *  runtime never receives any messages because there are no peers. */
+  hostMode?: boolean;
 }
 
 export interface Scenario {
@@ -86,6 +91,7 @@ export async function createScenario(
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
     rounds: opts.rounds ?? 3,
+    hostMode: opts.hostMode ?? false,
   });
   return wrap(headless);
 }

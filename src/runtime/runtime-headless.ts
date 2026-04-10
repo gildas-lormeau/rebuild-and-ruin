@@ -24,12 +24,17 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../shared/overlay-types.ts";
+import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../shared/player-config.ts";
 import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { createGameRuntime } from "./runtime.ts";
 import { setMode } from "./runtime-state.ts";
-import type { GameRuntime, TimingApi } from "./runtime-types.ts";
+import type {
+  GameRuntime,
+  OnlinePhaseTicks,
+  TimingApi,
+} from "./runtime-types.ts";
 
 interface HeadlessRuntimeOptions {
   /** Map seed — controls map, AI, and modifier rolls. */
@@ -41,6 +46,13 @@ interface HeadlessRuntimeOptions {
   rounds?: number;
   /** When true, runtime log lines are forwarded to console. Defaults to false. */
   log?: boolean;
+  /** When true, the runtime is wired in "online host" mode: it constructs a
+   *  no-op `OnlinePhaseTicks` so every host fan-out hook fires (broadcasts go
+   *  to /dev/null, dedup channels are NOOP, watcher hooks unset). Used by the
+   *  host-vs-local sync test to verify the online code path produces the same
+   *  state as the local one. The runtime never receives any messages because
+   *  there are no peers. */
+  hostMode?: boolean;
 }
 
 export interface HeadlessRuntime {
@@ -59,7 +71,13 @@ export interface HeadlessRuntime {
 export async function createHeadlessRuntime(
   opts: HeadlessRuntimeOptions,
 ): Promise<HeadlessRuntime> {
-  const { seed, gameMode = GAME_MODE_CLASSIC, rounds = 3, log = false } = opts;
+  const {
+    seed,
+    gameMode = GAME_MODE_CLASSIC,
+    rounds = 3,
+    log = false,
+    hostMode = false,
+  } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
   // All timing flows through this closure. `mainLoop` is driven manually
@@ -121,6 +139,7 @@ export async function createHeadlessRuntime(
     showLobby: () => {},
     onLobbySlotJoined: () => {},
     onTickLobbyExpired: async () => {},
+    onlinePhaseTicks: hostMode ? noopHostPhaseTicks() : undefined,
   });
 
   // ── Seed injection ────────────────────────────────────────────────
@@ -183,6 +202,26 @@ export async function createHeadlessRuntime(
     now: () => clock,
     runUntil,
     runGame,
+  };
+}
+
+/** Build a no-op `OnlinePhaseTicks` for headless host mode. Every broadcast
+ *  is a black hole, every getter returns the empty/noop equivalent, no
+ *  watcher fields are set (this machine is host-only). */
+function noopHostPhaseTicks(): OnlinePhaseTicks {
+  return {
+    broadcastCannonStart: () => {},
+    broadcastBattleStart: () => {},
+    broadcastBuildStart: () => {},
+    broadcastBuildEnd: () => {},
+    broadcastLocalCrosshair: () => {},
+    remoteCannonPhantoms: () => [],
+    remotePiecePhantoms: () => [],
+    cannonPhantomDedup: () => NOOP_DEDUP_CHANNEL,
+    piecePhantomDedup: () => NOOP_DEDUP_CHANNEL,
+    extendCrosshairs: (crosshairs) => [...crosshairs],
+    tickMigrationAnnouncement: () => {},
+    // tickWatcher / watcherTiming intentionally omitted — host-only stub.
   };
 }
 
