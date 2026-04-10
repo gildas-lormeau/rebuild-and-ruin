@@ -54,13 +54,23 @@ export interface RecordedCall {
   readonly canvasId: number;
 }
 
+export interface CanvasRecorderOptions {
+  /** When true, the mock context behaves identically but does NOT push call
+   *  records into the log. Use this for long-running tests that drive many
+   *  thousands of frames and observe the renderer through `setRenderObserver`
+   *  rather than the call log — the proxy still has to provide working
+   *  canvases for the renderer, but accumulating calls would blow the heap. */
+  discardCalls?: boolean;
+}
+
 export interface CanvasRecorder {
   /** Hand to `setCanvasFactory()` (or pass via `createScenario`). Each call
    *  returns a fresh recording canvas with a new id. */
   readonly factory: () => HTMLCanvasElement;
   /** A pre-allocated "main display canvas" (id 0). Pass to `createCanvasRenderer`. */
   readonly displayCanvas: HTMLCanvasElement;
-  /** Flat log of every method call across every canvas, in invocation order. */
+  /** Flat log of every method call across every canvas, in invocation order.
+   *  Empty when constructed with `discardCalls: true`. */
   readonly log: RecordedCall[];
   /** Filter `log` to calls of a single method name. */
   calls(method: string): RecordedCall[];
@@ -87,13 +97,21 @@ const RETURNING_METHODS = new Set([
   "isPointInStroke",
 ]);
 
-export function createCanvasRecorder(): CanvasRecorder {
+export function createCanvasRecorder(
+  opts: CanvasRecorderOptions = {},
+): CanvasRecorder {
   const log: RecordedCall[] = [];
+  // When `discardCalls` is set, hand the canvas a sink array that drops
+  // pushes — keeps the proxy's call signature unchanged so test code can
+  // still query `recorder.log` (it'll just be empty).
+  const sink: RecordedCall[] = opts.discardCalls
+    ? (Object.assign([], { push: () => 0 }) as unknown as RecordedCall[])
+    : log;
   let nextCanvasId = 0;
 
   function makeCanvas(): HTMLCanvasElement {
     const id = nextCanvasId++;
-    const stub = createRecordingCanvas(id, log);
+    const stub = createRecordingCanvas(id, sink);
     return stub;
   }
 

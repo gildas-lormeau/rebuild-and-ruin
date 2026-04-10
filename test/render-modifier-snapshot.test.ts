@@ -26,10 +26,12 @@
  * round-modifiers.ts and we want both branches exercised.
  */
 
-import { assertNotStrictEquals } from "@std/assert";
+import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
+import { setRenderObserver } from "../src/render/render-map.ts";
+import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import type { ModifierId } from "../src/shared/game-constants.ts";
 import type { GameMap } from "../src/shared/geometry-types.ts";
-import { setRenderObserver } from "../src/render/render-map.ts";
+import { GRID_COLS, Tile } from "../src/shared/grid.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
 import {
   createScenario,
@@ -57,6 +59,13 @@ const CASES: readonly ModifierCase[] = [
   // seed=23 modern → sinkhole on round 3 (find-seed --condition sinkhole)
   { modifier: "sinkhole", seed: 23, appearsAtRound: 3 },
 ];
+
+/** Read tile value at a packed key (`row * GRID_COLS + col`). */
+function tileAtKey(map: GameMap, key: number): number {
+  const row = Math.floor(key / GRID_COLS);
+  const col = key % GRID_COLS;
+  return map.tiles[row]![col]!;
+}
 
 for (const { modifier, seed, appearsAtRound } of CASES) {
   Deno.test(
@@ -102,3 +111,113 @@ for (const { modifier, seed, appearsAtRound } of CASES) {
     },
   );
 }
+
+// ─── Sequence: prior modifier mutations stay applied in the snapshot ──────
+//
+// When a tile-mutation modifier fires after another tile-mutation modifier
+// already happened (e.g. sinkhole on round 3, then high_tide on round 5),
+// the high_tide banner's snapshot map must:
+//   - Revert ONLY the high_tide changedTiles to grass
+//   - Leave the sinkhole tiles as Water (because they happened earlier and
+//     their banner sweep is long over)
+//
+// If `buildModifierSnapshotMap` accidentally reverted ALL water tiles (or
+// if the bannerCache held a stale snapshot from the sinkhole banner), the
+// player would see the sinkhole tiles flash back to grass during the
+// high_tide reveal — a visual regression that the single-modifier test
+// can't catch.
+
+Deno.test(
+  "high_tide after sinkhole: snapshot keeps sinkhole tiles as water, only reverts high_tide tiles",
+  async () => {
+    // Memory-bounded capture: we only need the latest main + banner refs
+    // *during* the high_tide banner. Storing every frame's events for the
+    // 30k+ frames needed to reach round 5+ blows out the heap.
+    let trackingActive = false;
+    let latestMain: GameMap | undefined;
+    let latestBanner: GameMap | undefined;
+    setRenderObserver({
+      terrainDrawn: (target, mapRef) => {
+        if (!trackingActive) return;
+        if (target === "main") latestMain = mapRef;
+        else latestBanner = mapRef;
+      },
+    });
+
+    let sinkholeTiles: readonly number[] | undefined;
+    let highTideTiles: readonly number[] | undefined;
+    // discardCalls: this test runs ~30k frames; accumulating every 2D-context
+    // call into recorder.log would OOM the test runner. We observe the
+    // renderer through `setRenderObserver` instead.
+    const recorder = createCanvasRecorder({ discardCalls: true });
+    using sc = await createScenario({
+      // seed=33 modern fires sinkhole then high_tide
+      // (find via: deno run -A scripts/find-modifier-sequence.ts sinkhole high_tide)
+      seed: 33,
+      mode: "modern",
+      rounds: 8,
+      recorder,
+    });
+
+    sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+      if (ev.modifierId === "sinkhole" && !sinkholeTiles) {
+        sinkholeTiles = ev.changedTiles;
+      } else if (ev.modifierId === "high_tide" && !highTideTiles) {
+        highTideTiles = ev.changedTiles;
+        // Only start collecting terrain events once high_tide is on-screen.
+        trackingActive = true;
+      }
+    });
+
+    // Drive the game until the high_tide banner is on-screen and the
+    // banner-side terrain pass has fired at least once. seed=33 modern
+    // takes ~5 rounds before sinkhole then high_tide; bump well above the
+    // default 5000 frame ceiling.
+    sc.runUntil(
+      () => latestMain !== undefined && latestBanner !== undefined,
+      80000,
+    );
+
+    assert(sinkholeTiles !== undefined, "expected sinkhole banner to fire");
+    assert(highTideTiles !== undefined, "expected high_tide banner to fire");
+    assert(sinkholeTiles.length > 0, "sinkhole had no changed tiles");
+    assert(highTideTiles.length > 0, "high_tide had no changed tiles");
+    assert(latestMain !== undefined, "no main terrainDrawn event");
+    assert(latestBanner !== undefined, "no banner terrainDrawn event");
+
+    // Sanity: the snapshot must be a different object than the live map.
+    assertNotStrictEquals(latestBanner, latestMain);
+
+    // ── Live (main) map: every tile from BOTH modifiers should be Water ──
+    for (const key of sinkholeTiles) {
+      assertEquals(
+        tileAtKey(latestMain, key),
+        Tile.Water,
+        `live map: sinkhole tile ${key} should be Water (sinkhole already fired)`,
+      );
+    }
+    for (const key of highTideTiles) {
+      assertEquals(
+        tileAtKey(latestMain, key),
+        Tile.Water,
+        `live map: high_tide tile ${key} should be Water (high_tide just fired)`,
+      );
+    }
+
+    // ── Snapshot (banner) map: sinkhole tiles still Water, high_tide reverted to Grass ──
+    for (const key of sinkholeTiles) {
+      assertEquals(
+        tileAtKey(latestBanner, key),
+        Tile.Water,
+        `snapshot: sinkhole tile ${key} must remain Water (it's NOT in this banner's changedTiles)`,
+      );
+    }
+    for (const key of highTideTiles) {
+      assertEquals(
+        tileAtKey(latestBanner, key),
+        Tile.Grass,
+        `snapshot: high_tide tile ${key} must be reverted to Grass for the prev-scene reveal`,
+      );
+    }
+  },
+);
