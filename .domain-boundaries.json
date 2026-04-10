@@ -111,6 +111,7 @@
       "src/render/render-ui.ts",
       "src/render/render-ui-settings.ts",
       "src/render/render-map.ts",
+      "src/render/render-snapshot.ts",
       "src/render/render-canvas.ts",
       "src/render/render-ui-screens.ts"
     ],

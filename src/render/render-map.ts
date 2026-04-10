@@ -51,6 +51,7 @@ import {
   drawPhantoms,
   drawWaterAnimation,
 } from "./render-effects.ts";
+import { buildModifierSnapshotMap } from "./render-snapshot.ts";
 import { drawSprite } from "./render-sprites.ts";
 import { drawTowers } from "./render-towers.ts";
 import {
@@ -99,6 +100,16 @@ type BannerCacheEntry = {
   castles: readonly CastleData[];
   territory: Set<number>[] | undefined;
   walls: Set<number>[] | undefined;
+  /** Reference to the modifierDiff.changedTiles array (if any). Reference
+   *  identity is enough — each banner produces a fresh diff. Used to
+   *  invalidate the cached snapshot map when a new modifier reveal banner
+   *  replaces a previous one. */
+  modifierTiles: readonly number[] | undefined;
+  /** Snapshot map for the prev-scene render. For modifier reveal banners,
+   *  this is a clone of `map` with `changedTiles` overridden to Grass so
+   *  the OLD terrain shows below the banner sweep line. For non-modifier
+   *  banners, equal to `map`. */
+  renderMap: GameMap;
 };
 
 /** Tile-key → owning player tables built from the current overlay (one
@@ -418,12 +429,22 @@ function drawBannerPrevScene(
   const prevCastles = overlay.ui.bannerPrevCastles;
   const prevTerritory = overlay.ui.bannerPrevBattleTerritory;
   const prevWalls = overlay.ui.bannerPrevBattleWalls;
+  // For tile-mutation modifier banners (high_tide, sinkhole) the map's tiles
+  // have already been mutated by enterBattleFromCannon — we revert them in a
+  // snapshot map so drawTerrain paints the OLD terrain below the sweep line.
+  // For all other banners modifierTiles is undefined and renderMap === map.
+  const modifierTiles = overlay.ui.banner.modifierDiff?.changedTiles;
   const needsBannerRender = !isBannerCacheValid(
     map,
     prevCastles,
     prevTerritory,
     prevWalls,
+    modifierTiles,
   );
+  const renderMap =
+    needsBannerRender && modifierTiles?.length
+      ? buildModifierSnapshotMap(map, modifierTiles)
+      : (bannerCache?.renderMap ?? map);
 
   if (needsBannerRender) {
     const prevOverlay: RenderOverlay = {
@@ -460,8 +481,11 @@ function drawBannerPrevScene(
     };
     const tmpCtx = bannerSceneCtx;
     tmpCtx.clearRect(0, 0, W, H);
-    drawTerrain(tmpCtx, W, H, map, prevOverlay);
-    drawWaterAnimation(tmpCtx, map, prevOverlay, now);
+    // Terrain + water animation read map.tiles directly — use the snapshot
+    // so they paint the OLD terrain. All other passes use the live map
+    // (entity draws don't read tiles, sinkhole patches use the live cache).
+    drawTerrain(tmpCtx, W, H, renderMap, prevOverlay);
+    drawWaterAnimation(tmpCtx, renderMap, prevOverlay, now);
     drawFrozenTiles(tmpCtx, prevOverlay, now);
     drawCastles(tmpCtx, prevOverlay);
     drawSinkholeOverlays(tmpCtx, map, prevOverlay);
@@ -475,6 +499,8 @@ function drawBannerPrevScene(
       castles: prevCastles,
       territory: prevTerritory,
       walls: prevWalls,
+      modifierTiles,
+      renderMap,
     };
   }
 
@@ -490,20 +516,22 @@ function clearBannerCache(): void {
   bannerCache = undefined;
 }
 
-/** Check if the banner scene cache is still valid (reference-equality on all fields).
- *  Type-safe: BannerCacheEntry keys drive the comparison — adding a field to the type
- *  without updating this function causes a compile error via the `key in` iteration. */
+/** Check if the banner scene cache is still valid (reference-equality on the
+ *  cache-key fields). Note: `renderMap` is derived from (map, modifierTiles),
+ *  so it's not part of the candidate — it's recomputed when the cache misses. */
 function isBannerCacheValid(
   map: GameMap,
   castles: readonly CastleData[],
   territory: Set<number>[] | undefined,
   walls: Set<number>[] | undefined,
+  modifierTiles: readonly number[] | undefined,
 ): boolean {
   if (!bannerCache) return false;
-  const candidate: BannerCacheEntry = { map, castles, territory, walls };
-  for (const key of Object.keys(candidate) as (keyof BannerCacheEntry)[]) {
-    if (bannerCache[key] !== candidate[key]) return false;
-  }
+  if (bannerCache.map !== map) return false;
+  if (bannerCache.castles !== castles) return false;
+  if (bannerCache.territory !== territory) return false;
+  if (bannerCache.walls !== walls) return false;
+  if (bannerCache.modifierTiles !== modifierTiles) return false;
   return true;
 }
 

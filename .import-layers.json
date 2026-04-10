@@ -48,6 +48,7 @@
     "tier": "types",
     "files": [
       "src/ai/ai-build-types.ts",
+      "src/render/render-snapshot.ts",
       "src/render/render-ui-theme.ts",
       "src/shared/battle-types.ts",
       "src/shared/game-event-bus.ts",
@@ -162,7 +163,6 @@
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/online/online-host-crosshairs.ts",
-      "src/online/online-send-actions.ts",
       "src/online/online-watcher-battle.ts",
       "src/player/controller-types.ts",
       "src/render/render-map.ts",
@@ -185,6 +185,7 @@
       "src/ai/ai-strategy-build.ts",
       "src/game/game-engine.ts",
       "src/online/online-phase-transitions.ts",
+      "src/online/online-send-actions.ts",
       "src/online/online-serialize.ts",
       "src/online/online-watcher-tick.ts",
       "src/player/controller-human.ts",
@@ -215,6 +216,7 @@
       "src/ai/ai-phase-select.ts",
       "src/game/selection-facade.ts",
       "src/online/online-runtime-transition.ts",
+      "src/online/online-runtime-ws.ts",
       "src/online/online-server-events.ts",
       "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-phase-ticks.ts",
@@ -226,6 +228,7 @@
     "tier": "assembly",
     "files": [
       "src/ai/controller-ai.ts",
+      "src/online/online-runtime-lobby.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-session.ts",
       "src/runtime/runtime-selection.ts"
@@ -244,20 +247,12 @@
     "tier": "roots",
     "files": [
       "src/main.ts",
-      "src/online/online-runtime-ws.ts",
+      "src/online/online-runtime-game.ts",
       "src/runtime/runtime-headless.ts"
     ]
   },
   {
     "name": "app entry",
-    "tier": "roots",
-    "files": [
-      "src/online/online-runtime-game.ts",
-      "src/online/online-runtime-lobby.ts"
-    ]
-  },
-  {
-    "name": "online app",
     "tier": "roots",
     "files": [
       "src/online-client.ts"
