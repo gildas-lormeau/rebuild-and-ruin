@@ -14,6 +14,7 @@
  * `runtime.runtimeState.state.bus` rather than reaching into runtime internals.
  */
 
+import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -53,6 +54,11 @@ interface HeadlessRuntimeOptions {
    *  state as the local one. The runtime never receives any messages because
    *  there are no peers. */
   hostMode?: boolean;
+  /** Optional renderer override. When provided, replaces the default no-op
+   *  stub renderer — used by tests that need the real draw pipeline to fire
+   *  (e.g. for `RenderObserver` assertions). The caller is responsible for
+   *  installing the canvas factory before constructing the renderer. */
+  renderer?: RendererInterface;
 }
 
 export interface HeadlessRuntime {
@@ -77,6 +83,7 @@ export async function createHeadlessRuntime(
     rounds = 3,
     log = false,
     hostMode = false,
+    renderer: rendererOverride,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -102,7 +109,7 @@ export async function createHeadlessRuntime(
     requestFrame: () => {},
   };
 
-  const renderer = createStubRenderer();
+  const renderer = rendererOverride ?? createStubRenderer();
   const keyboardEventSource: Pick<
     Document,
     "addEventListener" | "removeEventListener"
@@ -146,10 +153,17 @@ export async function createHeadlessRuntime(
   // bootstrapNewGameFromSettings reads runtimeState.lobby.seed and
   // runtimeState.lobby.joined, so we wire them up directly — no need
   // to go through the lobby UI flow. All slots stay un-joined → all AI.
+  // Hydrate lobby.map immediately so the warm-up tick (which dispatches to
+  // the LOBBY tick → renderLobby) has a real map to render. In production
+  // main.ts goes through showLobby() → refreshLobbySeed() to get this; we
+  // short-circuit by calling bootstrapFacade.generateMap directly. Skipping
+  // this is invisible to the no-op stub renderer but crashes drawTerrain
+  // when a real renderer is wired in via `opts.renderer`.
   runtime.runtimeState.settings.seed = String(seed);
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
   runtime.runtimeState.settings.gameMode = gameMode;
   runtime.runtimeState.lobby.seed = seed;
+  runtime.runtimeState.lobby.map = bootstrapFacade.generateMap(seed);
 
   // ── Sentinel warm-up ──────────────────────────────────────────────
   // `frameMeta` is initialized by `computeFrameContext` inside `mainLoop`.

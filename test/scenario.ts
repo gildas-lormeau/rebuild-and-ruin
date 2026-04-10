@@ -33,6 +33,8 @@
  *     });
  */
 
+import { createCanvasRenderer } from "../src/render/render-canvas.ts";
+import { setCanvasFactory } from "../src/render/render-map.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -49,6 +51,7 @@ import {
 } from "../src/shared/game-event-bus.ts";
 import type { Phase } from "../src/shared/game-phase.ts";
 import type { GameState } from "../src/shared/types.ts";
+import type { CanvasRecorder } from "./recording-canvas.ts";
 
 export interface ScenarioOptions {
   /** Map seed — controls map, AI, and modifier rolls. Defaults to 42. */
@@ -62,6 +65,12 @@ export interface ScenarioOptions {
    *  the online code path produces the same state as the local one. The
    *  runtime never receives any messages because there are no peers. */
   hostMode?: boolean;
+  /** Canvas recorder. When provided, the scenario runs the *real* canvas
+   *  renderer (instead of the no-op stub) wired to the recorder's mock
+   *  canvases — every frame fires the full draw pipeline, and tests can
+   *  observe via `setRenderObserver` (or inspect the recorder log directly).
+   *  Use this when you need to assert on render-side invariants. */
+  recorder?: CanvasRecorder;
 }
 
 export interface Scenario {
@@ -87,11 +96,21 @@ export interface Scenario {
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
+  // When a recorder is provided, install the canvas factory and build the
+  // real renderer over the recorder's display canvas. Both module-level
+  // setters reset on re-call, so multiple recorder-backed scenarios in the
+  // same test file remain isolated.
+  let renderer: ReturnType<typeof createCanvasRenderer> | undefined;
+  if (opts.recorder) {
+    setCanvasFactory(opts.recorder.factory);
+    renderer = createCanvasRenderer(opts.recorder.displayCanvas);
+  }
   const headless = await createHeadlessRuntime({
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
     rounds: opts.rounds ?? 3,
     hostMode: opts.hostMode ?? false,
+    renderer,
   });
   return wrap(headless);
 }
@@ -159,6 +178,32 @@ export function waitForBanner(
   }
   if (captured === null) {
     throw new Error(`waitForBanner timed out after ${maxTicks} ticks`);
+  }
+  return captured;
+}
+
+/** Tick until a `roundStart` event for `round` fires. Useful for skipping
+ *  through opening rounds when a test needs a condition that only appears
+ *  in later rounds (e.g. environmental modifiers from round 3 onwards). */
+export function waitUntilRound(
+  sc: Scenario,
+  round: number,
+  maxTicks = DEFAULT_MAX_TICKS,
+): GameEventMap["roundStart"] {
+  let captured: GameEventMap["roundStart"] | null = null;
+  const handler = (ev: GameEventMap["roundStart"]) => {
+    if (ev.round >= round && captured === null) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.ROUND_START, handler);
+  try {
+    sc.runUntil(() => captured !== null, maxTicks);
+  } finally {
+    sc.bus.off(GAME_EVENT.ROUND_START, handler);
+  }
+  if (captured === null) {
+    throw new Error(
+      `waitUntilRound(${round}) timed out after ${maxTicks} ticks`,
+    );
   }
   return captured;
 }

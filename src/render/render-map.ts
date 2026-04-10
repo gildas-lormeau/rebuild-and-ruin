@@ -95,6 +95,20 @@ interface SinkholeTilePatches {
   patches: Map<string, ImageData>;
 }
 
+/** Test seam: structured callbacks fired at high-level draw points so tests
+ *  can assert on *what* was rendered (which `GameMap` reference, which target
+ *  canvas) without inspecting pixel buffers. Production code never sets this.
+ *
+ *  - `terrainDrawn` fires right after `drawTerrain` runs. `target` is `"main"`
+ *    for the live scene and `"banner"` for the cached banner prev-scene canvas.
+ *    `mapRef` is the exact `GameMap` object passed to drawTerrain — for
+ *    modifier reveal banners this is the snapshot map produced by
+ *    `buildModifierSnapshotMap`, a *different* reference than the live map.
+ */
+interface RenderObserver {
+  terrainDrawn?(target: "main" | "banner", mapRef: GameMap): void;
+}
+
 type BannerCacheEntry = {
   map: GameMap;
   castles: readonly CastleData[];
@@ -118,6 +132,11 @@ type BannerCacheEntry = {
 interface OwnerTables {
   interiorOwners: Map<number, ValidPlayerSlot>;
   wallTiles: Set<number>;
+}
+
+interface OffscreenPair {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
 }
 
 // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
@@ -198,12 +217,6 @@ const WAVE_LO: { x: number; y: number; w: number }[] = [
 // Precomputed per-pixel texture offsets (built once, reused every frame)
 const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
-const offscreenScene = document.createElement("canvas");
-const sceneCtx = offscreenScene.getContext("2d", { willReadFrequently: true })!;
-const bannerSceneCanvas = document.createElement("canvas");
-const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
-  willReadFrequently: true,
-})!;
 /** WeakMap so terrain caches auto-cleanup when a GameMap is GC'd (e.g., lobby map change).
  *  Banner cache below uses module-level variables + manual clearBannerCache() instead,
  *  because the banner scene combines data from multiple sources (castles, territory, walls)
@@ -211,6 +224,13 @@ const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
 const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
 const SPRITE_CANNON = "cannon";
 
+/** Factory used to create offscreen canvases. Defaults to `document.createElement`
+ *  in browsers; tests inject a recording mock via `setCanvasFactory()` so the
+ *  module can be loaded in environments without `document` (deno, node). */
+let createOffscreenCanvas: () => HTMLCanvasElement = () =>
+  document.createElement("canvas");
+let scene: OffscreenPair | undefined;
+let bannerScene: OffscreenPair | undefined;
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache:
   | {
@@ -219,10 +239,22 @@ let mainCtxCache:
     }
   | undefined;
 let bannerCache: BannerCacheEntry | undefined;
+let renderObserver: RenderObserver | undefined;
 
-/** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
-export function sceneCanvas(): HTMLCanvasElement {
-  return offscreenScene;
+/** Inject the offscreen canvas factory (tests use this to wire a recording stub).
+ *  Resets all cached canvases/contexts so the next render rebuilds against the
+ *  new factory. Must be called before any `drawMap()` invocation. */
+export function setCanvasFactory(factory: () => HTMLCanvasElement): void {
+  createOffscreenCanvas = factory;
+  scene = undefined;
+  bannerScene = undefined;
+  mainCtxCache = undefined;
+  clearBannerCache();
+}
+
+/** Install a render observer (test seam). Pass `undefined` to clear. */
+export function setRenderObserver(observer: RenderObserver | undefined): void {
+  renderObserver = observer;
 }
 
 export function drawMap(
@@ -247,7 +279,7 @@ export function drawMap(
   }
 
   ensureOffscreenSize(W, H);
-  const overlayCtx = sceneCtx;
+  const overlayCtx = getScene().ctx;
   overlayCtx.clearRect(0, 0, W, H);
 
   // Render layers (order is load-bearing — later layers draw on top):
@@ -278,6 +310,7 @@ export function drawMap(
 
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
+  renderObserver?.terrainDrawn?.("main", map);
   drawWaterAnimation(overlayCtx, map, overlay, now);
   drawFrozenTiles(overlayCtx, overlay, now);
   drawCastles(overlayCtx, overlay);
@@ -308,9 +341,10 @@ export function drawMap(
 
   // Scale up to display canvas (with optional zoom viewport)
   canvasCtx.imageSmoothingEnabled = false;
+  const offscreenCanvas = getScene().canvas;
   if (viewport) {
     canvasCtx.drawImage(
-      offscreenScene,
+      offscreenCanvas,
       viewport.x,
       viewport.y,
       viewport.w,
@@ -321,7 +355,7 @@ export function drawMap(
       gameH,
     );
   } else {
-    canvasCtx.drawImage(offscreenScene, 0, 0, cw, gameH);
+    canvasCtx.drawImage(offscreenCanvas, 0, 0, cw, gameH);
   }
 
   // HUD text drawn at display resolution (screen-relative, not affected by zoom)
@@ -382,18 +416,31 @@ function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
 }
 
 function ensureOffscreenSize(width: number, height: number): void {
-  if (offscreenScene.width !== width || offscreenScene.height !== height) {
-    offscreenScene.width = width;
-    offscreenScene.height = height;
+  const sceneCanvas = getScene().canvas;
+  if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
+    sceneCanvas.width = width;
+    sceneCanvas.height = height;
   }
-  if (
-    bannerSceneCanvas.width !== width ||
-    bannerSceneCanvas.height !== height
-  ) {
-    bannerSceneCanvas.width = width;
-    bannerSceneCanvas.height = height;
+  const bannerCanvas = getBannerScene().canvas;
+  if (bannerCanvas.width !== width || bannerCanvas.height !== height) {
+    bannerCanvas.width = width;
+    bannerCanvas.height = height;
     clearBannerCache();
   }
+}
+
+/** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
+export function sceneCanvas(): HTMLCanvasElement {
+  return getScene().canvas;
+}
+
+function getScene(): OffscreenPair {
+  if (!scene) {
+    const canvas = createOffscreenCanvas();
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    scene = { canvas, ctx };
+  }
+  return scene;
 }
 
 /** Re-draw the pre-transition scene below the banner divider line.
@@ -479,12 +526,13 @@ function drawBannerPrevScene(
         cannonPhantoms: undefined,
       },
     };
-    const tmpCtx = bannerSceneCtx;
+    const tmpCtx = getBannerScene().ctx;
     tmpCtx.clearRect(0, 0, W, H);
     // Terrain + water animation read map.tiles directly — use the snapshot
     // so they paint the OLD terrain. All other passes use the live map
     // (entity draws don't read tiles, sinkhole patches use the live cache).
     drawTerrain(tmpCtx, W, H, renderMap, prevOverlay);
+    renderObserver?.terrainDrawn?.("banner", renderMap);
     drawWaterAnimation(tmpCtx, renderMap, prevOverlay, now);
     drawFrozenTiles(tmpCtx, prevOverlay, now);
     drawCastles(tmpCtx, prevOverlay);
@@ -508,8 +556,17 @@ function drawBannerPrevScene(
   overlayCtx.beginPath();
   overlayCtx.rect(0, clipY, W, H - clipY);
   overlayCtx.clip();
-  overlayCtx.drawImage(bannerSceneCanvas, 0, 0);
+  overlayCtx.drawImage(getBannerScene().canvas, 0, 0);
   overlayCtx.restore();
+}
+
+function getBannerScene(): OffscreenPair {
+  if (!bannerScene) {
+    const canvas = createOffscreenCanvas();
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    bannerScene = { canvas, ctx };
+  }
+  return bannerScene;
 }
 
 function clearBannerCache(): void {
