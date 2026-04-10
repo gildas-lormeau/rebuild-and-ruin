@@ -172,3 +172,42 @@ export function waitForModifier(
     maxTicks,
   );
 }
+
+// ─── Determinism recording ─────────────────────────────────────────
+// `recordEvents` subscribes to ALL bus events and returns an append-only
+// log. The log is a deterministic projection of "what happened in this run":
+// if the runtime is deterministic, replaying the same scenario with the
+// same seed must produce a byte-identical log.
+//
+// Used by:
+//   - scripts/record-determinism.ts to write fixtures to disk
+//   - test/determinism.test.ts to verify replay matches the saved fixture
+
+export interface RecordedEvent {
+  readonly type: string;
+  readonly payload: Record<string, unknown>;
+}
+
+/** Subscribe to every bus event and accumulate them in order.
+ *  Call BEFORE driving the runtime so no events are missed. */
+export function recordEvents(sc: Scenario): RecordedEvent[] {
+  const events: RecordedEvent[] = [];
+  sc.bus.onAny((type, ev) => {
+    events.push(normalizeEvent(type as string, ev));
+  });
+  return events;
+}
+
+function normalizeEvent(type: string, ev: unknown): RecordedEvent {
+  const record = ev as Record<string, unknown>;
+  const payload: Record<string, unknown> = {};
+  // Sort keys for stable JSON output. Drop `type` (it's the parent key)
+  // and `undefined` values (JSON.stringify drops them, so the saved fixture
+  // wouldn't match a live replay otherwise).
+  for (const key of Object.keys(record).sort()) {
+    if (key === "type") continue;
+    if (record[key] === undefined) continue;
+    payload[key] = record[key];
+  }
+  return { type, payload };
+}
