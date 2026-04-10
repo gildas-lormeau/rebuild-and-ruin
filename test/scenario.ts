@@ -66,17 +66,17 @@ export interface Scenario {
   readonly bus: GameEventBus;
   /** Current simulated time (ms). */
   readonly now: () => number;
-  /** Advance the game by one frame. Default `dtMs = 16` (≈60fps). */
-  tick(dtMs?: number): void;
-  /** Tick until `predicate` returns true. Returns the tick count, or -1 if
-   *  the predicate never fired before `maxTicks`. */
+  /** Drive the game until `predicate` returns true. Returns the frame count
+   *  taken, or -1 if the predicate never fired before `maxFrames`. Tests
+   *  observe via the bus and assert on `state` reads — never advance the
+   *  simulation manually frame-by-frame. */
   runUntil(
     predicate: () => boolean,
-    maxTicks?: number,
+    maxFrames?: number,
     dtMs?: number,
   ): number;
-  /** Tick until the game ends (mode reaches STOPPED). */
-  runGame(maxTicks?: number, dtMs?: number): void;
+  /** Drive the game until it ends (mode reaches STOPPED). */
+  runGame(maxFrames?: number, dtMs?: number): void;
 }
 
 export async function createScenario(
@@ -99,7 +99,6 @@ function wrap(headless: HeadlessRuntime): Scenario {
       return headless.runtime.runtimeState.state.bus;
     },
     now: headless.now,
-    tick: headless.tick,
     runUntil: headless.runUntil,
     runGame: headless.runGame,
   };

@@ -16,16 +16,6 @@ Deno.test("scenario: boots from a seed and exposes game state", async () => {
   assertGreater(sc.state.map.tiles.length, 0);
 });
 
-Deno.test("scenario: tick advances the simulated clock and runs mainLoop", async () => {
-  const sc = await createScenario({ seed: 42 });
-  const startNow = sc.now();
-
-  for (let i = 0; i < 50; i++) sc.tick();
-
-  // 50 frames × 16ms = 800ms of simulated time.
-  assertGreater(sc.now(), startNow);
-});
-
 Deno.test("scenario: waitForPhase reaches BATTLE in a fresh game", async () => {
   const sc = await createScenario({ seed: 42 });
   const ev = waitForPhase(sc, Phase.BATTLE);

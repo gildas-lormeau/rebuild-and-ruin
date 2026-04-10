@@ -47,13 +47,13 @@ export interface HeadlessRuntime {
   readonly runtime: GameRuntime;
   /** Current mock clock (ms). */
   now(): number;
-  /** Advance the mock clock by `dtMs` and run one `mainLoop` iteration. */
-  tick(dtMs?: number): void;
-  /** Tick until `predicate` returns true or `maxTicks` reached.
-   *  Returns the number of ticks taken, or -1 if the predicate never fired. */
-  runUntil(predicate: () => boolean, maxTicks?: number, dtMs?: number): number;
-  /** Tick until `mode === STOPPED` (game over) or `maxTicks` reached. */
-  runGame(maxTicks?: number, dtMs?: number): void;
+  /** Drive the simulation until `predicate` returns true or `maxFrames`
+   *  reached. Returns the number of frames taken, or -1 if the predicate
+   *  never fired. */
+  runUntil(predicate: () => boolean, maxFrames?: number, dtMs?: number): number;
+  /** Drive the simulation until `mode === STOPPED` (game over) or
+   *  `maxFrames` reached. */
+  runGame(maxFrames?: number, dtMs?: number): void;
 }
 
 export async function createHeadlessRuntime(
@@ -181,7 +181,6 @@ export async function createHeadlessRuntime(
   return {
     runtime,
     now: () => clock,
-    tick,
     runUntil,
     runGame,
   };
