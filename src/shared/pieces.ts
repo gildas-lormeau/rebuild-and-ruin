@@ -91,14 +91,14 @@ const PIECE_POOL_START_ROUND = 2;
 const PIECE_POOL_END_ROUND = 8;
 /** Chance that a simple piece gets scattered into the harder section as relief. */
 const SIMPLE_PIECE_SCATTER_CHANCE = 0.3;
-export const PIECE_1x1: PieceShape = {
+const PIECE_1x1: PieceShape = {
   name: "1x1",
   offsets: [[0, 0]],
   width: 1,
   height: 1,
   pivot: [0, 0],
 };
-export const PIECE_1x2: PieceShape = {
+const PIECE_1x2: PieceShape = {
   name: "1x2",
   offsets: [
     [0, 0],
@@ -108,7 +108,7 @@ export const PIECE_1x2: PieceShape = {
   height: 1,
   pivot: [0, 0],
 };
-export const PIECE_1x3: PieceShape = {
+const PIECE_1x3: PieceShape = {
   name: "1x3",
   offsets: [
     [0, 0],
@@ -119,7 +119,7 @@ export const PIECE_1x3: PieceShape = {
   height: 1,
   pivot: [0, 1],
 };
-export const PIECE_L: PieceShape = {
+const PIECE_L: PieceShape = {
   name: "L",
   offsets: [
     [0, 2],
@@ -131,7 +131,7 @@ export const PIECE_L: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_C: PieceShape = {
+const PIECE_C: PieceShape = {
   name: "C",
   offsets: [
     [0, 0],
@@ -144,7 +144,7 @@ export const PIECE_C: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_S: PieceShape = {
+const PIECE_S: PieceShape = {
   name: "S",
   offsets: [
     [0, 1],
@@ -156,7 +156,7 @@ export const PIECE_S: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_J: PieceShape = {
+const PIECE_J: PieceShape = {
   name: "J",
   offsets: [
     [0, 0],
@@ -168,7 +168,7 @@ export const PIECE_J: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_SR: PieceShape = {
+const PIECE_SR: PieceShape = {
   name: "SR",
   offsets: [
     [0, 0],
@@ -180,7 +180,7 @@ export const PIECE_SR: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_PLUS: PieceShape = {
+const PIECE_PLUS: PieceShape = {
   name: "+",
   offsets: [
     [0, 1],

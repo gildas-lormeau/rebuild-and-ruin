@@ -148,25 +148,6 @@ export interface GameEventBus {
 
 type InternalHandler = (event: unknown) => void;
 
-interface GameLogEntry {
-  readonly type: GameEventType;
-  readonly round: number;
-  readonly data: GameEventMap[keyof GameEventMap];
-}
-
-interface GameLogger {
-  /** All recorded entries (append-only, chronological). */
-  readonly entries: readonly GameLogEntry[];
-  /** Filter entries by event type (payload narrows to GameEventMap[K]). */
-  filter<K extends keyof GameEventMap>(
-    type: K,
-  ): readonly (GameLogEntry & { readonly data: GameEventMap[K] })[];
-  /** Disconnect from the bus. */
-  detach(): void;
-  /** Clear all recorded entries. */
-  clear(): void;
-}
-
 const LIFECYCLE_EVENT = {
   PHASE_START: "phaseStart",
   PHASE_END: "phaseEnd",
@@ -248,55 +229,6 @@ export function emitGameEvent<K extends keyof GameEventMap>(
   payload: Omit<GameEventMap[K], "type">,
 ): void {
   bus.emit(type, { type, ...payload } as GameEventMap[K]);
-}
-
-export function createGameLogger(
-  bus: GameEventBus,
-  getRound: () => number,
-): GameLogger {
-  const entries: GameLogEntry[] = [];
-  const handler: AnyEventHandler = (type, data) => {
-    entries.push({ type: type as GameEventType, round: getRound(), data });
-  };
-  bus.onAny(handler);
-
-  return {
-    entries,
-    filter<K extends keyof GameEventMap>(
-      type: K,
-    ): readonly (GameLogEntry & { readonly data: GameEventMap[K] })[] {
-      return entries.filter((entry) => entry.type === type) as (GameLogEntry & {
-        readonly data: GameEventMap[K];
-      })[];
-    },
-    detach(): void {
-      bus.offAny(handler);
-    },
-    clear(): void {
-      entries.length = 0;
-    },
-  };
-}
-
-/** Subscribe to the bus and format events as readable log lines via a sink function.
- *  Returns a detach function. Filters can narrow which events are logged. */
-export function createBusLog(
-  bus: GameEventBus,
-  sink: (line: string) => void,
-  filter?: ReadonlySet<string>,
-): () => void {
-  const handler: AnyEventHandler = (type, event) => {
-    if (filter && !filter.has(type)) return;
-    const parts: string[] = [type as string];
-    const record = event as Record<string, unknown>;
-    for (const key of Object.keys(record)) {
-      if (key === "type") continue;
-      parts.push(`${key}=${record[key]}`);
-    }
-    sink(parts.join(" "));
-  };
-  bus.onAny(handler);
-  return () => bus.offAny(handler);
 }
 
 void busComplete;

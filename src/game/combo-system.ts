@@ -84,9 +84,14 @@ export function scoreImpactCombo(
   }
 }
 
+/** Facade: age combo events by dt seconds. No-op in classic mode. */
+export function tickComboTracking(state: GameState, dt: number): void {
+  if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
+}
+
 /** Process an impact event for combo tracking. Returns bonus score to add.
  *  `battleTime` is elapsed seconds since battle start (monotonic). */
-export function comboOnWallDestroyed(
+function comboOnWallDestroyed(
   tracker: ComboTracker,
   shooterId: ValidPlayerSlot,
   battleTime: number,
@@ -118,7 +123,7 @@ export function comboOnWallDestroyed(
   return 0;
 }
 
-export function comboOnCannonKill(
+function comboOnCannonKill(
   tracker: ComboTracker,
   shooterId: ValidPlayerSlot,
 ): number {
@@ -134,7 +139,7 @@ export function comboOnCannonKill(
   return CANNON_KILL_BONUS;
 }
 
-export function comboOnGruntKill(
+function comboOnGruntKill(
   tracker: ComboTracker,
   shooterId: ValidPlayerSlot,
   battleTime: number,
@@ -160,11 +165,6 @@ export function comboOnGruntKill(
     return GRUNT_STREAK_BONUS;
   }
   return 0;
-}
-
-/** Facade: age combo events by dt seconds. No-op in classic mode. */
-export function tickComboTracking(state: GameState, dt: number): void {
-  if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
 }
 
 /** Age combo events by dt seconds, remove expired ones (> 2s). */

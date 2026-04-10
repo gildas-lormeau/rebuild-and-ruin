@@ -63,63 +63,6 @@ export function createGameFromSeed(
   return { map, state, zones, playerCount };
 }
 
-export function createGameState(
-  map: GameMap,
-  playerCount: number,
-  seed?: number,
-): GameState {
-  const players: Player[] = [];
-  for (let i = 0; i < playerCount; i++) {
-    players.push({
-      id: i as ValidPlayerSlot,
-      homeTower: null,
-      castle: null,
-      ownedTowers: [],
-      walls: new Set(),
-      interior: emptyFreshInterior(),
-      cannons: [],
-      lives: STARTING_LIVES,
-      eliminated: false,
-      score: 0,
-      defaultFacing: 0,
-      castleWallTiles: new Set(),
-      upgrades: new Map(),
-      damagedWalls: new Set(),
-    });
-  }
-
-  return {
-    rng: new Rng(seed),
-    map,
-    bus: createGameEventBus(),
-    phase: Phase.CASTLE_SELECT,
-    round: 1,
-    maxRounds: Infinity,
-    cannonMaxHp: CANNON_MAX_HP,
-    buildTimer: BUILD_TIMER,
-    cannonPlaceTimer: CANNON_PLACE_TIMER,
-    firstRoundCannons: FIRST_ROUND_CANNONS,
-    players,
-    timer: 0,
-    cannonballs: [],
-    shotsFired: 0,
-    grunts: [],
-    towerAlive: map.towers.map(() => true),
-    towerPendingRevive: new Set(),
-    burningPits: [],
-    capturedCannons: [],
-    bonusSquares: [],
-    battleCountdown: 0,
-    reselectedPlayers: new Set(),
-    playerZones: [],
-    cannonLimits: [],
-    salvageSlots: [],
-    gameMode: GAME_MODE_CLASSIC,
-    activeFeatures: EMPTY_FEATURES,
-    modern: null,
-  };
-}
-
 /** Apply per-match game configuration to a freshly created GameState.
  *  Called by bootstrapGame after createGameFromSeed. Keeps all game-config
  *  mutation inside the game domain. */
@@ -210,4 +153,61 @@ export function finalizeAndEnterCannonPhase(state: GameState): void {
 export function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
+}
+
+function createGameState(
+  map: GameMap,
+  playerCount: number,
+  seed?: number,
+): GameState {
+  const players: Player[] = [];
+  for (let i = 0; i < playerCount; i++) {
+    players.push({
+      id: i as ValidPlayerSlot,
+      homeTower: null,
+      castle: null,
+      ownedTowers: [],
+      walls: new Set(),
+      interior: emptyFreshInterior(),
+      cannons: [],
+      lives: STARTING_LIVES,
+      eliminated: false,
+      score: 0,
+      defaultFacing: 0,
+      castleWallTiles: new Set(),
+      upgrades: new Map(),
+      damagedWalls: new Set(),
+    });
+  }
+
+  return {
+    rng: new Rng(seed),
+    map,
+    bus: createGameEventBus(),
+    phase: Phase.CASTLE_SELECT,
+    round: 1,
+    maxRounds: Infinity,
+    cannonMaxHp: CANNON_MAX_HP,
+    buildTimer: BUILD_TIMER,
+    cannonPlaceTimer: CANNON_PLACE_TIMER,
+    firstRoundCannons: FIRST_ROUND_CANNONS,
+    players,
+    timer: 0,
+    cannonballs: [],
+    shotsFired: 0,
+    grunts: [],
+    towerAlive: map.towers.map(() => true),
+    towerPendingRevive: new Set(),
+    burningPits: [],
+    capturedCannons: [],
+    bonusSquares: [],
+    battleCountdown: 0,
+    reselectedPlayers: new Set(),
+    playerZones: [],
+    cannonLimits: [],
+    salvageSlots: [],
+    gameMode: GAME_MODE_CLASSIC,
+    activeFeatures: EMPTY_FEATURES,
+    modern: null,
+  };
 }

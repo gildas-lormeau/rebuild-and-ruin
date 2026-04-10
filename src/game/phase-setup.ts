@@ -98,26 +98,6 @@ interface ScoreDelta {
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
 
-/** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
-export function rebuildHomeCastle(state: GameState, player: Player): void {
-  if (!player.homeTower) return;
-  resetPlayerBoardState(player, { keepHomeTower: true });
-  const plan = prepareCastleWallsForPlayer(state, player.id);
-  if (!plan) return;
-  addPlayerWalls(player, plan.tiles);
-  player.castleWallTiles = new Set(plan.tiles);
-  // Destroy houses under rebuilt castle walls
-  for (const house of state.map.houses) {
-    if (!house.alive) continue;
-    if (player.walls.has(packTile(house.row, house.col))) {
-      house.alive = false;
-    }
-  }
-  // Remove bonus squares under new walls
-  removeBonusSquaresCoveredByWalls(state, player.walls);
-  recheckTerritoryOnly(state);
-}
-
 /**
  * Complete the build phase using the canonical gameplay rules.
  * Owns wall sweeping, territory/tower revival, and the life check.

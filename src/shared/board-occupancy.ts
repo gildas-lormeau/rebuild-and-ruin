@@ -164,20 +164,6 @@ export function collectAllInterior(state: GameViewState): Set<number> {
   return allInterior;
 }
 
-export function collectAllCannonTiles(
-  state: GameViewState,
-  options?: { excludeBalloonCannons?: boolean },
-): Set<number> {
-  const cannonTiles = new Set<number>();
-  for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (options?.excludeBalloonCannons && isBalloonCannon(cannon)) continue;
-      for (const key of computeCannonTileSet(cannon)) cannonTiles.add(key);
-    }
-  }
-  return cannonTiles;
-}
-
 export function hasWallAt(state: GameViewState, r: number, c: number): boolean {
   const key = packTile(r, c);
   return hasWallMatching(state, key, () => true);
@@ -376,26 +362,6 @@ export function sweepIsolatedWalls(player: Player): void {
   markWallsDirty(player);
 }
 
-/**
- * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
- * Collects all isolated tiles first, then removes them in one batch.
- */
-export function removeIsolatedWalls(walls: Set<number>): void {
-  const toRemove: number[] = [];
-  for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
-  }
-  for (const key of toRemove) walls.delete(key);
-}
-
-/** Mark a player's wall set as modified. Call after any .add/.delete/.clear
- *  on player.walls. Omitting this call is safe (assertion may false-negative)
- *  but including it catches stale-interior bugs. */
-export function markWallsDirty(player: Player): void {
-  wallsEpoch.set(player, (wallsEpoch.get(player) ?? 0) + 1);
-}
-
 /** Mark a player's interior as freshly recomputed and brand the set.
  *  Called by recomputeInterior inside recheckTerritoryOnly — do NOT call from other code.
  *  When `fresh` is provided, assigns it as the new interior (handles branded-type cast). */
@@ -441,6 +407,40 @@ export function assertInteriorFresh(player: Player): void {
         `Call recheckTerritoryOnly() after wall mutations before reading interior.`,
     );
   }
+}
+
+function collectAllCannonTiles(
+  state: GameViewState,
+  options?: { excludeBalloonCannons?: boolean },
+): Set<number> {
+  const cannonTiles = new Set<number>();
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (options?.excludeBalloonCannons && isBalloonCannon(cannon)) continue;
+      for (const key of computeCannonTileSet(cannon)) cannonTiles.add(key);
+    }
+  }
+  return cannonTiles;
+}
+
+/**
+ * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
+ * Collects all isolated tiles first, then removes them in one batch.
+ */
+function removeIsolatedWalls(walls: Set<number>): void {
+  const toRemove: number[] = [];
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
+  }
+  for (const key of toRemove) walls.delete(key);
+}
+
+/** Mark a player's wall set as modified. Call after any .add/.delete/.clear
+ *  on player.walls. Omitting this call is safe (assertion may false-negative)
+ *  but including it catches stale-interior bugs. */
+function markWallsDirty(player: Player): void {
+  wallsEpoch.set(player, (wallsEpoch.get(player) ?? 0) + 1);
 }
 
 /** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.

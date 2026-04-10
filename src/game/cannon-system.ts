@@ -228,20 +228,6 @@ export function prepareControllerCannonPhase(
   return { maxSlots, cursorPos };
 }
 
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
-export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player, idx) => {
-    const base = cannonSlotsForRound(player, state);
-    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
-      ? SUPPLY_DROP_BONUS
-      : 0;
-    const salvage = state.salvageSlots[idx] ?? 0;
-    return base + supplyDrop + salvage;
-  });
-  state.salvageSlots = state.players.map(() => 0);
-  state.reselectedPlayers.clear();
-}
-
 /** Elect one mortar cannon per player who has the Mortar upgrade.
  *  Only standard (normal) cannons are eligible — super guns and balloons are excluded.
  *  If a player has no normal cannons, the upgrade is silently skipped.
@@ -320,6 +306,20 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter(
     (c) => isCannonAlive(c) && !isBalloonCannon(c) && !isRampartCannon(c),
   );
+}
+
+/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+function computeCannonLimitsForPhase(state: GameState): void {
+  state.cannonLimits = state.players.map((player, idx) => {
+    const base = cannonSlotsForRound(player, state);
+    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
+      ? SUPPLY_DROP_BONUS
+      : 0;
+    const salvage = state.salvageSlots[idx] ?? 0;
+    return base + supplyDrop + salvage;
+  });
+  state.salvageSlots = state.players.map(() => 0);
+  state.reselectedPlayers.clear();
 }
 
 /** BFS from home tower tiles through interior + owned tower tiles.

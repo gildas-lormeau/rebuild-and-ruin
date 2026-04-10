@@ -129,7 +129,7 @@ npx tsc --noEmit                                       # type-check browser code
 deno check server/server.ts                            # type-check server code
 npm run lint:all                                       # biome + knip + madge + jscpd + literals + layers + imports
 deno run -A scripts/audit-imports.ts --check               # re-exports, duplicate names, layer misuse
-timeout 60 deno run test/headless.test.ts                   # headless game test
+npm run test:scenario                                       # headless game test
 ```
 
 All must pass before moving to the next fix.

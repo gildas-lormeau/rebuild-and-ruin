@@ -398,11 +398,7 @@ export function isGruntPassableTile(
 }
 
 /** Check if a tile is blocked for grunt movement (impassable obstacle). */
-export function isGruntBlocked(
-  state: GameState,
-  r: number,
-  c: number,
-): boolean {
+function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   if (!inBounds(r, c)) return true;
   // Water tiles are passable when frozen
   if (!isGrass(state.map.tiles, r, c)) {

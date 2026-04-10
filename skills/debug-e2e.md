@@ -73,27 +73,31 @@ related yet — that's what the logs will tell you.
 ### Step 3: Write a test that triggers the bug
 Create a test file in test/. Use one of these approaches:
 
-**For state/logic bugs** — use scenario helpers (play the game, observe events):
+**For state/logic bugs** — use the scenario API (play the game, observe events):
 ```typescript
-import { createScenario } from "./scenario-helpers.ts";
+import { createScenario, waitForPhase, waitForModifier } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
+import { Phase } from "../src/shared/game-phase.ts";
 
-const s = await createScenario(42);
+const sc = await createScenario({ seed: 42, mode: "modern" });
 const events: unknown[] = [];
-s.bus.on(GAME_EVENT.SOME_EVENT, (e) => events.push(e));
-s.playRounds(3); // or s.runGame()
+sc.bus.on(GAME_EVENT.GRUNT_SPAWN, (e) => events.push(e));
+waitForPhase(sc, Phase.BATTLE);
+sc.runGame();
 assert(events.length > 0);
 ```
 
-Scenario API:
-- `s.playRound()` / `s.playRounds(n)` / `s.runGame(maxRounds?)` — play the game
-- `s.advanceTo(Phase.X)` — jump to a phase within the current round
-- `s.placeCannonAt(pid, row, col, mode?)` / `s.placePieceAt(pid, piece, row, col)` / `s.fireAt(pid, idx, row, col)` — scripted actions
-- `s.findGrassTile(pid)` / `s.findInteriorTile(pid)` / `s.findEnemyWallTile(pid)` — tile finders
-- `s.state` / `s.bus` / `s.controllers` — read-only access
-- `s.enableCheckpointRelay()` — enable online serialize→parse→apply round-trips
+Scenario API (`test/scenario.ts`):
+- `createScenario({ seed?, mode?, rounds? })` — boots the FULL runtime headlessly
+- `sc.state` / `sc.bus` — read-only state and the typed event bus
+- `sc.tick(dtMs?)` — advance one frame (default 16ms)
+- `sc.runUntil(predicate, maxTicks?, dtMs?)` — tick until predicate returns true
+- `sc.runGame(maxTicks?, dtMs?)` — tick until game ends
+- `waitForPhase(sc, Phase.X)` — tick until a `phaseStart` event for that phase
+- `waitForBanner(sc, predicate)` — tick until a matching `bannerStart` event
+- `waitForModifier(sc, modifierId?)` — tick until a modifier banner fires
 
-**NEVER** hack runtime state in tests (`state.phase =`, `state.lives =`), construct subsystems in isolation, or bypass game flow. Tests must play the game and observe via `s.state` reads or `s.bus` event listeners.
+**There is NO method to mutate state, scripted-place pieces, or skip phases.** The AI plays the game end-to-end, just like in a browser. If you need a specific game condition, find a seed that produces it via `deno run -A scripts/find-seed.ts`. Tests that hack state are exactly the antipattern this API replaces.
 
 **For input/rendering/browser bugs** — use the E2E helpers:
 ```typescript

@@ -143,14 +143,6 @@ export function gateUpgradePick(
   onDone();
 }
 
-/** Show the upgrade pick banner with its canonical subtitle. */
-export function showUpgradePickBanner(
-  show: BannerShow,
-  onDone: () => void,
-): void {
-  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
-}
-
 /** Show the modifier reveal banner with the modifier label as the title.
  *  The banner sweeps across the screen, revealing the post-modifier map state
  *  while tile highlights pulse on changed tiles (driven by banner.modifierDiff). */
@@ -180,4 +172,9 @@ export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
 
     deps.onLifeLostResolved?.();
   });
+}
+
+/** Show the upgrade pick banner with its canonical subtitle. */
+function showUpgradePickBanner(show: BannerShow, onDone: () => void): void {
+  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
 }

@@ -1,14 +1,14 @@
 /**
  * Find seeds that produce specific game state conditions.
  *
- * Runs headless scenarios at high speed (no browser, no rendering) and reports
- * seeds matching a given condition. Use this to find deterministic seeds for
- * e2e tests that need specific game states.
+ * Runs the FULL headless runtime (same composition root the browser uses)
+ * via `createScenario` and reports seeds matching a given condition. Use
+ * this to find deterministic seeds for tests that need specific game states.
  *
  * Usage:
  *   deno run -A scripts/find-seed.ts --condition <name> [--rounds N] [--tries N] [--mode modern|classic]
  *
- * Built-in conditions (RNG-driven, observable via scenario helpers):
+ * Built-in conditions (RNG-driven, observable on GameState):
  *   wildfire               — wildfire modifier active at battle start
  *   crumblingWalls         — crumbling walls modifier active
  *   gruntSurge             — grunt surge modifier active
@@ -18,25 +18,21 @@
  *   anyModifier            — any environmental modifier active
  *   manyGrunts             — 10+ grunts alive during battle
  *
- * Note: upgrade-dependent conditions (masterBuilderLockout, reinforcedWalls, etc.)
- * cannot be found here because scenario helpers skip the upgrade pick dialog.
- * For those, use the e2e test with mode: "modern" and enough rounds.
- *
  * Custom conditions (JS expression, evaluated with `state` in scope):
  *   deno run -A scripts/find-seed.ts --expr "state.grunts.length > 10"
  *
- * The condition is checked at EVERY phase boundary (after cannon, after battle,
- * during build) so transient state like lockout is caught.
+ * The condition is checked on every tick while the runtime advances. Seeds
+ * found here are valid for tests because they're discovered by the same
+ * runtime the tests use.
  *
  * Examples:
- *   deno run -A scripts/find-seed.ts --condition masterBuilderLockout
- *   deno run -A scripts/find-seed.ts --condition wildfire --tries 200
+ *   deno run -A scripts/find-seed.ts --condition wildfire
+ *   deno run -A scripts/find-seed.ts --condition highTide --tries 200
  *   deno run -A scripts/find-seed.ts --expr "state.round > 3 && state.grunts.length > 8" --rounds 5
  */
 
-import { createScenario } from "../test/scenario-helpers.ts";
-import { GAME_MODE_MODERN } from "../src/shared/game-constants.ts";
-import { setGameMode, type GameState } from "../src/shared/types.ts";
+import { createScenario } from "../test/scenario.ts";
+import type { GameState } from "../src/shared/types.ts";
 
 // ---------------------------------------------------------------------------
 // Condition registry
@@ -45,42 +41,39 @@ import { setGameMode, type GameState } from "../src/shared/types.ts";
 type Condition = (state: GameState) => boolean;
 
 const CONDITIONS: Record<string, Condition> = {
-  wildfire: (state) =>
-    state.modern?.activeModifier === "wildfire",
-
+  wildfire: (state) => state.modern?.activeModifier === "wildfire",
   crumblingWalls: (state) =>
     state.modern?.activeModifier === "crumbling_walls",
-
-  gruntSurge: (state) =>
-    state.modern?.activeModifier === "grunt_surge",
-
-  frozenRiver: (state) =>
-    state.modern?.activeModifier === "frozen_river",
-
-  highTide: (state) =>
-    state.modern?.activeModifier === "high_tide",
-
-  sinkhole: (state) =>
-    state.modern?.activeModifier === "sinkhole",
-
-  anyModifier: (state) =>
-    state.modern?.activeModifier != null,
-
-  manyGrunts: (state) =>
-    state.grunts.length >= 10,
+  gruntSurge: (state) => state.modern?.activeModifier === "grunt_surge",
+  frozenRiver: (state) => state.modern?.activeModifier === "frozen_river",
+  highTide: (state) => state.modern?.activeModifier === "high_tide",
+  sinkhole: (state) => state.modern?.activeModifier === "sinkhole",
+  anyModifier: (state) => state.modern?.activeModifier != null,
+  manyGrunts: (state) => state.grunts.length >= 10,
 };
 
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
-function parseArgs() {
+interface CliConfig {
+  condition: string;
+  expr: string;
+  rounds: number;
+  tries: number;
+  mode: "modern" | "classic";
+  /** Max ticks per seed before giving up (16ms per tick). */
+  maxTicksPerSeed: number;
+}
+
+function parseArgs(): CliConfig {
   const args = Deno.args;
   let condition = "";
   let expr = "";
   let rounds = 6;
   let tries = 100;
-  let mode = "modern";
+  let mode: "modern" | "classic" = "modern";
+  let maxTicksPerSeed = 30000;
 
   for (let idx = 0; idx < args.length; idx++) {
     const arg = args[idx];
@@ -88,10 +81,14 @@ function parseArgs() {
     else if (arg === "--expr" && args[idx + 1]) expr = args[++idx]!;
     else if (arg === "--rounds" && args[idx + 1]) rounds = Number(args[++idx]);
     else if (arg === "--tries" && args[idx + 1]) tries = Number(args[++idx]);
-    else if (arg === "--mode" && args[idx + 1]) mode = args[++idx]!;
-    else if (arg === "--help" || arg === "-h") {
+    else if (arg === "--mode" && args[idx + 1]) {
+      const next = args[++idx]!;
+      mode = next === "classic" ? "classic" : "modern";
+    } else if (arg === "--max-ticks" && args[idx + 1]) {
+      maxTicksPerSeed = Number(args[++idx]);
+    } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: deno run -A scripts/find-seed.ts --condition <name> [--rounds N] [--tries N]",
+        "Usage: deno run -A scripts/find-seed.ts --condition <name> [--rounds N] [--tries N] [--mode modern|classic] [--max-ticks N]",
       );
       console.log("\nConditions:", Object.keys(CONDITIONS).join(", "));
       console.log(
@@ -108,14 +105,14 @@ function parseArgs() {
     Deno.exit(1);
   }
 
-  return { condition, expr, rounds, tries, mode };
+  return { condition, expr, rounds, tries, mode, maxTicksPerSeed };
 }
 
 // ---------------------------------------------------------------------------
-// Runner — checks condition at every phase boundary within each round
+// Runner — drives the full runtime per seed and checks the predicate per tick
 // ---------------------------------------------------------------------------
 
-async function run() {
+async function run(): Promise<void> {
   const config = parseArgs();
 
   const check: Condition = config.expr
@@ -138,63 +135,36 @@ async function run() {
 
   for (let seed = 0; seed < config.tries; seed++) {
     try {
-      const scenario = await createScenario(seed);
-      if (config.mode === "modern") {
-        setGameMode(scenario.state, GAME_MODE_MODERN);
-      }
-
-      let found = false;
-      for (let round = 0; round < config.rounds; round++) {
-        // Run cannon phase
-        scenario.runCannon();
-        if (check(scenario.state)) {
-          matches.push({ seed, round: round + 1 });
-          found = true;
-          break;
-        }
-
-        // Run battle → enters build phase (sets modifiers via RNG)
-        scenario.runBattle();
-        if (check(scenario.state)) {
-          matches.push({ seed, round: round + 1 });
-          found = true;
-          break;
-        }
-
-        // Run build phase
-        scenario.runBuild();
-        if (check(scenario.state)) {
-          matches.push({ seed, round: round + 1 });
-          found = true;
-          break;
-        }
-
-        // Finalize build (life loss, reselection)
-        const result = scenario.finalizeBuild();
-        if (result.needsReselect.length > 0) {
-          scenario.processReselection(result.needsReselect);
-        }
-        if (scenario.state.players.every((player) => player.eliminated)) break;
-      }
-
-      if (found) {
-        console.log(`  seed=${seed}  round=${matches[matches.length - 1]!.round}`);
+      const sc = await createScenario({
+        seed,
+        mode: config.mode,
+        rounds: config.rounds,
+      });
+      const ticksUsed = sc.runUntil(
+        () => check(sc.state),
+        config.maxTicksPerSeed,
+      );
+      if (ticksUsed >= 0) {
+        matches.push({ seed, round: sc.state.round });
+        console.log(`  seed=${seed}  round=${sc.state.round}`);
       }
     } catch {
-      // Some seeds produce unplayable maps — skip
+      // Some seeds produce unplayable maps or runtime errors — skip.
     }
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
   if (matches.length === 0) {
-    console.log(`\nNo seeds found in ${elapsed}s. Try increasing --tries or --rounds.`);
+    console.log(
+      `\nNo seeds found in ${elapsed}s. Try increasing --tries or --rounds.`,
+    );
     Deno.exit(1);
   }
 
   console.log(`\n${matches.length} match(es) in ${elapsed}s`);
   console.log(
-    `\nRecommended for e2e test: seed=${matches[0]!.seed}, rounds=${matches[0]!.round + 1}`,
+    `\nRecommended for test: seed=${matches[0]!.seed}, rounds=${matches[0]!.round + 1}`,
   );
 }
 

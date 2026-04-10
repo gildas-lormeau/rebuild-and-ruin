@@ -576,26 +576,6 @@ export function fireNextReadyCannon(
 }
 
 /**
- * Fire a cannonball from a player's cannon toward a target tile (row, col).
- */
-export function fireCannon(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-  cannonIdx: number,
-  targetRow: number,
-  targetCol: number,
-): boolean {
-  if (isPlayerEliminated(state.players[playerId])) return false;
-  if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
-  const cannon = state.players[playerId]!.cannons[cannonIdx]!;
-  launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
-  state.shotsFired++;
-  const ball = state.cannonballs[state.cannonballs.length - 1]!;
-  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
-  return true;
-}
-
-/**
  * Round-robin through own cannons + captured cannons (captured appended at end).
  * Returns the next ready cannon after `after` in the combined index space, or null.
  */
@@ -631,6 +611,26 @@ export function nextReadyCombined(
     }
   }
   return null;
+}
+
+/**
+ * Fire a cannonball from a player's cannon toward a target tile (row, col).
+ */
+function fireCannon(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  cannonIdx: number,
+  targetRow: number,
+  targetCol: number,
+): boolean {
+  if (isPlayerEliminated(state.players[playerId])) return false;
+  if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
+  const cannon = state.players[playerId]!.cannons[cannonIdx]!;
+  launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
+  state.shotsFired++;
+  const ball = state.cannonballs[state.cannonballs.length - 1]!;
+  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
+  return true;
 }
 
 /**

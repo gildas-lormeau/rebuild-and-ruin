@@ -11,13 +11,14 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.readonly-literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
-- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, modifiers, cannon-modes, deno-lint, test:territory, export-index, hot-exports, readonly-params
+- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, modifiers, cannon-modes, deno-lint, test:scenario, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
-- Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
-- Checkpoint parity: `npm run test:parity` (10 random seeds) or `npm run test:parity:quick` (seed 42). **Primary test for network/checkpoint bugs.** Runs local vs network games, compares at every phase boundary. Run after ANY change to online/, checkpoint, or serialization code. Custom seeds: `deno test --no-check test/checkpoint-parity.test.ts -- 9941 52 66`
+- Test: `npm run test:scenario` (the only test file — `test/scenario.test.ts`). Tests use `createScenario({ seed, mode, rounds })` from `test/scenario.ts`, observe via `sc.bus.on(GAME_EVENT.X, ...)`, and use `waitForPhase` / `waitForBanner` / `waitForModifier` helpers. Online tests: `deno test --no-check test/online-*.test.ts`.
+- Test API contract: `createScenario` returns `{ state, bus, tick, runUntil, runGame, now }`. There are NO methods to mutate state, scripted-place pieces, or skip phases. The AI plays the game end-to-end. If you need a specific game condition, find a seed that produces it (`scripts/find-seed.ts`).
+- Headless runtime impl lives in `src/runtime/runtime-headless.ts` — `createHeadlessRuntime(opts)` returns the underlying driver. Tests should import from `test/scenario.ts` instead of touching the headless driver directly.
 - E2E: `deno run -A test/e2e-<name>.ts` (requires `npm run dev`); Playwright + E2EGame + bridge state snapshots
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.
-- Testing philosophy: tests play the game via `createScenario` + event bus listeners, or verify rendering via E2E bridge snapshots. Never hack runtime state (`state.phase =`, `state.lives =`), never construct subsystems in isolation, never bypass game flow.
+- Testing philosophy: tests play the game via `createScenario` + event bus listeners. Never hack runtime state (`state.phase =`, `state.lives =`), never construct subsystems in isolation, never bypass game flow.
 - Refactor: `npm run refactor` — AST CLI (rename-symbol, move-export, rename-prop, rename-in-file, rename-file)
 - Skills live in `skills/` (not ~/.claude/skills/)
 
