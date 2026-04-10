@@ -3,7 +3,7 @@ import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
 import { createBrowserTimingApi } from "../runtime/runtime-browser-timing.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime } from "../runtime/runtime-types.ts";
+import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
@@ -15,6 +15,7 @@ import {
   type GameMessage,
   type InitMessage,
   MESSAGE,
+  type ServerMessage,
 } from "../shared/protocol.ts";
 import { GAME_EXIT_EVENT } from "../shared/router.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
@@ -24,7 +25,7 @@ import {
   broadcastLocalCrosshair,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
-import { initDeps } from "./online-runtime-deps.ts";
+import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
 import { createOnlineTransitionContext } from "./online-runtime-transition.ts";
@@ -55,6 +56,27 @@ const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
 const timing = createBrowserTimingApi();
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
+// ── Incoming message bus ────────────────────────────────────────────
+// Subscribers register via `network.onMessage(handler)`. The WebSocket
+// handler delivers via `deliverIncomingMessage`. The seam is what lets
+// loopback tests substitute their own delivery without touching the
+// dispatcher (handleServerMessage).
+const incomingMessageSubscribers = new Set<
+  (msg: ServerMessage) => void | Promise<void>
+>();
+const network: NetworkApi = {
+  send,
+  onMessage: (handler) => {
+    incomingMessageSubscribers.add(handler);
+    return () => {
+      incomingMessageSubscribers.delete(handler);
+    };
+  },
+  // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
+  getIsHost: () => ctx.session.isHost,
+  getMyPlayerId: () => ctx.session.myPlayerId,
+  getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
+};
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,
   session: ctx.session,
@@ -101,13 +123,7 @@ const runtime: GameRuntime = createGameRuntime({
   renderer,
   timing,
   keyboardEventSource: document,
-  network: {
-    send,
-    // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
-    getIsHost: () => ctx.session.isHost,
-    getMyPlayerId: () => ctx.session.myPlayerId,
-    getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
-  },
+  network,
   aiPick: aiPickUpgrade,
   log: devLog,
   logThrottled: devLogThrottled,
@@ -221,6 +237,10 @@ export function initOnlineRuntime(): void {
         runtime.runtimeState.frame.announcement = text;
       },
       render: () => runtime.render(),
+      // WebSocket fans out incoming messages through the same bus that
+      // backs network.onMessage. The dispatcher (handleServerMessage) is
+      // registered as a subscriber in step 4 below.
+      deliverIncoming: deliverIncomingMessage,
     },
     defaultClient,
   );
@@ -238,9 +258,21 @@ export function initOnlineRuntime(): void {
     client: defaultClient,
   });
 
+  // Step 4: Subscribe the dispatcher to NetworkApi.onMessage. The WS layer
+  // calls deliverIncomingMessage on every received message; this is what
+  // routes those calls into handleServerMessage. A loopback test would
+  // register the same dispatcher against a different NetworkApi instance.
+  network.onMessage(handleServerMessage);
+
   document.addEventListener(GAME_EXIT_EVENT, () => {
     setMode(runtime.runtimeState, Mode.STOPPED);
     runtime.runtimeState.lobby.active = false;
     sessionHelpers.resetSession();
   });
+}
+
+async function deliverIncomingMessage(msg: ServerMessage): Promise<void> {
+  for (const handler of incomingMessageSubscribers) {
+    await handler(msg);
+  }
 }

@@ -32,6 +32,8 @@ const runtime = createGameRuntime({
   keyboardEventSource: document,
   network: {
     send: () => {},
+    // Local play has no peers, so no incoming messages will ever arrive.
+    onMessage: () => () => {},
     getIsHost: () => true,
     getMyPlayerId: () => SPECTATOR_SLOT,
     getRemotePlayerSlots: () => emptySet,

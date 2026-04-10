@@ -178,6 +178,17 @@ export interface OnlineRuntimeConfig {
 export interface NetworkApi {
   /** Send a message from this machine to its peers. */
   readonly send: (msg: GameMessage) => void;
+  /** Subscribe to incoming messages from peers. Returns an unsubscribe
+   *  function. Multiple subscribers are supported — the delivery
+   *  implementation fans out in registration order and awaits each handler.
+   *
+   *  Production: WebSocket onmessage routes through the implementation.
+   *  Local play: no-op (no peers exist).
+   *  Tests/loopback: in-memory delivery between machines in the same
+   *  scenario, exercising the same code path the WebSocket would. */
+  readonly onMessage: (
+    handler: (msg: ServerMessage) => void | Promise<void>,
+  ) => () => void;
   /** Whether this machine currently acts as host. May change after host
    *  migration — read fresh, do not cache. Used at frame start to snapshot
    *  hostAtFrameStart. For runtime volatile checks in tick/handler code,

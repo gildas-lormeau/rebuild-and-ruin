@@ -5,10 +5,10 @@
  * via initWs() to avoid initialization coupling with the composition root.
  */
 
+import type { ServerMessage } from "../shared/protocol.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
-import { handleServerMessage } from "./online-runtime-deps.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {
   MAX_RECONNECT_ATTEMPTS,
@@ -22,6 +22,10 @@ interface WsRuntimeDeps {
   readonly setMode: (mode: Mode) => void;
   readonly setAnnouncement: (text: string | undefined) => void;
   readonly render: () => void;
+  /** Fan out an incoming server message to NetworkApi.onMessage subscribers.
+   *  Wired by the composition root to the same bus that backs network.onMessage —
+   *  the WS layer no longer knows about handleServerMessage directly. */
+  readonly deliverIncoming: (msg: ServerMessage) => void | Promise<void>;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
@@ -46,14 +50,14 @@ export function connect(onConnectError?: () => void): void {
   if (!_rt) throw new Error("connect() called before initWs()");
   if (onConnectError) _onConnectError = onConnectError;
   const handlers = {
-    onMessage: async (msg: import("../shared/protocol.ts").ServerMessage) => {
+    onMessage: async (msg: ServerMessage) => {
       if (_client.isReconnecting()) {
         _client.devLog(
           `reconnected after ${_client.ctx.reconnect.count} attempt(s)`,
         );
         _client.clearReconnect();
       }
-      await handleServerMessage(msg);
+      await _rt.deliverIncoming(msg);
     },
     onClose: () => {
       const mode = _rt.getMode();

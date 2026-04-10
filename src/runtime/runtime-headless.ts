@@ -100,6 +100,10 @@ export async function createHeadlessRuntime(
     keyboardEventSource,
     network: {
       send: () => {},
+      // No peers in single-machine headless mode. The future "machines"
+      // abstraction will replace this with an in-memory loopback that
+      // delivers messages from a peer machine's `send` to this `onMessage`.
+      onMessage: () => () => {},
       getIsHost: () => true,
       getMyPlayerId: () => SPECTATOR_SLOT,
       getRemotePlayerSlots: () => new Set<number>(),
