@@ -36,10 +36,17 @@ import {
   resetFrameTiming,
   setMode,
 } from "./runtime-state.ts";
-import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
+import type {
+  CameraSystem,
+  RuntimeSelection,
+  TimingApi,
+} from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
+  /** Injected timing primitives — replaces bare `performance.now()` access
+   *  needed by `resetFrameTiming` after a mode transition. */
+  timing: TimingApi;
   /** True when this client is the host (drives castle wall generation + broadcasts). */
   hostAtFrameStart: () => boolean;
 
@@ -171,7 +178,7 @@ export function createSelectionSystem(
     selectionFacade.initSelectionTimer(state);
     setMode(runtimeState, Mode.SELECTION);
     deps.sound.drumsStart();
-    resetFrameTiming(runtimeState);
+    resetFrameTiming(runtimeState, deps.timing.now());
     deps.requestFrame();
   }
 

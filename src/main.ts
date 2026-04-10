@@ -20,8 +20,21 @@ import { Mode } from "./shared/ui-mode.ts";
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const renderer = createCanvasRenderer(canvas);
 const emptySet = new Set<number>();
+/** Production timing bindings — entry-point layer is the only place where
+ *  browser globals are touched directly. Sub-systems receive these via
+ *  `RuntimeConfig.timing` rather than reaching for `performance.now()` /
+ *  `globalThis.setTimeout` themselves. */
+const timing = {
+  now: () => performance.now(),
+  setTimeout: (callback: () => void, ms: number) =>
+    Number(globalThis.setTimeout(callback, ms)),
+  clearTimeout: (handle: number) => {
+    globalThis.clearTimeout(handle);
+  },
+};
 const runtime = createGameRuntime({
   renderer,
+  timing,
   send: () => {},
   aiPick: aiPickUpgrade,
   getIsHost: () => true,
@@ -91,6 +104,6 @@ function showLobby(): void {
   runtime.runtimeState.optionsUI.returnMode = null;
   runtime.lobby.renderLobby();
   setMode(runtime.runtimeState, Mode.LOBBY);
-  resetFrameTiming(runtime.runtimeState);
+  resetFrameTiming(runtime.runtimeState, timing.now());
   requestAnimationFrame(runtime.mainLoop);
 }

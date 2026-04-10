@@ -30,6 +30,7 @@ import type {
   RuntimeLifeLost,
   RuntimeSelection,
   RuntimeUpgradePick,
+  TimingApi,
 } from "./runtime-types.ts";
 
 interface GameLifecycleDeps {
@@ -89,6 +90,9 @@ interface GameLifecycleSystem {
 interface LifecycleWiringDeps {
   readonly runtimeState: RuntimeState;
   readonly config: Pick<RuntimeConfig, "log" | "showLobby" | "onlineConfig">;
+  /** Injected timing primitives — replaces bare `globalThis.setTimeout` /
+   *  `globalThis.clearTimeout` access in the demo-return timer. */
+  readonly timing: TimingApi;
   readonly render: () => void;
   readonly requestMainLoop: () => void;
   readonly bootstrapNewGame: () => void | Promise<void>;
@@ -255,17 +259,15 @@ export function buildLifecycleDeps(
 
     clearDemoTimer: () => {
       if (runtimeState.demoReturnTimer !== undefined) {
-        globalThis.clearTimeout(runtimeState.demoReturnTimer);
+        wiringDeps.timing.clearTimeout(runtimeState.demoReturnTimer);
         runtimeState.demoReturnTimer = undefined;
       }
     },
     setDemoTimer: (callback, delay) => {
-      runtimeState.demoReturnTimer = Number(
-        globalThis.setTimeout(() => {
-          runtimeState.demoReturnTimer = undefined;
-          callback();
-        }, delay),
-      );
+      runtimeState.demoReturnTimer = wiringDeps.timing.setTimeout(() => {
+        runtimeState.demoReturnTimer = undefined;
+        callback();
+      }, delay);
     },
 
     soundReset: wiringDeps.sound.reset,

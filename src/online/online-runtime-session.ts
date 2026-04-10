@@ -3,7 +3,7 @@ import {
   initWaitingRoom,
 } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime } from "../runtime/runtime-types.ts";
+import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { FullStateMessage, InitMessage } from "../shared/protocol.ts";
@@ -25,6 +25,10 @@ interface OnlineRuntimeSessionDeps {
   getRuntime: () => GameRuntime;
   session: OnlineSession;
   watcher: Pick<WatcherState, "timing">;
+  /** Injected timing primitives — replaces bare `performance.now()` /
+   *  `requestAnimationFrame` access. Same `TimingApi` instance the runtime
+   *  receives via `RuntimeConfig.timing`. */
+  timing: TimingApi;
   resetNetworkingForNewGame: () => void;
   destroyClient: () => void;
   log: (msg: string) => void;
@@ -78,6 +82,7 @@ export function createOnlineRuntimeSessionHelpers(
       requestFrame: () => {
         requestAnimationFrame(runtime.mainLoop);
       },
+      timing: deps.timing,
     });
     runtime.warmMapCache(runtime.runtimeState.lobby.map!);
   }

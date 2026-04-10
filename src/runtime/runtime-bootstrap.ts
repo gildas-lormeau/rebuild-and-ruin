@@ -23,6 +23,7 @@ import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { GameState, LobbyState } from "../shared/types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { TimingApi } from "./runtime-types.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
@@ -35,6 +36,8 @@ interface InitWaitingRoomDeps {
   setModeLobby: () => void;
   setLastTime: (timeMs: number) => void;
   requestFrame: () => void;
+  /** Injected timing primitives — replaces bare `performance.now()` access. */
+  timing: TimingApi;
 }
 
 interface InitGameDeps {
@@ -104,7 +107,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   lobby.map = bootstrapFacade.generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
-  const time = performance.now();
+  const time = deps.timing.now();
   setLobbyStartTime(time);
   setModeLobby();
   setLastTime(time);

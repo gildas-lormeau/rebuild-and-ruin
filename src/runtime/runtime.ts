@@ -98,7 +98,7 @@ import {
 } from "./runtime-upgrade-pick.ts";
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
-  const { renderer } = config;
+  const { renderer, timing } = config;
   const { container: gameContainer } = renderer;
   const isOnline = !!config.onlineConfig;
 
@@ -192,7 +192,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void {
-    renderer.drawFrame(map, overlay, viewport, performance.now());
+    renderer.drawFrame(map, overlay, viewport, timing.now());
   }
 
   /** True once the selection announcement has finished playing and input is unblocked.
@@ -268,6 +268,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection = createSelectionSystem({
     runtimeState,
+    timing,
     hostAtFrameStart: config.getIsHost,
     sendTowerSelected: (pid, idx, confirmed) =>
       config.send({
@@ -300,6 +301,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const render = createRenderSystem({
     runtimeState,
+    timing,
     createBannerUi,
     createOnlineOverlay,
     createRenderSummaryMessage,
@@ -328,6 +330,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     buildLifecycleDeps({
       runtimeState,
       config,
+      timing,
       render,
       requestMainLoop: () => requestAnimationFrame(mainLoop),
       bootstrapNewGame: () =>
@@ -417,6 +420,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
+    timing,
     send: config.send,
     log: config.log,
     sendOpponentCannonPlaced: (msg) =>
@@ -499,6 +503,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
   const optionsDeps = {
     runtimeState,
+    timing,
     uiCtx,
     renderFrame,
     updateDpad: (enabled: boolean) =>

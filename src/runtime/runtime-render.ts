@@ -26,9 +26,12 @@ import type {
   ZoomButton,
 } from "../shared/ui-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import type { TimingApi } from "./runtime-types.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
+  /** Injected timing primitives — replaces bare `performance.now()` access. */
+  readonly timing: TimingApi;
 
   // Render-domain functions (injected from composition root, not imported directly)
   readonly createBannerUi: CreateBannerUiFn;
@@ -153,7 +156,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.state.map,
       runtimeState.overlay,
       deps.updateViewport(),
-      performance.now(),
+      deps.timing.now(),
     );
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)

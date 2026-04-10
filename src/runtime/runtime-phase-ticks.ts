@@ -83,6 +83,7 @@ import type {
   OnlineRuntimeConfig,
   RuntimeConfig,
   RuntimeLifeLost,
+  TimingApi,
 } from "./runtime-types.ts";
 
 interface PhaseTicksDeps
@@ -99,6 +100,8 @@ interface PhaseTicksDeps
       >
     > {
   runtimeState: RuntimeState;
+  /** Injected timing primitives — replaces bare `performance.now()` access. */
+  timing: TimingApi;
 
   // Pre-built message senders — protocol knowledge stays in composition root.
   // For local play these close over the config no-op send; for online they
@@ -418,7 +421,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     setMode(runtimeState, Mode.GAME);
     // Watcher timing: record countdown start for non-host clients
     if (!runtimeState.frameMeta.hostAtFrameStart && deps.watcherTiming) {
-      deps.watcherTiming.countdownStartTime = performance.now();
+      deps.watcherTiming.countdownStartTime = deps.timing.now();
       deps.watcherTiming.countdownDuration = BATTLE_COUNTDOWN;
     }
     deps.onBeginBattle?.();

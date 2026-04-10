@@ -198,9 +198,13 @@ export function setMode(runtimeState: RuntimeState, mode: Mode): void {
 }
 
 /** Reset frame timing to avoid a large dt spike on the next tick.
- *  Call when resuming the loop after a gap (mode transition, options screen). */
-export function resetFrameTiming(runtimeState: RuntimeState): void {
-  runtimeState.lastTime = performance.now();
+ *  Call when resuming the loop after a gap (mode transition, options screen).
+ *  `now` is the current frame timestamp from the injected `TimingApi.now()`. */
+export function resetFrameTiming(
+  runtimeState: RuntimeState,
+  now: number,
+): void {
+  runtimeState.lastTime = now;
 }
 
 /** Reset transient RuntimeState fields between games (restart / rematch).

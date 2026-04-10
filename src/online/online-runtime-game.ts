@@ -53,12 +53,24 @@ import {
 // reference the same client instance — used throughout this module.
 const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
+// ── Production timing bindings ─────────────────────────────────────
+// Entry-point layer is the only place that touches browser globals
+// directly. Sub-systems receive these via `RuntimeConfig.timing`.
+const timing = {
+  now: () => performance.now(),
+  setTimeout: (callback: () => void, ms: number) =>
+    Number(globalThis.setTimeout(callback, ms)),
+  clearTimeout: (handle: number) => {
+    globalThis.clearTimeout(handle);
+  },
+};
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,
   session: ctx.session,
   watcher: ctx.watcher,
+  timing,
   resetNetworkingForNewGame: () => {
     defaultClient.resetNetworking(RESET_SCOPE_NEW_GAME);
   },
@@ -91,6 +103,7 @@ const watcherTickCtx: WatcherTickContext = {
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({
   renderer,
+  timing,
   send,
   aiPick: aiPickUpgrade,
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer

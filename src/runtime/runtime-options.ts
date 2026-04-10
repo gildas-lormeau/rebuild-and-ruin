@@ -38,9 +38,13 @@ import {
   resetFrameTiming,
   safeState,
 } from "./runtime-state.ts";
+import type { TimingApi } from "./runtime-types.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
+  /** Injected timing primitives — replaces bare `performance.now()` access
+   *  needed by `resetFrameTiming` after closing the options screen mid-game. */
+  timing: TimingApi;
   uiCtx: UIContext;
   renderFrame: (
     map: GameMap,
@@ -142,7 +146,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     if (returnMode !== null) {
       uiCtx.setMode(returnMode);
       uiCtx.setOptionsReturnMode(null);
-      resetFrameTiming(runtimeState);
+      resetFrameTiming(runtimeState, deps.timing.now());
     } else {
       uiCtx.setMode(Mode.LOBBY);
       saveSettings(uiCtx.settings);
