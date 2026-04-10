@@ -18,8 +18,12 @@
  *   anyModifier            — any environmental modifier active
  *   manyGrunts             — 10+ grunts alive during battle
  *
- * Custom conditions (JS expression, evaluated with `state` in scope):
+ * Custom conditions (JS expression, evaluated with `state` and `seq` in scope):
  *   deno run -A scripts/find-seed.ts --expr "state.grunts.length > 10"
+ *
+ * `seq` is the modifier sequence observed so far (array of ModifierId
+ * strings, in firing order). Use it for sequence/history conditions:
+ *   deno run -A scripts/find-seed.ts --expr "seq.indexOf('sinkhole') >= 0 && seq.indexOf('high_tide') > seq.indexOf('sinkhole')"
  *
  * The condition is checked on every tick while the runtime advances. Seeds
  * found here are valid for tests because they're discovered by the same
@@ -29,16 +33,18 @@
  *   deno run -A scripts/find-seed.ts --condition wildfire
  *   deno run -A scripts/find-seed.ts --condition highTide --tries 200
  *   deno run -A scripts/find-seed.ts --expr "state.round > 3 && state.grunts.length > 8" --rounds 5
+ *   deno run -A scripts/find-seed.ts --expr "seq[0] === 'sinkhole' && seq[1] === 'high_tide'" --rounds 8
  */
 
-import { createScenario } from "../test/scenario.ts";
+import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import type { GameState } from "../src/shared/types.ts";
+import { createScenario } from "../test/scenario.ts";
 
 // ---------------------------------------------------------------------------
 // Condition registry
 // ---------------------------------------------------------------------------
 
-type Condition = (state: GameState) => boolean;
+type Condition = (state: GameState, seq: readonly string[]) => boolean;
 
 const CONDITIONS: Record<string, Condition> = {
   wildfire: (state) => state.modern?.activeModifier === "wildfire",
@@ -116,7 +122,7 @@ async function run(): Promise<void> {
   const config = parseArgs();
 
   const check: Condition = config.expr
-    ? (new Function("state", `return (${config.expr})`) as Condition)
+    ? (new Function("state", "seq", `return (${config.expr})`) as Condition)
     : CONDITIONS[config.condition]!;
 
   if (!check) {
@@ -130,7 +136,7 @@ async function run(): Promise<void> {
     `Searching for seeds matching "${label}" (${config.tries} seeds, ${config.rounds} rounds, ${config.mode} mode)\n`,
   );
 
-  const matches: { seed: number; round: number }[] = [];
+  const matches: { seed: number; round: number; seq: string[] }[] = [];
   const startTime = Date.now();
 
   for (let seed = 0; seed < config.tries; seed++) {
@@ -140,13 +146,19 @@ async function run(): Promise<void> {
         mode: config.mode,
         rounds: config.rounds,
       });
+      // Track modifier banners as they fire — exposed to expressions as `seq`.
+      const seq: string[] = [];
+      sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+        if (ev.modifierId) seq.push(ev.modifierId);
+      });
       const ticksUsed = sc.runUntil(
-        () => check(sc.state),
+        () => check(sc.state, seq),
         config.maxTicksPerSeed,
       );
       if (ticksUsed >= 0) {
-        matches.push({ seed, round: sc.state.round });
-        console.log(`  seed=${seed}  round=${sc.state.round}`);
+        matches.push({ seed, round: sc.state.round, seq: [...seq] });
+        const seqStr = seq.length > 0 ? `  seq=[${seq.join(",")}]` : "";
+        console.log(`  seed=${seed}  round=${sc.state.round}${seqStr}`);
       }
     } catch {
       // Some seeds produce unplayable maps or runtime errors — skip.

@@ -21,6 +21,9 @@ import { Mode } from "./shared/ui-mode.ts";
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const renderer = createCanvasRenderer(canvas);
 const emptySet = new Set<number>();
+const atlasReady = loadAtlas().catch((e) => {
+  console.warn("[local] sprite atlas failed to load:", e);
+});
 /** Production timing bindings — entry-point layer is the only place where
  *  browser globals are touched directly. Sub-systems receive these via
  *  `RuntimeConfig.timing` rather than reaching for `performance.now()`,
@@ -78,9 +81,6 @@ const runtime = createGameRuntime({
     await runtime.lifecycle.startGame();
     setMode(runtime.runtimeState, Mode.SELECTION);
   },
-});
-const atlasReady = loadAtlas().catch((e) => {
-  console.warn("[local] sprite atlas failed to load:", e);
 });
 
 /** Enter the local lobby. Waits for sprite atlas on first call. */

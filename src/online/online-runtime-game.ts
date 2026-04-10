@@ -50,10 +50,6 @@ import {
 // reference the same client instance — used throughout this module.
 const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
-// ── Production timing bindings ─────────────────────────────────────
-// Entry-point layer is the only place that touches browser globals
-// directly. Sub-systems receive these via `RuntimeConfig.timing`.
-const timing = createBrowserTimingApi();
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
 // ── Incoming message bus ────────────────────────────────────────────
@@ -77,6 +73,10 @@ const network: NetworkApi = {
   myPlayerId: () => ctx.session.myPlayerId,
   remotePlayerSlots: () => ctx.session.remotePlayerSlots,
 };
+// ── Production timing bindings ─────────────────────────────────────
+// Entry-point layer is the only place that touches browser globals
+// directly. Sub-systems receive these via `RuntimeConfig.timing`.
+const timing = createBrowserTimingApi();
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,
   session: ctx.session,
