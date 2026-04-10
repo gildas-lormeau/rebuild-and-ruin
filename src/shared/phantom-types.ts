@@ -1,5 +1,4 @@
 import { CannonMode } from "./battle-types.ts";
-import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { isPlayerEliminated } from "./player-types.ts";
 
@@ -45,14 +44,6 @@ export interface PiecePlacedPayload {
 /** Network payload for a piece phantom (includes validity for coloring). */
 export interface PiecePhantomPayload extends PiecePlacedPayload {
   valid: boolean;
-}
-
-/** Network payload for build phase end (checkpoint data). */
-export interface BuildEndPayload {
-  needsReselect: ValidPlayerSlot[];
-  eliminated: ValidPlayerSlot[];
-  scores: number[];
-  players: SerializedPlayer[];
 }
 
 /** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.

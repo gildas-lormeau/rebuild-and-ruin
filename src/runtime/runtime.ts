@@ -435,15 +435,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
     sendOpponentPhantom: (msg) =>
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
-    sendBuildEnd: (msg) =>
-      config.network.send({ type: MESSAGE.BUILD_END, ...msg }),
-    hostNetworking: config.onlinePhaseTicks?.hostNetworking,
-    watcherTiming: config.onlinePhaseTicks?.watcherTiming,
-    extendCrosshairs: config.onlinePhaseTicks?.extendCrosshairs,
-    onLocalCrosshairCollected:
-      config.onlinePhaseTicks?.onLocalCrosshairCollected,
-    tickNonHost: config.onlinePhaseTicks?.tickNonHost,
-    everyTick: config.onlinePhaseTicks?.everyTick,
+    online: config.onlinePhaseTicks,
     render,
     showBanner,
     lifeLost,

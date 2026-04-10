@@ -22,7 +22,7 @@ import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { canvas } from "./online-dom.ts";
 import {
-  broadcastLocalCrosshair,
+  broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
@@ -174,16 +174,42 @@ const runtime: GameRuntime = createGameRuntime({
   },
 
   onlinePhaseTicks: {
-    tickNonHost: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
-    everyTick: (dt) =>
-      tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
-    onLocalCrosshairCollected: (ctrl, crosshair) => {
-      if (isHostInContext(ctx.session))
-        broadcastLocalCrosshair(ctrl, crosshair, {
-          lastSentAimTarget: ctx.dedup.aimTarget,
-          send,
-        });
-    },
+    // ── Host: phase-transition checkpoint broadcasts ──────────────────
+    // Direct imports — these are pure (state) → message factories with
+    // no captured state, so they need no closure dance.
+    broadcastCannonStart: (state) => send(createCannonStartMessage(state)),
+    broadcastBattleStart: (state, flights, modifierDiff) =>
+      send(createBattleStartMessage(state, flights, modifierDiff)),
+    broadcastBuildStart: (state) => send(createBuildStartMessage(state)),
+    broadcastBuildEnd: (state, summary) =>
+      send({
+        type: MESSAGE.BUILD_END,
+        needsReselect: [...summary.needsReselect],
+        eliminated: [...summary.eliminated],
+        scores: [...summary.scores],
+        players: serializePlayersCheckpoint(state),
+      }),
+
+    // ── Host: per-controller crosshair fan-out ────────────────────────
+    // No internal isHost gate — the runtime calls this only from the host
+    // path inside `syncCrosshairs`.
+    broadcastLocalCrosshair: (ctrl, crosshair) =>
+      broadcastLocalCrosshairImpl(ctrl, crosshair, {
+        lastSentAimTarget: ctx.dedup.aimTarget,
+        send,
+      }),
+
+    // ── Host: per-frame phantom dedup ─────────────────────────────────
+    remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
+    remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
+    cannonPhantomDedup: () => ctx.dedup.cannonPhantom,
+    piecePhantomDedup: () => ctx.dedup.piecePhantom,
+
+    // ── Watcher: per-frame state apply ────────────────────────────────
+    tickWatcher: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
+    watcherTiming: ctx.watcher.timing,
+
+    // ── Both roles: cross-machine merging ─────────────────────────────
     extendCrosshairs: (crosshairs, dt) =>
       extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
         remoteCrosshairs: ctx.watcher.remoteCrosshairs,
@@ -191,17 +217,8 @@ const runtime: GameRuntime = createGameRuntime({
         remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
       }),
-    hostNetworking: {
-      serializePlayers: serializePlayersCheckpoint,
-      createCannonStartMessage,
-      createBattleStartMessage,
-      createBuildStartMessage,
-      remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
-      remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
-      lastSentCannonPhantom: () => ctx.dedup.cannonPhantom,
-      lastSentPiecePhantom: () => ctx.dedup.piecePhantom,
-    },
-    watcherTiming: ctx.watcher.timing,
+    tickMigrationAnnouncement: (dt) =>
+      tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
   },
   onlineActions: {
     maybeSendAimUpdate,

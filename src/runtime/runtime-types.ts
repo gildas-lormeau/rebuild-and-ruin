@@ -59,10 +59,7 @@
  */
 
 import type { BalloonFlight, Crosshair } from "../shared/battle-types.ts";
-import type {
-  BattleStartData,
-  SerializedPlayer,
-} from "../shared/checkpoint-data.ts";
+import type { BattleStartData } from "../shared/checkpoint-data.ts";
 import type { GameMap, Viewport, WorldPos } from "../shared/geometry-types.ts";
 import type {
   LifeLostDialogState,
@@ -95,54 +92,90 @@ import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";
 
+/** Summary of what happened at the end of a build phase. Built by the
+ *  runtime, consumed by `OnlinePhaseTicks.broadcastBuildEnd` to construct
+ *  the BUILD_END checkpoint payload. */
+export interface BuildEndSummary {
+  needsReselect: readonly ValidPlayerSlot[];
+  eliminated: readonly ValidPlayerSlot[];
+  scores: readonly number[];
+}
+
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
  *
- *  This bag holds everything that has to happen during a phase tick to
- *  keep host + watcher in sync: crosshair fan-out (host), crosshair merge
- *  (host & watcher), watcher state apply, universal per-frame hooks, host
- *  checkpoint factories, and watcher timing state.
+ *  Every field is INDEPENDENTLY OPTIONAL — the runtime checks for presence
+ *  and silently skips when missing. Tests can wire host-only or watcher-only
+ *  subsets, and production wiring (online-runtime-game.ts) supplies all of
+ *  them so a single instance can act as either role across host migration.
  *
- *  Optional on RuntimeConfig — when undefined, the runtime runs in
- *  single-machine local mode and skips all of this. */
+ *  Role gating happens at the call site in runtime-phase-ticks.ts:
+ *    - Host-only fields are guarded by `frameMeta.hostAtFrameStart`.
+ *    - Watcher-only fields are guarded by its negation.
+ *    - "Both" fields are called unconditionally.
+ *  The hooks themselves do not branch on role, so the wiring closures stay
+ *  pure with respect to host/watcher state and remain reusable across host
+ *  promotion / demotion without any internal `isHost` checks.
+ *
+ *  When undefined on RuntimeConfig, the runtime runs in single-machine local
+ *  mode (main.ts, runtime-headless.ts) and never invokes any of these. */
 export interface OnlinePhaseTicks {
-  /** Called per controller during crosshair collection — typically broadcasts
-   *  aim_update to watchers. Host only (gated by `isHostInContext`). */
-  onLocalCrosshairCollected: (
-    ctrl: ControllerIdentity,
-    ch: { x: number; y: number },
-    readyCannon: boolean,
+  // ── Host-only: phase-transition checkpoint broadcasts ──────────────────
+  /** Host: broadcast the cannon-phase entry checkpoint to watchers. */
+  broadcastCannonStart?: (state: GameState) => void;
+  /** Host: broadcast the battle-phase entry checkpoint, including the
+   *  resolved balloon flights and the optional modifier diff. */
+  broadcastBattleStart?: (
+    state: GameState,
+    flights: readonly BalloonFlight[],
+    modifierDiff?: BattleStartData["modifierDiff"],
   ) => void;
-  /** Called after local crosshairs are collected; returns the list extended
-   *  with remote human crosshairs. Runs on both host and watcher. */
-  extendCrosshairs: (
+  /** Host: broadcast the build-phase entry checkpoint to watchers. */
+  broadcastBuildStart?: (state: GameState) => void;
+  /** Host: broadcast the end-of-build summary (lives lost + eliminations
+   *  + scores). The hook serializes the post-build player snapshot itself
+   *  — the runtime does not need to know how to serialize players. */
+  broadcastBuildEnd?: (state: GameState, summary: BuildEndSummary) => void;
+
+  // ── Host-only: per-controller crosshair fan-out ────────────────────────
+  /** Host: broadcast a single local controller's crosshair to watchers
+   *  (typically deduped by aim target). Called once per local controller
+   *  per frame from `syncCrosshairs`. */
+  broadcastLocalCrosshair?: (
+    ctrl: ControllerIdentity,
+    crosshair: { x: number; y: number },
+    cannonReady: boolean,
+  ) => void;
+
+  // ── Host-only: per-frame phantom dedup ─────────────────────────────────
+  /** Host: pending remote cannon phantoms to merge into the local frame. */
+  remoteCannonPhantoms?: () => readonly CannonPhantom[];
+  /** Host: pending remote piece phantoms to merge into the local frame. */
+  remotePiecePhantoms?: () => readonly PiecePhantom[];
+  /** Host: dedup channel for outgoing cannon-phantom broadcasts. Returned
+   *  via getter so the runtime never caches a stale reference across host
+   *  migration. */
+  cannonPhantomDedup?: () => DedupChannel;
+  /** Host: dedup channel for outgoing piece-phantom broadcasts. Same
+   *  late-binding pattern as `cannonPhantomDedup`. */
+  piecePhantomDedup?: () => DedupChannel;
+
+  // ── Watcher-only: per-frame state apply ────────────────────────────────
+  /** Watcher: drive the per-frame state apply (replaces the host tick on
+   *  non-host machines). Implementation lives entirely in `online/`. */
+  tickWatcher?: (dt: number) => void;
+  /** Watcher: timing state for the non-host battle countdown sync. */
+  watcherTiming?: WatcherTimingState;
+
+  // ── Both roles: cross-machine merging ──────────────────────────────────
+  /** Both: extend the locally collected crosshair list with remote-human
+   *  crosshairs. Called from `syncCrosshairs` after the local pass. */
+  extendCrosshairs?: (
     crosshairs: readonly Crosshair[],
     dt: number,
   ) => Crosshair[];
-  /** Non-host tick handler — runs the watcher's per-frame state apply. */
-  tickNonHost: (dt: number) => void;
-  /** Called every frame regardless of host/non-host (e.g., migration
-   *  announcements, timed UI overlays). */
-  everyTick: (dt: number) => void;
-  /** Host-only checkpoint message factories + phantom dedup state. */
-  hostNetworking: {
-    serializePlayers: (state: GameState) => SerializedPlayer[];
-    createCannonStartMessage: (state: GameState) => ServerMessage;
-    createBattleStartMessage: (
-      state: GameState,
-      flights: readonly BalloonFlight[],
-      modifierDiff?: BattleStartData["modifierDiff"],
-    ) => ServerMessage;
-    createBuildStartMessage: (state: GameState) => ServerMessage;
-    remoteCannonPhantoms: () => readonly CannonPhantom[];
-    remotePiecePhantoms: () => readonly PiecePhantom[];
-    /** Getter returning the dedup channel — wraps the DedupChannel from
-     *  WatcherTickContext/CannonPhaseNet so the runtime doesn't hold a stale reference. */
-    lastSentCannonPhantom: () => DedupChannel;
-    /** Getter returning the dedup channel — same late-binding pattern as lastSentCannonPhantom. */
-    lastSentPiecePhantom: () => DedupChannel;
-  };
-  /** Watcher-only timing state for non-host battle. */
-  watcherTiming: WatcherTimingState;
+  /** Both: per-frame migration-announcement timer. Displays the
+   *  post-host-migration banner without overwriting game announcements. */
+  tickMigrationAnnouncement?: (dt: number) => void;
 }
 
 /** Online-only action wrappers that send-on-success. Each function executes

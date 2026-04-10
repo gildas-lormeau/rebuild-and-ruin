@@ -30,7 +30,6 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerStats } from "../shared/overlay-types.ts";
 import type {
-  BuildEndPayload,
   CannonPhantomPayload,
   CannonPlacedPayload,
   PiecePhantomPayload,
@@ -86,23 +85,26 @@ import type {
   TimingApi,
 } from "./runtime-types.ts";
 
-interface PhaseTicksDeps
-  extends Pick<RuntimeConfig, "log">,
-    Partial<OnlinePhaseTicks> {
+interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   runtimeState: RuntimeState;
   /** Injected timing primitives — replaces bare `performance.now()` access. */
   timing: TimingApi;
-  /** Network send — closes over RuntimeConfig.network.send at the call site. */
+  /** Network send — closes over RuntimeConfig.network.send at the call site.
+   *  Used by `tickBattlePhase` to broadcast raw battle events (fire, tower
+   *  damage, impact) which are themselves protocol messages. */
   send: RuntimeConfig["network"]["send"];
 
-  // Pre-built message senders — protocol knowledge stays in composition root.
-  // For local play these close over the config no-op send; for online they
-  // construct the typed message and send it over the wire.
+  // Pre-built typed-payload senders — protocol knowledge stays in the
+  // composition root. For local play these close over the config's no-op
+  // network.send; for online they prepend the message type and send.
   sendOpponentCannonPlaced: (msg: CannonPlacedPayload) => void;
   sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
   sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
   sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
-  sendBuildEnd: (msg: BuildEndPayload) => void;
+
+  /** Online coordination bag — see `OnlinePhaseTicks`. Undefined for local
+   *  play; every field is independently optional within the bag itself. */
+  online?: OnlinePhaseTicks;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -154,12 +156,8 @@ const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
 );
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
-  if (deps.tickNonHost && !deps.hostNetworking) {
-    throw new Error(
-      "hostNetworking required when tickNonHost is configured (online mode)",
-    );
-  }
   const { runtimeState } = deps;
+  const online = deps.online;
 
   // -------------------------------------------------------------------------
   // Bus → sound / haptics / stats (observation subscribers)
@@ -186,6 +184,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
+    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, controllers } = runtimeState;
     const crosshairs: Crosshair[] = [];
 
@@ -210,12 +209,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         playerId: ctrl.playerId,
         cannonReady: weaponsActive && !!readyCannon,
       });
-      deps.onLocalCrosshairCollected?.(ctrl, ch, !!readyCannon);
+      // Host-only fan-out: gated here at the call site so the wiring closure
+      // never has to know about role state.
+      if (isHost) {
+        online?.broadcastLocalCrosshair?.(ctrl, ch, !!readyCannon);
+      }
     }
 
     runtimeState.frame.crosshairs = crosshairs;
-    if (deps.extendCrosshairs) {
-      runtimeState.frame.crosshairs = deps.extendCrosshairs(
+    if (online?.extendCrosshairs) {
+      runtimeState.frame.crosshairs = online.extendCrosshairs(
         runtimeState.frame.crosshairs,
         dt,
       );
@@ -244,10 +247,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         // Apply reset facings — hidden behind the banner overlay.
         phaseTickFacade.applyDefaultFacings(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
-        if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
-          deps.send(
-            deps.hostNetworking.createCannonStartMessage(runtimeState.state),
-          );
+        if (runtimeState.frameMeta.hostAtFrameStart) {
+          online?.broadcastCannonStart?.(runtimeState.state);
         }
       },
       initControllers: () => {
@@ -274,10 +275,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  Checkpoint is sent here — not in the transition steps — because it must
    *  precede the upgrade pick dialog (which reads post-battle state). */
   function enterBuildViaUpgradePick(): void {
-    if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
-      deps.send(
-        deps.hostNetworking.createBuildStartMessage(runtimeState.state),
-      );
+    if (runtimeState.frameMeta.hostAtFrameStart) {
+      online?.broadcastBuildStart?.(runtimeState.state);
     }
     const showBannerAndEnterBuild = () => {
       executeTransition(BUILD_START_STEPS, {
@@ -364,10 +363,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         // (crumbling walls, etc.) are applied before the enclosure check picks targets.
         flights = phaseTickFacade.resolveBalloons(state);
         battleAnim.impacts = [];
-        if (deps.hostNetworking && runtimeState.frameMeta.hostAtFrameStart) {
-          deps.send(
-            deps.hostNetworking.createBattleStartMessage(state, flights, diff),
-          );
+        if (runtimeState.frameMeta.hostAtFrameStart) {
+          online?.broadcastBattleStart?.(state, flights, diff);
         }
       },
       snapshotForBanner: () => {
@@ -412,9 +409,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     resetAccum(runtimeState.accum, ACCUM_BATTLE);
     setMode(runtimeState, Mode.GAME);
     // Watcher timing: record countdown start for non-host clients
-    if (!runtimeState.frameMeta.hostAtFrameStart && deps.watcherTiming) {
-      deps.watcherTiming.countdownStartTime = deps.timing.now();
-      deps.watcherTiming.countdownDuration = BATTLE_COUNTDOWN;
+    if (!runtimeState.frameMeta.hostAtFrameStart && online?.watcherTiming) {
+      online.watcherTiming.countdownStartTime = deps.timing.now();
+      online.watcherTiming.countdownDuration = BATTLE_COUNTDOWN;
     }
     deps.onBeginBattle?.();
   }
@@ -453,8 +450,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, frame } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
-    const lastSentCannonPhantom =
-      deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL;
+    const cannonPhantomDedup =
+      online?.cannonPhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
     advancePhaseTimer(
       runtimeState.accum,
@@ -499,10 +496,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
       if (
         isHost &&
-        lastSentCannonPhantom.shouldSend(
-          ctrl.playerId,
-          cannonPhantomKey(phantom),
-        )
+        cannonPhantomDedup.shouldSend(ctrl.playerId, cannonPhantomKey(phantom))
       ) {
         deps.sendOpponentCannonPhantom({
           playerId: ctrl.playerId,
@@ -516,7 +510,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Merge remote phantoms
     const remoteCannonPhantoms = filterAlivePhantoms(
-      deps.hostNetworking?.remoteCannonPhantoms() ?? [],
+      online?.remoteCannonPhantoms?.() ?? [],
       state.players,
     );
     if (remoteCannonPhantoms.length > 0) {
@@ -655,8 +649,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, accum, frame, banner } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
-    const lastSentPiecePhantom =
-      deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL;
+    const piecePhantomDedup =
+      online?.piecePhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
     // --- Timer + Master Builder lockout + grunt tick ---
     advancePhaseTimer(
@@ -717,7 +711,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         });
         if (
           isHost &&
-          lastSentPiecePhantom.shouldSend(
+          piecePhantomDedup.shouldSend(
             phantom.playerId,
             piecePhantomKey(phantom),
           )
@@ -735,7 +729,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Merge remote phantoms
     const remotePiecePhantoms = filterAlivePhantoms(
-      deps.hostNetworking?.remotePiecePhantoms() ?? [],
+      online?.remotePiecePhantoms?.() ?? [],
       state.players,
     );
     if (remotePiecePhantoms.length > 0) {
@@ -762,14 +756,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     banner.wallsBeforeSweep = wallsBeforeSweep;
     banner.prevEntities = prevEntities;
 
-    // Build-end checkpoint (host only)
+    // Build-end checkpoint (host only) — the online hook serializes the
+    // post-build player snapshot itself; the runtime supplies only the
+    // structural summary it already computed.
     if (isHost) {
-      const serializePlayers = deps.hostNetworking?.serializePlayers;
-      deps.sendBuildEnd({
+      online?.broadcastBuildEnd?.(state, {
         needsReselect,
         eliminated,
         scores: state.players.map((player) => player.score),
-        players: serializePlayers ? serializePlayers(state) : [],
       });
     }
 
@@ -818,10 +812,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     } else {
       ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
-      deps.tickNonHost?.(dt);
+      online?.tickWatcher?.(dt);
       deps.render();
     }
-    deps.everyTick?.(dt);
+    online?.tickMigrationAnnouncement?.(dt);
   }
 
   /** Accumulate per-player battle stats (walls destroyed, cannons killed) from battle events.
