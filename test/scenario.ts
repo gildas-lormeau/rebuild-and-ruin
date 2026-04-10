@@ -59,6 +59,7 @@ import {
   type GameEventMap,
 } from "../src/shared/game-event-bus.ts";
 import type { Phase } from "../src/shared/game-phase.ts";
+import type { GameMessage, ServerMessage } from "../src/shared/protocol.ts";
 import type { GameState } from "../src/shared/types.ts";
 import type { Mode } from "../src/shared/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
@@ -99,6 +100,25 @@ export interface Scenario extends Disposable {
   readonly state: GameState;
   /** Typed event bus — `sc.bus.on(GAME_EVENT.X, handler)`. */
   readonly bus: GameEventBus;
+  /** Outbound network messages this runtime would broadcast as host.
+   *  Captures every `network.send` call in arrival order. Even local
+   *  play hits the send wrappers — the underlying impl just no-ops on
+   *  delivery. Tests assert on this to verify host fan-out payloads
+   *  (checkpoints, action commands, watcher ticks) without spinning up
+   *  a real WebSocket. */
+  readonly sentMessages: readonly GameMessage[];
+  /** Deliver a fake peer message to every handler the runtime
+   *  registered via `network.onMessage`. Same dispatch path the
+   *  production WebSocket fan-out uses — handlers run sequentially in
+   *  registration order. Returns a promise that resolves once every
+   *  handler has finished processing the message; tests should `await`
+   *  it before asserting on game state.
+   *
+   *  Tests use this to drive the *receive* side of the network seam
+   *  without spinning up a real peer: hand-craft a `CASTLE_WALLS` /
+   *  `OPPONENT_CANNON_PLACED` / checkpoint message, deliver it, then
+   *  observe how the runtime applies it. */
+  deliverMessage(msg: ServerMessage): Promise<void>;
   /** Top-level UI mode (LOBBY, GAME, OPTIONS, STOPPED, ...). Lives on
    *  `runtimeState` rather than `state` because it gates which subsystems
    *  receive ticks. Tests use this to wait for lobby→game transitions. */
@@ -172,6 +192,9 @@ export async function createScenario(
     setCanvasFactory(opts.recorder.factory);
     renderer = createCanvasRenderer(opts.recorder.displayCanvas);
   }
+  // Capture every outbound `network.send` so the test can read it via
+  // `sc.sentMessages`. The array is owned by `wrap` and exposed read-only.
+  const sentMessages: GameMessage[] = [];
   const headless = await createHeadlessRuntime({
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
@@ -180,11 +203,21 @@ export async function createScenario(
     renderer,
     speedMultiplier: opts.speedMultiplier,
     autoStartGame: opts.autoStartGame ?? true,
+    networkSendObserver: (msg) => sentMessages.push(msg),
   });
-  return wrap(headless, usedRecorder);
+  return wrapHeadless(headless, usedRecorder, sentMessages);
 }
 
-function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
+/** Build a `Scenario` over an existing `HeadlessRuntime`. Exported so the
+ *  online-loopback wrapper (`test/online-headless.ts`) can construct its own
+ *  headless first, plug the production `handleServerMessage` dispatcher into
+ *  the receive seam, then hand the result back to tests with the same shape
+ *  `createScenario` returns. */
+export function wrapHeadless(
+  headless: HeadlessRuntime,
+  usedRecorder: boolean,
+  sentMessages: readonly GameMessage[],
+): Scenario {
   const input = createScenarioInput(headless);
   return {
     get state() {
@@ -193,6 +226,8 @@ function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
     get bus() {
       return headless.runtime.runtimeState.state.bus;
     },
+    sentMessages,
+    deliverMessage: headless.deliverNetworkMessage,
     mode: () => headless.runtime.runtimeState.mode,
     lobbyActive: () => headless.runtime.runtimeState.lobby.active,
     now: headless.now,

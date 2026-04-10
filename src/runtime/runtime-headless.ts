@@ -29,6 +29,7 @@ import type {
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../shared/player-config.ts";
 import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { GameMessage, ServerMessage } from "../shared/protocol.ts";
 import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import type { UpgradeId } from "../shared/upgrade-defs.ts";
@@ -81,6 +82,22 @@ interface HeadlessRuntimeOptions {
    *  that need to drive the lobby UI (slot joining, options menu) before
    *  the match begins. Defaults to true. */
   autoStartGame?: boolean;
+  /** Optional observer for outbound network messages. Receives every
+   *  message the runtime would broadcast via `network.send`, regardless
+   *  of whether the runtime is in host mode (the headless `network.send`
+   *  is otherwise a no-op). Used by tests that assert on host fan-out
+   *  payloads (checkpoints, action commands, watcher ticks) without
+   *  spinning up a real WebSocket. */
+  networkSendObserver?: (msg: GameMessage) => void;
+  /** Slots the runtime should treat as remote-controlled (i.e. driven by a
+   *  peer machine, not by local AI). The headless network adapter exposes
+   *  this set via `network.remotePlayerSlots()`, which gates AI controllers,
+   *  selection ticks, life-lost prompts, and phase ticks throughout the
+   *  runtime. Used by `test/online-headless.ts` so the dispatcher's writes
+   *  to a "remote" player's selection state aren't immediately overwritten
+   *  by that slot's local AI. Defaults to the empty set (every slot is
+   *  local AI), preserving existing test behavior. */
+  remotePlayerSlots?: ReadonlySet<number>;
 }
 
 export interface HeadlessRuntime {
@@ -102,7 +119,30 @@ export interface HeadlessRuntime {
    *  renderer's canvas in production). Tests dispatch `MouseEvent` /
    *  `TouchEvent` instances here. */
   readonly pointerEventTarget: EventTarget;
+  /** Deliver a fake peer message to every handler the runtime registered
+   *  via `network.onMessage`. This is the in-memory loopback equivalent
+   *  of a WebSocket frame arriving from a peer — handlers run through
+   *  the same dispatch path the production code uses. Returns the
+   *  combined promise of all handler invocations so tests can `await`
+   *  the receive side before asserting on game state. */
+  deliverNetworkMessage(msg: ServerMessage): Promise<void>;
+  /** Register an additional receive-side handler outside the runtime's
+   *  own `network.onMessage` subscriptions. Used by `test/online-headless.ts`
+   *  to plug the production `handleServerMessage` dispatcher (which lives
+   *  in `online/`, a layer the runtime cannot import) into the same
+   *  delivery loop `deliverNetworkMessage` walks. Returns an unsubscribe
+   *  function. */
+  subscribeNetworkMessage(
+    handler: (msg: ServerMessage) => void | Promise<void>,
+  ): () => void;
 }
+
+/** Shared sentinel for the default `remotePlayerSlots` option — allocated
+ *  once so the network adapter returns the same instance on every call
+ *  (frame-meta consumers compare via `ReadonlySet.has`, not by reference,
+ *  but reusing the instance avoids per-frame allocation in the no-remote
+ *  default path). */
+const EMPTY_REMOTE_SLOTS: ReadonlySet<number> = new Set();
 
 export async function createHeadlessRuntime(
   opts: HeadlessRuntimeOptions,
@@ -117,6 +157,8 @@ export async function createHeadlessRuntime(
     aiPick = (offers) => offers[0],
     speedMultiplier,
     autoStartGame = true,
+    networkSendObserver,
+    remotePlayerSlots = EMPTY_REMOTE_SLOTS,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -158,19 +200,41 @@ export async function createHeadlessRuntime(
   // The closures only fire after construction completes, so the holder
   // is always populated by the time they're invoked.
   const runtimeHolder: { current?: GameRuntime } = {};
+
+  // Tracks every handler the runtime registers via `network.onMessage`.
+  // Tests use `deliverNetworkMessage` (exposed on the HeadlessRuntime
+  // return value) to deliver a fake peer message — same code path the
+  // production WebSocket fan-out would hit.
+  const messageHandlers = new Set<
+    (msg: ServerMessage) => void | Promise<void>
+  >();
+
   const runtime = createGameRuntime({
     renderer,
     timing,
     keyboardEventSource,
     network: {
-      send: () => {},
-      // No peers in single-machine headless mode. The future "machines"
-      // abstraction will replace this with an in-memory loopback that
-      // delivers messages from a peer machine's `send` to this `onMessage`.
-      onMessage: () => () => {},
+      // The inner send is a no-op because there are no peers in single-
+      // machine headless mode. When a test installs `networkSendObserver`,
+      // it sees every outbound message the runtime would have broadcast,
+      // which lets the test assert on host fan-out payloads (checkpoints,
+      // action commands) without spinning up a real WebSocket.
+      send: networkSendObserver ? (msg) => networkSendObserver(msg) : () => {},
+      // In-memory loopback: track every handler the runtime registers,
+      // and let tests inject messages via `deliverNetworkMessage(msg)`.
+      // The future "machines" abstraction will turn this into a full
+      // many-to-many delivery between peer headless runtimes; today it
+      // exists so tests can drive the receive path with hand-crafted
+      // peer messages.
+      onMessage: (handler) => {
+        messageHandlers.add(handler);
+        return () => messageHandlers.delete(handler);
+      },
       amHost: () => true,
       myPlayerId: () => SPECTATOR_SLOT,
-      remotePlayerSlots: () => new Set<number>(),
+      // Returns the same Set instance every call — runtime sub-systems read
+      // this as a ReadonlySet via `frameMeta.remotePlayerSlots`, never mutate.
+      remotePlayerSlots: () => remotePlayerSlots as Set<number>,
     },
     // Default: always take the first offer. Tests opt into the real
     // `aiPickUpgrade` (from ai/) by passing `aiPick: aiPickUpgrade` — that's
@@ -293,6 +357,25 @@ export async function createHeadlessRuntime(
     }
   }
 
+  async function deliverNetworkMessage(msg: ServerMessage): Promise<void> {
+    // Snapshot the handler set so a handler that unsubscribes mid-delivery
+    // doesn't perturb the iteration. Handlers run sequentially in
+    // registration order to match the production WebSocket fan-out.
+    const handlers = [...messageHandlers];
+    for (const handler of handlers) {
+      await handler(msg);
+    }
+  }
+
+  function subscribeNetworkMessage(
+    handler: (msg: ServerMessage) => void | Promise<void>,
+  ): () => void {
+    messageHandlers.add(handler);
+    return () => {
+      messageHandlers.delete(handler);
+    };
+  }
+
   return {
     runtime,
     now: () => clock,
@@ -300,6 +383,8 @@ export async function createHeadlessRuntime(
     runGame,
     keyboardEventSource: keyboardEventSource as unknown as EventTarget,
     pointerEventTarget: renderer.eventTarget as unknown as EventTarget,
+    deliverNetworkMessage,
+    subscribeNetworkMessage,
   };
 }
 
