@@ -906,10 +906,12 @@ function buildSinkholeTilePatches(
 }
 
 /** Pick the "grass" base color the bank gradient should fade INTO when the
- *  sinkhole is enclosed by `playerId`. Cardinal neighbors of any tile have the
- *  opposite checker parity, so we invert the sinkhole tile's parity to match
- *  the interior sprite that will be rendered on those neighbor tiles.
- *  In battle, cobblestone is uniform per player so parity is ignored. */
+ *  sinkhole is enclosed by `playerId`. The sinkhole tile occupies (tileRow,
+ *  tileCol) itself, so its patch must use the SAME interior shade that
+ *  `drawCastleInterior` would render at that position — otherwise the
+ *  checker square at that position is the wrong color and the pattern
+ *  breaks across the sinkhole tile. In battle, cobblestone is uniform per
+ *  player so parity is ignored. */
 function ownerGrassBase(
   playerId: ValidPlayerSlot,
   tileRow: number,
@@ -918,10 +920,9 @@ function ownerGrassBase(
 ): RGB {
   const colors = getPlayerColor(playerId);
   if (inBattle) return cobblestoneBaseColor(colors.interiorLight);
-  // Interior sprite uses (r+c)%2==0 → interior_light. Cardinal neighbors of
-  // (tileRow,tileCol) have opposite parity, so invert here.
-  const neighborIsLight = (tileRow + tileCol) % 2 === 1;
-  return neighborIsLight ? colors.interiorLight : colors.interiorDark;
+  // Match drawCastleInterior: interior_light is rendered at (r+c)%2 === 0.
+  const isLight = (tileRow + tileCol) % 2 === 0;
+  return isLight ? colors.interiorLight : colors.interiorDark;
 }
 
 /** Mirror of the cobblestone sprite's base fill — see scripts/generate-sprites.html
