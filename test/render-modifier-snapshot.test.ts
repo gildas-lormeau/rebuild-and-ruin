@@ -144,56 +144,76 @@ Deno.test(
       },
     });
 
-    let sinkholeTiles: readonly number[] | undefined;
+    // Snapshot of `state.modern.sinkholeTiles` taken at high_tide banner
+    // time (NOT at sinkhole banner time). Why: if a player is eliminated
+    // between sinkhole and high_tide, `resetZoneState` reverts that
+    // zone's sinkhole tiles back to grass. The test invariant is "tiles
+    // currently in modern.sinkholeTiles are preserved across the
+    // high_tide snapshot", not "tiles that were once sinkholes are
+    // preserved".
+    let sinkholeTilesAtHighTide: readonly number[] | undefined;
     let highTideTiles: readonly number[] | undefined;
+    let sawSinkhole = false;
     // discardCalls: this test runs ~30k frames; accumulating every 2D-context
     // call into recorder.log would OOM the test runner. We observe the
     // renderer through `setRenderObserver` instead.
     const recorder = createCanvasRecorder({ discardCalls: true });
     using sc = await createScenario({
-      // seed=33 modern fires sinkhole then high_tide
-      // (find via: deno run -A scripts/find-modifier-sequence.ts sinkhole high_tide)
-      seed: 33,
+      // seed=44 modern: sinkhole@r5 → high_tide@r6 (the tightest sequence
+      // I found — both modifiers fire as close to each other as possible).
+      // Find via: deno run -A scripts/find-seed.ts --expr \
+      //   "seq.indexOf('sinkhole') >= 0 \
+      //    && seq.indexOf('high_tide') > seq.indexOf('sinkhole')"
+      seed: 44,
       mode: "modern",
-      rounds: 8,
+      rounds: 6,
       recorder,
     });
 
     sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
-      if (ev.modifierId === "sinkhole" && !sinkholeTiles) {
-        sinkholeTiles = ev.changedTiles;
-      } else if (ev.modifierId === "high_tide" && !highTideTiles) {
+      if (ev.modifierId === "sinkhole") {
+        sawSinkhole = true;
+      } else if (ev.modifierId === "high_tide" && sawSinkhole && !highTideTiles) {
         highTideTiles = ev.changedTiles;
+        // Capture the LIVE sinkhole tile set at this exact moment — not
+        // the sinkhole banner's changedTiles, which can become stale if
+        // a player elimination revert wiped some sinkhole tiles.
+        sinkholeTilesAtHighTide = Array.from(
+          sc.state.modern?.sinkholeTiles ?? [],
+        );
         // Only start collecting terrain events once high_tide is on-screen.
         trackingActive = true;
       }
     });
 
     // Drive the game until the high_tide banner is on-screen and the
-    // banner-side terrain pass has fired at least once. seed=33 modern
-    // takes ~5 rounds before sinkhole then high_tide; bump well above the
-    // default 5000 frame ceiling.
+    // banner-side terrain pass has fired at least once. seed=44 modern
+    // takes ~6 rounds before sinkhole then high_tide.
     sc.runUntil(
       () => latestMain !== undefined && latestBanner !== undefined,
-      80000,
+      30000,
     );
 
-    assert(sinkholeTiles !== undefined, "expected sinkhole banner to fire");
+    assert(sawSinkhole, "expected sinkhole banner to fire first");
     assert(highTideTiles !== undefined, "expected high_tide banner to fire");
-    assert(sinkholeTiles.length > 0, "sinkhole had no changed tiles");
     assert(highTideTiles.length > 0, "high_tide had no changed tiles");
+    assert(
+      sinkholeTilesAtHighTide !== undefined &&
+        sinkholeTilesAtHighTide.length > 0,
+      "expected sinkhole tiles to still exist when high_tide fires",
+    );
     assert(latestMain !== undefined, "no main terrainDrawn event");
     assert(latestBanner !== undefined, "no banner terrainDrawn event");
 
     // Sanity: the snapshot must be a different object than the live map.
     assertNotStrictEquals(latestBanner, latestMain);
 
-    // ── Live (main) map: every tile from BOTH modifiers should be Water ──
-    for (const key of sinkholeTiles) {
+    // ── Live (main) map: every CURRENT sinkhole + high_tide tile is Water ──
+    for (const key of sinkholeTilesAtHighTide) {
       assertEquals(
         tileAtKey(latestMain, key),
         Tile.Water,
-        `live map: sinkhole tile ${key} should be Water (sinkhole already fired)`,
+        `live map: sinkhole tile ${key} should be Water (in modern.sinkholeTiles)`,
       );
     }
     for (const key of highTideTiles) {
@@ -205,7 +225,7 @@ Deno.test(
     }
 
     // ── Snapshot (banner) map: sinkhole tiles still Water, high_tide reverted to Grass ──
-    for (const key of sinkholeTiles) {
+    for (const key of sinkholeTilesAtHighTide) {
       assertEquals(
         tileAtKey(latestBanner, key),
         Tile.Water,
