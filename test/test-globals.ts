@@ -27,6 +27,8 @@
 interface MutableGlobal {
   KeyboardEvent?: unknown;
   MouseEvent?: unknown;
+  TouchEvent?: unknown;
+  Touch?: unknown;
   HTMLInputElement?: unknown;
   HTMLSelectElement?: unknown;
   HTMLElement?: unknown;
@@ -103,6 +105,58 @@ if (typeof target.MouseEvent === "undefined") {
     }
   }
   target.MouseEvent = MouseEventShim;
+}
+
+// Touch polyfills — `Touch` is a plain shape (no methods, just clientX/Y +
+// identifier), and `TouchEvent` extends Event with `touches` /
+// `changedTouches` arrays. The runtime's touch handlers
+// (`input-touch-canvas.ts`) only read `e.touches.length`, `e.touches[i]`,
+// and `e.changedTouches[0]`, so a plain array satisfies the read shape —
+// no need for a real `TouchList` collection (which doesn't exist in Deno
+// either). The `identifier` field is what production browsers use to
+// disambiguate fingers across `touchmove` events; tests can pass any
+// number, or skip it for single-touch flows.
+if (typeof target.Touch === "undefined") {
+  class TouchShim {
+    readonly identifier: number;
+    readonly clientX: number;
+    readonly clientY: number;
+    readonly target: EventTarget | null;
+    constructor(init: {
+      identifier?: number;
+      clientX?: number;
+      clientY?: number;
+      target?: EventTarget | null;
+    } = {}) {
+      this.identifier = init.identifier ?? 0;
+      this.clientX = init.clientX ?? 0;
+      this.clientY = init.clientY ?? 0;
+      this.target = init.target ?? null;
+    }
+  }
+  target.Touch = TouchShim;
+}
+
+if (typeof target.TouchEvent === "undefined") {
+  class TouchEventShim extends Event {
+    readonly touches: readonly Touch[];
+    readonly changedTouches: readonly Touch[];
+    readonly targetTouches: readonly Touch[];
+    constructor(
+      type: string,
+      init: {
+        touches?: readonly Touch[];
+        changedTouches?: readonly Touch[];
+        targetTouches?: readonly Touch[];
+      } = {},
+    ) {
+      super(type, { bubbles: true, cancelable: true });
+      this.touches = init.touches ?? [];
+      this.changedTouches = init.changedTouches ?? init.touches ?? [];
+      this.targetTouches = init.targetTouches ?? init.touches ?? [];
+    }
+  }
+  target.TouchEvent = TouchEventShim;
 }
 
 // Empty marker classes — `e.target instanceof HTMLInputElement` returns false

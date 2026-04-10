@@ -177,6 +177,23 @@ export interface ScenarioInput {
   click(x: number, y: number, init?: { button?: number }): void;
   /** Right-click (context menu) at a canvas-space coordinate. */
   rightClick(x: number, y: number): void;
+  /** Fire a `touchstart` event with the given finger positions. Each
+   *  finger is `{x, y}` in canvas-space; the helper assigns sequential
+   *  identifiers so multi-touch flows can be replayed deterministically. */
+  touchStart(touches: readonly { x: number; y: number }[]): void;
+  /** Fire a `touchmove` event with the current finger positions. */
+  touchMove(touches: readonly { x: number; y: number }[]): void;
+  /** Fire a `touchend` event. `touches` is the set of fingers still on
+   *  screen (empty for the common single-finger lift case);
+   *  `changedTouches` defaults to a single finger at the last position
+   *  if omitted. */
+  touchEnd(
+    touches?: readonly { x: number; y: number }[],
+    changedTouches?: readonly { x: number; y: number }[],
+  ): void;
+  /** Sugar for the common "single-finger tap at (x, y)" sequence —
+   *  fires `touchstart` then `touchend` with the same coordinates. */
+  tap(x: number, y: number): void;
 }
 
 export async function createScenario(
@@ -291,6 +308,34 @@ function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
     pointerEventTarget.dispatchEvent(event);
   }
 
+  function makeTouchList(
+    points: readonly { x: number; y: number }[],
+  ): Touch[] {
+    return points.map(
+      (point, i) =>
+        new Touch({
+          identifier: i,
+          clientX: point.x,
+          clientY: point.y,
+          target: pointerEventTarget,
+        }),
+    );
+  }
+
+  function dispatchTouch(
+    type: "touchstart" | "touchmove" | "touchend",
+    touches: readonly { x: number; y: number }[],
+    changedTouches?: readonly { x: number; y: number }[],
+  ): void {
+    const event = new TouchEvent(type, {
+      touches: makeTouchList(touches),
+      changedTouches: changedTouches
+        ? makeTouchList(changedTouches)
+        : makeTouchList(touches),
+    });
+    pointerEventTarget.dispatchEvent(event);
+  }
+
   return {
     keyDown: (key, init) => dispatchKey("keydown", key, init),
     keyUp: (key, init) => dispatchKey("keyup", key, init),
@@ -301,6 +346,23 @@ function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
     mouseMove: (x, y) => dispatchMouse("mousemove", x, y),
     click: (x, y, init) => dispatchMouse("click", x, y, init),
     rightClick: (x, y) => dispatchMouse("contextmenu", x, y),
+    touchStart: (touches) => dispatchTouch("touchstart", touches),
+    touchMove: (touches) => dispatchTouch("touchmove", touches),
+    touchEnd: (touches = [], changedTouches) =>
+      // Default `changedTouches` to a single finger at (0,0) when both
+      // arrays are empty — covers the "all fingers lifted" case where
+      // production touchend events still carry the lifted finger in
+      // `changedTouches`. Tests that lift from a specific position can
+      // pass `changedTouches: [{x, y}]` explicitly.
+      dispatchTouch(
+        "touchend",
+        touches,
+        changedTouches ?? (touches.length === 0 ? [{ x: 0, y: 0 }] : touches),
+      ),
+    tap: (x, y) => {
+      dispatchTouch("touchstart", [{ x, y }]);
+      dispatchTouch("touchend", [], [{ x, y }]);
+    },
   };
 }
 
