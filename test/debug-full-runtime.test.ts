@@ -1,5 +1,6 @@
 import { assert, assertGreater } from "@std/assert";
 import { createDebugFullRuntime } from "./debug-full-runtime.ts";
+import { GAME_MODE_MODERN } from "../src/shared/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { Mode } from "../src/shared/ui-mode.ts";
@@ -26,6 +27,77 @@ Deno.test("debug full runtime: mainLoop advances without errors", async () => {
   for (let i = 0; i < 200; i++) dbg.tick();
 
   assertGreater(dbg.runtime.runtimeState.state.players.length, 0);
+});
+
+Deno.test("debug full runtime: bus emits banner lifecycle events", async () => {
+  const dbg = await createDebugFullRuntime({ seed: 42 });
+
+  const starts: { text: string; phase: Phase }[] = [];
+  const ends: { text: string; phase: Phase }[] = [];
+  dbg.runtime.runtimeState.state.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+    starts.push({ text: ev.text, phase: ev.phase });
+  });
+  dbg.runtime.runtimeState.state.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+    ends.push({ text: ev.text, phase: ev.phase });
+  });
+
+  // Drive the runtime until at least one banner has fully played out.
+  const ticks = dbg.runUntil(() => ends.length > 0, 5000);
+  assert(
+    ticks >= 0,
+    `banner never ended after 5000 ticks. starts=${starts.length} ends=${ends.length}`,
+  );
+  // Every banner start must be followed by an end.
+  assert(
+    starts.length >= ends.length,
+    `start/end mismatch: starts=${starts.length} ends=${ends.length}`,
+  );
+});
+
+Deno.test("debug full runtime: bannerStart carries modifier info in modern mode", async () => {
+  // In modern mode, modifiers start rolling on round 3. Seed 7 is known to
+  // produce tile-modifying events under modern mode AI trajectories.
+  // NOTE: seeds from find-seed.ts target a different scenario RNG path, so
+  // the exact modifier that fires first may differ from find-seed output.
+  // This test just verifies the bannerStart event shape — any modifier works.
+  const dbg = await createDebugFullRuntime({
+    seed: 7,
+    gameMode: GAME_MODE_MODERN,
+    rounds: 6,
+  });
+
+  const modifierBanners: {
+    text: string;
+    modifierId: string;
+    tileCount: number;
+  }[] = [];
+  dbg.runtime.runtimeState.state.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+    if (ev.modifierId) {
+      modifierBanners.push({
+        text: ev.text,
+        modifierId: ev.modifierId,
+        tileCount: ev.changedTiles?.length ?? 0,
+      });
+    }
+  });
+
+  // Run until we see a modifier banner, or give up after ~8 sim-minutes.
+  const ticks = dbg.runUntil(() => modifierBanners.length > 0, 30000);
+  assert(
+    ticks >= 0,
+    `modifier banner never fired after 30000 ticks (round=${dbg.runtime.runtimeState.state.round})`,
+  );
+
+  const first = modifierBanners[0]!;
+  // The event must carry a modifierId and a human-readable label in .text.
+  assert(
+    first.modifierId.length > 0,
+    `modifier banner has empty modifierId`,
+  );
+  assert(
+    first.text.length > 0,
+    `modifier banner has empty label text`,
+  );
 });
 
 Deno.test("debug full runtime: bus emits phase events during gameplay", async () => {

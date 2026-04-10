@@ -7,6 +7,7 @@
 
 import { dialogFacade } from "../game/dialog-facade.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
@@ -68,6 +69,10 @@ interface BannerSystem {
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const { runtimeState, clearPhaseZoom, log, haptics, sound, render } = deps;
+  // True between showBanner() and the first tick — used to defer the
+  // bannerStart event until mid-frame mutations (e.g. modifier reveal
+  // replacing the battle banner) have settled.
+  let pendingStartEvent = false;
 
   function showBanner(
     text: string,
@@ -97,17 +102,36 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         setMode(runtimeState, Mode.BANNER);
       },
     });
+    pendingStartEvent = true;
     haptics.phaseChange();
     sound.phaseStart();
   }
 
   function tickBanner(dt: number) {
     const banner = runtimeState.banner;
+    const state = runtimeState.state;
+
+    // Emit bannerStart on the first tick after showBanner — content may have
+    // been mutated mid-frame (e.g. battle banner → modifier reveal), so we
+    // read the final state here.
+    if (pendingStartEvent) {
+      pendingStartEvent = false;
+      emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
+        text: banner.text,
+        subtitle: banner.subtitle,
+        phase: state.phase,
+        round: state.round,
+        modifierId: banner.modifierDiff?.id,
+        changedTiles: banner.modifierDiff?.changedTiles,
+      });
+    }
+
     banner.progress = Math.min(1, banner.progress + dt / BANNER_DURATION);
     render();
 
     if (banner.progress < 1) return;
 
+    const endedText = banner.text;
     banner.prevCastles = undefined;
     banner.prevTerritory = undefined;
     banner.prevWalls = undefined;
@@ -116,6 +140,11 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     banner.newWalls = undefined;
     banner.modifierDiff = undefined;
     banner.active = false;
+    emitGameEvent(state.bus, GAME_EVENT.BANNER_END, {
+      text: endedText,
+      phase: state.phase,
+      round: state.round,
+    });
     fireOnce(banner, "callback", "banner.callback");
   }
 

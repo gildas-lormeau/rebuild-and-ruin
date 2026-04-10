@@ -27,6 +27,29 @@ export type LifecycleEvent =
       playerId: ValidPlayerSlot;
       livesRemaining: number;
       round: number;
+    }
+  /** Phase-transition banner started. Emitted on the first tick AFTER all
+   *  banner content has settled, so mid-frame mutations (e.g. the modifier
+   *  reveal replacing the battle banner) are captured with final content. */
+  | {
+      type: "bannerStart";
+      text: string;
+      subtitle?: string;
+      phase: Phase;
+      round: number;
+      /** Set when the banner is showing a modifier reveal. */
+      modifierId?: ModifierId;
+      /** Tile keys changed by the modifier — consumed by the progressive
+       *  reveal animation. Undefined when the banner has no modifier. */
+      changedTiles?: readonly number[];
+    }
+  /** Phase-transition banner finished (progress reached 1). Emitted before
+   *  the banner's completion callback fires. */
+  | {
+      type: "bannerEnd";
+      text: string;
+      phase: Phase;
+      round: number;
     };
 
 export type EntityEvent =
@@ -153,6 +176,8 @@ const LIFECYCLE_EVENT = {
   GAME_END: "gameEnd",
   PLAYER_ELIMINATED: "playerEliminated",
   LIFE_LOST: "lifeLost",
+  BANNER_START: "bannerStart",
+  BANNER_END: "bannerEnd",
 } as const;
 const ENTITY_EVENT = {
   WALL_PLACED: "wallPlaced",
