@@ -4,6 +4,7 @@
     "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
   },
   "imports": {
-    "@std/assert": "jsr:@std/assert"
+    "@std/assert": "jsr:@std/assert",
+    "jsfxr": "npm:jsfxr"
   }
 }

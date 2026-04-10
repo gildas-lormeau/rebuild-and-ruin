@@ -17,7 +17,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@*"
+      "jsr:@std/assert@*",
+      "npm:jsfxr@*"
     ],
     "packageJson": {
       "dependencies": [
