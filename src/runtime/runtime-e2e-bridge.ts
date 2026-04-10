@@ -243,9 +243,9 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.players = ready ? snapshotPlayers(runtimeState.state) : [];
 
   // --- Controller ---
-  // In local mode getMyPlayerId() returns -1; fall back to slot 0 (first human)
+  // In local mode myPlayerId() returns -1; fall back to slot 0 (first human)
   const myPid =
-    config.network.getMyPlayerId() >= 0 ? config.network.getMyPlayerId() : 0;
+    config.network.myPlayerId() >= 0 ? config.network.myPlayerId() : 0;
   ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
 
   // --- Camera ---

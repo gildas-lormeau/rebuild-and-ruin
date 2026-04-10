@@ -34,9 +34,9 @@ const runtime = createGameRuntime({
     send: () => {},
     // Local play has no peers, so no incoming messages will ever arrive.
     onMessage: () => () => {},
-    getIsHost: () => true,
-    getMyPlayerId: () => SPECTATOR_SLOT,
-    getRemotePlayerSlots: () => emptySet,
+    amHost: () => true,
+    myPlayerId: () => SPECTATOR_SLOT,
+    remotePlayerSlots: () => emptySet,
   },
   aiPick: aiPickUpgrade,
   // @ts-ignore — import.meta.env is Vite-specific

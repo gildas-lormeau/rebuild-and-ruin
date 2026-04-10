@@ -158,22 +158,33 @@ export interface OnlineRuntimeConfig {
   onEndGame: (winner: { id: number }, state: GameState) => void;
 }
 
-/** Networking primitives for a single runtime instance ("machine"). All
- *  cross-machine communication flows through this interface — sub-systems
- *  must not reach for sockets, sessions, or remote-player state directly.
+/** Network seam for a single runtime instance ("machine"). NetworkApi is
+ *  intentionally minimal — it covers the two transport primitives (`send`,
+ *  `onMessage`) plus the read-only identity queries that tell sub-systems
+ *  who-is-this-machine. It does NOT contain game-action wrappers, checkpoint
+ *  serializers, watcher tick drivers, or any other higher-level orchestration:
+ *  those belong in domain-specific deps bags, not in the network seam.
+ *
+ *  All cross-machine communication that the runtime initiates or observes
+ *  flows through this interface. Sub-systems must not reach for sockets,
+ *  sessions, or remote-player state directly.
  *
  *  Production wiring:
- *    - Local play (main.ts): no-op `send`, always host, spectator slot,
- *      empty remote set.
- *    - Online (online-runtime-game.ts): WebSocket `send`, host/slot/remote
- *      state read from `ctx.session`.
- *    - Tests (runtime-headless.ts): no-op send + spectator slot. The future
- *      test-side "machines" abstraction will wire multiple NetworkApi
- *      instances together via an in-memory message bus to exercise the
- *      online code path without WebSockets.
+ *    - Local play (main.ts): no-op `send` and `onMessage`, always host,
+ *      spectator slot, empty remote set.
+ *    - Online (online-runtime-game.ts): WebSocket `send`, fan-out
+ *      `onMessage`, host/slot/remote state read from `ctx.session`.
+ *    - Tests (runtime-headless.ts): no-op send + spectator slot today.
+ *      A future "machines" abstraction will wire multiple NetworkApi
+ *      instances together via an in-memory message bus, exercising the
+ *      same dispatch path as production without a real WebSocket.
  *
- *  Naming uses noun form (`isHost`, `myPlayerId`) — the `network.` namespace
- *  already signals "callback bag", same convention as `timing.now()`.
+ *  `amHost` (not `isHost`) sidesteps the eslint rule banning direct
+ *  `.isHost` property access — that rule exists because the session's
+ *  `isHost` field is volatile and must never be cached. Reading
+ *  `network.amHost()` is always fresh. The other getters (`myPlayerId`,
+ *  `remotePlayerSlots`) use plain noun form since they carry no eslint
+ *  constraint.
  */
 export interface NetworkApi {
   /** Send a message from this machine to its peers. */
@@ -192,19 +203,15 @@ export interface NetworkApi {
   /** Whether this machine currently acts as host. May change after host
    *  migration — read fresh, do not cache. Used at frame start to snapshot
    *  hostAtFrameStart. For runtime volatile checks in tick/handler code,
-   *  use isHostInContext(net) from tick-context.ts instead.
-   *
-   *  Named `getIsHost` (not `isHost`) so callsites read as a callback rather
-   *  than a volatile boolean field — the eslint rule banning `.isHost` access
-   *  exists to prevent caching the session's volatile host flag. */
-  readonly getIsHost: () => boolean;
+   *  use isHostInContext(net) from tick-context.ts instead. */
+  readonly amHost: () => boolean;
   /** This client's player slot in online mode, or SPECTATOR_SLOT (-1) in
    *  local (shared-screen) mode. Only meaningful for online play — local
    *  consumers should use povPlayerId instead. */
-  readonly getMyPlayerId: () => PlayerSlotId;
+  readonly myPlayerId: () => PlayerSlotId;
   /** Slots controlled by other machines (need network sync). Empty set
    *  for local play. */
-  readonly getRemotePlayerSlots: () => Set<number>;
+  readonly remotePlayerSlots: () => Set<number>;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
@@ -239,11 +246,9 @@ export interface RuntimeConfig {
     Document,
     "addEventListener" | "removeEventListener"
   >;
-  /** Networking primitives — see `NetworkApi`. Sub-systems read all
-   *  network-related state (send, host, slot, remote players) through this
-   *  bag rather than via scattered config fields. Slice 1 of the
-   *  NetworkApi extraction; later slices will fold `onlineConfig` fields
-   *  into this same interface. */
+  /** Network seam — see `NetworkApi`. Sub-systems read all transport
+   *  primitives (send, onMessage) and identity state (host, slot, remote
+   *  players) through this bag rather than via scattered config fields. */
   network: NetworkApi;
   /** noop for local. */
   log: (msg: string) => void;

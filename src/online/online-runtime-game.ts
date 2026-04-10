@@ -73,9 +73,9 @@ const network: NetworkApi = {
     };
   },
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
-  getIsHost: () => ctx.session.isHost,
-  getMyPlayerId: () => ctx.session.myPlayerId,
-  getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
+  amHost: () => ctx.session.isHost,
+  myPlayerId: () => ctx.session.myPlayerId,
+  remotePlayerSlots: () => ctx.session.remotePlayerSlots,
 };
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,

@@ -104,9 +104,9 @@ export async function createHeadlessRuntime(
       // abstraction will replace this with an in-memory loopback that
       // delivers messages from a peer machine's `send` to this `onMessage`.
       onMessage: () => () => {},
-      getIsHost: () => true,
-      getMyPlayerId: () => SPECTATOR_SLOT,
-      getRemotePlayerSlots: () => new Set<number>(),
+      amHost: () => true,
+      myPlayerId: () => SPECTATOR_SLOT,
+      remotePlayerSlots: () => new Set<number>(),
     },
     // Deterministic upgrade pick: always take the first offer. Headless tests
     // care about whether the upgrade flow runs, not which option is chosen.

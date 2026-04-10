@@ -18,9 +18,18 @@ import {
 } from "./runtime-state.ts";
 import type { RuntimeConfig, TimingApi } from "./runtime-types.ts";
 
+/** Action surface consumed by the input dispatcher.
+ *
+ *  This is NOT NetworkApi (the runtime/ ↔ peers seam). It's the bag of
+ *  network-aware game-action wrappers (`tryPlacePieceAndSend` etc.) with
+ *  local fallbacks installed when offline. The "AndSend" suffix on each
+ *  method is a misnomer in local mode — there the function just executes
+ *  the action and skips the network step.
+ *
+ *  Named `actions` (not `network`) to avoid confusion with
+ *  `RuntimeConfig.network: NetworkApi`. */
 interface RuntimeInputAdapters {
-  network: {
-    isOnline?: boolean;
+  actions: {
     maybeSendAimUpdate?: (x: number, y: number) => void;
     tryPlaceCannonAndSend?: (
       ctrl: PlayerController & InputReceiver,
@@ -32,7 +41,6 @@ interface RuntimeInputAdapters {
       gameState: BuildViewState,
     ) => boolean;
     fireAndSend: (ctrl: PlayerController, gameState: BattleViewState) => void;
-    getIsHost: () => boolean;
   };
 }
 
@@ -41,9 +49,9 @@ interface RuntimeLoopDeps {
   /** Injected timing primitives — replaces bare `requestAnimationFrame` access
    *  when scheduling the next main-loop tick. */
   timing: TimingApi;
-  getMyPlayerId: () => PlayerSlotId;
-  getIsHost: () => boolean;
-  getRemotePlayerSlots: () => Set<number>;
+  myPlayerId: () => PlayerSlotId;
+  amHost: () => boolean;
+  remotePlayerSlots: () => Set<number>;
   getPointerPlayer: () => { playerId: ValidPlayerSlot } | null;
   clearHumanCache: () => void;
   isSelectionReady: () => boolean;
@@ -100,9 +108,9 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
         pointer !== null &&
         deps.runtimeState.selection.reselectionPids.includes(pointer.playerId),
       hasPointerPlayer: pointer !== null,
-      myPlayerId: deps.getMyPlayerId(),
-      hostAtFrameStart: deps.getIsHost(),
-      remotePlayerSlots: deps.getRemotePlayerSlots(),
+      myPlayerId: deps.myPlayerId(),
+      hostAtFrameStart: deps.amHost(),
+      remotePlayerSlots: deps.remotePlayerSlots(),
       mobileAutoZoom: deps.isMobileAutoZoom(),
     });
 
@@ -138,17 +146,15 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
 export function createRuntimeInputAdapters(params: {
   config: RuntimeConfig;
-  isOnline: boolean;
   localPlacePiece: (
     ctrl: PlayerController & InputReceiver,
     gameState: BuildViewState,
   ) => boolean;
   localFire: (ctrl: PlayerController, gameState: BattleViewState) => void;
 }): RuntimeInputAdapters {
-  const { config, isOnline } = params;
+  const { config } = params;
   return {
-    network: {
-      isOnline,
+    actions: {
       maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
       tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
       tryPlacePieceAndSend:
@@ -157,7 +163,6 @@ export function createRuntimeInputAdapters(params: {
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
         ((ctrl, gameState) => params.localFire(ctrl, gameState)),
-      getIsHost: config.network.getIsHost,
     },
   };
 }

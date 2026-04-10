@@ -38,7 +38,7 @@ import type {
 } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
-import type { CameraSystem } from "./runtime-types.ts";
+import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
 
@@ -71,9 +71,17 @@ interface InputSystemDeps {
     readonly visibleOptionCount: () => number;
   };
 
-  // Config / networking
-  readonly network: {
-    readonly isOnline?: boolean;
+  /** Whether this runtime instance was constructed in online mode.
+   *  Stable for the lifetime of the runtime — set at composition time. */
+  readonly isOnline: boolean;
+  /** Network seam — the input system reads `amHost` from here, the
+   *  same NetworkApi the rest of the runtime uses. No duplication. */
+  readonly network: Pick<NetworkApi, "amHost">;
+
+  // Action surface (online action wrappers + local fallbacks).
+  // NOT NetworkApi — see RuntimeInputAdapters in assembly.ts for why
+  // this is named `actions` rather than `network`.
+  readonly actions: {
     readonly maybeSendAimUpdate?: (x: number, y: number) => void;
     readonly tryPlaceCannonAndSend?: (
       ctrl: PlayerController & InputReceiver,
@@ -88,7 +96,6 @@ interface InputSystemDeps {
       ctrl: PlayerController,
       gameState: BattleViewState,
     ) => void;
-    readonly getIsHost: () => boolean;
   };
 
   // Sub-systems (inline signatures to avoid cross-sub-system imports)
@@ -224,13 +231,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
   // ── Placement handlers (raw — sound feedback via dispatch callbacks) ──
   const placeCannon =
-    deps.network.tryPlaceCannonAndSend ??
+    deps.actions.tryPlaceCannonAndSend ??
     ((
       ctrl: PlayerController & InputReceiver,
       gameState: CannonViewState,
       max: number,
     ) => ctrl.tryPlaceCannon(gameState, max));
-  const placePieceRaw = deps.network.tryPlacePieceAndSend;
+  const placePieceRaw = deps.actions.tryPlacePieceAndSend;
 
   const coordsDeps: RegisterOnlineInputDeps["coords"] = {
     pixelToTile: camera.pixelToTile,
@@ -251,7 +258,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     placeCannon,
     placePieceRaw,
     sound,
-    deps.network.fireAndSend,
+    deps.actions.fireAndSend,
   );
 
   // ── Combined input deps: assembles all subsystem deps ──
@@ -313,14 +320,14 @@ function buildInputDeps(
     setMode: (mode) => {
       setMode(runtimeState, mode);
     },
-    isOnline: deps.network.isOnline,
+    isOnline: deps.isOnline,
     settings: runtimeState.settings,
     getControllers: () => runtimeState.controllers,
     isHuman,
     withPointerPlayer,
     showLobby: deps.lifecycle.returnToLobby,
     rematch: deps.lifecycle.rematch,
-    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? (() => {}),
+    maybeSendAimUpdate: deps.actions.maybeSendAimUpdate ?? (() => {}),
     setDirectTouchActive: (active) => {
       runtimeState.inputTracking.directTouchActive = active;
     },
@@ -509,7 +516,7 @@ function buildGameActionDeps(
   placeCannon: PlaceCannonFn,
   placePiece: PlacePieceFn,
   sound: InputSystemDeps["sound"],
-  fireAndSend: InputSystemDeps["network"]["fireAndSend"],
+  fireAndSend: InputSystemDeps["actions"]["fireAndSend"],
 ) {
   return {
     getSelectionStates: () => runtimeState.selection.states,
@@ -542,7 +549,7 @@ function setupDpadAndActions(
       getMode: () => runtimeState.mode,
       withPointerPlayer,
       onHapticTap: haptics.tap,
-      isHost: deps.network.getIsHost,
+      isHost: deps.network.amHost,
       lobbyAction: () =>
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
       getLeftHanded: () => runtimeState.settings.leftHanded,

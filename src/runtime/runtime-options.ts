@@ -58,7 +58,7 @@ interface OptionsSystemDeps {
   sound: Pick<SoundSystem, "setLevel">;
   haptics: Pick<HapticsSystem, "setLevel">;
   isOnline: boolean;
-  getRemotePlayerSlots: () => ReadonlySet<number>;
+  remotePlayerSlots: () => ReadonlySet<number>;
   onCloseOptions?: () => void;
   seedField: SeedField;
 
@@ -257,7 +257,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function togglePause(): boolean {
     // Disable pause when other human players are connected
-    if (deps.getRemotePlayerSlots().size > 0) return false;
+    if (deps.remotePlayerSlots().size > 0) return false;
     if (!isInteractiveMode(uiCtx.getMode())) return false;
     const next = !uiCtx.getPaused();
     uiCtx.setPaused(next);

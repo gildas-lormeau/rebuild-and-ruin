@@ -165,9 +165,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
     timing,
-    getMyPlayerId: config.network.getMyPlayerId,
-    getIsHost: config.network.getIsHost,
-    getRemotePlayerSlots: config.network.getRemotePlayerSlots,
+    myPlayerId: config.network.myPlayerId,
+    amHost: config.network.amHost,
+    remotePlayerSlots: config.network.remotePlayerSlots,
     getPointerPlayer: () => pointerPlayer(),
     clearHumanCache: () => clearHumanCache(),
     isSelectionReady,
@@ -270,7 +270,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const selection = createSelectionSystem({
     runtimeState,
     timing,
-    hostAtFrameStart: config.network.getIsHost,
+    hostAtFrameStart: config.network.amHost,
     sendTowerSelected: (pid, idx, confirmed) =>
       config.network.send({
         type: MESSAGE.OPPONENT_TOWER_SELECTED,
@@ -497,7 +497,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   };
   const inputAdapters = createRuntimeInputAdapters({
     config,
-    isOnline,
     localPlacePiece: (ctrl, gameState) =>
       phaseTickFacade.localPlacePiece(runtimeState.state, ctrl, gameState),
     localFire: (ctrl, gameState) =>
@@ -516,7 +515,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     haptics,
     isOnline,
-    getRemotePlayerSlots: config.network.getRemotePlayerSlots,
+    remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;
@@ -581,7 +580,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       visibleOptionCount: () => visibleOptions(uiCtx).length,
     },
-    network: inputAdapters.network,
+    isOnline,
+    network: { amHost: config.network.amHost },
+    actions: inputAdapters.actions,
     lobby,
     options,
     lifeLost,
