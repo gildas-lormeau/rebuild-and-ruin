@@ -72,21 +72,33 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.clearHumanCache();
   }
 
-  /** Compute clamped frame delta time, scaled by the dev speed multiplier.
-   *  Note: speedMultiplier affects ALL modes (lobby, banner, score deltas),
-   *  not just gameplay ticks. This is intentional for dev testing but means
-   *  lobby timers and UI transitions also run at the modified speed. */
+  /** Compute clamped frame delta time. Always returns the *real* elapsed
+   *  delta — speed-up is achieved by sub-stepping inside `mainLoop`, NOT
+   *  by inflating dt. Multiplying dt would let grunts and cannonballs skip
+   *  past collision boundaries (a single tick would advance them across
+   *  multiple tiles), drift the RNG consumption order, and cause phase
+   *  timers to skip event boundaries. */
   function clampedFrameDt(now: number): number {
     const raw = Math.min(
       (now - deps.runtimeState.lastTime) / 1000,
       MAX_FRAME_DT,
     );
     deps.runtimeState.lastTime = now;
-    return raw * deps.runtimeState.speedMultiplier;
+    return raw;
   }
 
-  function mainLoop(now: number): void {
-    const dt = clampedFrameDt(now);
+  /** Maximum sub-step count per real frame. Capped because higher values
+   *  pin the CPU without producing perceptibly faster gameplay (the browser
+   *  needs to display each frame). Matches the cap in `__dev.speed`. */
+  const MAX_SUB_STEPS = 16;
+
+  /** Run the per-tick logic once with the given `dt`. Extracted from
+   *  `mainLoop` so we can call it N times per real frame when
+   *  `speedMultiplier > 1` — N sub-steps with normal-sized dt is the
+   *  *only* way to speed up the simulation without breaking determinism.
+   *  Returns false when the loop should stop scheduling further frames
+   *  (Mode.STOPPED). */
+  function runOneSubStep(dt: number): boolean {
     deps.runtimeState.frameDt = dt;
     clearFrameData();
 
@@ -117,7 +129,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.tickCamera();
     deps.tickScoreDelta(dt);
 
-    const shouldContinue = tickMainLoop({
+    return tickMainLoop({
       dt,
       mode: deps.runtimeState.mode,
       paused: deps.runtimeState.paused,
@@ -134,6 +146,24 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       render: deps.render,
       ticks: deps.ticks,
     });
+  }
+
+  function mainLoop(now: number): void {
+    const dt = clampedFrameDt(now);
+    const subSteps = Math.max(
+      1,
+      Math.min(MAX_SUB_STEPS, Math.floor(deps.runtimeState.speedMultiplier)),
+    );
+
+    let shouldContinue = true;
+    for (let i = 0; i < subSteps; i++) {
+      if (deps.runtimeState.mode === Mode.STOPPED) {
+        shouldContinue = false;
+        break;
+      }
+      shouldContinue = runOneSubStep(dt);
+      if (!shouldContinue) break;
+    }
 
     deps.onAfterFrame?.();
     if (shouldContinue && deps.runtimeState.mode !== Mode.STOPPED) {

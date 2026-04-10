@@ -126,12 +126,18 @@ export function exposeDevConsole(
 
     speed(multiplier?: number): number {
       if (multiplier !== undefined) {
-        if (multiplier <= 0) {
-          console.log("Speed must be > 0. Use __dev.pause() to freeze.");
-          return runtimeState.speedMultiplier;
+        // Clamp to integer in [1, 16]. Slow-mo (< 1) is not supported —
+        // use __dev.pause() to freeze. Cap at 16 because the speed-up
+        // mechanism is sub-stepping (each real frame runs N normal-sized
+        // game ticks instead of one inflated tick), so values > 16 just
+        // burn CPU without producing perceptibly faster gameplay — the
+        // browser still has to render each visible frame.
+        const clamped = Math.min(16, Math.max(1, Math.floor(multiplier)));
+        if (clamped !== multiplier) {
+          console.log(`Speed clamped to ${clamped}× (range: 1..16, integer).`);
         }
-        runtimeState.speedMultiplier = multiplier;
-        console.log(`Speed: ${multiplier}×`);
+        runtimeState.speedMultiplier = clamped;
+        console.log(`Speed: ${clamped}×`);
       } else {
         console.log(`Speed: ${runtimeState.speedMultiplier}×`);
       }
@@ -184,8 +190,10 @@ function printHelp(): void {
 
 %cSpeed%c
   __dev.speed()            Show current multiplier
-  __dev.speed(3)           3× speed
-  __dev.speed(0.5)         Slow-mo (half speed)
+  __dev.speed(3)           3× speed (integer in 1..16)
+  Note: speed-up runs the game-tick path N times per real frame with
+  normal-sized dt — preserves determinism and collision boundaries.
+  Slow-mo is not supported; use __dev.pause() to freeze.
 
 %cPause%c
   __dev.pause()            Toggle pause

@@ -27,8 +27,10 @@ import type {
 } from "../shared/overlay-types.ts";
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../shared/player-config.ts";
-import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
+import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
+import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import { createGameRuntime } from "./runtime.ts";
 import { setMode } from "./runtime-state.ts";
 import type {
@@ -59,6 +61,20 @@ interface HeadlessRuntimeOptions {
    *  (e.g. for `RenderObserver` assertions). The caller is responsible for
    *  installing the canvas factory before constructing the renderer. */
   renderer?: RendererInterface;
+  /** Optional AI upgrade picker. Defaults to "always pick the first offer"
+   *  for simple deterministic tests. Pass `aiPickUpgrade` from `src/ai/`
+   *  to match the production browser path — this is what makes seed-based
+   *  modifier sequences in headless line up with what a browser session
+   *  with the same seed would produce. (Domain rule: runtime/ cannot import
+   *  from ai/, so the test layer injects it.) */
+  aiPick?: (
+    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
+    state: GameState,
+    playerId: ValidPlayerSlot,
+  ) => UpgradeId;
+  /** Initial speed multiplier (1..16, integer). Drives the sub-step loop
+   *  in `mainLoop`. Tests use this to verify the dev speed mechanism. */
+  speedMultiplier?: number;
 }
 
 export interface HeadlessRuntime {
@@ -84,6 +100,8 @@ export async function createHeadlessRuntime(
     log = false,
     hostMode = false,
     renderer: rendererOverride,
+    aiPick = (offers) => offers[0],
+    speedMultiplier,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -133,10 +151,11 @@ export async function createHeadlessRuntime(
       myPlayerId: () => SPECTATOR_SLOT,
       remotePlayerSlots: () => new Set<number>(),
     },
-    // Deterministic upgrade pick: always take the first offer. Headless tests
-    // care about whether the upgrade flow runs, not which option is chosen.
-    // (Domain rule: runtime/ cannot import from ai/.)
-    aiPick: (offers) => offers[0],
+    // Default: always take the first offer. Tests opt into the real
+    // `aiPickUpgrade` (from ai/) by passing `aiPick: aiPickUpgrade` — that's
+    // what makes seed-based modifier sequences in headless line up with the
+    // browser. (Domain rule: runtime/ cannot import from ai/.)
+    aiPick,
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},
     logThrottled: () => {},
     getLobbyRemaining: () => 0,
@@ -175,6 +194,12 @@ export async function createHeadlessRuntime(
   runtime.mainLoop(clock);
 
   await runtime.lifecycle.startGame();
+
+  // Apply optional speed multiplier — must happen AFTER startGame because
+  // startGame() calls resetAll() which resets speedMultiplier back to 1.
+  if (speedMultiplier !== undefined) {
+    runtime.runtimeState.speedMultiplier = speedMultiplier;
+  }
 
   // ── Driver API ────────────────────────────────────────────────────
   function fireTimeouts(): void {

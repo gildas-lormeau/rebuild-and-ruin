@@ -68,6 +68,11 @@ export interface ScenarioOptions {
    *  the online code path produces the same state as the local one. The
    *  runtime never receives any messages because there are no peers. */
   hostMode?: boolean;
+  /** Initial dev speed multiplier (1..16, integer). Drives the sub-step
+   *  loop in `mainLoop` — at speed=N, each tick advances the game by N
+   *  normal-sized sub-steps instead of one inflated dt. Used by tests
+   *  that exercise the speed mechanism. */
+  speedMultiplier?: number;
   /** Canvas recorder. When provided, the scenario runs the *real* canvas
    *  renderer (instead of the no-op stub) wired to the recorder's mock
    *  canvases — every frame fires the full draw pipeline, and tests can
@@ -115,6 +120,7 @@ export async function createScenario(
     rounds: opts.rounds ?? 3,
     hostMode: opts.hostMode ?? false,
     renderer,
+    speedMultiplier: opts.speedMultiplier,
   });
   return wrap(headless, usedRecorder);
 }
