@@ -89,7 +89,7 @@ interface GameLifecycleSystem {
 
 interface LifecycleWiringDeps {
   readonly runtimeState: RuntimeState;
-  readonly config: Pick<RuntimeConfig, "log" | "showLobby" | "onlineConfig">;
+  readonly config: Pick<RuntimeConfig, "log" | "showLobby" | "onEndGame">;
   /** Injected timing primitives — replaces bare `globalThis.setTimeout` /
    *  `globalThis.clearTimeout` access in the demo-return timer. */
   readonly timing: TimingApi;
@@ -226,8 +226,8 @@ export function buildLifecycleDeps(
         runtimeState.scoreDisplay.gameStats,
       );
     },
-    onEndGame: config.onlineConfig?.onEndGame
-      ? (winner) => config.onlineConfig!.onEndGame(winner, runtimeState.state)
+    onEndGame: config.onEndGame
+      ? (winner) => config.onEndGame!(winner, runtimeState.state)
       : undefined,
     isAllAi: () => runtimeState.lobby.joined.every((joined) => !joined),
     isModeStopped: () => runtimeState.mode === Mode.STOPPED,

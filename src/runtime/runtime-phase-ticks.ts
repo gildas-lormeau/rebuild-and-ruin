@@ -80,7 +80,7 @@ import {
   showCannonPhaseBanner,
 } from "./runtime-transition-steps.ts";
 import type {
-  OnlineRuntimeConfig,
+  OnlinePhaseTicks,
   RuntimeConfig,
   RuntimeLifeLost,
   TimingApi,
@@ -88,17 +88,7 @@ import type {
 
 interface PhaseTicksDeps
   extends Pick<RuntimeConfig, "log">,
-    Partial<
-      Pick<
-        OnlineRuntimeConfig,
-        | "hostNetworking"
-        | "watcherTiming"
-        | "extendCrosshairs"
-        | "onLocalCrosshairCollected"
-        | "tickNonHost"
-        | "everyTick"
-      >
-    > {
+    Partial<OnlinePhaseTicks> {
   runtimeState: RuntimeState;
   /** Injected timing primitives — replaces bare `performance.now()` access. */
   timing: TimingApi;

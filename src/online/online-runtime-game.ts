@@ -173,7 +173,7 @@ const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 
-  onlineConfig: {
+  onlinePhaseTicks: {
     tickNonHost: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
     everyTick: (dt) =>
       tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
@@ -202,17 +202,19 @@ const runtime: GameRuntime = createGameRuntime({
       lastSentPiecePhantom: () => ctx.dedup.piecePhantom,
     },
     watcherTiming: ctx.watcher.timing,
+  },
+  onlineActions: {
     maybeSendAimUpdate,
     tryPlaceCannonAndSend: sendActions.tryPlaceCannonAndSend,
     tryPlacePieceAndSend: sendActions.tryPlacePieceAndSend,
     fireAndSend: sendActions.fireAndSend,
-    onEndGame: (winner, gameState) => {
-      const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
-      devLog(
-        `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
-      );
-      if (isHostInContext(ctx.session)) send(payloads.serverPayload);
-    },
+  },
+  onEndGame: (winner, gameState) => {
+    const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
+    devLog(
+      `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
+    );
+    if (isHostInContext(ctx.session)) send(payloads.serverPayload);
   },
 });
 

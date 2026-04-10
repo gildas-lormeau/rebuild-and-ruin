@@ -100,7 +100,10 @@ import {
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer, timing, keyboardEventSource } = config;
   const { container: gameContainer } = renderer;
-  const isOnline = !!config.onlineConfig;
+  // "Online mode" = the host fan-out / watcher tick coordination is wired.
+  // Action wrappers and onEndGame can be present independently but the
+  // phase-tick bag is the canonical signal that this runtime is networked.
+  const isOnline = !!config.onlinePhaseTicks;
 
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see runtime-state.ts)
@@ -434,12 +437,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     sendBuildEnd: (msg) =>
       config.network.send({ type: MESSAGE.BUILD_END, ...msg }),
-    hostNetworking: config.onlineConfig?.hostNetworking,
-    watcherTiming: config.onlineConfig?.watcherTiming,
-    extendCrosshairs: config.onlineConfig?.extendCrosshairs,
-    onLocalCrosshairCollected: config.onlineConfig?.onLocalCrosshairCollected,
-    tickNonHost: config.onlineConfig?.tickNonHost,
-    everyTick: config.onlineConfig?.everyTick,
+    hostNetworking: config.onlinePhaseTicks?.hostNetworking,
+    watcherTiming: config.onlinePhaseTicks?.watcherTiming,
+    extendCrosshairs: config.onlinePhaseTicks?.extendCrosshairs,
+    onLocalCrosshairCollected:
+      config.onlinePhaseTicks?.onLocalCrosshairCollected,
+    tickNonHost: config.onlinePhaseTicks?.tickNonHost,
+    everyTick: config.onlinePhaseTicks?.everyTick,
     render,
     showBanner,
     lifeLost,

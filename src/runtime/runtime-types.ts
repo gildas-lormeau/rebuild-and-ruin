@@ -95,28 +95,35 @@ import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";
 
-/** Online-only networking deps — bundled into a single object so the
- *  local/online split is structurally enforced. All fields are required:
- *  if you're online, you need the full networking surface. */
-export interface OnlineRuntimeConfig {
-  // Phase-tick networking (consumed by runtime-phase-ticks.ts)
-
-  /** Called after local crosshairs are collected; returns extended list (e.g., adds remote human crosshairs). */
-  extendCrosshairs: (
-    crosshairs: readonly Crosshair[],
-    dt: number,
-  ) => Crosshair[];
-  /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
+/** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
+ *
+ *  This bag holds everything that has to happen during a phase tick to
+ *  keep host + watcher in sync: crosshair fan-out (host), crosshair merge
+ *  (host & watcher), watcher state apply, universal per-frame hooks, host
+ *  checkpoint factories, and watcher timing state.
+ *
+ *  Optional on RuntimeConfig — when undefined, the runtime runs in
+ *  single-machine local mode and skips all of this. */
+export interface OnlinePhaseTicks {
+  /** Called per controller during crosshair collection — typically broadcasts
+   *  aim_update to watchers. Host only (gated by `isHostInContext`). */
   onLocalCrosshairCollected: (
     ctrl: ControllerIdentity,
     ch: { x: number; y: number },
     readyCannon: boolean,
   ) => void;
-  /** Non-host tick handler (watcher logic). */
+  /** Called after local crosshairs are collected; returns the list extended
+   *  with remote human crosshairs. Runs on both host and watcher. */
+  extendCrosshairs: (
+    crosshairs: readonly Crosshair[],
+    dt: number,
+  ) => Crosshair[];
+  /** Non-host tick handler — runs the watcher's per-frame state apply. */
   tickNonHost: (dt: number) => void;
-  /** Called every frame regardless of host/non-host (e.g., timed announcements). */
+  /** Called every frame regardless of host/non-host (e.g., migration
+   *  announcements, timed UI overlays). */
   everyTick: (dt: number) => void;
-  /** Host-only networking state for tick functions (phantom merging, checkpoints). */
+  /** Host-only checkpoint message factories + phantom dedup state. */
   hostNetworking: {
     serializePlayers: (state: GameState) => SerializedPlayer[];
     createCannonStartMessage: (state: GameState) => ServerMessage;
@@ -134,28 +141,33 @@ export interface OnlineRuntimeConfig {
     /** Getter returning the dedup channel — same late-binding pattern as lastSentCannonPhantom. */
     lastSentPiecePhantom: () => DedupChannel;
   };
-  /** Watcher timing state (for non-host battle). */
+  /** Watcher-only timing state for non-host battle. */
   watcherTiming: WatcherTimingState;
+}
 
-  // Input networking (consumed by runtime-input.ts via network bag)
-
-  /** Send aim_update for mouse movement. */
+/** Online-only action wrappers that send-on-success. Each function executes
+ *  the local action AND broadcasts the result to peers if applicable.
+ *
+ *  When this is undefined (local play), the input system installs local
+ *  fallbacks in `assembly.ts:createRuntimeInputAdapters` that just execute
+ *  the action without sending — the "AndSend" suffix is a misnomer in that
+ *  case but kept for symmetry with the online versions. */
+export interface OnlineActions {
+  /** Send aim_update for the local pointer's crosshair (deduped). */
   maybeSendAimUpdate: (x: number, y: number) => void;
-  /** Try to place cannon and send to server. */
+  /** Try to place a cannon; on success, broadcast OPPONENT_CANNON_PLACED. */
   tryPlaceCannonAndSend: (
     ctrl: ControllerIdentity & CannonController & InputReceiver,
     gameState: CannonViewState,
     max: number,
   ) => boolean;
-  /** Try to place piece and send to server. */
+  /** Try to place a piece; on success, broadcast OPPONENT_PIECE_PLACED. */
   tryPlacePieceAndSend: (
     ctrl: ControllerIdentity & BuildController & InputReceiver,
     gameState: BuildViewState,
   ) => boolean;
-  /** Fire and send to server. */
+  /** Fire a cannon; on success, broadcast CANNON_FIRED. */
   fireAndSend: (ctrl: BattleController, gameState: BattleViewState) => void;
-  /** Hook called when a game ends (before frame payload is set). */
-  onEndGame: (winner: { id: number }, state: GameState) => void;
 }
 
 /** Network seam for a single runtime instance ("machine"). NetworkApi is
@@ -277,8 +289,16 @@ export interface RuntimeConfig {
     playerId: ValidPlayerSlot,
   ) => UpgradeId;
 
-  /** Online networking deps — presence implies online mode (replaces isOnline boolean). */
-  onlineConfig?: OnlineRuntimeConfig;
+  /** Online-only per-frame coordination (host fan-out + watcher tick).
+   *  See `OnlinePhaseTicks`. Presence on RuntimeConfig implies online mode. */
+  onlinePhaseTicks?: OnlinePhaseTicks;
+  /** Online-only action wrappers consumed by the input dispatcher.
+   *  See `OnlineActions`. When undefined, local fallbacks are installed
+   *  in `assembly.ts:createRuntimeInputAdapters`. */
+  onlineActions?: OnlineActions;
+  /** Online-only game-over broadcast hook. Fires once when the game ends,
+   *  before the frame's gameOver payload is set. */
+  onEndGame?: (winner: { id: number }, state: GameState) => void;
 }
 
 export interface CameraSystem {

@@ -155,13 +155,13 @@ export function createRuntimeInputAdapters(params: {
   const { config } = params;
   return {
     actions: {
-      maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
-      tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
+      maybeSendAimUpdate: config.onlineActions?.maybeSendAimUpdate,
+      tryPlaceCannonAndSend: config.onlineActions?.tryPlaceCannonAndSend,
       tryPlacePieceAndSend:
-        config.onlineConfig?.tryPlacePieceAndSend ??
+        config.onlineActions?.tryPlacePieceAndSend ??
         ((ctrl, gameState) => params.localPlacePiece(ctrl, gameState)),
       fireAndSend:
-        config.onlineConfig?.fireAndSend ??
+        config.onlineActions?.fireAndSend ??
         ((ctrl, gameState) => params.localFire(ctrl, gameState)),
     },
   };
