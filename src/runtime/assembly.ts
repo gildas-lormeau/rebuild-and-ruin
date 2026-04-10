@@ -16,7 +16,7 @@ import {
   type RuntimeState,
   tickMainLoop,
 } from "./runtime-state.ts";
-import type { RuntimeConfig } from "./runtime-types.ts";
+import type { RuntimeConfig, TimingApi } from "./runtime-types.ts";
 
 interface RuntimeInputAdapters {
   network: {
@@ -38,6 +38,9 @@ interface RuntimeInputAdapters {
 
 interface RuntimeLoopDeps {
   runtimeState: RuntimeState;
+  /** Injected timing primitives — replaces bare `requestAnimationFrame` access
+   *  when scheduling the next main-loop tick. */
+  timing: TimingApi;
   getMyPlayerId: () => PlayerSlotId;
   getIsHost: () => boolean;
   getRemotePlayerSlots: () => Set<number>;
@@ -126,7 +129,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
     deps.onAfterFrame?.();
     if (shouldContinue && deps.runtimeState.mode !== Mode.STOPPED) {
-      requestAnimationFrame(mainLoop);
+      deps.timing.requestFrame(mainLoop);
     }
   }
 

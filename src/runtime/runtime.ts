@@ -164,6 +164,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
+    timing,
     getMyPlayerId: config.getMyPlayerId,
     getIsHost: config.getIsHost,
     getRemotePlayerSlots: config.getRemotePlayerSlots,
@@ -178,7 +179,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onAfterFrame: () => {
       if (IS_DEV) {
         exposeE2EBridge({ runtimeState, config, camera, renderer });
-        exposeDevConsole(runtimeState);
+        exposeDevConsole(runtimeState, timing);
       }
     },
   });
@@ -291,7 +292,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearBannerSnapshots,
     setPrevEntities: setBannerPrevEntities,
     requestFrame: () => {
-      if (runtimeState.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
+      if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },
   });
 
@@ -332,7 +333,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config,
       timing,
       render,
-      requestMainLoop: () => requestAnimationFrame(mainLoop),
+      requestMainLoop: () => timing.requestFrame(mainLoop),
       bootstrapNewGame: () =>
         bootstrapNewGameFromSettings(
           runtimeState,

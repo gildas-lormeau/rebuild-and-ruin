@@ -10,6 +10,7 @@ import { aiPickUpgrade } from "./ai/ai-upgrade-pick.ts";
 import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
 import { createGameRuntime } from "./runtime/runtime.ts";
+import { createBrowserTimingApi } from "./runtime/runtime-browser-timing.ts";
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/game-constants.ts";
 import { MAX_PLAYERS } from "./shared/player-config.ts";
@@ -22,16 +23,9 @@ const renderer = createCanvasRenderer(canvas);
 const emptySet = new Set<number>();
 /** Production timing bindings — entry-point layer is the only place where
  *  browser globals are touched directly. Sub-systems receive these via
- *  `RuntimeConfig.timing` rather than reaching for `performance.now()` /
- *  `globalThis.setTimeout` themselves. */
-const timing = {
-  now: () => performance.now(),
-  setTimeout: (callback: () => void, ms: number) =>
-    Number(globalThis.setTimeout(callback, ms)),
-  clearTimeout: (handle: number) => {
-    globalThis.clearTimeout(handle);
-  },
-};
+ *  `RuntimeConfig.timing` rather than reaching for `performance.now()`,
+ *  `globalThis.setTimeout`, or `requestAnimationFrame` themselves. */
+const timing = createBrowserTimingApi();
 const runtime = createGameRuntime({
   renderer,
   timing,
@@ -105,5 +99,5 @@ function showLobby(): void {
   runtime.lobby.renderLobby();
   setMode(runtime.runtimeState, Mode.LOBBY);
   resetFrameTiming(runtime.runtimeState, timing.now());
-  requestAnimationFrame(runtime.mainLoop);
+  timing.requestFrame(runtime.mainLoop);
 }

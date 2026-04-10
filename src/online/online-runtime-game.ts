@@ -2,6 +2,7 @@ import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
 import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
+import { createBrowserTimingApi } from "../runtime/runtime-browser-timing.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import {
@@ -56,14 +57,7 @@ const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
 // ── Production timing bindings ─────────────────────────────────────
 // Entry-point layer is the only place that touches browser globals
 // directly. Sub-systems receive these via `RuntimeConfig.timing`.
-const timing = {
-  now: () => performance.now(),
-  setTimeout: (callback: () => void, ms: number) =>
-    Number(globalThis.setTimeout(callback, ms)),
-  clearTimeout: (handle: number) => {
-    globalThis.clearTimeout(handle);
-  },
-};
+const timing = createBrowserTimingApi();
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
 const sessionHelpers = createOnlineRuntimeSessionHelpers({

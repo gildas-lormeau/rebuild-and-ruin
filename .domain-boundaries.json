@@ -150,6 +150,7 @@
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-bootstrap.ts",
+      "src/runtime/runtime-browser-timing.ts",
 
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-camera.ts",

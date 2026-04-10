@@ -80,7 +80,7 @@ export function createOnlineRuntimeSessionHelpers(
         runtime.runtimeState.lastTime = timestamp;
       },
       requestFrame: () => {
-        requestAnimationFrame(runtime.mainLoop);
+        deps.timing.requestFrame(runtime.mainLoop);
       },
       timing: deps.timing,
     });

@@ -159,9 +159,10 @@ export interface OnlineRuntimeConfig {
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
- *  bind to `performance.now`, `setTimeout`, `clearTimeout`. Tests pass deterministic
- *  stubs or Deno's natives. Following the project's "DOM/global helpers as deps"
- *  rule — no runtime sub-system should reach for these globals directly. */
+ *  bind to `performance.now`, `setTimeout`, `clearTimeout`, `requestAnimationFrame`.
+ *  Tests pass deterministic stubs or Deno's natives. Following the project's
+ *  "DOM/global helpers as deps" rule — no runtime sub-system should reach for
+ *  these globals directly. */
 export interface TimingApi {
   /** Monotonic timestamp source — produces frame timestamps used by render
    *  animations, dedup channels, and lobby/banner timers. Must be monotonic
@@ -172,6 +173,11 @@ export interface TimingApi {
   readonly setTimeout: (callback: () => void, ms: number) => number;
   /** Cancel a previously scheduled timeout. */
   readonly clearTimeout: (handle: number) => void;
+  /** Schedule a callback to run before the next browser paint. Same signature
+   *  as `window.requestAnimationFrame` — the `now` argument is a high-resolution
+   *  timestamp. Tests pass a synchronous trampoline or no-op (since headless
+   *  tests drive the main loop manually). */
+  readonly requestFrame: (callback: (now: number) => void) => void;
 }
 
 export interface RuntimeConfig {

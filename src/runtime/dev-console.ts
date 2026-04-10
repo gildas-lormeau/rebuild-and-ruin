@@ -26,6 +26,7 @@ import {
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { GameState } from "../shared/types.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import type { TimingApi } from "./runtime-types.ts";
 
 interface MapTextOptions {
   layer?: MapLayer;
@@ -59,8 +60,15 @@ const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 
 /** Attach `window.__dev` once (dev-only, guarded by IS_DEV at call site).
  *  The console object closes over runtimeState but reads it on-demand —
- *  no stale snapshots are retained between invocations. */
-export function exposeDevConsole(runtimeState: RuntimeState): void {
+ *  no stale snapshots are retained between invocations.
+ *
+ *  `timing` is passed so the `step()` command schedules its next-frame
+ *  callback through the injected TimingApi instead of reaching for the
+ *  global `requestAnimationFrame`. */
+export function exposeDevConsole(
+  runtimeState: RuntimeState,
+  timing: TimingApi,
+): void {
   if (typeof window === "undefined") return;
 
   const win = globalThis as unknown as Record<string, unknown>;
@@ -141,7 +149,7 @@ export function exposeDevConsole(runtimeState: RuntimeState): void {
         return;
       }
       runtimeState.paused = false;
-      requestAnimationFrame(() => {
+      timing.requestFrame(() => {
         runtimeState.paused = true;
       });
     },

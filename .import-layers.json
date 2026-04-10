@@ -154,6 +154,7 @@
       "src/game/round-modifiers.ts",
       "src/render/render-map.ts",
       "src/runtime/runtime-banner.ts",
+      "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",
