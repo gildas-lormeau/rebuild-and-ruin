@@ -71,7 +71,12 @@ const TOUCH_CLICK_SUPPRESS_MS = 500;
 const QUIT_WARNING_SECONDS = 2;
 
 /** Timestamp of last touchend; suppresses synthetic click events on mobile. */
-let lastTouchTime = 0;
+// Negative-infinity sentinel so the very first click after module load is
+// never suppressed. `lastTouchTime = 0` would suppress every click that
+// fires within `TOUCH_CLICK_SUPPRESS_MS` of `performance.now() === 0`,
+// which is harmless in a browser (page load takes longer than that) but
+// breaks headless tests where the process clock starts near zero.
+let lastTouchTime = Number.NEGATIVE_INFINITY;
 
 /** Shared quit flow: if no humans or already pending → quit immediately, else show warning.
  *  Used by both keyboard ESC and touch ✕ button to ensure identical behavior. */

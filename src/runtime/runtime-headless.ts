@@ -19,6 +19,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
+  LOBBY_TIMER,
 } from "../shared/game-constants.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import type {
@@ -75,6 +76,11 @@ interface HeadlessRuntimeOptions {
   /** Initial speed multiplier (1..16, integer). Drives the sub-step loop
    *  in `mainLoop`. Tests use this to verify the dev speed mechanism. */
   speedMultiplier?: number;
+  /** When false, skips the automatic `startGame()` call and leaves the
+   *  runtime in lobby mode with `lobby.active = true`. Used by input tests
+   *  that need to drive the lobby UI (slot joining, options menu) before
+   *  the match begins. Defaults to true. */
+  autoStartGame?: boolean;
 }
 
 export interface HeadlessRuntime {
@@ -88,6 +94,14 @@ export interface HeadlessRuntime {
   /** Drive the simulation until `mode === STOPPED` (game over) or
    *  `maxFrames` reached. */
   runGame(maxFrames?: number, dtMs?: number): void;
+  /** Real `EventTarget` the keyboard handler is bound to. Tests dispatch
+   *  `KeyboardEvent` instances here to drive the same code path the browser
+   *  uses (`document.addEventListener("keydown", ...)`). */
+  readonly keyboardEventSource: EventTarget;
+  /** Real `EventTarget` the mouse + touch handlers are bound to (the
+   *  renderer's canvas in production). Tests dispatch `MouseEvent` /
+   *  `TouchEvent` instances here. */
+  readonly pointerEventTarget: EventTarget;
 }
 
 export async function createHeadlessRuntime(
@@ -102,6 +116,7 @@ export async function createHeadlessRuntime(
     renderer: rendererOverride,
     aiPick = (offers) => offers[0],
     speedMultiplier,
+    autoStartGame = true,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -128,15 +143,21 @@ export async function createHeadlessRuntime(
   };
 
   const renderer = rendererOverride ?? createStubRenderer();
-  const keyboardEventSource: Pick<
+  // Real EventTarget so tests can dispatch keyboard events at the same source
+  // the production browser path uses (`document` in main.ts). The cast widens
+  // EventTarget to the Document subset the runtime injects — every method we
+  // surface lives on EventTarget itself.
+  const keyboardEventSource = new EventTarget() as unknown as Pick<
     Document,
     "addEventListener" | "removeEventListener"
-  > = {
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  };
+  > & { dispatchEvent(event: Event): boolean };
 
   // ── Runtime construction ──────────────────────────────────────────
+  // Forward-declared so the lobby callbacks (defined below the
+  // `createGameRuntime` call) can reach into the constructed runtime.
+  // The closures only fire after construction completes, so the holder
+  // is always populated by the time they're invoked.
+  const runtimeHolder: { current?: GameRuntime } = {};
   const runtime = createGameRuntime({
     renderer,
     timing,
@@ -158,15 +179,42 @@ export async function createHeadlessRuntime(
     aiPick,
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},
     logThrottled: () => {},
-    getLobbyRemaining: () => 0,
+    // Real countdown so the lobby tick can detect expiry. Production main.ts
+    // computes the same value (Math.max(0, LOBBY_TIMER - timerAccum)). When
+    // `autoStartGame: true` the lobby phase is bypassed before the first
+    // tick, so the value is unobservable in that path.
+    getLobbyRemaining: () =>
+      Math.max(
+        0,
+        LOBBY_TIMER -
+          (runtimeHolder.current?.runtimeState.lobby.timerAccum ?? 0),
+      ),
     getUrlRoundsOverride: () => rounds,
     getUrlModeOverride: () =>
       gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
     showLobby: () => {},
-    onLobbySlotJoined: () => {},
-    onTickLobbyExpired: async () => {},
+    // Mirrors main.ts:73 — when a slot is joined (key or mouse), mark it
+    // in `lobby.joined` so `tickLobby`'s `allJoined` check can detect when
+    // every joined human has confirmed and start the game without waiting
+    // for the full timeout.
+    onLobbySlotJoined: (pid) => {
+      const built = runtimeHolder.current;
+      if (!built) return;
+      built.runtimeState.lobby.joined[pid] = true;
+    },
+    // Mirrors main.ts:80 — when the lobby timer expires (or all slots
+    // joined), bootstrap the game and enter castle selection. Tests that
+    // exercise lobby input rely on this so a click-to-join → game-start
+    // flow runs end-to-end through the real handlers.
+    onTickLobbyExpired: async () => {
+      const built = runtimeHolder.current;
+      if (!built) return;
+      await built.lifecycle.startGame();
+      setMode(built.runtimeState, Mode.SELECTION);
+    },
     onlinePhaseTicks: hostMode ? noopHostPhaseTicks() : undefined,
   });
+  runtimeHolder.current = runtime;
 
   // ── Seed injection ────────────────────────────────────────────────
   // bootstrapNewGameFromSettings reads runtimeState.lobby.seed and
@@ -193,7 +241,16 @@ export async function createHeadlessRuntime(
   runtime.runtimeState.lastTime = clock;
   runtime.mainLoop(clock);
 
-  await runtime.lifecycle.startGame();
+  if (autoStartGame) {
+    await runtime.lifecycle.startGame();
+  } else {
+    // Stay in lobby mode for tests that need to drive the lobby UI through
+    // real input handlers. `lobby.active = true` is what `lobbyClick` and
+    // `lobbyKeyJoin` gate on; the production browser path sets it via
+    // `bootstrapNewGame` (runtime-bootstrap.ts:109). The joined array is
+    // already initialized to all-false in `createRuntimeState`.
+    runtime.runtimeState.lobby.active = true;
+  }
 
   // Apply optional speed multiplier — must happen AFTER startGame because
   // startGame() calls resetAll() which resets speedMultiplier back to 1.
@@ -241,6 +298,8 @@ export async function createHeadlessRuntime(
     now: () => clock,
     runUntil,
     runGame,
+    keyboardEventSource: keyboardEventSource as unknown as EventTarget,
+    pointerEventTarget: renderer.eventTarget as unknown as EventTarget,
   };
 }
 
@@ -264,7 +323,14 @@ function noopHostPhaseTicks(): OnlinePhaseTicks {
   };
 }
 
-/** No-op renderer satisfying `RendererInterface` without canvas/DOM access. */
+/** No-op renderer satisfying `RendererInterface` without canvas/DOM access.
+ *
+ *  The `eventTarget` is a real `EventTarget` so tests can drive the runtime
+ *  through the production input handlers (`registerMouseHandlers`,
+ *  `registerTouchHandlers`) by dispatching `MouseEvent` / `TouchEvent`
+ *  instances at it. The default `clientToSurface` is the identity, so a test
+ *  that dispatches a click at `(canvasX, canvasY)` lands on that exact tile
+ *  — no letterbox/DPR math needed in headless. */
 function createStubRenderer(): RendererInterface {
   const container = createStubElement();
   const eventTarget = createStubElement();
@@ -276,21 +342,30 @@ function createStubRenderer(): RendererInterface {
       _now: number,
     ) => {},
     warmMapCache: (_map: GameMap) => {},
-    clientToSurface: (_clientX: number, _clientY: number) => ({ x: 0, y: 0 }),
-    screenToContainerCSS: (_sx: number, _sy: number) => ({ x: 0, y: 0 }),
+    clientToSurface: (clientX: number, clientY: number) => ({
+      x: clientX,
+      y: clientY,
+    }),
+    screenToContainerCSS: (sx: number, sy: number) => ({ x: sx, y: sy }),
     eventTarget,
     container,
   };
 }
 
 /**
- * Minimal `HTMLElement` stub — the runtime only touches `.clientHeight`,
- * `.classList.add`, and `.querySelector`. Returning `null` from the query
- * matches what `main.ts` gets in production when no touch UI is mounted.
+ * Minimal `HTMLElement` stub. Backed by a real `EventTarget` so production
+ * input handlers can attach listeners and tests can dispatch events at the
+ * same surface. Carries the few non-event properties the runtime touches:
+ *   - `clientHeight` / `clientWidth` (camera, layout)
+ *   - `classList.{add,remove,contains,toggle}` (mode toggles in main.ts)
+ *   - `querySelector` (touch UI lookup, returns null)
+ *   - `style.cursor` (input-mouse writes this on every mousemove)
  */
 function createStubElement(): HTMLElement {
-  const stub = {
+  const target = new EventTarget();
+  const props = {
     clientHeight: 720,
+    clientWidth: 1280,
     classList: {
       add: () => {},
       remove: () => {},
@@ -298,8 +373,7 @@ function createStubElement(): HTMLElement {
       toggle: () => false,
     },
     querySelector: () => null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    style: { cursor: "default" },
   };
-  return stub as unknown as HTMLElement;
+  return Object.assign(target, props) as unknown as HTMLElement;
 }

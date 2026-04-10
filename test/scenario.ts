@@ -33,6 +33,11 @@
  *     });
  */
 
+// Side-effect import — installs DOM polyfills (KeyboardEvent, MouseEvent,
+// HTMLInputElement, HTMLSelectElement) on globalThis before any input handler
+// runs. Required so `registerKeyboardHandlers` can do `e.target instanceof
+// HTMLInputElement` without throwing in Deno.
+import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import {
   setCanvasFactory,
@@ -54,6 +59,7 @@ import {
 } from "../src/shared/game-event-bus.ts";
 import type { Phase } from "../src/shared/game-phase.ts";
 import type { GameState } from "../src/shared/types.ts";
+import type { Mode } from "../src/shared/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 
 export interface ScenarioOptions {
@@ -79,6 +85,12 @@ export interface ScenarioOptions {
    *  observe via `setRenderObserver` (or inspect the recorder log directly).
    *  Use this when you need to assert on render-side invariants. */
   recorder?: CanvasRecorder;
+  /** When false, leaves the runtime in lobby mode with `lobby.active = true`
+   *  instead of auto-starting the game. Tests use this to drive the lobby
+   *  through real input handlers (clicking a slot, joining via key). The
+   *  game starts naturally once a slot is joined and the lobby timer
+   *  expires. Defaults to true. */
+  autoStartGame?: boolean;
 }
 
 export interface Scenario extends Disposable {
@@ -86,6 +98,14 @@ export interface Scenario extends Disposable {
   readonly state: GameState;
   /** Typed event bus — `sc.bus.on(GAME_EVENT.X, handler)`. */
   readonly bus: GameEventBus;
+  /** Top-level UI mode (LOBBY, GAME, OPTIONS, STOPPED, ...). Lives on
+   *  `runtimeState` rather than `state` because it gates which subsystems
+   *  receive ticks. Tests use this to wait for lobby→game transitions. */
+  readonly mode: () => Mode;
+  /** Whether the lobby UI is currently active. False after the game has
+   *  started or after returning to the menu. Convenience over `mode` for
+   *  the common "have we left the lobby?" check. */
+  readonly lobbyActive: () => boolean;
   /** Current simulated time (ms). */
   readonly now: () => number;
   /** Drive the game until `predicate` returns true. Returns the frame count
@@ -99,6 +119,43 @@ export interface Scenario extends Disposable {
   ): number;
   /** Drive the game until it ends (mode reaches STOPPED). */
   runGame(maxFrames?: number, dtMs?: number): void;
+  /** Synthetic input — dispatches events at the same `EventTarget`s the
+   *  production browser path uses (`document` for keys, the canvas element
+   *  for mouse/touch). Tests use these to drive the runtime through the
+   *  real input handlers, instead of mutating state or calling controller
+   *  methods directly. */
+  readonly input: ScenarioInput;
+}
+
+/** Synthetic input dispatcher backed by real `EventTarget`s. Each call
+ *  constructs a fresh `KeyboardEvent` / `MouseEvent` and dispatches it at
+ *  the same source the runtime registered listeners on. */
+export interface ScenarioInput {
+  /** Press a key. `key` matches `KeyboardEvent.key` ("Enter", "ArrowUp",
+   *  "a", " ", etc.). Pair with `keyUp` if the handler tracks key state. */
+  keyDown(
+    key: string,
+    init?: { code?: string; ctrlKey?: boolean; shiftKey?: boolean },
+  ): void;
+  /** Release a key. */
+  keyUp(
+    key: string,
+    init?: { code?: string; ctrlKey?: boolean; shiftKey?: boolean },
+  ): void;
+  /** Press + release in one call. Use this for the common "tap a key" case;
+   *  drop down to `keyDown`/`keyUp` only when timing matters. */
+  pressKey(
+    key: string,
+    init?: { code?: string; ctrlKey?: boolean; shiftKey?: boolean },
+  ): void;
+  /** Move the mouse to a canvas-space coordinate. The headless renderer's
+   *  `clientToSurface` is the identity, so `(x, y)` lands at exactly that
+   *  surface coordinate — no letterbox/DPR math required. */
+  mouseMove(x: number, y: number): void;
+  /** Left-click at a canvas-space coordinate. */
+  click(x: number, y: number, init?: { button?: number }): void;
+  /** Right-click (context menu) at a canvas-space coordinate. */
+  rightClick(x: number, y: number): void;
 }
 
 export async function createScenario(
@@ -121,11 +178,13 @@ export async function createScenario(
     hostMode: opts.hostMode ?? false,
     renderer,
     speedMultiplier: opts.speedMultiplier,
+    autoStartGame: opts.autoStartGame ?? true,
   });
   return wrap(headless, usedRecorder);
 }
 
 function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
+  const input = createScenarioInput(headless);
   return {
     get state() {
       return headless.runtime.runtimeState.state;
@@ -133,9 +192,12 @@ function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
     get bus() {
       return headless.runtime.runtimeState.state.bus;
     },
+    mode: () => headless.runtime.runtimeState.mode,
+    lobbyActive: () => headless.runtime.runtimeState.lobby.active,
     now: headless.now,
     runUntil: headless.runUntil,
     runGame: headless.runGame,
+    input,
     [Symbol.dispose]: () => {
       // When the test installed a recorder, restore module-level render
       // state so a follow-on test in the same file isn't poisoned by stale
@@ -148,6 +210,58 @@ function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
         setRenderObserver(undefined);
       }
     },
+  };
+}
+
+// ─── Synthetic input ───────────────────────────────────────────────
+// Constructs DOM-shaped events (using the polyfilled `KeyboardEvent` /
+// `MouseEvent` from `test-globals.ts`) and dispatches them at the same
+// `EventTarget` instances the runtime registered listeners on. This is
+// the production code path — `registerKeyboardHandlers`,
+// `registerMouseHandlers`, and `registerTouchHandlers` from `src/input/`
+// run unmodified.
+
+function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
+  const { keyboardEventSource, pointerEventTarget } = headless;
+
+  function dispatchKey(
+    type: "keydown" | "keyup",
+    key: string,
+    init?: { code?: string; ctrlKey?: boolean; shiftKey?: boolean },
+  ): void {
+    const event = new KeyboardEvent(type, {
+      key,
+      code: init?.code,
+      ctrlKey: init?.ctrlKey,
+      shiftKey: init?.shiftKey,
+    });
+    keyboardEventSource.dispatchEvent(event);
+  }
+
+  function dispatchMouse(
+    type: "mousemove" | "click" | "contextmenu",
+    x: number,
+    y: number,
+    init?: { button?: number },
+  ): void {
+    const event = new MouseEvent(type, {
+      clientX: x,
+      clientY: y,
+      button: init?.button ?? 0,
+    });
+    pointerEventTarget.dispatchEvent(event);
+  }
+
+  return {
+    keyDown: (key, init) => dispatchKey("keydown", key, init),
+    keyUp: (key, init) => dispatchKey("keyup", key, init),
+    pressKey: (key, init) => {
+      dispatchKey("keydown", key, init);
+      dispatchKey("keyup", key, init);
+    },
+    mouseMove: (x, y) => dispatchMouse("mousemove", x, y),
+    click: (x, y, init) => dispatchMouse("click", x, y, init),
+    rightClick: (x, y) => dispatchMouse("contextmenu", x, y),
   };
 }
 
