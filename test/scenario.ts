@@ -38,6 +38,7 @@
 // runs. Required so `registerKeyboardHandlers` can do `e.target instanceof
 // HTMLInputElement` without throwing in Deno.
 import "./test-globals.ts";
+import { setHapticsObserver } from "../src/input/haptics-system.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import {
   setCanvasFactory,
@@ -209,6 +210,9 @@ function wrap(headless: HeadlessRuntime, usedRecorder: boolean): Scenario {
         setCanvasFactory(() => document.createElement("canvas"));
         setRenderObserver(undefined);
       }
+      // Always clear the haptics observer on dispose, even when no test
+      // installed one — module-level state must not leak between scenarios.
+      setHapticsObserver(undefined);
     },
   };
 }
