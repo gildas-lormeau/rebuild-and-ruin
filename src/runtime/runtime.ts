@@ -98,7 +98,7 @@ import {
 } from "./runtime-upgrade-pick.ts";
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
-  const { renderer, timing } = config;
+  const { renderer, timing, keyboardEventSource } = config;
   const { container: gameContainer } = renderer;
   const isOnline = !!config.onlineConfig;
 
@@ -557,6 +557,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     renderer,
     gameContainer,
+    keyboardEventSource,
     hitTests: {
       lifeLostDialogClick: (screenX, screenY) => {
         if (!runtimeState.dialogs.lifeLost) return null;

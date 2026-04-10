@@ -184,6 +184,12 @@ export interface RuntimeConfig {
   renderer: RendererInterface;
   /** Injected timing primitives — see `TimingApi`. */
   timing: TimingApi;
+  /** DOM event source for keyboard listeners. Production passes `document`;
+   *  tests pass a stub. Only entry points should touch the real `document`. */
+  keyboardEventSource: Pick<
+    Document,
+    "addEventListener" | "removeEventListener"
+  >;
   /** noop for local, ws.send for online. */
   send: (msg: GameMessage) => void;
   /** Config-level host check: () => true for local play, () => session.isHost for online.

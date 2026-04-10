@@ -27,9 +27,9 @@ import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
 // in different modes (e.g., arrows in lobby vs game, ESC always available).
 // Mouse handlers check mode at event-handler level instead (see input-mouse.ts).
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
-  const { getState, getMode } = deps;
+  const { getState, getMode, keyboardEventSource } = deps;
 
-  document.addEventListener("keydown", async (e) => {
+  keyboardEventSource.addEventListener("keydown", async (e) => {
     if (
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLSelectElement
@@ -69,7 +69,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
     }
   });
 
-  document.addEventListener("keyup", (e) => {
+  keyboardEventSource.addEventListener("keyup", (e) => {
     for (const ctrl of deps.getControllers()) {
       if (!deps.isHuman(ctrl)) continue;
       const action = ctrl.matchKey(e.key);

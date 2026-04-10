@@ -98,6 +98,7 @@ const watcherTickCtx: WatcherTickContext = {
 const runtime: GameRuntime = createGameRuntime({
   renderer,
   timing,
+  keyboardEventSource: document,
   send,
   aiPick: aiPickUpgrade,
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer

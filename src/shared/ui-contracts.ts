@@ -438,6 +438,14 @@ export interface FloatingActionsHandle {
 export interface RegisterOnlineInputDeps {
   // --- Core (used by all handlers) ---
   renderer: RendererInterface;
+  /** DOM event source for keyboard listeners — injected so the keyboard
+   *  handler module never touches `document` directly. Production passes
+   *  `document`; tests pass a stub. Only entry points should construct the
+   *  real `document` reference. */
+  keyboardEventSource: Pick<
+    Document,
+    "addEventListener" | "removeEventListener"
+  >;
   getState: () => GameState | undefined;
   getMode: () => Mode;
   setMode: (mode: Mode) => void;

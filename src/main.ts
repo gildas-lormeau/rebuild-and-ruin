@@ -29,6 +29,7 @@ const timing = createBrowserTimingApi();
 const runtime = createGameRuntime({
   renderer,
   timing,
+  keyboardEventSource: document,
   send: () => {},
   aiPick: aiPickUpgrade,
   getIsHost: () => true,

@@ -51,6 +51,12 @@ interface InputSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly renderer: RendererInterface;
   readonly gameContainer: HTMLElement;
+  /** DOM event source for keyboard listeners — forwarded to the keyboard handler
+   *  module so nothing below the runtime layer touches `document` directly. */
+  readonly keyboardEventSource: Pick<
+    Document,
+    "addEventListener" | "removeEventListener"
+  >;
 
   // Render-layer hit tests (injected from composition root, not imported directly)
   readonly hitTests: {
@@ -297,9 +303,11 @@ function buildInputDeps(
   lobbyDeps: RegisterOnlineInputDeps["lobby"],
   gameActionDeps: RegisterOnlineInputDeps["gameAction"],
 ): RegisterOnlineInputDeps {
-  const { runtimeState, renderer, withPointerPlayer } = deps;
+  const { runtimeState, renderer, withPointerPlayer, keyboardEventSource } =
+    deps;
   return {
     renderer,
+    keyboardEventSource,
     getState: () => safeState(runtimeState),
     getMode: () => runtimeState.mode,
     setMode: (mode) => {
