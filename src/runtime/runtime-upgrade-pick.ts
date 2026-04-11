@@ -18,13 +18,7 @@
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
-import {
-  applyUpgradePicks,
-  createUpgradePickDialog,
-  moveUpgradePickFocus,
-  resolveUpgradePickEntry,
-  tickUpgradePickDialog,
-} from "../game/index.ts";
+import { applyUpgradePicks } from "../game/index.ts";
 import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
@@ -47,6 +41,12 @@ import {
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
+import {
+  createUpgradePickDialog,
+  moveUpgradePickFocus,
+  resolveUpgradePickEntry,
+  tickUpgradePickDialog,
+} from "./runtime-upgrade-pick-core.ts";
 
 type TickAiEntry = (
   entry: UpgradePickEntry,

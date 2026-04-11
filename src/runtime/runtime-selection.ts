@@ -2,7 +2,6 @@ import {
   allPlayersHaveTerritory,
   allSelectionsConfirmed,
   confirmTowerSelection,
-  createCastleBuildState,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
   finalizeReselectedPlayers,
@@ -15,7 +14,6 @@ import {
   processReselectionQueue,
   recheckTerritoryOnly,
   snapshotAndFinalizeForCannonPhase,
-  tickCastleBuildAnimation,
 } from "../game/index.ts";
 import { BANNER_SELECT } from "../shared/banner-messages.ts";
 import {
@@ -42,6 +40,10 @@ import {
 import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
+import {
+  createCastleBuildState,
+  tickCastleBuildAnimation,
+} from "./runtime-castle-build.ts";
 import {
   type RuntimeState,
   resetFrameTiming,

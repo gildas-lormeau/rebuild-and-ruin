@@ -1,32 +1,3 @@
-/**
- * Life-lost dialog sub-system factory.
- *
- * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
- * in runtime-types.ts. Dialog completion patterns across the three dialogs
- * (ScoreDelta / LifeLost / UpgradePick) are compared side-by-side in the
- * decision table above RuntimeScoreDelta in runtime-types.ts (~line 428) —
- * read that before adding a fourth dialog.
- *
- * Life-lost picks the "method on system" pattern (`onResolved()`) because
- * it has multi-path outcomes (game over, reselection, or advance to cannon).
- * host-phase-ticks calls onResolved directly when all entries were
- * pre-resolved at dialog creation time.
- *
- * Extracted from runtime.ts. Follows the same factory-with-deps
- * pattern as runtime-camera.ts and runtime-selection.ts.
- */
-
-import {
-  applyLifeLostChoice,
-  confirmLifeLostFocusedChoice,
-  continuingPlayers,
-  createLifeLostDialogState,
-  eliminateAbandoned,
-  isLifeLostAllResolved,
-  resolveAfterLifeLost,
-  tickLifeLostDialog,
-  toggleLifeLostFocus,
-} from "../game/index.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
@@ -40,6 +11,17 @@ import {
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
+import {
+  applyLifeLostChoice,
+  confirmLifeLostFocusedChoice,
+  continuingPlayers,
+  createLifeLostDialogState,
+  eliminateAbandoned,
+  isLifeLostAllResolved,
+  resolveAfterLifeLost,
+  tickLifeLostDialog,
+  toggleLifeLostFocus,
+} from "./runtime-life-lost-core.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 

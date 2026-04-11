@@ -44,10 +44,6 @@ export {
   prepareControllerCannonPhase,
   resetCannonFacings,
 } from "./cannon-system.ts";
-export {
-  createCastleBuildState,
-  tickCastleBuildAnimation,
-} from "./castle-build.ts";
 export { createCastle } from "./castle-generation.ts";
 export { createComboTracker, isCombosEnabled } from "./combo-system.ts";
 export {
@@ -70,17 +66,6 @@ export {
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { gruntAttackTowers } from "./grunt-system.ts";
-export {
-  applyLifeLostChoice,
-  confirmLifeLostFocusedChoice,
-  continuingPlayers,
-  createLifeLostDialogState,
-  eliminateAbandoned,
-  isLifeLostAllResolved,
-  resolveAfterLifeLost,
-  tickLifeLostDialog,
-  toggleLifeLostFocus,
-} from "./life-lost.ts";
 export { generateMap } from "./map-generation.ts";
 export {
   capturePrevBattleScene,
@@ -111,10 +96,4 @@ export {
   initSelectionTimer,
   initTowerSelection,
 } from "./selection.ts";
-export {
-  applyUpgradePicks,
-  createUpgradePickDialog,
-  moveUpgradePickFocus,
-  resolveUpgradePickEntry,
-  tickUpgradePickDialog,
-} from "./upgrade-pick.ts";
+export { applyUpgradePicks } from "./upgrade-pick.ts";

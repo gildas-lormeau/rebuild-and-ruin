@@ -56,9 +56,7 @@
       "src/game/game-engine.ts",
       "src/game/selection.ts",
       "src/game/build-phase-helpers.ts",
-      "src/game/life-lost.ts",
       "src/game/phase-banner.ts",
-      "src/game/castle-build.ts",
       "src/game/upgrade-pick.ts",
       "src/game/index.ts"
     ],
@@ -167,7 +165,10 @@
       "src/runtime/assembly.ts",
       "src/runtime/runtime.ts",
       "src/runtime/dev-console.ts",
-      "src/runtime/dev-console-grid.ts"
+      "src/runtime/dev-console-grid.ts",
+      "src/runtime/runtime-castle-build.ts",
+      "src/runtime/runtime-life-lost-core.ts",
+      "src/runtime/runtime-upgrade-pick-core.ts"
     ],
     "entry": [
       "src/entry.ts",
