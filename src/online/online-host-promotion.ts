@@ -3,7 +3,10 @@
  * accumulator sync during host migration.
  */
 
-import { finalizeAndEnterCannonPhase } from "../game/index.ts";
+import {
+  enterCannonPhase,
+  finalizeAndEnterCannonPhase,
+} from "../game/index.ts";
 import {
   BATTLE_TIMER,
   MASTER_BUILDER_BONUS_SECONDS,
@@ -76,6 +79,11 @@ export function rebuildControllersForPhase(
  */
 export function skipCastleBuildAnimation(state: GameState): void {
   finalizeAndEnterCannonPhase(state);
+  // finalizeAndEnterCannonPhase no longer flips the phase — enterCannonPhase
+  // owns the CANNON_PLACE transition + preparation. Per-player init data
+  // is ignored here; the new host rebuilds controllers separately via
+  // rebuildControllersForPhase.
+  enterCannonPhase(state);
 }
 
 /**

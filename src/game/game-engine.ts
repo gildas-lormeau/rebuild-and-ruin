@@ -38,6 +38,10 @@ import { type GameState, setGameMode } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { assertNever } from "../shared/utils.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
+import {
+  prepareCannonPhase,
+  prepareControllerCannonPhase,
+} from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import {
@@ -62,6 +66,20 @@ interface BattlePhaseEntry {
   territory: Set<number>[];
   /** Per-player wall snapshot, post-modifier. */
   walls: Set<number>[];
+}
+
+/** Per-player init data for the cannon placement phase.
+ *  Null for eliminated players (no cannons to place). */
+interface PlayerCannonInit {
+  maxSlots: number;
+  cursorPos: { row: number; col: number };
+}
+
+/** Result of `enterCannonPhase` — per-player init data the caller uses to
+ *  initialize local controllers in the initControllers step.
+ *  Index = playerId; null entries are eliminated players or empty slots. */
+export interface CannonPhaseEntry {
+  playerInit: readonly (PlayerCannonInit | null)[];
 }
 
 /** Check if any player has the Ceasefire upgrade active. */
@@ -166,6 +184,23 @@ export function enterBattlePhase(state: GameState): BattlePhaseEntry {
   return { modifierDiff, flights, territory, walls };
 }
 
+/** Enter the cannon placement phase. Sets the phase flag, computes cannon
+ *  limits and default facings, resets the timer, and returns per-player
+ *  init data (max slots + starting cursor position) for every active slot.
+ *
+ *  Replaces the runtime's manual sequence of `enterCannonPlacePhase` +
+ *  `prepareCannonPhase` + per-player `prepareControllerCannonPhase`. The
+ *  engine owns the order; the runtime consumes the returned struct to
+ *  initialize its local controllers. */
+export function enterCannonPhase(state: GameState): CannonPhaseEntry {
+  enterCannonPlacePhase(state);
+  prepareCannonPhase(state);
+  const playerInit = state.players.map((_, idx) =>
+    prepareControllerCannonPhase(idx as ValidPlayerSlot, state),
+  );
+  return { playerInit };
+}
+
 /** INVARIANT: Snapshot entities THEN finalize castle construction and enter
  *  cannon phase. Snapshot must capture state BEFORE finalize mutates it
  *  (finalize recomputes territory, sweeps walls, modifies players).
@@ -178,19 +213,23 @@ export function snapshotAndFinalizeForCannonPhase(
   return entities;
 }
 
-/** Finalize castle construction and enter cannon placement phase.
- *  Always called together — bundled to prevent partial transitions.
- *  Used after castle selection + build completes (both initial and reselection),
- *  and during host promotion to skip the castle build animation. */
+/** Finalize castle construction. Used after castle selection + build
+ *  completes (both initial and reselection), and during host promotion to
+ *  skip the castle build animation.
+ *
+ *  Does NOT flip the phase — the caller must subsequently run
+ *  `enterCannonPhase(state)` (typically inside startCannonPhase's
+ *  applyCheckpoint step) to transition to CANNON_PLACE. This keeps the
+ *  phase flip + preparation bundled in one engine entry point. */
 export function finalizeAndEnterCannonPhase(state: GameState): void {
   finalizeCastleConstruction(state);
-  enterCannonPlacePhase(state);
 }
 
-/** Transition game state to CANNON_PLACE. This only sets the phase flag and timer.
- *  For the canonical `enter / prepare / start` contract that governs every
- *  phase transition, see the phase-setup.ts module header. */
-export function enterCannonPlacePhase(state: GameState): void {
+/** Transition game state to CANNON_PLACE. This only sets the phase flag and
+ *  timer; callers should prefer `enterCannonPhase` which additionally runs
+ *  preparation (limits, facings) and returns per-player init data.
+ *  Private — internal helper for enterCannonPhase + finalizeAndEnterCannonPhase. */
+function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
 }

@@ -1,15 +1,15 @@
 import {
   advanceBattleCountdown,
   buildTimerMax,
+  type CannonPhaseEntry,
   capturePrevBattleScene,
   diffNewWalls,
   enterBattlePhase,
   enterBuildSkippingBattle,
+  enterCannonPhase,
   isCeasefireActive,
   nextPhase,
   nextReadyCombined,
-  prepareCannonPhase,
-  prepareControllerCannonPhase,
   resetCannonFacings,
   snapshotThenFinalize,
   tickBattleCombat,
@@ -236,6 +236,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.sound.drumsQuiet();
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
+    // Engine-owned phase entry: the struct is populated in applyCheckpoint
+    // and consumed in initControllers. Closed over by both step adapters.
+    let entry: CannonPhaseEntry | undefined;
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
@@ -245,19 +248,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
       },
       applyCheckpoint: () => {
-        prepareCannonPhase(runtimeState.state);
+        // Engine owns the order: set phase → compute limits/facings →
+        // compute per-player init data. Runtime just consumes the struct.
+        entry = enterCannonPhase(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastCannonStart?.(runtimeState.state);
         }
       },
       initControllers: () => {
+        if (!entry) return;
         for (const ctrl of runtimeState.controllers) {
           if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-          const prep = prepareControllerCannonPhase(
-            ctrl.playerId,
-            runtimeState.state,
-          );
+          const prep = entry.playerInit[ctrl.playerId];
           if (!prep) continue;
           ctrl.placeCannons(runtimeState.state, prep.maxSlots);
           ctrl.cannonCursor = prep.cursorPos;

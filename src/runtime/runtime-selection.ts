@@ -2,7 +2,6 @@ import {
   allPlayersHaveTerritory,
   allSelectionsConfirmed,
   confirmTowerSelection,
-  enterCannonPlacePhase,
   enterCastleReselectPhase,
   finalizeReselectedPlayers,
   finishSelectionPhase,
@@ -537,7 +536,8 @@ export function createSelectionSystem(
     tick: tickSelection,
     finish: finishSelection,
     advanceToCannonPhase: () => {
-      enterCannonPlacePhase(runtimeState.state);
+      // enterCannonPhase (inside startCannonPhase → applyCheckpoint) handles
+      // the phase flip + preparation; no separate enterCannonPlacePhase call.
       deps.startCannonPhase(() => {
         setMode(runtimeState, Mode.GAME);
       });
