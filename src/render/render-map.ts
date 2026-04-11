@@ -151,7 +151,7 @@ export interface RenderMapDeps {
 
 /** Per-renderer instance returned by `createRenderMap`. Holds the closure
  *  state previously kept at module scope (scene canvases, banner cache,
- *  observer). Created once per `createCanvasRenderer` call. */
+ *  observer, terrain cache). Created once per `createCanvasRenderer` call. */
 interface RenderMap {
   drawMap: (
     map: GameMap,
@@ -160,6 +160,10 @@ interface RenderMap {
     viewport?: Viewport | null,
     now?: number,
   ) => void;
+  /** Pre-compute terrain bitmaps for `map` so the first frame doesn't stall.
+   *  Per-renderer-instance: each `createRenderMap` owns its own cache, so
+   *  warming a map for one renderer doesn't affect another. */
+  precomputeTerrainCache: (map: GameMap) => void;
   sceneCanvas: () => HTMLCanvasElement;
 }
 
@@ -241,11 +245,6 @@ const WAVE_LO: { x: number; y: number; w: number }[] = [
 // Precomputed per-pixel texture offsets (built once, reused every frame)
 const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
-/** WeakMap so terrain caches auto-cleanup when a GameMap is GC'd (e.g., lobby map change).
- *  Banner cache below uses module-level variables + manual clearBannerCache() instead,
- *  because the banner scene combines data from multiple sources (castles, territory, walls)
- *  that aren't keyed by a single object. */
-const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
 const SPRITE_CANNON = "cannon";
 
 export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
@@ -263,6 +262,68 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       }
     | undefined;
   let bannerCache: BannerCacheEntry | undefined;
+
+  // Per-instance terrain cache. Was previously a module-level WeakMap, which
+  // meant `precomputeTerrainCache` (the module export) and every `RenderMap`
+  // instance shared the same cache state. The doc-comment on this factory
+  // promised "each call owns its own scene/banner/cache state, so multiple
+  // test scenarios in the same file remain isolated" — but the terrain cache
+  // didn't honor that promise. Now it does: the WeakMap lives in this
+  // closure, `getTerrainCache` reads/writes it, and the new
+  // `precomputeTerrainCache` method on the returned `RenderMap` shape
+  // replaces the module export so production callers also share state per
+  // renderer instance.
+  //
+  // The WeakMap key is still `GameMap`, so a fresh map gets a fresh entry —
+  // production never re-uses a map across renderer instances (each game
+  // generates its own), so the same-renderer hot path stays cache-warm.
+  const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
+
+  function getTerrainCache(
+    map: GameMap,
+    width: number,
+    height: number,
+  ): TerrainImageCache {
+    const existing = terrainImageCache.get(map);
+    if (
+      existing &&
+      existing.width === width &&
+      existing.height === height &&
+      existing.mapVersion === map.mapVersion
+    ) {
+      return existing;
+    }
+    const next: TerrainImageCache = {
+      width,
+      height,
+      mapVersion: map.mapVersion,
+    };
+    terrainImageCache.set(map, next);
+    return next;
+  }
+
+  /** Pre-compute both terrain variants (normal + battle) so the first
+   *  render of each doesn't stall the frame. Call during game init. */
+  function precomputeTerrainCache(map: GameMap): void {
+    const W = MAP_PX_W;
+    const H = MAP_PX_H;
+    const cache = getTerrainCache(map, W, H);
+    if (cache.normal && cache.battle) return;
+
+    const sdf = computeSignedDistanceField(W, H, map);
+    blurSignedDistanceField(sdf, W, H);
+
+    if (!cache.normal) {
+      const imgData = new ImageData(W, H);
+      renderTerrainPixels(imgData, sdf, W, H, map, false);
+      cache.normal = imgData;
+    }
+    if (!cache.battle) {
+      const imgData = new ImageData(W, H);
+      renderTerrainPixels(imgData, sdf, W, H, map, true);
+      cache.battle = imgData;
+    }
+  }
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     if (mainCtxCache?.canvas === canvas) return mainCtxCache.canvasCtx;
@@ -413,12 +474,14 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       // Terrain + water animation read map.tiles directly — use the snapshot
       // so they paint the OLD terrain. All other passes use the live map
       // (entity draws don't read tiles, sinkhole patches use the live cache).
-      drawTerrain(tmpCtx, W, H, renderMap, prevOverlay);
+      const snapshotCache = getTerrainCache(renderMap, W, H);
+      const liveCacheForSinkholes = getTerrainCache(map, W, H);
+      drawTerrain(tmpCtx, W, H, renderMap, snapshotCache, prevOverlay);
       observer?.terrainDrawn?.("banner", renderMap);
       drawWaterAnimation(tmpCtx, renderMap, prevOverlay, now);
       drawFrozenTiles(tmpCtx, prevOverlay, now);
       drawCastles(tmpCtx, prevOverlay);
-      drawSinkholeOverlays(tmpCtx, map, prevOverlay);
+      drawSinkholeOverlays(tmpCtx, map, liveCacheForSinkholes, prevOverlay);
       drawBonusSquares(tmpCtx, prevOverlay, now);
       drawHouses(tmpCtx, prevOverlay);
       drawTowers(tmpCtx, map, prevOverlay, now);
@@ -494,12 +557,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     //  19. Status bar (below game scene)
 
     // Draw the new (target) scene — layers that change between phases
-    drawTerrain(overlayCtx, W, H, map, overlay);
+    const liveCache = getTerrainCache(map, W, H);
+    drawTerrain(overlayCtx, W, H, map, liveCache, overlay);
     observer?.terrainDrawn?.("main", map);
     drawWaterAnimation(overlayCtx, map, overlay, now);
     drawFrozenTiles(overlayCtx, overlay, now);
     drawCastles(overlayCtx, overlay);
-    drawSinkholeOverlays(overlayCtx, map, overlay);
+    drawSinkholeOverlays(overlayCtx, map, liveCache, overlay);
     drawBonusSquares(overlayCtx, overlay, now);
     drawHouses(overlayCtx, overlay);
     drawTowers(overlayCtx, map, overlay, now);
@@ -560,30 +624,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getScene().canvas;
   }
 
-  return { drawMap, sceneCanvas };
-}
-
-/** Pre-compute both terrain variants (normal + battle) so the first
- *  render of each doesn't stall the frame. Call during game init. */
-export function precomputeTerrainCache(map: GameMap): void {
-  const W = MAP_PX_W;
-  const H = MAP_PX_H;
-  const cache = getTerrainCache(map, W, H);
-  if (cache.normal && cache.battle) return;
-
-  const sdf = computeSignedDistanceField(W, H, map);
-  blurSignedDistanceField(sdf, W, H);
-
-  if (!cache.normal) {
-    const imgData = new ImageData(W, H);
-    renderTerrainPixels(imgData, sdf, W, H, map, false);
-    cache.normal = imgData;
-  }
-  if (!cache.battle) {
-    const imgData = new ImageData(W, H);
-    renderTerrainPixels(imgData, sdf, W, H, map, true);
-    cache.battle = imgData;
-  }
+  return { drawMap, precomputeTerrainCache, sceneCanvas };
 }
 
 // Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
@@ -600,16 +641,21 @@ for (const w of WAVE_LO) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = -10;
 }
 
-/** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
+/** Build SDF for water/grass boundaries, blur it, and paint terrain pixels.
+ *
+ *  `cache` is the per-renderer terrain cache for `map` — the caller fetches
+ *  it from the closure-bound `getTerrainCache` and passes it in. drawTerrain
+ *  reads `cache.normal` / `cache.battle` / `cache.sinkholeClusters` and
+ *  writes the corresponding fields when it has to rebuild. */
 function drawTerrain(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   map: GameMap,
+  cache: TerrainImageCache,
   overlay?: RenderOverlay,
 ): void {
   const inBattle = !!overlay?.battle?.inBattle;
-  const cache = getTerrainCache(map, W, H);
   const cachedImage = inBattle ? cache.battle : cache.normal;
   const sinkholeTiles = overlay?.entities?.sinkholeTiles;
   const needsSinkholeClusters =
@@ -1042,12 +1088,12 @@ function selectTerrainColor(
 function drawSinkholeOverlays(
   overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
+  cache: TerrainImageCache,
   overlay?: RenderOverlay,
 ): void {
   const sinkholeTiles = overlay?.entities?.sinkholeTiles;
   if (!sinkholeTiles || sinkholeTiles.size === 0) return;
-  const cache = terrainImageCache.get(map);
-  if (!cache?.sinkholeClusters) return;
+  if (!cache.sinkholeClusters) return;
   const inBattle = !!overlay.battle?.inBattle;
   const owners = buildOwnerTables(overlay, inBattle);
   for (const cluster of cache.sinkholeClusters) {
@@ -1168,29 +1214,6 @@ function clusterBelongsToScene(
     if (!sceneSinkholeTiles.has(key)) return false;
   }
   return true;
-}
-
-function getTerrainCache(
-  map: GameMap,
-  width: number,
-  height: number,
-): TerrainImageCache {
-  const existing = terrainImageCache.get(map);
-  if (
-    existing &&
-    existing.width === width &&
-    existing.height === height &&
-    existing.mapVersion === map.mapVersion
-  ) {
-    return existing;
-  }
-  const next: TerrainImageCache = {
-    width,
-    height,
-    mapVersion: map.mapVersion,
-  };
-  terrainImageCache.set(map, next);
-  return next;
 }
 
 function tileAt(map: GameMap, r: number, c: number): number {
