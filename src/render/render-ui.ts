@@ -78,6 +78,7 @@ import {
   UPGRADE_CARD_H,
   UPGRADE_CARD_W,
   UPGRADE_NAME_H,
+  UPGRADE_PICK_PULSE_DURATION,
   UPGRADE_ROW_GAP,
   UPGRADE_ROW_W,
 } from "./render-composition.ts";
@@ -858,6 +859,10 @@ function drawUpgradeCard(
 ): void {
   const isFocused =
     isInteractive && card.focused && flashOn(BUTTON_FLASH_MS, time);
+  const pulseFrac =
+    card.pulseAge > 0 && card.pulseAge < UPGRADE_PICK_PULSE_DURATION
+      ? 1 - card.pulseAge / UPGRADE_PICK_PULSE_DURATION
+      : 0;
   const borderColor = card.picked
     ? rgb(playerColor)
     : card.focused && isInteractive
@@ -877,6 +882,21 @@ function drawUpgradeCard(
     ctx.strokeStyle = GOLD_LIGHT;
     ctx.lineWidth = 2;
     ctx.strokeRect(cx - 1, cy - 1, cardW + 2, cardH + 2);
+  }
+
+  if (pulseFrac > 0) {
+    ctx.save();
+    ctx.globalAlpha = pulseFrac;
+    ctx.strokeStyle = rgb(playerColor);
+    ctx.lineWidth = 2 + 5 * pulseFrac;
+    const inset = 2 + 6 * pulseFrac;
+    ctx.strokeRect(
+      cx - inset,
+      cy - inset,
+      cardW + inset * 2,
+      cardH + inset * 2,
+    );
+    ctx.restore();
   }
 
   const cardCx = cx + cardW / 2;

@@ -35,6 +35,9 @@ export interface UpgradePickEntry {
   autoTimer: number;
   /** Which offer card is focused (0, 1, or 2). */
   focusedCard: number;
+  /** Dialog.timer value when `choice` flipped from null to set — drives the
+   *  reveal pulse animation. null while pending. */
+  pickedAtTimer: number | null;
 }
 
 export interface UpgradePickDialogState {

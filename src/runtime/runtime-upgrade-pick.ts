@@ -156,7 +156,13 @@ export function createUpgradePickSystem(
   }
 
   function resolveAndSend(entry: UpgradePickEntry, cardIdx: number): void {
-    const choice = dialogFacade.resolveUpgradePickEntry(entry, cardIdx);
+    const dialog = runtimeState.dialogs.upgradePick;
+    if (!dialog) return;
+    const choice = dialogFacade.resolveUpgradePickEntry(
+      entry,
+      cardIdx,
+      dialog.timer,
+    );
     deps.sendUpgradePick?.(entry.playerId, choice);
   }
 

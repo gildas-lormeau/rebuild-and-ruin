@@ -35,6 +35,9 @@ interface CreateUpgradePickDeps extends AutoResolveDeps {
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
+/** Extra delay per auto-resolving entry so AI picks land one at a time,
+ *  not all on the same frame. Applied by entry index in dialog.entries. */
+const UPGRADE_PICK_STAGGER = 0.5;
 /** Auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
@@ -61,6 +64,7 @@ export function createUpgradePickDialog(
       autoResolve,
       autoTimer: 0,
       focusedCard: 0,
+      pickedAtTimer: null,
     });
   }
 
@@ -90,15 +94,20 @@ export function tickUpgradePickDialog(
 ): boolean {
   dialog.timer += dt;
 
-  // Auto-resolve pending entries
-  for (const entry of dialog.entries) {
+  // Auto-resolve pending entries. The effective delay is staggered by
+  // entry index so AI picks land sequentially (1.5s, 2.0s, 2.5s…) instead
+  // of all snapping on the same frame.
+  for (let entryIdx = 0; entryIdx < dialog.entries.length; entryIdx++) {
+    const entry = dialog.entries[entryIdx]!;
     if (entry.choice !== null) continue;
     if (entry.autoResolve) {
       entry.autoTimer += dt;
-      if (entry.autoTimer >= autoDelay) {
+      const effectiveDelay = autoDelay + entryIdx * UPGRADE_PICK_STAGGER;
+      if (entry.autoTimer >= effectiveDelay) {
         entry.choice = aiPick
           ? aiPick(entry.offers, entry.playerId)
           : randomPickUpgrade(entry.offers, state);
+        entry.pickedAtTimer = dialog.timer;
       }
     }
   }
@@ -108,6 +117,7 @@ export function tickUpgradePickDialog(
     for (const entry of dialog.entries) {
       if (entry.choice === null) {
         entry.choice = randomPickUpgrade(entry.offers, state);
+        entry.pickedAtTimer = dialog.timer;
       }
     }
   }
@@ -128,10 +138,12 @@ export function moveUpgradePickFocus(
 export function resolveUpgradePickEntry(
   entry: UpgradePickEntry,
   cardIdx: number,
+  dialogTimer: number,
 ): UpgradeId {
   entry.focusedCard = cardIdx;
   const choice = entry.offers[cardIdx]!;
   entry.choice = choice;
+  entry.pickedAtTimer = dialogTimer;
   return choice;
 }
 

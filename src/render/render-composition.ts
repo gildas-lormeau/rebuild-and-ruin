@@ -94,6 +94,9 @@ export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 export const UPGRADE_CARD_W = 120;
 export const UPGRADE_CARD_H = 100;
 export const UPGRADE_CARD_GAP = 10;
+/** Reveal pulse duration (seconds) — expanding glow ring fades out over
+ *  this window after a card is picked. */
+export const UPGRADE_PICK_PULSE_DURATION = 0.45;
 export const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
   (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
@@ -679,13 +682,19 @@ function buildUpgradePickUi(
         const def = UPGRADE_POOL.find(
           (upgradeDef) => upgradeDef.id === upgradeId,
         );
+        const picked = entry.choice === upgradeId;
+        const pulseAge =
+          picked && entry.pickedAtTimer !== null
+            ? Math.max(0, dialog.timer - entry.pickedAtTimer)
+            : 0;
         return {
           id: upgradeId,
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
           focused: entry.choice === null && entry.focusedCard === cardIdx,
-          picked: entry.choice === upgradeId,
+          picked,
+          pulseAge,
         };
       }),
     };

@@ -65,6 +65,9 @@ export interface UpgradePickCard {
   readonly category: string;
   readonly focused: boolean;
   readonly picked: boolean;
+  /** Seconds since this card was picked. 0 if not picked. Drives the
+   *  reveal pulse in drawUpgradeCard. */
+  readonly pulseAge: number;
 }
 
 /** Per-player upgrade pick entry for rendering. */
