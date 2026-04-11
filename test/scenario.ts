@@ -236,7 +236,7 @@ export async function createScenario(
     renderer,
     speedMultiplier: opts.speedMultiplier,
     autoStartGame: opts.autoStartGame ?? true,
-    networkSendObserver: (msg) => sentMessages.push(msg),
+    networkObserver: { sent: (msg) => sentMessages.push(msg) },
     hapticsObserver: opts.hapticsObserver,
     soundObserver: opts.soundObserver,
   });

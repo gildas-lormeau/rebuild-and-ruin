@@ -112,7 +112,7 @@ export async function createOnlineHarness(
     hostMode: true,
     speedMultiplier: opts.speedMultiplier,
     autoStartGame: opts.autoStartGame ?? true,
-    networkSendObserver: (msg) => sentMessages.push(msg),
+    networkObserver: { sent: (msg) => sentMessages.push(msg) },
     remotePlayerSlots,
   });
 

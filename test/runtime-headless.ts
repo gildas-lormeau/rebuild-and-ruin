@@ -30,6 +30,16 @@ import type {
   HapticsObserver,
   SoundObserver,
 } from "../src/shared/system-interfaces.ts";
+
+/** Test observer for the headless `network.send` seam. Receives every
+ *  outbound message the runtime would broadcast through the production
+ *  fan-out path, regardless of host vs. local mode (the headless
+ *  `network.send` impl is otherwise a no-op). Mirrors the shape of the
+ *  haptics / sound / render observers so the four test seams stay
+ *  visually consistent. */
+export interface NetworkObserver {
+  sent?(msg: GameMessage): void;
+}
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/player-config.ts";
 import {
@@ -89,13 +99,13 @@ interface HeadlessRuntimeOptions {
    *  that need to drive the lobby UI (slot joining, options menu) before
    *  the match begins. Defaults to true. */
   autoStartGame?: boolean;
-  /** Optional observer for outbound network messages. Receives every
-   *  message the runtime would broadcast via `network.send`, regardless
-   *  of whether the runtime is in host mode (the headless `network.send`
-   *  is otherwise a no-op). Used by tests that assert on host fan-out
+  /** Test observer for the network seam. Receives every message the
+   *  runtime would broadcast via `network.send`, regardless of whether
+   *  the runtime is in host mode (the headless `network.send` is
+   *  otherwise a no-op). Used by tests that assert on host fan-out
    *  payloads (checkpoints, action commands, watcher ticks) without
    *  spinning up a real WebSocket. */
-  networkSendObserver?: (msg: GameMessage) => void;
+  networkObserver?: NetworkObserver;
   /** Slots the runtime should treat as remote-controlled (i.e. driven by a
    *  peer machine, not by local AI). The headless network adapter exposes
    *  this set via `network.remotePlayerSlots()`, which gates AI controllers,
@@ -172,7 +182,7 @@ export async function createHeadlessRuntime(
     aiPick = (offers) => offers[0],
     speedMultiplier,
     autoStartGame = true,
-    networkSendObserver,
+    networkObserver,
     remotePlayerSlots = EMPTY_REMOTE_SLOTS,
     hapticsObserver,
     soundObserver,
@@ -232,11 +242,11 @@ export async function createHeadlessRuntime(
     keyboardEventSource,
     network: {
       // The inner send is a no-op because there are no peers in single-
-      // machine headless mode. When a test installs `networkSendObserver`,
+      // machine headless mode. When a test installs `networkObserver`,
       // it sees every outbound message the runtime would have broadcast,
       // which lets the test assert on host fan-out payloads (checkpoints,
       // action commands) without spinning up a real WebSocket.
-      send: networkSendObserver ? (msg) => networkSendObserver(msg) : () => {},
+      send: (msg) => networkObserver?.sent?.(msg),
       // In-memory loopback: track every handler the runtime registers,
       // and let tests inject messages via `deliverNetworkMessage(msg)`.
       // The future "machines" abstraction will turn this into a full

@@ -6,8 +6,8 @@
  * Headless wires `network.send` to a no-op by default. When the scenario
  * is created with `hostMode: true`, the runtime takes the online code
  * path (`isOnline = !!onlinePhaseTicks`), and `scenario.ts` installs a
- * `networkSendObserver` that pushes every outbound message into the
- * read-only `sc.sentMessages` array.
+ * `networkObserver` whose `sent` callback pushes every outbound message
+ * into the read-only `sc.sentMessages` array.
  *
  * Why this is the highest-value seam: state-comparison tests
  * (`host-vs-local-sync`) catch *divergence* between local and host
