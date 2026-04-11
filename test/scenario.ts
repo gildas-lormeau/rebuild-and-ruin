@@ -39,6 +39,7 @@
 // HTMLInputElement` without throwing in Deno.
 import "./test-globals.ts";
 import { setHapticsObserver } from "../src/input/haptics-system.ts";
+import { setSoundObserver } from "../src/input/sound-system.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import {
   setCanvasFactory,
@@ -262,9 +263,11 @@ export function wrapHeadless(
         setCanvasFactory(() => document.createElement("canvas"));
         setRenderObserver(undefined);
       }
-      // Always clear the haptics observer on dispose, even when no test
-      // installed one — module-level state must not leak between scenarios.
+      // Always clear the haptics + sound observers on dispose, even when
+      // no test installed one — module-level state must not leak between
+      // scenarios.
       setHapticsObserver(undefined);
+      setSoundObserver(undefined);
     },
   };
 }

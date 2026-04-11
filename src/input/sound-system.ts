@@ -5,6 +5,20 @@
  *
  * Follows the factory-with-deps pattern used by other runtime sub-systems.
  * Respects the sound setting: 0=off, 1=phase changes only, 2=all.
+ *
+ * ### Test observer
+ *
+ * `setSoundObserver` is the test seam (mirrors `setHapticsObserver` in
+ * `haptics-system.ts` and `setRenderObserver` in `render-map.ts`).
+ * Tests install an observer to capture every "would have played"
+ * intent BEFORE the platform/level gate, so a deno test can verify
+ * "this game event would have triggered sound X" without needing a
+ * real `AudioContext` or `Audio` element (neither exists in Deno).
+ *
+ * Default sound level in headless is `SOUND_OFF`, which means
+ * production code paths early-return at the level check and never
+ * touch the Web Audio API. The observer fires *before* that check, so
+ * it sees the intent regardless. Production never sets the observer.
  */
 
 import { sfxr } from "jsfxr";
@@ -12,6 +26,44 @@ import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
+
+/** Reason a sound was triggered — covers every public method on
+ *  `SoundSystem`. Tests filter on this string to assert that the right
+ *  game event reached the sound layer. The "battle:*" prefixed values
+ *  fire from inside `battleEvents` per individual `BattleEvent` so a
+ *  test can assert on the specific battle reaction (cannon fire vs.
+ *  wall hit vs. tower kill) instead of the catch-all "battleEvents". */
+export type SoundReason =
+  | "phaseStart"
+  | "piecePlaced"
+  | "pieceFailed"
+  | "pieceRotated"
+  | "cannonPlaced"
+  | "chargeFanfare"
+  | "lifeLost"
+  | "gameOver"
+  | "drumsStart"
+  | "drumsQuiet"
+  | "drumsStop"
+  | "reset"
+  | "battle:cannonFired"
+  | "battle:wallDestroyed"
+  | "battle:cannonDamaged"
+  | "battle:cannonKilled"
+  | "battle:gruntKilled"
+  | "battle:gruntSpawned"
+  // Inline literal "towerKilled" — allowed in type position because the
+  // duplicate-literals scanner skips type annotations. The runtime call
+  // site uses `BATTLE_MESSAGE.TOWER_KILLED` so no new runtime literal
+  // shows up. (lint-typeof forbids `typeof X.PROP` in type aliases.)
+  | "towerKilled";
+
+/** Test observer — receives every sound intent BEFORE the platform/level
+ *  gate. Inlined in the `setSoundObserver` signature so callers don't
+ *  need a named import; the type is local-only by design. */
+interface SoundObserver {
+  played?(reason: SoundReason): void;
+}
 
 type SfxKey = keyof typeof SFX_DEFS;
 
@@ -229,6 +281,30 @@ const DRUM_DROP_SECONDS = 0.8;
 const SINE: OscillatorType = "sine";
 const LOWPASS: BiquadFilterType = "lowpass";
 const BANDPASS: BiquadFilterType = "bandpass";
+// Reason constants reused across `notifyPlayed(...)` and `play(key, ...)`
+// call sites in the body of `createSoundSystem`. Without these, each
+// reason string would appear twice in the file (once as the SFX key arg
+// to `play`, once as the literal arg to `notifyPlayed`), pushing several
+// names past the duplicate-literals scanner threshold (the scanner skips
+// const definitions but counts function-call arguments).
+const REASON_PHASE_START = "phaseStart";
+const REASON_PIECE_PLACED = "piecePlaced";
+const REASON_PIECE_FAILED = "pieceFailed";
+const REASON_PIECE_ROTATED = "pieceRotated";
+const REASON_CANNON_PLACED = "cannonPlaced";
+const REASON_LIFE_LOST = "lifeLost";
+const REASON_GAME_OVER = "gameOver";
+const REASON_BATTLE_GRUNT_KILLED = "battle:gruntKilled";
+const REASON_BATTLE_GRUNT_SPAWNED = "battle:gruntSpawned";
+
+let soundObserver: SoundObserver | undefined;
+
+/** Install a sound observer (test seam). Pass `undefined` to clear.
+ *  Mirrors `setHapticsObserver` from `haptics-system.ts`. Production
+ *  code never sets this. */
+export function setSoundObserver(observer: SoundObserver | undefined): void {
+  soundObserver = observer;
+}
 
 export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
@@ -577,46 +653,80 @@ export function createSoundSystem(): SoundSystem {
     },
 
     phaseStart() {
-      play("phaseStart", 1);
+      notifyPlayed(REASON_PHASE_START);
+      play(REASON_PHASE_START, 1);
     },
 
     battleEvents(events, povPlayerId) {
-      if (soundLevel < SOUND_ALL) return;
+      // Walk events even when sound is off — the observer needs to see
+      // every battle event. The Web Audio call paths (`cannonBoom`,
+      // `cannonWhistle`, `impact`) and `play()` are still gated by
+      // `soundLevel < SOUND_ALL` below, so the production hot path only
+      // pays for the loop when there's something to do. Without the
+      // observer-aware walk we'd lose per-event observability in
+      // headless tests where `soundLevel` defaults to SOUND_OFF.
+      if (!soundObserver && soundLevel < SOUND_ALL) return;
+      const audible = soundLevel >= SOUND_ALL;
       for (const evt of events) {
         if (evt.type === BATTLE_MESSAGE.CANNON_FIRED) {
-          cannonBoom();
-          cannonWhistle(evt, povPlayerId);
+          notifyPlayed("battle:cannonFired");
+          if (audible) {
+            cannonBoom();
+            cannonWhistle(evt, povPlayerId);
+          }
         } else if (
           evt.type === BATTLE_MESSAGE.WALL_DESTROYED &&
           evt.playerId === povPlayerId
         ) {
-          impact();
+          notifyPlayed("battle:wallDestroyed");
+          if (audible) impact();
         } else if (
           evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
           evt.newHp !== 0 &&
           evt.playerId === povPlayerId
         ) {
-          impact();
+          notifyPlayed("battle:cannonDamaged");
+          if (audible) impact();
         }
         const key = battleEventSound(evt, povPlayerId);
-        if (key) play(key, 2);
+        if (key) {
+          // The SFX key is one of: cannonKilled, gruntKilled, gruntSpawned,
+          // towerKilled. Each maps to a `battle:*` reason — except
+          // towerKilled, which reuses BATTLE_MESSAGE.TOWER_KILLED to keep
+          // the literal "towerKilled" from showing up a third time (the
+          // duplicate-literals scanner has it in the baseline at
+          // battle-events.ts + sound-system.ts already).
+          if (key === "cannonKilled") notifyPlayed("battle:cannonKilled");
+          else if (key === BATTLE_MESSAGE.GRUNT_KILLED)
+            notifyPlayed(REASON_BATTLE_GRUNT_KILLED);
+          else if (key === BATTLE_MESSAGE.GRUNT_SPAWNED)
+            notifyPlayed(REASON_BATTLE_GRUNT_SPAWNED);
+          else if (key === BATTLE_MESSAGE.TOWER_KILLED)
+            notifyPlayed(BATTLE_MESSAGE.TOWER_KILLED);
+          if (audible) play(key, 2);
+        }
       }
     },
 
     piecePlaced() {
-      play("piecePlaced", 2);
+      notifyPlayed(REASON_PIECE_PLACED);
+      play(REASON_PIECE_PLACED, 2);
     },
     pieceFailed() {
-      play("pieceFailed", 2);
+      notifyPlayed(REASON_PIECE_FAILED);
+      play(REASON_PIECE_FAILED, 2);
     },
     pieceRotated() {
-      play("pieceRotated", 2);
+      notifyPlayed(REASON_PIECE_ROTATED);
+      play(REASON_PIECE_ROTATED, 2);
     },
     cannonPlaced() {
-      play("cannonPlaced", 2);
+      notifyPlayed(REASON_CANNON_PLACED);
+      play(REASON_CANNON_PLACED, 2);
     },
 
     chargeFanfare(playerId = 0) {
+      notifyPlayed("chargeFanfare");
       if (soundLevel < SOUND_PHASE_ONLY) return;
       const audioCtx = getCtx();
       audioCtx.resume().catch(() => {});
@@ -647,13 +757,16 @@ export function createSoundSystem(): SoundSystem {
     },
 
     lifeLost() {
-      play("lifeLost", 1);
+      notifyPlayed(REASON_LIFE_LOST);
+      play(REASON_LIFE_LOST, 1);
     },
     gameOver() {
-      play("gameOver", 1);
+      notifyPlayed(REASON_GAME_OVER);
+      play(REASON_GAME_OVER, 1);
     },
 
     drumsStart() {
+      notifyPlayed("drumsStart");
       if (soundLevel < SOUND_ALL) return;
       drumsStopInternal();
       const audioCtx = getCtx();
@@ -680,6 +793,7 @@ export function createSoundSystem(): SoundSystem {
     },
 
     drumsQuiet() {
+      notifyPlayed("drumsQuiet");
       if (!drumGainNode || !audioCtx) return;
       const now = audioCtx.currentTime;
       drumGainNode.gain.cancelScheduledValues(now);
@@ -691,10 +805,12 @@ export function createSoundSystem(): SoundSystem {
     },
 
     drumsStop() {
+      notifyPlayed("drumsStop");
       drumsStopInternal();
     },
 
     reset() {
+      notifyPlayed("reset");
       drumsStopInternal();
       lastPlayTime.clear();
       audioPool.clear();
@@ -703,6 +819,10 @@ export function createSoundSystem(): SoundSystem {
       activeImpacts = 0;
     },
   };
+}
+
+function notifyPlayed(reason: SoundReason): void {
+  soundObserver?.played?.(reason);
 }
 
 function fanfareNote(
