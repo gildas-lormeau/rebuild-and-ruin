@@ -178,10 +178,6 @@ export interface TransitionContext {
   };
 }
 
-/** Online-specific banner variants — shorter text for multi-player context. */
-const BANNER_BATTLE_ONLINE = "Battle!";
-const BANNER_REPAIR_ONLINE = "Repair!";
-
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
 /** Mode timing: setMode(CASTLE_BUILD) immediately. See TransitionContext JSDoc. */
 export function handleCastleWallsTransition(
@@ -315,19 +311,11 @@ export function handleBattleStartTransition(
           transitionCtx.ui.showBanner,
           modifierDiff.label,
           () => {
-            showBattlePhaseBanner(
-              transitionCtx.ui.showBanner,
-              BANNER_BATTLE_ONLINE,
-              proceedToBattle,
-            );
+            showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
           },
         );
       } else {
-        showBattlePhaseBanner(
-          transitionCtx.ui.showBanner,
-          BANNER_BATTLE_ONLINE,
-          proceedToBattle,
-        );
+        showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
       }
     },
     applyCheckpoint: () => {
@@ -377,20 +365,16 @@ export function handleBuildStartTransition(
   const showBannerAndEnterBuild = () => {
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>
-        showBuildPhaseBanner(
-          transitionCtx.ui.showBanner,
-          BANNER_REPAIR_ONLINE,
-          () => {
-            // Anchor phase timer at banner-end wall clock (see helper contract).
-            // Any preceding upgrade-pick dialog finishes BEFORE showBanner runs,
-            // so the callback still fires at true banner-end.
-            setWatcherPhaseTimerAtBannerEnd(
-              transitionCtx.ui.watcherTiming,
-              state.timer,
-            );
-            transitionCtx.setMode(Mode.GAME);
-          },
-        ),
+        showBuildPhaseBanner(transitionCtx.ui.showBanner, () => {
+          // Anchor phase timer at banner-end wall clock (see helper contract).
+          // Any preceding upgrade-pick dialog finishes BEFORE showBanner runs,
+          // so the callback still fires at true banner-end.
+          setWatcherPhaseTimerAtBannerEnd(
+            transitionCtx.ui.watcherTiming,
+            state.timer,
+          );
+          transitionCtx.setMode(Mode.GAME);
+        }),
       applyCheckpoint: NOOP_STEP,
       initControllers: () => {
         if (isActivePlayer(myPlayerId)) {

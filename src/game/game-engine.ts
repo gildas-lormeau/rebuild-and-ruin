@@ -140,16 +140,8 @@ export function finalizeAndEnterCannonPhase(state: GameState): void {
 }
 
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and timer.
- *
- *  Phase-entry vs start-phase contract (applies to all phases):
- *    enterXPhase()  — mutates state.phase + timer (called by nextPhase / local transitions)
- *    prepareXPhase() — computes derived state (limits, facings) without touching phase
- *    initControllerForXPhase() — initializes each controller for the new phase
- *
- *  In local play, nextPhase() calls enterCannonPlacePhase directly.
- *  In online play, the host calls prepareCannonPhase() first (to include limits
- *  in the checkpoint), then executeTransition() runs enterCannonPlacePhase as a step.
- *  This ordering difference is by design — the checkpoint must contain computed limits. */
+ *  For the canonical `enter / prepare / start` contract that governs every
+ *  phase transition, see the phase-setup.ts module header. */
 export function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;

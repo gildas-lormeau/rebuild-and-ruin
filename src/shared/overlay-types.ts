@@ -193,9 +193,9 @@ export interface UIOverlay {
    *  Used to render the "old" scene behind the banner while live state updates. */
   bannerPrevCastles?: CastleData[];
   /** Territory snapshot at banner start — do not mutate during animation. */
-  bannerPrevBattleTerritory?: Set<number>[];
+  bannerPrevTerritory?: Set<number>[];
   /** Walls snapshot at banner start — do not mutate during animation. */
-  bannerPrevBattleWalls?: Set<number>[];
+  bannerPrevWalls?: Set<number>[];
   /** Entity state snapshot at banner start — do not mutate during animation. */
   bannerPrevEntities?: EntityOverlay;
   gameOver?: GameOverOverlay;

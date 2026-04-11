@@ -214,7 +214,7 @@ export interface FullStateMessage {
     targetY: number;
     speed: number;
     playerId: ValidPlayerSlot;
-    scoringPlayerId?: number;
+    scoringPlayerId?: ValidPlayerSlot;
     incendiary?: boolean;
   }[];
   /** In-flight balloon animations (present only during BALLOON_ANIM mode). */

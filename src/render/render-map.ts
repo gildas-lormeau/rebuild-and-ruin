@@ -417,8 +417,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (clipY >= H) return;
 
     const prevCastles = overlay.ui.bannerPrevCastles;
-    const prevTerritory = overlay.ui.bannerPrevBattleTerritory;
-    const prevWalls = overlay.ui.bannerPrevBattleWalls;
+    const prevTerritory = overlay.ui.bannerPrevTerritory;
+    const prevWalls = overlay.ui.bannerPrevWalls;
     // For tile-mutation modifier banners (high_tide, sinkhole) the map's tiles
     // have already been mutated by enterBattleFromCannon — we revert them in a
     // snapshot map so drawTerrain paints the OLD terrain below the sweep line.

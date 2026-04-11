@@ -281,13 +281,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const showBannerAndEnterBuild = () => {
       executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
-          showBuildPhaseBanner(
-            deps.showBanner,
-            phaseTickFacade.BANNER_BUILD,
-            () => {
-              setMode(runtimeState, Mode.GAME);
-            },
-          ),
+          showBuildPhaseBanner(deps.showBanner, () => {
+            setMode(runtimeState, Mode.GAME);
+          }),
         applyCheckpoint: NOOP_STEP,
         initControllers: () => startBuildPhase(),
       });
@@ -336,11 +332,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         // state before applyCheckpoint mutates it.  If a modifier is rolled,
         // applyCheckpoint replaces the banner content (same frame, before
         // any rendering) so the user sees the modifier reveal first.
-        showBattlePhaseBanner(
-          deps.showBanner,
-          phaseTickFacade.BANNER_BATTLE,
-          proceedToBattle,
-        );
+        showBattlePhaseBanner(deps.showBanner, proceedToBattle);
       },
       applyCheckpoint: () => {
         const diff = phaseTickFacade.enterBattleFromCannon(state);
@@ -352,11 +344,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           banner.text = diff.label;
           banner.subtitle = undefined;
           banner.callback = () => {
-            showBattlePhaseBanner(
-              deps.showBanner,
-              phaseTickFacade.BANNER_BATTLE,
-              proceedToBattle,
-            );
+            showBattlePhaseBanner(deps.showBanner, proceedToBattle);
           };
         }
         // Resolve balloons AFTER enterBattleFromCannon so modifiers
@@ -573,7 +561,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { state, battleAnim } = runtimeState;
     const broadcast = isHost ? deps.send : undefined;
 
-    advancePhaseTimer(runtimeState.accum, "battle", state, dt, BATTLE_TIMER);
+    advancePhaseTimer(
+      runtimeState.accum,
+      ACCUM_BATTLE,
+      state,
+      dt,
+      BATTLE_TIMER,
+    );
 
     // Event collection order (LOAD-BEARING — do not reorder):
     //   1. Tick controllers → fire events (new cannonballs from battleTick)

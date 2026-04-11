@@ -7,6 +7,36 @@
  *
  * game-engine.ts keeps the state machine (nextPhase switch) and state factory;
  * it imports the enter* functions from here.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Phase-entry vs start-phase contract — canonical source (applies to every
+ * phase defined here, e.g. enterCannonPlacePhase, enterBuildFromBattle,
+ * enterBattleFromCannon, enterBuildSkippingBattle):
+ *
+ *   enterXPhase(state)           — mutates state.phase + timer. Called by
+ *                                  nextPhase() (local) or as the
+ *                                  `applyCheckpoint` step of executeTransition
+ *                                  (online watcher / host after checkpoint).
+ *
+ *   prepareXPhase(state)         — computes derived state (cannon limits,
+ *                                  default facings, combo tracker, modifier
+ *                                  roll). Lives in cannon-system.ts /
+ *                                  battle-system.ts / phase-setup.ts as
+ *                                  appropriate; must run BEFORE the checkpoint
+ *                                  is serialized so the computed values ship
+ *                                  to watchers.
+ *
+ *   startXPhase(state, ctrl)     — per-controller initialization (bag reset,
+ *                                  cursor placement, battle init). Lives on
+ *                                  BaseController. Called as the
+ *                                  `initControllers` step of executeTransition
+ *                                  after the phase is applied.
+ *
+ * The split is load-bearing for online play: the host computes `prepareXPhase`
+ * state and broadcasts it inside the checkpoint payload; the watcher skips
+ * `prepare` entirely and runs only `enter` + `start`. Do NOT collapse the
+ * three into one function — the watcher would diverge from the host.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 import {

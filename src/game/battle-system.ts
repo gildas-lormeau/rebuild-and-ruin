@@ -327,10 +327,15 @@ export function advanceCannonball(
 /**
  * Apply a single impact event to game state. Used by both host and watcher.
  *
- * IMPORTANT: This function does NOT recompute territory/interior after wall
- * destruction. Interior is intentionally left stale during battle — it will
- * be recomputed at the next phase boundary (recheckTerritoryOnly / finalizeTerritoryWithScoring).
- * Do not add interior recomputation here.
+ * **INTERIOR STALENESS CONTRACT — canonical source of truth.** Battle-phase
+ * wall destruction MUST NOT trigger territory/interior recomputation here. The
+ * interior stays stale for the entire battle phase and is rebuilt exactly once
+ * at the next phase boundary via `recheckTerritoryOnly` /
+ * `finalizeTerritoryWithScoring` in phase-setup.ts. Every other caller that
+ * mutates walls during battle (grunt-system.ts:removeWallFromAllPlayers,
+ * impact handlers below, network watcher replays) relies on this invariant —
+ * do not add interior recomputation anywhere in the battle hot path, including
+ * this function or its helpers.
  *
  * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
  *   (host passes it from the firing loop; network events embed it in the payload).
@@ -341,11 +346,6 @@ export function applyImpactEvent(
   shooterId?: number,
   suppressCombo?: boolean,
 ): void {
-  // Interior is intentionally left stale during battle — recomputed at the next
-  // phase boundary (recheckTerritoryOnly / finalizeTerritoryWithScoring). This function does NOT
-  // recompute territory, so impacts during non-battle phases (e.g. test harness,
-  // watcher replaying host events) won't corrupt interior unless callers assume
-  // interior is fresh afterward. Do not add interior recomputation here.
   // Prefer shooterId from event (network payload) over parameter (host fallback)
   const sid = (
     "shooterId" in event && event.shooterId !== undefined
@@ -356,7 +356,7 @@ export function applyImpactEvent(
     case BATTLE_MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
-        // Interior intentionally stale during battle; recheckTerritoryOnly() runs at next build phase.
+        // See applyImpactEvent JSDoc above for the interior-staleness contract.
         deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
@@ -681,8 +681,8 @@ function fireSingleCaptured(
  *  For captured cannons, scoringPlayerId is the capturer (not the cannon's original owner). */
 function getCannonballScorer(ball: {
   playerId: ValidPlayerSlot;
-  scoringPlayerId?: number;
-}): number {
+  scoringPlayerId?: ValidPlayerSlot;
+}): ValidPlayerSlot {
   return ball.scoringPlayerId ?? ball.playerId;
 }
 
@@ -745,7 +745,7 @@ function launchCannonball(
   playerId: ValidPlayerSlot,
   targetRow: number,
   targetCol: number,
-  scoringPlayerId?: number,
+  scoringPlayerId?: ValidPlayerSlot,
 ): void {
   const { x: startX, y: startY } = cannonCenter(cannon);
   let finalTargetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;

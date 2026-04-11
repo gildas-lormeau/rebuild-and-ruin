@@ -72,8 +72,11 @@ export interface Cannonball {
    *  Always use: `const shooter = ball.scoringPlayerId ?? ball.playerId`
    *
    *  Key distinction: playerId = cannon owner, scoringPlayerId = point receiver.
-   *  They differ only when a cannon was captured by a balloon. */
-  scoringPlayerId?: number;
+   *  They differ only when a cannon was captured by a balloon.
+   *
+   *  Typed as ValidPlayerSlot (not raw number) to match playerId — every
+   *  producer already passes a branded slot id. */
+  scoringPlayerId?: ValidPlayerSlot;
   /** If true, leaves a burning pit on impact (fired from super gun). */
   incendiary?: boolean;
   /** If true, this is a mortar round — 3×3 splash damage + burning pit at center. */

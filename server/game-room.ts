@@ -30,12 +30,29 @@ import { safeSendRaw } from "./send-utils.ts";
 
 /** Phase values the server tracks for message gating.
  *  Includes all game-engine Phase enum values (CASTLE_SELECT, WALL_BUILD,
- *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals:
- *  - "LOBBY" — before game starts (no Phase enum equivalent)
- *  - "CASTLE_BUILD" — castle wall animation (UI-only, no Phase equivalent)
- *  When adding a new phase: if it's part of game logic, add to Phase enum in types.ts;
- *  if it's server/UI-only, add to this union. */
-type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
+ *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals.
+ *  When adding a new phase: if it's part of game logic, add to the Phase enum
+ *  in shared/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
+const SERVER_ONLY_PHASE = {
+  /** Before game starts (no Phase enum equivalent). */
+  LOBBY: "LOBBY",
+  /** Castle wall animation (UI-only state, no Phase enum equivalent). */
+  CASTLE_BUILD: "CASTLE_BUILD",
+} as const;
+type ServerOnlyPhase =
+  (typeof SERVER_ONLY_PHASE)[keyof typeof SERVER_ONLY_PHASE];
+type ServerPhase = Phase | ServerOnlyPhase;
+
+// Compile-time guarantee: server-only phase strings must NOT collide with any
+// Phase enum value. A collision would make PHASE_GATES[someMessage] lookups
+// match the wrong state, silently bypassing or falsely triggering phase gates.
+// Using `satisfies` here because `& Phase` would resolve to `never` even on
+// success; this form fails at the definition if any key leaks into Phase.
+type _ServerOnlyPhaseDisjoint = ServerOnlyPhase extends Phase
+  ? ["ServerOnlyPhase overlaps Phase — rename to avoid collision"]
+  : true;
+const _assertServerPhaseDisjoint: _ServerOnlyPhaseDisjoint = true;
+void _assertServerPhaseDisjoint;
 
 // ---------------------------------------------------------------------------
 // Message validation tables
@@ -259,7 +276,7 @@ export class GameRoom {
    * - "LOBBY" — before game starts (no Phase enum equivalent)
    * - "CASTLE_BUILD" — castle wall construction animation (UI-only state)
    * See updatePhaseFromMessage() for all transitions. */
-  private phase: ServerPhase = "LOBBY";
+  private phase: ServerPhase = SERVER_ONLY_PHASE.LOBBY;
 
   /** Rate limit tracking: socket → type → { count, windowStart }. */
   private rateLimits = new Map<
@@ -316,7 +333,8 @@ export class GameRoom {
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
     else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
     else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
-    else if (type === MESSAGE.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
+    else if (type === MESSAGE.CASTLE_WALLS)
+      this.phase = SERVER_ONLY_PHASE.CASTLE_BUILD;
   }
 
   // ---------------------------------------------------------------------------

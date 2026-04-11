@@ -30,11 +30,7 @@ import { localFire, localPlacePiece } from "./game-actions.ts";
 import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers } from "./grunt-system.ts";
-import {
-  BANNER_BATTLE,
-  BANNER_BUILD,
-  capturePrevBattleScene,
-} from "./phase-banner.ts";
+import { capturePrevBattleScene } from "./phase-banner.ts";
 import {
   computeScoreDeltas,
   enterBattleFromCannon,
@@ -63,8 +59,6 @@ export const phaseTickFacade = {
   diffNewWalls,
   snapshotThenFinalize,
   tickMasterBuilderLockout,
-  BANNER_BATTLE,
-  BANNER_BUILD,
   capturePrevBattleScene,
   computeScoreDeltas,
   finalizeBuildPhase,

@@ -1,5 +1,7 @@
 import {
+  BANNER_BATTLE,
   BANNER_BATTLE_SUB,
+  BANNER_BUILD,
   BANNER_BUILD_SUB,
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
@@ -28,6 +30,14 @@ interface BuildEndSequenceDeps {
   onLifeLostResolved?: () => void;
 }
 
+/** Named steps that can appear in a phase-transition recipe. Local (not
+ *  exported) because consumers reach it structurally via `executeTransition`:
+ *  `executeTransition<S extends TransitionStep>` infers the recipe's subset
+ *  from the steps array and forces the adapters object (`Record<S, () => void>`)
+ *  to supply each one. Adding a new step value here is not enough on its own —
+ *  add it to whichever recipe needs it (CANNON_START_STEPS / BATTLE_START_STEPS
+ *  / BUILD_START_STEPS) and TypeScript will force every caller of that recipe
+ *  (runtime-phase-ticks and online-phase-transitions) to provide an adapter. */
 type TransitionStep =
   | "showBanner"
   | "applyCheckpoint"
@@ -80,27 +90,23 @@ export function showCannonPhaseBanner(
   show(BANNER_PLACE_CANNONS, onDone, true, undefined, subtitle);
 }
 
-/** Show the battle-start banner with its canonical subtitle.
- *  `text` varies by context (e.g. "BATTLE!" vs "Battle!"). */
+/** Show the battle-start banner with its canonical title and subtitle. */
 export function showBattlePhaseBanner(
   show: BannerShow,
-  text: string,
   onDone: () => void,
 ): void {
-  show(text, onDone, true, undefined, BANNER_BATTLE_SUB);
+  show(BANNER_BATTLE, onDone, true, undefined, BANNER_BATTLE_SUB);
 }
 
-/** Show the build/repair banner with its canonical subtitle.
- *  `text` varies by context (e.g. "Repair walls" vs "Repair!").
+/** Show the build/repair banner with its canonical title and subtitle.
  *  When `modifierText` is provided, it replaces the default subtitle. */
 export function showBuildPhaseBanner(
   show: BannerShow,
-  text: string,
   onDone: () => void,
   modifierText?: string,
 ): void {
   const subtitle = modifierText ?? BANNER_BUILD_SUB;
-  show(text, onDone, true, undefined, subtitle);
+  show(BANNER_BUILD, onDone, true, undefined, subtitle);
 }
 
 /** Execute a phase transition recipe: run each named step in declared order.

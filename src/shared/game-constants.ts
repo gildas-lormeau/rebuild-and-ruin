@@ -203,6 +203,6 @@ export const DOUBLE_TIME_BONUS_SECONDS = 10;
 // HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)
 export const HAPTICS_PHASE_ONLY = 1;
 export const HAPTICS_ALL = 2;
-// SOUND_OFF = 0  (implicit — checked via >= SOUND_PHASE_ONLY)
+export const SOUND_OFF = 0;
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;

@@ -10,6 +10,7 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
   HAPTICS_ALL,
+  SOUND_OFF,
 } from "./game-constants.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
@@ -47,7 +48,6 @@ export interface GameSettings {
   gameMode: GameMode;
 }
 
-const SOUND_OFF = 0;
 /** Index into ROUNDS_OPTIONS (not the value itself — value is 0 = infinite). */
 const ROUNDS_TO_THE_DEATH_INDEX = 4;
 /** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */

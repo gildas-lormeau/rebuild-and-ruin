@@ -421,10 +421,8 @@ export function createOnlineOverlay(
           : undefined,
       banner: bannerUi,
       bannerPrevCastles: banner.active ? banner.prevCastles : undefined,
-      bannerPrevBattleTerritory: banner.active
-        ? banner.prevTerritory
-        : undefined,
-      bannerPrevBattleWalls: banner.active ? banner.prevWalls : undefined,
+      bannerPrevTerritory: banner.active ? banner.prevTerritory : undefined,
+      bannerPrevWalls: banner.active ? banner.prevWalls : undefined,
       bannerPrevEntities: banner.active ? banner.prevEntities : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
