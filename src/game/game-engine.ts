@@ -13,6 +13,8 @@
  * Phase transition recipes live in phase-setup.ts.
  */
 
+import type { BalloonFlight } from "../shared/battle-types.ts";
+import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
 import {
   BUILD_TIMER,
@@ -22,6 +24,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
+  type ModifierDiff,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
 import { createGameEventBus } from "../shared/game-event-bus.ts";
@@ -34,6 +37,7 @@ import { Rng } from "../shared/rng.ts";
 import { type GameState, setGameMode } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { assertNever } from "../shared/utils.ts";
+import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import {
@@ -44,6 +48,21 @@ import {
   finalizeCastleConstruction,
   setPhase,
 } from "./phase-setup.ts";
+
+/** Result of `enterBattlePhase` — everything the caller needs to wire up
+ *  banners, balloon animation, visual snapshots, and online broadcast.
+ *  The engine has already mutated state to BATTLE phase by the time this
+ *  is returned; the struct is the read-only view of what happened. */
+interface BattlePhaseEntry {
+  /** Modifier rolled for this battle, or null if classic mode / no roll. */
+  modifierDiff: ModifierDiff | null;
+  /** Balloons launched this battle (empty if no balloon cannons). */
+  flights: BalloonFlight[];
+  /** Per-player territory snapshot (interior + walls), post-modifier. */
+  territory: Set<number>[];
+  /** Per-player wall snapshot, post-modifier. */
+  walls: Set<number>[];
+}
 
 /** Check if any player has the Ceasefire upgrade active. */
 export function isCeasefireActive(state: GameState): boolean {
@@ -130,6 +149,21 @@ export function nextPhase(state: GameState): void {
     default:
       assertNever(phase);
   }
+}
+
+/** Enter the battle phase from CANNON_PLACE. Performs all engine work in
+ *  the load-bearing order (modifier roll → balloon resolution → snapshots)
+ *  and returns the data the caller needs to react.
+ *
+ *  Replaces the runtime's manual sequence of `enterBattleFromCannon` +
+ *  `resolveBalloons` + `snapshotTerritory` + `snapshotAllWalls`. The engine
+ *  owns the order; the runtime is just a consumer. */
+export function enterBattlePhase(state: GameState): BattlePhaseEntry {
+  const modifierDiff = enterBattleFromCannon(state);
+  const flights = resolveBalloons(state);
+  const territory = snapshotTerritory(state.players);
+  const walls = snapshotAllWalls(state);
+  return { modifierDiff, flights, territory, walls };
 }
 
 /** INVARIANT: Snapshot entities THEN finalize castle construction and enter

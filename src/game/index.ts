@@ -10,7 +10,6 @@ export {
   fireNextReadyCannon,
   getCountdownAnnouncement,
   nextReadyCombined,
-  resolveBalloons,
   snapshotTerritory,
   tickBattleCombat,
 } from "./battle-system.ts";
@@ -46,6 +45,7 @@ export { executeCannonFire, executePlacePiece } from "./game-actions.ts";
 export {
   applyGameConfig,
   createGameFromSeed,
+  enterBattlePhase,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
   finalizeAndEnterCannonPhase,
@@ -64,7 +64,6 @@ export {
 } from "./phase-banner.ts";
 export {
   computeScoreDeltas,
-  enterBattleFromCannon,
   enterBuildSkippingBattle,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,

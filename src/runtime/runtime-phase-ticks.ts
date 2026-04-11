@@ -3,7 +3,7 @@ import {
   buildTimerMax,
   capturePrevBattleScene,
   diffNewWalls,
-  enterBattleFromCannon,
+  enterBattlePhase,
   enterBuildSkippingBattle,
   isCeasefireActive,
   nextPhase,
@@ -11,7 +11,6 @@ import {
   prepareCannonPhase,
   prepareControllerCannonPhase,
   resetCannonFacings,
-  resolveBalloons,
   snapshotThenFinalize,
   tickBattleCombat,
   tickGrunts,
@@ -29,7 +28,7 @@ import {
   type Crosshair,
   clearImpacts,
 } from "../shared/battle-types.ts";
-import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
+import { getInterior } from "../shared/board-occupancy.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -129,7 +128,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
     isActive: () => boolean;
     reset: () => void;
   };
-  snapshotTerritory: () => Set<number>[];
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
@@ -337,34 +335,32 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         showBattlePhaseBanner(deps.showBanner, proceedToBattle);
       },
       applyCheckpoint: () => {
-        const diff = enterBattleFromCannon(state);
-        if (diff) {
+        // Engine owns the load-bearing order: modifier roll → balloon
+        // resolution → post-modifier snapshots. Runtime is just a consumer
+        // of the returned struct.
+        const entry = enterBattlePhase(state);
+        if (entry.modifierDiff) {
           // Modifier rolled — replace the banner with the modifier reveal,
           // then chain the battle banner as follow-up.  All in the same frame
           // before any rendering, so the user only ever sees the correct text.
-          banner.modifierDiff = diff;
-          banner.text = diff.label;
+          banner.modifierDiff = entry.modifierDiff;
+          banner.text = entry.modifierDiff.label;
           banner.subtitle = undefined;
           banner.callback = () => {
             showBattlePhaseBanner(deps.showBanner, proceedToBattle);
           };
         }
-        // Resolve balloons AFTER enterBattleFromCannon so modifiers
-        // (crumbling walls, etc.) are applied before the enclosure check picks targets.
-        flights = resolveBalloons(state);
+        flights = entry.flights;
         battleAnim.impacts = [];
+        battleAnim.territory = entry.territory;
+        battleAnim.walls = entry.walls;
+        banner.newTerritory = entry.territory;
+        banner.newWalls = entry.walls;
         if (runtimeState.frameMeta.hostAtFrameStart) {
-          online?.broadcastBattleStart?.(state, flights, diff);
+          online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
         }
       },
-      snapshotForBanner: () => {
-        const postTerritory = deps.snapshotTerritory();
-        const postWalls = snapshotAllWalls(state);
-        battleAnim.territory = postTerritory;
-        battleAnim.walls = postWalls;
-        banner.newTerritory = postTerritory;
-        banner.newWalls = postWalls;
-      },
+      snapshotForBanner: NOOP_STEP,
     });
   }
 

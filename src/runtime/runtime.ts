@@ -458,7 +458,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     lifeLost,
     scoreDelta,
-    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {
           const h = pointerPlayer();
