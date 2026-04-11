@@ -15,18 +15,18 @@ import type { LifeLostChoice } from "../shared/interaction-types.ts";
 import {
   createDedupChannel,
   type DedupChannel,
-} from "../shared/phantom-types.ts";
-import {
-  type PlayerSlotId,
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
+} from "../shared/net/phantom-types.ts";
 import {
   DEFAULT_CANNON_HP,
   type GameMessage,
   MESSAGE,
   type ServerMessage,
-} from "../shared/protocol.ts";
+} from "../shared/net/protocol.ts";
+import {
+  type PlayerSlotId,
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "../shared/player-slot.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;

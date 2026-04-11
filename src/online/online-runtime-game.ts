@@ -9,16 +9,16 @@ import {
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/game-constants.ts";
-import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type GameMessage,
   type InitMessage,
   MESSAGE,
   type ServerMessage,
-} from "../shared/protocol.ts";
+} from "../shared/net/protocol.ts";
+import { isHostInContext } from "../shared/net/tick-context.ts";
+import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/player-config.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { GAME_EXIT_EVENT } from "../shared/router.ts";
-import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { canvas } from "./online-dom.ts";
 import {

@@ -78,6 +78,11 @@ import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
+import {
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../shared/net/protocol.ts";
 import type {
   RendererInterface,
   RenderOverlay,
@@ -89,11 +94,6 @@ import {
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
 import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
-import {
-  type GameMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../shared/protocol.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import type { UIContext } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";

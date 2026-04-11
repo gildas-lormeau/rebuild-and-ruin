@@ -10,7 +10,7 @@ import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
-} from "./phantom-types.ts";
+} from "./net/phantom-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { FreshInterior } from "./player-types.ts";
 import type { RGB } from "./theme.ts";

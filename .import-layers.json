@@ -21,7 +21,7 @@
       "src/shared/player-slot.ts",
       "src/shared/platform/rng.ts",
       "src/shared/router.ts",
-      "src/shared/routes.ts",
+      "src/shared/net/routes.ts",
       "src/shared/settings-defs.ts",
       "src/shared/ui-mode.ts",
       "src/shared/upgrade-defs.ts",
@@ -36,7 +36,7 @@
       "src/online/online-config.ts",
       "src/online/online-full-state-recovery.ts",
       "src/shared/battle-events.ts",
-      "src/shared/checkpoint-data.ts",
+      "src/shared/net/checkpoint-data.ts",
       "src/shared/geometry-types.ts",
       "src/shared/interaction-types.ts",
       "src/shared/modifier-defs.ts",
@@ -62,7 +62,7 @@
     "files": [
       "src/shared/cannon-mode-defs.ts",
       "src/shared/player-types.ts",
-      "src/shared/protocol.ts",
+      "src/shared/net/protocol.ts",
       "src/shared/settings-ui.ts"
     ]
   },
@@ -72,7 +72,7 @@
     "files": [
       "server/game-room.ts",
       "src/online/online-lobby-ui.ts",
-      "src/shared/phantom-types.ts",
+      "src/shared/net/phantom-types.ts",
       "src/shared/spatial.ts",
       "src/shared/system-interfaces.ts",
       "src/shared/types.ts"
@@ -113,7 +113,7 @@
       "src/online/online-session.ts",
       "src/shared/board-occupancy.ts",
       "src/shared/overlay-types.ts",
-      "src/shared/tick-context.ts"
+      "src/shared/net/tick-context.ts"
     ]
   },
   {

@@ -4,15 +4,15 @@ import {
   rehydrateComboTracker,
 } from "../game/index.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
+import { FID } from "../shared/feature-defs.ts";
+import { BATTLE_TIMER } from "../shared/game-constants.ts";
+import type { PixelPos } from "../shared/geometry-types.ts";
 import type {
   BattleStartData,
   BuildEndData,
   BuildStartData,
   CannonStartData,
-} from "../shared/checkpoint-data.ts";
-import { FID } from "../shared/feature-defs.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
-import type { PixelPos } from "../shared/geometry-types.ts";
+} from "../shared/net/checkpoint-data.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerSeated } from "../shared/player-types.ts";
 import { towerCenterPx } from "../shared/spatial.ts";

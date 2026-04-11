@@ -34,7 +34,7 @@
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
-import { MESSAGE } from "../src/shared/protocol.ts";
+import { MESSAGE } from "../src/shared/net/protocol.ts";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import process from "node:process";
 import { Buffer } from "node:buffer";

@@ -11,6 +11,10 @@ import {
   type LifeLostDialogState,
   type UpgradePickDialogState,
 } from "../shared/interaction-types.ts";
+import {
+  createTimerAccums,
+  type TimerAccums,
+} from "../shared/net/tick-context.ts";
 import type {
   FrameData,
   PlayerStats,
@@ -27,7 +31,6 @@ import {
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
 import { type PlayerController } from "../shared/system-interfaces.ts";
-import { createTimerAccums, type TimerAccums } from "../shared/tick-context.ts";
 import {
   type FrameContext,
   type GameState,

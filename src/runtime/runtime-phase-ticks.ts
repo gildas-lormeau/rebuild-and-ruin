@@ -35,7 +35,6 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import type { PlayerStats } from "../shared/overlay-types.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -46,13 +45,7 @@ import {
   type PiecePlacedPayload,
   phantomWireMode,
   piecePhantomKey,
-} from "../shared/phantom-types.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import {
-  type HapticsSystem,
-  isHuman,
-  type SoundSystem,
-} from "../shared/system-interfaces.ts";
+} from "../shared/net/phantom-types.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,
@@ -63,7 +56,14 @@ import {
   localControllers,
   resetAccum,
   tickGruntsIfDue,
-} from "../shared/tick-context.ts";
+} from "../shared/net/tick-context.ts";
+import type { PlayerStats } from "../shared/overlay-types.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
+import {
+  type HapticsSystem,
+  isHuman,
+  type SoundSystem,
+} from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {

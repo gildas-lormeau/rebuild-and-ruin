@@ -107,7 +107,7 @@ For each violation, trace the import and classify:
 | Type in wrong file | `render-types → game-ui-types` for `GameOverOverlay` | Move the type to the lower file |
 | Function in wrong file | `render-effects → render-ui` for `drawShadowText` | Move the function to the lower file |
 | Peer dependency on shared utils | `runtime-host-battle-ticks → runtime-host-phase-ticks` for `localActiveControllers` | Extract to a new shared module (e.g., `tick-context.ts`) |
-| Import through middleman | `phase-ticks → online-serialize` for `SerializedPlayer` | Re-path to canonical source (`src/shared/protocol.ts`) |
+| Import through middleman | `phase-ticks → online-serialize` for `SerializedPlayer` | Re-path to canonical source (`src/shared/net/protocol.ts`) |
 | Dead re-export | `export type { X } from "..."` with no consumers | Remove (run `knip` to find) |
 | Interface mixed with impl | `controller-types.ts` has both interfaces and class | Split into `*-interfaces.ts` (pure types) + implementation file |
 | Co-dependent peers | `game-ui-types ↔ render-types` | Merge into one group |

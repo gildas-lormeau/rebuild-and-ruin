@@ -13,8 +13,8 @@
  * in initOnlineRuntime without updating all three modules.
  */
 
-import type { ServerMessage } from "../shared/protocol.ts";
-import { isHostInContext } from "../shared/tick-context.ts";
+import type { ServerMessage } from "../shared/net/protocol.ts";
+import { isHostInContext } from "../shared/net/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";

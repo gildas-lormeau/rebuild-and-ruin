@@ -8,16 +8,16 @@ import type { BattleAnimState } from "../shared/battle-types.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
-import type { FrameData } from "../shared/overlay-types.ts";
-import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import { MESSAGE } from "../shared/protocol.ts";
-import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
+import { MESSAGE } from "../shared/net/protocol.ts";
 import {
   type TimerAccums,
   tickGruntsIfDue,
   type WatcherTimingState,
-} from "../shared/tick-context.ts";
+} from "../shared/net/tick-context.ts";
+import type { FrameData } from "../shared/overlay-types.ts";
+import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
+import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {

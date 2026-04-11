@@ -23,11 +23,11 @@ import {
   LifeLostChoice,
   type ResolvedChoice,
 } from "../shared/interaction-types.ts";
+import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
+import { isHostInContext, isRemotePlayer } from "../shared/net/tick-context.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
-import { MESSAGE, type ServerMessage } from "../shared/protocol.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
-import { isHostInContext, isRemotePlayer } from "../shared/tick-context.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";

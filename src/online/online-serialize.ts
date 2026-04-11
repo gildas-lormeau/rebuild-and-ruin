@@ -12,12 +12,6 @@ import type {
   Cannon,
   Cannonball,
 } from "../shared/battle-types.ts";
-import type {
-  BattleStartData,
-  SerializedGrunt,
-  SerializedHouse,
-  SerializedPlayer,
-} from "../shared/checkpoint-data.ts";
 import { FID } from "../shared/feature-defs.ts";
 import {
   GAME_MODE_CLASSIC,
@@ -25,10 +19,16 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/grid.ts";
+import type {
+  BattleStartData,
+  SerializedGrunt,
+  SerializedHouse,
+  SerializedPlayer,
+} from "../shared/net/checkpoint-data.ts";
+import { type FullStateMessage, MESSAGE } from "../shared/net/protocol.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Player } from "../shared/player-types.ts";
-import { type FullStateMessage, MESSAGE } from "../shared/protocol.ts";
 import {
   type GameState,
   hasFeature,

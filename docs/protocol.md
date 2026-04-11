@@ -96,7 +96,7 @@ These are sent by the host and relayed to all other clients. They carry full sta
 
 #### Serialized Player Shape
 
-The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/shared/checkpoint-data.ts`):
+The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/shared/net/checkpoint-data.ts`):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -128,7 +128,7 @@ House positions are deterministic from the seed, but alive/zone state is synced 
 
 #### Serialized Grunt Shape
 
-The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/shared/checkpoint-data.ts`):
+The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/shared/net/checkpoint-data.ts`):
 
 | Field | Type | Description |
 |-------|------|-------------|

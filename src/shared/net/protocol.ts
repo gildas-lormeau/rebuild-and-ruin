@@ -16,8 +16,10 @@ import {
   type WallAbsorbedMessage,
   type WallDestroyedMessage,
   type WallShieldedMessage,
-} from "./battle-events.ts";
-import type { CannonMode } from "./battle-types.ts";
+} from "../battle-events.ts";
+import type { CannonMode } from "../battle-types.ts";
+import type { ResolvedChoice } from "../interaction-types.ts";
+import type { ValidPlayerSlot } from "../player-slot.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
@@ -30,8 +32,6 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "./checkpoint-data.ts";
-import type { ResolvedChoice } from "./interaction-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface RoomSettings {
   maxRounds: number; // 0 (unlimited), 1 (e2e testing), 3, 5, 8, or 12

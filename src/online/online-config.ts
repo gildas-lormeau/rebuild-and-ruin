@@ -1,6 +1,6 @@
 /** Default server host for online play (Deno Deploy). */
 
-import { WS_PLAY_PATH } from "../shared/routes.ts";
+import { WS_PLAY_PATH } from "../shared/net/routes.ts";
 
 const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
 /** Hosts that should use plain ws:/http: instead of wss:/https:. */

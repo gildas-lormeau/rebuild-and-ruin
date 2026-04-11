@@ -11,7 +11,7 @@
 
 import { assert } from "@std/assert";
 import { chromium, type Page } from "playwright";
-import { MESSAGE } from "../src/shared/protocol.ts";
+import { MESSAGE } from "../src/shared/net/protocol.ts";
 
 const PAGE_URL = "http://localhost:5173/?server=localhost:8001";
 

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { MESSAGE } from "../src/shared/protocol.ts";
+import { MESSAGE } from "../src/shared/net/protocol.ts";
 
 const SERVER_URL = "ws://localhost:8001/ws/play";
 

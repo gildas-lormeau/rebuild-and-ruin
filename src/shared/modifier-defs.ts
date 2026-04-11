@@ -15,7 +15,7 @@
  *   - src/online/online-serialize.ts — serialization of modifier-specific state
  *   - src/online/online-checkpoints.ts — checkpoint data structures
  *   - src/online/online-phase-transitions.ts — watcher-side handling
- *   - src/shared/checkpoint-data.ts — serialized data types
+ *   - src/shared/net/checkpoint-data.ts — serialized data types
  *   - src/render/render-composition.ts — modifier overlay rendering
  *   - src/ai/ai-strategy-battle.ts — AI awareness (if modifier affects grunts)
  *   - src/shared/types.ts — ModernState fields (if modifier needs persistent state)

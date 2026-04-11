@@ -12,16 +12,16 @@
 import { aimCannons, canPlayerFire, nextReadyCombined } from "../game/index.ts";
 import type { Crosshair } from "../shared/battle-types.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
-import type { DedupChannel } from "../shared/phantom-types.ts";
+import type { DedupChannel } from "../shared/net/phantom-types.ts";
+import { type GameMessage, MESSAGE } from "../shared/net/protocol.ts";
+import { isRemotePlayer } from "../shared/net/tick-context.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
-import { type GameMessage, MESSAGE } from "../shared/protocol.ts";
 import {
   type BattleViewState,
   type ControllerIdentity,
   isAiAnimatable,
 } from "../shared/system-interfaces.ts";
-import { isRemotePlayer } from "../shared/tick-context.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 
 interface BroadcastDeps {
