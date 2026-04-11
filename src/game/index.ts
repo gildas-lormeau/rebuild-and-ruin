@@ -50,6 +50,7 @@ export {
   enterCannonPhase,
   enterCastleReselectPhase,
   finalizeAndEnterCannonPhase,
+  finishBuildPhase,
   isCeasefireActive,
   markPlayerReselected,
   selectPlayerTower,
@@ -70,7 +71,6 @@ export {
   processReselectionQueue,
   resetZoneState,
   setPhase,
-  snapshotThenFinalize,
 } from "./phase-setup.ts";
 export {
   reapplyHighTideTiles,

@@ -7,10 +7,10 @@ import {
   enterBuildPhase,
   enterBuildSkippingBattle,
   enterCannonPhase,
+  finishBuildPhase,
   isCeasefireActive,
   nextReadyCombined,
   resetCannonFacings,
-  snapshotThenFinalize,
   tickBattleCombat,
   tickGrunts,
   tickMasterBuilderLockout,
@@ -732,9 +732,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.finalizeBuildPhase(state);
     }
 
-    // Snapshot THEN finalize territory (load-bearing order — see snapshotThenFinalize)
+    // Engine owns the end-of-build orchestration: snapshot walls BEFORE
+    // finalize (load-bearing — sweep would delete them), finalize territory
+    // + life penalties, re-snapshot zone-dependent entities after reset.
     const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
-      snapshotThenFinalize(state);
+      finishBuildPhase(state);
     banner.wallsBeforeSweep = wallsBeforeSweep;
     banner.prevEntities = prevEntities;
 

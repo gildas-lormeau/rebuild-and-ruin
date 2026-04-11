@@ -43,7 +43,6 @@ import {
   clearPlayerWalls,
   collectAllWalls,
   filterAliveOwnedTowers,
-  snapshotAllWalls,
   sweepIsolatedWalls,
 } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
@@ -57,7 +56,6 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { modifierDef } from "../shared/modifier-defs.ts";
-import type { EntityOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   eliminatePlayer,
@@ -105,7 +103,6 @@ import {
   spawnInterbattleGrunts,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
-import { snapshotEntities } from "./phase-banner.ts";
 import {
   applyCrumblingWalls,
   applyFrozenRiver,
@@ -128,47 +125,6 @@ interface ScoreDelta {
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
-
-/** Snapshot all walls THEN finalize the build phase. Enforces the invariant
- *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls.
- *
- *  INVARIANT: Snapshot MUST precede finalizeBuildPhase(). Wall sweeping deletes
- *  isolated walls during finalization — snapshotting after would show post-sweep state
- *  in the banner, hiding destroyed walls from the player.
- *
- *  Zone-dependent entities (grunts, houses, pits, bonuses) are re-snapshotted
- *  AFTER finalize so that resetZoneState changes are reflected. Without this,
- *  the banner old-scene would flash stale grunts that were already removed
- *  before the life-lost dialog appeared. */
-export function snapshotThenFinalize(state: GameState): {
-  wallsBeforeSweep: Set<number>[];
-  prevEntities: EntityOverlay;
-  needsReselect: ValidPlayerSlot[];
-  eliminated: ValidPlayerSlot[];
-} {
-  const wallsBeforeSweep = snapshotAllWalls(state);
-  const prevEntities = snapshotEntities(state);
-  const { needsReselect, eliminated } = finalizeBuildPhase(state);
-
-  // Re-snapshot zone-dependent entities after finalize — resetZoneState
-  // removes grunts/houses/pits/bonuses from eliminated/reselect zones,
-  // and the player already sees them gone during the life-lost dialog.
-  // towerAlive is also re-snapshotted: resetZoneState revives all zone
-  // towers, and during CASTLE_RESELECT no banner plays to reveal the
-  // change — so the snapshot must match the post-reset state.
-  // Walls keep their pre-finalize snapshot (wall sweep is banner-visualized).
-  if (needsReselect.length > 0 || eliminated.length > 0) {
-    prevEntities.grunts = state.grunts.map((grunt) => ({ ...grunt }));
-    prevEntities.houses = state.map.houses.map((house) => ({ ...house }));
-    prevEntities.burningPits = state.burningPits.map((pit) => ({ ...pit }));
-    prevEntities.bonusSquares = state.bonusSquares.map((bonus) => ({
-      ...bonus,
-    }));
-    prevEntities.towerAlive = [...state.towerAlive];
-  }
-
-  return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
-}
 
 /** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
@@ -419,8 +375,10 @@ export function prepareCastleWallsForPlayer(
 /**
  * Complete the build phase using the canonical gameplay rules.
  * Owns wall sweeping, territory/tower revival, and the life check.
+ * Exported for game-engine.ts finishBuildPhase composition only —
+ * not a public API; game-engine.ts is the canonical caller.
  */
-function finalizeBuildPhase(state: GameState): {
+export function finalizeBuildPhase(state: GameState): {
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
 } {
