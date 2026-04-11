@@ -3,6 +3,9 @@
  *
  * Shared by main.ts (local play) and online-client.ts (online play) so
  * neither entry point needs to import individual render utilities.
+ *
+ * `deps` is the test seam: tests pass a recording `canvasFactory` and an
+ * `observer` to capture terrain-draw intents. Production callers omit it.
  */
 
 import {
@@ -11,16 +14,22 @@ import {
 } from "../shared/canvas-layout.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import { createLoupe } from "./render-loupe.ts";
-import { drawMap, precomputeTerrainCache, sceneCanvas } from "./render-map.ts";
+import {
+  createRenderMap,
+  precomputeTerrainCache,
+  type RenderMapDeps,
+} from "./render-map.ts";
 
 export function createCanvasRenderer(
   canvas: HTMLCanvasElement,
+  deps: RenderMapDeps = {},
 ): RendererInterface {
   const container = canvas.parentElement as HTMLElement;
+  const renderMap = createRenderMap(deps);
   return {
     warmMapCache: precomputeTerrainCache,
     drawFrame: (map, overlay, viewport, now) =>
-      drawMap(map, canvas, overlay, viewport, now),
+      renderMap.drawMap(map, canvas, overlay, viewport, now),
     clientToSurface: (cx, cy) => clientToCanvas(cx, cy, canvas),
     screenToContainerCSS: (sx, sy) => {
       const rect = canvas.getBoundingClientRect();
@@ -42,6 +51,6 @@ export function createCanvasRenderer(
     },
     eventTarget: canvas,
     container,
-    createLoupe: (c) => createLoupe(c, sceneCanvas),
+    createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
   };
 }

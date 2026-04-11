@@ -25,9 +25,12 @@
  * Usage:
  *
  *     const recorder = createCanvasRecorder({ discardCalls: true });
- *     const sc = await createScenario({ recorder });
+ *     const sc = await createScenario({
+ *       recorder,
+ *       renderObserver: { terrainDrawn: (target, mapRef) => { ... } },
+ *     });
  *     // ... drive scenario ...
- *     // assertions via setRenderObserver, not recorder.log
+ *     // assertions via the renderObserver callbacks, not recorder.log
  */
 
 // ── ImageData polyfill ──────────────────────────────────────────────
@@ -66,15 +69,16 @@ export interface RecordedCall {
 export interface CanvasRecorderOptions {
   /** When true, the mock context's methods are no-ops and recording is
    *  skipped entirely. Use this for long-running tests that drive many
-   *  thousands of frames and observe the renderer through
-   *  `setRenderObserver` rather than the call log — recording every
-   *  context call would dwarf the test's CPU budget. */
+   *  thousands of frames and observe the renderer through the
+   *  `renderObserver` scenario option rather than the call log —
+   *  recording every context call would dwarf the test's CPU budget. */
   discardCalls?: boolean;
 }
 
 export interface CanvasRecorder {
-  /** Hand to `setCanvasFactory()` (or pass via `createScenario`). Each call
-   *  returns a fresh recording canvas with a new id. */
+  /** Pass via `createCanvasRenderer(canvas, { canvasFactory: recorder.factory })`
+   *  (or via `createScenario({ recorder })`). Each call returns a fresh
+   *  recording canvas with a new id. */
   readonly factory: () => HTMLCanvasElement;
   /** A pre-allocated "main display canvas" (id 0). Pass to `createCanvasRenderer`. */
   readonly displayCanvas: HTMLCanvasElement;

@@ -27,9 +27,8 @@
  */
 
 import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
-import { setRenderObserver } from "../src/render/render-map.ts";
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import type { ModifierId } from "../src/shared/game-constants.ts";
+import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import type { GameMap } from "../src/shared/geometry-types.ts";
 import { GRID_COLS, Tile } from "../src/shared/grid.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
@@ -72,15 +71,15 @@ for (const { modifier, seed, appearsAtRound } of CASES) {
     `${modifier} banner: drawTerrain on banner canvas uses snapshot map`,
     async () => {
       const events: TerrainEvent[] = [];
-      setRenderObserver({
-        terrainDrawn: (target, mapRef) => events.push({ target, mapRef }),
-      });
       const recorder = createCanvasRecorder();
       using sc = await createScenario({
         seed,
         mode: "modern",
         rounds: appearsAtRound + 1,
         recorder,
+        renderObserver: {
+          terrainDrawn: (target, mapRef) => events.push({ target, mapRef }),
+        },
       });
 
       waitUntilRound(sc, appearsAtRound, 20000);
@@ -136,13 +135,6 @@ Deno.test(
     let trackingActive = false;
     let latestMain: GameMap | undefined;
     let latestBanner: GameMap | undefined;
-    setRenderObserver({
-      terrainDrawn: (target, mapRef) => {
-        if (!trackingActive) return;
-        if (target === "main") latestMain = mapRef;
-        else latestBanner = mapRef;
-      },
-    });
 
     // Snapshot of `state.modern.sinkholeTiles` taken at high_tide banner
     // time (NOT at sinkhole banner time). Why: if a player is eliminated
@@ -156,7 +148,7 @@ Deno.test(
     let sawSinkhole = false;
     // discardCalls: this test runs ~30k frames; accumulating every 2D-context
     // call into recorder.log would OOM the test runner. We observe the
-    // renderer through `setRenderObserver` instead.
+    // renderer through the `renderObserver` scenario option instead.
     const recorder = createCanvasRecorder({ discardCalls: true });
     using sc = await createScenario({
       // seed=44 modern: sinkhole@r5 → high_tide@r6 (the tightest sequence
@@ -168,6 +160,13 @@ Deno.test(
       mode: "modern",
       rounds: 6,
       recorder,
+      renderObserver: {
+        terrainDrawn: (target, mapRef) => {
+          if (!trackingActive) return;
+          if (target === "main") latestMain = mapRef;
+          else latestBanner = mapRef;
+        },
+      },
     });
 
     sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {

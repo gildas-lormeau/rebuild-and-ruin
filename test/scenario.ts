@@ -39,10 +39,7 @@
 // HTMLInputElement` without throwing in Deno.
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
-import {
-  setCanvasFactory,
-  setRenderObserver,
-} from "../src/render/render-map.ts";
+import type { RenderObserver } from "../src/shared/overlay-types.ts";
 import type {
   HapticsObserver,
   SoundObserver,
@@ -87,8 +84,8 @@ export interface ScenarioOptions {
   /** Canvas recorder. When provided, the scenario runs the *real* canvas
    *  renderer (instead of the no-op stub) wired to the recorder's mock
    *  canvases — every frame fires the full draw pipeline, and tests can
-   *  observe via `setRenderObserver` (or inspect the recorder log directly).
-   *  Use this when you need to assert on render-side invariants. */
+   *  observe via the `renderObserver` option (or inspect the recorder log
+   *  directly). Use this when you need to assert on render-side invariants. */
   recorder?: CanvasRecorder;
   /** When false, leaves the runtime in lobby mode with `lobby.active = true`
    *  instead of auto-starting the game. Tests use this to drive the lobby
@@ -104,6 +101,12 @@ export interface ScenarioOptions {
    *  BEFORE the platform/level gate. Threaded through to
    *  `createSoundSystem({ observer })` via the runtime's `observers` bag. */
   soundObserver?: SoundObserver;
+  /** Test observer for terrain-draw intents. Captures every `terrainDrawn`
+   *  callback fired by the canvas renderer. Only meaningful when paired with
+   *  a `recorder` (the no-op stub renderer never draws terrain). Passed
+   *  directly to `createCanvasRenderer({ observer })`, so the renderer
+   *  closure owns it — no module-level state involved. */
+  renderObserver?: RenderObserver;
 }
 
 export interface Scenario extends Disposable {
@@ -210,15 +213,17 @@ export interface ScenarioInput {
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
-  // When a recorder is provided, install the canvas factory and build the
-  // real renderer over the recorder's display canvas. Both module-level
-  // setters reset on re-call, so multiple recorder-backed scenarios in the
-  // same test file remain isolated.
+  // When a recorder is provided, build the real renderer over the
+  // recorder's display canvas. Each `createCanvasRenderer` call owns its own
+  // closure-bound `renderMap` instance (canvas factory + observer + scene
+  // caches), so multiple recorder-backed scenarios in the same test file
+  // remain isolated without any cleanup step.
   let renderer: ReturnType<typeof createCanvasRenderer> | undefined;
-  const usedRecorder = opts.recorder !== undefined;
   if (opts.recorder) {
-    setCanvasFactory(opts.recorder.factory);
-    renderer = createCanvasRenderer(opts.recorder.displayCanvas);
+    renderer = createCanvasRenderer(opts.recorder.displayCanvas, {
+      canvasFactory: opts.recorder.factory,
+      observer: opts.renderObserver,
+    });
   }
   // Capture every outbound `network.send` so the test can read it via
   // `sc.sentMessages`. The array is owned by `wrap` and exposed read-only.
@@ -235,7 +240,7 @@ export async function createScenario(
     hapticsObserver: opts.hapticsObserver,
     soundObserver: opts.soundObserver,
   });
-  return wrapHeadless(headless, usedRecorder, sentMessages);
+  return wrapHeadless(headless, sentMessages);
 }
 
 /** Build a `Scenario` over an existing `HeadlessRuntime`. Exported so the
@@ -245,7 +250,6 @@ export async function createScenario(
  *  `createScenario` returns. */
 export function wrapHeadless(
   headless: HeadlessRuntime,
-  usedRecorder: boolean,
   sentMessages: readonly GameMessage[],
 ): Scenario {
   const input = createScenarioInput(headless);
@@ -265,16 +269,10 @@ export function wrapHeadless(
     runGame: headless.runGame,
     input,
     [Symbol.dispose]: () => {
-      // When the test installed a recorder, restore module-level render
-      // state so a follow-on test in the same file isn't poisoned by stale
-      // canvases or a leftover observer. The default factory's body only
-      // dereferences `document` when invoked, so it stays safe to install
-      // even from deno — non-recorder scenarios use the no-op stub renderer
-      // and never call the factory at all.
-      if (usedRecorder) {
-        setCanvasFactory(() => document.createElement("canvas"));
-        setRenderObserver(undefined);
-      }
+      // No module-level cleanup needed: every observer/canvas-factory is
+      // closure-scoped to the renderer / runtime constructed for this
+      // scenario, so a follow-on test in the same file naturally starts
+      // with a fresh slate.
     },
   };
 }

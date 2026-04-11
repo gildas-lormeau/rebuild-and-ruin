@@ -1,6 +1,6 @@
 /**
- * Sound observer test — verifies the `setSoundObserver` test seam
- * captures every "would have played" intent fired through the
+ * Sound observer test — verifies the `soundObserver` deps-injected test
+ * seam captures every "would have played" intent fired through the
  * production sound pipeline, end-to-end through real sub-systems.
  *
  * Default sound level in headless is `SOUND_OFF`, so production code

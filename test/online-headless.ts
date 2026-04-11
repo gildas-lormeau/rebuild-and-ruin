@@ -134,7 +134,7 @@ export async function createOnlineHarness(
 
   headless.subscribeNetworkMessage(handleServerMessage);
 
-  const scenario = wrapHeadless(headless, false, sentMessages);
+  const scenario = wrapHeadless(headless, sentMessages);
   return { scenario, client };
 }
 

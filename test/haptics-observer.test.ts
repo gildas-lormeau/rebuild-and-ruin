@@ -1,7 +1,7 @@
 /**
- * Haptics observer test — verifies the `setHapticsObserver` test seam
- * captures every vibrate intent fired through the production haptics
- * pipeline, and that the right reasons fire for the right game events.
+ * Haptics observer test — verifies the `hapticsObserver` deps-injected
+ * test seam captures every vibrate intent fired through the production
+ * haptics pipeline, and that the right reasons fire for the right game events.
  *
  * The observer fires BEFORE the platform/level gate (CAN_VIBRATE +
  * hapticsLevel), so tests can assert "this game event would have

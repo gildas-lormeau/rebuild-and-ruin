@@ -311,6 +311,21 @@ export interface RendererInterface {
   };
 }
 
+/** Test seam: structured callbacks fired at high-level draw points so tests
+ *  can assert on *what* was rendered (which `GameMap` reference, which target
+ *  canvas) without inspecting pixel buffers. Threaded into the render-map
+ *  factory via deps; production callers omit it.
+ *
+ *  - `terrainDrawn` fires right after `drawTerrain` runs. `target` is `"main"`
+ *    for the live scene and `"banner"` for the cached banner prev-scene canvas.
+ *    `mapRef` is the exact `GameMap` object passed to drawTerrain — for
+ *    modifier reveal banners this is the snapshot map produced by
+ *    `buildModifierSnapshotMap`, a *different* reference than the live map.
+ */
+export interface RenderObserver {
+  terrainDrawn?(target: "main" | "banner", mapRef: GameMap): void;
+}
+
 export interface LoupeHandle {
   /** Update the loupe content — call from render(). */
   update: (visible: boolean, worldX: number, worldY: number) => void;
