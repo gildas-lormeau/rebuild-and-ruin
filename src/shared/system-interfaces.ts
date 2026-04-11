@@ -354,6 +354,46 @@ export interface HapticsSystem {
   ) => void;
 }
 
+/** Reason a sound was triggered — covers every public method on
+ *  `SoundSystem`. Tests filter on this string to assert that the right
+ *  game event reached the sound layer. The "battle:*" prefixed values
+ *  fire from inside `battleEvents` per individual `BattleEvent` so a
+ *  test can assert on the specific battle reaction (cannon fire vs.
+ *  wall hit vs. tower kill) instead of the catch-all "battleEvents". */
+export type SoundReason =
+  | "phaseStart"
+  | "piecePlaced"
+  | "pieceFailed"
+  | "pieceRotated"
+  | "cannonPlaced"
+  | "chargeFanfare"
+  | "lifeLost"
+  | "gameOver"
+  | "drumsStart"
+  | "drumsQuiet"
+  | "drumsStop"
+  | "reset"
+  | "battle:cannonFired"
+  | "battle:wallDestroyed"
+  | "battle:cannonDamaged"
+  | "battle:cannonKilled"
+  | "battle:gruntKilled"
+  | "battle:gruntSpawned"
+  // Inline literal "towerKilled" — allowed in type position because the
+  // duplicate-literals scanner skips type annotations. The runtime call
+  // site uses `BATTLE_MESSAGE.TOWER_KILLED` so no new runtime literal
+  // shows up. (lint-typeof forbids `typeof X.PROP` in type aliases.)
+  | "towerKilled";
+
+/** Test observer — receives every "would have played" sound intent BEFORE
+ *  the platform/level gate. Tests use this to assert that game events
+ *  reached the sound layer without needing a real `AudioContext`. Threaded
+ *  in via the `SoundSystemDeps` bag from the test scenario; production
+ *  callers omit it. */
+export interface SoundObserver {
+  played?(reason: SoundReason): void;
+}
+
 /** Sound effects contract — jsfxr one-shots + Web Audio layered sounds. */
 export interface SoundSystem {
   setLevel: (level: number) => void;

@@ -26,7 +26,10 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../src/shared/overlay-types.ts";
-import type { HapticsObserver } from "../src/shared/system-interfaces.ts";
+import type {
+  HapticsObserver,
+  SoundObserver,
+} from "../src/shared/system-interfaces.ts";
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/player-config.ts";
 import {
@@ -106,6 +109,10 @@ interface HeadlessRuntimeOptions {
    *  minLevel)` call BEFORE the platform/level gate, so tests can assert on
    *  game-event → haptic mappings without a real `navigator.vibrate`. */
   hapticsObserver?: HapticsObserver;
+  /** Test observer for sound intents. Receives every `played(reason)` call
+   *  BEFORE the platform/level gate, so tests can assert on game-event →
+   *  sound mappings without a real `AudioContext`. */
+  soundObserver?: SoundObserver;
 }
 
 export interface HeadlessRuntime {
@@ -168,6 +175,7 @@ export async function createHeadlessRuntime(
     networkSendObserver,
     remotePlayerSlots = EMPTY_REMOTE_SLOTS,
     hapticsObserver,
+    soundObserver,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -286,7 +294,10 @@ export async function createHeadlessRuntime(
       setMode(built.runtimeState, Mode.SELECTION);
     },
     onlinePhaseTicks: hostMode ? noopHostPhaseTicks() : undefined,
-    observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
+    observers:
+      hapticsObserver || soundObserver
+        ? { haptics: hapticsObserver, sound: soundObserver }
+        : undefined,
   });
   runtimeHolder.current = runtime;
 

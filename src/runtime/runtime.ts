@@ -112,7 +112,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const runtimeState = createRuntimeState();
   const haptics = createHapticsSystem({ observer: config.observers?.haptics });
   haptics.setLevel(runtimeState.settings.haptics);
-  const sound = createSoundSystem();
+  const sound = createSoundSystem({ observer: config.observers?.sound });
   sound.setLevel(runtimeState.settings.sound);
 
   // Touch handles created early — render, options, and lifecycle read them

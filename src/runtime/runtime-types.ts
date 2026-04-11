@@ -84,6 +84,7 @@ import type {
   HapticsObserver,
   HapticsSystem,
   InputReceiver,
+  SoundObserver,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
@@ -340,6 +341,7 @@ export interface RuntimeConfig {
    *  callers (`main.ts`, `online-runtime-game.ts`) omit this entirely. */
   observers?: {
     haptics?: HapticsObserver;
+    sound?: SoundObserver;
   };
 }
 

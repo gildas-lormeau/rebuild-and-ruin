@@ -8,61 +8,32 @@
  *
  * ### Test observer
  *
- * `setSoundObserver` is the test seam (mirrors `setHapticsObserver` in
- * `haptics-system.ts` and `setRenderObserver` in `render-map.ts`).
- * Tests install an observer to capture every "would have played"
- * intent BEFORE the platform/level gate, so a deno test can verify
- * "this game event would have triggered sound X" without needing a
- * real `AudioContext` or `Audio` element (neither exists in Deno).
+ * Tests pass an optional `observer` in the deps bag to capture every
+ * "would have played" intent BEFORE the platform/level gate, so a deno
+ * test can verify "this game event would have triggered sound X"
+ * without needing a real `AudioContext` or `Audio` element (neither
+ * exists in Deno).
  *
  * Default sound level in headless is `SOUND_OFF`, which means
  * production code paths early-return at the level check and never
  * touch the Web Audio API. The observer fires *before* that check, so
- * it sees the intent regardless. Production never sets the observer.
+ * it sees the intent regardless. Production callers omit it.
  */
 
 import { sfxr } from "jsfxr";
 import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { SoundSystem } from "../shared/system-interfaces.ts";
+import type {
+  SoundObserver,
+  SoundReason,
+  SoundSystem,
+} from "../shared/system-interfaces.ts";
 
-/** Reason a sound was triggered — covers every public method on
- *  `SoundSystem`. Tests filter on this string to assert that the right
- *  game event reached the sound layer. The "battle:*" prefixed values
- *  fire from inside `battleEvents` per individual `BattleEvent` so a
- *  test can assert on the specific battle reaction (cannon fire vs.
- *  wall hit vs. tower kill) instead of the catch-all "battleEvents". */
-export type SoundReason =
-  | "phaseStart"
-  | "piecePlaced"
-  | "pieceFailed"
-  | "pieceRotated"
-  | "cannonPlaced"
-  | "chargeFanfare"
-  | "lifeLost"
-  | "gameOver"
-  | "drumsStart"
-  | "drumsQuiet"
-  | "drumsStop"
-  | "reset"
-  | "battle:cannonFired"
-  | "battle:wallDestroyed"
-  | "battle:cannonDamaged"
-  | "battle:cannonKilled"
-  | "battle:gruntKilled"
-  | "battle:gruntSpawned"
-  // Inline literal "towerKilled" — allowed in type position because the
-  // duplicate-literals scanner skips type annotations. The runtime call
-  // site uses `BATTLE_MESSAGE.TOWER_KILLED` so no new runtime literal
-  // shows up. (lint-typeof forbids `typeof X.PROP` in type aliases.)
-  | "towerKilled";
-
-/** Test observer — receives every sound intent BEFORE the platform/level
- *  gate. Inlined in the `setSoundObserver` signature so callers don't
- *  need a named import; the type is local-only by design. */
-interface SoundObserver {
-  played?(reason: SoundReason): void;
+/** Construction-time deps for the sound sub-system. `observer` is the
+ *  test seam — production callers omit it. */
+interface SoundSystemDeps {
+  observer?: SoundObserver;
 }
 
 type SfxKey = keyof typeof SFX_DEFS;
@@ -297,16 +268,13 @@ const REASON_GAME_OVER = "gameOver";
 const REASON_BATTLE_GRUNT_KILLED = "battle:gruntKilled";
 const REASON_BATTLE_GRUNT_SPAWNED = "battle:gruntSpawned";
 
-let soundObserver: SoundObserver | undefined;
+export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
+  const { observer } = deps;
 
-/** Install a sound observer (test seam). Pass `undefined` to clear.
- *  Mirrors `setHapticsObserver` from `haptics-system.ts`. Production
- *  code never sets this. */
-export function setSoundObserver(observer: SoundObserver | undefined): void {
-  soundObserver = observer;
-}
+  function notifyPlayed(reason: SoundReason): void {
+    observer?.played?.(reason);
+  }
 
-export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
 
   let soundLevel = SOUND_ALL;
@@ -665,7 +633,7 @@ export function createSoundSystem(): SoundSystem {
       // pays for the loop when there's something to do. Without the
       // observer-aware walk we'd lose per-event observability in
       // headless tests where `soundLevel` defaults to SOUND_OFF.
-      if (!soundObserver && soundLevel < SOUND_ALL) return;
+      if (!observer && soundLevel < SOUND_ALL) return;
       const audible = soundLevel >= SOUND_ALL;
       for (const evt of events) {
         if (evt.type === BATTLE_MESSAGE.CANNON_FIRED) {
@@ -819,10 +787,6 @@ export function createSoundSystem(): SoundSystem {
       activeImpacts = 0;
     },
   };
-}
-
-function notifyPlayed(reason: SoundReason): void {
-  soundObserver?.played?.(reason);
 }
 
 function fanfareNote(

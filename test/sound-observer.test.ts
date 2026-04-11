@@ -16,21 +16,18 @@
  */
 
 import { assert, assertGreater } from "@std/assert";
-import {
-  type SoundReason,
-  setSoundObserver,
-} from "../src/input/sound-system.ts";
 import { Phase } from "../src/shared/game-phase.ts";
+import type { SoundReason } from "../src/shared/system-interfaces.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
 Deno.test(
   "sound observer: phaseStart fires for phase transition banners",
   async () => {
     const reasons: SoundReason[] = [];
-    setSoundObserver({
-      played: (reason) => reasons.push(reason),
+    using sc = await createScenario({
+      seed: 42,
+      soundObserver: { played: (reason) => reasons.push(reason) },
     });
-    using sc = await createScenario({ seed: 42 });
 
     // Drive through the first build → battle sequence — multiple
     // phase banners fire, each calling `sound.phaseStart`.
@@ -49,10 +46,10 @@ Deno.test(
   "sound observer: battle:cannonFired fires per cannon shot through observer even with SOUND_OFF",
   async () => {
     const reasons: SoundReason[] = [];
-    setSoundObserver({
-      played: (reason) => reasons.push(reason),
+    using sc = await createScenario({
+      seed: 42,
+      soundObserver: { played: (reason) => reasons.push(reason) },
     });
-    using sc = await createScenario({ seed: 42 });
 
     // Drive past the first battle's mid-point so cannons have had a
     // chance to fire. The same shape as the haptics test — wait until
@@ -77,10 +74,10 @@ Deno.test(
   "sound observer: drumsStart fires when entering selection / battle",
   async () => {
     const reasons: SoundReason[] = [];
-    setSoundObserver({
-      played: (reason) => reasons.push(reason),
+    using sc = await createScenario({
+      seed: 42,
+      soundObserver: { played: (reason) => reasons.push(reason) },
     });
-    using sc = await createScenario({ seed: 42 });
 
     // `runtime-selection.ts:180` and `:500` call `sound.drumsStart()`
     // when the selection phase enters its drumming sub-phases. Driving
