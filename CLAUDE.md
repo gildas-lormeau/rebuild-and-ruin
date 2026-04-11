@@ -67,37 +67,19 @@ Modern mode inserts UPGRADE_PICK between battle end and build banner (from round
 
 ### Extension point registries (pool pattern)
 Four extension points use the same pool pattern (id type + pool array + compile-time exhaustiveness check + `implemented` flag):
-- **Features**: `feature-defs.ts` — `FeatureId` + `FEATURE_POOL`. `MODERN_FEATURES` derived from `IMPLEMENTED_FEATURES`. `featureDef()` lookup used by `lint-features.ts`. Guards use `hasFeature(state, id)`.
+- **Features**: `feature-defs.ts` — `FeatureId` + `FEATURE_POOL` + `FEATURE_CONSUMERS`. Guards use `hasFeature(state, id)`.
 - **Upgrades**: `upgrade-defs.ts` — `UpgradeId` + `UPGRADE_POOL`. Draft-eligible filtered by `IMPLEMENTED_UPGRADES`.
-- **Cannon modes**: `cannon-mode-defs.ts` — `CannonMode` + pool. Centralizes size/slotCost (used by `cannonModeDef()`, `cannonSize()`, `cannonSlotCost()`). `CANNON_MODE_IDS` replaces the old manual `CANNON_MODES` set. `IMPLEMENTED_CANNON_MODES` drives the human controller cycle.
-- **Modifiers**: `modifier-defs.ts` — `ModifierId` + pool. Centralizes labels/weights (used by `modifierDef()`, `IMPLEMENTED_MODIFIERS`). Labels moved here from game-constants.ts.
-When adding a new entry: add the ID to the type union, add a pool entry with `implemented: false`, the compile-time check catches omissions.
+- **Cannon modes**: `cannon-mode-defs.ts` — `CannonMode` + pool + `CANNON_MODE_CONSUMERS`. Centralizes size/slotCost.
+- **Modifiers**: `modifier-defs.ts` — `ModifierId` + pool + `MODIFIER_CONSUMERS`. Centralizes labels/weights.
+- **Battle events**: `battle-events.ts` — `BattleEvent`/`ImpactEvent` unions + `BATTLE_MESSAGE` constants + `BATTLE_EVENT_CONSUMERS`.
 
-### Battle event catalog (`.battle-event-catalog.json`)
-Maps every BattleEvent/ImpactEvent union member to its consumer files by role (stateApply, sound, haptics, networkHandle, networkRelay, orchestrator, combo). When adding a new battle event type:
-1. Define the message type in `src/shared/core/battle-events.ts`, add to BattleEvent or ImpactEvent union
-2. Add a BATTLE_MESSAGE constant in `battle-events.ts` (protocol.ts spreads it into MESSAGE automatically)
-3. Add the type to the ServerMessage union in `src/shared/net/protocol.ts`
-4. Add a catalog entry listing all consumer files
-5. Implement handlers in each declared consumer
-The `lint-battle-events` pre-commit check verifies exhaustiveness.
+When adding a new entry to any of these registries:
+1. Add the ID to the type union (or enum value, for cannon modes).
+2. Add a pool entry with `implemented: false` (the `PoolComplete` compile-time check catches omissions).
+3. Add an entry to the matching `*_CONSUMERS` map listing every file that implements the entry. The `satisfies Record<Id, ...>` clause forces exhaustiveness — adding a new ID without a matching consumer map is a compile error.
+4. Implement the actual game logic in each consumer file.
 
-### Feature catalog (`.feature-catalog.json`)
-Maps every FeatureId to its consumer files by role (gate, stateAccess, serialize, checkpoint, render, ai). When adding a new feature capability:
-1. Add the string literal to `FeatureId` union in `feature-defs.ts`
-2. Add a pool entry with `implemented: false`
-3. Add a catalog entry listing all consumer files
-4. Add `hasFeature(state, "id")` guards in gate consumer files
-5. Implement feature logic in each declared consumer
-The `lint-features` pre-commit check verifies exhaustiveness (pool ↔ catalog ↔ consumer files).
-
-### Cannon mode catalog (`.cannon-mode-catalog.json`)
-Maps every CannonMode enum value to its consumer files by role (placement, firing, impact, lifecycle, render, phantom, ai, ui, serialize). When adding a new cannon mode:
-1. Add the enum value to `CannonMode` in `battle-types.ts`
-2. Add a pool entry in `cannon-mode-defs.ts` with `implemented: false`
-3. Add a catalog entry listing all consumer files
-4. Implement mode-specific logic in each declared consumer
-The `lint-cannon-modes` pre-commit check verifies exhaustiveness (pool ↔ catalog ↔ consumer files).
+The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` maps and verifies every listed file path exists on disk. Role-based string-presence checks (e.g. "the gate consumer must contain a `hasFeature()` call") were intentionally dropped — TypeScript exhaustiveness + scenario tests catch the same class of bug, and the role names in the consumer maps are now free-form documentation strings, not enforced fields.
 
 ### Game rules (non-obvious, guide correctness)
 - Territory: flood-fill from edges, interior = not-outside, not-wall

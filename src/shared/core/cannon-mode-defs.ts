@@ -6,17 +6,8 @@
  *   1. Add the enum value to CannonMode in battle-types.ts
  *   2. Add a pool entry here (set implemented: false until gameplay code exists)
  *   3. The PoolComplete check will fail at compile time if you forget step 2
- *
- * Consumer files to update for a new mode:
- *   - src/game/cannon-system.ts — placement validation
- *   - src/game/battle-system.ts — firing behavior, impact effects
- *   - src/player/controller-human.ts — mode cycling, downgrade logic
- *   - src/ai/ai-strategy-cannon.ts — AI placement decisions
- *   - src/render/render-map.ts — cannon sprites
- *   - src/render/render-effects.ts — phantom preview
- *   - src/shared/net/checkpoint-data.ts — serialization
- *   - src/online/online-types.ts — toCannonMode() parsing
- *   - src/shared/core/board-occupancy.ts — exclusion flags if needed
+ *   4. Add an entry to CANNON_MODE_CONSUMERS listing the files that
+ *      implement the mode (the `satisfies` clause enforces exhaustiveness)
  */
 
 import { CannonMode } from "./battle-types.ts";
@@ -79,13 +70,56 @@ const CANNON_MODE_POOL: readonly CannonModeDef[] = [
   },
 ];
 /** Cannon modes with gameplay code. */
-export const IMPLEMENTED_CANNON_MODES: readonly CannonModeDef[] =
+const IMPLEMENTED_CANNON_MODES: readonly CannonModeDef[] =
   CANNON_MODE_POOL.filter((def) => def.implemented);
 /** Set of all valid CannonMode values — derived from the pool.
  *  Replaces the manually maintained CANNON_MODES set in battle-types.ts. */
 export const CANNON_MODE_IDS: ReadonlySet<CannonMode> = new Set(
   CANNON_MODE_POOL.map((def) => def.id),
 );
+/** Consumer files for each cannon mode, keyed by the role the file plays.
+ *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
+export const CANNON_MODE_CONSUMERS = {
+  [CannonMode.NORMAL]: {
+    placement: "src/game/cannon-system.ts",
+    firing: "src/game/battle-system.ts",
+    render: "src/render/render-map.ts",
+    phantom: "src/render/render-effects.ts",
+    aiStrategy: "src/ai/ai-strategy-cannon.ts",
+    uiCycle: "src/player/controller-human.ts",
+    serialize: "src/online/online-types.ts",
+  },
+  [CannonMode.SUPER]: {
+    placement: "src/game/cannon-system.ts",
+    firing: "src/game/battle-system.ts",
+    impact: "src/game/battle-system.ts",
+    render: "src/render/render-map.ts",
+    phantom: "src/render/render-effects.ts",
+    aiStrategy: "src/ai/ai-strategy-cannon.ts",
+    uiCycle: "src/player/controller-human.ts",
+    serialize: "src/online/online-types.ts",
+  },
+  [CannonMode.BALLOON]: {
+    placement: "src/game/cannon-system.ts",
+    firing: "src/game/battle-system.ts",
+    impact: "src/game/battle-system.ts",
+    lifecycle: "src/game/phase-setup.ts",
+    render: "src/render/render-map.ts",
+    phantom: "src/render/render-effects.ts",
+    aiStrategy: "src/ai/ai-strategy-cannon.ts",
+    uiCycle: "src/player/controller-human.ts",
+    serialize: "src/online/online-types.ts",
+  },
+  [CannonMode.RAMPART]: {
+    placement: "src/game/cannon-system.ts",
+    firing: "src/game/battle-system.ts",
+    render: "src/render/render-map.ts",
+    phantom: "src/render/render-effects.ts",
+    aiStrategy: "src/ai/ai-strategy-cannon.ts",
+    uiCycle: "src/player/controller-human.ts",
+    serialize: "src/online/online-types.ts",
+  },
+} as const satisfies Record<CannonMode, Readonly<Record<string, string>>>;
 
 /** Cannon modes available for a given game mode (classic excludes modernOnly). */
 export function cannonModesForGame(modern: boolean): readonly CannonModeDef[] {

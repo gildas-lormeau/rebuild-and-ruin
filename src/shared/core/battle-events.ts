@@ -127,6 +127,89 @@ export const BATTLE_MESSAGE = {
   WALL_ABSORBED: "wallAbsorbed",
   WALL_SHIELDED: "wallShielded",
 } as const;
+/** Consumer files for each battle event, keyed by the role the file plays.
+ *
+ * The `satisfies Record<BattleEvent["type"], ...>` clause forces exhaustiveness:
+ * adding a new member to the BattleEvent union without a matching consumer
+ * map is a compile error. Role names are free-form strings (used as
+ * documentation); lint-registries only verifies file existence.
+ *
+ * See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
+export const BATTLE_EVENT_CONSUMERS = {
+  cannonFired: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    haptics: "src/input/haptics-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  wallDestroyed: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    haptics: "src/input/haptics-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+    orchestrator: "src/game/battle-system.ts",
+    combo: "src/game/combo-system.ts",
+  },
+  cannonDamaged: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    haptics: "src/input/haptics-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+    orchestrator: "src/game/battle-system.ts",
+    combo: "src/game/combo-system.ts",
+  },
+  gruntKilled: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+    combo: "src/game/combo-system.ts",
+  },
+  houseDestroyed: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  gruntSpawned: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  pitCreated: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  iceThawed: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  wallAbsorbed: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  wallShielded: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+  towerKilled: {
+    stateApply: "src/game/battle-system.ts",
+    sound: "src/input/sound-system.ts",
+    haptics: "src/input/haptics-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
+  },
+} as const satisfies Record<
+  BattleEvent["type"],
+  Readonly<Record<string, string>>
+>;
 
 /** Create a CANNON_FIRED message from a cannonball's launch data. */
 export function createCannonFiredMsg(ball: {

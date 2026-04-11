@@ -130,18 +130,38 @@ function isDefinitionContext(node: ts.Node, sourceFile: ts.SourceFile): boolean 
   // Skip: enum member values
   if (ts.isEnumMember(parent)) return true;
 
-  // Skip: property assignments in const object literals
+  // Skip: property assignments inside const object literals (any nesting depth).
+  // Walks up through PropertyAssignment / ObjectLiteralExpression chains and
+  // through `as const` / `satisfies T` / parenthesized wrappers so registry-style
+  // declarations like `export const X = { kind: { role: "..." } } as const satisfies T`
+  // are recognized as const definitions at any nesting level.
   if (ts.isPropertyAssignment(parent) && parent.initializer === node) {
-    const objLit = parent.parent;
-    if (ts.isObjectLiteralExpression(objLit)) {
-      const objParent = objLit.parent;
-      if (ts.isVariableDeclaration(objParent) && objParent.initializer === objLit) {
-        const declList = objParent.parent;
-        if (ts.isVariableDeclarationList(declList) &&
-            (declList.flags & ts.NodeFlags.Const) !== 0) {
+    let cursor: ts.Node = parent;
+    while (cursor.parent) {
+      const ascending = cursor.parent;
+      if (
+        ts.isObjectLiteralExpression(ascending) ||
+        ts.isAsExpression(ascending) ||
+        ts.isSatisfiesExpression(ascending) ||
+        ts.isParenthesizedExpression(ascending)
+      ) {
+        cursor = ascending;
+        continue;
+      }
+      if (ts.isPropertyAssignment(ascending) && ascending.initializer === cursor) {
+        cursor = ascending;
+        continue;
+      }
+      if (ts.isVariableDeclaration(ascending) && ascending.initializer === cursor) {
+        const declList = ascending.parent;
+        if (
+          ts.isVariableDeclarationList(declList) &&
+          (declList.flags & ts.NodeFlags.Const) !== 0
+        ) {
           return true;
         }
       }
+      break;
     }
   }
 

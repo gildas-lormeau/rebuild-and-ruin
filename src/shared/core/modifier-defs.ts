@@ -7,19 +7,8 @@
  *   2. Add a MODIFIER_ID entry and MODIFIER_LABELS entry in game-constants.ts
  *   3. Add a pool entry here (set implemented: false until gameplay code exists)
  *   4. The PoolComplete check will fail at compile time if you forget step 3
- *
- * Consumer files to update for a new modifier:
- *   - src/game/round-modifiers.ts — apply function (core mutation logic)
- *   - src/game/phase-setup.ts — applyBattleStartModifiers() dispatch
- *   - src/runtime/runtime-transition-steps.ts — banner display
- *   - src/online/online-serialize.ts — serialization of modifier-specific state
- *   - src/online/online-checkpoints.ts — checkpoint data structures
- *   - src/online/online-phase-transitions.ts — watcher-side handling
- *   - src/shared/net/checkpoint-data.ts — serialized data types
- *   - src/render/render-composition.ts — modifier overlay rendering
- *   - src/ai/ai-strategy-battle.ts — AI awareness (if modifier affects grunts)
- *   - src/shared/core/types.ts — ModernState fields (if modifier needs persistent state)
- *   - src/shared/core/system-interfaces.ts — BattleViewState (if modifier affects controllers)
+ *   5. Add an entry to MODIFIER_CONSUMERS listing the files that implement
+ *      the modifier (the `satisfies` clause enforces exhaustiveness)
  */
 
 import type { ModifierId } from "./game-constants.ts";
@@ -122,6 +111,54 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
   MODIFIER_POOL.filter((def) => def.implemented);
+/** Consumer files for each modifier, keyed by the role the file plays.
+ *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
+export const MODIFIER_CONSUMERS = {
+  wildfire: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+  },
+  crumbling_walls: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+  },
+  grunt_surge: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+  },
+  frozen_river: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+    clear: "src/game/round-modifiers.ts",
+    serialize: "src/online/online-serialize.ts",
+    checkpoint: "src/game/round-modifiers.ts",
+  },
+  sinkhole: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+    reapply: "src/game/round-modifiers.ts",
+    serialize: "src/online/online-serialize.ts",
+    checkpoint: "src/game/round-modifiers.ts",
+    zoneReset: "src/game/phase-setup.ts",
+  },
+  high_tide: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+    clear: "src/game/round-modifiers.ts",
+    reapply: "src/game/round-modifiers.ts",
+    serialize: "src/online/online-serialize.ts",
+    checkpoint: "src/game/round-modifiers.ts",
+    zoneReset: "src/game/phase-setup.ts",
+  },
+  dust_storm: {
+    apply: "src/game/battle-system.ts",
+    dispatch: "src/game/phase-setup.ts",
+  },
+  rubble_clearing: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+  },
+} as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 
 /** Look up a modifier definition by id. */
 export function modifierDef(id: ModifierId): ModifierDef {
