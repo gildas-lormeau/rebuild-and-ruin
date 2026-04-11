@@ -4,7 +4,6 @@ export {
   advanceBattleCountdown,
   advanceCannonball,
   aimCannons,
-  applyImpactEvent,
   canFireOwnCannon,
   canPlayerFire,
   fireNextReadyCannon,
@@ -19,14 +18,12 @@ export {
   tickMasterBuilderLockout,
 } from "./build-phase-helpers.ts";
 export {
-  applyPiecePlacement,
   canPlacePiece,
   placePiece,
   recheckTerritoryOnly,
   recomputeAllTerritory,
 } from "./build-system.ts";
 export {
-  applyCannonPlacement,
   autoPlaceRound1Cannons,
   cannonSlotCost,
   cannonSlotsUsed,

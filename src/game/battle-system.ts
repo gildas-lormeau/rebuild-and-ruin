@@ -4,6 +4,7 @@
 
 import {
   BATTLE_MESSAGE,
+  type CannonFiredMessage,
   createCannonFiredMsg,
   type ImpactEvent,
   type TowerKilledMessage,
@@ -384,6 +385,36 @@ export function nextReadyCombined(
     }
   }
   return null;
+}
+
+/** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events.
+ *  Host path: `launchCannonball` pushes a ball and emits via `createCannonFiredMsg`. */
+export function spawnCannonballFromMessage(
+  state: GameState,
+  msg: CannonFiredMessage,
+): void {
+  state.cannonballs.push({
+    cannonIdx: msg.cannonIdx,
+    startX: msg.startX,
+    startY: msg.startY,
+    x: msg.startX,
+    y: msg.startY,
+    targetX: msg.targetX,
+    targetY: msg.targetY,
+    speed: msg.speed,
+    playerId: msg.playerId,
+    incendiary: msg.incendiary,
+    mortar: msg.mortar,
+  });
+}
+
+/** Network-replay primitive for `BATTLE_MESSAGE.TOWER_KILLED` events.
+ *  Host path: `grunt-system.ts` mutates `state.towerAlive` directly before emitting. */
+export function applyTowerKilled(
+  state: GameState,
+  event: TowerKilledMessage,
+): void {
+  state.towerAlive[event.towerIdx] = false;
 }
 
 /**

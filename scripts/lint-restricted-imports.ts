@@ -6,6 +6,12 @@
  *    All other files should use `import type { Tile }` or prefer spatial helpers
  *    (isWater, isGrass, waterKeys, etc.) instead.
  *
+ * 2. Non-game files must go through `src/game/index.ts` (the barrel) rather than
+ *    deep-importing from specific `src/game/*.ts` files. A narrow allowlist exists
+ *    for network-replay primitives in `online-server-events.ts` — symbols that
+ *    apply authoritative server events to watcher state and are intentionally
+ *    kept out of the public game surface.
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -158,6 +164,60 @@ function checkRuntimeSubsystemImports(
 }
 
 // ---------------------------------------------------------------------------
+// Rule 3: Non-game files must import from src/game/index.ts, not deep files
+// ---------------------------------------------------------------------------
+
+/** Narrow allowlist of (importer → source → symbols) tuples that may bypass
+ *  the game barrel. These are network-replay primitives: they apply
+ *  authoritative server events to watcher state during host→watcher sync, and
+ *  are deliberately kept out of `game/index.ts` so no other code path can
+ *  accidentally couple to them. */
+const GAME_DEEP_IMPORT_ALLOWLIST: Record<string, Record<string, Set<string>>> =
+  {
+    "src/online/online-server-events.ts": {
+      "../game/battle-system.ts": new Set([
+        "applyImpactEvent",
+        "applyTowerKilled",
+        "spawnCannonballFromMessage",
+      ]),
+      "../game/build-system.ts": new Set(["applyPiecePlacement"]),
+      "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
+    },
+  };
+
+function checkGameDeepImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  // game/ files may import from their own siblings freely
+  if (rel.startsWith("src/game/")) return;
+
+  const allowlist = GAME_DEEP_IMPORT_ALLOWLIST[rel] ?? {};
+
+  for (const imp of parseImports(content)) {
+    // Match any import from ../game/<file>.ts that's NOT the barrel
+    const gameMatch = imp.source.match(/^(\.\.?\/)+game\/([\w-]+)\.ts$/);
+    if (!gameMatch) continue;
+    if (gameMatch[2] === "index") continue;
+
+    const allowedForSource = allowlist[imp.source];
+    const disallowed = allowedForSource
+      ? imp.names.filter((name) => !allowedForSource.has(name))
+      : imp.names;
+
+    if (disallowed.length > 0) {
+      violations.push({
+        file: rel,
+        line: imp.line,
+        message: `Deep import from "${imp.source}" — non-game files must import from "../game/index.ts". Disallowed: ${disallowed.join(", ")}`,
+      });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // File scanning
 // ---------------------------------------------------------------------------
 
@@ -186,6 +246,7 @@ function main(): void {
     const content = readFileSync(filePath, "utf-8");
     checkTileImports(filePath, content, violations);
     checkRuntimeSubsystemImports(filePath, content, violations);
+    checkGameDeepImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {

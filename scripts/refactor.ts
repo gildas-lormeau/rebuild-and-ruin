@@ -1448,7 +1448,12 @@ function generateBarrel(sourceDir: string, outFile: string): void {
             );
           }
         } else {
-          recordSymbol(resolvedPath, resolved, exportedName, isType);
+          // Deep imports into the source dir bypass the barrel intentionally
+          // (e.g. network-replay primitives allowlisted in
+          // lint-restricted-imports.ts). They should NOT contribute to the
+          // public barrel surface — otherwise regenerate-after-exemption
+          // would re-promote the symbols we just hid.
+          // recordSymbol is only called for barrel imports above.
         }
       }
     }

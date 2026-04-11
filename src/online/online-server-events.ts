@@ -1,7 +1,15 @@
+// Deep imports: these are network-replay primitives used only here. They are
+// intentionally not exposed via ../game/index.ts — see
+// scripts/lint-restricted-imports.ts for the allowlist that pins this exemption.
+
 import {
-  applyCannonPlacement,
   applyImpactEvent,
-  applyPiecePlacement,
+  applyTowerKilled,
+  spawnCannonballFromMessage,
+} from "../game/battle-system.ts";
+import { applyPiecePlacement } from "../game/build-system.ts";
+import { applyCannonPlacement } from "../game/cannon-system.ts";
+import {
   cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
@@ -297,19 +305,7 @@ function handleCannonFired(
     );
     return DROPPED;
   }
-  state.cannonballs.push({
-    cannonIdx: msg.cannonIdx,
-    startX: msg.startX,
-    startY: msg.startY,
-    x: msg.startX,
-    y: msg.startY,
-    targetX: msg.targetX,
-    targetY: msg.targetY,
-    speed: msg.speed,
-    playerId: msg.playerId,
-    incendiary: msg.incendiary,
-    mortar: msg.mortar,
-  });
+  spawnCannonballFromMessage(state, msg);
   state.bus.emit(msg.type, msg);
   return APPLIED;
 }
@@ -366,7 +362,7 @@ function handleTowerKilled(
   if (isHostInContext(deps.session) || !state) return DROPPED;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
     return DROPPED;
-  state.towerAlive[msg.towerIdx] = false;
+  applyTowerKilled(state, msg);
   state.bus.emit(msg.type, msg);
   return APPLIED;
 }

@@ -14,6 +14,7 @@
       "messageKey": "CANNON_FIRED",
       "union": "BattleEvent",
       "consumers": {
+        "stateApply": "src/game/battle-system.ts",
         "sound": "src/input/sound-system.ts",
         "haptics": "src/input/haptics-system.ts",
         "networkHandle": "src/online/online-server-events.ts",
@@ -116,6 +117,7 @@
       "messageKey": "TOWER_KILLED",
       "union": "BattleEvent",
       "consumers": {
+        "stateApply": "src/game/battle-system.ts",
         "sound": "src/input/sound-system.ts",
         "haptics": "src/input/haptics-system.ts",
         "networkHandle": "src/online/online-server-events.ts",
