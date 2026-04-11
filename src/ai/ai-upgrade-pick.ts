@@ -71,8 +71,12 @@ export function tickAiUpgradePickEntry(
     return;
   }
 
-  entry.focusedCard =
-    Math.floor(entry.autoTimer / UPGRADE_PICK_CYCLE_STEP) % entry.offers.length;
+  const len = entry.offers.length;
+  const dir = (entry.playerId & 1) === 0 ? 1 : -1;
+  const start = entryIdx % len;
+  const cycleStep = UPGRADE_PICK_CYCLE_STEP * (1 + (entryIdx % 3) * 0.17);
+  const rawStep = Math.floor(entry.autoTimer / cycleStep);
+  entry.focusedCard = (((start + dir * rawStep) % len) + len) % len;
 }
 
 /** AI-aware pick: contextual upgrade selection based on game state. */
