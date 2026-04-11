@@ -179,7 +179,7 @@ interface FrameContextInputs {
   hasPointerPlayer: boolean;
   myPlayerId: PlayerSlotId;
   hostAtFrameStart: boolean;
-  remotePlayerSlots: ReadonlySet<number>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   mobileAutoZoom: boolean;
 }
 

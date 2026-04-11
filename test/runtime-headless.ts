@@ -26,6 +26,7 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../src/shared/ui/overlay-types.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type {
   HapticsObserver,
   SoundObserver,
@@ -100,7 +101,7 @@ interface HeadlessRuntimeOptions {
    *  to a "remote" player's selection state aren't immediately overwritten
    *  by that slot's local AI. Defaults to the empty set (every slot is
    *  local AI), preserving existing test behavior. */
-  remotePlayerSlots?: ReadonlySet<number>;
+  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
   /** Test observer for haptics intents. Receives every `vibrate(reason, ms,
    *  minLevel)` call BEFORE the platform/level gate, so tests can assert on
    *  game-event → haptic mappings without a real `navigator.vibrate`. */
@@ -234,7 +235,7 @@ export async function createHeadlessRuntime(
         messageHandlers.add(handler);
         return () => messageHandlers.delete(handler);
       },
-      remotePlayerSlots: remotePlayerSlots as Set<number> | undefined,
+      remotePlayerSlots,
     }),
     // No ai wiring here (nor in main.ts / online-runtime-game.ts) — the
     // composition root `src/runtime/runtime-composition.ts` imports the ai functions

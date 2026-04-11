@@ -262,8 +262,8 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       roomCannonMaxHp: 3,
       roomGameMode: "classic" as GameMode,
       lobbyStartTime: 0,
-      occupiedSlots: new Set<number>(),
-      remotePlayerSlots: new Set<number>(),
+      occupiedSlots: new Set<ValidPlayerSlot>(),
+      remotePlayerSlots: new Set<ValidPlayerSlot>(),
     },
     lobby: {
       showWaitingRoom: () => {},

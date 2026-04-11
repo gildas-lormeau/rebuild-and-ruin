@@ -264,7 +264,7 @@ export interface NetworkApi {
   readonly myPlayerId: () => PlayerSlotId;
   /** Slots controlled by other machines (need network sync). Empty set
    *  for local play. */
-  readonly remotePlayerSlots: () => Set<number>;
+  readonly remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

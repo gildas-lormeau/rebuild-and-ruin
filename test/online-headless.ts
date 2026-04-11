@@ -66,6 +66,7 @@ import {
 } from "../src/online/online-watcher-tick.ts";
 import { createHeadlessRuntime } from "./runtime-headless.ts";
 import type { GameMessage } from "../src/shared/net/protocol.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import {
   buildHeadlessOptions,
   type Scenario,
@@ -81,7 +82,7 @@ export interface OnlineScenarioOptions extends ScenarioOptions {
    *  - the dispatcher's session (so `isRemoteHumanAction` accepts incoming
    *    messages for these slots).
    *  Defaults to `{1}`. */
-  readonly remotePlayerSlots?: ReadonlySet<number>;
+  readonly remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
 }
 
 /** Receive-side test harness — `scenario` is the same `Scenario` that
@@ -104,7 +105,8 @@ export interface OnlineHarness {
 export async function createOnlineHarness(
   opts: OnlineScenarioOptions = {},
 ): Promise<OnlineHarness> {
-  const remotePlayerSlots = opts.remotePlayerSlots ?? new Set([1]);
+  const remotePlayerSlots =
+    opts.remotePlayerSlots ?? new Set<ValidPlayerSlot>([1 as ValidPlayerSlot]);
   const sentMessages: GameMessage[] = [];
   // Reuse `buildHeadlessOptions` so every observer / recorder option a
   // test passes via `OnlineScenarioOptions` is honored — without this
@@ -153,7 +155,7 @@ export async function createOnlineScenario(
  *  dedup / watcher factories. The dispatcher only reads `ctx` and
  *  `devLog` — every other method on `OnlineClient` is a no-op stub. */
 function buildTestOnlineClient(
-  remotePlayerSlots: ReadonlySet<number>,
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
 ): OnlineClient {
   const session: OnlineSession = createSession();
   // Non-volatile mutation: this client is host-only for the test lifetime,

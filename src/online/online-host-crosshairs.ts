@@ -32,7 +32,7 @@ interface BroadcastDeps {
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  remotePlayerSlots: ReadonlySet<number>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   logThrottled: (key: string, msg: string) => void;
 }
 

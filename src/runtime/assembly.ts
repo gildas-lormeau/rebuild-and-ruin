@@ -54,7 +54,7 @@ interface RuntimeLoopDeps {
   timing: TimingApi;
   myPlayerId: () => PlayerSlotId;
   amHost: () => boolean;
-  remotePlayerSlots: () => Set<number>;
+  remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
   getPointerPlayer: () => { playerId: ValidPlayerSlot } | null;
   clearHumanCache: () => void;
   isSelectionReady: () => boolean;

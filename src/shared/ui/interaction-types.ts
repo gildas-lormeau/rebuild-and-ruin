@@ -62,7 +62,7 @@ export type GameOverFocus = "rematch" | "menu";
 export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
   readonly myPlayerId: PlayerSlotId;
-  readonly remotePlayerSlots: ReadonlySet<number>;
+  readonly remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
 }
 

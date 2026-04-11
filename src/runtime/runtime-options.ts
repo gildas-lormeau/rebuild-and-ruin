@@ -1,5 +1,6 @@
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   HapticsSystem,
   SoundSystem,
@@ -58,7 +59,7 @@ interface OptionsSystemDeps {
   sound: Pick<SoundSystem, "setLevel">;
   haptics: Pick<HapticsSystem, "setLevel">;
   isOnline: boolean;
-  remotePlayerSlots: () => ReadonlySet<number>;
+  remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
   onCloseOptions?: () => void;
   seedField: SeedField;
 

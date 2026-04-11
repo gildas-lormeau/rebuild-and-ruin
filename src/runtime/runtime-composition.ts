@@ -78,7 +78,10 @@ import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
-import { SPECTATOR_SLOT } from "../shared/core/player-slot.ts";
+import {
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import {
   type GameMessage,
   MESSAGE,
@@ -137,9 +140,9 @@ import {
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
- *  seam and never mutate it. Typed as `Set<number>` to match the interface
- *  shape; the shared instance is effectively read-only in practice. */
-const EMPTY_REMOTE_SLOTS: Set<number> = new Set();
+ *  seam, which is `ReadonlySet<ValidPlayerSlot>`, so the shared instance is
+ *  immutable from every caller's perspective. */
+const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerSlot> = new Set();
 
 /**
  * Browser-side bindings for `RuntimeConfig`.
@@ -186,7 +189,7 @@ export function createLocalNetworkApi(
     onMessage?: (
       handler: (msg: ServerMessage) => void | Promise<void>,
     ) => () => void;
-    remotePlayerSlots?: Set<number>;
+    remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
   } = {},
 ): NetworkApi {
   const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;

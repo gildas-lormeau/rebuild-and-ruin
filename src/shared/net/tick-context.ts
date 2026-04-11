@@ -52,7 +52,7 @@ import type { GameState } from "../core/types.ts";
  *  Always read inline — never cache in a local variable across ticks. */
 interface HostNetContext {
   /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
-  remotePlayerSlots: ReadonlySet<number>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   isHost: boolean;
 }
 
@@ -150,7 +150,10 @@ export function tickGruntsIfDue(
  *  self-guard against eliminated players at the mutation boundary. */
 export function localControllers<
   T extends ControllerIdentity = ControllerIdentity,
->(controllers: readonly T[], remotePlayerSlots: ReadonlySet<number>): T[] {
+>(
+  controllers: readonly T[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+): T[] {
   return controllers.filter(
     (ctrl) => !isRemotePlayer(ctrl.playerId, remotePlayerSlots),
   );
@@ -160,7 +163,7 @@ export function localControllers<
  *  Use this instead of inline `remotePlayerSlots.has(pid)` to make intent explicit. */
 export function isRemotePlayer(
   playerId: ValidPlayerSlot,
-  remotePlayerSlots: ReadonlySet<number>,
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
 ): boolean {
   return remotePlayerSlots.has(playerId);
 }
