@@ -15,7 +15,7 @@ import {
   initRouter,
   navigateTo,
   onRoute,
-} from "./shared/router.ts";
+} from "./shared/ui/router.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";

@@ -7,12 +7,12 @@
  * abandon low-score games) hook in here.
  */
 
+import type { GameState } from "../shared/types.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,
   type ResolvedChoice,
-} from "../shared/interaction-types.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/ui/interaction-types.ts";
 
 /** AI decision for a pending life-lost entry. */
 export function aiChooseLifeLost(

@@ -10,20 +10,20 @@
       "src/online/online-dom.ts",
       "src/render/render-sprites.ts",
       "src/runtime/banner-messages.ts",
-      "src/shared/canvas-layout.ts",
+      "src/shared/ui/canvas-layout.ts",
       "src/shared/feature-defs.ts",
       "src/shared/game-constants.ts",
       "src/shared/game-phase.ts",
       "src/shared/grid.ts",
-      "src/shared/input-action.ts",
+      "src/shared/ui/input-action.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/platform.ts",
       "src/shared/player-slot.ts",
       "src/shared/platform/rng.ts",
-      "src/shared/router.ts",
+      "src/shared/ui/router.ts",
       "src/shared/net/routes.ts",
-      "src/shared/settings-defs.ts",
-      "src/shared/ui-mode.ts",
+      "src/shared/ui/settings-defs.ts",
+      "src/shared/ui/ui-mode.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/platform/utils.ts"
     ]
@@ -38,10 +38,10 @@
       "src/shared/battle-events.ts",
       "src/shared/net/checkpoint-data.ts",
       "src/shared/geometry-types.ts",
-      "src/shared/interaction-types.ts",
+      "src/shared/ui/interaction-types.ts",
       "src/shared/modifier-defs.ts",
       "src/shared/pieces.ts",
-      "src/shared/theme.ts"
+      "src/shared/ui/theme.ts"
     ]
   },
   {
@@ -53,7 +53,7 @@
       "src/render/render-ui-theme.ts",
       "src/shared/battle-types.ts",
       "src/shared/game-event-bus.ts",
-      "src/shared/player-config.ts"
+      "src/shared/ui/player-config.ts"
     ]
   },
   {
@@ -63,7 +63,7 @@
       "src/shared/cannon-mode-defs.ts",
       "src/shared/player-types.ts",
       "src/shared/net/protocol.ts",
-      "src/shared/settings-ui.ts"
+      "src/shared/ui/settings-ui.ts"
     ]
   },
   {
@@ -112,7 +112,7 @@
       "src/input/sound-system.ts",
       "src/online/online-session.ts",
       "src/shared/board-occupancy.ts",
-      "src/shared/overlay-types.ts",
+      "src/shared/ui/overlay-types.ts",
       "src/shared/net/tick-context.ts"
     ]
   },
@@ -134,7 +134,7 @@
       "src/render/render-effects.ts",
       "src/render/render-loupe.ts",
       "src/render/render-towers.ts",
-      "src/shared/ui-contracts.ts",
+      "src/shared/ui/ui-contracts.ts",
       "src/game/index.ts",
       "src/game/selection.ts"
     ]

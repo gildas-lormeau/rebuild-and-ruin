@@ -21,12 +21,6 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
-import type {
-  CastleData,
-  RenderObserver,
-  RenderOverlay,
-} from "../shared/overlay-types.ts";
-import { getPlayerColor, MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   DIRS_4,
@@ -39,12 +33,18 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/spatial.ts";
+import type {
+  CastleData,
+  RenderObserver,
+  RenderOverlay,
+} from "../shared/ui/overlay-types.ts";
+import { getPlayerColor, MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import {
   BANNER_HEIGHT_RATIO,
   type RGB,
   rgb,
   STATUSBAR_HEIGHT,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 import {
   drawBattleEffects,
   drawBonusSquares,

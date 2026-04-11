@@ -9,22 +9,22 @@
  */
 
 import { isSelectionPhase, Phase } from "../shared/game-phase.ts";
-import { Action } from "../shared/input-action.ts";
-import { PLAYER_COLORS } from "../shared/player-config.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import {
   rgb,
   TOUCH_ZOOM_ENEMY_BG,
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 import type {
   DpadDeps,
   FloatingActionsDeps,
   FloatingActionsHandle,
   QuitButtonDeps,
   ZoomButtonDeps,
-} from "../shared/ui-contracts.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/ui-contracts.ts";
+import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {
   dispatchGameAction,

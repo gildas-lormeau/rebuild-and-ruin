@@ -25,7 +25,7 @@ import type { GameMap, Viewport } from "../src/shared/geometry-types.ts";
 import type {
   RendererInterface,
   RenderOverlay,
-} from "../src/shared/overlay-types.ts";
+} from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
   SoundObserver,
@@ -41,9 +41,9 @@ export interface NetworkObserver {
   sent?(msg: GameMessage): void;
 }
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/net/phantom-types.ts";
-import { SEED_CUSTOM } from "../src/shared/player-config.ts";
+import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import type { GameMessage, ServerMessage } from "../src/shared/net/protocol.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createGameRuntime,
   createLocalNetworkApi,

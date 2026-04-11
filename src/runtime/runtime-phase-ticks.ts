@@ -57,7 +57,6 @@ import {
   resetAccum,
   tickGruntsIfDue,
 } from "../shared/net/tick-context.ts";
-import type { PlayerStats } from "../shared/overlay-types.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   type HapticsSystem,
@@ -65,7 +64,8 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import type { PlayerStats } from "../shared/ui/overlay-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   assertStateReady,
   type RuntimeState,

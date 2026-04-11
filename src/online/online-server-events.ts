@@ -19,16 +19,16 @@ import {
 import type { ImpactEvent } from "../shared/battle-events.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
 import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
-import {
-  LifeLostChoice,
-  type ResolvedChoice,
-} from "../shared/interaction-types.ts";
 import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
 import { isHostInContext, isRemotePlayer } from "../shared/net/tick-context.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
+import {
+  LifeLostChoice,
+  type ResolvedChoice,
+} from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 

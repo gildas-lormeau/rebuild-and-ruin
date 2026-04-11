@@ -2,7 +2,6 @@ import type { ImpactEvent } from "../shared/battle-events.ts";
 import type { Cannon } from "../shared/battle-types.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import { type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerSeated, type Player } from "../shared/player-types.ts";
 import {
@@ -10,6 +9,7 @@ import {
   hasFeature,
   type UpgradeOfferTuple,
 } from "../shared/types.ts";
+import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import {
   IMPLEMENTED_UPGRADES,
   type UpgradeId,

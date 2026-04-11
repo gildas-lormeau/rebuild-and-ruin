@@ -5,26 +5,9 @@ import {
 import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
 import { isTimedPhase, Phase } from "../shared/game-phase.ts";
 import {
-  type CastleBuildState,
-  type ControlsState,
-  createControlsState,
-  type LifeLostDialogState,
-  type UpgradePickDialogState,
-} from "../shared/interaction-types.ts";
-import {
   createTimerAccums,
   type TimerAccums,
 } from "../shared/net/tick-context.ts";
-import type {
-  FrameData,
-  PlayerStats,
-  RenderOverlay,
-} from "../shared/overlay-types.ts";
-import {
-  type GameSettings,
-  loadSettings,
-  MAX_PLAYERS,
-} from "../shared/player-config.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -37,8 +20,32 @@ import {
   type LobbyState,
   type SelectionState,
 } from "../shared/types.ts";
-import { type BannerState, createBannerState } from "../shared/ui-contracts.ts";
-import { isGameplayMode, isTransitionMode, Mode } from "../shared/ui-mode.ts";
+import {
+  type CastleBuildState,
+  type ControlsState,
+  createControlsState,
+  type LifeLostDialogState,
+  type UpgradePickDialogState,
+} from "../shared/ui/interaction-types.ts";
+import type {
+  FrameData,
+  PlayerStats,
+  RenderOverlay,
+} from "../shared/ui/overlay-types.ts";
+import {
+  type GameSettings,
+  loadSettings,
+  MAX_PLAYERS,
+} from "../shared/ui/player-config.ts";
+import {
+  type BannerState,
+  createBannerState,
+} from "../shared/ui/ui-contracts.ts";
+import {
+  isGameplayMode,
+  isTransitionMode,
+  Mode,
+} from "../shared/ui/ui-mode.ts";
 
 export interface ScoreDisplayState {
   deltas: {

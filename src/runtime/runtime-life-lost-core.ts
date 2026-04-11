@@ -1,4 +1,7 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { eliminatePlayer, isPlayerAlive } from "../shared/player-types.ts";
+import { type GameState } from "../shared/types.ts";
 import {
   type AutoResolveDeps,
   LIFE_LOST_FOCUS_ABANDON,
@@ -8,10 +11,7 @@ import {
   type LifeLostEntry,
   type ResolvedChoice,
   shouldAutoResolve,
-} from "../shared/interaction-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { eliminatePlayer, isPlayerAlive } from "../shared/player-types.ts";
-import { type GameState } from "../shared/types.ts";
+} from "../shared/ui/interaction-types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   needsReselect: readonly ValidPlayerSlot[];

@@ -4,10 +4,10 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/game-phase.ts";
-import { Action } from "../shared/input-action.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform/platform.ts";
-import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   dispatchBattleFire,
   dispatchGameAction,

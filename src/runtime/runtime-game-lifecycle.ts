@@ -9,15 +9,18 @@
  */
 
 import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { SoundSystem } from "../shared/system-interfaces.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
-} from "../shared/interaction-types.ts";
-import type { GameOverOverlay, PlayerStats } from "../shared/overlay-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { SoundSystem } from "../shared/system-interfaces.ts";
-import { Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/interaction-types.ts";
+import type {
+  GameOverOverlay,
+  PlayerStats,
+} from "../shared/ui/overlay-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   createEmptyGameStats,
   type RuntimeState,

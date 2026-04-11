@@ -7,10 +7,10 @@ import {
 import { IMPACT_FLASH_DURATION } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
-import { getPlayerColor } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { facingToCardinal, isWater, unpackTile } from "../shared/spatial.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
+import { getPlayerColor } from "../shared/ui/player-config.ts";
 import {
   BONUS_FLASH_MS,
   drawShadowText,
@@ -21,7 +21,7 @@ import {
   TEXT_ALIGN_CENTER,
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 import { drawSprite } from "./render-sprites.ts";
 
 // Crosshair animation constants

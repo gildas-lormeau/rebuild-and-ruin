@@ -16,10 +16,10 @@
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { UpgradePickEntry } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isGrass } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
+import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;

@@ -32,8 +32,8 @@ import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/grid.ts";
 import {
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
-} from "../src/shared/player-config.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
+} from "../src/shared/ui/player-config.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
 
 /** Center of slot N in canvas-space pixels — what the test dispatches as

@@ -1,17 +1,5 @@
-import { Action } from "../shared/input-action.ts";
-import {
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameOverFocus,
-  type ResolvedChoice,
-} from "../shared/interaction-types.ts";
-import type {
-  LoupeHandle,
-  RendererInterface,
-} from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { OPT_CONTROLS } from "../shared/settings-defs.ts";
 import { zoneTowerCenterPx } from "../shared/spatial.ts";
 import {
   type BattleViewState,
@@ -23,6 +11,18 @@ import {
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  type ResolvedChoice,
+} from "../shared/ui/interaction-types.ts";
+import type {
+  LoupeHandle,
+  RendererInterface,
+} from "../shared/ui/overlay-types.ts";
+import { OPT_CONTROLS } from "../shared/ui/settings-defs.ts";
 import type {
   CreateDpadFn,
   CreateEnemyZoomButtonFn,
@@ -35,8 +35,8 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
-} from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
 

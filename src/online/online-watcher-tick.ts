@@ -14,11 +14,11 @@ import {
   tickGruntsIfDue,
   type WatcherTimingState,
 } from "../shared/net/tick-context.ts";
-import type { FrameData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
+import type { FrameData } from "../shared/ui/overlay-types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   clearWatcherPhaseTimer,

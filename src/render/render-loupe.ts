@@ -10,7 +10,7 @@
  */
 
 import { MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
-import type { LoupeHandle } from "../shared/overlay-types.ts";
+import type { LoupeHandle } from "../shared/ui/overlay-types.ts";
 
 // Loupe rendering constants
 const LOUPE_RADIUS = 12;

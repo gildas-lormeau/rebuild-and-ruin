@@ -15,17 +15,20 @@ import {
 } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import { MAX_UINT32 } from "../shared/platform/rng.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
+import type { GameState, LobbyState } from "../shared/types.ts";
 import {
   type GameSettings,
   type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
   SEED_RANDOM,
-} from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { GameState, LobbyState } from "../shared/types.ts";
+} from "../shared/ui/player-config.ts";
+import {
+  CANNON_HP_OPTIONS,
+  ROUNDS_OPTIONS,
+} from "../shared/ui/settings-defs.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { TimingApi } from "./runtime-types.ts";
 

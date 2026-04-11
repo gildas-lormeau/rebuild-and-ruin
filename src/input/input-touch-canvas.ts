@@ -22,13 +22,13 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/game-phase.ts";
-import { Action } from "../shared/input-action.ts";
 import { cannonSize } from "../shared/spatial.ts";
 import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
-import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
   dispatchBattleFire,

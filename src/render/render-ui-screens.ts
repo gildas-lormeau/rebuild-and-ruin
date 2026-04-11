@@ -7,16 +7,16 @@
 
 import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
-import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { OptionEntry, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
   getPlayerColor,
   type KeyBindings,
   PLAYER_NAMES,
   SEED_CUSTOM,
-} from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/ui/player-config.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -35,9 +35,9 @@ import {
   OPTION_NAMES,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
-} from "../shared/settings-defs.ts";
-import { formatKeyName } from "../shared/settings-ui.ts";
-import type { UIContext } from "../shared/ui-contracts.ts";
+} from "../shared/ui/settings-defs.ts";
+import { formatKeyName } from "../shared/ui/settings-ui.ts";
+import type { UIContext } from "../shared/ui/ui-contracts.ts";
 
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",

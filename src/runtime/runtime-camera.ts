@@ -41,7 +41,7 @@ import {
   zoneTileBounds,
 } from "../shared/spatial.ts";
 import { type GameState } from "../shared/types.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state

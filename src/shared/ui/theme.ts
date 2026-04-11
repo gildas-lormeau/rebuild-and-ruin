@@ -2,7 +2,7 @@
  * Shared UI theme constants for all rendering modules.
  */
 
-import { IS_TOUCH_DEVICE } from "./platform/platform.ts";
+import { IS_TOUCH_DEVICE } from "../platform/platform.ts";
 
 /** RGB color tuple. */
 export type RGB = [number, number, number];

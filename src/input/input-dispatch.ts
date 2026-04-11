@@ -35,12 +35,6 @@ import {
   Phase,
 } from "../shared/game-phase.ts";
 import type { WorldPos } from "../shared/geometry-types.ts";
-import { Action } from "../shared/input-action.ts";
-import type {
-  ControlsState,
-  LifeLostDialogState,
-  UpgradePickDialogState,
-} from "../shared/interaction-types.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
@@ -49,12 +43,18 @@ import {
   type PlayerController,
 } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import type {
+  ControlsState,
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/ui/interaction-types.ts";
 import type {
   GameActionDeps,
   OverlayActionDeps,
   PointerMoveDeps,
-} from "../shared/ui-contracts.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/ui-contracts.ts";
+import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 
 interface QuitFlowDeps {
   getPending: () => boolean;

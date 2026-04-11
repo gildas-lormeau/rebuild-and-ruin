@@ -24,7 +24,7 @@ import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { Rng } from "./platform/rng.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
-import type { Mode } from "./ui-mode.ts";
+import type { Mode } from "./ui/ui-mode.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 export interface GameState {

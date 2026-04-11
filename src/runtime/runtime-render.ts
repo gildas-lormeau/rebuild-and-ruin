@@ -7,13 +7,13 @@
 
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import type { LoupeHandle, RenderOverlay } from "../shared/overlay-types.ts";
-import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -24,7 +24,7 @@ import type {
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
-} from "../shared/ui-contracts.ts";
+} from "../shared/ui/ui-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { TimingApi } from "./runtime-types.ts";
 

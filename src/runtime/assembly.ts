@@ -1,6 +1,5 @@
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import { createEmptyFrameData } from "../shared/overlay-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   BattleViewState,
@@ -9,7 +8,8 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { createEmptyFrameData } from "../shared/ui/overlay-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   computeFrameContext,
   isStateReady,

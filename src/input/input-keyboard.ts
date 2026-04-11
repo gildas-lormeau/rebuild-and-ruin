@@ -1,5 +1,4 @@
 import { isPlacementPhase } from "../shared/game-phase.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/interaction-types.ts";
 import {
   IS_TOUCH_DEVICE,
   KEY_DOWN,
@@ -9,6 +8,8 @@ import {
   KEY_RIGHT,
   KEY_UP,
 } from "../shared/platform/platform.ts";
+import { type GameState } from "../shared/types.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   ACTION_KEYS,
   type KeyBindings,
@@ -16,10 +17,9 @@ import {
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
   SEED_RANDOM,
-} from "../shared/player-config.ts";
-import { type GameState } from "../shared/types.ts";
-import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
-import { isGameplayMode, Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/player-config.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
+import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   dispatchGameAction,
   dispatchQuit,

@@ -6,7 +6,6 @@ import {
 import type { Crosshair } from "../shared/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
-import { Action } from "../shared/input-action.ts";
 import {
   type BagState,
   createBag,
@@ -14,7 +13,6 @@ import {
   type PieceShape,
 } from "../shared/pieces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
-import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { pxToTile, towerCenter, towerCenterTile } from "../shared/spatial.ts";
 import type {
@@ -27,6 +25,8 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import { Action } from "../shared/ui/input-action.ts";
+import type { KeyBindings } from "../shared/ui/player-config.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);

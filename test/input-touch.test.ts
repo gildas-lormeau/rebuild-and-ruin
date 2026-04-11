@@ -19,8 +19,8 @@ import {
   LOBBY_TIMER,
 } from "../src/shared/game-constants.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/grid.ts";
-import { MAX_PLAYERS } from "../src/shared/player-config.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
+import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario } from "./scenario.ts";
 
 /** Center of slot N in canvas-space pixels. Identical to the helper in

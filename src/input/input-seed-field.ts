@@ -1,4 +1,4 @@
-import type { SeedField } from "../shared/ui-contracts.ts";
+import type { SeedField } from "../shared/ui/ui-contracts.ts";
 
 export function createSeedField(
   maxLength: number,

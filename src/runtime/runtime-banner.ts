@@ -9,11 +9,14 @@ import { snapshotCastles, snapshotEntities } from "../game/index.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
-import type { EntityOverlay } from "../shared/overlay-types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { GameState } from "../shared/types.ts";
-import { type BannerState, createBannerState } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import type { EntityOverlay } from "../shared/ui/overlay-types.ts";
+import {
+  type BannerState,
+  createBannerState,
+} from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   assertStateReady,
   type RuntimeState,

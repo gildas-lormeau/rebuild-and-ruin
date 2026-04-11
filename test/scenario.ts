@@ -39,7 +39,7 @@
 // HTMLInputElement` without throwing in Deno.
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
-import type { RenderObserver } from "../src/shared/overlay-types.ts";
+import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
   SoundObserver,
@@ -61,7 +61,7 @@ import {
 import type { Phase } from "../src/shared/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/shared/net/protocol.ts";
 import type { GameState } from "../src/shared/types.ts";
-import type { Mode } from "../src/shared/ui-mode.ts";
+import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";

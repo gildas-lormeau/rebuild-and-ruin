@@ -83,20 +83,20 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../shared/net/protocol.ts";
+import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
 import type {
   RendererInterface,
   RenderOverlay,
-} from "../shared/overlay-types.ts";
-import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+} from "../shared/ui/overlay-types.ts";
 import {
   computeGameSeed,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
-} from "../shared/player-config.ts";
-import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
-import { cycleOption } from "../shared/settings-ui.ts";
-import type { UIContext } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/player-config.ts";
+import { cycleOption } from "../shared/ui/settings-ui.ts";
+import type { UIContext } from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
 import { createBannerSystem } from "./runtime-banner.ts";

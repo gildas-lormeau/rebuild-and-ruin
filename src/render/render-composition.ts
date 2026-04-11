@@ -11,6 +11,14 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  type ComboEvent,
+  type GameState,
+  type SelectionState,
+} from "../shared/types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -19,8 +27,7 @@ import {
   type LifeLostDialogState,
   type ResolvedChoice,
   type UpgradePickDialogState,
-} from "../shared/interaction-types.ts";
-import { modifierDef } from "../shared/modifier-defs.ts";
+} from "../shared/ui/interaction-types.ts";
 import {
   type CastleData,
   type GameOverOverlay,
@@ -28,10 +35,8 @@ import {
   type PlayerStats,
   type RenderOverlay,
   type UpgradePickOverlay,
-} from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { getPlayerColor, PLAYER_NAMES } from "../shared/player-config.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/ui/overlay-types.ts";
+import { getPlayerColor, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -43,17 +48,12 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
   type RGB,
-} from "../shared/theme.ts";
-import {
-  type ComboEvent,
-  type GameState,
-  type SelectionState,
-} from "../shared/types.ts";
+} from "../shared/ui/theme.ts";
 import type {
   LobbyHit,
   OnlineOverlayParams,
   RenderSummaryParams,
-} from "../shared/ui-contracts.ts";
+} from "../shared/ui/ui-contracts.ts";
 import { UPGRADE_POOL } from "../shared/upgrade-defs.ts";
 
 interface GameOverLayout {

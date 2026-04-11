@@ -1,5 +1,5 @@
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { BannerShow } from "../shared/ui-contracts.ts";
+import type { BannerShow } from "../shared/ui/ui-contracts.ts";
 import {
   BANNER_BATTLE,
   BANNER_BATTLE_SUB,

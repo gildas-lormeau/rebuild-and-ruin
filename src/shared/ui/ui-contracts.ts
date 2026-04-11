@@ -1,7 +1,16 @@
-import type { Impact } from "./battle-types.ts";
-import type { ModifierDiff } from "./game-constants.ts";
-import { Phase } from "./game-phase.ts";
-import type { GameMap, WorldPos } from "./geometry-types.ts";
+import type { Impact } from "../battle-types.ts";
+import type { ModifierDiff } from "../game-constants.ts";
+import { Phase } from "../game-phase.ts";
+import type { GameMap, WorldPos } from "../geometry-types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../player-slot.ts";
+import type {
+  BattleViewState,
+  BuildViewState,
+  CannonViewState,
+  InputReceiver,
+  PlayerController,
+} from "../system-interfaces.ts";
+import type { GameState, LobbyState, SelectionState } from "../types.ts";
 import type { Action } from "./input-action.ts";
 import type {
   ControlsState,
@@ -18,16 +27,7 @@ import type {
   RenderOverlay,
 } from "./overlay-types.ts";
 import type { GameSettings, KeyBindings, SeedMode } from "./player-config.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
-import type {
-  BattleViewState,
-  BuildViewState,
-  CannonViewState,
-  InputReceiver,
-  PlayerController,
-} from "./system-interfaces.ts";
 import type { RGB } from "./theme.ts";
-import type { GameState, LobbyState, SelectionState } from "./types.ts";
 import type { Mode } from "./ui-mode.ts";
 
 export interface UIContext {

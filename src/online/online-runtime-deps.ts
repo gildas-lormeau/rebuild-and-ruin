@@ -33,9 +33,9 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../shared/net/protocol.ts";
-import { PLAYER_NAMES } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { createError, joinError } from "./online-dom.ts";
 import {
   handleBattleStartTransition,

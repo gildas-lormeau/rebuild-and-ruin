@@ -6,7 +6,7 @@ import {
   PANEL_BG,
   TEXT_ALIGN_CENTER,
   TEXT_BASELINE_MIDDLE,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 
 interface ButtonStyle {
   fill: string;

@@ -7,9 +7,9 @@ import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/game-constants.ts";
 import type { FullStateMessage, InitMessage } from "../shared/net/protocol.ts";
 import { ROUTE_ONLINE } from "../shared/net/routes.ts";
-import { MAX_PLAYERS } from "../shared/player-config.ts";
-import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/router.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
+import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/ui/router.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
 import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import {

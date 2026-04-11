@@ -60,10 +60,6 @@
 
 import type { BalloonFlight, Crosshair } from "../shared/battle-types.ts";
 import type { GameMap, Viewport, WorldPos } from "../shared/geometry-types.ts";
-import type {
-  LifeLostDialogState,
-  UpgradePickDialogState,
-} from "../shared/interaction-types.ts";
 import type { BattleStartData } from "../shared/net/checkpoint-data.ts";
 import type {
   CannonPhantom,
@@ -72,7 +68,6 @@ import type {
 } from "../shared/net/phantom-types.ts";
 import type { GameMessage, ServerMessage } from "../shared/net/protocol.ts";
 import type { WatcherTimingState } from "../shared/net/tick-context.ts";
-import type { RendererInterface } from "../shared/overlay-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   BattleController,
@@ -89,6 +84,11 @@ import type {
   SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/types.ts";
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/ui/interaction-types.ts";
+import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";

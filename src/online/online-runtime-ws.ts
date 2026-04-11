@@ -15,7 +15,7 @@
 
 import type { ServerMessage } from "../shared/net/protocol.ts";
 import { isHostInContext } from "../shared/net/tick-context.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {

@@ -31,8 +31,8 @@ import {
   TILE_SIZE,
   Tile,
 } from "./grid.ts";
-import { Action } from "./input-action.ts";
 import { isPlayerEliminated } from "./player-types.ts";
+import { Action } from "./ui/input-action.ts";
 
 /** Tile bounding rect (row/col extremes). */
 interface TileBounds {

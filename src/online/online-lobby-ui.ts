@@ -1,7 +1,7 @@
 import { type ClientMessage, MESSAGE } from "../shared/net/protocol.ts";
 import { API_ROOMS_PATH } from "../shared/net/routes.ts";
-import { MAX_PLAYERS } from "../shared/player-config.ts";
-import { GOLD, PANEL_BG } from "../shared/theme.ts";
+import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
+import { GOLD, PANEL_BG } from "../shared/ui/theme.ts";
 import { computeApiUrl } from "./online-config.ts";
 
 interface LobbyElements {

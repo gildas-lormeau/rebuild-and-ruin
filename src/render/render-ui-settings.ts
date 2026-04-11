@@ -5,8 +5,11 @@
  * hit-test logic consumed by runtime-options.ts.
  */
 
-import type { ControlsPlayer, RenderOverlay } from "../shared/overlay-types.ts";
-import { HIT_ARROW, HIT_CLOSE } from "../shared/settings-defs.ts";
+import type {
+  ControlsPlayer,
+  RenderOverlay,
+} from "../shared/ui/overlay-types.ts";
+import { HIT_ARROW, HIT_CLOSE } from "../shared/ui/settings-defs.ts";
 import {
   BUTTON_FLASH_MS,
   CURSOR_BLINK_MS,
@@ -25,8 +28,8 @@ import {
   TEXT_ALIGN_LEFT,
   TEXT_ALIGN_RIGHT,
   TEXT_WHITE,
-} from "../shared/theme.ts";
-import type { ControlsHit, OptionsHit } from "../shared/ui-contracts.ts";
+} from "../shared/ui/theme.ts";
+import type { ControlsHit, OptionsHit } from "../shared/ui/ui-contracts.ts";
 import {
   beginModalScreen,
   INSET,

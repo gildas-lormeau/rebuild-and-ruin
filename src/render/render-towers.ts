@@ -1,16 +1,16 @@
 import type { GameMap } from "../shared/geometry-types.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
-import { getPlayerColor, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
+import { getPlayerColor, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import {
   FONT_FLOAT_LG,
   rgb,
   SHADOW_COLOR_DENSE,
   TEXT_ALIGN_CENTER,
   TOWER_FLASH_MS,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
 
 /** Draw towers (alive, destroyed, highlighted, selected). */

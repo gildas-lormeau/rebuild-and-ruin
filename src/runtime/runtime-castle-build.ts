@@ -4,11 +4,11 @@
  */
 
 import { addPlayerWall } from "../shared/board-occupancy.ts";
+import type { GameState } from "../shared/types.ts";
 import type {
   CastleBuildState,
   CastleWallPlan,
-} from "../shared/interaction-types.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/ui/interaction-types.ts";
 
 /** Create the initial animation state for a castle-build sequence. */
 export function createCastleBuildState(

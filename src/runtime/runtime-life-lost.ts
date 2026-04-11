@@ -2,15 +2,15 @@ import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../shared/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isHuman } from "../shared/system-interfaces.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
   type LifeLostEntry,
   type ResolvedChoice,
-} from "../shared/interaction-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isHuman } from "../shared/system-interfaces.ts";
-import { Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/interaction-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   applyLifeLostChoice,
   confirmLifeLostFocusedChoice,

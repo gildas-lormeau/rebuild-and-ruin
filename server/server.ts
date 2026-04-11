@@ -4,8 +4,8 @@ import {
   HEALTH_PATH,
   WS_PLAY_PATH,
 } from "../src/shared/net/routes.ts";
-import { PLAYER_NAMES } from "../src/shared/player-config.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();

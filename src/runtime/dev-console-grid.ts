@@ -8,10 +8,10 @@
 
 import { TOWER_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
-import { PLAYER_NAMES } from "../shared/player-config.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import { isWater, unpackTile } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
+import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";
 

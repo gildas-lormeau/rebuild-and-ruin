@@ -4,15 +4,15 @@ import type {
   Crosshair,
   Grunt,
   Impact,
-} from "./battle-types.ts";
-import type { GameMap, House, TilePos, Viewport } from "./geometry-types.ts";
-import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
+} from "../battle-types.ts";
+import type { GameMap, House, TilePos, Viewport } from "../geometry-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
-} from "./net/phantom-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
-import type { FreshInterior } from "./player-types.ts";
+} from "../net/phantom-types.ts";
+import type { ValidPlayerSlot } from "../player-slot.ts";
+import type { FreshInterior } from "../player-types.ts";
+import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };

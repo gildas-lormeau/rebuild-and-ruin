@@ -3,20 +3,20 @@ import {
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
-} from "../shared/interaction-types.ts";
+} from "../shared/ui/interaction-types.ts";
 import {
   type GameOverOverlay,
   type RenderOverlay,
   type UpgradePickCard,
-} from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
+} from "../shared/ui/overlay-types.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -61,7 +61,7 @@ import {
   TEXT_ALIGN_RIGHT,
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
-} from "../shared/theme.ts";
+} from "../shared/ui/theme.ts";
 import {
   computeLobbyLayout,
   GAMEOVER_BTN_H,

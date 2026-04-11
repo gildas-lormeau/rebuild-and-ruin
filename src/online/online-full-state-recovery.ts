@@ -1,5 +1,5 @@
 import { Phase } from "../shared/game-phase.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 
 type RecoveredBalloonFlight = {
   flight: { startX: number; startY: number; endX: number; endY: number };

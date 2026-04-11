@@ -27,10 +27,6 @@ import {
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_COUNT } from "../shared/grid.ts";
-import {
-  FOCUS_REMATCH,
-  type GameOverFocus,
-} from "../shared/interaction-types.ts";
 import type {
   BattleStartData,
   BuildEndData,
@@ -39,14 +35,18 @@ import type {
 } from "../shared/net/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
 import type { WatcherTimingState } from "../shared/net/tick-context.ts";
-import type { CastleData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { RGB } from "../shared/theme.ts";
 import { type GameState } from "../shared/types.ts";
-import type { BannerShow } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import {
+  FOCUS_REMATCH,
+  type GameOverFocus,
+} from "../shared/ui/interaction-types.ts";
+import type { CastleData } from "../shared/ui/overlay-types.ts";
+import type { RGB } from "../shared/ui/theme.ts";
+import type { BannerShow } from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimerAtBannerEnd } from "./online-types.ts";
 
@@ -83,7 +83,7 @@ export interface TransitionContext {
       prevCastles?: CastleData[];
       prevTerritory?: Set<number>[];
       prevWalls?: Set<number>[];
-      prevEntities?: import("../shared/overlay-types.ts").EntityOverlay;
+      prevEntities?: import("../shared/ui/overlay-types").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
       modifierDiff?: import("../shared/game-constants.ts").ModifierDiff;
     };

@@ -17,7 +17,7 @@ import type { GameMode } from "../src/shared/game-constants.ts";
 import type { GameState } from "../src/shared/types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
-import { Mode } from "../src/shared/ui-mode.ts";
+import { Mode } from "../src/shared/ui/ui-mode.ts";
 
 // ---------------------------------------------------------------------------
 // DedupChannel

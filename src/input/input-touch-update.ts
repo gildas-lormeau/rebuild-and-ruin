@@ -8,8 +8,8 @@ import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { TouchControlsDeps } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import type { TouchControlsDeps } from "../shared/ui/ui-contracts.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 
 type TouchBtnRule = boolean | "interactive";
 

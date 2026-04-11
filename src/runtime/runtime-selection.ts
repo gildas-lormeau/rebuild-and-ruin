@@ -18,14 +18,12 @@ import {
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
 import { isReselectPhase, Phase } from "../shared/game-phase.ts";
-import type { CastleWallPlan } from "../shared/interaction-types.ts";
 import {
   ACCUM_SELECT,
   isRemotePlayer,
   type MutableAccums,
   resetAccum,
 } from "../shared/net/tick-context.ts";
-import type { EntityOverlay, RenderOverlay } from "../shared/overlay-types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
@@ -35,7 +33,12 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { SelectionState } from "../shared/types.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
+import type {
+  EntityOverlay,
+  RenderOverlay,
+} from "../shared/ui/overlay-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
 import {
   createCastleBuildState,

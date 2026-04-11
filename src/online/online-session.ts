@@ -11,7 +11,6 @@ import {
   type GameMode,
   LOBBY_TIMER,
 } from "../shared/game-constants.ts";
-import type { LifeLostChoice } from "../shared/interaction-types.ts";
 import {
   createDedupChannel,
   type DedupChannel,
@@ -27,6 +26,7 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
+import type { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;

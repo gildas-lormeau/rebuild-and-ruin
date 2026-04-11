@@ -16,10 +16,10 @@ import {
   type ServerMessage,
 } from "../shared/net/protocol.ts";
 import { isHostInContext } from "../shared/net/tick-context.ts";
-import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { GAME_EXIT_EVENT } from "../shared/router.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
+import { GAME_EXIT_EVENT } from "../shared/ui/router.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import { canvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,

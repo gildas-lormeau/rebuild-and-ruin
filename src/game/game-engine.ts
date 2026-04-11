@@ -30,7 +30,6 @@ import {
 import { createGameEventBus } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
-import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
@@ -39,6 +38,7 @@ import {
   type SelectionState,
   setGameMode,
 } from "../shared/types.ts";
+import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {
   prepareCannonPhase,

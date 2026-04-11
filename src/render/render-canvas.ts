@@ -11,8 +11,8 @@
 import {
   clientToCanvas,
   computeLetterboxLayout,
-} from "../shared/canvas-layout.ts";
-import type { RendererInterface } from "../shared/overlay-types.ts";
+} from "../shared/ui/canvas-layout.ts";
+import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 

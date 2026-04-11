@@ -1,28 +1,28 @@
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../shared/platform/platform.ts";
+import type {
+  HapticsSystem,
+  SoundSystem,
+} from "../shared/system-interfaces.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,
   MAX_PLAYERS,
   SEED_CUSTOM,
   saveSettings,
-} from "../shared/player-config.ts";
+} from "../shared/ui/player-config.ts";
 import {
   HIT_ARROW,
   HIT_CLOSE,
   OPT_CONTROLS,
   OPT_SEED,
-} from "../shared/settings-defs.ts";
-import type { CycleOptionFn } from "../shared/settings-ui.ts";
-import type {
-  HapticsSystem,
-  SoundSystem,
-} from "../shared/system-interfaces.ts";
+} from "../shared/ui/settings-defs.ts";
+import type { CycleOptionFn } from "../shared/ui/settings-ui.ts";
 import type {
   ControlsScreenHitTestFn,
   CreateControlsOverlayFn,
@@ -31,8 +31,8 @@ import type {
   SeedField,
   UIContext,
   VisibleOptionsFn,
-} from "../shared/ui-contracts.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+} from "../shared/ui/ui-contracts.ts";
+import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   type RuntimeState,
   resetFrameTiming,

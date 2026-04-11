@@ -18,14 +18,14 @@
 import { CANNON_MODE_IDS } from "../src/shared/cannon-mode-defs.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";
-import { LifeLostChoice } from "../src/shared/interaction-types.ts";
 import {
   MESSAGE,
   type MessageType,
   type RoomSettings,
   sanitizeRoomSettings,
 } from "../src/shared/net/protocol.ts";
-import { MAX_PLAYERS } from "../src/shared/player-config.ts";
+import { LifeLostChoice } from "../src/shared/ui/interaction-types.ts";
+import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
 /** Phase values the server tracks for message gating.
