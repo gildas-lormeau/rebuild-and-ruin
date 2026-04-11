@@ -119,7 +119,11 @@ export function isTouchSuppressed(): boolean {
  *  dispatch), and touch (touchend / pinch-tap rotate) — MUST route their
  *  "is this a game input?" check through this helper. Do NOT inline
  *  `!!state && isInteractiveMode(mode)` at new call sites; copy-paste drift
- *  across the three input types is exactly what this helper exists to prevent. */
+ *  across the three input types is exactly what this helper exists to prevent.
+ *
+ *  Note: this helper is SEPARATE from the looser `!state || lobby.isActive()`
+ *  gate used by mousemove/touchmove for cursor position updates. Those sites
+ *  intentionally fire in non-interactive modes and don't go through here. */
 export function shouldHandleGameInput(
   mode: Mode,
   state: GameState | undefined,

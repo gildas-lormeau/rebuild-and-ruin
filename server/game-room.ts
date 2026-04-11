@@ -46,13 +46,21 @@ type ServerPhase = Phase | ServerOnlyPhase;
 // Compile-time guarantee: server-only phase strings must NOT collide with any
 // Phase enum value. A collision would make PHASE_GATES[someMessage] lookups
 // match the wrong state, silently bypassing or falsely triggering phase gates.
-// Using `satisfies` here because `& Phase` would resolve to `never` even on
-// success; this form fails at the definition if any key leaks into Phase.
-type _ServerOnlyPhaseDisjoint = ServerOnlyPhase extends Phase
-  ? ["ServerOnlyPhase overlaps Phase — rename to avoid collision"]
-  : true;
-const _assertServerPhaseDisjoint: _ServerOnlyPhaseDisjoint = true;
-void _assertServerPhaseDisjoint;
+//
+// Uses `Extract<A, B> | Extract<B, A>` wrapped in a tuple to prevent
+// distribution — the resulting union must be `never`, otherwise TypeScript
+// cannot assign `true` to `false` below and the build fails with a message
+// naming the offending overlap.
+//
+// This catches collisions in BOTH directions:
+//   - A new entry in SERVER_ONLY_PHASE that happens to match a Phase value
+//   - A new Phase enum member that happens to match a SERVER_ONLY_PHASE key
+type PhaseServerOverlap =
+  | Extract<ServerOnlyPhase, Phase>
+  | Extract<Phase, ServerOnlyPhase>;
+type PhaseServerDisjoint = [PhaseServerOverlap] extends [never] ? true : false;
+const phaseServerDisjointCheck: PhaseServerDisjoint = true;
+void phaseServerDisjointCheck;
 
 // ---------------------------------------------------------------------------
 // Message validation tables

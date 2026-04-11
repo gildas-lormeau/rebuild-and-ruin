@@ -331,8 +331,12 @@ sufficient for LLM agents to follow correctly.
     ai/ai-strategy-build.ts:485 documents why gaps and castle-rect tiles are excluded
     from the interior set during candidate scoring. Prevents penalizing gap-filling.
 
-38. **`withPointerPlayer` callback may silently not execute** — input/input.ts:58-61 JSDoc
-    explicitly warns that the callback is NOT invoked if no human players exist.
+38. **`withPointerPlayer` returns a boolean; callback may silently not execute** —
+    runtime/runtime-human.ts returns `true` if the callback ran, `false` when
+    there is no human player to receive input (all-AI / demo / online-watcher).
+    Ignoring the return value preserves the legacy silent-no-op behavior;
+    inspect it when you need to surface a diagnostic or suppress a fallback.
+    The contract is documented on every `withPointerPlayer` field in ui-contracts.ts.
 
 39. **`>>> 0` uint32 coercion in deriveAiStrategySeed** —
     online/online-host-promotion.ts:111 inline comment explains the idiom.
@@ -587,3 +591,106 @@ sufficient for LLM agents to follow correctly.
 98. **`PHASE_ONLY_VOL` and wave shape constants are named in sound-system.ts** —
     input/sound-system.ts:23-28 defines WAVE_SQUARE/SAWTOOTH/NOISE and PHASE_ONLY_VOL.
     Do not use magic numbers 0/1/3 or 0.5 for these.
+
+99. **`setWatcherPhaseTimerAtBannerEnd` is the canonical watcher phase-timer anchor** —
+    online/online-types.ts exports the helper; online/online-phase-transitions.ts
+    calls it from inside every banner onComplete callback (cannon-start AND
+    build-start). Do NOT pre-compute the origin as `bannerStartedAt + bannerDuration`
+    — the helper uses `performance.now()` inside the callback, which is robust
+    to frame drops. The two call sites intentionally share the same pattern.
+
+100. **Server validation tables (RATE_LIMITED_TYPES, HOST_ONLY, PHASE_GATES) are typed
+    against MessageType** — server/game-room.ts seed arrays use
+    `as const satisfies readonly MessageType[]` so a renamed/removed MESSAGE
+    constant breaks the build. The runtime Set type stays `ReadonlySet<string>`
+    for call-site ergonomics at the untyped JSON boundary. PHASE_GATES uses
+    `Partial<Record<MessageType, ...>>` for the same reason.
+
+101. **initWs → initPromote → initDeps ordering invariant is documented in all
+    three online-runtime init modules** — online-runtime-ws.ts, online-runtime-promote.ts,
+    online-runtime-deps.ts all have matching ORDERING INVARIANT JSDoc at their
+    module headers. online-runtime-game.ts:initOnlineRuntime() is the sole caller
+    that sequences them. Refactoring any init module without reading the others'
+    invariant is a bug risk.
+
+102. **Phase-entry / prepare / start contract is canonical in phase-setup.ts** —
+    game/phase-setup.ts module header documents the three-step pattern
+    (enterXPhase mutates phase+timer, prepareXPhase computes derived state,
+    startXPhase initializes controllers). Host uses all three, watcher skips
+    prepare. game/game-engine.ts:enterCannonPlacePhase points at phase-setup
+    rather than restating the contract.
+
+103. **SERVER_ONLY_PHASE is disjoint from Phase enum — compile-time enforced** —
+    server/game-room.ts defines SERVER_ONLY_PHASE as a const object plus a
+    bidirectional `Extract<ServerOnlyPhase, Phase> | Extract<Phase, ServerOnlyPhase>`
+    tuple-wrapped guard. Adding a value to either side that collides with the
+    other fails the build with a clear error. Use `SERVER_ONLY_PHASE.LOBBY` /
+    `.CASTLE_BUILD` instead of string literals at assignment sites.
+
+104. **`SOUND_OFF` is exported from shared/game-constants.ts** — no longer
+    duplicated in shared/player-config.ts. The full ladder (SOUND_OFF,
+    SOUND_PHASE_ONLY, SOUND_ALL) is all in game-constants; HAPTICS_OFF remains
+    implicit (checked via `>= HAPTICS_PHASE_ONLY`).
+
+105. **`Cannonball.scoringPlayerId` is `ValidPlayerSlot | undefined`** —
+    shared/battle-types.ts narrowed it from raw `number` to match the sibling
+    `playerId: ValidPlayerSlot` field. shared/protocol.ts wire format and
+    game/battle-system.ts launchCannonball parameter agree. Do not widen back
+    to `number` — the brand prevents accidental use of non-slot indices.
+
+106. **Banner scene-snapshot field names are `bannerPrev{Castles,Territory,Walls,Entities}`** —
+    shared/overlay-types.ts UIOverlay uses these four fields without a "Battle"
+    infix (the old `bannerPrevBattleTerritory` / `bannerPrevBattleWalls` names
+    were inconsistent with their sibling fields). shared/ui-contracts.ts
+    BannerState uses the same `prev*` stems (no `banner` prefix since they're
+    already scoped to the state). render-composition/render-map map one to the other.
+
+107. **Watcher and host share banner text** — online/online-phase-transitions.ts
+    no longer has BANNER_BATTLE_ONLINE / BANNER_REPAIR_ONLINE. Both host and
+    watcher call `showBattlePhaseBanner(show, onDone)` / `showBuildPhaseBanner(show, onDone, modifier?)`
+    with hardcoded canonical titles from phase-banner.ts (BANNER_BATTLE,
+    BANNER_BUILD). The two helpers no longer take a `text` parameter — matching
+    the pre-existing showCannonPhaseBanner shape.
+
+108. **`ACCUM_BATTLE` / `ACCUM_CANNON` / `ACCUM_BUILD` / `ACCUM_GRUNT` constants
+    are the canonical timer-accumulator keys** — shared/tick-context.ts exports
+    them as `"battle" satisfies keyof TimerAccums` etc. All `advancePhaseTimer`
+    call sites use the constants, never string literals. runtime-phase-ticks.ts
+    imports them alongside `advancePhaseTimer`.
+
+109. **Interior staleness contract is canonical in applyImpactEvent JSDoc** —
+    game/battle-system.ts:applyImpactEvent has the full contract explanation;
+    battle-system inline comments and grunt-system:removeWallFromAllPlayers
+    cross-reference it with one-line pointers. Do not restate the invariant
+    at each wall-mutation site; link to applyImpactEvent instead.
+
+110. **`shouldHandleGameInput(mode, state)` is the canonical click/tap/keydown
+    game-input gate** — input/input-dispatch.ts exports it as a type predicate
+    narrowing `state` to `GameState`. Mouse/keyboard/touch all route their
+    "is this a game action?" check through this helper. CONTRAST with the
+    looser `!state || lobby.isActive()` gate used by mousemove/touchmove for
+    cursor-position updates — those sites do NOT go through shouldHandleGameInput
+    and intentionally fire in more modes. Pick the right helper for each site.
+
+111. **`tryPlaceCannon` returns `boolean`; this is an intentional exception
+    to pattern #83** — player/controller-human.ts has an expanded JSDoc on
+    both tryPlaceCannon and tryPlacePiece noting the contrast. tryPlaceCannon
+    calls `placeCannon` directly; tryPlacePiece returns a `PlacePieceIntent | null`
+    that the orchestrator executes. Do not copy the intent shape into
+    tryPlaceCannon without also rewriting placeCannon.
+
+112. **Dialog completion patterns are compared in a decision table** —
+    runtime/runtime-types.ts above RuntimeScoreDelta has a side-by-side table
+    of the three intentional patterns (ScoreDelta stored-on-state + fireOnce,
+    LifeLost method on system, UpgradePick local closure). runtime-banner.ts,
+    runtime-life-lost.ts, and runtime-upgrade-pick.ts all cross-reference
+    this table from their module headers. Read the table before adding a
+    fourth dialog.
+
+113. **`AiController` structurally satisfies SelectionHost & BuildHost &
+    CannonHost & BattleHost — enforced at the class site** —
+    ai/controller-ai.ts bottom has a `const phaseHostsCheck: AllAiPhaseHosts = controller;`
+    type-level assertion. Each ai-phase-*.ts exports its Host interface so the
+    assertion can reference all four at once. Renaming a field on AiController
+    that any Host depends on now breaks the build at the class declaration,
+    not at downstream tick() call sites.
