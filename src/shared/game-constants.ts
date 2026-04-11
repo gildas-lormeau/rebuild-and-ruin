@@ -198,6 +198,12 @@ export const DIFFICULTY_PARAMS = [
 export const MASTER_BUILDER_BONUS_SECONDS = 5;
 /** Extra build seconds granted by the Double Time upgrade. */
 export const DOUBLE_TIME_BONUS_SECONDS = 10;
+/** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
+export const RAPID_FIRE_SPEED_MULT = 1.5;
+/** Mortar cannonball speed multiplier (half speed). */
+export const MORTAR_SPEED_MULT = 0.5;
+/** Extra cannon slots granted by the Supply Drop upgrade. */
+export const SUPPLY_DROP_BONUS = 2;
 /** Haptics/sound level encoding shared across settings UI and subsystems.
  *  0=off, 1=phase changes only, 2=all. */
 // HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)

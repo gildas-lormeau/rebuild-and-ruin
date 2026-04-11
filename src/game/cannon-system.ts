@@ -47,10 +47,10 @@ import {
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
 import { UID } from "../shared/upgrade-defs.ts";
+import { cannonSlotsBonus } from "./upgrade-system.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
-const SUPPLY_DROP_BONUS = 2;
 
 /** Whether any valid placement exists for the given cannon mode in the player's territory. */
 export function hasAnyCannonPlacement(
@@ -314,11 +314,8 @@ function applyDefaultFacings(state: GameViewState): void {
 function computeCannonLimitsForPhase(state: GameState): void {
   state.cannonLimits = state.players.map((player, idx) => {
     const base = cannonSlotsForRound(player, state);
-    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
-      ? SUPPLY_DROP_BONUS
-      : 0;
     const salvage = state.salvageSlots[idx] ?? 0;
-    return base + supplyDrop + salvage;
+    return base + cannonSlotsBonus(player) + salvage;
   });
   state.salvageSlots = state.players.map(() => 0);
   state.reselectedPlayers.clear();

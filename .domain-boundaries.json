@@ -57,7 +57,13 @@
       "src/game/selection.ts",
       "src/game/phase-banner.ts",
       "src/game/upgrade-system.ts",
+      "src/game/upgrades/ceasefire.ts",
+      "src/game/upgrades/double-time.ts",
       "src/game/upgrades/master-builder.ts",
+      "src/game/upgrades/rapid-fire.ts",
+      "src/game/upgrades/reinforced-walls.ts",
+      "src/game/upgrades/supply-drop.ts",
+      "src/game/upgrades/territorial-ambition.ts",
       "src/game/index.ts"
     ],
     "ai": [

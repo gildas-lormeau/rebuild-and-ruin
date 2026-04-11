@@ -48,8 +48,6 @@ import {
 import { FID } from "../shared/feature-defs.ts";
 import {
   BATTLE_TIMER,
-  DOUBLE_TIME_BONUS_SECONDS,
-  MASTER_BUILDER_BONUS_SECONDS,
   MODIFIER_ID,
   type ModifierDiff,
 } from "../shared/game-constants.ts";
@@ -72,7 +70,6 @@ import {
   unpackTile,
 } from "../shared/spatial.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
-import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
@@ -112,6 +109,7 @@ import {
   rollModifier,
 } from "./round-modifiers.ts";
 import {
+  buildTimerBonus,
   generateUpgradeOffers,
   onBuildPhaseStart,
   resetPlayerUpgrades,
@@ -212,18 +210,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // Upgrade-effect setup for the new build phase (Master Builder owners +
   // lockout, plus any future hooks wired into onBuildPhaseStart).
   onBuildPhaseStart(state);
-
-  // Timer bonus: Master Builder is aggregated via the dispatcher; DOUBLE_TIME
-  // stays inline until it is migrated to src/game/upgrades/ in a follow-up.
-  const doubleTime =
-    hasFeature(state, FID.UPGRADES) &&
-    isGlobalUpgradeActive(state.players, UID.DOUBLE_TIME)
-      ? DOUBLE_TIME_BONUS_SECONDS
-      : 0;
-  const mbBonus = state.modern?.masterBuilderOwners?.size
-    ? MASTER_BUILDER_BONUS_SECONDS
-    : 0;
-  state.timer = state.buildTimer + mbBonus + doubleTime;
+  state.timer = state.buildTimer + buildTimerBonus(state);
 
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);

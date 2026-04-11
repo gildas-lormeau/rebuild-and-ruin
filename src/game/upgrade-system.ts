@@ -1,9 +1,17 @@
 import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
+import {
+  MORTAR_SPEED_MULT,
+  RAPID_FIRE_SPEED_MULT,
+} from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import { type ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated, isPlayerSeated } from "../shared/player-types.ts";
+import {
+  isPlayerEliminated,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
 import {
   computeOutside,
   DIRS_8,
@@ -18,27 +26,30 @@ import {
 } from "../shared/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
-  isGlobalUpgradeActive,
   UID,
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
+import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
+import { doubleTimeBuildTimerBonus } from "./upgrades/double-time.ts";
 import {
   masterBuilderAllowsBuild,
   masterBuilderOnBuildStart,
   masterBuilderTick,
   masterBuilderTimerBonus,
 } from "./upgrades/master-builder.ts";
+import { rapidFireOwns } from "./upgrades/rapid-fire.ts";
+import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
+import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
+import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
 
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
 
-/** True when this round's battle phase should be skipped entirely.
- *  Currently triggered by the Ceasefire upgrade — future upgrades or
- *  modifiers may add other reasons. */
+/** True when this round's battle phase should be skipped entirely. */
 export function shouldSkipBattle(state: GameState): boolean {
-  return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
+  return ceasefireShouldSkipBattle(state);
 }
 
 /** Whether this player is allowed to build this frame.
@@ -52,7 +63,35 @@ export function canBuildThisFrame(
 
 /** Build timer bonus contributed by active upgrades (additive). */
 export function buildTimerBonus(state: GameState): number {
-  return masterBuilderTimerBonus(state);
+  return masterBuilderTimerBonus(state) + doubleTimeBuildTimerBonus(state);
+}
+
+/** Cannonball speed multiplier for a firing cannon. Combines upgrade
+ *  contributions (Rapid Fire) with cannon-mode effects (mortar). Encodes
+ *  the design rule that Rapid Fire + Mortar cancel out to normal speed. */
+export function ballSpeedMult(player: Player, isMortar: boolean): number {
+  const hasRapidFire = rapidFireOwns(player);
+  if (isMortar && hasRapidFire) return 1;
+  if (isMortar) return MORTAR_SPEED_MULT;
+  if (hasRapidFire) return RAPID_FIRE_SPEED_MULT;
+  return 1;
+}
+
+/** True when a wall hit should be absorbed (wall survives this shot).
+ *  Caller is responsible for emitting WALL_ABSORBED and marking the tile
+ *  in damagedWalls via the event dispatch. */
+export function shouldAbsorbWallHit(player: Player, tileKey: number): boolean {
+  return reinforcedWallsShouldAbsorb(player, tileKey);
+}
+
+/** End-of-build territory score multiplier for a player (multiplicative). */
+export function territoryScoreMult(player: Player): number {
+  return territorialAmbitionScoreMult(player);
+}
+
+/** Extra cannon slots granted to a player by active upgrades (additive). */
+export function cannonSlotsBonus(player: Player): number {
+  return supplyDropCannonSlotsBonus(player);
 }
 
 /** Phase-boundary hook: configure upgrade state at the start of a build phase.

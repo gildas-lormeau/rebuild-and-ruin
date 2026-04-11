@@ -77,6 +77,7 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
+import { ballSpeedMult, shouldAbsorbWallHit } from "./upgrade-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -100,10 +101,6 @@ const CANNON_ROTATE_SPEED = Math.PI * 3;
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
-/** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
-const RAPID_FIRE_SPEED_MULT = 1.5;
-/** Mortar cannonball speed multiplier (half speed). */
-const MORTAR_SPEED_MULT = 0.5;
 /** Number of random bounces after a ricochet impact. */
 const RICOCHET_BOUNCES = 2;
 /** Max Chebyshev distance for each successive bounce (decays to simulate energy loss). */
@@ -800,13 +797,8 @@ function launchCannonball(
     }
   }
   cannon.facing = computeFacing45(startX, startY, finalTargetX, finalTargetY);
-  const hasRapidFire = !!state.players[playerId]?.upgrades.get(UID.RAPID_FIRE);
   const isMortar = !!cannon.mortar;
-  // Rapid Fire + Mortar cancel out on speed (normal speed mortar shots)
-  let speedMult = 1;
-  if (isMortar && hasRapidFire) speedMult = 1;
-  else if (isMortar) speedMult = MORTAR_SPEED_MULT;
-  else if (hasRapidFire) speedMult = RAPID_FIRE_SPEED_MULT;
+  const speedMult = ballSpeedMult(state.players[playerId]!, isMortar);
   state.cannonballs.push({
     cannonIdx,
     startX,
@@ -917,12 +909,10 @@ function collectWallImpacts(
   let hitWall = false;
   for (const player of state.players) {
     if (player.walls.has(key)) {
-      // Reinforced Walls: first hit is absorbed, wall survives (no pit either).
-      // hitWall intentionally NOT set — absorbed hits must not trigger incendiary pits.
-      if (
-        player.upgrades.get(UID.REINFORCED_WALLS) &&
-        !player.damagedWalls.has(key)
-      ) {
+      // Upgrade-driven absorption (Reinforced Walls): first hit is absorbed,
+      // wall survives (no pit either). hitWall intentionally NOT set —
+      // absorbed hits must not trigger incendiary pits.
+      if (shouldAbsorbWallHit(player, key)) {
         events.push({
           type: BATTLE_MESSAGE.WALL_ABSORBED,
           playerId: player.id,

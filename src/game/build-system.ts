@@ -54,6 +54,7 @@ import type { GameState } from "../shared/types.ts";
 import { UID } from "../shared/upgrade-defs.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
+import { territoryScoreMult } from "./upgrade-system.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -362,7 +363,7 @@ function awardEndOfBuildPoints(
   territorySize: number,
 ): void {
   // Territory points (tiered by interior size)
-  const territoryMult = player.upgrades.get(UID.TERRITORIAL_AMBITION) ? 2 : 1;
+  const territoryMult = territoryScoreMult(player);
   for (const [threshold, points] of TERRITORY_POINT_TIERS) {
     if (territorySize >= threshold) {
       player.score += points * territoryMult;
