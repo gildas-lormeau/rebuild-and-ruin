@@ -127,3 +127,29 @@ export const BATTLE_MESSAGE = {
   WALL_ABSORBED: "wallAbsorbed",
   WALL_SHIELDED: "wallShielded",
 } as const;
+
+/** Create a CANNON_FIRED message from a cannonball's launch data. */
+export function createCannonFiredMsg(ball: {
+  playerId: ValidPlayerSlot;
+  cannonIdx: number;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  incendiary?: boolean;
+  mortar?: boolean;
+}): CannonFiredMessage {
+  return {
+    type: BATTLE_MESSAGE.CANNON_FIRED,
+    playerId: ball.playerId,
+    cannonIdx: ball.cannonIdx,
+    startX: ball.startX,
+    startY: ball.startY,
+    targetX: ball.targetX,
+    targetY: ball.targetY,
+    speed: ball.speed,
+    incendiary: ball.incendiary ? true : undefined,
+    mortar: ball.mortar ? true : undefined,
+  };
+}

@@ -4,7 +4,7 @@
 
 import {
   BATTLE_MESSAGE,
-  type CannonFiredMessage,
+  createCannonFiredMsg,
   type ImpactEvent,
   type TowerKilledMessage,
 } from "../shared/battle-events.ts";
@@ -736,32 +736,6 @@ function fireCapturedCannon(
   const ball = state.cannonballs[state.cannonballs.length - 1]!;
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
-}
-
-/** Create a CANNON_FIRED message from a cannonball's launch data. */
-export function createCannonFiredMsg(ball: {
-  playerId: ValidPlayerSlot;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: boolean;
-  mortar?: boolean;
-}): CannonFiredMessage {
-  return {
-    type: BATTLE_MESSAGE.CANNON_FIRED,
-    playerId: ball.playerId,
-    cannonIdx: ball.cannonIdx,
-    startX: ball.startX,
-    startY: ball.startY,
-    targetX: ball.targetX,
-    targetY: ball.targetY,
-    speed: ball.speed,
-    incendiary: ball.incendiary ? true : undefined,
-    mortar: ball.mortar ? true : undefined,
-  };
 }
 
 /**

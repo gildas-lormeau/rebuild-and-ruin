@@ -434,7 +434,14 @@ function enumerateCandidates(
     for (let r = 0; r < GRID_ROWS - rotated.height + 1; r++) {
       for (let c = 0; c < GRID_COLS - rotated.width + 1; c++) {
         if (
-          !canPlacePiece(state, playerId, rotated, r, c, interiorExcludingGaps)
+          !canPlacePiece(
+            state,
+            playerId,
+            rotated.offsets,
+            r,
+            c,
+            interiorExcludingGaps,
+          )
         )
           continue;
 

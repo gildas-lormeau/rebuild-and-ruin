@@ -2,7 +2,6 @@ import {
   advanceBattleCountdown,
   buildTimerMax,
   capturePrevBattleScene,
-  createCannonFiredMsg,
   diffNewWalls,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
@@ -22,6 +21,7 @@ import {
   BATTLE_MESSAGE,
   type BattleEvent,
   type CannonFiredMessage,
+  createCannonFiredMsg,
 } from "../shared/battle-events.ts";
 import {
   ageImpacts,

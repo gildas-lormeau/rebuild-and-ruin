@@ -5,7 +5,7 @@ import {
   cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
-  canPlacePieceOffsets,
+  canPlacePiece,
   highlightTowerSelection,
 } from "../game/index.ts";
 import type { ImpactEvent } from "../shared/battle-events.ts";
@@ -219,7 +219,7 @@ function handlePiecePlaced(
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   if (
     isHostInContext(deps.session) &&
-    !canPlacePieceOffsets(state, msg.playerId, msg.offsets, msg.row, msg.col)
+    !canPlacePiece(state, msg.playerId, msg.offsets, msg.row, msg.col)
   ) {
     deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
     return DROPPED;

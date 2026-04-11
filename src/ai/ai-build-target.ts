@@ -132,7 +132,16 @@ function canAnyRotationFillGap(
       for (const gapKey of gaps) {
         const { r: gr, c: gc } = unpackTile(gapKey);
         for (const [dr, dc] of rot.offsets) {
-          if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted))
+          if (
+            canPlacePiece(
+              state,
+              playerId,
+              rot.offsets,
+              gr - dr,
+              gc - dc,
+              adjusted,
+            )
+          )
             return true;
         }
       }

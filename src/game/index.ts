@@ -7,7 +7,6 @@ export {
   applyImpactEvent,
   canFireOwnCannon,
   canPlayerFire,
-  createCannonFiredMsg,
   fireNextReadyCannon,
   getCountdownAnnouncement,
   nextReadyCombined,
@@ -23,7 +22,6 @@ export {
 export {
   applyPiecePlacement,
   canPlacePiece,
-  canPlacePieceOffsets,
   placePiece,
   recheckTerritoryOnly,
   recomputeTerritoryFromWalls,
@@ -44,12 +42,7 @@ export {
 } from "./cannon-system.ts";
 export { createCastle } from "./castle-generation.ts";
 export { createComboTracker, isCombosEnabled } from "./combo-system.ts";
-export {
-  executeCannonFire,
-  executePlacePiece,
-  localFire,
-  localPlacePiece,
-} from "./game-actions.ts";
+export { executeCannonFire, executePlacePiece } from "./game-actions.ts";
 export {
   applyGameConfig,
   createGameFromSeed,

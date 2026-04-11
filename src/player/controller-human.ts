@@ -191,7 +191,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const valid = canPlacePiece(
       state,
       this.playerId,
-      this.currentPiece,
+      this.currentPiece.offsets,
       this.buildCursor.row,
       this.buildCursor.col,
     );
@@ -264,7 +264,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const valid = canPlacePiece(
       state,
       this.playerId,
-      this.currentPiece,
+      this.currentPiece.offsets,
       this.buildCursor.row,
       this.buildCursor.col,
     );

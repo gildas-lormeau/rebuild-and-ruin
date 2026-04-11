@@ -63,47 +63,20 @@ export function placePiece(
   col: number,
 ): boolean {
   if (isPlayerEliminated(state.players[playerId])) return false;
-  if (!canPlacePiece(state, playerId, piece, row, col)) return false;
+  if (!canPlacePiece(state, playerId, piece.offsets, row, col)) return false;
   applyPiecePlacement(state, playerId, piece.offsets, row, col);
   return true;
 }
 
-/**
- * Check if a piece can be placed at (row, col) for a player.
- * All piece tiles must be on grass, not on any player's walls, not on towers, cannons, grunts, or burning pits.
- */
-export function canPlacePiece(
-  state: GameViewState & {
-    readonly grunts: readonly Grunt[];
-    readonly burningPits: readonly BurningPit[];
-  },
-  playerId: ValidPlayerSlot,
-  piece: PieceShape,
-  row: number,
-  col: number,
-  excludeInterior?: ReadonlySet<number>,
-): boolean {
-  return canPlacePieceOffsets(
-    state,
-    playerId,
-    piece.offsets,
-    row,
-    col,
-    excludeInterior,
-  );
-}
-
-/** Validate piece placement on the grid.
+/** Validate piece placement on the grid from raw offsets.
  *  Checks: grass, playerZone, ALL towers (not just owned), grunts, cannons, burning pits.
  *  Does NOT check interior (enclosed territory) — pieces can go on open grass.
  *
  *  CONTRAST with canPlaceCannon() in cannon-system.ts:
  *    - Cannon: checks INTERIOR (enclosed territory) + owned towers only
  *    - Piece:  checks GRASS + zone + ALL towers (no interior check)
- *  Copying validation from one to the other produces wrong results.
- *
- *  Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation). */
-export function canPlacePieceOffsets(
+ *  Copying validation from one to the other produces wrong results. */
+export function canPlacePiece(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
     readonly burningPits: readonly BurningPit[];

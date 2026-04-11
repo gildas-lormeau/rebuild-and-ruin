@@ -15,9 +15,9 @@ import {
   tickAiUpgradePickEntry,
 } from "../ai/ai-upgrade-pick.ts";
 import {
+  executeCannonFire,
+  executePlacePiece,
   generateMap,
-  localFire,
-  localPlacePiece,
   snapshotTerritory,
 } from "../game/index.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -510,10 +510,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   };
   const inputAdapters = createRuntimeInputAdapters({
     config,
-    localPlacePiece: (ctrl, gameState) =>
-      localPlacePiece(runtimeState.state, ctrl, gameState),
-    localFire: (ctrl, gameState) =>
-      localFire(runtimeState.state, ctrl, gameState),
+    localPlacePiece: (ctrl, gameState) => {
+      const intent = ctrl.tryPlacePiece(gameState);
+      if (!intent) return false;
+      return executePlacePiece(runtimeState.state, intent, ctrl);
+    },
+    localFire: (ctrl, gameState) => {
+      const intent = ctrl.fire(gameState);
+      if (!intent) return;
+      executeCannonFire(runtimeState.state, intent, ctrl);
+    },
   });
   const optionsDeps = {
     runtimeState,

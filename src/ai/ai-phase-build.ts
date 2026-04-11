@@ -306,7 +306,7 @@ function tickMoving(
       movingPiece,
       curRow,
       curCol,
-      canPlacePiece(state, host.playerId, movingPiece, curRow, curCol),
+      canPlacePiece(state, host.playerId, movingPiece.offsets, curRow, curCol),
     ),
   ];
 }
@@ -348,7 +348,7 @@ function phantomAtCursor(
     piece,
     row,
     col,
-    canPlacePiece(state, host.playerId, piece, row, col),
+    canPlacePiece(state, host.playerId, piece.offsets, row, col),
   );
 }
 
