@@ -5,15 +5,26 @@ sub-systems (camera, render, banners, dialogs, input wiring), and the
 composition root that assembles everything into a runnable game for both
 local play and online play.
 
-This domain is **almost entirely pure**: 26 of 27 files import only from
-`shared/`, `game/`, and `player/`. The one exception is
-[runtime-composition.ts](./runtime-composition.ts) — the single
-composition root — which crosses into `input/`, `render/`, `ai/`, and
-`online/` to wire everything together. That file is the only part of
-`runtime/` that's allowed to touch those domains. The purity contract is
-enforced by `.domain-boundaries.json`'s `typeOnlyFrom` clause plus the
+This domain is **almost entirely pure**: 27 of 31 files import only from
+`shared/` and `game/`. Four files reach further, and each for a
+narrow, documented reason:
+
+- [runtime-composition.ts](./runtime-composition.ts) — the composition
+  root — crosses into `input/`, `render/`, `ai/`, and `protocol/` to
+  wire everything together. Exempt from purity via the roots-tier
+  classification in `.import-layers.json`.
+- [runtime-bootstrap.ts](./runtime-bootstrap.ts) — imports
+  `controllers/controller-factory.ts` because its whole job is turning
+  lobby settings into a controller set.
+- [runtime-e2e-bridge.ts](./runtime-e2e-bridge.ts) — imports
+  `render/render-layout.ts` (`computeLetterboxLayout`) so the
+  Playwright bridge can convert canvas coordinates.
+- [runtime-types.ts](./runtime-types.ts) — type-only imports from
+  `protocol/` for `NetworkApi` / `BattleStartData` shapes.
+
+The purity contract is enforced by `.domain-boundaries.json` plus the
 tier classification in `.import-layers.json` (roots-tier files are
-exempt from the type-only restriction).
+exempt from the cross-domain restriction).
 
 ## Read these first (in order)
 
@@ -39,7 +50,7 @@ exempt from the type-only restriction).
 
 ## File categories
 
-### Composition root (1 file — the ONE impure file)
+### Composition root (1 file — the main wiring point)
 - **`runtime-composition.ts`** — `createGameRuntime(config)` creates
   every sub-system and wires them together. Also exports
   `createBrowserRuntimeBindings(canvas)` and `createLocalNetworkApi()`
@@ -64,6 +75,7 @@ deps object and returns a handle with methods. They are wired by
 | `runtime-banner.ts` | Banner | Phase transition banner show/tick |
 | `runtime-camera.ts` | Camera | Viewport, zoom, auto-zoom, lerp |
 | `runtime-game-lifecycle.ts` | Lifecycle | startGame, rematch, endGame, returnToLobby |
+| `runtime-haptics.ts` | Haptics | Vibration observer — gated by haptics setting, write-only test observer |
 | `runtime-human.ts` | PointerPlayer | Cached pointer-player lookup (touch vs. desktop) |
 | `runtime-input.ts` | Input | Keyboard/mouse/touch event registration + dispatch |
 | `runtime-life-lost.ts` | LifeLost | Life-lost dialog lifecycle (show/tick/resolve) |
@@ -73,6 +85,7 @@ deps object and returns a handle with methods. They are wired by
 | `runtime-render.ts` | Render | Per-frame overlay build + drawFrame + touch controls update |
 | `runtime-score-deltas.ts` | ScoreDelta | Animated score delta display after build phase |
 | `runtime-selection.ts` | Selection | Castle selection phase (initial + reselect) |
+| `runtime-sound.ts` | Sound | jsfxr + Web Audio SFX — gated by sound setting, write-only test observer |
 | `runtime-upgrade-pick.ts` | UpgradePick | Upgrade-pick dialog lifecycle (show/tick/resolve) |
 
 ### Primitives / helpers (NOT sub-systems)
@@ -86,6 +99,17 @@ exempt from the "sub-systems must not import from each other" rule.
   browser globals into a `TimingApi`. Entry-point binding only.
 - **`runtime-castle-build.ts`** — Castle wall animation primitives
   (consumed by selection).
+- **`runtime-contracts.ts`** — Sub-system interface aggregator:
+  `UIContext`, `BannerState`, `BannerShow`, and every `XSystem` /
+  `XDeps` type shared across the composition root. Also exports
+  `createBannerState()` — a trivial factory intentionally placed here
+  (not in `runtime-state.ts`) to keep `runtime-state.ts` at L6 in the
+  layer graph. Don't "helpfully" move it. See
+  [skills/layer-graph-cleanup.md](../../skills/layer-graph-cleanup.md).
+- **`runtime-tick-context.ts`** — Shared tick-context types + the
+  APPLY/TICK/CHECKPOINT mutation-phase doc. Extracted from
+  `runtime-phase-ticks.ts` so `battle-ticks.ts` can depend on it
+  without a peer dependency.
 - **`runtime-life-lost-core.ts`** — Pure dialog state helpers for the
   life-lost system (separated from the factory for testability).
 - **`runtime-upgrade-pick-core.ts`** — Same pattern for upgrade-pick.
@@ -204,8 +228,8 @@ and call it from `runtime-phase-ticks.ts`.
 - **`scripts/lint-architecture.ts`** — Enforces the sub-system factory
   shape (one factory per file, single deps parameter, no cross-imports).
 - **`scripts/lint-domain-boundaries.ts`** — Enforces the `runtime →
-  {shared, game, player}` purity contract (with type-only exceptions
-  for input/render and the roots-tier exemption for
+  {shared, game}` purity contract (with type-only exceptions for
+  input/render and the roots-tier exemption for
   `runtime-composition.ts`).
 - **[skills/layer-graph-cleanup.md](../../skills/layer-graph-cleanup.md)**
   — Historical log of past runtime refactors.
