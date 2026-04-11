@@ -38,6 +38,12 @@ const OFFER_COUNT = 3;
 /** Extra delay per auto-resolving entry so AI picks land one at a time,
  *  not all on the same frame. Applied by entry index in dialog.entries. */
 const UPGRADE_PICK_STAGGER = 0.5;
+/** Time between focus "steps" while an AI entry cycles through its offers
+ *  during the delay. One step moves focus to the next card. */
+const UPGRADE_PICK_CYCLE_STEP = 0.22;
+/** Window at the end of the delay where the AI stops cycling and locks
+ *  focus onto its final pick, so the reveal doesn't feel like a random snap. */
+const UPGRADE_PICK_LOCK_IN = 0.35;
 /** Auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
@@ -65,6 +71,7 @@ export function createUpgradePickDialog(
       autoTimer: 0,
       focusedCard: 0,
       pickedAtTimer: null,
+      plannedChoice: null,
     });
   }
 
@@ -94,21 +101,39 @@ export function tickUpgradePickDialog(
 ): boolean {
   dialog.timer += dt;
 
-  // Auto-resolve pending entries. The effective delay is staggered by
-  // entry index so AI picks land sequentially (1.5s, 2.0s, 2.5s…) instead
-  // of all snapping on the same frame.
+  // Auto-resolve pending entries. Effective delay is staggered by entry
+  // index so picks land sequentially. Each AI entry cycles focus through
+  // its offers during the delay, then locks onto its final pick for the
+  // last LOCK_IN window so the commit doesn't look like a random jump.
   for (let entryIdx = 0; entryIdx < dialog.entries.length; entryIdx++) {
     const entry = dialog.entries[entryIdx]!;
     if (entry.choice !== null) continue;
-    if (entry.autoResolve) {
-      entry.autoTimer += dt;
-      const effectiveDelay = autoDelay + entryIdx * UPGRADE_PICK_STAGGER;
-      if (entry.autoTimer >= effectiveDelay) {
-        entry.choice = aiPick
+    if (!entry.autoResolve) continue;
+
+    entry.autoTimer += dt;
+    const effectiveDelay = autoDelay + entryIdx * UPGRADE_PICK_STAGGER;
+    const lockInStart = effectiveDelay - UPGRADE_PICK_LOCK_IN;
+
+    if (entry.autoTimer >= effectiveDelay) {
+      const pick =
+        entry.plannedChoice ??
+        (aiPick
+          ? aiPick(entry.offers, entry.playerId)
+          : randomPickUpgrade(entry.offers, state));
+      entry.choice = pick;
+      entry.focusedCard = entry.offers.indexOf(pick);
+      entry.pickedAtTimer = dialog.timer;
+    } else if (entry.autoTimer >= lockInStart) {
+      if (entry.plannedChoice === null) {
+        entry.plannedChoice = aiPick
           ? aiPick(entry.offers, entry.playerId)
           : randomPickUpgrade(entry.offers, state);
-        entry.pickedAtTimer = dialog.timer;
       }
+      entry.focusedCard = entry.offers.indexOf(entry.plannedChoice);
+    } else {
+      entry.focusedCard =
+        Math.floor(entry.autoTimer / UPGRADE_PICK_CYCLE_STEP) %
+        entry.offers.length;
     }
   }
 
@@ -116,7 +141,10 @@ export function tickUpgradePickDialog(
   if (dialog.timer >= maxTimer) {
     for (const entry of dialog.entries) {
       if (entry.choice === null) {
-        entry.choice = randomPickUpgrade(entry.offers, state);
+        const pick =
+          entry.plannedChoice ?? randomPickUpgrade(entry.offers, state);
+        entry.choice = pick;
+        entry.focusedCard = entry.offers.indexOf(pick);
         entry.pickedAtTimer = dialog.timer;
       }
     }

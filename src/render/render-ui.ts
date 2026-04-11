@@ -863,10 +863,15 @@ function drawUpgradeCard(
     card.pulseAge > 0 && card.pulseAge < UPGRADE_PICK_PULSE_DURATION
       ? 1 - card.pulseAge / UPGRADE_PICK_PULSE_DURATION
       : 0;
+  // Focus border: GOLD for the interactive local player (paired with the
+  // flashing outline below), player color for AI entries cycling through
+  // their offers during the auto-pick delay.
   const borderColor = card.picked
     ? rgb(playerColor)
-    : card.focused && isInteractive
-      ? GOLD
+    : card.focused
+      ? isInteractive
+        ? GOLD
+        : rgb(playerColor)
       : SHADOW_COLOR;
   drawPanel(
     ctx,

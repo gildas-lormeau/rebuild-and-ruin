@@ -38,6 +38,10 @@ export interface UpgradePickEntry {
   /** Dialog.timer value when `choice` flipped from null to set — drives the
    *  reveal pulse animation. null while pending. */
   pickedAtTimer: number | null;
+  /** The AI's decided pick, cached during the lock-in window before the
+   *  choice is committed. Used to point focusedCard at the final card so the
+   *  reveal snap is smooth. null during the cycling window and for humans. */
+  plannedChoice: UpgradeId | null;
 }
 
 export interface UpgradePickDialogState {
