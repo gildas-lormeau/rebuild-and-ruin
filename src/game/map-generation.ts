@@ -35,7 +35,7 @@ interface ZoneStats {
 //   6. Zone height: each zone spans ≥MIN_ZONE_HEIGHT rows (prevents thin slivers)
 const SAFE_ZONE_PAD = 3;
 // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
-const MIN_GAP_EDGE = 2;
+const MIN_GAP_EDGE = 3;
 const MIN_GAP_TOWER = 6;
 const TOWERS_PER_ZONE = 4;
 /** Minimum zone size to be considered a valid zone. */
@@ -151,10 +151,11 @@ export function generateMap(seed?: number): GameMap {
     return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
   }
 
-  // Last resort — should virtually never happen
-  const riverDist = buildRiverDistanceGrid(tiles);
-  const towers = placeTowers(zones, regionSizes, riverDist);
-  return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
+  throw new Error(
+    `generateMap: failed to place ${TOWERS_PER_ZONE * 3} towers after ${
+      GENERATION_MAX_ATTEMPTS + GENERATION_FALLBACK_ATTEMPTS
+    } attempts (seed=${seed ?? "time"})`,
+  );
 }
 
 /**
