@@ -390,16 +390,19 @@ export function drawLifeLostDialog(
 
     // Lives remaining
     overlayCtx.font = FONT_SMALL;
-    if (entry.lives > 0) {
+    if (entry.lives <= 0) {
+      overlayCtx.fillStyle = ELIMINATED_RED;
+      overlayCtx.fillText("Eliminated", cx, py + 40);
+    } else if (entry.choice === LifeLostChoice.ABANDON) {
+      overlayCtx.fillStyle = ELIMINATED_RED;
+      overlayCtx.fillText("Abandoned", cx, py + 40);
+    } else {
       overlayCtx.fillStyle = GOLD_LIGHT;
       overlayCtx.fillText(
         `${entry.lives} ${entry.lives === 1 ? "life" : "lives"} left`,
         cx,
         py + 40,
       );
-    } else {
-      overlayCtx.fillStyle = ELIMINATED_RED;
-      overlayCtx.fillText("Eliminated", cx, py + 40);
     }
 
     drawLifeLostEntry(overlayCtx, entry, px, py, cx, now);
@@ -829,18 +832,11 @@ function drawLifeLostEntry(
       },
       "Abandon",
     );
-  } else {
-    // Resolved state
+  } else if (entry.choice === LifeLostChoice.CONTINUE && entry.lives > 0) {
+    // Resolved CONTINUE — ABANDON/eliminated label is already rendered at top
     ctx.font = FONT_LABEL;
-    const isContinue = entry.choice === LifeLostChoice.CONTINUE;
-    ctx.fillStyle = isContinue ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
-    if (entry.lives > 0) {
-      ctx.fillText(
-        isContinue ? "Continuing..." : "Abandoned",
-        cx,
-        py + PANEL_H - 18,
-      );
-    }
+    ctx.fillStyle = BTN_CONTINUE.stroke;
+    ctx.fillText("Continuing...", cx, py + PANEL_H - 18);
   }
 }
 
