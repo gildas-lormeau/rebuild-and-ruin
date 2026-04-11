@@ -12,6 +12,14 @@
  *    apply authoritative server events to watcher state and are intentionally
  *    kept out of the public game surface.
  *
+ * 3. `UID` must only be imported as a value in `src/game/upgrades/**` (the per-
+ *    upgrade files) and `src/ai/ai-upgrade-pick.ts` (the AI pick strategy). All
+ *    upgrade-specific behavior lives in per-upgrade files behind the
+ *    `src/game/upgrade-system.ts` dispatcher; runtime/battle/build/cannon code
+ *    must call the dispatcher instead of branching on UID values directly. This
+ *    is an LLM-safety constraint: concentrating upgrade scatter into one
+ *    directory makes it much harder for generated code to "hack" the game.
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -224,6 +232,44 @@ function checkGameDeepImports(
 }
 
 // ---------------------------------------------------------------------------
+// Rule 4: UID value imports restricted to upgrades/ + ai-upgrade-pick
+// ---------------------------------------------------------------------------
+
+/** Files allowed to import `UID` as a value. Every other file must call
+ *  the `src/game/upgrade-system.ts` dispatcher (or go through the game
+ *  barrel) instead of branching on UID values directly. */
+function isUidValueAllowed(rel: string): boolean {
+  if (rel.startsWith("src/game/upgrades/")) return true;
+  if (rel === "src/ai/ai-upgrade-pick.ts") return true;
+  return false;
+}
+
+function checkUidImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  if (isUidValueAllowed(rel)) return;
+
+  for (const imp of parseImports(content)) {
+    if (
+      !imp.source.endsWith("/upgrade-defs.ts") &&
+      !imp.source.endsWith("/upgrade-defs")
+    )
+      continue;
+    if (imp.names.includes("UID")) {
+      violations.push({
+        file: rel,
+        line: imp.line,
+        message:
+          "Value import of `UID` — upgrade-specific branching belongs in src/game/upgrades/. Call a semantic function on src/game/upgrade-system.ts instead.",
+      });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // File scanning
 // ---------------------------------------------------------------------------
 
@@ -253,6 +299,7 @@ function main(): void {
     checkTileImports(filePath, content, violations);
     checkRuntimeSubsystemImports(filePath, content, violations);
     checkGameDeepImports(filePath, content, violations);
+    checkUidImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
