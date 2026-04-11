@@ -1,30 +1,24 @@
 /**
- * Upgrade tests — one test per implemented upgrade, grouped by seed.
+ * Upgrade tests — one step per implemented upgrade, grouped by seed.
  *
- * Each grouped test runs a modern-mode game once and asserts two things
- * per upgrade (when a probe exists): the upgrade was picked, AND its
- * effect was observed. Groups share a seed so the runtime is spun up
- * once per unique seed.
+ * Seeds are looked up by name via `loadSeed("upgrade:<id>")`, which reads
+ * `test/seed-fixtures.json`. When RNG drifts, run `npm run record-seeds`
+ * to rescan and rewrite the fixture — no per-test rehunting needed.
  *
- * Effects are observed via:
- *   - Bus events (e.g. wallAbsorbed for reinforced_walls)
- *   - State snapshots at phase-start events (effects that fire at pick
- *     time are verified at the next WALL_BUILD phaseStart, by which time
- *     applyUpgradePicks has fully run)
- *   - State scans at battle-start (mortar/shield_battery election flags)
+ * Multiple upgrades frequently share a seed (seed 0 alone covers ~11
+ * upgrades), so tests group by the resolved seed: one runGame per unique
+ * seed, per-upgrade assertions as `t.step`s. This keeps per-upgrade failure
+ * attribution while minimizing scenario startup cost.
  *
- * Upgrades without an effect probe yield to a pick-only assertion, same
- * as before. To add a probe for one of the gaps:
- *   1. Add an entry to EFFECT_PROBES keyed by UpgradeId
- *   2. Install listeners in `install(sc)` and return a finalizer that
- *      takes the picker's playerId and returns whether the effect fired
- *   3. Probes that need a "before" snapshot should listen for
- *      UPGRADE_PICKED (which fires BEFORE onUpgradePicked runs) and
- *      capture the pre-effect state, then compare against a later
- *      snapshot at PHASE_START.
- *
- * Seeds come from `scripts/find-upgrade-seeds.ts`; refresh alongside the
- * determinism fixtures whenever the runtime RNG or draft weights drift.
+ * Each step asserts (1) the upgrade was picked and (2) its effect fired,
+ * when an `EFFECT_PROBES` entry exists. Upgrades without a probe get a
+ * pick-only assertion. To add a probe:
+ *   1. Add an entry to EFFECT_PROBES keyed by UpgradeId.
+ *   2. `install(sc)` subscribes to the bus and/or snapshots state, and
+ *      returns a finalizer that answers "did the effect fire for this picker?".
+ *   3. Probes that need a "before" snapshot listen for UPGRADE_PICKED
+ *      (fires BEFORE onUpgradePicked applies the effect) and compare
+ *      against a later snapshot at PHASE_END(BATTLE).
  */
 
 import { assert } from "@std/assert";
@@ -32,39 +26,30 @@ import { buildTimerBonus } from "../src/game/index.ts";
 import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import type { UpgradeId } from "../src/shared/upgrade-defs.ts";
-import { createScenario, type Scenario } from "./scenario.ts";
+import { loadSeed, type Scenario } from "./scenario.ts";
+import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
-interface SeedEntry {
-  readonly seed: number;
-  readonly playerId: number;
-}
-
-// Seeds discovered by scripts/find-upgrade-seeds.ts on 2026-04-11. Each seed
-// is the smallest one (0..40) whose modern-mode playthrough picked the target
-// upgrade at least once. If you re-run the scanner and get different numbers,
-// the runtime RNG or draft weights have drifted — update these alongside the
-// determinism fixtures.
-const UPGRADE_SEEDS: Record<UpgradeId, SeedEntry> = {
-  mortar: { seed: 1, playerId: 0 },
-  rapid_fire: { seed: 0, playerId: 2 },
-  ricochet: { seed: 1, playerId: 0 },
-  shield_battery: { seed: 0, playerId: 1 },
-  reinforced_walls: { seed: 0, playerId: 1 },
-  master_builder: { seed: 0, playerId: 1 },
-  small_pieces: { seed: 8, playerId: 2 },
-  double_time: { seed: 0, playerId: 2 },
-  architect: { seed: 0, playerId: 0 },
-  foundations: { seed: 0, playerId: 1 },
-  reclamation: { seed: 14, playerId: 1 },
-  territorial_ambition: { seed: 1, playerId: 1 },
-  conscription: { seed: 0, playerId: 0 },
-  salvage: { seed: 0, playerId: 0 },
-  ceasefire: { seed: 1, playerId: 2 },
-  supply_drop: { seed: 0, playerId: 1 },
-  second_wind: { seed: 21, playerId: 2 },
-  demolition: { seed: 3, playerId: 1 },
-  clear_the_field: { seed: 0, playerId: 2 },
-};
+const UPGRADE_IDS: readonly UpgradeId[] = [
+  "mortar",
+  "rapid_fire",
+  "ricochet",
+  "shield_battery",
+  "reinforced_walls",
+  "master_builder",
+  "small_pieces",
+  "double_time",
+  "architect",
+  "foundations",
+  "reclamation",
+  "territorial_ambition",
+  "conscription",
+  "salvage",
+  "ceasefire",
+  "supply_drop",
+  "second_wind",
+  "demolition",
+  "clear_the_field",
+];
 
 const MAX_TICKS = 60000;
 /** Rounds per scenario run. Enough rounds so every targeted upgrade has
@@ -297,15 +282,25 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
 };
 
 const seedGroups = new Map<number, UpgradeId[]>();
-for (const [rawId, entry] of Object.entries(UPGRADE_SEEDS)) {
-  const list = seedGroups.get(entry.seed) ?? [];
-  list.push(rawId as UpgradeId);
-  seedGroups.set(entry.seed, list);
+for (const upgradeId of UPGRADE_IDS) {
+  const seed = (SEED_FIXTURES as Record<string, number>)[
+    `upgrade:${upgradeId}`
+  ];
+  if (seed === undefined) {
+    throw new Error(
+      `upgrades.test.ts: no seed for "upgrade:${upgradeId}" in test/seed-fixtures.json — run \`npm run record-seeds\``,
+    );
+  }
+  const list = seedGroups.get(seed) ?? [];
+  list.push(upgradeId);
+  seedGroups.set(seed, list);
 }
 
 for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
   Deno.test(`upgrades: seed=${seed} modern picks + effects`, async (t) => {
-    const sc = await createScenario({ seed, mode: "modern", rounds: ROUNDS });
+    // Any upgrade in the group has the same seed; pick the first as the
+    // loadSeed key so we share the registry's mode/rounds declaration.
+    const sc = await loadSeed(`upgrade:${upgradeIds[0]!}`, { rounds: ROUNDS });
 
     // Install effect probes BEFORE driving the game so nothing is missed.
     const finalizers = new Map<UpgradeId, (picker: number) => boolean>();

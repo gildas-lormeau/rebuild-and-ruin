@@ -1,0 +1,21 @@
+{
+  "upgrade:architect": 0,
+  "upgrade:ceasefire": 1,
+  "upgrade:clear_the_field": 0,
+  "upgrade:conscription": 0,
+  "upgrade:demolition": 3,
+  "upgrade:double_time": 0,
+  "upgrade:foundations": 0,
+  "upgrade:master_builder": 0,
+  "upgrade:mortar": 1,
+  "upgrade:rapid_fire": 0,
+  "upgrade:reclamation": 14,
+  "upgrade:reinforced_walls": 0,
+  "upgrade:ricochet": 1,
+  "upgrade:salvage": 0,
+  "upgrade:second_wind": 21,
+  "upgrade:shield_battery": 0,
+  "upgrade:small_pieces": 8,
+  "upgrade:supply_drop": 0,
+  "upgrade:territorial_ambition": 1
+}

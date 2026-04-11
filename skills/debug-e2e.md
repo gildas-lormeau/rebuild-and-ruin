@@ -97,7 +97,7 @@ Scenario API (`test/scenario.ts`):
 - `waitForBanner(sc, predicate)` — tick until a matching `bannerStart` event
 - `waitForModifier(sc, modifierId?)` — tick until a modifier banner fires
 
-**There is NO method to mutate state, scripted-place pieces, or skip phases.** The AI plays the game end-to-end, just like in a browser. If you need a specific game condition, find a seed that produces it via `deno run -A scripts/find-seed.ts`. Tests that hack state are exactly the antipattern this API replaces.
+**There is NO method to mutate state, scripted-place pieces, or skip phases.** The AI plays the game end-to-end, just like in a browser. If you need a specific game condition, find a seed that produces it via `deno run -A scripts/find-seed.ts` (one-off exploration) or register it in `test/seed-conditions.ts` and use `loadSeed(name)` (drift-safe, recommended for committed tests — see the "Drift-safe seeds" section below). Tests that hack state are exactly the antipattern this API replaces.
 
 **For input/rendering/browser bugs** — use the E2E helpers:
 ```typescript
@@ -184,7 +184,9 @@ Flags for legacy e2e: `--headless`, `--fast`, `--seed N`, `--mobile`, `--screens
 
 ## Finding seeds for e2e tests
 
-Use `npm run find-seed` to find seeds that produce specific game conditions:
+### One-off exploration — `npm run find-seed`
+
+Use when you're debugging interactively and need a seed quickly:
 
 ```sh
 npm run find-seed -- --condition wildfire --tries 50
@@ -192,9 +194,39 @@ npm run find-seed -- --condition frozenRiver --rounds 5
 npm run find-seed -- --expr "state.grunts.length > 10" --rounds 4
 ```
 
-Built-in conditions: `wildfire`, `crumblingWalls`, `gruntSurge`, `frozenRiver`, `anyModifier`, `manyGrunts`.
+Built-in conditions: `wildfire`, `crumblingWalls`, `gruntSurge`, `frozenRiver`, `anyModifier`, `manyGrunts`. Runs headless scenarios and checks the predicate per tick. Good for throwaway exploration, bad for committed tests (seeds drift silently when RNG changes).
 
-The tool runs headless scenarios (no browser) and checks state at every phase boundary.
-Upgrade-dependent conditions (masterBuilderLockout, reinforcedWalls) cannot be found
-this way because scenario helpers skip the upgrade pick dialog — use the e2e path with
-`mode: "modern"` and enough rounds instead.
+### Drift-safe seeds — `loadSeed` + seed registry
+
+**For committed tests that depend on a specific RNG outcome**, do NOT hardcode `seed: 42`. Register the condition in `test/seed-conditions.ts` and load by name:
+
+```ts
+// test/seed-conditions.ts
+export const SEED_CONDITIONS = {
+  "modifier:wildfire": {
+    mode: "modern",
+    rounds: 8,
+    match: (sc) => () => sc.state.modern?.activeModifier === "wildfire",
+  },
+  "upgrade:rapid_fire": {
+    mode: "modern",
+    rounds: 10,
+    match: (sc) => latchUpgradePicked(sc, "rapid_fire"),
+  },
+  // ...
+};
+```
+
+```ts
+// test/some.test.ts
+const sc = await loadSeed("modifier:wildfire");
+```
+
+Then run `npm run record-seeds` to rescan every registered condition in one pass and rewrite `test/seed-fixtures.json`. When RNG drifts (new feature shifts rolls), one command regenerates every drift-sensitive test's seed — no per-test rehunting.
+
+**Workflow for new drift-sensitive tests:**
+1. Add an entry to `SEED_CONDITIONS`.
+2. `npm run record-seeds`.
+3. Write the test with `loadSeed(name)` instead of `createScenario({ seed: N })`.
+
+See `test/upgrades.test.ts` for a full example (grouping by resolved seed, per-upgrade `t.step` assertions with effect probes).

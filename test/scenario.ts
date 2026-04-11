@@ -63,6 +63,8 @@ import type { GameMessage, ServerMessage } from "../src/shared/protocol.ts";
 import type { GameState } from "../src/shared/types.ts";
 import type { Mode } from "../src/shared/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
+import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
+import { SEED_CONDITIONS } from "./seed-conditions.ts";
 
 export interface ScenarioOptions {
   /** Map seed — controls map, AI, and modifier rolls. Defaults to 42. */
@@ -218,6 +220,36 @@ export async function createScenario(
     buildHeadlessOptions(opts, sentMessages),
   );
   return wrapHeadless(headless, sentMessages);
+}
+
+/** Boot a scenario for a registered seed condition. Looks up the cached
+ *  seed in `test/seed-fixtures.json` and uses the condition's declared
+ *  `mode` + `rounds`. Throws if the condition isn't registered or the
+ *  fixture is missing — run `npm run record-seeds` to regenerate.
+ *
+ *  Tests use this instead of hardcoding seeds so that RNG-drift recovery
+ *  is a single command (`record-seeds`) instead of per-test rehunting. */
+export function loadSeed(
+  name: string,
+  overrides?: Partial<Pick<ScenarioOptions, "rounds">>,
+): Promise<Scenario> {
+  const condition = SEED_CONDITIONS[name];
+  if (!condition) {
+    throw new Error(
+      `loadSeed: unknown condition "${name}". Add it to test/seed-conditions.ts.`,
+    );
+  }
+  const seed = (SEED_FIXTURES as Record<string, number>)[name];
+  if (seed === undefined) {
+    throw new Error(
+      `loadSeed: no fixture entry for "${name}". Run \`npm run record-seeds\` to populate test/seed-fixtures.json.`,
+    );
+  }
+  return createScenario({
+    seed,
+    mode: condition.mode,
+    rounds: overrides?.rounds ?? condition.rounds,
+  });
 }
 
 /** Translate `ScenarioOptions` into the matching `createHeadlessRuntime`
