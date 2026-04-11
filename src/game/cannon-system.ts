@@ -66,26 +66,6 @@ export function hasAnyCannonPlacement(
   return false;
 }
 
-/**
- * Reset cannon facings to point toward the average enemy position.
- * Convenience wrapper: computes defaultFacing + applies to all cannons.
- * Call at the start of the build phase and in online checkpoints.
- */
-export function resetCannonFacings(state: GameViewState): void {
-  computeDefaultFacings(state);
-  applyDefaultFacings(state);
-}
-
-/** Apply each player's defaultFacing to all their existing cannons. */
-export function applyDefaultFacings(state: GameViewState): void {
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    for (const cannon of player.cannons) {
-      cannon.facing = player.defaultFacing;
-    }
-  }
-}
-
 /** Auto-place normal cannons for round-1 if none were placed.
  *  Safety net — ensures every player starts with cannons even if they
  *  skipped placement. Picks evenly spaced valid interior positions. */
@@ -184,14 +164,24 @@ export function applyCannonPlacement(
   });
 }
 
-/** Prepare state for cannon phase: compute limits and default facings.
- *  Does NOT apply facings to existing cannons (the banner captures old
- *  facings first, then applyDefaultFacings runs after the snapshot).
+/** Prepare state for cannon phase: compute limits, recompute default facings
+ *  (enemy territory may have changed since last cannon phase), and flush the
+ *  new facings to existing cannons.
  *  Does NOT init controllers — call prepareControllerCannonPhase separately. */
 export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
-  computeDefaultFacings(state);
+  resetCannonFacings(state);
   state.timer = state.cannonPlaceTimer;
+}
+
+/**
+ * Reset cannon facings to point toward the average enemy position.
+ * Convenience wrapper: computes defaultFacing + applies to all cannons.
+ * Call at the start of the build phase and in online checkpoints.
+ */
+export function resetCannonFacings(state: GameViewState): void {
+  computeDefaultFacings(state);
+  applyDefaultFacings(state);
 }
 
 /** Compute cannon-phase init data for a single player.
@@ -306,6 +296,18 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter(
     (c) => isCannonAlive(c) && !isBalloonCannon(c) && !isRampartCannon(c),
   );
+}
+
+/** Apply each player's defaultFacing to all their existing cannons.
+ *  Private — callers should use `resetCannonFacings` (recompute + apply)
+ *  or `prepareCannonPhase` (which calls resetCannonFacings internally). */
+function applyDefaultFacings(state: GameViewState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    for (const cannon of player.cannons) {
+      cannon.facing = player.defaultFacing;
+    }
+  }
 }
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */

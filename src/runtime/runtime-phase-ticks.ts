@@ -1,6 +1,5 @@
 import {
   advanceBattleCountdown,
-  applyDefaultFacings,
   buildTimerMax,
   capturePrevBattleScene,
   createCannonFiredMsg,
@@ -249,8 +248,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       applyCheckpoint: () => {
         prepareCannonPhase(runtimeState.state);
-        // Apply reset facings — hidden behind the banner overlay.
-        applyDefaultFacings(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastCannonStart?.(runtimeState.state);

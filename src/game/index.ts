@@ -30,7 +30,6 @@ export {
 } from "./build-system.ts";
 export {
   applyCannonPlacement,
-  applyDefaultFacings,
   autoPlaceRound1Cannons,
   cannonSlotCost,
   cannonSlotsUsed,
