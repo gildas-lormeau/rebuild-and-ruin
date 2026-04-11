@@ -65,12 +65,13 @@ import {
   type WatcherState,
 } from "../src/online/online-watcher-tick.ts";
 import { createHeadlessRuntime } from "./runtime-headless.ts";
-import {
-  GAME_MODE_CLASSIC,
-  GAME_MODE_MODERN,
-} from "../src/shared/game-constants.ts";
 import type { GameMessage } from "../src/shared/protocol.ts";
-import { type Scenario, type ScenarioOptions, wrapHeadless } from "./scenario.ts";
+import {
+  buildHeadlessOptions,
+  type Scenario,
+  type ScenarioOptions,
+  wrapHeadless,
+} from "./scenario.ts";
 
 export interface OnlineScenarioOptions extends ScenarioOptions {
   /** Slots the test treats as remote-controlled. Threaded into BOTH
@@ -105,14 +106,15 @@ export async function createOnlineHarness(
 ): Promise<OnlineHarness> {
   const remotePlayerSlots = opts.remotePlayerSlots ?? new Set([1]);
   const sentMessages: GameMessage[] = [];
+  // Reuse `buildHeadlessOptions` so every observer / recorder option a
+  // test passes via `OnlineScenarioOptions` is honored — without this
+  // the wrapper silently dropped `hapticsObserver` / `soundObserver` /
+  // `renderObserver` / `recorder`. We then layer the receive-side
+  // overrides on top: force `hostMode: true` and inject the
+  // `remotePlayerSlots` set the dispatcher needs.
   const headless = await createHeadlessRuntime({
-    seed: opts.seed ?? 42,
-    gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
-    rounds: opts.rounds ?? 3,
+    ...buildHeadlessOptions(opts, sentMessages),
     hostMode: true,
-    speedMultiplier: opts.speedMultiplier,
-    autoStartGame: opts.autoStartGame ?? true,
-    networkObserver: { sent: (msg) => sentMessages.push(msg) },
     remotePlayerSlots,
   });
 

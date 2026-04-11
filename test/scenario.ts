@@ -213,22 +213,45 @@ export interface ScenarioInput {
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
+  const sentMessages: GameMessage[] = [];
+  const headless = await createHeadlessRuntime(
+    buildHeadlessOptions(opts, sentMessages),
+  );
+  return wrapHeadless(headless, sentMessages);
+}
+
+/** Translate `ScenarioOptions` into the matching `createHeadlessRuntime`
+ *  options bag. Exported so the online-loopback wrapper
+ *  (`test/online-headless.ts`) can apply the exact same wiring rules
+ *  before forcing its host-mode-specific overrides — without that the
+ *  online wrapper silently dropped `hapticsObserver`, `soundObserver`,
+ *  `renderObserver`, and `recorder` from `OnlineScenarioOptions`.
+ *
+ *  Validates one rule the type system can't express:
+ *  `renderObserver` only fires from the real canvas renderer, so it
+ *  requires a `recorder`. We throw on the bad combination instead of
+ *  silently dropping the observer (the previous behaviour). */
+export function buildHeadlessOptions(
+  opts: ScenarioOptions,
+  sentMessages: GameMessage[],
+): Parameters<typeof createHeadlessRuntime>[0] {
+  if (opts.renderObserver && !opts.recorder) {
+    throw new Error(
+      "scenario: `renderObserver` requires a `recorder` — the no-op stub renderer never draws terrain, so the observer would never fire. Pass `recorder: createCanvasRecorder({ discardCalls: true })` alongside `renderObserver`.",
+    );
+  }
   // When a recorder is provided, build the real renderer over the
   // recorder's display canvas. Each `createCanvasRenderer` call owns its own
   // closure-bound `renderMap` instance (canvas factory + observer + scene
   // caches), so multiple recorder-backed scenarios in the same test file
   // remain isolated without any cleanup step.
-  let renderer: ReturnType<typeof createCanvasRenderer> | undefined;
-  if (opts.recorder) {
-    renderer = createCanvasRenderer(opts.recorder.displayCanvas, {
-      canvasFactory: opts.recorder.factory,
-      observer: opts.renderObserver,
-    });
-  }
-  // Capture every outbound `network.send` so the test can read it via
-  // `sc.sentMessages`. The array is owned by `wrap` and exposed read-only.
-  const sentMessages: GameMessage[] = [];
-  const headless = await createHeadlessRuntime({
+  const renderer = opts.recorder
+    ? createCanvasRenderer(opts.recorder.displayCanvas, {
+        canvasFactory: opts.recorder.factory,
+        observer: opts.renderObserver,
+      })
+    : undefined;
+  return {
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
     rounds: opts.rounds ?? 3,
@@ -239,8 +262,7 @@ export async function createScenario(
     networkObserver: { sent: (msg) => sentMessages.push(msg) },
     hapticsObserver: opts.hapticsObserver,
     soundObserver: opts.soundObserver,
-  });
-  return wrapHeadless(headless, sentMessages);
+  };
 }
 
 /** Build a `Scenario` over an existing `HeadlessRuntime`. Exported so the
