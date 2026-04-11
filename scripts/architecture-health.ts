@@ -466,7 +466,19 @@ function computeClusters(): {
 }
 
 if (jsonMode) {
-  console.log(JSON.stringify(report, null, 2));
+  const jsonReport: Record<string, unknown> = { ...report };
+  if (report.clusters) {
+    const clustersById = Object.fromEntries(
+      [...report.clusters.clusters.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([id, files]) => [String(id), files]),
+    );
+    jsonReport.clusters = {
+      ...report.clusters,
+      clusters: clustersById,
+    };
+  }
+  console.log(JSON.stringify(jsonReport, null, 2));
   process.exit(0);
 }
 
