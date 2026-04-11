@@ -1,16 +1,6 @@
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
 
-export const BANNER_PLACE_CANNONS = "Place Cannons";
-export const BANNER_PLACE_CANNONS_SUB = "Position inside fort walls";
-export const BANNER_BATTLE = "Prepare for Battle";
-export const BANNER_BATTLE_SUB = "Shoot at enemy walls";
-export const BANNER_BUILD = "Build & Repair";
-export const BANNER_BUILD_SUB = "Surround castles, repair walls";
-export const BANNER_UPGRADE_PICK = "Choose Upgrade";
-export const BANNER_UPGRADE_PICK_SUB = "Pick one upgrade per player";
-export const BANNER_SELECT = "Select your home castle";
-
 /** Pre-capture old battle scene into banner state before nextPhase/checkpoint
  *  mutates the game state.  Must be called while state.phase is still BATTLE.
  *  showBannerTransition (runtime-banner.ts) uses ??= so these pre-set values survive intact. */

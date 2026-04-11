@@ -24,10 +24,12 @@ import {
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
   tickUpgradePickDialog,
+} from "../game/index.ts";
+import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
-} from "../game/index.ts";
+} from "../shared/game-constants.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,

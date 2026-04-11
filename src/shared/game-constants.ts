@@ -206,3 +206,11 @@ export const HAPTICS_ALL = 2;
 export const SOUND_OFF = 0;
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;
+/** Upgrade-pick dialog: auto-resolve delay before auto-picking (seconds). */
+export const UPGRADE_PICK_AUTO_DELAY = 1.5;
+/** Upgrade-pick dialog: max time before force-picking for pending players (seconds). */
+export const UPGRADE_PICK_MAX_TIMER = 15;
+/** Upgrade-pick dialog: hold time after last entry resolves, so the reveal
+ *  pulse on the final card actually gets draw frames. The render layer uses
+ *  the same constant to drive the expanding ring animation. */
+export const UPGRADE_PICK_PULSE_DURATION = 0.45;

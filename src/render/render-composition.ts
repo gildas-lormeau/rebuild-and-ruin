@@ -1,5 +1,7 @@
-import { UPGRADE_PICK_MAX_TIMER } from "../game/index.ts";
-import { LIFE_LOST_MAX_TIMER } from "../shared/game-constants.ts";
+import {
+  LIFE_LOST_MAX_TIMER,
+  UPGRADE_PICK_MAX_TIMER,
+} from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import {
   GRID_COLS,

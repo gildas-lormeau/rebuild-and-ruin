@@ -1,12 +1,7 @@
-/**
- * UI overlay rendering — announcement, banner, game over, player select.
- *
- * Time parameter convention: `now` is the frame timestamp from `performance.now()`,
- * threaded from drawMap. See render-effects.ts for the full convention.
- */
-
-import { UPGRADE_PICK_PULSE_DURATION } from "../game/index.ts";
-import { MODIFIER_ID } from "../shared/game-constants.ts";
+import {
+  MODIFIER_ID,
+  UPGRADE_PICK_PULSE_DURATION,
+} from "../shared/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
   FOCUS_MENU,

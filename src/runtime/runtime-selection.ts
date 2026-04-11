@@ -1,7 +1,6 @@
 import {
   allPlayersHaveTerritory,
   allSelectionsConfirmed,
-  BANNER_SELECT,
   confirmTowerSelection,
   createCastleBuildState,
   enterCannonPlacePhase,
@@ -18,6 +17,7 @@ import {
   snapshotAndFinalizeForCannonPhase,
   tickCastleBuildAnimation,
 } from "../game/index.ts";
+import { BANNER_SELECT } from "../shared/banner-messages.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,

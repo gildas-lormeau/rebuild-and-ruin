@@ -85,15 +85,6 @@ export {
 } from "./life-lost.ts";
 export { generateMap } from "./map-generation.ts";
 export {
-  BANNER_BATTLE,
-  BANNER_BATTLE_SUB,
-  BANNER_BUILD,
-  BANNER_BUILD_SUB,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
-  BANNER_SELECT,
-  BANNER_UPGRADE_PICK,
-  BANNER_UPGRADE_PICK_SUB,
   capturePrevBattleScene,
   snapshotCastles,
   snapshotEntities,
@@ -128,7 +119,4 @@ export {
   moveUpgradePickFocus,
   resolveUpgradePickEntry,
   tickUpgradePickDialog,
-  UPGRADE_PICK_AUTO_DELAY,
-  UPGRADE_PICK_MAX_TIMER,
-  UPGRADE_PICK_PULSE_DURATION,
 } from "./upgrade-pick.ts";

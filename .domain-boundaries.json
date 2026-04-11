@@ -35,6 +35,7 @@
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
       "src/shared/ui-contracts.ts",
+      "src/shared/banner-messages.ts",
       "src/shared/protocol.ts",
       "src/shared/feature-defs.ts",
       "src/shared/router.ts",
