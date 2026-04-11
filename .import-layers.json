@@ -85,6 +85,7 @@
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/game/combo-system.ts",
+      "src/game/upgrades/master-builder.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/game/map-generation.ts",

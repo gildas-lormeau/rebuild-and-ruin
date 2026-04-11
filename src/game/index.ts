@@ -73,6 +73,6 @@ export {
 } from "./selection.ts";
 export {
   applyUpgradePicks,
-  isMasterBuilderLocked,
+  canBuildThisFrame,
   shouldSkipBattle,
 } from "./upgrade-system.ts";

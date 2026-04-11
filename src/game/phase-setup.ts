@@ -113,6 +113,7 @@ import {
 } from "./round-modifiers.ts";
 import {
   generateUpgradeOffers,
+  onBuildPhaseStart,
   resetPlayerUpgrades,
 } from "./upgrade-system.ts";
 
@@ -208,31 +209,21 @@ export function enterBuildFromBattle(state: GameState): void {
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
 
-  // Master Builder lockout: check before clearing upgrades.
-  // - 1 owner → exclusive 5s head start, others locked out
-  // - 2+ owners → everyone gets +5s (cancels out competitively), no lockout
-  // - 0 owners → normal timer
-  if (hasFeature(state, FID.UPGRADES)) {
-    const mbPlayers = state.players.filter(
-      (player) =>
-        isPlayerAlive(player) && player.upgrades.get(UID.MASTER_BUILDER),
-    );
-    const hasMasterBuilder = mbPlayers.length > 0;
-    state.modern!.masterBuilderOwners = hasMasterBuilder
-      ? new Set(mbPlayers.map((player) => player.id))
-      : null;
-    state.modern!.masterBuilderLockout =
-      mbPlayers.length === 1 ? MASTER_BUILDER_BONUS_SECONDS : 0;
-    const doubleTime = isGlobalUpgradeActive(state.players, UID.DOUBLE_TIME)
+  // Upgrade-effect setup for the new build phase (Master Builder owners +
+  // lockout, plus any future hooks wired into onBuildPhaseStart).
+  onBuildPhaseStart(state);
+
+  // Timer bonus: Master Builder is aggregated via the dispatcher; DOUBLE_TIME
+  // stays inline until it is migrated to src/game/upgrades/ in a follow-up.
+  const doubleTime =
+    hasFeature(state, FID.UPGRADES) &&
+    isGlobalUpgradeActive(state.players, UID.DOUBLE_TIME)
       ? DOUBLE_TIME_BONUS_SECONDS
       : 0;
-    state.timer =
-      state.buildTimer +
-      (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0) +
-      doubleTime;
-  } else {
-    state.timer = state.buildTimer;
-  }
+  const mbBonus = state.modern?.masterBuilderOwners?.size
+    ? MASTER_BUILDER_BONUS_SECONDS
+    : 0;
+  state.timer = state.buildTimer + mbBonus + doubleTime;
 
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);

@@ -22,6 +22,12 @@ import {
   UID,
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
+import {
+  masterBuilderAllowsBuild,
+  masterBuilderOnBuildStart,
+  masterBuilderTick,
+  masterBuilderTimerBonus,
+} from "./upgrades/master-builder.ts";
 
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
@@ -35,19 +41,30 @@ export function shouldSkipBattle(state: GameState): boolean {
   return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
 }
 
-/** Whether a player is locked out of building by the Master Builder upgrade.
- *  True when exactly one player owns MB and this player is not the owner. */
-export function isMasterBuilderLocked(
+/** Whether this player is allowed to build this frame.
+ *  Aggregates every upgrade that can gate a player's build tick. */
+export function canBuildThisFrame(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): boolean {
-  if (!hasFeature(state, FID.UPGRADES)) return false;
-  const modern = state.modern!;
-  if (modern.masterBuilderLockout <= 0) return false;
-  return (
-    modern.masterBuilderOwners !== null &&
-    !modern.masterBuilderOwners.has(playerId)
-  );
+  return masterBuilderAllowsBuild(state, playerId);
+}
+
+/** Build timer bonus contributed by active upgrades (additive). */
+export function buildTimerBonus(state: GameState): number {
+  return masterBuilderTimerBonus(state);
+}
+
+/** Phase-boundary hook: configure upgrade state at the start of a build phase.
+ *  Called by phase-setup.ts's build-phase initializer. */
+export function onBuildPhaseStart(state: GameState): void {
+  masterBuilderOnBuildStart(state);
+}
+
+/** Per-frame hook: advance upgrade-effect timers during the build phase.
+ *  Called from the engine's tickBuildPhase entry point. */
+export function tickBuildUpgrades(state: GameState, dt: number): void {
+  masterBuilderTick(state, dt);
 }
 
 /** Apply all picked upgrades to player state. */

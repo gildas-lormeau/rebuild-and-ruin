@@ -57,6 +57,7 @@
       "src/game/selection.ts",
       "src/game/phase-banner.ts",
       "src/game/upgrade-system.ts",
+      "src/game/upgrades/master-builder.ts",
       "src/game/index.ts"
     ],
     "ai": [

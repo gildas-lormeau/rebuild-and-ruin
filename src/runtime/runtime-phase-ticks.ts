@@ -1,6 +1,7 @@
 import {
   advanceBattleCountdown,
   type CannonPhaseEntry,
+  canBuildThisFrame,
   diffNewWalls,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
@@ -9,7 +10,6 @@ import {
   enterBuildSkippingBattle,
   enterCannonPhase,
   finishBuildPhase,
-  isMasterBuilderLocked,
   nextReadyCombined,
   resetCannonFacings,
   shouldSkipBattle,
@@ -657,7 +657,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     frame.phantoms = { piecePhantoms: [] };
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-      if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
+      if (!canBuildThisFrame(state, ctrl.playerId)) continue;
       const player = state.players[ctrl.playerId]!;
       const hadInterior = getInterior(player).size > 0;
 

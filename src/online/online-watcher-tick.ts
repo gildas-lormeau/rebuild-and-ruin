@@ -1,6 +1,6 @@
 import {
   aimCannons,
-  isMasterBuilderLocked,
+  canBuildThisFrame,
   tickGrunts as moveGrunts,
   nextReadyCombined,
 } from "../game/index.ts";
@@ -192,7 +192,7 @@ export function tickWatcher(
     }
     // Gate local controller during lockout — pass null so buildTick is skipped
     const effectiveLocal =
-      localController && isMasterBuilderLocked(state, localController.playerId)
+      localController && !canBuildThisFrame(state, localController.playerId)
         ? null
         : localController;
     tickWatcherBuildPhantomsPhase({
