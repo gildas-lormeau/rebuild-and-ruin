@@ -77,7 +77,11 @@ import {
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
-import { electMortarCannons, electShieldedCannons } from "./cannon-system.ts";
+import {
+  filterActiveFiringCannons,
+  homeEnclosedRegion,
+  isCannonEnclosed,
+} from "./cannon-system.ts";
 import {
   applyClumsyBuilders,
   computeCastleWallTiles,
@@ -111,6 +115,7 @@ import {
 import {
   buildTimerBonus,
   generateUpgradeOffers,
+  onBattlePhaseStart,
   onBuildPhaseStart,
   resetPlayerUpgrades,
 } from "./upgrade-system.ts";
@@ -155,8 +160,11 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
-  electMortarCannons(state);
-  electShieldedCannons(state);
+  onBattlePhaseStart(state, {
+    filterActiveFiringCannons,
+    isCannonEnclosed,
+    homeEnclosedRegion,
+  });
   if (hasFeature(state, FID.COMBOS)) {
     state.modern!.comboTracker = isCombosEnabled(state)
       ? createComboTracker(state.players.length)

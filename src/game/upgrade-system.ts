@@ -1,7 +1,7 @@
 import type { ImpactEvent } from "../shared/battle-events.ts";
+import type { Cannon } from "../shared/battle-types.ts";
 import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
-import { MORTAR_SPEED_MULT } from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import { type ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -44,6 +44,7 @@ import {
   masterBuilderTick,
   masterBuilderTimerBonus,
 } from "./upgrades/master-builder.ts";
+import { mortarElectAll, mortarSpeedMult } from "./upgrades/mortar.ts";
 import { rapidFireBallMult, rapidFireOwns } from "./upgrades/rapid-fire.ts";
 import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
 import {
@@ -51,8 +52,18 @@ import {
   ricochetProcessBounces,
 } from "./upgrades/ricochet.ts";
 import { salvageOnCannonKilled } from "./upgrades/salvage.ts";
+import { shieldBatteryElectAll } from "./upgrades/shield-battery.ts";
 import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
+
+/** Helpers from cannon-system that battle-start hooks need. Injected by
+ *  phase-setup.ts so this dispatcher (L6) doesn't have to import from
+ *  cannon-system (also L6 — would create a cycle via cannonSlotsBonus). */
+interface BattleStartCannonDeps {
+  readonly filterActiveFiringCannons: (player: Player) => Cannon[];
+  readonly isCannonEnclosed: (cannon: Cannon, player: Player) => boolean;
+  readonly homeEnclosedRegion: (player: Player) => Set<number>;
+}
 
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
@@ -84,7 +95,7 @@ export function buildTimerBonus(state: GameState): number {
 export function ballSpeedMult(player: Player, isMortar: boolean): number {
   const hasRapidFire = rapidFireOwns(player);
   if (isMortar && hasRapidFire) return 1;
-  if (isMortar) return MORTAR_SPEED_MULT;
+  if (isMortar) return mortarSpeedMult();
   return rapidFireBallMult(player);
 }
 
@@ -131,6 +142,19 @@ export function onPiecePlaced(
  *  Called by phase-setup.ts's build-phase initializer. */
 export function onBuildPhaseStart(state: GameState): void {
   masterBuilderOnBuildStart(state);
+}
+
+/** Phase-boundary hook: run battle-start upgrade elections (Mortar picks
+ *  one cannon to fire mortar shots, Shield Battery shields cannons inside
+ *  the home region). Must be called after setPhase(BATTLE) and before any
+ *  RNG-consuming code in the battle-start sequence — the order is part of
+ *  the determinism contract. */
+export function onBattlePhaseStart(
+  state: GameState,
+  deps: BattleStartCannonDeps,
+): void {
+  mortarElectAll(state, deps.filterActiveFiringCannons, deps.isCannonEnclosed);
+  shieldBatteryElectAll(state, deps.homeEnclosedRegion);
 }
 
 /** Per-frame hook: advance upgrade-effect timers during the build phase.

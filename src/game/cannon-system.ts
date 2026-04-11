@@ -46,7 +46,6 @@ import {
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
-import { UID } from "../shared/upgrade-defs.ts";
 import { cannonSlotsBonus } from "./upgrade-system.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
@@ -218,57 +217,6 @@ export function prepareControllerCannonPhase(
   return { maxSlots, cursorPos };
 }
 
-/** Elect one mortar cannon per player who has the Mortar upgrade.
- *  Only standard (normal) cannons are eligible — super guns and balloons are excluded.
- *  If a player has no normal cannons, the upgrade is silently skipped.
- *  Uses synced RNG so election is deterministic for online play.
- *  Must be called after setPhase(BATTLE) and before any RNG-consuming
- *  code that follows in the battle-start sequence. */
-export function electMortarCannons(state: GameState): void {
-  for (const player of state.players) {
-    if (isPlayerEliminated(player)) continue;
-    if (!player.upgrades.get(UID.MORTAR)) continue;
-    const normalCannons = filterActiveFiringCannons(player).filter(
-      (cannon) =>
-        cannon.mode === CannonMode.NORMAL && isCannonEnclosed(cannon, player),
-    );
-    if (normalCannons.length === 0) continue;
-    const elected = state.rng.pick(normalCannons);
-    elected.mortar = true;
-  }
-}
-
-/** Mark all cannons in the same enclosed region as the home tower as shielded.
- *  BFS from home tower tiles through interior (+ tower tiles) to find the
- *  connected region, then shield every cannon whose tiles are all inside it.
- *  Must be called after setPhase(BATTLE) alongside electMortarCannons. */
-export function electShieldedCannons(state: GameState): void {
-  for (const player of state.players) {
-    if (isPlayerEliminated(player)) continue;
-    if (!player.upgrades.get(UID.SHIELD_BATTERY)) continue;
-    if (!player.homeTower) continue;
-    const region = homeEnclosedRegion(player);
-    for (const cannon of player.cannons) {
-      if (
-        !isCannonAlive(cannon) ||
-        isBalloonCannon(cannon) ||
-        isRampartCannon(cannon)
-      )
-        continue;
-      const sz = cannonSize(cannon.mode);
-      let allInside = true;
-      for (let dr = 0; dr < sz && allInside; dr++) {
-        for (let dc = 0; dc < sz && allInside; dc++) {
-          if (!region.has(packTile(cannon.row + dr, cannon.col + dc))) {
-            allInside = false;
-          }
-        }
-      }
-      if (allInside) cannon.shielded = true;
-    }
-  }
-}
-
 /** Check whether all tiles of a cannon are inside enclosed territory.
  *
  *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
@@ -298,32 +246,11 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
   );
 }
 
-/** Apply each player's defaultFacing to all their existing cannons.
- *  Private — callers should use `resetCannonFacings` (recompute + apply)
- *  or `prepareCannonPhase` (which calls resetCannonFacings internally). */
-function applyDefaultFacings(state: GameViewState): void {
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    for (const cannon of player.cannons) {
-      cannon.facing = player.defaultFacing;
-    }
-  }
-}
-
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
-function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player, idx) => {
-    const base = cannonSlotsForRound(player, state);
-    const salvage = state.salvageSlots[idx] ?? 0;
-    return base + cannonSlotsBonus(player) + salvage;
-  });
-  state.salvageSlots = state.players.map(() => 0);
-  state.reselectedPlayers.clear();
-}
-
 /** BFS from home tower tiles through interior + owned tower tiles.
- *  Returns the set of tile keys in the connected enclosed region. */
-function homeEnclosedRegion(player: Player): Set<number> {
+ *  Returns the set of tile keys in the connected enclosed region.
+ *  Exported so the upgrade-system dispatcher can inject it into
+ *  per-upgrade battle-start hooks (e.g. shield-battery). */
+export function homeEnclosedRegion(player: Player): Set<number> {
   assertInteriorFresh(player);
   const interior = getInterior(player);
   // Build traversable set: interior tiles + all owned tower tiles
@@ -361,6 +288,29 @@ function homeEnclosedRegion(player: Player): Set<number> {
     }
   }
   return visited;
+}
+
+/** Apply each player's defaultFacing to all their existing cannons.
+ *  Private — callers should use `resetCannonFacings` (recompute + apply)
+ *  or `prepareCannonPhase` (which calls resetCannonFacings internally). */
+function applyDefaultFacings(state: GameViewState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    for (const cannon of player.cannons) {
+      cannon.facing = player.defaultFacing;
+    }
+  }
+}
+
+/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+function computeCannonLimitsForPhase(state: GameState): void {
+  state.cannonLimits = state.players.map((player, idx) => {
+    const base = cannonSlotsForRound(player, state);
+    const salvage = state.salvageSlots[idx] ?? 0;
+    return base + cannonSlotsBonus(player) + salvage;
+  });
+  state.salvageSlots = state.players.map(() => 0);
+  state.reselectedPlayers.clear();
 }
 
 /**

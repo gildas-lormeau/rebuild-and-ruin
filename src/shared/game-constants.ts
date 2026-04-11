@@ -190,8 +190,6 @@ export const DIFFICULTY_PARAMS = [
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
 ];
-/** Mortar cannonball speed multiplier (half speed). */
-export const MORTAR_SPEED_MULT = 0.5;
 /** Haptics/sound level encoding shared across settings UI and subsystems.
  *  0=off, 1=phase changes only, 2=all. */
 // HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)
