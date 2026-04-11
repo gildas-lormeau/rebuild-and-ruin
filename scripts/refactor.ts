@@ -1152,6 +1152,32 @@ function toModuleSpecifier(fromFile: SourceFile, toFile: SourceFile): string {
   return raw.endsWith(".ts") ? raw : raw + ".ts";
 }
 
+/**
+ * Scan every file inside `absSource` (excluding `excludePath`) for an exported
+ * declaration named `name`. Returns the unique match, "ambiguous" if multiple
+ * files export it, or undefined if none do. Used by `generateBarrel` to
+ * resolve symbols that the existing barrel doesn't yet re-export — so adding
+ * a brand-new export to a sourceDir file followed by a regenerate Just Works
+ * without a manual edit to the barrel.
+ */
+function findExportInDir(
+  project: Project,
+  absSource: string,
+  excludePath: string,
+  name: string,
+): { sf: SourceFile; path: string } | "ambiguous" | undefined {
+  let found: { sf: SourceFile; path: string } | undefined;
+  for (const candidate of project.getSourceFiles()) {
+    const candidatePath = candidate.getFilePath();
+    if (candidatePath === excludePath) continue;
+    if (!isInsideDir(candidatePath, absSource)) continue;
+    if (!candidate.getExportedDeclarations().has(name)) continue;
+    if (found) return "ambiguous";
+    found = { sf: candidate, path: candidatePath };
+  }
+  return found;
+}
+
 /** The "domain" for an import-graph file is the first path segment under src/. */
 function domainOf(absPath: string): string | undefined {
   const srcRoot = absDir("src");
@@ -1381,16 +1407,9 @@ function generateBarrel(sourceDir: string, outFile: string): void {
         const isType = named.isTypeOnly() || declIsTypeOnly;
 
         if (importsThroughBarrel) {
-          // Resolve through the barrel's re-export map.
-          if (!outReexportMap) {
-            // Barrel is empty — nothing to follow. Skip with a warning so the
-            // user knows why their symbol didn't make it into the regeneration.
-            console.warn(
-              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but the barrel is empty — cannot resolve through. Skipping.`,
-            );
-            continue;
-          }
-          const resolution = outReexportMap.named.get(exportedName);
+          // Fast path: the barrel already re-exports this symbol — follow the
+          // chain (handles aliases and nested barrels).
+          const resolution = outReexportMap?.named.get(exportedName);
           if (resolution) {
             const realSf = project.getSourceFile(resolution.underlyingPath);
             if (!realSf) {
@@ -1399,9 +1418,6 @@ function generateBarrel(sourceDir: string, outFile: string): void {
               );
               continue;
             }
-            // Safety: if the resolved "underlying" path is still inside the
-            // source dir AND is NOT the barrel itself, record it. If it
-            // somehow loops back to the barrel (pathological), skip.
             if (resolution.underlyingPath === absOut) {
               console.warn(
                 `⚠️  Re-export chain for "${exportedName}" loops back to the barrel. Skipping.`,
@@ -1409,19 +1425,26 @@ function generateBarrel(sourceDir: string, outFile: string): void {
               continue;
             }
             recordSymbol(resolution.underlyingPath, realSf, resolution.originalName, isType);
-          } else if (outReexportMap.namespaceTargets.length > 0) {
-            // Symbol flows in via `export * from "..."`. We don't know which
-            // target owns it without a deeper scan — log a warning and skip
-            // this symbol. The user can re-add it manually or migrate the
-            // offending consumer. (Edge case; not worth the complexity of
-            // enumerating every namespace target's exports.)
+            continue;
+          }
+
+          // Fallback: the barrel doesn't (yet) re-export this symbol. Scan the
+          // source dir for a file that exports it. This makes regenerate-after-
+          // adding-a-new-symbol work without a manual edit to the barrel, and
+          // also covers symbols flowing through `export * from "..."`.
+          const found = findExportInDir(project, absSource, absOut, exportedName);
+          if (found === "ambiguous") {
             console.warn(
-              `⚠️  "${exportedName}" (imported by ${path.relative(process.cwd(), importerPath)}) may be re-exported via "export *" from one of [${outReexportMap.namespaceTargets.map((pp) => path.relative(process.cwd(), pp)).join(", ")}]. Cannot resolve underlying source; skipping.`,
+              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel; multiple files in ${sourceDir} export this name. Cannot disambiguate; skipping.`,
             );
+          } else if (found) {
+            recordSymbol(found.path, found.sf, exportedName, isType);
           } else {
-            // Barrel doesn't re-export this symbol at all — importer is broken.
+            const namespaceNote = outReexportMap && outReexportMap.namespaceTargets.length > 0
+              ? ` (may flow via "export *" from one of [${outReexportMap.namespaceTargets.map((pp) => path.relative(process.cwd(), pp)).join(", ")}])`
+              : "";
             console.warn(
-              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but the barrel does not re-export it. Skipping.`,
+              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but no file in ${sourceDir} exports it${namespaceNote}. Skipping.`,
             );
           }
         } else {
