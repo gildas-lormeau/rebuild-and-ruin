@@ -22,6 +22,7 @@ import {
 } from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
+import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   isPlayerEliminated,
@@ -57,12 +58,7 @@ export function hasAnyCannonPlacement(
   mode: CannonMode,
   state: GameViewState & { readonly burningPits: readonly BurningPit[] },
 ): boolean {
-  const interior = getInterior(player);
-  for (const key of interior) {
-    const { r, c } = unpackTile(key);
-    if (canPlaceCannon(player, r, c, mode, state)) return true;
-  }
-  return false;
+  return findFirstLegalCannonPlacement(player, mode, state) !== null;
 }
 
 /** Auto-place normal cannons for round-1 if none were placed.
@@ -82,14 +78,11 @@ export function autoPlaceRound1Cannons(
   if (!player || isPlayerEliminated(player) || player.cannons.length > 0)
     return;
 
-  const interior = getInterior(player);
-  const candidates: { row: number; col: number }[] = [];
-  for (const key of interior) {
-    const { r, c } = unpackTile(key);
-    if (canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) {
-      candidates.push({ row: r, col: c });
-    }
-  }
+  const candidates = findLegalCannonPlacements(
+    player,
+    CannonMode.NORMAL,
+    state,
+  );
   if (candidates.length === 0) return;
 
   // Evenly space placements across candidates for spread
@@ -288,6 +281,44 @@ export function homeEnclosedRegion(player: Player): Set<number> {
     }
   }
   return visited;
+}
+
+/** Find the first legal cannon placement in interior-iteration order, or
+ *  null if no valid position exists. Used internally by
+ *  hasAnyCannonPlacement; promote to a barrel export when an external
+ *  caller (test or AI) needs it. */
+function findFirstLegalCannonPlacement(
+  player: Player,
+  mode: CannonMode,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+): TilePos | null {
+  const interior = getInterior(player);
+  for (const key of interior) {
+    const { r, c } = unpackTile(key);
+    if (canPlaceCannon(player, r, c, mode, state)) return { row: r, col: c };
+  }
+  return null;
+}
+
+/** Collect every legal cannon placement in interior-iteration order.
+ *  Used internally by autoPlaceRound1Cannons; promote to a barrel export
+ *  when an external caller (test or AI) needs it. Order matches
+ *  getInterior() iteration order, which is deterministic for a given
+ *  wall set. */
+function findLegalCannonPlacements(
+  player: Player,
+  mode: CannonMode,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+): TilePos[] {
+  const interior = getInterior(player);
+  const candidates: TilePos[] = [];
+  for (const key of interior) {
+    const { r, c } = unpackTile(key);
+    if (canPlaceCannon(player, r, c, mode, state)) {
+      candidates.push({ row: r, col: c });
+    }
+  }
+  return candidates;
 }
 
 /** Apply each player's defaultFacing to all their existing cannons.
