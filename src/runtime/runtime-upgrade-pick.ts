@@ -2,11 +2,16 @@
  * Upgrade pick dialog sub-system factory.
  *
  * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
- * in runtime-types.ts. Upgrade-pick diverges from life-lost in two ways:
- *   - `prepare()` pre-creates the dialog for progressive reveal during the
- *     banner sweep, before tryShow() activates Mode.UPGRADE_PICK.
- *   - Completion uses a single `onDone` closure passed to tryShow() (always
- *     resumes the build-phase banner), vs life-lost's multi-path `onResolved`.
+ * in runtime-types.ts. Dialog completion patterns across the three dialogs
+ * (ScoreDelta / LifeLost / UpgradePick) are compared side-by-side in the
+ * decision table above RuntimeScoreDelta in runtime-types.ts (~line 428) —
+ * read that before adding a fourth dialog.
+ *
+ * Upgrade-pick picks the "local closure" pattern (`tryShow(onDone)`) because
+ * it has a single resolution path (always resume the build-phase banner).
+ * Also diverges from life-lost in having a `prepare()` pre-create step for
+ * progressive reveal during the banner sweep, before tryShow() activates
+ * Mode.UPGRADE_PICK.
  *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
  * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.

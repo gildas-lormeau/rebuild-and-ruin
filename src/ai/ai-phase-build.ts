@@ -17,8 +17,10 @@ import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 
-/** Subset of AiController accessed by build-phase logic. */
-interface BuildHost {
+/** Subset of AiController accessed by build-phase logic.
+ *  Exported so controller-ai.ts can statically assert AiController implements
+ *  every phase's Host (see the `satisfies` check at the bottom of that file). */
+export interface BuildHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   buildCursor: TilePos;

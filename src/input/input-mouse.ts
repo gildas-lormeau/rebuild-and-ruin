@@ -7,7 +7,7 @@ import {
 import { Action } from "../shared/input-action.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import {
   dispatchBattleFire,
   dispatchGameAction,
@@ -16,6 +16,7 @@ import {
   dispatchPointerMove,
   dispatchTowerSelect,
   isTouchSuppressed,
+  shouldHandleGameInput,
 } from "./input-dispatch.ts";
 
 // Function type export — consumed as type-only import by runtime/
@@ -64,7 +65,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!state || !isInteractiveMode(mode)) return;
+    if (!shouldHandleGameInput(mode, state)) return;
 
     if (isSelectionPhase(state.phase)) {
       const worldCoords = coords.screenToWorld(x, y);
@@ -87,7 +88,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     e.preventDefault();
     if (isTouchSuppressed()) return;
     const state = getState();
-    if (!state || !isInteractiveMode(getMode())) return;
+    if (!shouldHandleGameInput(getMode(), state)) return;
     deps.withPointerPlayer((human) => {
       dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
     });

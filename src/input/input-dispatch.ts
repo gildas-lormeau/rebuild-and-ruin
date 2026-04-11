@@ -53,7 +53,7 @@ import type {
   OverlayActionDeps,
   PointerMoveDeps,
 } from "../shared/ui-contracts.ts";
-import { Mode } from "../shared/ui-mode.ts";
+import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 
 interface QuitFlowDeps {
   getPending: () => boolean;
@@ -103,6 +103,28 @@ export function markTouchTime(): void {
  *  Must be checked in ALL mouse/click handlers — see markTouchTime() for the pairing. */
 export function isTouchSuppressed(): boolean {
   return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS;
+}
+
+/** Canonical guard for "this pointer/key event should reach live gameplay
+ *  (tower select, piece placement, fire, grunt targeting, rotate)."
+ *
+ *  Returns `true` only when:
+ *    1. `state` exists (game is loaded, not lobby bootstrap), and
+ *    2. `mode` is an interactive gameplay mode (Mode.GAME / Mode.SELECTION).
+ *
+ *  Lobby/options/controls/banner/transition/stopped modes all return false.
+ *  The type predicate narrows `state` to `GameState` for the caller.
+ *
+ *  All three input layers — mouse (click/contextmenu), keyboard (handleKeyGame
+ *  dispatch), and touch (touchend / pinch-tap rotate) — MUST route their
+ *  "is this a game input?" check through this helper. Do NOT inline
+ *  `!!state && isInteractiveMode(mode)` at new call sites; copy-paste drift
+ *  across the three input types is exactly what this helper exists to prevent. */
+export function shouldHandleGameInput(
+  mode: Mode,
+  state: GameState | undefined,
+): state is GameState {
+  return !!state && isInteractiveMode(mode);
 }
 
 /** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */

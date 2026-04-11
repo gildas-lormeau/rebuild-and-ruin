@@ -190,9 +190,11 @@ interface InputSystemDeps {
 
   // Sibling callbacks
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  /** Run `action` with the pointer (local human) controller. Returns `true`
+   *  if it actually ran, `false` when there is no human to receive the input. */
   readonly withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
 }
 
 type PlacePieceFn = (

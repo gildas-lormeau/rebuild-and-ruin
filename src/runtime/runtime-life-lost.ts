@@ -2,9 +2,13 @@
  * Life-lost dialog sub-system factory.
  *
  * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
- * in runtime-types.ts. Life-lost diverges from upgrade-pick in completion:
- * resolution is a separate method (`onResolved`) because life-lost has
- * multi-path outcomes (game over, reselection, or advance to cannon).
+ * in runtime-types.ts. Dialog completion patterns across the three dialogs
+ * (ScoreDelta / LifeLost / UpgradePick) are compared side-by-side in the
+ * decision table above RuntimeScoreDelta in runtime-types.ts (~line 428) —
+ * read that before adding a fourth dialog.
+ *
+ * Life-lost picks the "method on system" pattern (`onResolved()`) because
+ * it has multi-path outcomes (game over, reselection, or advance to cannon).
  * host-phase-ticks calls onResolved directly when all entries were
  * pre-resolved at dialog creation time.
  *

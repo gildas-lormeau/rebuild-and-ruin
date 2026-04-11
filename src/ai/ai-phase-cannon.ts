@@ -18,8 +18,10 @@ import type {
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 
-/** Subset of AiController accessed by cannon-phase logic. */
-interface CannonHost {
+/** Subset of AiController accessed by cannon-phase logic.
+ *  Exported so controller-ai.ts can statically assert AiController implements
+ *  every phase's Host (see the `satisfies` check at the bottom of that file). */
+export interface CannonHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   cannonCursor: TilePos;

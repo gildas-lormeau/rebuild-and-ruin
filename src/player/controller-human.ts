@@ -236,7 +236,17 @@ export class HumanController extends BaseController implements InputReceiver {
       this.crosshair.x = Math.min(MAP_PX_W, this.crosshair.x + speed);
   }
 
-  /** Try to place a cannon at the current cursor position. Returns true on success. */
+  /** Try to place a cannon at the current cursor position. Returns `true` on
+   *  success, `false` on validation failure.
+   *
+   *  EXCEPTION to the intent/orchestrator pattern used by tryPlacePiece below
+   *  (and documented as pattern #83 in skills/architecture-audit.md): this
+   *  method calls `placeCannon` directly instead of returning an intent object.
+   *  The historical reason is that `placeCannon` already accepts the structural
+   *  subset it needs (`player`, `row`, `col`, `mode`, `state`) without a full
+   *  GameState mutation, so there was no migration benefit. DO NOT copy
+   *  tryPlacePiece's intent shape here without first rewriting placeCannon —
+   *  and DO NOT copy this boolean-returning shape into new placement methods. */
   tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean {
     const placed = placeCannon(
       state.players[this.playerId]!,
@@ -251,7 +261,9 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Compute a place-piece intent at the build cursor.
    *  Returns null if placement is invalid. The orchestrator executes the
-   *  mutation via placePiece() then calls ctrl.advanceBag(true). */
+   *  mutation via placePiece() then calls ctrl.advanceBag(true).
+   *  Contrast with tryPlaceCannon above, which is intentionally boolean — see
+   *  its JSDoc for why cannon placement never adopted the intent pattern. */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null {
     if (!this.currentPiece || !this.bag) return null;
     const valid = canPlacePiece(

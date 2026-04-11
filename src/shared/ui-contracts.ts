@@ -331,9 +331,13 @@ export interface OverlayActionDeps {
 export interface DpadDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
+  /** Run `action` with the pointer (local human) controller. Returns `true`
+   *  if it actually ran, `false` when there is no human to receive the input
+   *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
+   *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
   onHapticTap?: () => void;
   isHost: () => boolean;
   /** Join P1 in lobby (or skip if already joined). */
@@ -372,9 +376,13 @@ export interface ZoomButtonDeps {
 export interface FloatingActionsDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
+  /** Run `action` with the pointer (local human) controller. Returns `true`
+   *  if it actually ran, `false` when there is no human to receive the input
+   *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
+   *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
   tryPlacePieceAndSend: (
     human: PlayerController & InputReceiver,
     state: BuildViewState,
@@ -463,9 +471,13 @@ export interface RegisterOnlineInputDeps {
    *  IMPORTANT: The callback is NOT invoked if no human players exist
    *  (e.g., all-AI game or spectator mode). Callers must not rely on
    *  side effects — the action may silently not run. */
+  /** Run `action` with the pointer (local human) controller. Returns `true`
+   *  if it actually ran, `false` when there is no human to receive the input
+   *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
+   *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
 
   // --- Coordinate conversion + pinch ---
   coords: {
@@ -600,9 +612,13 @@ export interface GameActionDeps {
 }
 
 export interface PointerMoveDeps {
+  /** Run `action` with the pointer (local human) controller. Returns `true`
+   *  if it actually ran, `false` when there is no human to receive the input
+   *  (all-AI, demo, online-watcher). Ignore the return value to preserve the
+   *  legacy silent-no-op behavior; inspect it to surface a diagnostic. */
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
   coords: {
     screenToWorld: (x: number, y: number) => WorldPos;
     pixelToTile: (x: number, y: number) => { row: number; col: number };

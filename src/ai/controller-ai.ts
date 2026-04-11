@@ -25,6 +25,7 @@ import {
 import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import {
+  type BattleHost,
   createBattlePhase,
   initBattle,
   resetBattlePhaseKeepOrbit,
@@ -32,6 +33,7 @@ import {
 } from "./ai-phase-battle.ts";
 import {
   BUILD_CURSOR_SPEEDS,
+  type BuildHost,
   createBuildPhase,
   finalizeBuild,
   initBuild,
@@ -40,6 +42,7 @@ import {
 } from "./ai-phase-build.ts";
 import {
   CANNON_CURSOR_SPEEDS,
+  type CannonHost,
   createCannonPhase,
   flushCannon,
   initCannon,
@@ -51,9 +54,17 @@ import {
   createSelectionPhase,
   initSelection,
   resetSelectionPhase,
+  type SelectionHost,
   tickSelection,
 } from "./ai-phase-select.ts";
 import { type AiStrategy, DefaultStrategy } from "./ai-strategy.ts";
+
+// Compile-time guarantee: AiController structurally satisfies every phase
+// module's Host interface. Adding a required field/method to any Host without
+// implementing it on AiController — or renaming a field that a Host depends on
+// — breaks this assertion at the class declaration site, not at downstream
+// tick() call sites. See each ai-phase-*.ts file for the Host definitions.
+type AllAiPhaseHosts = SelectionHost & BuildHost & CannonHost & BattleHost;
 
 // ── Tile-cursor movement tuning ──
 /** Manhattan distance below which cursor snaps to target (tiles). */
@@ -62,6 +73,9 @@ const TILE_ARRIVAL_TOLERANCE = 0.05;
 const JITTER_DECAY_RATE = 4;
 /** Maximum perpendicular jitter amplitude (tiles). */
 const JITTER_MAX_AMPLITUDE = 0.6;
+const _assertAiControllerSatisfiesAllHosts = (
+  controller: AiController,
+): AllAiPhaseHosts => controller;
 
 export class AiController extends BaseController implements AiAnimatable {
   override readonly kind = "ai" as const;
@@ -360,3 +374,5 @@ function moveStepFraction(
   const step = baseSpeed * (dist > boostThreshold ? 2 : 1) * dt;
   return step >= dist ? 1 : step / dist;
 }
+
+void _assertAiControllerSatisfiesAllHosts;

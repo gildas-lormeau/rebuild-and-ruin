@@ -13,8 +13,10 @@ import type { AiStrategy } from "./ai-strategy.ts";
 
 /** Minimal subset of AiController needed by this phase module.
  *  Convention: each ai-phase-*.ts defines its own Host interface to decouple
- *  phase logic from the full controller, keeping modules independently testable. */
-interface SelectionHost {
+ *  phase logic from the full controller, keeping modules independently testable.
+ *  Exported so controller-ai.ts can statically assert AiController implements
+ *  every phase's Host (see the `satisfies` check at the bottom of that file). */
+export interface SelectionHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */

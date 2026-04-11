@@ -19,8 +19,12 @@ import {
 } from "../shared/player-config.ts";
 import { type GameState } from "../shared/types.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
-import { isGameplayMode, isInteractiveMode, Mode } from "../shared/ui-mode.ts";
-import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
+import { isGameplayMode, Mode } from "../shared/ui-mode.ts";
+import {
+  dispatchGameAction,
+  dispatchQuit,
+  shouldHandleGameInput,
+} from "./input-dispatch.ts";
 
 // Function type export — consumed as type-only import by runtime/
 // Note: keyboard uses per-handler mode checks because different keys are valid
@@ -63,7 +67,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
       e.preventDefault();
       return;
     }
-    if (isInteractiveMode(mode)) {
+    if (shouldHandleGameInput(mode, state)) {
       handleKeyGame(e, state, deps);
       return;
     }

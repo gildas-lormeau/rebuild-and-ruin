@@ -29,7 +29,6 @@ import type {
   PlayerController,
 } from "../shared/system-interfaces.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
-import { isInteractiveMode } from "../shared/ui-mode.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
   dispatchBattleFire,
@@ -39,6 +38,7 @@ import {
   dispatchPointerMove,
   dispatchTowerSelect,
   markTouchTime,
+  shouldHandleGameInput,
 } from "./input-dispatch.ts";
 
 /** Mutable gesture-tracking state shared across touch handlers. */
@@ -140,7 +140,10 @@ function handleTouchStart(
 
   // Tap-on-phantom: if the touch lands directly on the current phantom,
   // skip cursor movement so the tap can confirm placement at touchend.
-  if (isPlacementPhase(state.phase) && isInteractiveMode(getMode())) {
+  if (
+    isPlacementPhase(state.phase) &&
+    shouldHandleGameInput(getMode(), state)
+  ) {
     const tile = coords.pixelToTile(x, y);
     let hit = false;
     deps.withPointerPlayer((human) => {
@@ -156,7 +159,7 @@ function handleTouchStart(
   // Update cursor/crosshair position on touch down (skip during transitions —
   // the viewport may still be lerping from a different zone, so screen-to-tile
   // conversion would place the cursor at wrong coordinates).
-  if (isInteractiveMode(getMode())) {
+  if (shouldHandleGameInput(getMode(), state)) {
     dispatchPointerMove(x, y, state, deps);
   }
 }
@@ -198,7 +201,7 @@ function handleTouchMove(
 
   // Skip during transitions — viewport may still be lerping from a different
   // zone (e.g. enemy zone after battle), causing wrong cursor placement.
-  if (!isInteractiveMode(deps.getMode())) return;
+  if (!shouldHandleGameInput(deps.getMode(), state)) return;
 
   dispatchPointerMove(x, y, state, deps);
 }
@@ -221,7 +224,7 @@ function handleTouchEnd(
       // Two-finger tap without movement → rotate
       if (wasTap) {
         const state = getState();
-        if (state && isInteractiveMode(getMode())) {
+        if (shouldHandleGameInput(getMode(), state)) {
           deps.withPointerPlayer((human) => {
             dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
           });
@@ -247,7 +250,7 @@ function handleTouchEnd(
   // Non-game modes: tap acts as click
   if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
-  if (!state || !isInteractiveMode(mode)) return;
+  if (!shouldHandleGameInput(mode, state)) return;
 
   // Selection: first tap highlights, second tap on same tower confirms
   if (tap && isSelectionPhase(state.phase)) {

@@ -18,10 +18,16 @@ import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
-  /** Run `action` with the pointer player. No-op in demo mode (all-AI). */
+  /** Run `action` with the pointer player.
+   *  Returns `true` if the action ran, `false` if there is no human to receive
+   *  the input (all-AI / demo / online-watcher mode).
+   *  Callers that need to know whether the click/tap was actually handled —
+   *  e.g. to suppress a fallback path, log a diagnostic, or surface a "no
+   *  humans" UI hint — should inspect the return value. Older code may ignore
+   *  it (the silent no-op preserves the previous behavior). */
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
+  ) => boolean;
   /** Clear the per-frame cache. Must be called at the start of each frame. */
   clearCache: () => void;
 }
@@ -58,10 +64,11 @@ export function createPointerPlayerLookup(
 
   function withPointerPlayer(
     action: (human: PlayerController & InputReceiver) => void,
-  ): void {
+  ): boolean {
     const active = pointerPlayer();
-    if (!active) return;
+    if (!active) return false;
     action(active);
+    return true;
   }
 
   function clearCache(): void {

@@ -22,8 +22,10 @@ import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
  *  Returns true if a cannon actually fired. */
 type ExecuteFireFn = (intent: FireIntent) => boolean;
 
-/** Subset of AiController accessed by battle-phase logic. */
-interface BattleHost {
+/** Subset of AiController accessed by battle-phase logic.
+ *  Exported so controller-ai.ts can statically assert AiController implements
+ *  every phase's Host (see the `satisfies` check at the bottom of that file). */
+export interface BattleHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   crosshair: { x: number; y: number };
