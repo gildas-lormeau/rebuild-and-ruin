@@ -116,7 +116,22 @@ export function syncAccumulatorsFromTimer(
 
 /** Derive a deterministic AI strategy seed from the base RNG seed, round, and player slot.
  *  Both multipliers must be used together — they ensure seeds are uncorrelated
- *  across rounds (large prime) and across slots (golden ratio hash). */
+ *  across rounds (large prime) and across slots (golden ratio hash).
+ *
+ *  Contract vs. the initial-host path (runtime-bootstrap.ts):
+ *    - Initial hosts pull AI seeds from state.rng.int() in player order,
+ *      which advances state.rng before castle selection.
+ *    - Promoted hosts derive seeds from (baseSeed, round, slot) without
+ *      touching state.rng, because a promoted host doesn't know what the
+ *      original host pulled at init time.
+ *
+ *  The two formulas are intentionally different. As a result, a promoted
+ *  host's AI identity (personality, targeting rhythm, etc.) does NOT match
+ *  what the previous host was running — it's effectively a new AI instance.
+ *  This is acceptable because watchers replay events (not AI decisions), so
+ *  parity is preserved within each "era". If identity preservation across
+ *  promotion ever matters, checkpoint the strategy seeds into SerializedPlayer
+ *  and restore them in rebuildControllersForPhase above. */
 function deriveAiStrategySeed(
   baseSeed: number,
   round: number,

@@ -201,6 +201,19 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   );
   if (hasAi) await ensureAiModulesLoaded();
 
+  // AI strategy seeding contract (initial host path):
+  //   Each AI controller pulls one uint32 from the shared game RNG in
+  //   player-index order. This advances state.rng before castle selection,
+  //   which is captured in every determinism fixture — changing the formula
+  //   here re-rolls those fixtures.
+  //
+  //   The host-promotion path in online-host-promotion.ts derives a seed
+  //   from (baseSeed, round, slot) without touching state.rng instead,
+  //   because a promoted host doesn't know what the original host pulled at
+  //   init time. The two formulas are intentionally different: post-promotion
+  //   AI identity is NOT preserved from the pre-promotion host. If you ever
+  //   need identity preservation across promotion, checkpoint the strategy
+  //   seeds into SerializedPlayer and restore them on rebuild.
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const isAi = !deps.humanSlots[i];
