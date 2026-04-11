@@ -7,7 +7,6 @@ import {
   diffNewWalls,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
-  finalizeBuildPhase,
   gruntAttackTowers,
   isCeasefireActive,
   nextPhase,
@@ -740,7 +739,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Snapshot THEN finalize territory (load-bearing order — see snapshotThenFinalize)
     const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
-      snapshotThenFinalize(state, finalizeBuildPhase);
+      snapshotThenFinalize(state);
     banner.wallsBeforeSweep = wallsBeforeSweep;
     banner.prevEntities = prevEntities;
 

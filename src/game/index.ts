@@ -18,7 +18,6 @@ export {
 export {
   buildTimerMax,
   diffNewWalls,
-  snapshotThenFinalize,
   tickMasterBuilderLockout,
 } from "./build-phase-helpers.ts";
 export {
@@ -76,12 +75,12 @@ export {
   computeScoreDeltas,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
-  finalizeBuildPhase,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
   resetZoneState,
   setPhase,
+  snapshotThenFinalize,
 } from "./phase-setup.ts";
 export {
   reapplyHighTideTiles,
