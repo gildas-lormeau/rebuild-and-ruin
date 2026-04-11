@@ -55,7 +55,6 @@
       "src/game/round-modifiers.ts",
       "src/game/game-engine.ts",
       "src/game/selection.ts",
-      "src/game/build-phase-helpers.ts",
       "src/game/phase-banner.ts",
       "src/game/upgrade-pick.ts",
       "src/game/index.ts"

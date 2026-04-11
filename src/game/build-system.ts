@@ -47,6 +47,7 @@ import {
   isWater,
   manhattanDistance,
   packTile,
+  unpackTile,
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
@@ -294,6 +295,25 @@ export function recomputeAllTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeTerritoryFromWalls(state, player);
   }
+}
+
+/** Detect walls added by a controller tick and return them as offset pairs.
+ *  Used by the runtime to broadcast AI wall placements to network peers. */
+export function diffNewWalls(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  wallSnapshot: ReadonlySet<number>,
+): [number, number][] {
+  const player = state.players[playerId]!;
+  if (player.walls.size <= wallSnapshot.size) return [];
+  const offsets: [number, number][] = [];
+  for (const key of player.walls) {
+    if (!wallSnapshot.has(key)) {
+      const { r, c } = unpackTile(key);
+      offsets.push([r, c]);
+    }
+  }
+  return offsets;
 }
 
 /** Recompute interior and ownedTowers from walls — no side effects.

@@ -1,8 +1,8 @@
 import {
   advanceBattleCountdown,
-  buildTimerMax,
   type CannonPhaseEntry,
   diffNewWalls,
+  tickBuildPhase as engineTickBuildPhase,
   enterBattlePhase,
   enterBuildPhase,
   enterBuildSkippingBattle,
@@ -13,7 +13,6 @@ import {
   resetCannonFacings,
   tickBattleCombat,
   tickGrunts,
-  tickMasterBuilderLockout,
 } from "../game/index.ts";
 import {
   BATTLE_MESSAGE,
@@ -647,9 +646,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const piecePhantomDedup =
       online?.piecePhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
-    // --- Timer + Master Builder lockout + grunt tick ---
-    advancePhaseTimer(accum, "build", state, dt, buildTimerMax(state));
-    tickMasterBuilderLockout(state, dt);
+    // --- Engine tick (advances upgrade-effect timers, returns timer max) ---
+    const { timerMax } = engineTickBuildPhase(state, dt);
+    advancePhaseTimer(accum, "build", state, dt, timerMax);
     tickGruntsIfDue(accum, dt, state, (gameState: GameState) => {
       tickGrunts(gameState);
     });

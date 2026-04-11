@@ -13,12 +13,8 @@ export {
   tickBattleCombat,
 } from "./battle-system.ts";
 export {
-  buildTimerMax,
-  diffNewWalls,
-  tickMasterBuilderLockout,
-} from "./build-phase-helpers.ts";
-export {
   canPlacePiece,
+  diffNewWalls,
   placePiece,
   recheckTerritoryOnly,
   recomputeAllTerritory,
@@ -53,6 +49,7 @@ export {
   isCeasefireActive,
   isSelectionComplete,
   snapshotAndFinalizeForCannonPhase,
+  tickBuildPhase,
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";

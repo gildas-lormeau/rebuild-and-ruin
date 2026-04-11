@@ -15,7 +15,7 @@
 
 import type { BalloonFlight } from "../shared/battle-types.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
+import { EMPTY_FEATURES, FID } from "../shared/feature-defs.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -24,6 +24,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
+  MASTER_BUILDER_BONUS_SECONDS,
   type ModifierDiff,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
@@ -36,6 +37,7 @@ import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
 import {
   type GameState,
+  hasFeature,
   type SelectionState,
   setGameMode,
 } from "../shared/types.ts";
@@ -107,6 +109,16 @@ interface BuildPhaseResult {
   needsReselect: ValidPlayerSlot[];
   /** Players eliminated this round (lives hit zero). */
   eliminated: ValidPlayerSlot[];
+}
+
+/** Result of `tickBuildPhase` — per-frame engine summary the runtime needs
+ *  to drive its outer build coordinator (timer advance, controller ticks,
+ *  rendering). The engine has already advanced any internal lockout timers
+ *  by the time this is returned. */
+interface BuildPhaseTick {
+  /** Effective max for the build phase timer in seconds. Already includes
+   *  any active upgrade bonuses (e.g. Master Builder). */
+  timerMax: number;
 }
 
 /** Result of `enterBuildPhase` — pre-transition snapshots the caller wires
@@ -299,6 +311,17 @@ export function enterBuildPhase(
   return { prevCastles, prevTerritory, prevWalls, prevEntities };
 }
 
+/** Per-frame WALL_BUILD engine tick. Advances upgrade-effect timers
+ *  (Master Builder lockout) and reports the effective phase timer max so
+ *  the runtime can keep its accumulator-based timer in sync.
+ *
+ *  Pure engine territory: no controller ticks, no rendering, no networking.
+ *  The runtime's outer build coordinator wraps this with those concerns. */
+export function tickBuildPhase(state: GameState, dt: number): BuildPhaseTick {
+  tickMasterBuilderLockout(state, dt);
+  return { timerMax: buildTimerMax(state) };
+}
+
 /** Finish the WALL_BUILD phase. Snapshots all walls BEFORE wall sweep (so the
  *  banner can show destroyed walls), runs finalize (wall sweep + territory
  *  scoring + tower revival + life penalties), then re-snapshots zone-dependent
@@ -366,6 +389,21 @@ export function finalizeAndEnterCannonPhase(state: GameState): void {
 function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
+}
+
+/** Decrement the Master Builder lockout timer. No-op in classic mode. */
+function tickMasterBuilderLockout(state: GameState, dt: number): void {
+  if (!hasFeature(state, FID.UPGRADES)) return;
+  const modern = state.modern;
+  if (modern && modern.masterBuilderLockout > 0) {
+    modern.masterBuilderLockout = Math.max(0, modern.masterBuilderLockout - dt);
+  }
+}
+
+/** Compute the effective build timer max (includes Master Builder bonus). */
+function buildTimerMax(state: GameState): number {
+  const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
+  return state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
 }
 
 function createGameState(

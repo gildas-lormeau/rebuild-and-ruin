@@ -125,7 +125,6 @@
     "files": [
       "src/ai/ai-build-score.ts",
       "src/ai/ai-strategy-cannon.ts",
-      "src/game/build-phase-helpers.ts",
       "src/game/grunt-system.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
