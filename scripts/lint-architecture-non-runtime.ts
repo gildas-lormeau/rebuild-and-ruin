@@ -24,14 +24,6 @@ interface BoundaryRule {
   isAllowedImporter: (file: string) => boolean;
 }
 
-function normalizeFile(filePath: string): string {
-  return filePath.replace(/\\/g, "/");
-}
-
-function startsWithAny(value: string, prefixes: readonly string[]): boolean {
-  return prefixes.some((prefix) => value.startsWith(prefix));
-}
-
 const rules: BoundaryRule[] = [
   {
     name: "game-subsystems",
@@ -71,7 +63,8 @@ const rules: BoundaryRule[] = [
     matchesImported: (file) =>
       file.startsWith("src/render/render-") &&
       file !== "src/render/render-composition.ts" &&
-      file !== "src/render/render-canvas.ts",
+      file !== "src/render/render-canvas.ts" &&
+      file !== "src/render/render-layout.ts",
     isAllowedImporter: (file) =>
       startsWithAny(file, ["src/render/"]) ||
       file === "src/runtime/runtime-composition.ts" ||
@@ -79,20 +72,22 @@ const rules: BoundaryRule[] = [
       file === "src/online/online-runtime-lobby.ts",
   },
 ];
-
 const project = new Project({
   tsConfigFilePath: "tsconfig.json",
   skipAddingFilesFromTsConfig: true,
 });
-
-project.addSourceFilesAtPaths("src/**/*.ts");
-
 const sourceFiles = project
   .getSourceFiles()
   .filter((sf) => !sf.getBaseName().endsWith(".d.ts"));
-
 const violations: Violation[] = [];
+
 let checkedImports = 0;
+
+function startsWithAny(value: string, prefixes: readonly string[]): boolean {
+  return prefixes.some((prefix) => value.startsWith(prefix));
+}
+
+project.addSourceFilesAtPaths("src/**/*.ts");
 
 for (const sourceFile of sourceFiles) {
   const importer = normalizeFile(sourceFile.getFilePath()).replace(
@@ -124,6 +119,10 @@ for (const sourceFile of sourceFiles) {
   }
 }
 
+function normalizeFile(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
+}
+
 if (violations.length === 0) {
   console.log(
     `\n✔ No non-runtime architecture boundary violations (${sourceFiles.length} files, ${checkedImports} imports checked)\n`,
@@ -140,11 +139,13 @@ violations.sort((a, b) => {
 console.log(
   `\n✘ ${violations.length} non-runtime architecture boundary violation(s):\n`,
 );
+
 for (const violation of violations) {
   console.log(
     `  [${violation.rule}] ${violation.importer} -> ${violation.imported}`,
   );
 }
+
 console.log("");
 
 process.exit(1);

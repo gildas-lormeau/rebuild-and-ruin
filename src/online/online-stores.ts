@@ -11,12 +11,12 @@
  * for user-visible feedback or error handling.
  */
 
+import type { GameMessage } from "../protocol/protocol.ts";
+import { isHostInContext } from "../runtime/runtime-tick-context.ts";
 import {
   isActivePlayer,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import type { GameMessage } from "../shared/net/protocol.ts";
-import { isHostInContext } from "../shared/net/tick-context.ts";
 import { IS_DEV } from "../shared/platform/platform.ts";
 import {
   createDedupMaps,

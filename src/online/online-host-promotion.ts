@@ -8,6 +8,7 @@ import {
   enterCannonPhase,
   finalizeAndEnterCannonPhase,
 } from "../game/index.ts";
+import type { MutableAccums } from "../runtime/runtime-tick-context.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type {
@@ -17,7 +18,6 @@ import type {
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type { MutableAccums } from "../shared/net/tick-context.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;

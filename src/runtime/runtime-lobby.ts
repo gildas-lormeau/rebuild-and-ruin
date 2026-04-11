@@ -18,7 +18,7 @@ import type {
   LobbyClickHitTestFn,
   LobbyHit,
   UIContext,
-} from "../shared/ui/ui-contracts.ts";
+} from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {

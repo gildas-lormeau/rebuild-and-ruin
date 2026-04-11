@@ -193,7 +193,7 @@ sufficient for LLM agents to follow correctly.
 6. **Wall snapshot MUST precede finalizeBuildPhase** — game/host-phase-ticks.ts:466-468 documents it;
    snapshotThenFinalize() at line 494-498 enforces it structurally with a full INVARIANT JSDoc.
 
-7. **advancePhaseTimer is the ONLY way to advance phase timers** — shared/net/tick-context.ts:101-108
+7. **advancePhaseTimer is the ONLY way to advance phase timers** — runtime/runtime-tick-context.ts:101-108
    has `INVARIANT: All phase timers MUST use this function. Never manually write accum.X += dt.`
 
 8. **Canvas ctx.save()/ctx.restore() convention** — render/render-effects.ts:20-28 documents the full
@@ -212,7 +212,7 @@ sufficient for LLM agents to follow correctly.
 
 11. **`session.isHost` is volatile — never cache, always read via `isHostInContext()`** —
     online/online-session.ts:29-35 marks the field `VOLATILE` with full explanation of when it flips
-    and how to read/write it. shared/net/tick-context.ts:87-88 repeats `VOLATILE...Never cache` on the
+    and how to read/write it. runtime/runtime-tick-context.ts:87-88 repeats `VOLATILE...Never cache` on the
     accessor. game/host-phase-ticks.ts:12-13 says `never cache in a local variable`.
     online/online-server-events.ts:25-27 repeats the warning. ESLint `no-restricted-syntax` rule
     enforces all direct `.isHost` reads require an explicit disable comment.
@@ -239,8 +239,8 @@ sufficient for LLM agents to follow correctly.
 17. **Mode-setting timing in watcher phase transitions** — online/online-phase-transitions.ts:53-61
     documents when setMode is called immediately vs inside banner callback for each phase type.
 
-18. **AI vs human cursor movement models differ by design** — ai/controller-ai.ts:248-252
-    and player/controller-human.ts:236-239 both warn not to copy between the two files.
+18. **AI vs human cursor movement models differ by design** — controllers/controller-ai.ts:248-252
+    and controllers/controller-human.ts:236-239 both warn not to copy between the two files.
     AI uses tile-step (Manhattan + jitter), human uses pixel-velocity (Cartesian).
 
 19. **ROUNDS_TO_THE_DEATH_INDEX and CANNON_HP_DEFAULT_INDEX are array indices** —
@@ -255,7 +255,7 @@ sufficient for LLM agents to follow correctly.
     ai/ai-phase-battle.ts:87 name makes clear that orbitAngle persists across resets.
     Contrast with `initBattle` which resets everything including chain state.
 
-22. **AI tile-cursor movement constants are named** — ai/controller-ai.ts defines
+22. **AI tile-cursor movement constants are named** — controllers/controller-ai.ts defines
     TILE_ARRIVAL_TOLERANCE, JITTER_DECAY_RATE, and JITTER_MAX_AMPLITUDE as named constants.
 
 23. **Eliminated-player guard in keyboard dispatch is NOT missing** — keyboard's
@@ -373,7 +373,7 @@ sufficient for LLM agents to follow correctly.
 48. **Modifier tuning constants are playtesting-calibrated** —
     game/round-modifiers.ts:71 block comment warns against adjusting multiple simultaneously.
 
-49. **Fanfare note frequencies are musical constants** — input/sound-system.ts:587 comment
+49. **Fanfare note frequencies are musical constants** — runtime/runtime-sound.ts:587 comment
     documents G4=392, C5=523, E5=659, G5=784 Hz.
 
 50. **isCannonPhaseDone measures different things per controller type** —
@@ -397,7 +397,7 @@ sufficient for LLM agents to follow correctly.
     runs before any player mutation.
 
 55. **scaledDelay convention and typical ranges per phase** —
-    ai/controller-ai.ts:154-161 JSDoc documents `(base + rng * spread) * delayScale`
+    controllers/controller-ai.ts:154-161 JSDoc documents `(base + rng * spread) * delayScale`
     with typical ranges: selection 0.8–1.0s, build/cannon 0.2–0.3s, battle 0.1–0.2s.
 
 56. **Null vs undefined convention in online-serialize** —
@@ -409,11 +409,11 @@ sufficient for LLM agents to follow correctly.
     (phase end, all controllers). Finalization method differs by role and phase.
 
 58. **Phantom key format (comma-separated, 1/0 booleans, : and ; separators)** —
-    shared/net/phantom-types.ts:70-81 JSDoc documents exact format for cannonPhantomKey
+    shared/core/phantom-types.ts:70-81 JSDoc documents exact format for cannonPhantomKey
     (`row,col,mode,valid`) and piecePhantomKey (`row,col,valid,r0:c0;r1:c1;...`).
 
 59. **Sound level guard convention (play() internal vs Web Audio entry)** —
-    input/sound-system.ts:15-19 JSDoc documents three tiers: play() guards internally,
+    runtime/runtime-sound.ts:15-19 JSDoc documents three tiers: play() guards internally,
     Web Audio public methods guard at entry, internal helpers rely on caller guard.
 
 60. **Upgrade weight constants (WEIGHT_COMMON/UNCOMMON/RARE)** —
@@ -425,7 +425,7 @@ sufficient for LLM agents to follow correctly.
     `void poolComplete` idiom for suppressing unused-variable warnings.
 
 62. **Cannon boom voice mix ratios and named frequency constants** —
-    input/sound-system.ts:209-221 defines CANNON_BASS_END_HZ, CANNON_MID_START/END_HZ,
+    runtime/runtime-sound.ts:209-221 defines CANNON_BASS_END_HZ, CANNON_MID_START/END_HZ,
     CANNON_BLAST_DURATION, CANNON_TAIL_DURATION, etc. Voice mix comment at line 312.
 
 63. **Dialog get/set methods are for watcher-mode synchronization** —
@@ -491,12 +491,12 @@ sufficient for LLM agents to follow correctly.
     seconds." No inline magic numbers remain in scaledDelay calls or timer assignments.
 
 77. **`cannonRotationIdx` uses undefined (not null) for "not yet fired"** —
-    player/controller-types.ts:53-55 JSDoc says "undefined = no cannon fired yet this round".
+    controllers/controller-types.ts:53-55 JSDoc says "undefined = no cannon fired yet this round".
     Type is `number | undefined`. Consistent with the codebase's convention of `undefined`
     for "not yet set" (see commit d339814).
 
 78. **`WatcherTimingState` zero-sentinel convention is documented** —
-    shared/net/tick-context.ts:84 JSDoc documents: "All timestamps are performance.now() values
+    runtime/runtime-tick-context.ts:84 JSDoc documents: "All timestamps are performance.now() values
     (ms since page load). Sentinel: 0 = not yet started." Each field has inline JSDoc
     specifying units (ms for timestamps, seconds for durations) and the 0-sentinel meaning.
 
@@ -581,15 +581,15 @@ sufficient for LLM agents to follow correctly.
     at line 47-55 is the canonical source.
 
 96. **Serialization contract documented in checkpoint-data.ts header** —
-    shared/net/checkpoint-data.ts:1-12 documents intentionally loose typing (strings vs enums),
+    protocol/checkpoint-data.ts:1-12 documents intentionally loose typing (strings vs enums),
     tile key encoding, and points to online-serialize.ts for deserialization.
 
 97. **`UPGRADE_ROW_W` is the canonical source for upgrade card row width** —
     render/render-composition.ts exports UPGRADE_ROW_W; render-ui.ts imports it.
     Do not redefine card layout constants locally.
 
-98. **`PHASE_ONLY_VOL` and wave shape constants are named in sound-system.ts** —
-    input/sound-system.ts:23-28 defines WAVE_SQUARE/SAWTOOTH/NOISE and PHASE_ONLY_VOL.
+98. **`PHASE_ONLY_VOL` and wave shape constants are named in runtime-sound.ts** —
+    runtime/runtime-sound.ts:23-28 defines WAVE_SQUARE/SAWTOOTH/NOISE and PHASE_ONLY_VOL.
     Do not use magic numbers 0/1/3 or 0.5 for these.
 
 99. **`setWatcherPhaseTimerAtBannerEnd` is the canonical watcher phase-timer anchor** —
@@ -634,14 +634,14 @@ sufficient for LLM agents to follow correctly.
 
 105. **`Cannonball.scoringPlayerId` is `ValidPlayerSlot | undefined`** —
     shared/core/battle-types.ts narrowed it from raw `number` to match the sibling
-    `playerId: ValidPlayerSlot` field. shared/net/protocol.ts wire format and
+    `playerId: ValidPlayerSlot` field. protocol/protocol.ts wire format and
     game/battle-system.ts launchCannonball parameter agree. Do not widen back
     to `number` — the brand prevents accidental use of non-slot indices.
 
 106. **Banner scene-snapshot field names are `bannerPrev{Castles,Territory,Walls,Entities}`** —
     shared/overlay-types.ts UIOverlay uses these four fields without a "Battle"
     infix (the old `bannerPrevBattleTerritory` / `bannerPrevBattleWalls` names
-    were inconsistent with their sibling fields). shared/ui-contracts.ts
+    were inconsistent with their sibling fields). runtime/runtime-contracts.ts
     BannerState uses the same `prev*` stems (no `banner` prefix since they're
     already scoped to the state). render-composition/render-map map one to the other.
 
@@ -653,7 +653,7 @@ sufficient for LLM agents to follow correctly.
     the pre-existing showCannonPhaseBanner shape.
 
 108. **`ACCUM_BATTLE` / `ACCUM_CANNON` / `ACCUM_BUILD` / `ACCUM_GRUNT` constants
-    are the canonical timer-accumulator keys** — shared/net/tick-context.ts exports
+    are the canonical timer-accumulator keys** — runtime/runtime-tick-context.ts exports
     them as `"battle" satisfies keyof TimerAccums` etc. All `advancePhaseTimer`
     call sites use the constants, never string literals. runtime-phase-ticks.ts
     imports them alongside `advancePhaseTimer`.
@@ -673,7 +673,7 @@ sufficient for LLM agents to follow correctly.
     and intentionally fire in more modes. Pick the right helper for each site.
 
 111. **`tryPlaceCannon` returns `boolean`; this is an intentional exception
-    to pattern #83** — player/controller-human.ts has an expanded JSDoc on
+    to pattern #83** — controllers/controller-human.ts has an expanded JSDoc on
     both tryPlaceCannon and tryPlacePiece noting the contrast. tryPlaceCannon
     calls `placeCannon` directly; tryPlacePiece returns a `PlacePieceIntent | null`
     that the orchestrator executes. Do not copy the intent shape into
@@ -689,7 +689,7 @@ sufficient for LLM agents to follow correctly.
 
 113. **`AiController` structurally satisfies SelectionHost & BuildHost &
     CannonHost & BattleHost — enforced at the class site** —
-    ai/controller-ai.ts bottom has a `const phaseHostsCheck: AllAiPhaseHosts = controller;`
+    controllers/controller-ai.ts bottom has a `const phaseHostsCheck: AllAiPhaseHosts = controller;`
     type-level assertion. Each ai-phase-*.ts exports its Host interface so the
     assertion can reference all four at once. Renaming a field on AiController
     that any Host depends on now breaks the build at the class declaration,

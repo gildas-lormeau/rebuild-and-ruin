@@ -1,12 +1,12 @@
 import {
+  createController,
+  ensureAiModulesLoaded,
+} from "../controllers/controller-factory.ts";
+import {
   applyGameConfig,
   createGameFromSeed,
   generateMap,
 } from "../game/index.ts";
-import {
-  createController,
-  ensureAiModulesLoaded,
-} from "../player/controller-factory.ts";
 import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,

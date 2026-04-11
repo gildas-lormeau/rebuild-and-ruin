@@ -41,9 +41,9 @@ import type {
 export interface NetworkObserver {
   sent?(msg: GameMessage): void;
 }
-import { NOOP_DEDUP_CHANNEL } from "../src/shared/net/phantom-types.ts";
+import { NOOP_DEDUP_CHANNEL } from "../src/shared/core/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
-import type { GameMessage, ServerMessage } from "../src/shared/net/protocol.ts";
+import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createGameRuntime,

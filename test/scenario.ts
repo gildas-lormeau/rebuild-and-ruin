@@ -59,7 +59,7 @@ import {
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
-import type { GameMessage, ServerMessage } from "../src/shared/net/protocol.ts";
+import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";

@@ -1,29 +1,4 @@
 {
   "maxLateralImports": 3,
-  "edges": [
-    {
-      "from": "src/game/battle-system.ts",
-      "to": "src/game/round-modifiers.ts",
-      "rationale": "Battle tick needs Dust Storm jitter helper during projectile targeting.",
-      "owner": "gameplay",
-      "expiresOn": "2026-07-01",
-      "removalPlan": "Move shot-trajectory modifier hooks behind upgrade/modifier dispatcher used by battle-system."
-    },
-    {
-      "from": "src/game/cannon-system.ts",
-      "to": "src/game/upgrade-system.ts",
-      "rationale": "Cannon slot capacity currently computed by upgrade-system aggregation.",
-      "owner": "gameplay",
-      "expiresOn": "2026-07-01",
-      "removalPlan": "Inject slots bonus via phase setup or controller deps so cannon-system stays pure placement logic."
-    },
-    {
-      "from": "src/game/upgrades/demolition.ts",
-      "to": "src/shared/core/board-occupancy.ts",
-      "rationale": "Demolition effect mutates walls using shared occupancy helper.",
-      "owner": "gameplay",
-      "expiresOn": "2026-07-01",
-      "removalPlan": "Move upgrade wall mutation API behind upgrade-system dispatcher/shared facade to avoid same-layer cross import."
-    }
-  ]
+  "edges": []
 }

@@ -3,6 +3,7 @@ import {
   canPlayerFire,
   getCountdownAnnouncement,
 } from "../game/index.ts";
+import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import type {
   Cannonball,
   CannonMode,
@@ -12,6 +13,15 @@ import type {
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
+import {
+  type CannonPhantom,
+  cannonPhantomKey,
+  type DedupChannel,
+  filterAlivePhantoms,
+  type PiecePhantom,
+  phantomWireMode,
+  piecePhantomKey,
+} from "../shared/core/phantom-types.ts";
 import type {
   PlayerSlotId,
   ValidPlayerSlot,
@@ -22,16 +32,6 @@ import type {
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import {
-  type CannonPhantom,
-  cannonPhantomKey,
-  type DedupChannel,
-  filterAlivePhantoms,
-  type PiecePhantom,
-  phantomWireMode,
-  piecePhantomKey,
-} from "../shared/net/phantom-types.ts";
-import type { WatcherTimingState } from "../shared/net/tick-context.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,

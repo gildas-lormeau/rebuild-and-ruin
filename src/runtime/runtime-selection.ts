@@ -29,12 +29,6 @@ import {
   type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
-import {
-  ACCUM_SELECT,
-  isRemotePlayer,
-  type MutableAccums,
-  resetAccum,
-} from "../shared/net/tick-context.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type {
@@ -52,6 +46,12 @@ import {
   resetFrameTiming,
   setMode,
 } from "./runtime-state.ts";
+import {
+  ACCUM_SELECT,
+  isRemotePlayer,
+  type MutableAccums,
+  resetAccum,
+} from "./runtime-tick-context.ts";
 import type {
   CameraSystem,
   RuntimeSelection,

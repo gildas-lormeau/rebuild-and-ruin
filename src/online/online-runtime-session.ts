@@ -1,3 +1,5 @@
+import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
+import { ROUTE_ONLINE } from "../protocol/routes.ts";
 import {
   bootstrapGame,
   initWaitingRoom,
@@ -5,10 +7,7 @@ import {
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
-import type { FullStateMessage, InitMessage } from "../shared/net/protocol.ts";
-import { ROUTE_ONLINE } from "../shared/net/routes.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
-import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/ui/router.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
 import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
@@ -16,6 +15,7 @@ import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
 } from "./online-lobby-ui.ts";
+import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";

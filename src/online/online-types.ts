@@ -1,17 +1,17 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
+import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import {
   CROSSHAIR_SPEED,
   type OrbitParams,
 } from "../shared/core/system-interfaces.ts";
-import type {
-  CannonPhantom,
-  PiecePhantom,
-} from "../shared/net/phantom-types.ts";
-import type { WatcherTimingState } from "../shared/net/tick-context.ts";
 
 /** Subset of watcher state containing network-received data (phantoms, crosshairs).
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers

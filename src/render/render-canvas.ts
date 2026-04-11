@@ -8,11 +8,8 @@
  * `observer` to capture terrain-draw intents. Production callers omit it.
  */
 
-import {
-  clientToCanvas,
-  computeLetterboxLayout,
-} from "../shared/ui/canvas-layout.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+import { clientToCanvas, computeLetterboxLayout } from "./render-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 

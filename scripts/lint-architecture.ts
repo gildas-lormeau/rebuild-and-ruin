@@ -17,17 +17,23 @@
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, basename, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import process from "node:process";
+
+interface Violation {
+  file: string;
+  message: string;
+}
 
 const SRC = join(process.cwd(), "src");
 const RUNTIME_DIR = join(SRC, "runtime");
-
 /** Files that are part of the runtime layer but are NOT sub-systems. */
 const EXEMPT = new Set([
   "runtime-composition.ts",
   "runtime-types.ts",
   "runtime-state.ts",
+  "runtime-contracts.ts", // UI deps-object contracts (formerly shared/ui/ui-contracts.ts)
+  "runtime-tick-context.ts", // shared tick state primitives, not a factory sub-system
 
   "runtime-bootstrap.ts",
   "runtime-browser-timing.ts", // entry-level TimingApi factory, not a sub-system
@@ -40,14 +46,14 @@ const EXEMPT = new Set([
   "runtime-upgrade-pick-core.ts", // pure dialog primitives, not a factory sub-system
   "dev-console-grid.ts", // pure debug primitives, not a factory sub-system
 ]);
-
 /** Prefixes for runtime-layer file families that are not sub-systems. */
 const EXEMPT_PREFIXES = ["online-runtime-"];
-
 /** Sub-system files may import from these runtime-layer files. */
 const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-types.ts",
   "./runtime-state.ts",
+  "./runtime-contracts.ts", // UI deps-object contracts
+  "./runtime-tick-context.ts", // shared tick state primitives
   "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-bootstrap.ts", // consumed by runtime-selection
@@ -57,54 +63,39 @@ const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-upgrade-pick-core.ts", // pure dialog primitives, consumed by runtime-upgrade-pick
 ]);
 
-interface Violation {
-  file: string;
-  message: string;
-}
+main();
 
-function getSubSystemFiles(): string[] {
-  if (!statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory())
-    return [];
-  return readdirSync(RUNTIME_DIR)
-    .filter(
-      (f) =>
-        f.startsWith("runtime-") &&
-        f.endsWith(".ts") &&
-        !EXEMPT.has(f) &&
-        !EXEMPT_PREFIXES.some((p) => f.startsWith(p)),
-    )
-    .sort();
-}
+function main(): void {
+  const subSystems = getSubSystemFiles();
+  const violations: Violation[] = [];
 
-function getImports(content: string): string[] {
-  const imports: string[] = [];
-  for (const line of content.split("\n")) {
-    const m = line.match(/from\s+"(\.[^"]+)"/);
-    if (m) imports.push(m[1]!);
+  console.log(`Checking ${subSystems.length} runtime sub-system files...\n`);
+
+  for (const file of subSystems) {
+    checkSubSystem(file, violations);
   }
-  return imports;
-}
+  checkConsumers(violations);
 
-function getExportedFunctions(
-  content: string,
-): { name: string; params: string }[] {
-  const fns: { name: string; params: string }[] = [];
-  // Match multiline: find "export function name(" then collect until balanced ")"
-  const re = /^export function (\w+)\(/gm;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(content)) !== null) {
-    const start = m.index + m[0].length;
-    let depth = 1;
-    let i = start;
-    while (i < content.length && depth > 0) {
-      if (content[i] === "(") depth++;
-      else if (content[i] === ")") depth--;
-      i++;
+  if (violations.length === 0) {
+    console.log(
+      `\u2714 No architecture violations (${subSystems.length} sub-systems checked)\n`,
+    );
+    console.log("Sub-systems:");
+    for (const f of subSystems) {
+      const content = readFileSync(join(RUNTIME_DIR, f), "utf-8");
+      const fns = getExportedFunctions(content)
+        .filter((fn) => /^(create|update)\w+/.test(fn.name))
+        .map((fn) => fn.name);
+      console.log(`  ${f} → ${fns.join(", ")}`);
     }
-    const params = content.slice(start, i - 1).trim();
-    fns.push({ name: m[1]!, params });
+    process.exit(0);
   }
-  return fns;
+
+  console.log(`\u2718 ${violations.length} architecture violation(s) found:\n`);
+  for (const v of violations) {
+    console.log(`  ${v.file}: ${v.message}`);
+  }
+  process.exit(1);
 }
 
 function checkSubSystem(file: string, violations: Violation[]): void {
@@ -169,21 +160,26 @@ function checkSubSystem(file: string, violations: Violation[]): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// File scanning
-// ---------------------------------------------------------------------------
-
-function collectAllTsFiles(dir: string): string[] {
-  const results: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      results.push(...collectAllTsFiles(full));
-    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
-      results.push(full);
+function getExportedFunctions(
+  content: string,
+): { name: string; params: string }[] {
+  const fns: { name: string; params: string }[] = [];
+  // Match multiline: find "export function name(" then collect until balanced ")"
+  const re = /^export function (\w+)\(/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const start = m.index + m[0].length;
+    let depth = 1;
+    let i = start;
+    while (i < content.length && depth > 0) {
+      if (content[i] === "(") depth++;
+      else if (content[i] === ")") depth--;
+      i++;
     }
+    const params = content.slice(start, i - 1).trim();
+    fns.push({ name: m[1]!, params });
   }
-  return results;
+  return fns;
 }
 
 function checkConsumers(violations: Violation[]): void {
@@ -214,39 +210,38 @@ function checkConsumers(violations: Violation[]): void {
   }
 }
 
-function main(): void {
-  const subSystems = getSubSystemFiles();
-  const violations: Violation[] = [];
-
-  console.log(`Checking ${subSystems.length} runtime sub-system files...\n`);
-
-  for (const file of subSystems) {
-    checkSubSystem(file, violations);
-  }
-  checkConsumers(violations);
-
-  if (violations.length === 0) {
-    console.log(
-      `\u2714 No architecture violations (${subSystems.length} sub-systems checked)\n`,
-    );
-    console.log("Sub-systems:");
-    for (const f of subSystems) {
-      const content = readFileSync(join(RUNTIME_DIR, f), "utf-8");
-      const fns = getExportedFunctions(content)
-        .filter((fn) => /^(create|update)\w+/.test(fn.name))
-        .map((fn) => fn.name);
-      console.log(`  ${f} → ${fns.join(", ")}`);
-    }
-    process.exit(0);
-  }
-
-  console.log(
-    `\u2718 ${violations.length} architecture violation(s) found:\n`,
-  );
-  for (const v of violations) {
-    console.log(`  ${v.file}: ${v.message}`);
-  }
-  process.exit(1);
+function getSubSystemFiles(): string[] {
+  if (!statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory())
+    return [];
+  return readdirSync(RUNTIME_DIR)
+    .filter(
+      (f) =>
+        f.startsWith("runtime-") &&
+        f.endsWith(".ts") &&
+        !EXEMPT.has(f) &&
+        !EXEMPT_PREFIXES.some((p) => f.startsWith(p)),
+    )
+    .sort();
 }
 
-main();
+function getImports(content: string): string[] {
+  const imports: string[] = [];
+  for (const line of content.split("\n")) {
+    const m = line.match(/from\s+"(\.[^"]+)"/);
+    if (m) imports.push(m[1]!);
+  }
+  return imports;
+}
+
+function collectAllTsFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      results.push(...collectAllTsFiles(full));
+    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
+      results.push(full);
+    }
+  }
+  return results;
+}

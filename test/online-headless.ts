@@ -65,7 +65,7 @@ import {
   type WatcherState,
 } from "../src/online/online-watcher-tick.ts";
 import { createHeadlessRuntime } from "./runtime-headless.ts";
-import type { GameMessage } from "../src/shared/net/protocol.ts";
+import type { GameMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import {
   buildHeadlessOptions,

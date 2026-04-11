@@ -8,6 +8,13 @@ import {
 // scripts/lint-restricted-imports.ts.
 import { setPhase } from "../game/phase-setup.ts";
 import type {
+  BattleStartData,
+  SerializedGrunt,
+  SerializedHouse,
+  SerializedPlayer,
+} from "../protocol/checkpoint-data.ts";
+import { type FullStateMessage, MESSAGE } from "../protocol/protocol.ts";
+import type {
   BalloonFlight,
   Cannon,
   Cannonball,
@@ -28,13 +35,6 @@ import {
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
-import type {
-  BattleStartData,
-  SerializedGrunt,
-  SerializedHouse,
-  SerializedPlayer,
-} from "../shared/net/checkpoint-data.ts";
-import { type FullStateMessage, MESSAGE } from "../shared/net/protocol.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { toCannonMode } from "./online-types.ts";
 

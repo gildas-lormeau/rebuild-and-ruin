@@ -1,8 +1,15 @@
 import {
+  type GameMessage,
+  type InitMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../protocol/protocol.ts";
+import {
   createBrowserRuntimeBindings,
   createGameRuntime,
 } from "../runtime/runtime-composition.ts";
 import { setMode } from "../runtime/runtime-state.ts";
+import { isHostInContext } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
   DIFFICULTY_NORMAL,
@@ -10,21 +17,14 @@ import {
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import {
-  type GameMessage,
-  type InitMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../shared/net/protocol.ts";
-import { isHostInContext } from "../shared/net/tick-context.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { GAME_EXIT_EVENT } from "../shared/ui/router.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { canvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
+import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";

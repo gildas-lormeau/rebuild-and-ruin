@@ -1,3 +1,4 @@
+import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
 import { isPlacementPhase } from "../shared/core/game-phase.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
@@ -18,7 +19,6 @@ import {
   SEED_CUSTOM,
   SEED_RANDOM,
 } from "../shared/ui/player-config.ts";
-import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
 import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   dispatchGameAction,

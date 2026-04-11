@@ -4,6 +4,12 @@ import {
   tickGrunts as moveGrunts,
   nextReadyCombined,
 } from "../game/index.ts";
+import { MESSAGE } from "../protocol/protocol.ts";
+import {
+  type TimerAccums,
+  tickGruntsIfDue,
+  type WatcherTimingState,
+} from "../runtime/runtime-tick-context.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -18,12 +24,6 @@ import {
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
-import { MESSAGE } from "../shared/net/protocol.ts";
-import {
-  type TimerAccums,
-  tickGruntsIfDue,
-  type WatcherTimingState,
-} from "../shared/net/tick-context.ts";
 import type { FrameData } from "../shared/ui/overlay-types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {

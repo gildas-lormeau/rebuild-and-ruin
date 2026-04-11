@@ -5,6 +5,7 @@
  * hit-test logic consumed by runtime-options.ts.
  */
 
+import type { ControlsHit, OptionsHit } from "../runtime/runtime-contracts.ts";
 import type {
   ControlsPlayer,
   RenderOverlay,
@@ -29,7 +30,6 @@ import {
   TEXT_ALIGN_RIGHT,
   TEXT_WHITE,
 } from "../shared/ui/theme.ts";
-import type { ControlsHit, OptionsHit } from "../shared/ui/ui-contracts.ts";
 import {
   beginModalScreen,
   INSET,

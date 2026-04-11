@@ -18,7 +18,7 @@ import { assert, assertEquals } from "@std/assert";
 
 import { Phase } from "../src/shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import { MESSAGE } from "../src/shared/net/protocol.ts";
+import { MESSAGE } from "../src/protocol/protocol.ts";
 import { createOnlineHarness, createOnlineScenario } from "./online-headless.ts";
 
 // Branded slot for the "remote" player driven by the dispatched messages.

@@ -18,26 +18,19 @@
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
+      "src/shared/core/phantom-types.ts",
       "src/shared/core/upgrade-defs.ts",
-      "src/shared/net/checkpoint-data.ts",
-      "src/shared/net/phantom-types.ts",
-      "src/shared/net/protocol.ts",
-      "src/shared/net/routes.ts",
-      "src/shared/net/tick-context.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
       "src/shared/platform/utils.ts",
-      "src/shared/ui/canvas-layout.ts",
       "src/shared/ui/input-action.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/overlay-types.ts",
       "src/shared/ui/player-config.ts",
-      "src/shared/ui/router.ts",
       "src/shared/ui/settings-defs.ts",
       "src/shared/ui/settings-ui.ts",
       "src/shared/ui/theme.ts",
-      "src/shared/ui/ui-contracts.ts",
       "src/shared/ui/ui-mode.ts"
     ],
     "game": [
@@ -93,16 +86,15 @@
       "src/ai/ai-phase-select.ts",
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/controller-ai.ts"
+      "src/ai/ai-phase-battle.ts"
     ],
-    "player": [
-      "src/player/controller-types.ts",
-      "src/player/controller-human.ts",
-      "src/player/controller-factory.ts"
+    "controllers": [
+      "src/controllers/controller-types.ts",
+      "src/controllers/controller-human.ts",
+      "src/controllers/controller-ai.ts",
+      "src/controllers/controller-factory.ts"
     ],
     "input": [
-      "src/input/haptics-system.ts",
       "src/input/input-recorder.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-touch-ui.ts",
@@ -111,10 +103,10 @@
       "src/input/input-touch-canvas.ts",
       "src/input/input-mouse.ts",
       "src/input/input-keyboard.ts",
-      "src/input/input.ts",
-      "src/input/sound-system.ts"
+      "src/input/input.ts"
     ],
     "render": [
+      "src/render/render-layout.ts",
       "src/render/render-sprites.ts",
       "src/render/render-loupe.ts",
       "src/render/render-effects.ts",
@@ -129,6 +121,7 @@
       "src/render/render-ui-screens.ts"
     ],
     "online": [
+      "src/online/online-router.ts",
       "src/online/online-dom.ts",
       "src/online/online-config.ts",
       "src/online/online-types.ts",
@@ -153,6 +146,11 @@
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-ws.ts",
       "src/online/online-runtime-lobby.ts"
+    ],
+    "protocol": [
+      "src/protocol/protocol.ts",
+      "src/protocol/checkpoint-data.ts",
+      "src/protocol/routes.ts"
     ],
     "server": [
       "server/send-utils.ts",
@@ -186,7 +184,11 @@
       "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-life-lost-core.ts",
-      "src/runtime/runtime-upgrade-pick-core.ts"
+      "src/runtime/runtime-upgrade-pick-core.ts",
+      "src/runtime/runtime-contracts.ts",
+      "src/runtime/runtime-tick-context.ts",
+      "src/runtime/runtime-sound.ts",
+      "src/runtime/runtime-haptics.ts"
     ],
     "entry": [
       "src/entry.ts",
@@ -199,52 +201,61 @@
     "shared": [
       "shared"
     ],
+    "protocol": [
+      "shared"
+    ],
     "game": [
       "shared"
     ],
     "ai": [
       "shared",
-      "game",
-      "player"
+      "game"
     ],
-    "player": [
+    "controllers": [
       "shared",
       "game",
       "ai"
     ],
     "input": [
       "shared",
-      "game"
+      "game",
+      "runtime"
     ],
     "render": [
       "shared",
-      "game"
+      "game",
+      "runtime"
     ],
     "online": [
       "shared",
+      "protocol",
       "game",
       "ai",
+      "controllers",
       "render",
       "runtime"
     ],
     "server": [
       "shared",
+      "protocol",
       "server"
     ],
     "runtime": [
       "shared",
+      "protocol",
       "game",
       "ai",
-      "player",
+      "controllers",
       "input",
       "render",
       "online"
     ],
     "entry": [
       "shared",
+      "protocol",
       "game",
       "ai",
-      "player",
+      "controllers",
       "input",
       "render",
       "online",
@@ -254,9 +265,11 @@
     ]
   },
   "typeOnlyFrom": {
-    "runtime": [
-      "input",
-      "render"
+    "input": [
+      "runtime"
+    ],
+    "render": [
+      "runtime"
     ]
   }
 }

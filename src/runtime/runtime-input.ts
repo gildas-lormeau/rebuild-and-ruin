@@ -23,6 +23,7 @@ import type {
   RendererInterface,
 } from "../shared/ui/overlay-types.ts";
 import { OPT_CONTROLS } from "../shared/ui/settings-defs.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import type {
   CreateDpadFn,
   CreateEnemyZoomButtonFn,
@@ -35,8 +36,7 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
-} from "../shared/ui/ui-contracts.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
+} from "./runtime-contracts.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
 

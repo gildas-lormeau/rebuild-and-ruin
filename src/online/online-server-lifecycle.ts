@@ -7,18 +7,18 @@
  * apply host-sent checkpoints — the host computes its own. */
 
 import {
+  type FullStateMessage,
+  type InitMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../protocol/protocol.ts";
+import { isHostInContext } from "../runtime/runtime-tick-context.ts";
+import {
   GAME_MODE_CLASSIC,
   type GameMode,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
-import {
-  type FullStateMessage,
-  type InitMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../shared/net/protocol.ts";
-import { isHostInContext } from "../shared/net/tick-context.ts";
 import type { OnlineSession } from "./online-session.ts";
 
 export interface HandleServerLifecycleDeps {

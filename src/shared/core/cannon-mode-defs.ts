@@ -86,7 +86,7 @@ export const CANNON_MODE_CONSUMERS = {
     render: "src/render/render-map.ts",
     phantom: "src/render/render-effects.ts",
     aiStrategy: "src/ai/ai-strategy-cannon.ts",
-    uiCycle: "src/player/controller-human.ts",
+    uiCycle: "src/controllers/controller-human.ts",
     serialize: "src/online/online-types.ts",
   },
   [CannonMode.SUPER]: {
@@ -96,7 +96,7 @@ export const CANNON_MODE_CONSUMERS = {
     render: "src/render/render-map.ts",
     phantom: "src/render/render-effects.ts",
     aiStrategy: "src/ai/ai-strategy-cannon.ts",
-    uiCycle: "src/player/controller-human.ts",
+    uiCycle: "src/controllers/controller-human.ts",
     serialize: "src/online/online-types.ts",
   },
   [CannonMode.BALLOON]: {
@@ -107,7 +107,7 @@ export const CANNON_MODE_CONSUMERS = {
     render: "src/render/render-map.ts",
     phantom: "src/render/render-effects.ts",
     aiStrategy: "src/ai/ai-strategy-cannon.ts",
-    uiCycle: "src/player/controller-human.ts",
+    uiCycle: "src/controllers/controller-human.ts",
     serialize: "src/online/online-types.ts",
   },
   [CannonMode.RAMPART]: {
@@ -116,7 +116,7 @@ export const CANNON_MODE_CONSUMERS = {
     render: "src/render/render-map.ts",
     phantom: "src/render/render-effects.ts",
     aiStrategy: "src/ai/ai-strategy-cannon.ts",
-    uiCycle: "src/player/controller-human.ts",
+    uiCycle: "src/controllers/controller-human.ts",
     serialize: "src/online/online-types.ts",
   },
 } as const satisfies Record<CannonMode, Readonly<Record<string, string>>>;

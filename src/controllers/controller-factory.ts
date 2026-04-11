@@ -15,7 +15,7 @@ import { HumanController } from "./controller-human.ts";
 /** Ensure AI chunks are cached. Awaited by bootstrapGame before creating controllers. */
 export function ensureAiModulesLoaded(): Promise<unknown> {
   return Promise.all([
-    import("../ai/controller-ai.ts"),
+    import("./controller-ai.ts"),
     import("../ai/ai-strategy.ts"),
   ]);
 }
@@ -29,7 +29,7 @@ export async function createController(
 ): Promise<PlayerController> {
   if (isAi) {
     const [{ AiController }, { DefaultStrategy }] = await Promise.all([
-      import("../ai/controller-ai.ts"),
+      import("./controller-ai.ts"),
       import("../ai/ai-strategy.ts"),
     ]);
     return new AiController(

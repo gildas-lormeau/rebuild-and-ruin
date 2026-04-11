@@ -3,6 +3,12 @@ import {
   recomputeAllTerritory,
   rehydrateComboTracker,
 } from "../game/index.ts";
+import type {
+  BattleStartData,
+  BuildEndData,
+  BuildStartData,
+  CannonStartData,
+} from "../protocol/checkpoint-data.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
@@ -16,12 +22,6 @@ import {
   hasFeature,
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
-import type {
-  BattleStartData,
-  BuildEndData,
-  BuildStartData,
-  CannonStartData,
-} from "../shared/net/checkpoint-data.ts";
 import {
   applyCapturedCannons,
   applyGruntsCheckpoint,

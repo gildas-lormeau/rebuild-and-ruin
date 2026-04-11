@@ -58,12 +58,19 @@
  *   - `isStateReady(runtimeState)` → boolean guard
  */
 
+import type { BattleStartData } from "../protocol/checkpoint-data.ts";
+import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight, Crosshair } from "../shared/core/battle-types.ts";
 import type {
   GameMap,
   Viewport,
   WorldPos,
 } from "../shared/core/geometry-types.ts";
+import type {
+  CannonPhantom,
+  DedupChannel,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type {
   PlayerSlotId,
   ValidPlayerSlot,
@@ -83,20 +90,13 @@ import type {
   SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
-import type { BattleStartData } from "../shared/net/checkpoint-data.ts";
-import type {
-  CannonPhantom,
-  DedupChannel,
-  PiecePhantom,
-} from "../shared/net/phantom-types.ts";
-import type { GameMessage, ServerMessage } from "../shared/net/protocol.ts";
-import type { WatcherTimingState } from "../shared/net/tick-context.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { WatcherTimingState } from "./runtime-tick-context.ts";
 
 export type { FrameContext } from "../shared/core/types.ts";
 

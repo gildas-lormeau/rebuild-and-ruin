@@ -8,6 +8,13 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
+import type {
+  DpadDeps,
+  FloatingActionsDeps,
+  FloatingActionsHandle,
+  QuitButtonDeps,
+  ZoomButtonDeps,
+} from "../runtime/runtime-contracts.ts";
 import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
@@ -17,13 +24,6 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "../shared/ui/theme.ts";
-import type {
-  DpadDeps,
-  FloatingActionsDeps,
-  FloatingActionsHandle,
-  QuitButtonDeps,
-  ZoomButtonDeps,
-} from "../shared/ui/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {

@@ -42,10 +42,10 @@
  * skips prerequisites (e.g. flush before init, sweep before score).
  */
 
-import { GRUNT_TICK_INTERVAL } from "../core/game-constants.ts";
-import type { ValidPlayerSlot } from "../core/player-slot.ts";
-import type { ControllerIdentity } from "../core/system-interfaces.ts";
-import type { GameState } from "../core/types.ts";
+import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 
 /** Base networking context shared by all phase ticks.
  *  VOLATILE: `isHost` can flip mid-session during host promotion.

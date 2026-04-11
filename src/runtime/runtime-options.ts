@@ -24,6 +24,7 @@ import {
   OPT_SEED,
 } from "../shared/ui/settings-defs.ts";
 import type { CycleOptionFn } from "../shared/ui/settings-ui.ts";
+import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import type {
   ControlsScreenHitTestFn,
   CreateControlsOverlayFn,
@@ -32,8 +33,7 @@ import type {
   SeedField,
   UIContext,
   VisibleOptionsFn,
-} from "../shared/ui/ui-contracts.ts";
-import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
+} from "./runtime-contracts.ts";
 import {
   type RuntimeState,
   resetFrameTiming,

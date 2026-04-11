@@ -17,10 +17,6 @@ import {
   type SelectionState,
 } from "../shared/core/types.ts";
 import {
-  createTimerAccums,
-  type TimerAccums,
-} from "../shared/net/tick-context.ts";
-import {
   type CastleBuildState,
   type ControlsState,
   createControlsState,
@@ -38,14 +34,12 @@ import {
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
 import {
-  type BannerState,
-  createBannerState,
-} from "../shared/ui/ui-contracts.ts";
-import {
   isGameplayMode,
   isTransitionMode,
   Mode,
 } from "../shared/ui/ui-mode.ts";
+import { type BannerState, createBannerState } from "./runtime-contracts.ts";
+import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
 
 export interface ScoreDisplayState {
   deltas: {

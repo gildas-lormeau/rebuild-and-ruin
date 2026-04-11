@@ -1,3 +1,8 @@
+import type {
+  LobbyHit,
+  OnlineOverlayParams,
+  RenderSummaryParams,
+} from "../runtime/runtime-contracts.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   UPGRADE_PICK_MAX_TIMER,
@@ -53,11 +58,6 @@ import {
   LIFE_LOST_PANEL_W as PANEL_W,
   type RGB,
 } from "../shared/ui/theme.ts";
-import type {
-  LobbyHit,
-  OnlineOverlayParams,
-  RenderSummaryParams,
-} from "../shared/ui/ui-contracts.ts";
 
 interface GameOverLayout {
   panelW: number;

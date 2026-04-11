@@ -5,6 +5,7 @@
  * Consumed by subsystems via DI (composition root injects these).
  */
 
+import type { UIContext } from "../runtime/runtime-contracts.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -37,7 +38,6 @@ import {
   SOUND_LABELS,
 } from "../shared/ui/settings-defs.ts";
 import { formatKeyName } from "../shared/ui/settings-ui.ts";
-import type { UIContext } from "../shared/ui/ui-contracts.ts";
 
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",

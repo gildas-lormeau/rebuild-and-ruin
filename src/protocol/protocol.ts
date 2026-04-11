@@ -16,10 +16,10 @@ import {
   type WallAbsorbedMessage,
   type WallDestroyedMessage,
   type WallShieldedMessage,
-} from "../core/battle-events.ts";
-import type { CannonMode } from "../core/battle-types.ts";
-import type { ValidPlayerSlot } from "../core/player-slot.ts";
-import type { ResolvedChoice } from "../ui/interaction-types.ts";
+} from "../shared/core/battle-events.ts";
+import type { CannonMode } from "../shared/core/battle-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {

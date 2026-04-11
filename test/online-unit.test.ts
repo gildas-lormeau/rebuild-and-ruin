@@ -8,8 +8,8 @@
  */
 
 import { assert, assertEquals } from "@std/assert";
-import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/shared/net/protocol.ts";
-import { createDedupChannel } from "../src/shared/net/phantom-types.ts";
+import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/protocol/protocol.ts";
+import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
 import { runBuildEndSequence } from "../src/runtime/runtime-transition-steps.ts";
 import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";

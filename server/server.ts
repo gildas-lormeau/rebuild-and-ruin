@@ -1,18 +1,20 @@
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import { MESSAGE, type RoomSettings } from "../src/shared/net/protocol.ts";
+import {
+  MESSAGE,
+  type RoomSettings,
+  ServerMessage,
+} from "../src/protocol/protocol.ts";
 import {
   API_ROOMS_PATH,
   HEALTH_PATH,
   WS_PLAY_PATH,
-} from "../src/shared/net/routes.ts";
+} from "../src/protocol/routes.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
-
 /** Reject messages larger than 64 KB (full_state worst case is ~30 KB). */
 const MAX_MESSAGE_SIZE = 65_536;
-
 const DEFAULT_PORT = 8001;
 const PORT = parseInt(Deno.env.get("PORT") ?? String(DEFAULT_PORT));
 
@@ -75,11 +77,6 @@ Deno.serve({ port: PORT }, (req) => {
 
   return new Response("Not found", { status: 404 });
 });
-
-// Lobby/room-management message handler (simple switch dispatch).
-// In-game messages are forwarded to GameRoom which uses a validation
-// pipeline instead (phase gating → identity → payload → rate limit → relay).
-// See game-room.ts handleMessage() for the pipeline pattern.
 
 /** Route incoming WebSocket messages.
  *  Two-tier dispatch: this switch handles lobby/room-management messages
@@ -182,10 +179,7 @@ function handleMessage(
 
 /** Send a server-originated message (serializes to JSON).
  *  For relaying client messages, use safeSendRaw() to avoid re-serialization. */
-function send(
-  socket: WebSocket,
-  msg: import("../src/shared/net/protocol.ts").ServerMessage,
-): void {
+function send(socket: WebSocket, msg: ServerMessage): void {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));
   }

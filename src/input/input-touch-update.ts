@@ -4,11 +4,11 @@
  * Extracted from runtime-composition.ts render() to keep it high-level.
  */
 
+import type { TouchControlsDeps } from "../runtime/runtime-contracts.ts";
 import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
-import type { TouchControlsDeps } from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 
 type TouchBtnRule = boolean | "interactive";

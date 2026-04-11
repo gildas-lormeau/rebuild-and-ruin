@@ -5,27 +5,28 @@
     "files": [
       "server/send-utils.ts",
       "src/ai/ai-constants.ts",
+      "src/game/index.ts",
       "src/input/input-recorder.ts",
       "src/input/input.ts",
       "src/online/online-dom.ts",
+      "src/online/online-router.ts",
+      "src/protocol/routes.ts",
+      "src/render/render-layout.ts",
       "src/render/render-sprites.ts",
       "src/runtime/banner-messages.ts",
-      "src/shared/ui/canvas-layout.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/game-constants.ts",
       "src/shared/core/game-phase.ts",
       "src/shared/core/grid.ts",
-      "src/shared/ui/input-action.ts",
+      "src/shared/core/player-slot.ts",
+      "src/shared/core/upgrade-defs.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/platform.ts",
-      "src/shared/core/player-slot.ts",
       "src/shared/platform/rng.ts",
-      "src/shared/ui/router.ts",
-      "src/shared/net/routes.ts",
+      "src/shared/platform/utils.ts",
+      "src/shared/ui/input-action.ts",
       "src/shared/ui/settings-defs.ts",
-      "src/shared/ui/ui-mode.ts",
-      "src/shared/core/upgrade-defs.ts",
-      "src/shared/platform/utils.ts"
+      "src/shared/ui/ui-mode.ts"
     ]
   },
   {
@@ -35,12 +36,12 @@
       "src/entry.ts",
       "src/online/online-config.ts",
       "src/online/online-full-state-recovery.ts",
+      "src/protocol/checkpoint-data.ts",
       "src/shared/core/battle-events.ts",
-      "src/shared/net/checkpoint-data.ts",
       "src/shared/core/geometry-types.ts",
-      "src/shared/ui/interaction-types.ts",
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/pieces.ts",
+      "src/shared/ui/interaction-types.ts",
       "src/shared/ui/theme.ts"
     ]
   },
@@ -59,9 +60,9 @@
     "name": "core game types",
     "tier": "types",
     "files": [
+      "src/protocol/protocol.ts",
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/player-types.ts",
-      "src/shared/net/protocol.ts",
       "src/shared/ui/settings-ui.ts"
     ]
   },
@@ -70,8 +71,14 @@
     "tier": "types",
     "files": [
       "server/game-room.ts",
+      "src/game/upgrades/architect.ts",
+      "src/game/upgrades/rapid-fire.ts",
+      "src/game/upgrades/reinforced-walls.ts",
+      "src/game/upgrades/small-pieces.ts",
+      "src/game/upgrades/supply-drop.ts",
+      "src/game/upgrades/territorial-ambition.ts",
       "src/online/online-lobby-ui.ts",
-      "src/shared/net/phantom-types.ts",
+      "src/shared/core/phantom-types.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts"
@@ -85,35 +92,31 @@
       "src/ai/ai-build-types.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
+      "src/controllers/controller-types.ts",
       "src/game/combo-system.ts",
-      "src/game/upgrades/architect.ts",
+      "src/game/map-generation.ts",
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",
       "src/game/upgrades/conscription.ts",
-      "src/game/upgrades/demolition.ts",
       "src/game/upgrades/double-time.ts",
       "src/game/upgrades/foundations.ts",
       "src/game/upgrades/master-builder.ts",
       "src/game/upgrades/mortar.ts",
-      "src/game/upgrades/rapid-fire.ts",
       "src/game/upgrades/reclamation.ts",
-      "src/game/upgrades/reinforced-walls.ts",
       "src/game/upgrades/ricochet.ts",
       "src/game/upgrades/salvage.ts",
       "src/game/upgrades/second-wind.ts",
       "src/game/upgrades/shield-battery.ts",
-      "src/game/upgrades/small-pieces.ts",
-      "src/game/upgrades/supply-drop.ts",
-      "src/game/upgrades/territorial-ambition.ts",
-      "src/runtime/dev-console-grid.ts",
-      "src/runtime/runtime-life-lost-core.ts",
-      "src/game/map-generation.ts",
-      "src/input/haptics-system.ts",
-      "src/input/sound-system.ts",
+      "src/online/online-send-actions.ts",
       "src/online/online-session.ts",
+      "src/runtime/dev-console-grid.ts",
+      "src/runtime/runtime-haptics.ts",
+      "src/runtime/runtime-life-lost-core.ts",
+      "src/runtime/runtime-sound.ts",
+      "src/runtime/runtime-tick-context.ts",
+      "src/runtime/runtime-upgrade-pick-core.ts",
       "src/shared/core/board-occupancy.ts",
-      "src/shared/ui/overlay-types.ts",
-      "src/shared/net/tick-context.ts"
+      "src/shared/ui/overlay-types.ts"
     ]
   },
   {
@@ -122,21 +125,22 @@
     "files": [
       "server/server.ts",
       "src/ai/ai-castle-rect.ts",
-      "src/game/cannon-system.ts",
+      "src/ai/ai-strategy-battle.ts",
+      "src/ai/ai-strategy-cannon.ts",
+      "src/controllers/controller-human.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
       "src/game/phase-banner.ts",
-      "src/game/upgrade-system.ts",
-      "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-upgrade-pick-core.ts",
+      "src/game/selection.ts",
+      "src/game/upgrades/demolition.ts",
+      "src/online/online-host-promotion.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-types.ts",
       "src/render/render-effects.ts",
       "src/render/render-loupe.ts",
       "src/render/render-towers.ts",
-      "src/shared/ui/ui-contracts.ts",
-      "src/game/index.ts",
-      "src/game/selection.ts"
+      "src/runtime/runtime-castle-build.ts",
+      "src/runtime/runtime-contracts.ts"
     ]
   },
   {
@@ -144,11 +148,15 @@
     "tier": "systems",
     "files": [
       "src/ai/ai-build-score.ts",
-      "src/ai/ai-strategy-cannon.ts",
+      "src/ai/ai-build-target.ts",
+      "src/controllers/controller-factory.ts",
       "src/game/grunt-system.ts",
+      "src/game/upgrade-system.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
       "src/input/input-touch-update.ts",
+      "src/online/online-host-crosshairs.ts",
+      "src/online/online-watcher-battle.ts",
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
@@ -161,17 +169,19 @@
     "tier": "systems",
     "files": [
       "src/ai/ai-build-fallback.ts",
-      "src/game/battle-system.ts",
       "src/game/build-system.ts",
+      "src/game/cannon-system.ts",
       "src/game/round-modifiers.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
+      "src/online/online-watcher-tick.ts",
       "src/render/render-ui.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
+      "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick.ts"
     ]
@@ -180,16 +190,13 @@
     "name": "system implementations",
     "tier": "systems",
     "files": [
-      "src/ai/ai-build-target.ts",
-      "src/ai/ai-strategy-battle.ts",
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/online/online-host-crosshairs.ts",
-      "src/online/online-watcher-battle.ts",
-      "src/player/controller-types.ts",
+      "src/ai/ai-strategy-build.ts",
+      "src/game/battle-system.ts",
+      "src/online/online-stores.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
       "src/runtime/dev-console.ts",
+      "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
@@ -197,20 +204,20 @@
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-render.ts"
+      "src/runtime/runtime-phase-ticks.ts",
+      "src/runtime/runtime-render.ts",
+      "src/runtime/runtime-selection.ts"
     ]
   },
   {
     "name": "assembly",
     "tier": "assembly",
     "files": [
-      "src/ai/ai-strategy-build.ts",
-      "src/game/game-engine.ts",
-      "src/online/online-phase-transitions.ts",
-      "src/online/online-send-actions.ts",
-      "src/online/online-serialize.ts",
-      "src/online/online-watcher-tick.ts",
-      "src/player/controller-human.ts",
+      "src/ai/ai-strategy.ts",
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
+      "src/online/online-runtime-ws.ts",
+      "src/online/online-server-events.ts",
       "src/render/render-canvas.ts"
     ]
   },
@@ -218,58 +225,45 @@
     "name": "controllers",
     "tier": "assembly",
     "files": [
-      "src/ai/ai-strategy.ts",
-      "src/online/online-checkpoints.ts",
-      "src/online/online-host-promotion.ts",
-      "src/online/online-stores.ts",
-      "src/player/controller-factory.ts"
+      "src/ai/ai-phase-battle.ts",
+      "src/ai/ai-phase-build.ts",
+      "src/ai/ai-phase-cannon.ts",
+      "src/ai/ai-phase-select.ts",
+      "src/game/game-engine.ts",
+      "src/online/online-phase-transitions.ts",
+      "src/online/online-runtime-lobby.ts",
+      "src/online/online-serialize.ts",
+      "src/runtime/runtime-composition.ts"
     ]
   },
   {
     "name": "orchestration",
     "tier": "assembly",
     "files": [
-      "src/ai/ai-phase-battle.ts",
-      "src/ai/ai-phase-build.ts",
-      "src/ai/ai-phase-cannon.ts",
-      "src/ai/ai-phase-select.ts",
-      "src/online/online-runtime-transition.ts",
-      "src/online/online-runtime-ws.ts",
-      "src/online/online-server-events.ts",
-      "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-score-deltas.ts"
+      "src/controllers/controller-ai.ts",
+      "src/main.ts",
+      "src/online/online-checkpoints.ts",
+      "src/online/online-runtime-promote.ts",
+      "src/online/online-runtime-session.ts"
     ]
   },
   {
     "name": "wiring",
     "tier": "assembly",
     "files": [
-      "src/ai/controller-ai.ts",
-      "src/online/online-runtime-lobby.ts",
-      "src/online/online-runtime-promote.ts",
-      "src/online/online-runtime-session.ts",
-      "src/runtime/runtime-selection.ts"
+      "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-transition.ts"
     ]
   },
   {
     "name": "composition roots",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-deps.ts",
-      "src/runtime/runtime-composition.ts"
-    ]
-  },
-  {
-    "name": "app roots",
-    "tier": "roots",
-    "files": [
-      "src/main.ts",
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "app entry",
+    "name": "app roots",
     "tier": "roots",
     "files": [
       "src/online-client.ts"

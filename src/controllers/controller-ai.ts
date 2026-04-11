@@ -10,8 +10,42 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
+import { STEP } from "../ai/ai-constants.ts";
+import {
+  type BattleHost,
+  createBattlePhase,
+  initBattle,
+  resetBattlePhaseKeepOrbit,
+  tickBattle,
+} from "../ai/ai-phase-battle.ts";
+import {
+  BUILD_CURSOR_SPEEDS,
+  type BuildHost,
+  createBuildPhase,
+  finalizeBuild,
+  initBuild,
+  resetBuildPhase,
+  tickBuild,
+} from "../ai/ai-phase-build.ts";
+import {
+  CANNON_CURSOR_SPEEDS,
+  type CannonHost,
+  createCannonPhase,
+  flushCannon,
+  initCannon,
+  isCannonDone,
+  resetCannonPhase,
+  tickCannon,
+} from "../ai/ai-phase-cannon.ts";
+import {
+  createSelectionPhase,
+  initSelection,
+  resetSelectionPhase,
+  type SelectionHost,
+  tickSelection,
+} from "../ai/ai-phase-select.ts";
+import { type AiStrategy, DefaultStrategy } from "../ai/ai-strategy.ts";
 import { fireNextReadyCannon } from "../game/index.ts";
-import { BaseController } from "../player/controller-types.ts";
 import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
@@ -23,41 +57,7 @@ import {
   type PiecePlacementPreview,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { STEP } from "./ai-constants.ts";
-import {
-  type BattleHost,
-  createBattlePhase,
-  initBattle,
-  resetBattlePhaseKeepOrbit,
-  tickBattle,
-} from "./ai-phase-battle.ts";
-import {
-  BUILD_CURSOR_SPEEDS,
-  type BuildHost,
-  createBuildPhase,
-  finalizeBuild,
-  initBuild,
-  resetBuildPhase,
-  tickBuild,
-} from "./ai-phase-build.ts";
-import {
-  CANNON_CURSOR_SPEEDS,
-  type CannonHost,
-  createCannonPhase,
-  flushCannon,
-  initCannon,
-  isCannonDone,
-  resetCannonPhase,
-  tickCannon,
-} from "./ai-phase-cannon.ts";
-import {
-  createSelectionPhase,
-  initSelection,
-  resetSelectionPhase,
-  type SelectionHost,
-  tickSelection,
-} from "./ai-phase-select.ts";
-import { type AiStrategy, DefaultStrategy } from "./ai-strategy.ts";
+import { BaseController } from "./controller-types.ts";
 
 // Compile-time guarantee: AiController structurally satisfies every phase
 // module's Host interface. Adding a required field/method to any Host without

@@ -1,3 +1,4 @@
+import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
   isReselectPhase,
@@ -6,7 +7,6 @@ import {
 } from "../shared/core/game-phase.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
-import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   dispatchBattleFire,

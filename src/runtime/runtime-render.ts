@@ -27,7 +27,7 @@ import type {
   QuitButton,
   TouchControlsDeps,
   ZoomButton,
-} from "../shared/ui/ui-contracts.ts";
+} from "./runtime-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { TimingApi } from "./runtime-types.ts";
 

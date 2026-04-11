@@ -28,6 +28,11 @@
  */
 
 import { canBuildThisFrame } from "../game/index.ts";
+import type {
+  GameActionDeps,
+  OverlayActionDeps,
+  PointerMoveDeps,
+} from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
   isReselectPhase,
@@ -49,11 +54,6 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
-import type {
-  GameActionDeps,
-  OverlayActionDeps,
-  PointerMoveDeps,
-} from "../shared/ui/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 
 interface QuitFlowDeps {

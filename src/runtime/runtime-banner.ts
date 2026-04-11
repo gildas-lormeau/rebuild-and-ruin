@@ -12,11 +12,8 @@ import { Phase } from "../shared/core/game-phase.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { EntityOverlay } from "../shared/ui/overlay-types.ts";
-import {
-  type BannerState,
-  createBannerState,
-} from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { type BannerState, createBannerState } from "./runtime-contracts.ts";
 import {
   assertStateReady,
   type RuntimeState,

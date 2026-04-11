@@ -11,6 +11,15 @@ import {
 // watcher checkpoint apply steps. Allowlisted in
 // scripts/lint-restricted-imports.ts.
 import { setPhase } from "../game/phase-setup.ts";
+import type {
+  BattleStartData,
+  BuildEndData,
+  BuildStartData,
+  CannonStartData,
+} from "../protocol/checkpoint-data.ts";
+import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
+import type { BannerShow } from "../runtime/runtime-contracts.ts";
+import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
@@ -35,21 +44,12 @@ import {
 import { isPlayerAlive } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
-import type {
-  BattleStartData,
-  BuildEndData,
-  BuildStartData,
-  CannonStartData,
-} from "../shared/net/checkpoint-data.ts";
-import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
-import type { WatcherTimingState } from "../shared/net/tick-context.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/ui/interaction-types.ts";
 import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import type { RGB } from "../shared/ui/theme.ts";
-import type { BannerShow } from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimerAtBannerEnd } from "./online-types.ts";

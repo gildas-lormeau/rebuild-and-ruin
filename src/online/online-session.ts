@@ -7,25 +7,25 @@
  */
 
 import {
+  DEFAULT_CANNON_HP,
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../protocol/protocol.ts";
+import {
   GAME_MODE_CLASSIC,
   type GameMode,
   LOBBY_TIMER,
 } from "../shared/core/game-constants.ts";
 import {
+  createDedupChannel,
+  type DedupChannel,
+} from "../shared/core/phantom-types.ts";
+import {
   type PlayerSlotId,
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import {
-  createDedupChannel,
-  type DedupChannel,
-} from "../shared/net/phantom-types.ts";
-import {
-  DEFAULT_CANNON_HP,
-  type GameMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../shared/net/protocol.ts";
 import type { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 
 export interface OnlineSession {

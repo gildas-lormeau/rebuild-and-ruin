@@ -26,14 +26,14 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 ## Architecture
 
 ### Directory structure
-`src/` is organized into 8 domain directories matching `.domain-boundaries.json`:
-`shared/` (types, constants, config) · `game/` (systems, phase logic) · `ai/` (strategy, AI controllers) · `player/` (human controller, factory) · `input/` (input, sound, haptics) · `render/` (canvas, sprites, UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle).
+`src/` is organized into 9 domain directories matching `.domain-boundaries.json`:
+`shared/` (types, constants, config) · `protocol/` (wire format: messages, routes, checkpoints) · `game/` (systems, phase logic) · `ai/` (AI strategy / decision logic only — no controllers) · `controllers/` (BaseController + Human + AI controller wrappers + factory) · `input/` (keyboard, mouse, touch handlers — true input only) · `render/` (canvas, sprites, layout, render UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle, UI deps-object contracts, sound/haptics observer sub-systems).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (17 groups in 5 tiers, `.import-layers.json`)
-Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L16).
-L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 subsystems → L9 system implementations → L10 assembly → L11 controllers → L12 orchestration → L13 wiring → L14 composition roots → L15 app roots → L16 app entry. Imports must flow downward (higher layer imports lower).
-Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L15, `online-client.ts` at L16).
+### Module layers (16 groups in 5 tiers, `.import-layers.json`)
+Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L15).
+L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 subsystems → L9 system implementations → L10 assembly → L11 controllers → L12 orchestration → L13 wiring → L14 composition roots → L15 app roots. Imports must flow downward (higher layer imports lower).
+Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L12, `online-client.ts` at L15).
 
 ### Type file organization (L1–L4)
 - `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus

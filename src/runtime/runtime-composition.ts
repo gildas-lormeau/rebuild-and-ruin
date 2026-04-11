@@ -34,7 +34,6 @@ import {
   generateMap,
   snapshotTerritory,
 } from "../game/index.ts";
-import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
@@ -48,7 +47,11 @@ import {
   createQuitButton,
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
-import { createSoundSystem } from "../input/sound-system.ts";
+import {
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../protocol/protocol.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import {
   buildGameOverOverlay,
@@ -82,11 +85,6 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import {
-  type GameMessage,
-  MESSAGE,
-  type ServerMessage,
-} from "../shared/net/protocol.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import type {
   RendererInterface,
@@ -98,7 +96,6 @@ import {
   SEED_CUSTOM,
 } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
-import type { UIContext } from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
@@ -106,11 +103,13 @@ import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import type { UIContext } from "./runtime-contracts.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
   createGameLifecycle,
 } from "./runtime-game-lifecycle.ts";
+import { createHapticsSystem } from "./runtime-haptics.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import {
@@ -126,6 +125,7 @@ import {
 import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
+import { createSoundSystem } from "./runtime-sound.ts";
 import { createRuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type {
   GameRuntime,

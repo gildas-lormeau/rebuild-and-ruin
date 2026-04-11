@@ -164,14 +164,29 @@ Three analyses, zero hand-written rules:
 
 ### Coupling metrics (Robert Martin)
 
-For each file: Ca (dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), Pain = Ca × stability × concreteness.
+For each file: Cv (value dependents), Ct (type-only dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), **Pain = Cv × stability × concreteness**.
+
+The Pain table splits incoming edges into **value** vs **type-only** because they represent different kinds of coupling:
+
+- A **value import** (`import { foo }`, default, namespace, side-effect) means the consumer runs the imported file's code. Changes propagate at runtime.
+- A **type-only import** (`import type { Foo }`, `import { type Foo }`, or all-`type` named specifiers) is erased by the compiler. The consumer only depends on the *shape*; changes propagate through the type-checker, not runtime.
+
+**Pain uses Cv only.** A file with Cv=2, Ct=30 is a contract / DI seam — many consumers know its shape, but only two execute its code. That's not a god file; it's exactly what you'd want from a well-placed interface module. The old (unweighted) Pain metric flagged these as drift, leading agents to propose pointless splits.
 
 **What to look for:**
-- **High Pain** (≥10): concrete file with many dependents and low instability. Any change cascades. Ask: does this file mix unrelated exports that could be split?
-- **High Ca + zero deps**: foundational type file — high Pain is expected and acceptable if the file is abstract (types/interfaces only).
+- **High Pain** (Cv ≥ 10, low instability): concrete file whose *runtime behavior* is depended on by many files. Any change cascades. Ask: does this file mix unrelated value exports that could be split?
+- **High Ct, low Cv**: shows up in the **Contracts / DI seams** section, not Pain. Leave it alone — it's working as designed.
 - **High Ce + low Ca**: composition root — should be at the top of the layer stack, not mid-graph.
 
-**Fix pattern:** Extract widely-used types from god files into dedicated zero-dep modules (e.g., `PlayerSlotId` from `game-constants.ts` → `player-slot.ts` dropped Pain from 82 to 40).
+**Fix pattern:** Extract widely-used *values* (functions, constants) from god files into dedicated modules. Examples: `PlayerSlotId` extracted from `game-constants.ts` → `player-slot.ts` dropped Cv from 82 to 8 (and the bulk of consumers turned out to be type-only, which the new metric makes visible).
+
+### Contracts / DI seams (separate section)
+
+Listed as `◆ Contracts / DI seams (high type fan-in, low value fan-in)` below the Pain table. Threshold: `Ct ≥ 5 AND Cv ≤ 2`.
+
+These files are **not** drift even though Louvain may still cluster their consumers loosely around them. They are the project's interface boundaries: deps-object contracts (`RegisterOnlineInputDeps` in `ui-contracts.ts`), pure shape modules (`geometry-types.ts`, `overlay-types.ts`), and serialization DTOs (`checkpoint-data.ts`). Treat them as pinned: don't propose splits without a value-side reason.
+
+If a file should appear here but doesn't, it likely has a stray value export (a factory function, an `export const X = ...`) pulling its Cv up. Move that one value out to drop the file into the contracts list.
 
 ### Domain boundary lint
 
@@ -190,14 +205,23 @@ Checks that imports stay within allowed domain boundaries defined in `.domain-bo
 
 ### Natural clustering (Louvain)
 
-The health report discovers "natural" domains from actual coupling using community detection. It diffs computed clusters against declared domains.
+The health report discovers "natural" domains from actual coupling using community detection on a **weighted** undirected import graph. Edge weights:
+
+- Value edge: `1.0`
+- Type-only edge: `0.1`
+
+Type weighting prevents DI seams from acting as gravitational centers. Without it, a single 600-line contract file consumed by 30 modules as `import type` would pull all 30 consumers into one giant blob and bury the real domain structure.
+
+The diff against declared domains then surfaces *runtime* coupling drift, not type sharing.
 
 **What to look for:**
-- **Mismatches**: file declared in domain X but clusters with domain Y. The file has stronger coupling to Y than X.
-- **Large mixed clusters**: two declared domains that the algorithm merges into one — they're tightly coupled in practice.
+- **Mismatches**: file declared in domain X but clusters with domain Y. After the type-weighting, this means real value coupling — the file's runtime behavior is intertwined with Y, not just its type vocabulary.
+- **Large mixed clusters**: two declared domains that the algorithm merges into one — they share executable code paths, not just contracts.
 - **Singletons**: file in its own cluster — it's an outlier with weak coupling to everything.
 
-**Fix pattern:** If a file consistently clusters with the wrong domain, either move it to the right domain (if its responsibilities match), or extract the cross-domain dependency that pulls it toward the wrong cluster.
+**Fix pattern:** If a file consistently clusters with the wrong domain *after type weighting*, either move it to the right domain (if its responsibilities match), or extract the cross-domain value dependency that pulls it toward the wrong cluster. If it only clustered wrong under the old unweighted metric, it was probably a contract — leave it alone.
+
+**Anti-pattern to avoid:** Don't propose splitting a file just because it appears in many clusters' import lists. Check Cv first. A file with Cv=0 and Ct=40 is a seam by design; the sprawl is the *point*, not a problem.
 
 ## Step 9 — Iterate: the full workflow
 
@@ -361,3 +385,11 @@ Most entries below were discovered and executed by LLM-based agents under script
 | 4 runtime files over-classified in L9 | After `runtime-types.ts` dropped to L7, max dep for `runtime-camera`, `runtime-e2e-bridge`, `runtime-game-lifecycle`, `runtime-input` dropped to L7; reclassified to L8 "system implementations" |
 | `router.ts` misplaced in runtime domain | Moved to `shared/router.ts` — zero deps, used by entry + online; clusters with online in Louvain; pure coordination primitive |
 | L8 "runtime subsystems" naming mismatch | Renamed to "subsystems" — 6/13 files are game/ai/render domain, not runtime |
+| `shared/` over-populated with mislabeled files (April 2026 pass) | Split into 4 honest moves: (a) `shared/net/{protocol,checkpoint-data,routes,tick-context}.ts` → new `protocol/` domain; (b) `shared/net/phantom-types.ts` stayed shared (`shared/core/phantom-types.ts`) — `overlay-types.ts` legitimately consumes it as a type; (c) `shared/ui/{canvas-layout,router,ui-contracts}` → moved out (see below); (d) the rest of `shared/ui/*` (interaction-types, overlay-types, theme, ui-mode, settings-defs/ui, input-action, player-config) verified as genuinely shared via cross-domain consumers |
+| `shared/ui/canvas-layout.ts` belonged to render | Moved to `src/render/render-layout.ts` — only render-canvas + runtime-e2e-bridge consume it; renamed to match `render-` prefix |
+| `shared/ui/router.ts` belonged to online | Moved to `src/online/online-router.ts` — only entry + online consumers; renamed to match `online-` prefix |
+| `shared/ui/ui-contracts.ts` is a runtime DI seam, not a shared file | Moved to `src/runtime/runtime-contracts.ts` — defines `RegisterOnlineInputDeps` and the `*Deps` family; consumed as `import type` by input/render. Added `input → runtime` and `render → runtime` to `typeOnlyFrom`; dropped the old `runtime → input/render` typeOnlyFrom rule (it was over-strict — runtime is the layer that wires input/render by design, not a violation) |
+| `protocol/tick-context.ts` was misclassified — it's not protocol | Moved + renamed: `src/runtime/runtime-tick-context.ts`. The file's docstring says "Shared types and utilities for phase/battle tick functions" — runtime tick state, not wire format. After the move, no runtime sub-system imports `protocol/` at all, so reverted the `protocol → ALLOWED_SUBSYSTEM_DOMAINS` relaxation |
+| `player/` was a 3-file fictional domain that clustered with `ai/` | First merged player files into `ai/` → exposed the lie that `ai/controller-human.ts` makes ("human controller in AI domain"). Re-extracted into a new `controllers/` domain holding `controller-{types,human,ai,factory}.ts` (the 3 ex-player files plus `controller-ai.ts` from `ai/`); `ai/` is now strategy-only. `controllers → ai` allowed (controller-ai wraps `DefaultStrategy`) |
+| `input/sound-system.ts` and `input/haptics-system.ts` are observers, not input | Both files' own docstrings say "Follows the factory-with-deps pattern used by **other runtime sub-systems**." Moved + renamed: `src/runtime/runtime-sound.ts`, `src/runtime/runtime-haptics.ts`. They join the existing 13 runtime sub-systems via the `runtime-` prefix; added to `lint-architecture.ts` `EXEMPT` set (they're factories with single deps + observer, not generic primitives). `input/` is now 9 files of true input handlers |
+| Lateral-imports allowlist became fully stale after layer shifts | Cleared `scripts/lateral-imports-allowlist.json` to `[]` — the layer regen turned all 3 prior lateral edges into normal downward imports |

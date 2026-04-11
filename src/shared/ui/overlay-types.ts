@@ -11,12 +11,12 @@ import type {
   TilePos,
   Viewport,
 } from "../core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../core/player-slot.ts";
-import type { FreshInterior } from "../core/player-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
-} from "../net/phantom-types.ts";
+} from "../core/phantom-types.ts";
+import type { ValidPlayerSlot } from "../core/player-slot.ts";
+import type { FreshInterior } from "../core/player-types.ts";
 import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
 

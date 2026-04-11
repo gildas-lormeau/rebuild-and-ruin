@@ -35,13 +35,6 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import {
-  type HapticsSystem,
-  isHuman,
-  type SoundSystem,
-} from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -52,7 +45,21 @@ import {
   type PiecePlacedPayload,
   phantomWireMode,
   piecePhantomKey,
-} from "../shared/net/phantom-types.ts";
+} from "../shared/core/phantom-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  type HapticsSystem,
+  isHuman,
+  type SoundSystem,
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
+import type { PlayerStats } from "../shared/ui/overlay-types.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
+import {
+  assertStateReady,
+  type RuntimeState,
+  setMode,
+} from "./runtime-state.ts";
 import {
   ACCUM_BATTLE,
   ACCUM_BUILD,
@@ -63,14 +70,7 @@ import {
   localControllers,
   resetAccum,
   tickGruntsIfDue,
-} from "../shared/net/tick-context.ts";
-import type { PlayerStats } from "../shared/ui/overlay-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import {
-  assertStateReady,
-  type RuntimeState,
-  setMode,
-} from "./runtime-state.ts";
+} from "./runtime-tick-context.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,

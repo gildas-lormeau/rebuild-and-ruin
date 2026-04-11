@@ -7,15 +7,15 @@
  */
 
 import "./style.css";
-import { ROUTE_HOME, ROUTE_ONLINE, ROUTE_PLAY } from "./shared/net/routes.ts";
-import { IS_TOUCH_DEVICE } from "./shared/platform/platform.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
   initRouter,
   navigateTo,
   onRoute,
-} from "./shared/ui/router.ts";
+} from "./online/online-router.ts";
+import { ROUTE_HOME, ROUTE_ONLINE, ROUTE_PLAY } from "./protocol/routes.ts";
+import { IS_TOUCH_DEVICE } from "./shared/platform/platform.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";

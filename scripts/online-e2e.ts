@@ -33,26 +33,11 @@
  *   Local mode: npm run dev (port 5173) only
  */
 
-import { chromium, devices, type Page, type Browser } from "playwright";
-import { MESSAGE } from "../src/shared/net/protocol.ts";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import process from "node:process";
 import { Buffer } from "node:buffer";
-
-const SCREENSHOTS = process.argv.includes("--screenshot");
-const MOBILE = process.argv.includes("--mobile");
-const HEADLESS = process.argv.includes("--headless");
-const RECORD = process.argv.includes("--record");
-const FAST = process.argv.includes("--fast");
-const COVERAGE = process.argv.includes("--coverage");
-const SEED = (() => {
-  const idx = process.argv.indexOf("--seed");
-  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
-})();
-const REPLAY = (() => {
-  const idx = process.argv.indexOf("--replay");
-  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
-})();
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import process from "node:process";
+import { type Browser, chromium, devices, type Page } from "playwright";
+import { MESSAGE } from "../src/protocol/protocol.ts";
 
 // Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
 interface TestAction {
@@ -61,21 +46,6 @@ interface TestAction {
   screenshot?: string;
   exit?: boolean;
   done?: boolean;
-}
-const ACTIONS: TestAction[] = [];
-for (let i = 2; i < process.argv.length; i++) {
-  if (process.argv[i] === "--action" && process.argv[i + 1]) {
-    const parts = process.argv[++i]!.split(/\s+/);
-    const action: TestAction = { trigger: { type: "phase", value: "" } };
-    for (const part of parts) {
-      if (part.startsWith("phase:")) action.trigger = { type: "phase", value: part.slice(6) };
-      else if (part.startsWith("mode:")) action.trigger = { type: "mode", value: part.slice(5) };
-      else if (part.startsWith("click:")) action.click = part.slice(6);
-      else if (part.startsWith("screenshot:")) action.screenshot = part.slice(11);
-      else if (part === "exit") action.exit = true;
-    }
-    if (action.trigger.value) ACTIONS.push(action);
-  }
 }
 
 // Parse --assert flags: "phase:BATTLE button:zoom visible"
@@ -87,46 +57,6 @@ interface TestAssert {
   done?: boolean;
   passed?: boolean;
 }
-const ASSERTS: TestAssert[] = [];
-for (let i = 2; i < process.argv.length; i++) {
-  if (process.argv[i] === "--assert" && process.argv[i + 1]) {
-    const parts = process.argv[++i]!.split(/\s+/);
-    const assert: TestAssert = { trigger: { type: "phase", value: "" } };
-    for (const part of parts) {
-      if (part.startsWith("phase:")) assert.trigger = { type: "phase", value: part.slice(6) };
-      else if (part.startsWith("mode:")) assert.trigger = { type: "mode", value: part.slice(5) };
-      else if (part.startsWith("button:")) assert.button = part.slice(7);
-      else if (part === "visible") assert.expected = "visible";
-      else if (part === "hidden") assert.expected = "hidden";
-      else if (part.startsWith("text:")) assert.text = part.slice(5);
-    }
-    if (assert.trigger.value) ASSERTS.push(assert);
-  }
-}
-
-// Filter positional args: skip --flags and their values
-const positionalArgs: string[] = [];
-{
-  const args = process.argv.slice(2);
-  const flagsWithValue = new Set(["--action", "--assert", "--seed", "--replay"]);
-  for (let i = 0; i < args.length; i++) {
-    if (flagsWithValue.has(args[i]!)) { i++; continue; } // skip flag + value
-    if (args[i]!.startsWith("--")) continue; // skip boolean flags
-    positionalArgs.push(args[i]!);
-  }
-}
-const MODE = positionalArgs[0] === "local" ? "local" : "online";
-const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
-const LOCAL_SERVER_URL = "http://localhost:8001";
-const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || (MODE === "online" ? LOCAL_SERVER_URL : "");
-const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (default 3, any positive integer)
-const BASE_URL = "http://localhost:5173/";
-const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
-const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
-const ONLINE_ROUND_OPTIONS = new Set([1, 3, 5, 8, 12]);
-const ONLINE_SELECTED_ROUNDS = ONLINE_ROUND_OPTIONS.has(NUM_ROUNDS) ? String(NUM_ROUNDS) : "3";
-const PLAYER_NAMES = ["Red", "Blue", "Gold"];
-const REPO_ROOT = process.cwd().replace(/\\/g, "/");
 
 interface CoverageRange {
   start: number;
@@ -145,319 +75,6 @@ interface CoverageSummary {
   totalBytes: number;
   pct: number;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function ts(): string {
-  return `[${(performance.now() / 1000).toFixed(1)}s]`;
-}
-
-function printAssertSummary(): void {
-  if (ASSERTS.length === 0) return;
-  const passed = ASSERTS.filter(a => a.done && a.passed).length;
-  const failed = ASSERTS.filter(a => a.done && !a.passed).length;
-  const skipped = ASSERTS.filter(a => !a.done).length;
-  console.log(`\n=== ASSERTIONS: ${passed} passed, ${failed} failed, ${skipped} skipped ===`);
-}
-
-function btnSelector(name: string): string {
-  if (name === "home") return "button[data-btn='home']";
-  if (name === "enemy") return "button[data-btn='enemy']";
-  if (name === "zoom") return "button[data-btn='home']"; // alias for home
-  if (name === "rotate") return "button[style*='right: 24px'][style*='bottom']";
-  if (name === "quit") return "button[style*='right: 12px'][style*='top']";
-  return `button:has-text("${name}")`;
-}
-
-/** Execute pending asserts that match current phase/mode. Returns false if any assert failed. */
-async function executeAsserts(page: Page, phase: string, mode: string): Promise<boolean> {
-  let allPassed = true;
-  for (const assert of ASSERTS) {
-    if (assert.done) continue;
-    const match = assert.trigger.type === "phase"
-      ? phase === assert.trigger.value
-      : mode === assert.trigger.value;
-    if (!match) continue;
-    assert.done = true;
-
-    if (assert.button && assert.expected) {
-      const btn = await page.$(btnSelector(assert.button));
-      const isVisible = btn ? await btn.isVisible() : false;
-      const expectVisible = assert.expected === "visible";
-      assert.passed = isVisible === expectVisible;
-      const status = assert.passed ? "PASS" : "FAIL";
-      console.log(`${ts()} Assert ${status}: button:${assert.button} ${assert.expected} (actual: ${isVisible ? "visible" : "hidden"})`);
-      if (!assert.passed) allPassed = false;
-    }
-
-    if (assert.text) {
-      const content = await page.evaluate(() => document.body.innerText).catch(() => "");
-      const found = content.includes(assert.text);
-      assert.passed = found;
-      const status = found ? "PASS" : "FAIL";
-      console.log(`${ts()} Assert ${status}: text:"${assert.text}" ${found ? "found" : "not found"}`);
-      if (!found) allPassed = false;
-    }
-  }
-  return allPassed;
-}
-
-/** Install a vibrate spy on mobile-emulated pages. */
-async function installVibrateSpy(page: Page): Promise<void> {
-  if (!MOBILE) return;
-  await page.addInitScript(() => {
-    const calls: number[] = [];
-    // deno-lint-ignore no-explicit-any
-    (window as any).__vibrateCalls = calls;
-    const orig = navigator.vibrate?.bind(navigator);
-    navigator.vibrate = ((pattern: VibratePattern) => {
-      const ms = typeof pattern === "number" ? pattern : [...pattern][0] ?? 0;
-      calls.push(ms);
-      return orig ? orig(pattern) : true;
-    }) as typeof navigator.vibrate;
-  });
-}
-
-const HAPTIC_LABELS: Record<number, string> = {
-  15: "fired", 30: "wall_hit", 40: "phase_change",
-  80: "cannon_dmg", 150: "cannon_dead", 200: "tower_kill",
-};
-
-async function printHapticSummary(page: Page): Promise<void> {
-  if (!MOBILE) return;
-  // deno-lint-ignore no-explicit-any
-  const calls = await page.evaluate(() => (window as any).__vibrateCalls as number[] ?? []).catch(() => []);
-  if (calls.length === 0) { console.log("\n=== HAPTICS: no vibrate calls ==="); return; }
-  const counts: Record<number, number> = {};
-  for (const c of calls) counts[c] = (counts[c] || 0) + 1;
-  console.log(`\n=== HAPTICS: ${calls.length} vibrate calls ===`);
-  for (const [ms, n] of Object.entries(counts).sort((a, b) => Number(a[0]) - Number(b[0]))) {
-    const label = HAPTIC_LABELS[Number(ms)] ?? "?";
-    console.log(`  ${ms}ms (${label}): ${n}x`);
-  }
-}
-
-/** Execute pending actions that match current phase/mode. Returns true if an action requested exit. */
-async function executeActions(page: Page, phase: string, mode: string): Promise<boolean> {
-  for (const action of ACTIONS) {
-    if (action.done) continue;
-    const match = action.trigger.type === "phase"
-      ? phase === action.trigger.value
-      : mode === action.trigger.value;
-    if (!match) continue;
-    action.done = true;
-    console.log(`${ts()} Action triggered: ${action.trigger.type}:${action.trigger.value}`);
-
-    if (action.click) {
-      const target = action.click;
-      if (target === "zoom" || target === "home" || target === "enemy" || target === "rotate" || target === "quit") {
-        const btn = await page.$(btnSelector(target));
-        if (btn) {
-          await btn.click();
-          console.log(`${ts()} Clicked ${target} button`);
-        } else {
-          console.log(`${ts()} WARNING: ${target} button not found`);
-        }
-      } else if (target.includes(",")) {
-        const [x, y] = target.split(",").map(Number);
-        await page.mouse.click(x!, y!);
-        console.log(`${ts()} Clicked at (${x},${y})`);
-      }
-      // Brief pause for render to update
-      await page.waitForTimeout(200);
-    }
-
-    if (action.screenshot) {
-      await takeScreenshot(page, "action", action.screenshot, true);
-    }
-
-    if (action.exit) {
-      console.log(`${ts()} Action requested exit`);
-      return true;
-    }
-  }
-  return false;
-}
-
-const screenshotsTaken = new Set<string>();
-async function takeScreenshot(page: Page, prefix: string, label: string, force = false): Promise<void> {
-  if (!SCREENSHOTS && !force) return;
-  const key = `${prefix}-${label}`;
-  if (screenshotsTaken.has(key)) return; // one per label
-  screenshotsTaken.add(key);
-  const filename = `logs/screenshot-${prefix}-${label}.png`;
-  // Capture at reduced quality/size to save LLM context
-  const buf = await page.screenshot({ type: "png", scale: "css" });
-  // Downscale via page canvas
-  const small = await page.evaluate(async (b64: string) => {
-    const img = new Image();
-    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = "data:image/png;base64," + b64; });
-    const scale = 0.35;
-    const c = document.createElement("canvas");
-    c.width = Math.round(img.width * scale);
-    c.height = Math.round(img.height * scale);
-    const ctx = c.getContext("2d")!;
-    ctx.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/png").split(",")[1]!;
-  }, buf.toString("base64"));
-  writeFileSync(filename, Buffer.from(small, "base64"));
-  console.log(`${ts()} Screenshot: ${filename}`);
-}
-
-const MOBILE_DEVICE = devices["Pixel 7"];
-
-async function newPage(browser: Browser): Promise<Page> {
-  const recordVideo = RECORD ? { dir: "logs/", size: { width: 1024, height: 600 } } : undefined;
-  if (MOBILE) {
-    const ctx = await browser.newContext({
-      ...MOBILE_DEVICE,
-      viewport: { width: MOBILE_DEVICE.viewport.height, height: MOBILE_DEVICE.viewport.width },
-      recordVideo,
-    });
-    const page = await ctx.newPage();
-    await startCoverage(page);
-    return page;
-  }
-  const ctx = await browser.newContext({ recordVideo });
-  const page = await ctx.newPage();
-  await startCoverage(page);
-  return page;
-}
-
-function collectLogs(page: Page, prefix: string, logs: string[]): void {
-  page.on("console", (m: { type: () => string; text: () => string }) =>
-    logs.push(`${ts()} [${prefix} ${m.type()}] ${m.text()}`));
-  page.on("pageerror", (err: Error) =>
-    logs.push(`${ts()} [${prefix} ERROR] ${err.message}`));
-}
-
-async function startCoverage(page: Page): Promise<void> {
-  if (!COVERAGE) return;
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-}
-
-async function stopCoverage(page: Page): Promise<JsCoverageEntry[]> {
-  if (!COVERAGE || page.isClosed()) return [];
-  const entries = await page.coverage.stopJSCoverage();
-  return entries.map((entry) => ({
-    url: entry.url,
-    text: entry.source ?? "",
-    ranges: entry.functions.flatMap((fn) =>
-      fn.ranges
-        .filter((range) => range.count > 0)
-        .map((range) => ({ start: range.startOffset, end: range.endOffset })),
-    ),
-  }));
-}
-
-function mergeRanges(ranges: readonly CoverageRange[]): CoverageRange[] {
-  if (ranges.length === 0) return [];
-  const sorted = [...ranges].sort((left, right) => left.start - right.start);
-  const merged: CoverageRange[] = [{ start: sorted[0]!.start, end: sorted[0]!.end }];
-  for (let i = 1; i < sorted.length; i++) {
-    const current = sorted[i]!;
-    const last = merged[merged.length - 1]!;
-    if (current.start <= last.end) {
-      last.end = Math.max(last.end, current.end);
-    } else {
-      merged.push({ start: current.start, end: current.end });
-    }
-  }
-  return merged;
-}
-
-function countCoveredBytes(ranges: readonly CoverageRange[]): number {
-  return mergeRanges(ranges).reduce((total, range) => total + Math.max(0, range.end - range.start), 0);
-}
-
-function normalizeCoveragePath(url: string): string | null {
-  if (!url || url.startsWith("extensions::") || url.startsWith("devtools://")) return null;
-  try {
-    const parsed = new URL(url);
-    let path = decodeURIComponent(parsed.pathname);
-    if (path.includes("/@fs/")) {
-      path = path.slice(path.indexOf("/@fs/") + 5);
-    }
-    if (path.startsWith(REPO_ROOT)) {
-      path = path.slice(REPO_ROOT.length);
-    }
-    if (path.startsWith("/")) path = path.slice(1);
-    if (!path.startsWith("src/") && !path.startsWith("test/") && !path.startsWith("server/")) {
-      return null;
-    }
-    return path;
-  } catch {
-    return null;
-  }
-}
-
-function summarizeCoverage(entries: readonly JsCoverageEntry[]): CoverageSummary[] {
-  const aggregated = new Map<string, { totalBytes: number; ranges: CoverageRange[] }>();
-  for (const entry of entries) {
-    const path = normalizeCoveragePath(entry.url);
-    if (!path) continue;
-    const current = aggregated.get(path);
-    if (current) {
-      current.ranges.push(...entry.ranges);
-      current.totalBytes = Math.max(current.totalBytes, entry.text.length);
-    } else {
-      aggregated.set(path, {
-        totalBytes: entry.text.length,
-        ranges: [...entry.ranges],
-      });
-    }
-  }
-  return [...aggregated.entries()]
-    .map(([path, value]) => {
-      const executedBytes = countCoveredBytes(value.ranges);
-      const totalBytes = value.totalBytes;
-      return {
-        path,
-        executedBytes,
-        totalBytes,
-        pct: totalBytes === 0 ? 0 : Number(((executedBytes / totalBytes) * 100).toFixed(2)),
-      };
-    })
-    .sort((left, right) => right.pct - left.pct || right.executedBytes - left.executedBytes || left.path.localeCompare(right.path));
-}
-
-function printCoverageReport(entries: readonly JsCoverageEntry[], label: string): void {
-  if (!COVERAGE) return;
-  const summaries = summarizeCoverage(entries);
-  mkdirSync("logs", { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
-  const outPath = `logs/e2e-coverage-${label}-${stamp}.json`;
-  writeFileSync(outPath, JSON.stringify(summaries, null, 2));
-
-  const interestingPatterns = [
-    /^src\/online-/,
-    /^src\/controller-human\.ts$/,
-    /^src\/input-/,
-    /^src\/runtime-camera\.ts$/,
-    /^src\/runtime-.*\.ts$/,
-  ];
-  const interesting = summaries.filter((summary) => interestingPatterns.some((pattern) => pattern.test(summary.path)));
-  const topInteresting = interesting
-    .sort((left, right) => right.executedBytes - left.executedBytes || right.pct - left.pct)
-    .slice(0, 20);
-
-  console.log(`\n=== E2E COVERAGE (${label}) ===`);
-  console.log(`  modules: ${summaries.length}`);
-  console.log(`  report: ${outPath}`);
-  if (topInteresting.length === 0) {
-    console.log("  no src/ browser modules were captured");
-    return;
-  }
-  for (const summary of topInteresting) {
-    console.log(`  ${summary.path}: ${summary.pct}% (${summary.executedBytes}/${summary.totalBytes} bytes)`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Chrome DevTools Recorder replay
-// ---------------------------------------------------------------------------
 
 interface RecorderStep {
   type: string;
@@ -488,24 +105,392 @@ interface Recording {
   steps: RecorderStep[];
 }
 
-function pickSelector(selectors: string[][]): string {
-  // Chrome DevTools Recorder provides multiple selector strategies per step.
-  // Prefer aria > CSS > xpath. Each entry is an array of selector parts
-  // (for shadow DOM piercing); we join with ` >> ` for Playwright.
-  for (const chain of selectors) {
-    const sel = chain.join(" >> ");
-    // Skip xpath selectors — Playwright handles them differently
-    if (!sel.startsWith("xpath/")) return sel;
-  }
-  return selectors[0]!.join(" >> ");
+interface InputTouchPoint {
+  id: number;
+  x: number;
+  y: number;
 }
 
-async function replayRecording(page: Page, recording: Recording): Promise<void> {
-  console.log(`${ts()} Replaying "${recording.title}" (${recording.steps.length} steps)`);
+interface InputStep {
+  type: string;
+  x?: number;
+  y?: number;
+  t: number;
+  button?: number;
+  key?: string;
+  code?: string;
+  touches?: InputTouchPoint[];
+  changedTouches?: InputTouchPoint[];
+}
+
+interface InputRecording {
+  format: "input-recorder";
+  title: string;
+  url: string;
+  viewport: { width: number; height: number; dpr: number };
+  steps: InputStep[];
+}
+
+const SCREENSHOTS = process.argv.includes("--screenshot");
+const MOBILE = process.argv.includes("--mobile");
+const HEADLESS = process.argv.includes("--headless");
+const RECORD = process.argv.includes("--record");
+const FAST = process.argv.includes("--fast");
+const COVERAGE = process.argv.includes("--coverage");
+const SEED = (() => {
+  const idx = process.argv.indexOf("--seed");
+  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
+})();
+const REPLAY = (() => {
+  const idx = process.argv.indexOf("--replay");
+  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
+})();
+const ACTIONS: TestAction[] = [];
+const ASSERTS: TestAssert[] = [];
+// Filter positional args: skip --flags and their values
+const positionalArgs: string[] = [];
+const MODE = positionalArgs[0] === "local" ? "local" : "online";
+const NUM_HUMANS = Math.min(
+  3,
+  Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))),
+);
+const LOCAL_SERVER_URL = "http://localhost:8001";
+const SERVER_URL =
+  positionalArgs[2] ||
+  process.env.E2E_SERVER_URL ||
+  (MODE === "online" ? LOCAL_SERVER_URL : "");
+const NUM_ROUNDS = Number(positionalArgs[3] ?? 3);
+// number of game rounds (default 3, any positive integer)
+const BASE_URL = "http://localhost:5173/";
+const PAGE_URL = SERVER_URL
+  ? `${BASE_URL}?server=${new URL(SERVER_URL).host}`
+  : BASE_URL;
+const GAME_TIMEOUT_MS = 600_000;
+// 10 minutes — enough for "To The Death"
+const ONLINE_ROUND_OPTIONS = new Set([1, 3, 5, 8, 12]);
+const ONLINE_SELECTED_ROUNDS = ONLINE_ROUND_OPTIONS.has(NUM_ROUNDS)
+  ? String(NUM_ROUNDS)
+  : "3";
+const PLAYER_NAMES = ["Red", "Blue", "Gold"];
+const REPO_ROOT = process.cwd().replace(/\\/g, "/");
+const HAPTIC_LABELS: Record<number, string> = {
+  15: "fired",
+  30: "wall_hit",
+  40: "phase_change",
+  80: "cannon_dmg",
+  150: "cannon_dead",
+  200: "tower_kill",
+};
+const screenshotsTaken = new Set<string>();
+const MOBILE_DEVICE = devices["Pixel 7"];
+
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === "--action" && process.argv[i + 1]) {
+    const parts = process.argv[++i]!.split(/\s+/);
+    const action: TestAction = { trigger: { type: "phase", value: "" } };
+    for (const part of parts) {
+      if (part.startsWith("phase:"))
+        action.trigger = { type: "phase", value: part.slice(6) };
+      else if (part.startsWith("mode:"))
+        action.trigger = { type: "mode", value: part.slice(5) };
+      else if (part.startsWith("click:")) action.click = part.slice(6);
+      else if (part.startsWith("screenshot:"))
+        action.screenshot = part.slice(11);
+      else if (part === "exit") action.exit = true;
+    }
+    if (action.trigger.value) ACTIONS.push(action);
+  }
+}
+
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === "--assert" && process.argv[i + 1]) {
+    const parts = process.argv[++i]!.split(/\s+/);
+    const assert: TestAssert = { trigger: { type: "phase", value: "" } };
+    for (const part of parts) {
+      if (part.startsWith("phase:"))
+        assert.trigger = { type: "phase", value: part.slice(6) };
+      else if (part.startsWith("mode:"))
+        assert.trigger = { type: "mode", value: part.slice(5) };
+      else if (part.startsWith("button:")) assert.button = part.slice(7);
+      else if (part === "visible") assert.expected = "visible";
+      else if (part === "hidden") assert.expected = "hidden";
+      else if (part.startsWith("text:")) assert.text = part.slice(5);
+    }
+    if (assert.trigger.value) ASSERTS.push(assert);
+  }
+}
+
+{
+  const args = process.argv.slice(2);
+  const flagsWithValue = new Set([
+    "--action",
+    "--assert",
+    "--seed",
+    "--replay",
+  ]);
+  for (let i = 0; i < args.length; i++) {
+    if (flagsWithValue.has(args[i]!)) {
+      i++;
+      continue;
+    } // skip flag + value
+    if (args[i]!.startsWith("--")) continue; // skip boolean flags
+    positionalArgs.push(args[i]!);
+  }
+}
+
+if (MODE === "local") {
+  runLocal().catch((err: Error) => {
+    console.error("Local E2E test failed:", err.message);
+    process.exit(1);
+  });
+} else {
+  runOnline().catch((err: Error) => {
+    console.error("Online E2E test failed:", err.message);
+    process.exit(1);
+  });
+}
+
+async function runLocal() {
+  const browser = await chromium.launch({
+    headless: HEADLESS,
+    args: ["--window-size=1024,600"],
+  });
+  const page = await newPage(browser);
+  await installVibrateSpy(page);
+  const logs: string[] = [];
+  collectLogs(page, "LOCAL", logs);
+
+  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
+  let logsFlushed = false;
+  const flushLogs = () => {
+    if (logsFlushed) return;
+    logsFlushed = true;
+    mkdirSync("logs", { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+    const path = `logs/e2e-local-${NUM_HUMANS}h-${stamp}.log`;
+    writeFileSync(path, logs.join("\n"));
+  };
+  process.on("exit", flushLogs);
+  process.on("SIGTERM", () => {
+    flushLogs();
+    process.exit(128 + 15);
+  });
+  process.on("SIGINT", () => {
+    flushLogs();
+    process.exit(128 + 2);
+  });
+
+  console.log(
+    `${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`,
+  );
+
+  // --replay: replay a recorded JSON (Chrome DevTools or input-recorder format)
+  if (REPLAY) {
+    const raw = JSON.parse(readFileSync(REPLAY, "utf8"));
+    if (isInputRecording(raw)) {
+      if (MOBILE) {
+        await page.setViewportSize({
+          width: raw.viewport.width,
+          height: raw.viewport.height,
+        });
+      }
+      await replayInputRecording(page, raw);
+    } else {
+      await replayRecording(page, raw as Recording);
+    }
+    console.log(`${ts()} Waiting 3s after replay for logs to settle...`);
+    await page.waitForTimeout(3000);
+
+    analyzeResults([], [logs], [], ["LOCAL"], `replay`);
+    logsFlushed = true;
+    printCoverageReport(await stopCoverage(page), "replay");
+    await printHapticSummary(page);
+    printAssertSummary();
+    await page.close();
+    await browser.close();
+    console.log(`\n${ts()} Replay E2E test complete.`);
+    printDebugReminder();
+    if (ASSERTS.some((a) => a.done && !a.passed)) process.exit(1);
+    return;
+  }
+
+  const localUrl = `${BASE_URL}?rounds=${NUM_ROUNDS}`;
+  await page.goto(localUrl);
+  // Set seed via localStorage, rounds via query parameter
+  await page.evaluate((seed: string) => {
+    if (seed) {
+      const settings = JSON.parse(
+        localStorage.getItem("castles99_settings") || "{}",
+      );
+      settings.seedMode = "custom";
+      settings.seed = seed;
+      localStorage.setItem("castles99_settings", JSON.stringify(settings));
+    }
+    document.title = "Local Play";
+  }, SEED);
+  // Click "Local Play" to load main.ts and show canvas lobby
+  await page.click("#btn-local");
+  await page.waitForSelector("#game-container.active", { timeout: 5000 });
+  await page.waitForTimeout(500);
+
+  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
+  // Injected early so the lobby countdown also runs fast.
+  if (FAST) {
+    await page.evaluate(() => {
+      let fakeTime = performance.now();
+      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
+        setTimeout(() => {
+          fakeTime += 100;
+          cb(fakeTime);
+        }, 1) as unknown as number;
+    });
+  }
+
+  // Join human slots
+  if (MOBILE && NUM_HUMANS > 0) {
+    // On mobile, tap the canvas lobby slots (game starts immediately on first tap)
+    const canvas = await page.$("canvas")!;
+    const box = await canvas!.boundingBox();
+    if (box) {
+      // Lobby layout: 3 slots evenly spaced, centered vertically
+      const slotCount = 3;
+      const gap = 12 * (box.width / 1280); // scale gap to viewport
+      const rectW = (box.width - gap * (slotCount + 1)) / slotCount;
+      const rectY = box.y + box.height * 0.27;
+      const rectH = box.height * 0.5;
+      for (let i = 0; i < NUM_HUMANS; i++) {
+        const cx = box.x + gap * (i + 1) + rectW * i + rectW / 2;
+        const cy = rectY + rectH / 2;
+        await page.touchscreen.tap(cx, cy);
+        console.log(
+          `${ts()} Tapped slot ${i} (${PLAYER_NAMES[i]}) at (${cx.toFixed(0)},${cy.toFixed(0)})`,
+        );
+        await page.waitForTimeout(300);
+      }
+    }
+  } else {
+    const slotKeys = ["n", "f", "h"];
+    for (let i = 0; i < NUM_HUMANS; i++) {
+      await page.keyboard.press(slotKeys[i]!);
+      console.log(`${ts()} Joined slot ${i} (${PLAYER_NAMES[i]}) as human`);
+      await page.waitForTimeout(300);
+    }
+  }
+
+  // Wait for the game to start (lobby timer expires or immediate on mobile)
+  console.log(`${ts()} Waiting for game to start...`);
+  await takeScreenshot(page, "game", "lobby");
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as Record<string, unknown>;
+      const e2e = w.__e2e as unknown as { mode?: string };
+      return e2e?.mode !== undefined && e2e?.mode !== "LOBBY";
+    },
+    { timeout: 90_000 },
+  );
+  console.log(`${ts()} Game started`);
+
+  // Simulate human play or wait for AI-only game
+  let allActions: string[][] = [];
+  if (NUM_HUMANS > 0) {
+    allActions = [await simulateHumanPlayLoop(page, "LOCAL", GAME_TIMEOUT_MS)];
+  } else {
+    // All-AI: poll until game over
+    const deadline = Date.now() + GAME_TIMEOUT_MS;
+    let lastReported = "";
+    while (Date.now() < deadline) {
+      const info = await page
+        .evaluate(() => {
+          const w = window as unknown as Record<string, unknown>;
+          const e2e = w.__e2e as unknown as {
+            mode?: string;
+            phase?: string;
+            timer?: number;
+          };
+          return {
+            mode: e2e?.mode ?? "",
+            phase: e2e?.phase ?? "",
+            timer: e2e?.timer ?? 0,
+          };
+        })
+        .catch(() => ({ mode: "", phase: "", timer: 0 }));
+      if (info.mode === "STOPPED") {
+        console.log(`${ts()} Game over detected`);
+        await takeScreenshot(page, "game", "game-over");
+        break;
+      }
+      const key = `${info.mode}/${info.phase}`;
+      if (key !== lastReported) {
+        console.log(
+          `${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`,
+        );
+        const label = `${info.mode}-${info.phase}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "-");
+        await takeScreenshot(page, "game", label);
+        lastReported = key;
+        if (await executeActions(page, info.phase, info.mode)) break;
+        await executeAsserts(page, info.phase, info.mode);
+      }
+      await page.waitForTimeout(500);
+    }
+  }
+
+  // Check final game state
+  const finalMode = await page
+    .evaluate(() => {
+      const w = window as unknown as Record<string, unknown>;
+      const e2e = w.__e2e as unknown as {
+        mode?: string;
+        phase?: string;
+        timer?: number;
+      };
+      return e2e?.mode as string;
+    })
+    .catch(() => "unknown");
+  if (finalMode === "STOPPED") {
+    logs.push(`[LOCAL] gameOver — game ended normally`);
+  } else {
+    logs.push(`[LOCAL] game still running (mode=${finalMode})`);
+  }
+
+  // --- ANALYSIS ---
+  analyzeResults(
+    allActions,
+    [logs],
+    NUM_HUMANS > 0 ? ["LOCAL"] : [],
+    ["LOCAL"],
+    `local-${NUM_HUMANS}h`,
+  );
+  logsFlushed = true; // analyzeResults already saved the log file
+  printCoverageReport(await stopCoverage(page), `local-${NUM_HUMANS}h`);
+
+  await printHapticSummary(page);
+  if (RECORD) {
+    const videoPath = await page.video()?.path();
+    if (videoPath) console.log(`${ts()} Video: ${videoPath}`);
+  }
+  printAssertSummary();
+  await page.close(); // finalize video before closing browser
+  await browser.close();
+  console.log(`\n${ts()} Local E2E test complete.`);
+  printDebugReminder();
+  if (ASSERTS.some((a) => a.done && !a.passed)) process.exit(1);
+}
+
+async function replayRecording(
+  page: Page,
+  recording: Recording,
+): Promise<void> {
+  console.log(
+    `${ts()} Replaying "${recording.title}" (${recording.steps.length} steps)`,
+  );
   for (let i = 0; i < recording.steps.length; i++) {
     const step = recording.steps[i]!;
     const stepTimeout = step.timeout ?? 5000;
-    console.log(`${ts()} Step ${i + 1}/${recording.steps.length}: ${step.type}${step.key ? ` key=${step.key}` : ""}${step.selectors ? ` sel=${pickSelector(step.selectors)}` : ""}${step.url ? ` url=${step.url}` : ""}`);
+    console.log(
+      `${ts()} Step ${i + 1}/${recording.steps.length}: ${step.type}${step.key ? ` key=${step.key}` : ""}${step.selectors ? ` sel=${pickSelector(step.selectors)}` : ""}${step.url ? ` url=${step.url}` : ""}`,
+    );
 
     switch (step.type) {
       case "setViewport":
@@ -521,7 +506,11 @@ async function replayRecording(page: Page, recording: Recording): Promise<void> 
 
       case "click": {
         const sel = pickSelector(step.selectors!);
-        const opts: { timeout: number; button?: "left" | "right" | "middle"; position?: { x: number; y: number } } = { timeout: stepTimeout };
+        const opts: {
+          timeout: number;
+          button?: "left" | "right" | "middle";
+          position?: { x: number; y: number };
+        } = { timeout: stepTimeout };
         if (step.button === "right") opts.button = "right";
         else if (step.button === "middle") opts.button = "middle";
         if (step.offsetX !== undefined && step.offsetY !== undefined) {
@@ -560,15 +549,24 @@ async function replayRecording(page: Page, recording: Recording): Promise<void> 
       case "scroll":
         if (step.selectors) {
           const sel = pickSelector(step.selectors);
-          await page.$eval(sel, (el, { x, y }) => el.scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
+          await page.$eval(sel, (el, { x, y }) => el.scrollBy(x, y), {
+            x: step.x ?? 0,
+            y: step.y ?? 0,
+          });
         } else {
-          await page.evaluate(({ x, y }) => scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
+          await page.evaluate(({ x, y }) => scrollBy(x, y), {
+            x: step.x ?? 0,
+            y: step.y ?? 0,
+          });
         }
         break;
 
       case "waitForElement": {
         const sel = pickSelector(step.selectors!);
-        const state = step.operator === "disappear" ? "hidden" as const : "visible" as const;
+        const state =
+          step.operator === "disappear"
+            ? ("hidden" as const)
+            : ("visible" as const);
         await page.waitForSelector(sel, { timeout: stepTimeout, state });
         break;
       }
@@ -588,50 +586,48 @@ async function replayRecording(page: Page, recording: Recording): Promise<void> 
   console.log(`${ts()} Replay complete`);
 }
 
-// ---------------------------------------------------------------------------
-// Input-recorder replay (custom format from ?record-inputs)
-// ---------------------------------------------------------------------------
-
-interface InputTouchPoint { id: number; x: number; y: number }
-
-interface InputStep {
-  type: string;
-  x?: number;
-  y?: number;
-  t: number;
-  button?: number;
-  key?: string;
-  code?: string;
-  touches?: InputTouchPoint[];
-  changedTouches?: InputTouchPoint[];
-}
-
-interface InputRecording {
-  format: "input-recorder";
-  title: string;
-  url: string;
-  viewport: { width: number; height: number; dpr: number };
-  steps: InputStep[];
+function pickSelector(selectors: string[][]): string {
+  // Chrome DevTools Recorder provides multiple selector strategies per step.
+  // Prefer aria > CSS > xpath. Each entry is an array of selector parts
+  // (for shadow DOM piercing); we join with ` >> ` for Playwright.
+  for (const chain of selectors) {
+    const sel = chain.join(" >> ");
+    // Skip xpath selectors — Playwright handles them differently
+    if (!sel.startsWith("xpath/")) return sel;
+  }
+  return selectors[0]!.join(" >> ");
 }
 
 function isInputRecording(rec: unknown): rec is InputRecording {
   return (rec as InputRecording)?.format === "input-recorder";
 }
 
-async function replayInputRecording(page: Page, recording: InputRecording): Promise<void> {
+async function replayInputRecording(
+  page: Page,
+  recording: InputRecording,
+): Promise<void> {
   const { steps, viewport } = recording;
-  console.log(`${ts()} Replaying input recording "${recording.title}" (${steps.length} steps)`);
+  console.log(
+    `${ts()} Replaying input recording "${recording.title}" (${steps.length} steps)`,
+  );
 
   // Navigate to the recorded URL
-  const url = recording.url.includes("localhost") ? recording.url : `${BASE_URL}${new URL(recording.url).search}`;
+  const url = recording.url.includes("localhost")
+    ? recording.url
+    : `${BASE_URL}${new URL(recording.url).search}`;
   await page.goto(url, { timeout: 15000, waitUntil: "load" });
 
   // Compute coordinate scaling if viewport differs
-  const currentVp = page.viewportSize() ?? { width: viewport.width, height: viewport.height };
+  const currentVp = page.viewportSize() ?? {
+    width: viewport.width,
+    height: viewport.height,
+  };
   const scaleX = currentVp.width / viewport.width;
   const scaleY = currentVp.height / viewport.height;
   if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
-    console.log(`${ts()} Viewport scaling: ${viewport.width}x${viewport.height} → ${currentVp.width}x${currentVp.height} (${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`);
+    console.log(
+      `${ts()} Viewport scaling: ${viewport.width}x${viewport.height} → ${currentVp.width}x${currentVp.height} (${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`,
+    );
   }
 
   let prevT = 0;
@@ -652,7 +648,9 @@ async function replayInputRecording(page: Page, recording: InputRecording): Prom
         break;
 
       case "click":
-        await page.mouse.click(sx, sy, { button: step.button === 2 ? "right" : "left" });
+        await page.mouse.click(sx, sy, {
+          button: step.button === 2 ? "right" : "left",
+        });
         break;
 
       case "mousemove":
@@ -674,7 +672,9 @@ async function replayInputRecording(page: Page, recording: InputRecording): Prom
         } else if (pts.length > 1) {
           // Multi-touch not supported by Playwright touchscreen API
           if (i === 0 || steps[i - 1]?.type !== step.type) {
-            console.log(`${ts()}   (skipping multi-touch ${step.type}: ${pts.length} points)`);
+            console.log(
+              `${ts()}   (skipping multi-touch ${step.type}: ${pts.length} points)`,
+            );
           }
         }
         break;
@@ -695,9 +695,435 @@ async function replayInputRecording(page: Page, recording: InputRecording): Prom
   console.log(`${ts()} Input replay complete`);
 }
 
-// ---------------------------------------------------------------------------
-// Online helpers
-// ---------------------------------------------------------------------------
+async function runOnline() {
+  const browser = await chromium.launch({
+    headless: HEADLESS,
+    args: ["--window-size=1024,600"],
+  });
+  const clientLogs: string[][] = [];
+  const clientLabels: string[] = [];
+  const clientPages: Page[] = [];
+  const humanPages: Page[] = [];
+
+  console.log(
+    `${ts()} Starting online E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI, ${ONLINE_SELECTED_ROUNDS} rounds`,
+  );
+
+  // --- HOST ---
+  const hostPage = await newPage(browser);
+  await installVibrateSpy(hostPage);
+  const hostLogs: string[] = [];
+  collectLogs(hostPage, "HOST", hostLogs);
+  const code = await createRoom(hostPage);
+
+  const isHostHuman = NUM_HUMANS >= 1;
+  if (isHostHuman) {
+    await hostPage.evaluate(() => {
+      document.body.style.zoom = "70%";
+      document.title = "P0 Red — Host";
+    });
+    await selectSlot(hostPage, 0);
+    console.log(`${ts()} Host selected slot 0 (Red) — human`);
+    humanPages.push(hostPage);
+  } else {
+    await hostPage.evaluate(() => {
+      document.body.style.zoom = "70%";
+      document.title = "Host (demo)";
+    });
+    console.log(`${ts()} Host created room (demo mode, no slot)`);
+  }
+  clientPages.push(hostPage);
+  clientLogs.push(hostLogs);
+  clientLabels.push("HOST");
+  await hostPage.waitForTimeout(1500);
+
+  // --- ADDITIONAL HUMAN PLAYERS ---
+  for (let i = 1; i < NUM_HUMANS; i++) {
+    const page = await newPage(browser);
+    const logs: string[] = [];
+    const label = `P${i}`;
+    collectLogs(page, label, logs);
+    await joinRoom(page, code);
+    await page.evaluate(
+      (info: { i: number; name: string }) => {
+        document.body.style.zoom = "70%";
+        document.title = `P${info.i} ${info.name} — Player`;
+      },
+      { i, name: PLAYER_NAMES[i]! },
+    );
+    await selectSlot(page, i);
+    console.log(
+      `${ts()} Player joined as slot ${i} (${PLAYER_NAMES[i]}) — human`,
+    );
+    humanPages.push(page);
+    clientPages.push(page);
+    clientLogs.push(logs);
+    clientLabels.push(label);
+    await page.waitForTimeout(1000);
+  }
+
+  // --- WATCHER ---
+  const watcherPage = await newPage(browser);
+  const watcherLogs: string[] = [];
+  collectLogs(watcherPage, "WATCH", watcherLogs);
+  await joinRoom(watcherPage, code);
+  await watcherPage.evaluate(() => {
+    document.body.style.zoom = "70%";
+    document.title = "Watcher";
+  });
+  console.log(`${ts()} Watcher joined room ${code}`);
+  clientPages.push(watcherPage);
+  clientLogs.push(watcherLogs);
+  clientLabels.push("WATCHER");
+
+  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
+  let logsFlushed = false;
+  const flushLogs = () => {
+    if (logsFlushed) return;
+    logsFlushed = true;
+    mkdirSync("logs", { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+    const path = `logs/e2e-online-${NUM_HUMANS}h-${stamp}.log`;
+    const rawLogs = clientLabels.flatMap((label, i) => [
+      `\n=== RAW ${label} LOGS ===`,
+      ...clientLogs[i]!,
+    ]);
+    writeFileSync(path, rawLogs.join("\n"));
+    console.log(`\nLogs flushed to ${path}`);
+  };
+  process.on("exit", flushLogs);
+  process.on("SIGTERM", () => {
+    flushLogs();
+    process.exit(128 + 15);
+  });
+  process.on("SIGINT", () => {
+    flushLogs();
+    process.exit(128 + 2);
+  });
+
+  // --- SIMULATION ---
+  console.log(`${ts()} Starting simulation (${humanPages.length} human loops)`);
+
+  let allActions: string[][] = [];
+  if (humanPages.length > 0) {
+    allActions = await Promise.all(
+      humanPages.map((page, i) => {
+        const label = i === 0 ? "HOST" : `P${i}`;
+        return simulateHumanPlayLoop(page, label, GAME_TIMEOUT_MS);
+      }),
+    );
+  } else {
+    // All-AI demo: poll host page for game over
+    const deadline = Date.now() + GAME_TIMEOUT_MS;
+    let lastReported = "";
+    while (Date.now() < deadline) {
+      const info = await hostPage
+        .evaluate(() => {
+          const w = window as unknown as Record<string, unknown>;
+          const e2e = w.__e2e as Record<string, unknown>;
+          return {
+            mode: (e2e?.mode as string) ?? "",
+            phase: (e2e?.phase as string) ?? "",
+            timer: (e2e?.timer as number) ?? 0,
+          };
+        })
+        .catch(() => ({ mode: "", phase: "", timer: 0 }));
+      if (info.mode === "STOPPED") {
+        console.log(`${ts()} Game over detected`);
+        await takeScreenshot(hostPage, "game", "game-over");
+        break;
+      }
+      const key = `${info.mode}/${info.phase}`;
+      if (key !== lastReported) {
+        console.log(
+          `${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`,
+        );
+        const label = `${info.mode}-${info.phase}`
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "-");
+        await takeScreenshot(hostPage, "game", label);
+        lastReported = key;
+        if (await executeActions(hostPage, info.phase, info.mode)) break;
+        await executeAsserts(hostPage, info.phase, info.mode);
+      }
+      await hostPage.waitForTimeout(500);
+    }
+  }
+
+  // --- ANALYSIS ---
+  const actionLabels = humanPages.map((_, i) => (i === 0 ? "HOST" : `P${i}`));
+  analyzeResults(
+    allActions,
+    clientLogs,
+    actionLabels,
+    clientLabels,
+    `online-${NUM_HUMANS}h`,
+  );
+
+  // Online-specific: critical messages check
+  const critical = [
+    MESSAGE.CASTLE_WALLS,
+    MESSAGE.CANNON_START,
+    MESSAGE.BATTLE_START,
+    MESSAGE.BUILD_START,
+  ];
+  for (let i = 1; i < clientLabels.length; i++) {
+    const counts = countMessageTypes(clientLogs[i]!);
+    const missing = critical.filter((t) => !counts[t]);
+    if (missing.length > 0) {
+      console.log(`\n=== MISSING CRITICAL MESSAGES (${clientLabels[i]}) ===`);
+      for (const t of missing) console.log(`  ${t}: NOT received`);
+    } else {
+      console.log(
+        `\n=== ALL CRITICAL MESSAGES RECEIVED BY ${clientLabels[i]} ===`,
+      );
+    }
+  }
+
+  const coverageEntries = (
+    await Promise.all(clientPages.map((page) => stopCoverage(page)))
+  ).flat();
+  printCoverageReport(coverageEntries, `online-${NUM_HUMANS}h`);
+
+  await printHapticSummary(hostPage);
+  printAssertSummary();
+  await browser.close();
+  console.log(`\n${ts()} Online E2E test complete.`);
+  printDebugReminder();
+  if (ASSERTS.some((a) => a.done && !a.passed)) process.exit(1);
+}
+
+function printAssertSummary(): void {
+  if (ASSERTS.length === 0) return;
+  const passed = ASSERTS.filter((a) => a.done && a.passed).length;
+  const failed = ASSERTS.filter((a) => a.done && !a.passed).length;
+  const skipped = ASSERTS.filter((a) => !a.done).length;
+  console.log(
+    `\n=== ASSERTIONS: ${passed} passed, ${failed} failed, ${skipped} skipped ===`,
+  );
+}
+
+/** Install a vibrate spy on mobile-emulated pages. */
+async function installVibrateSpy(page: Page): Promise<void> {
+  if (!MOBILE) return;
+  await page.addInitScript(() => {
+    const calls: number[] = [];
+    (window as unknown as Window & { __vibrateCalls: number[] }).__vibrateCalls = calls;
+    const orig = navigator.vibrate?.bind(navigator);
+    navigator.vibrate = ((pattern: VibratePattern) => {
+      const ms = typeof pattern === "number" ? pattern : ([...pattern][0] ?? 0);
+      calls.push(ms);
+      return orig ? orig(pattern) : true;
+    }) as typeof navigator.vibrate;
+  });
+}
+
+async function printHapticSummary(page: Page): Promise<void> {
+  if (!MOBILE) return;
+  const calls = await page
+    .evaluate(() => ((window as unknown as Window & { __vibrateCalls: number[] }).__vibrateCalls) ?? [])
+    .catch(() => []);
+  if (calls.length === 0) {
+    console.log("\n=== HAPTICS: no vibrate calls ===");
+    return;
+  }
+  const counts: Record<number, number> = {};
+  for (const c of calls) counts[c] = (counts[c] || 0) + 1;
+  console.log(`\n=== HAPTICS: ${calls.length} vibrate calls ===`);
+  for (const [ms, n] of Object.entries(counts).sort(
+    (a, b) => Number(a[0]) - Number(b[0]),
+  )) {
+    const label = HAPTIC_LABELS[Number(ms)] ?? "?";
+    console.log(`  ${ms}ms (${label}): ${n}x`);
+  }
+}
+
+async function newPage(browser: Browser): Promise<Page> {
+  const recordVideo = RECORD
+    ? { dir: "logs/", size: { width: 1024, height: 600 } }
+    : undefined;
+  if (MOBILE) {
+    const ctx = await browser.newContext({
+      ...MOBILE_DEVICE,
+      viewport: {
+        width: MOBILE_DEVICE.viewport.height,
+        height: MOBILE_DEVICE.viewport.width,
+      },
+      recordVideo,
+    });
+    const page = await ctx.newPage();
+    await startCoverage(page);
+    return page;
+  }
+  const ctx = await browser.newContext({ recordVideo });
+  const page = await ctx.newPage();
+  await startCoverage(page);
+  return page;
+}
+
+function collectLogs(page: Page, prefix: string, logs: string[]): void {
+  page.on("console", (m: { type: () => string; text: () => string }) =>
+    logs.push(`${ts()} [${prefix} ${m.type()}] ${m.text()}`),
+  );
+  page.on("pageerror", (err: Error) =>
+    logs.push(`${ts()} [${prefix} ERROR] ${err.message}`),
+  );
+}
+
+async function startCoverage(page: Page): Promise<void> {
+  if (!COVERAGE) return;
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+}
+
+async function stopCoverage(page: Page): Promise<JsCoverageEntry[]> {
+  if (!COVERAGE || page.isClosed()) return [];
+  const entries = await page.coverage.stopJSCoverage();
+  return entries.map((entry) => ({
+    url: entry.url,
+    text: entry.source ?? "",
+    ranges: entry.functions.flatMap((fn) =>
+      fn.ranges
+        .filter((range) => range.count > 0)
+        .map((range) => ({ start: range.startOffset, end: range.endOffset })),
+    ),
+  }));
+}
+
+function printCoverageReport(
+  entries: readonly JsCoverageEntry[],
+  label: string,
+): void {
+  if (!COVERAGE) return;
+  const summaries = summarizeCoverage(entries);
+  mkdirSync("logs", { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+  const outPath = `logs/e2e-coverage-${label}-${stamp}.json`;
+  writeFileSync(outPath, JSON.stringify(summaries, null, 2));
+
+  const interestingPatterns = [
+    /^src\/online-/,
+    /^src\/controller-human\.ts$/,
+    /^src\/input-/,
+    /^src\/runtime-camera\.ts$/,
+    /^src\/runtime-.*\.ts$/,
+  ];
+  const interesting = summaries.filter((summary) =>
+    interestingPatterns.some((pattern) => pattern.test(summary.path)),
+  );
+  const topInteresting = interesting
+    .sort(
+      (left, right) =>
+        right.executedBytes - left.executedBytes || right.pct - left.pct,
+    )
+    .slice(0, 20);
+
+  console.log(`\n=== E2E COVERAGE (${label}) ===`);
+  console.log(`  modules: ${summaries.length}`);
+  console.log(`  report: ${outPath}`);
+  if (topInteresting.length === 0) {
+    console.log("  no src/ browser modules were captured");
+    return;
+  }
+  for (const summary of topInteresting) {
+    console.log(
+      `  ${summary.path}: ${summary.pct}% (${summary.executedBytes}/${summary.totalBytes} bytes)`,
+    );
+  }
+}
+
+function summarizeCoverage(
+  entries: readonly JsCoverageEntry[],
+): CoverageSummary[] {
+  const aggregated = new Map<
+    string,
+    { totalBytes: number; ranges: CoverageRange[] }
+  >();
+  for (const entry of entries) {
+    const path = normalizeCoveragePath(entry.url);
+    if (!path) continue;
+    const current = aggregated.get(path);
+    if (current) {
+      current.ranges.push(...entry.ranges);
+      current.totalBytes = Math.max(current.totalBytes, entry.text.length);
+    } else {
+      aggregated.set(path, {
+        totalBytes: entry.text.length,
+        ranges: [...entry.ranges],
+      });
+    }
+  }
+  return [...aggregated.entries()]
+    .map(([path, value]) => {
+      const executedBytes = countCoveredBytes(value.ranges);
+      const totalBytes = value.totalBytes;
+      return {
+        path,
+        executedBytes,
+        totalBytes,
+        pct:
+          totalBytes === 0
+            ? 0
+            : Number(((executedBytes / totalBytes) * 100).toFixed(2)),
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.pct - left.pct ||
+        right.executedBytes - left.executedBytes ||
+        left.path.localeCompare(right.path),
+    );
+}
+
+function countCoveredBytes(ranges: readonly CoverageRange[]): number {
+  return mergeRanges(ranges).reduce(
+    (total, range) => total + Math.max(0, range.end - range.start),
+    0,
+  );
+}
+
+function mergeRanges(ranges: readonly CoverageRange[]): CoverageRange[] {
+  if (ranges.length === 0) return [];
+  const sorted = [...ranges].sort((left, right) => left.start - right.start);
+  const merged: CoverageRange[] = [
+    { start: sorted[0]!.start, end: sorted[0]!.end },
+  ];
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i]!;
+    const last = merged[merged.length - 1]!;
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+    } else {
+      merged.push({ start: current.start, end: current.end });
+    }
+  }
+  return merged;
+}
+
+function normalizeCoveragePath(url: string): string | null {
+  if (!url || url.startsWith("extensions::") || url.startsWith("devtools://"))
+    return null;
+  try {
+    const parsed = new URL(url);
+    let path = decodeURIComponent(parsed.pathname);
+    if (path.includes("/@fs/")) {
+      path = path.slice(path.indexOf("/@fs/") + 5);
+    }
+    if (path.startsWith(REPO_ROOT)) {
+      path = path.slice(REPO_ROOT.length);
+    }
+    if (path.startsWith("/")) path = path.slice(1);
+    if (
+      !path.startsWith("src/") &&
+      !path.startsWith("test/") &&
+      !path.startsWith("server/")
+    ) {
+      return null;
+    }
+    return path;
+  } catch {
+    return null;
+  }
+}
 
 async function createRoom(page: Page): Promise<string> {
   await page.goto(PAGE_URL);
@@ -739,357 +1165,6 @@ async function selectSlot(page: Page, slot: number): Promise<void> {
   await page.waitForTimeout(300);
 }
 
-// ---------------------------------------------------------------------------
-// Local mode
-// ---------------------------------------------------------------------------
-
-async function runLocal() {
-  const browser = await chromium.launch({ headless: HEADLESS, args: ["--window-size=1024,600"] });
-  const page = await newPage(browser);
-  await installVibrateSpy(page);
-  const logs: string[] = [];
-  collectLogs(page, "LOCAL", logs);
-
-  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
-  let logsFlushed = false;
-  const flushLogs = () => {
-    if (logsFlushed) return;
-    logsFlushed = true;
-    mkdirSync("logs", { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
-    const path = `logs/e2e-local-${NUM_HUMANS}h-${stamp}.log`;
-    writeFileSync(path, logs.join("\n"));
-  };
-  process.on("exit", flushLogs);
-  process.on("SIGTERM", () => { flushLogs(); process.exit(128 + 15); });
-  process.on("SIGINT", () => { flushLogs(); process.exit(128 + 2); });
-
-  console.log(`${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`);
-
-  // --replay: replay a recorded JSON (Chrome DevTools or input-recorder format)
-  if (REPLAY) {
-    const raw = JSON.parse(readFileSync(REPLAY, "utf8"));
-    if (isInputRecording(raw)) {
-      if (MOBILE) {
-        await page.setViewportSize({ width: raw.viewport.width, height: raw.viewport.height });
-      }
-      await replayInputRecording(page, raw);
-    } else {
-      await replayRecording(page, raw as Recording);
-    }
-    console.log(`${ts()} Waiting 3s after replay for logs to settle...`);
-    await page.waitForTimeout(3000);
-
-    analyzeResults([], [logs], [], ["LOCAL"], `replay`);
-    logsFlushed = true;
-    printCoverageReport(await stopCoverage(page), "replay");
-    await printHapticSummary(page);
-    printAssertSummary();
-    await page.close();
-    await browser.close();
-    console.log(`\n${ts()} Replay E2E test complete.`);
-    printDebugReminder();
-    if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
-    return;
-  }
-
-  const localUrl = `${BASE_URL}?rounds=${NUM_ROUNDS}`;
-  await page.goto(localUrl);
-  // Set seed via localStorage, rounds via query parameter
-  await page.evaluate((seed: string) => {
-    if (seed) {
-      const settings = JSON.parse(localStorage.getItem("castles99_settings") || "{}");
-      settings.seedMode = "custom";
-      settings.seed = seed;
-      localStorage.setItem("castles99_settings", JSON.stringify(settings));
-    }
-    document.title = "Local Play";
-  }, SEED);
-  // Click "Local Play" to load main.ts and show canvas lobby
-  await page.click("#btn-local");
-  await page.waitForSelector("#game-container.active", { timeout: 5000 });
-  await page.waitForTimeout(500);
-
-  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
-  // Injected early so the lobby countdown also runs fast.
-  if (FAST) {
-    await page.evaluate(() => {
-      let fakeTime = performance.now();
-      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
-        setTimeout(() => { fakeTime += 100; cb(fakeTime); }, 1) as unknown as number;
-    });
-  }
-
-  // Join human slots
-  if (MOBILE && NUM_HUMANS > 0) {
-    // On mobile, tap the canvas lobby slots (game starts immediately on first tap)
-    const canvas = await page.$("canvas")!;
-    const box = await canvas!.boundingBox();
-    if (box) {
-      // Lobby layout: 3 slots evenly spaced, centered vertically
-      const slotCount = 3;
-      const gap = 12 * (box.width / 1280); // scale gap to viewport
-      const rectW = (box.width - gap * (slotCount + 1)) / slotCount;
-      const rectY = box.y + box.height * 0.27;
-      const rectH = box.height * 0.5;
-      for (let i = 0; i < NUM_HUMANS; i++) {
-        const cx = box.x + gap * (i + 1) + rectW * i + rectW / 2;
-        const cy = rectY + rectH / 2;
-        await page.touchscreen.tap(cx, cy);
-        console.log(`${ts()} Tapped slot ${i} (${PLAYER_NAMES[i]}) at (${cx.toFixed(0)},${cy.toFixed(0)})`);
-        await page.waitForTimeout(300);
-      }
-    }
-  } else {
-    const slotKeys = ["n", "f", "h"];
-    for (let i = 0; i < NUM_HUMANS; i++) {
-      await page.keyboard.press(slotKeys[i]!);
-      console.log(`${ts()} Joined slot ${i} (${PLAYER_NAMES[i]}) as human`);
-      await page.waitForTimeout(300);
-    }
-  }
-
-  // Wait for the game to start (lobby timer expires or immediate on mobile)
-  console.log(`${ts()} Waiting for game to start...`);
-  await takeScreenshot(page, "game", "lobby");
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as Record<string, unknown>;
-      const e2e = w.__e2e as unknown as { mode?: string };
-      return e2e?.mode !== undefined && e2e?.mode !== "LOBBY";
-    },
-    { timeout: 90_000 },
-  );
-  console.log(`${ts()} Game started`);
-
-  // Simulate human play or wait for AI-only game
-  let allActions: string[][] = [];
-  if (NUM_HUMANS > 0) {
-    allActions = [await simulateHumanPlayLoop(page, "LOCAL", GAME_TIMEOUT_MS)];
-  } else {
-    // All-AI: poll until game over
-    const deadline = Date.now() + GAME_TIMEOUT_MS;
-    let lastReported = "";
-    while (Date.now() < deadline) {
-      const info = await page.evaluate(() => {
-        const w = window as unknown as Record<string, unknown>;
-        const e2e = w.__e2e as unknown as { mode?: string; phase?: string; timer?: number };
-        return {
-          mode: e2e?.mode ?? "",
-          phase: e2e?.phase ?? "",
-          timer: e2e?.timer ?? 0,
-        };
-      }).catch(() => ({ mode: "", phase: "", timer: 0 }));
-      if (info.mode === "STOPPED") {
-        console.log(`${ts()} Game over detected`);
-        await takeScreenshot(page, "game", "game-over");
-        break;
-      }
-      const key = `${info.mode}/${info.phase}`;
-      if (key !== lastReported) {
-        console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
-        const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
-        await takeScreenshot(page, "game", label);
-        lastReported = key;
-        if (await executeActions(page, info.phase, info.mode)) break;
-        await executeAsserts(page, info.phase, info.mode);
-      }
-      await page.waitForTimeout(500);
-    }
-  }
-
-  // Check final game state
-  const finalMode = await page.evaluate(() => {
-    const w = window as unknown as Record<string, unknown>;
-    const e2e = w.__e2e as unknown as { mode?: string; phase?: string; timer?: number };
-    return e2e?.mode as string;
-  }).catch(() => "unknown");
-  if (finalMode === "STOPPED") {
-    logs.push(`[LOCAL] gameOver — game ended normally`);
-  } else {
-    logs.push(`[LOCAL] game still running (mode=${finalMode})`);
-  }
-
-  // --- ANALYSIS ---
-  analyzeResults(
-    allActions,
-    [logs],
-    NUM_HUMANS > 0 ? ["LOCAL"] : [],
-    ["LOCAL"],
-    `local-${NUM_HUMANS}h`,
-  );
-  logsFlushed = true; // analyzeResults already saved the log file
-  printCoverageReport(await stopCoverage(page), `local-${NUM_HUMANS}h`);
-
-  await printHapticSummary(page);
-  if (RECORD) {
-    const videoPath = await page.video()?.path();
-    if (videoPath) console.log(`${ts()} Video: ${videoPath}`);
-  }
-  printAssertSummary();
-  await page.close(); // finalize video before closing browser
-  await browser.close();
-  console.log(`\n${ts()} Local E2E test complete.`);
-  printDebugReminder();
-  if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Online mode
-// ---------------------------------------------------------------------------
-
-async function runOnline() {
-  const browser = await chromium.launch({ headless: HEADLESS, args: ["--window-size=1024,600"] });
-  const clientLogs: string[][] = [];
-  const clientLabels: string[] = [];
-  const clientPages: Page[] = [];
-  const humanPages: Page[] = [];
-
-  console.log(`${ts()} Starting online E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI, ${ONLINE_SELECTED_ROUNDS} rounds`);
-
-  // --- HOST ---
-  const hostPage = await newPage(browser);
-  await installVibrateSpy(hostPage);
-  const hostLogs: string[] = [];
-  collectLogs(hostPage, "HOST", hostLogs);
-  const code = await createRoom(hostPage);
-
-  const isHostHuman = NUM_HUMANS >= 1;
-  if (isHostHuman) {
-    await hostPage.evaluate(() => { document.body.style.zoom = "70%"; document.title = "P0 Red — Host"; });
-    await selectSlot(hostPage, 0);
-    console.log(`${ts()} Host selected slot 0 (Red) — human`);
-    humanPages.push(hostPage);
-  } else {
-    await hostPage.evaluate(() => { document.body.style.zoom = "70%"; document.title = "Host (demo)"; });
-    console.log(`${ts()} Host created room (demo mode, no slot)`);
-  }
-  clientPages.push(hostPage);
-  clientLogs.push(hostLogs);
-  clientLabels.push("HOST");
-  await hostPage.waitForTimeout(1500);
-
-  // --- ADDITIONAL HUMAN PLAYERS ---
-  for (let i = 1; i < NUM_HUMANS; i++) {
-    const page = await newPage(browser);
-    const logs: string[] = [];
-    const label = `P${i}`;
-    collectLogs(page, label, logs);
-    await joinRoom(page, code);
-    await page.evaluate((info: { i: number; name: string }) => {
-      document.body.style.zoom = "70%";
-      document.title = `P${info.i} ${info.name} — Player`;
-    }, { i, name: PLAYER_NAMES[i]! });
-    await selectSlot(page, i);
-    console.log(`${ts()} Player joined as slot ${i} (${PLAYER_NAMES[i]}) — human`);
-    humanPages.push(page);
-    clientPages.push(page);
-    clientLogs.push(logs);
-    clientLabels.push(label);
-    await page.waitForTimeout(1000);
-  }
-
-  // --- WATCHER ---
-  const watcherPage = await newPage(browser);
-  const watcherLogs: string[] = [];
-  collectLogs(watcherPage, "WATCH", watcherLogs);
-  await joinRoom(watcherPage, code);
-  await watcherPage.evaluate(() => { document.body.style.zoom = "70%"; document.title = "Watcher"; });
-  console.log(`${ts()} Watcher joined room ${code}`);
-  clientPages.push(watcherPage);
-  clientLogs.push(watcherLogs);
-  clientLabels.push("WATCHER");
-
-  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
-  let logsFlushed = false;
-  const flushLogs = () => {
-    if (logsFlushed) return;
-    logsFlushed = true;
-    mkdirSync("logs", { recursive: true });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
-    const path = `logs/e2e-online-${NUM_HUMANS}h-${stamp}.log`;
-    const rawLogs = clientLabels.flatMap((label, i) => [
-      `\n=== RAW ${label} LOGS ===`,
-      ...clientLogs[i]!,
-    ]);
-    writeFileSync(path, rawLogs.join("\n"));
-    console.log(`\nLogs flushed to ${path}`);
-  };
-  process.on("exit", flushLogs);
-  process.on("SIGTERM", () => { flushLogs(); process.exit(128 + 15); });
-  process.on("SIGINT", () => { flushLogs(); process.exit(128 + 2); });
-
-  // --- SIMULATION ---
-  console.log(`${ts()} Starting simulation (${humanPages.length} human loops)`);
-
-  let allActions: string[][] = [];
-  if (humanPages.length > 0) {
-    allActions = await Promise.all(
-      humanPages.map((page, i) => {
-        const label = i === 0 ? "HOST" : `P${i}`;
-        return simulateHumanPlayLoop(page, label, GAME_TIMEOUT_MS);
-      }),
-    );
-  } else {
-    // All-AI demo: poll host page for game over
-    const deadline = Date.now() + GAME_TIMEOUT_MS;
-    let lastReported = "";
-    while (Date.now() < deadline) {
-      const info = await hostPage.evaluate(() => {
-        const w = window as unknown as Record<string, unknown>;
-        const e2e = w.__e2e as Record<string, unknown>;
-        return {
-          mode: e2e?.mode as string ?? "",
-          phase: e2e?.phase as string ?? "",
-          timer: e2e?.timer as number ?? 0,
-        };
-      }).catch(() => ({ mode: "", phase: "", timer: 0 }));
-      if (info.mode === "STOPPED") {
-        console.log(`${ts()} Game over detected`);
-        await takeScreenshot(hostPage, "game", "game-over");
-        break;
-      }
-      const key = `${info.mode}/${info.phase}`;
-      if (key !== lastReported) {
-        console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
-        const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
-        await takeScreenshot(hostPage, "game", label);
-        lastReported = key;
-        if (await executeActions(hostPage, info.phase, info.mode)) break;
-        await executeAsserts(hostPage, info.phase, info.mode);
-      }
-      await hostPage.waitForTimeout(500);
-    }
-  }
-
-  // --- ANALYSIS ---
-  const actionLabels = humanPages.map((_, i) => i === 0 ? "HOST" : `P${i}`);
-  analyzeResults(allActions, clientLogs, actionLabels, clientLabels, `online-${NUM_HUMANS}h`);
-
-  // Online-specific: critical messages check
-  const critical = [MESSAGE.CASTLE_WALLS, MESSAGE.CANNON_START, MESSAGE.BATTLE_START, MESSAGE.BUILD_START];
-  for (let i = 1; i < clientLabels.length; i++) {
-    const counts = countMessageTypes(clientLogs[i]!);
-    const missing = critical.filter(t => !counts[t]);
-    if (missing.length > 0) {
-      console.log(`\n=== MISSING CRITICAL MESSAGES (${clientLabels[i]}) ===`);
-      for (const t of missing) console.log(`  ${t}: NOT received`);
-    } else {
-      console.log(`\n=== ALL CRITICAL MESSAGES RECEIVED BY ${clientLabels[i]} ===`);
-    }
-  }
-
-  const coverageEntries = (await Promise.all(clientPages.map((page) => stopCoverage(page)))).flat();
-  printCoverageReport(coverageEntries, `online-${NUM_HUMANS}h`);
-
-  await printHapticSummary(hostPage);
-  printAssertSummary();
-  await browser.close();
-  console.log(`\n${ts()} Online E2E test complete.`);
-  printDebugReminder();
-  if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
-}
-
 function printDebugReminder(): void {
   console.log(`
 [AGENT] If debugging, follow this loop until the bug is PROVEN fixed:
@@ -1099,11 +1174,11 @@ function printDebugReminder(): void {
   Do NOT remove debug logs until step 2 passes.`);
 }
 
-// ---------------------------------------------------------------------------
-// Simulation
-// ---------------------------------------------------------------------------
-
-async function simulateHumanPlayLoop(page: Page, label: string, durationMs: number): Promise<string[]> {
+async function simulateHumanPlayLoop(
+  page: Page,
+  label: string,
+  durationMs: number,
+): Promise<string[]> {
   const actions: string[] = [];
   const start = Date.now();
   let iteration = 0;
@@ -1111,21 +1186,29 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
   while (Date.now() - start < durationMs) {
     iteration++;
 
-    const { mode, phase } = await page.evaluate(() => {
-      const w = window as unknown as Record<string, unknown>;
-      const testMode = (w.__e2e as Record<string, unknown> | undefined)?.mode as string | undefined;
-      if (!testMode) {
-        const lobby = document.getElementById("lobby");
-        if (lobby && lobby.style.display !== "none") return { mode: "DOM_LOBBY", phase: "" };
-      }
-      return {
-        mode: testMode ?? "unknown",
-        phase: ((w.__e2e as Record<string, unknown> | undefined)?.phase as string) ?? "",
-      };
-    }).catch(() => ({ mode: "unknown", phase: "" }));
+    const { mode, phase } = await page
+      .evaluate(() => {
+        const w = window as unknown as Record<string, unknown>;
+        const testMode = (w.__e2e as Record<string, unknown> | undefined)
+          ?.mode as string | undefined;
+        if (!testMode) {
+          const lobby = document.getElementById("lobby");
+          if (lobby && lobby.style.display !== "none")
+            return { mode: "DOM_LOBBY", phase: "" };
+        }
+        return {
+          mode: testMode ?? "unknown",
+          phase:
+            ((w.__e2e as Record<string, unknown> | undefined)
+              ?.phase as string) ?? "",
+        };
+      })
+      .catch(() => ({ mode: "unknown", phase: "" }));
 
     if (iteration % 20 === 0) {
-      console.log(`${ts()} ${label}: iteration ${iteration} (mode=${mode} phase=${phase})`);
+      console.log(
+        `${ts()} ${label}: iteration ${iteration} (mode=${mode} phase=${phase})`,
+      );
     }
     if (mode === "LOBBY" && Date.now() - start > 60_000) {
       actions.push(`${ts()} ${label}: game ended (lobby visible after 60s)`);
@@ -1158,18 +1241,33 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
       continue;
     }
 
-    if (mode === "BANNER" || mode === "BALLOON_ANIM" || mode === "CASTLE_BUILD") {
+    if (
+      mode === "BANNER" ||
+      mode === "BALLOON_ANIM" ||
+      mode === "CASTLE_BUILD"
+    ) {
       await page.waitForTimeout(200);
       continue;
     }
 
     if (mode === "SELECTION") {
-      const timer = await page.evaluate(() => {
-        return ((window as unknown as Record<string, unknown>).__e2e as Record<string, unknown>)?.timer as number ?? 10;
-      }).catch(() => 10);
+      const timer = await page
+        .evaluate(() => {
+          return (
+            ((
+              (window as unknown as Record<string, unknown>).__e2e as Record<
+                string,
+                unknown
+              >
+            )?.timer as number) ?? 10
+          );
+        })
+        .catch(() => 10);
 
       if (timer > 4) {
-        await page.keyboard.press(Math.random() < 0.5 ? "ArrowRight" : "ArrowLeft");
+        await page.keyboard.press(
+          Math.random() < 0.5 ? "ArrowRight" : "ArrowLeft",
+        );
         await page.waitForTimeout(500);
       } else {
         await page.keyboard.press("n");
@@ -1193,12 +1291,15 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
       } else {
         await page.keyboard.press("n");
         await page.waitForTimeout(100);
-        const dir = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"][Math.floor(Math.random() * 4)]!;
+        const dir = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"][
+          Math.floor(Math.random() * 4)
+        ]!;
         await page.keyboard.press(dir);
         await page.waitForTimeout(50);
         await page.keyboard.press("n");
       }
-      if (iteration % 50 === 0) actions.push(`${ts()} ${label}: cannon phase iteration ${iteration}`);
+      if (iteration % 50 === 0)
+        actions.push(`${ts()} ${label}: cannon phase iteration ${iteration}`);
       await page.waitForTimeout(200);
       continue;
     }
@@ -1206,35 +1307,55 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
     if (phase === "WALL_BUILD") {
       const dirs = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
       for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) {
-        await page.keyboard.press(dirs[Math.floor(Math.random() * dirs.length)]!);
+        await page.keyboard.press(
+          dirs[Math.floor(Math.random() * dirs.length)]!,
+        );
         await page.waitForTimeout(30);
       }
       if (Math.random() < 0.3) await page.keyboard.press("b");
       await page.keyboard.press("n");
-      if (iteration % 50 === 0) actions.push(`${ts()} ${label}: build phase iteration ${iteration}`);
+      if (iteration % 50 === 0)
+        actions.push(`${ts()} ${label}: build phase iteration ${iteration}`);
       await page.waitForTimeout(150);
       continue;
     }
 
     if (phase === "BATTLE") {
-      const aim = await page.evaluate(() => {
-        const w = window as unknown as Record<string, unknown>;
-        const e2e = w.__e2e as Record<string, Record<string, unknown>> | undefined;
-        const targets = e2e?.targeting?.enemyTargets as { x: number; y: number }[] | undefined;
-        const ch = e2e?.controller?.crosshair as { x: number; y: number } | undefined;
-        if (!targets || targets.length === 0 || !ch) return null;
-        let best = targets[0]!, bestDist = Infinity;
-        for (const t of targets) {
-          const d = Math.hypot(t.x - ch.x, t.y - ch.y);
-          if (d < bestDist) { bestDist = d; best = t; }
-        }
-        return { dx: best.x - ch.x, dy: best.y - ch.y, dist: bestDist };
-      }).catch(() => null);
+      const aim = await page
+        .evaluate(() => {
+          const w = window as unknown as Record<string, unknown>;
+          const e2e = w.__e2e as
+            | Record<string, Record<string, unknown>>
+            | undefined;
+          const targets = e2e?.targeting?.enemyTargets as
+            | { x: number; y: number }[]
+            | undefined;
+          const ch = e2e?.controller?.crosshair as
+            | { x: number; y: number }
+            | undefined;
+          if (!targets || targets.length === 0 || !ch) return null;
+          let best = targets[0]!,
+            bestDist = Infinity;
+          for (const t of targets) {
+            const d = Math.hypot(t.x - ch.x, t.y - ch.y);
+            if (d < bestDist) {
+              bestDist = d;
+              best = t;
+            }
+          }
+          return { dx: best.x - ch.x, dy: best.y - ch.y, dist: bestDist };
+        })
+        .catch(() => null);
 
       if (aim && aim.dist > 8) {
-        const key = Math.abs(aim.dx) > Math.abs(aim.dy)
-          ? (aim.dx > 0 ? "ArrowRight" : "ArrowLeft")
-          : (aim.dy > 0 ? "ArrowDown" : "ArrowUp");
+        const key =
+          Math.abs(aim.dx) > Math.abs(aim.dy)
+            ? aim.dx > 0
+              ? "ArrowRight"
+              : "ArrowLeft"
+            : aim.dy > 0
+              ? "ArrowDown"
+              : "ArrowUp";
         await page.keyboard.down(key);
         await page.waitForTimeout(150);
         await page.keyboard.up(key);
@@ -1242,30 +1363,168 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
         await page.keyboard.press("n");
         await page.waitForTimeout(100);
       }
-      if (iteration % 50 === 0) actions.push(`${ts()} ${label}: battle iteration ${iteration}`);
+      if (iteration % 50 === 0)
+        actions.push(`${ts()} ${label}: battle iteration ${iteration}`);
       await page.waitForTimeout(30);
       continue;
     }
 
-    if (iteration % 50 === 0) actions.push(`${ts()} ${label}: iteration ${iteration} (mode=${mode} phase=${phase})`);
+    if (iteration % 50 === 0)
+      actions.push(
+        `${ts()} ${label}: iteration ${iteration} (mode=${mode} phase=${phase})`,
+      );
     await page.waitForTimeout(200);
   }
 
-  actions.push(`${ts()} ${label}: simulation ended after ${iteration} iterations`);
+  actions.push(
+    `${ts()} ${label}: simulation ended after ${iteration} iterations`,
+  );
   return actions;
 }
 
-// ---------------------------------------------------------------------------
-// Analysis
-// ---------------------------------------------------------------------------
+/** Execute pending asserts that match current phase/mode. Returns false if any assert failed. */
+async function executeAsserts(
+  page: Page,
+  phase: string,
+  mode: string,
+): Promise<boolean> {
+  let allPassed = true;
+  for (const assert of ASSERTS) {
+    if (assert.done) continue;
+    const match =
+      assert.trigger.type === "phase"
+        ? phase === assert.trigger.value
+        : mode === assert.trigger.value;
+    if (!match) continue;
+    assert.done = true;
 
-function countMessageTypes(logs: string[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const l of logs) {
-    const match = l.match(/received:\s+(\S+)/);
-    if (match) counts[match[1]!] = (counts[match[1]!] ?? 0) + 1;
+    if (assert.button && assert.expected) {
+      const btn = await page.$(btnSelector(assert.button));
+      const isVisible = btn ? await btn.isVisible() : false;
+      const expectVisible = assert.expected === "visible";
+      assert.passed = isVisible === expectVisible;
+      const status = assert.passed ? "PASS" : "FAIL";
+      console.log(
+        `${ts()} Assert ${status}: button:${assert.button} ${assert.expected} (actual: ${isVisible ? "visible" : "hidden"})`,
+      );
+      if (!assert.passed) allPassed = false;
+    }
+
+    if (assert.text) {
+      const content = await page
+        .evaluate(() => document.body.innerText)
+        .catch(() => "");
+      const found = content.includes(assert.text);
+      assert.passed = found;
+      const status = found ? "PASS" : "FAIL";
+      console.log(
+        `${ts()} Assert ${status}: text:"${assert.text}" ${found ? "found" : "not found"}`,
+      );
+      if (!found) allPassed = false;
+    }
   }
-  return counts;
+  return allPassed;
+}
+
+/** Execute pending actions that match current phase/mode. Returns true if an action requested exit. */
+async function executeActions(
+  page: Page,
+  phase: string,
+  mode: string,
+): Promise<boolean> {
+  for (const action of ACTIONS) {
+    if (action.done) continue;
+    const match =
+      action.trigger.type === "phase"
+        ? phase === action.trigger.value
+        : mode === action.trigger.value;
+    if (!match) continue;
+    action.done = true;
+    console.log(
+      `${ts()} Action triggered: ${action.trigger.type}:${action.trigger.value}`,
+    );
+
+    if (action.click) {
+      const target = action.click;
+      if (
+        target === "zoom" ||
+        target === "home" ||
+        target === "enemy" ||
+        target === "rotate" ||
+        target === "quit"
+      ) {
+        const btn = await page.$(btnSelector(target));
+        if (btn) {
+          await btn.click();
+          console.log(`${ts()} Clicked ${target} button`);
+        } else {
+          console.log(`${ts()} WARNING: ${target} button not found`);
+        }
+      } else if (target.includes(",")) {
+        const [x, y] = target.split(",").map(Number);
+        await page.mouse.click(x!, y!);
+        console.log(`${ts()} Clicked at (${x},${y})`);
+      }
+      // Brief pause for render to update
+      await page.waitForTimeout(200);
+    }
+
+    if (action.screenshot) {
+      await takeScreenshot(page, "action", action.screenshot, true);
+    }
+
+    if (action.exit) {
+      console.log(`${ts()} Action requested exit`);
+      return true;
+    }
+  }
+  return false;
+}
+
+function btnSelector(name: string): string {
+  if (name === "home") return "button[data-btn='home']";
+  if (name === "enemy") return "button[data-btn='enemy']";
+  if (name === "zoom") return "button[data-btn='home']"; // alias for home
+  if (name === "rotate") return "button[style*='right: 24px'][style*='bottom']";
+  if (name === "quit") return "button[style*='right: 12px'][style*='top']";
+  return `button:has-text("${name}")`;
+}
+
+async function takeScreenshot(
+  page: Page,
+  prefix: string,
+  label: string,
+  force = false,
+): Promise<void> {
+  if (!SCREENSHOTS && !force) return;
+  const key = `${prefix}-${label}`;
+  if (screenshotsTaken.has(key)) return; // one per label
+  screenshotsTaken.add(key);
+  const filename = `logs/screenshot-${prefix}-${label}.png`;
+  // Capture at reduced quality/size to save LLM context
+  const buf = await page.screenshot({ type: "png", scale: "css" });
+  // Downscale via page canvas
+  const small = await page.evaluate(async (b64: string) => {
+    const img = new Image();
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = rej;
+      img.src = "data:image/png;base64," + b64;
+    });
+    const scale = 0.35;
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/png").split(",")[1]!;
+  }, buf.toString("base64"));
+  writeFileSync(filename, Buffer.from(small, "base64"));
+  console.log(`${ts()} Screenshot: ${filename}`);
+}
+
+function ts(): string {
+  return `[${(performance.now() / 1000).toFixed(1)}s]`;
 }
 
 function analyzeResults(
@@ -1276,7 +1535,10 @@ function analyzeResults(
   filePrefix: string,
 ): void {
   const output: string[] = [];
-  const log = (s: string) => { console.log(s); output.push(s); };
+  const log = (s: string) => {
+    console.log(s);
+    output.push(s);
+  };
 
   for (let i = 0; i < allActions.length; i++) {
     const actions = allActions[i]!;
@@ -1287,7 +1549,7 @@ function analyzeResults(
 
   // Errors
   const allLogs = clientLogs.flat();
-  const errors = allLogs.filter(l => l.includes("ERROR"));
+  const errors = allLogs.filter((l) => l.includes("ERROR"));
   if (errors.length > 0) {
     log(`\n=== ERRORS (${errors.length}) ===`);
     for (const e of errors.slice(0, 20)) log(`  ${e}`);
@@ -1300,14 +1562,17 @@ function analyzeResults(
     const counts = countMessageTypes(clientLogs[i]!);
     if (Object.keys(counts).length > 0) {
       log(`\n=== ${clientLabels[i]} MESSAGE COUNTS ===`);
-      for (const [type, count] of Object.entries(counts).sort()) log(`  ${type}: ${count}`);
+      for (const [type, count] of Object.entries(counts).sort())
+        log(`  ${type}: ${count}`);
     }
   }
 
   // Game over
   log(`\n=== GAME OVER ===`);
   for (let i = 0; i < clientLabels.length; i++) {
-    const saw = clientLogs[i]!.some(l => l.includes(MESSAGE.GAME_OVER) || l.includes("endGame"));
+    const saw = clientLogs[i]!.some(
+      (l) => l.includes(MESSAGE.GAME_OVER) || l.includes("endGame"),
+    );
     log(`  ${clientLabels[i]} saw ${MESSAGE.GAME_OVER}: ${saw}`);
   }
 
@@ -1315,8 +1580,12 @@ function analyzeResults(
   log("\n=== LIFE-LOST DIALOG ===");
   for (let i = 0; i < clientLabels.length; i++) {
     for (const l of clientLogs[i]!) {
-      if (l.includes("showLifeLostDialog") || l.includes("lifeLostDialog resolved") ||
-          l.includes(MESSAGE.LIFE_LOST_CHOICE) || l.includes("dismissing stale")) {
+      if (
+        l.includes("showLifeLostDialog") ||
+        l.includes("lifeLostDialog resolved") ||
+        l.includes(MESSAGE.LIFE_LOST_CHOICE) ||
+        l.includes("dismissing stale")
+      ) {
         log(`  ${clientLabels[i]}: ${l}`);
       }
     }
@@ -1335,18 +1604,11 @@ function analyzeResults(
   log(`\nLogs saved to ${logPath}`);
 }
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-if (MODE === "local") {
-  runLocal().catch((err: Error) => {
-    console.error("Local E2E test failed:", err.message);
-    process.exit(1);
-  });
-} else {
-  runOnline().catch((err: Error) => {
-    console.error("Online E2E test failed:", err.message);
-    process.exit(1);
-  });
+function countMessageTypes(logs: string[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const l of logs) {
+    const match = l.match(/received:\s+(\S+)/);
+    if (match) counts[match[1]!] = (counts[match[1]!] ?? 0) + 1;
+  }
+  return counts;
 }

@@ -27,10 +27,8 @@
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, basename, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import process from "node:process";
-
-const SRC = join(process.cwd(), "src");
 
 interface Violation {
   file: string;
@@ -38,59 +36,7 @@ interface Violation {
   message: string;
 }
 
-/** Parse import declarations from a file, distinguishing type-only imports. */
-function parseImports(
-  content: string,
-): { source: string; names: string[]; typeOnly: boolean; line: number }[] {
-  const results: {
-    source: string;
-    names: string[];
-    typeOnly: boolean;
-    line: number;
-  }[] = [];
-  const lines = content.split("\n");
-
-  for (let i = 0; i < lines.length; i++) {
-    const ln = lines[i]!;
-
-    // Match: import { ... } from "..."  or  import type { ... } from "..."
-    const m = ln.match(
-      /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+"([^"]+)"/,
-    );
-    if (!m) continue;
-
-    const isTypeOnlyDecl = !!m[1];
-    const namesRaw = m[2]!;
-    const source = m[3]!;
-
-    const names: string[] = [];
-    for (const part of namesRaw.split(",")) {
-      const trimmed = part.trim();
-      if (!trimmed) continue;
-      // Handle `type Foo` inline type specifier
-      const cleaned = trimmed.replace(/^type\s+/, "");
-      // For our purposes, if the entire import is `type` OR the specifier
-      // has the `type` keyword, it's type-only for that name
-      const specifierIsType = isTypeOnlyDecl || part.trim().startsWith("type ");
-      if (!specifierIsType) {
-        names.push(cleaned.split(/\s+as\s+/)[0]!.trim());
-      }
-    }
-
-    results.push({
-      source,
-      names,
-      typeOnly: isTypeOnlyDecl,
-      line: i + 1,
-    });
-  }
-  return results;
-}
-
-// ---------------------------------------------------------------------------
-// Rule 1: Tile enum value imports restricted to allowlist
-// ---------------------------------------------------------------------------
-
+const SRC = join(process.cwd(), "src");
 /** Files allowed to import `Tile` as a value (not type-only). `render-snapshot.ts`
  *  needs literal tile values to build the modifier-reveal snapshot map
  *  (paint changedTiles as Grass below the banner sweep line). */
@@ -100,6 +46,79 @@ const TILE_VALUE_ALLOWLIST = new Set([
   "map-generation.ts",
   "render-snapshot.ts",
 ]);
+/** Runtime subsystem files (architecture-linter list). */
+const RUNTIME_SUBSYSTEMS = new Set([
+  "runtime-banner.ts",
+  "runtime-camera.ts",
+  "runtime-game-lifecycle.ts",
+  "runtime-human.ts",
+  "runtime-input.ts",
+  "runtime-life-lost.ts",
+  "runtime-lobby.ts",
+  "runtime-options.ts",
+  "runtime-phase-ticks.ts",
+  "runtime-render.ts",
+  "runtime-score-deltas.ts",
+  "runtime-selection.ts",
+  "runtime-upgrade-pick.ts",
+]);
+/** Domains that runtime subsystems (L8) are allowed to import from. */
+const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
+/** Narrow allowlist of (importer → source → symbols) tuples that may bypass
+ *  the game barrel. These are network-state-conformance primitives: they
+ *  apply authoritative server events / checkpoints to watcher state during
+ *  host→watcher sync, and are deliberately kept out of `game/index.ts` so no
+ *  other code path can accidentally couple to them. */
+const GAME_DEEP_IMPORT_ALLOWLIST: Record<
+  string,
+  Record<string, Set<string>>
+> = {
+  "src/online/online-server-events.ts": {
+    "../game/battle-system.ts": new Set([
+      "applyImpactEvent",
+      "applyTowerKilled",
+      "spawnCannonballFromMessage",
+    ]),
+    "../game/build-system.ts": new Set(["applyPiecePlacement"]),
+    "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
+  },
+  "src/online/online-phase-transitions.ts": {
+    "../game/phase-setup.ts": new Set(["setPhase"]),
+  },
+  "src/online/online-serialize.ts": {
+    "../game/phase-setup.ts": new Set(["setPhase"]),
+  },
+};
+
+main();
+
+function main(): void {
+  const srcFiles = collectFiles(SRC);
+  const violations: Violation[] = [];
+
+  for (const filePath of srcFiles) {
+    const content = readFileSync(filePath, "utf-8");
+    checkTileImports(filePath, content, violations);
+    checkRuntimeSubsystemImports(filePath, content, violations);
+    checkGameDeepImports(filePath, content, violations);
+    checkUidImports(filePath, content, violations);
+  }
+
+  if (violations.length === 0) {
+    console.log(
+      `\u2714 No restricted-import violations (${srcFiles.length} files checked)`,
+    );
+    process.exit(0);
+  }
+
+  console.log(
+    `\u2718 ${violations.length} restricted-import violation(s) found:\n`,
+  );
+  for (const v of violations) {
+    console.log(`  ${v.file}:${v.line}: ${v.message}`);
+  }
+  process.exit(1);
+}
 
 function checkTileImports(
   file: string,
@@ -122,30 +141,6 @@ function checkTileImports(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Rule 2: Runtime subsystems must only import from shared/ and runtime/
-// ---------------------------------------------------------------------------
-
-/** Runtime subsystem files (architecture-linter list). */
-const RUNTIME_SUBSYSTEMS = new Set([
-  "runtime-banner.ts",
-  "runtime-camera.ts",
-  "runtime-game-lifecycle.ts",
-  "runtime-human.ts",
-  "runtime-input.ts",
-  "runtime-life-lost.ts",
-  "runtime-lobby.ts",
-  "runtime-options.ts",
-  "runtime-phase-ticks.ts",
-  "runtime-render.ts",
-  "runtime-score-deltas.ts",
-  "runtime-selection.ts",
-  "runtime-upgrade-pick.ts",
-]);
-
-/** Domains that runtime subsystems (L8) are allowed to import from. */
-const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
 
 function checkRuntimeSubsystemImports(
   file: string,
@@ -170,34 +165,6 @@ function checkRuntimeSubsystemImports(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Rule 3: Non-game files must import from src/game/index.ts, not deep files
-// ---------------------------------------------------------------------------
-
-/** Narrow allowlist of (importer → source → symbols) tuples that may bypass
- *  the game barrel. These are network-state-conformance primitives: they
- *  apply authoritative server events / checkpoints to watcher state during
- *  host→watcher sync, and are deliberately kept out of `game/index.ts` so no
- *  other code path can accidentally couple to them. */
-const GAME_DEEP_IMPORT_ALLOWLIST: Record<string, Record<string, Set<string>>> =
-  {
-    "src/online/online-server-events.ts": {
-      "../game/battle-system.ts": new Set([
-        "applyImpactEvent",
-        "applyTowerKilled",
-        "spawnCannonballFromMessage",
-      ]),
-      "../game/build-system.ts": new Set(["applyPiecePlacement"]),
-      "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
-    },
-    "src/online/online-phase-transitions.ts": {
-      "../game/phase-setup.ts": new Set(["setPhase"]),
-    },
-    "src/online/online-serialize.ts": {
-      "../game/phase-setup.ts": new Set(["setPhase"]),
-    },
-  };
 
 function checkGameDeepImports(
   file: string,
@@ -231,19 +198,6 @@ function checkGameDeepImports(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Rule 4: UID value imports restricted to upgrades/ + ai-upgrade-pick
-// ---------------------------------------------------------------------------
-
-/** Files allowed to import `UID` as a value. Every other file must call
- *  the `src/game/upgrade-system.ts` dispatcher (or go through the game
- *  barrel) instead of branching on UID values directly. */
-function isUidValueAllowed(rel: string): boolean {
-  if (rel.startsWith("src/game/upgrades/")) return true;
-  if (rel === "src/ai/ai-upgrade-pick.ts") return true;
-  return false;
-}
-
 function checkUidImports(
   file: string,
   content: string,
@@ -269,9 +223,61 @@ function checkUidImports(
   }
 }
 
-// ---------------------------------------------------------------------------
-// File scanning
-// ---------------------------------------------------------------------------
+/** Parse import declarations from a file, distinguishing type-only imports. */
+function parseImports(
+  content: string,
+): { source: string; names: string[]; typeOnly: boolean; line: number }[] {
+  const results: {
+    source: string;
+    names: string[];
+    typeOnly: boolean;
+    line: number;
+  }[] = [];
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i]!;
+
+    // Match: import { ... } from "..."  or  import type { ... } from "..."
+    const m = ln.match(/^import\s+(type\s+)?\{([^}]*)\}\s+from\s+"([^"]+)"/);
+    if (!m) continue;
+
+    const isTypeOnlyDecl = !!m[1];
+    const namesRaw = m[2]!;
+    const source = m[3]!;
+
+    const names: string[] = [];
+    for (const part of namesRaw.split(",")) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      // Handle `type Foo` inline type specifier
+      const cleaned = trimmed.replace(/^type\s+/, "");
+      // For our purposes, if the entire import is `type` OR the specifier
+      // has the `type` keyword, it's type-only for that name
+      const specifierIsType = isTypeOnlyDecl || part.trim().startsWith("type ");
+      if (!specifierIsType) {
+        names.push(cleaned.split(/\s+as\s+/)[0]!.trim());
+      }
+    }
+
+    results.push({
+      source,
+      names,
+      typeOnly: isTypeOnlyDecl,
+      line: i + 1,
+    });
+  }
+  return results;
+}
+
+/** Files allowed to import `UID` as a value. Every other file must call
+ *  the `src/game/upgrade-system.ts` dispatcher (or go through the game
+ *  barrel) instead of branching on UID values directly. */
+function isUidValueAllowed(rel: string): boolean {
+  if (rel.startsWith("src/game/upgrades/")) return true;
+  if (rel === "src/ai/ai-upgrade-pick.ts") return true;
+  return false;
+}
 
 function collectFiles(dir: string): string[] {
   const results: string[] = [];
@@ -285,37 +291,3 @@ function collectFiles(dir: string): string[] {
   }
   return results;
 }
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-function main(): void {
-  const srcFiles = collectFiles(SRC);
-  const violations: Violation[] = [];
-
-  for (const filePath of srcFiles) {
-    const content = readFileSync(filePath, "utf-8");
-    checkTileImports(filePath, content, violations);
-    checkRuntimeSubsystemImports(filePath, content, violations);
-    checkGameDeepImports(filePath, content, violations);
-    checkUidImports(filePath, content, violations);
-  }
-
-  if (violations.length === 0) {
-    console.log(
-      `\u2714 No restricted-import violations (${srcFiles.length} files checked)`,
-    );
-    process.exit(0);
-  }
-
-  console.log(
-    `\u2718 ${violations.length} restricted-import violation(s) found:\n`,
-  );
-  for (const v of violations) {
-    console.log(`  ${v.file}:${v.line}: ${v.message}`);
-  }
-  process.exit(1);
-}
-
-main();

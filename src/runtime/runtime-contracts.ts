@@ -1,23 +1,30 @@
-import type { Impact } from "../core/battle-types.ts";
-import type { ModifierDiff } from "../core/game-constants.ts";
-import { Phase } from "../core/game-phase.ts";
-import type { GameMap, WorldPos } from "../core/geometry-types.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../core/player-slot.ts";
+import type { Impact } from "../shared/core/battle-types.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
   InputReceiver,
   PlayerController,
-} from "../core/system-interfaces.ts";
-import type { GameState, LobbyState, SelectionState } from "../core/types.ts";
-import type { Action } from "./input-action.ts";
+} from "../shared/core/system-interfaces.ts";
+import type {
+  GameState,
+  LobbyState,
+  SelectionState,
+} from "../shared/core/types.ts";
+import type { Action } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,
   GameOverFocus,
   LifeLostDialogState,
   UpgradePickDialogState,
-} from "./interaction-types.ts";
+} from "../shared/ui/interaction-types.ts";
 import type {
   CastleData,
   EntityOverlay,
@@ -25,10 +32,14 @@ import type {
   LoupeHandle,
   RendererInterface,
   RenderOverlay,
-} from "./overlay-types.ts";
-import type { GameSettings, KeyBindings, SeedMode } from "./player-config.ts";
-import type { RGB } from "./theme.ts";
-import type { Mode } from "./ui-mode.ts";
+} from "../shared/ui/overlay-types.ts";
+import type {
+  GameSettings,
+  KeyBindings,
+  SeedMode,
+} from "../shared/ui/player-config.ts";
+import type { RGB } from "../shared/ui/theme.ts";
+import type { Mode } from "../shared/ui/ui-mode.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;

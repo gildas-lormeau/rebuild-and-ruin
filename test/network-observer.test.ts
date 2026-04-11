@@ -20,7 +20,7 @@
 
 import { assert, assertGreater } from "@std/assert";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { MESSAGE } from "../src/shared/net/protocol.ts";
+import { MESSAGE } from "../src/protocol/protocol.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
 Deno.test(

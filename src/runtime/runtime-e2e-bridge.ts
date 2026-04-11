@@ -6,6 +6,7 @@
  * tests. Replaces the old runtime-test-globals.ts.
  */
 
+import { computeLetterboxLayout } from "../render/render-layout.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
@@ -14,7 +15,6 @@ import {
   type GameViewState,
   isHuman,
 } from "../shared/core/system-interfaces.ts";
-import { computeLetterboxLayout } from "../shared/ui/canvas-layout.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
