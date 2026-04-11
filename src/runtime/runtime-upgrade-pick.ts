@@ -18,7 +18,16 @@
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
-import { dialogFacade } from "../game/dialog-facade.ts";
+import {
+  applyUpgradePicks,
+  createUpgradePickDialog,
+  moveUpgradePickFocus,
+  resolveUpgradePickEntry,
+  tickUpgradePickDialog,
+  UPGRADE_PICK_AUTO_DELAY,
+  UPGRADE_PICK_MAX_TIMER,
+  UPGRADE_PICK_PULSE_DURATION,
+} from "../game/index.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,
@@ -98,7 +107,7 @@ export function createUpgradePickSystem(
   function ensureDialog(): UpgradePickDialogState | null {
     if (runtimeState.dialogs.upgradePick)
       return runtimeState.dialogs.upgradePick;
-    const dialog = dialogFacade.createUpgradePickDialog({
+    const dialog = createUpgradePickDialog({
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
@@ -138,11 +147,11 @@ export function createUpgradePickSystem(
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
 
-    const allResolved = dialogFacade.tickUpgradePickDialog(
+    const allResolved = tickUpgradePickDialog(
       dialog,
       dt,
-      dialogFacade.UPGRADE_PICK_AUTO_DELAY,
-      dialogFacade.UPGRADE_PICK_MAX_TIMER,
+      UPGRADE_PICK_AUTO_DELAY,
+      UPGRADE_PICK_MAX_TIMER,
       deps.tickAiEntry,
       deps.forcePickEntry,
     );
@@ -158,13 +167,12 @@ export function createUpgradePickSystem(
       (latest, entry) => Math.max(latest, entry.pickedAtTimer ?? 0),
       0,
     );
-    if (dialog.timer - latestPick < dialogFacade.UPGRADE_PICK_PULSE_DURATION)
-      return;
+    if (dialog.timer - latestPick < UPGRADE_PICK_PULSE_DURATION) return;
 
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    dialogFacade.applyUpgradePicks(runtimeState.state, dialog);
+    applyUpgradePicks(runtimeState.state, dialog);
     runtimeState.dialogs.upgradePick = null;
     const callback = resolveCallback;
     resolveCallback = undefined;
@@ -173,17 +181,13 @@ export function createUpgradePickSystem(
 
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
     const entry = findPendingEntry(playerId);
-    if (entry) dialogFacade.moveUpgradePickFocus(entry, dir);
+    if (entry) moveUpgradePickFocus(entry, dir);
   }
 
   function resolveAndSend(entry: UpgradePickEntry, cardIdx: number): void {
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
-    const choice = dialogFacade.resolveUpgradePickEntry(
-      entry,
-      cardIdx,
-      dialog.timer,
-    );
+    const choice = resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
     deps.sendUpgradePick?.(entry.playerId, choice);
   }
 

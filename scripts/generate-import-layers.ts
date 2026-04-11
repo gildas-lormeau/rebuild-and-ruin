@@ -105,14 +105,14 @@ for (const sf of project.getSourceFiles()) {
     edges.push({ from, to, typeOnly: imp.isTypeOnly() });
   }
 
-  for (const exp of sf.getExportDeclarations()) {
-    const spec = exp.getModuleSpecifierValue();
-    if (!spec || !spec.startsWith(".")) continue;
-    const to = resolveImport(sf.getFilePath(), spec);
-    if (!to || !allFiles.has(to)) continue;
-    edgesByFile.get(from)!.add(to);
-    edges.push({ from, to, typeOnly: exp.isTypeOnly() });
-  }
+  // Re-export edges (`export ... from "./foo.ts"`) are intentionally NOT
+  // tracked as architectural dependencies. They are aliases/routing — the
+  // real dependency runs from the consumer to the underlying source, not
+  // consumer → barrel → source. Treating them as edges would force barrel
+  // files to sit at the tier of their highest re-export source, which then
+  // makes consumer-of-barrel imports look upward. The fix is to recognize
+  // that re-exports belong to the file dependency graph (what TypeScript
+  // needs at compile time), not to the architectural dependency graph.
 }
 
 // ---------------------------------------------------------------------------

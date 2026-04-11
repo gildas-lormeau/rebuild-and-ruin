@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
+import { aimCannons, nextReadyCombined } from "../game/index.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { packTile, tileCenterPx } from "../shared/spatial.ts";

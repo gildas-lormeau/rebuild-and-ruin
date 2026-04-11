@@ -131,14 +131,7 @@ const RUNTIME_SUBSYSTEMS = new Set([
 ]);
 
 /** Domains that runtime subsystems (L8) are allowed to import from. */
-const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime"]);
-
-/** game/ facade files that runtime subsystems (L8) may import. */
-const ALLOWED_GAME_FACADES = new Set([
-  "dialog-facade.ts",
-  "selection-facade.ts",
-  "phase-ticks-facade.ts",
-]);
+const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
 
 function checkRuntimeSubsystemImports(
   file: string,
@@ -153,22 +146,12 @@ function checkRuntimeSubsystemImports(
     const ln = lines[idx]!;
     const sourceMatch = ln.match(/from\s+"(\.\.\/(\w+)\/[^"]+)"/);
     if (!sourceMatch) continue;
-    const importPath = sourceMatch[1]!;
     const domain = sourceMatch[2]!;
-    if (domain === "game") {
-      const importFile = basename(importPath);
-      if (!ALLOWED_GAME_FACADES.has(importFile)) {
-        violations.push({
-          file: relative(process.cwd(), file),
-          line: idx + 1,
-          message: `Runtime subsystem imports directly from game/${importFile} — use a facade (${[...ALLOWED_GAME_FACADES].join(", ")}) instead.`,
-        });
-      }
-    } else if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
+    if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
       violations.push({
         file: relative(process.cwd(), file),
         line: idx + 1,
-        message: `Runtime subsystem imports from ${domain}/ — only shared/ and runtime/ allowed. Move the type to shared/ui-contracts.ts or inject the value from the composition root.`,
+        message: `Runtime subsystem imports from ${domain}/ — only shared/, runtime/, and game/ allowed. Move the type to shared/ui-contracts.ts or inject the value from the composition root.`,
       });
     }
   }

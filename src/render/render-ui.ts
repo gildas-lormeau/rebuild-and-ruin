@@ -5,7 +5,7 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
-import { UPGRADE_PICK_PULSE_DURATION } from "../game/upgrade-pick.ts";
+import { UPGRADE_PICK_PULSE_DURATION } from "../game/index.ts";
 import { MODIFIER_ID } from "../shared/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
@@ -22,7 +22,6 @@ import {
 } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
-import type { RGB } from "../shared/theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -55,6 +54,7 @@ import {
   PANEL_BG,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
+  type RGB,
   rgb,
   SHADOW_COLOR,
   SHADOW_COLOR_DENSE,

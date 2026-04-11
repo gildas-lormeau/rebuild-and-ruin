@@ -3,20 +3,20 @@
 // Battle event types live in battle-events.ts (game-domain, lower layer).
 // ---------------------------------------------------------------------------
 
-import type {
-  CannonDamagedMessage,
-  CannonFiredMessage,
-  GruntKilledMessage,
-  GruntSpawnedMessage,
-  HouseDestroyedMessage,
-  IceThawedMessage,
-  PitCreatedMessage,
-  TowerKilledMessage,
-  WallAbsorbedMessage,
-  WallDestroyedMessage,
-  WallShieldedMessage,
+import {
+  BATTLE_MESSAGE,
+  type CannonDamagedMessage,
+  type CannonFiredMessage,
+  type GruntKilledMessage,
+  type GruntSpawnedMessage,
+  type HouseDestroyedMessage,
+  type IceThawedMessage,
+  type PitCreatedMessage,
+  type TowerKilledMessage,
+  type WallAbsorbedMessage,
+  type WallDestroyedMessage,
+  type WallShieldedMessage,
 } from "./battle-events.ts";
-import { BATTLE_MESSAGE } from "./battle-events.ts";
 import type { CannonMode } from "./battle-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.

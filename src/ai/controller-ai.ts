@@ -10,7 +10,7 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
-import { fireNextReadyCannon } from "../game/battle-system.ts";
+import { fireNextReadyCannon } from "../game/index.ts";
 import { BaseController } from "../player/controller-types.ts";
 import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";

@@ -9,11 +9,7 @@
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 
-import {
-  aimCannons,
-  canPlayerFire,
-  nextReadyCombined,
-} from "../game/battle-system.ts";
+import { aimCannons, canPlayerFire, nextReadyCombined } from "../game/index.ts";
 import type { Crosshair } from "../shared/battle-types.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { DedupChannel } from "../shared/phantom-types.ts";

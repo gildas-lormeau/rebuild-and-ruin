@@ -1,12 +1,8 @@
-/**
- * Watcher (non-host) state and tick logic for online play.
- *
- * Groups watcher-specific mutable state and provides the per-frame tick
- * functions that online-client.ts wires into the game runtime.
- */
-
-import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
-import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
+import {
+  aimCannons,
+  tickGrunts as moveGrunts,
+  nextReadyCombined,
+} from "../game/index.ts";
 import type { BattleAnimState } from "../shared/battle-types.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { Phase } from "../shared/game-phase.ts";

@@ -22,7 +22,7 @@ import {
   type MapLayer,
   type Rect,
   zoneBounds,
-} from "../game/debug-grid.ts";
+} from "../game/index.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { GameState } from "../shared/types.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";

@@ -2,7 +2,7 @@ import {
   advanceCannonball,
   canPlayerFire,
   getCountdownAnnouncement,
-} from "../game/battle-system.ts";
+} from "../game/index.ts";
 import type {
   Cannonball,
   CannonMode,

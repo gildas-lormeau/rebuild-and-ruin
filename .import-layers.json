@@ -113,7 +113,8 @@
       "src/render/render-effects.ts",
       "src/render/render-loupe.ts",
       "src/render/render-towers.ts",
-      "src/shared/ui-contracts.ts"
+      "src/shared/ui-contracts.ts",
+      "src/game/index.ts"
     ]
   },
   {
@@ -123,7 +124,6 @@
       "src/ai/ai-build-score.ts",
       "src/ai/ai-strategy-cannon.ts",
       "src/game/build-phase-helpers.ts",
-      "src/game/dialog-facade.ts",
       "src/game/grunt-system.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
@@ -198,8 +198,6 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
-      "src/game/bootstrap-facade.ts",
-      "src/game/phase-ticks-facade.ts",
       "src/game/selection.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-host-promotion.ts",
@@ -215,7 +213,6 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
-      "src/game/selection-facade.ts",
       "src/online/online-runtime-transition.ts",
       "src/online/online-runtime-ws.ts",
       "src/online/online-server-events.ts",

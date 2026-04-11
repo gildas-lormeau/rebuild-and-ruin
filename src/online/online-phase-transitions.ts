@@ -1,12 +1,13 @@
-import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
-import { prepareControllerCannonPhase } from "../game/cannon-system.ts";
-import { createCastle } from "../game/castle-generation.ts";
 import {
   capturePrevBattleScene,
+  createCastle,
+  prepareControllerCannonPhase,
+  recomputeTerritoryFromWalls,
+  resetZoneState,
+  setPhase,
   snapshotCastles,
   snapshotEntities,
-} from "../game/phase-banner.ts";
-import { resetZoneState, setPhase } from "../game/phase-setup.ts";
+} from "../game/index.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,

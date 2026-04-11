@@ -16,7 +16,17 @@
  * pattern as runtime-camera.ts and runtime-selection.ts.
  */
 
-import { dialogFacade } from "../game/dialog-facade.ts";
+import {
+  applyLifeLostChoice,
+  confirmLifeLostFocusedChoice,
+  continuingPlayers,
+  createLifeLostDialogState,
+  eliminateAbandoned,
+  isLifeLostAllResolved,
+  resolveAfterLifeLost,
+  tickLifeLostDialog,
+  toggleLifeLostFocus,
+} from "../game/index.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
@@ -78,7 +88,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     deps.log(
       `tryShow lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
-    const dialog = dialogFacade.createLifeLostDialog({
+    const dialog = createLifeLostDialogState({
       needsReselect,
       eliminated,
       state: runtimeState.state,
@@ -89,9 +99,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
         isHuman(runtimeState.controllers[playerId]!),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
-    if (dialogFacade.isLifeLostAllResolved(dialog)) {
+    if (isLifeLostAllResolved(dialog)) {
       deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
-      dialogFacade.eliminateAbandoned(dialog, runtimeState.state);
+      eliminateAbandoned(dialog, runtimeState.state);
       afterLifeLostResolved();
       return false;
     }
@@ -112,7 +122,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const dialog = runtimeState.dialogs.lifeLost;
     if (!dialog) return;
 
-    const dialogResolved = dialogFacade.tickLifeLostDialog(
+    const dialogResolved = tickLifeLostDialog(
       dialog,
       dt,
       LIFE_LOST_AUTO_DELAY,
@@ -128,10 +138,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
-    dialogFacade.eliminateAbandoned(dialog, runtimeState.state);
+    eliminateAbandoned(dialog, runtimeState.state);
 
     if (runtimeState.frameMeta.hostAtFrameStart) {
-      afterLifeLostResolved(dialogFacade.continuingPlayers(dialog));
+      afterLifeLostResolved(continuingPlayers(dialog));
     } else {
       setMode(runtimeState, Mode.GAME);
     }
@@ -141,7 +151,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   function afterLifeLostResolved(
     continuing: readonly ValidPlayerSlot[] = [],
   ): boolean {
-    return dialogFacade.resolveAfterLifeLost({
+    return resolveAfterLifeLost({
       state: runtimeState.state,
       continuing,
       onGameOver: deps.endGame,
@@ -161,13 +171,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   function toggleFocus(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
-    if (entry) dialogFacade.toggleLifeLostFocus(entry);
+    if (entry) toggleLifeLostFocus(entry);
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    const choice = dialogFacade.confirmLifeLostFocusedChoice(entry);
+    const choice = confirmLifeLostFocusedChoice(entry);
     deps.sendLifeLostChoice(choice, entry.playerId);
   }
 
@@ -179,7 +189,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   ): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    dialogFacade.applyLifeLostChoice(entry, choice);
+    applyLifeLostChoice(entry, choice);
     deps.sendLifeLostChoice(choice, playerId);
   }
 

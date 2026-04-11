@@ -1,14 +1,26 @@
-/**
- * Phase tick wrappers — thin glue between config/runtimeState and the imported
- * tick functions from game/host-battle-ticks.ts, game/host-phase-ticks.ts.
- *
- * Network wiring convention:
- *   Game-domain tick functions are network-agnostic. This module pre-filters
- *   controllers (local vs remote) and provides optional broadcast callbacks.
- *   For local play the callbacks are omitted; for online they send to the wire.
- */
-
-import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
+import {
+  advanceBattleCountdown,
+  applyDefaultFacings,
+  buildTimerMax,
+  capturePrevBattleScene,
+  createCannonFiredMsg,
+  diffNewWalls,
+  enterBattleFromCannon,
+  enterBuildSkippingBattle,
+  finalizeBuildPhase,
+  gruntAttackTowers,
+  isCeasefireActive,
+  nextPhase,
+  nextReadyCombined,
+  prepareCannonPhase,
+  prepareControllerCannonPhase,
+  resetCannonFacings,
+  resolveBalloons,
+  snapshotThenFinalize,
+  tickCannonballs,
+  tickGrunts,
+  tickMasterBuilderLockout,
+} from "../game/index.ts";
 import {
   BATTLE_MESSAGE,
   type BattleEvent,
@@ -29,16 +41,14 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerStats } from "../shared/overlay-types.ts";
-import type {
-  CannonPhantomPayload,
-  CannonPlacedPayload,
-  PiecePhantomPayload,
-  PiecePlacedPayload,
-} from "../shared/phantom-types.ts";
 import {
+  type CannonPhantomPayload,
+  type CannonPlacedPayload,
   cannonPhantomKey,
   filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
+  type PiecePhantomPayload,
+  type PiecePlacedPayload,
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
@@ -190,10 +200,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     for (const ctrl of controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      const readyCannon = phaseTickFacade.nextReadyCombined(
-        state,
-        ctrl.playerId,
-      );
+      const readyCannon = nextReadyCombined(state, ctrl.playerId);
       const anyReloading =
         !readyCannon &&
         state.cannonballs.some(
@@ -243,9 +250,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
       },
       applyCheckpoint: () => {
-        phaseTickFacade.prepareCannonPhase(runtimeState.state);
+        prepareCannonPhase(runtimeState.state);
         // Apply reset facings — hidden behind the banner overlay.
-        phaseTickFacade.applyDefaultFacings(runtimeState.state);
+        applyDefaultFacings(runtimeState.state);
         resetAccum(runtimeState.accum, ACCUM_CANNON);
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastCannonStart?.(runtimeState.state);
@@ -254,7 +261,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       initControllers: () => {
         for (const ctrl of runtimeState.controllers) {
           if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-          const prep = phaseTickFacade.prepareControllerCannonPhase(
+          const prep = prepareControllerCannonPhase(
             ctrl.playerId,
             runtimeState.state,
           );
@@ -305,8 +312,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.scoreDelta.reset();
 
     // Ceasefire: skip battle entirely and proceed to build phase
-    if (phaseTickFacade.isCeasefireActive(state)) {
-      phaseTickFacade.enterBuildSkippingBattle(state);
+    if (isCeasefireActive(state)) {
+      enterBuildSkippingBattle(state);
       deps.log("ceasefire: skipping battle");
       enterBuildViaUpgradePick();
       return;
@@ -335,7 +342,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         showBattlePhaseBanner(deps.showBanner, proceedToBattle);
       },
       applyCheckpoint: () => {
-        const diff = phaseTickFacade.enterBattleFromCannon(state);
+        const diff = enterBattleFromCannon(state);
         if (diff) {
           // Modifier rolled — replace the banner with the modifier reveal,
           // then chain the battle banner as follow-up.  All in the same frame
@@ -349,7 +356,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
         // Resolve balloons AFTER enterBattleFromCannon so modifiers
         // (crumbling walls, etc.) are applied before the enclosure check picks targets.
-        flights = phaseTickFacade.resolveBalloons(state);
+        flights = resolveBalloons(state);
         battleAnim.impacts = [];
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastBattleStart?.(state, flights, diff);
@@ -417,7 +424,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.state.phase === Phase.WALL_BUILD,
       "startBuildPhase called outside WALL_BUILD",
     );
-    phaseTickFacade.resetCannonFacings(runtimeState.state);
+    resetCannonFacings(runtimeState.state);
     for (const ctrl of runtimeState.controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
@@ -538,7 +545,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickBattleCountdown(dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    runtimeState.frame.announcement = phaseTickFacade.advanceBattleCountdown(
+    runtimeState.frame.announcement = advanceBattleCountdown(
       runtimeState.state,
       dt,
     );
@@ -583,17 +590,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
     const fireEvents: CannonFiredMessage[] = [];
     for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
-      fireEvents.push(
-        phaseTickFacade.createCannonFiredMsg(state.cannonballs[idx]!),
-      );
+      fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
     }
 
     // Step 2: tower kill/damage events
-    const towerEvents = phaseTickFacade.gruntAttackTowers(state, dt);
+    const towerEvents = gruntAttackTowers(state, dt);
 
     // Step 3: advance cannonballs → impact events
-    const { impacts: newImpacts, events: impactEvents } =
-      phaseTickFacade.tickCannonballs(state, dt);
+    const { impacts: newImpacts, events: impactEvents } = tickCannonballs(
+      state,
+      dt,
+    );
 
     const result = { fireEvents, towerEvents, impactEvents, newImpacts };
 
@@ -623,13 +630,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.endBattle();
     }
     deps.saveBattleCrosshair?.();
-    phaseTickFacade.capturePrevBattleScene(
+    capturePrevBattleScene(
       runtimeState.banner,
       state,
       battleAnim.territory,
       battleAnim.walls,
     );
-    phaseTickFacade.nextPhase(state);
+    nextPhase(state);
     enterBuildViaUpgradePick();
     return true;
   }
@@ -647,16 +654,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       online?.piecePhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
     // --- Timer + Master Builder lockout + grunt tick ---
-    advancePhaseTimer(
-      accum,
-      "build",
-      state,
-      dt,
-      phaseTickFacade.buildTimerMax(state),
-    );
-    phaseTickFacade.tickMasterBuilderLockout(state, dt);
+    advancePhaseTimer(accum, "build", state, dt, buildTimerMax(state));
+    tickMasterBuilderLockout(state, dt);
     tickGruntsIfDue(accum, dt, state, (gameState: GameState) => {
-      phaseTickFacade.tickGrunts(gameState);
+      tickGrunts(gameState);
     });
 
     // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
@@ -674,11 +675,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
       // Broadcast new AI walls
       if (wallSnapshot) {
-        const offsets = phaseTickFacade.diffNewWalls(
-          state,
-          ctrl.playerId,
-          wallSnapshot,
-        );
+        const offsets = diffNewWalls(state, ctrl.playerId, wallSnapshot);
         if (offsets.length > 0) {
           deps.sendOpponentPiecePlaced({
             playerId: ctrl.playerId,
@@ -743,10 +740,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Snapshot THEN finalize territory (load-bearing order — see snapshotThenFinalize)
     const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
-      phaseTickFacade.snapshotThenFinalize(
-        state,
-        phaseTickFacade.finalizeBuildPhase,
-      );
+      snapshotThenFinalize(state, finalizeBuildPhase);
     banner.wallsBeforeSweep = wallsBeforeSweep;
     banner.prevEntities = prevEntities;
 

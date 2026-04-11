@@ -1,9 +1,10 @@
-import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
-import { createComboTracker, isCombosEnabled } from "../game/combo-system.ts";
 import {
+  createComboTracker,
+  isCombosEnabled,
   reapplyHighTideTiles,
   reapplySinkholeTiles,
-} from "../game/round-modifiers.ts";
+  recomputeTerritoryFromWalls,
+} from "../game/index.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,

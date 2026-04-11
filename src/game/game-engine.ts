@@ -14,7 +14,6 @@
  */
 
 import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
-import type { GameMode } from "../shared/game-constants.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -22,11 +21,13 @@ import {
   FIRST_ROUND_CANNONS,
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
+  type GameMode,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
 import { createGameEventBus } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Tower } from "../shared/geometry-types.ts";
+import type { EntityOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
@@ -34,6 +35,7 @@ import { type GameState, setGameMode } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { assertNever } from "../shared/utils.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
+import { snapshotEntities } from "./phase-banner.ts";
 import {
   enterBattleFromCannon,
   enterBuildFromBattle,
@@ -128,6 +130,18 @@ export function nextPhase(state: GameState): void {
     default:
       assertNever(phase);
   }
+}
+
+/** INVARIANT: Snapshot entities THEN finalize castle construction and enter
+ *  cannon phase. Snapshot must capture state BEFORE finalize mutates it
+ *  (finalize recomputes territory, sweeps walls, modifies players).
+ *  Combined here so callers cannot accidentally reverse the steps. */
+export function snapshotAndFinalizeForCannonPhase(
+  state: GameState,
+): EntityOverlay {
+  const entities = snapshotEntities(state);
+  finalizeAndEnterCannonPhase(state);
+  return entities;
 }
 
 /** Finalize castle construction and enter cannon placement phase.

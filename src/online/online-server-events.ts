@@ -1,44 +1,13 @@
-/**
- * Incremental message validation patterns (host vs watcher).
- *
- * Three handler categories:
- *
- * 1. Remote player actions (canonical):
- *    handleTowerSelected, handlePiecePlaced, handleCannonPlaced,
- *    handleCannonFired, handleAimUpdate
- *    Pattern: validPid → eliminated check → isRemoteHumanAction guard → apply.
- *    Host validates remote-human actions (guards against invalid input).
- *    Watcher applies them directly (trusts host-relayed events).
- *
- * 2. Host-authoritative events (inverted):
- *    handleImpactEvent, handleTowerKilled, handleLifeLostChoice,
- *    handleUpgradePick
- *    Pattern: isHostInContext → DROPPED (watcher-only).
- *    Host computes these locally — drops incoming messages.
- *    Watcher applies them (host is authoritative for battle outcomes).
- *
- * 3. UI-only messages (lighter):
- *    handlePiecePhantom, handleCannonPhantom
- *    Pattern: validPid → isRemoteHumanAction → update phantom map.
- *    Crosshairs/phantoms only — no game state mutation.
- *
- * NOTE: session.isHost is VOLATILE — it can flip from false to true during
- * host promotion (see OnlineSession in online-session.ts). All reads go
- * through isHostInContext() from tick-context.ts (enforced by ESLint).
- */
-
-import { applyImpactEvent } from "../game/battle-system.ts";
-import {
-  applyPiecePlacement,
-  canPlacePieceOffsets,
-} from "../game/build-system.ts";
 import {
   applyCannonPlacement,
+  applyImpactEvent,
+  applyPiecePlacement,
   cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
-} from "../game/cannon-system.ts";
-import { highlightTowerSelection } from "../game/selection.ts";
+  canPlacePieceOffsets,
+  highlightTowerSelection,
+} from "../game/index.ts";
 import type { ImpactEvent } from "../shared/battle-events.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
 import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";

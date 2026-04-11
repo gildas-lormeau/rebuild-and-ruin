@@ -13,7 +13,7 @@
  * Colocated here for clarity.
  */
 
-import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
+import { computeScoreDeltas } from "../game/index.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
@@ -64,13 +64,14 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
       return;
     }
     const players = runtimeState.state.players;
-    scoreDisplay.deltas = phaseTickFacade
-      .computeScoreDeltas(players, scoreDisplay.preScores)
-      .map((delta) => {
-        const homeTower = players[delta.playerId]!.homeTower;
-        const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
-        return { ...delta, cx: px.x, cy: px.y - TILE_SIZE };
-      });
+    scoreDisplay.deltas = computeScoreDeltas(
+      players,
+      scoreDisplay.preScores,
+    ).map((delta) => {
+      const homeTower = players[delta.playerId]!.homeTower;
+      const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
+      return { ...delta, cx: px.x, cy: px.y - TILE_SIZE };
+    });
 
     if (scoreDisplay.deltas.length > 0) {
       deps.clearPhaseZoom();

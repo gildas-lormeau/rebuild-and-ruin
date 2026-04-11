@@ -1,12 +1,4 @@
-/**
- * AI Strategy — battle phase implementation.
- *
- * Contains battle planning, target picking, shot tracking,
- * and chain attack logic used by DefaultStrategy.
- */
-
-import { canFireOwnCannon } from "../game/battle-system.ts";
-import { filterActiveFiringCannons } from "../game/cannon-system.ts";
+import { canFireOwnCannon, filterActiveFiringCannons } from "../game/index.ts";
 import type { Cannonball } from "../shared/battle-types.ts";
 import {
   computeCardinalObstacleMask,

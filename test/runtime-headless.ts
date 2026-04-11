@@ -14,7 +14,7 @@
  * `runtime.runtimeState.state.bus` rather than reaching into runtime internals.
  */
 
-import { bootstrapFacade } from "../src/game/bootstrap-facade.ts";
+import { generateMap } from "../src/game/index.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -300,14 +300,14 @@ export async function createHeadlessRuntime(
   // Hydrate lobby.map immediately so the warm-up tick (which dispatches to
   // the LOBBY tick → renderLobby) has a real map to render. In production
   // main.ts goes through showLobby() → refreshLobbySeed() to get this; we
-  // short-circuit by calling bootstrapFacade.generateMap directly. Skipping
+  // short-circuit by calling generateMap directly. Skipping
   // this is invisible to the no-op stub renderer but crashes drawTerrain
   // when a real renderer is wired in via `opts.renderer`.
   runtime.runtimeState.settings.seed = String(seed);
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
   runtime.runtimeState.settings.gameMode = gameMode;
   runtime.runtimeState.lobby.seed = seed;
-  runtime.runtimeState.lobby.map = bootstrapFacade.generateMap(seed);
+  runtime.runtimeState.lobby.map = generateMap(seed);
 
   // ── Sentinel warm-up ──────────────────────────────────────────────
   // `frameMeta` is initialized by `computeFrameContext` inside `mainLoop`.

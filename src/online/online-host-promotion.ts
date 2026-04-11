@@ -3,7 +3,7 @@
  * accumulator sync during host migration.
  */
 
-import { finalizeAndEnterCannonPhase } from "../game/game-engine.ts";
+import { finalizeAndEnterCannonPhase } from "../game/index.ts";
 import {
   BATTLE_TIMER,
   MASTER_BUILDER_BONUS_SECONDS,

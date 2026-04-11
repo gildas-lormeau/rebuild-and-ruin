@@ -10,7 +10,7 @@
  * Castle rectangle and gap analysis live in ai-castle-rect.ts.
  */
 
-import { canPlacePiece } from "../game/build-system.ts";
+import { canPlacePiece } from "../game/index.ts";
 import { getInterior, hasGruntAt } from "../shared/board-occupancy.ts";
 import type { Castle, TileRect, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";

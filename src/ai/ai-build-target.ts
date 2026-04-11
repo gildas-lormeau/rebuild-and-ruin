@@ -6,7 +6,7 @@
  * These are the helper functions it depends on.
  */
 
-import { canPlacePiece } from "../game/build-system.ts";
+import { canPlacePiece } from "../game/index.ts";
 import type { TileRect } from "../shared/geometry-types.ts";
 import {
   ALL_PIECE_SHAPES,

@@ -1,4 +1,4 @@
-import { UPGRADE_PICK_MAX_TIMER } from "../game/upgrade-pick.ts";
+import { UPGRADE_PICK_MAX_TIMER } from "../game/index.ts";
 import { LIFE_LOST_MAX_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import {
@@ -30,7 +30,6 @@ import {
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { getPlayerColor, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { RGB } from "../shared/theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -41,6 +40,7 @@ import {
   LOBBY_RECT_Y_RATIO_TOUCH,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
+  type RGB,
 } from "../shared/theme.ts";
 import {
   type ComboEvent,

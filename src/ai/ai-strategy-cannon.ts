@@ -11,7 +11,7 @@ import {
   canPlaceCannon,
   isCannonEnclosed,
   placeCannon,
-} from "../game/cannon-system.ts";
+} from "../game/index.ts";
 import { CannonMode } from "../shared/battle-types.ts";
 import {
   filterActiveEnemies,

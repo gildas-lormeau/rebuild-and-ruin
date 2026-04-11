@@ -14,8 +14,12 @@ import {
   forcePickUpgradeEntry,
   tickAiUpgradePickEntry,
 } from "../ai/ai-upgrade-pick.ts";
-import { bootstrapFacade } from "../game/bootstrap-facade.ts";
-import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
+import {
+  generateMap,
+  localFire,
+  localPlacePiece,
+  snapshotTerritory,
+} from "../game/index.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
@@ -137,7 +141,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
       config.log(`[lobby] seed: ${newSeed}`);
-      const map = bootstrapFacade.generateMap(newSeed);
+      const map = generateMap(newSeed);
       runtimeState.lobby.map = map;
       renderer.warmMapCache(map);
     }
@@ -454,8 +458,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     lifeLost,
     scoreDelta,
-    snapshotTerritory: () =>
-      phaseTickFacade.snapshotTerritory(runtimeState.state.players),
+    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {
           const h = pointerPlayer();
@@ -508,9 +511,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const inputAdapters = createRuntimeInputAdapters({
     config,
     localPlacePiece: (ctrl, gameState) =>
-      phaseTickFacade.localPlacePiece(runtimeState.state, ctrl, gameState),
+      localPlacePiece(runtimeState.state, ctrl, gameState),
     localFire: (ctrl, gameState) =>
-      phaseTickFacade.localFire(runtimeState.state, ctrl, gameState),
+      localFire(runtimeState.state, ctrl, gameState),
   });
   const optionsDeps = {
     runtimeState,
@@ -666,8 +669,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    snapshotTerritory: () =>
-      phaseTickFacade.snapshotTerritory(runtimeState.state.players),
+    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),
   };

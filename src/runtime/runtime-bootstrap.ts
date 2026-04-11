@@ -1,4 +1,8 @@
-import { bootstrapFacade } from "../game/bootstrap-facade.ts";
+import {
+  applyGameConfig,
+  createGameFromSeed,
+  generateMap,
+} from "../game/index.ts";
 import {
   createController,
   ensureAiModulesLoaded,
@@ -104,7 +108,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   lobby.seed = seed;
   log(`[online] seed: ${seed}`);
-  lobby.map = bootstrapFacade.generateMap(seed);
+  lobby.map = generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
   const time = deps.timing.now();
@@ -174,12 +178,12 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   deps.resetUIState();
   deps.clearFrameData();
 
-  const { state, playerCount } = bootstrapFacade.createGameFromSeed(
+  const { state, playerCount } = createGameFromSeed(
     deps.seed,
     deps.maxPlayers,
     deps.existingMap,
   );
-  bootstrapFacade.applyGameConfig(state, {
+  applyGameConfig(state, {
     maxRounds: deps.maxRounds,
     cannonMaxHp: deps.cannonMaxHp,
     buildTimer: deps.buildTimer,

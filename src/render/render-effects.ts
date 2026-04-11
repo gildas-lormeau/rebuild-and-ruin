@@ -11,11 +11,11 @@ import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { getPlayerColor } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { facingToCardinal, isWater, unpackTile } from "../shared/spatial.ts";
-import type { RGB } from "../shared/theme.ts";
 import {
   BONUS_FLASH_MS,
   drawShadowText,
   FONT_TIMER,
+  type RGB,
   rgb,
   SHADOW_COLOR,
   TEXT_ALIGN_CENTER,

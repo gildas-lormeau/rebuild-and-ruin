@@ -21,7 +21,7 @@ import {
   type SourceFile,
   SyntaxKind,
 } from "ts-morph";
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -40,7 +40,7 @@ const flagMulti = new Map<string, string[]>();
 const positionalArgs: string[] = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i]!;
-  if (a === "--dry-run" || a === "--all") continue;
+  if (a === "--dry-run" || a === "--all" || a === "--type") continue;
   if (a.startsWith("--") && i + 1 < args.length) {
     const key = a.slice(2);
     const val = args[++i]!;
@@ -1123,6 +1123,868 @@ function mergeImportsInFile(sf: SourceFile): number {
 }
 
 // ---------------------------------------------------------------------------
+// Barrel / cross-domain helpers
+// ---------------------------------------------------------------------------
+
+/** Normalize a file path to an absolute path without trailing slash. */
+function absDir(dir: string): string {
+  return path.resolve(dir).replace(/[\\/]+$/, "");
+}
+
+/** True if `filePath` lives inside `dir` (or is `dir` itself). */
+function isInsideDir(filePath: string, dir: string): boolean {
+  const absFile = path.resolve(filePath);
+  const absRoot = absDir(dir);
+  if (absFile === absRoot) return true;
+  return absFile.startsWith(absRoot + path.sep);
+}
+
+/** Build a relative module specifier from `fromFile` to `toFile`, always ending in .ts. */
+function toModuleSpecifier(fromFile: SourceFile, toFile: SourceFile): string {
+  const raw = fromFile.getRelativePathAsModuleSpecifierTo(toFile);
+  return raw.endsWith(".ts") ? raw : raw + ".ts";
+}
+
+/** The "domain" for an import-graph file is the first path segment under src/. */
+function domainOf(absPath: string): string | undefined {
+  const srcRoot = absDir("src");
+  if (!isInsideDir(absPath, srcRoot)) return undefined;
+  const rel = path.relative(srcRoot, absPath);
+  const [head] = rel.split(path.sep);
+  return head || undefined;
+}
+
+// ---------------------------------------------------------------------------
+// generate-barrel: emit a barrel re-exporting every symbol used by files
+// outside `sourceDir`. Groups by source file, sorted alphabetically.
+// ---------------------------------------------------------------------------
+
+interface BarrelEntry {
+  sourceRelPath: string; // project-relative path (for display / grouping)
+  moduleSpecifier: string; // relative specifier from outFile to sourceFile
+  valueSymbols: Set<string>;
+  typeSymbols: Set<string>;
+}
+
+/**
+ * Resolution of one named import going *through* a re-export-only barrel.
+ * `underlyingPath` is the absolute path of the file that truly defines
+ * (or further re-exports) the symbol, and `originalName` is the name used
+ * at that definition site (stripping any `as` alias the barrel applied).
+ */
+interface BarrelResolution {
+  underlyingPath: string;
+  originalName: string;
+}
+
+interface BarrelReexportMap {
+  /** alias-seen-by-importer → underlying source + original symbol name */
+  named: Map<string, BarrelResolution>;
+  /**
+   * Absolute paths of files targeted by `export * from "..."`. We can't
+   * resolve a specific symbol through these without scanning each target's
+   * exported declarations, so we fall back to a warning for unknown symbols.
+   */
+  namespaceTargets: string[];
+}
+
+/**
+ * Heuristic: is this source file a pure re-export barrel?
+ * A file qualifies if it has at least one statement and EVERY statement is
+ * an `export ... from "..."` form (named or namespace). Comments and blank
+ * lines are fine — `getStatements()` ignores them.
+ *
+ * A file with basename `index.ts` is also treated as a barrel candidate so
+ * that callers don't have to care about whether the file currently holds
+ * content or not (e.g. an empty post-migration barrel still counts).
+ */
+function isReexportOnlyBarrel(sf: SourceFile): boolean {
+  const stmts = sf.getStatements();
+  if (stmts.length === 0) {
+    // Empty file — only treat as a barrel if its basename is index.ts, and
+    // even then there's nothing to follow, so callers must handle that case.
+    return path.basename(sf.getFilePath()) === "index.ts";
+  }
+  for (const stmt of stmts) {
+    if (!stmt.isKind(SyntaxKind.ExportDeclaration)) return false;
+    const decl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
+    if (!decl.getModuleSpecifier()) return false;
+  }
+  return true;
+}
+
+/**
+ * Walk an `export ... from "..."` barrel and produce a map from
+ * alias-seen-by-importer to the underlying source file and original symbol
+ * name. If a re-export target is itself a barrel, recurse up to `maxDepth`
+ * levels so chains like `index → submodule/index → submodule/foo` resolve.
+ *
+ * `cache` is keyed by absolute barrel path so multi-barrel scans don't
+ * rebuild the same map twice.
+ */
+function buildBarrelReexportMap(
+  barrelSf: SourceFile,
+  cache: Map<string, BarrelReexportMap>,
+  maxDepth = 5,
+): BarrelReexportMap {
+  const barrelPath = barrelSf.getFilePath();
+  const cached = cache.get(barrelPath);
+  if (cached) return cached;
+
+  const result: BarrelReexportMap = {
+    named: new Map(),
+    namespaceTargets: [],
+  };
+  // Insert placeholder BEFORE recursing to break cycles (barrel A → B → A).
+  cache.set(barrelPath, result);
+
+  if (maxDepth <= 0) {
+    console.warn(
+      `⚠️  buildBarrelReexportMap: depth limit reached at ${path.relative(process.cwd(), barrelPath)}`,
+    );
+    return result;
+  }
+
+  for (const decl of barrelSf.getExportDeclarations()) {
+    const target = decl.getModuleSpecifierSourceFile();
+    if (!target) continue; // `export {}` or unresolved specifier — skip
+    const targetPath = target.getFilePath();
+
+    if (decl.isNamespaceExport()) {
+      result.namespaceTargets.push(targetPath);
+      continue;
+    }
+
+    // Named re-exports. If the target is itself a re-export-only barrel,
+    // recurse to find the real underlying source for each symbol.
+    const targetIsBarrel = isReexportOnlyBarrel(target);
+    const targetMap = targetIsBarrel
+      ? buildBarrelReexportMap(target, cache, maxDepth - 1)
+      : undefined;
+
+    for (const named of decl.getNamedExports()) {
+      // On export specifiers:
+      //   `export { foo }`          → getName() = "foo", alias undefined
+      //   `export { foo as bar }`   → getName() = "foo", alias = "bar"
+      // The name exposed to importers is the alias if present, else getName().
+      const originalInTarget = named.getName();
+      const exposedName = named.getAliasNode()?.getText() ?? originalInTarget;
+
+      if (targetMap) {
+        // Follow the chain: the symbol `originalInTarget` is the name *as
+        // seen by the target barrel*, so look it up in the target's map to
+        // get the real underlying source.
+        const downstream = targetMap.named.get(originalInTarget);
+        if (downstream) {
+          result.named.set(exposedName, downstream);
+        } else {
+          // Target is a barrel but doesn't expose this symbol via a named
+          // re-export we can follow. It might flow through `export * from`.
+          // Record it as pointing at the target barrel itself so the caller
+          // at least gets a real file path; the warning will surface later
+          // if the symbol ends up unresolvable.
+          result.named.set(exposedName, {
+            underlyingPath: targetPath,
+            originalName: originalInTarget,
+          });
+        }
+      } else {
+        result.named.set(exposedName, {
+          underlyingPath: targetPath,
+          originalName: originalInTarget,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+function generateBarrel(sourceDir: string, outFile: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absSource = absDir(sourceDir);
+  const absOut = resolve(outFile);
+
+  // Make sure the out file is part of the project so we can compute relative
+  // specifiers from its location. Use an overwritten scratch source file so
+  // relative path computation works even if the file doesn't exist yet.
+  let outSourceFile = project.getSourceFile(absOut);
+  if (!outSourceFile) {
+    outSourceFile = project.createSourceFile(absOut, "", { overwrite: true });
+  }
+
+  // Build the "follow re-exports through the barrel" map ONCE. When we
+  // encounter an importer that imports directly from the barrel (common
+  // after a migration), we resolve each named import back to its underlying
+  // source file via this map. If the barrel is empty or non-existent, the
+  // map is empty and the regenerate-after-migration case gracefully degrades
+  // to the old behavior (barrel imports get skipped).
+  const barrelCache = new Map<string, BarrelReexportMap>();
+  const outBarrelHasContent = outSourceFile.getStatements().length > 0;
+  const outReexportMap: BarrelReexportMap | undefined = outBarrelHasContent
+    ? buildBarrelReexportMap(outSourceFile, barrelCache)
+    : undefined;
+
+  const entriesByFile = new Map<string, BarrelEntry>();
+
+  /** Record one (realSource, symbolName, isType) triple into entriesByFile. */
+  const recordSymbol = (
+    realPath: string,
+    realSf: SourceFile,
+    symbolName: string,
+    isType: boolean,
+  ): void => {
+    let entry = entriesByFile.get(realPath);
+    if (!entry) {
+      entry = {
+        sourceRelPath: path.relative(process.cwd(), realPath),
+        moduleSpecifier: toModuleSpecifier(outSourceFile, realSf),
+        valueSymbols: new Set<string>(),
+        typeSymbols: new Set<string>(),
+      };
+      entriesByFile.set(realPath, entry);
+    }
+    if (isType) entry.typeSymbols.add(symbolName);
+    else entry.valueSymbols.add(symbolName);
+  };
+
+  for (const sf of project.getSourceFiles()) {
+    const importerPath = sf.getFilePath();
+    // Skip importers inside the source dir — we only track outside consumers.
+    if (isInsideDir(importerPath, absSource)) continue;
+    // Skip the barrel file itself (it shouldn't contribute to its own surface).
+    if (importerPath === absOut) continue;
+
+    for (const imp of sf.getImportDeclarations()) {
+      const resolved = imp.getModuleSpecifierSourceFile();
+      if (!resolved) continue;
+      const resolvedPath = resolved.getFilePath();
+      if (!isInsideDir(resolvedPath, absSource)) continue;
+
+      const declIsTypeOnly = imp.isTypeOnly();
+      const importsThroughBarrel = resolvedPath === absOut;
+
+      for (const named of imp.getNamedImports()) {
+        // For normal direct imports, the importer-visible name is also the
+        // exported name at the target. `ImportSpecifier.getName()` on
+        // ts-morph returns the exported-side name (strips any local alias).
+        const exportedName = named.getName();
+        const isType = named.isTypeOnly() || declIsTypeOnly;
+
+        if (importsThroughBarrel) {
+          // Resolve through the barrel's re-export map.
+          if (!outReexportMap) {
+            // Barrel is empty — nothing to follow. Skip with a warning so the
+            // user knows why their symbol didn't make it into the regeneration.
+            console.warn(
+              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but the barrel is empty — cannot resolve through. Skipping.`,
+            );
+            continue;
+          }
+          const resolution = outReexportMap.named.get(exportedName);
+          if (resolution) {
+            const realSf = project.getSourceFile(resolution.underlyingPath);
+            if (!realSf) {
+              console.warn(
+                `⚠️  Re-export of "${exportedName}" points at ${resolution.underlyingPath} which is not in the project. Skipping.`,
+              );
+              continue;
+            }
+            // Safety: if the resolved "underlying" path is still inside the
+            // source dir AND is NOT the barrel itself, record it. If it
+            // somehow loops back to the barrel (pathological), skip.
+            if (resolution.underlyingPath === absOut) {
+              console.warn(
+                `⚠️  Re-export chain for "${exportedName}" loops back to the barrel. Skipping.`,
+              );
+              continue;
+            }
+            recordSymbol(resolution.underlyingPath, realSf, resolution.originalName, isType);
+          } else if (outReexportMap.namespaceTargets.length > 0) {
+            // Symbol flows in via `export * from "..."`. We don't know which
+            // target owns it without a deeper scan — log a warning and skip
+            // this symbol. The user can re-add it manually or migrate the
+            // offending consumer. (Edge case; not worth the complexity of
+            // enumerating every namespace target's exports.)
+            console.warn(
+              `⚠️  "${exportedName}" (imported by ${path.relative(process.cwd(), importerPath)}) may be re-exported via "export *" from one of [${outReexportMap.namespaceTargets.map((pp) => path.relative(process.cwd(), pp)).join(", ")}]. Cannot resolve underlying source; skipping.`,
+            );
+          } else {
+            // Barrel doesn't re-export this symbol at all — importer is broken.
+            console.warn(
+              `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but the barrel does not re-export it. Skipping.`,
+            );
+          }
+        } else {
+          recordSymbol(resolvedPath, resolved, exportedName, isType);
+        }
+      }
+    }
+  }
+
+  // A symbol used as both value and type should be emitted as a value export
+  // (value re-export carries the type through). De-dup accordingly.
+  for (const entry of entriesByFile.values()) {
+    for (const name of entry.valueSymbols) {
+      entry.typeSymbols.delete(name);
+    }
+  }
+
+  // Sort entries by source file path, and symbols alphabetically within each.
+  const sortedEntries = [...entriesByFile.values()].sort((aa, bb) =>
+    aa.sourceRelPath.localeCompare(bb.sourceRelPath),
+  );
+
+  const lines: string[] = [];
+  lines.push("// Auto-generated by refactor generate-barrel. Do not edit by hand.");
+  lines.push("");
+
+  for (const entry of sortedEntries) {
+    const values = [...entry.valueSymbols].sort((aa, bb) => aa.localeCompare(bb));
+    const types = [...entry.typeSymbols].sort((aa, bb) => aa.localeCompare(bb));
+    if (values.length > 0) {
+      lines.push(`export { ${values.join(", ")} } from "${entry.moduleSpecifier}";`);
+    }
+    if (types.length > 0) {
+      lines.push(`export type { ${types.join(", ")} } from "${entry.moduleSpecifier}";`);
+    }
+  }
+
+  if (sortedEntries.length === 0) {
+    lines.push("// (no external consumers found — barrel is empty)");
+  }
+
+  const body = lines.join("\n") + "\n";
+
+  // Count totals for the log.
+  let valueCount = 0;
+  let typeCount = 0;
+  for (const entry of sortedEntries) {
+    valueCount += entry.valueSymbols.size;
+    typeCount += entry.typeSymbols.size;
+  }
+
+  const relOut = path.relative(process.cwd(), absOut);
+
+  if (dryRun) {
+    console.log(`[dry-run] Would write ${relOut}`);
+    console.log(`  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`);
+    return;
+  }
+
+  outSourceFile.replaceWithText(body);
+  outSourceFile.saveSync();
+  console.log(`✅ Wrote ${relOut}`);
+  console.log(`  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`);
+}
+
+// ---------------------------------------------------------------------------
+// redirect-import: rewrite imports of a symbol from oldSource → newSource
+// without touching the declaration itself.
+// ---------------------------------------------------------------------------
+
+function redirectImport(symbol: string, oldSource: string, newSource: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absOld = resolve(oldSource);
+  const absNew = resolve(newSource);
+
+  const oldFile = project.getSourceFile(absOld);
+  if (!oldFile) {
+    console.error(`❌ Source file not found: ${oldSource}`);
+    process.exit(1);
+  }
+  const newFile = project.getSourceFile(absNew);
+  if (!newFile) {
+    console.error(`❌ Target file not found: ${newSource}`);
+    process.exit(1);
+  }
+
+  const changed = redirectOneSymbol(project, symbol, oldFile, newFile);
+
+  if (changed === 0) {
+    console.log(`No importers of "${symbol}" from ${oldSource} found`);
+    return;
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(`✅ Redirected "${symbol}" in ${changedFiles} file(s)`);
+}
+
+/**
+ * Rewrite all importers of `symbol` from `oldFile` to point at `newFile`.
+ * Preserves sibling imports: if the old statement had `{ foo, bar }` and we
+ * redirect only `foo`, the result is two statements — one for `bar` (old
+ * source), one for `foo` (new source).
+ * Returns the number of importer statements modified.
+ */
+function redirectOneSymbol(
+  project: Project,
+  symbol: string,
+  oldFile: SourceFile,
+  newFile: SourceFile,
+): number {
+  const oldPath = oldFile.getFilePath();
+  // Same-file redirect is a no-op by construction.
+  if (oldPath === newFile.getFilePath()) return 0;
+  let modified = 0;
+
+  for (const sf of project.getSourceFiles()) {
+    if (sf === newFile) continue;
+    // Iterate over a snapshot — we mutate sf.getImportDeclarations() inside the loop.
+    const imports = [...sf.getImportDeclarations()];
+    for (const imp of imports) {
+      const resolvedModule = imp.getModuleSpecifierSourceFile();
+      if (resolvedModule?.getFilePath() !== oldPath) continue;
+
+      const named = findNamedImport(imp, symbol);
+      if (!named) continue;
+
+      const declIsTypeOnly = imp.isTypeOnly();
+      const specIsTypeOnly = named.isTypeOnly() || declIsTypeOnly;
+      // Preserve the text to keep any alias ("foo as bar").
+      const importText = named.getText();
+
+      // Remove the specifier from the old declaration.
+      named.remove();
+
+      // If the old declaration is now empty, remove it entirely.
+      if (
+        imp.getNamedImports().length === 0 &&
+        !imp.getDefaultImport() &&
+        !imp.getNamespaceImport()
+      ) {
+        imp.remove();
+      }
+
+      // Add to a new declaration pointing at newFile. Merge with an existing
+      // import from newFile if compatible.
+      const newSpec = toModuleSpecifier(sf, newFile);
+      const existingNewImport = sf
+        .getImportDeclarations()
+        .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === newFile.getFilePath());
+
+      if (existingNewImport) {
+        const alreadyImported = existingNewImport
+          .getNamedImports()
+          .some((n) => n.getName() === symbol);
+        if (!alreadyImported) {
+          const existingIsTypeOnly = existingNewImport.isTypeOnly();
+          if (existingIsTypeOnly && !specIsTypeOnly) {
+            // Can't add a value import to an `import type` declaration.
+            sf.addImportDeclaration({
+              moduleSpecifier: newSpec,
+              namedImports: [importText.replace(/^type\s+/, "")],
+              isTypeOnly: false,
+            });
+          } else {
+            const cleanText = existingIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+            existingNewImport.addNamedImport(cleanText);
+          }
+        }
+      } else {
+        const cleanText = specIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+        sf.addImportDeclaration({
+          moduleSpecifier: newSpec,
+          namedImports: [cleanText],
+          isTypeOnly: specIsTypeOnly,
+        });
+      }
+
+      modified++;
+    }
+  }
+
+  return modified;
+}
+
+// ---------------------------------------------------------------------------
+// bulk-redirect: apply many redirects in a single AST pass
+// ---------------------------------------------------------------------------
+
+interface BulkRedirectEntry {
+  symbol: string;
+  from: string;
+  to: string;
+}
+
+function bulkRedirect(manifestFile: string): void {
+  const manifestPath = resolve(manifestFile);
+  if (!existsSync(manifestPath)) {
+    console.error(`❌ Manifest not found: ${manifestFile}`);
+    process.exit(1);
+  }
+
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  } catch (err) {
+    console.error(`❌ Failed to parse manifest: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  if (!Array.isArray(manifest)) {
+    console.error("❌ Manifest must be a JSON array of { symbol, from, to }");
+    process.exit(1);
+  }
+
+  const entries: BulkRedirectEntry[] = [];
+  for (const raw of manifest) {
+    if (
+      typeof raw !== "object" || raw === null ||
+      typeof (raw as { symbol?: unknown }).symbol !== "string" ||
+      typeof (raw as { from?: unknown }).from !== "string" ||
+      typeof (raw as { to?: unknown }).to !== "string"
+    ) {
+      console.error("❌ Each manifest entry must have string fields: symbol, from, to");
+      process.exit(1);
+    }
+    entries.push(raw as BulkRedirectEntry);
+  }
+
+  const project = createProject();
+  addAllSources(project);
+
+  let totalModified = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    const absFrom = resolve(entry.from);
+    const absTo = resolve(entry.to);
+    const fromFile = project.getSourceFile(absFrom);
+    const toFile = project.getSourceFile(absTo);
+    if (!fromFile) {
+      console.warn(`  Skipping "${entry.symbol}": from-file not found: ${entry.from}`);
+      skipped++;
+      continue;
+    }
+    if (!toFile) {
+      console.warn(`  Skipping "${entry.symbol}": to-file not found: ${entry.to}`);
+      skipped++;
+      continue;
+    }
+    const modified = redirectOneSymbol(project, entry.symbol, fromFile, toFile);
+    if (modified > 0) {
+      console.log(`  ${entry.symbol}: ${modified} importer(s) redirected`);
+    }
+    totalModified += modified;
+  }
+
+  if (totalModified === 0) {
+    console.log(`No importers redirected (${entries.length - skipped} entries processed, ${skipped} skipped)`);
+    return;
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(
+    `✅ Bulk redirect: ${totalModified} importer(s) across ${changedFiles} file(s) (${entries.length} manifest entries, ${skipped} skipped)`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// list-cross-domain-imports: emit every cross-domain import as JSON
+// ---------------------------------------------------------------------------
+
+interface CrossDomainRecord {
+  importer: string;
+  imported: string;
+  symbols: string[];
+  kind: "value" | "type";
+}
+
+function listCrossDomainImports(projectRoot: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absRoot = absDir(projectRoot);
+
+  // Group by (importer, imported, kind) — a single statement already maps
+  // uniquely, but one file can have both a value and a type import from the
+  // same module across multiple statements; we keep those as distinct records.
+  const records: CrossDomainRecord[] = [];
+
+  for (const sf of project.getSourceFiles()) {
+    const importerPath = sf.getFilePath();
+    if (!isInsideDir(importerPath, absRoot)) continue;
+    const importerDomain = domainOf(importerPath);
+    if (!importerDomain) continue;
+
+    for (const imp of sf.getImportDeclarations()) {
+      const resolved = imp.getModuleSpecifierSourceFile();
+      if (!resolved) continue;
+      const resolvedPath = resolved.getFilePath();
+      if (!isInsideDir(resolvedPath, absRoot)) continue;
+      const importedDomain = domainOf(resolvedPath);
+      if (!importedDomain) continue;
+      if (importedDomain === importerDomain) continue;
+
+      const declIsTypeOnly = imp.isTypeOnly();
+      const valueSymbols: string[] = [];
+      const typeSymbols: string[] = [];
+      for (const named of imp.getNamedImports()) {
+        const isType = named.isTypeOnly() || declIsTypeOnly;
+        if (isType) typeSymbols.push(named.getName());
+        else valueSymbols.push(named.getName());
+      }
+      // Skip bare side-effect imports and default/namespace-only imports.
+      if (valueSymbols.length === 0 && typeSymbols.length === 0) continue;
+
+      const importerRel = path.relative(process.cwd(), importerPath);
+      const importedRel = path.relative(process.cwd(), resolvedPath);
+
+      if (valueSymbols.length > 0) {
+        records.push({
+          importer: importerRel,
+          imported: importedRel,
+          symbols: valueSymbols.sort((aa, bb) => aa.localeCompare(bb)),
+          kind: "value",
+        });
+      }
+      if (typeSymbols.length > 0) {
+        records.push({
+          importer: importerRel,
+          imported: importedRel,
+          symbols: typeSymbols.sort((aa, bb) => aa.localeCompare(bb)),
+          kind: "type",
+        });
+      }
+    }
+  }
+
+  records.sort((aa, bb) => {
+    const byImporter = aa.importer.localeCompare(bb.importer);
+    if (byImporter !== 0) return byImporter;
+    const byImported = aa.imported.localeCompare(bb.imported);
+    if (byImported !== 0) return byImported;
+    return aa.kind.localeCompare(bb.kind);
+  });
+
+  console.log(JSON.stringify(records, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// compute-public-surface: symbols exported from sourceDir with outside consumers
+// ---------------------------------------------------------------------------
+
+interface PublicSurfaceRecord {
+  symbol: string;
+  source: string;
+  consumers: number;
+  consumerFiles: string[];
+}
+
+function computePublicSurface(sourceDir: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absSource = absDir(sourceDir);
+
+  // Map key: `${absSourcePath}::${symbolName}` → record
+  const map = new Map<string, { symbol: string; source: string; absSource: string; consumerFiles: Set<string> }>();
+
+  // Cache of barrel re-export maps, keyed by absolute barrel path. Built
+  // lazily as we encounter imports that resolve to a re-export-only file.
+  // Without this, the report under-counts after a barrel migration: every
+  // consumer that imports through `index.ts` would land on that single
+  // in-dir file instead of the real underlying sources.
+  const barrelCache = new Map<string, BarrelReexportMap>();
+
+  /**
+   * Resolve an import target through zero or more barrels, returning the
+   * final `(underlyingPath, originalName)` pair. Depth-limited to match
+   * buildBarrelReexportMap (5). Returns null if resolution fails (e.g.
+   * namespace re-export where we can't pinpoint the symbol).
+   */
+  const resolveThroughBarrels = (
+    targetSf: SourceFile,
+    exposedName: string,
+  ): BarrelResolution | null => {
+    // Non-barrel: the target *is* the underlying source.
+    if (!isReexportOnlyBarrel(targetSf)) {
+      return { underlyingPath: targetSf.getFilePath(), originalName: exposedName };
+    }
+    const reexportMap = buildBarrelReexportMap(targetSf, barrelCache);
+    const hit = reexportMap.named.get(exposedName);
+    if (hit) return hit;
+    if (reexportMap.namespaceTargets.length > 0) {
+      console.warn(
+        `⚠️  "${exposedName}" may flow through "export *" from barrel ${path.relative(process.cwd(), targetSf.getFilePath())}; cannot pinpoint underlying source.`,
+      );
+    }
+    return null;
+  };
+
+  for (const sf of project.getSourceFiles()) {
+    const importerPath = sf.getFilePath();
+    // Only care about consumers outside the source dir.
+    if (isInsideDir(importerPath, absSource)) continue;
+
+    for (const imp of sf.getImportDeclarations()) {
+      const resolved = imp.getModuleSpecifierSourceFile();
+      if (!resolved) continue;
+      const resolvedPath = resolved.getFilePath();
+      if (!isInsideDir(resolvedPath, absSource)) continue;
+
+      for (const named of imp.getNamedImports()) {
+        const exposedName = named.getName();
+        // Follow re-exports if the import target is itself a barrel.
+        const resolution = resolveThroughBarrels(resolved, exposedName);
+        if (!resolution) continue; // unresolvable (namespace re-export); warning already logged
+
+        const { underlyingPath, originalName } = resolution;
+        // Only count the symbol if the resolved underlying file is still
+        // inside the source dir. (A barrel can re-export from anywhere —
+        // but a symbol that ultimately lives outside the dir is not part
+        // of this dir's public surface.)
+        if (!isInsideDir(underlyingPath, absSource)) continue;
+
+        const key = `${underlyingPath}::${originalName}`;
+        let entry = map.get(key);
+        if (!entry) {
+          entry = {
+            symbol: originalName,
+            source: path.relative(process.cwd(), underlyingPath),
+            absSource: underlyingPath,
+            consumerFiles: new Set<string>(),
+          };
+          map.set(key, entry);
+        }
+        entry.consumerFiles.add(path.relative(process.cwd(), importerPath));
+      }
+    }
+  }
+
+  const records: PublicSurfaceRecord[] = [...map.values()].map((entry) => ({
+    symbol: entry.symbol,
+    source: entry.source,
+    consumers: entry.consumerFiles.size,
+    consumerFiles: [...entry.consumerFiles].sort((aa, bb) => aa.localeCompare(bb)),
+  }));
+
+  // Sort by consumer count descending, tiebreak by symbol then source.
+  records.sort((aa, bb) => {
+    if (bb.consumers !== aa.consumers) return bb.consumers - aa.consumers;
+    const bySymbol = aa.symbol.localeCompare(bb.symbol);
+    if (bySymbol !== 0) return bySymbol;
+    return aa.source.localeCompare(bb.source);
+  });
+
+  console.log(JSON.stringify(records, null, 2));
+}
+
+// ---------------------------------------------------------------------------
+// add-reexport: append (or confirm) a re-export line in a barrel file
+// ---------------------------------------------------------------------------
+
+function addReexport(barrelFile: string, sourceFile: string, symbol: string, typeOnly: boolean): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absBarrel = resolve(barrelFile);
+  const absSource = resolve(sourceFile);
+
+  const sourceSf = project.getSourceFile(absSource);
+  if (!sourceSf) {
+    console.error(`❌ Source file not found: ${sourceFile}`);
+    process.exit(1);
+  }
+
+  // Ensure the barrel is part of the project. If the file exists on disk,
+  // load it; otherwise create an empty one.
+  let barrelSf = project.getSourceFile(absBarrel);
+  if (!barrelSf) {
+    if (existsSync(absBarrel)) {
+      barrelSf = project.addSourceFileAtPath(absBarrel);
+    } else {
+      barrelSf = project.createSourceFile(absBarrel, "", { overwrite: true });
+    }
+  }
+
+  const moduleSpecifier = toModuleSpecifier(barrelSf, sourceSf);
+
+  // Check idempotence: does the barrel already re-export this symbol with this type-onliness?
+  let alreadyPresent = false;
+  for (const decl of barrelSf.getExportDeclarations()) {
+    if (!decl.getModuleSpecifier()) continue;
+    const declSource = decl.getModuleSpecifierSourceFile();
+    if (declSource?.getFilePath() !== absSource) continue;
+    for (const named of decl.getNamedExports()) {
+      if (named.getName() !== symbol) continue;
+      // Compare type-onliness: either declaration-level `export type` or
+      // inline specifier-level `type`.
+      const isDeclTypeOnly = decl.isTypeOnly();
+      const isSpecTypeOnly = named.isTypeOnly() || isDeclTypeOnly;
+      if (isSpecTypeOnly === typeOnly) {
+        alreadyPresent = true;
+        break;
+      }
+    }
+    if (alreadyPresent) break;
+  }
+
+  if (alreadyPresent) {
+    console.log(`Re-export of "${symbol}" from ${moduleSpecifier} already present — no-op`);
+    return;
+  }
+
+  // Append a fresh re-export declaration.
+  barrelSf.addExportDeclaration({
+    moduleSpecifier,
+    namedExports: [symbol],
+    isTypeOnly: typeOnly,
+  });
+
+  // Sort all export-from declarations alphabetically by module specifier.
+  sortBarrelExports(barrelSf);
+
+  const relBarrel = path.relative(process.cwd(), absBarrel);
+  if (dryRun) {
+    console.log(`[dry-run] Would add ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`);
+    console.log(`[dry-run] Would modify: ${relBarrel}`);
+    return;
+  }
+
+  barrelSf.saveSync();
+  console.log(`✅ Added ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`);
+  console.log(`  Modified: ${relBarrel}`);
+}
+
+/**
+ * Sort all `export {...} from "..."` declarations in a barrel file
+ * alphabetically by module specifier. Non-re-export statements are preserved
+ * in their original positions (they anchor to the top of the file).
+ */
+function sortBarrelExports(sf: SourceFile): void {
+  const statements = sf.getStatements();
+  const reexports: { text: string; spec: string }[] = [];
+  const removalTargets: import("ts-morph").Statement[] = [];
+
+  for (const stmt of statements) {
+    if (!stmt.isKind(SyntaxKind.ExportDeclaration)) continue;
+    const exportDecl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
+    const moduleSpec = exportDecl.getModuleSpecifierValue();
+    if (!moduleSpec) continue; // `export {};` or `export { foo };` (no from) — leave alone
+    reexports.push({ text: exportDecl.getText(), spec: moduleSpec });
+    removalTargets.push(stmt);
+  }
+
+  if (reexports.length <= 1) return;
+
+  reexports.sort((aa, bb) => aa.spec.localeCompare(bb.spec));
+
+  // Remove in reverse order to avoid shifting.
+  for (let idx = removalTargets.length - 1; idx >= 0; idx--) {
+    removalTargets[idx]!.remove();
+  }
+
+  // Append sorted re-exports at the end.
+  sf.addStatements(reexports.map((r) => r.text).join("\n"));
+}
+
+// ---------------------------------------------------------------------------
 // CLI dispatch
 // ---------------------------------------------------------------------------
 
@@ -1139,9 +2001,16 @@ Commands:
   find-symbol    <name>                        Find where a symbol is declared
   list-exports   <file>                        List all exports from a file
   list-references <file> <name>                Show all files that import a symbol
+  generate-barrel <sourceDir> <outFile>        Generate a barrel re-exporting the public surface of sourceDir
+  redirect-import <symbol> <oldSource> <newSource>  Rewrite imports of symbol from oldSource to newSource
+  bulk-redirect  <manifestFile>                Apply many redirects from a JSON manifest in one AST pass
+  list-cross-domain-imports [<projectRoot>]    Print every cross-domain import in the project as JSON
+  compute-public-surface <sourceDir>           Print symbols exported from sourceDir that have outside consumers (JSON)
+  add-reexport   <barrelFile> <sourceFile> <symbol>  Append (idempotent) a re-export to a barrel file
 
 Options:
   --dry-run    Show what would change without writing
+  --type       (add-reexport) emit an 'export type { ... }' re-export instead of a value re-export
 
 Examples:
   deno run -A scripts/refactor.ts rename-symbol src/types.ts Phase GamePhase
@@ -1154,7 +2023,13 @@ Examples:
   deno run -A scripts/refactor.ts list-references src/types.ts GameState
   deno run -A scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run
   deno run -A scripts/refactor.ts merge-imports src/game-state.ts src/types.ts
-  deno run -A scripts/refactor.ts merge-imports --all --dry-run`);
+  deno run -A scripts/refactor.ts merge-imports --all --dry-run
+  deno run -A scripts/refactor.ts generate-barrel src/game src/game/index.ts
+  deno run -A scripts/refactor.ts redirect-import canPlacePiece src/game/build-system.ts src/game/index.ts --dry-run
+  deno run -A scripts/refactor.ts bulk-redirect /tmp/redirects.json --dry-run
+  deno run -A scripts/refactor.ts list-cross-domain-imports src
+  deno run -A scripts/refactor.ts compute-public-surface src/game
+  deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece`);
 }
 
 switch (command) {
@@ -1285,6 +2160,62 @@ switch (command) {
       process.exit(1);
     }
     listReferences(file, name);
+    break;
+  }
+  case "generate-barrel": {
+    const sourceDir = flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
+    const outFile = flagMap.get("out") ?? flagMap.get("output") ?? commandArgs[1];
+    if (!sourceDir || !outFile) {
+      console.error("Usage: generate-barrel <sourceDir> <outFile> [--dry-run]");
+      process.exit(1);
+    }
+    generateBarrel(sourceDir, outFile);
+    break;
+  }
+  case "redirect-import": {
+    const symbol = flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[0];
+    const oldSource = flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[1];
+    const newSource = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[2];
+    if (!symbol || !oldSource || !newSource) {
+      console.error("Usage: redirect-import <symbol> <oldSource> <newSource> [--dry-run]");
+      process.exit(1);
+    }
+    redirectImport(symbol, oldSource, newSource);
+    break;
+  }
+  case "bulk-redirect": {
+    const manifest = flagMap.get("manifest") ?? flagMap.get("file") ?? commandArgs[0];
+    if (!manifest) {
+      console.error("Usage: bulk-redirect <manifestFile> [--dry-run]");
+      process.exit(1);
+    }
+    bulkRedirect(manifest);
+    break;
+  }
+  case "list-cross-domain-imports": {
+    const projectRoot = flagMap.get("root") ?? commandArgs[0] ?? "src";
+    listCrossDomainImports(projectRoot);
+    break;
+  }
+  case "compute-public-surface": {
+    const sourceDir = flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
+    if (!sourceDir) {
+      console.error("Usage: compute-public-surface <sourceDir>");
+      process.exit(1);
+    }
+    computePublicSurface(sourceDir);
+    break;
+  }
+  case "add-reexport": {
+    const barrelFile = flagMap.get("barrel") ?? commandArgs[0];
+    const sourceFile = flagMap.get("source") ?? flagMap.get("from") ?? commandArgs[1];
+    const symbol = flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[2];
+    const typeOnly = args.includes("--type");
+    if (!barrelFile || !sourceFile || !symbol) {
+      console.error("Usage: add-reexport <barrelFile> <sourceFile> <symbol> [--type] [--dry-run]");
+      process.exit(1);
+    }
+    addReexport(barrelFile, sourceFile, symbol, typeOnly);
     break;
   }
   default:

@@ -1,12 +1,23 @@
-/**
- * Selection sub-system factory — owns tower selection, castle building,
- * reselection, and the advance-to-cannon-phase transition.
- *
- * Extracted from runtime.ts to reduce its size.  Follows the same
- * factory-with-deps pattern as runtime-camera.ts.
- */
-
-import { selectionFacade } from "../game/selection-facade.ts";
+import {
+  allPlayersHaveTerritory,
+  allSelectionsConfirmed,
+  BANNER_SELECT,
+  confirmTowerSelection,
+  createCastleBuildState,
+  enterCannonPlacePhase,
+  enterCastleReselectPhase,
+  finalizeReselectedPlayers,
+  finishSelectionPhase,
+  highlightTowerSelection,
+  initSelectionTimer,
+  initTowerSelection,
+  markPlayerReselected,
+  prepareCastleWallsForPlayer,
+  processReselectionQueue,
+  recheckTerritoryOnly,
+  snapshotAndFinalizeForCannonPhase,
+  tickCastleBuildAnimation,
+} from "../game/index.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -113,7 +124,7 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function initPlayerTowerSelection(pid: ValidPlayerSlot, zone: number): void {
-    selectionFacade.initTowerSelection(
+    initTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
       pid,
@@ -146,7 +157,7 @@ export function createSelectionSystem(
     if (!isHost && isActivePlayer(myPlayerId)) {
       const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
       if (needsCastleReselect && !isReselectPhase(state.phase)) {
-        selectionFacade.enterCastleReselectPhase(state);
+        enterCastleReselectPhase(state);
       }
     }
 
@@ -175,7 +186,7 @@ export function createSelectionSystem(
     };
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
-    selectionFacade.initSelectionTimer(state);
+    initSelectionTimer(state);
     setMode(runtimeState, Mode.SELECTION);
     deps.sound.drumsStart();
     resetFrameTiming(runtimeState, deps.timing.now());
@@ -204,7 +215,7 @@ export function createSelectionSystem(
     zone: number,
     pid: ValidPlayerSlot,
   ): void {
-    const changed = selectionFacade.highlightTowerSelection(
+    const changed = highlightTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
       idx,
@@ -241,22 +252,19 @@ export function createSelectionSystem(
     pid: ValidPlayerSlot,
     isReselect = false,
   ): boolean {
-    const result = selectionFacade.confirmTowerSelection(
+    const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
       pid,
       isReselect,
       (row, col) => runtimeState.controllers[pid]!.centerOn(row, col),
     );
-    if (!result)
-      return selectionFacade.allSelectionsConfirmed(
-        runtimeState.selection.states,
-      );
+    if (!result) return allSelectionsConfirmed(runtimeState.selection.states);
 
     deps.sendTowerSelected(pid, result.towerIdx, true);
 
     if (result.isReselect) {
-      selectionFacade.markPlayerReselected(runtimeState.state, pid);
+      markPlayerReselected(runtimeState.state, pid);
       runtimeState.selection.reselectionPids.push(pid);
     }
 
@@ -266,13 +274,8 @@ export function createSelectionSystem(
     return result.allDone;
   }
 
-  /** Alias for allSelectionsConfirmed() — returns true when every player's selection is confirmed.
-   *  Named `allConfirmed` for brevity in the public API; the underlying function is
-   *  allSelectionsConfirmed() in selection.ts. */
-  function allSelectionsConfirmed(): boolean {
-    return selectionFacade.allSelectionsConfirmed(
-      runtimeState.selection.states,
-    );
+  function allConfirmed(): boolean {
+    return allSelectionsConfirmed(runtimeState.selection.states);
   }
 
   // -------------------------------------------------------------------------
@@ -289,7 +292,7 @@ export function createSelectionSystem(
     const mutAccum = accum as MutableAccums;
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
       mutAccum.selectAnnouncement += dt;
-      runtimeState.frame.announcement = selectionFacade.BANNER_SELECT;
+      runtimeState.frame.announcement = BANNER_SELECT;
       state.timer = 0;
     } else {
       mutAccum.select += dt;
@@ -346,7 +349,7 @@ export function createSelectionSystem(
 
     // Tick castle build animations during selection
     if (tickAllCastleBuilds(dt)) {
-      selectionFacade.recheckTerritoryOnly(state);
+      recheckTerritoryOnly(state);
     }
 
     deps.render();
@@ -361,9 +364,9 @@ export function createSelectionSystem(
 
     // Advance to next phase when all confirmed and builds complete
     if (
-      allSelectionsConfirmed() &&
+      allConfirmed() &&
       selection.castleBuilds.length === 0 &&
-      selectionFacade.allPlayersHaveTerritory(state)
+      allPlayersHaveTerritory(state)
     ) {
       if (isReselect) finishReselection();
       else finishSelection();
@@ -376,9 +379,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    const prevEntities = selectionFacade.snapshotAndFinalizeForCannonPhase(
-      runtimeState.state,
-    );
+    const prevEntities = snapshotAndFinalizeForCannonPhase(runtimeState.state);
     deps.setPrevEntities(prevEntities);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
@@ -388,10 +389,7 @@ export function createSelectionSystem(
 
   function finishSelection() {
     if (
-      !selectionFacade.finishSelectionPhase(
-        runtimeState.state,
-        runtimeState.selection.states,
-      )
+      !finishSelectionPhase(runtimeState.state, runtimeState.selection.states)
     )
       return;
     resetOverlaySelection();
@@ -401,16 +399,11 @@ export function createSelectionSystem(
   /** Generate + broadcast castle walls for a confirmed player.
    *  Caller must guard with isHost() — non-hosts receive walls via network. */
   function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
-    const plan = selectionFacade.prepareCastleWallsForPlayer(
-      runtimeState.state,
-      playerId,
-    );
+    const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
     deps.sendCastleWalls([plan]);
     const human = deps.pointerPlayer();
-    runtimeState.selection.castleBuilds.push(
-      selectionFacade.createCastleBuildState([plan]),
-    );
+    runtimeState.selection.castleBuilds.push(createCastleBuildState([plan]));
     // Only zoom to the human player's castle build
     if (human && playerId === human.playerId) {
       deps.camera.setCastleBuildViewport([plan]);
@@ -425,7 +418,7 @@ export function createSelectionSystem(
     let humanBuildDone = false;
     for (let i = runtimeState.selection.castleBuilds.length - 1; i >= 0; i--) {
       const build = runtimeState.selection.castleBuilds[i]!;
-      const result = selectionFacade.tickCastleBuildAnimation({
+      const result = tickCastleBuildAnimation({
         castleBuild: build,
         dt,
         wallBuildIntervalMs: WALL_BUILD_INTERVAL,
@@ -453,8 +446,7 @@ export function createSelectionSystem(
   }
 
   function tickCastleBuild(dt: number): void {
-    if (tickAllCastleBuilds(dt))
-      selectionFacade.recheckTerritoryOnly(runtimeState.state);
+    if (tickAllCastleBuilds(dt)) recheckTerritoryOnly(runtimeState.state);
     deps.render();
     if (runtimeState.selection.castleBuilds.length === 0) {
       fireOnce(runtimeState.selection, "castleBuildOnDone");
@@ -467,10 +459,10 @@ export function createSelectionSystem(
 
   function startReselection() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    selectionFacade.enterCastleReselectPhase(runtimeState.state);
+    enterCastleReselectPhase(runtimeState.state);
     resetSelectionState();
 
-    const { remaining, needsUI } = selectionFacade.processReselectionQueue({
+    const { remaining, needsUI } = processReselectionQueue({
       reselectQueue: runtimeState.selection.reselectQueue,
       state: runtimeState.state,
       controllers: runtimeState.controllers,
@@ -485,7 +477,7 @@ export function createSelectionSystem(
         const player = runtimeState.state.players[pid]!;
         if (player.homeTower)
           ctrl.centerOn(player.homeTower.row, player.homeTower.col);
-        selectionFacade.markPlayerReselected(runtimeState.state, pid);
+        markPlayerReselected(runtimeState.state, pid);
         runtimeState.selection.reselectionPids.push(pid);
       },
     });
@@ -495,7 +487,7 @@ export function createSelectionSystem(
     if (needsUI) {
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
-      selectionFacade.initSelectionTimer(runtimeState.state);
+      initSelectionTimer(runtimeState.state);
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
       if (deps.hostAtFrameStart()) {
@@ -510,7 +502,7 @@ export function createSelectionSystem(
     runtimeState.selection.states.clear();
     resetOverlaySelection();
     runtimeState.selection.reselectQueue.length = 0;
-    selectionFacade.finalizeReselectedPlayers(
+    finalizeReselectedPlayers(
       runtimeState.state,
       runtimeState.selection.reselectionPids,
     );
@@ -539,11 +531,11 @@ export function createSelectionSystem(
     syncOverlay: syncSelectionOverlay,
     highlight: highlightTowerForPlayer,
     confirmAndStartBuild: confirmSelectionAndStartBuild,
-    allConfirmed: allSelectionsConfirmed,
+    allConfirmed,
     tick: tickSelection,
     finish: finishSelection,
     advanceToCannonPhase: () => {
-      selectionFacade.enterCannonPlacePhase(runtimeState.state);
+      enterCannonPlacePhase(runtimeState.state);
       deps.startCannonPhase(() => {
         setMode(runtimeState, Mode.GAME);
       });

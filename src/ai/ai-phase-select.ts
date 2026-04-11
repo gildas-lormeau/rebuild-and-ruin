@@ -5,7 +5,7 @@
  * readable and testable.
  */
 
-import { selectPlayerTower } from "../game/game-engine.ts";
+import { selectPlayerTower } from "../game/index.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";

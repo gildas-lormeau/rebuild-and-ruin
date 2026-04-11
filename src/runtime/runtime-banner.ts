@@ -5,7 +5,7 @@
  * camera unzoom, haptics, and sound.
  */
 
-import { dialogFacade } from "../game/dialog-facade.ts";
+import { snapshotCastles, snapshotEntities } from "../game/index.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
@@ -193,7 +193,7 @@ function showBannerTransition(deps: ShowBannerDeps): void {
   banner.wallsBeforeSweep = undefined;
 
   if (preservePrevScene) {
-    banner.prevCastles ??= dialogFacade.snapshotCastles(state, pendingWalls);
+    banner.prevCastles ??= snapshotCastles(state, pendingWalls);
     banner.prevTerritory ??=
       state.phase === Phase.BATTLE
         ? battleAnim.territory?.map((territory) => new Set(territory))
@@ -202,7 +202,7 @@ function showBannerTransition(deps: ShowBannerDeps): void {
       state.phase === Phase.BATTLE
         ? battleAnim.walls?.map((wall) => new Set(wall))
         : undefined;
-    banner.prevEntities ??= dialogFacade.snapshotEntities(state);
+    banner.prevEntities ??= snapshotEntities(state);
   } else {
     banner.prevCastles = undefined;
     banner.prevTerritory = undefined;

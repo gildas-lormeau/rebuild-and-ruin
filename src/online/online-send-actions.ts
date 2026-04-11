@@ -1,5 +1,8 @@
-import { createCannonFiredMsg } from "../game/battle-system.ts";
-import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
+import {
+  createCannonFiredMsg,
+  executeCannonFire,
+  executePlacePiece,
+} from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../shared/protocol.ts";
 import {
   type BattleController,

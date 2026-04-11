@@ -1,23 +1,10 @@
-/**
- * Serialization and deserialization helpers for online multiplayer checkpoints.
- * Pure functions that read/write GameState — no module-level state.
- *
- * Null vs undefined convention for optional fields:
- *   - `null`  — key is always present in the JSON object; receivers can rely on
- *     it existing (e.g., homeTowerIdx, activeModifier, frozenTiles,
- *     pendingUpgradeOffers). Use for fields where "absent" is a meaningful state.
- *   - `undefined` — key is omitted from JSON when empty/default, saving bandwidth
- *     (e.g., incendiary, upgrades, damagedWalls, balloonFlights). Receivers must
- *     use `?? defaultValue`.
- */
-
-import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
-import { createCastle } from "../game/castle-generation.ts";
-import { setPhase } from "../game/phase-setup.ts";
 import {
+  createCastle,
   reapplyHighTideTiles,
   reapplySinkholeTiles,
-} from "../game/round-modifiers.ts";
+  recomputeTerritoryFromWalls,
+  setPhase,
+} from "../game/index.ts";
 import type {
   BalloonFlight,
   Cannon,

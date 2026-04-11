@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { canPlacePiece, placePiece } from "../game/build-system.ts";
+import { canPlacePiece, placePiece } from "../game/index.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/pieces.ts";

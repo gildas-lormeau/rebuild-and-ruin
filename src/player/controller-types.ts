@@ -1,12 +1,4 @@
-/**
- * BaseController — abstract base class implementing shared controller logic.
- *
- * Pure interfaces live in system-interfaces.ts. This file contains the
- * implementation that depends on battle-system, pieces, spatial, etc.
- */
-
-import { nextReadyCombined } from "../game/battle-system.ts";
-import { autoPlaceRound1Cannons } from "../game/cannon-system.ts";
+import { autoPlaceRound1Cannons, nextReadyCombined } from "../game/index.ts";
 import type { Crosshair } from "../shared/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";

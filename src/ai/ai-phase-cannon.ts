@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { canPlaceCannon, placeCannon } from "../game/cannon-system.ts";
+import { canPlaceCannon, placeCannon } from "../game/index.ts";
 import { CannonMode } from "../shared/battle-types.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";

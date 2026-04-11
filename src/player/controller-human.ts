@@ -1,16 +1,11 @@
-/**
- * HumanController — human player behavior: keyboard/mouse-driven piece
- * placement, cannon placement, and battle crosshair movement.
- */
-
-import { aimCannons } from "../game/battle-system.ts";
-import { canPlacePiece } from "../game/build-system.ts";
 import {
+  aimCannons,
   cannonSlotsUsed,
   canPlaceCannon,
+  canPlacePiece,
   hasAnyCannonPlacement,
   placeCannon,
-} from "../game/cannon-system.ts";
+} from "../game/index.ts";
 import { CannonMode } from "../shared/battle-types.ts";
 import {
   cannonModeDef,
