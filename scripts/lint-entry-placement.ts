@@ -33,12 +33,17 @@ const DYNAMIC_ENTRY_POINTS = new Set(["src/entry.ts"]);
 
 interface LayerGroup {
   name: string;
+  tier?: string;
   files: string[];
 }
 
 const groups: LayerGroup[] = JSON.parse(fs.readFileSync(LAYER_FILE, "utf-8"));
-const topLayer = groups.length - 1;
-const topGroup = groups[topLayer]!;
+const rootLayerIndexes = groups
+  .map((group, idx) => ({ group, idx }))
+  .filter(({ group }) => group.tier === "roots")
+  .map(({ idx }) => idx);
+const targetLayerIndexes =
+  rootLayerIndexes.length > 0 ? rootLayerIndexes : [groups.length - 1];
 
 const fileToLayer = new Map<string, number>();
 for (let i = 0; i < groups.length; i++) {
@@ -100,6 +105,8 @@ for (const sf of project.getSourceFiles()) {
 
 interface Violation {
   file: string;
+  fileLayer: number;
+  fileGroup: string;
   maxDepLayer: number;
   maxDepGroup: string;
   gap: number;
@@ -107,34 +114,40 @@ interface Violation {
 
 const violations: Violation[] = [];
 
-for (const file of topGroup.files) {
-  if (DYNAMIC_ENTRY_POINTS.has(file)) continue; // uses dynamic imports for code splitting
-  const deps = edgesByFile.get(file);
-  if (!deps || deps.size === 0) continue; // leaf entry point (e.g., barrel re-export) is fine
+for (const layerIdx of targetLayerIndexes) {
+  const group = groups[layerIdx]!;
 
-  let maxDepLayer = 0;
-  for (const dep of deps) {
-    const depLayer = fileToLayer.get(dep);
-    if (depLayer !== undefined && depLayer > maxDepLayer) {
-      maxDepLayer = depLayer;
+  for (const file of group.files) {
+    if (DYNAMIC_ENTRY_POINTS.has(file)) continue; // uses dynamic imports for code splitting
+    const deps = edgesByFile.get(file);
+    if (!deps || deps.size === 0) continue; // leaf entry point (e.g., barrel re-export) is fine
+
+    let maxDepLayer = 0;
+    for (const dep of deps) {
+      const depLayer = fileToLayer.get(dep);
+      if (depLayer !== undefined && depLayer > maxDepLayer) {
+        maxDepLayer = depLayer;
+      }
     }
-  }
 
-  // A file's minimum viable layer = maxDepLayer + 1 (needs to be above its deps).
-  // But within-group imports are allowed, so if maxDepLayer == topLayer, that's fine.
-  // We only flag when the file could sit much lower.
-  if (maxDepLayer === topLayer) continue; // imports from peers in the same top group
+    // A file's minimum viable layer = maxDepLayer + 1 (needs to be above its deps).
+    // But within-group imports are allowed, so if maxDepLayer == assigned layer,
+    // that's fine. We only flag when the file could sit much lower.
+    if (maxDepLayer === layerIdx) continue; // imports from peers in the same group
 
-  const minViableLayer = maxDepLayer + 1;
-  const gap = topLayer - minViableLayer;
+    const minViableLayer = maxDepLayer + 1;
+    const gap = layerIdx - minViableLayer;
 
-  if (gap > MAX_GAP) {
-    violations.push({
-      file,
-      maxDepLayer,
-      maxDepGroup: groups[maxDepLayer]?.name ?? `layer ${maxDepLayer}`,
-      gap,
-    });
+    if (gap > MAX_GAP) {
+      violations.push({
+        file,
+        fileLayer: layerIdx,
+        fileGroup: group.name,
+        maxDepLayer,
+        maxDepGroup: groups[maxDepLayer]?.name ?? `layer ${maxDepLayer}`,
+        gap,
+      });
+    }
   }
 }
 
@@ -143,8 +156,12 @@ for (const file of topGroup.files) {
 // ---------------------------------------------------------------------------
 
 if (violations.length === 0) {
+  const checkedFiles = targetLayerIndexes.reduce(
+    (sum, idx) => sum + groups[idx]!.files.length,
+    0,
+  );
   console.log(
-    `\n\u2714 No entry-point placement issues (${topGroup.files.length} files in "${topGroup.name}" checked)\n`,
+    `\n\u2714 No entry-point placement issues (${checkedFiles} files in ${targetLayerIndexes.length} root group(s) checked)\n`,
   );
   process.exit(0);
 }
@@ -154,7 +171,7 @@ console.log(
 );
 for (const v of violations) {
   console.log(
-    `  ${v.file} — max dep is ${v.maxDepGroup} (L${v.maxDepLayer}), gap of ${v.gap} layers`,
+    `  ${v.file} [${v.fileGroup} (L${v.fileLayer})] — max dep is ${v.maxDepGroup} (L${v.maxDepLayer}), gap of ${v.gap} layers`,
   );
   console.log(
     `    → consider reclassifying to L${v.maxDepLayer + 1} or lower`,
