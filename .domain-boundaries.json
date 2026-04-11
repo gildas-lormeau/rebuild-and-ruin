@@ -48,7 +48,6 @@
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
       "src/game/castle-generation.ts",
-      "src/game/debug-grid.ts",
       "src/game/game-actions.ts",
       "src/game/map-generation.ts",
       "src/game/phase-setup.ts",
@@ -167,7 +166,8 @@
       "src/runtime/runtime-selection.ts",
       "src/runtime/assembly.ts",
       "src/runtime/runtime.ts",
-      "src/runtime/dev-console.ts"
+      "src/runtime/dev-console.ts",
+      "src/runtime/dev-console-grid.ts"
     ],
     "entry": [
       "src/entry.ts",

@@ -50,8 +50,6 @@ export {
 } from "./castle-build.ts";
 export { createCastle } from "./castle-generation.ts";
 export { createComboTracker, isCombosEnabled } from "./combo-system.ts";
-export type { Cell, MapLayer, Rect } from "./debug-grid.ts";
-export { buildGrid, buildLegend, CellKind, zoneBounds } from "./debug-grid.ts";
 export {
   executeCannonFire,
   executePlacePiece,

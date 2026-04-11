@@ -1,9 +1,9 @@
 /**
  * Debug / diagnostic utilities — game-domain interpretation for dev tools.
  *
- * Lives in game/ because it interprets game-domain state (tower sizes, cannon HP,
- * interior/wall ownership, grunt positions, etc.). The rendering/formatting
- * layer stays in runtime/ (dev-console.ts, runtime-e2e-bridge.ts).
+ * Consumed only by dev-console.ts and runtime-e2e-bridge.ts. Lives in
+ * runtime/ because it's dev tooling, not gameplay — moved out of game/
+ * to keep the game public surface free of debug concerns.
  */
 
 import { TOWER_SIZE } from "../shared/game-constants.ts";

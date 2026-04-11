@@ -1,19 +1,5 @@
-/**
- * Dev console — exposes `window.__dev` for interactive debugging in browser
- * dev tools. Guarded by IS_DEV at call site. Separate from the E2E bridge
- * (which is for Playwright automation).
- *
- * Usage (browser console):
- *   __dev.help()                              // show all commands
- *   __dev.map()                               // styled ASCII map (colored)
- *   __dev.map("walls")                        // terrain + walls only
- *   __dev.mapText()                           // plain text → clipboard
- *   __dev.mapText({ zone: 0, legend: false }) // cropped, no legend
- *   __dev.speed(3)                            // 3× speed
- *   __dev.pause()                             // toggle pause
- *   __dev.step()                              // advance one frame
- */
-
+import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import type { GameState } from "../shared/types.ts";
 import {
   buildGrid,
   buildLegend,
@@ -22,9 +8,7 @@ import {
   type MapLayer,
   type Rect,
   zoneBounds,
-} from "../game/index.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { GameState } from "../shared/types.ts";
+} from "./dev-console-grid.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { TimingApi } from "./runtime-types.ts";
 
