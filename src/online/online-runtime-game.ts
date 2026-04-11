@@ -1,6 +1,7 @@
-import { createCanvasRenderer } from "../render/render-canvas.ts";
-import { createGameRuntime } from "../runtime/runtime.ts";
-import { createBrowserTimingApi } from "../runtime/runtime-browser-timing.ts";
+import {
+  createBrowserRuntimeBindings,
+  createGameRuntime,
+} from "../runtime/runtime-composition.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
@@ -50,7 +51,8 @@ import {
 const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
 // ── DOM singletons (from centralized boundary) ─────────────────────
-const renderer = createCanvasRenderer(canvas);
+const { renderer, timing, keyboardEventSource } =
+  createBrowserRuntimeBindings(canvas);
 // ── Incoming message bus ────────────────────────────────────────────
 // Subscribers register via `network.onMessage(handler)`. The WebSocket
 // handler delivers via `deliverIncomingMessage`. The seam is what lets
@@ -72,10 +74,6 @@ const network: NetworkApi = {
   myPlayerId: () => ctx.session.myPlayerId,
   remotePlayerSlots: () => ctx.session.remotePlayerSlots,
 };
-// ── Production timing bindings ─────────────────────────────────────
-// Entry-point layer is the only place that touches browser globals
-// directly. Sub-systems receive these via `RuntimeConfig.timing`.
-const timing = createBrowserTimingApi();
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,
   session: ctx.session,
@@ -121,7 +119,7 @@ const watcherTickCtx: WatcherTickContext = {
 const runtime: GameRuntime = createGameRuntime({
   renderer,
   timing,
-  keyboardEventSource: document,
+  keyboardEventSource,
   network,
   log: devLog,
   logThrottled: devLogThrottled,

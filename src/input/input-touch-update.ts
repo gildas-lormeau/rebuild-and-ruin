@@ -1,7 +1,7 @@
 /**
  * Touch UI update logic — loupe, d-pad, zoom/quit buttons, floating actions.
  *
- * Extracted from runtime.ts render() to keep it high-level.
+ * Extracted from runtime-composition.ts render() to keep it high-level.
  */
 
 import { isPlacementPhase, Phase } from "../shared/game-phase.ts";

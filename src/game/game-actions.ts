@@ -2,7 +2,7 @@
  * Game action executors — pure functions that apply a controller intent
  * to game state and update the controller's bookkeeping on success.
  *
- * Shared by both local play (runtime.ts) and online play
+ * Shared by both local play (runtime-composition.ts) and online play
  * (online-runtime-game.ts via online-send-actions.ts callbacks).
  */
 

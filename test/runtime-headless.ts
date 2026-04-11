@@ -42,10 +42,12 @@ export interface NetworkObserver {
 }
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/player-config.ts";
-import { SPECTATOR_SLOT } from "../src/shared/player-slot.ts";
 import type { GameMessage, ServerMessage } from "../src/shared/protocol.ts";
 import { Mode } from "../src/shared/ui-mode.ts";
-import { createGameRuntime } from "../src/runtime/runtime.ts";
+import {
+  createGameRuntime,
+  createLocalNetworkApi,
+} from "../src/runtime/runtime-composition.ts";
 import { setMode } from "../src/runtime/runtime-state.ts";
 import type {
   GameRuntime,
@@ -146,13 +148,6 @@ export interface HeadlessRuntime {
   ): () => void;
 }
 
-/** Shared sentinel for the default `remotePlayerSlots` option — allocated
- *  once so the network adapter returns the same instance on every call
- *  (frame-meta consumers compare via `ReadonlySet.has`, not by reference,
- *  but reusing the instance avoids per-frame allocation in the no-remote
- *  default path). */
-const EMPTY_REMOTE_SLOTS: ReadonlySet<number> = new Set();
-
 export async function createHeadlessRuntime(
   opts: HeadlessRuntimeOptions,
 ): Promise<HeadlessRuntime> {
@@ -166,7 +161,7 @@ export async function createHeadlessRuntime(
     speedMultiplier,
     autoStartGame = true,
     networkObserver,
-    remotePlayerSlots = EMPTY_REMOTE_SLOTS,
+    remotePlayerSlots,
     hapticsObserver,
     soundObserver,
   } = opts;
@@ -223,31 +218,26 @@ export async function createHeadlessRuntime(
     renderer,
     timing,
     keyboardEventSource,
-    network: {
-      // The inner send is a no-op because there are no peers in single-
-      // machine headless mode. When a test installs `networkObserver`,
-      // it sees every outbound message the runtime would have broadcast,
-      // which lets the test assert on host fan-out payloads (checkpoints,
-      // action commands) without spinning up a real WebSocket.
+    // Headless network adapter reuses the production "no peers" factory from
+    // runtime-composition.ts (same one main.ts uses) and layers test-only
+    // observability on top:
+    //   - `send` forwards to the optional `networkObserver` so tests can
+    //     assert on host fan-out payloads without a real WebSocket.
+    //   - `onMessage` tracks handlers so tests can inject peer messages
+    //     via `deliverNetworkMessage(msg)` — the in-memory loopback that
+    //     the future "machines" abstraction will generalize.
+    //   - `remotePlayerSlots` lets tests mark slots as peer-controlled
+    //     (gates AI/selection/life-lost/phase ticks).
+    network: createLocalNetworkApi({
       send: (msg) => networkObserver?.sent?.(msg),
-      // In-memory loopback: track every handler the runtime registers,
-      // and let tests inject messages via `deliverNetworkMessage(msg)`.
-      // The future "machines" abstraction will turn this into a full
-      // many-to-many delivery between peer headless runtimes; today it
-      // exists so tests can drive the receive path with hand-crafted
-      // peer messages.
       onMessage: (handler) => {
         messageHandlers.add(handler);
         return () => messageHandlers.delete(handler);
       },
-      amHost: () => true,
-      myPlayerId: () => SPECTATOR_SLOT,
-      // Returns the same Set instance every call — runtime sub-systems read
-      // this as a ReadonlySet via `frameMeta.remotePlayerSlots`, never mutate.
-      remotePlayerSlots: () => remotePlayerSlots as Set<number>,
-    },
+      remotePlayerSlots: remotePlayerSlots as Set<number> | undefined,
+    }),
     // No ai wiring here (nor in main.ts / online-runtime-game.ts) — the
-    // composition root `src/runtime/runtime.ts` imports the ai functions
+    // composition root `src/runtime/runtime-composition.ts` imports the ai functions
     // directly and wires them into the dialog subsystems. Headless plays
     // the real game and observes picks via bus events, same as production.
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},

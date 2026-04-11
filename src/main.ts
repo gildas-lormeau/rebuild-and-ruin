@@ -1,51 +1,37 @@
 /**
  * Local play entry point.
  *
- * All game logic lives in runtime.ts (shared with online-client.ts).
+ * All game logic lives in runtime-composition.ts (shared with online-client.ts).
  * This file only provides the local-specific config: no networking, canvas
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
-import { createGameRuntime } from "./runtime/runtime.ts";
-import { createBrowserTimingApi } from "./runtime/runtime-browser-timing.ts";
+import {
+  createBrowserRuntimeBindings,
+  createGameRuntime,
+  createLocalNetworkApi,
+} from "./runtime/runtime-composition.ts";
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/game-constants.ts";
+import { IS_DEV } from "./shared/platform.ts";
 import { MAX_PLAYERS } from "./shared/player-config.ts";
-import { SPECTATOR_SLOT } from "./shared/player-slot.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./shared/router.ts";
 import { Mode } from "./shared/ui-mode.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const renderer = createCanvasRenderer(canvas);
-const emptySet = new Set<number>();
+const { renderer, timing, keyboardEventSource } =
+  createBrowserRuntimeBindings(canvas);
 const atlasReady = loadAtlas().catch((e) => {
   console.warn("[local] sprite atlas failed to load:", e);
 });
-/** Production timing bindings — entry-point layer is the only place where
- *  browser globals are touched directly. Sub-systems receive these via
- *  `RuntimeConfig.timing` rather than reaching for `performance.now()`,
- *  `globalThis.setTimeout`, or `requestAnimationFrame` themselves. */
-const timing = createBrowserTimingApi();
 const runtime = createGameRuntime({
   renderer,
   timing,
-  keyboardEventSource: document,
-  network: {
-    send: () => {},
-    // Local play has no peers, so no incoming messages will ever arrive.
-    onMessage: () => () => {},
-    amHost: () => true,
-    myPlayerId: () => SPECTATOR_SLOT,
-    remotePlayerSlots: () => emptySet,
-  },
-  // @ts-ignore — import.meta.env is Vite-specific
-  log: import.meta.env?.DEV
-    ? (msg: string) => console.log(`[local] ${msg}`)
-    : () => {},
-  // @ts-ignore — import.meta.env is Vite-specific
-  logThrottled: import.meta.env?.DEV
+  keyboardEventSource,
+  network: createLocalNetworkApi(),
+  log: IS_DEV ? (msg: string) => console.log(`[local] ${msg}`) : () => {},
+  logThrottled: IS_DEV
     ? (() => {
         const timestamps = new Map<string, number>();
         return (key: string, msg: string) => {

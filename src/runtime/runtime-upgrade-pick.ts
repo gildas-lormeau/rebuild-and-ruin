@@ -67,7 +67,7 @@ interface UpgradePickSystemDeps {
     choice: UpgradeId,
   ) => void;
   /** AI auto-resolve tick (cycle → lock-in → commit) for one dialog entry.
-   *  Wired by the composition root (`runtime.ts`) from `ai/ai-upgrade-pick.ts`.
+   *  Wired by the composition root (`runtime-composition.ts`) from `ai/ai-upgrade-pick.ts`.
    *  Subsystems can't import from ai/ directly — only the root may. */
   readonly tickAiEntry: TickAiEntry;
   /** Max-timer force-pick fallback for one dialog entry. Wired from the

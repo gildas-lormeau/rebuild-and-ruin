@@ -283,7 +283,7 @@ sufficient for LLM agents to follow correctly.
     runtime/runtime-state.ts OptionsUIState JSDoc documents the inverse semantics. shared/settings-ui.ts:114
     @param JSDoc repeats it. The value when non-null is the Mode to return to on close.
 
-29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime/runtime.ts:184 uses
+29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime/runtime-composition.ts uses
     `satisfies Record<Exclude<Mode, Mode.STOPPED>, ...>` ensuring all tickable modes have
     a ticker. STOPPED is excluded by design (tickMainLoop returns early for it).
     Adding a new Mode without a corresponding ticker entry is a compile error.
@@ -312,7 +312,7 @@ sufficient for LLM agents to follow correctly.
     interiors as fresh would defeat the type safety.
 
 34. **`runtimeState` destructuring is intentionally non-uniform across sub-systems** —
-    runtime/runtime.ts:10-16 documents the convention. Each createXSystem(deps) factory
+    runtime/runtime-types.ts:7-17 documents the convention. Each createXSystem(deps) factory
     destructures only frequently-used deps at the top; rarely-used deps are accessed
     inline as `deps.X`. The inconsistency reflects actual usage, not drift.
 
@@ -522,7 +522,7 @@ sufficient for LLM agents to follow correctly.
 
 83. **Controllers return intent objects, orchestrators execute mutations** —
     `BattleController.fire()` returns `FireIntent | null` (not void). `InputReceiver.tryPlacePiece()`
-    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime.ts, online-runtime-game.ts,
+    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime-composition.ts, online-runtime-game.ts,
     controller-ai.ts battleTick) calls `fireNextReadyCannon()` or `placePiece()` with mutable GameState.
     `tryPlaceCannon` does NOT follow this pattern — `placeCannon` already accepts structural types.
     Do not add mutation calls inside controller methods.
@@ -536,7 +536,7 @@ sufficient for LLM agents to follow correctly.
 85. **`advanceBag` must be called by the orchestrator after `tryPlacePiece`** —
     HumanController.tryPlacePiece() returns intent without advancing the bag.
     The orchestrator calls `ctrl.advanceBag(true)` after confirming placement via `placePiece()`.
-    All three execution sites (runtime.ts, online-runtime-game.ts, ai-phase-build.ts) do this.
+    All three execution sites (runtime-composition.ts, online-runtime-game.ts, ai-phase-build.ts) do this.
 
 86. **`FreshInterior` and `Player` live in `player-types.ts`, not `types.ts`** —
     Extracted to break the system-interfaces → types.ts coupling chain. `types.ts` re-imports

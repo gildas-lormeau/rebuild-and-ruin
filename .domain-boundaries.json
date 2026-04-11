@@ -181,7 +181,7 @@
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/assembly.ts",
-      "src/runtime/runtime.ts",
+      "src/runtime/runtime-composition.ts",
       "src/runtime/dev-console.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-castle-build.ts",

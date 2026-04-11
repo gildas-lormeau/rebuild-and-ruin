@@ -1,5 +1,5 @@
 /**
- * Camera / zoom system — extracted from runtime.ts.
+ * Camera / zoom system — extracted from runtime-composition.ts.
  *
  * Owns all viewport state (zone bounds, pinch zoom, auto-zoom, lerp)
  * and exposes a pure API for the runtime to call.

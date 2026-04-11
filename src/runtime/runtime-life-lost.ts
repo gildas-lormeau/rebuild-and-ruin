@@ -40,7 +40,7 @@ interface LifeLostSystemDeps {
   startReselection: () => void;
   advanceToCannonPhase: () => void;
   /** AI decision for auto-resolving life-lost entries. Wired by the
-   *  composition root (`runtime.ts`) from `ai/ai-life-lost.ts`. Subsystems
+   *  composition root (`runtime-composition.ts`) from `ai/ai-life-lost.ts`. Subsystems
    *  can't import from ai/ directly — only the root may. */
   aiChoose: (entry: LifeLostEntry) => ResolvedChoice;
 }

@@ -1,12 +1,26 @@
 /**
- * Shared game runtime factory — composition root that wires subsystems.
+ * Composition root for the game runtime.
+ *
+ * This is the ONE file in `src/runtime/` allowed to cross the runtime
+ * purity contract. Every other runtime/ file imports only from shared/,
+ * game/, and player/ (for controller factories), so the runtime domain
+ * stays headless-testable. This file is the wiring seam where input,
+ * render, ai, player, and game subsystems assemble into a GameRuntime
+ * handle — its "roots" tier classification in .import-layers.json
+ * exempts it from typeOnlyFrom restrictions (see lint-domain-boundaries.ts).
+ *
+ * When adding new runtime code: if it needs input/render/ai/online
+ * imports, it almost certainly belongs here (or in a subsystem factory
+ * whose deps are injected through this file). If it only needs shared/
+ * and game/, put it in a new runtime-*.ts sibling.
  *
  * createGameRuntime(config) creates all subsystems (camera, score-delta,
  * banner, selection, render, lifecycle, life-lost, upgrade-pick, phase-ticks,
  * lobby, options, input, human-lookup), wires their deps, and returns a
  * narrow GameRuntime handle.
  *
- * Used by both main.ts (local play) and online-runtime-game.ts (online).
+ * Callers: src/main.ts (local), src/online/online-runtime-game.ts (online
+ * host + watcher), test/runtime-headless.ts (tests).
  */
 
 import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
@@ -35,6 +49,7 @@ import {
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
+import { createCanvasRenderer } from "../render/render-canvas.ts";
 import {
   buildGameOverOverlay,
   computeLobbyLayout,
@@ -63,14 +78,22 @@ import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
+import type {
+  RendererInterface,
+  RenderOverlay,
+} from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import {
   computeGameSeed,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
-import { MESSAGE } from "../shared/protocol.ts";
+import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
+import {
+  type GameMessage,
+  MESSAGE,
+  type ServerMessage,
+} from "../shared/protocol.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import type { UIContext } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
@@ -78,6 +101,7 @@ import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
+import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
@@ -100,11 +124,80 @@ import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState, safeState, setMode } from "./runtime-state.ts";
-import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
+import type {
+  GameRuntime,
+  NetworkApi,
+  RuntimeConfig,
+  TimingApi,
+} from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
+
+/**
+ * Browser-side bindings for `RuntimeConfig`.
+ *
+ * Both production entry points (local: src/main.ts; online:
+ * src/online/online-runtime-game.ts) need to wire the same three
+ * browser primitives into `createGameRuntime`: a canvas renderer,
+ * a `TimingApi` backed by `performance.now`/`requestAnimationFrame`,
+ * and the document as the keyboard event source. This factory is
+ * the single seam that names them. Tests construct stubs directly
+ * via `test/runtime-headless.ts` and never call this.
+ *
+ * Lives in the composition root because it value-imports
+ * `createCanvasRenderer` from `render/`, which is type-only for
+ * other runtime files.
+ */
+export function createBrowserRuntimeBindings(canvas: HTMLCanvasElement): {
+  renderer: RendererInterface;
+  timing: TimingApi;
+  keyboardEventSource: Document;
+} {
+  return {
+    renderer: createCanvasRenderer(canvas),
+    timing: createBrowserTimingApi(),
+    keyboardEventSource: document,
+  };
+}
+
+/** Singleton empty set so repeated calls with no remotes return the same
+ *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
+ *  seam and never mutate it. Typed as `Set<number>` to match the interface
+ *  shape; the shared instance is effectively read-only in practice. */
+const EMPTY_REMOTE_SLOTS: Set<number> = new Set();
+
+/**
+ * `NetworkApi` factory for the "no peers" wiring shape shared by local
+ * play (src/main.ts) and the headless test runtime (test/runtime-headless.ts).
+ *
+ * The base shape is: `amHost=true`, `myPlayerId=SPECTATOR_SLOT`, empty
+ * remotes, no-op `send`, no-op `onMessage`. Callers can override `send`
+ * (e.g. headless test observers), `onMessage` (e.g. headless in-memory
+ * loopback), and `remotePlayerSlots` (e.g. headless simulating a peer
+ * machine). Online play (src/online/online-runtime-game.ts) does NOT use
+ * this factory — it builds its own `NetworkApi` backed by the WebSocket
+ * client session.
+ */
+export function createLocalNetworkApi(
+  opts: {
+    send?: (msg: GameMessage) => void;
+    onMessage?: (
+      handler: (msg: ServerMessage) => void | Promise<void>,
+    ) => () => void;
+    remotePlayerSlots?: Set<number>;
+  } = {},
+): NetworkApi {
+  const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;
+  return {
+    send: opts.send ?? (() => {}),
+    onMessage: opts.onMessage ?? (() => () => {}),
+    amHost: () => true,
+    myPlayerId: () => SPECTATOR_SLOT,
+    remotePlayerSlots: () => remotes,
+  };
+}
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer, timing, keyboardEventSource } = config;

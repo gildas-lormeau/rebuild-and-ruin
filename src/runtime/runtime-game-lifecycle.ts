@@ -5,7 +5,7 @@
  * `createGameLifecycle` is a pure orchestrator: it sequences dep calls
  * without accessing runtimeState directly. The companion `buildLifecycleDeps`
  * assembles the deps object from subsystem handles + runtimeState, keeping
- * the composition root (runtime.ts) lean.
+ * the composition root (runtime-composition.ts) lean.
  */
 
 import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";

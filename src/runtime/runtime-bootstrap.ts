@@ -129,7 +129,7 @@ export function createAiController(
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
- *  Used by the composition root (runtime.ts) for local startGame. */
+ *  Used by the composition root (runtime-composition.ts) for local startGame. */
 export async function bootstrapNewGameFromSettings(
   runtimeState: RuntimeState,
   log: (msg: string) => void,

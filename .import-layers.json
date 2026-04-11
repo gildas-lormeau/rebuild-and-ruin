@@ -9,6 +9,7 @@
       "src/input/input.ts",
       "src/online/online-dom.ts",
       "src/render/render-sprites.ts",
+      "src/runtime/banner-messages.ts",
       "src/shared/canvas-layout.ts",
       "src/shared/feature-defs.ts",
       "src/shared/game-constants.ts",
@@ -256,7 +257,7 @@
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts",
-      "src/runtime/runtime.ts"
+      "src/runtime/runtime-composition.ts"
     ]
   },
   {

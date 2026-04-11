@@ -7,7 +7,7 @@
  * 2. That factory/entry must accept a single deps/config parameter (not loose args).
  * 3. Sub-system files must not import from other sub-system files
  *    (only from runtime-types.ts and runtime-state.ts).
- * 4. Only runtime.ts may import from sub-system files.
+ * 4. Only runtime-composition.ts may import from sub-system files.
  *
  * Usage:
  *   deno run -A scripts/lint-architecture.ts [--check]
@@ -25,7 +25,7 @@ const RUNTIME_DIR = join(SRC, "runtime");
 
 /** Files that are part of the runtime layer but are NOT sub-systems. */
 const EXEMPT = new Set([
-  "runtime.ts",
+  "runtime-composition.ts",
   "runtime-types.ts",
   "runtime-state.ts",
 
@@ -189,12 +189,12 @@ function collectAllTsFiles(dir: string): string[] {
 function checkConsumers(violations: Violation[]): void {
   const subSystemBaseNames = new Set(getSubSystemFiles());
 
-  // Check 4: Only runtime.ts may import from sub-system files
+  // Check 4: Only runtime-composition.ts may import from sub-system files
   const allTs = collectAllTsFiles(SRC);
   for (const filePath of allTs) {
     const base = basename(filePath);
-    // runtime.ts is the composition root — it's allowed to import everything
-    if (base === "runtime.ts") continue;
+    // runtime-composition.ts is the composition root — allowed to import everything
+    if (base === "runtime-composition.ts") continue;
     // Sub-systems themselves are checked above (allowed to import runtime-types/state)
     if (base.startsWith("runtime-")) continue;
 
@@ -207,7 +207,7 @@ function checkConsumers(violations: Violation[]): void {
         const relPath = relative(process.cwd(), filePath);
         violations.push({
           file: relPath,
-          message: `Imports from sub-system ${importBase} — only runtime.ts should import sub-systems`,
+          message: `Imports from sub-system ${importBase} — only runtime-composition.ts should import sub-systems`,
         });
       }
     }

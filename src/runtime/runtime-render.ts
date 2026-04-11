@@ -2,7 +2,7 @@
  * Render sub-system — builds the per-frame overlay, draws the frame,
  * and updates touch UI controls.
  *
- * Extracted from runtime.ts to reduce composition-root fan-out.
+ * Extracted from runtime-composition.ts to reduce composition-root fan-out.
  */
 
 import { Phase } from "../shared/game-phase.ts";

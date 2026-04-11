@@ -9,7 +9,7 @@
  * See runtime-types.ts for CONTRAST with life-lost and upgrade-pick patterns.
  *
  * Previously scattered across runtime-selection.ts (show),
- * runtime.ts (tick), and runtime-phase-ticks.ts (guard + capture).
+ * runtime-composition.ts (tick), and runtime-phase-ticks.ts (guard + capture).
  * Colocated here for clarity.
  */
 
