@@ -1,4 +1,8 @@
-import { autoPlaceRound1Cannons, nextReadyCombined } from "../game/index.ts";
+import {
+  autoPlaceRound1Cannons,
+  nextReadyCombined,
+  useSmallPieces,
+} from "../game/index.ts";
 import type { Crosshair } from "../shared/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
@@ -23,7 +27,6 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "../shared/system-interfaces.ts";
-import { UID } from "../shared/upgrade-defs.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
@@ -126,7 +129,7 @@ export abstract class BaseController implements PlayerController {
    *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: BuildViewState): void {
     const player = state.players[this.playerId];
-    const smallPieces = !!player?.upgrades.get(UID.SMALL_PIECES);
+    const smallPieces = player ? useSmallPieces(player) : false;
     this.initBag(state.round, state.rng, smallPieces);
     if (player?.homeTower) {
       this.buildCursor = towerCenterTile(player.homeTower);

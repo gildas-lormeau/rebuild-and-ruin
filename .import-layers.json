@@ -101,6 +101,7 @@
       "src/game/upgrades/salvage.ts",
       "src/game/upgrades/second-wind.ts",
       "src/game/upgrades/shield-battery.ts",
+      "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
       "src/runtime/dev-console-grid.ts",

@@ -76,4 +76,5 @@ export {
   buildTimerBonus,
   canBuildThisFrame,
   shouldSkipBattle,
+  useSmallPieces,
 } from "./upgrade-system.ts";

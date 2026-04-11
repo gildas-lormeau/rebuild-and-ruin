@@ -44,6 +44,7 @@ import {
 import { salvageOnCannonKilled } from "./upgrades/salvage.ts";
 import { secondWindOnPick } from "./upgrades/second-wind.ts";
 import { shieldBatteryElectAll } from "./upgrades/shield-battery.ts";
+import { smallPiecesOwns } from "./upgrades/small-pieces.ts";
 import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
 
@@ -105,6 +106,12 @@ export function territoryScoreMult(player: Player): number {
 /** Extra cannon slots granted to a player by active upgrades (additive). */
 export function cannonSlotsBonus(player: Player): number {
   return supplyDropCannonSlotsBonus(player);
+}
+
+/** True when this player's build bag should draw from the small-piece
+ *  sub-pool this round. Consumed by controller-types.ts's initBag. */
+export function useSmallPieces(player: Player): boolean {
+  return smallPiecesOwns(player);
 }
 
 /** How many own-wall tiles this player may overlap with a single piece
