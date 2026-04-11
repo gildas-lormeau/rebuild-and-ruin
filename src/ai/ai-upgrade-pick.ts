@@ -7,6 +7,9 @@
  *     game/upgrade-pick.ts via an injected callback (game/ may not
  *     import ai/). Owns the "AI considering" animation and the AI's
  *     final choice — both live in the ai/ domain.
+ *   - forcePickUpgradeEntry: max-timer force-pick fallback. Same domain
+ *     reason — deciding which upgrade a non-responsive entry receives is
+ *     AI-role logic, not a game rule.
  *
  * The decision function (aiPickUpgrade) is a file-local helper, invoked
  * once per entry at lock-in and cached in `entry.plannedChoice`.
@@ -77,6 +80,19 @@ export function tickAiUpgradePickEntry(
   const cycleStep = UPGRADE_PICK_CYCLE_STEP * (1 + (entryIdx % 3) * 0.17);
   const rawStep = Math.floor(entry.autoTimer / cycleStep);
   entry.focusedCard = (((start + dir * rawStep) % len) + len) % len;
+}
+
+/** Force-pick fallback for max-timer expiry. Prefers `plannedChoice`
+ *  (already decided by the auto-resolve tick), otherwise rolls a random
+ *  offer using the synced RNG so non-responsive humans still resolve
+ *  deterministically. Called from `tickUpgradePickDialog` via callback
+ *  (game/ may not import ai/). */
+export function forcePickUpgradeEntry(
+  entry: UpgradePickEntry,
+  state: GameState,
+): UpgradeId {
+  if (entry.plannedChoice !== null) return entry.plannedChoice;
+  return entry.offers[Math.floor(state.rng.next() * entry.offers.length)]!;
 }
 
 /** AI-aware pick: contextual upgrade selection based on game state. */

@@ -10,7 +10,10 @@
  */
 
 import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
-import { tickAiUpgradePickEntry } from "../ai/ai-upgrade-pick.ts";
+import {
+  forcePickUpgradeEntry,
+  tickAiUpgradePickEntry,
+} from "../ai/ai-upgrade-pick.ts";
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -415,6 +418,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         dialogTimer,
         runtimeState.state,
       ),
+    forcePickEntry: (entry) => forcePickUpgradeEntry(entry, runtimeState.state),
   });
 
   // -------------------------------------------------------------------------

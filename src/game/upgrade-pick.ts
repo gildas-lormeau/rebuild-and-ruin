@@ -42,6 +42,11 @@ type AiUpgradePickTick = (
   dialogTimer: number,
 ) => void;
 
+/** Force-pick fallback for max-timer expiry. Injected by the runtime
+ *  from ai/ (same domain-decoupling reason) — see `forcePickUpgradeEntry`
+ *  in `ai/ai-upgrade-pick.ts`. */
+type ForceUpgradePick = (entry: UpgradePickEntry) => UpgradeId;
+
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
@@ -88,9 +93,9 @@ export function createUpgradePickDialog(
 /** Tick the upgrade pick dialog.
  *
  *  Drives dialog-layer state only: increments `dialog.timer`, delegates
- *  each pending auto-resolve entry to the injected `tickAiEntry` callback
- *  (AI decision + animation live in `ai/ai-upgrade-pick.ts`), and applies
- *  the max-timer force-pick safety net for any still-pending entries.
+ *  each pending auto-resolve entry to the injected `tickAiEntry` callback,
+ *  and applies the max-timer safety net by delegating to `forcePick`
+ *  (both callbacks live in `ai/ai-upgrade-pick.ts`).
  *
  *  Returns true when all entries are resolved.
  *
@@ -98,7 +103,7 @@ export function createUpgradePickDialog(
  *  @param autoDelay — Per-entry auto-resolve delay in seconds.
  *  @param maxTimer — Global force-resolve deadline in seconds.
  *  @param tickAiEntry — AI auto-resolve tick (closed over GameState).
- *  @param state — Game state, used by the max-timer random fallback. */
+ *  @param forcePick — Max-timer force-pick callback (closed over GameState). */
 // Parallel structure with tickLifeLostDialog (life-lost.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickUpgradePickDialog(
   dialog: UpgradePickDialogState,
@@ -106,7 +111,7 @@ export function tickUpgradePickDialog(
   autoDelay: number,
   maxTimer: number,
   tickAiEntry: AiUpgradePickTick,
-  state?: GameState,
+  forcePick: ForceUpgradePick,
 ): boolean {
   dialog.timer += dt;
 
@@ -117,12 +122,10 @@ export function tickUpgradePickDialog(
     tickAiEntry(entry, entryIdx, dt, autoDelay, dialog.timer);
   }
 
-  // Max timer — force-pick for anyone still pending (safety net, not a decision)
   if (dialog.timer >= maxTimer) {
     for (const entry of dialog.entries) {
       if (entry.choice === null) {
-        const pick =
-          entry.plannedChoice ?? randomPickUpgrade(entry.offers, state);
+        const pick = forcePick(entry);
         entry.choice = pick;
         entry.focusedCard = entry.offers.indexOf(pick);
         entry.pickedAtTimer = dialog.timer;
@@ -222,15 +225,6 @@ export function resetPlayerUpgrades(state: GameState): void {
     player.damagedWalls.clear();
     player.upgrades.clear();
   }
-}
-
-/** Pick a random offer using the synced RNG. */
-function randomPickUpgrade(
-  offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-  state?: GameState,
-): UpgradeId {
-  if (!state) return offers[0];
-  return offers[Math.floor(state.rng.next() * offers.length)]!;
 }
 
 /** Draw N unique upgrades from the implemented pool using state.rng. */

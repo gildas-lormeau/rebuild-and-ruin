@@ -37,6 +37,16 @@ import {
   setMode,
 } from "./runtime-state.ts";
 
+type TickAiEntry = (
+  entry: UpgradePickEntry,
+  entryIdx: number,
+  dt: number,
+  autoDelay: number,
+  dialogTimer: number,
+) => void;
+
+type ForcePickEntry = (entry: UpgradePickEntry) => UpgradeId;
+
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
@@ -48,13 +58,10 @@ interface UpgradePickSystemDeps {
   /** AI auto-resolve tick (cycle → lock-in → commit) for one dialog entry.
    *  Wired by the composition root (`runtime.ts`) from `ai/ai-upgrade-pick.ts`.
    *  Subsystems can't import from ai/ directly — only the root may. */
-  readonly tickAiEntry: (
-    entry: UpgradePickEntry,
-    entryIdx: number,
-    dt: number,
-    autoDelay: number,
-    dialogTimer: number,
-  ) => void;
+  readonly tickAiEntry: TickAiEntry;
+  /** Max-timer force-pick fallback for one dialog entry. Wired from the
+   *  composition root for the same domain-decoupling reason. */
+  readonly forcePickEntry: ForcePickEntry;
 }
 
 export interface UpgradePickSystem {
@@ -137,7 +144,7 @@ export function createUpgradePickSystem(
       dialogFacade.UPGRADE_PICK_AUTO_DELAY,
       dialogFacade.UPGRADE_PICK_MAX_TIMER,
       deps.tickAiEntry,
-      runtimeState.state,
+      deps.forcePickEntry,
     );
 
     deps.render();
