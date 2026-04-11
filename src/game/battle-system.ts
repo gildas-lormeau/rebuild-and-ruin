@@ -202,7 +202,7 @@ export function aimCannons(
  * Caller is responsible for collecting controller `fireEvents` *before* calling
  * this; those depend on controller ticks producing new cannonballs first.
  */
-export function tickBattleCombat(
+export function tickBattlePhase(
   state: GameState,
   dt: number,
 ): BattleCombatResult {

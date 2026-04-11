@@ -10,7 +10,7 @@ export {
   getCountdownAnnouncement,
   nextReadyCombined,
   snapshotTerritory,
-  tickBattleCombat,
+  tickBattlePhase,
 } from "./battle-system.ts";
 export {
   canPlacePiece,

@@ -2,6 +2,7 @@ import {
   advanceBattleCountdown,
   type CannonPhaseEntry,
   diffNewWalls,
+  tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
   enterBattlePhase,
   enterBuildPhase,
@@ -11,7 +12,6 @@ import {
   isCeasefireActive,
   nextReadyCombined,
   resetCannonFacings,
-  tickBattleCombat,
   tickGrunts,
 } from "../game/index.ts";
 import {
@@ -585,7 +585,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
 
     // Step 2: tower kills + cannonball impacts (load-bearing internal order)
-    const { towerEvents, impactEvents, newImpacts } = tickBattleCombat(
+    const { towerEvents, impactEvents, newImpacts } = engineTickBattlePhase(
       state,
       dt,
     );
