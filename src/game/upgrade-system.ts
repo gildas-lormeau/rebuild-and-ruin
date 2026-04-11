@@ -1,3 +1,4 @@
+import type { ImpactEvent } from "../shared/battle-events.ts";
 import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { MORTAR_SPEED_MULT } from "../shared/game-constants.ts";
@@ -27,6 +28,10 @@ import {
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
 import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
+import {
+  type ConscriptionRespawnTarget,
+  conscriptionPickRespawnTarget,
+} from "./upgrades/conscription.ts";
 import { doubleTimeBuildTimerBonus } from "./upgrades/double-time.ts";
 import {
   masterBuilderAllowsBuild,
@@ -36,6 +41,11 @@ import {
 } from "./upgrades/master-builder.ts";
 import { rapidFireBallMult, rapidFireOwns } from "./upgrades/rapid-fire.ts";
 import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
+import {
+  type RicochetApplyBounce,
+  ricochetProcessBounces,
+} from "./upgrades/ricochet.ts";
+import { salvageOnCannonKilled } from "./upgrades/salvage.ts";
 import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
 
@@ -100,6 +110,47 @@ export function onBuildPhaseStart(state: GameState): void {
  *  Called from the engine's tickBuildPhase entry point. */
 export function tickBuildUpgrades(state: GameState, dt: number): void {
   masterBuilderTick(state, dt);
+}
+
+/** Post-impact hook: run any follow-up impacts triggered by upgrades.
+ *  Today only Ricochet uses this. Battle-system supplies `applyBounce`,
+ *  which owns computeImpact + applyImpactEvent + emit machinery; the
+ *  upgrade file owns the RNG-driven bounce geometry. */
+export function onImpactResolved(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+  hitRow: number,
+  hitCol: number,
+  initialImpactEvents: readonly ImpactEvent[],
+  applyBounce: RicochetApplyBounce,
+): void {
+  ricochetProcessBounces(
+    state,
+    shooterId,
+    hitRow,
+    hitCol,
+    initialImpactEvents,
+    applyBounce,
+  );
+}
+
+/** Post-grunt-kill hook: query upgrades for a replacement spawn target.
+ *  Today only Conscription uses this. Returns the victim's home-tower
+ *  anchor so the caller can run findGruntSpawnNear from there. */
+export function onGruntKilled(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+): ConscriptionRespawnTarget | null {
+  return conscriptionPickRespawnTarget(state, shooterId);
+}
+
+/** Post-cannon-kill hook: award upgrade effects triggered when a shooter
+ *  destroys an enemy cannon. Today only Salvage uses this. */
+export function onCannonKilled(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+): void {
+  salvageOnCannonKilled(state, shooterId);
 }
 
 /** Apply all picked upgrades to player state. */

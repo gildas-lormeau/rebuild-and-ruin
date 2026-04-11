@@ -26,7 +26,6 @@ import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
   BURNING_PIT_DURATION,
-  CONSCRIPTION_SPAWN_CHANCE,
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
@@ -36,13 +35,9 @@ import {
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import {
-  isPlayerEliminated,
-  isPlayerSeated,
-  type Player,
-} from "../shared/player-types.ts";
+import { isPlayerEliminated, type Player } from "../shared/player-types.ts";
 import {
   cannonCenter,
   computeFacing45,
@@ -62,7 +57,6 @@ import {
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
-import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,
@@ -76,7 +70,13 @@ import {
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./round-modifiers.ts";
-import { ballSpeedMult, shouldAbsorbWallHit } from "./upgrade-system.ts";
+import {
+  ballSpeedMult,
+  onCannonKilled,
+  onGruntKilled,
+  onImpactResolved,
+  shouldAbsorbWallHit,
+} from "./upgrade-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -100,11 +100,6 @@ const CANNON_ROTATE_SPEED = Math.PI * 3;
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
-/** Number of random bounces after a ricochet impact. */
-const RICOCHET_BOUNCES = 2;
-/** Max Chebyshev distance for each successive bounce (decays to simulate energy loss). */
-const RICOCHET_RADII: readonly number[] = [5, 3];
-const SALVAGE_CAP = 2;
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
@@ -474,27 +469,13 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
           events.push(evt);
           state.bus.emit(evt.type, evt);
         }
-        // Ricochet: 2 additional bounces at random nearby positions
-        if (state.players[shooterId]?.upgrades.get(UID.RICOCHET)) {
-          const hitCannons = new Set<string>();
-          for (const evt of impactEvents) {
-            if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
-              hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);
-            }
-          }
-          let bounceRow = hit.row;
-          let bounceCol = hit.col;
-          for (let bounce = 0; bounce < RICOCHET_BOUNCES; bounce++) {
-            const radius = RICOCHET_RADII[bounce]!;
-            const span = radius * 2 + 1;
-            let dr: number;
-            let dc: number;
-            do {
-              dr = Math.floor(state.rng.next() * span) - radius;
-              dc = Math.floor(state.rng.next() * span) - radius;
-            } while (dr === 0 && dc === 0);
-            bounceRow = Math.max(0, Math.min(bounceRow + dr, GRID_ROWS - 1));
-            bounceCol = Math.max(0, Math.min(bounceCol + dc, GRID_COLS - 1));
+        onImpactResolved(
+          state,
+          shooterId,
+          hit.row,
+          hit.col,
+          impactEvents,
+          (bounceRow, bounceCol, hitCannons) => {
             const bounceEvents = computeImpact(
               state,
               bounceRow,
@@ -514,8 +495,8 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
               state.bus.emit(evt.type, evt);
             }
             impacts.push({ row: bounceRow, col: bounceCol });
-          }
-        }
+          },
+        );
       }
       impacts.push(hit);
     } else {
@@ -607,12 +588,7 @@ export function applyImpactEvent(
             shooter.score +=
               DESTROY_CANNON_POINTS +
               (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid));
-            if (sid !== undefined && isSalvageActive(state)) {
-              state.salvageSlots[sid] = Math.min(
-                (state.salvageSlots[sid] ?? 0) + 1,
-                SALVAGE_CAP,
-              );
-            }
+            if (sid !== undefined) onCannonKilled(state, sid);
           }
         }
       }
@@ -842,7 +818,7 @@ function computeImpact(
   state: GameState,
   row: number,
   col: number,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
   incendiary?: boolean,
 ): ImpactEvent[] {
   if (!inBounds(row, col)) return [];
@@ -895,7 +871,7 @@ function collectWallImpacts(
   key: number,
   row: number,
   col: number,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
   let hitWall = false;
@@ -962,7 +938,7 @@ function collectCannonImpacts(
   state: GameState,
   row: number,
   col: number,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
   for (const player of state.players) {
@@ -1017,11 +993,9 @@ function collectGruntImpacts(
   state: GameState,
   row: number,
   col: number,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
-  const shooter = state.players[shooterId];
-  const hasConscription = !!shooter?.upgrades.get(UID.CONSCRIPTION);
   for (const grunt of state.grunts) {
     if (isAtTile(grunt, row, col)) {
       events.push({
@@ -1030,25 +1004,20 @@ function collectGruntImpacts(
         col: grunt.col,
         shooterId,
       });
-      if (hasConscription && state.rng.bool(CONSCRIPTION_SPAWN_CHANCE)) {
-        const enemies = state.players.filter(
-          (player) => isPlayerSeated(player) && player.id !== shooterId,
+      const respawn = onGruntKilled(state, shooterId);
+      if (respawn) {
+        const spawnPos = findGruntSpawnNear(
+          state,
+          respawn.anchorRow,
+          respawn.anchorCol,
         );
-        if (enemies.length > 0) {
-          const victim = state.rng.pick(enemies);
-          const spawnPos = findGruntSpawnNear(
-            state,
-            victim.homeTower!.row,
-            victim.homeTower!.col,
-          );
-          if (spawnPos) {
-            events.push({
-              type: BATTLE_MESSAGE.GRUNT_SPAWNED,
-              row: spawnPos.row,
-              col: spawnPos.col,
-              victimPlayerId: victim.id,
-            });
-          }
+        if (spawnPos) {
+          events.push({
+            type: BATTLE_MESSAGE.GRUNT_SPAWNED,
+            row: spawnPos.row,
+            col: spawnPos.col,
+            victimPlayerId: respawn.victimId,
+          });
         }
       }
     }
@@ -1151,8 +1120,4 @@ function balloonHitThreshold(cannon: Cannon): number {
   return isSuperCannon(cannon)
     ? SUPER_BALLOON_HITS_NEEDED
     : BALLOON_HITS_NEEDED;
-}
-
-function isSalvageActive(state: GameState): boolean {
-  return isGlobalUpgradeActive(state.players, UID.SALVAGE);
 }
