@@ -4,7 +4,7 @@
  */
 
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
-import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
+import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform/platform.ts";
 import { type GameSettings } from "./player-config.ts";
 import {
   CANNON_HP_OPTIONS,

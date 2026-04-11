@@ -82,7 +82,7 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../shared/overlay-types.ts";
-import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import {
   computeGameSeed,
   MAX_SEED_LENGTH,
@@ -135,6 +135,12 @@ import {
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
 
+/** Singleton empty set so repeated calls with no remotes return the same
+ *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
+ *  seam and never mutate it. Typed as `Set<number>` to match the interface
+ *  shape; the shared instance is effectively read-only in practice. */
+const EMPTY_REMOTE_SLOTS: Set<number> = new Set();
+
 /**
  * Browser-side bindings for `RuntimeConfig`.
  *
@@ -161,12 +167,6 @@ export function createBrowserRuntimeBindings(canvas: HTMLCanvasElement): {
     keyboardEventSource: document,
   };
 }
-
-/** Singleton empty set so repeated calls with no remotes return the same
- *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
- *  seam and never mutate it. Typed as `Set<number>` to match the interface
- *  shape; the shared instance is effectively read-only in practice. */
-const EMPTY_REMOTE_SLOTS: Set<number> = new Set();
 
 /**
  * `NetworkApi` factory for the "no peers" wiring shape shared by local

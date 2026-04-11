@@ -14,7 +14,7 @@ import {
 } from "./runtime/runtime-composition.ts";
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/game-constants.ts";
-import { IS_DEV } from "./shared/platform.ts";
+import { IS_DEV } from "./shared/platform/platform.ts";
 import { MAX_PLAYERS } from "./shared/player-config.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./shared/router.ts";
 import { Mode } from "./shared/ui-mode.ts";

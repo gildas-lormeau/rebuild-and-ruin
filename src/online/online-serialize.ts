@@ -25,10 +25,10 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/grid.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Player } from "../shared/player-types.ts";
 import { type FullStateMessage, MESSAGE } from "../shared/protocol.ts";
-import { Rng } from "../shared/rng.ts";
 import {
   type GameState,
   hasFeature,

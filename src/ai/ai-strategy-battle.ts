@@ -8,9 +8,9 @@ import {
 import { MODIFIER_ID, TOWER_SIZE } from "../shared/game-constants.ts";
 import type { GameMap, PixelPos, TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
-import type { Rng } from "../shared/rng.ts";
 import {
   cannonSize,
   computeOutside,

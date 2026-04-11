@@ -12,8 +12,8 @@ import {
 import { HOUSE_MIN_DISTANCE } from "../shared/game-constants.ts";
 import type { Castle, House, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import { isPlayerSeated } from "../shared/player-types.ts";
-import type { Rng } from "../shared/rng.ts";
 import {
   DIRS_4,
   forEachTowerTile,

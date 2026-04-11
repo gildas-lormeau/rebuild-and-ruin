@@ -16,8 +16,8 @@
 import { computeScoreDeltas } from "../game/index.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
+import { fireOnce } from "../shared/platform/utils.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
-import { fireOnce } from "../shared/utils.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface ScoreDeltaDeps {

@@ -8,7 +8,7 @@
 import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform.ts";
+import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
 import {
   ACTION_KEYS,
   getPlayerColor,

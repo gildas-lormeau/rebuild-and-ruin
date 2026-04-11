@@ -18,10 +18,10 @@ import type {
 } from "./geometry-types.ts";
 import { Action } from "./input-action.ts";
 import type { PieceShape } from "./pieces.ts";
+import type { Rng } from "./platform/rng.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
-import type { Rng } from "./rng.ts";
 
 /** Minimal game-state slice used in controller method signatures.
  *  Breaks the coupling chain: consumers of controller interfaces no longer

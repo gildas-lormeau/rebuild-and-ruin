@@ -7,7 +7,7 @@
  */
 
 import "./style.css";
-import { IS_TOUCH_DEVICE } from "./shared/platform.ts";
+import { IS_TOUCH_DEVICE } from "./shared/platform/platform.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,

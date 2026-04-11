@@ -22,7 +22,7 @@
 
 import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/game-constants.ts";
-import { CAN_VIBRATE } from "../shared/platform.ts";
+import { CAN_VIBRATE } from "../shared/platform/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   HapticReason,

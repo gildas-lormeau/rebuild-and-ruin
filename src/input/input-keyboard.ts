@@ -8,7 +8,7 @@ import {
   KEY_LEFT,
   KEY_RIGHT,
   KEY_UP,
-} from "../shared/platform.ts";
+} from "../shared/platform/platform.ts";
 import {
   ACTION_KEYS,
   type KeyBindings,

@@ -20,8 +20,8 @@ import {
 } from "../shared/board-occupancy.ts";
 import type { GameMap, TilePos, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import type { Player } from "../shared/player-types.ts";
-import type { Rng } from "../shared/rng.ts";
 import {
   cannonSize,
   computeCannonTileSet,

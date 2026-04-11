@@ -9,7 +9,7 @@ import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
-} from "../shared/platform.ts";
+} from "../shared/platform/platform.ts";
 import { type KeyBindings, MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {

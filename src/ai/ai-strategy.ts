@@ -27,9 +27,9 @@ import type {
   Tower,
 } from "../shared/geometry-types.ts";
 import type { PieceShape } from "../shared/pieces.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { brandFreshInterior, type Player } from "../shared/player-types.ts";
-import { Rng } from "../shared/rng.ts";
 import {
   computeOutside,
   isTowerEnclosed,

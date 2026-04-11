@@ -13,9 +13,9 @@ import {
   nextPiece,
   type PieceShape,
 } from "../shared/pieces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { Rng } from "../shared/rng.ts";
 import { pxToTile, towerCenter, towerCenterTile } from "../shared/spatial.ts";
 import type {
   BattleViewState,

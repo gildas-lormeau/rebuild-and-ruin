@@ -11,7 +11,7 @@
  * for user-visible feedback or error handling.
  */
 
-import { IS_DEV } from "../shared/platform.ts";
+import { IS_DEV } from "../shared/platform/platform.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { GameMessage } from "../shared/protocol.ts";
 import { isHostInContext } from "../shared/tick-context.ts";

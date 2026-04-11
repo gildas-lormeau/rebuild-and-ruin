@@ -9,7 +9,7 @@ import type {
   LoupeHandle,
   RendererInterface,
 } from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { OPT_CONTROLS } from "../shared/settings-defs.ts";
 import { zoneTowerCenterPx } from "../shared/spatial.ts";

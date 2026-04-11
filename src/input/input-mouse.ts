@@ -5,7 +5,7 @@ import {
   Phase,
 } from "../shared/game-phase.ts";
 import { Action } from "../shared/input-action.ts";
-import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform/platform.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {

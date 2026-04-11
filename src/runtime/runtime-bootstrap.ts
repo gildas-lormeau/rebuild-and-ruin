@@ -14,6 +14,7 @@ import {
   type GameMode,
 } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
+import { MAX_UINT32 } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
   type KeyBindings,
@@ -22,7 +23,6 @@ import {
   SEED_RANDOM,
 } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { MAX_UINT32 } from "../shared/rng.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { GameState, LobbyState } from "../shared/types.ts";

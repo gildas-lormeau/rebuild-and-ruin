@@ -29,7 +29,7 @@ import {
   type RenderOverlay,
   type UpgradePickOverlay,
 } from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { getPlayerColor, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import {

@@ -20,6 +20,7 @@ import {
 import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { CastleWallPlan } from "../shared/interaction-types.ts";
 import type { EntityOverlay, RenderOverlay } from "../shared/overlay-types.ts";
+import { fireOnce } from "../shared/platform/utils.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type InputReceiver,
@@ -35,7 +36,6 @@ import {
 } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import { fireOnce } from "../shared/utils.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
 import {
   createCastleBuildState,

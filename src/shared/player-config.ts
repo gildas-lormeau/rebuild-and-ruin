@@ -12,7 +12,7 @@ import {
   HAPTICS_ALL,
   SOUND_OFF,
 } from "./game-constants.ts";
-import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
+import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform/platform.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { RGB } from "./theme.ts";
 

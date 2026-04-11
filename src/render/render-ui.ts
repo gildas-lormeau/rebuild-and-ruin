@@ -15,7 +15,7 @@ import {
   type RenderOverlay,
   type UpgradePickCard,
 } from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   BANNER_HEIGHT_RATIO,

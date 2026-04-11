@@ -16,16 +16,16 @@
       "src/shared/game-phase.ts",
       "src/shared/grid.ts",
       "src/shared/input-action.ts",
-      "src/shared/jsfxr.d.ts",
-      "src/shared/platform.ts",
+      "src/shared/platform/jsfxr.d.ts",
+      "src/shared/platform/platform.ts",
       "src/shared/player-slot.ts",
-      "src/shared/rng.ts",
+      "src/shared/platform/rng.ts",
       "src/shared/router.ts",
       "src/shared/routes.ts",
       "src/shared/settings-defs.ts",
       "src/shared/ui-mode.ts",
       "src/shared/upgrade-defs.ts",
-      "src/shared/utils.ts"
+      "src/shared/platform/utils.ts"
     ]
   },
   {

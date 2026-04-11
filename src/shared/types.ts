@@ -21,9 +21,9 @@ import {
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { Rng } from "./platform/rng.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
-import type { Rng } from "./rng.ts";
 import type { Mode } from "./ui-mode.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 

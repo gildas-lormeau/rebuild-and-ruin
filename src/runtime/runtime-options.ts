@@ -5,7 +5,7 @@ import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
-} from "../shared/platform.ts";
+} from "../shared/platform/platform.ts";
 import {
   ACTION_KEYS,
   MAX_PLAYERS,
