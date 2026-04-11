@@ -89,7 +89,6 @@ import type {
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
 import type { GameState, SelectionState } from "../shared/types.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";
@@ -315,14 +314,6 @@ export interface RuntimeConfig {
   onCloseOptions?: () => void;
   /** local: startGame; online: host sends init. */
   onTickLobbyExpired: () => void | Promise<void>;
-
-  /** AI-aware upgrade pick. Injected by the entry point so runtime doesn't
-   *  import from ai/ directly. */
-  aiPick: (
-    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-    state: GameState,
-    playerId: ValidPlayerSlot,
-  ) => UpgradeId;
 
   /** Online-only per-frame coordination (host fan-out + watcher tick).
    *  See `OnlinePhaseTicks`. Presence on RuntimeConfig implies online mode. */

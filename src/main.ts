@@ -6,7 +6,6 @@
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { aiPickUpgrade } from "./ai/ai-upgrade-pick.ts";
 import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
 import { createGameRuntime } from "./runtime/runtime.ts";
@@ -41,7 +40,6 @@ const runtime = createGameRuntime({
     myPlayerId: () => SPECTATOR_SLOT,
     remotePlayerSlots: () => emptySet,
   },
-  aiPick: aiPickUpgrade,
   // @ts-ignore — import.meta.env is Vite-specific
   log: import.meta.env?.DEV
     ? (msg: string) => console.log(`[local] ${msg}`)

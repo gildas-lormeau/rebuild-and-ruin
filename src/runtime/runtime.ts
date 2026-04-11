@@ -9,6 +9,8 @@
  * Used by both main.ts (local play) and online-runtime-game.ts (online).
  */
 
+import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
+import { tickAiUpgradePickEntry } from "../ai/ai-upgrade-pick.ts";
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -389,6 +391,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
+    aiChoose: (entry) => aiChooseLifeLost(entry, runtimeState.state),
   });
 
   // -------------------------------------------------------------------------
@@ -403,8 +406,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ? (playerId, choice) =>
           config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
-    aiPick: (offers, playerId) =>
-      config.aiPick(offers, runtimeState.state, playerId),
+    tickAiEntry: (entry, entryIdx, dt, autoDelay, dialogTimer) =>
+      tickAiUpgradePickEntry(
+        entry,
+        entryIdx,
+        dt,
+        autoDelay,
+        dialogTimer,
+        runtimeState.state,
+      ),
   });
 
   // -------------------------------------------------------------------------

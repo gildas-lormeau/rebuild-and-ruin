@@ -1,20 +1,82 @@
 /**
- * AI upgrade selection — contextual heuristic for auto-resolving upgrade picks.
+ * AI upgrade-pick logic: per-entry auto-resolve tick (cycle → lock-in →
+ * commit) plus the contextual decision heuristic it uses internally.
  *
- * Evaluates game state to make intelligent picks instead of random selection.
- * Extracted from game/upgrade-pick.ts to keep AI logic in the ai/ domain.
+ * Exported surface:
+ *   - tickAiUpgradePickEntry: per-entry dialog tick used by
+ *     game/upgrade-pick.ts via an injected callback (game/ may not
+ *     import ai/). Owns the "AI considering" animation and the AI's
+ *     final choice — both live in the ai/ domain.
+ *
+ * The decision function (aiPickUpgrade) is a file-local helper, invoked
+ * once per entry at lock-in and cached in `entry.plannedChoice`.
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import type { UpgradePickEntry } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isGrass } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
 import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;
+/** Extra delay per auto-resolving entry (by entry index) so AI picks land
+ *  one at a time instead of all snapping on the same frame. */
+const UPGRADE_PICK_STAGGER = 0.5;
+/** Time between focus "steps" while an AI entry cycles through its offers
+ *  during the delay. */
+const UPGRADE_PICK_CYCLE_STEP = 0.22;
+/** Window at the end of the delay where the AI stops cycling and locks
+ *  focus onto its final pick, so the reveal isn't a random-looking snap. */
+const UPGRADE_PICK_LOCK_IN = 0.35;
+
+/** Per-frame auto-resolve tick for one upgrade-pick dialog entry.
+ *  Called by `game/upgrade-pick.ts` via an injected callback (the game
+ *  layer may not import ai/, so the runtime/entry wiring closes over state
+ *  and passes this function down).
+ *
+ *  Phases of the animation:
+ *    1. Cycling — focus steps through offers while autoTimer < lockInStart.
+ *    2. Lock-in — resolves plannedChoice via aiPickUpgrade and freezes focus
+ *                 on it for the final LOCK_IN window.
+ *    3. Commit — applies plannedChoice to entry.choice, records pickedAtTimer. */
+export function tickAiUpgradePickEntry(
+  entry: UpgradePickEntry,
+  entryIdx: number,
+  dt: number,
+  autoDelay: number,
+  dialogTimer: number,
+  state: GameState,
+): void {
+  entry.autoTimer += dt;
+  const effectiveDelay = autoDelay + entryIdx * UPGRADE_PICK_STAGGER;
+  // Clamp at 0 so shrinking autoDelay below LOCK_IN doesn't produce a
+  // negative window that silently skips the cycling phase.
+  const lockInStart = Math.max(0, effectiveDelay - UPGRADE_PICK_LOCK_IN);
+
+  if (entry.autoTimer >= effectiveDelay) {
+    const pick =
+      entry.plannedChoice ?? aiPickUpgrade(entry.offers, state, entry.playerId);
+    entry.choice = pick;
+    entry.focusedCard = entry.offers.indexOf(pick);
+    entry.pickedAtTimer = dialogTimer;
+    return;
+  }
+
+  if (entry.autoTimer >= lockInStart) {
+    if (entry.plannedChoice === null) {
+      entry.plannedChoice = aiPickUpgrade(entry.offers, state, entry.playerId);
+    }
+    entry.focusedCard = entry.offers.indexOf(entry.plannedChoice);
+    return;
+  }
+
+  entry.focusedCard =
+    Math.floor(entry.autoTimer / UPGRADE_PICK_CYCLE_STEP) % entry.offers.length;
+}
 
 /** AI-aware pick: contextual upgrade selection based on game state. */
-export function aiPickUpgrade(
+function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: GameState,
   playerId: ValidPlayerSlot,

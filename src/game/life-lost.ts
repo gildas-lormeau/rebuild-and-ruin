@@ -27,18 +27,29 @@ interface ResolveAfterLifeLostDeps {
   onContinue: () => void;
 }
 
-/** Tick the life-lost dialog. Auto-resolve entries tick their timers;
- *  max timer force-resolves all pending entries.
+/** AI decision callback for auto-resolving life-lost entries. Injected by
+ *  the runtime from `ai/ai-life-lost.ts` so game/ stays decoupled from AI. */
+type AiLifeLostChoose = (entry: LifeLostEntry) => ResolvedChoice;
+
+/** Tick the life-lost dialog.
+ *
+ *  Drives dialog-layer state only: increments timers and delegates the
+ *  actual choice for auto-resolve entries to the injected `aiChoose`
+ *  callback (AI decision lives in `ai/ai-life-lost.ts`). The max-timer
+ *  fallback picks ABANDON as a hard safety net, not as a decision.
+ *
  *  Returns true when all entries are resolved.
  *  @param dt — Delta time in seconds (not ms).
  *  @param autoDelay — Per-entry auto-resolve delay in seconds.
- *  @param maxTimer — Global force-resolve deadline in seconds. */
+ *  @param maxTimer — Global force-resolve deadline in seconds.
+ *  @param aiChoose — AI decision callback (closed over GameState). */
 // Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,
   dt: number,
   autoDelay: number,
   maxTimer: number,
+  aiChoose: AiLifeLostChoose,
 ): boolean {
   dialog.timer += dt;
 
@@ -46,7 +57,7 @@ export function tickLifeLostDialog(
     if (entry.choice !== LifeLostChoice.PENDING) continue;
     if (entry.autoResolve) {
       entry.autoTimer += dt;
-      if (entry.autoTimer >= autoDelay) entry.choice = LifeLostChoice.CONTINUE;
+      if (entry.autoTimer >= autoDelay) entry.choice = aiChoose(entry);
     }
   }
 

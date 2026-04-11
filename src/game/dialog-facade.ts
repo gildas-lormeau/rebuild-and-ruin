@@ -26,6 +26,7 @@ import {
   tickUpgradePickDialog,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
+  UPGRADE_PICK_PULSE_DURATION,
 } from "./upgrade-pick.ts";
 
 export const dialogFacade = {
@@ -45,6 +46,7 @@ export const dialogFacade = {
   resolveUpgradePickEntry,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
+  UPGRADE_PICK_PULSE_DURATION,
   snapshotCastles,
   snapshotEntities,
 };

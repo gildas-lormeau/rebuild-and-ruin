@@ -5,6 +5,7 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
+import { UPGRADE_PICK_PULSE_DURATION } from "../game/upgrade-pick.ts";
 import { MODIFIER_ID } from "../shared/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
@@ -78,7 +79,6 @@ import {
   UPGRADE_CARD_H,
   UPGRADE_CARD_W,
   UPGRADE_NAME_H,
-  UPGRADE_PICK_PULSE_DURATION,
   UPGRADE_ROW_GAP,
   UPGRADE_ROW_W,
 } from "./render-composition.ts";

@@ -82,6 +82,7 @@
     "tier": "logic",
     "files": [
       "server/room-manager.ts",
+      "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/game/combo-system.ts",
       "src/game/debug-grid.ts",

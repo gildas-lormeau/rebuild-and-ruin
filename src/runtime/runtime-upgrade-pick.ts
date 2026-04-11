@@ -45,12 +45,16 @@ interface UpgradePickSystemDeps {
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
   ) => void;
-  /** AI-aware upgrade pick callback. Injected from composition root so
-   *  this subsystem doesn't import from ai/ directly. */
-  readonly aiPick: (
-    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-    playerId: ValidPlayerSlot,
-  ) => UpgradeId;
+  /** AI auto-resolve tick (cycle → lock-in → commit) for one dialog entry.
+   *  Wired by the composition root (`runtime.ts`) from `ai/ai-upgrade-pick.ts`.
+   *  Subsystems can't import from ai/ directly — only the root may. */
+  readonly tickAiEntry: (
+    entry: UpgradePickEntry,
+    entryIdx: number,
+    dt: number,
+    autoDelay: number,
+    dialogTimer: number,
+  ) => void;
 }
 
 export interface UpgradePickSystem {
@@ -132,22 +136,32 @@ export function createUpgradePickSystem(
       dt,
       dialogFacade.UPGRADE_PICK_AUTO_DELAY,
       dialogFacade.UPGRADE_PICK_MAX_TIMER,
+      deps.tickAiEntry,
       runtimeState.state,
-      deps.aiPick,
     );
 
     deps.render();
 
-    if (allResolved) {
-      deps.log(
-        `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
-      );
-      dialogFacade.applyUpgradePicks(runtimeState.state, dialog);
-      runtimeState.dialogs.upgradePick = null;
-      const callback = resolveCallback;
-      resolveCallback = undefined;
-      callback?.();
-    }
+    if (!allResolved) return;
+
+    // Let the final reveal pulse finish before closing the dialog — the last
+    // entry resolves on the same frame as allResolved, so without this the
+    // expanding ring animation for that entry never gets any draw frames.
+    const latestPick = dialog.entries.reduce(
+      (latest, entry) => Math.max(latest, entry.pickedAtTimer ?? 0),
+      0,
+    );
+    if (dialog.timer - latestPick < dialogFacade.UPGRADE_PICK_PULSE_DURATION)
+      return;
+
+    deps.log(
+      `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
+    );
+    dialogFacade.applyUpgradePicks(runtimeState.state, dialog);
+    runtimeState.dialogs.upgradePick = null;
+    const callback = resolveCallback;
+    resolveCallback = undefined;
+    callback?.();
   }
 
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {

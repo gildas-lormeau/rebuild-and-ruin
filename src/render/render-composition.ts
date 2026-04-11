@@ -94,9 +94,6 @@ export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 export const UPGRADE_CARD_W = 120;
 export const UPGRADE_CARD_H = 100;
 export const UPGRADE_CARD_GAP = 10;
-/** Reveal pulse duration (seconds) — expanding glow ring fades out over
- *  this window after a card is picked. */
-export const UPGRADE_PICK_PULSE_DURATION = 0.45;
 export const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
   (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
@@ -673,11 +670,18 @@ function buildUpgradePickUi(
   if (!dialog) return undefined;
 
   const entries = dialog.entries.map((entry) => {
+    const isInteractive = entry.playerId === interactivePlayerId;
+    // focusedCard is only meaningful when someone is actively moving it —
+    // the local interactive player (via input) or an auto-resolving AI
+    // (via the cycling/lock-in tick). Remote human entries on the host
+    // have static focusedCard=0 until their pick message arrives, which
+    // would otherwise render a phantom border on card 0 throughout.
+    const focusIsLive = isInteractive || entry.autoResolve;
     return {
       playerName: playerNames[entry.playerId] ?? `P${entry.playerId + 1}`,
       color: playerColors[entry.playerId % playerColors.length]!.wall,
       resolved: entry.choice !== null,
-      interactive: entry.playerId === interactivePlayerId,
+      interactive: isInteractive,
       cards: entry.offers.map((upgradeId, cardIdx) => {
         const def = UPGRADE_POOL.find(
           (upgradeDef) => upgradeDef.id === upgradeId,
@@ -692,7 +696,10 @@ function buildUpgradePickUi(
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
-          focused: entry.choice === null && entry.focusedCard === cardIdx,
+          focused:
+            entry.choice === null &&
+            focusIsLive &&
+            entry.focusedCard === cardIdx,
           picked,
           pulseAge,
         };

@@ -42,14 +42,9 @@ export interface NetworkObserver {
 }
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/player-config.ts";
-import {
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "../src/shared/player-slot.ts";
+import { SPECTATOR_SLOT } from "../src/shared/player-slot.ts";
 import type { GameMessage, ServerMessage } from "../src/shared/protocol.ts";
-import type { GameState } from "../src/shared/types.ts";
 import { Mode } from "../src/shared/ui-mode.ts";
-import type { UpgradeId } from "../src/shared/upgrade-defs.ts";
 import { createGameRuntime } from "../src/runtime/runtime.ts";
 import { setMode } from "../src/runtime/runtime-state.ts";
 import type {
@@ -80,17 +75,6 @@ interface HeadlessRuntimeOptions {
    *  (e.g. for `RenderObserver` assertions). The caller is responsible for
    *  installing the canvas factory before constructing the renderer. */
   renderer?: RendererInterface;
-  /** Optional AI upgrade picker. Defaults to "always pick the first offer"
-   *  for simple deterministic tests. Pass `aiPickUpgrade` from `src/ai/`
-   *  to match the production browser path — this is what makes seed-based
-   *  modifier sequences in headless line up with what a browser session
-   *  with the same seed would produce. (Domain rule: runtime/ cannot import
-   *  from ai/, so the test layer injects it.) */
-  aiPick?: (
-    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-    state: GameState,
-    playerId: ValidPlayerSlot,
-  ) => UpgradeId;
   /** Initial speed multiplier (1..16, integer). Drives the sub-step loop
    *  in `mainLoop`. Tests use this to verify the dev speed mechanism. */
   speedMultiplier?: number;
@@ -179,7 +163,6 @@ export async function createHeadlessRuntime(
     log = false,
     hostMode = false,
     renderer: rendererOverride,
-    aiPick = (offers) => offers[0],
     speedMultiplier,
     autoStartGame = true,
     networkObserver,
@@ -263,11 +246,10 @@ export async function createHeadlessRuntime(
       // this as a ReadonlySet via `frameMeta.remotePlayerSlots`, never mutate.
       remotePlayerSlots: () => remotePlayerSlots as Set<number>,
     },
-    // Default: always take the first offer. Tests opt into the real
-    // `aiPickUpgrade` (from ai/) by passing `aiPick: aiPickUpgrade` — that's
-    // what makes seed-based modifier sequences in headless line up with the
-    // browser. (Domain rule: runtime/ cannot import from ai/.)
-    aiPick,
+    // No ai wiring here (nor in main.ts / online-runtime-game.ts) — the
+    // composition root `src/runtime/runtime.ts` imports the ai functions
+    // directly and wires them into the dialog subsystems. Headless plays
+    // the real game and observes picks via bus events, same as production.
     log: log ? (msg: string) => console.log(`[headless] ${msg}`) : () => {},
     logThrottled: () => {},
     // Real countdown so the lobby tick can detect expiry. Production main.ts

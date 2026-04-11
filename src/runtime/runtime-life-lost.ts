@@ -24,6 +24,7 @@ import {
 import {
   LifeLostChoice,
   type LifeLostDialogState,
+  type LifeLostEntry,
   type ResolvedChoice,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -46,6 +47,10 @@ interface LifeLostSystemDeps {
   endGame: (winner: { id: number }) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
+  /** AI decision for auto-resolving life-lost entries. Wired by the
+   *  composition root (`runtime.ts`) from `ai/ai-life-lost.ts`. Subsystems
+   *  can't import from ai/ directly — only the root may. */
+  aiChoose: (entry: LifeLostEntry) => ResolvedChoice;
 }
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
@@ -112,6 +117,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       dt,
       LIFE_LOST_AUTO_DELAY,
       LIFE_LOST_MAX_TIMER,
+      deps.aiChoose,
     );
 
     deps.render();

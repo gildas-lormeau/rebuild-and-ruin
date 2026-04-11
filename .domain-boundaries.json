@@ -67,6 +67,7 @@
     ],
     "ai": [
       "src/ai/ai-constants.ts",
+      "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/ai/ai-build-types.ts",
       "src/ai/ai-castle-rect.ts",
@@ -216,6 +217,7 @@
     "runtime": [
       "shared",
       "game",
+      "ai",
       "player",
       "input",
       "render",

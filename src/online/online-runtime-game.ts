@@ -1,4 +1,3 @@
-import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
 import { createBrowserTimingApi } from "../runtime/runtime-browser-timing.ts";
@@ -124,7 +123,6 @@ const runtime: GameRuntime = createGameRuntime({
   timing,
   keyboardEventSource: document,
   network,
-  aiPick: aiPickUpgrade,
   log: devLog,
   logThrottled: devLogThrottled,
   // -1 grace: server fires setTimeout(waitSec * 1000) exactly at waitSec.
