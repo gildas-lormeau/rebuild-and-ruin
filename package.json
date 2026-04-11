@@ -65,7 +65,6 @@
     "hot-exports": "deno run -A scripts/report-hot-exports.ts",
     "reorder": "deno run -A scripts/reorder-file.ts",
     "reorder:changed": "git diff --cached --name-only --diff-filter=ACM -- 'src/*.ts' | xargs -I{} deno run -A scripts/reorder-file.ts {}",
-    "readonly-params": "deno run -A scripts/add-readonly-params.ts",
     "refactor": "deno run -A scripts/refactor.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
