@@ -78,18 +78,19 @@ function resolve(filePath: string): string {
   return path.resolve(filePath);
 }
 
-/** Get an existing source file or create it if it doesn't exist / is empty.
- *  Works around ts-morph's addStatements bug on almost-empty files by seeding
- *  a dummy export that is removed after the real content is inserted. */
+/** Get an existing source file or create it if it doesn't exist / has no
+ *  statements (empty OR comment-only). Works around ts-morph's addStatements
+ *  bug on files without any statements by seeding a dummy `export {};` via
+ *  raw text insertion (preserves any leading comments) — the dummy is removed
+ *  later by `removeDummyExport` after real content is added. */
 function getOrCreateSourceFile(project: Project, filePath: string): SourceFile {
   const existing = project.getSourceFile(filePath);
-  if (existing && existing.getFullText().trim().length > 0) return existing;
+  if (existing && existing.getStatements().length > 0) return existing;
 
-  // File is missing or empty — create/overwrite with a dummy export so
-  // ts-morph's internal printer has something to anchor against.
-  if (existing) existing.removeText();
   const sf = existing ?? project.createSourceFile(filePath, "", { overwrite: true });
-  sf.addStatements("export {};\n");
+  const text = sf.getFullText();
+  const prefix = text.length === 0 || text.endsWith("\n") ? "" : "\n";
+  sf.insertText(text.length, `${prefix}export {};\n`);
   return sf;
 }
 
@@ -976,13 +977,19 @@ function renameFile(oldPath: string, newPath: string): void {
   // ts-morph's move() renames the file and updates all import specifiers
   sourceFile.move(absNew);
 
-  // ts-morph may generate extensionless specifiers — ensure all imports
-  // pointing to the moved file end with .ts (project convention).
+  // ts-morph may generate extensionless specifiers when it rewrites relative
+  // paths — both for imports pointing to the moved file AND for the moved
+  // file's own outgoing relative imports. Ensure all such specifiers end with
+  // .ts (project convention).
   for (const sf of project.getSourceFiles()) {
     for (const imp of sf.getImportDeclarations()) {
-      if (imp.getModuleSpecifierSourceFile()?.getFilePath() !== absNew) continue;
+      const target = imp.getModuleSpecifierSourceFile();
+      if (!target) continue;
+      const isToMoved = target.getFilePath() === absNew;
+      const isFromMoved = sf.getFilePath() === absNew;
+      if (!isToMoved && !isFromMoved) continue;
       const spec = imp.getModuleSpecifierValue();
-      if (!spec.endsWith(".ts")) {
+      if (!spec.endsWith(".ts") && spec.startsWith(".")) {
         imp.setModuleSpecifier(spec + ".ts");
       }
     }
