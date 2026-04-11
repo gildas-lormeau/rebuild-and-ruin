@@ -117,7 +117,7 @@ export interface BuildEndSummary {
  *  promotion / demotion without any internal `isHost` checks.
  *
  *  When undefined on RuntimeConfig, the runtime runs in single-machine local
- *  mode (main.ts, runtime-headless.ts) and never invokes any of these. */
+ *  mode (main.ts, test/runtime-headless.ts) and never invokes any of these. */
 export interface OnlinePhaseTicks {
   // ── Host-only: phase-transition checkpoint broadcasts ──────────────────
   /** Host: broadcast the cannon-phase entry checkpoint to watchers. */
@@ -219,7 +219,7 @@ export interface OnlineActions {
  *      spectator slot, empty remote set.
  *    - Online (online-runtime-game.ts): WebSocket `send`, fan-out
  *      `onMessage`, host/slot/remote state read from `ctx.session`.
- *    - Tests (runtime-headless.ts): no-op send + spectator slot today.
+ *    - Tests (test/runtime-headless.ts): no-op send + spectator slot today.
  *      A future "machines" abstraction will wire multiple NetworkApi
  *      instances together via an in-memory message bus, exercising the
  *      same dispatch path as production without a real WebSocket.

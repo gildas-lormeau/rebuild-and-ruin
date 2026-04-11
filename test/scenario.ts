@@ -48,7 +48,7 @@ import {
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
-} from "../src/runtime/runtime-headless.ts";
+} from "./runtime-headless.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,

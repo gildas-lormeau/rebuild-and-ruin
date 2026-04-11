@@ -14,32 +14,35 @@
  * `runtime.runtimeState.state.bus` rather than reaching into runtime internals.
  */
 
-import { bootstrapFacade } from "../game/bootstrap-facade.ts";
+import { bootstrapFacade } from "../src/game/bootstrap-facade.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
   LOBBY_TIMER,
-} from "../shared/game-constants.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
+} from "../src/shared/game-constants.ts";
+import type { GameMap, Viewport } from "../src/shared/geometry-types.ts";
 import type {
   RendererInterface,
   RenderOverlay,
-} from "../shared/overlay-types.ts";
-import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
-import { SEED_CUSTOM } from "../shared/player-config.ts";
-import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { GameMessage, ServerMessage } from "../shared/protocol.ts";
-import type { GameState } from "../shared/types.ts";
-import { Mode } from "../shared/ui-mode.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
-import { createGameRuntime } from "./runtime.ts";
-import { setMode } from "./runtime-state.ts";
+} from "../src/shared/overlay-types.ts";
+import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
+import { SEED_CUSTOM } from "../src/shared/player-config.ts";
+import {
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "../src/shared/player-slot.ts";
+import type { GameMessage, ServerMessage } from "../src/shared/protocol.ts";
+import type { GameState } from "../src/shared/types.ts";
+import { Mode } from "../src/shared/ui-mode.ts";
+import type { UpgradeId } from "../src/shared/upgrade-defs.ts";
+import { createGameRuntime } from "../src/runtime/runtime.ts";
+import { setMode } from "../src/runtime/runtime-state.ts";
 import type {
   GameRuntime,
   OnlinePhaseTicks,
   TimingApi,
-} from "./runtime-types.ts";
+} from "../src/runtime/runtime-types.ts";
 
 interface HeadlessRuntimeOptions {
   /** Map seed — controls map, AI, and modifier rolls. */

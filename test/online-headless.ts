@@ -64,7 +64,7 @@ import {
   createWatcherState,
   type WatcherState,
 } from "../src/online/online-watcher-tick.ts";
-import { createHeadlessRuntime } from "../src/runtime/runtime-headless.ts";
+import { createHeadlessRuntime } from "./runtime-headless.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,

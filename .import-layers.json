@@ -247,8 +247,7 @@
     "tier": "roots",
     "files": [
       "src/main.ts",
-      "src/online/online-runtime-game.ts",
-      "src/runtime/runtime-headless.ts"
+      "src/online/online-runtime-game.ts"
     ]
   },
   {
