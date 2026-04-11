@@ -6,6 +6,7 @@ import {
   BATTLE_MESSAGE,
   type CannonFiredMessage,
   type ImpactEvent,
+  type TowerKilledMessage,
 } from "../shared/battle-events.ts";
 import type {
   BalloonFlight,
@@ -74,12 +75,20 @@ import {
   scoreImpactCombo,
   tickComboTracking,
 } from "./combo-system.ts";
-import { findGruntSpawnNear } from "./grunt-system.ts";
+import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
   impacts: TilePos[];
   events: ImpactEvent[];
+}
+
+/** Combined per-frame battle tick result: grunt tower kills, cannonball impact
+ *  events, and visual impact positions. Returned by `tickBattleCombat`. */
+interface BattleCombatResult {
+  towerEvents: TowerKilledMessage[];
+  impactEvents: ImpactEvent[];
+  newImpacts: TilePos[];
 }
 
 /** Cannon barrel rotation speed: 3π rad/s ≈ 540°/s.
@@ -183,13 +192,207 @@ export function aimCannons(
 }
 
 /**
- * Update all cannonballs. Move them toward their target. On arrival, apply damage.
- * Returns impact positions (for visual effects) and detailed events (for network relay).
+ * Per-frame battle tick: runs grunt tower attacks then advances cannonballs.
+ *
+ * Load-bearing event order (do not split or reorder):
+ *   1. gruntAttackTowers — emits tower kill/damage events
+ *   2. tickCannonballs   — emits impact events + visual impact positions
+ *
+ * Caller is responsible for collecting controller `fireEvents` *before* calling
+ * this; those depend on controller ticks producing new cannonballs first.
  */
-export function tickCannonballs(
+export function tickBattleCombat(
   state: GameState,
   dt: number,
-): CannonballUpdateResult {
+): BattleCombatResult {
+  const towerEvents = gruntAttackTowers(state, dt);
+  const { impacts: newImpacts, events: impactEvents } = tickCannonballs(
+    state,
+    dt,
+  );
+  return { towerEvents, impactEvents, newImpacts };
+}
+
+/**
+ * Resolve all placed propaganda balloons at the CANNON_PLACE → BATTLE transition.
+ * For each balloon, find the "most dangerous" enemy cannon and capture it.
+ * Returns flight paths for animation.
+ *
+ * Balloon hit lifecycle (persistent counts, per-battle capturers):
+ *   - cannon.balloonHits accumulates across battles — a cannon that
+ *     survives multiple rounds keeps its prior hit count toward capture.
+ *   - cannon.balloonCapturerIds tracks which players contributed hits
+ *     THIS battle only — cleared each round by cleanupBalloonHitTrackingAfterBattle()
+ *     so only the deciding battle's contributors can claim the capture.
+ *   - Fields are cleared when a cannon is captured or destroyed.
+ */
+export function resolveBalloons(state: GameState): BalloonFlight[] {
+  const flights: BalloonFlight[] = [];
+  const allBalloons = collectAllBalloons(state);
+  const thisRoundTargets = new Map<Cannon, { victimId: ValidPlayerSlot }>();
+  const balloonCountPerTarget = new Map<Cannon, number>();
+
+  // Assign each balloon to a target (deferred to avoid double-counting)
+  const assignments: {
+    balloon: Cannon;
+    ownerId: number;
+    target: Cannon;
+    victimId: ValidPlayerSlot;
+  }[] = [];
+
+  for (const { balloon, ownerId } of allBalloons) {
+    const best = findBestBalloonTarget(state, ownerId, balloonCountPerTarget);
+    if (best) {
+      balloonCountPerTarget.set(
+        best.cannon,
+        (balloonCountPerTarget.get(best.cannon) ?? 0) + 1,
+      );
+      assignments.push({
+        balloon,
+        ownerId,
+        target: best.cannon,
+        victimId: best.victimId,
+      });
+    }
+  }
+
+  // Apply hit updates and build flight animations
+  for (const { balloon, ownerId, target, victimId } of assignments) {
+    target.balloonHits = (target.balloonHits ?? 0) + 1;
+    const capturerIds = target.balloonCapturerIds ?? [];
+    if (!capturerIds.includes(ownerId)) capturerIds.push(ownerId);
+    target.balloonCapturerIds = capturerIds;
+    thisRoundTargets.set(target, { victimId });
+
+    const start = cannonCenter(balloon);
+    const end = cannonCenter(target);
+    flights.push({
+      startX: start.x,
+      startY: start.y,
+      endX: end.x,
+      endY: end.y,
+    });
+  }
+
+  resolveBalloonCaptures(state, thisRoundTargets);
+  return flights;
+}
+
+/** Clean up balloon hit tracking at the end of a battle round.
+ *
+ *  Order is load-bearing:
+ *  1. Delete captured cannons (fully resolved — no longer need tracking)
+ *  2. Delete destroyed cannons (dead target — hits are moot)
+ *  3. Clear capturerIds on survivors (hit count persists, but next battle
+ *     must earn its own capturer credit)
+ *
+ *  Reordering breaks invariant: clearing capturerIds before deleting captured
+ *  would leave stale entries; deleting destroyed before captured would miss
+ *  cannons that died from capture-related combat this round.
+ */
+export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
+  // 1. Clear balloon state on captured cannons (capture is resolved)
+  for (const captured of state.capturedCannons) {
+    captured.cannon.balloonHits = undefined;
+    captured.cannon.balloonCapturerIds = undefined;
+  }
+
+  // 2. Clear balloon state on destroyed cannons (no longer targetable)
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (!isCannonAlive(cannon)) {
+        cannon.balloonHits = undefined;
+        cannon.balloonCapturerIds = undefined;
+      }
+    }
+  }
+
+  // 3. Clear capturerIds on survivors — hit count persists across battles,
+  //    but only the deciding battle's contributors can claim a capture
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (cannon.balloonCapturerIds) cannon.balloonCapturerIds = undefined;
+    }
+  }
+}
+
+/** Snapshot per-player territory (interior + walls) for battle rendering. */
+export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
+  return players.map((player) => {
+    const combined = new Set(getInterior(player));
+    for (const key of player.walls) combined.add(key);
+    return combined;
+  });
+}
+
+/**
+ * Fire the next ready cannon in round-robin order and return the result.
+ * Combines nextReadyCombined lookup + fire dispatch into a single call.
+ * @param rotationIdx — current round-robin position (null = start from 0)
+ * @returns fired result with updated rotation index, or null if no cannon ready.
+ */
+export function fireNextReadyCannon(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  rotationIdx: number | undefined,
+  targetRow: number,
+  targetCol: number,
+): { result: CombinedCannonResult; rotationIdx: number } | null {
+  const result = nextReadyCombined(state, playerId, rotationIdx);
+  if (!result) return null;
+  if (result.type === "own") {
+    fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
+  } else {
+    fireSingleCaptured(state, result.captured, targetRow, targetCol);
+  }
+  return { result, rotationIdx: result.combinedIdx };
+}
+
+/**
+ * Round-robin through own cannons + captured cannons (captured appended at end).
+ * Returns the next ready cannon after `after` in the combined index space, or null.
+ */
+export function nextReadyCombined(
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+    readonly cannonballs: readonly Cannonball[];
+  },
+  playerId: ValidPlayerSlot,
+  after?: number,
+): CombinedCannonResult | null {
+  const player = state.players[playerId];
+  if (!player) return null;
+  const ownCount = player.cannons.length;
+  const captured = state.capturedCannons.filter(
+    (captured) => captured.capturerId === playerId,
+  );
+  const total = ownCount + captured.length;
+  if (total === 0) return null;
+
+  const start = after === undefined ? 0 : (after + 1) % total;
+  for (let j = 0; j < total; j++) {
+    const i = (start + j) % total;
+    if (i < ownCount) {
+      if (canFireOwnCannon(state, playerId, i)) {
+        return { type: "own", combinedIdx: i, ownIdx: i };
+      }
+    } else {
+      const cannon = captured[i - ownCount]!;
+      if (canFireCapturedCannon(state, cannon)) {
+        return { type: "captured", combinedIdx: i, captured: cannon };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Update all cannonballs. Move them toward their target. On arrival, apply damage.
+ * Returns impact positions (for visual effects) and detailed events (for network relay).
+ *
+ * Private to battle-system — call `tickBattleCombat` from outside this file.
+ */
+function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   const impacts: TilePos[] = [];
   const events: ImpactEvent[] = [];
   const remaining: Cannonball[] = [];
@@ -438,179 +641,6 @@ export function applyImpactEvent(
       break;
     }
   }
-}
-
-/**
- * Resolve all placed propaganda balloons at the CANNON_PLACE → BATTLE transition.
- * For each balloon, find the "most dangerous" enemy cannon and capture it.
- * Returns flight paths for animation.
- *
- * Balloon hit lifecycle (persistent counts, per-battle capturers):
- *   - cannon.balloonHits accumulates across battles — a cannon that
- *     survives multiple rounds keeps its prior hit count toward capture.
- *   - cannon.balloonCapturerIds tracks which players contributed hits
- *     THIS battle only — cleared each round by cleanupBalloonHitTrackingAfterBattle()
- *     so only the deciding battle's contributors can claim the capture.
- *   - Fields are cleared when a cannon is captured or destroyed.
- */
-export function resolveBalloons(state: GameState): BalloonFlight[] {
-  const flights: BalloonFlight[] = [];
-  const allBalloons = collectAllBalloons(state);
-  const thisRoundTargets = new Map<Cannon, { victimId: ValidPlayerSlot }>();
-  const balloonCountPerTarget = new Map<Cannon, number>();
-
-  // Assign each balloon to a target (deferred to avoid double-counting)
-  const assignments: {
-    balloon: Cannon;
-    ownerId: number;
-    target: Cannon;
-    victimId: ValidPlayerSlot;
-  }[] = [];
-
-  for (const { balloon, ownerId } of allBalloons) {
-    const best = findBestBalloonTarget(state, ownerId, balloonCountPerTarget);
-    if (best) {
-      balloonCountPerTarget.set(
-        best.cannon,
-        (balloonCountPerTarget.get(best.cannon) ?? 0) + 1,
-      );
-      assignments.push({
-        balloon,
-        ownerId,
-        target: best.cannon,
-        victimId: best.victimId,
-      });
-    }
-  }
-
-  // Apply hit updates and build flight animations
-  for (const { balloon, ownerId, target, victimId } of assignments) {
-    target.balloonHits = (target.balloonHits ?? 0) + 1;
-    const capturerIds = target.balloonCapturerIds ?? [];
-    if (!capturerIds.includes(ownerId)) capturerIds.push(ownerId);
-    target.balloonCapturerIds = capturerIds;
-    thisRoundTargets.set(target, { victimId });
-
-    const start = cannonCenter(balloon);
-    const end = cannonCenter(target);
-    flights.push({
-      startX: start.x,
-      startY: start.y,
-      endX: end.x,
-      endY: end.y,
-    });
-  }
-
-  resolveBalloonCaptures(state, thisRoundTargets);
-  return flights;
-}
-
-/** Clean up balloon hit tracking at the end of a battle round.
- *
- *  Order is load-bearing:
- *  1. Delete captured cannons (fully resolved — no longer need tracking)
- *  2. Delete destroyed cannons (dead target — hits are moot)
- *  3. Clear capturerIds on survivors (hit count persists, but next battle
- *     must earn its own capturer credit)
- *
- *  Reordering breaks invariant: clearing capturerIds before deleting captured
- *  would leave stale entries; deleting destroyed before captured would miss
- *  cannons that died from capture-related combat this round.
- */
-export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
-  // 1. Clear balloon state on captured cannons (capture is resolved)
-  for (const captured of state.capturedCannons) {
-    captured.cannon.balloonHits = undefined;
-    captured.cannon.balloonCapturerIds = undefined;
-  }
-
-  // 2. Clear balloon state on destroyed cannons (no longer targetable)
-  for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon)) {
-        cannon.balloonHits = undefined;
-        cannon.balloonCapturerIds = undefined;
-      }
-    }
-  }
-
-  // 3. Clear capturerIds on survivors — hit count persists across battles,
-  //    but only the deciding battle's contributors can claim a capture
-  for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (cannon.balloonCapturerIds) cannon.balloonCapturerIds = undefined;
-    }
-  }
-}
-
-/** Snapshot per-player territory (interior + walls) for battle rendering. */
-export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
-  return players.map((player) => {
-    const combined = new Set(getInterior(player));
-    for (const key of player.walls) combined.add(key);
-    return combined;
-  });
-}
-
-/**
- * Fire the next ready cannon in round-robin order and return the result.
- * Combines nextReadyCombined lookup + fire dispatch into a single call.
- * @param rotationIdx — current round-robin position (null = start from 0)
- * @returns fired result with updated rotation index, or null if no cannon ready.
- */
-export function fireNextReadyCannon(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-  rotationIdx: number | undefined,
-  targetRow: number,
-  targetCol: number,
-): { result: CombinedCannonResult; rotationIdx: number } | null {
-  const result = nextReadyCombined(state, playerId, rotationIdx);
-  if (!result) return null;
-  if (result.type === "own") {
-    fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
-  } else {
-    fireSingleCaptured(state, result.captured, targetRow, targetCol);
-  }
-  return { result, rotationIdx: result.combinedIdx };
-}
-
-/**
- * Round-robin through own cannons + captured cannons (captured appended at end).
- * Returns the next ready cannon after `after` in the combined index space, or null.
- */
-export function nextReadyCombined(
-  state: GameViewState & {
-    readonly capturedCannons: readonly CapturedCannon[];
-    readonly cannonballs: readonly Cannonball[];
-  },
-  playerId: ValidPlayerSlot,
-  after?: number,
-): CombinedCannonResult | null {
-  const player = state.players[playerId];
-  if (!player) return null;
-  const ownCount = player.cannons.length;
-  const captured = state.capturedCannons.filter(
-    (captured) => captured.capturerId === playerId,
-  );
-  const total = ownCount + captured.length;
-  if (total === 0) return null;
-
-  const start = after === undefined ? 0 : (after + 1) % total;
-  for (let j = 0; j < total; j++) {
-    const i = (start + j) % total;
-    if (i < ownCount) {
-      if (canFireOwnCannon(state, playerId, i)) {
-        return { type: "own", combinedIdx: i, ownIdx: i };
-      }
-    } else {
-      const cannon = captured[i - ownCount]!;
-      if (canFireCapturedCannon(state, cannon)) {
-        return { type: "captured", combinedIdx: i, captured: cannon };
-      }
-    }
-  }
-  return null;
 }
 
 /**

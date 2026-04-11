@@ -7,7 +7,6 @@ import {
   diffNewWalls,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
-  gruntAttackTowers,
   isCeasefireActive,
   nextPhase,
   nextReadyCombined,
@@ -16,7 +15,7 @@ import {
   resetCannonFacings,
   resolveBalloons,
   snapshotThenFinalize,
-  tickCannonballs,
+  tickBattleCombat,
   tickGrunts,
   tickMasterBuilderLockout,
 } from "../game/index.ts";
@@ -577,9 +576,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Event collection order (LOAD-BEARING — do not reorder):
     //   1. Tick controllers → fire events (new cannonballs from battleTick)
-    //   2. Tower kill/damage events (gruntAttackTowers)
-    //   3. Cannonball impacts (tickCannonballs)
-    // Steps 1→3 are sequential — each depends on state produced by the prior.
+    //   2. tickBattleCombat → tower kills + cannonball impacts
+    // Step 2 depends on state produced by step 1.
 
     // Step 1: tick controllers → fire events
     const ballsBefore = state.cannonballs.length;
@@ -592,11 +590,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
     }
 
-    // Step 2: tower kill/damage events
-    const towerEvents = gruntAttackTowers(state, dt);
-
-    // Step 3: advance cannonballs → impact events
-    const { impacts: newImpacts, events: impactEvents } = tickCannonballs(
+    // Step 2: tower kills + cannonball impacts (load-bearing internal order)
+    const { towerEvents, impactEvents, newImpacts } = tickBattleCombat(
       state,
       dt,
     );

@@ -13,7 +13,7 @@ export {
   nextReadyCombined,
   resolveBalloons,
   snapshotTerritory,
-  tickCannonballs,
+  tickBattleCombat,
 } from "./battle-system.ts";
 export {
   buildTimerMax,
@@ -64,7 +64,6 @@ export {
   snapshotAndFinalizeForCannonPhase,
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
-export { gruntAttackTowers } from "./grunt-system.ts";
 export { generateMap } from "./map-generation.ts";
 export {
   capturePrevBattleScene,
