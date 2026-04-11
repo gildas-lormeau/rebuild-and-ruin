@@ -1,9 +1,6 @@
 import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
-import {
-  MORTAR_SPEED_MULT,
-  RAPID_FIRE_SPEED_MULT,
-} from "../shared/game-constants.ts";
+import { MORTAR_SPEED_MULT } from "../shared/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import { type ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -37,7 +34,7 @@ import {
   masterBuilderTick,
   masterBuilderTimerBonus,
 } from "./upgrades/master-builder.ts";
-import { rapidFireOwns } from "./upgrades/rapid-fire.ts";
+import { rapidFireBallMult, rapidFireOwns } from "./upgrades/rapid-fire.ts";
 import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
 import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
@@ -73,8 +70,7 @@ export function ballSpeedMult(player: Player, isMortar: boolean): number {
   const hasRapidFire = rapidFireOwns(player);
   if (isMortar && hasRapidFire) return 1;
   if (isMortar) return MORTAR_SPEED_MULT;
-  if (hasRapidFire) return RAPID_FIRE_SPEED_MULT;
-  return 1;
+  return rapidFireBallMult(player);
 }
 
 /** True when a wall hit should be absorbed (wall survives this shot).

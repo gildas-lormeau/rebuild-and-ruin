@@ -4,13 +4,11 @@
  */
 
 import {
+  buildTimerBonus,
   enterCannonPhase,
   finalizeAndEnterCannonPhase,
 } from "../game/index.ts";
-import {
-  BATTLE_TIMER,
-  MASTER_BUILDER_BONUS_SECONDS,
-} from "../shared/game-constants.ts";
+import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated } from "../shared/player-types.ts";
@@ -108,10 +106,7 @@ export function syncAccumulatorsFromTimer(
   accum.selectAnnouncement = 0;
 
   if (state.phase === Phase.WALL_BUILD) {
-    const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
-    const buildMax =
-      state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
-    accum.build = buildMax - state.timer;
+    accum.build = state.buildTimer + buildTimerBonus(state) - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE) {
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {

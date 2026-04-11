@@ -73,6 +73,7 @@ export {
 } from "./selection.ts";
 export {
   applyUpgradePicks,
+  buildTimerBonus,
   canBuildThisFrame,
   shouldSkipBattle,
 } from "./upgrade-system.ts";

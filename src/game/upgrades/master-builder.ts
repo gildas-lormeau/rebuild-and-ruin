@@ -12,11 +12,16 @@
  */
 
 import { FID } from "../../shared/feature-defs.ts";
-import { MASTER_BUILDER_BONUS_SECONDS } from "../../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../../shared/player-slot.ts";
 import { isPlayerAlive } from "../../shared/player-types.ts";
 import { type GameState, hasFeature } from "../../shared/types.ts";
 import { UID } from "../../shared/upgrade-defs.ts";
+
+/** Extra build seconds granted by Master Builder. With 1 owner, that owner
+ *  gets these seconds as an exclusive head-start (others locked out). With
+ *  2+ owners, the bonus is added to everyone's timer (cancels out
+ *  competitively, no lockout). Internal: callers go through the dispatcher. */
+const MASTER_BUILDER_BONUS_SECONDS = 5;
 
 /** Configure Master Builder state at the start of a build phase.
  *  - 1 owner  → that player gets an exclusive head-start; others are locked out

@@ -6,9 +6,13 @@
  */
 
 import { FID } from "../../shared/feature-defs.ts";
-import { DOUBLE_TIME_BONUS_SECONDS } from "../../shared/game-constants.ts";
 import { type GameState, hasFeature } from "../../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/upgrade-defs.ts";
+
+/** Extra build seconds granted by Double Time (global — applies to every
+ *  player when any single owner picks it). Internal: callers go through
+ *  the dispatcher. */
+const DOUBLE_TIME_BONUS_SECONDS = 10;
 
 /** Build timer bonus contributed by Double Time — global: any owner grants
  *  the bonus to every player's build phase. */

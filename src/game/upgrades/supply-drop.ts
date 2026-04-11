@@ -5,9 +5,11 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import { SUPPLY_DROP_BONUS } from "../../shared/game-constants.ts";
 import type { Player } from "../../shared/player-types.ts";
 import { UID } from "../../shared/upgrade-defs.ts";
+
+/** Extra cannon slots granted by Supply Drop. */
+const SUPPLY_DROP_BONUS = 2;
 
 /** Extra cannon slots granted by Supply Drop for this player. */
 export function supplyDropCannonSlotsBonus(player: Player): number {

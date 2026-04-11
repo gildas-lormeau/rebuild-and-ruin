@@ -19,6 +19,7 @@ import {
   BURNING_PIT_DURATION,
   FIRST_GRUNT_SPAWN_ROUND,
   MODIFIER_FIRST_ROUND,
+  MODIFIER_ID,
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
 } from "../shared/game-constants.ts";
@@ -80,6 +81,8 @@ const SINKHOLE_MIN_SIZE = 2;
 const SINKHOLE_MAX_SIZE = 4;
 /** Sinkhole: cumulative cap across all rounds (prevents excessive map destruction). */
 const SINKHOLE_MAX_TOTAL = 36;
+/** Maximum trajectory jitter (degrees) applied by Dust Storm. */
+const DUST_STORM_JITTER_DEG = 15;
 const SINKHOLE_SHAPES: ReadonlyMap<number, readonly SinkholeShape[]> = new Map([
   [
     2,
@@ -141,6 +144,35 @@ const SINKHOLE_SHAPES: ReadonlyMap<number, readonly SinkholeShape[]> = new Map([
     ],
   ],
 ]);
+
+/** Apply Dust Storm trajectory jitter to a target offset. Returns the
+ *  perturbed (x, y) world position when Dust Storm is active, or the
+ *  original target unchanged otherwise. RNG is consumed only when the
+ *  modifier is active and the target is non-degenerate — preserving
+ *  determinism with the original inline implementation. */
+export function applyDustStormJitter(
+  state: GameState,
+  startX: number,
+  startY: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  if (state.modern?.activeModifier !== MODIFIER_ID.DUST_STORM) {
+    return { x: targetX, y: targetY };
+  }
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) return { x: targetX, y: targetY };
+  const jitterRad =
+    ((state.rng.next() * 2 - 1) * DUST_STORM_JITTER_DEG * Math.PI) / 180;
+  const cosJ = Math.cos(jitterRad);
+  const sinJ = Math.sin(jitterRad);
+  return {
+    x: startX + (dx * cosJ - dy * sinJ),
+    y: startY + (dx * sinJ + dy * cosJ),
+  };
+}
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */

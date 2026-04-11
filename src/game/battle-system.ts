@@ -30,9 +30,7 @@ import {
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
-  DUST_STORM_JITTER_DEG,
   HOUSE_GRUNT_SPAWN_CHANCE,
-  MODIFIER_ID,
   RAMPART_SHIELD_RADIUS,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
@@ -77,6 +75,7 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
+import { applyDustStormJitter } from "./round-modifiers.ts";
 import { ballSpeedMult, shouldAbsorbWallHit } from "./upgrade-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
@@ -780,22 +779,15 @@ function launchCannonball(
   scoringPlayerId?: ValidPlayerSlot,
 ): void {
   const { x: startX, y: startY } = cannonCenter(cannon);
-  let finalTargetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
-  let finalTargetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
-  // Dust Storm: apply random angle jitter to the trajectory
-  if (state.modern?.activeModifier === MODIFIER_ID.DUST_STORM) {
-    const dx = finalTargetX - startX;
-    const dy = finalTargetY - startY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > 0) {
-      const jitterRad =
-        ((state.rng.next() * 2 - 1) * DUST_STORM_JITTER_DEG * Math.PI) / 180;
-      const cosJ = Math.cos(jitterRad);
-      const sinJ = Math.sin(jitterRad);
-      finalTargetX = startX + (dx * cosJ - dy * sinJ);
-      finalTargetY = startY + (dx * sinJ + dy * cosJ);
-    }
-  }
+  const initialTargetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
+  const initialTargetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
+  const { x: finalTargetX, y: finalTargetY } = applyDustStormJitter(
+    state,
+    startX,
+    startY,
+    initialTargetX,
+    initialTargetY,
+  );
   cannon.facing = computeFacing45(startX, startY, finalTargetX, finalTargetY);
   const isMortar = !!cannon.mortar;
   const speedMult = ballSpeedMult(state.players[playerId]!, isMortar);

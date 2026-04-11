@@ -44,8 +44,6 @@ export const GAME_MODE_MODERN: GameMode = "modern";
 export const MODIFIER_FIRST_ROUND = 3;
 /** Probability that any modifier fires on an eligible round. */
 export const MODIFIER_ROLL_CHANCE = 0.65;
-/** Maximum trajectory jitter (degrees) applied by the Dust Storm modifier. */
-export const DUST_STORM_JITTER_DEG = 15;
 export const CANNON_MAX_HP = 3;
 /** Size of a normal cannon in tiles (2x2). */
 export const NORMAL_CANNON_SIZE = 2;
@@ -194,16 +192,8 @@ export const DIFFICULTY_PARAMS = [
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
 ];
-/** Extra build seconds granted by the Master Builder upgrade. */
-export const MASTER_BUILDER_BONUS_SECONDS = 5;
-/** Extra build seconds granted by the Double Time upgrade. */
-export const DOUBLE_TIME_BONUS_SECONDS = 10;
-/** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
-export const RAPID_FIRE_SPEED_MULT = 1.5;
 /** Mortar cannonball speed multiplier (half speed). */
 export const MORTAR_SPEED_MULT = 0.5;
-/** Extra cannon slots granted by the Supply Drop upgrade. */
-export const SUPPLY_DROP_BONUS = 2;
 /** Haptics/sound level encoding shared across settings UI and subsystems.
  *  0=off, 1=phase changes only, 2=all. */
 // HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)
