@@ -10,10 +10,10 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { packTile } from "../../shared/spatial.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { packTile } from "../../shared/core/spatial.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Extinguish any burning pits that now lie under the just-placed piece.
  *  No-op when the player doesn't own Foundations. Mutates state.burningPits. */

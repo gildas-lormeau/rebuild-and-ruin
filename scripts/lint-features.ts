@@ -25,11 +25,11 @@ import {
   featureDef,
   type FeatureId,
   IMPLEMENTED_FEATURES,
-} from "../src/shared/feature-defs.ts";
+} from "../src/shared/core/feature-defs.ts";
 
 const ROOT = process.cwd();
 const CATALOG_PATH = join(ROOT, ".feature-catalog.json");
-const FEATURE_DEFS_PATH = join(ROOT, "src/shared/feature-defs.ts");
+const FEATURE_DEFS_PATH = join(ROOT, "src/shared/core/feature-defs.ts");
 
 interface CatalogFeature {
   consumers: Record<string, string>;

@@ -19,12 +19,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { modifierDef, IMPLEMENTED_MODIFIERS } from "../src/shared/modifier-defs.ts";
-import type { ModifierId } from "../src/shared/game-constants.ts";
+import {
+  IMPLEMENTED_MODIFIERS,
+  modifierDef,
+} from "../src/shared/core/modifier-defs.ts";
+import type { ModifierId } from "../src/shared/core/game-constants.ts";
 
 const ROOT = process.cwd();
 const CATALOG_PATH = join(ROOT, ".modifier-catalog.json");
-const CONSTANTS_PATH = join(ROOT, "src/shared/game-constants.ts");
+const CONSTANTS_PATH = join(ROOT, "src/shared/core/game-constants.ts");
 
 interface CatalogEntry {
   stateField?: string;

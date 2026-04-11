@@ -299,13 +299,13 @@ sufficient for LLM agents to follow correctly.
     after touchend.
 
 32. **`towerPendingRevive` naming is correct — "pending" means awaiting a condition** —
-    shared/types.ts:251 JSDoc explains the two-phase rule. game/build-system.ts:452-454 JSDoc on
+    shared/core/types.ts:251 JSDoc explains the two-phase rule. game/build-system.ts:452-454 JSDoc on
     `reviveEnclosedTowers` documents the mechanic. CLAUDE.md line 40 repeats it.
     "Pending" = awaiting one more build phase of enclosure, not awaiting user action.
     Do not rename to `towersAwaitingRevive` or `towersEligibleForRevive`.
 
 33. **`FreshInterior` vs `ReadonlySet<number>` for interior is intentional** —
-    `FreshInterior` (branded type, shared/types.ts:151) proves the interior was recomputed
+    `FreshInterior` (branded type, shared/core/types.ts:151) proves the interior was recomputed
     after the last wall mutation. `ReadonlySet<number>` is used in AI build code
     (ai/ai-build-types.ts, ai/ai-build-target.ts, ai/ai-castle-rect.ts) for simulated/hypothetical
     interiors constructed during candidate scoring. Do not unify — branding simulated
@@ -316,14 +316,14 @@ sufficient for LLM agents to follow correctly.
     destructures only frequently-used deps at the top; rarely-used deps are accessed
     inline as `deps.X`. The inconsistency reflects actual usage, not drift.
 
-35. **`comboTracker` lifecycle is transient during battle** — shared/types.ts:281 JSDoc says
+35. **`comboTracker` lifecycle is transient during battle** — shared/core/types.ts:281 JSDoc says
     "transient during battle, not serialized". Created in `enterBattleFromCannon`
     (game/phase-setup.ts:273), nulled after awarding bonuses in `enterBuildFromBattle`
     (game/phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
     null checks at all access sites. Do not report the lifecycle as undocumented.
 
 36. **Modifier and cannon mode registries use compile-time exhaustiveness checks** —
-    shared/modifier-defs.ts and shared/cannon-mode-defs.ts follow the same PoolComplete
+    shared/core/modifier-defs.ts and shared/core/cannon-mode-defs.ts follow the same PoolComplete
     pattern as upgrade-defs.ts. Adding a ModifierId or CannonMode value without a pool
     entry is a compile error. Labels, weights, sizes, and costs live in the pool entries.
 
@@ -342,7 +342,7 @@ sufficient for LLM agents to follow correctly.
     online/online-host-promotion.ts:111 inline comment explains the idiom.
 
 40. **Preset option sets for collectOccupiedTiles are documented** —
-    shared/board-occupancy.ts:50-52 explains the preset pattern and its relationship
+    shared/core/board-occupancy.ts:50-52 explains the preset pattern and its relationship
     to the collectOccupiedTiles function.
 
 41. **`victimPlayerId` naming reflects the grunt's perspective** —
@@ -377,7 +377,7 @@ sufficient for LLM agents to follow correctly.
     documents G4=392, C5=523, E5=659, G5=784 Hz.
 
 50. **isCannonPhaseDone measures different things per controller type** —
-    shared/system-interfaces.ts:129-130 JSDoc documents that Human checks remaining
+    shared/core/system-interfaces.ts:129-130 JSDoc documents that Human checks remaining
     slots, AI checks internal phase step. Both are correct.
 
 51. **Canvas coordinate spaces documented in render/render-effects.ts** —
@@ -417,11 +417,11 @@ sufficient for LLM agents to follow correctly.
     Web Audio public methods guard at entry, internal helpers rely on caller guard.
 
 60. **Upgrade weight constants (WEIGHT_COMMON/UNCOMMON/RARE)** —
-    shared/upgrade-defs.ts:51-54 defines WEIGHT_COMMON=3, WEIGHT_UNCOMMON=2, WEIGHT_RARE=1.
+    shared/core/upgrade-defs.ts:51-54 defines WEIGHT_COMMON=3, WEIGHT_UNCOMMON=2, WEIGHT_RARE=1.
     All UPGRADE_POOL entries use these constants.
 
 61. **poolComplete compile-time exhaustiveness check** —
-    shared/upgrade-defs.ts:42-49 JSDoc explains the PoolIds/PoolComplete pattern and the
+    shared/core/upgrade-defs.ts:42-49 JSDoc explains the PoolIds/PoolComplete pattern and the
     `void poolComplete` idiom for suppressing unused-variable warnings.
 
 62. **Cannon boom voice mix ratios and named frequency constants** —
@@ -445,7 +445,7 @@ sufficient for LLM agents to follow correctly.
     constants. Reordering one without the other silently breaks UI display.
 
 67. **`excludeBalloonCannons` is the canonical parameter name** —
-    shared/board-occupancy.ts uses `excludeBalloonCannons` consistently across all public
+    shared/core/board-occupancy.ts uses `excludeBalloonCannons` consistently across all public
     and internal functions. Do not use the abbreviation `excludeBalloon`.
 
 68. **`REMOTE_CROSSHAIR_MULTIPLIER` follows the `_MULTIPLIER` suffix convention** —
@@ -547,7 +547,7 @@ sufficient for LLM agents to follow correctly.
     Moved alongside its constructor `packTile()`. Only `spatial.ts` produces TileKey values.
 
 88. **Interior freshness epoch tracking contract is documented at module level** —
-    shared/board-occupancy.ts:22-35 documents the lazy-init pattern, call sequence
+    shared/core/board-occupancy.ts:22-35 documents the lazy-init pattern, call sequence
     (markWallsDirty → recomputeInterior → assertInteriorFresh), and battle exception.
 
 89. **Dialog callback patterns documented with decision table** —
@@ -627,13 +627,13 @@ sufficient for LLM agents to follow correctly.
     other fails the build with a clear error. Use `SERVER_ONLY_PHASE.LOBBY` /
     `.CASTLE_BUILD` instead of string literals at assignment sites.
 
-104. **`SOUND_OFF` is exported from shared/game-constants.ts** — no longer
+104. **`SOUND_OFF` is exported from shared/core/game-constants.ts** — no longer
     duplicated in shared/player-config.ts. The full ladder (SOUND_OFF,
     SOUND_PHASE_ONLY, SOUND_ALL) is all in game-constants; HAPTICS_OFF remains
     implicit (checked via `>= HAPTICS_PHASE_ONLY`).
 
 105. **`Cannonball.scoringPlayerId` is `ValidPlayerSlot | undefined`** —
-    shared/battle-types.ts narrowed it from raw `number` to match the sibling
+    shared/core/battle-types.ts narrowed it from raw `number` to match the sibling
     `playerId: ValidPlayerSlot` field. shared/net/protocol.ts wire format and
     game/battle-system.ts launchCannonball parameter agree. Do not widen back
     to `number` — the brand prevents accidental use of non-slot indices.

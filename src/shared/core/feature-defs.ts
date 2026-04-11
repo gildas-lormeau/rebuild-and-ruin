@@ -9,7 +9,7 @@
  *   4. Add hasFeature() guards in consumer files (see list below)
  *
  * Consumer files to update for a new feature:
- *   - src/shared/types.ts — ModernState fields (if feature needs persistent state)
+ *   - src/shared/core/types.ts — ModernState fields (if feature needs persistent state)
  *   - src/game/phase-setup.ts — phase transition guards
  *   - src/game/combo-system.ts — if feature affects scoring
  *   - src/game/round-modifiers.ts — if feature is an environmental modifier

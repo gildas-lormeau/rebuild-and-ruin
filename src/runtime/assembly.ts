@@ -1,13 +1,16 @@
-import { MAX_FRAME_DT } from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import { MAX_FRAME_DT } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
   InputReceiver,
   PlayerController,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import { createEmptyFrameData } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

@@ -5,8 +5,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Territory score multiplier contributed by Territorial Ambition. */
 export function territorialAmbitionScoreMult(player: Player): number {

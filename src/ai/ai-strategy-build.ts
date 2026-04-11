@@ -11,12 +11,12 @@
  */
 
 import { canPlacePiece } from "../game/index.ts";
-import { getInterior, hasGruntAt } from "../shared/board-occupancy.ts";
-import type { Castle, TileRect, Tower } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import { type PieceShape, rotateCW } from "../shared/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { Player } from "../shared/player-types.ts";
+import { getInterior, hasGruntAt } from "../shared/core/board-occupancy.ts";
+import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
   DIRS_4,
@@ -28,8 +28,8 @@ import {
   packTile,
   towerReachesOutsideCardinal,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { BuildViewState } from "../shared/system-interfaces.ts";
+} from "../shared/core/spatial.ts";
+import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
   createsSmallEnclosure,
   memoize,

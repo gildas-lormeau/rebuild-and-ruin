@@ -7,15 +7,15 @@
 import {
   BATTLE_MESSAGE,
   type TowerKilledMessage,
-} from "../shared/battle-events.ts";
-import type { Grunt } from "../shared/battle-types.ts";
+} from "../shared/core/battle-events.ts";
+import type { Grunt } from "../shared/core/battle-types.ts";
 import {
   hasGruntAt,
   hasInteriorAt,
   hasWallAt,
   removeWallFromAllPlayers,
   zoneOwnerIdAt,
-} from "../shared/board-occupancy.ts";
+} from "../shared/core/board-occupancy.ts";
 import {
   FIRST_GRUNT_SPAWN_ROUND,
   GRUNT_ATTACK_DURATION,
@@ -23,16 +23,16 @@ import {
   GRUNT_WALL_ATTACK_MIN_BATTLES,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
-} from "../shared/game-constants.ts";
-import { GAME_EVENT } from "../shared/game-event-bus.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/game-constants.ts";
+import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
-} from "../shared/player-types.ts";
+} from "../shared/core/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -42,8 +42,8 @@ import {
   manhattanDistance,
   packTile,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   adjacentLivingTowerIndex,
   getDeadZones,

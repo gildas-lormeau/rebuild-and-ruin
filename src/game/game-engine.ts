@@ -13,9 +13,9 @@
  * Phase transition recipes live in phase-setup.ts.
  */
 
-import type { BalloonFlight } from "../shared/battle-types.ts";
-import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
+import type { BalloonFlight } from "../shared/core/battle-types.ts";
+import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
+import { EMPTY_FEATURES } from "../shared/core/feature-defs.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -26,18 +26,21 @@ import {
   type GameMode,
   type ModifierDiff,
   STARTING_LIVES,
-} from "../shared/game-constants.ts";
-import { createGameEventBus } from "../shared/game-event-bus.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { GameMap } from "../shared/geometry-types.ts";
-import { Rng } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
+} from "../shared/core/game-constants.ts";
+import { createGameEventBus } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import {
+  emptyFreshInterior,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   type GameState,
   type SelectionState,
   setGameMode,
-} from "../shared/types.ts";
+} from "../shared/core/types.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {

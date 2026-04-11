@@ -1,19 +1,19 @@
-import type { ImpactEvent } from "../shared/battle-events.ts";
-import type { Cannon } from "../shared/battle-types.ts";
-import { FID } from "../shared/feature-defs.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import { type ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerSeated, type Player } from "../shared/player-types.ts";
+import type { ImpactEvent } from "../shared/core/battle-events.ts";
+import type { Cannon } from "../shared/core/battle-types.ts";
+import { FID } from "../shared/core/feature-defs.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isPlayerSeated, type Player } from "../shared/core/player-types.ts";
 import {
   type GameState,
   hasFeature,
   type UpgradeOfferTuple,
-} from "../shared/types.ts";
-import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
+} from "../shared/core/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
   type UpgradeId,
-} from "../shared/upgrade-defs.ts";
+} from "../shared/core/upgrade-defs.ts";
+import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { architectWallOverlapAllowance } from "./upgrades/architect.ts";
 import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
 import { clearTheFieldOnPick } from "./upgrades/clear-the-field.ts";

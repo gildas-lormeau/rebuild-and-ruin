@@ -27,10 +27,10 @@
  */
 
 import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
-import type { ModifierId } from "../src/shared/game-constants.ts";
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import type { GameMap } from "../src/shared/geometry-types.ts";
-import { GRID_COLS, Tile } from "../src/shared/grid.ts";
+import type { ModifierId } from "../src/shared/core/game-constants.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import type { GameMap } from "../src/shared/core/geometry-types.ts";
+import { GRID_COLS, Tile } from "../src/shared/core/grid.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
 import {
   createScenario,

@@ -27,8 +27,8 @@ import { computeLobbyLayout } from "../src/render/render-composition.ts";
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_TIMER,
-} from "../src/shared/game-constants.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/grid.ts";
+} from "../src/shared/core/game-constants.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../src/shared/core/grid.ts";
 import {
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,

@@ -44,17 +44,17 @@ import {
   collectAllWalls,
   filterAliveOwnedTowers,
   sweepIsolatedWalls,
-} from "../shared/board-occupancy.ts";
-import { FID } from "../shared/feature-defs.ts";
+} from "../shared/core/board-occupancy.ts";
+import { FID } from "../shared/core/feature-defs.ts";
 import {
   BATTLE_TIMER,
   MODIFIER_ID,
   type ModifierDiff,
-} from "../shared/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import { Phase } from "../shared/game-phase.ts";
-import { modifierDef } from "../shared/modifier-defs.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
   emptyFreshInterior,
@@ -62,14 +62,14 @@ import {
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
-} from "../shared/player-types.ts";
+} from "../shared/core/player-types.ts";
 import {
   isBalloonCannon,
   packTile,
   setGrass,
   unpackTile,
-} from "../shared/spatial.ts";
-import { type GameState, hasFeature } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,

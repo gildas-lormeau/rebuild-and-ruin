@@ -6,8 +6,8 @@
  * on water" bugs are actually game-state bugs vs render bugs.
  */
 
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import { isWater } from "../src/shared/spatial.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { isWater } from "../src/shared/core/spatial.ts";
 import { createScenario } from "../test/scenario.ts";
 
 const args = Deno.args;

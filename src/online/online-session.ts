@@ -10,7 +10,12 @@ import {
   GAME_MODE_CLASSIC,
   type GameMode,
   LOBBY_TIMER,
-} from "../shared/game-constants.ts";
+} from "../shared/core/game-constants.ts";
+import {
+  type PlayerSlotId,
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import {
   createDedupChannel,
   type DedupChannel,
@@ -21,11 +26,6 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../shared/net/protocol.ts";
-import {
-  type PlayerSlotId,
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
 import type { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 
 export interface OnlineSession {

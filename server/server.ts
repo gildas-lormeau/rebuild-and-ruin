@@ -1,10 +1,10 @@
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import { MESSAGE, type RoomSettings } from "../src/shared/net/protocol.ts";
 import {
   API_ROOMS_PATH,
   HEALTH_PATH,
   WS_PLAY_PATH,
 } from "../src/shared/net/routes.ts";
-import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import { RoomManager } from "./room-manager.ts";
 

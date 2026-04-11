@@ -8,12 +8,11 @@
 import {
   collectOccupiedTiles,
   HOUSE_SPAWN_BLOCKED,
-} from "../shared/board-occupancy.ts";
-import { HOUSE_MIN_DISTANCE } from "../shared/game-constants.ts";
-import type { Castle, House, Tower } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
-import type { Rng } from "../shared/platform/rng.ts";
-import { isPlayerSeated } from "../shared/player-types.ts";
+} from "../shared/core/board-occupancy.ts";
+import { HOUSE_MIN_DISTANCE } from "../shared/core/game-constants.ts";
+import type { Castle, House, Tower } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import { isPlayerSeated } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
   forEachTowerTile,
@@ -23,8 +22,9 @@ import {
   manhattanDistance,
   packTile,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameState } from "../shared/core/types.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
 

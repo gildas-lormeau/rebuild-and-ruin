@@ -4,7 +4,7 @@
  * AI placement strategy lives in ai-strategy.ts.
  */
 
-import type { BurningPit, Grunt } from "../shared/battle-types.ts";
+import type { BurningPit, Grunt } from "../shared/core/battle-types.ts";
 import {
   addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
@@ -17,7 +17,7 @@ import {
   hasWallAt,
   isTileOwnedByPlayer,
   markInteriorFresh,
-} from "../shared/board-occupancy.ts";
+} from "../shared/core/board-occupancy.ts";
 import {
   BONUS_SQUARE_MIN_DISTANCE,
   BONUS_SQUARES_PER_ZONE,
@@ -26,18 +26,18 @@ import {
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
-} from "../shared/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
-import type { PieceShape } from "../shared/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import type { PieceShape } from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type FreshInterior,
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
-} from "../shared/player-types.ts";
+} from "../shared/core/player-types.ts";
 import {
   computeOutside,
   DIRS_8,
@@ -48,9 +48,9 @@ import {
   manhattanDistance,
   packTile,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { GameViewState } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {

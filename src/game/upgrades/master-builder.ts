@@ -11,11 +11,11 @@
  * outside the dispatcher — call sites use the semantic dispatcher functions.
  */
 
-import { FID } from "../../shared/feature-defs.ts";
-import type { ValidPlayerSlot } from "../../shared/player-slot.ts";
-import { isPlayerAlive } from "../../shared/player-types.ts";
-import { type GameState, hasFeature } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import { FID } from "../../shared/core/feature-defs.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../../shared/core/player-types.ts";
+import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Extra build seconds granted by Master Builder. With 1 owner, that owner
  *  gets these seconds as an exclusive head-start (others locked out). With

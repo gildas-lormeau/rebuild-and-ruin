@@ -20,15 +20,21 @@
  * observer property access is the only added overhead in the hot path.
  */
 
-import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
-import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/game-constants.ts";
-import { CAN_VIBRATE } from "../shared/platform/platform.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  BATTLE_MESSAGE,
+  type BattleEvent,
+} from "../shared/core/battle-events.ts";
+import {
+  HAPTICS_ALL,
+  HAPTICS_PHASE_ONLY,
+} from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   HapticReason,
   HapticsObserver,
   HapticsSystem,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
+import { CAN_VIBRATE } from "../shared/platform/platform.ts";
 
 /** Construction-time deps for the haptics sub-system. `observer` is the
  *  test seam — production callers omit it. */

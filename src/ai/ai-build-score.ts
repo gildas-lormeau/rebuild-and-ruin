@@ -5,9 +5,13 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
-import { computeCardinalObstacleMask } from "../shared/board-occupancy.ts";
-import type { TilePos, TileRect, Tower } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
+import { computeCardinalObstacleMask } from "../shared/core/board-occupancy.ts";
+import type {
+  TilePos,
+  TileRect,
+  Tower,
+} from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
 import {
   CORNERS_2X2,
   computeOutside,
@@ -15,8 +19,8 @@ import {
   isWater,
   packTile,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { BuildViewState } from "../shared/system-interfaces.ts";
+} from "../shared/core/spatial.ts";
+import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import type {
   AiPlacement,
   Candidate,

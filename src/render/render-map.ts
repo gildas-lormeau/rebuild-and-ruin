@@ -10,7 +10,7 @@
  *   - W/H: canvas dimensions in tile-space pixels (MAP_PX_W, MAP_PX_H)
  */
 
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
+import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -20,8 +20,8 @@ import {
   MAP_PX_W,
   SCALE,
   TILE_SIZE,
-} from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
   facingToDir8,
@@ -32,7 +32,7 @@ import {
   packTile,
   pxToTile,
   unpackTile,
-} from "../shared/spatial.ts";
+} from "../shared/core/spatial.ts";
 import type {
   CastleData,
   RenderObserver,

@@ -6,22 +6,22 @@ import {
   hasAnyCannonPlacement,
   placeCannon,
 } from "../game/index.ts";
-import { CannonMode } from "../shared/battle-types.ts";
+import { CannonMode } from "../shared/core/battle-types.ts";
 import {
   cannonModeDef,
   cannonModesForGame,
-} from "../shared/cannon-mode-defs.ts";
+} from "../shared/core/cannon-mode-defs.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
   MAP_PX_H,
   MAP_PX_W,
   TILE_SIZE,
-} from "../shared/grid.ts";
-import { rotateCW } from "../shared/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { type Player } from "../shared/player-types.ts";
-import { cannonSize } from "../shared/spatial.ts";
+} from "../shared/core/grid.ts";
+import { rotateCW } from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { type Player } from "../shared/core/player-types.ts";
+import { cannonSize } from "../shared/core/spatial.ts";
 import {
   type BattleViewState,
   type BuildViewState,
@@ -32,7 +32,7 @@ import {
   type InputReceiver,
   type PiecePlacementPreview,
   type PlacePieceIntent,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { BaseController } from "./controller-types.ts";

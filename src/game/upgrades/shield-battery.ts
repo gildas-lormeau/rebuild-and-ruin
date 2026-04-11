@@ -9,16 +9,19 @@
  * injected by cannon-system to avoid an L5 → L6 import cycle.
  */
 
-import { isPlayerEliminated, type Player } from "../../shared/player-types.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../../shared/core/player-types.ts";
 import {
   cannonSize,
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
   packTile,
-} from "../../shared/spatial.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+} from "../../shared/core/spatial.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Mark every cannon inside the home enclosed region as shielded.
  *  Skips dead cannons, balloons, and rampart cannons (which already

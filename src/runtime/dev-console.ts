@@ -1,5 +1,5 @@
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { GameState } from "../shared/types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   buildGrid,
   buildLegend,

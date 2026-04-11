@@ -1,14 +1,14 @@
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
+import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
+import type {
+  HapticsSystem,
+  SoundSystem,
+} from "../shared/core/system-interfaces.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../shared/platform/platform.ts";
-import type {
-  HapticsSystem,
-  SoundSystem,
-} from "../shared/system-interfaces.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,

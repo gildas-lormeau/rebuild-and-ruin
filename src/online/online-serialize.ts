@@ -11,14 +11,23 @@ import type {
   BalloonFlight,
   Cannon,
   Cannonball,
-} from "../shared/battle-types.ts";
-import { FID } from "../shared/feature-defs.ts";
+} from "../shared/core/battle-types.ts";
+import { FID } from "../shared/core/feature-defs.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
-} from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/grid.ts";
+} from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { Player } from "../shared/core/player-types.ts";
+import {
+  type GameState,
+  hasFeature,
+  setGameMode,
+  type UpgradeOfferTuple,
+} from "../shared/core/types.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   BattleStartData,
   SerializedGrunt,
@@ -27,15 +36,6 @@ import type {
 } from "../shared/net/checkpoint-data.ts";
 import { type FullStateMessage, MESSAGE } from "../shared/net/protocol.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { Player } from "../shared/player-types.ts";
-import {
-  type GameState,
-  hasFeature,
-  setGameMode,
-  type UpgradeOfferTuple,
-} from "../shared/types.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import { toCannonMode } from "./online-types.ts";
 
 interface FullStateResult {

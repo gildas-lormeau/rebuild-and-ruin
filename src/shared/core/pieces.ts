@@ -2,7 +2,7 @@
  * Tetris-like wall pieces for the repair/build phase.
  */
 
-import { Rng } from "./platform/rng.ts";
+import { Rng } from "../platform/rng.ts";
 
 export interface PieceShape {
   name: string;

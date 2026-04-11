@@ -58,17 +58,16 @@
  *   - `isStateReady(runtimeState)` → boolean guard
  */
 
-import type { BalloonFlight, Crosshair } from "../shared/battle-types.ts";
-import type { GameMap, Viewport, WorldPos } from "../shared/geometry-types.ts";
-import type { BattleStartData } from "../shared/net/checkpoint-data.ts";
+import type { BalloonFlight, Crosshair } from "../shared/core/battle-types.ts";
 import type {
-  CannonPhantom,
-  DedupChannel,
-  PiecePhantom,
-} from "../shared/net/phantom-types.ts";
-import type { GameMessage, ServerMessage } from "../shared/net/protocol.ts";
-import type { WatcherTimingState } from "../shared/net/tick-context.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+  GameMap,
+  Viewport,
+  WorldPos,
+} from "../shared/core/geometry-types.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import type {
   BattleController,
   BattleViewState,
@@ -82,8 +81,16 @@ import type {
   InputReceiver,
   SoundObserver,
   SoundSystem,
-} from "../shared/system-interfaces.ts";
-import type { GameState, SelectionState } from "../shared/types.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { GameState, SelectionState } from "../shared/core/types.ts";
+import type { BattleStartData } from "../shared/net/checkpoint-data.ts";
+import type {
+  CannonPhantom,
+  DedupChannel,
+  PiecePhantom,
+} from "../shared/net/phantom-types.ts";
+import type { GameMessage, ServerMessage } from "../shared/net/protocol.ts";
+import type { WatcherTimingState } from "../shared/net/tick-context.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
@@ -91,7 +98,7 @@ import type {
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
-export type { FrameContext } from "../shared/types.ts";
+export type { FrameContext } from "../shared/core/types";
 
 /** Summary of what happened at the end of a build phase. Built by the
  *  runtime, consumed by `OnlinePhaseTicks.broadcastBuildEnd` to construct

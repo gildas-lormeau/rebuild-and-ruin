@@ -4,20 +4,26 @@ import {
   tickGrunts as moveGrunts,
   nextReadyCombined,
 } from "../game/index.ts";
-import type { BattleAnimState } from "../shared/battle-types.ts";
-import { FID } from "../shared/feature-defs.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { PixelPos } from "../shared/geometry-types.ts";
+import type { BattleAnimState } from "../shared/core/battle-types.ts";
+import { FID } from "../shared/core/feature-defs.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { PixelPos } from "../shared/core/geometry-types.ts";
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+} from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  isHuman,
+  type PlayerController,
+} from "../shared/core/system-interfaces.ts";
+import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { MESSAGE } from "../shared/net/protocol.ts";
 import {
   type TimerAccums,
   tickGruntsIfDue,
   type WatcherTimingState,
 } from "../shared/net/tick-context.ts";
-import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
-import { type GameState, hasFeature } from "../shared/types.ts";
 import type { FrameData } from "../shared/ui/overlay-types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {

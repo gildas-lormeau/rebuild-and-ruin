@@ -13,7 +13,7 @@ import {
   createLocalNetworkApi,
 } from "./runtime/runtime-composition.ts";
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
-import { LOBBY_TIMER } from "./shared/game-constants.ts";
+import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
 import { MAX_PLAYERS } from "./shared/ui/player-config.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./shared/ui/router.ts";

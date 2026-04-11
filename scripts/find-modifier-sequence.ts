@@ -13,7 +13,7 @@
  *   deno run -A scripts/find-modifier-sequence.ts sinkhole high_tide --max 60 --rounds 8
  */
 
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { createScenario } from "../test/scenario.ts";
 
 const args = Deno.args;

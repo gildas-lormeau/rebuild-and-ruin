@@ -1,4 +1,5 @@
-import { isPlacementPhase } from "../shared/game-phase.ts";
+import { isPlacementPhase } from "../shared/core/game-phase.ts";
+import { type GameState } from "../shared/core/types.ts";
 import {
   IS_TOUCH_DEVICE,
   KEY_DOWN,
@@ -8,7 +9,6 @@ import {
   KEY_RIGHT,
   KEY_UP,
 } from "../shared/platform/platform.ts";
-import { type GameState } from "../shared/types.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/ui/interaction-types.ts";
 import {
   ACTION_KEYS,

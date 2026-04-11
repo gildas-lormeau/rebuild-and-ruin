@@ -13,11 +13,11 @@
 import {
   BATTLE_MESSAGE,
   type ImpactEvent,
-} from "../../shared/battle-events.ts";
-import { GRID_COLS, GRID_ROWS } from "../../shared/grid.ts";
-import type { ValidPlayerSlot } from "../../shared/player-slot.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+} from "../../shared/core/battle-events.ts";
+import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Dedup key set shared across bounces: identifies cannons already damaged
  *  in the chain so later bounces can't re-hit them. */

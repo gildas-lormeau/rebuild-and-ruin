@@ -12,16 +12,15 @@ import {
   isCannonEnclosed,
   placeCannon,
 } from "../game/index.ts";
-import { CannonMode } from "../shared/battle-types.ts";
+import { CannonMode } from "../shared/core/battle-types.ts";
 import {
   filterActiveEnemies,
   getInterior,
   hasTowerAt,
-} from "../shared/board-occupancy.ts";
-import type { GameMap, TilePos, Tower } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { Rng } from "../shared/platform/rng.ts";
-import type { Player } from "../shared/player-types.ts";
+} from "../shared/core/board-occupancy.ts";
+import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import {
   cannonSize,
   computeCannonTileSet,
@@ -35,8 +34,9 @@ import {
   packTile,
   towerCenter,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { CannonViewState } from "../shared/system-interfaces.ts";
+} from "../shared/core/spatial.ts";
+import type { CannonViewState } from "../shared/core/system-interfaces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };

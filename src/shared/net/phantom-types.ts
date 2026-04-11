@@ -1,6 +1,6 @@
-import { CannonMode } from "../battle-types.ts";
-import type { ValidPlayerSlot } from "../player-slot.ts";
-import { isPlayerEliminated } from "../player-types.ts";
+import { CannonMode } from "../core/battle-types.ts";
+import type { ValidPlayerSlot } from "../core/player-slot.ts";
+import { isPlayerEliminated } from "../core/player-types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
 export type CannonPhantom = {

@@ -1,12 +1,12 @@
-import { getInterior } from "../shared/board-occupancy.ts";
-import { SELECT_TIMER } from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { getInterior } from "../shared/core/board-occupancy.ts";
+import { SELECT_TIMER } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   selectPlayerTower,
-} from "../shared/player-types.ts";
-import { type GameState, type SelectionState } from "../shared/types.ts";
+} from "../shared/core/player-types.ts";
+import { type GameState, type SelectionState } from "../shared/core/types.ts";
 
 export function initTowerSelection(
   state: GameState,

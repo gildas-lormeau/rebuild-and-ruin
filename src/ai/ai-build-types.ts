@@ -10,8 +10,8 @@ import type {
   TilePos,
   TileRect,
   Tower,
-} from "../shared/geometry-types.ts";
-import type { PieceShape } from "../shared/pieces.ts";
+} from "../shared/core/geometry-types.ts";
+import type { PieceShape } from "../shared/core/pieces.ts";
 
 /** Pixel position annotated with strategic flag (AI targeting). */
 export type StrategicPixelPos = PixelPos & { strategic?: boolean };
@@ -39,10 +39,10 @@ export type TargetResult = {
 
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
 export interface TargetContext {
-  state: import("../shared/system-interfaces.ts").BuildViewState;
-  playerId: import("../shared/player-slot.ts").ValidPlayerSlot;
-  player: import("../shared/player-types.ts").Player;
-  castle: import("../shared/geometry-types.ts").Castle;
+  state: import("../shared/core/system-interfaces").BuildViewState;
+  playerId: import("../shared/core/player-slot").ValidPlayerSlot;
+  player: import("../shared/core/player-types").Player;
+  castle: import("../shared/core/geometry-types").Castle;
   piece: PieceShape;
   castleMargin: number;
   bankHugging: boolean;
@@ -136,7 +136,7 @@ export interface ScoringRule {
 
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
-  state: import("../shared/system-interfaces.ts").BuildViewState;
+  state: import("../shared/core/system-interfaces").BuildViewState;
   walls: ReadonlySet<number>;
   outside: Set<number>;
   targetGaps: Set<number>;

@@ -26,14 +26,14 @@
 
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
-import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
-import { isReselectPhase } from "../shared/game-phase.ts";
+import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
+import { isReselectPhase } from "../shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   FullStateMessage,
   InitMessage,
   ServerMessage,
 } from "../shared/net/protocol.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createError, joinError } from "./online-dom.ts";

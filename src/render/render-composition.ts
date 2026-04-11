@@ -1,8 +1,8 @@
 import {
   LIFE_LOST_MAX_TIMER,
   UPGRADE_PICK_MAX_TIMER,
-} from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
+} from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -10,15 +10,19 @@ import {
   MAP_PX_W,
   SCALE,
   TILE_SIZE,
-} from "../shared/grid.ts";
-import { modifierDef } from "../shared/modifier-defs.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/grid.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import {
   type ComboEvent,
   type GameState,
   type SelectionState,
-} from "../shared/types.ts";
+} from "../shared/core/types.ts";
+import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -54,7 +58,6 @@ import type {
   OnlineOverlayParams,
   RenderSummaryParams,
 } from "../shared/ui/ui-contracts.ts";
-import { UPGRADE_POOL } from "../shared/upgrade-defs.ts";
 
 interface GameOverLayout {
   panelW: number;

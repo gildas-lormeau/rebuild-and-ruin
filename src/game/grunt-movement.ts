@@ -10,7 +10,7 @@
  * (adjacentLivingTowerIndex, getGruntTargetTower, etc.) for attack logic.
  */
 
-import type { Grunt } from "../shared/battle-types.ts";
+import type { Grunt } from "../shared/core/battle-types.ts";
 import {
   findLivingTowerIndexAt,
   hasAliveHouseAt,
@@ -19,10 +19,10 @@ import {
   hasInteriorAt,
   hasTowerAt,
   hasWallAt,
-} from "../shared/board-occupancy.ts";
-import { TOWER_SIZE } from "../shared/game-constants.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
+} from "../shared/core/board-occupancy.ts";
+import { TOWER_SIZE } from "../shared/core/game-constants.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -32,8 +32,8 @@ import {
   isTowerTile,
   manhattanDistance,
   packTile,
-} from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameState } from "../shared/core/types.ts";
 
 /** Manhattan radius for checking if another grunt targeting the same tower is queued nearby. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;

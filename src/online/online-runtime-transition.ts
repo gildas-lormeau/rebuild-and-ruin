@@ -1,8 +1,8 @@
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildEndCheckpoint,

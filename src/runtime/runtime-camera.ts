@@ -18,9 +18,13 @@ import {
   ZONE_PAD_SELECTION,
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
-} from "../shared/game-constants.ts";
-import { isReselectPhase, Phase } from "../shared/game-phase.ts";
-import type { TilePos, Viewport, WorldPos } from "../shared/geometry-types.ts";
+} from "../shared/core/game-constants.ts";
+import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
+import type {
+  TilePos,
+  Viewport,
+  WorldPos,
+} from "../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -29,8 +33,8 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   SCALE,
-} from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   battleTargetPosition,
   bestEnemyZone,
@@ -39,8 +43,8 @@ import {
   tileBoundsToViewport,
   unpackTile,
   zoneTileBounds,
-} from "../shared/spatial.ts";
-import { type GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import { type GameState } from "../shared/core/types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 

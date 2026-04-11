@@ -13,10 +13,13 @@
  * to avoid an L5 → L6 import cycle.
  */
 
-import { type Cannon, CannonMode } from "../../shared/battle-types.ts";
-import { isPlayerEliminated, type Player } from "../../shared/player-types.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import { type Cannon, CannonMode } from "../../shared/core/battle-types.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../../shared/core/player-types.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Mortar cannonball speed multiplier (half speed). */
 const MORTAR_SPEED_MULT = 0.5;

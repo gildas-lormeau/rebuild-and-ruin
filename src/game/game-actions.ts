@@ -6,14 +6,14 @@
  * (online-runtime-game.ts via online-send-actions.ts callbacks).
  */
 
-import type { Cannonball } from "../shared/battle-types.ts";
+import type { Cannonball } from "../shared/core/battle-types.ts";
 import type {
   BattleController,
   BuildController,
   FireIntent,
   PlacePieceIntent,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { fireNextReadyCannon } from "./battle-system.ts";
 import { placePiece } from "./build-system.ts";
 

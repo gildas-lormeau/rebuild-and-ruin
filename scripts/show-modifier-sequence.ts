@@ -5,7 +5,7 @@
  *   deno run -A scripts/show-modifier-sequence.ts <seed> [seed...] [--rounds N]
  */
 
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { createScenario } from "../test/scenario.ts";
 
 const args = Deno.args;

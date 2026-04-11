@@ -18,8 +18,8 @@
  * Usage:
  *
  *     import { createScenario, waitForPhase } from "./scenario.ts";
- *     import { Phase } from "../src/shared/game-phase.ts";
- *     import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
+ *     import { Phase } from "../src/shared/core/game-phase.ts";
+ *     import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
  *
  *     Deno.test("first battle reaches BATTLE phase", async () => {
  *       const sc = await createScenario({ seed: 42 });
@@ -43,7 +43,7 @@ import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
   SoundObserver,
-} from "../src/shared/system-interfaces.ts";
+} from "../src/shared/core/system-interfaces.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -52,15 +52,15 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type ModifierId,
-} from "../src/shared/game-constants.ts";
+} from "../src/shared/core/game-constants.ts";
 import {
   GAME_EVENT,
   type GameEventBus,
   type GameEventMap,
-} from "../src/shared/game-event-bus.ts";
-import type { Phase } from "../src/shared/game-phase.ts";
+} from "../src/shared/core/game-event-bus.ts";
+import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/shared/net/protocol.ts";
-import type { GameState } from "../src/shared/types.ts";
+import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };

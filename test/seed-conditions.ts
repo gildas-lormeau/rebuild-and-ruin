@@ -32,8 +32,8 @@
  * - Don't mutate `sc.state` — tests should observe, not drive.
  */
 
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import type { UpgradeId } from "../src/shared/upgrade-defs.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
 import type { Scenario } from "./scenario.ts";
 
 export interface SeedCondition {

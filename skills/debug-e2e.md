@@ -76,8 +76,8 @@ Create a test file in test/. Use one of these approaches:
 **For state/logic bugs** — use the scenario API (play the game, observe events):
 ```typescript
 import { createScenario, waitForPhase, waitForModifier } from "./scenario.ts";
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import { Phase } from "../src/shared/game-phase.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 
 const sc = await createScenario({ seed: 42, mode: "modern" });
 const events: unknown[] = [];

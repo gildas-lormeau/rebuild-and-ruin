@@ -7,8 +7,8 @@
  * separate chunk and only loaded when an AI controller is actually needed.
  */
 
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 import { HumanController } from "./controller-human.ts";
 

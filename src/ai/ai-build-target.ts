@@ -7,16 +7,21 @@
  */
 
 import { canPlacePiece } from "../game/index.ts";
-import type { TileRect } from "../shared/geometry-types.ts";
+import type { TileRect } from "../shared/core/geometry-types.ts";
 import {
   ALL_PIECE_SHAPES,
   type PieceShape,
   rotateCW,
-} from "../shared/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { FreshInterior } from "../shared/player-types.ts";
-import { DIRS_8, isGrass, packTile, unpackTile } from "../shared/spatial.ts";
-import type { BuildViewState } from "../shared/system-interfaces.ts";
+} from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { FreshInterior } from "../shared/core/player-types.ts";
+import {
+  DIRS_8,
+  isGrass,
+  packTile,
+  unpackTile,
+} from "../shared/core/spatial.ts";
+import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 
 export function canPieceFillAnyGap(

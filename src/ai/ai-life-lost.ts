@@ -7,7 +7,7 @@
  * abandon low-score games) hook in here.
  */
 
-import type { GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,

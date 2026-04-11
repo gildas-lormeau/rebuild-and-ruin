@@ -4,8 +4,8 @@ import {
   waitForModifier,
   waitForPhase,
 } from "./scenario.ts";
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import { Phase } from "../src/shared/game-phase.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
   const sc = await createScenario({ seed: 42 });

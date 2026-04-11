@@ -3,8 +3,8 @@
  * Used by both main.ts (local play) and online-client.ts (online play).
  */
 
-import { addPlayerWall } from "../shared/board-occupancy.ts";
-import type { GameState } from "../shared/types.ts";
+import { addPlayerWall } from "../shared/core/board-occupancy.ts";
+import type { GameState } from "../shared/core/types.ts";
 import type {
   CastleBuildState,
   CastleWallPlan,

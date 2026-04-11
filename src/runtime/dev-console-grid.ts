@@ -6,11 +6,11 @@
  * to keep the game public surface free of debug concerns.
  */
 
-import { TOWER_SIZE } from "../shared/game-constants.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import { isWater, unpackTile } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import { TOWER_SIZE } from "../shared/core/game-constants.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { isWater, unpackTile } from "../shared/core/spatial.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";

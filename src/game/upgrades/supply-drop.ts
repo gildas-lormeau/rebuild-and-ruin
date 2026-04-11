@@ -5,8 +5,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Extra cannon slots granted by Supply Drop. */
 const SUPPLY_DROP_BONUS = 2;

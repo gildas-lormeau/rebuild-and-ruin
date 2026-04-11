@@ -16,11 +16,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { IMPLEMENTED_CANNON_MODES } from "../src/shared/cannon-mode-defs.ts";
+import { IMPLEMENTED_CANNON_MODES } from "../src/shared/core/cannon-mode-defs.ts";
 
 const ROOT = process.cwd();
 const CATALOG_PATH = join(ROOT, ".cannon-mode-catalog.json");
-const BATTLE_TYPES_PATH = join(ROOT, "src/shared/battle-types.ts");
+const BATTLE_TYPES_PATH = join(ROOT, "src/shared/core/battle-types.ts");
 
 interface CatalogEntry {
   consumers: Record<string, string>;

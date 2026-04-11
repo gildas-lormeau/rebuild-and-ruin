@@ -5,13 +5,16 @@
  * Extracted from runtime-composition.ts to reduce composition-root fan-out.
  */
 
-import { Phase } from "../shared/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import type {
   InputReceiver,
   PlayerController,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import type {

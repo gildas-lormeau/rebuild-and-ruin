@@ -6,29 +6,29 @@ import {
   type BurningPit,
   type Cannon,
   CannonMode,
-} from "../shared/battle-types.ts";
+} from "../shared/core/battle-types.ts";
 import {
   assertInteriorFresh,
   filterAliveOwnedTowers,
   getInterior,
   hasWallAt,
-} from "../shared/board-occupancy.ts";
-import { cannonModeDef } from "../shared/cannon-mode-defs.ts";
+} from "../shared/core/board-occupancy.ts";
+import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
 import {
   MAX_CANNON_LIMIT_ON_RESELECT,
   RAMPART_SHIELD_HP,
   STARTING_LIVES,
   TOWER_SIZE,
-} from "../shared/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
-} from "../shared/player-types.ts";
+} from "../shared/core/player-types.ts";
 import {
   cannonSize,
   DIRS_4,
@@ -44,9 +44,9 @@ import {
   snapAngle,
   towerCenter,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { GameViewState } from "../shared/system-interfaces.ts";
-import { type GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import { type GameState } from "../shared/core/types.ts";
 import { cannonSlotsBonus } from "./upgrade-system.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */

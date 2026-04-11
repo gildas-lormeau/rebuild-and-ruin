@@ -6,8 +6,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { GameState } from "../../shared/types.ts";
-import { UID, type UpgradeId } from "../../shared/upgrade-defs.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID, type UpgradeId } from "../../shared/core/upgrade-defs.ts";
 
 /** Wipe all grunts when the picked upgrade is Clear the Field. No-op for
  *  any other upgrade. Safe to call multiple times in the same batch. */

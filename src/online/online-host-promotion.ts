@@ -8,13 +8,16 @@ import {
   enterCannonPhase,
   finalizeAndEnterCannonPhase,
 } from "../game/index.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
+import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import type { MutableAccums } from "../shared/net/tick-context.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;

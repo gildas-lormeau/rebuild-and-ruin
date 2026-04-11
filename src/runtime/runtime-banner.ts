@@ -6,11 +6,11 @@
  */
 
 import { snapshotCastles, snapshotEntities } from "../game/index.ts";
-import { BANNER_DURATION } from "../shared/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import { Phase } from "../shared/game-phase.ts";
+import { BANNER_DURATION } from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
-import type { GameState } from "../shared/types.ts";
 import type { EntityOverlay } from "../shared/ui/overlay-types.ts";
 import {
   type BannerState,

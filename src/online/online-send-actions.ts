@@ -1,6 +1,5 @@
 import { executeCannonFire, executePlacePiece } from "../game/index.ts";
-import { createCannonFiredMsg } from "../shared/battle-events.ts";
-import { type GameMessage, MESSAGE } from "../shared/net/protocol.ts";
+import { createCannonFiredMsg } from "../shared/core/battle-events.ts";
 import {
   type BattleController,
   type BattleViewState,
@@ -10,8 +9,9 @@ import {
   type CannonViewState,
   type ControllerIdentity,
   type InputReceiver,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
+import { type GameMessage, MESSAGE } from "../shared/net/protocol.ts";
 
 interface OnlineSendActionsDeps {
   /** Network send — closes over the runtime's NetworkApi.send. */

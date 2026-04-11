@@ -10,11 +10,20 @@
 
 // --- Constants ---
 
-import { TOWER_SIZE } from "../shared/game-constants.ts";
-import type { GameMap, PixelPos, Tower } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, Tile } from "../shared/grid.ts";
+import { TOWER_SIZE } from "../shared/core/game-constants.ts";
+import type {
+  GameMap,
+  PixelPos,
+  Tower,
+} from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, Tile } from "../shared/core/grid.ts";
+import {
+  isGrass,
+  isWater,
+  packTile,
+  unpackTile,
+} from "../shared/core/spatial.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { isGrass, isWater, packTile, unpackTile } from "../shared/spatial.ts";
 
 interface ZoneStats {
   minRow: number;

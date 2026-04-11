@@ -1,4 +1,4 @@
-import { Phase } from "../shared/game-phase.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 
 type RecoveredBalloonFlight = {

@@ -7,9 +7,9 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { isCannonAlive } from "../../shared/spatial.ts";
-import { UID, type UpgradeId } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { isCannonAlive } from "../../shared/core/spatial.ts";
+import { UID, type UpgradeId } from "../../shared/core/upgrade-defs.ts";
 
 /** Filter out dead cannons from the picker's cannon list when the picked
  *  upgrade is Reclamation. No-op for any other upgrade. */

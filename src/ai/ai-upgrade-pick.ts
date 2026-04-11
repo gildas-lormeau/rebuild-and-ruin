@@ -15,12 +15,12 @@
  * once per entry at lock-in and cached in `entry.plannedChoice`.
  */
 
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isGrass } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isGrass } from "../shared/core/spatial.ts";
+import type { GameState } from "../shared/core/types.ts";
+import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
-import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;
 /** Extra delay per auto-resolving entry (by entry index) so AI picks land

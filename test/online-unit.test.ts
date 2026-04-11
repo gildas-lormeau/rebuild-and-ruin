@@ -13,10 +13,10 @@ import { createDedupChannel } from "../src/shared/net/phantom-types.ts";
 import { runBuildEndSequence } from "../src/runtime/runtime-transition-steps.ts";
 import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
-import type { GameMode } from "../src/shared/game-constants.ts";
-import type { GameState } from "../src/shared/types.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
-import { Phase } from "../src/shared/game-phase.ts";
+import type { GameMode } from "../src/shared/core/game-constants.ts";
+import type { GameState } from "../src/shared/core/types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 
 // ---------------------------------------------------------------------------

@@ -14,8 +14,8 @@
  *     so the unusual imports don't pollute the main render module.
  */
 
-import type { GameMap } from "../shared/geometry-types.ts";
-import { GRID_COLS, Tile } from "../shared/grid.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, Tile } from "../shared/core/grid.ts";
 
 /** Clone a `GameMap` with the modifier-changed tiles overridden to Grass.
  *

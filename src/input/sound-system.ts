@@ -21,14 +21,17 @@
  */
 
 import { sfxr } from "jsfxr";
-import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
-import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  BATTLE_MESSAGE,
+  type BattleEvent,
+} from "../shared/core/battle-events.ts";
+import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   SoundObserver,
   SoundReason,
   SoundSystem,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 
 /** Construction-time deps for the sound sub-system. `observer` is the
  *  test seam — production callers omit it. */

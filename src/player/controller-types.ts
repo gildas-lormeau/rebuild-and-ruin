@@ -3,18 +3,21 @@ import {
   nextReadyCombined,
   useSmallPieces,
 } from "../game/index.ts";
-import type { Crosshair } from "../shared/battle-types.ts";
-import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import type { Crosshair } from "../shared/core/battle-types.ts";
+import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import {
   type BagState,
   createBag,
   nextPiece,
   type PieceShape,
-} from "../shared/pieces.ts";
-import type { Rng } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { pxToTile, towerCenter, towerCenterTile } from "../shared/spatial.ts";
+} from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import {
+  pxToTile,
+  towerCenter,
+  towerCenterTile,
+} from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -24,7 +27,8 @@ import type {
   GameViewState,
   PiecePlacementPreview,
   PlayerController,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 
@@ -51,7 +55,7 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
  *      (e.g., full zone state, grunt lists, modifier tiles).
  *  TypeScript method bivariance permits both shapes under a single `PlayerController`
  *  interface; all real call sites pass `GameState`, so both signatures are satisfied.
- *  See shared/system-interfaces.ts:31-34 for the canonical bivariance note.
+ *  See shared/core/system-interfaces.ts:31-34 for the canonical bivariance note.
  *  DO NOT copy a signature from one subclass to the other — the ViewStates exist
  *  to document the minimum field contract per phase, not as runtime guards. */
 export abstract class BaseController implements PlayerController {

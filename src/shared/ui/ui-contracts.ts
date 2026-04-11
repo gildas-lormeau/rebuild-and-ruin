@@ -1,16 +1,16 @@
-import type { Impact } from "../battle-types.ts";
-import type { ModifierDiff } from "../game-constants.ts";
-import { Phase } from "../game-phase.ts";
-import type { GameMap, WorldPos } from "../geometry-types.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../player-slot.ts";
+import type { Impact } from "../core/battle-types.ts";
+import type { ModifierDiff } from "../core/game-constants.ts";
+import { Phase } from "../core/game-phase.ts";
+import type { GameMap, WorldPos } from "../core/geometry-types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../core/player-slot.ts";
 import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
   InputReceiver,
   PlayerController,
-} from "../system-interfaces.ts";
-import type { GameState, LobbyState, SelectionState } from "../types.ts";
+} from "../core/system-interfaces.ts";
+import type { GameState, LobbyState, SelectionState } from "../core/types.ts";
 import type { Action } from "./input-action.ts";
 import type {
   ControlsState,

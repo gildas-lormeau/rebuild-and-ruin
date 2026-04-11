@@ -21,12 +21,12 @@ import {
   isReselectPhase,
   isSelectionPhase,
   Phase,
-} from "../shared/game-phase.ts";
-import { cannonSize } from "../shared/spatial.ts";
+} from "../shared/core/game-phase.ts";
+import { cannonSize } from "../shared/core/spatial.ts";
 import type {
   InputReceiver,
   PlayerController,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";

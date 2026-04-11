@@ -11,20 +11,20 @@
       "src/render/render-sprites.ts",
       "src/runtime/banner-messages.ts",
       "src/shared/ui/canvas-layout.ts",
-      "src/shared/feature-defs.ts",
-      "src/shared/game-constants.ts",
-      "src/shared/game-phase.ts",
-      "src/shared/grid.ts",
+      "src/shared/core/feature-defs.ts",
+      "src/shared/core/game-constants.ts",
+      "src/shared/core/game-phase.ts",
+      "src/shared/core/grid.ts",
       "src/shared/ui/input-action.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/platform.ts",
-      "src/shared/player-slot.ts",
+      "src/shared/core/player-slot.ts",
       "src/shared/platform/rng.ts",
       "src/shared/ui/router.ts",
       "src/shared/net/routes.ts",
       "src/shared/ui/settings-defs.ts",
       "src/shared/ui/ui-mode.ts",
-      "src/shared/upgrade-defs.ts",
+      "src/shared/core/upgrade-defs.ts",
       "src/shared/platform/utils.ts"
     ]
   },
@@ -35,12 +35,12 @@
       "src/entry.ts",
       "src/online/online-config.ts",
       "src/online/online-full-state-recovery.ts",
-      "src/shared/battle-events.ts",
+      "src/shared/core/battle-events.ts",
       "src/shared/net/checkpoint-data.ts",
-      "src/shared/geometry-types.ts",
+      "src/shared/core/geometry-types.ts",
       "src/shared/ui/interaction-types.ts",
-      "src/shared/modifier-defs.ts",
-      "src/shared/pieces.ts",
+      "src/shared/core/modifier-defs.ts",
+      "src/shared/core/pieces.ts",
       "src/shared/ui/theme.ts"
     ]
   },
@@ -51,8 +51,8 @@
       "src/ai/ai-build-types.ts",
       "src/render/render-snapshot.ts",
       "src/render/render-ui-theme.ts",
-      "src/shared/battle-types.ts",
-      "src/shared/game-event-bus.ts",
+      "src/shared/core/battle-types.ts",
+      "src/shared/core/game-event-bus.ts",
       "src/shared/ui/player-config.ts"
     ]
   },
@@ -60,8 +60,8 @@
     "name": "core game types",
     "tier": "types",
     "files": [
-      "src/shared/cannon-mode-defs.ts",
-      "src/shared/player-types.ts",
+      "src/shared/core/cannon-mode-defs.ts",
+      "src/shared/core/player-types.ts",
       "src/shared/net/protocol.ts",
       "src/shared/ui/settings-ui.ts"
     ]
@@ -73,9 +73,9 @@
       "server/game-room.ts",
       "src/online/online-lobby-ui.ts",
       "src/shared/net/phantom-types.ts",
-      "src/shared/spatial.ts",
-      "src/shared/system-interfaces.ts",
-      "src/shared/types.ts"
+      "src/shared/core/spatial.ts",
+      "src/shared/core/system-interfaces.ts",
+      "src/shared/core/types.ts"
     ]
   },
   {
@@ -111,7 +111,7 @@
       "src/input/haptics-system.ts",
       "src/input/sound-system.ts",
       "src/online/online-session.ts",
-      "src/shared/board-occupancy.ts",
+      "src/shared/core/board-occupancy.ts",
       "src/shared/ui/overlay-types.ts",
       "src/shared/net/tick-context.ts"
     ]

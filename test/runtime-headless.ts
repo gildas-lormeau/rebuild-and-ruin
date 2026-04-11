@@ -20,8 +20,8 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
   LOBBY_TIMER,
-} from "../src/shared/game-constants.ts";
-import type { GameMap, Viewport } from "../src/shared/geometry-types.ts";
+} from "../src/shared/core/game-constants.ts";
+import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
 import type {
   RendererInterface,
   RenderOverlay,
@@ -29,7 +29,7 @@ import type {
 import type {
   HapticsObserver,
   SoundObserver,
-} from "../src/shared/system-interfaces.ts";
+} from "../src/shared/core/system-interfaces.ts";
 
 /** Test observer for the headless `network.send` seam. Receives every
  *  outbound message the runtime would broadcast through the production

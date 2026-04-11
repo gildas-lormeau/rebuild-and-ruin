@@ -27,7 +27,7 @@ import {
   CANNON_PLACE_TIMER,
   LOBBY_TIMER,
   SELECT_TIMER,
-} from "../src/shared/game-constants.ts";
+} from "../src/shared/core/game-constants.ts";
 
 // ---------------------------------------------------------------------------
 // Game constants

@@ -8,20 +8,20 @@ import {
   createCannonFiredMsg,
   type ImpactEvent,
   type TowerKilledMessage,
-} from "../shared/battle-events.ts";
+} from "../shared/core/battle-events.ts";
 import type {
   BalloonFlight,
   Cannon,
   Cannonball,
   CapturedCannon,
   CombinedCannonResult,
-} from "../shared/battle-types.ts";
+} from "../shared/core/battle-types.ts";
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
   getInterior,
   zoneOwnerIdAt,
-} from "../shared/board-occupancy.ts";
+} from "../shared/core/board-occupancy.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -33,11 +33,14 @@ import {
   RAMPART_SHIELD_RADIUS,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
-} from "../shared/game-constants.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated, type Player } from "../shared/player-types.ts";
+} from "../shared/core/game-constants.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import { TILE_SIZE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import {
+  isPlayerEliminated,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   cannonCenter,
   computeFacing45,
@@ -54,9 +57,9 @@ import {
   pxToTile,
   rotateToward,
   TILE_CENTER_OFFSET,
-} from "../shared/spatial.ts";
-import type { GameViewState } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,

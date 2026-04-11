@@ -9,7 +9,7 @@
  * This module finds them and draws to whichever is currently visible.
  */
 
-import { MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
+import { MAP_PX_H, MAP_PX_W } from "../shared/core/grid.ts";
 import type { LoupeHandle } from "../shared/ui/overlay-types.ts";
 
 // Loupe rendering constants

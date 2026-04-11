@@ -15,9 +15,9 @@
  * there is a single source of truth — no dual-tracking desync risk.
  */
 
-import { CANNON_MODE_IDS } from "../src/shared/cannon-mode-defs.ts";
-import { Phase } from "../src/shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";
+import { CANNON_MODE_IDS } from "../src/shared/core/cannon-mode-defs.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/core/grid.ts";
 import {
   MESSAGE,
   type MessageType,
@@ -32,7 +32,7 @@ import { safeSendRaw } from "./send-utils.ts";
  *  Includes all game-engine Phase enum values (CASTLE_SELECT, WALL_BUILD,
  *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals.
  *  When adding a new phase: if it's part of game logic, add to the Phase enum
- *  in shared/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
+ *  in shared/core/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
 const SERVER_ONLY_PHASE = {
   /** Before game starts (no Phase enum equivalent). */
   LOBBY: "LOBBY",

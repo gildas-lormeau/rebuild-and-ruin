@@ -10,16 +10,16 @@
  * placement or end-of-build via recheckTerritory.
  */
 
-import { deletePlayerWallsBatch } from "../../shared/board-occupancy.ts";
-import { isPlayerEliminated } from "../../shared/player-types.ts";
+import { deletePlayerWallsBatch } from "../../shared/core/board-occupancy.ts";
+import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import {
   computeOutside,
   DIRS_8,
   packTile,
   unpackTile,
-} from "../../shared/spatial.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID, type UpgradeId } from "../../shared/upgrade-defs.ts";
+} from "../../shared/core/spatial.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID, type UpgradeId } from "../../shared/core/upgrade-defs.ts";
 
 /** Strip non-load-bearing walls from all players when the picked upgrade
  *  is Demolition. No-op for any other upgrade. Idempotent — a second

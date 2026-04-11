@@ -23,19 +23,19 @@ import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
-} from "../shared/game-constants.ts";
+} from "../shared/core/game-constants.ts";
 import {
   type PlayerSlotId,
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
-import { isHuman } from "../shared/system-interfaces.ts";
+} from "../shared/core/player-slot.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import {
   assertStateReady,
   type RuntimeState,

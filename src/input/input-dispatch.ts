@@ -33,16 +33,16 @@ import {
   isReselectPhase,
   isSelectionPhase,
   Phase,
-} from "../shared/game-phase.ts";
-import type { WorldPos } from "../shared/geometry-types.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
+} from "../shared/core/game-phase.ts";
+import type { WorldPos } from "../shared/core/geometry-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { findNearestTower, towerAtPixel } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,
   isMovementAction,
   type PlayerController,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,

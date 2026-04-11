@@ -7,12 +7,12 @@
  * (mouseJoinedSlot), falling back to the first human controller.
  */
 
-import { isPlayerAlive } from "../shared/player-types.ts";
+import { isPlayerAlive } from "../shared/core/player-types.ts";
 import {
   type InputReceiver,
   isHuman,
   type PlayerController,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 
 interface PointerPlayerLookup {

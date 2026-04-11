@@ -1,16 +1,19 @@
 import { canFireOwnCannon, filterActiveFiringCannons } from "../game/index.ts";
-import type { Cannonball } from "../shared/battle-types.ts";
+import type { Cannonball } from "../shared/core/battle-types.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
   getBattleInterior,
-} from "../shared/board-occupancy.ts";
-import { MODIFIER_ID, TOWER_SIZE } from "../shared/game-constants.ts";
-import type { GameMap, PixelPos, TilePos } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
-import type { Rng } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
+} from "../shared/core/board-occupancy.ts";
+import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
+import type {
+  GameMap,
+  PixelPos,
+  TilePos,
+} from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   cannonSize,
   computeOutside,
@@ -26,8 +29,9 @@ import {
   packTile,
   pxToTile,
   unpackTile,
-} from "../shared/spatial.ts";
-import type { BattleViewState } from "../shared/system-interfaces.ts";
+} from "../shared/core/spatial.ts";
+import type { BattleViewState } from "../shared/core/system-interfaces.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 import type {
   PrioritizedTilePos,
   StrategicPixelPos,

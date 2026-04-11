@@ -1,9 +1,9 @@
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
-} from "../shared/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isHuman } from "../shared/system-interfaces.ts";
+} from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,

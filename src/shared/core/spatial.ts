@@ -12,6 +12,7 @@
  * Always use packTile(r, c) / unpackTile(key) — never encode manually.
  */
 
+import { Action } from "../ui/input-action.ts";
 import {
   type BurningPit,
   type Cannon,
@@ -32,7 +33,6 @@ import {
   Tile,
 } from "./grid.ts";
 import { isPlayerEliminated } from "./player-types.ts";
-import { Action } from "./ui/input-action.ts";
 
 /** Tile bounding rect (row/col extremes). */
 interface TileBounds {

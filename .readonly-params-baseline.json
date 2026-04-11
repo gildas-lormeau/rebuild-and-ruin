@@ -3,6 +3,6 @@
     "src/game/grunt-system.ts:arr",
     "src/shared/platform/rng.ts:arr",
     "src/input/sound-system.ts:nodes",
-    "src/shared/spatial.ts:tiles"
+    "src/shared/core/spatial.ts:tiles"
   ]
 }

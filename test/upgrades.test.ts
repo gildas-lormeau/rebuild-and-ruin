@@ -23,9 +23,9 @@
 
 import { assert } from "@std/assert";
 import { buildTimerBonus } from "../src/game/index.ts";
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import { Phase } from "../src/shared/game-phase.ts";
-import type { UpgradeId } from "../src/shared/upgrade-defs.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
 import { loadSeed, type Scenario } from "./scenario.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 

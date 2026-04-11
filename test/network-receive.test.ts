@@ -16,8 +16,8 @@
 
 import { assert, assertEquals } from "@std/assert";
 
-import { Phase } from "../src/shared/game-phase.ts";
-import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import { MESSAGE } from "../src/shared/net/protocol.ts";
 import { createOnlineHarness, createOnlineScenario } from "./online-headless.ts";
 

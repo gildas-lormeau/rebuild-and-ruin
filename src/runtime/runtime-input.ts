@@ -1,6 +1,5 @@
-import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { zoneTowerCenterPx } from "../shared/spatial.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
 import {
   type BattleViewState,
   type BuildViewState,
@@ -10,7 +9,8 @@ import {
   isHuman,
   type PlayerController,
   type SoundSystem,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
+import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import {
   FOCUS_MENU,

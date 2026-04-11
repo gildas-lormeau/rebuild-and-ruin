@@ -1,11 +1,11 @@
-import { FID } from "../shared/feature-defs.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { FID } from "../shared/core/feature-defs.ts";
+import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type GameState,
   hasFeature,
   type ModernState,
-} from "../shared/types.ts";
+} from "../shared/core/types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
 type ComboTracker = NonNullable<ModernState["comboTracker"]>;

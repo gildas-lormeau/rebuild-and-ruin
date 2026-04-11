@@ -1,7 +1,7 @@
-import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { eliminatePlayer, isPlayerAlive } from "../shared/player-types.ts";
-import { type GameState } from "../shared/types.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { eliminatePlayer, isPlayerAlive } from "../shared/core/player-types.ts";
+import { type GameState } from "../shared/core/types.ts";
 import {
   type AutoResolveDeps,
   LIFE_LOST_FOCUS_ABANDON,

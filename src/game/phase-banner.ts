@@ -1,4 +1,4 @@
-import type { GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/core/types.ts";
 import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 
 /** Pre-capture old battle scene into banner state before nextPhase/checkpoint

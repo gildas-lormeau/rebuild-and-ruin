@@ -3,7 +3,7 @@ import {
   isReselectPhase,
   isSelectionPhase,
   Phase,
-} from "../shared/game-phase.ts";
+} from "../shared/core/game-phase.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { RegisterOnlineInputDeps } from "../shared/ui/ui-contracts.ts";

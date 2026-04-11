@@ -12,12 +12,12 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
-} from "../shared/game-constants.ts";
-import type { GameMap } from "../shared/geometry-types.ts";
+} from "../shared/core/game-constants.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import type { GameState, LobbyState } from "../shared/core/types.ts";
 import { MAX_UINT32 } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { GameState, LobbyState } from "../shared/types.ts";
 import {
   type GameSettings,
   type KeyBindings,

@@ -6,15 +6,15 @@
  * Selection uses the synced RNG for online determinism.
  */
 
-import type { BurningPit } from "../shared/battle-types.ts";
+import type { BurningPit } from "../shared/core/battle-types.ts";
 import {
   deletePlayerWallsBatch,
   getInterior,
   hasCannonAt,
   hasTowerAt,
   removeWallFromAllPlayers,
-} from "../shared/board-occupancy.ts";
-import { FID } from "../shared/feature-defs.ts";
+} from "../shared/core/board-occupancy.ts";
+import { FID } from "../shared/core/feature-defs.ts";
 import {
   BURNING_PIT_DURATION,
   FIRST_GRUNT_SPAWN_ROUND,
@@ -22,10 +22,13 @@ import {
   MODIFIER_ID,
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
-} from "../shared/game-constants.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
-import { IMPLEMENTED_MODIFIERS } from "../shared/modifier-defs.ts";
-import { isPlayerEliminated, isPlayerSeated } from "../shared/player-types.ts";
+} from "../shared/core/game-constants.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { IMPLEMENTED_MODIFIERS } from "../shared/core/modifier-defs.ts";
+import {
+  isPlayerEliminated,
+  isPlayerSeated,
+} from "../shared/core/player-types.ts";
 import {
   cannonSize,
   DIRS_4,
@@ -37,8 +40,8 @@ import {
   setGrass,
   setWater,
   unpackTile,
-} from "../shared/spatial.ts";
-import { type GameState, hasFeature } from "../shared/types.ts";
+} from "../shared/core/spatial.ts";
+import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
 /** A sinkhole shape is a list of (row, col) offsets from a top-left anchor.

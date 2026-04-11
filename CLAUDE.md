@@ -75,7 +75,7 @@ When adding a new entry: add the ID to the type union, add a pool entry with `im
 
 ### Battle event catalog (`.battle-event-catalog.json`)
 Maps every BattleEvent/ImpactEvent union member to its consumer files by role (stateApply, sound, haptics, networkHandle, networkRelay, orchestrator, combo). When adding a new battle event type:
-1. Define the message type in `src/shared/battle-events.ts`, add to BattleEvent or ImpactEvent union
+1. Define the message type in `src/shared/core/battle-events.ts`, add to BattleEvent or ImpactEvent union
 2. Add a BATTLE_MESSAGE constant in `battle-events.ts` (protocol.ts spreads it into MESSAGE automatically)
 3. Add the type to the ServerMessage union in `src/shared/net/protocol.ts`
 4. Add a catalog entry listing all consumer files

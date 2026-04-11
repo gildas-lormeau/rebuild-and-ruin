@@ -12,8 +12,8 @@
  * Checkpoint apply functions (online-checkpoints.ts) trust host-provided data.
  */
 
-import type { ModifierId } from "../game-constants.ts";
-import type { ValidPlayerSlot } from "../player-slot.ts";
+import type { ModifierId } from "../core/game-constants.ts";
+import type { ValidPlayerSlot } from "../core/player-slot.ts";
 
 export interface SerializedCannon {
   row: number;

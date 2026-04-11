@@ -16,8 +16,8 @@
  */
 
 import { assert, assertGreater } from "@std/assert";
-import { Phase } from "../src/shared/game-phase.ts";
-import type { SoundReason } from "../src/shared/system-interfaces.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { SoundReason } from "../src/shared/core/system-interfaces.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
 Deno.test(

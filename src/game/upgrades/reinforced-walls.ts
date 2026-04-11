@@ -6,8 +6,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** True when this wall tile should be absorbed rather than destroyed.
  *  Returns false if the player doesn't own the upgrade, or if this wall

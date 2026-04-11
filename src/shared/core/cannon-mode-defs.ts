@@ -16,7 +16,7 @@
  *   - src/render/render-effects.ts — phantom preview
  *   - src/shared/net/checkpoint-data.ts — serialization
  *   - src/online/online-types.ts — toCannonMode() parsing
- *   - src/shared/board-occupancy.ts — exclusion flags if needed
+ *   - src/shared/core/board-occupancy.ts — exclusion flags if needed
  */
 
 import { CannonMode } from "./battle-types.ts";

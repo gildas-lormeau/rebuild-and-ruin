@@ -8,7 +8,7 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
-import { isSelectionPhase, Phase } from "../shared/game-phase.ts";
+import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import {

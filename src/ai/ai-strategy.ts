@@ -12,35 +12,38 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
-import { CannonMode } from "../shared/battle-types.ts";
-import { filterActiveEnemies } from "../shared/board-occupancy.ts";
+import { CannonMode } from "../shared/core/battle-types.ts";
+import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import {
   DIFFICULTY_EASY,
   DIFFICULTY_HARD,
   DIFFICULTY_NORMAL,
   DIFFICULTY_VERY_HARD,
-} from "../shared/game-constants.ts";
+} from "../shared/core/game-constants.ts";
 import type {
   GameMap,
   PixelPos,
   TilePos,
   Tower,
-} from "../shared/geometry-types.ts";
-import type { PieceShape } from "../shared/pieces.ts";
-import { Rng } from "../shared/platform/rng.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { brandFreshInterior, type Player } from "../shared/player-types.ts";
+} from "../shared/core/geometry-types.ts";
+import type { PieceShape } from "../shared/core/pieces.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import {
+  brandFreshInterior,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   computeOutside,
   isTowerEnclosed,
   waterKeys,
-} from "../shared/spatial.ts";
+} from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
   GameViewState,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {

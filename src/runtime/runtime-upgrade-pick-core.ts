@@ -11,14 +11,14 @@
  * subsystem.
  */
 
-import type { GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/core/types.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
   type UpgradePickDialogState,
   type UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;

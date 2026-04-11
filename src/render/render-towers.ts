@@ -1,7 +1,7 @@
-import type { GameMap } from "../shared/geometry-types.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { towerCenterPx } from "../shared/spatial.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
+import { TILE_SIZE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { towerCenterPx } from "../shared/core/spatial.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import {

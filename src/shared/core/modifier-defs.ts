@@ -18,8 +18,8 @@
  *   - src/shared/net/checkpoint-data.ts — serialized data types
  *   - src/render/render-composition.ts — modifier overlay rendering
  *   - src/ai/ai-strategy-battle.ts — AI awareness (if modifier affects grunts)
- *   - src/shared/types.ts — ModernState fields (if modifier needs persistent state)
- *   - src/shared/system-interfaces.ts — BattleViewState (if modifier affects controllers)
+ *   - src/shared/core/types.ts — ModernState fields (if modifier needs persistent state)
+ *   - src/shared/core/system-interfaces.ts — BattleViewState (if modifier affects controllers)
  */
 
 import type { ModifierId } from "./game-constants.ts";

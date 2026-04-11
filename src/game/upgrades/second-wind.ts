@@ -6,8 +6,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { GameState } from "../../shared/types.ts";
-import { UID, type UpgradeId } from "../../shared/upgrade-defs.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID, type UpgradeId } from "../../shared/core/upgrade-defs.ts";
 
 /** Revive all towers and clear the pending-revive set when the picked
  *  upgrade is Second Wind. No-op for any other upgrade. Safe to call

@@ -12,8 +12,8 @@
 
 import { fireNextReadyCannon } from "../game/index.ts";
 import { BaseController } from "../player/controller-types.ts";
-import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type AiAnimatable,
   type CannonPlacementPreview,
@@ -21,8 +21,8 @@ import {
   type FireIntent,
   type OrbitParams,
   type PiecePlacementPreview,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { STEP } from "./ai-constants.ts";
 import {
   type BattleHost,

@@ -3,25 +3,25 @@ import {
   recomputeAllTerritory,
   rehydrateComboTracker,
 } from "../game/index.ts";
-import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { FID } from "../shared/feature-defs.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
-import type { PixelPos } from "../shared/geometry-types.ts";
+import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
+import { FID } from "../shared/core/feature-defs.ts";
+import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isPlayerSeated } from "../shared/core/player-types.ts";
+import { towerCenterPx } from "../shared/core/spatial.ts";
+import type { OrbitParams } from "../shared/core/system-interfaces.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeOfferTuple,
+} from "../shared/core/types.ts";
 import type {
   BattleStartData,
   BuildEndData,
   BuildStartData,
   CannonStartData,
 } from "../shared/net/checkpoint-data.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerSeated } from "../shared/player-types.ts";
-import { towerCenterPx } from "../shared/spatial.ts";
-import type { OrbitParams } from "../shared/system-interfaces.ts";
-import {
-  type GameState,
-  hasFeature,
-  type UpgradeOfferTuple,
-} from "../shared/types.ts";
 import {
   applyCapturedCannons,
   applyGruntsCheckpoint,

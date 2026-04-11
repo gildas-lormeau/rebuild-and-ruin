@@ -36,8 +36,8 @@
  *   deno run -A scripts/find-seed.ts --expr "seq[0] === 'sinkhole' && seq[1] === 'high_tide'" --rounds 8
  */
 
-import { GAME_EVENT } from "../src/shared/game-event-bus.ts";
-import type { GameState } from "../src/shared/types.ts";
+import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+import type { GameState } from "../src/shared/core/types.ts";
 import { createScenario } from "../test/scenario.ts";
 
 // ---------------------------------------------------------------------------

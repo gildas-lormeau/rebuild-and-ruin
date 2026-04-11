@@ -1,5 +1,5 @@
-import type { PlayerSlotId, ValidPlayerSlot } from "../player-slot.ts";
-import type { UpgradeId } from "../upgrade-defs.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../core/player-slot.ts";
+import type { UpgradeId } from "../core/upgrade-defs.ts";
 
 /** Life-lost types. */
 export enum LifeLostChoice {

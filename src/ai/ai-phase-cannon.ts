@@ -7,14 +7,14 @@
  */
 
 import { canPlaceCannon, placeCannon } from "../game/index.ts";
-import { CannonMode } from "../shared/battle-types.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { type Player } from "../shared/player-types.ts";
+import { CannonMode } from "../shared/core/battle-types.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { type Player } from "../shared/core/player-types.ts";
 import type {
   CannonPlacementPreview,
   CannonViewState,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 

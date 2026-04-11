@@ -24,9 +24,16 @@ import {
   showCannonPhaseBanner,
   showModifierRevealBanner,
 } from "../runtime/runtime-transition-steps.ts";
-import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { Phase } from "../shared/game-phase.ts";
-import { TILE_COUNT } from "../shared/grid.ts";
+import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import { TILE_COUNT } from "../shared/core/grid.ts";
+import {
+  isActivePlayer,
+  type ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../shared/core/player-types.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import { type GameState } from "../shared/core/types.ts";
 import type {
   BattleStartData,
   BuildEndData,
@@ -35,10 +42,6 @@ import type {
 } from "../shared/net/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
 import type { WatcherTimingState } from "../shared/net/tick-context.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerAlive } from "../shared/player-types.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import { type GameState } from "../shared/types.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -85,7 +88,7 @@ export interface TransitionContext {
       prevWalls?: Set<number>[];
       prevEntities?: import("../shared/ui/overlay-types").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
-      modifierDiff?: import("../shared/game-constants.ts").ModifierDiff;
+      modifierDiff?: import("../shared/core/game-constants").ModifierDiff;
     };
     render: () => void;
     watcherTiming: WatcherTimingState;

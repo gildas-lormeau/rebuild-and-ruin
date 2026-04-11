@@ -5,8 +5,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { GameState } from "../../shared/types.ts";
-import { isGlobalUpgradeActive, UID } from "../../shared/upgrade-defs.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
 
 /** True when any player owns Ceasefire — triggers battle-skip for this round. */
 export function ceasefireShouldSkipBattle(state: GameState): boolean {

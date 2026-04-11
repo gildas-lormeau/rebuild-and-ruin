@@ -9,7 +9,7 @@
  * the field and diverges from the host over time.
  *
  * The check is deliberately narrow: for every top-level field in
- * `GameState` and `ModernState` (parsed from `src/shared/types.ts`), the
+ * `GameState` and `ModernState` (parsed from `src/shared/core/types.ts`), the
  * field name must appear textually at least once in
  * `src/online/online-serialize.ts`. If it doesn't, the author has to
  * either serialize the field or add it to the exclusion allowlist below
@@ -25,7 +25,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
-const TYPES_FILE = join(process.cwd(), "src/shared/types.ts");
+const TYPES_FILE = join(process.cwd(), "src/shared/core/types.ts");
 const SERIALIZE_FILE = join(process.cwd(), "src/online/online-serialize.ts");
 
 /** Fields intentionally NOT synced over the network. Every entry must carry

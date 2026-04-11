@@ -8,7 +8,8 @@ import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
-} from "../shared/game-constants.ts";
+} from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type GameMessage,
   type InitMessage,
@@ -16,7 +17,6 @@ import {
   type ServerMessage,
 } from "../shared/net/protocol.ts";
 import { isHostInContext } from "../shared/net/tick-context.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { GAME_EXIT_EVENT } from "../shared/ui/router.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";

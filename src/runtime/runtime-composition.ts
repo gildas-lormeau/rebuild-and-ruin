@@ -74,17 +74,17 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
-import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
+import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
+import { SPECTATOR_SLOT } from "../shared/core/player-slot.ts";
 import {
   type GameMessage,
   MESSAGE,
   type ServerMessage,
 } from "../shared/net/protocol.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { SPECTATOR_SLOT } from "../shared/player-slot.ts";
 import type {
   RendererInterface,
   RenderOverlay,

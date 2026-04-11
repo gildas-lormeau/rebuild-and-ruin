@@ -8,9 +8,9 @@
  * the composition root (runtime-composition.ts) lean.
  */
 
-import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { SoundSystem } from "../shared/system-interfaces.ts";
+import { DEMO_RETURN_DELAY_MS } from "../shared/core/game-constants.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { SoundSystem } from "../shared/core/system-interfaces.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,

@@ -20,21 +20,28 @@ import {
   type BattleEvent,
   type CannonFiredMessage,
   createCannonFiredMsg,
-} from "../shared/battle-events.ts";
+} from "../shared/core/battle-events.ts";
 import {
   ageImpacts,
   type BalloonFlight,
   type Crosshair,
   clearImpacts,
-} from "../shared/battle-types.ts";
-import { getInterior } from "../shared/board-occupancy.ts";
+} from "../shared/core/battle-types.ts";
+import { getInterior } from "../shared/core/board-occupancy.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
-} from "../shared/game-constants.ts";
-import { Phase } from "../shared/game-phase.ts";
+} from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import {
+  type HapticsSystem,
+  isHuman,
+  type SoundSystem,
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -57,13 +64,6 @@ import {
   resetAccum,
   tickGruntsIfDue,
 } from "../shared/net/tick-context.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import {
-  type HapticsSystem,
-  isHuman,
-  type SoundSystem,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {

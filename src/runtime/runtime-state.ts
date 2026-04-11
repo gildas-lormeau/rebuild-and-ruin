@@ -1,25 +1,25 @@
 import {
   type BattleAnimState,
   createBattleAnimState,
-} from "../shared/battle-types.ts";
-import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
-import { isTimedPhase, Phase } from "../shared/game-phase.ts";
-import {
-  createTimerAccums,
-  type TimerAccums,
-} from "../shared/net/tick-context.ts";
+} from "../shared/core/battle-types.ts";
+import { PHASE_ENDING_THRESHOLD } from "../shared/core/game-constants.ts";
+import { isTimedPhase, Phase } from "../shared/core/game-phase.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
   type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
-import { type PlayerController } from "../shared/system-interfaces.ts";
+} from "../shared/core/player-slot.ts";
+import { type PlayerController } from "../shared/core/system-interfaces.ts";
 import {
   type FrameContext,
   type GameState,
   type LobbyState,
   type SelectionState,
-} from "../shared/types.ts";
+} from "../shared/core/types.ts";
+import {
+  createTimerAccums,
+  type TimerAccums,
+} from "../shared/net/tick-context.ts";
 import {
   type CastleBuildState,
   type ControlsState,

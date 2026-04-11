@@ -16,8 +16,19 @@ import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
-} from "../shared/game-constants.ts";
-import { isReselectPhase, Phase } from "../shared/game-phase.ts";
+} from "../shared/core/game-constants.ts";
+import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
+import {
+  isActivePlayer,
+  type ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+  type SoundSystem,
+} from "../shared/core/system-interfaces.ts";
+import type { SelectionState } from "../shared/core/types.ts";
 import {
   ACCUM_SELECT,
   isRemotePlayer,
@@ -25,14 +36,6 @@ import {
   resetAccum,
 } from "../shared/net/tick-context.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-  type SoundSystem,
-} from "../shared/system-interfaces.ts";
-import type { SelectionState } from "../shared/types.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type {
   EntityOverlay,

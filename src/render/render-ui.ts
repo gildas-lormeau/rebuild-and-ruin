@@ -1,10 +1,10 @@
 import {
   MODIFIER_ID,
   UPGRADE_PICK_PULSE_DURATION,
-} from "../shared/game-constants.ts";
-import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
+} from "../shared/core/game-constants.ts";
+import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,

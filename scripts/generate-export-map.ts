@@ -6,8 +6,8 @@
  *
  * Format:
  *   ## L0 — leaf modules
- *   src/shared/grid.ts: GRID_COLS, GRID_ROWS, TILE_SIZE, Tile (enum)
- *   src/shared/rng.ts: Rng (class), createSeededRng
+ *   src/shared/core/grid.ts: GRID_COLS, GRID_ROWS, TILE_SIZE, Tile (enum)
+ *   src/shared/platform/rng.ts: Rng (class), createSeededRng
  *
  * Agents scan this to spot misplaced exports (e.g. "RGB" in geometry-types).
  * Use .export-index.json for full signatures/docs.

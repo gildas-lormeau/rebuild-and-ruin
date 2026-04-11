@@ -16,15 +16,15 @@ import {
   canPlacePiece,
   highlightTowerSelection,
 } from "../game/index.ts";
-import type { ImpactEvent } from "../shared/battle-events.ts";
-import { getInterior } from "../shared/board-occupancy.ts";
-import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
+import type { ImpactEvent } from "../shared/core/battle-events.ts";
+import { getInterior } from "../shared/core/board-occupancy.ts";
+import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { inBoundsStrict, packTile } from "../shared/core/spatial.ts";
+import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import { MESSAGE, type ServerMessage } from "../shared/net/protocol.ts";
 import { isHostInContext, isRemotePlayer } from "../shared/net/tick-context.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import { inBoundsStrict, packTile } from "../shared/spatial.ts";
-import { type GameState, type SelectionState } from "../shared/types.ts";
 import {
   LifeLostChoice,
   type ResolvedChoice,

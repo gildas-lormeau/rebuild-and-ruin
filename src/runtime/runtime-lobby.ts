@@ -1,15 +1,15 @@
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
-} from "../shared/game-constants.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/grid.ts";
+} from "../shared/core/game-constants.ts";
+import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
+import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../shared/platform/platform.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { type KeyBindings, MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import type {

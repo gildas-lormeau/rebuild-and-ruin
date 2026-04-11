@@ -20,7 +20,7 @@ import process from "node:process";
 
 const ROOT = process.cwd();
 const CATALOG_PATH = join(ROOT, ".battle-event-catalog.json");
-const PROTOCOL_PATH = join(ROOT, "src/shared/battle-events.ts");
+const PROTOCOL_PATH = join(ROOT, "src/shared/core/battle-events.ts");
 
 interface CatalogEvent {
   messageKey: string;

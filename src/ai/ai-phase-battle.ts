@@ -7,13 +7,13 @@
  */
 
 import { aimCannons, nextReadyCombined } from "../game/index.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { packTile, tileCenterPx } from "../shared/spatial.ts";
+import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
   FireIntent,
-} from "../shared/system-interfaces.ts";
+} from "../shared/core/system-interfaces.ts";
 import type { StrategicPixelPos } from "./ai-build-types.ts";
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";

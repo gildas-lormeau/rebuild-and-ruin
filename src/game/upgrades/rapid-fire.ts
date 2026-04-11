@@ -5,8 +5,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { Player } from "../../shared/player-types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { Player } from "../../shared/core/player-types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Cannonball speed multiplier when Rapid Fire is active.
  *  Cancels out with Mortar's slowdown by design — see ballSpeedMult dispatcher. */

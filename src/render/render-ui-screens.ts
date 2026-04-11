@@ -5,10 +5,10 @@
  * Consumed by subsystems via DI (composition root injects these).
  */
 
-import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
-import type { GameMap } from "../shared/geometry-types.ts";
+import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   ACTION_KEYS,

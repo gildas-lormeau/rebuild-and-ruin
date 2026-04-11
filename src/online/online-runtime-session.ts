@@ -4,7 +4,7 @@ import {
 } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
-import type { GameMode } from "../shared/game-constants.ts";
+import type { GameMode } from "../shared/core/game-constants.ts";
 import type { FullStateMessage, InitMessage } from "../shared/net/protocol.ts";
 import { ROUTE_ONLINE } from "../shared/net/routes.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";

@@ -8,10 +8,20 @@ import type {
   CannonMode,
   Crosshair,
   Impact,
-} from "../shared/battle-types.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
-import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
-import type { PixelPos } from "../shared/geometry-types.ts";
+} from "../shared/core/battle-types.ts";
+import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
+import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import type {
+  OrbitParams,
+  PlayerController,
+} from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
@@ -22,13 +32,6 @@ import {
   piecePhantomKey,
 } from "../shared/net/phantom-types.ts";
 import type { WatcherTimingState } from "../shared/net/tick-context.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isPlayerEliminated } from "../shared/player-types.ts";
-import type {
-  OrbitParams,
-  PlayerController,
-} from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,

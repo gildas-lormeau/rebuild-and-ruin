@@ -7,10 +7,10 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { ValidPlayerSlot } from "../../shared/player-slot.ts";
-import { isPlayerSeated } from "../../shared/player-types.ts";
-import type { GameState } from "../../shared/types.ts";
-import { UID } from "../../shared/upgrade-defs.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import { isPlayerSeated } from "../../shared/core/player-types.ts";
+import type { GameState } from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Respawn target returned to the caller. Anchor coords are the victim's
  *  home tower — the caller runs findGruntSpawnNear from there. */
