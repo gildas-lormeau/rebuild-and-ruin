@@ -396,7 +396,6 @@ export interface CameraSystem {
 
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
-  init: (pid: ValidPlayerSlot, zone: number) => void;
   enter: () => void;
   syncOverlay: () => void;
   highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;

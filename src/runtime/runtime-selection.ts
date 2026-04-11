@@ -2,16 +2,14 @@ import {
   allSelectionsConfirmed,
   confirmTowerSelection,
   enterCastleReselectPhase,
+  enterReselectPhase,
   enterSelectionPhase,
   finalizeReselectedPlayers,
   finishSelectionPhase,
   highlightTowerSelection,
-  initSelectionTimer,
-  initTowerSelection,
   isSelectionComplete,
   markPlayerReselected,
   prepareCastleWallsForPlayer,
-  processReselectionQueue,
   recheckTerritoryOnly,
   snapshotAndFinalizeForCannonPhase,
 } from "../game/index.ts";
@@ -124,23 +122,6 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
   // Tower selection helpers
   // -------------------------------------------------------------------------
-
-  function initPlayerTowerSelection(pid: ValidPlayerSlot, zone: number): void {
-    initTowerSelection(
-      runtimeState.state,
-      runtimeState.selection.states,
-      pid,
-      zone,
-    );
-    if (isHuman(runtimeState.controllers[pid]!)) {
-      const player = runtimeState.state.players[pid];
-      if (player?.homeTower)
-        deps.camera.setSelectionViewport(
-          player.homeTower.row,
-          player.homeTower.col,
-        );
-    }
-  }
 
   function enterTowerSelection(): void {
     resetSelectionState();
@@ -474,35 +455,40 @@ export function createSelectionSystem(
 
   function startReselection() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    enterCastleReselectPhase(runtimeState.state);
+    const { state } = runtimeState;
     resetSelectionState();
 
-    const { remaining, needsUI } = processReselectionQueue({
-      reselectQueue: runtimeState.selection.reselectQueue,
-      state: runtimeState.state,
-      controllers: runtimeState.controllers,
-      initTowerSelection: initPlayerTowerSelection,
-      processPlayer: (pid, ctrl, zone) => {
-        if (isRemotePlayer(pid, remotePlayerSlots)) return "pending" as const;
-        ctrl.selectReplacementTower(runtimeState.state, zone);
-        // AI confirms via selectionTick(); humans need UI interaction
-        return "pending" as const;
-      },
-      onDone: (pid, ctrl) => {
-        const player = runtimeState.state.players[pid]!;
-        if (player.homeTower)
-          ctrl.centerOn(player.homeTower.row, player.homeTower.col);
-        markPlayerReselected(runtimeState.state, pid);
-        runtimeState.selection.reselectionPids.push(pid);
-      },
-    });
-    runtimeState.selection.reselectQueue =
-      remaining.length > 0 ? remaining : [];
+    // Engine: set CASTLE_RESELECT phase, init selection state for queued
+    // players, set timer.
+    enterReselectPhase(
+      state,
+      runtimeState.selection.states,
+      runtimeState.selection.reselectQueue,
+    );
 
-    if (needsUI) {
+    // Runtime: per-player controller (selectReplacementTower) + camera
+    // setup loop. AI players auto-confirm via selectionTick(); humans
+    // need UI interaction. Both paths run through the selection tick —
+    // there's no "done immediately" branch (the old processReselectionQueue
+    // had one but it was never reachable).
+    for (const pid of runtimeState.selection.reselectQueue) {
+      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
+      const zone = state.playerZones[pid] ?? 0;
+      runtimeState.controllers[pid]!.selectReplacementTower(state, zone);
+      if (isHuman(runtimeState.controllers[pid]!)) {
+        const player = state.players[pid];
+        if (player?.homeTower) {
+          deps.camera.setSelectionViewport(
+            player.homeTower.row,
+            player.homeTower.col,
+          );
+        }
+      }
+    }
+
+    if (runtimeState.selection.reselectQueue.length > 0) {
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
-      initSelectionTimer(runtimeState.state);
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
       if (deps.hostAtFrameStart()) {
@@ -541,7 +527,6 @@ export function createSelectionSystem(
 
   return {
     getStates: () => runtimeState.selection.states,
-    init: initPlayerTowerSelection,
     enter: enterTowerSelection,
     syncOverlay: syncSelectionOverlay,
     highlight: highlightTowerForPlayer,

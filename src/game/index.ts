@@ -49,6 +49,7 @@ export {
   enterBuildPhase,
   enterCannonPhase,
   enterCastleReselectPhase,
+  enterReselectPhase,
   enterSelectionPhase,
   finalizeAndEnterCannonPhase,
   finishBuildPhase,
@@ -69,7 +70,6 @@ export {
   enterBuildSkippingBattle,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
-  processReselectionQueue,
   resetZoneState,
   setPhase,
 } from "./phase-setup.ts";
@@ -82,7 +82,5 @@ export {
   confirmTowerSelection,
   finishSelectionPhase,
   highlightTowerSelection,
-  initSelectionTimer,
-  initTowerSelection,
 } from "./selection.ts";
 export { applyUpgradePicks } from "./upgrade-pick.ts";

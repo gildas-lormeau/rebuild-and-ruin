@@ -71,10 +71,6 @@ import {
   setGrass,
   unpackTile,
 } from "../shared/spatial.ts";
-import type {
-  ControllerIdentity,
-  SelectionController,
-} from "../shared/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
@@ -254,43 +250,6 @@ export function setPhase(state: GameState, phase: Phase): void {
     phase: state.phase,
     round: state.round,
   });
-}
-
-/** Process the reselection queue. Returns players still needing UI interaction.
- *  `processPlayer` returns: "done" (AI picked), "pending" (needs UI), or "remote" (remote human). */
-export function processReselectionQueue<
-  T extends ControllerIdentity & SelectionController = ControllerIdentity &
-    SelectionController,
->(params: {
-  reselectQueue: ValidPlayerSlot[];
-  state: GameState;
-  controllers: T[];
-  initTowerSelection: (pid: ValidPlayerSlot, zone: number) => void;
-  processPlayer: (
-    pid: ValidPlayerSlot,
-    ctrl: T,
-    zone: number,
-  ) => "done" | "pending";
-  onDone: (pid: ValidPlayerSlot, ctrl: T) => void;
-}): {
-  remaining: ValidPlayerSlot[] /** True if any player still needs interactive castle selection. */;
-  needsUI: boolean;
-} {
-  const remaining: ValidPlayerSlot[] = [];
-  let needsUI = false;
-  for (const pid of params.reselectQueue) {
-    const ctrl = params.controllers[pid]!;
-    const zone = params.state.playerZones[pid] ?? 0;
-    const result = params.processPlayer(pid, ctrl, zone);
-    if (result === "done") {
-      params.onDone(pid, ctrl);
-    } else {
-      remaining.push(pid);
-      needsUI = true;
-      params.initTowerSelection(pid, zone);
-    }
-  }
-  return { remaining, needsUI };
 }
 
 /** Finalize game state for reselected players — protect walls from debris

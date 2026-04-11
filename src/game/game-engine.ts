@@ -254,6 +254,32 @@ export function isSelectionComplete(
   );
 }
 
+/** Enter the CASTLE_RESELECT phase for players who lost a life. Sets the
+ *  phase flag, clears any stale per-player selection tracking, initializes
+ *  a fresh selection entry for each player in the reselect queue (with a
+ *  default highlight on their zone's first tower), and starts the
+ *  selection timer.
+ *
+ *  Replaces the runtime's manual sequence of `enterCastleReselectPhase` +
+ *  `selectionStates.clear()` + per-player init via `processReselectionQueue`
+ *  callback + `initSelectionTimer`. The engine owns the order; the runtime
+ *  runs its own per-player controller (`selectReplacementTower`) + camera
+ *  setup loop afterwards. */
+export function enterReselectPhase(
+  state: GameState,
+  selectionStates: Map<number, SelectionState>,
+  reselectQueue: readonly ValidPlayerSlot[],
+): void {
+  setPhase(state, Phase.CASTLE_RESELECT);
+  state.timer = 0;
+  selectionStates.clear();
+  for (const pid of reselectQueue) {
+    const zone = state.playerZones[pid] ?? 0;
+    initTowerSelection(state, selectionStates, pid, zone);
+  }
+  initSelectionTimer(state);
+}
+
 /** Enter the build phase from BATTLE. Captures pre-transition snapshots
  *  (castles, entities, territory, walls) BEFORE mutating state, then runs
  *  enterBuildFromBattle which performs the round-end housekeeping
