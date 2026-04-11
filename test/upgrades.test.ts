@@ -1,18 +1,16 @@
 /**
- * Upgrade tests — one test per implemented upgrade.
+ * Upgrade tests — one steps per implemented upgrade, grouped by seed.
  *
- * Each test picks a seed (discovered via `scripts/find-upgrade-seeds.ts`) that
- * is known to produce a pick of the target upgrade during a modern-mode game,
- * runs the game to completion, and asserts that:
- *   1. an `upgradePicked` bus event fired for the expected UpgradeId
- *   2. the picking player's `upgrades` map contains the id at that moment
+ * Many upgrades share a seed (seed 0 alone covers 11 of them), so tests are
+ * grouped into one Deno.test per unique seed that runs the game ONCE and
+ * emits a `t.step` per upgrade assigned to that seed. This cuts wall-clock
+ * from ~76s (19 runGames) to ~24s (6 runGames) while keeping per-upgrade
+ * failure attribution.
  *
- * The seeds are discovered per-scan, not hand-picked. To refresh after a
- * runtime/RNG change:
- *
- *     deno run -A scripts/find-upgrade-seeds.ts --max 40 --rounds 10
- *
- * and copy the "Upgrade → seed table" output into `UPGRADE_SEEDS` below.
+ * Each step asserts an `upgradePicked` event fired for its target UpgradeId
+ * during the run. Seeds come from `scripts/find-upgrade-seeds.ts`; refresh
+ * alongside the determinism fixtures whenever the runtime RNG or draft
+ * weights drift.
  */
 
 import { assert } from "@std/assert";
@@ -54,28 +52,39 @@ const UPGRADE_SEEDS: Record<UpgradeId, SeedEntry> = {
 
 const MAX_TICKS = 60000;
 
-for (const [rawId, entry] of Object.entries(UPGRADE_SEEDS)) {
-  const upgradeId = rawId as UpgradeId;
-  Deno.test(`upgrade: "${upgradeId}" is picked in seed=${entry.seed} modern`, async () => {
-    const sc = await createScenario({
-      seed: entry.seed,
-      mode: "modern",
-      rounds: 10,
-    });
+interface Pick {
+  readonly upgradeId: UpgradeId;
+  readonly playerId: number;
+}
 
-    const picks: { upgradeId: UpgradeId; playerId: number }[] = [];
+const seedGroups = new Map<number, UpgradeId[]>();
+for (const [rawId, entry] of Object.entries(UPGRADE_SEEDS)) {
+  const list = seedGroups.get(entry.seed) ?? [];
+  list.push(rawId as UpgradeId);
+  seedGroups.set(entry.seed, list);
+}
+
+for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
+  Deno.test(`upgrades: seed=${seed} modern picks ${upgradeIds.join(", ")}`, async (t) => {
+    const sc = await createScenario({ seed, mode: "modern", rounds: 10 });
+    const picks: Pick[] = [];
+    const remaining = new Set<UpgradeId>(upgradeIds);
     sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
       picks.push({ upgradeId: ev.upgradeId, playerId: ev.playerId });
+      remaining.delete(ev.upgradeId);
     });
+    sc.runUntil(() => remaining.size === 0, MAX_TICKS);
 
-    sc.runGame(MAX_TICKS);
-
-    const hit = picks.find((pick) => pick.upgradeId === upgradeId);
-    assert(
-      hit !== undefined,
-      `expected "${upgradeId}" to be picked in seed=${entry.seed}, saw picks=${picks
-        .map((pick) => `${pick.upgradeId}(p${pick.playerId})`)
-        .join(",")}`,
-    );
+    for (const upgradeId of upgradeIds) {
+      await t.step(`"${upgradeId}" is picked`, () => {
+        const hit = picks.find((pick) => pick.upgradeId === upgradeId);
+        assert(
+          hit !== undefined,
+          `expected "${upgradeId}" to be picked in seed=${seed}, saw picks=${picks
+            .map((pick) => `${pick.upgradeId}(p${pick.playerId})`)
+            .join(",")}`,
+        );
+      });
+    }
   });
 }
