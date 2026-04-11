@@ -45,7 +45,20 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
  *
  *  Naming: public methods use imperative verbs (startBuildPhase, finalizeBuildPhase).
  *  Protected hooks use on*() prefix (onStartBuildPhase, onFinalizeBuildPhase).
- *  When adding a new public lifecycle method, add a corresponding protected hook. */
+ *  When adding a new public lifecycle method, add a corresponding protected hook.
+ *
+ *  @DIVERGENCE — state parameter types on the per-phase tick methods differ
+ *  between concrete subclasses by design:
+ *    - HumanController follows the base declarations: buildTick(state: BuildViewState),
+ *      cannonTick(state: CannonViewState), battleTick(state: BattleViewState).
+ *    - AiController overrides with buildTick/cannonTick/battleTick(state: GameState)
+ *      because the AI strategy modules need fields outside each ViewState slice
+ *      (e.g., full zone state, grunt lists, modifier tiles).
+ *  TypeScript method bivariance permits both shapes under a single `PlayerController`
+ *  interface; all real call sites pass `GameState`, so both signatures are satisfied.
+ *  See shared/system-interfaces.ts:31-34 for the canonical bivariance note.
+ *  DO NOT copy a signature from one subclass to the other — the ViewStates exist
+ *  to document the minimum field contract per phase, not as runtime guards. */
 export abstract class BaseController implements PlayerController {
   readonly playerId: ValidPlayerSlot;
   abstract readonly kind: "human" | "ai";

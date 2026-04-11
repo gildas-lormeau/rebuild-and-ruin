@@ -142,7 +142,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function closeOptions(): void {
     blurSeedInput();
-    const returnMode = uiCtx.getOptionsReturnMode();
+    // Canonical source of truth is runtimeState.optionsUI.returnMode.
+    // closeControls below reads the same field directly — keep both sites
+    // consistent so a future reader does not infer that uiCtx getter and the
+    // state field can disagree.
+    const returnMode = runtimeState.optionsUI.returnMode;
     if (returnMode !== null) {
       uiCtx.setMode(returnMode);
       uiCtx.setOptionsReturnMode(null);

@@ -7,6 +7,14 @@
  *
  * Does NOT import online-runtime-game.ts — the GameRuntime reference is
  * injected via initPromote() to avoid initialization coupling.
+ *
+ * ORDERING INVARIANT — initPromote() is the second of three init calls from
+ * online-runtime-game.ts:initOnlineRuntime(). The required order is:
+ *    1. initWs   (online-runtime-ws.ts)
+ *    2. initPromote (this file)
+ *    3. initDeps (online-runtime-deps.ts)
+ * Calling promoteToHost() before initPromote() throws. Do not reorder the
+ * call sequence in initOnlineRuntime without updating all three modules.
  */
 
 import { createAiController } from "../runtime/runtime-bootstrap.ts";

@@ -14,6 +14,14 @@
  * - lifecycleDeps / incrementalDeps: built once via initDeps(), reused for session lifetime.
  * - Contrast with online-runtime-game.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
+ *
+ * ORDERING INVARIANT — initDeps() is the last of three init calls from
+ * online-runtime-game.ts:initOnlineRuntime(). The required order is:
+ *    1. initWs (online-runtime-ws.ts)
+ *    2. initPromote (online-runtime-promote.ts)
+ *    3. initDeps (this file)
+ * Calling handleServerMessage() before initDeps() throws. Do not reorder the
+ * call sequence in initOnlineRuntime without updating all three modules.
  */
 
 import { setMode } from "../runtime/runtime-state.ts";

@@ -145,6 +145,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       phase: state.phase,
       round: state.round,
     });
+    // Invoke the completion callback exactly once, THEN null the field to
+    // prevent re-entry if tickBanner runs again this frame. See shared/utils.ts
+    // for the fireOnce contract. New dialog subsystems: pick one of the three
+    // documented callback patterns (runtime-types.ts above ScoreDeltaSystem):
+    // stored-on-state (banner/score delta, this file), method (life-lost), or
+    // local closure (upgrade-pick).
     fireOnce(banner, "callback", "banner.callback");
   }
 

@@ -3,6 +3,14 @@
  *
  * Does NOT import online-runtime-game.ts — runtime access is injected
  * via initWs() to avoid initialization coupling with the composition root.
+ *
+ * ORDERING INVARIANT — initWs() is the first of three init calls from
+ * online-runtime-game.ts:initOnlineRuntime(). The required order is:
+ *    1. initWs (this file)
+ *    2. initPromote (online-runtime-promote.ts)
+ *    3. initDeps (online-runtime-deps.ts)
+ * Calling connect() before initWs() throws. Do not reorder the call sequence
+ * in initOnlineRuntime without updating all three modules.
  */
 
 import type { ServerMessage } from "../shared/protocol.ts";

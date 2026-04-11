@@ -44,7 +44,7 @@ import { type GameState } from "../shared/types.ts";
 import type { BannerShow } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
-import { setWatcherPhaseTimer } from "./online-types.ts";
+import { setWatcherPhaseTimerAtBannerEnd } from "./online-types.ts";
 
 /**
  * Mode-setting timing convention across transition handlers:
@@ -85,7 +85,6 @@ export interface TransitionContext {
     };
     render: () => void;
     watcherTiming: WatcherTimingState;
-    bannerDuration: number;
   };
 
   // ── Checkpoint application ──
@@ -264,12 +263,9 @@ export function handleCannonStartTransition(
     initControllers: initLocalController,
     showBanner: () =>
       showCannonPhaseBanner(transitionCtx.ui.showBanner, () => {
-        // Timer starts at banner-end wall clock. Safe to use now() because
-        // no intermediate dialog (unlike build, which has upgrade-pick) can
-        // delay the callback after the banner animation begins.
-        setWatcherPhaseTimer(
+        // Anchor phase timer at banner-end wall clock (see helper contract).
+        setWatcherPhaseTimerAtBannerEnd(
           transitionCtx.ui.watcherTiming,
-          performance.now(),
           state.timer,
         );
         transitionCtx.setMode(Mode.GAME);
@@ -379,21 +375,17 @@ export function handleBuildStartTransition(
 
   // Step 2→3: upgrade pick (if any) → build banner → game
   const showBannerAndEnterBuild = () => {
-    // Compute timer start NOW (after upgrade pick resolved, not at message receipt).
-    // CONTRAST with cannon (handleCannonStartTransition): cannon uses now() inside
-    // the banner callback because no dialog precedes it. Here, an upgrade-pick dialog
-    // may delay showBannerAndEnterBuild, so we capture bannerStartedAt when the banner
-    // actually begins and add its duration to get the phase-timer origin.
-    const bannerStartedAt = performance.now();
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>
         showBuildPhaseBanner(
           transitionCtx.ui.showBanner,
           BANNER_REPAIR_ONLINE,
           () => {
-            setWatcherPhaseTimer(
+            // Anchor phase timer at banner-end wall clock (see helper contract).
+            // Any preceding upgrade-pick dialog finishes BEFORE showBanner runs,
+            // so the callback still fires at true banner-end.
+            setWatcherPhaseTimerAtBannerEnd(
               transitionCtx.ui.watcherTiming,
-              bannerStartedAt + transitionCtx.ui.bannerDuration * 1000,
               state.timer,
             );
             transitionCtx.setMode(Mode.GAME);

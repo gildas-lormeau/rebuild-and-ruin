@@ -77,6 +77,7 @@ import {
   UPGRADE_CARD_GAP,
   UPGRADE_CARD_H,
   UPGRADE_CARD_W,
+  UPGRADE_NAME_H,
   UPGRADE_ROW_GAP,
   UPGRADE_ROW_W,
 } from "./render-composition.ts";
@@ -472,7 +473,7 @@ export function drawUpgradePick(
   const cardGap = UPGRADE_CARD_GAP;
   const rowGap = UPGRADE_ROW_GAP;
   const rowW = UPGRADE_ROW_W;
-  const nameH = 18;
+  const nameH = UPGRADE_NAME_H;
   const entryH = nameH + cardH + rowGap;
 
   const totalH = pick.entries.length * entryH - rowGap;

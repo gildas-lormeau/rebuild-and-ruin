@@ -22,6 +22,7 @@ import { LifeLostChoice } from "../src/shared/interaction-types.ts";
 import { MAX_PLAYERS } from "../src/shared/player-config.ts";
 import {
   MESSAGE,
+  type MessageType,
   type RoomSettings,
   sanitizeRoomSettings,
 } from "../src/shared/protocol.ts";
@@ -62,17 +63,26 @@ const RATE_LIMIT_WINDOW_MS = 1000;
  *  All other types pass through without rate checks.
  *  CRITICAL: Only cosmetic/display messages belong here. Adding a game-state message
  *  (piece_placed, cannon_placed, fired, tower_selected, life_lost_choice) = DESYNC BUG
- *  because silently dropped game-state messages cause host/watcher divergence. */
+ *  because silently dropped game-state messages cause host/watcher divergence.
+ *
+ *  The `satisfies readonly MessageType[]` on the seed array is a compile-time
+ *  guard: a renamed or removed MESSAGE entry breaks the build here. The Set
+ *  stays typed as ReadonlySet<string> so `has(type: string)` call sites at
+ *  the untyped JSON boundary work without casts. */
 const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
   MESSAGE.OPPONENT_PHANTOM,
   MESSAGE.OPPONENT_CANNON_PHANTOM,
   MESSAGE.AIM_UPDATE,
-]);
+] as const satisfies readonly MessageType[]);
 
 // Messages only the host socket can send.
 // Invariant: HOST_ONLY and PHASE_GATES are disjoint — host-only messages skip phase
 // checks (host sends when appropriate). Do NOT add a message to both sets.
-const HOST_ONLY: Set<string> = new Set([
+//
+// Same compile-time guard as RATE_LIMITED_TYPES: `satisfies readonly MessageType[]`
+// on the seed array catches renamed/removed MESSAGE entries at build time; the
+// Set itself stays ReadonlySet<string> for call-site ergonomics.
+const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.INIT,
   MESSAGE.SELECT_START,
   MESSAGE.CASTLE_WALLS,
@@ -92,7 +102,7 @@ const HOST_ONLY: Set<string> = new Set([
   MESSAGE.PIT_CREATED,
   MESSAGE.ICE_THAWED,
   MESSAGE.TOWER_KILLED,
-]);
+] as const satisfies readonly MessageType[]);
 
 // ---------------------------------------------------------------------------
 // Payload validation — reject obviously malformed values before relaying
@@ -210,8 +220,11 @@ function validatePayload(msg: Record<string, unknown>): boolean {
   }
 }
 
-// Phase gating: which message types are valid in which phases
-const PHASE_GATES: Record<string, Set<ServerPhase>> = {
+// Phase gating: which message types are valid in which phases.
+// Partial<Record<MessageType, ...>> so missing entries mean "no phase gate",
+// but keys that ARE present must be valid MessageType literals — a renamed
+// or removed MESSAGE entry becomes a compile error here.
+const PHASE_GATES: Partial<Record<MessageType, Set<ServerPhase>>> = {
   [MESSAGE.CANNON_FIRED]: new Set([Phase.BATTLE]),
   [MESSAGE.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
   [MESSAGE.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
@@ -362,7 +375,9 @@ export class GameRoom {
     }
 
     // ── Stage 3: Phase gating ──
-    const validPhases = PHASE_GATES[type];
+    // Cast is safe: PHASE_GATES is a Partial<Record<MessageType, ...>>, so
+    // an unknown string key just yields undefined (no gate applied).
+    const validPhases = PHASE_GATES[type as MessageType];
     if (validPhases && !validPhases.has(this.phase)) return;
 
     // ── Stage 4: Payload validation ──

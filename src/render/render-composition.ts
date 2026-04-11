@@ -77,12 +77,12 @@ const SETTINGS_GEAR_X = MAP_PX_W - 32;
 const SETTINGS_GEAR_Y = 4;
 const SETTINGS_GEAR_SIZE = 28;
 const UPGRADE_CARDS_PER_ROW = 3;
-const UPGRADE_NAME_H = 18;
 const COMBO_LABELS: Record<ComboEvent["kind"], string> = {
   wall: "Wall Streak",
   cannon: "Cannon Kill",
   grunt: "Grunt Sniper",
 };
+export const UPGRADE_NAME_H = 18;
 export const UPGRADE_ROW_GAP = 8;
 /** Per-player snapshot of previous interior, used to detect newly enclosed tiles. */
 export const GAMEOVER_ROW_H = 14;

@@ -27,6 +27,26 @@ const REMOTE_CROSSHAIR_MULTIPLIER = 2;
 export const REMOTE_CROSSHAIR_SPEED =
   CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
 
+/** Anchor the watcher phase timer to the current wall clock. Call from inside
+ *  the banner onComplete callback — `performance.now()` at that instant is the
+ *  moment the banner animation finished on this client, which is the logical
+ *  moment the phase begins (mirroring the host's `resetAccum` at the end of
+ *  the same transition recipe).
+ *
+ *  Use this helper for every phase whose watcher timer starts after a banner:
+ *  cannon-start and build-start both call it. Do NOT pre-compute the origin
+ *  as `bannerStartedAt + bannerDuration * 1000` — that relies on the banner
+ *  animation matching its nominal duration exactly, which frame drops or
+ *  browser throttling can violate. A dialog (upgrade-pick) that plays BEFORE
+ *  the banner is fine: the dialog finishes before `showBanner()` is called,
+ *  so the callback still fires at true banner-end. */
+export function setWatcherPhaseTimerAtBannerEnd(
+  timing: WatcherTimingState,
+  phaseDuration: number,
+): void {
+  setWatcherPhaseTimer(timing, performance.now(), phaseDuration);
+}
+
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
  *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */
 export function setWatcherPhaseTimer(

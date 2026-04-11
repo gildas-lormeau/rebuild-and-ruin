@@ -351,6 +351,11 @@ export type ServerMessage =
 /** Any message sent over the wire (client or server). */
 export type GameMessage = ClientMessage | ServerMessage;
 
+/** Union of every protocol message `type` string. Used by server validation
+ *  tables (HOST_ONLY, RATE_LIMITED_TYPES, PHASE_GATES in server/game-room.ts)
+ *  so a typo or rename of a MESSAGE constant becomes a compile error there. */
+export type MessageType = (typeof MESSAGE)[keyof typeof MESSAGE];
+
 const VALID_MAX_ROUNDS = [0, 1, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
 const MAX_WAIT_TIMER_SEC = 120;
