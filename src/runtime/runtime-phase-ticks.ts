@@ -2,13 +2,12 @@ import {
   advanceBattleCountdown,
   buildTimerMax,
   type CannonPhaseEntry,
-  capturePrevBattleScene,
   diffNewWalls,
   enterBattlePhase,
+  enterBuildPhase,
   enterBuildSkippingBattle,
   enterCannonPhase,
   isCeasefireActive,
-  nextPhase,
   nextReadyCombined,
   resetCannonFacings,
   snapshotThenFinalize,
@@ -620,13 +619,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.endBattle();
     }
     deps.saveBattleCrosshair?.();
-    capturePrevBattleScene(
-      runtimeState.banner,
+    // Engine owns the order: pre-transition snapshots are captured BEFORE
+    // enterBuildFromBattle mutates state. Runtime wires the snapshots into
+    // the banner overlay for the build-banner reveal.
+    const entry = enterBuildPhase(
       state,
       battleAnim.territory,
       battleAnim.walls,
     );
-    nextPhase(state);
+    runtimeState.banner.prevCastles = entry.prevCastles;
+    runtimeState.banner.prevTerritory = entry.prevTerritory;
+    runtimeState.banner.prevWalls = entry.prevWalls;
+    runtimeState.banner.prevEntities = entry.prevEntities;
     enterBuildViaUpgradePick();
     return true;
   }

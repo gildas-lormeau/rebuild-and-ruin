@@ -40,7 +40,6 @@
  */
 
 import {
-  addPlayerWalls,
   clearPlayerWalls,
   collectAllWalls,
   filterAliveOwnedTowers,
@@ -93,7 +92,6 @@ import {
   computeCastleWallTiles,
   createCastle,
   orderCastleWallsForAnimation,
-  spawnHousesInZone,
   startOfBuildPhaseHousekeeping,
 } from "./castle-generation.ts";
 import {
@@ -177,27 +175,6 @@ export function finalizeCastleConstruction(state: GameState): void {
   recheckTerritoryOnly(state);
   startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
-}
-
-/** Enter build from initial castle selection — builds castles first.
- *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
-export function enterBuildFromSelect(state: GameState): void {
-  emitGameEvent(state.bus, GAME_EVENT.GAME_START, { round: state.round });
-  autoBuildCastles(state);
-  replenishBonusSquares(state);
-  setPhase(state, Phase.WALL_BUILD);
-  state.timer = 0;
-}
-
-/** Enter build from reselection — castles already exist, just set phase.
- *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
-export function enterBuildFromReselect(state: GameState): void {
-  if (hasFeature(state, FID.UPGRADES)) {
-    state.modern!.masterBuilderLockout = 0;
-    state.modern!.masterBuilderOwners = null;
-  }
-  setPhase(state, Phase.WALL_BUILD);
-  state.timer = 0;
 }
 
 export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
@@ -403,6 +380,42 @@ export function computeScoreDeltas(
     );
 }
 
+/** Prepare castle walls for all players, returning ordered wall tiles per player
+ *  for animated construction. Sets castle but does NOT add walls or interior. */
+export function prepareCastleWallsForPlayer(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): { playerId: ValidPlayerSlot; tiles: number[] } | null {
+  const player = state.players[playerId];
+  if (!player?.homeTower) return null;
+  const castle = createCastle(
+    player.homeTower,
+    state.map.tiles,
+    state.map.towers,
+  );
+  player.castle = castle;
+
+  // Get wall tiles and apply clumsy builders to a temp set
+  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
+  const tempWalls = new Set<number>();
+  for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
+  applyClumsyBuilders(
+    tempWalls,
+    castle,
+    state.map.tiles,
+    state.rng,
+    state.map.towers,
+  );
+
+  const ordered = orderCastleWallsForAnimation(
+    castle,
+    wallTiles,
+    tempWalls,
+    state.rng,
+  );
+  return { playerId: player.id, tiles: ordered };
+}
+
 /**
  * Complete the build phase using the canonical gameplay rules.
  * Owns wall sweeping, territory/tower revival, and the life check.
@@ -527,67 +540,6 @@ function resetPlayerBoardState(
   player.ownedTowers = [];
   player.castle = null;
   if (!options?.keepHomeTower) player.homeTower = null;
-}
-
-/** Build all castles instantly (used by headless tests via nextPhase). */
-function autoBuildCastles(state: GameState): void {
-  const plans = prepareCastleWalls(state);
-  for (const plan of plans) {
-    const player = state.players[plan.playerId]!;
-    addPlayerWalls(player, plan.tiles);
-    player.castleWallTiles = new Set(plan.tiles);
-  }
-  recheckTerritoryOnly(state);
-  for (const player of state.players) {
-    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
-  }
-}
-
-function prepareCastleWalls(
-  state: GameState,
-): { playerId: ValidPlayerSlot; tiles: number[] }[] {
-  const result: { playerId: ValidPlayerSlot; tiles: number[] }[] = [];
-  for (const player of state.players) {
-    const plan = prepareCastleWallsForPlayer(state, player.id);
-    if (plan) result.push(plan);
-  }
-  return result;
-}
-
-/** Prepare castle walls for all players, returning ordered wall tiles per player
- *  for animated construction. Sets castle but does NOT add walls or interior. */
-export function prepareCastleWallsForPlayer(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): { playerId: ValidPlayerSlot; tiles: number[] } | null {
-  const player = state.players[playerId];
-  if (!player?.homeTower) return null;
-  const castle = createCastle(
-    player.homeTower,
-    state.map.tiles,
-    state.map.towers,
-  );
-  player.castle = castle;
-
-  // Get wall tiles and apply clumsy builders to a temp set
-  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
-  const tempWalls = new Set<number>();
-  for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
-  applyClumsyBuilders(
-    tempWalls,
-    castle,
-    state.map.tiles,
-    state.rng,
-    state.map.towers,
-  );
-
-  const ordered = orderCastleWallsForAnimation(
-    castle,
-    wallTiles,
-    tempWalls,
-    state.rng,
-  );
-  return { playerId: player.id, tiles: ordered };
 }
 
 /** Decay burning pits at battle start — pits created during a battle

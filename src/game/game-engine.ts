@@ -30,25 +30,22 @@ import {
 import { createGameEventBus } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Tower } from "../shared/geometry-types.ts";
-import type { EntityOverlay } from "../shared/overlay-types.ts";
+import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
 import { type GameState, setGameMode } from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
-import { assertNever } from "../shared/utils.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {
   prepareCannonPhase,
   prepareControllerCannonPhase,
 } from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
-import { snapshotEntities } from "./phase-banner.ts";
+import { snapshotCastles, snapshotEntities } from "./phase-banner.ts";
 import {
   enterBattleFromCannon,
   enterBuildFromBattle,
-  enterBuildFromReselect,
-  enterBuildFromSelect,
   finalizeCastleConstruction,
   setPhase,
 } from "./phase-setup.ts";
@@ -80,6 +77,22 @@ interface PlayerCannonInit {
  *  Index = playerId; null entries are eliminated players or empty slots. */
 export interface CannonPhaseEntry {
   playerInit: readonly (PlayerCannonInit | null)[];
+}
+
+/** Result of `enterBuildPhase` — pre-transition snapshots the caller wires
+ *  into the banner overlay so the build-banner reveal can show the
+ *  before/after comparison. The engine has already mutated state to
+ *  WALL_BUILD by the time this is returned. */
+interface BuildPhaseEntry {
+  /** Castle data captured BEFORE battle artifacts were cleaned up. */
+  prevCastles: CastleData[];
+  /** Per-player territory at battle end (cloned from runtime battleAnim). */
+  prevTerritory: Set<number>[] | undefined;
+  /** Per-player walls at battle end (cloned from runtime battleAnim). */
+  prevWalls: Set<number>[] | undefined;
+  /** Map entities (houses, grunts, towers, pits, bonus squares) captured
+   *  while phase was still BATTLE. */
+  prevEntities: EntityOverlay;
 }
 
 /** Check if any player has the Ceasefire upgrade active. */
@@ -146,29 +159,6 @@ export function markPlayerReselected(
   state.reselectedPlayers.add(playerId);
 }
 
-export function nextPhase(state: GameState): void {
-  const { phase } = state;
-  switch (phase) {
-    case Phase.CASTLE_SELECT:
-      enterBuildFromSelect(state);
-      break;
-    case Phase.CASTLE_RESELECT:
-      enterBuildFromReselect(state);
-      break;
-    case Phase.WALL_BUILD:
-      enterCannonPlacePhase(state);
-      break;
-    case Phase.CANNON_PLACE:
-      enterBattleFromCannon(state);
-      break;
-    case Phase.BATTLE:
-      enterBuildFromBattle(state);
-      break;
-    default:
-      assertNever(phase);
-  }
-}
-
 /** Enter the battle phase from CANNON_PLACE. Performs all engine work in
  *  the load-bearing order (modifier roll → balloon resolution → snapshots)
  *  and returns the data the caller needs to react.
@@ -199,6 +189,33 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
     prepareControllerCannonPhase(idx as ValidPlayerSlot, state),
   );
   return { playerInit };
+}
+
+/** Enter the build phase from BATTLE. Captures pre-transition snapshots
+ *  (castles, entities, territory, walls) BEFORE mutating state, then runs
+ *  enterBuildFromBattle which performs the round-end housekeeping
+ *  (combo bonuses, battle cleanup, grunt spawn, upgrade offer generation,
+ *  modifier rotation, round increment, phase flip).
+ *
+ *  Replaces the runtime's manual sequence of `capturePrevBattleScene` +
+ *  `nextPhase`. Snapshot order is load-bearing — capturing must happen
+ *  while state.phase is still BATTLE so snapshotCastles/snapshotEntities
+ *  see the unflipped state.
+ *
+ *  battleTerritory/battleWalls live in runtime battleAnim state (not the
+ *  game state) so they're passed in as parameters. The engine clones them
+ *  defensively so the runtime can mutate its own copies later. */
+export function enterBuildPhase(
+  state: GameState,
+  battleTerritory: readonly Set<number>[] | undefined,
+  battleWalls: readonly Set<number>[] | undefined,
+): BuildPhaseEntry {
+  const prevCastles = snapshotCastles(state);
+  const prevTerritory = battleTerritory?.map((territory) => new Set(territory));
+  const prevWalls = battleWalls?.map((wall) => new Set(wall));
+  const prevEntities = snapshotEntities(state);
+  enterBuildFromBattle(state);
+  return { prevCastles, prevTerritory, prevWalls, prevEntities };
 }
 
 /** INVARIANT: Snapshot entities THEN finalize castle construction and enter

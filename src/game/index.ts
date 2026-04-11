@@ -46,12 +46,12 @@ export {
   applyGameConfig,
   createGameFromSeed,
   enterBattlePhase,
+  enterBuildPhase,
   enterCannonPhase,
   enterCastleReselectPhase,
   finalizeAndEnterCannonPhase,
   isCeasefireActive,
   markPlayerReselected,
-  nextPhase,
   selectPlayerTower,
   snapshotAndFinalizeForCannonPhase,
 } from "./game-engine.ts";
