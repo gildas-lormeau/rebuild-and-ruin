@@ -110,7 +110,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const runtimeState = createRuntimeState();
-  const haptics = createHapticsSystem();
+  const haptics = createHapticsSystem({ observer: config.observers?.haptics });
   haptics.setLevel(runtimeState.settings.haptics);
   const sound = createSoundSystem();
   sound.setLevel(runtimeState.settings.sound);

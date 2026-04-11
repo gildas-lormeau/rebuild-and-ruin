@@ -26,6 +26,7 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../src/shared/overlay-types.ts";
+import type { HapticsObserver } from "../src/shared/system-interfaces.ts";
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/player-config.ts";
 import {
@@ -101,6 +102,10 @@ interface HeadlessRuntimeOptions {
    *  by that slot's local AI. Defaults to the empty set (every slot is
    *  local AI), preserving existing test behavior. */
   remotePlayerSlots?: ReadonlySet<number>;
+  /** Test observer for haptics intents. Receives every `vibrate(reason, ms,
+   *  minLevel)` call BEFORE the platform/level gate, so tests can assert on
+   *  game-event → haptic mappings without a real `navigator.vibrate`. */
+  hapticsObserver?: HapticsObserver;
 }
 
 export interface HeadlessRuntime {
@@ -162,6 +167,7 @@ export async function createHeadlessRuntime(
     autoStartGame = true,
     networkSendObserver,
     remotePlayerSlots = EMPTY_REMOTE_SLOTS,
+    hapticsObserver,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -280,6 +286,7 @@ export async function createHeadlessRuntime(
       setMode(built.runtimeState, Mode.SELECTION);
     },
     onlinePhaseTicks: hostMode ? noopHostPhaseTicks() : undefined,
+    observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
   });
   runtimeHolder.current = runtime;
 

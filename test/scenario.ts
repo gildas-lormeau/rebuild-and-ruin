@@ -38,13 +38,13 @@
 // runs. Required so `registerKeyboardHandlers` can do `e.target instanceof
 // HTMLInputElement` without throwing in Deno.
 import "./test-globals.ts";
-import { setHapticsObserver } from "../src/input/haptics-system.ts";
 import { setSoundObserver } from "../src/input/sound-system.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import {
   setCanvasFactory,
   setRenderObserver,
 } from "../src/render/render-map.ts";
+import type { HapticsObserver } from "../src/shared/system-interfaces.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -94,6 +94,10 @@ export interface ScenarioOptions {
    *  game starts naturally once a slot is joined and the lobby timer
    *  expires. Defaults to true. */
   autoStartGame?: boolean;
+  /** Test observer for haptics intents. Receives every `vibrate(reason, ms,
+   *  minLevel)` call BEFORE the platform/level gate. Threaded through to
+   *  `createHapticsSystem({ observer })` via the runtime's `observers` bag. */
+  hapticsObserver?: HapticsObserver;
 }
 
 export interface Scenario extends Disposable {
@@ -222,6 +226,7 @@ export async function createScenario(
     speedMultiplier: opts.speedMultiplier,
     autoStartGame: opts.autoStartGame ?? true,
     networkSendObserver: (msg) => sentMessages.push(msg),
+    hapticsObserver: opts.hapticsObserver,
   });
   return wrapHeadless(headless, usedRecorder, sentMessages);
 }
@@ -263,10 +268,8 @@ export function wrapHeadless(
         setCanvasFactory(() => document.createElement("canvas"));
         setRenderObserver(undefined);
       }
-      // Always clear the haptics + sound observers on dispose, even when
-      // no test installed one — module-level state must not leak between
-      // scenarios.
-      setHapticsObserver(undefined);
+      // Always clear the sound observer on dispose, even when no test
+      // installed one — module-level state must not leak between scenarios.
       setSoundObserver(undefined);
     },
   };

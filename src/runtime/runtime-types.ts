@@ -81,6 +81,7 @@ import type {
   CannonController,
   CannonViewState,
   ControllerIdentity,
+  HapticsObserver,
   HapticsSystem,
   InputReceiver,
   SoundSystem,
@@ -332,6 +333,14 @@ export interface RuntimeConfig {
   /** Online-only game-over broadcast hook. Fires once when the game ends,
    *  before the frame's gameOver payload is set. */
   onEndGame?: (winner: { id: number }, state: GameState) => void;
+
+  /** Test-only sub-system observers. Threaded from the test scenario
+   *  through `createHeadlessRuntime` so tests can capture intents (sound,
+   *  haptics, render) without monkey-patching module state. Production
+   *  callers (`main.ts`, `online-runtime-game.ts`) omit this entirely. */
+  observers?: {
+    haptics?: HapticsObserver;
+  };
 }
 
 export interface CameraSystem {

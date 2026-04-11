@@ -7,46 +7,33 @@
  *
  * ### Test observer
  *
- * `setHapticsObserver` is the test seam (mirrors `setRenderObserver` in
- * `render-map.ts`). Tests install an observer to capture every vibrate
- * intent — including which game event triggered it — without needing a
- * real `navigator.vibrate`. The observer fires whether or not
+ * Tests pass an optional `observer` in the deps bag to capture every
+ * vibrate intent — including which game event triggered it — without
+ * needing a real `navigator.vibrate`. The observer fires whether or not
  * `CAN_VIBRATE` is true and whether or not the current `hapticsLevel`
  * gates the call, so tests can assert "this game event would have
  * triggered haptic X at level Y" independently of the platform/setting.
  *
- * The observer is a write-only sink — tests subscribe via
- * `setHapticsObserver({...})`, run the scenario, then read the recorded
- * calls. Pass `undefined` to clear (paired with the scenario disposable
- * so a follow-on test starts clean).
+ * The observer is a write-only sink, threaded from the test scenario
+ * through `createHeadlessRuntime` → `createGameRuntime` → here. Production
+ * callers (`main.ts`, `online-runtime-game.ts`) pass nothing, so the
+ * observer property access is the only added overhead in the hot path.
  */
 
 import { BATTLE_MESSAGE, type BattleEvent } from "../shared/battle-events.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/game-constants.ts";
 import { CAN_VIBRATE } from "../shared/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { HapticsSystem } from "../shared/system-interfaces.ts";
+import type {
+  HapticReason,
+  HapticsObserver,
+  HapticsSystem,
+} from "../shared/system-interfaces.ts";
 
-/** Reason a haptic call was made — lets the observer (and future debug
- *  overlays) attribute a vibration to the game event that triggered it
- *  instead of just seeing a duration. */
-export type HapticReason =
-  | "tap"
-  | "phaseChange"
-  | "wallDestroyed"
-  | "cannonDamaged"
-  | "cannonDestroyed"
-  | "towerKilled"
-  | "cannonFired";
-
-/** Test observer — receives every vibrate intent BEFORE the platform/level
- *  gate. Tests use this to assert that game events triggered the right
- *  haptic feedback without needing a real `navigator.vibrate`. Inlined
- *  in the `setHapticsObserver` signature so callers don't need a named
- *  import; the type is local-only by design (knip would otherwise flag
- *  it as an unused export). */
-interface HapticsObserver {
-  vibrate?(reason: HapticReason, ms: number, minLevel: 1 | 2): void;
+/** Construction-time deps for the haptics sub-system. `observer` is the
+ *  test seam — production callers omit it. */
+interface HapticsSystemDeps {
+  observer?: HapticsObserver;
 }
 
 const HAPTIC_TAP_MS = 8;
@@ -57,22 +44,14 @@ const HAPTIC_CANNON_DESTROYED_MS = 150;
 const HAPTIC_TOWER_KILLED_MS = 200;
 const HAPTIC_CANNON_FIRED_MS = 15;
 
-let hapticsObserver: HapticsObserver | undefined;
-
-/** Install a haptics observer (test seam). Pass `undefined` to clear.
- *  Mirrors `setRenderObserver` from `render-map.ts`. Production code never
- *  sets this. */
-export function setHapticsObserver(
-  observer: HapticsObserver | undefined,
-): void {
-  hapticsObserver = observer;
-}
-
-export function createHapticsSystem(): HapticsSystem {
+export function createHapticsSystem(
+  deps: HapticsSystemDeps = {},
+): HapticsSystem {
+  const { observer } = deps;
   let hapticsLevel = HAPTICS_ALL;
 
   function vibrate(reason: HapticReason, ms: number, minLevel: 1 | 2): void {
-    hapticsObserver?.vibrate?.(reason, ms, minLevel);
+    observer?.vibrate?.(reason, ms, minLevel);
     if (CAN_VIBRATE && hapticsLevel >= minLevel) navigator.vibrate(ms);
   }
 
@@ -101,8 +80,7 @@ export function createHapticsSystem(): HapticsSystem {
     events: ReadonlyArray<BattleEvent>,
     povPlayerId: ValidPlayerSlot,
   ): void {
-    if (!hapticsObserver && (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL))
-      return;
+    if (!observer && (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL)) return;
     for (const evt of events) {
       if (
         evt.type === BATTLE_MESSAGE.WALL_DESTROYED &&

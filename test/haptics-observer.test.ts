@@ -20,11 +20,8 @@
  */
 
 import { assert, assertGreater } from "@std/assert";
-import {
-  type HapticReason,
-  setHapticsObserver,
-} from "../src/input/haptics-system.ts";
 import { Phase } from "../src/shared/game-phase.ts";
+import type { HapticReason } from "../src/shared/system-interfaces.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
 interface HapticCall {
@@ -37,12 +34,14 @@ Deno.test(
   "haptics observer: phaseChange fires for phase transition banners",
   async () => {
     const calls: HapticCall[] = [];
-    setHapticsObserver({
-      vibrate: (reason, ms, minLevel) => {
-        calls.push({ reason, ms, minLevel });
+    using sc = await createScenario({
+      seed: 42,
+      hapticsObserver: {
+        vibrate: (reason, ms, minLevel) => {
+          calls.push({ reason, ms, minLevel });
+        },
       },
     });
-    using sc = await createScenario({ seed: 42 });
 
     // Drive the game from CASTLE_SELECT through to the first BATTLE — at
     // least one phase-transition banner fires along the way (round
@@ -70,12 +69,14 @@ Deno.test(
   "haptics observer: battle events fire cannonFired through observer even though CAN_VIBRATE=false",
   async () => {
     const calls: HapticCall[] = [];
-    setHapticsObserver({
-      vibrate: (reason, ms, minLevel) => {
-        calls.push({ reason, ms, minLevel });
+    using sc = await createScenario({
+      seed: 42,
+      hapticsObserver: {
+        vibrate: (reason, ms, minLevel) => {
+          calls.push({ reason, ms, minLevel });
+        },
       },
     });
-    using sc = await createScenario({ seed: 42 });
 
     // Drive past the first battle's mid-point so cannons have a chance
     // to fire. The simplest "saw cannons firing" check: wait until
