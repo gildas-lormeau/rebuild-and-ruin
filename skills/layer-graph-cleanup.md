@@ -252,7 +252,12 @@ A file that *could* be at a lower layer but is semantically part of a higher gro
 ## Patterns from this codebase
 
 Historical log of past refactoring decisions. Filenames refer to what files were called
-at the time of each change (some have since been renamed or moved into domain directories).
+at the time of each change. Some have since been renamed, moved into domain
+directories, or relocated entirely to `test/` (e.g. `runtime-headless.ts`
+now lives at `test/runtime-headless.ts` since every option on it is
+test-only). If you grep for a filename here and don't find it, run
+`git log --all -- 'src/**/<name>'` and `git log --all -- 'test/**/<name>'`
+to follow the move.
 
 Most entries below were discovered and executed by LLM-based agents under script-enforced constraints. Read them as "previously verified transformations" rather than as informal historical anecdotes.
 

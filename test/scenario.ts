@@ -291,10 +291,22 @@ export function wrapHeadless(
     runGame: headless.runGame,
     input,
     [Symbol.dispose]: () => {
-      // No module-level cleanup needed: every observer/canvas-factory is
-      // closure-scoped to the renderer / runtime constructed for this
-      // scenario, so a follow-on test in the same file naturally starts
-      // with a fresh slate.
+      // No cleanup is performed for the *observers* this Scenario installed:
+      // every haptics / sound / render observer is closure-scoped to the
+      // sub-system constructed for this runtime, so a follow-on test
+      // naturally starts with a fresh slate. Same for the canvas factory and
+      // terrain cache (per `createRenderMap` instance).
+      //
+      // Module state we DO NOT clean up — and intentionally so:
+      //   - `lastTouchTime` in `src/input/input-dispatch.ts` (a single number,
+      //     seeded to -Infinity, no cross-test interference).
+      //   - `online-runtime-deps.ts:initDeps` reassigns module-level
+      //     dispatcher state on every call. Sequential
+      //     `createOnlineHarness` calls overwrite each other's wiring
+      //     cleanly, but parallel test execution would race — see
+      //     test/online-headless.ts header for the details.
+      //   - The duplicate-literals baseline + jscpd state is also module-
+      //     level but only relevant to lint, not runtime tests.
     },
   };
 }
