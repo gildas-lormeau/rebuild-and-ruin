@@ -2,7 +2,7 @@ import {
   capturePrevBattleScene,
   createCastle,
   prepareControllerCannonPhase,
-  recomputeTerritoryFromWalls,
+  recomputeAllTerritory,
   resetZoneState,
   setPhase,
   snapshotCastles,
@@ -324,8 +324,8 @@ export function handleBattleStartTransition(
       // Recompute territory from checkpoint walls (post-sweep) on the watcher's
       // pre-modifier map. Matches the host's recheckTerritoryOnly in
       // enterBattleFromCannon. Territory becomes stale again after
-      // restoreModifierTileState (inside the checkpoint) mutates map tiles.
-      recomputeWatcherTerritory(state);
+      // applyCheckpointModifierTiles (inside the checkpoint) mutates map tiles.
+      recomputeAllTerritory(state);
       setPhase(state, Phase.BATTLE);
     },
     snapshotForBanner: () => {
@@ -460,12 +460,4 @@ export function handleGameOverTransition(
   });
   transitionCtx.ui.render();
   transitionCtx.setMode(Mode.STOPPED);
-}
-
-/** Recompute interior for all players after battle-start checkpoint replaced
- *  their walls. Matches the host's recheckTerritoryOnly in enterBattleFromCannon. */
-function recomputeWatcherTerritory(state: GameState): void {
-  for (const player of state.players) {
-    recomputeTerritoryFromWalls(state, player);
-  }
 }

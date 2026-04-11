@@ -23,7 +23,7 @@ export {
   canPlacePiece,
   placePiece,
   recheckTerritoryOnly,
-  recomputeTerritoryFromWalls,
+  recomputeAllTerritory,
 } from "./build-system.ts";
 export {
   applyCannonPlacement,
@@ -39,7 +39,7 @@ export {
   resetCannonFacings,
 } from "./cannon-system.ts";
 export { createCastle } from "./castle-generation.ts";
-export { createComboTracker, isCombosEnabled } from "./combo-system.ts";
+export { rehydrateComboTracker } from "./combo-system.ts";
 export { executeCannonFire, executePlacePiece } from "./game-actions.ts";
 export type { CannonPhaseEntry } from "./game-engine.ts";
 export {
@@ -73,10 +73,7 @@ export {
   resetZoneState,
   setPhase,
 } from "./phase-setup.ts";
-export {
-  reapplyHighTideTiles,
-  reapplySinkholeTiles,
-} from "./round-modifiers.ts";
+export { applyCheckpointModifierTiles } from "./round-modifiers.ts";
 export {
   allSelectionsConfirmed,
   confirmTowerSelection,

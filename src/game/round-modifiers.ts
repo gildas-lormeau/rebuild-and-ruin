@@ -51,6 +51,13 @@ type SinkholeShape = readonly (readonly [number, number])[];
 /** A concrete shape placement: which template, anchored where on the grid. */
 type ShapePlacement = { shape: SinkholeShape; row: number; col: number };
 
+/** Checkpoint data shape — the subset of checkpoint fields this helper reads. */
+interface ModifierTileData {
+  readonly frozenTiles?: readonly number[] | null;
+  readonly highTideTiles?: readonly number[] | null;
+  readonly sinkholeTiles?: readonly number[] | null;
+}
+
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
  *  so 6-10 extra is a serious but not overwhelming spike. */
@@ -345,19 +352,6 @@ export function clearHighTide(state: GameState): void {
   state.map.mapVersion++;
 }
 
-/** Re-apply high tide tile mutations on a map regenerated from seed.
- *  Called during checkpoint restore and full-state recovery. Idempotent. */
-export function reapplyHighTideTiles(state: GameState): void {
-  const highTide = state.modern?.highTideTiles;
-  if (!highTide || highTide.size === 0) return;
-  const tiles = state.map.tiles;
-  for (const key of highTide) {
-    const { r, c } = unpackTile(key);
-    setWater(tiles, r, c);
-  }
-  state.map.mapVersion++;
-}
-
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water.
  *  Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  *  Returns the set of all sinkhole tile keys for the reveal banner. */
@@ -438,17 +432,30 @@ export function applySinkhole(state: GameState): ReadonlySet<number> {
   return allSunk;
 }
 
-/** Re-apply sinkhole tile mutations on a map regenerated from seed.
- *  Called during checkpoint restore and full-state recovery. Idempotent. */
-export function reapplySinkholeTiles(state: GameState): void {
-  const sinkhole = state.modern?.sinkholeTiles;
-  if (!sinkhole || sinkhole.size === 0) return;
-  const tiles = state.map.tiles;
-  for (const key of sinkhole) {
-    const { r, c } = unpackTile(key);
-    setWater(tiles, r, c);
+/** Restore tile-mutating modifier state from checkpoint data (watcher +
+ *  host-promotion path). Sets frozenTiles / highTideTiles / sinkholeTiles on
+ *  state.modern from the checkpoint, then re-mutates the map tiles (which
+ *  are regenerated from seed and thus need the modifier tiles reapplied).
+ *
+ *  No-op if the modifiers feature is not active for this match. */
+export function applyCheckpointModifierTiles(
+  state: GameState,
+  data: ModifierTileData,
+): void {
+  if (!hasFeature(state, FID.MODIFIERS)) return;
+  if ("frozenTiles" in data) {
+    state.modern!.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
   }
-  state.map.mapVersion++;
+  state.modern!.highTideTiles = data.highTideTiles
+    ? new Set(data.highTideTiles)
+    : null;
+  state.modern!.sinkholeTiles = data.sinkholeTiles
+    ? new Set(data.sinkholeTiles)
+    : null;
+  reapplyHighTideTiles(state);
+  reapplySinkholeTiles(state);
 }
 
 /** Apply rubble clearing: remove all dead cannon debris and burning pits.
@@ -475,6 +482,34 @@ export function applyRubbleClearing(state: GameState): readonly number[] {
   }
   state.burningPits.length = 0;
   return cleared;
+}
+
+/** Re-apply high tide tile mutations on a map regenerated from seed.
+ *  Called during checkpoint restore and full-state recovery. Idempotent. */
+/** Private — callers outside this file should use `applyCheckpointModifierTiles`. */
+function reapplyHighTideTiles(state: GameState): void {
+  const highTide = state.modern?.highTideTiles;
+  if (!highTide || highTide.size === 0) return;
+  const tiles = state.map.tiles;
+  for (const key of highTide) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+  state.map.mapVersion++;
+}
+
+/** Re-apply sinkhole tile mutations on a map regenerated from seed.
+ *  Called during checkpoint restore and full-state recovery. Idempotent. */
+/** Private — callers outside this file should use `applyCheckpointModifierTiles`. */
+function reapplySinkholeTiles(state: GameState): void {
+  const sinkhole = state.modern?.sinkholeTiles;
+  if (!sinkhole || sinkhole.size === 0) return;
+  const tiles = state.map.tiles;
+  for (const key of sinkhole) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+  state.map.mapVersion++;
 }
 
 /** Enumerate every legal anchor position for every allowed shape of the

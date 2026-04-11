@@ -287,12 +287,19 @@ export function removeBonusSquaresCoveredByWalls(
   );
 }
 
+/** Recompute interior + ownedTowers for every player. Used by checkpoint
+ *  rehydration and deserialization paths where the full player wall set
+ *  has just been replaced and all interiors need to be re-flooded. */
+export function recomputeAllTerritory(state: GameState): void {
+  for (const player of state.players) {
+    recomputeTerritoryFromWalls(state, player);
+  }
+}
+
 /** Recompute interior and ownedTowers from walls — no side effects.
  *  Used by checkpoint restore where grunts/houses/bonus are already correct. */
-export function recomputeTerritoryFromWalls(
-  state: GameState,
-  player: Player,
-): void {
+/** Private — callers outside this file should use `recomputeAllTerritory`. */
+function recomputeTerritoryFromWalls(state: GameState, player: Player): void {
   recomputeInterior(state, player);
   updateOwnedTowers(state, player);
 }

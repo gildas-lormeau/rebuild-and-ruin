@@ -1,8 +1,7 @@
 import {
+  applyCheckpointModifierTiles,
   createCastle,
-  reapplyHighTideTiles,
-  reapplySinkholeTiles,
-  recomputeTerritoryFromWalls,
+  recomputeAllTerritory,
   setPhase,
 } from "../game/index.ts";
 import type {
@@ -234,18 +233,8 @@ export function restoreFullStateSnapshot(
       (msg.lastModifierId as NonNullable<
         GameState["modern"]
       >["lastModifierId"]) ?? null;
-    state.modern!.frozenTiles = msg.frozenTiles
-      ? new Set(msg.frozenTiles)
-      : null;
-    state.modern!.highTideTiles = msg.highTideTiles
-      ? new Set(msg.highTideTiles)
-      : null;
-    state.modern!.sinkholeTiles = msg.sinkholeTiles
-      ? new Set(msg.sinkholeTiles)
-      : null;
-    reapplyHighTideTiles(state);
-    reapplySinkholeTiles(state);
   }
+  applyCheckpointModifierTiles(state, msg);
   if (hasFeature(state, FID.UPGRADES)) {
     state.modern!.pendingUpgradeOffers = msg.pendingUpgradeOffers
       ? new Map(
@@ -278,9 +267,7 @@ export function restoreFullStateSnapshot(
 
   // Reuse existing checkpoint helpers
   applyPlayersCheckpoint(state, msg.players);
-  for (const player of state.players) {
-    recomputeTerritoryFromWalls(state, player);
-  }
+  recomputeAllTerritory(state);
   applyGruntsCheckpoint(state, msg.grunts);
 
   applyHousesCheckpoint(state, msg.houses);

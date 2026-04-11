@@ -1,9 +1,7 @@
 import {
-  createComboTracker,
-  isCombosEnabled,
-  reapplyHighTideTiles,
-  reapplySinkholeTiles,
-  recomputeTerritoryFromWalls,
+  applyCheckpointModifierTiles,
+  recomputeAllTerritory,
+  rehydrateComboTracker,
 } from "../game/index.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
@@ -82,7 +80,7 @@ export function applyCannonStartCheckpoint(
     data.salvageSlots ?? deps.state.players.map(() => 0);
   deps.state.timer = data.timer;
 
-  restoreModifierTileState(deps.state, data);
+  applyCheckpointModifierTiles(deps.state, data);
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
 }
@@ -110,16 +108,12 @@ export function applyBattleStartCheckpoint(
 
   applyCapturedCannons(deps.state, data.capturedCannons);
 
-  restoreModifierTileState(deps.state, data);
+  applyCheckpointModifierTiles(deps.state, data);
 
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
-  // Create combo tracker on watcher (matches host's enterBattleFromCannon)
-  if (hasFeature(deps.state, FID.COMBOS)) {
-    deps.state.modern!.comboTracker = isCombosEnabled(deps.state)
-      ? createComboTracker(deps.state.players.length)
-      : null;
-  }
+  // Matches host's enterBattleFromCannon.
+  rehydrateComboTracker(deps.state);
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
     if (!isPlayerSeated(player)) continue;
@@ -140,9 +134,7 @@ export function applyBuildStartCheckpoint(
   applyCommonCheckpoint(data, deps, capturePreState);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
-  if (hasFeature(deps.state, FID.MODIFIERS)) {
-    restoreModifierTileState(deps.state, data);
-  }
+  applyCheckpointModifierTiles(deps.state, data);
   if (hasFeature(deps.state, FID.UPGRADES)) {
     deps.state.modern!.pendingUpgradeOffers = data.pendingUpgradeOffers
       ? new Map(
@@ -204,45 +196,6 @@ function applyCommonCheckpoint(
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;
-}
-
-/** Restore tile-mutating modifier state from checkpoint data.
- *  Handles frozenTiles (optional), highTideTiles, and sinkholeTiles.
- *  Calls reapply functions to re-mutate the map tiles (which are regenerated from seed). */
-function restoreModifierTileState(
-  state: GameState,
-  data: {
-    frozenTiles?: number[] | null;
-    highTideTiles?: number[] | null;
-    sinkholeTiles?: number[] | null;
-  },
-): void {
-  if (!hasFeature(state, FID.MODIFIERS)) return;
-  if ("frozenTiles" in data) {
-    state.modern!.frozenTiles = data.frozenTiles
-      ? new Set(data.frozenTiles)
-      : null;
-  }
-  state.modern!.highTideTiles = data.highTideTiles
-    ? new Set(data.highTideTiles)
-    : null;
-  state.modern!.sinkholeTiles = data.sinkholeTiles
-    ? new Set(data.sinkholeTiles)
-    : null;
-  reapplyHighTideTiles(state);
-  reapplySinkholeTiles(state);
-}
-
-/** Clear in-flight cannonballs and visual impacts.
- *  Named clearBattleProjectiles to avoid confusion with the controller method
- *  initBattleState() which resets cannon rotation and cursors (different concern). */
-/** Recompute interior + ownedTowers for all players after a checkpoint
- *  replaced their wall sets. NOT called during battle-start — interior is
- *  intentionally stale while map tiles are mutated by modifiers. */
-function recomputeAllTerritory(state: GameState): void {
-  for (const player of state.players) {
-    recomputeTerritoryFromWalls(state, player);
-  }
 }
 
 function clearBattleProjectiles(deps: CheckpointDeps): void {
