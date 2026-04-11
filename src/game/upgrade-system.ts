@@ -27,12 +27,17 @@ import {
   UID,
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
+import { architectWallOverlapAllowance } from "./upgrades/architect.ts";
 import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
 import {
   type ConscriptionRespawnTarget,
   conscriptionPickRespawnTarget,
 } from "./upgrades/conscription.ts";
 import { doubleTimeBuildTimerBonus } from "./upgrades/double-time.ts";
+import {
+  foundationsExtinguishOnPlace,
+  foundationsIgnoresPits,
+} from "./upgrades/foundations.ts";
 import {
   masterBuilderAllowsBuild,
   masterBuilderOnBuildStart,
@@ -98,6 +103,28 @@ export function territoryScoreMult(player: Player): number {
 /** Extra cannon slots granted to a player by active upgrades (additive). */
 export function cannonSlotsBonus(player: Player): number {
   return supplyDropCannonSlotsBonus(player);
+}
+
+/** How many own-wall tiles this player may overlap with a single piece
+ *  placement. Aggregates every upgrade that relaxes wall-overlap rules. */
+export function wallOverlapAllowance(player: Player): number {
+  return architectWallOverlapAllowance(player);
+}
+
+/** True when this player may place pieces on top of burning pits.
+ *  Callers should skip the pit-block check when this returns true. */
+export function canPlaceOverBurningPit(player: Player): boolean {
+  return foundationsIgnoresPits(player);
+}
+
+/** Post-placement hook: run upgrade-driven side effects triggered by a
+ *  just-placed piece (e.g. Foundations extinguishing covered pits). */
+export function onPiecePlaced(
+  state: GameState,
+  player: Player,
+  pieceKeys: ReadonlySet<number>,
+): void {
+  foundationsExtinguishOnPlace(state, player, pieceKeys);
 }
 
 /** Phase-boundary hook: configure upgrade state at the start of a build phase.

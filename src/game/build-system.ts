@@ -51,10 +51,14 @@ import {
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
-import { UID } from "../shared/upgrade-defs.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
-import { territoryScoreMult } from "./upgrade-system.ts";
+import {
+  canPlaceOverBurningPit,
+  onPiecePlaced,
+  territoryScoreMult,
+  wallOverlapAllowance,
+} from "./upgrade-system.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -90,8 +94,10 @@ export function canPlacePiece(
   excludeInterior?: ReadonlySet<number>,
 ): boolean {
   const player = state.players[playerId];
-  const playerZone = player?.homeTower?.zone;
-  const architectAllowance = player?.upgrades.get(UID.ARCHITECT) ? 1 : 0;
+  if (!player) return false;
+  const playerZone = player.homeTower?.zone;
+  const overlapAllowance = wallOverlapAllowance(player);
+  const allowPitOverlap = canPlaceOverBurningPit(player);
   let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
@@ -107,8 +113,7 @@ export function canPlacePiece(
     if (excludeInterior && excludeInterior.has(key)) return false;
 
     if (hasWallAt(state, r, c)) {
-      // Architect allows overlapping up to 1 own wall tile
-      if (player!.walls.has(key) && wallOverlaps < architectAllowance) {
+      if (player.walls.has(key) && wallOverlaps < overlapAllowance) {
         wallOverlaps++;
       } else {
         return false;
@@ -118,12 +123,7 @@ export function canPlacePiece(
     if (hasCannonAt(state, r, c)) return false;
     if (hasGruntAt(state.grunts, r, c)) return false;
 
-    // Check burning pits (Foundations upgrade bypasses this)
-    if (
-      hasPitAt(state.burningPits, r, c) &&
-      !state.players[playerId]?.upgrades.get(UID.FOUNDATIONS)
-    )
-      return false;
+    if (hasPitAt(state.burningPits, r, c) && !allowPitOverlap) return false;
 
     // Bonus squares CAN be covered (you lose the bonus) — no block here
   }
@@ -163,11 +163,7 @@ export function applyPiecePlacement(
   state.bonusSquares = state.bonusSquares.filter(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
-  if (player.upgrades.get(UID.FOUNDATIONS)) {
-    state.burningPits = state.burningPits.filter(
-      (pit) => !pieceKeys.has(packTile(pit.row, pit.col)),
-    );
-  }
+  onPiecePlaced(state, player, pieceKeys);
   recheckTerritory(state);
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
