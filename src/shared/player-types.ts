@@ -93,6 +93,14 @@ export function eliminatePlayer(player: Player): void {
   player.lives = 0;
 }
 
+/** Set a player's home tower and initialize their owned towers list.
+ *  Called during selection / reselection phase when a player picks or
+ *  changes their highlighted tower. */
+export function selectPlayerTower(player: Player, tower: Tower): void {
+  player.homeTower = tower;
+  player.ownedTowers = [tower];
+}
+
 /** True when a player has selected a castle and can actively participate. */
 export function isPlayerSeated(
   player: Player | null | undefined,

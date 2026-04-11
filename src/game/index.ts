@@ -49,11 +49,12 @@ export {
   enterBuildPhase,
   enterCannonPhase,
   enterCastleReselectPhase,
+  enterSelectionPhase,
   finalizeAndEnterCannonPhase,
   finishBuildPhase,
   isCeasefireActive,
+  isSelectionComplete,
   markPlayerReselected,
-  selectPlayerTower,
   snapshotAndFinalizeForCannonPhase,
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
@@ -77,7 +78,6 @@ export {
   reapplySinkholeTiles,
 } from "./round-modifiers.ts";
 export {
-  allPlayersHaveTerritory,
   allSelectionsConfirmed,
   confirmTowerSelection,
   finishSelectionPhase,

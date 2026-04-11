@@ -115,7 +115,8 @@
       "src/render/render-loupe.ts",
       "src/render/render-towers.ts",
       "src/shared/ui-contracts.ts",
-      "src/game/index.ts"
+      "src/game/index.ts",
+      "src/game/selection.ts"
     ]
   },
   {
@@ -199,7 +200,6 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
-      "src/game/selection.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-stores.ts",

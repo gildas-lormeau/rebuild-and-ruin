@@ -1,13 +1,14 @@
 import {
-  allPlayersHaveTerritory,
   allSelectionsConfirmed,
   confirmTowerSelection,
   enterCastleReselectPhase,
+  enterSelectionPhase,
   finalizeReselectedPlayers,
   finishSelectionPhase,
   highlightTowerSelection,
   initSelectionTimer,
   initTowerSelection,
+  isSelectionComplete,
   markPlayerReselected,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
@@ -162,7 +163,14 @@ export function createSelectionSystem(
       }
     }
 
-    // Determine which players need selectInitialTower:
+    // Engine owns selection-state init + timer.
+    enterSelectionPhase(state, runtimeState.selection.states);
+
+    // Per-player runtime setup: AI/controller init for drivable slots,
+    // camera zoom for humans. Runs after the engine has populated
+    // selectionStates + player.homeTower defaults.
+    //
+    // Drivable slot policy:
     //   Watcher: nobody — just observing
     //   Non-host player: only myPlayerId — remote players handled by host
     //   Host: all non-remote-humans — host drives AI + local player
@@ -172,14 +180,20 @@ export function createSelectionSystem(
       return !isRemotePlayer(pid, remotePlayerSlots);
     };
 
-    runtimeState.selection.states.clear();
     for (let i = 0; i < state.players.length; i++) {
       const pid = i as ValidPlayerSlot;
       const zone = state.playerZones[i]!;
       if (shouldSelect(pid)) {
         runtimeState.controllers[i]!.selectInitialTower(state, zone);
       }
-      initPlayerTowerSelection(pid, zone);
+      if (isHuman(runtimeState.controllers[pid]!)) {
+        const player = state.players[pid];
+        if (player?.homeTower)
+          deps.camera.setSelectionViewport(
+            player.homeTower.row,
+            player.homeTower.col,
+          );
+      }
     }
 
     runtimeState.overlay = {
@@ -187,7 +201,6 @@ export function createSelectionSystem(
     };
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
-    initSelectionTimer(state);
     setMode(runtimeState, Mode.SELECTION);
     deps.sound.drumsStart();
     resetFrameTiming(runtimeState, deps.timing.now());
@@ -363,11 +376,12 @@ export function createSelectionSystem(
       }
     }
 
-    // Advance to next phase when all confirmed and builds complete
+    // Advance to next phase when all confirmed and builds complete.
+    // Engine combines "all confirmed" + "all have territory"; runtime adds
+    // the castle-build animation gate (runtime-owned state).
     if (
-      allConfirmed() &&
       selection.castleBuilds.length === 0 &&
-      allPlayersHaveTerritory(state)
+      isSelectionComplete(state, selection.states)
     ) {
       if (isReselect) finishReselection();
       else finishSelection();

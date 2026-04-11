@@ -5,8 +5,8 @@
  * readable and testable.
  */
 
-import { selectPlayerTower } from "../game/index.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { selectPlayerTower } from "../shared/player-types.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";

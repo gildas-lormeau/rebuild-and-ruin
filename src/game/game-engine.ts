@@ -29,12 +29,16 @@ import {
 } from "../shared/game-constants.ts";
 import { createGameEventBus } from "../shared/game-event-bus.ts";
 import { Phase } from "../shared/game-phase.ts";
-import type { GameMap, Tower } from "../shared/geometry-types.ts";
+import type { GameMap } from "../shared/geometry-types.ts";
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
-import { type GameState, setGameMode } from "../shared/types.ts";
+import {
+  type GameState,
+  type SelectionState,
+  setGameMode,
+} from "../shared/types.ts";
 import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {
@@ -50,6 +54,12 @@ import {
   finalizeCastleConstruction,
   setPhase,
 } from "./phase-setup.ts";
+import {
+  allPlayersHaveTerritory,
+  allSelectionsConfirmed,
+  initSelectionTimer,
+  initTowerSelection,
+} from "./selection.ts";
 
 /** Result of `enterBattlePhase` — everything the caller needs to wire up
  *  banners, balloon animation, visual snapshots, and online broadcast.
@@ -165,12 +175,6 @@ export function enterCastleReselectPhase(state: GameState): void {
   state.timer = 0;
 }
 
-/** Set a player's home tower and initialize their owned towers list. */
-export function selectPlayerTower(player: Player, tower: Tower): void {
-  player.homeTower = tower;
-  player.ownedTowers = [tower];
-}
-
 /** Mark a player as having reselected a castle this round. */
 export function markPlayerReselected(
   state: GameState,
@@ -209,6 +213,45 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
     prepareControllerCannonPhase(idx as ValidPlayerSlot, state),
   );
   return { playerInit };
+}
+
+/** Enter the CASTLE_SELECT / CASTLE_RESELECT phase: clear any stale
+ *  per-player selection tracking, initialize each active player's
+ *  selection entry (with a default highlight on their zone's first tower
+ *  or their current home tower), and start the selection timer.
+ *
+ *  Replaces the runtime's manual sequence of `selectionStates.clear()` +
+ *  per-player `initTowerSelection` loop + `initSelectionTimer`. The
+ *  engine owns the order; the runtime runs its own per-player camera +
+ *  controller setup loop afterwards.
+ *
+ *  Note: `selectionStates` is a runtime-owned Map (not part of GameState)
+ *  because it's transient UI-tracking state that only exists during the
+ *  selection phase. The engine mutates it through the passed reference. */
+export function enterSelectionPhase(
+  state: GameState,
+  selectionStates: Map<number, SelectionState>,
+): void {
+  selectionStates.clear();
+  for (let i = 0; i < state.players.length; i++) {
+    const pid = i as ValidPlayerSlot;
+    const zone = state.playerZones[i] ?? 0;
+    initTowerSelection(state, selectionStates, pid, zone);
+  }
+  initSelectionTimer(state);
+}
+
+/** True when the selection phase is ready to advance: every player has
+ *  confirmed their tower AND every player with a home tower has claimed
+ *  territory (castle build animation complete). Callers typically also
+ *  check runtime-specific conditions (castle build queue empty). */
+export function isSelectionComplete(
+  state: GameState,
+  selectionStates: Map<number, SelectionState>,
+): boolean {
+  return (
+    allSelectionsConfirmed(selectionStates) && allPlayersHaveTerritory(state)
+  );
 }
 
 /** Enter the build phase from BATTLE. Captures pre-transition snapshots
