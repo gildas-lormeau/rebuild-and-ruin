@@ -2,7 +2,7 @@ import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerEliminated, isPlayerSeated } from "../shared/player-types.ts";
 import {
   computeOutside,
@@ -18,6 +18,7 @@ import {
 } from "../shared/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
+  isGlobalUpgradeActive,
   UID,
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
@@ -26,6 +27,28 @@ import {
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
+
+/** True when this round's battle phase should be skipped entirely.
+ *  Currently triggered by the Ceasefire upgrade — future upgrades or
+ *  modifiers may add other reasons. */
+export function shouldSkipBattle(state: GameState): boolean {
+  return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
+}
+
+/** Whether a player is locked out of building by the Master Builder upgrade.
+ *  True when exactly one player owns MB and this player is not the owner. */
+export function isMasterBuilderLocked(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  if (!hasFeature(state, FID.UPGRADES)) return false;
+  const modern = state.modern!;
+  if (modern.masterBuilderLockout <= 0) return false;
+  return (
+    modern.masterBuilderOwners !== null &&
+    !modern.masterBuilderOwners.has(playerId)
+  );
+}
 
 /** Apply all picked upgrades to player state. */
 export function applyUpgradePicks(

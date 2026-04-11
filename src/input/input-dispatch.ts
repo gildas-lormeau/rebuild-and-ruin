@@ -27,6 +27,7 @@
  * mouse handler without the suppression check causes ghost clicks.
  */
 
+import { isMasterBuilderLocked } from "../game/index.ts";
 import {
   isPlacementPhase,
   isReselectPhase,
@@ -47,7 +48,7 @@ import {
   isMovementAction,
   type PlayerController,
 } from "../shared/system-interfaces.ts";
-import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import type {
   GameActionDeps,
   OverlayActionDeps,

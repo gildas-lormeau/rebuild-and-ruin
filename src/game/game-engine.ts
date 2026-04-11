@@ -41,7 +41,6 @@ import {
   type SelectionState,
   setGameMode,
 } from "../shared/types.ts";
-import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {
   prepareCannonPhase,
@@ -135,11 +134,6 @@ interface BuildPhaseEntry {
   /** Map entities (houses, grunts, towers, pits, bonus squares) captured
    *  while phase was still BATTLE. */
   prevEntities: EntityOverlay;
-}
-
-/** Check if any player has the Ceasefire upgrade active. */
-export function isCeasefireActive(state: GameState): boolean {
-  return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
 }
 
 /** Create a game from a seed: generate map, pick zones, create state.

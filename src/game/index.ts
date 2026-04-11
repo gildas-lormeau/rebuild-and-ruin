@@ -46,7 +46,6 @@ export {
   enterSelectionPhase,
   finalizeAndEnterCannonPhase,
   finishBuildPhase,
-  isCeasefireActive,
   isSelectionComplete,
   snapshotAndFinalizeForCannonPhase,
   tickBuildPhase,
@@ -72,4 +71,8 @@ export {
   finishSelectionPhase,
   highlightTowerSelection,
 } from "./selection.ts";
-export { applyUpgradePicks } from "./upgrade-pick.ts";
+export {
+  applyUpgradePicks,
+  isMasterBuilderLocked,
+  shouldSkipBattle,
+} from "./upgrade-system.ts";

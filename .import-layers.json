@@ -106,7 +106,7 @@
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
       "src/game/phase-banner.ts",
-      "src/game/upgrade-pick.ts",
+      "src/game/upgrade-system.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/online/online-server-lifecycle.ts",

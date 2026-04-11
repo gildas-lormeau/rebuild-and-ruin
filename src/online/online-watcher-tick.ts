@@ -1,5 +1,6 @@
 import {
   aimCannons,
+  isMasterBuilderLocked,
   tickGrunts as moveGrunts,
   nextReadyCombined,
 } from "../game/index.ts";
@@ -17,11 +18,7 @@ import {
   tickGruntsIfDue,
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
-import {
-  type GameState,
-  hasFeature,
-  isMasterBuilderLocked,
-} from "../shared/types.ts";
+import { type GameState, hasFeature } from "../shared/types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   clearWatcherPhaseTimer,

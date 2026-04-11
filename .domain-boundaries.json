@@ -56,7 +56,7 @@
       "src/game/game-engine.ts",
       "src/game/selection.ts",
       "src/game/phase-banner.ts",
-      "src/game/upgrade-pick.ts",
+      "src/game/upgrade-system.ts",
       "src/game/index.ts"
     ],
     "ai": [

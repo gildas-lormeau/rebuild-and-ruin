@@ -9,9 +9,10 @@ import {
   enterBuildSkippingBattle,
   enterCannonPhase,
   finishBuildPhase,
-  isCeasefireActive,
+  isMasterBuilderLocked,
   nextReadyCombined,
   resetCannonFacings,
+  shouldSkipBattle,
   tickGrunts,
 } from "../game/index.ts";
 import {
@@ -63,7 +64,7 @@ import {
   resetAccum,
   tickGruntsIfDue,
 } from "../shared/tick-context.ts";
-import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
@@ -305,8 +306,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBattle (round=${state.round})`);
     deps.scoreDelta.reset();
 
-    // Ceasefire: skip battle entirely and proceed to build phase
-    if (isCeasefireActive(state)) {
+    if (shouldSkipBattle(state)) {
       enterBuildSkippingBattle(state);
       deps.log("ceasefire: skipping battle");
       enterBuildViaUpgradePick();

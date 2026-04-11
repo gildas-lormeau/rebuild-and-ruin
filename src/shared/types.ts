@@ -11,7 +11,6 @@ import type {
 import {
   EMPTY_FEATURES,
   type FeatureId,
-  FID,
   MODERN_FEATURES,
 } from "./feature-defs.ts";
 import {
@@ -233,21 +232,6 @@ export function setGameMode(state: GameState, mode: GameMode): void {
     mode === GAME_MODE_MODERN ? MODERN_FEATURES : EMPTY_FEATURES;
   state.modern =
     mode === GAME_MODE_MODERN ? (state.modern ?? createModernState()) : null;
-}
-
-/** Whether a player is locked out of building by the Master Builder upgrade.
- *  True when exactly one player owns MB and this player is not the owner. */
-export function isMasterBuilderLocked(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
-  if (!hasFeature(state, FID.UPGRADES)) return false;
-  const modern = state.modern!;
-  if (modern.masterBuilderLockout <= 0) return false;
-  return (
-    modern.masterBuilderOwners !== null &&
-    !modern.masterBuilderOwners.has(playerId)
-  );
 }
 
 /** Check if a feature capability is active for this match. */

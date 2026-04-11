@@ -111,7 +111,10 @@ import {
   clearHighTide,
   rollModifier,
 } from "./round-modifiers.ts";
-import { generateUpgradeOffers, resetPlayerUpgrades } from "./upgrade-pick.ts";
+import {
+  generateUpgradeOffers,
+  resetPlayerUpgrades,
+} from "./upgrade-system.ts";
 
 interface ScoreDelta {
   playerId: ValidPlayerSlot;
