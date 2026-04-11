@@ -8,7 +8,6 @@ import {
   finishSelectionPhase,
   highlightTowerSelection,
   isSelectionComplete,
-  markPlayerReselected,
   prepareCastleWallsForPlayer,
   recheckTerritoryOnly,
   snapshotAndFinalizeForCannonPhase,
@@ -259,7 +258,6 @@ export function createSelectionSystem(
     deps.sendTowerSelected(pid, result.towerIdx, true);
 
     if (result.isReselect) {
-      markPlayerReselected(runtimeState.state, pid);
       runtimeState.selection.reselectionPids.push(pid);
     }
 

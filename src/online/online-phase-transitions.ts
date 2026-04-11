@@ -4,10 +4,13 @@ import {
   prepareControllerCannonPhase,
   recomputeAllTerritory,
   resetZoneState,
-  setPhase,
   snapshotCastles,
   snapshotEntities,
 } from "../game/index.ts";
+// Deep import: setPhase is a network-state-conformance primitive used inside
+// watcher checkpoint apply steps. Allowlisted in
+// scripts/lint-restricted-imports.ts.
+import { setPhase } from "../game/phase-setup.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,

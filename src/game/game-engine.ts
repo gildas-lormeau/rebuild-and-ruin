@@ -175,14 +175,6 @@ export function enterCastleReselectPhase(state: GameState): void {
   state.timer = 0;
 }
 
-/** Mark a player as having reselected a castle this round. */
-export function markPlayerReselected(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): void {
-  state.reselectedPlayers.add(playerId);
-}
-
 /** Enter the battle phase from CANNON_PLACE. Performs all engine work in
  *  the load-bearing order (modifier roll → balloon resolution → snapshots)
  *  and returns the data the caller needs to react.

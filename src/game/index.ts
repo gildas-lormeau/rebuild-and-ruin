@@ -52,7 +52,6 @@ export {
   finishBuildPhase,
   isCeasefireActive,
   isSelectionComplete,
-  markPlayerReselected,
   snapshotAndFinalizeForCannonPhase,
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
@@ -68,7 +67,6 @@ export {
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
   resetZoneState,
-  setPhase,
 } from "./phase-setup.ts";
 export { applyCheckpointModifierTiles } from "./round-modifiers.ts";
 export {

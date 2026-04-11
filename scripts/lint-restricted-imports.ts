@@ -168,10 +168,10 @@ function checkRuntimeSubsystemImports(
 // ---------------------------------------------------------------------------
 
 /** Narrow allowlist of (importer → source → symbols) tuples that may bypass
- *  the game barrel. These are network-replay primitives: they apply
- *  authoritative server events to watcher state during host→watcher sync, and
- *  are deliberately kept out of `game/index.ts` so no other code path can
- *  accidentally couple to them. */
+ *  the game barrel. These are network-state-conformance primitives: they
+ *  apply authoritative server events / checkpoints to watcher state during
+ *  host→watcher sync, and are deliberately kept out of `game/index.ts` so no
+ *  other code path can accidentally couple to them. */
 const GAME_DEEP_IMPORT_ALLOWLIST: Record<string, Record<string, Set<string>>> =
   {
     "src/online/online-server-events.ts": {
@@ -182,6 +182,12 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<string, Record<string, Set<string>>> =
       ]),
       "../game/build-system.ts": new Set(["applyPiecePlacement"]),
       "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
+    },
+    "src/online/online-phase-transitions.ts": {
+      "../game/phase-setup.ts": new Set(["setPhase"]),
+    },
+    "src/online/online-serialize.ts": {
+      "../game/phase-setup.ts": new Set(["setPhase"]),
     },
   };
 

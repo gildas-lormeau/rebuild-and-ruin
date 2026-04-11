@@ -51,7 +51,9 @@ export function highlightTowerSelection(
 }
 
 /** Confirm a player's tower selection. Returns null if already confirmed,
- *  otherwise returns the confirmed tower index and whether all players are done. */
+ *  otherwise returns the confirmed tower index and whether all players are done.
+ *  When `isReselect`, also records the player in `state.reselectedPlayers`
+ *  (consumed by cannon-system at end of cannon phase). */
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -62,6 +64,8 @@ export function confirmTowerSelection(
   const selectionState = selectionStates.get(playerId);
   if (!isSelectionPending(selectionState)) return null;
   selectionState.confirmed = true;
+
+  if (isReselect) state.reselectedPlayers.add(playerId);
 
   const player = state.players[playerId]!;
   if (player.homeTower) {

@@ -2,8 +2,11 @@ import {
   applyCheckpointModifierTiles,
   createCastle,
   recomputeAllTerritory,
-  setPhase,
 } from "../game/index.ts";
+// Deep import: setPhase is a network-state-conformance primitive used to
+// reconcile watcher phase with server checkpoints. Allowlisted in
+// scripts/lint-restricted-imports.ts.
+import { setPhase } from "../game/phase-setup.ts";
 import type {
   BalloonFlight,
   Cannon,
