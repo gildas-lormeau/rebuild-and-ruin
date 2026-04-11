@@ -12,7 +12,6 @@ import {
   recheckTerritory,
   snapshotAndFinalizeForCannonPhase,
 } from "../game/index.ts";
-import { BANNER_SELECT } from "../shared/banner-messages.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -37,6 +36,7 @@ import {
 import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
+import { BANNER_SELECT } from "./banner-messages.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
