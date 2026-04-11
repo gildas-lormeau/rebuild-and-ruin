@@ -35,7 +35,7 @@ deno run -A scripts/layer-graph.ts
 
 This emits a dot graph where each **node = one layer group**, and each **edge = at least one file in group A imports a file in group B**. Paste the output at https://dreampuf.github.io/GraphvizOnline/ or render with `dot`.
 
-The graph is far more readable than a file-level graph: ~19 nodes instead of ~150. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
+The graph is far more readable than a file-level graph: ~17 nodes instead of ~150. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L16).
 
 ## Step 2 — Read the graph for smells
 
@@ -133,7 +133,7 @@ After moving files, check that group names and tiers still describe their conten
 - A file whose only reason for being in group G is a single type → move the type, then move the file
 - If a group moved across a tier boundary (e.g., from logic to systems), update its `tier` field
 
-Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L18).
+Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L16).
 
 ## Step 7 — Find single-consumer exports crossing domains
 
