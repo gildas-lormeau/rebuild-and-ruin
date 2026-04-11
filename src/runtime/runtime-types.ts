@@ -98,7 +98,7 @@ import type {
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
-export type { FrameContext } from "../shared/core/types";
+export type { FrameContext } from "../shared/core/types.ts";
 
 /** Summary of what happened at the end of a build phase. Built by the
  *  runtime, consumed by `OnlinePhaseTicks.broadcastBuildEnd` to construct

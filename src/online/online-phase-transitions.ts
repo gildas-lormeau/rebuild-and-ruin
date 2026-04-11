@@ -25,6 +25,7 @@ import {
   showModifierRevealBanner,
 } from "../runtime/runtime-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
 import {
@@ -46,7 +47,7 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/ui/interaction-types.ts";
-import type { CastleData } from "../shared/ui/overlay-types.ts";
+import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import type { RGB } from "../shared/ui/theme.ts";
 import type { BannerShow } from "../shared/ui/ui-contracts.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -86,9 +87,9 @@ export interface TransitionContext {
       prevCastles?: CastleData[];
       prevTerritory?: Set<number>[];
       prevWalls?: Set<number>[];
-      prevEntities?: import("../shared/ui/overlay-types").EntityOverlay;
+      prevEntities?: EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
-      modifierDiff?: import("../shared/core/game-constants").ModifierDiff;
+      modifierDiff?: ModifierDiff;
     };
     render: () => void;
     watcherTiming: WatcherTimingState;

@@ -67,6 +67,16 @@ export default [
           message:
             "Direct .isHost access is banned (volatile field). Read via isHostInContext(session) from tick-context.ts; write only in session init/reset/promotion with eslint-disable.",
         },
+        {
+          // Inline import-type expressions hide cross-module type deps from
+          // the AST refactor tool, knip, madge, and the layers/domains lints —
+          // none of them walk TSImportType nodes. Use a top-level
+          // `import type { Foo } from "./bar.ts"` declaration instead so the
+          // dependency shows up in import graphs and is updated by rename-file.
+          selector: "TSImportType",
+          message:
+            "Inline `import('...').Foo` type expressions are banned. Use a top-level `import type { Foo } from '...'` declaration so layer/domain lints, the refactor tool, and knip can see the dependency.",
+        },
       ],
 
       // Enforce project naming conventions so agents can't invent names

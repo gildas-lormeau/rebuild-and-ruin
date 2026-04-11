@@ -48,7 +48,6 @@
     "name": "derived types",
     "tier": "types",
     "files": [
-      "src/ai/ai-build-types.ts",
       "src/render/render-snapshot.ts",
       "src/render/render-ui-theme.ts",
       "src/shared/core/battle-types.ts",
@@ -83,6 +82,7 @@
     "tier": "logic",
     "files": [
       "server/room-manager.ts",
+      "src/ai/ai-build-types.ts",
       "src/ai/ai-life-lost.ts",
       "src/ai/ai-upgrade-pick.ts",
       "src/game/combo-system.ts",
