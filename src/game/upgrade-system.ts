@@ -1,22 +1,10 @@
 import type { ImpactEvent } from "../shared/battle-events.ts";
 import type { Cannon } from "../shared/battle-types.ts";
-import { deletePlayerWallsBatch } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/game-event-bus.ts";
 import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import { type ValidPlayerSlot } from "../shared/player-slot.ts";
-import {
-  isPlayerEliminated,
-  isPlayerSeated,
-  type Player,
-} from "../shared/player-types.ts";
-import {
-  computeOutside,
-  DIRS_8,
-  isCannonAlive,
-  packTile,
-  unpackTile,
-} from "../shared/spatial.ts";
+import { isPlayerSeated, type Player } from "../shared/player-types.ts";
 import {
   type GameState,
   hasFeature,
@@ -24,15 +12,16 @@ import {
 } from "../shared/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
-  UID,
   type UpgradeId,
 } from "../shared/upgrade-defs.ts";
 import { architectWallOverlapAllowance } from "./upgrades/architect.ts";
 import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
+import { clearTheFieldOnPick } from "./upgrades/clear-the-field.ts";
 import {
   type ConscriptionRespawnTarget,
   conscriptionPickRespawnTarget,
 } from "./upgrades/conscription.ts";
+import { demolitionOnPick } from "./upgrades/demolition.ts";
 import { doubleTimeBuildTimerBonus } from "./upgrades/double-time.ts";
 import {
   foundationsExtinguishOnPlace,
@@ -46,12 +35,14 @@ import {
 } from "./upgrades/master-builder.ts";
 import { mortarElectAll, mortarSpeedMult } from "./upgrades/mortar.ts";
 import { rapidFireBallMult, rapidFireOwns } from "./upgrades/rapid-fire.ts";
+import { reclamationOnPick } from "./upgrades/reclamation.ts";
 import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
 import {
   type RicochetApplyBounce,
   ricochetProcessBounces,
 } from "./upgrades/ricochet.ts";
 import { salvageOnCannonKilled } from "./upgrades/salvage.ts";
+import { secondWindOnPick } from "./upgrades/second-wind.ts";
 import { shieldBatteryElectAll } from "./upgrades/shield-battery.ts";
 import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
@@ -204,15 +195,14 @@ export function onCannonKilled(
   salvageOnCannonKilled(state, shooterId);
 }
 
-/** Apply all picked upgrades to player state. */
+/** Apply all picked upgrades to player state. Each per-upgrade pick hook
+ *  is idempotent and guards on its own UID internally, so per-entry
+ *  dispatch is safe even when multiple players pick the same global
+ *  upgrade (second wind, clear the field, demolition). */
 export function applyUpgradePicks(
   state: GameState,
   dialog: UpgradePickDialogState,
 ): void {
-  let secondWind = false;
-  let clearTheField = false;
-  let demolition = false;
-  const reclamationPlayers: ValidPlayerSlot[] = [];
   for (const entry of dialog.entries) {
     if (entry.choice === null) continue;
     const player = state.players[entry.playerId];
@@ -222,29 +212,7 @@ export function applyUpgradePicks(
       playerId: entry.playerId,
       upgradeId: entry.choice,
     });
-    if (entry.choice === UID.SECOND_WIND) secondWind = true;
-    if (entry.choice === UID.CLEAR_THE_FIELD) clearTheField = true;
-    if (entry.choice === UID.DEMOLITION) demolition = true;
-    if (entry.choice === UID.RECLAMATION)
-      reclamationPlayers.push(entry.playerId);
-  }
-  if (secondWind) {
-    for (let idx = 0; idx < state.towerAlive.length; idx++) {
-      state.towerAlive[idx] = true;
-    }
-    state.towerPendingRevive.clear();
-  }
-  if (clearTheField) {
-    state.grunts.length = 0;
-  }
-  if (demolition) {
-    stripInnerWalls(state);
-  }
-  for (const pid of reclamationPlayers) {
-    const player = state.players[pid];
-    if (player) {
-      player.cannons = player.cannons.filter(isCannonAlive);
-    }
+    onUpgradePicked(state, player, entry.choice);
   }
 }
 
@@ -273,6 +241,20 @@ export function resetPlayerUpgrades(state: GameState): void {
   }
 }
 
+/** Pick-time hook: route a freshly-picked upgrade to per-upgrade side
+ *  effects. Each per-upgrade function no-ops when the choice doesn't
+ *  match its UID, so the dispatcher stays UID.*-free. */
+function onUpgradePicked(
+  state: GameState,
+  player: Player,
+  choice: UpgradeId,
+): void {
+  secondWindOnPick(state, choice);
+  clearTheFieldOnPick(state, choice);
+  demolitionOnPick(state, choice);
+  reclamationOnPick(player, choice);
+}
+
 /** Draw N unique upgrades from the implemented pool using state.rng. */
 function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   const pool = [...IMPLEMENTED_UPGRADES];
@@ -294,31 +276,4 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   }
 
   return picked as [UpgradeId, UpgradeId, UpgradeId];
-}
-
-/** Strip non-load-bearing walls from all players.
- *  A wall is "inner" (safe to remove) if none of its 8-dir neighbors are
- *  outside (reachable from map edges). Enclosures remain intact; thick walls
- *  are thinned to a single-tile shell. Can merge adjacent castles.
- *  Uses deletePlayerWallsBatch (skips markWallsDirty) — interior is rechecked
- *  at the next piece placement or end-of-build via recheckTerritory. */
-function stripInnerWalls(state: GameState): void {
-  for (const player of state.players) {
-    if (isPlayerEliminated(player)) continue;
-    if (player.walls.size === 0) continue;
-    const outside = computeOutside(player.walls);
-    const inner: number[] = [];
-    for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      let loadBearing = false;
-      for (const [dr, dc] of DIRS_8) {
-        if (outside.has(packTile(r + dr, c + dc))) {
-          loadBearing = true;
-          break;
-        }
-      }
-      if (!loadBearing) inner.push(key);
-    }
-    if (inner.length > 0) deletePlayerWallsBatch(player, inner);
-  }
 }
