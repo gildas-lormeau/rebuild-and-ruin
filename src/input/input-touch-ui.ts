@@ -446,7 +446,10 @@ function createKeyRepeatController(fireDirection: (action: Action) => void): {
   stopRepeat: () => void;
 } {
   const REPEAT_DELAY = 120;
-  const REPEAT_RATE = 50;
+  // 100 ms (10 Hz) instead of the prior 50 ms (20 Hz) — at 20 Hz the
+  // release window between ticks was tighter than typical reaction time
+  // (~200 ms), so a hold consistently overshot the target by one tile.
+  const REPEAT_RATE = 100;
   let repeatTimer: ReturnType<typeof setTimeout> | undefined;
 
   function stopRepeat() {
