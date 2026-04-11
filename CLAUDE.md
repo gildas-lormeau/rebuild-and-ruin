@@ -105,7 +105,7 @@ The `lint-cannon-modes` pre-commit check verifies exhaustiveness (pool ↔ catal
 - Dead cannons persist as debris (block space), cleared only on zone reset
 - Burning pits: grass tiles blocked for 3 battle rounds
 - Wall sweep: batch collect-then-delete, one layer per call, twice per battle
-- `recheckTerritoryOnly()` for mid-build use, `finalizeTerritoryWithScoring()` at end-of-build adds scoring + tower revival; final grunt sweep fixes race condition
+- `recheckTerritory()` for mid-build use, `finalizeTerritoryWithScoring()` at end-of-build adds scoring + tower revival; final grunt sweep fixes race condition
 - Grunt movement: no retargeting after tower kill, pace back-and-forth when blocked by walls, stay put once adjacent to target tower
 - Grunt distance: computed to nearest tile of 2x2 tower (not top-left corner)
 - Zones fully isolated by rivers; no cross-zone interaction for grunts, walls, pieces (only cannonballs cross)

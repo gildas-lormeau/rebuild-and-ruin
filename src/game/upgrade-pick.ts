@@ -124,7 +124,7 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
  *  outside (reachable from map edges). Enclosures remain intact; thick walls
  *  are thinned to a single-tile shell. Can merge adjacent castles.
  *  Uses deletePlayerWallsBatch (skips markWallsDirty) — interior is rechecked
- *  at the next piece placement or end-of-build via recheckTerritoryOnly. */
+ *  at the next piece placement or end-of-build via recheckTerritory. */
 function stripInnerWalls(state: GameState): void {
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;

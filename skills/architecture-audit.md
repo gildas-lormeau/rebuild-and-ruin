@@ -174,7 +174,7 @@ The following conventions are already well-documented in code comments. Agents s
 NOT flag these as findings — they have been verified and the existing documentation is
 sufficient for LLM agents to follow correctly.
 
-1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — game/build-system.ts:173 and 189-193
+1. **recheckTerritory vs finalizeTerritoryWithScoring** — game/build-system.ts:173 and 189-193
    explain the difference and when to use each. game/cannon-system.ts:269 documents the precondition.
 
 2. **canPlaceCannon vs canPlacePiece validation difference** — game/build-system.ts:92-95 has

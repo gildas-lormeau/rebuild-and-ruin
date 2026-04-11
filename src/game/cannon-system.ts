@@ -272,9 +272,9 @@ export function electShieldedCannons(state: GameState): void {
 /** Check whether all tiles of a cannon are inside enclosed territory.
  *
  *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
- *  recheckTerritoryOnly() after any wall change. The required call order is:
+ *  recheckTerritory() after any wall change. The required call order is:
  *    1. Place/destroy walls  (+ markWallsDirty)
- *    2. recheckTerritoryOnly()   — recomputes player.interior via flood fill
+ *    2. recheckTerritory()   — recomputes player.interior via flood fill
  *    3. isCannonEnclosed()   — reads the freshly computed interior
  *  Skipping step 2 is caught by assertInteriorFresh() at runtime when
  *  epoch tracking is active (all production code paths call markWallsDirty). */
@@ -404,7 +404,7 @@ function findNearestValidCannonPlacement(
  *  Contrast with canPlacePieceOffsets() in build-system.ts which checks grass + zone + all towers.
  *
  *  All tiles must be interior, not a wall, not a tower, not an existing cannon.
- *  PRECONDITION: player.interior must be freshly computed (via recheckTerritoryOnly)
+ *  PRECONDITION: player.interior must be freshly computed (via recheckTerritory)
  *  after any wall mutation. Stale interior is caught at runtime by
  *  assertInteriorFresh() inside isCannonEnclosed() — see cannon-system.ts:52. */
 export function canPlaceCannon(

@@ -130,7 +130,7 @@ export function canPlacePiece(
 }
 
 /** Apply a piece placement to the board. Marks walls dirty after mutation.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh().
  *  Used by host and watcher (no validation). */
 export function applyPiecePlacement(
@@ -167,7 +167,7 @@ export function applyPiecePlacement(
       (pit) => !pieceKeys.has(packTile(pit.row, pit.col)),
     );
   }
-  recheckTerritoryOnly(state);
+  recheckTerritory(state);
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
   }
@@ -178,7 +178,7 @@ export function applyPiecePlacement(
  *  destroyEnclosedHouses → captureEnclosedBonusSquares → sweepMisplacedGrunts.
  *  Call after each piece placement or wall change during build phase.
  *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
-export function recheckTerritoryOnly(state: GameState): void {
+export function recheckTerritory(state: GameState): void {
   // Pass 1: recompute ALL interiors before any grunt/house operations.
   // Grunt respawn (pass 2) calls hasInteriorAt which asserts freshness for
   // every player — all interiors must be fresh before any cross-player reads.
@@ -196,13 +196,13 @@ export function recheckTerritoryOnly(state: GameState): void {
   sweepMisplacedGrunts(state);
 }
 
-/** End-of-build territory finalization. Same as recheckTerritoryOnly() plus:
+/** End-of-build territory finalization. Same as recheckTerritory() plus:
  *  - Awards territory/enclosure scoring points
  *  - Resolves pending tower revives (towerPendingRevive → alive if still enclosed)
  *  - Clears unenclosed pending revives
  *  Called exactly once at end of build phase from finalizeBuildPhase(). */
 export function finalizeTerritoryWithScoring(state: GameState): void {
-  // Pass 1: recompute ALL interiors (same rationale as recheckTerritoryOnly).
+  // Pass 1: recompute ALL interiors (same rationale as recheckTerritory).
   for (const player of state.players) {
     recomputeInterior(state, player);
   }

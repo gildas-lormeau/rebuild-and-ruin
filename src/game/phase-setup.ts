@@ -76,7 +76,7 @@ import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
-  recheckTerritoryOnly,
+  recheckTerritory,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
@@ -124,7 +124,7 @@ const IDLE_FIRST_BATTLE_GRUNTS = 2;
 
 /** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
-  recheckTerritoryOnly(state);
+  recheckTerritory(state);
   startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
 }
@@ -132,7 +132,7 @@ export function finalizeCastleConstruction(state: GameState): void {
 export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
-  recheckTerritoryOnly(state);
+  recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
   clearHighTide(state);
@@ -169,7 +169,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
 export function enterBuildSkippingBattle(state: GameState): void {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
-  recheckTerritoryOnly(state);
+  recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
   clearHighTide(state);
@@ -182,7 +182,7 @@ export function enterBuildFromBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
   spawnIdleFirstBattleGrunts(state);
-  recheckTerritoryOnly(state);
+  recheckTerritory(state);
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
   // Must happen here (not in enterBattleFromCannon) so watchers see the same
@@ -474,12 +474,12 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const { label } = modifierDef(mod);
   if (mod === MODIFIER_ID.WILDFIRE) {
     const scar = applyWildfire(state);
-    recheckTerritoryOnly(state);
+    recheckTerritory(state);
     return { id: mod, label, changedTiles: [...scar], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.CRUMBLING_WALLS) {
     const destroyed = applyCrumblingWalls(state);
-    recheckTerritoryOnly(state);
+    recheckTerritory(state);
     return { id: mod, label, changedTiles: destroyed, gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.GRUNT_SURGE) {
@@ -492,12 +492,12 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   }
   if (mod === MODIFIER_ID.SINKHOLE) {
     const sunk = applySinkhole(state);
-    recheckTerritoryOnly(state);
+    recheckTerritory(state);
     return { id: mod, label, changedTiles: [...sunk], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.HIGH_TIDE) {
     const flooded = applyHighTide(state);
-    recheckTerritoryOnly(state);
+    recheckTerritory(state);
     return { id: mod, label, changedTiles: [...flooded], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.DUST_STORM) {

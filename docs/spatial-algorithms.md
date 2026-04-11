@@ -66,16 +66,16 @@ Two `WeakMap<Player, number>` track whether interior is up-to-date:
 
 | Phase        | Interior state | Why                                           |
 |--------------|---------------|-----------------------------------------------|
-| BUILD        | Fresh         | `recheckTerritoryOnly()` runs after each piece |
+| BUILD        | Fresh         | `recheckTerritory()` runs after each piece |
 | CANNON_PLACE | Fresh         | Carried from end-of-build finalization         |
 | BATTLE       | Intentionally stale | Walls destroyed by cannonballs are NOT reflected until next build. `deletePlayerWallBattle()` skips `markWallsDirty()` by design. |
 
 During battle, use `getBattleInterior()`. Everywhere else, use
 `getInterior()`.
 
-### recheckTerritoryOnly vs finalizeTerritoryWithScoring
+### recheckTerritory vs finalizeTerritoryWithScoring
 
-- `recheckTerritoryOnly` — mid-build incremental: recomputes interior,
+- `recheckTerritory` — mid-build incremental: recomputes interior,
   updates owned towers, sweeps enclosed grunts/houses, captures bonuses.
   No scoring, no tower revival.
 - `finalizeTerritoryWithScoring` — end-of-build: does everything above

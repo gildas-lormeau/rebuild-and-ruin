@@ -325,7 +325,7 @@ export function handleBattleStartTransition(
     applyCheckpoint: () => {
       transitionCtx.checkpoint.applyBattleStart(msg);
       // Recompute territory from checkpoint walls (post-sweep) on the watcher's
-      // pre-modifier map. Matches the host's recheckTerritoryOnly in
+      // pre-modifier map. Matches the host's recheckTerritory in
       // enterBattleFromCannon. Territory becomes stale again after
       // applyCheckpointModifierTiles (inside the checkpoint) mutates map tiles.
       recomputeAllTerritory(state);

@@ -16,7 +16,7 @@ export {
   canPlacePiece,
   diffNewWalls,
   placePiece,
-  recheckTerritoryOnly,
+  recheckTerritory,
   recomputeAllTerritory,
 } from "./build-system.ts";
 export {

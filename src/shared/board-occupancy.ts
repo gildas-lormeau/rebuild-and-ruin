@@ -36,7 +36,7 @@ import type { GameViewState } from "./system-interfaces.ts";
  * allowing tests and code that never mutates walls to skip the overhead.
  *
  * BATTLE EXCEPTION: Interior is intentionally stale while walls are destroyed
- * frame-by-frame. It is rebuilt at the next build phase via recheckTerritoryOnly().
+ * frame-by-frame. It is rebuilt at the next build phase via recheckTerritory().
  */
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
@@ -320,7 +320,7 @@ export function addPlayerWall(player: Player, key: number): void {
 }
 
 /** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
   const walls = mutableWalls(player);
@@ -329,8 +329,8 @@ export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
 }
 
 /** Delete a wall during battle. Intentionally skips markWallsDirty — interior is
- *  stale during battle by design; recheckTerritoryOnly runs at the next phase start.
- *  WARNING: Leaves interior stale. No recheckTerritoryOnly needed until next build phase. */
+ *  stale during battle by design; recheckTerritory runs at the next phase start.
+ *  WARNING: Leaves interior stale. No recheckTerritory needed until next build phase. */
 export function deletePlayerWallBattle(player: Player, key: number): void {
   mutableWalls(player).delete(key);
 }
@@ -346,7 +346,7 @@ export function deletePlayerWallsBatch(
 }
 
 /** Clear all walls and mark dirty. Used when resetting a player's board state.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function clearPlayerWalls(player: Player): void {
   mutableWalls(player).clear();
@@ -355,7 +355,7 @@ export function clearPlayerWalls(player: Player): void {
 
 /** Remove isolated debris walls (≤1 orthogonal neighbor) and mark dirty.
  *  Used during wall sweep at build phase transitions.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function sweepIsolatedWalls(player: Player): void {
   removeIsolatedWalls(mutableWalls(player));
@@ -363,7 +363,7 @@ export function sweepIsolatedWalls(player: Player): void {
 }
 
 /** Mark a player's interior as freshly recomputed and brand the set.
- *  Called by recomputeInterior inside recheckTerritoryOnly — do NOT call from other code.
+ *  Called by recomputeInterior inside recheckTerritory — do NOT call from other code.
  *  When `fresh` is provided, assigns it as the new interior (handles branded-type cast). */
 export function markInteriorFresh(
   player: Player,
@@ -394,7 +394,7 @@ export function getBattleInterior(player: Player): ReadonlySet<number> {
 }
 
 /** Assert that a player's interior is not stale (walls haven't changed since
- *  the last recheckTerritoryOnly). Throws if stale — this is a programming error,
+ *  the last recheckTerritory). Throws if stale — this is a programming error,
  *  not a runtime condition. No-op if epochs were never initialized (e.g. tests
  *  that don't call markWallsDirty). */
 export function assertInteriorFresh(player: Player): void {
@@ -404,7 +404,7 @@ export function assertInteriorFresh(player: Player): void {
   if (currentInteriorEpoch < currentWallsEpoch) {
     throw new Error(
       `Stale interior for player ${player.id}: walls epoch ${currentWallsEpoch} > interior epoch ${currentInteriorEpoch}. ` +
-        `Call recheckTerritoryOnly() after wall mutations before reading interior.`,
+        `Call recheckTerritory() after wall mutations before reading interior.`,
     );
   }
 }
@@ -444,7 +444,7 @@ function markWallsDirty(player: Player): void {
 }
 
 /** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 /** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
 function mutableWalls(player: Player): Set<number> {

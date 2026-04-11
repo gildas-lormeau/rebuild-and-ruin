@@ -564,7 +564,7 @@ export function advanceCannonball(
  * **INTERIOR STALENESS CONTRACT — canonical source of truth.** Battle-phase
  * wall destruction MUST NOT trigger territory/interior recomputation here. The
  * interior stays stale for the entire battle phase and is rebuilt exactly once
- * at the next phase boundary via `recheckTerritoryOnly` /
+ * at the next phase boundary via `recheckTerritory` /
  * `finalizeTerritoryWithScoring` in phase-setup.ts. Every other caller that
  * mutates walls during battle (grunt-system.ts:removeWallFromAllPlayers,
  * impact handlers below, network watcher replays) relies on this invariant —

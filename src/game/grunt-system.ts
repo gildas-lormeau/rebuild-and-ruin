@@ -298,7 +298,7 @@ export function rollGruntWallAttacks(state: GameState): void {
 }
 
 /** Spawn interbattle grunts on each player's zone (bank-first).
- *  PRECONDITION: interior must be fresh (recheckTerritoryOnly already called). */
+ *  PRECONDITION: interior must be fresh (recheckTerritory already called). */
 export function spawnInterbattleGrunts(state: GameState): void {
   if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
 

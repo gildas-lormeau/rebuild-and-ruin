@@ -9,7 +9,7 @@ import {
   highlightTowerSelection,
   isSelectionComplete,
   prepareCastleWallsForPlayer,
-  recheckTerritoryOnly,
+  recheckTerritory,
   snapshotAndFinalizeForCannonPhase,
 } from "../game/index.ts";
 import { BANNER_SELECT } from "../shared/banner-messages.ts";
@@ -342,7 +342,7 @@ export function createSelectionSystem(
 
     // Tick castle build animations during selection
     if (tickAllCastleBuilds(dt)) {
-      recheckTerritoryOnly(state);
+      recheckTerritory(state);
     }
 
     deps.render();
@@ -440,7 +440,7 @@ export function createSelectionSystem(
   }
 
   function tickCastleBuild(dt: number): void {
-    if (tickAllCastleBuilds(dt)) recheckTerritoryOnly(runtimeState.state);
+    if (tickAllCastleBuilds(dt)) recheckTerritory(runtimeState.state);
     deps.render();
     if (runtimeState.selection.castleBuilds.length === 0) {
       fireOnce(runtimeState.selection, "castleBuildOnDone");
