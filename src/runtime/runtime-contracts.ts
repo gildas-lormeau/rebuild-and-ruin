@@ -262,6 +262,27 @@ export interface BannerState {
   modifierDiff?: ModifierDiff;
 }
 
+/** Phase transition orchestration methods shared by host and watcher.
+ *  Defined here (not in runtime-banner.ts) to avoid lateral imports. */
+export interface BannerTransitions {
+  /** Build→cannon transition: captures scene + shows Place Cannons banner. */
+  showCannonTransition: (onDone: () => void) => void;
+  /** Cannon→battle transition: modifier reveal (if any) → battle banner. */
+  showBattleTransition: (
+    modifierDiff: ModifierDiff | null,
+    onDone: () => void,
+  ) => void;
+  /** Battle→build transition: upgrade pick (if any) → build banner. */
+  showBuildTransition: (
+    upgradePick:
+      | { tryShow: (onDone: () => void) => boolean; prepare: () => boolean }
+      | undefined,
+    hasPendingOffers: boolean,
+    onBannerDone: () => void,
+    onBuildStart: () => void,
+  ) => void;
+}
+
 export interface SeedField {
   focus: (currentValue: string) => void;
   blur: () => void;

@@ -85,6 +85,12 @@ function buildTransitionUiCtx(
       return deps.getRuntime().runtimeState.banner;
     },
     captureScene: () => deps.getRuntime().captureScene(),
+    showCannonTransition: (onDone) =>
+      deps.getRuntime().showCannonTransition(onDone),
+    showBattleTransition: (diff, onDone) =>
+      deps.getRuntime().showBattleTransition(diff, onDone),
+    showBuildTransition: (pick, has, onBanner, onBuild) =>
+      deps.getRuntime().showBuildTransition(pick, has, onBanner, onBuild),
     render: () => deps.getRuntime().render(),
     watcherTiming: deps.watcher.timing,
   };

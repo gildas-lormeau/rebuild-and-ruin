@@ -32,9 +32,9 @@ import {
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
+  type ModifierDiff,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -55,16 +55,6 @@ import {
 import type { GameState } from "../shared/core/types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import {
-  BANNER_BATTLE,
-  BANNER_BATTLE_SUB,
-  BANNER_BUILD,
-  BANNER_BUILD_SUB,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
-  BANNER_UPGRADE_PICK,
-  BANNER_UPGRADE_PICK_SUB,
-} from "./banner-messages.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -112,9 +102,24 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
   /** Capture the current offscreen scene as ImageData for banner prev-scene. */
   captureScene: () => ImageData | undefined;
+  /** Build→cannon banner (captures scene + shows banner). */
+  showCannonTransition: (onDone: () => void) => void;
+  /** Modifier → battle banner chain (shared orchestration). */
+  showBattleTransition: (
+    modifierDiff: ModifierDiff | null,
+    onDone: () => void,
+  ) => void;
+  /** Upgrade pick → build banner chain (shared orchestration). */
+  showBuildTransition: (
+    upgradePick:
+      | { tryShow: (onDone: () => void) => boolean; prepare: () => boolean }
+      | undefined,
+    hasPendingOffers: boolean,
+    onBannerDone: () => void,
+    onBuildStart: () => void,
+  ) => void;
   lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
   scoreDelta: {
     capturePreScores: () => void;
@@ -240,12 +245,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // and consumed in initControllers. Closed over by both step adapters.
     // 1. Banner
     if (onBannerDone) {
-      runtimeState.banner.prevSceneImageData = deps.captureScene();
-      deps.showBanner(
-        BANNER_PLACE_CANNONS,
-        onBannerDone,
-        BANNER_PLACE_CANNONS_SUB,
-      );
+      deps.showCannonTransition(onBannerDone);
     }
 
     // 2. Checkpoint: set phase → compute limits/facings → per-player init
@@ -277,37 +277,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
-    const showBannerAndEnterBuild = () => {
-      // prevSceneImageData was captured in tickBattlePhase (the last
-      // battle frame, before upgrade dialog appeared).
-      deps.showBanner(
-        BANNER_BUILD,
-        () => {
-          deps.clearUpgradePickDialog?.();
-          setMode(runtimeState, Mode.GAME);
-        },
-        BANNER_BUILD_SUB,
-      );
-      startBuildPhase();
-    };
-    // Gate behind upgrade-pick dialog (modern mode).
-    if (
-      deps.tryShowUpgradePick &&
-      runtimeState.state.modern?.pendingUpgradeOffers
-    ) {
-      deps.prepareUpgradePick?.();
-      deps.showBanner(
-        BANNER_UPGRADE_PICK,
-        () => {
-          if (!deps.tryShowUpgradePick!(showBannerAndEnterBuild)) {
-            showBannerAndEnterBuild();
-          }
-        },
-        BANNER_UPGRADE_PICK_SUB,
-      );
-      return;
-    }
-    showBannerAndEnterBuild();
+    const upgradePick = deps.tryShowUpgradePick
+      ? { tryShow: deps.tryShowUpgradePick, prepare: deps.prepareUpgradePick! }
+      : undefined;
+    deps.showBuildTransition(
+      upgradePick,
+      !!runtimeState.state.modern?.pendingUpgradeOffers,
+      () => {
+        deps.clearUpgradePickDialog?.();
+        setMode(runtimeState, Mode.GAME);
+      },
+      () => startBuildPhase(),
+    );
   }
 
   function startBattle() {
@@ -341,30 +322,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Capture the current scene BEFORE enterBattlePhase mutates state.
     banner.prevSceneImageData = deps.captureScene();
 
-    // Engine owns the load-bearing order: modifier roll → balloon
-    // resolution → post-modifier snapshots.
     const entry = enterBattlePhase(state);
     flights = entry.flights;
     battleAnim.impacts = [];
     battleAnim.territory = entry.territory;
     battleAnim.walls = entry.walls;
-    // Mark inBattle so the live scene above the sweep line renders
-    // battle territory on the first banner frame.
     (runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
     }
 
-    if (entry.modifierDiff) {
-      banner.modifierDiff = entry.modifierDiff;
-      deps.showBanner(modifierDef(entry.modifierDiff.id).label, () => {
-        // Re-capture post-modifier scene for the chained battle banner.
-        banner.prevSceneImageData = deps.captureScene();
-        deps.showBanner(BANNER_BATTLE, proceedToBattle, BANNER_BATTLE_SUB);
-      });
-    } else {
-      deps.showBanner(BANNER_BATTLE, proceedToBattle, BANNER_BATTLE_SUB);
-    }
+    deps.showBattleTransition(entry.modifierDiff ?? null, proceedToBattle);
   }
 
   function tickBalloonAnim(dt: number) {

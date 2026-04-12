@@ -369,6 +369,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
+    showCannonTransition,
+    showBattleTransition,
+    showBuildTransition,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
@@ -376,6 +379,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     haptics,
     sound,
     render: () => render(),
+    captureScene: () => renderer.captureScene(),
   });
 
   // -------------------------------------------------------------------------
@@ -557,8 +561,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    showBanner,
     captureScene: () => renderer.captureScene(),
+    showCannonTransition,
+    showBattleTransition,
+    showBuildTransition,
     lifeLost,
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
@@ -779,6 +785,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     showBanner,
     captureScene: () => renderer.captureScene(),
+    showCannonTransition,
+    showBattleTransition,
+    showBuildTransition,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

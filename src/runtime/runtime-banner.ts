@@ -5,14 +5,36 @@
  * the sweep line and the live-rendered new scene above it. The snapshot is
  * an ImageData grabbed from the offscreen scene canvas before phase mutations
  * — no state cloning, no re-rendering.
+ *
+ * Transition orchestration methods (showBattleTransition, showBuildTransition)
+ * live here because they are banner-chaining concerns — identical control
+ * flow used by both host and watcher. Callers supply the role-specific
+ * callbacks (checkpoint apply, controller init, etc.).
  */
 
-import { BANNER_DURATION } from "../shared/core/game-constants.ts";
+import {
+  BANNER_DURATION,
+  type ModifierDiff,
+} from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { GameState } from "../shared/core/types.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { type BannerState, createBannerState } from "./runtime-contracts.ts";
+import {
+  BANNER_BATTLE,
+  BANNER_BATTLE_SUB,
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
+  BANNER_UPGRADE_PICK,
+  BANNER_UPGRADE_PICK_SUB,
+} from "./banner-messages.ts";
+import {
+  type BannerState,
+  type BannerTransitions,
+  createBannerState,
+} from "./runtime-contracts.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -26,13 +48,12 @@ interface BannerSystemDeps {
   readonly haptics: { phaseChange: () => void };
   readonly sound: { phaseStart: () => void };
   readonly render: () => void;
+  readonly captureScene: () => ImageData | undefined;
 }
 
-interface BannerSystem {
-  /** Show a phase transition banner.
-   *  @param text — Banner text
-   *  @param onDone — Called once when banner animation completes
-   *  @param subtitle — Optional smaller text below the main banner */
+interface BannerSystem extends BannerTransitions {
+  /** Show a phase transition banner. Low-level — prefer the transition
+   *  methods below for phase-specific banner chains. */
   showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
   tickBanner: (dt: number) => void;
   /** Clear stale snapshot data (wallsBeforeSweep) — called
@@ -40,6 +61,27 @@ interface BannerSystem {
   clearSnapshots: () => void;
   /** Reset banner state for game restart / rematch. */
   reset: () => void;
+  /** Build→cannon transition: captures scene + shows Place Cannons banner. */
+  showCannonTransition: (onDone: () => void) => void;
+  /** Cannon→battle transition: modifier reveal (if any) → battle banner.
+   *  Handles the chained re-capture between modifier and battle banners. */
+  showBattleTransition: (
+    modifierDiff: ModifierDiff | null,
+    onDone: () => void,
+  ) => void;
+  /** Battle→build transition: upgrade pick (if any) → build banner.
+   *  Handles the upgrade-pick dialog gate and banner chaining. */
+  showBuildTransition: (
+    upgradePick:
+      | {
+          tryShow: (onDone: () => void) => boolean;
+          prepare: () => boolean;
+        }
+      | undefined,
+    hasPendingOffers: boolean,
+    onBannerDone: () => void,
+    onBuildStart: () => void,
+  ) => void;
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
@@ -58,7 +100,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
       );
     }
-    showBannerTransition(runtimeState.banner, runtimeState.state, {
+    showBannerTransition(runtimeState.banner, {
       text,
       subtitle,
       onDone,
@@ -75,9 +117,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     const banner = runtimeState.banner;
     const state = runtimeState.state;
 
-    // Emit bannerStart on the first tick after showBanner — content may have
-    // been mutated mid-frame (e.g. battle banner → modifier reveal), so we
-    // read the final state here.
     if (pendingStartEvent) {
       pendingStartEvent = false;
       emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
@@ -104,8 +143,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       phase: state.phase,
       round: state.round,
     });
-    // Invoke the completion callback exactly once, THEN null the field to
-    // prevent re-entry if tickBanner runs again this frame.
     fireOnce(banner, "callback", "banner.callback");
   }
 
@@ -117,13 +154,71 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     runtimeState.banner = createBannerState();
   }
 
-  return { showBanner, tickBanner, clearSnapshots, reset };
+  /** "Place Cannons" banner with scene capture. */
+  function showCannonTransition(onDone: () => void): void {
+    runtimeState.banner.prevSceneImageData = deps.captureScene();
+    showBanner(BANNER_PLACE_CANNONS, onDone, BANNER_PLACE_CANNONS_SUB);
+  }
+
+  /** Modifier reveal (if any) → "Prepare for Battle" banner chain. */
+  function showBattleTransition(
+    diff: ModifierDiff | null,
+    onDone: () => void,
+  ): void {
+    const { banner } = runtimeState;
+    if (diff) {
+      banner.modifierDiff = diff;
+      showBanner(modifierDef(diff.id).label, () => {
+        // Re-capture post-modifier scene for the chained battle banner.
+        banner.prevSceneImageData = deps.captureScene();
+        showBanner(BANNER_BATTLE, onDone, BANNER_BATTLE_SUB);
+      });
+    } else {
+      showBanner(BANNER_BATTLE, onDone, BANNER_BATTLE_SUB);
+    }
+  }
+
+  /** Upgrade pick gate (if any) → "Build & Repair" banner chain. */
+  function showBuildTransition(
+    upgradePick:
+      | { tryShow: (onDone: () => void) => boolean; prepare: () => boolean }
+      | undefined,
+    hasPendingOffers: boolean,
+    onDone: () => void,
+    onBuildStart: () => void,
+  ): void {
+    const enterBuild = () => {
+      showBanner(BANNER_BUILD, onDone, BANNER_BUILD_SUB);
+      onBuildStart();
+    };
+    if (upgradePick && hasPendingOffers) {
+      upgradePick.prepare();
+      showBanner(
+        BANNER_UPGRADE_PICK,
+        () => {
+          if (!upgradePick.tryShow(enterBuild)) enterBuild();
+        },
+        BANNER_UPGRADE_PICK_SUB,
+      );
+      return;
+    }
+    enterBuild();
+  }
+
+  return {
+    showBanner,
+    tickBanner,
+    clearSnapshots,
+    reset,
+    showCannonTransition,
+    showBattleTransition,
+    showBuildTransition,
+  };
 }
 
 /** Set up banner state for a phase transition. */
 function showBannerTransition(
   banner: BannerState,
-  _state: GameState,
   opts: {
     text: string;
     subtitle?: string;
@@ -131,10 +226,7 @@ function showBannerTransition(
     setModeBanner: () => void;
   },
 ): void {
-  // Clear wallsBeforeSweep — live scene no longer needs the wall override
-  // once the banner is active (the old scene comes from prevSceneImageData).
   banner.wallsBeforeSweep = undefined;
-
   banner.active = true;
   banner.progress = 0;
   banner.text = opts.text;

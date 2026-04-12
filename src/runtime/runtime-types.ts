@@ -95,6 +95,7 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+import type { BannerTransitions } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { WatcherTimingState } from "./runtime-tick-context.ts";
 
@@ -489,7 +490,7 @@ export interface RuntimePhaseTicks {
   beginBattle: () => void;
 }
 
-export interface GameRuntime {
+export interface GameRuntime extends BannerTransitions {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
   runtimeState: RuntimeState;
 

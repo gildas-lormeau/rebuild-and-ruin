@@ -15,24 +15,16 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
-import {
-  BANNER_BATTLE,
-  BANNER_BATTLE_SUB,
-  BANNER_BUILD,
-  BANNER_BUILD_SUB,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
-  BANNER_UPGRADE_PICK,
-  BANNER_UPGRADE_PICK_SUB,
-} from "../runtime/banner-messages.ts";
-import type { BannerShow } from "../runtime/runtime-contracts.ts";
+import type {
+  BannerShow,
+  BannerTransitions,
+} from "../runtime/runtime-contracts.ts";
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import { runBuildEndSequence } from "../runtime/runtime-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   isActivePlayer,
   type ValidPlayerSlot,
@@ -74,7 +66,7 @@ export interface TransitionContext {
   setMode: (mode: Mode) => void;
 
   // ── Banner & UI ──
-  ui: {
+  ui: BannerTransitions & {
     showBanner: BannerShow;
     banner: {
       prevSceneImageData?: ImageData;
@@ -258,17 +250,13 @@ export function handleCannonStartTransition(
   }
 
   // 1. Banner
-  transitionCtx.ui.showBanner(
-    BANNER_PLACE_CANNONS,
-    () => {
-      setWatcherPhaseTimerAtBannerEnd(
-        transitionCtx.ui.watcherTiming,
-        state.timer,
-      );
-      transitionCtx.setMode(Mode.GAME);
-    },
-    BANNER_PLACE_CANNONS_SUB,
-  );
+  transitionCtx.ui.showCannonTransition(() => {
+    setWatcherPhaseTimerAtBannerEnd(
+      transitionCtx.ui.watcherTiming,
+      state.timer,
+    );
+    transitionCtx.setMode(Mode.GAME);
+  });
 
   // 2. Checkpoint
   setPhase(state, Phase.CANNON_PLACE);
@@ -312,26 +300,8 @@ export function handleBattleStartTransition(
     }
   };
 
-  // 1. Banner
-  if (modifierDiff) {
-    transitionCtx.ui.banner.modifierDiff = modifierDiff;
-    transitionCtx.ui.showBanner(modifierDef(modifierDiff.id).label, () => {
-      // Re-capture post-modifier scene for the chained battle banner.
-      transitionCtx.ui.banner.prevSceneImageData =
-        transitionCtx.ui.captureScene();
-      transitionCtx.ui.showBanner(
-        BANNER_BATTLE,
-        proceedToBattle,
-        BANNER_BATTLE_SUB,
-      );
-    });
-  } else {
-    transitionCtx.ui.showBanner(
-      BANNER_BATTLE,
-      proceedToBattle,
-      BANNER_BATTLE_SUB,
-    );
-  }
+  // 1. Banner (modifier chain handled by the banner system)
+  transitionCtx.ui.showBattleTransition(modifierDiff, proceedToBattle);
 
   // 2. Checkpoint
   transitionCtx.checkpoint.applyBattleStart(msg);
@@ -363,47 +333,26 @@ export function handleBuildStartTransition(
   setPhase(state, Phase.WALL_BUILD);
 
   // Step 2→3: upgrade pick (if any) → build banner → game
-  const showBannerAndEnterBuild = () => {
-    transitionCtx.ui.showBanner(
-      BANNER_BUILD,
-      () => {
-        setWatcherPhaseTimerAtBannerEnd(
-          transitionCtx.ui.watcherTiming,
-          state.timer,
-        );
-        transitionCtx.clearUpgradePickDialog?.();
-        transitionCtx.setMode(Mode.GAME);
-      },
-      BANNER_BUILD_SUB,
-    );
-
-    // Init controllers
-    if (isActivePlayer(myPlayerId)) {
-      const player = state.players[myPlayerId];
-      if (isPlayerAlive(player)) {
-        transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
-      }
-    }
-  };
-
-  // Gate behind upgrade-pick dialog (modern mode).
-  if (
-    transitionCtx.upgradePick?.tryShow &&
-    state.modern?.pendingUpgradeOffers
-  ) {
-    transitionCtx.upgradePick.prepare?.();
-    transitionCtx.ui.showBanner(
-      BANNER_UPGRADE_PICK,
-      () => {
-        if (!transitionCtx.upgradePick!.tryShow!(showBannerAndEnterBuild)) {
-          showBannerAndEnterBuild();
+  transitionCtx.ui.showBuildTransition(
+    transitionCtx.upgradePick,
+    !!state.modern?.pendingUpgradeOffers,
+    () => {
+      setWatcherPhaseTimerAtBannerEnd(
+        transitionCtx.ui.watcherTiming,
+        state.timer,
+      );
+      transitionCtx.clearUpgradePickDialog?.();
+      transitionCtx.setMode(Mode.GAME);
+    },
+    () => {
+      if (isActivePlayer(myPlayerId)) {
+        const player = state.players[myPlayerId];
+        if (isPlayerAlive(player)) {
+          transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
         }
-      },
-      BANNER_UPGRADE_PICK_SUB,
-    );
-    return;
-  }
-  showBannerAndEnterBuild();
+      }
+    },
+  );
 }
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.
