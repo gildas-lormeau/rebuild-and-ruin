@@ -36,7 +36,6 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -81,10 +80,9 @@ import {
   gateUpgradePick,
   NOOP_STEP,
   runBuildEndSequence,
-  showBattlePhaseBanner,
+  showBattleStartBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-  showModifierRevealBanner,
 } from "./runtime-transition-steps.ts";
 import type {
   OnlinePhaseTicks,
@@ -377,23 +375,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
         }
 
-        // Now we know whether a modifier rolled, so we can call the
-        // matching banner directly — same shape as the watcher path.
-        // For chained banners (modifier → battle), the modifier banner
-        // consumes pendingSnapshot; re-set it for the battle banner.
-        if (entry.modifierDiff) {
-          banner.modifierDiff = entry.modifierDiff;
-          showModifierRevealBanner(
-            deps.showBanner,
-            modifierDef(entry.modifierDiff.id).label,
-            () => {
-              banner.pendingSnapshot = savedSnapshot;
-              showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-            },
-          );
-        } else {
-          showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-        }
+        showBattleStartBanner(
+          deps.showBanner,
+          banner,
+          entry.modifierDiff,
+          savedSnapshot,
+          proceedToBattle,
+        );
       },
       applyCheckpoint: NOOP_STEP,
       snapshotForBanner: NOOP_STEP,

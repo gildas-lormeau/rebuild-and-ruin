@@ -27,16 +27,14 @@ import {
   gateUpgradePick,
   NOOP_STEP,
   runBuildEndSequence,
-  showBattlePhaseBanner,
+  showBattleStartBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-  showModifierRevealBanner,
 } from "../runtime/runtime-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   isActivePlayer,
   type ValidPlayerSlot,
@@ -328,19 +326,13 @@ export function handleBattleStartTransition(
 
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () => {
-      if (modifierDiff) {
-        transitionCtx.ui.banner.modifierDiff = modifierDiff;
-        showModifierRevealBanner(
-          transitionCtx.ui.showBanner,
-          modifierDef(modifierDiff.id).label,
-          () => {
-            transitionCtx.ui.banner.pendingSnapshot = savedSnapshot;
-            showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
-          },
-        );
-      } else {
-        showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
-      }
+      showBattleStartBanner(
+        transitionCtx.ui.showBanner,
+        transitionCtx.ui.banner,
+        modifierDiff,
+        savedSnapshot,
+        proceedToBattle,
+      );
     },
     applyCheckpoint: () => {
       transitionCtx.checkpoint.applyBattleStart(msg);
