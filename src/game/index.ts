@@ -34,7 +34,6 @@ export {
 export { createCastle } from "./castle-generation.ts";
 export { rehydrateComboTracker } from "./combo-system.ts";
 export { executeCannonFire, executePlacePiece } from "./game-actions.ts";
-export type { CannonPhaseEntry } from "./game-engine.ts";
 export {
   applyGameConfig,
   createGameFromSeed,

@@ -15,21 +15,19 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
+import {
+  BANNER_BATTLE,
+  BANNER_BATTLE_SUB,
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
+  BANNER_UPGRADE_PICK,
+  BANNER_UPGRADE_PICK_SUB,
+} from "../runtime/banner-messages.ts";
 import type { BannerShow } from "../runtime/runtime-contracts.ts";
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
-import {
-  BATTLE_START_STEPS,
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  gateUpgradePick,
-  NOOP_STEP,
-  runBuildEndSequence,
-  showBattlePhaseBanner,
-  showBuildPhaseBanner,
-  showCannonPhaseBanner,
-  showModifierRevealBanner,
-} from "../runtime/runtime-transition-steps.ts";
+import { runBuildEndSequence } from "../runtime/runtime-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -259,22 +257,25 @@ export function handleCannonStartTransition(
     return;
   }
 
-  executeTransition(CANNON_START_STEPS, {
-    applyCheckpoint: () => {
-      setPhase(state, Phase.CANNON_PLACE);
-      state.timer = state.cannonPlaceTimer;
+  // 1. Banner
+  transitionCtx.ui.showBanner(
+    BANNER_PLACE_CANNONS,
+    () => {
+      setWatcherPhaseTimerAtBannerEnd(
+        transitionCtx.ui.watcherTiming,
+        state.timer,
+      );
+      transitionCtx.setMode(Mode.GAME);
     },
-    initControllers: initLocalController,
-    showBanner: () =>
-      showCannonPhaseBanner(transitionCtx.ui.showBanner, () => {
-        // Anchor phase timer at banner-end wall clock (see helper contract).
-        setWatcherPhaseTimerAtBannerEnd(
-          transitionCtx.ui.watcherTiming,
-          state.timer,
-        );
-        transitionCtx.setMode(Mode.GAME);
-      }),
-  });
+    BANNER_PLACE_CANNONS_SUB,
+  );
+
+  // 2. Checkpoint
+  setPhase(state, Phase.CANNON_PLACE);
+  state.timer = state.cannonPlaceTimer;
+
+  // 3. Init controllers
+  initLocalController();
 }
 
 /** Watcher-only: processes BATTLE_START checkpoint and transitions to battle phase. */
@@ -311,42 +312,37 @@ export function handleBattleStartTransition(
     }
   };
 
-  executeTransition(BATTLE_START_STEPS, {
-    showBanner: () => {
-      if (modifierDiff) {
-        transitionCtx.ui.banner.modifierDiff = modifierDiff;
-        showModifierRevealBanner(
-          transitionCtx.ui.showBanner,
-          modifierDef(modifierDiff.id).label,
-          () => {
-            // Capture post-modifier scene for the chained battle banner.
-            transitionCtx.ui.banner.prevSceneImageData =
-              transitionCtx.ui.captureScene();
-            showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
-          },
-        );
-      } else {
-        showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
-      }
-    },
-    applyCheckpoint: () => {
-      transitionCtx.checkpoint.applyBattleStart(msg);
-      // Recompute territory from checkpoint walls (post-sweep) on the watcher's
-      // pre-modifier map. Matches the host's recheckTerritory in
-      // enterBattleFromCannon. Territory becomes stale again after
-      // applyCheckpointModifierTiles (inside the checkpoint) mutates map tiles.
-      recomputeAllTerritory(state);
-      setPhase(state, Phase.BATTLE);
-    },
-    snapshotForBanner: () => {
-      // Populate battleAnim territory/walls so the live scene above the
-      // sweep line renders battle territory.
-      const postTerritory = transitionCtx.battleLifecycle.snapshotTerritory();
-      const postWalls = snapshotAllWalls(state);
-      transitionCtx.battleLifecycle.setTerritory(postTerritory);
-      transitionCtx.battleLifecycle.setWalls(postWalls);
-    },
-  });
+  // 1. Banner
+  if (modifierDiff) {
+    transitionCtx.ui.banner.modifierDiff = modifierDiff;
+    transitionCtx.ui.showBanner(modifierDef(modifierDiff.id).label, () => {
+      // Re-capture post-modifier scene for the chained battle banner.
+      transitionCtx.ui.banner.prevSceneImageData =
+        transitionCtx.ui.captureScene();
+      transitionCtx.ui.showBanner(
+        BANNER_BATTLE,
+        proceedToBattle,
+        BANNER_BATTLE_SUB,
+      );
+    });
+  } else {
+    transitionCtx.ui.showBanner(
+      BANNER_BATTLE,
+      proceedToBattle,
+      BANNER_BATTLE_SUB,
+    );
+  }
+
+  // 2. Checkpoint
+  transitionCtx.checkpoint.applyBattleStart(msg);
+  recomputeAllTerritory(state);
+  setPhase(state, Phase.BATTLE);
+
+  // 3. Snapshot territory/walls for battleAnim
+  const postTerritory = transitionCtx.battleLifecycle.snapshotTerritory();
+  const postWalls = snapshotAllWalls(state);
+  transitionCtx.battleLifecycle.setTerritory(postTerritory);
+  transitionCtx.battleLifecycle.setWalls(postWalls);
 }
 
 /** Watcher-only: processes BUILD_START checkpoint and transitions to build phase.
@@ -368,43 +364,46 @@ export function handleBuildStartTransition(
 
   // Step 2→3: upgrade pick (if any) → build banner → game
   const showBannerAndEnterBuild = () => {
-    // prevSceneImageData was already captured before the checkpoint applied.
-    // The upgrade dialog is an overlay — the build banner's old scene should
-    // show the battle map, not the dialog.
-    executeTransition(BUILD_START_STEPS, {
-      showBanner: () =>
-        showBuildPhaseBanner(transitionCtx.ui.showBanner, () => {
-          // Anchor phase timer at banner-end wall clock (see helper contract).
-          setWatcherPhaseTimerAtBannerEnd(
-            transitionCtx.ui.watcherTiming,
-            state.timer,
-          );
-          // Deferred clear of the upgrade-pick dialog (host-side path is
-          // in `runtime-phase-ticks.ts:enterBuildViaUpgradePick`). The
-          // dialog stays in state through the build banner sweep so
-          // `drawUpgradePick` can progressively clip it against `banner.y`.
-          transitionCtx.clearUpgradePickDialog?.();
-          transitionCtx.setMode(Mode.GAME);
-        }),
-      applyCheckpoint: NOOP_STEP,
-      initControllers: () => {
-        if (isActivePlayer(myPlayerId)) {
-          const player = state.players[myPlayerId];
-          if (isPlayerAlive(player)) {
-            transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
-          }
-        }
+    transitionCtx.ui.showBanner(
+      BANNER_BUILD,
+      () => {
+        setWatcherPhaseTimerAtBannerEnd(
+          transitionCtx.ui.watcherTiming,
+          state.timer,
+        );
+        transitionCtx.clearUpgradePickDialog?.();
+        transitionCtx.setMode(Mode.GAME);
       },
-    });
+      BANNER_BUILD_SUB,
+    );
+
+    // Init controllers
+    if (isActivePlayer(myPlayerId)) {
+      const player = state.players[myPlayerId];
+      if (isPlayerAlive(player)) {
+        transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
+      }
+    }
   };
 
-  gateUpgradePick(
-    transitionCtx.ui.showBanner,
-    transitionCtx.upgradePick?.tryShow,
-    !!state.modern?.pendingUpgradeOffers,
-    showBannerAndEnterBuild,
-    transitionCtx.upgradePick?.prepare,
-  );
+  // Gate behind upgrade-pick dialog (modern mode).
+  if (
+    transitionCtx.upgradePick?.tryShow &&
+    state.modern?.pendingUpgradeOffers
+  ) {
+    transitionCtx.upgradePick.prepare?.();
+    transitionCtx.ui.showBanner(
+      BANNER_UPGRADE_PICK,
+      () => {
+        if (!transitionCtx.upgradePick!.tryShow!(showBannerAndEnterBuild)) {
+          showBannerAndEnterBuild();
+        }
+      },
+      BANNER_UPGRADE_PICK_SUB,
+    );
+    return;
+  }
+  showBannerAndEnterBuild();
 }
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.

@@ -1,6 +1,5 @@
 import {
   advanceBattleCountdown,
-  type CannonPhaseEntry,
   canBuildThisFrame,
   diffNewWalls,
   tickBattlePhase as engineTickBattlePhase,
@@ -57,6 +56,16 @@ import type { GameState } from "../shared/core/types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
+  BANNER_BATTLE,
+  BANNER_BATTLE_SUB,
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
+  BANNER_UPGRADE_PICK,
+  BANNER_UPGRADE_PICK_SUB,
+} from "./banner-messages.ts";
+import {
   assertStateReady,
   type RuntimeState,
   setMode,
@@ -72,19 +81,7 @@ import {
   resetAccum,
   tickGruntsIfDue,
 } from "./runtime-tick-context.ts";
-import {
-  BATTLE_START_STEPS,
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  gateUpgradePick,
-  NOOP_STEP,
-  runBuildEndSequence,
-  showBattlePhaseBanner,
-  showBuildPhaseBanner,
-  showCannonPhaseBanner,
-  showModifierRevealBanner,
-} from "./runtime-transition-steps.ts";
+import { runBuildEndSequence } from "./runtime-transition-steps.ts";
 import type {
   OnlinePhaseTicks,
   RuntimeConfig,
@@ -241,37 +238,32 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
     // Engine-owned phase entry: the struct is populated in applyCheckpoint
     // and consumed in initControllers. Closed over by both step adapters.
-    let entry: CannonPhaseEntry | undefined;
-    executeTransition(CANNON_START_STEPS, {
-      showBanner: () => {
-        if (onBannerDone) {
-          // Capture the current scene right before the banner fires — this
-          // is the latest rendered frame the player saw.
-          runtimeState.banner.prevSceneImageData = deps.captureScene();
-          showCannonPhaseBanner(deps.showBanner, onBannerDone);
-        }
-      },
-      applyCheckpoint: () => {
-        // Engine owns the order: set phase → compute limits/facings →
-        // compute per-player init data. Runtime just consumes the struct.
-        entry = enterCannonPhase(runtimeState.state);
-        resetAccum(runtimeState.accum, ACCUM_CANNON);
-        if (runtimeState.frameMeta.hostAtFrameStart) {
-          online?.broadcastCannonStart?.(runtimeState.state);
-        }
-      },
-      initControllers: () => {
-        if (!entry) return;
-        for (const ctrl of runtimeState.controllers) {
-          if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-          const prep = entry.playerInit[ctrl.playerId];
-          if (!prep) continue;
-          ctrl.placeCannons(runtimeState.state, prep.maxSlots);
-          ctrl.cannonCursor = prep.cursorPos;
-          ctrl.startCannonPhase(runtimeState.state);
-        }
-      },
-    });
+    // 1. Banner
+    if (onBannerDone) {
+      runtimeState.banner.prevSceneImageData = deps.captureScene();
+      deps.showBanner(
+        BANNER_PLACE_CANNONS,
+        onBannerDone,
+        BANNER_PLACE_CANNONS_SUB,
+      );
+    }
+
+    // 2. Checkpoint: set phase → compute limits/facings → per-player init
+    const entry = enterCannonPhase(runtimeState.state);
+    resetAccum(runtimeState.accum, ACCUM_CANNON);
+    if (runtimeState.frameMeta.hostAtFrameStart) {
+      online?.broadcastCannonStart?.(runtimeState.state);
+    }
+
+    // 3. Init controllers
+    for (const ctrl of runtimeState.controllers) {
+      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
+      const prep = entry.playerInit[ctrl.playerId];
+      if (!prep) continue;
+      ctrl.placeCannons(runtimeState.state, prep.maxSlots);
+      ctrl.cannonCursor = prep.cursorPos;
+      ctrl.startCannonPhase(runtimeState.state);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -286,26 +278,36 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
     const showBannerAndEnterBuild = () => {
-      executeTransition(BUILD_START_STEPS, {
-        showBanner: () => {
-          // prevSceneImageData was captured in tickBattlePhase (the last
-          // battle frame, before upgrade dialog appeared).
-          showBuildPhaseBanner(deps.showBanner, () => {
-            deps.clearUpgradePickDialog?.();
-            setMode(runtimeState, Mode.GAME);
-          });
+      // prevSceneImageData was captured in tickBattlePhase (the last
+      // battle frame, before upgrade dialog appeared).
+      deps.showBanner(
+        BANNER_BUILD,
+        () => {
+          deps.clearUpgradePickDialog?.();
+          setMode(runtimeState, Mode.GAME);
         },
-        applyCheckpoint: NOOP_STEP,
-        initControllers: () => startBuildPhase(),
-      });
+        BANNER_BUILD_SUB,
+      );
+      startBuildPhase();
     };
-    gateUpgradePick(
-      deps.showBanner,
-      deps.tryShowUpgradePick,
-      !!runtimeState.state.modern?.pendingUpgradeOffers,
-      showBannerAndEnterBuild,
-      deps.prepareUpgradePick,
-    );
+    // Gate behind upgrade-pick dialog (modern mode).
+    if (
+      deps.tryShowUpgradePick &&
+      runtimeState.state.modern?.pendingUpgradeOffers
+    ) {
+      deps.prepareUpgradePick?.();
+      deps.showBanner(
+        BANNER_UPGRADE_PICK,
+        () => {
+          if (!deps.tryShowUpgradePick!(showBannerAndEnterBuild)) {
+            showBannerAndEnterBuild();
+          }
+        },
+        BANNER_UPGRADE_PICK_SUB,
+      );
+      return;
+    }
+    showBannerAndEnterBuild();
   }
 
   function startBattle() {
@@ -336,46 +338,33 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     };
 
-    executeTransition(BATTLE_START_STEPS, {
-      showBanner: () => {
-        // Capture the current scene BEFORE enterBattlePhase mutates state.
+    // Capture the current scene BEFORE enterBattlePhase mutates state.
+    banner.prevSceneImageData = deps.captureScene();
+
+    // Engine owns the load-bearing order: modifier roll → balloon
+    // resolution → post-modifier snapshots.
+    const entry = enterBattlePhase(state);
+    flights = entry.flights;
+    battleAnim.impacts = [];
+    battleAnim.territory = entry.territory;
+    battleAnim.walls = entry.walls;
+    // Mark inBattle so the live scene above the sweep line renders
+    // battle territory on the first banner frame.
+    (runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
+    if (runtimeState.frameMeta.hostAtFrameStart) {
+      online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
+    }
+
+    if (entry.modifierDiff) {
+      banner.modifierDiff = entry.modifierDiff;
+      deps.showBanner(modifierDef(entry.modifierDiff.id).label, () => {
+        // Re-capture post-modifier scene for the chained battle banner.
         banner.prevSceneImageData = deps.captureScene();
-
-        // Engine owns the load-bearing order: modifier roll → balloon
-        // resolution → post-modifier snapshots.
-        const entry = enterBattlePhase(state);
-        flights = entry.flights;
-        battleAnim.impacts = [];
-        battleAnim.territory = entry.territory;
-        battleAnim.walls = entry.walls;
-        // Mark inBattle so the live scene above the sweep line renders
-        // battle territory on the first banner frame (frameMeta was computed
-        // before this transition).
-        (runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
-        if (runtimeState.frameMeta.hostAtFrameStart) {
-          online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
-        }
-
-        if (entry.modifierDiff) {
-          banner.modifierDiff = entry.modifierDiff;
-          showModifierRevealBanner(
-            deps.showBanner,
-            modifierDef(entry.modifierDiff.id).label,
-            () => {
-              // Capture the post-modifier scene for the chained battle
-              // banner. The canvas now shows the fully-revealed modifier
-              // state — the correct "old scene" for the battle sweep.
-              banner.prevSceneImageData = deps.captureScene();
-              showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-            },
-          );
-        } else {
-          showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-        }
-      },
-      applyCheckpoint: NOOP_STEP,
-      snapshotForBanner: NOOP_STEP,
-    });
+        deps.showBanner(BANNER_BATTLE, proceedToBattle, BANNER_BATTLE_SUB);
+      });
+    } else {
+      deps.showBanner(BANNER_BATTLE, proceedToBattle, BANNER_BATTLE_SUB);
+    }
   }
 
   function tickBalloonAnim(dt: number) {

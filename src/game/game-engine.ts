@@ -87,7 +87,7 @@ interface PlayerCannonInit {
 /** Result of `enterCannonPhase` — per-player init data the caller uses to
  *  initialize local controllers in the initControllers step.
  *  Index = playerId; null entries are eliminated players or empty slots. */
-export interface CannonPhaseEntry {
+interface CannonPhaseEntry {
   playerInit: readonly (PlayerCannonInit | null)[];
 }
 

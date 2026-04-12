@@ -1,13 +1,9 @@
 /**
- * Phase-transition lint — enforce that banner subtitles are only set via
- * shared helpers in phase-transition-steps.ts, and that showBanner is not
- * called directly in online phase-transition files.
+ * Phase-transition lint — enforce that banner subtitle constants are only
+ * used in the two canonical transition files (host + watcher).
  *
- * Checks:
- * 1. BANNER_*_SUB constants must only be imported by phase-transition-steps.ts.
- *    Any other file importing them is bypassing the shared helpers.
- * 2. Guarded files must not call showBanner directly — all banner calls should
- *    go through showCannonPhaseBanner / showBattlePhaseBanner / showBuildPhaseBanner.
+ * BANNER_*_SUB constants define the subtitle text for each phase banner.
+ * They should only appear in the files that orchestrate phase transitions.
  *
  * Usage:
  *   deno run -A scripts/lint-phase-transitions.ts
@@ -23,16 +19,11 @@ interface Violation {
 }
 
 const SRC = join(process.cwd(), "src");
-/** The only file allowed to import BANNER_*_SUB constants. */
-const SHARED_FILE = "phase-transition-steps.ts";
-/** Files that may re-export or define BANNER_*_SUB (the source of truth). */
-const DEFINITION_FILES = new Set([SHARED_FILE]);
-/** Files that must use shared helpers instead of raw showBanner for phase transitions. */
-const GUARDED_TRANSITION_FILES = new Set([
-  "online-phase-transitions.ts",
-  "runtime-host-battle-ticks.ts",
+/** Files allowed to import BANNER_*_SUB constants. */
+const ALLOWED_SUB_FILES = new Set([
+  "banner-messages.ts",
   "runtime-phase-ticks.ts",
-  "runtime-selection.ts",
+  "online-phase-transitions.ts",
 ]);
 
 main();
@@ -43,39 +34,20 @@ function main(): void {
 
   for (const filePath of files) {
     const base = basename(filePath);
-    if (DEFINITION_FILES.has(base)) continue;
+    if (ALLOWED_SUB_FILES.has(base)) continue;
 
     const content = readFileSync(filePath, "utf-8");
     const relPath = relative(process.cwd(), filePath);
 
-    // Check 1: No file (except shared + definition) should import BANNER_*_SUB
+    // No file (except allowed) should import BANNER_*_SUB
     if (/BANNER_\w+_SUB/.test(content)) {
       const lines = content.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+      for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx]!;
         if (/BANNER_\w+_SUB/.test(line) && /import/.test(line)) {
           violations.push({
             file: relPath,
-            message: `Line ${i + 1}: imports BANNER_*_SUB directly — use shared helpers from ${SHARED_FILE} instead`,
-          });
-        }
-      }
-    }
-
-    // Check 2: Guarded files must not call showBanner directly for phase transitions
-    if (GUARDED_TRANSITION_FILES.has(base)) {
-      const lines = content.split("\n");
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
-        // Match direct showBanner calls (not imports, not type annotations, not comments)
-        if (
-          /\.showBanner\(/.test(line) &&
-          !/^\s*\/\//.test(line) &&
-          !/import/.test(line)
-        ) {
-          violations.push({
-            file: relPath,
-            message: `Line ${i + 1}: direct showBanner() call — use shared helpers (showCannonPhaseBanner, showBattlePhaseBanner, showBuildPhaseBanner)`,
+            message: `Line ${idx + 1}: imports BANNER_*_SUB directly — only transition files should use these`,
           });
         }
       }
@@ -92,21 +64,22 @@ function main(): void {
   console.log(
     `\u2718 ${violations.length} phase-transition violation(s) found:\n`,
   );
-  for (const v of violations) {
-    console.log(`  ${v.file}: ${v.message}`);
+  for (const violation of violations) {
+    console.log(`  ${violation.file}: ${violation.message}`);
   }
   process.exit(1);
 }
 
 function collectFiles(dir: string): string[] {
-  const results: string[] = [];
+  const result: string[] = [];
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      results.push(...collectFiles(full));
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      result.push(...collectFiles(full));
     } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
-      results.push(full);
+      result.push(full);
     }
   }
-  return results;
+  return result;
 }
