@@ -444,7 +444,9 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const renderMap =
       needsBannerRender && needsTileRevert
         ? buildModifierSnapshotMap(map, modifierDiff!.changedTiles, prevTile)
-        : (bannerCache?.renderMap ?? map);
+        : needsBannerRender
+          ? map
+          : (bannerCache?.renderMap ?? map);
 
     if (needsBannerRender) {
       const prevOverlay: RenderOverlay = {
