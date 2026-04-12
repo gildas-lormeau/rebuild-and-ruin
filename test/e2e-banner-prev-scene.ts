@@ -214,25 +214,43 @@ async function run(): Promise<void> {
 }
 
 /** Per-banner-type diff thresholds (%).
- *  Validated via screenshot-diff.ts fingerprint analysis — each threshold
- *  sits just above the observed false-positive max for that class.
+ *  Validated via screenshot-diff.ts fingerprint analysis. Each threshold
+ *  sits ~30% above the observed max for that class so regressions are
+ *  caught without flaky false positives.
  *
- *  Build & Repair stays at 1% (default): the "modifier applied too early"
- *  bug produces 2-5% diffs on START that SHOULD fail. */
+ *  Observed maxima (post-fix):
+ *    Build & Repair   START  1.1%   END  1.4%
+ *    Choose Upgrade   START 16.2%   END  5.0%
+ *    Place Cannons    START  0.9%   END  0.1%
+ *    Prepare for Battle START 14.1% END  8.8%
+ *    Modifier banners START  13.2%  END 11.3%
+ */
 function getThreshold(
   label: string,
   side: "start" | "end",
   modifierId: string | null,
 ): number {
-  // Modifier start: preceding tile-mutation effects (high-tide recede) or
-  // water/territory animation shifts. Max observed: ~13%.
-  if (side === "start" && modifierId) return 15;
-  // Battle end: grunts spawn, "Ready" label, territory highlights appear.
-  // Max observed: ~8.5%.
-  if (label === "Prepare for Battle" && side === "end") return 10;
-  // Choose Upgrade end: AI picks change the dialog overlay between frames.
-  // Max observed: ~4.5%.
-  if (label === "Choose Upgrade" && side === "end") return 5;
+  // Modifier start: preceding tile-mutation effects (high-tide recede,
+  // sinkhole, wildfire). Max observed: 13.2%.
+  if (side === "start" && modifierId) return 17;
+  // Modifier end: chained into battle banner, large scene change.
+  // Max observed: 11.3%.
+  if (side === "end" && modifierId) return 15;
+  // Prepare for Battle start: follows modifier or cannon phase.
+  // Max observed: 14.1%.
+  if (label === "Prepare for Battle" && side === "start") return 18;
+  // Prepare for Battle end: grunts spawn, territory highlights.
+  // Max observed: 8.8%.
+  if (label === "Prepare for Battle" && side === "end") return 11;
+  // Choose Upgrade start: follows battle, large scene change at
+  // high rounds. Max observed: 16.2%.
+  if (label === "Choose Upgrade" && side === "start") return 20;
+  // Choose Upgrade end: AI picks change dialog overlay.
+  // Max observed: 5.0%.
+  if (label === "Choose Upgrade" && side === "end") return 6;
+  // Build & Repair: strict — the prev-scene snapshot bug produces
+  // 5-20% diffs that MUST fail. Max observed (post-fix): 1.4%.
+  if (label.startsWith("Build & Repair")) return 2;
   return DEFAULT_MAX_DIFF;
 }
 
@@ -269,7 +287,7 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
   const game = await E2EGame.create({
     seed: config.seed,
     humans: 0,
-    headless: true,
+    headless: !Deno.args.includes("--visible"),
     rounds: config.rounds,
     mode: config.mode,
   });

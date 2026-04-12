@@ -1,3 +1,4 @@
+import { brandFreshInterior } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 
@@ -34,7 +35,7 @@ export function snapshotCastles(
     .filter((player) => player.castle)
     .map((player) => ({
       walls: wallOverrides?.[player.id] ?? new Set(player.walls),
-      interior: player.interior,
+      interior: brandFreshInterior(new Set(player.interior)),
       cannons: player.cannons.map((c) => ({ ...c })),
       playerId: player.id,
     }));

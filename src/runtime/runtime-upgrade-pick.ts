@@ -18,7 +18,7 @@
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
-import { applyUpgradePicks } from "../game/index.ts";
+import { applyUpgradePicks, recheckTerritory } from "../game/index.ts";
 import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
@@ -175,6 +175,10 @@ export function createUpgradePickSystem(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
     applyUpgradePicks(runtimeState.state, dialog);
+    // Recheck territory after picks — demolition strips walls from all
+    // players, leaving player.interior stale. Without this, the build
+    // banner and build phase render the wrong checkerboard pattern.
+    recheckTerritory(runtimeState.state);
     // NOTE: dialog is intentionally NOT cleared here. The next phase's
     // banner (build banner) needs the dialog state in place during its
     // sweep so `drawUpgradePick` can clip it progressively against

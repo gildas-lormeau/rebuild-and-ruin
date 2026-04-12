@@ -290,7 +290,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
+    // Snapshot castles + entities NOW — after enterBuildFromBattle has
+    // populated player.interior via recheckTerritory, but BEFORE
+    // applyUpgradePicks mutates walls (demolition strips all players'
+    // inner walls). The Build banner fires after applyUpgradePicks, so
+    // its auto-capture would see post-pick state the user never saw.
+    // interior is cloned in snapshotCastles so the snapshot stays valid.
+    const { banner: bannerState } = runtimeState;
+    const savedPrevCastles = snapshotCastles(runtimeState.state);
+    const savedPrevEntities = snapshotEntities(runtimeState.state);
     const showBannerAndEnterBuild = () => {
+      // Pre-populate so auto-capture block is skipped (gates on prevCastles).
+      bannerState.prevCastles = savedPrevCastles;
+      bannerState.prevEntities = savedPrevEntities;
       executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
           showBuildPhaseBanner(deps.showBanner, () => {
