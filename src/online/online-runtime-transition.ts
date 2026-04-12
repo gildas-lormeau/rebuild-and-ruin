@@ -69,6 +69,9 @@ export function createOnlineTransitionContext(
         return shown;
       },
     },
+    clearUpgradePickDialog: () => {
+      deps.getRuntime().upgradePick.set(null);
+    },
   };
 }
 

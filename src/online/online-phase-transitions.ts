@@ -184,6 +184,13 @@ export interface TransitionContext {
     tryShow: (onDone: () => void) => boolean;
     prepare: () => boolean;
   };
+  /** Clear the upgrade-pick dialog state. Called from the build banner's
+   *  onDone after the sweep completes — see the host counterpart in
+   *  `runtime-phase-ticks.ts:enterBuildViaUpgradePick`. The dialog has to
+   *  stay alive through the build banner sweep so `drawUpgradePick` can
+   *  progressively clip it against `banner.y`; this callback is what
+   *  finally tears it down. */
+  clearUpgradePickDialog?: () => void;
 }
 
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
@@ -375,12 +382,15 @@ export function handleBuildStartTransition(
       showBanner: () =>
         showBuildPhaseBanner(transitionCtx.ui.showBanner, () => {
           // Anchor phase timer at banner-end wall clock (see helper contract).
-          // Any preceding upgrade-pick dialog finishes BEFORE showBanner runs,
-          // so the callback still fires at true banner-end.
           setWatcherPhaseTimerAtBannerEnd(
             transitionCtx.ui.watcherTiming,
             state.timer,
           );
+          // Deferred clear of the upgrade-pick dialog (host-side path is
+          // in `runtime-phase-ticks.ts:enterBuildViaUpgradePick`). The
+          // dialog stays in state through the build banner sweep so
+          // `drawUpgradePick` can progressively clip it against `banner.y`.
+          transitionCtx.clearUpgradePickDialog?.();
           transitionCtx.setMode(Mode.GAME);
         }),
       applyCheckpoint: NOOP_STEP,

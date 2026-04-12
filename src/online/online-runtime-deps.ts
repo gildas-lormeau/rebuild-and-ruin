@@ -169,7 +169,11 @@ function buildUiDeps() {
     getUpgradePickDialog: () =>
       _depsInit.runtime.runtimeState.dialogs.upgradePick,
     clearUpgradePickDialog: () => {
-      _depsInit.runtime.runtimeState.dialogs.upgradePick = null;
+      // Route through the subsystem boundary, matching the phase-transition
+      // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
+      // watcher: `online-runtime-transition.ts:clearUpgradePickDialog`)
+      // and the host-promotion path (`online-runtime-promote.ts`).
+      _depsInit.runtime.upgradePick.set(null);
     },
     isUpgradePickMode: () =>
       _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK,

@@ -82,18 +82,32 @@ const UPGRADE_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
     } satisfies SeedCondition,
   ]),
 );
+/** Every implemented modifier as a seed condition. Adding a new modifier?
+ *  Add one line here and run `npm run record-seeds`. */
+const MODIFIER_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
+  (
+    [
+      "wildfire",
+      "crumbling_walls",
+      "grunt_surge",
+      "frozen_river",
+      "sinkhole",
+      "high_tide",
+      "dust_storm",
+      "rubble_clearing",
+    ] satisfies readonly ModifierId[]
+  ).map((modifierId) => [
+    `modifier:${modifierId}`,
+    {
+      mode: "modern",
+      rounds: 10,
+      match: (sc) => latchModifierFired(sc, modifierId),
+    } satisfies SeedCondition,
+  ]),
+);
 export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
   ...UPGRADE_CONDITIONS,
-  "modifier:high_tide": {
-    mode: "modern",
-    rounds: 10,
-    match: (sc) => latchModifierFired(sc, "high_tide"),
-  },
-  "modifier:sinkhole": {
-    mode: "modern",
-    rounds: 10,
-    match: (sc) => latchModifierFired(sc, "sinkhole"),
-  },
+  ...MODIFIER_CONDITIONS,
   "modifier:sinkhole_then_high_tide": {
     mode: "modern",
     rounds: 10,

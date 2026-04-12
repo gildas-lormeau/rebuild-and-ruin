@@ -109,7 +109,10 @@ function clearAnimationState(mode: Mode): string | null {
     case Mode.BALLOON_ANIM:
       return "Skipped banner/animation → game mode";
     case Mode.UPGRADE_PICK:
-      _runtime.runtimeState.dialogs.upgradePick = null;
+      // Match the phase-transition + lifecycle paths — go through the
+      // upgrade-pick subsystem boundary instead of mutating dialog state
+      // directly. Same effect, single audited mutation site.
+      _runtime.upgradePick.set(null);
       return "Cleared upgrade pick dialog → game mode";
     case Mode.GAME:
     case Mode.LOBBY:

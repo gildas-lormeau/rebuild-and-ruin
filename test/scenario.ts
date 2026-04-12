@@ -37,6 +37,7 @@
 // HTMLInputElement, HTMLSelectElement) on globalThis before any input handler
 // runs. Required so `registerKeyboardHandlers` can do `e.target instanceof
 // HTMLInputElement` without throwing in Deno.
+
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
@@ -60,6 +61,8 @@ import {
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
+import type { BannerState } from "../src/runtime/runtime-contracts.ts";
+import type { DialogRuntimeState } from "../src/runtime/runtime-state.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
@@ -143,6 +146,18 @@ export interface Scenario extends Disposable {
    *  started or after returning to the menu. Convenience over `mode` for
    *  the common "have we left the lobby?" check. */
   readonly lobbyActive: () => boolean;
+  /** Current phase-transition banner state. Lives on `runtimeState`, not
+   *  `state`, so tests that need to observe banner progress frame-by-frame
+   *  (e.g. progressive reveal tests) reach it through this accessor. The
+   *  returned object is the live banner — read fields inside a `runUntil`
+   *  predicate or right after a `runUntil` call, never hold a reference
+   *  across frames. Never mutate. */
+  readonly banner: () => Readonly<BannerState>;
+  /** Current dialog runtime state (life-lost, upgrade-pick, etc.). Lives
+   *  on `runtimeState`, same caveats as `banner()` — live reference, never
+   *  mutate. Tests use this to observe whether the upgrade-pick overlay is
+   *  still active during a phase transition. */
+  readonly dialogs: () => Readonly<DialogRuntimeState>;
   /** Current simulated time (ms). */
   readonly now: () => number;
   /** Drive the game until `predicate` returns true. Returns the frame count
@@ -212,15 +227,12 @@ export interface ScenarioInput {
   tap(x: number, y: number): void;
 }
 
-export async function createScenario(
-  opts: ScenarioOptions = {},
-): Promise<Scenario> {
-  const sentMessages: GameMessage[] = [];
-  const headless = await createHeadlessRuntime(
-    buildHeadlessOptions(opts, sentMessages),
-  );
-  return wrapHeadless(headless, sentMessages);
+export interface RecordedEvent {
+  readonly type: string;
+  readonly payload: Record<string, unknown>;
 }
+
+const DEFAULT_MAX_TICKS = 5000;
 
 /** Boot a scenario for a registered seed condition. Looks up the cached
  *  seed in `test/seed-fixtures.json` and uses the condition's declared
@@ -231,7 +243,16 @@ export async function createScenario(
  *  is a single command (`record-seeds`) instead of per-test rehunting. */
 export function loadSeed(
   name: string,
-  overrides?: Partial<Pick<ScenarioOptions, "rounds">>,
+  overrides?: Partial<
+    Pick<
+      ScenarioOptions,
+      | "rounds"
+      | "recorder"
+      | "renderObserver"
+      | "hapticsObserver"
+      | "soundObserver"
+    >
+  >,
 ): Promise<Scenario> {
   const condition = SEED_CONDITIONS[name];
   if (!condition) {
@@ -249,7 +270,21 @@ export function loadSeed(
     seed,
     mode: condition.mode,
     rounds: overrides?.rounds ?? condition.rounds,
+    recorder: overrides?.recorder,
+    renderObserver: overrides?.renderObserver,
+    hapticsObserver: overrides?.hapticsObserver,
+    soundObserver: overrides?.soundObserver,
   });
+}
+
+export async function createScenario(
+  opts: ScenarioOptions = {},
+): Promise<Scenario> {
+  const sentMessages: GameMessage[] = [];
+  const headless = await createHeadlessRuntime(
+    buildHeadlessOptions(opts, sentMessages),
+  );
+  return wrapHeadless(headless, sentMessages);
 }
 
 /** Translate `ScenarioOptions` into the matching `createHeadlessRuntime`
@@ -318,6 +353,8 @@ export function wrapHeadless(
     deliverMessage: headless.deliverNetworkMessage,
     mode: () => headless.runtime.runtimeState.mode,
     lobbyActive: () => headless.runtime.runtimeState.lobby.active,
+    banner: () => headless.runtime.runtimeState.banner,
+    dialogs: () => headless.runtime.runtimeState.dialogs,
     now: headless.now,
     runUntil: headless.runUntil,
     runGame: headless.runGame,
@@ -343,13 +380,102 @@ export function wrapHeadless(
   };
 }
 
-// ─── Synthetic input ───────────────────────────────────────────────
-// Constructs DOM-shaped events (using the polyfilled `KeyboardEvent` /
-// `MouseEvent` from `test-globals.ts`) and dispatches them at the same
-// `EventTarget` instances the runtime registered listeners on. This is
-// the production code path — `registerKeyboardHandlers`,
-// `registerMouseHandlers`, and `registerTouchHandlers` from `src/input/`
-// run unmodified.
+/** Tick until a `phaseStart` event for `phase` fires. Returns the event. */
+export function waitForPhase(
+  sc: Scenario,
+  phase: Phase,
+  maxTicks = DEFAULT_MAX_TICKS,
+): GameEventMap["phaseStart"] {
+  let captured: GameEventMap["phaseStart"] | null = null;
+  const handler = (ev: GameEventMap["phaseStart"]) => {
+    if (ev.phase === phase && captured === null) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.PHASE_START, handler);
+  try {
+    sc.runUntil(() => captured !== null, maxTicks);
+  } finally {
+    sc.bus.off(GAME_EVENT.PHASE_START, handler);
+  }
+  if (captured === null) {
+    throw new Error(
+      `waitForPhase(${phase}) timed out after ${maxTicks} ticks`,
+    );
+  }
+  return captured;
+}
+
+/** Tick until a `roundStart` event for `round` fires. Useful for skipping
+ *  through opening rounds when a test needs a condition that only appears
+ *  in later rounds (e.g. environmental modifiers from round 3 onwards). */
+export function waitUntilRound(
+  sc: Scenario,
+  round: number,
+  maxTicks = DEFAULT_MAX_TICKS,
+): GameEventMap["roundStart"] {
+  let captured: GameEventMap["roundStart"] | null = null;
+  const handler = (ev: GameEventMap["roundStart"]) => {
+    if (ev.round >= round && captured === null) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.ROUND_START, handler);
+  try {
+    sc.runUntil(() => captured !== null, maxTicks);
+  } finally {
+    sc.bus.off(GAME_EVENT.ROUND_START, handler);
+  }
+  if (captured === null) {
+    throw new Error(
+      `waitUntilRound(${round}) timed out after ${maxTicks} ticks`,
+    );
+  }
+  return captured;
+}
+
+/** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
+export function waitForModifier(
+  sc: Scenario,
+  modifierId?: ModifierId,
+  maxTicks = DEFAULT_MAX_TICKS,
+): GameEventMap["bannerStart"] {
+  return waitForBanner(
+    sc,
+    (ev) =>
+      ev.modifierId !== undefined &&
+      (modifierId === undefined || ev.modifierId === modifierId),
+    maxTicks,
+  );
+}
+
+/** Tick until a `bannerStart` event matching `predicate` fires. */
+export function waitForBanner(
+  sc: Scenario,
+  predicate: (ev: GameEventMap["bannerStart"]) => boolean,
+  maxTicks = DEFAULT_MAX_TICKS,
+): GameEventMap["bannerStart"] {
+  let captured: GameEventMap["bannerStart"] | null = null;
+  const handler = (ev: GameEventMap["bannerStart"]) => {
+    if (captured === null && predicate(ev)) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.BANNER_START, handler);
+  try {
+    sc.runUntil(() => captured !== null, maxTicks);
+  } finally {
+    sc.bus.off(GAME_EVENT.BANNER_START, handler);
+  }
+  if (captured === null) {
+    throw new Error(`waitForBanner timed out after ${maxTicks} ticks`);
+  }
+  return captured;
+}
+
+/** Subscribe to every bus event and accumulate them in order.
+ *  Call BEFORE driving the runtime so no events are missed. */
+export function recordEvents(sc: Scenario): RecordedEvent[] {
+  const events: RecordedEvent[] = [];
+  sc.bus.onAny((type, ev) => {
+    events.push(normalizeEvent(type as string, ev));
+  });
+  return events;
+}
 
 function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
   const { keyboardEventSource, pointerEventTarget } = headless;
@@ -438,125 +564,6 @@ function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
       dispatchTouch("touchend", [], [{ x, y }]);
     },
   };
-}
-
-// ─── Wait helpers ──────────────────────────────────────────────────
-// Sync wrappers around `runUntil` that capture an event payload along
-// the way. Throw on timeout so test failures point at the missing event,
-// not at a downstream assertion.
-
-const DEFAULT_MAX_TICKS = 5000;
-
-/** Tick until a `phaseStart` event for `phase` fires. Returns the event. */
-export function waitForPhase(
-  sc: Scenario,
-  phase: Phase,
-  maxTicks = DEFAULT_MAX_TICKS,
-): GameEventMap["phaseStart"] {
-  let captured: GameEventMap["phaseStart"] | null = null;
-  const handler = (ev: GameEventMap["phaseStart"]) => {
-    if (ev.phase === phase && captured === null) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.PHASE_START, handler);
-  try {
-    sc.runUntil(() => captured !== null, maxTicks);
-  } finally {
-    sc.bus.off(GAME_EVENT.PHASE_START, handler);
-  }
-  if (captured === null) {
-    throw new Error(
-      `waitForPhase(${phase}) timed out after ${maxTicks} ticks`,
-    );
-  }
-  return captured;
-}
-
-/** Tick until a `bannerStart` event matching `predicate` fires. */
-export function waitForBanner(
-  sc: Scenario,
-  predicate: (ev: GameEventMap["bannerStart"]) => boolean,
-  maxTicks = DEFAULT_MAX_TICKS,
-): GameEventMap["bannerStart"] {
-  let captured: GameEventMap["bannerStart"] | null = null;
-  const handler = (ev: GameEventMap["bannerStart"]) => {
-    if (captured === null && predicate(ev)) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.BANNER_START, handler);
-  try {
-    sc.runUntil(() => captured !== null, maxTicks);
-  } finally {
-    sc.bus.off(GAME_EVENT.BANNER_START, handler);
-  }
-  if (captured === null) {
-    throw new Error(`waitForBanner timed out after ${maxTicks} ticks`);
-  }
-  return captured;
-}
-
-/** Tick until a `roundStart` event for `round` fires. Useful for skipping
- *  through opening rounds when a test needs a condition that only appears
- *  in later rounds (e.g. environmental modifiers from round 3 onwards). */
-export function waitUntilRound(
-  sc: Scenario,
-  round: number,
-  maxTicks = DEFAULT_MAX_TICKS,
-): GameEventMap["roundStart"] {
-  let captured: GameEventMap["roundStart"] | null = null;
-  const handler = (ev: GameEventMap["roundStart"]) => {
-    if (ev.round >= round && captured === null) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.ROUND_START, handler);
-  try {
-    sc.runUntil(() => captured !== null, maxTicks);
-  } finally {
-    sc.bus.off(GAME_EVENT.ROUND_START, handler);
-  }
-  if (captured === null) {
-    throw new Error(
-      `waitUntilRound(${round}) timed out after ${maxTicks} ticks`,
-    );
-  }
-  return captured;
-}
-
-/** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
-export function waitForModifier(
-  sc: Scenario,
-  modifierId?: ModifierId,
-  maxTicks = DEFAULT_MAX_TICKS,
-): GameEventMap["bannerStart"] {
-  return waitForBanner(
-    sc,
-    (ev) =>
-      ev.modifierId !== undefined &&
-      (modifierId === undefined || ev.modifierId === modifierId),
-    maxTicks,
-  );
-}
-
-// ─── Determinism recording ─────────────────────────────────────────
-// `recordEvents` subscribes to ALL bus events and returns an append-only
-// log. The log is a deterministic projection of "what happened in this run":
-// if the runtime is deterministic, replaying the same scenario with the
-// same seed must produce a byte-identical log.
-//
-// Used by:
-//   - scripts/record-determinism.ts to write fixtures to disk
-//   - test/determinism.test.ts to verify replay matches the saved fixture
-
-export interface RecordedEvent {
-  readonly type: string;
-  readonly payload: Record<string, unknown>;
-}
-
-/** Subscribe to every bus event and accumulate them in order.
- *  Call BEFORE driving the runtime so no events are missed. */
-export function recordEvents(sc: Scenario): RecordedEvent[] {
-  const events: RecordedEvent[] = [];
-  sc.bus.onAny((type, ev) => {
-    events.push(normalizeEvent(type as string, ev));
-  });
-  return events;
 }
 
 function normalizeEvent(type: string, ev: unknown): RecordedEvent {

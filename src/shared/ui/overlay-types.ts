@@ -322,17 +322,39 @@ export interface RendererInterface {
 
 /** Test seam: structured callbacks fired at high-level draw points so tests
  *  can assert on *what* was rendered (which `GameMap` reference, which target
- *  canvas) without inspecting pixel buffers. Threaded into the render-map
- *  factory via deps; production callers omit it.
+ *  canvas, at what clip offset) without inspecting pixel buffers. Threaded
+ *  into the render-map factory via deps; production callers omit it.
  *
  *  - `terrainDrawn` fires right after `drawTerrain` runs. `target` is `"main"`
  *    for the live scene and `"banner"` for the cached banner prev-scene canvas.
  *    `mapRef` is the exact `GameMap` object passed to drawTerrain — for
  *    modifier reveal banners this is the snapshot map produced by
  *    `buildModifierSnapshotMap`, a *different* reference than the live map.
+ *
+ *  - `bannerComposited` fires on every frame the banner prev-scene is
+ *    composited onto the main scene canvas (inside `drawBannerPrevScene`,
+ *    before `ctx.restore()`). Reports the exact `clipY` passed to the clip
+ *    rect — the cutoff between "new scene above" and "old scene below".
+ *    Fires after the cached banner canvas has been drawn, so tests can
+ *    reconstruct the on-screen pixel grid by combining `clipY` with the
+ *    two `GameMap` references captured via `terrainDrawn`.
  */
 export interface RenderObserver {
   terrainDrawn?(target: "main" | "banner", mapRef: GameMap): void;
+  bannerComposited?(info: {
+    /** Y coordinate of the top edge of the OLD-scene clip region. Tiles
+     *  whose full extent is below this line render from the banner canvas
+     *  (snapshot map); tiles above it render from the main canvas (live
+     *  map). Derived from `banner.y - bannerH/2` inside the renderer. */
+    readonly clipY: number;
+    /** Map pixel height (H) used by the renderer. Combine with `clipY` to
+     *  compute which rows fall in the old vs new region. */
+    readonly H: number;
+    /** Map pixel width (W). Mirrors the clip-rect width. */
+    readonly W: number;
+    /** Banner height in pixels (`Math.round(H * BANNER_HEIGHT_RATIO)`). */
+    readonly bannerH: number;
+  }): void;
 }
 
 export interface LoupeHandle {

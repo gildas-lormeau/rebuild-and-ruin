@@ -1,7 +1,13 @@
 {
+  "modifier:crumbling_walls": 0,
+  "modifier:dust_storm": 1,
+  "modifier:frozen_river": 2,
+  "modifier:grunt_surge": 1,
   "modifier:high_tide": 2,
+  "modifier:rubble_clearing": 0,
   "modifier:sinkhole": 0,
   "modifier:sinkhole_then_high_tide": 22,
+  "modifier:wildfire": 0,
   "upgrade:architect": 0,
   "upgrade:ceasefire": 1,
   "upgrade:clear_the_field": 0,

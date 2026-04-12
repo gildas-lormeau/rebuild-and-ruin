@@ -476,8 +476,13 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
     return { id: mod, label, changedTiles: [], gruntsSpawned: count };
   }
   if (mod === MODIFIER_ID.FROZEN_RIVER) {
-    const frozen = applyFrozenRiver(state);
-    return { id: mod, label, changedTiles: [...frozen], gruntsSpawned: 0 };
+    applyFrozenRiver(state);
+    // Frozen river doesn't mutate `map.tiles` — the visual change is drawn
+    // as an overlay by `drawFrozenTiles`. Returning the frozen keys as
+    // `changedTiles` would trip `buildModifierSnapshotMap` into reverting
+    // water→grass in the banner prev-scene, flashing grass strips where
+    // the river should be. Same pattern as grunt_surge / dust_storm.
+    return { id: mod, label, changedTiles: [], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.SINKHOLE) {
     const sunk = applySinkhole(state);

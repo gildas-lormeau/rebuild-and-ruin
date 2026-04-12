@@ -503,6 +503,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     overlayCtx.clip();
     overlayCtx.drawImage(getBannerScene().canvas, 0, 0);
     overlayCtx.restore();
+    observer?.bannerComposited?.({
+      clipY,
+      H,
+      W,
+      bannerH,
+    });
   }
 
   function drawMap(

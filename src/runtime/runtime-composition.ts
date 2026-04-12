@@ -567,6 +567,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     haptics,
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
     prepareUpgradePick: () => upgradePick.prepare(),
+    clearUpgradePickDialog: () => upgradePick.set(null),
   });
 
   // -------------------------------------------------------------------------

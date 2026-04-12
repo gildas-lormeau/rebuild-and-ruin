@@ -138,6 +138,12 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   tryShowUpgradePick?: (onDone: () => void) => boolean;
   /** Pre-create the upgrade pick dialog for progressive reveal during banner. */
   prepareUpgradePick?: () => boolean;
+  /** Tear down the upgrade-pick dialog. Called from the build banner's
+   *  onDone (after the sweep) so `drawUpgradePick` can keep clipping the
+   *  dialog against `banner.y` for the entire animation. The watcher path
+   *  has its own counterpart at `TransitionContext.clearUpgradePickDialog`
+   *  in `online-phase-transitions.ts`. */
+  clearUpgradePickDialog?: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -284,6 +290,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
           showBuildPhaseBanner(deps.showBanner, () => {
+            // Deferred clear of the upgrade-pick dialog. The dialog stays
+            // in `runtimeState.dialogs.upgradePick` through the build
+            // banner sweep so `drawUpgradePick` can progressively clip it
+            // against `banner.y` (see `render-ui.ts:drawUpgradePick`).
+            // Cleared here, on banner end, instead of in
+            // `runtime-upgrade-pick.ts:tick` where the picks resolve.
+            // Routed through `deps.clearUpgradePickDialog` (wired in
+            // `runtime-composition.ts`) so the host path uses the same
+            // subsystem boundary the watcher path uses.
+            deps.clearUpgradePickDialog?.();
             setMode(runtimeState, Mode.GAME);
           }),
         applyCheckpoint: NOOP_STEP,
