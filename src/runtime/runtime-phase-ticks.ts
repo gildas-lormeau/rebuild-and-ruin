@@ -287,19 +287,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
-    // Re-snapshot NOW — after enterBuildFromBattle has populated
-    // player.interior via recheckTerritory, but BEFORE applyUpgradePicks
-    // mutates walls (demolition strips all players' inner walls). The
-    // Build banner fires after applyUpgradePicks, so without this the
-    // pending snapshot would reflect post-pick state the user never saw.
+    // pendingSnapshot was set by the caller (enterBuildPhase snapshot,
+    // WITH battle territory — correct for the Choose Upgrade banner).
+    // For the Build banner we need a DIFFERENT snapshot: post-
+    // enterBuildFromBattle (interior populated) but pre-applyUpgradePicks
+    // (walls not yet stripped by demolition), WITHOUT battle territory.
+    // Capture it now; the Choose Upgrade banner will consume the current
+    // pendingSnapshot, so we re-set ours before the Build banner.
     const { banner: bannerState } = runtimeState;
-    // Save the snapshot: the upgrade-pick banner (if shown) will consume
-    // pendingSnapshot, so we re-set it before the build banner.
-    const savedSnapshot = createBannerSnapshot(runtimeState.state);
-    bannerState.pendingSnapshot = savedSnapshot;
+    const buildBannerSnapshot = createBannerSnapshot(runtimeState.state);
     const showBannerAndEnterBuild = () => {
-      // Re-set: the upgrade-pick banner consumed the previous pendingSnapshot.
-      bannerState.pendingSnapshot = savedSnapshot;
+      bannerState.pendingSnapshot = buildBannerSnapshot;
       executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
           showBuildPhaseBanner(deps.showBanner, () => {
