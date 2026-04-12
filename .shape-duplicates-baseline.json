@@ -1,0 +1,113 @@
+[
+  {
+    "pair": "BannerTransitions@src/runtime/runtime-contracts.ts ↔ PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts"
+  },
+  {
+    "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+  },
+  {
+    "pair": "BootstrapFromSettingsDeps@src/runtime/runtime-bootstrap.ts ↔ InitGameDeps@src/runtime/runtime-bootstrap.ts"
+  },
+  {
+    "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+  },
+  {
+    "pair": "BuildStartData@src/protocol/checkpoint-data.ts ↔ CannonStartData@src/protocol/checkpoint-data.ts"
+  },
+  {
+    "pair": "BuildStartData@src/protocol/checkpoint-data.ts ↔ FullStateMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ CannonPlacedPayload@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ CannonPlacement@src/ai/ai-strategy.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ OpponentCannonPhantomMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ OpponentCannonPlacedMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ OpponentPhantomMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPhantom@src/shared/core/phantom-types.ts ↔ PiecePhantom@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "CannonPlacedPayload@src/shared/core/phantom-types.ts ↔ CannonPlacement@src/ai/ai-strategy.ts"
+  },
+  {
+    "pair": "CannonPlacedPayload@src/shared/core/phantom-types.ts ↔ OpponentCannonPhantomMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPlacedPayload@src/shared/core/phantom-types.ts ↔ OpponentCannonPlacedMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPlacement@src/ai/ai-strategy.ts ↔ OpponentCannonPhantomMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonPlacement@src/ai/ai-strategy.ts ↔ OpponentCannonPlacedMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "CannonStartData@src/protocol/checkpoint-data.ts ↔ FullStateMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "Castle@src/shared/core/geometry-types.ts ↔ TileRect@src/shared/core/geometry-types.ts"
+  },
+  {
+    "pair": "CheckpointAccums@src/online/online-checkpoints.ts ↔ TimerAccums@src/runtime/runtime-tick-context.ts"
+  },
+  {
+    "pair": "CountdownOrbit@src/ai/ai-phase-battle.ts ↔ OrbitParams@src/shared/core/system-interfaces.ts"
+  },
+  {
+    "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+  },
+  {
+    "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
+  },
+  {
+    "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+  },
+  {
+    "pair": "InitGameDeps@src/runtime/runtime-bootstrap.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
+  },
+  {
+    "pair": "OpponentCannonPhantomMessage@src/protocol/protocol.ts ↔ OpponentCannonPlacedMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "OpponentCannonPhantomMessage@src/protocol/protocol.ts ↔ PiecePhantom@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "OpponentPhantomMessage@src/protocol/protocol.ts ↔ OpponentPiecePlacedMessage@src/protocol/protocol.ts"
+  },
+  {
+    "pair": "OpponentPhantomMessage@src/protocol/protocol.ts ↔ PiecePhantom@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "OpponentPhantomMessage@src/protocol/protocol.ts ↔ PiecePlacedPayload@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "OpponentPiecePlacedMessage@src/protocol/protocol.ts ↔ PiecePhantom@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "OpponentPiecePlacedMessage@src/protocol/protocol.ts ↔ PiecePlacedPayload@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "PiecePhantom@src/shared/core/phantom-types.ts ↔ PiecePlacedPayload@src/shared/core/phantom-types.ts"
+  },
+  {
+    "pair": "PitCreatedMessage@src/shared/core/battle-events.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
+  },
+  {
+    "pair": "RuntimeUpgradePick@src/runtime/runtime-types.ts ↔ UpgradePickSystem@src/runtime/runtime-upgrade-pick.ts"
+  },
+  {
+    "pair": "SerializedBonusSquare@src/protocol/checkpoint-data.ts ↔ SerializedHouse@src/protocol/checkpoint-data.ts"
+  }
+]

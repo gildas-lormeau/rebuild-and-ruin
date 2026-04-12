@@ -19,6 +19,7 @@ import type {
   PixelPos,
   TilePos,
 } from "./geometry-types.ts";
+import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
@@ -103,25 +104,10 @@ export interface PlacePieceIntent {
 }
 
 /** Visual preview of a piece the player is about to place (not yet committed to game state). */
-export interface PiecePlacementPreview {
-  offsets: [number, number][];
-  row: number;
-  col: number;
-  /** true = placement is legal at this position. */
-  valid: boolean;
-  playerId: ValidPlayerSlot;
-}
+export type PiecePlacementPreview = PiecePhantom;
 
 /** Visual preview of a cannon the player is about to place (not yet committed to game state). */
-export interface CannonPlacementPreview {
-  row: number;
-  col: number;
-  /** true = placement is legal at this position. */
-  valid: boolean;
-  /** Cannon variant (normal, super, or balloon). */
-  mode: CannonMode;
-  playerId: ValidPlayerSlot;
-}
+export type CannonPlacementPreview = CannonPhantom;
 
 /** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
 export interface ControllerIdentity {

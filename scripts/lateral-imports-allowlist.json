@@ -1,4 +1,12 @@
 {
   "maxLateralImports": 3,
-  "edges": []
+  "edges": [
+    {
+      "from": "src/shared/core/system-interfaces.ts",
+      "to": "src/shared/core/phantom-types.ts",
+      "rationale": "PlacementPreview types are aliases of Phantom types — dedup via shape-duplicate lint",
+      "owner": "Gildas",
+      "expiresOn": "2027-04-13"
+    }
+  ]
 }
