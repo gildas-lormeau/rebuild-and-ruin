@@ -119,10 +119,8 @@ for (const modifierId of ALL_MODIFIERS) {
           const banner = sc.banner();
           finalProgress = banner.progress;
           finalActive = banner.active;
-          finalPrevCastlesCleared = banner.prevScene === undefined;
-          finalPrevTerritoryCleared =
-            banner.prevScene === undefined ||
-            banner.prevScene.territory === undefined;
+          finalPrevCastlesCleared = banner.prevCastles === undefined;
+          finalPrevTerritoryCleared = banner.prevTerritory === undefined;
           finalModifierDiffCleared = banner.modifierDiff === undefined;
           ended = true;
         }
@@ -263,11 +261,11 @@ for (const modifierId of ALL_MODIFIERS) {
       // that chains after the modifier has already taken over.
       assert(
         finalPrevCastlesCleared,
-        `${modifierId}: prevScene should be cleared at BANNER_END time`,
+        `${modifierId}: prevCastles should be cleared at BANNER_END time`,
       );
       assert(
         finalPrevTerritoryCleared,
-        `${modifierId}: prevScene.territory should be cleared at BANNER_END time`,
+        `${modifierId}: prevTerritory should be cleared at BANNER_END time`,
       );
       assert(
         finalModifierDiffCleared,

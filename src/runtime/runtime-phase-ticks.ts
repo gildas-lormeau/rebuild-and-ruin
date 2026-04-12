@@ -2,7 +2,6 @@ import {
   advanceBattleCountdown,
   type CannonPhaseEntry,
   canBuildThisFrame,
-  createBannerSnapshot,
   diffNewWalls,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
@@ -14,6 +13,8 @@ import {
   nextReadyCombined,
   resetCannonFacings,
   shouldSkipBattle,
+  snapshotCastles,
+  snapshotEntities,
   tickGrunts,
 } from "../game/index.ts";
 import {
@@ -36,6 +37,7 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -80,9 +82,10 @@ import {
   gateUpgradePick,
   NOOP_STEP,
   runBuildEndSequence,
-  showBattleStartBanner,
+  showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showModifierRevealBanner,
 } from "./runtime-transition-steps.ts";
 import type {
   OnlinePhaseTicks,
@@ -248,7 +251,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
-          // INVARIANT: pendingSnapshot is set BEFORE applyCheckpoint mutates state.
+          // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
           // executeTransition guarantees this ordering via CANNON_START_STEPS.
           showCannonPhaseBanner(deps.showBanner, onBannerDone);
         }
@@ -287,17 +290,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
-    // pendingSnapshot was set by the caller (enterBuildPhase snapshot,
-    // WITH battle territory — correct for the Choose Upgrade banner).
-    // For the Build banner we need a DIFFERENT snapshot: post-
-    // enterBuildFromBattle (interior populated) but pre-applyUpgradePicks
-    // (walls not yet stripped by demolition), WITHOUT battle territory.
-    // Capture it now; the Choose Upgrade banner will consume the current
-    // pendingSnapshot, so we re-set ours before the Build banner.
+    // Snapshot castles + entities NOW — after enterBuildFromBattle has
+    // populated player.interior via recheckTerritory, but BEFORE
+    // applyUpgradePicks mutates walls (demolition strips all players'
+    // inner walls). The Build banner fires after applyUpgradePicks, so
+    // its auto-capture would see post-pick state the user never saw.
+    // interior is cloned in snapshotCastles so the snapshot stays valid.
     const { banner: bannerState } = runtimeState;
-    const buildBannerSnapshot = createBannerSnapshot(runtimeState.state);
+    const savedPrevCastles = snapshotCastles(runtimeState.state);
+    const savedPrevEntities = snapshotEntities(runtimeState.state);
     const showBannerAndEnterBuild = () => {
-      bannerState.pendingSnapshot = buildBannerSnapshot;
+      // Pre-populate so auto-capture block is skipped (gates on prevCastles).
+      bannerState.prevCastles = savedPrevCastles;
+      bannerState.prevEntities = savedPrevEntities;
       executeTransition(BUILD_START_STEPS, {
         showBanner: () =>
           showBuildPhaseBanner(deps.showBanner, () => {
@@ -354,12 +359,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     };
 
-    // Capture pre-mutation snapshot BEFORE enterBattlePhase mutates state.
-    const savedSnapshot = createBannerSnapshot(state);
-    banner.pendingSnapshot = savedSnapshot;
-
     executeTransition(BATTLE_START_STEPS, {
       showBanner: () => {
+        // Capture pre-mutation prev-scene snapshots BEFORE enterBattlePhase
+        // mutates state. The banner subsystem's `preservePrevScene=true`
+        // path uses `??=` so explicit pre-population wins over the implicit
+        // capture. This is the same shape as the watcher in
+        // online-phase-transitions.ts (`prevEntities` set before the recipe
+        // runs).
+        banner.prevCastles = snapshotCastles(state, banner.wallsBeforeSweep);
+        banner.prevEntities = snapshotEntities(state);
+        banner.wallsBeforeSweep = undefined;
+
         // Engine owns the load-bearing order: modifier roll → balloon
         // resolution → post-modifier snapshots.
         const entry = enterBattlePhase(state);
@@ -373,13 +384,24 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
         }
 
-        showBattleStartBanner(
-          deps.showBanner,
-          banner,
-          entry.modifierDiff,
-          savedSnapshot,
-          proceedToBattle,
-        );
+        // Now we know whether a modifier rolled, so we can call the
+        // matching banner directly — same shape as the watcher path. No
+        // mid-frame swap of `banner.text/modifierDiff/callback`, no
+        // `pendingStartEvent` deferral required for correctness (the
+        // bus event still fires next-tick as a one-tick dedup, but
+        // its content is final at this point).
+        if (entry.modifierDiff) {
+          banner.modifierDiff = entry.modifierDiff;
+          showModifierRevealBanner(
+            deps.showBanner,
+            modifierDef(entry.modifierDiff.id).label,
+            () => {
+              showBattlePhaseBanner(deps.showBanner, proceedToBattle);
+            },
+          );
+        } else {
+          showBattlePhaseBanner(deps.showBanner, proceedToBattle);
+        }
       },
       applyCheckpoint: NOOP_STEP,
       snapshotForBanner: NOOP_STEP,
@@ -647,7 +669,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleAnim.territory,
       battleAnim.walls,
     );
-    runtimeState.banner.pendingSnapshot = entry.pendingSnapshot;
+    runtimeState.banner.prevCastles = entry.prevCastles;
+    runtimeState.banner.prevTerritory = entry.prevTerritory;
+    runtimeState.banner.prevWalls = entry.prevWalls;
+    runtimeState.banner.prevEntities = entry.prevEntities;
     enterBuildViaUpgradePick();
     return true;
   }
@@ -749,12 +774,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.finalizeBuildPhase(state);
     }
 
-    // Engine owns the end-of-build orchestration: snapshot BEFORE
-    // finalize (load-bearing — sweep would delete walls), finalize territory
+    // Engine owns the end-of-build orchestration: snapshot walls BEFORE
+    // finalize (load-bearing — sweep would delete them), finalize territory
     // + life penalties, re-snapshot zone-dependent entities after reset.
-    const { pendingSnapshot, needsReselect, eliminated } =
+    const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
       finishBuildPhase(state);
-    banner.pendingSnapshot = pendingSnapshot;
+    banner.wallsBeforeSweep = wallsBeforeSweep;
+    banner.prevEntities = prevEntities;
 
     // Build-end checkpoint (host only) — the online hook serializes the
     // post-build player snapshot itself; the runtime supplies only the

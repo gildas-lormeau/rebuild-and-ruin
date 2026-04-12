@@ -109,7 +109,7 @@ interface E2EBridge {
   // Render overlay
   overlay: {
     entities: E2EEntitySnapshot | null;
-    /** Entities snapshot from the banner's prev-scene — null when no banner active. */
+    /** Entities snapshot from before the banner sweep — null when no banner active. */
     bannerPrevEntities: E2EEntitySnapshot | null;
     phantoms: E2EPhantomSnapshot | null;
     banner: E2EBannerSnapshot | null;
@@ -374,7 +374,7 @@ function snapshotEntities(
 function snapshotBannerPrevEntities(
   runtimeState: RuntimeState,
 ): E2EEntitySnapshot | null {
-  const prev = runtimeState.overlay.ui?.bannerPrevScene?.entities;
+  const prev = runtimeState.overlay.ui?.bannerPrevEntities;
   return prev ? entityOverlayToSnapshot(prev) : null;
 }
 

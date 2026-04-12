@@ -638,13 +638,12 @@ sufficient for LLM agents to follow correctly.
     game/battle-system.ts launchCannonball parameter agree. Do not widen back
     to `number` — the brand prevents accidental use of non-slot indices.
 
-106. **Banner scene-snapshot uses atomic `BannerSnapshot` type** —
-    shared/overlay-types.ts defines `BannerSnapshot` (castles + entities + optional
-    territory/walls). UIOverlay has a single `bannerPrevScene?: BannerSnapshot`.
-    BannerState has `prevScene` (active banner) and `pendingSnapshot` (held across
-    phase gaps). `createBannerSnapshot()` in phase-banner.ts is the single factory.
-    For chained banners (modifier→battle, upgrade→build), callers save the snapshot
-    in a local variable and re-set `pendingSnapshot` before the second banner.
+106. **Banner scene-snapshot field names are `bannerPrev{Castles,Territory,Walls,Entities}`** —
+    shared/overlay-types.ts UIOverlay uses these four fields without a "Battle"
+    infix (the old `bannerPrevBattleTerritory` / `bannerPrevBattleWalls` names
+    were inconsistent with their sibling fields). runtime/runtime-contracts.ts
+    BannerState uses the same `prev*` stems (no `banner` prefix since they're
+    already scoped to the state). render-composition/render-map map one to the other.
 
 107. **Watcher and host share banner text** — online/online-phase-transitions.ts
     no longer has BANNER_BATTLE_ONLINE / BANNER_REPAIR_ONLINE. Both host and

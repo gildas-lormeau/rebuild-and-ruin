@@ -10,7 +10,7 @@
  * tick, so walls match. The e2e test (e2e-build-banner-bug.ts) catches
  * the pixel-level diff in the browser.
  *
- * This test verifies the snapshot is correct (prevScene.territory is
+ * This test verifies the auto-capture runs correctly (prevTerritory is
  * undefined for build-phase banners — battle territory should NOT appear).
  */
 
@@ -52,10 +52,9 @@ Deno.test("build banner after upgrade has no battle territory in prev-scene", as
       ev.text.includes("Build")
     ) {
       const banner = sc.banner();
-      hasPrevCastles = banner.prevScene?.castles !== undefined;
+      hasPrevCastles = banner.prevCastles !== undefined;
       hasPrevTerritory =
-        banner.prevScene?.territory !== undefined &&
-        banner.prevScene.territory.length > 0;
+        banner.prevTerritory !== undefined && banner.prevTerritory.length > 0;
       buildChecked = true;
     }
   });
@@ -64,7 +63,7 @@ Deno.test("build banner after upgrade has no battle territory in prev-scene", as
 
   assert(upgradeEnded, "Choose Upgrade banner never ended");
   assert(buildChecked, "Build banner after upgrade never started");
-  assert(hasPrevCastles, "Build banner should have prevScene.castles");
+  assert(hasPrevCastles, "Build banner should have prevCastles (auto-captured)");
   assert(
     !hasPrevTerritory,
     "Build banner should NOT have battle territory — it causes battle-mode rendering in the build phase",

@@ -41,13 +41,14 @@ import {
   setGameMode,
 } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
+import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
 import {
   prepareCannonPhase,
   prepareControllerCannonPhase,
 } from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
-import { type BannerSnapshot, createBannerSnapshot } from "./phase-banner.ts";
+import { snapshotCastles, snapshotEntities } from "./phase-banner.ts";
 import {
   enterBattleFromCannon,
   enterBuildFromBattle,
@@ -93,14 +94,18 @@ export interface CannonPhaseEntry {
 }
 
 /** Result of `finishBuildPhase` — end-of-phase cleanup outcome. The caller
- *  stores `pendingSnapshot` on the banner so the cannon-start banner can
- *  show the pre-sweep "before" scene, and uses needsReselect/eliminated to
- *  drive the life-lost dialog + reselect flow. */
+ *  uses wallsBeforeSweep + prevEntities to paint the build-end banner's
+ *  "before" scene (pre-sweep walls), and needsReselect/eliminated to drive
+ *  the life-lost dialog + reselect flow. */
 interface BuildPhaseResult {
-  /** Atomic snapshot captured BEFORE wall-sweep, with zone-dependent
-   *  entities re-captured after resetZoneState when any player needs
-   *  reselect or elimination. Pre-sweep walls are baked into the snapshot. */
-  pendingSnapshot: BannerSnapshot;
+  /** Per-player walls BEFORE wall-sweep deleted isolated fragments. Used
+   *  by the banner overlay so the player sees destroyed walls fade out. */
+  wallsBeforeSweep: Set<number>[];
+  /** Entity snapshot. Zone-dependent entities (grunts, houses, pits,
+   *  bonuses, towerAlive) are re-captured after resetZoneState when any
+   *  player needs reselect or elimination, so the banner matches the
+   *  post-reset state that the life-lost dialog will show. */
+  prevEntities: EntityOverlay;
   /** Players who lost their last tower this round and must re-pick. */
   needsReselect: ValidPlayerSlot[];
   /** Players eliminated this round (lives hit zero). */
@@ -117,14 +122,20 @@ interface BuildPhaseTick {
   timerMax: number;
 }
 
-/** Result of `enterBuildPhase` — atomic pre-transition snapshot the caller
- *  stores on `banner.pendingSnapshot` so the build-banner reveal can show
- *  the before/after comparison. The engine has already mutated state to
+/** Result of `enterBuildPhase` — pre-transition snapshots the caller wires
+ *  into the banner overlay so the build-banner reveal can show the
+ *  before/after comparison. The engine has already mutated state to
  *  WALL_BUILD by the time this is returned. */
 interface BuildPhaseEntry {
-  /** Atomic snapshot captured BEFORE battle→build mutations. Includes
-   *  battle territory/walls when transitioning from battle phase. */
-  pendingSnapshot: BannerSnapshot;
+  /** Castle data captured BEFORE battle artifacts were cleaned up. */
+  prevCastles: CastleData[];
+  /** Per-player territory at battle end (cloned from runtime battleAnim). */
+  prevTerritory: Set<number>[] | undefined;
+  /** Per-player walls at battle end (cloned from runtime battleAnim). */
+  prevWalls: Set<number>[] | undefined;
+  /** Map entities (houses, grunts, towers, pits, bonus squares) captured
+   *  while phase was still BATTLE. */
+  prevEntities: EntityOverlay;
 }
 
 /** Create a game from a seed: generate map, pick zones, create state.
@@ -275,7 +286,7 @@ export function enterReselectPhase(
  *  (combo bonuses, battle cleanup, grunt spawn, upgrade offer generation,
  *  modifier rotation, round increment, phase flip).
  *
- *  Replaces the runtime's manual sequence of `createBannerSnapshot` +
+ *  Replaces the runtime's manual sequence of `capturePrevBattleScene` +
  *  `nextPhase`. Snapshot order is load-bearing — capturing must happen
  *  while state.phase is still BATTLE so snapshotCastles/snapshotEntities
  *  see the unflipped state.
@@ -288,12 +299,12 @@ export function enterBuildPhase(
   battleTerritory: readonly Set<number>[] | undefined,
   battleWalls: readonly Set<number>[] | undefined,
 ): BuildPhaseEntry {
-  const pendingSnapshot = createBannerSnapshot(state, {
-    battleTerritory,
-    battleWalls,
-  });
+  const prevCastles = snapshotCastles(state);
+  const prevTerritory = battleTerritory?.map((territory) => new Set(territory));
+  const prevWalls = battleWalls?.map((wall) => new Set(wall));
+  const prevEntities = snapshotEntities(state);
   enterBuildFromBattle(state);
-  return { pendingSnapshot };
+  return { prevCastles, prevTerritory, prevWalls, prevEntities };
 }
 
 /** Per-frame WALL_BUILD engine tick. Advances upgrade-effect timers and
@@ -319,11 +330,8 @@ export function tickBuildPhase(state: GameState, dt: number): BuildPhaseTick {
  *
  *  Replaces the runtime's manual `snapshotThenFinalize` call. */
 export function finishBuildPhase(state: GameState): BuildPhaseResult {
-  // Snapshot with pre-sweep walls baked in (wallOverrides = current walls
-  // before finalizeBuildPhase sweeps them).
-  let pendingSnapshot = createBannerSnapshot(state, {
-    wallOverrides: snapshotAllWalls(state),
-  });
+  const wallsBeforeSweep = snapshotAllWalls(state);
+  const prevEntities = snapshotEntities(state);
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
 
   // Re-snapshot zone-dependent entities after finalize — resetZoneState
@@ -332,34 +340,30 @@ export function finishBuildPhase(state: GameState): BuildPhaseResult {
   // towerAlive is also re-snapshotted: resetZoneState revives all zone
   // towers, and during CASTLE_RESELECT no banner plays to reveal the
   // change — so the snapshot must match the post-reset state.
-  // Castle walls keep their pre-finalize snapshot (wall sweep is banner-visualized).
+  // Walls keep their pre-finalize snapshot (wall sweep is banner-visualized).
   if (needsReselect.length > 0 || eliminated.length > 0) {
-    pendingSnapshot = {
-      ...pendingSnapshot,
-      entities: {
-        ...pendingSnapshot.entities,
-        grunts: state.grunts.map((grunt) => ({ ...grunt })),
-        houses: state.map.houses.map((house) => ({ ...house })),
-        burningPits: state.burningPits.map((pit) => ({ ...pit })),
-        bonusSquares: state.bonusSquares.map((bonus) => ({ ...bonus })),
-        towerAlive: [...state.towerAlive],
-      },
-    };
+    prevEntities.grunts = state.grunts.map((grunt) => ({ ...grunt }));
+    prevEntities.houses = state.map.houses.map((house) => ({ ...house }));
+    prevEntities.burningPits = state.burningPits.map((pit) => ({ ...pit }));
+    prevEntities.bonusSquares = state.bonusSquares.map((bonus) => ({
+      ...bonus,
+    }));
+    prevEntities.towerAlive = [...state.towerAlive];
   }
 
-  return { pendingSnapshot, needsReselect, eliminated };
+  return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
 }
 
-/** INVARIANT: Snapshot THEN finalize castle construction and enter
+/** INVARIANT: Snapshot entities THEN finalize castle construction and enter
  *  cannon phase. Snapshot must capture state BEFORE finalize mutates it
  *  (finalize recomputes territory, sweeps walls, modifies players).
  *  Combined here so callers cannot accidentally reverse the steps. */
 export function snapshotAndFinalizeForCannonPhase(
   state: GameState,
-): BannerSnapshot {
-  const snapshot = createBannerSnapshot(state);
+): EntityOverlay {
+  const entities = snapshotEntities(state);
   finalizeAndEnterCannonPhase(state);
-  return snapshot;
+  return entities;
 }
 
 /** Finalize castle construction. Used after castle selection + build

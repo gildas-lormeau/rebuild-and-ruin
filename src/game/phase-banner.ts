@@ -1,37 +1,44 @@
 import { brandFreshInterior } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type {
-  BannerSnapshot,
-  CastleData,
-  EntityOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 
-export type { BannerSnapshot } from "../shared/ui/overlay-types.ts";
-
-/** Options for `createBannerSnapshot`. All optional — omit fields that don't
- *  apply to the current transition. */
-interface SnapshotOpts {
-  /** Per-player wall overrides (e.g. pre-sweep walls). Falls back to
-   *  `player.walls` when missing. */
-  wallOverrides?: readonly Set<number>[];
-  /** Battle territory snapshot (cloned). Omit for non-battle transitions. */
-  battleTerritory?: readonly Set<number>[];
-  /** Battle walls snapshot (cloned). Omit for non-battle transitions. */
-  battleWalls?: readonly Set<number>[];
+/** Pre-capture old battle scene into banner state before nextPhase/checkpoint
+ *  mutates the game state.  Must be called while state.phase is still BATTLE.
+ *  showBannerTransition (runtime-banner.ts) uses ??= so these pre-set values survive intact. */
+export function capturePrevBattleScene(
+  banner: {
+    prevCastles?: CastleData[];
+    prevTerritory?: Set<number>[];
+    prevWalls?: Set<number>[];
+    prevEntities?: EntityOverlay;
+  },
+  state: GameState,
+  battleTerritory: Set<number>[] | undefined,
+  battleWalls: Set<number>[] | undefined,
+): void {
+  banner.prevCastles = snapshotCastles(state);
+  banner.prevTerritory = battleTerritory?.map(
+    (territory) => new Set(territory),
+  );
+  banner.prevWalls = battleWalls?.map((wall) => new Set(wall));
+  banner.prevEntities = snapshotEntities(state);
 }
 
-/** Atomically capture the full prev-scene for a banner transition.
- *  Call BEFORE any state mutations. Returns an immutable `BannerSnapshot`. */
-export function createBannerSnapshot(
+/** Snapshot castle data for all players with a castle.
+ *  @param wallOverrides — Per-player wall sets (e.g. pre-sweep walls); falls
+ *    back to player.walls when the slot is missing or the array is undefined. */
+export function snapshotCastles(
   state: GameState,
-  opts?: SnapshotOpts,
-): BannerSnapshot {
-  return {
-    castles: snapshotCastles(state, opts?.wallOverrides),
-    entities: snapshotEntities(state),
-    territory: opts?.battleTerritory?.map((territory) => new Set(territory)),
-    walls: opts?.battleWalls?.map((wall) => new Set(wall)),
-  };
+  wallOverrides?: readonly Set<number>[],
+): CastleData[] {
+  return state.players
+    .filter((player) => player.castle)
+    .map((player) => ({
+      walls: wallOverrides?.[player.id] ?? new Set(player.walls),
+      interior: brandFreshInterior(new Set(player.interior)),
+      cannons: player.cannons.map((c) => ({ ...c })),
+      playerId: player.id,
+    }));
 }
 
 /** Shallow-clone all map entities so the banner scene stays frozen while
@@ -50,21 +57,4 @@ export function snapshotEntities(state: GameState): EntityOverlay {
       ? new Set(state.modern.sinkholeTiles)
       : undefined,
   };
-}
-
-/** Snapshot castle data for all players with a castle.
- *  @param wallOverrides — Per-player wall sets (e.g. pre-sweep walls); falls
- *    back to player.walls when the slot is missing or the array is undefined. */
-function snapshotCastles(
-  state: GameState,
-  wallOverrides?: readonly Set<number>[],
-): CastleData[] {
-  return state.players
-    .filter((player) => player.castle)
-    .map((player) => ({
-      walls: wallOverrides?.[player.id] ?? new Set(player.walls),
-      interior: brandFreshInterior(new Set(player.interior)),
-      cannons: player.cannons.map((c) => ({ ...c })),
-      playerId: player.id,
-    }));
 }

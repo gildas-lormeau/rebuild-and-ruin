@@ -1,7 +1,4 @@
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import type { BannerSnapshot } from "../shared/ui/overlay-types.ts";
 import {
   BANNER_BATTLE,
   BANNER_BATTLE_SUB,
@@ -93,6 +90,14 @@ export function showCannonPhaseBanner(
   show(BANNER_PLACE_CANNONS, onDone, true, undefined, subtitle);
 }
 
+/** Show the battle-start banner with its canonical title and subtitle. */
+export function showBattlePhaseBanner(
+  show: BannerShow,
+  onDone: () => void,
+): void {
+  show(BANNER_BATTLE, onDone, true, undefined, BANNER_BATTLE_SUB);
+}
+
 /** Show the build/repair banner with its canonical title and subtitle.
  *  When `modifierText` is provided, it replaces the default subtitle. */
 export function showBuildPhaseBanner(
@@ -144,29 +149,15 @@ export function gateUpgradePick(
   onDone();
 }
 
-/** Show the battle-start banner, optionally preceded by a modifier reveal.
- *  When `modifierDiff` is non-null, shows a modifier reveal banner first,
- *  then chains the battle banner. Handles the `pendingSnapshot` save+restore
- *  so the chained battle banner gets a prev-scene.
- *
- *  Shared by host (runtime-phase-ticks) and watcher (online-phase-transitions)
- *  so the chained-banner snapshot logic can't drift between the two paths. */
-export function showBattleStartBanner(
+/** Show the modifier reveal banner with the modifier label as the title.
+ *  The banner sweeps across the screen, revealing the post-modifier map state
+ *  while tile highlights pulse on changed tiles (driven by banner.modifierDiff). */
+export function showModifierRevealBanner(
   show: BannerShow,
-  banner: { modifierDiff?: ModifierDiff; pendingSnapshot?: BannerSnapshot },
-  modifierDiff: ModifierDiff | null,
-  savedSnapshot: BannerSnapshot,
+  label: string,
   onDone: () => void,
 ): void {
-  if (modifierDiff) {
-    banner.modifierDiff = modifierDiff;
-    showModifierRevealBanner(show, modifierDef(modifierDiff.id).label, () => {
-      banner.pendingSnapshot = savedSnapshot;
-      showBattlePhaseBanner(show, onDone);
-    });
-  } else {
-    showBattlePhaseBanner(show, onDone);
-  }
+  show(label, onDone, true);
 }
 
 /** Canonical post-build-end sequence shared by host and watcher.
@@ -187,22 +178,6 @@ export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
 
     deps.onLifeLostResolved?.();
   });
-}
-
-/** Show the modifier reveal banner with the modifier label as the title.
- *  The banner sweeps across the screen, revealing the post-modifier map state
- *  while tile highlights pulse on changed tiles (driven by banner.modifierDiff). */
-function showModifierRevealBanner(
-  show: BannerShow,
-  label: string,
-  onDone: () => void,
-): void {
-  show(label, onDone, true);
-}
-
-/** Show the battle-start banner with its canonical title and subtitle. */
-function showBattlePhaseBanner(show: BannerShow, onDone: () => void): void {
-  show(BANNER_BATTLE, onDone, true, undefined, BANNER_BATTLE_SUB);
 }
 
 /** Show the upgrade pick banner with its canonical subtitle. */

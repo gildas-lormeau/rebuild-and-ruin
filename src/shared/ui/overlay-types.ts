@@ -138,23 +138,6 @@ export interface EntityOverlay {
   sinkholeTiles?: ReadonlySet<number>;
 }
 
-/** Complete snapshot of everything the banner renderer needs for the "before"
- *  scene. Created atomically at mutation boundaries — either fully populated
- *  or absent. Never construct this piecemeal; always use
- *  `createBannerSnapshot()` from `phase-banner.ts`.
- *
- *  **Banner snapshot rule:** Every phase transition that shows a banner must
- *  set `banner.pendingSnapshot` BEFORE calling `showBanner()`. The snapshot
- *  is captured by calling `createBannerSnapshot()` BEFORE any state mutations.
- *  `showBanner` atomically moves `pendingSnapshot` → `prevScene`. There is no
- *  fallback — if `pendingSnapshot` is missing, it's a bug. */
-export interface BannerSnapshot {
-  readonly castles: CastleData[];
-  readonly entities: EntityOverlay;
-  readonly territory?: ReadonlyArray<ReadonlySet<number>>;
-  readonly walls?: ReadonlyArray<ReadonlySet<number>>;
-}
-
 /** Build/cannon phase — piece and cannon placement previews.
  *
  *  `valid` field (on all phantom types):
@@ -215,10 +198,15 @@ export interface UIOverlay {
       gruntsSpawned: number;
     };
   };
-  /** Frozen prev-scene snapshot for the active banner — immutable during
-   *  animation. Contains castles, entities, and optionally battle territory/walls.
-   *  See `BannerSnapshot` in `phase-banner.ts` for the invariant. */
-  bannerPrevScene?: BannerSnapshot;
+  /** Snapshot of castle state captured at banner start — immutable during animation.
+   *  Used to render the "old" scene behind the banner while live state updates. */
+  bannerPrevCastles?: CastleData[];
+  /** Territory snapshot at banner start — do not mutate during animation. */
+  bannerPrevTerritory?: Set<number>[];
+  /** Walls snapshot at banner start — do not mutate during animation. */
+  bannerPrevWalls?: Set<number>[];
+  /** Entity state snapshot at banner start — do not mutate during animation. */
+  bannerPrevEntities?: EntityOverlay;
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {

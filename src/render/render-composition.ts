@@ -395,13 +395,13 @@ export function createOnlineOverlay(
 
   return {
     selection: previousSelection,
-    castles: buildCastleOverlay(state, banner.pendingSnapshot?.castles),
+    castles: buildCastleOverlay(state, banner.wallsBeforeSweep),
     entities: {
       houses: state.map.houses,
       grunts: state.grunts,
       towerAlive:
-        !banner.active && banner.pendingSnapshot?.entities.towerAlive
-          ? banner.pendingSnapshot.entities.towerAlive
+        !banner.active && banner.prevEntities
+          ? banner.prevEntities.towerAlive
           : state.towerAlive,
       burningPits: state.burningPits,
       bonusSquares: state.bonusSquares,
@@ -425,7 +425,10 @@ export function createOnlineOverlay(
           ? state.timer
           : undefined,
       banner: bannerUi,
-      bannerPrevScene: banner.active ? banner.prevScene : undefined,
+      bannerPrevCastles: banner.active ? banner.prevCastles : undefined,
+      bannerPrevTerritory: banner.active ? banner.prevTerritory : undefined,
+      bannerPrevWalls: banner.active ? banner.prevWalls : undefined,
+      bannerPrevEntities: banner.active ? banner.prevEntities : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(
@@ -609,19 +612,13 @@ function upgradePickEntryH(): number {
 
 function buildCastleOverlay(
   state: GameState,
-  snapshotCastles?: readonly CastleData[],
+  wallsBeforeSweep?: readonly ReadonlySet<number>[],
 ): CastleData[] {
-  // When a pending snapshot exists (between build-end and cannon-start banner),
-  // use the snapshot's pre-sweep walls so the live scene shows walls before
-  // the banner reveals the sweep. Falls back to live player.walls otherwise.
-  const wallOverrides = snapshotCastles
-    ? new Map(snapshotCastles.map((castle) => [castle.playerId, castle.walls]))
-    : undefined;
   return state.players
     .filter((player) => player.castle)
     .map((player) => {
       return {
-        walls: wallOverrides?.get(player.id) ?? player.walls,
+        walls: wallsBeforeSweep?.[player.id] ?? player.walls,
         interior: player.interior,
         cannons: player.cannons,
         playerId: player.id,

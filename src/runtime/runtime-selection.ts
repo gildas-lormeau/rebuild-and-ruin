@@ -32,7 +32,7 @@ import type { SelectionState } from "../shared/core/types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type {
-  BannerSnapshot,
+  EntityOverlay,
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -97,8 +97,8 @@ interface SelectionSystemDeps {
   startCannonPhase: (onBannerDone?: () => void) => void;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
-  /** Store banner snapshot for before/after comparison at next phase transition. */
-  setBannerPendingSnapshot: (snapshot: BannerSnapshot) => void;
+  /** Store entity snapshot for banner before/after comparison. */
+  setPrevEntities: (entities: EntityOverlay) => void;
 
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
@@ -114,9 +114,9 @@ export function createSelectionSystem(
 
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map,
-   *  reselectionPids, overlay selection display, and stale pending snapshot
-   *  (captured at BUILD_END, becomes invalid when a player's zone is reset
-   *  after losing a life). */
+   *  reselectionPids, overlay selection display, and stale banner snapshots
+   *  (wallsBeforeSweep / prevCastles captured at BUILD_END become invalid
+   *  when a player's zone is reset after losing a life). */
   function resetSelectionState(): void {
     runtimeState.selection.states.clear();
     runtimeState.selection.reselectionPids = [];
@@ -379,8 +379,8 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    const snapshot = snapshotAndFinalizeForCannonPhase(runtimeState.state);
-    deps.setBannerPendingSnapshot(snapshot);
+    const prevEntities = snapshotAndFinalizeForCannonPhase(runtimeState.state);
+    deps.setPrevEntities(prevEntities);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
       setMode(runtimeState, Mode.GAME);
