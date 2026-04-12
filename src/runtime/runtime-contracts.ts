@@ -26,8 +26,7 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
-  CastleData,
-  EntityOverlay,
+  BannerSnapshot,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
@@ -205,14 +204,7 @@ export interface OnlineOverlayParams {
   state: GameState;
   banner: Pick<
     BannerState,
-    | "active"
-    | "prevCastles"
-    | "prevTerritory"
-    | "prevWalls"
-    | "prevEntities"
-    | "newTerritory"
-    | "newWalls"
-    | "wallsBeforeSweep"
+    "active" | "prevScene" | "pendingSnapshot" | "newTerritory" | "newWalls"
   >;
   battleAnim: {
     territory: Set<number>[];
@@ -257,18 +249,17 @@ export interface BannerState {
   text: string;
   subtitle?: string;
   callback: (() => void) | null;
-  /** Scene snapshots for banner crossfade animation:
-   *  prev* = frozen before checkpoint applies, new* = revealed after banner lifts. */
-  prevCastles?: CastleData[];
-  prevTerritory?: Set<number>[];
-  prevWalls?: Set<number>[];
-  /** Snapshot of all map entities at banner start — used to keep the scene
-   *  stable while applyCheckpoint mutates live state behind the banner. */
-  prevEntities?: EntityOverlay;
+  /** Frozen prev-scene for the active banner. Set atomically by showBanner
+   *  (consumed from `pendingSnapshot`), read by the renderer.
+   *  See `BannerSnapshot` JSDoc for the invariant. */
+  prevScene?: BannerSnapshot;
+  /** Snapshot captured at a mutation boundary, held across phase gaps until
+   *  the next banner consumes it. Set by engine return values (e.g.
+   *  `finishBuildPhase`, `enterBuildPhase`, `createBannerSnapshot` calls).
+   *  Consumed by `showBannerTransition` → moved to `prevScene`. */
+  pendingSnapshot?: BannerSnapshot;
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
-  /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
-  wallsBeforeSweep?: Set<number>[];
   /** Modifier reveal diff — set when showing a modifier reveal banner.
    *  Consumed by the renderer to progressively show map changes. */
   modifierDiff?: ModifierDiff;

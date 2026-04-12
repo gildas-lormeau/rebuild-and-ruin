@@ -369,7 +369,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
-    setPrevEntities: setBannerPrevEntities,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
@@ -406,7 +405,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     clearBannerSnapshots,
-    setPrevEntities: setBannerPrevEntities,
+    setBannerPendingSnapshot: (snapshot) => {
+      runtimeState.banner.pendingSnapshot = snapshot;
+    },
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },

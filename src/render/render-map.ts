@@ -35,6 +35,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type {
+  BannerSnapshot,
   CastleData,
   RenderObserver,
   RenderOverlay,
@@ -102,9 +103,9 @@ interface SinkholeTilePatches {
 
 type BannerCacheEntry = {
   map: GameMap;
-  castles: readonly CastleData[];
-  territory: Set<number>[] | undefined;
-  walls: Set<number>[] | undefined;
+  /** Reference identity of the BannerSnapshot — each transition produces a
+   *  fresh snapshot, so a reference change means we need to re-render. */
+  prevScene: BannerSnapshot;
   /** Reference to the modifierDiff.changedTiles array (if any). Reference
    *  identity is enough — each banner produces a fresh diff. Used to
    *  invalidate the cached snapshot map when a new modifier reveal banner
@@ -360,16 +361,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  so it's not part of the candidate — it's recomputed when the cache misses. */
   function isBannerCacheValid(
     map: GameMap,
-    castles: readonly CastleData[],
-    territory: Set<number>[] | undefined,
-    walls: Set<number>[] | undefined,
+    prevScene: BannerSnapshot,
     modifierTiles: readonly number[] | undefined,
   ): boolean {
     if (!bannerCache) return false;
     if (bannerCache.map !== map) return false;
-    if (bannerCache.castles !== castles) return false;
-    if (bannerCache.territory !== territory) return false;
-    if (bannerCache.walls !== walls) return false;
+    if (bannerCache.prevScene !== prevScene) return false;
     if (bannerCache.modifierTiles !== modifierTiles) return false;
     return true;
   }
@@ -408,7 +405,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     overlay: RenderOverlay | undefined,
     now: number,
   ): void {
-    if (!overlay?.ui?.banner || !overlay.ui.bannerPrevCastles) {
+    const prevScene = overlay?.ui?.bannerPrevScene;
+    if (!overlay?.ui?.banner || !prevScene) {
       clearBannerCache();
       return;
     }
@@ -417,9 +415,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
     if (clipY >= H) return;
 
-    const prevCastles = overlay.ui.bannerPrevCastles;
-    const prevTerritory = overlay.ui.bannerPrevTerritory;
-    const prevWalls = overlay.ui.bannerPrevWalls;
+    const {
+      castles: prevCastles,
+      entities: prevEntities,
+      territory: prevTerritory,
+      walls: prevWalls,
+    } = prevScene;
     // Snapshot is only built when the modifier ACTUALLY mutated `state.map.tiles`.
     // `tileMutationPrev` is the modifier's pre-mutation tile (Grass for
     // sinkhole/high_tide) or null for modifiers that don't touch tiles
@@ -436,9 +437,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       : undefined;
     const needsBannerRender = !isBannerCacheValid(
       map,
-      prevCastles,
-      prevTerritory,
-      prevWalls,
+      prevScene,
       modifierTiles,
     );
     const renderMap =
@@ -454,17 +453,17 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
         // Suppress selection highlights — they belong to the new phase
         selection: { highlighted: null, selected: null },
         castles: prevCastles,
-        entities: overlay.ui.bannerPrevEntities
+        entities: prevEntities
           ? {
-              ...overlay.ui.bannerPrevEntities,
+              ...prevEntities,
               homeTowers: overlay.entities?.homeTowers,
             }
           : overlay.entities,
         battle: {
           ...overlay.battle,
           inBattle: !!prevTerritory,
-          battleTerritory: prevTerritory,
-          battleWalls: prevWalls,
+          battleTerritory: prevTerritory as Set<number>[] | undefined,
+          battleWalls: prevWalls as Set<number>[] | undefined,
           cannonballs: undefined,
           crosshairs: undefined,
           impacts: undefined,
@@ -473,7 +472,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
           ...overlay.ui,
           banner: undefined,
           announcement: undefined,
-          bannerPrevCastles: undefined,
+          bannerPrevScene: undefined,
         },
         // Suppress phase-specific phantoms in old scene
         phantoms: {
@@ -501,9 +500,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       drawGrunts(tmpCtx, prevOverlay);
       bannerCache = {
         map,
-        castles: prevCastles,
-        territory: prevTerritory,
-        walls: prevWalls,
+        prevScene,
         modifierTiles,
         renderMap,
       };

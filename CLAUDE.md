@@ -50,6 +50,12 @@ Read this before implementing features involving flood-fill, wall gaps, grunt mo
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
 Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).
 
+### Banner snapshot rule
+Every phase transition that shows a banner must set `banner.pendingSnapshot` BEFORE calling `showBanner()`. The snapshot is captured by calling `createBannerSnapshot()` BEFORE any state mutations. `showBanner` atomically moves `pendingSnapshot` → `prevScene`. There is no fallback — if `pendingSnapshot` is missing, it's a bug.
+- `BannerSnapshot` (defined in `overlay-types.ts`) is atomic: castles + entities + optional territory/walls. No partial state.
+- `createBannerSnapshot()` (in `phase-banner.ts`) is the single factory. All clone-depth decisions live here.
+- For chained banners (upgrade-pick → build), save the snapshot in a local variable and re-set `pendingSnapshot` before the second banner.
+
 ### Game modes and feature capabilities
 - Classic: original Rampart rules, empty feature set
 - Modern: all three feature capabilities active (modifiers + upgrades + combos)
