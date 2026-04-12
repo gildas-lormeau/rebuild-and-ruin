@@ -57,9 +57,11 @@ import {
 const WATER_SEARCH_RADIUS = 5;
 /** Minimum Manhattan distance between spawn candidates so grunts don't cluster on arrival. */
 const GRUNT_SPAWN_MIN_DISTANCE = 2;
+/** Max ring radius when spawning a grunt near a destroyed house. */
+const NEAR_SPAWN_RADIUS = 8;
 
-/** Spawn a grunt on the bank/edge of the zone containing (posRow, posCol),
- *  picking the bank-first position closest to (posRow, posCol).
+/** Spawn a grunt near (posRow, posCol) on the same zone.
+ *  Spirals outward from the position to find the closest valid tile.
  *  Skips if excludePlayerId is the only non-eliminated player. */
 export function spawnGruntNearPos(
   state: GameState,
@@ -91,8 +93,9 @@ export function spawnGruntNearPos(
   }
 }
 
-/** Find a bank-first spawn position, preferring tiles close to (posRow, posCol).
- *  Bank (adjacent to water) first, edges second. */
+/** Find a spawn position near (posRow, posCol) by spiralling outward.
+ *  Checks expanding rings up to NEAR_SPAWN_RADIUS.
+ *  Only considers tiles in the same zone that pass isValidGruntSpawnTile. */
 export function findGruntSpawnNear(
   state: GameState,
   posRow: number,
@@ -100,13 +103,28 @@ export function findGruntSpawnNear(
 ): TilePos | null {
   const zone = state.map.zones[posRow]?.[posCol];
   if (zone === undefined || zone < 0) return null;
-  const player = state.players.find(
-    (candidate) =>
-      isPlayerSeated(candidate) && candidate.homeTower.zone === zone,
-  );
-  if (!player) return null;
-  const candidates = findGruntSpawnPositions(state, player, 1, posRow, posCol);
-  return candidates[0] ?? null;
+
+  for (let radius = 1; radius <= NEAR_SPAWN_RADIUS; radius++) {
+    let best: TilePos | undefined;
+    let bestDist = Infinity;
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        if (Math.abs(dr) !== radius && Math.abs(dc) !== radius) continue;
+        const row = posRow + dr;
+        const col = posCol + dc;
+        if (!inBounds(row, col)) continue;
+        if (state.map.zones[row]![col] !== zone) continue;
+        if (!isValidGruntSpawnTile(state, row, col)) continue;
+        const dist = manhattanDistance(row, col, posRow, posCol);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = { row, col };
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return null;
 }
 
 /** Spawn a group of grunts on a player's zone (bank-first). */

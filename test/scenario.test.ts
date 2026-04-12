@@ -6,6 +6,7 @@ import {
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import { packTile } from "../src/shared/core/spatial.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
   const sc = await createScenario({ seed: 42 });
@@ -56,6 +57,60 @@ Deno.test("scenario: waitForModifier captures a modifier banner in modern mode",
   assert(banner.text.length > 0);
 });
 
+Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", async () => {
+  const sc = await createScenario({ seed: 42, rounds: 3 });
+
+  // Track house positions and grunt spawns during build phases.
+  const houseGruntDistances: number[] = [];
+  let liveHouseKeys = new Map<number, { row: number; col: number }>();
+  let pendingHouses: { row: number; col: number }[] = [];
+  let inBuild = false;
+
+  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
+    inBuild = ev.phase === Phase.WALL_BUILD;
+    if (inBuild) {
+      liveHouseKeys = new Map(
+        sc.state.map.houses
+          .filter((h) => h.alive)
+          .map((h) => [packTile(h.row, h.col), { row: h.row, col: h.col }]),
+      );
+      pendingHouses = [];
+    }
+  });
+
+  sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
+    if (!inBuild) return;
+    for (const key of ev.tileKeys) {
+      const house = liveHouseKeys.get(key);
+      if (house) {
+        pendingHouses.push(house);
+        liveHouseKeys.delete(key);
+      }
+    }
+  });
+
+  sc.bus.on(GAME_EVENT.GRUNT_SPAWN, (ev) => {
+    if (!inBuild || pendingHouses.length === 0) return;
+    const house = pendingHouses.shift()!;
+    const dist = Math.abs(ev.row - house.row) + Math.abs(ev.col - house.col);
+    houseGruntDistances.push(dist);
+  });
+
+  sc.runGame(30000);
+
+  assertGreater(
+    houseGruntDistances.length,
+    0,
+    "expected at least one house destroyed by wall placement",
+  );
+  for (const dist of houseGruntDistances) {
+    assert(
+      dist <= 8,
+      `grunt spawned ${dist} tiles from destroyed house (max 8)`,
+    );
+  }
+});
+
 Deno.test("scenario: runGame plays a full game to completion", async () => {
   const sc = await createScenario({ seed: 42, rounds: 2 });
   sc.runGame(30000);
@@ -75,4 +130,3 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
     "expected game to progress past round 1",
   );
 });
-

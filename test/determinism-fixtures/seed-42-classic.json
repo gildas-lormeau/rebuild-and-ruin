@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "maxTicks": 30000,
-  "eventCount": 282,
+  "eventCount": 280,
   "events": [
     {
       "type": "phaseEnd",
@@ -1018,7 +1018,7 @@
       "type": "gruntSpawn",
       "payload": {
         "col": 36,
-        "row": 12,
+        "row": 6,
         "victimPlayerId": 2
       }
     },
@@ -1149,8 +1149,8 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 14,
-        "row": 12,
+        "col": 2,
+        "row": 11,
         "victimPlayerId": 0
       }
     },
@@ -1293,7 +1293,7 @@
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 13,
+        "col": 9,
         "row": 18,
         "victimPlayerId": 0
       }
@@ -1712,12 +1712,6 @@
         "playerId": 1,
         "row": 25,
         "shooterId": 0
-      }
-    },
-    {
-      "type": "towerKilled",
-      "payload": {
-        "towerIdx": 10
       }
     },
     {
@@ -2142,105 +2136,8 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          999,
-          1000,
-          1044,
-          1088,
-          1089
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          382,
-          426
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          882,
-          883
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          886
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          733,
-          734,
-          778,
-          779
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          286,
-          287
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          775,
-          776,
-          777
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          968,
-          924,
-          969
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          16
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          914,
-          958,
-          913,
           868,
+          869,
           912
         ]
       }
@@ -2250,11 +2147,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1064,
-          1107,
-          1108,
-          1109,
-          1152
+          924,
+          968,
+          1012
         ]
       }
     },
@@ -2263,9 +2158,41 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          199,
-          200,
-          243
+          306,
+          395,
+          351,
+          307
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          883
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          776,
+          820,
+          775
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          474,
+          518,
+          562
         ]
       }
     },
@@ -2283,9 +2210,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1012,
-          1056,
-          1100
+          1107,
+          1108,
+          1109
         ]
       }
     },
@@ -2294,110 +2221,8 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          17
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          773,
-          772,
-          729
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1192
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          111,
-          112,
-          155
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          840,
-          841,
-          842
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1081
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          18,
-          19,
-          20
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1128
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1150,
-          1194,
-          1149
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          149,
-          60,
-          104,
-          148
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1175
+          426,
+          470
         ]
       }
     },
@@ -2412,33 +2237,9 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          21,
-          22,
-          23
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 0,
         "tileKeys": [
-          398,
-          399,
-          442
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          284,
-          285,
-          328
+          886
         ]
       }
     },
@@ -2447,6 +2248,201 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
+          1000,
+          1044,
+          1088
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          520,
+          521,
+          565,
+          566
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 38,
+        "row": 11,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1081
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1056,
+          1100
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          568,
+          612,
+          567
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1148,
+          1192
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          563,
+          564
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          777,
+          778,
+          779
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          889,
+          800,
+          844,
+          888
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 29,
+        "row": 15,
+        "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1084,
+          1128
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          439
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          932,
+          976,
+          977,
+          978
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          483
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1175,
+          1176,
+          1218,
+          1219
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          526,
+          527,
+          569,
+          570
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 10,
+        "row": 24,
+        "victimPlayerId": 0
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1194
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          940,
+          984,
           985,
           986
         ]
@@ -2489,7 +2485,52 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          0
+          398,
+          399,
+          442
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          16,
+          17,
+          18
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          852,
+          896
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          20,
+          64,
+          19
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          356,
+          355,
+          312
         ]
       }
     },
@@ -2499,8 +2540,28 @@
         "playerId": 1,
         "tileKeys": [
           895,
-          896,
-          939
+          939,
+          983
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          357,
+          358
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          982,
+          1026
         ]
       }
     },
@@ -2509,19 +2570,12 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          237,
-          238,
-          282,
-          283
+          22,
+          23,
+          67,
+          111,
+          112
         ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 16,
-        "row": 6,
-        "victimPlayerId": 2
       }
     },
     {
@@ -2529,8 +2583,42 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          354,
-          355
+          352,
+          353,
+          354
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1159,
+          1070,
+          1114,
+          1158
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          60,
+          104
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          220,
+          264,
+          308
         ]
       }
     },
@@ -2541,7 +2629,8 @@
         "tileKeys": [
           1078,
           1122,
-          1166
+          1166,
+          1121
         ]
       }
     },
@@ -2550,7 +2639,9 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          67
+          148,
+          192,
+          236
         ]
       }
     },
@@ -2559,8 +2650,17 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1,
-          2
+          359,
+          360
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          21
         ]
       }
     },
@@ -2569,10 +2669,7 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          983,
-          982,
-          1026,
-          1070
+          1202
         ]
       }
     },
@@ -2583,38 +2680,6 @@
         "tileKeys": [
           281,
           325,
-          369
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          3,
-          4,
-          5
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1114,
-          1158,
-          1202,
-          1157
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
           280
         ]
       }
@@ -2624,10 +2689,45 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          353,
-          264,
-          308,
-          352
+          7,
+          8,
+          52,
+          53
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1164,
+          1165,
+          1209,
+          1210
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          328,
+          284,
+          283,
+          282
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          5,
+          6,
+          49
         ]
       }
     },
@@ -2646,25 +2746,18 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          192,
-          236
+          285,
+          286,
+          287
         ]
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 10,
-        "row": 24,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 29,
-        "row": 15,
-        "victimPlayerId": 1
+        "col": 22,
+        "row": 5,
+        "victimPlayerId": 2
       }
     },
     {
@@ -2672,10 +2765,10 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          313,
-          314,
-          356,
-          357
+          2,
+          3,
+          4,
+          47
         ]
       }
     },
@@ -2684,108 +2777,8 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          1205,
-          1206
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1207,
           1208
         ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          306,
-          307
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          6,
-          7,
-          51,
-          52
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          44,
-          88,
-          132
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          351,
-          395,
-          439,
-          394
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1167,
-          1209,
-          1210,
-          1211
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 10,
-        "row": 24,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 29,
-        "row": 11,
-        "victimPlayerId": 2
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 10,
-        "row": 23,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 32,
-        "row": 12,
-        "victimPlayerId": 2
       }
     },
     {
