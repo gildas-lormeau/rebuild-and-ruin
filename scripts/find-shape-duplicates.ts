@@ -11,6 +11,7 @@
  *
  * Options:
  *   --server            Include server/ files
+ *   --test              Include test/ files
  *   --min-fields N      Minimum fields to consider (default: 3)
  *   --overlap N         Minimum overlap ratio 0-1 for subset detection (default: 0.8)
  *   --exact-only        Only report exact shape duplicates (no overlap pairs)
@@ -77,6 +78,7 @@ interface LayerGroup {
 
 const args = process.argv.slice(2);
 const includeServer = args.includes("--server");
+const includeTest = args.includes("--test");
 const jsonOutput = args.includes("--json");
 const exactOnly = args.includes("--exact-only");
 const updateBaseline = args.includes("--update-baseline");
@@ -120,6 +122,8 @@ function loadLayerMap(): Map<string, number> {
 }
 
 if (includeServer) globs.push("server/**/*.ts");
+
+if (includeTest) globs.push("test/**/*.ts");
 
 for (const gl of globs) project.addSourceFilesAtPaths(gl);
 

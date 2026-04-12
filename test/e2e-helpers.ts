@@ -28,15 +28,8 @@ import {
   LOBBY_TIMER,
   SELECT_TIMER,
 } from "../src/shared/core/game-constants.ts";
-
-interface E2EEntitySnapshot {
-  houses: { row: number; col: number; alive: boolean }[];
-  grunts: { row: number; col: number }[];
-  towerAlive: boolean[];
-  burningPits: { row: number; col: number }[];
-  bonusSquares: { row: number; col: number }[];
-  frozenTiles: number[];
-}
+import type { E2EEntitySnapshot } from "../src/runtime/runtime-e2e-bridge.ts";
+import type { Viewport } from "../src/shared/core/geometry-types.ts";
 
 interface E2EBridgeSnapshot {
   mode: string;
@@ -106,7 +99,7 @@ interface E2EBridgeSnapshot {
     crosshair: { x: number; y: number } | null;
   } | null;
   camera: {
-    viewport: { x: number; y: number; w: number; h: number } | null;
+    viewport: Viewport | null;
   };
   network: {
     messages: { dir: "in" | "out"; type: string; time: number }[];

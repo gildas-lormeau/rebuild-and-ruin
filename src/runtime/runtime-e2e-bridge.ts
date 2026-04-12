@@ -19,7 +19,7 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 
-interface E2EEntitySnapshot {
+export interface E2EEntitySnapshot {
   houses: { row: number; col: number; alive: boolean }[];
   grunts: { row: number; col: number }[];
   towerAlive: boolean[];

@@ -12,16 +12,13 @@ import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/proto
 import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
 import { runBuildEndSequence } from "../src/runtime/runtime-transition-steps.ts";
 import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
+import type { BalloonFlight } from "../src/shared/core/battle-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import type { GameMode } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-
-// ---------------------------------------------------------------------------
-// DedupChannel
-// ---------------------------------------------------------------------------
 
 Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
@@ -43,10 +40,6 @@ Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
   assert(ch.shouldSend(0 as ValidPlayerSlot, "second") === false, "stored key should be 'second' after change");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
 });
-
-// ---------------------------------------------------------------------------
-// runBuildEndSequence
-// ---------------------------------------------------------------------------
 
 Deno.test("runBuildEndSequence calls onLifeLostResolved when no players need action", () => {
   let resolved = false;
@@ -143,10 +136,6 @@ Deno.test("runBuildEndSequence works without onLifeLostResolved (watcher mode)",
   });
 });
 
-// ---------------------------------------------------------------------------
-// Host migration — UI mode recovery
-// ---------------------------------------------------------------------------
-
 Deno.test("full_state recovery clears stale banner mode into game mode", () => {
   const target = {
     mode: Mode.BANNER,
@@ -187,7 +176,7 @@ Deno.test("full_state recovery clears stale banner mode into game mode", () => {
 Deno.test("full_state recovery restores balloon animation mode when flights are present", () => {
   const target = {
     mode: Mode.GAME,
-    battleFlights: [] as { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
+    battleFlights: [] as { flight: BalloonFlight; progress: number }[],
   };
   const flights = [{ flight: { startX: 1, startY: 2, endX: 3, endY: 4 }, progress: 0.25 }];
 
@@ -211,39 +200,6 @@ Deno.test("full_state recovery restores balloon animation mode when flights are 
   assert(target.battleFlights.length === 1, `expected 1 recovered flight, got ${target.battleFlights.length}`);
   assert(target.battleFlights[0]!.progress === 0.25, "expected recovered flight progress to be preserved");
 });
-
-// ---------------------------------------------------------------------------
-// Host migration — stale full_state rejection
-// ---------------------------------------------------------------------------
-
-function makeFullState(migrationSeq: number): FullStateMessage {
-  return {
-    type: MESSAGE.FULL_STATE,
-    migrationSeq,
-    phase: "BATTLE",
-    round: 3,
-    timer: 10,
-    battleCountdown: 0,
-    maxRounds: 5,
-    shotsFired: 2,
-    rngState: 123,
-    players: [],
-    grunts: [],
-    houses: [],
-    bonusSquares: [],
-    towerAlive: [],
-    burningPits: [],
-    cannonLimits: [],
-    playerZones: [],
-    towerPendingRevive: [],
-    capturedCannons: [],
-    cannonballs: [],
-    gameMode: "classic",
-    activeModifier: null,
-    lastModifierId: null,
-    frozenTiles: null,
-  };
-}
 
 Deno.test("lifecycle drops stale full_state after host migration", () => {
   let migrationSeq = 0;
@@ -327,3 +283,32 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
   assertEquals(applyCalls, 2, `expected newer full_state to apply, calls=${applyCalls}`);
   assertEquals(migrationSeq, 2, `expected migrationSeq to advance to 2, got ${migrationSeq}`);
 });
+
+function makeFullState(migrationSeq: number): FullStateMessage {
+  return {
+    type: MESSAGE.FULL_STATE,
+    migrationSeq,
+    phase: "BATTLE",
+    round: 3,
+    timer: 10,
+    battleCountdown: 0,
+    maxRounds: 5,
+    shotsFired: 2,
+    rngState: 123,
+    players: [],
+    grunts: [],
+    houses: [],
+    bonusSquares: [],
+    towerAlive: [],
+    burningPits: [],
+    cannonLimits: [],
+    playerZones: [],
+    towerPendingRevive: [],
+    capturedCannons: [],
+    cannonballs: [],
+    gameMode: "classic",
+    activeModifier: null,
+    lastModifierId: null,
+    frozenTiles: null,
+  };
+}
