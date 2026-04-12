@@ -32,6 +32,7 @@
  * - Don't mutate `sc.state` — tests should observe, not drive.
  */
 
+import type { ModifierId } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
 import type { Scenario } from "./scenario.ts";
@@ -44,17 +45,8 @@ export interface SeedCondition {
   readonly match: (sc: Scenario) => () => boolean;
 }
 
-/** Latch a bus event fire behind a closure flag. Returns the poller. */
-function latchUpgradePicked(
-  sc: Scenario,
-  upgradeId: UpgradeId,
-): () => boolean {
-  let seen = false;
-  sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
-    if (ev.upgradeId === upgradeId) seen = true;
-  });
-  return () => seen;
-}
+/** Typed name of a registered condition. */
+export type SeedConditionName = keyof typeof SEED_CONDITIONS;
 
 /** Every implemented upgrade as a seed condition.
  *  Adding a new upgrade? Add one line here and run `npm run record-seeds`. */
@@ -90,11 +82,60 @@ const UPGRADE_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
     } satisfies SeedCondition,
   ]),
 );
-
 export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
   ...UPGRADE_CONDITIONS,
-  // Future conditions (modifiers, battle states, input scenarios) land here.
+  "modifier:high_tide": {
+    mode: "modern",
+    rounds: 10,
+    match: (sc) => latchModifierFired(sc, "high_tide"),
+  },
+  "modifier:sinkhole": {
+    mode: "modern",
+    rounds: 10,
+    match: (sc) => latchModifierFired(sc, "sinkhole"),
+  },
+  "modifier:sinkhole_then_high_tide": {
+    mode: "modern",
+    rounds: 10,
+    match: (sc) => latchModifierSequence(sc, "sinkhole", "high_tide"),
+  },
 };
 
-/** Typed name of a registered condition. */
-export type SeedConditionName = keyof typeof SEED_CONDITIONS;
+/** Latch a bus event fire behind a closure flag. Returns the poller. */
+function latchUpgradePicked(
+  sc: Scenario,
+  upgradeId: UpgradeId,
+): () => boolean {
+  let seen = false;
+  sc.bus.on(GAME_EVENT.UPGRADE_PICKED, (ev) => {
+    if (ev.upgradeId === upgradeId) seen = true;
+  });
+  return () => seen;
+}
+
+/** Latch a modifier banner firing (any instance of the given id). */
+function latchModifierFired(
+  sc: Scenario,
+  modifierId: ModifierId,
+): () => boolean {
+  let seen = false;
+  sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+    if (ev.modifierId === modifierId) seen = true;
+  });
+  return () => seen;
+}
+
+/** Latch a modifier sequence: `first` fires, then `second` fires after. */
+function latchModifierSequence(
+  sc: Scenario,
+  first: ModifierId,
+  second: ModifierId,
+): () => boolean {
+  let sawFirst = false;
+  let sawSecond = false;
+  sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+    if (ev.modifierId === first) sawFirst = true;
+    else if (ev.modifierId === second && sawFirst) sawSecond = true;
+  });
+  return () => sawSecond;
+}

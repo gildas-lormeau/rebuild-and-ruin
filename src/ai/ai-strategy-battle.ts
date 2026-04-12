@@ -40,6 +40,15 @@ import { traitLookup } from "./ai-constants.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 
+/** Persistent target memory — keeps the AI locked onto one enclosure across
+ *  shots so it doesn't oscillate between random enclosures. The anchor is any
+ *  interior tile of the chosen enclosure; reuse lasts as long as that tile is
+ *  still inside an eligible enemy's interior. */
+export type BattleTargetMemory = {
+  ownerId: ValidPlayerSlot | undefined;
+  anchorTileKey: number | undefined;
+};
+
 type StructuralHitCandidate = {
   tiles: TilePos[];
   enclosuresBroken: number;
@@ -437,6 +446,7 @@ export function pickTarget(
   crosshair: PixelPos,
   focusFirePlayerId: ValidPlayerSlot | undefined,
   shotCounts: Map<number, number>,
+  targetMemory: BattleTargetMemory,
   wallsOnly?: boolean,
   battleTactics = 2,
   rng: Rng = state.rng,
@@ -533,11 +543,14 @@ export function pickTarget(
   // Pick a random enclosure of the enemy, then target a wall bordering it.
   // This distributes fire across the enemy's fortress instead of clustering
   // near the AI's crosshair (which starts at the AI's own home tower).
+  // `targetMemory` keeps the AI locked onto one enclosure across shots so
+  // it doesn't oscillate between enclosures 10-15 tiles apart.
   const enclosureWall = pickEnclosureWallTarget(
     state,
     playerId,
     focusFirePlayerId,
     switchTarget,
+    targetMemory,
     rand,
   );
   if (enclosureWall)
@@ -705,18 +718,27 @@ function shotCountKey(playerId: number, cannonIdx: number): number {
   return (playerId << 8) | cannonIdx;
 }
 
-/** Pick a random enclosure of an eligible enemy, then return a random wall
+/** Pick an enclosure of an eligible enemy, then return a random wall
  *  bordering it (skipping tiles already targeted by in-flight cannonballs).
- *  Returns null when no enclosure has untargeted border walls. */
+ *  Reuses the cached enclosure from `targetMemory` if its anchor tile is
+ *  still interior to an eligible enemy; otherwise picks a new random
+ *  enclosure and updates the memory. Returns null when no enclosure has
+ *  untargeted border walls. */
 function pickEnclosureWallTarget(
   state: BattleViewState,
   playerId: ValidPlayerSlot,
   focusFirePlayerId: ValidPlayerSlot | undefined,
   switchTarget: boolean,
+  targetMemory: BattleTargetMemory,
   rand: () => number,
 ): TilePos | null {
-  // Collect all enclosures across eligible enemies
-  const allEnclosures: { walls: ReadonlySet<number>; tiles: number[] }[] = [];
+  // Collect all enclosures across eligible enemies, tagged with their owner
+  type CachedEnclosure = {
+    ownerId: ValidPlayerSlot;
+    walls: ReadonlySet<number>;
+    tiles: number[];
+  };
+  const allEnclosures: CachedEnclosure[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
     if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
       continue;
@@ -724,13 +746,40 @@ function pickEnclosureWallTarget(
     if (interior.size === 0) continue;
     const components = findEnclosureComponents(interior);
     for (const comp of components) {
-      allEnclosures.push({ walls: other.walls, tiles: comp });
+      allEnclosures.push({
+        ownerId: other.id,
+        walls: other.walls,
+        tiles: comp,
+      });
     }
   }
-  if (allEnclosures.length === 0) return null;
+  if (allEnclosures.length === 0) {
+    targetMemory.ownerId = undefined;
+    targetMemory.anchorTileKey = undefined;
+    return null;
+  }
 
-  // Pick a random enclosure (uniform — every enclosure equally likely)
-  const enclosure = allEnclosures[Math.floor(rand() * allEnclosures.length)]!;
+  // Try to reuse the cached enclosure: find the component that still contains
+  // the anchor tile (owner must match too, so focus-fire switches re-pick).
+  let enclosure: CachedEnclosure | undefined;
+  if (targetMemory.anchorTileKey !== undefined) {
+    const anchor = targetMemory.anchorTileKey;
+    const ownerId = targetMemory.ownerId;
+    for (const candidate of allEnclosures) {
+      if (candidate.ownerId !== ownerId) continue;
+      if (candidate.tiles.includes(anchor)) {
+        enclosure = candidate;
+        break;
+      }
+    }
+  }
+
+  if (enclosure === undefined) {
+    // Pick a random enclosure (uniform — every enclosure equally likely)
+    enclosure = allEnclosures[Math.floor(rand() * allEnclosures.length)]!;
+    targetMemory.ownerId = enclosure.ownerId;
+    targetMemory.anchorTileKey = enclosure.tiles[0];
+  }
 
   // Find walls bordering this enclosure (4-dir adjacent to an enclosure tile)
   const enclosureTileSet = new Set(enclosure.tiles);

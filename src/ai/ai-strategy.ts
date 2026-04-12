@@ -47,6 +47,7 @@ import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
+  type BattleTargetMemory,
   countUsableCannons,
   pickTarget,
   planCharitySweep,
@@ -279,6 +280,13 @@ export class DefaultStrategy implements AiStrategy {
   private shotCounts = new Map<number, number>();
   /** Focus fire on this player during battle. */
   private focusFirePlayerId: ValidPlayerSlot | undefined;
+  /** Sticky enclosure target — prevents per-shot oscillation between
+   *  enclosures. Invalidated when the anchor tile leaves any eligible
+   *  enemy's interior (breach, enemy eliminated, focus-fire switch). */
+  private battleTargetMemory: BattleTargetMemory = {
+    ownerId: undefined,
+    anchorTileKey: undefined,
+  };
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
 
@@ -582,6 +590,7 @@ export class DefaultStrategy implements AiStrategy {
       crosshair,
       this.focusFirePlayerId,
       this.shotCounts,
+      this.battleTargetMemory,
       wallsOnly,
       this.battleTactics,
       this.rng,
@@ -599,6 +608,8 @@ export class DefaultStrategy implements AiStrategy {
   onLifeLost(): void {
     this.focusFirePlayerId = undefined;
     this._homeWasBroken = false;
+    this.battleTargetMemory.ownerId = undefined;
+    this.battleTargetMemory.anchorTileKey = undefined;
   }
 
   reset(): void {

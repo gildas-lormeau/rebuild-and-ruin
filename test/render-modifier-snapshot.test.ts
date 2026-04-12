@@ -32,11 +32,8 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { GameMap } from "../src/shared/core/geometry-types.ts";
 import { GRID_COLS, Tile } from "../src/shared/core/grid.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
-import {
-  createScenario,
-  waitForModifier,
-  waitUntilRound,
-} from "./scenario.ts";
+import { createScenario, waitForModifier } from "./scenario.ts";
+import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
 interface TerrainEvent {
   target: "main" | "banner";
@@ -45,45 +42,42 @@ interface TerrainEvent {
 
 interface ModifierCase {
   modifier: ModifierId;
-  seed: number;
-  /** Round at which `find-seed --condition <modifier>` reports the
-   *  modifier appearing for this seed. Used as the `waitUntilRound`
-   *  shortcut so we don't have to scan from round 1. */
-  appearsAtRound: number;
+  /** Registered seed-condition name (see test/seed-conditions.ts). Resolved
+   *  from test/seed-fixtures.json so RNG drift recovery is a single
+   *  `npm run record-seeds` away. */
+  conditionName: string;
 }
 
 const CASES: readonly ModifierCase[] = [
-  // seed=6 modern → high_tide on round 3 (find-seed --condition highTide)
-  { modifier: "high_tide", seed: 6, appearsAtRound: 3 },
-  // seed=23 modern → sinkhole on round 3 (find-seed --condition sinkhole)
-  { modifier: "sinkhole", seed: 23, appearsAtRound: 3 },
+  { modifier: "high_tide", conditionName: "modifier:high_tide" },
+  { modifier: "sinkhole", conditionName: "modifier:sinkhole" },
 ];
 
-/** Read tile value at a packed key (`row * GRID_COLS + col`). */
-function tileAtKey(map: GameMap, key: number): number {
-  const row = Math.floor(key / GRID_COLS);
-  const col = key % GRID_COLS;
-  return map.tiles[row]![col]!;
-}
-
-for (const { modifier, seed, appearsAtRound } of CASES) {
+for (const { modifier, conditionName } of CASES) {
   Deno.test(
     `${modifier} banner: drawTerrain on banner canvas uses snapshot map`,
     async () => {
+      const seed = (SEED_FIXTURES as Record<string, number>)[conditionName];
+      if (seed === undefined) {
+        throw new Error(
+          `render-modifier-snapshot: no seed for "${conditionName}" — run \`npm run record-seeds\``,
+        );
+      }
       const events: TerrainEvent[] = [];
-      const recorder = createCanvasRecorder();
+      // discardCalls: observation is via renderObserver.terrainDrawn, not
+      // recorder.log — accumulating every canvas op across many rounds OOMs.
+      const recorder = createCanvasRecorder({ discardCalls: true });
       using sc = await createScenario({
         seed,
         mode: "modern",
-        rounds: appearsAtRound + 1,
+        rounds: 10,
         recorder,
         renderObserver: {
           terrainDrawn: (target, mapRef) => events.push({ target, mapRef }),
         },
       });
 
-      waitUntilRound(sc, appearsAtRound, 20000);
-      waitForModifier(sc, modifier, 5000);
+      waitForModifier(sc, modifier, 60000);
 
       // Drive frames until drawBannerPrevScene actually runs the terrain pass
       // on the banner canvas (the banner needs a few frames to sweep on-screen
@@ -111,21 +105,6 @@ for (const { modifier, seed, appearsAtRound } of CASES) {
   );
 }
 
-// ─── Sequence: prior modifier mutations stay applied in the snapshot ──────
-//
-// When a tile-mutation modifier fires after another tile-mutation modifier
-// already happened (e.g. sinkhole on round 3, then high_tide on round 5),
-// the high_tide banner's snapshot map must:
-//   - Revert ONLY the high_tide changedTiles to grass
-//   - Leave the sinkhole tiles as Water (because they happened earlier and
-//     their banner sweep is long over)
-//
-// If `buildModifierSnapshotMap` accidentally reverted ALL water tiles (or
-// if the bannerCache held a stale snapshot from the sinkhole banner), the
-// player would see the sinkhole tiles flash back to grass during the
-// high_tide reveal — a visual regression that the single-modifier test
-// can't catch.
-
 Deno.test(
   "high_tide after sinkhole: snapshot keeps sinkhole tiles as water, only reverts high_tide tiles",
   async () => {
@@ -149,16 +128,19 @@ Deno.test(
     // discardCalls: this test runs ~30k frames; accumulating every 2D-context
     // call into recorder.log would OOM the test runner. We observe the
     // renderer through the `renderObserver` scenario option instead.
+    const seed = (SEED_FIXTURES as Record<string, number>)[
+      "modifier:sinkhole_then_high_tide"
+    ];
+    if (seed === undefined) {
+      throw new Error(
+        `render-modifier-snapshot: no seed for "modifier:sinkhole_then_high_tide" — run \`npm run record-seeds\``,
+      );
+    }
     const recorder = createCanvasRecorder({ discardCalls: true });
     using sc = await createScenario({
-      // seed=44 modern: sinkhole@r5 → high_tide@r6 (the tightest sequence
-      // I found — both modifiers fire as close to each other as possible).
-      // Find via: deno run -A scripts/find-seed.ts --expr \
-      //   "seq.indexOf('sinkhole') >= 0 \
-      //    && seq.indexOf('high_tide') > seq.indexOf('sinkhole')"
-      seed: 44,
+      seed,
       mode: "modern",
-      rounds: 6,
+      rounds: 10,
       recorder,
       renderObserver: {
         terrainDrawn: (target, mapRef) => {
@@ -186,11 +168,11 @@ Deno.test(
     });
 
     // Drive the game until the high_tide banner is on-screen and the
-    // banner-side terrain pass has fired at least once. seed=44 modern
-    // takes ~6 rounds before sinkhole then high_tide.
+    // banner-side terrain pass has fired at least once. The registered
+    // seed guarantees the sinkhole → high_tide sequence within 10 rounds.
     sc.runUntil(
       () => latestMain !== undefined && latestBanner !== undefined,
-      30000,
+      60000,
     );
 
     assert(sawSinkhole, "expected sinkhole banner to fire first");
@@ -240,3 +222,10 @@ Deno.test(
     }
   },
 );
+
+/** Read tile value at a packed key (`row * GRID_COLS + col`). */
+function tileAtKey(map: GameMap, key: number): number {
+  const row = Math.floor(key / GRID_COLS);
+  const col = key % GRID_COLS;
+  return map.tiles[row]![col]!;
+}
