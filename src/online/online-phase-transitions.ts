@@ -1,11 +1,8 @@
 import {
-  capturePrevBattleScene,
   createCastle,
   prepareControllerCannonPhase,
   recomputeAllTerritory,
   resetZoneState,
-  snapshotCastles,
-  snapshotEntities,
 } from "../game/index.ts";
 // Deep import: setPhase is a network-state-conformance primitive used inside
 // watcher checkpoint apply steps. Allowlisted in
@@ -49,7 +46,6 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/ui/interaction-types.ts";
-import type { CastleData, EntityOverlay } from "../shared/ui/overlay-types.ts";
 import type { RGB } from "../shared/ui/theme.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -83,15 +79,12 @@ export interface TransitionContext {
   ui: {
     showBanner: BannerShow;
     banner: {
-      newTerritory?: Set<number>[];
-      newWalls?: Set<number>[];
-      prevCastles?: CastleData[];
-      prevTerritory?: Set<number>[];
-      prevWalls?: Set<number>[];
-      prevEntities?: EntityOverlay;
+      prevSceneImageData?: ImageData;
       wallsBeforeSweep?: Set<number>[];
       modifierDiff?: ModifierDiff;
     };
+    /** Capture the current offscreen scene as ImageData for banner prev-scene. */
+    captureScene: () => ImageData | undefined;
     render: () => void;
     watcherTiming: WatcherTimingState;
   };
@@ -243,10 +236,9 @@ export function handleCannonStartTransition(
   const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
-  // prevCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
-  transitionCtx.checkpoint.applyCannonStart(msg, () => {
-    transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
-  });
+  // Capture scene before checkpoint mutates state.
+  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
+  transitionCtx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
     if (isActivePlayer(myPlayerId)) {
@@ -295,8 +287,8 @@ export function handleBattleStartTransition(
   const state = transitionCtx.getState();
   const battleFlights = msg.flights;
 
-  // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
+  // Capture scene before checkpoint mutates state.
+  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
 
   const modifierDiff = msg.modifierDiff ?? null;
 
@@ -327,6 +319,9 @@ export function handleBattleStartTransition(
           transitionCtx.ui.showBanner,
           modifierDef(modifierDiff.id).label,
           () => {
+            // Capture post-modifier scene for the chained battle banner.
+            transitionCtx.ui.banner.prevSceneImageData =
+              transitionCtx.ui.captureScene();
             showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
           },
         );
@@ -344,13 +339,12 @@ export function handleBattleStartTransition(
       setPhase(state, Phase.BATTLE);
     },
     snapshotForBanner: () => {
-      // Match host's snapshotForBanner: set both banner and battleAnim snapshots.
+      // Populate battleAnim territory/walls so the live scene above the
+      // sweep line renders battle territory.
       const postTerritory = transitionCtx.battleLifecycle.snapshotTerritory();
       const postWalls = snapshotAllWalls(state);
       transitionCtx.battleLifecycle.setTerritory(postTerritory);
       transitionCtx.battleLifecycle.setWalls(postWalls);
-      transitionCtx.ui.banner.newTerritory = postTerritory;
-      transitionCtx.ui.banner.newWalls = postWalls;
     },
   });
 }
@@ -365,13 +359,8 @@ export function handleBuildStartTransition(
   const state = transitionCtx.getState();
   const myPlayerId = transitionCtx.session.myPlayerId;
 
-  // Pre-capture old battle scene before checkpoint mutates state
-  capturePrevBattleScene(
-    transitionCtx.ui.banner,
-    state,
-    transitionCtx.battleLifecycle.getTerritory(),
-    transitionCtx.battleLifecycle.getWalls(),
-  );
+  // Capture scene before checkpoint mutates state.
+  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
 
   // Step 1: apply checkpoint (deserializes offers, modifier, players)
   transitionCtx.checkpoint.applyBuildStart(msg);
@@ -379,6 +368,9 @@ export function handleBuildStartTransition(
 
   // Step 2→3: upgrade pick (if any) → build banner → game
   const showBannerAndEnterBuild = () => {
+    // prevSceneImageData was already captured before the checkpoint applied.
+    // The upgrade dialog is an overlay — the build banner's old scene should
+    // show the battle map, not the dialog.
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>
         showBuildPhaseBanner(transitionCtx.ui.showBanner, () => {
@@ -427,15 +419,16 @@ export function handleBuildEndTransition(
   if (msg.type !== MESSAGE.BUILD_END) return;
   const state = transitionCtx.getState();
 
+  // Capture scene before checkpoint mutates state.
+  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
+
   let preScores: number[] = [];
   transitionCtx.checkpoint.applyBuildEnd(msg, () => {
-    // Pre-capture old scene before checkpoint applies the wall sweep.
-    // The host stashes wallsBeforeSweep before sweeping; the watcher must
-    // do the same so walls stay visible until the cannon-start banner.
+    // Stash pre-sweep walls so the live scene keeps showing walls during
+    // score delta animation (between finalize and the cannon banner).
     transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
       (player) => new Set(player.walls),
     );
-    transitionCtx.ui.banner.prevCastles = snapshotCastles(state);
     preScores = state.players.map((player) => player.score);
   });
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {

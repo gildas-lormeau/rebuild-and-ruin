@@ -37,14 +37,11 @@ interface Violation {
 }
 
 const SRC = join(process.cwd(), "src");
-/** Files allowed to import `Tile` as a value (not type-only). `render-snapshot.ts`
- *  needs literal tile values to build the modifier-reveal snapshot map
- *  (paint changedTiles as Grass below the banner sweep line). */
+/** Files allowed to import `Tile` as a value (not type-only). */
 const TILE_VALUE_ALLOWLIST = new Set([
   "grid.ts",
   "spatial.ts",
   "map-generation.ts",
-  "render-snapshot.ts",
 ]);
 /** Runtime subsystem files (architecture-linter list). */
 const RUNTIME_SUBSYSTEMS = new Set([

@@ -94,7 +94,7 @@ export const FEATURE_CONSUMERS = {
     "checkpoint:buildStart": "src/online/online-checkpoints.ts",
     "render:modifierLabel": "src/render/render-composition.ts",
     "render:frozenTiles": "src/render/render-composition.ts",
-    "render:bannerSnapshot": "src/game/phase-banner.ts",
+    "render:bannerPrevScene": "src/render/render-map.ts",
     "ai:frozenAwareness": "src/ai/ai-strategy-battle.ts",
     "ai:modifierThresholds": "src/ai/ai-strategy-battle.ts",
   },

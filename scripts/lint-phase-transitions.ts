@@ -14,17 +14,19 @@
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, basename, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import process from "node:process";
 
-const SRC = join(process.cwd(), "src");
+interface Violation {
+  file: string;
+  message: string;
+}
 
+const SRC = join(process.cwd(), "src");
 /** The only file allowed to import BANNER_*_SUB constants. */
 const SHARED_FILE = "phase-transition-steps.ts";
-
 /** Files that may re-export or define BANNER_*_SUB (the source of truth). */
-const DEFINITION_FILES = new Set(["phase-banner.ts", SHARED_FILE]);
-
+const DEFINITION_FILES = new Set([SHARED_FILE]);
 /** Files that must use shared helpers instead of raw showBanner for phase transitions. */
 const GUARDED_TRANSITION_FILES = new Set([
   "online-phase-transitions.ts",
@@ -33,23 +35,7 @@ const GUARDED_TRANSITION_FILES = new Set([
   "runtime-selection.ts",
 ]);
 
-interface Violation {
-  file: string;
-  message: string;
-}
-
-function collectFiles(dir: string): string[] {
-  const results: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      results.push(...collectFiles(full));
-    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
-      results.push(full);
-    }
-  }
-  return results;
-}
+main();
 
 function main(): void {
   const violations: Violation[] = [];
@@ -112,4 +98,15 @@ function main(): void {
   process.exit(1);
 }
 
-main();
+function collectFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      results.push(...collectFiles(full));
+    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
+      results.push(full);
+    }
+  }
+  return results;
+}

@@ -31,16 +31,6 @@ import type {
   HapticsObserver,
   SoundObserver,
 } from "../src/shared/core/system-interfaces.ts";
-
-/** Test observer for the headless `network.send` seam. Receives every
- *  outbound message the runtime would broadcast through the production
- *  fan-out path, regardless of host vs. local mode (the headless
- *  `network.send` impl is otherwise a no-op). Mirrors the shape of the
- *  haptics / sound / render observers so the four test seams stay
- *  visually consistent. */
-export interface NetworkObserver {
-  sent?(msg: GameMessage): void;
-}
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/core/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
@@ -55,6 +45,16 @@ import type {
   OnlinePhaseTicks,
   TimingApi,
 } from "../src/runtime/runtime-types.ts";
+
+/** Test observer for the headless `network.send` seam. Receives every
+ *  outbound message the runtime would broadcast through the production
+ *  fan-out path, regardless of host vs. local mode (the headless
+ *  `network.send` impl is otherwise a no-op). Mirrors the shape of the
+ *  haptics / sound / render observers so the four test seams stay
+ *  visually consistent. */
+export interface NetworkObserver {
+  sent?(msg: GameMessage): void;
+}
 
 interface HeadlessRuntimeOptions {
   /** Map seed — controls map, AI, and modifier rolls. */
@@ -431,6 +431,7 @@ function createStubRenderer(): RendererInterface {
       _now: number,
     ) => {},
     warmMapCache: (_map: GameMap) => {},
+    captureScene: () => undefined,
     clientToSurface: (clientX: number, clientY: number) => ({
       x: clientX,
       y: clientY,

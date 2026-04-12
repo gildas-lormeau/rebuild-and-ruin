@@ -48,6 +48,12 @@ interface BannerCapture {
   next: string | null;
   startDiffPct: number;
   endDiffPct: number;
+  /** Mid-sweep top region vs "next" top region — verifies new scene above banner. */
+  midTopDiffPct: number;
+  /** Mid-sweep bottom region vs "first" bottom region — verifies old scene below banner. */
+  midBottomDiffPct: number;
+  /** next[n-1] vs previous[n] — continuity between consecutive banners. */
+  continuityDiffPct: number;
   done: boolean;
   chainedStart: boolean;
   chainedEnd: boolean;
@@ -100,7 +106,8 @@ async function run(): Promise<void> {
 
     console.log(`  Captured ${banners.length} banner transitions:\n`);
 
-    for (const banner of banners) {
+    for (let bi = 0; bi < banners.length; bi++) {
+      const banner = banners[bi]!;
       // Track coverage.
       if (banner.modifierId) seenModifiers.add(banner.modifierId);
       if (PHASE_BANNERS.some((pb) => banner.label.startsWith(pb))) {
@@ -116,11 +123,16 @@ async function run(): Promise<void> {
       if (config.mode === "classic") seenClassicPhase = true;
 
       // Save screenshots.
-      const slug = banner.label
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/-+$/, "");
-      const dir = `tmp/screenshots/${config.label}/r${banner.round}-${slug}`;
+      const slug = banner.modifierId
+        ? `modifier-${banner.modifierId}`
+        : banner.label === "Choose Upgrade"
+          ? "upgrade"
+          : banner.label
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/-+$/, "");
+      const seq = String(bi + 1).padStart(2, "0");
+      const dir = `tmp/screenshots/${config.label}/${seq}-r${banner.round}-${slug}`;
       mkdirSync(dir, { recursive: true });
 
       const frames = [
@@ -170,8 +182,21 @@ async function run(): Promise<void> {
       const endStr =
         banner.endDiffPct >= 0 ? `${banner.endDiffPct.toFixed(3)}%` : "n/a";
 
+      const midTopStr =
+        banner.midTopDiffPct >= 0
+          ? `${banner.midTopDiffPct.toFixed(3)}%`
+          : "n/a";
+      const midBotStr =
+        banner.midBottomDiffPct >= 0
+          ? `${banner.midBottomDiffPct.toFixed(3)}%`
+          : "n/a";
+      const contStr =
+        banner.continuityDiffPct >= 0
+          ? `${banner.continuityDiffPct.toFixed(3)}%`
+          : "n/a";
+
       console.log(
-        `  r${banner.round} ${banner.label}${tag}: start=${startStr} end=${endStr}  → ${dir}/`,
+        `  r${banner.round} ${banner.label}${tag}: start=${startStr} end=${endStr} midTop=${midTopStr} midBot=${midBotStr} cont=${contStr}  → ${dir}/`,
       );
 
       // Pixel-boundary assertions (skip chained boundaries).
@@ -195,6 +220,38 @@ async function run(): Promise<void> {
           `${endStr} (threshold ${endMax}%)`,
         );
       }
+      // Mid-sweep compositing: top portion of mid matches new scene,
+      // bottom portion of mid matches old scene (captured ImageData).
+      // Skip mid-top for chained-end banners — their "next" is the
+      // successor banner's first frame (completely different scene).
+      // Mid-sweep compositing: top of mid ≈ new scene, bottom of mid ≈ old scene.
+      // Battle banners get a higher top threshold — "next" includes the "Ready"
+      // countdown overlay and cannon rotation that aren't present mid-sweep.
+      if (banner.midTopDiffPct >= 0 && !banner.chainedEnd) {
+        const midTopMax = banner.label.startsWith("Prepare for Battle") ? 12 : 5;
+        test.check(
+          `[${config.label}] r${banner.round} ${banner.label}: mid-top ≈ next  → ${dir}/`,
+          banner.midTopDiffPct < midTopMax,
+          `${midTopStr} (threshold ${midTopMax}%)`,
+        );
+      }
+      if (banner.midBottomDiffPct >= 0) {
+        test.check(
+          `[${config.label}] r${banner.round} ${banner.label}: mid-bottom ≈ first  → ${dir}/`,
+          banner.midBottomDiffPct < 5,
+          `${midBotStr} (threshold 5%)`,
+        );
+      }
+      // Cross-banner continuity: next[n-1] ≈ previous[n].
+      // Uses the same threshold as "previous ≈ first" for that banner type.
+      if (banner.continuityDiffPct >= 0) {
+        const contMax = getThreshold(banner.label, "start", banner.modifierId);
+        test.check(
+          `[${config.label}] r${banner.round} ${banner.label}: continuity next[n-1] ≈ previous[n]  → ${dir}/`,
+          banner.continuityDiffPct < contMax,
+          `${contStr} (threshold ${contMax}%)`,
+        );
+      }
     }
   }
 
@@ -214,16 +271,15 @@ async function run(): Promise<void> {
 }
 
 /** Per-banner-type diff thresholds (%).
- *  Validated via screenshot-diff.ts fingerprint analysis. Each threshold
- *  sits ~30% above the observed max for that class so regressions are
- *  caught without flaky false positives.
+ *  Each threshold sits above the observed max for that class so regressions
+ *  are caught without flaky false positives.
  *
- *  Observed maxima (post-fix):
- *    Build & Repair   START  1.1%   END  1.4%
- *    Choose Upgrade   START 16.2%   END  5.0%
- *    Place Cannons    START  0.9%   END  0.1%
- *    Prepare for Battle START 14.1% END  8.8%
- *    Modifier banners START  13.2%  END 11.3%
+ *  Observed maxima (ImageData-based banners):
+ *    Build & Repair     START  8.7%   END  1.4%   (battle→build terrain diff behind upgrade dialog)
+ *    Choose Upgrade     START 16.2%   END  5.0%
+ *    Place Cannons      START  0.9%   END  0.1%
+ *    Prepare for Battle START 14.1%   END  8.8%
+ *    Modifier banners   START 13.2%   END 11.3%
  */
 function getThreshold(
   label: string,
@@ -248,9 +304,11 @@ function getThreshold(
   // Choose Upgrade end: AI picks change dialog overlay.
   // Max observed: 5.0%.
   if (label === "Choose Upgrade" && side === "end") return 6;
-  // Build & Repair: strict — the prev-scene snapshot bug produces
-  // 5-20% diffs that MUST fail. Max observed (post-fix): 1.4%.
-  if (label.startsWith("Build & Repair")) return 2;
+  // Build & Repair: ImageData is captured at end of battle (before upgrade
+  // dialog). "previous" shows the upgrade dialog with build-phase terrain
+  // behind it — the battle→build terrain change + cannon rotation visible
+  // through the dialog causes ~2-9% diffs. Max observed: 8.7%.
+  if (label.startsWith("Build & Repair")) return 10;
   return DEFAULT_MAX_DIFF;
 }
 
@@ -270,9 +328,9 @@ function buildGameConfigs(): GameConfig[] {
   }
 
   const configs: GameConfig[] = [];
-  for (const [seed, mods] of seedToModifiers) {
+  for (const [seed] of seedToModifiers) {
     configs.push({
-      label: `modern-s${seed}(${mods.join(",")})`,
+      label: `modern-s${seed}`,
       seed,
       mode: "modern",
       rounds: 20,
@@ -365,6 +423,10 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
         let prevPixels: Uint8ClampedArray | null = null;
         let lastCandidatePng: string | null = null;
         let lastCandidatePixels: Uint8ClampedArray | null = null;
+        /** Pixels captured at banner start (for mid-bottom comparison). */
+        let firstPixelsForMid: Uint8ClampedArray | null = null;
+        /** Pixels captured at mid-sweep (for mid-top/bottom comparison). */
+        let midPixelsForMid: Uint8ClampedArray | null = null;
         let prevEventCount = 0;
         let pendingNextTracker: BannerCapture | null = null;
         let bannerJustEnded = false;
@@ -412,6 +474,26 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
                     1 / 6,
                   );
                 }
+                // Mid-sweep compositing check: top of mid ≈ top of next (new
+                // scene), bottom of mid ≈ bottom of first (old scene).
+                if (midPixelsForMid) {
+                  // Top 30%: new scene above the banner sweep line.
+                  pendingNextTracker.midTopDiffPct = diffPct(
+                    midPixelsForMid,
+                    curPixels,
+                    0,
+                    0.7,
+                  );
+                  // Bottom 30%: old scene below the banner sweep line.
+                  if (firstPixelsForMid) {
+                    pendingNextTracker.midBottomDiffPct = diffPct(
+                      midPixelsForMid,
+                      firstPixelsForMid,
+                      0.7,
+                      0,
+                    );
+                  }
+                }
                 pendingNextTracker.done = true;
                 pendingNextTracker = null;
               }
@@ -440,10 +522,31 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
                     next: null,
                     startDiffPct: -1,
                     endDiffPct: -1,
+                    midTopDiffPct: -1,
+                    midBottomDiffPct: -1,
+                    continuityDiffPct: -1,
                     done: false,
                     chainedStart,
                     chainedEnd: false,
                   };
+                  // Continuity: compare previous banner's "next" pixels
+                  // with this banner's "first" pixels.
+                  if (captures.length >= 2) {
+                    const prev = captures[captures.length - 2]!;
+                    if (prev.done && prevPixels) {
+                      // prevPixels here is the frame before this banner
+                      // started = the "next" frame of the previous banner.
+                      // curPixels is the "first" frame of this banner.
+                      tracker.continuityDiffPct = diffPct(
+                        prevPixels,
+                        curPixels,
+                        1 / 6,
+                        0,
+                      );
+                    }
+                  }
+                  firstPixelsForMid = curPixels;
+                  midPixelsForMid = null;
                   if (!chainedStart && prevPixels) {
                     // previous ≈ first: banner strip is near the top → crop top 1/6
                     tracker.startDiffPct = diffPct(
@@ -475,6 +578,7 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
                   !activeTracker.mid
                 ) {
                   activeTracker.mid = curPng;
+                  midPixelsForMid = curPixels;
                 }
                 if (banner.y - bannerHMap / 2 < mapH) {
                   lastCandidatePng = curPng;

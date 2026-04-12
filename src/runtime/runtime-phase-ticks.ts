@@ -13,8 +13,6 @@ import {
   nextReadyCombined,
   resetCannonFacings,
   shouldSkipBattle,
-  snapshotCastles,
-  snapshotEntities,
   tickGrunts,
 } from "../game/index.ts";
 import {
@@ -117,13 +115,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  showBanner: (
-    text: string,
-    onDone: () => void,
-    preservePrevScene?: boolean,
-    newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-    subtitle?: string,
-  ) => void;
+  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
+  /** Capture the current offscreen scene as ImageData for banner prev-scene. */
+  captureScene: () => ImageData | undefined;
   lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
   scoreDelta: {
     capturePreScores: () => void;
@@ -251,8 +245,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
-          // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
-          // executeTransition guarantees this ordering via CANNON_START_STEPS.
+          // Capture the current scene right before the banner fires — this
+          // is the latest rendered frame the player saw.
+          runtimeState.banner.prevSceneImageData = deps.captureScene();
           showCannonPhaseBanner(deps.showBanner, onBannerDone);
         }
       },
@@ -290,34 +285,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       online?.broadcastBuildStart?.(runtimeState.state);
     }
-    // Snapshot castles + entities NOW — after enterBuildFromBattle has
-    // populated player.interior via recheckTerritory, but BEFORE
-    // applyUpgradePicks mutates walls (demolition strips all players'
-    // inner walls). The Build banner fires after applyUpgradePicks, so
-    // its auto-capture would see post-pick state the user never saw.
-    // interior is cloned in snapshotCastles so the snapshot stays valid.
-    const { banner: bannerState } = runtimeState;
-    const savedPrevCastles = snapshotCastles(runtimeState.state);
-    const savedPrevEntities = snapshotEntities(runtimeState.state);
     const showBannerAndEnterBuild = () => {
-      // Pre-populate so auto-capture block is skipped (gates on prevCastles).
-      bannerState.prevCastles = savedPrevCastles;
-      bannerState.prevEntities = savedPrevEntities;
       executeTransition(BUILD_START_STEPS, {
-        showBanner: () =>
+        showBanner: () => {
+          // prevSceneImageData was captured in tickBattlePhase (the last
+          // battle frame, before upgrade dialog appeared).
           showBuildPhaseBanner(deps.showBanner, () => {
-            // Deferred clear of the upgrade-pick dialog. The dialog stays
-            // in `runtimeState.dialogs.upgradePick` through the build
-            // banner sweep so `drawUpgradePick` can progressively clip it
-            // against `banner.y` (see `render-ui.ts:drawUpgradePick`).
-            // Cleared here, on banner end, instead of in
-            // `runtime-upgrade-pick.ts:tick` where the picks resolve.
-            // Routed through `deps.clearUpgradePickDialog` (wired in
-            // `runtime-composition.ts`) so the host path uses the same
-            // subsystem boundary the watcher path uses.
             deps.clearUpgradePickDialog?.();
             setMode(runtimeState, Mode.GAME);
-          }),
+          });
+        },
         applyCheckpoint: NOOP_STEP,
         initControllers: () => startBuildPhase(),
       });
@@ -361,15 +338,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     executeTransition(BATTLE_START_STEPS, {
       showBanner: () => {
-        // Capture pre-mutation prev-scene snapshots BEFORE enterBattlePhase
-        // mutates state. The banner subsystem's `preservePrevScene=true`
-        // path uses `??=` so explicit pre-population wins over the implicit
-        // capture. This is the same shape as the watcher in
-        // online-phase-transitions.ts (`prevEntities` set before the recipe
-        // runs).
-        banner.prevCastles = snapshotCastles(state, banner.wallsBeforeSweep);
-        banner.prevEntities = snapshotEntities(state);
-        banner.wallsBeforeSweep = undefined;
+        // Capture the current scene BEFORE enterBattlePhase mutates state.
+        banner.prevSceneImageData = deps.captureScene();
 
         // Engine owns the load-bearing order: modifier roll → balloon
         // resolution → post-modifier snapshots.
@@ -378,24 +348,24 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         battleAnim.impacts = [];
         battleAnim.territory = entry.territory;
         battleAnim.walls = entry.walls;
-        banner.newTerritory = entry.territory;
-        banner.newWalls = entry.walls;
+        // Mark inBattle so the live scene above the sweep line renders
+        // battle territory on the first banner frame (frameMeta was computed
+        // before this transition).
+        (runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
         }
 
-        // Now we know whether a modifier rolled, so we can call the
-        // matching banner directly — same shape as the watcher path. No
-        // mid-frame swap of `banner.text/modifierDiff/callback`, no
-        // `pendingStartEvent` deferral required for correctness (the
-        // bus event still fires next-tick as a one-tick dedup, but
-        // its content is final at this point).
         if (entry.modifierDiff) {
           banner.modifierDiff = entry.modifierDiff;
           showModifierRevealBanner(
             deps.showBanner,
             modifierDef(entry.modifierDiff.id).label,
             () => {
+              // Capture the post-modifier scene for the chained battle
+              // banner. The canvas now shows the fully-revealed modifier
+              // state — the correct "old scene" for the battle sweep.
+              banner.prevSceneImageData = deps.captureScene();
               showBattlePhaseBanner(deps.showBanner, proceedToBattle);
             },
           );
@@ -661,18 +631,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.endBattle();
     }
     deps.saveBattleCrosshair?.();
-    // Engine owns the order: pre-transition snapshots are captured BEFORE
-    // enterBuildFromBattle mutates state. Runtime wires the snapshots into
-    // the banner overlay for the build-banner reveal.
-    const entry = enterBuildPhase(
-      state,
-      battleAnim.territory,
-      battleAnim.walls,
-    );
-    runtimeState.banner.prevCastles = entry.prevCastles;
-    runtimeState.banner.prevTerritory = entry.prevTerritory;
-    runtimeState.banner.prevWalls = entry.prevWalls;
-    runtimeState.banner.prevEntities = entry.prevEntities;
+    // Capture the last battle frame for the Build banner's old scene.
+    // Must happen here (before upgrade dialog) — captureScene at
+    // showBanner time would capture the dialog overlay instead.
+    runtimeState.banner.prevSceneImageData = deps.captureScene();
+    enterBuildPhase(state, battleAnim.territory, battleAnim.walls);
     enterBuildViaUpgradePick();
     return true;
   }
@@ -776,11 +739,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Engine owns the end-of-build orchestration: snapshot walls BEFORE
     // finalize (load-bearing — sweep would delete them), finalize territory
-    // + life penalties, re-snapshot zone-dependent entities after reset.
-    const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
+    // + life penalties.
+    const { wallsBeforeSweep, needsReselect, eliminated } =
       finishBuildPhase(state);
     banner.wallsBeforeSweep = wallsBeforeSweep;
-    banner.prevEntities = prevEntities;
 
     // Build-end checkpoint (host only) — the online hook serializes the
     // post-build player snapshot itself; the runtime supplies only the

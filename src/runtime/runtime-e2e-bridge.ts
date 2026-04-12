@@ -109,8 +109,8 @@ interface E2EBridge {
   // Render overlay
   overlay: {
     entities: E2EEntitySnapshot | null;
-    /** Entities snapshot from before the banner sweep — null when no banner active. */
-    bannerPrevEntities: E2EEntitySnapshot | null;
+    /** Whether a prev-scene ImageData is captured for the banner sweep. */
+    hasBannerPrevScene: boolean;
     phantoms: E2EPhantomSnapshot | null;
     banner: E2EBannerSnapshot | null;
     battle: E2EBattleSnapshot | null;
@@ -207,7 +207,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       timer: 0,
       overlay: {
         entities: null,
-        bannerPrevEntities: null,
+        hasBannerPrevScene: false,
         phantoms: null,
         banner: null,
         battle: null,
@@ -298,7 +298,8 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Overlay ---
   ref.overlay.entities = snapshotEntities(runtimeState);
-  ref.overlay.bannerPrevEntities = snapshotBannerPrevEntities(runtimeState);
+  ref.overlay.hasBannerPrevScene =
+    runtimeState.overlay.ui?.bannerPrevScene !== undefined;
   ref.overlay.phantoms = snapshotPhantoms(runtimeState);
   ref.overlay.banner = snapshotBanner(runtimeState);
   ref.overlay.battle = snapshotBattle(runtimeState);
@@ -369,13 +370,6 @@ function snapshotEntities(
 ): E2EEntitySnapshot | null {
   const ent = runtimeState.overlay.entities;
   return ent ? entityOverlayToSnapshot(ent) : null;
-}
-
-function snapshotBannerPrevEntities(
-  runtimeState: RuntimeState,
-): E2EEntitySnapshot | null {
-  const prev = runtimeState.overlay.ui?.bannerPrevEntities;
-  return prev ? entityOverlayToSnapshot(prev) : null;
 }
 
 function entityOverlayToSnapshot(

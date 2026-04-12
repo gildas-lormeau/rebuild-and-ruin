@@ -87,7 +87,7 @@ export function showCannonPhaseBanner(
   modifierText?: string,
 ): void {
   const subtitle = modifierText ?? BANNER_PLACE_CANNONS_SUB;
-  show(BANNER_PLACE_CANNONS, onDone, true, undefined, subtitle);
+  show(BANNER_PLACE_CANNONS, onDone, subtitle);
 }
 
 /** Show the battle-start banner with its canonical title and subtitle. */
@@ -95,7 +95,7 @@ export function showBattlePhaseBanner(
   show: BannerShow,
   onDone: () => void,
 ): void {
-  show(BANNER_BATTLE, onDone, true, undefined, BANNER_BATTLE_SUB);
+  show(BANNER_BATTLE, onDone, BANNER_BATTLE_SUB);
 }
 
 /** Show the build/repair banner with its canonical title and subtitle.
@@ -106,7 +106,7 @@ export function showBuildPhaseBanner(
   modifierText?: string,
 ): void {
   const subtitle = modifierText ?? BANNER_BUILD_SUB;
-  show(BANNER_BUILD, onDone, true, undefined, subtitle);
+  show(BANNER_BUILD, onDone, subtitle);
 }
 
 /** Execute a phase transition recipe: run each named step in declared order.
@@ -157,7 +157,7 @@ export function showModifierRevealBanner(
   label: string,
   onDone: () => void,
 ): void {
-  show(label, onDone, true);
+  show(label, onDone);
 }
 
 /** Canonical post-build-end sequence shared by host and watcher.
@@ -182,5 +182,5 @@ export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
 
 /** Show the upgrade pick banner with its canonical subtitle. */
 function showUpgradePickBanner(show: BannerShow, onDone: () => void): void {
-  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
+  show(BANNER_UPGRADE_PICK, onDone, BANNER_UPGRADE_PICK_SUB);
 }

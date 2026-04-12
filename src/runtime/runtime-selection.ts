@@ -31,10 +31,7 @@ import {
 import type { SelectionState } from "../shared/core/types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
-import type {
-  EntityOverlay,
-  RenderOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
 import {
@@ -97,8 +94,6 @@ interface SelectionSystemDeps {
   startCannonPhase: (onBannerDone?: () => void) => void;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
-  /** Store entity snapshot for banner before/after comparison. */
-  setPrevEntities: (entities: EntityOverlay) => void;
 
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
@@ -379,8 +374,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    const prevEntities = snapshotAndFinalizeForCannonPhase(runtimeState.state);
-    deps.setPrevEntities(prevEntities);
+    snapshotAndFinalizeForCannonPhase(runtimeState.state);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
       setMode(runtimeState, Mode.GAME);

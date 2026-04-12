@@ -26,8 +26,6 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
-  CastleData,
-  EntityOverlay,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
@@ -205,14 +203,7 @@ export interface OnlineOverlayParams {
   state: GameState;
   banner: Pick<
     BannerState,
-    | "active"
-    | "prevCastles"
-    | "prevTerritory"
-    | "prevWalls"
-    | "prevEntities"
-    | "newTerritory"
-    | "newWalls"
-    | "wallsBeforeSweep"
+    "active" | "prevSceneImageData" | "wallsBeforeSweep"
   >;
   battleAnim: {
     territory: Set<number>[];
@@ -257,17 +248,14 @@ export interface BannerState {
   text: string;
   subtitle?: string;
   callback: (() => void) | null;
-  /** Scene snapshots for banner crossfade animation:
-   *  prev* = frozen before checkpoint applies, new* = revealed after banner lifts. */
-  prevCastles?: CastleData[];
-  prevTerritory?: Set<number>[];
-  prevWalls?: Set<number>[];
-  /** Snapshot of all map entities at banner start — used to keep the scene
-   *  stable while applyCheckpoint mutates live state behind the banner. */
-  prevEntities?: EntityOverlay;
-  newTerritory?: Set<number>[];
-  newWalls?: Set<number>[];
-  /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
+  /** Pixel snapshot of the scene canvas captured BEFORE phase transition
+   *  mutations. Composited below the banner sweep line during animation,
+   *  replacing the old state-cloning approach (prevCastles, prevEntities, etc.).
+   *  Set by the transition code via `renderer.captureScene()`. */
+  prevSceneImageData?: ImageData;
+  /** Pre-sweep wall snapshot — keeps walls visible in the live scene during
+   *  score-delta animation (between finalizeBuildPhase and cannon banner).
+   *  NOT used for banner rendering (that uses prevSceneImageData). */
   wallsBeforeSweep?: Set<number>[];
   /** Modifier reveal diff — set when showing a modifier reveal banner.
    *  Consumed by the renderer to progressively show map changes. */
@@ -665,12 +653,12 @@ export interface TouchControlsDeps {
 }
 
 /** Callback signature for showing phase-transition banners.
- *  Defined alongside BannerState as part of the banner UI contract. */
+ *  Defined alongside BannerState as part of the banner UI contract.
+ *  The banner's "old scene" comes from `banner.prevSceneImageData` (captured
+ *  before mutations) — callers no longer pass snapshot data through here. */
 export type BannerShow = (
   text: string,
   onDone: () => void,
-  preservePrevScene?: boolean,
-  newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
   subtitle?: string,
 ) => void;
 

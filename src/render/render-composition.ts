@@ -380,18 +380,8 @@ export function createOnlineOverlay(
   } = params;
 
   const homeTowers = buildHomeTowersByIndex(state);
-  const battleTerritory =
-    banner.active && banner.newTerritory
-      ? banner.newTerritory
-      : inBattle
-        ? battleAnim.territory
-        : undefined;
-  const battleWalls =
-    banner.active && banner.newTerritory
-      ? banner.newWalls
-      : inBattle
-        ? battleAnim.walls
-        : undefined;
+  const battleTerritory = inBattle ? battleAnim.territory : undefined;
+  const battleWalls = inBattle ? battleAnim.walls : undefined;
 
   return {
     selection: previousSelection,
@@ -399,10 +389,7 @@ export function createOnlineOverlay(
     entities: {
       houses: state.map.houses,
       grunts: state.grunts,
-      towerAlive:
-        !banner.active && banner.prevEntities
-          ? banner.prevEntities.towerAlive
-          : state.towerAlive,
+      towerAlive: state.towerAlive,
       burningPits: state.burningPits,
       bonusSquares: state.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
@@ -425,10 +412,7 @@ export function createOnlineOverlay(
           ? state.timer
           : undefined,
       banner: bannerUi,
-      bannerPrevCastles: banner.active ? banner.prevCastles : undefined,
-      bannerPrevTerritory: banner.active ? banner.prevTerritory : undefined,
-      bannerPrevWalls: banner.active ? banner.prevWalls : undefined,
-      bannerPrevEntities: banner.active ? banner.prevEntities : undefined,
+      bannerPrevScene: banner.active ? banner.prevSceneImageData : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

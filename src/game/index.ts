@@ -53,11 +53,6 @@ export {
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export {
-  capturePrevBattleScene,
-  snapshotCastles,
-  snapshotEntities,
-} from "./phase-banner.ts";
-export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
   finalizeReselectedPlayers,

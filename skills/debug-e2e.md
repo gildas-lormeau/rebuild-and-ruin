@@ -116,7 +116,7 @@ Create options: `{ seed?, humans?, headless?, rounds?, mode? }`.
 The E2E bridge (`window.__e2e`) exposes structured state snapshots each frame:
 - **Game state**: `mode`, `phase`, `round`, `timer`, `players`
 - **Render overlay**: `overlay.entities` (houses, grunts, towers, frozenTiles), `overlay.phantoms`, `overlay.banner`, `overlay.battle`, `overlay.ui`
-- **Banner prev entities**: `overlay.bannerPrevEntities` (old scene during banner sweep)
+- **Banner prev scene**: `overlay.hasBannerPrevScene` (true when ImageData captured for banner sweep)
 - **Controller**: `controller.cannonCursor`, `controller.buildCursor`, `controller.crosshair`
 - **Camera**: `camera.viewport`
 - **Coord conversion**: `worldToClient(wx, wy)`, `tileToClient(row, col)` — callable from page.evaluate

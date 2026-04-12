@@ -79,13 +79,12 @@ function buildTransitionUiCtx(
   deps: OnlineRuntimeTransitionDeps,
 ): TransitionContext["ui"] {
   return {
-    showBanner: (text, onDone, preservePrevScene?, newBattle?, subtitle?) =>
-      deps
-        .getRuntime()
-        .showBanner(text, onDone, preservePrevScene, newBattle, subtitle),
+    showBanner: (text, onDone, subtitle?) =>
+      deps.getRuntime().showBanner(text, onDone, subtitle),
     get banner() {
       return deps.getRuntime().runtimeState.banner;
     },
+    captureScene: () => deps.getRuntime().captureScene(),
     render: () => deps.getRuntime().render(),
     watcherTiming: deps.watcher.timing,
   };

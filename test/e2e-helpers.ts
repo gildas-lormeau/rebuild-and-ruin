@@ -29,85 +29,6 @@ import {
   SELECT_TIMER,
 } from "../src/shared/core/game-constants.ts";
 
-// ---------------------------------------------------------------------------
-// Game constants
-// ---------------------------------------------------------------------------
-
-const TILE_SIZE = 16;
-const BASE_URL = "http://localhost:5173";
-
-/** Known phase durations (seconds). Used to compute advanceTo timeouts. */
-const PHASE_DURATIONS: Record<string, number> = {
-  LOBBY: LOBBY_TIMER,
-  CASTLE_SELECT: SELECT_TIMER,
-  BANNER: BANNER_DURATION,
-  CASTLE_BUILD: 5, // animation-driven, no constant
-  WALL_BUILD: BUILD_TIMER,
-  CANNON_PLACE: CANNON_PLACE_TIMER,
-  BATTLE: BATTLE_TIMER,
-};
-
-/** Approximate max seconds from game start to reach a given phase. */
-function maxSecondsToPhase(target: string): number {
-  const order = [
-    "CASTLE_SELECT",
-    "CASTLE_BUILD",
-    "WALL_BUILD",
-    "CANNON_PLACE",
-    "BATTLE",
-  ];
-  const idx = order.indexOf(target);
-  if (idx < 0) return 120; // unknown — generous default
-  let total = PHASE_DURATIONS.LOBBY! + 2; // lobby + margin
-  for (let i = 0; i <= idx; i++) {
-    total += (PHASE_DURATIONS[order[i]!] ?? 10) + PHASE_DURATIONS.BANNER!;
-  }
-  return total + 5; // extra margin
-}
-
-// ---------------------------------------------------------------------------
-// Test assertions — lightweight check/summary with auto-exit
-// ---------------------------------------------------------------------------
-
-/** Lightweight assertion tracker for e2e tests. Prints PASS/FAIL per check,
- *  prints a summary, and calls Deno.exit(1) on failure from done(). */
-export class E2ETest {
-  private passed = 0;
-  private failed = 0;
-  private readonly label: string;
-
-  constructor(label: string) {
-    this.label = label;
-    console.log(`Starting ${label}...\n`);
-  }
-
-  /** Assert a condition. Prints PASS or FAIL immediately. */
-  check(name: string, ok: boolean, detail?: string): void {
-    if (ok) {
-      console.log(`  PASS: ${name}`);
-      this.passed++;
-    } else {
-      console.log(`  FAIL: ${name}${detail ? ` — ${detail}` : ""}`);
-      this.failed++;
-    }
-  }
-
-  /** Print summary and exit with code 1 if any checks failed. */
-  done(): void {
-    console.log(`\n--- ${this.label} ---`);
-    console.log(`${this.passed} passed, ${this.failed} failed\n`);
-    if (this.failed > 0) Deno.exit(1);
-  }
-
-  get failures(): number {
-    return this.failed;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Bridge types (mirrors E2EBridge from runtime-e2e-bridge.ts)
-// ---------------------------------------------------------------------------
-
 interface E2EEntitySnapshot {
   houses: { row: number; col: number; alive: boolean }[];
   grunts: { row: number; col: number }[];
@@ -124,7 +45,7 @@ interface E2EBridgeSnapshot {
   timer: number;
   overlay: {
     entities: E2EEntitySnapshot | null;
-    bannerPrevEntities: E2EEntitySnapshot | null;
+    hasBannerPrevScene: boolean;
     phantoms: {
       pieces: {
         row: number;
@@ -193,10 +114,6 @@ interface E2EBridgeSnapshot {
   };
 }
 
-// ---------------------------------------------------------------------------
-// E2EGame class
-// ---------------------------------------------------------------------------
-
 export interface E2EGameOptions {
   seed?: number;
   humans?: number;
@@ -204,6 +121,54 @@ export interface E2EGameOptions {
   rounds?: number;
   /** Game mode override (e.g. "modern"). Passed as ?mode= URL param. */
   mode?: string;
+}
+
+const TILE_SIZE = 16;
+const BASE_URL = "http://localhost:5173";
+/** Known phase durations (seconds). Used to compute advanceTo timeouts. */
+const PHASE_DURATIONS: Record<string, number> = {
+  LOBBY: LOBBY_TIMER,
+  CASTLE_SELECT: SELECT_TIMER,
+  BANNER: BANNER_DURATION,
+  CASTLE_BUILD: 5, // animation-driven, no constant
+  WALL_BUILD: BUILD_TIMER,
+  CANNON_PLACE: CANNON_PLACE_TIMER,
+  BATTLE: BATTLE_TIMER,
+};
+
+/** Lightweight assertion tracker for e2e tests. Prints PASS/FAIL per check,
+ *  prints a summary, and calls Deno.exit(1) on failure from done(). */
+export class E2ETest {
+  private passed = 0;
+  private failed = 0;
+  private readonly label: string;
+
+  constructor(label: string) {
+    this.label = label;
+    console.log(`Starting ${label}...\n`);
+  }
+
+  /** Assert a condition. Prints PASS or FAIL immediately. */
+  check(name: string, ok: boolean, detail?: string): void {
+    if (ok) {
+      console.log(`  PASS: ${name}`);
+      this.passed++;
+    } else {
+      console.log(`  FAIL: ${name}${detail ? ` — ${detail}` : ""}`);
+      this.failed++;
+    }
+  }
+
+  /** Print summary and exit with code 1 if any checks failed. */
+  done(): void {
+    console.log(`\n--- ${this.label} ---`);
+    console.log(`${this.passed} passed, ${this.failed} failed\n`);
+    if (this.failed > 0) Deno.exit(1);
+  }
+
+  get failures(): number {
+    return this.failed;
+  }
 }
 
 export class E2EGame {
@@ -626,4 +591,22 @@ export class E2EGame {
       (row + 0.5) * TILE_SIZE,
     );
   }
+}
+
+/** Approximate max seconds from game start to reach a given phase. */
+function maxSecondsToPhase(target: string): number {
+  const order = [
+    "CASTLE_SELECT",
+    "CASTLE_BUILD",
+    "WALL_BUILD",
+    "CANNON_PLACE",
+    "BATTLE",
+  ];
+  const idx = order.indexOf(target);
+  if (idx < 0) return 120; // unknown — generous default
+  let total = PHASE_DURATIONS.LOBBY! + 2; // lobby + margin
+  for (let i = 0; i <= idx; i++) {
+    total += (PHASE_DURATIONS[order[i]!] ?? 10) + PHASE_DURATIONS.BANNER!;
+  }
+  return total + 5; // extra margin
 }

@@ -510,13 +510,9 @@ export interface GameRuntime {
   render: () => void;
 
   /** Show a full-screen banner. `onDone` is invoked exactly once when the banner finishes. */
-  showBanner: (
-    text: string,
-    onDone: () => void,
-    preservePrevScene?: boolean,
-    newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-    subtitle?: string,
-  ) => void;
+  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
+  /** Capture the current offscreen scene as ImageData for banner prev-scene. */
+  captureScene: () => ImageData | undefined;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

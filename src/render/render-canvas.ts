@@ -42,6 +42,7 @@ export function createCanvasRenderer(
           (rect.top - containerRect.top),
       };
     },
+    captureScene: () => renderMap.captureScene(),
     eventTarget: canvas,
     container,
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),

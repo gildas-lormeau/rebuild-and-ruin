@@ -198,15 +198,9 @@ export interface UIOverlay {
       gruntsSpawned: number;
     };
   };
-  /** Snapshot of castle state captured at banner start — immutable during animation.
-   *  Used to render the "old" scene behind the banner while live state updates. */
-  bannerPrevCastles?: CastleData[];
-  /** Territory snapshot at banner start — do not mutate during animation. */
-  bannerPrevTerritory?: Set<number>[];
-  /** Walls snapshot at banner start — do not mutate during animation. */
-  bannerPrevWalls?: Set<number>[];
-  /** Entity state snapshot at banner start — do not mutate during animation. */
-  bannerPrevEntities?: EntityOverlay;
+  /** Pixel snapshot of the scene canvas captured before phase mutations.
+   *  Composited below the banner sweep line during the animation. */
+  bannerPrevScene?: ImageData;
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {
@@ -307,6 +301,9 @@ export interface RendererInterface {
    * Used to position floating action buttons over the rendered surface.
    */
   screenToContainerCSS(sx: number, sy: number): { x: number; y: number };
+  /** Capture the current offscreen scene as ImageData for banner prev-scene.
+   *  Returns undefined when the scene canvas hasn't been initialized. */
+  captureScene(): ImageData | undefined;
   /** The element that receives pointer/touch events and cursor-style changes. */
   eventTarget: HTMLElement;
   /** Container element — parent of the surface, holds touch panels and overlays. */

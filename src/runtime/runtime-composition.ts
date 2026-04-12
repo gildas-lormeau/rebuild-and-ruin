@@ -369,7 +369,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
-    setPrevEntities: setBannerPrevEntities,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
@@ -406,7 +405,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     clearBannerSnapshots,
-    setPrevEntities: setBannerPrevEntities,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },
@@ -560,6 +558,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     online: config.onlinePhaseTicks,
     render,
     showBanner,
+    captureScene: () => renderer.captureScene(),
     lifeLost,
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
@@ -779,6 +778,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
+    captureScene: () => renderer.captureScene(),
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

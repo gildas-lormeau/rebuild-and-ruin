@@ -21,7 +21,6 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
@@ -56,7 +55,6 @@ import {
   drawPhantoms,
   drawWaterAnimation,
 } from "./render-effects.ts";
-import { buildModifierSnapshotMap } from "./render-snapshot.ts";
 import { drawSprite } from "./render-sprites.ts";
 import { drawTowers } from "./render-towers.ts";
 import {
@@ -99,23 +97,6 @@ interface SinkholeTilePatches {
   col: number;
   patches: Map<string, ImageData>;
 }
-
-type BannerCacheEntry = {
-  map: GameMap;
-  castles: readonly CastleData[];
-  territory: Set<number>[] | undefined;
-  walls: Set<number>[] | undefined;
-  /** Reference to the modifierDiff.changedTiles array (if any). Reference
-   *  identity is enough — each banner produces a fresh diff. Used to
-   *  invalidate the cached snapshot map when a new modifier reveal banner
-   *  replaces a previous one. */
-  modifierTiles: readonly number[] | undefined;
-  /** Snapshot map for the prev-scene render. For modifier reveal banners,
-   *  this is a clone of `map` with `changedTiles` overridden to Grass so
-   *  the OLD terrain shows below the banner sweep line. For non-modifier
-   *  banners, equal to `map`. */
-  renderMap: GameMap;
-};
 
 /** Tile-key → owning player tables built from the current overlay (one
  *  entry per non-cluster collidable tile). Used to classify cluster cardinal
@@ -166,6 +147,9 @@ interface RenderMap {
    *  warming a map for one renderer doesn't affect another. */
   precomputeTerrainCache: (map: GameMap) => void;
   sceneCanvas: () => HTMLCanvasElement;
+  /** Capture the current offscreen scene as ImageData (for banner prev-scene).
+   *  Returns undefined if the scene canvas hasn't been initialized yet. */
+  captureScene: () => ImageData | undefined;
 }
 
 // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
@@ -262,7 +246,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
         canvasCtx: CanvasRenderingContext2D;
       }
     | undefined;
-  let bannerCache: BannerCacheEntry | undefined;
+  /** Tracks which ImageData has been painted onto the banner temp canvas.
+   *  When the reference changes (new banner / chained banner), the new
+   *  ImageData is painted. */
+  let bannerScenePainted: ImageData | undefined;
 
   // Per-instance terrain cache. Was previously a module-level WeakMap, which
   // meant `precomputeTerrainCache` (the module export) and every `RenderMap`
@@ -351,29 +338,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return bannerScene;
   }
 
-  function clearBannerCache(): void {
-    bannerCache = undefined;
-  }
-
-  /** Check if the banner scene cache is still valid (reference-equality on the
-   *  cache-key fields). Note: `renderMap` is derived from (map, modifierTiles),
-   *  so it's not part of the candidate — it's recomputed when the cache misses. */
-  function isBannerCacheValid(
-    map: GameMap,
-    castles: readonly CastleData[],
-    territory: Set<number>[] | undefined,
-    walls: Set<number>[] | undefined,
-    modifierTiles: readonly number[] | undefined,
-  ): boolean {
-    if (!bannerCache) return false;
-    if (bannerCache.map !== map) return false;
-    if (bannerCache.castles !== castles) return false;
-    if (bannerCache.territory !== territory) return false;
-    if (bannerCache.walls !== walls) return false;
-    if (bannerCache.modifierTiles !== modifierTiles) return false;
-    return true;
-  }
-
   function ensureOffscreenSize(width: number, height: number): void {
     const sceneCanvas = getScene().canvas;
     if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
@@ -384,32 +348,24 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (bannerCanvas.width !== width || bannerCanvas.height !== height) {
       bannerCanvas.width = width;
       bannerCanvas.height = height;
-      clearBannerCache();
+      bannerScenePainted = undefined;
     }
   }
 
-  /** Re-draw the pre-transition scene below the banner divider line.
-   *  Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
-   *  The old scene is cached (by reference identity) to avoid re-rendering each frame.
+  /** Composite the pre-transition scene below the banner sweep line.
    *
-   *  When a banner has preservePrevScene=true, showBannerTransition captures pre-transition
-   *  state (castles, territory, walls, houses, bonus squares). This function reconstructs
-   *  a full RenderOverlay from that snapshot, suppressing phase-specific elements (phantoms,
-   *  battle effects, crosshairs) so the old scene looks clean beneath the banner.
-   *
-   *  The result is cached (keyed on map + old-scene references) and composited below the
-   *  banner via a clip rect. Cache is invalidated when any of the four cached references change.
-   *  All four cached values must be updated atomically on a cache miss. */
+   *  Uses `prevSceneImageData` (captured via `captureScene()` before phase
+   *  mutations) — no state cloning, no re-rendering, no cache.
+   *  putImageData ignores clip regions, so we paint the ImageData onto the
+   *  banner temp canvas once, then drawImage with a clip rect. */
   function drawBannerPrevScene(
     overlayCtx: CanvasRenderingContext2D,
     W: number,
     H: number,
-    map: GameMap,
     overlay: RenderOverlay | undefined,
-    now: number,
   ): void {
-    if (!overlay?.ui?.banner || !overlay.ui.bannerPrevCastles) {
-      clearBannerCache();
+    if (!overlay?.ui?.banner || !overlay.ui.bannerPrevScene) {
+      bannerScenePainted = undefined;
       return;
     }
 
@@ -417,96 +373,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
     if (clipY >= H) return;
 
-    const prevCastles = overlay.ui.bannerPrevCastles;
-    const prevTerritory = overlay.ui.bannerPrevTerritory;
-    const prevWalls = overlay.ui.bannerPrevWalls;
-    // Snapshot is only built when the modifier ACTUALLY mutated `state.map.tiles`.
-    // `tileMutationPrev` is the modifier's pre-mutation tile (Grass for
-    // sinkhole/high_tide) or null for modifiers that don't touch tiles
-    // (wildfire, frozen_river, etc.). For null we skip the clone entirely
-    // and pass the live map straight through — saves an alloc per banner.
-    const modifierDiff = overlay.ui.banner.modifierDiff;
-    const prevTile = modifierDiff
-      ? modifierDef(modifierDiff.id).tileMutationPrev
-      : null;
-    const needsTileRevert =
-      prevTile !== null && (modifierDiff?.changedTiles.length ?? 0) > 0;
-    const modifierTiles = needsTileRevert
-      ? modifierDiff!.changedTiles
-      : undefined;
-    const needsBannerRender = !isBannerCacheValid(
-      map,
-      prevCastles,
-      prevTerritory,
-      prevWalls,
-      modifierTiles,
-    );
-    const renderMap =
-      needsBannerRender && needsTileRevert
-        ? buildModifierSnapshotMap(map, modifierDiff!.changedTiles, prevTile)
-        : needsBannerRender
-          ? map
-          : (bannerCache?.renderMap ?? map);
-
-    if (needsBannerRender) {
-      const prevOverlay: RenderOverlay = {
-        ...overlay,
-        // Suppress selection highlights — they belong to the new phase
-        selection: { highlighted: null, selected: null },
-        castles: prevCastles,
-        entities: overlay.ui.bannerPrevEntities
-          ? {
-              ...overlay.ui.bannerPrevEntities,
-              homeTowers: overlay.entities?.homeTowers,
-            }
-          : overlay.entities,
-        battle: {
-          ...overlay.battle,
-          inBattle: !!prevTerritory,
-          battleTerritory: prevTerritory,
-          battleWalls: prevWalls,
-          cannonballs: undefined,
-          crosshairs: undefined,
-          impacts: undefined,
-        },
-        ui: {
-          ...overlay.ui,
-          banner: undefined,
-          announcement: undefined,
-          bannerPrevCastles: undefined,
-        },
-        // Suppress phase-specific phantoms in old scene
-        phantoms: {
-          piecePhantoms: undefined,
-          cannonPhantoms: undefined,
-        },
-      };
+    // Paint ImageData to temp canvas when it changes (new or chained banner).
+    if (bannerScenePainted !== overlay.ui.bannerPrevScene) {
       const tmpCtx = getBannerScene().ctx;
-      tmpCtx.clearRect(0, 0, W, H);
-      // Terrain + water animation read map.tiles directly — use the snapshot
-      // so they paint the OLD terrain. All other passes use the live map
-      // (entity draws don't read tiles, sinkhole patches use the live cache).
-      const snapshotCache = getTerrainCache(renderMap, W, H);
-      const liveCacheForSinkholes = getTerrainCache(map, W, H);
-      drawTerrain(tmpCtx, W, H, renderMap, snapshotCache, prevOverlay);
-      observer?.terrainDrawn?.("banner", renderMap);
-      drawWaterAnimation(tmpCtx, renderMap, prevOverlay, now);
-      drawFrozenTiles(tmpCtx, prevOverlay, now);
-      drawCastles(tmpCtx, prevOverlay);
-      drawSinkholeOverlays(tmpCtx, map, liveCacheForSinkholes, prevOverlay);
-      drawBonusSquares(tmpCtx, prevOverlay, now);
-      drawHouses(tmpCtx, prevOverlay);
-      drawTowers(tmpCtx, map, prevOverlay, now);
-      drawBurningPits(tmpCtx, prevOverlay, now);
-      drawGrunts(tmpCtx, prevOverlay);
-      bannerCache = {
-        map,
-        castles: prevCastles,
-        territory: prevTerritory,
-        walls: prevWalls,
-        modifierTiles,
-        renderMap,
-      };
+      tmpCtx.putImageData(overlay.ui.bannerPrevScene, 0, 0);
+      bannerScenePainted = overlay.ui.bannerPrevScene;
     }
 
     overlayCtx.save();
@@ -589,7 +460,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawGrunts(overlayCtx, overlay);
 
     // If banner is active with old data, composite the old scene below the banner.
-    drawBannerPrevScene(overlayCtx, W, H, map, overlay, now);
+    drawBannerPrevScene(overlayCtx, W, H, overlay);
 
     // Layers that don't change between phases — draw once on top
     drawPhantoms(overlayCtx, overlay);
@@ -642,7 +513,17 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getScene().canvas;
   }
 
-  return { drawMap, precomputeTerrainCache, sceneCanvas };
+  /** Grab the current offscreen scene pixels. Called once before a phase
+   *  transition mutates state — the returned ImageData becomes the banner's
+   *  "old scene" below the sweep line. */
+  function captureScene(): ImageData | undefined {
+    if (!scene) return undefined;
+    const { canvas: offCanvas, ctx: offCtx } = scene;
+    if (offCanvas.width === 0 || offCanvas.height === 0) return undefined;
+    return offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+  }
+
+  return { drawMap, precomputeTerrainCache, sceneCanvas, captureScene };
 }
 
 // Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
