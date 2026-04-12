@@ -21,6 +21,7 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
@@ -419,11 +420,20 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const prevCastles = overlay.ui.bannerPrevCastles;
     const prevTerritory = overlay.ui.bannerPrevTerritory;
     const prevWalls = overlay.ui.bannerPrevWalls;
-    // For tile-mutation modifier banners (high_tide, sinkhole) the map's tiles
-    // have already been mutated by enterBattleFromCannon — we revert them in a
-    // snapshot map so drawTerrain paints the OLD terrain below the sweep line.
-    // For all other banners modifierTiles is undefined and renderMap === map.
-    const modifierTiles = overlay.ui.banner.modifierDiff?.changedTiles;
+    // Snapshot is only built when the modifier ACTUALLY mutated `state.map.tiles`.
+    // `tileMutationPrev` is the modifier's pre-mutation tile (Grass for
+    // sinkhole/high_tide) or null for modifiers that don't touch tiles
+    // (wildfire, frozen_river, etc.). For null we skip the clone entirely
+    // and pass the live map straight through — saves an alloc per banner.
+    const modifierDiff = overlay.ui.banner.modifierDiff;
+    const prevTile = modifierDiff
+      ? modifierDef(modifierDiff.id).tileMutationPrev
+      : null;
+    const needsTileRevert =
+      prevTile !== null && (modifierDiff?.changedTiles.length ?? 0) > 0;
+    const modifierTiles = needsTileRevert
+      ? modifierDiff!.changedTiles
+      : undefined;
     const needsBannerRender = !isBannerCacheValid(
       map,
       prevCastles,
@@ -432,8 +442,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       modifierTiles,
     );
     const renderMap =
-      needsBannerRender && modifierTiles?.length
-        ? buildModifierSnapshotMap(map, modifierTiles)
+      needsBannerRender && needsTileRevert
+        ? buildModifierSnapshotMap(map, modifierDiff!.changedTiles, prevTile)
         : (bannerCache?.renderMap ?? map);
 
     if (needsBannerRender) {

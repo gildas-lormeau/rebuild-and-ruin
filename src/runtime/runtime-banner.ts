@@ -69,9 +69,13 @@ interface BannerSystem {
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const { runtimeState, clearPhaseZoom, log, haptics, sound, render } = deps;
-  // True between showBanner() and the first tick — used to defer the
-  // bannerStart event until mid-frame mutations (e.g. modifier reveal
-  // replacing the battle banner) have settled.
+  // True between showBanner() and the first tick. Originally introduced
+  // to defer `bannerStart` until a mid-frame `banner.text/modifierDiff`
+  // overwrite (host battle transition) had settled — that swap is gone
+  // now (the host inspects modifierDiff before calling showBanner, same
+  // shape as the watcher), but the deferral is kept as a one-tick dedup
+  // so consecutive showBanner calls in the same tick collapse into a
+  // single bannerStart event for the final content.
   let pendingStartEvent = false;
 
   function showBanner(
@@ -193,16 +197,28 @@ function showBannerTransition(deps: ShowBannerDeps): void {
   banner.wallsBeforeSweep = undefined;
 
   if (preservePrevScene) {
-    banner.prevCastles ??= snapshotCastles(state, pendingWalls);
-    banner.prevTerritory ??=
-      state.phase === Phase.BATTLE
-        ? battleAnim.territory?.map((territory) => new Set(territory))
-        : undefined;
-    banner.prevWalls ??=
-      state.phase === Phase.BATTLE
-        ? battleAnim.walls?.map((wall) => new Set(wall))
-        : undefined;
-    banner.prevEntities ??= snapshotEntities(state);
+    // Auto-capture path. The whole block is gated on `banner.prevCastles`
+    // being undefined: if the caller has already pre-populated the prev-
+    // scene snapshots (host battle→build sets all four from
+    // `enterBuildPhase().prev*`; host cannon→battle sets prevCastles +
+    // prevEntities before `enterBattlePhase` mutates state; watcher
+    // battle→build calls `capturePrevBattleScene`), the subsystem trusts
+    // those values and skips its own snapshot. Otherwise the subsystem
+    // captures all four from current state. This is what protects the
+    // cannon→battle path from picking up the *post*-mutation
+    // `state.phase === BATTLE` and capturing the wrong battleAnim values.
+    if (banner.prevCastles === undefined) {
+      banner.prevCastles = snapshotCastles(state, pendingWalls);
+      banner.prevTerritory =
+        state.phase === Phase.BATTLE
+          ? battleAnim.territory?.map((territory) => new Set(territory))
+          : undefined;
+      banner.prevWalls =
+        state.phase === Phase.BATTLE
+          ? battleAnim.walls?.map((wall) => new Set(wall))
+          : undefined;
+      banner.prevEntities ??= snapshotEntities(state);
+    }
   } else {
     banner.prevCastles = undefined;
     banner.prevTerritory = undefined;

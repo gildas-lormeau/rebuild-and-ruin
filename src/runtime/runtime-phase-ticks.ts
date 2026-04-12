@@ -13,6 +13,8 @@ import {
   nextReadyCombined,
   resetCannonFacings,
   shouldSkipBattle,
+  snapshotCastles,
+  snapshotEntities,
   tickGrunts,
 } from "../game/index.ts";
 import {
@@ -35,6 +37,7 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -82,6 +85,7 @@ import {
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showModifierRevealBanner,
 } from "./runtime-transition-steps.ts";
 import type {
   OnlinePhaseTicks,
@@ -345,28 +349,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     executeTransition(BATTLE_START_STEPS, {
       showBanner: () => {
-        // Always start with the battle banner — this captures prev-scene
-        // state before applyCheckpoint mutates it.  If a modifier is rolled,
-        // applyCheckpoint replaces the banner content (same frame, before
-        // any rendering) so the user sees the modifier reveal first.
-        showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-      },
-      applyCheckpoint: () => {
+        // Capture pre-mutation prev-scene snapshots BEFORE enterBattlePhase
+        // mutates state. The banner subsystem's `preservePrevScene=true`
+        // path uses `??=` so explicit pre-population wins over the implicit
+        // capture. This is the same shape as the watcher in
+        // online-phase-transitions.ts (`prevEntities` set before the recipe
+        // runs).
+        banner.prevCastles = snapshotCastles(state, banner.wallsBeforeSweep);
+        banner.prevEntities = snapshotEntities(state);
+        banner.wallsBeforeSweep = undefined;
+
         // Engine owns the load-bearing order: modifier roll → balloon
-        // resolution → post-modifier snapshots. Runtime is just a consumer
-        // of the returned struct.
+        // resolution → post-modifier snapshots.
         const entry = enterBattlePhase(state);
-        if (entry.modifierDiff) {
-          // Modifier rolled — replace the banner with the modifier reveal,
-          // then chain the battle banner as follow-up.  All in the same frame
-          // before any rendering, so the user only ever sees the correct text.
-          banner.modifierDiff = entry.modifierDiff;
-          banner.text = entry.modifierDiff.label;
-          banner.subtitle = undefined;
-          banner.callback = () => {
-            showBattlePhaseBanner(deps.showBanner, proceedToBattle);
-          };
-        }
         flights = entry.flights;
         battleAnim.impacts = [];
         battleAnim.territory = entry.territory;
@@ -376,7 +371,27 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         if (runtimeState.frameMeta.hostAtFrameStart) {
           online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
         }
+
+        // Now we know whether a modifier rolled, so we can call the
+        // matching banner directly — same shape as the watcher path. No
+        // mid-frame swap of `banner.text/modifierDiff/callback`, no
+        // `pendingStartEvent` deferral required for correctness (the
+        // bus event still fires next-tick as a one-tick dedup, but
+        // its content is final at this point).
+        if (entry.modifierDiff) {
+          banner.modifierDiff = entry.modifierDiff;
+          showModifierRevealBanner(
+            deps.showBanner,
+            modifierDef(entry.modifierDiff.id).label,
+            () => {
+              showBattlePhaseBanner(deps.showBanner, proceedToBattle);
+            },
+          );
+        } else {
+          showBattlePhaseBanner(deps.showBanner, proceedToBattle);
+        }
       },
+      applyCheckpoint: NOOP_STEP,
       snapshotForBanner: NOOP_STEP,
     });
   }

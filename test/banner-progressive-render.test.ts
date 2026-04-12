@@ -239,33 +239,18 @@ for (const modifierId of ALL_MODIFIERS) {
             `${modifierId}: banner snapshot tile ${key} should be reverted to Grass for the prev-scene reveal`,
           );
         }
-      } else if (startChangedTiles.length > 0) {
-        // Non-mutation modifiers with a highlight set (wildfire,
-        // crumbling_walls, frozen_river, rubble_clearing). `buildModifierSnapshotMap`
-        // still runs (it's gated on `modifierTiles?.length > 0`), so the
-        // snapshot is a fresh object — but since the underlying modifier
-        // didn't touch `map.tiles`, the reverted tiles must equal the live
-        // tiles.
-        assertNotStrictEquals(
-          lastBanner,
-          lastMain,
-          `${modifierId}: snapshot map should be a fresh object (buildModifierSnapshotMap always clones when changedTiles is non-empty)`,
-        );
-        for (const key of startChangedTiles) {
-          assertEquals(
-            tileAt(lastBanner, key),
-            tileAt(lastMain, key),
-            `${modifierId}: tile ${key} differs between snapshot and live — the modifier is not supposed to mutate terrain`,
-          );
-        }
       } else {
-        // Empty changedTiles (grunt_surge, dust_storm). `drawBannerPrevScene`
-        // takes the "live map straight through" branch, so the banner mapRef
-        // is identical to the live mapRef.
+        // Non-mutation modifiers (wildfire, crumbling_walls, grunt_surge,
+        // frozen_river, dust_storm, rubble_clearing). The renderer skips
+        // the snapshot map allocation entirely when `tileMutationPrev` is
+        // null in modifier-defs.ts, so the banner mapRef is identical to
+        // the live mapRef regardless of whether `changedTiles` is non-empty.
+        // This is the load-bearing fix for issue #3 — non-mutation
+        // modifiers no longer pay for an unnecessary GameMap clone.
         assertEquals(
           lastBanner,
           lastMain,
-          `${modifierId}: empty-changedTiles modifier should render the banner from the live map reference`,
+          `${modifierId}: non-mutation modifier should render the banner from the live map reference (no snapshot allocation)`,
         );
       }
 

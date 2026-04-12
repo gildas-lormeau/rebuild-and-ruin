@@ -475,15 +475,43 @@ export function drawUpgradePick(
   const pick = overlay.ui.upgradePick;
   if (pick.entries.length === 0) return;
 
-  // Progressive reveal: clip to above the banner sweep line
+  // Progressive clip against the banner sweep line. Direction depends on
+  // whether the dialog is being REVEALED (upgrade-pick banner) or HIDDEN
+  // (build banner that follows once all picks are resolved):
+  //
+  //   - Reveal (entries unresolved): the dialog belongs to the NEW scene
+  //     above the sweep line. Clip to `(0, 0, W, sweepLineY)` so the dialog
+  //     paints in the top-of-screen region that's already been swept.
+  //
+  //   - Hide (entries all resolved): the dialog belongs to the OLD scene
+  //     below the sweep line — that's where the user saw it last frame
+  //     before the build banner started. Clip to `(0, sweepLineY, W, …)`
+  //     so the dialog paints in the bottom region that hasn't been swept
+  //     yet, and gets covered up as the sweep moves down.
+  //
+  // The single source of truth is `entry.choice`, exposed as `resolved`
+  // on each `UpgradePickPlayerEntry`. The renderer doesn't need to know
+  // which banner is active.
   const banner = overlay.ui?.banner;
   const duringBanner = !!banner;
   if (duringBanner) {
     const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-    const clipBottom = Math.round(banner.y - bannerH / 2);
+    // The banner strip occupies `[bannerTop, bannerBottom]` vertically.
+    // The reveal direction clips to ABOVE the strip; the hide direction
+    // clips to BELOW the strip — not from the *top* of the strip
+    // downward, otherwise the dialog backdrop overlaps the strip itself.
+    const bannerTop = Math.round(banner.y - bannerH / 2);
+    const bannerBottom = Math.round(banner.y + bannerH / 2);
+    const allResolved = pick.entries.every((entry) => entry.resolved);
     overlayCtx.save();
     overlayCtx.beginPath();
-    overlayCtx.rect(0, 0, W, clipBottom);
+    if (allResolved) {
+      // Hide direction: clip to the unswept region BELOW the banner strip.
+      overlayCtx.rect(0, bannerBottom, W, H - bannerBottom);
+    } else {
+      // Reveal direction: clip to the swept region ABOVE the banner strip.
+      overlayCtx.rect(0, 0, W, bannerTop);
+    }
     overlayCtx.clip();
   }
 

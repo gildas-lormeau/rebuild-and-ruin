@@ -15,32 +15,35 @@
  */
 
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, Tile } from "../shared/core/grid.ts";
+import { GRID_COLS } from "../shared/core/grid.ts";
 
-/** Clone a `GameMap` with the modifier-changed tiles overridden to Grass.
+/** Clone a `GameMap` with the modifier-changed tiles overridden to `prevTile`.
  *
  *  Used by `drawBannerPrevScene` so the OLD terrain shows below the banner
  *  sweep line for tile-mutation modifier reveals (high_tide, sinkhole). The
- *  terrain `WeakMap` cache (in render-map.ts) produces a separate cached
- *  image for the new map reference, which gets GC'd when the snapshot drops
- *  out of the bannerCache.
+ *  terrain `WeakMap` cache in render-map.ts produces a separate cached image
+ *  for the new map reference, which gets GC'd when the snapshot drops out of
+ *  the bannerCache.
  *
- *  Why Grass for every changed tile: both `applyHighTide` and `applySinkhole`
- *  filter `if (!isGrass(...))` before mutating, so every changed tile was
- *  Grass before the modifier ran. For entity-only modifiers (wildfire,
- *  crumbling_walls, etc.) the live tile is already Grass for these positions,
- *  so the override is a no-op — and we don't need to branch on modifier id.
+ *  `prevTile` is the modifier's pre-mutation tile value, looked up from
+ *  `modifierDef(id).tileMutationPrev` at the call site. Callers MUST NOT
+ *  invoke this function for modifiers that don't mutate tiles
+ *  (`tileMutationPrev === null`) — the renderer gates on that itself.
+ *  Centralising the prev value in `modifier-defs.ts` is what protects against
+ *  the frozen_river-class bug where the renderer used to assume `Grass` for
+ *  every modifier and would have flashed grass strips over the river.
  *
  *  The returned map shares all non-tile fields with `liveMap`. */
 export function buildModifierSnapshotMap(
   liveMap: GameMap,
   changedTiles: readonly number[],
+  prevTile: number,
 ): GameMap {
   const snapshot = liveMap.tiles.map((row) => row.slice());
   for (const key of changedTiles) {
     const r = Math.floor(key / GRID_COLS);
     const c = key % GRID_COLS;
-    snapshot[r]![c] = Tile.Grass;
+    snapshot[r]![c] = prevTile;
   }
   return { ...liveMap, tiles: snapshot };
 }

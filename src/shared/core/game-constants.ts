@@ -19,10 +19,14 @@ export type ModifierId =
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
- *  All tile keys are packed (row * GRID_COLS + col). */
+ *  All tile keys are packed (row * GRID_COLS + col).
+ *
+ *  The display label is intentionally NOT a field — it's deterministic from
+ *  `id` via `modifierDef(id).label` and any consumer that needs it should
+ *  call that lookup. Keeps the type free of derived state and the wire
+ *  serialization (`BattleStartData.modifierDiff`) parallel. */
 export interface ModifierDiff {
   readonly id: ModifierId;
-  readonly label: string;
   readonly changedTiles: readonly number[];
   readonly gruntsSpawned: number;
 }

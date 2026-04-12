@@ -27,6 +27,20 @@ interface ModifierDef {
    *  online-checkpoints.ts (restore), online-serialize.ts (serialize),
    *  phase-setup.ts resetZoneState (cleanup). */
   readonly needsCheckpoint: boolean;
+  /** Tile value the renderer should use for the banner snapshot map at
+   *  every position in `ModifierDiff.changedTiles`. Set to the modifier's
+   *  pre-mutation tile (e.g. `Tile.Grass` for sinkhole/high_tide which
+   *  flood grass into water) so the banner sweep reveals the OLD terrain.
+   *  Set to `null` for modifiers that DON'T mutate `state.map.tiles` —
+   *  the snapshot map is then skipped entirely (the visual change comes
+   *  from a separate overlay layer like `drawFrozenTiles`).
+   *
+   *  This is the single source of truth for the snapshot revert tile,
+   *  consumed by `buildModifierSnapshotMap` via the renderer in
+   *  `drawBannerPrevScene`. Adding a new modifier that mutates terrain to
+   *  a non-Grass tile (e.g. Grass→Road, Water→Grass) only requires
+   *  setting the right value here — no renderer changes. */
+  readonly tileMutationPrev: number | null;
 }
 
 /** Compile-time exhaustiveness: every ModifierId must appear in the pool.
@@ -45,6 +59,9 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 3,
     implemented: true,
     needsCheckpoint: false,
+    // Burn scars don't change the underlying tile (it's still grass, just
+    // covered in burning pits drawn as an overlay). No snapshot needed.
+    tileMutationPrev: null,
   },
   {
     id: "crumbling_walls",
@@ -53,6 +70,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 3,
     implemented: true,
     needsCheckpoint: false,
+    // Walls are entity-layer, not tile-layer. No terrain mutation.
+    tileMutationPrev: null,
   },
   {
     id: "grunt_surge",
@@ -61,6 +80,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
     needsCheckpoint: false,
+    tileMutationPrev: null,
   },
   {
     id: "frozen_river",
@@ -70,6 +90,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
     needsCheckpoint: true,
+    // Tiles stay Water — the freeze is drawn as an overlay by drawFrozenTiles.
+    tileMutationPrev: null,
   },
   {
     id: "sinkhole",
@@ -79,6 +101,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
     needsCheckpoint: true,
+    // Sinkhole tiles flood from grass to water — banner snapshot reverts.
+    tileMutationPrev: 0, // Tile.Grass — value import of Tile is restricted
   },
   {
     id: "high_tide",
@@ -88,6 +112,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
     needsCheckpoint: true,
+    // Same as sinkhole — flooded river banks were grass before.
+    tileMutationPrev: 0, // Tile.Grass — value import of Tile is restricted
   },
   {
     id: "dust_storm",
@@ -97,6 +123,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
     needsCheckpoint: false,
+    tileMutationPrev: null,
   },
   {
     id: "rubble_clearing",
@@ -106,6 +133,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 3,
     implemented: true,
     needsCheckpoint: false,
+    // Dead cannons + burning pits are entity-layer. No tile mutation.
+    tileMutationPrev: null,
   },
 ];
 /** Modifiers with gameplay code — used for random selection. */

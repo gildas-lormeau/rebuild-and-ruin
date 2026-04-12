@@ -231,10 +231,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     loupeHandle: null,
   };
 
-  /** Refresh lobby seed + map preview only if the seed changed. */
+  /** Refresh lobby seed + map preview when the seed changed *or* no map
+   *  preview exists yet. The second condition covers first-entry bootstrap
+   *  when `computeGameSeed()` happens to match the initial `lobby.seed = 0`
+   *  (user picked seed "0" via localStorage) — without the null check, the
+   *  seed-equality branch skips map generation and `lobby.map` stays null
+   *  through the first lobby render, crashing `drawMap`. */
   function refreshLobbySeed(): void {
     const newSeed = computeGameSeed(runtimeState.settings);
-    if (newSeed !== runtimeState.lobby.seed) {
+    if (
+      newSeed !== runtimeState.lobby.seed ||
+      runtimeState.lobby.map === null
+    ) {
       runtimeState.lobby.seed = newSeed;
       config.log(`[lobby] seed: ${newSeed}`);
       const map = generateMap(newSeed);

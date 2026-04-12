@@ -37,6 +37,7 @@ import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import {
   isActivePlayer,
   type ValidPlayerSlot,
@@ -324,7 +325,7 @@ export function handleBattleStartTransition(
         transitionCtx.ui.banner.modifierDiff = modifierDiff;
         showModifierRevealBanner(
           transitionCtx.ui.showBanner,
-          modifierDiff.label,
+          modifierDef(modifierDiff.id).label,
           () => {
             showBattlePhaseBanner(transitionCtx.ui.showBanner, proceedToBattle);
           },

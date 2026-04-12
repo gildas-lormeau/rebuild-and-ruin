@@ -119,10 +119,11 @@ export interface BattleStartData {
   highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
-  /** Modifier visual diff for the reveal banner. null = no modifier this round. */
+  /** Modifier visual diff for the reveal banner. null = no modifier this round.
+   *  The display label is intentionally NOT serialized — it's deterministic
+   *  from `id` via `modifierDef(id).label` and both ends share `modifier-defs.ts`. */
   modifierDiff: {
     id: ModifierId;
-    label: string;
     changedTiles: readonly number[];
     gruntsSpawned: number;
   } | null;

@@ -126,7 +126,8 @@ export function createBattleStartMessage(
     modifierDiff: modifierDiff
       ? {
           id: modifierDiff.id,
-          label: modifierDiff.label,
+          // label intentionally omitted from the wire — derived from id at
+          // the watcher via `modifierDef(id).label`. See checkpoint-data.ts.
           changedTiles: [...modifierDiff.changedTiles],
           gruntsSpawned: modifierDiff.gruntsSpawned,
         }

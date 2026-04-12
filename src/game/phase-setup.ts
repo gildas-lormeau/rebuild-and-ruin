@@ -53,7 +53,6 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
@@ -460,20 +459,19 @@ function decayBurningPits(state: GameState): void {
 function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
   if (!mod) return null;
-  const { label } = modifierDef(mod);
   if (mod === MODIFIER_ID.WILDFIRE) {
     const scar = applyWildfire(state);
     recheckTerritory(state);
-    return { id: mod, label, changedTiles: [...scar], gruntsSpawned: 0 };
+    return { id: mod, changedTiles: [...scar], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.CRUMBLING_WALLS) {
     const destroyed = applyCrumblingWalls(state);
     recheckTerritory(state);
-    return { id: mod, label, changedTiles: destroyed, gruntsSpawned: 0 };
+    return { id: mod, changedTiles: destroyed, gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.GRUNT_SURGE) {
     const count = applyGruntSurge(state);
-    return { id: mod, label, changedTiles: [], gruntsSpawned: count };
+    return { id: mod, changedTiles: [], gruntsSpawned: count };
   }
   if (mod === MODIFIER_ID.FROZEN_RIVER) {
     applyFrozenRiver(state);
@@ -482,24 +480,24 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
     // `changedTiles` would trip `buildModifierSnapshotMap` into reverting
     // water→grass in the banner prev-scene, flashing grass strips where
     // the river should be. Same pattern as grunt_surge / dust_storm.
-    return { id: mod, label, changedTiles: [], gruntsSpawned: 0 };
+    return { id: mod, changedTiles: [], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.SINKHOLE) {
     const sunk = applySinkhole(state);
     recheckTerritory(state);
-    return { id: mod, label, changedTiles: [...sunk], gruntsSpawned: 0 };
+    return { id: mod, changedTiles: [...sunk], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.HIGH_TIDE) {
     const flooded = applyHighTide(state);
     recheckTerritory(state);
-    return { id: mod, label, changedTiles: [...flooded], gruntsSpawned: 0 };
+    return { id: mod, changedTiles: [...flooded], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.DUST_STORM) {
-    return { id: mod, label, changedTiles: [], gruntsSpawned: 0 };
+    return { id: mod, changedTiles: [], gruntsSpawned: 0 };
   }
   if (mod === MODIFIER_ID.RUBBLE_CLEARING) {
     const cleared = applyRubbleClearing(state);
-    return { id: mod, label, changedTiles: cleared, gruntsSpawned: 0 };
+    return { id: mod, changedTiles: cleared, gruntsSpawned: 0 };
   }
   return null;
 }
