@@ -45,8 +45,29 @@ interface Duplicate {
   fields: string[];
 }
 
+/** An inline object literal in a signature that matches a named export. */
+interface InlineMatch {
+  file: string;
+  line: number;
+  /** Description of where the inline literal lives (e.g. "param opts of doThing"). */
+  context: string;
+  /** The named type it should use instead. */
+  canonical: { name: string; file: string };
+  fields: string[];
+}
+
 interface BaselineEntry {
   pair: string;
+}
+
+interface InlineBaselineEntry {
+  /** file:line → canonicalName key */
+  key: string;
+}
+
+interface BaselineFile {
+  overlaps: BaselineEntry[];
+  inline: InlineBaselineEntry[];
 }
 
 interface LayerGroup {
@@ -76,6 +97,10 @@ const exactDuplicates: Duplicate[] = [];
 /** Map from hash → canonical ShapeEntry for suggestion messages. */
 const canonicalByHash = new Map<string, ShapeEntry>();
 const overlapDuplicates: Duplicate[] = [];
+/** Index of exported named shapes by hash → best canonical. */
+const exportedByHash = new Map<string, ShapeEntry>();
+const inlineMatches: InlineMatch[] = [];
+const inlineBaseline = loadBaseline().inline;
 
 /** Build a file→layer-index map from .import-layers.json. */
 function loadLayerMap(): Map<string, number> {
@@ -145,30 +170,6 @@ for (const sourceFile of project.getSourceFiles()) {
   }
 }
 
-/** Normalize a single member to a canonical string (name + type text). */
-function normalizeMember(member: TypeElementTypes): string | null {
-  if (member.isKind(SyntaxKind.PropertySignature)) {
-    const name = member.getName();
-    const typeText = member.getTypeNode()?.getText() ?? "unknown";
-    const optional = member.hasQuestionToken() ? "?" : "";
-    return `${name}${optional}:${typeText}`;
-  }
-  if (member.isKind(SyntaxKind.MethodSignature)) {
-    const name = member.getName();
-    const params = member
-      .getParameters()
-      .map((pm) => {
-        const pName = pm.getName();
-        const pType = pm.getTypeNode()?.getText() ?? "unknown";
-        return `${pName}:${pType}`;
-      })
-      .join(",");
-    const ret = member.getReturnTypeNode()?.getText() ?? "void";
-    return `${name}(${params}):${ret}`;
-  }
-  return null;
-}
-
 for (const shape of shapes) {
   const group = byHash.get(shape.hash) ?? [];
   group.push(shape);
@@ -210,6 +211,124 @@ function pickCanonical(entries: ShapeEntry[]): ShapeEntry {
   })[0];
 }
 
+for (const shape of shapes) {
+  if (!shape.exported) continue;
+  const existing = exportedByHash.get(shape.hash);
+  if (!existing || shape.layer < existing.layer) {
+    exportedByHash.set(shape.hash, shape);
+  }
+}
+
+for (const sourceFile of project.getSourceFiles()) {
+  const relPath = sourceFile.getFilePath().replace(`${process.cwd()}/`, "");
+  const fileLayer = layerMap.get(relPath) ?? Number.POSITIVE_INFINITY;
+
+  // Walk all TypeLiteral nodes in the file
+  sourceFile.forEachDescendant((node) => {
+    if (!node.isKind(SyntaxKind.TypeLiteral)) return;
+
+    // Skip if this is the direct type node of an interface or type alias
+    // (already handled by pass 1)
+    const parent = node.getParent();
+    if (
+      parent &&
+      (parent.isKind(SyntaxKind.TypeAliasDeclaration) ||
+        parent.isKind(SyntaxKind.InterfaceDeclaration))
+    ) {
+      return;
+    }
+
+    const fields = extractTypeLiteralFields(node);
+    if (!fields) return;
+
+    const hash = fields.join(";");
+    const canonical = exportedByHash.get(hash);
+    if (!canonical) return;
+
+    // Skip if file can't import canonical (lower layer than canonical)
+    if (fileLayer < canonical.layer) return;
+
+    // Skip self-file matches (inline literal inside its own type's file)
+    if (relPath === canonical.file) return;
+
+    const matchKey = `${relPath}:${node.getStartLineNumber()} → ${canonical.name}`;
+    // Skip baselined inline matches
+    if (!updateBaseline && inlineBaseline.has(matchKey)) return;
+
+    // Build context description
+    let context = "inline type literal";
+    if (parent?.isKind(SyntaxKind.Parameter)) {
+      const paramName = parent.getName();
+      const fn = parent.getParent();
+      if (fn && "getName" in fn && typeof fn.getName === "function") {
+        context = `param "${paramName}" of ${fn.getName()}()`;
+      } else {
+        context = `param "${paramName}"`;
+      }
+    } else if (
+      parent?.isKind(SyntaxKind.FunctionDeclaration) ||
+      parent?.isKind(SyntaxKind.MethodDeclaration) ||
+      parent?.isKind(SyntaxKind.ArrowFunction)
+    ) {
+      // Return type position
+      if ("getName" in parent && typeof parent.getName === "function") {
+        context = `return type of ${parent.getName()}()`;
+      } else {
+        context = "return type";
+      }
+    } else if (parent?.isKind(SyntaxKind.PropertySignature)) {
+      context = `property "${parent.getName()}"`;
+    }
+
+    inlineMatches.push({
+      file: relPath,
+      line: node.getStartLineNumber(),
+      context,
+      canonical: { name: canonical.name, file: canonical.file },
+      fields,
+    });
+  });
+}
+
+/**
+ * Extract normalized fields from a TypeLiteral node.
+ * Returns null if fewer than minFields members or not a TypeLiteral.
+ */
+function extractTypeLiteralFields(
+  node: import("ts-morph").TypeLiteralNode,
+): string[] | null {
+  const members = node.getMembers();
+  const fields = members
+    .map((m) => normalizeMember(m as TypeElementTypes))
+    .filter((f): f is string => f !== null)
+    .sort();
+  return fields.length >= minFields ? fields : null;
+}
+
+/** Normalize a single member to a canonical string (name + type text). */
+function normalizeMember(member: TypeElementTypes): string | null {
+  if (member.isKind(SyntaxKind.PropertySignature)) {
+    const name = member.getName();
+    const typeText = member.getTypeNode()?.getText() ?? "unknown";
+    const optional = member.hasQuestionToken() ? "?" : "";
+    return `${name}${optional}:${typeText}`;
+  }
+  if (member.isKind(SyntaxKind.MethodSignature)) {
+    const name = member.getName();
+    const params = member
+      .getParameters()
+      .map((pm) => {
+        const pName = pm.getName();
+        const pType = pm.getTypeNode()?.getText() ?? "unknown";
+        return `${pName}:${pType}`;
+      })
+      .join(",");
+    const ret = member.getReturnTypeNode()?.getText() ?? "void";
+    return `${name}(${params}):${ret}`;
+  }
+  return null;
+}
+
 if (!exactOnly) {
   const exactKeys = new Set(
     exactDuplicates.flatMap((d) =>
@@ -248,7 +367,7 @@ if (!exactOnly) {
 
       if (overlap >= overlapThreshold && intersection.length >= minFields) {
         const key = pairKey(shapeA, shapeB);
-        if (!updateBaseline && baseline.has(key)) continue;
+        if (!updateBaseline && baseline.overlaps.has(key)) continue;
 
         overlapDuplicates.push({
           kind: "subset",
@@ -264,29 +383,49 @@ if (!exactOnly) {
   }
 }
 
-function loadBaseline(): Set<string> {
+function loadBaseline(): { overlaps: Set<string>; inline: Set<string> } {
   try {
     const raw = fs.readFileSync(BASELINE_FILE, "utf-8");
-    const entries: BaselineEntry[] = JSON.parse(raw);
-    return new Set(entries.map((en) => en.pair));
+    const parsed = JSON.parse(raw);
+    // Support both old format (array of {pair}) and new format ({overlaps, inline})
+    if (Array.isArray(parsed)) {
+      return {
+        overlaps: new Set(parsed.map((en: BaselineEntry) => en.pair)),
+        inline: new Set(),
+      };
+    }
+    const file = parsed as BaselineFile;
+    return {
+      overlaps: new Set((file.overlaps ?? []).map((en) => en.pair)),
+      inline: new Set((file.inline ?? []).map((en) => en.key)),
+    };
   } catch {
-    return new Set();
+    return { overlaps: new Set(), inline: new Set() };
   }
 }
 
 if (updateBaseline) {
-  const baselineEntries: BaselineEntry[] = overlapDuplicates.map((dup) => ({
+  const overlapEntries: BaselineEntry[] = overlapDuplicates.map((dup) => ({
     pair: pairKey(dup.entries[0], dup.entries[1]),
   }));
-  baselineEntries.sort((en1, en2) => en1.pair.localeCompare(en2.pair));
-  fs.writeFileSync(
-    BASELINE_FILE,
-    `${JSON.stringify(baselineEntries, null, 2)}\n`,
-  );
+  overlapEntries.sort((en1, en2) => en1.pair.localeCompare(en2.pair));
+  const inlineEntries: InlineBaselineEntry[] = inlineMatches.map((match) => ({
+    key: inlineKey(match),
+  }));
+  inlineEntries.sort((en1, en2) => en1.key.localeCompare(en2.key));
+  const baselineFile: BaselineFile = {
+    overlaps: overlapEntries,
+    inline: inlineEntries,
+  };
+  fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(baselineFile, null, 2)}\n`);
   console.log(
-    `Wrote ${baselineEntries.length} overlap pairs to ${BASELINE_FILE}`,
+    `Wrote ${overlapEntries.length} overlap pairs + ${inlineEntries.length} inline matches to ${BASELINE_FILE}`,
   );
   process.exit(0);
+}
+
+function inlineKey(match: InlineMatch): string {
+  return `${match.file}:${match.line} → ${match.canonical.name}`;
 }
 
 function pairKey(entryA: DuplicateEntry, entryB: DuplicateEntry): string {
@@ -296,9 +435,19 @@ function pairKey(entryA: DuplicateEntry, entryB: DuplicateEntry): string {
 }
 
 if (jsonOutput) {
-  console.log(JSON.stringify(getAllDuplicates(), null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        exact: exactDuplicates,
+        overlap: overlapDuplicates,
+        inline: inlineMatches,
+      },
+      null,
+      2,
+    ),
+  );
 } else {
-  if (getAllDuplicates().length === 0) {
+  if (!hasIssues()) {
     console.log("No shape duplicates found.");
     process.exit(0);
   }
@@ -334,6 +483,19 @@ if (jsonOutput) {
     }
   }
 
+  if (inlineMatches.length > 0) {
+    console.log(
+      `\n=== Inline literals matching named exports (${inlineMatches.length}) ===\n`,
+    );
+    for (const match of inlineMatches) {
+      console.log(`  ${match.file}:${match.line}  ${match.context}`);
+      console.log(
+        `  → use ${match.canonical.name} from "${match.canonical.file}"`,
+      );
+      console.log();
+    }
+  }
+
   if (overlapDuplicates.length > 0) {
     console.log(
       `\n=== New overlap pairs (${overlapDuplicates.length}, ≥${overlapThreshold * 100}%) ===\n`,
@@ -352,14 +514,19 @@ if (jsonOutput) {
 
   const total =
     exactDuplicates.reduce((n, d) => n + d.entries.length, 0) +
-    overlapDuplicates.length;
+    overlapDuplicates.length +
+    inlineMatches.length;
   console.log(
-    `Total: ${exactDuplicates.length} exact groups, ${overlapDuplicates.length} new overlap pairs (${total} locations)`,
+    `Total: ${exactDuplicates.length} exact groups, ${inlineMatches.length} inline matches, ${overlapDuplicates.length} new overlap pairs (${total} locations)`,
   );
 }
 
-process.exit(getAllDuplicates().length > 0 ? 1 : 0);
+process.exit(hasIssues() ? 1 : 0);
 
-function getAllDuplicates(): Duplicate[] {
-  return [...exactDuplicates, ...overlapDuplicates];
+function hasIssues(): boolean {
+  return (
+    exactDuplicates.length > 0 ||
+    overlapDuplicates.length > 0 ||
+    inlineMatches.length > 0
+  );
 }
