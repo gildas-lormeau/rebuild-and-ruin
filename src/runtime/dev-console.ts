@@ -25,6 +25,7 @@ interface DevConsole {
   map: (layer?: MapLayer) => void;
   mapText: (opts?: MapTextOptions) => string;
   speed: (multiplier?: number) => number;
+  fixedStep: (ms?: number | false) => void;
   pause: () => void;
   step: () => void;
 }
@@ -128,6 +129,23 @@ export function exposeDevConsole(
       return runtimeState.speedMultiplier;
     },
 
+    fixedStep(ms?: number | false) {
+      if (ms === false) {
+        runtimeState.fixedStepMs = undefined;
+        console.log("Fixed step: off (variable rAF timing)");
+      } else if (ms !== undefined) {
+        runtimeState.fixedStepMs = ms;
+        console.log(`Fixed step: ${ms}ms per frame`);
+      } else {
+        const current = runtimeState.fixedStepMs;
+        console.log(
+          current !== undefined
+            ? `Fixed step: ${current}ms per frame`
+            : "Fixed step: off (variable rAF timing)",
+        );
+      }
+    },
+
     pause() {
       runtimeState.paused = !runtimeState.paused;
       console.log(runtimeState.paused ? "Paused" : "Resumed");
@@ -179,6 +197,13 @@ function printHelp(): void {
   normal-sized dt — preserves determinism and collision boundaries.
   Slow-mo is not supported; use __dev.pause() to freeze.
 
+%cFixed Step%c
+  __dev.fixedStep()        Show current fixed-step state
+  __dev.fixedStep(16)      Lock frame dt to 16ms (deterministic)
+  __dev.fixedStep(false)   Disable (use variable rAF timing)
+  Auto-enabled when a custom seed is set. Makes browser simulation
+  match headless tests so seeds reproduce across environments.
+
 %cPause%c
   __dev.pause()            Toggle pause
   __dev.step()             Advance one frame (while paused)
@@ -188,6 +213,8 @@ function printHelp(): void {
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
+    RESET_CSS,
+    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,

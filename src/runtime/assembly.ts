@@ -82,6 +82,11 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
    *  multiple tiles), drift the RNG consumption order, and cause phase
    *  timers to skip event boundaries. */
   function clampedFrameDt(now: number): number {
+    const fixed = deps.runtimeState.fixedStepMs;
+    if (fixed !== undefined) {
+      deps.runtimeState.lastTime = now;
+      return fixed / 1000;
+    }
     const raw = Math.min(
       (now - deps.runtimeState.lastTime) / 1000,
       MAX_FRAME_DT,

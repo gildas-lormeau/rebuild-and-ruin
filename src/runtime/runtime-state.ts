@@ -152,6 +152,10 @@ export interface RuntimeState {
   // Dev tools
   /** Game speed multiplier (dev-only). 1 = normal, 2 = double, 0.5 = half. */
   speedMultiplier: number;
+  /** Fixed frame step in ms (dev-only). When set, clampedFrameDt returns this
+   *  constant instead of computing from wall-clock timestamps — makes the
+   *  browser simulation deterministic so seeds reproduce across environments. */
+  fixedStepMs: number | undefined;
 }
 
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
@@ -280,6 +284,7 @@ export function createRuntimeState(): RuntimeState {
 
     demoReturnTimer: undefined,
     speedMultiplier: 1,
+    fixedStepMs: undefined,
   };
 }
 
