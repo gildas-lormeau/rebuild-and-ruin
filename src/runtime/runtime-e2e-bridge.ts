@@ -147,6 +147,25 @@ interface E2EBridge {
     messages: E2ENetworkMessage[];
     logLevel: "type" | "full";
   };
+
+  /** Banner lifecycle events forwarded from the game event bus.
+   *  Pushed on BANNER_START and BANNER_END — tests use these for
+   *  precise frame-timing of screenshot captures. */
+  bannerEvents: E2EBannerEvent[];
+}
+
+interface E2EBannerEvent {
+  type: "start" | "end";
+  text: string;
+  modifierId?: string;
+  round: number;
+  /** Sequence index within the bannerEvents array. */
+  frame: number;
+  /** Canvas snapshot (PNG dataURL) captured synchronously at the moment
+   *  the event fires — before any chained callback can re-render. Tests
+   *  read this for precise boundary screenshots. Null if the canvas
+   *  element isn't found (shouldn't happen in e2e). */
+  canvasSnapshot: string | null;
 }
 
 interface E2EBridgeDeps {
@@ -167,6 +186,10 @@ interface E2EBridgeDeps {
  *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
  *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
+/** One-shot: subscribe to BANNER_START / BANNER_END on the game event bus
+ *  and forward them to `bridge.bannerEvents`. Deferred until state is ready
+ *  (the bus lives on `runtimeState.state`). Idempotent. */
+let busSubscribed = false;
 
 /** Update the E2E bridge on `window.__e2e` with the current frame's state.
  *  Called once per frame from the main loop (dev-only). */
@@ -204,6 +227,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       paused: false,
       step: false,
       network: { messages: [], logLevel: "type" },
+      bannerEvents: [],
     };
     win.__e2e = bridge;
   }
@@ -220,7 +244,45 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
     }
   }
 
+  subscribeBannerBus(ref, deps);
   updateBridgeSnapshots(ref, deps);
+}
+
+function subscribeBannerBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
+  if (busSubscribed || !isStateReady(deps.runtimeState)) return;
+  busSubscribed = true;
+  const bus = deps.runtimeState.state.bus;
+
+  // Capture a small PNG synchronously — runs inside the bus handler
+  // BEFORE any chained callback can re-render the canvas.
+  const captureCanvas = (): string | null => {
+    const canvas =
+      typeof document !== "undefined"
+        ? (document.getElementById("canvas") as HTMLCanvasElement | null)
+        : null;
+    if (!canvas) return null;
+    return canvas.toDataURL("image/png");
+  };
+
+  bus.on("bannerStart", (event) => {
+    ref.bannerEvents.push({
+      type: "start",
+      text: event.text,
+      modifierId: event.modifierId,
+      round: event.round,
+      frame: ref.bannerEvents.length,
+      canvasSnapshot: captureCanvas(),
+    });
+  });
+  bus.on("bannerEnd", (event) => {
+    ref.bannerEvents.push({
+      type: "end",
+      text: event.text,
+      round: event.round,
+      frame: ref.bannerEvents.length,
+      canvasSnapshot: captureCanvas(),
+    });
+  });
 }
 
 /** Snapshot all bridge fields from the current frame's runtime state. */

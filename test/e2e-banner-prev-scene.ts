@@ -1,52 +1,29 @@
 /**
- * E2E test: capture canvas screenshots at key banner-sweep frames so we
- * can verify (visually, at first) that:
+ * E2E test: capture 5 frames per banner transition and verify boundaries.
  *
- *   1. During a modifier banner (cannon→battle), the prev-scene below
- *      the sweep line shows the cannon-place scene, NOT the post-battle
- *      territory polygons.
+ * For EVERY banner that fires during a 10-round modern-mode game:
+ *   1-previous: last frame before banner appeared
+ *   2-first:    first frame with banner visible
+ *   3-mid:      mid-sweep frame
+ *   4-last:     last frame with banner strip on screen
+ *   5-next:     first frame after banner disappeared
  *
- *   2. During the build banner (after an upgrade-pick round), the
- *      upgrade-pick dialog progressively fades out with the sweep —
- *      visible at the top of the screen, hidden at the bottom.
+ * Assertions: previous ≈ first, last ≈ next (masking banner strip + status bar).
+ * All frames saved to tmp/screenshots/<banner-label>/ for visual inspection.
  *
- * First-pass usage: run the test and look at the dumped PNGs in
- * `test/screenshots/`. If they look correct, the screenshots can be
- * locked in as references and future runs compared against them with
- * a pixel-diff tolerance.
- *
- * This is a deliberate departure from observer/state-based tests: it
- * captures the real pixel output of the real renderer, driven by the
- * real AI, with no reconstruction layer between the test and what the
- * user sees.
- *
- * Run: `deno run -A test/e2e-banner-prev-scene.ts`
- * Requires: `npm run dev` (vite on port 5173)
+ * Run: deno run -A test/e2e-banner-prev-scene.ts
+ * Requires: npm run dev
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { E2EGame, E2ETest } from "./e2e-helpers.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
-interface CapturedShot {
-  /** base64 PNG payload returned from canvas.toDataURL */
-  dataUrl: string;
-  bannerText: string;
-  modifierId: string | null;
-  bannerY: number;
-  bannerProgress: number;
-  round: number;
-  phase: string;
-  label: string;
-  canvasW: number;
-  canvasH: number;
-}
-
-interface CaptureResult {
-  modifierShot: CapturedShot | null;
-  upgradeShot: CapturedShot | null;
-  framesChecked: number;
-}
+const TARGET_W = 400;
+const DIFF_THRESHOLD = 30;
+const MAX_DIFF_PERCENT = 1.0;
+const MAP_H = 448;
+const BANNER_RATIO = 0.15;
 
 run().catch((err) => {
   console.error(err);
@@ -54,16 +31,11 @@ run().catch((err) => {
 });
 
 async function run(): Promise<void> {
-  const test = new E2ETest("banner screenshots (visual-first)");
+  const test = new E2ETest("all banner transitions");
 
-  // Seed covers both modifier:wildfire and upgrade:small_pieces (from
-  // seed-fixtures.json — seed 0 in modern mode fires several modifiers
-  // and several upgrade picks within 10 rounds).
   const seed = (SEED_FIXTURES as Record<string, number>)["modifier:wildfire"];
   if (seed === undefined) {
-    console.error(
-      "missing seed for modifier:wildfire — run `npm run record-seeds`",
-    );
+    console.error("missing seed");
     Deno.exit(1);
   }
 
@@ -76,143 +48,295 @@ async function run(): Promise<void> {
   });
 
   try {
-    await game.page.evaluate(() => {
-      const win = globalThis as unknown as Record<string, unknown>;
-      const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-
-      const result: CaptureResult = {
-        modifierShot: null,
-        upgradeShot: null,
-        framesChecked: 0,
-      };
-      win.__bannerShotCapture = result;
-
-      // Snapshot helper: downscales the live canvas onto a 400x???-sized
-      // offscreen canvas (so the saved PNG is small enough for the
-      // session-context budget) and returns the encoded PNG payload.
-      const TARGET_W = 400;
-      function snapshot(label: string): CapturedShot | null {
-        const e2e = win.__e2e as Record<string, unknown> | undefined;
-        if (!e2e) return null;
-        const overlay = e2e.overlay as Record<string, unknown> | undefined;
-        const banner = overlay?.banner as
-          | { y: number; text: string; modifierDiff: { id: string } | null }
-          | null
-          | undefined;
-
-        const aspect = canvas.height / canvas.width;
-        const targetH = Math.round(TARGET_W * aspect);
-        const small = document.createElement("canvas");
-        small.width = TARGET_W;
-        small.height = targetH;
-        const smallCtx = small.getContext("2d");
-        if (!smallCtx) return null;
-        smallCtx.imageSmoothingEnabled = true;
-        smallCtx.drawImage(canvas, 0, 0, TARGET_W, targetH);
-
-        return {
-          dataUrl: small.toDataURL("image/png"),
-          bannerText: banner?.text ?? "",
-          modifierId: banner?.modifierDiff?.id ?? null,
-          bannerY: banner?.y ?? 0,
-          bannerProgress: -1, // progress not on bridge; ignore for now
-          round: (e2e.round as number) ?? 0,
-          phase: (e2e.phase as string) ?? "",
-          label,
-          canvasW: TARGET_W,
-          canvasH: targetH,
-        };
-      }
-
-      const prevRAF = globalThis.requestAnimationFrame;
-      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
-        prevRAF((time: number) => {
-          cb(time);
-          result.framesChecked++;
-          if (result.modifierShot !== null && result.upgradeShot !== null) {
-            return;
-          }
-
-          const e2e = win.__e2e as Record<string, unknown> | undefined;
-          if (!e2e) return;
-          const round = (e2e.round as number) ?? 0;
-          const overlay = e2e.overlay as Record<string, unknown> | undefined;
-          const banner = overlay?.banner as
-            | { y: number; text: string; modifierDiff: unknown }
-            | null
-            | undefined;
-          if (!banner) return;
-
-          // Want to capture each shot in the middle of its sweep — banner.y
-          // is roughly in [-bannerH/2, H+bannerH/2], so mid-sweep is y ≈ H/2.
-          // H is the map-pixel height = 448.
-          const MID_LOW = 200;
-          const MID_HIGH = 280;
-          const yInMid = banner.y >= MID_LOW && banner.y <= MID_HIGH;
-          if (!yInMid) return;
-
-          // Modifier banner — cannon→battle with modifierDiff set, round ≥ 3.
-          if (
-            round >= 3 &&
-            banner.modifierDiff !== null &&
-            result.modifierShot === null
-          ) {
-            result.modifierShot = snapshot("modifier-mid-sweep");
-            return;
-          }
-
-          // Build banner AFTER upgrades — identified by the exact banner
-          // title string ("Build & Repair"). The upgrade-pick banner
-          // ("Choose Upgrade") runs before this and would otherwise
-          // match the `modifierDiff === null` filter. We also wait for
-          // round ≥ 4 so we're past the first upgrade-pick round.
-          if (
-            round >= 4 &&
-            banner.text === "Build & Repair" &&
-            banner.modifierDiff === null &&
-            result.upgradeShot === null
-          ) {
-            result.upgradeShot = snapshot("build-banner-after-upgrade");
-            return;
-          }
-        });
-    });
-
-    // Give the game 2 minutes of fast-mode RAF to reach both captures.
-    await game.page.waitForFunction(
-      () => {
+    const banners = await game.page.evaluate(
+      ([targetW, diffThresh, mapH, bannerRatio]: [
+        number,
+        number,
+        number,
+        number,
+      ]) => {
         const win = globalThis as unknown as Record<string, unknown>;
-        const cap = win.__bannerShotCapture as CaptureResult | undefined;
-        return cap?.modifierShot !== null && cap?.upgradeShot !== null;
+        const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) throw new Error("no 2d context");
+
+        const bannerHMap = Math.round(mapH * bannerRatio);
+
+        function smallPng(): string {
+          const aspect = canvas.height / canvas.width;
+          const th = Math.round(targetW * aspect);
+          const small = document.createElement("canvas");
+          small.width = targetW;
+          small.height = th;
+          const sctx = small.getContext("2d")!;
+          sctx.imageSmoothingEnabled = true;
+          sctx.drawImage(canvas, 0, 0, targetW, th);
+          return small.toDataURL("image/png");
+        }
+
+        function fullPixels(): Uint8ClampedArray {
+          return ctx!.getImageData(0, 0, canvas.width, canvas.height).data;
+        }
+
+        function diffPct(
+          bufA: Uint8ClampedArray,
+          bufB: Uint8ClampedArray,
+          ySkipA: number,
+          ySkipB: number,
+        ): number {
+          const cw = canvas.width;
+          const gameH = canvas.height - 40;
+          let diff = 0;
+          let total = 0;
+          for (let y = 0; y < gameH; y++) {
+            if (y >= ySkipA && y < ySkipB) continue;
+            for (let x = 0; x < cw; x++) {
+              const idx = (y * cw + x) * 4;
+              const dr = Math.abs(bufA[idx]! - bufB[idx]!);
+              const dg = Math.abs(bufA[idx + 1]! - bufB[idx + 1]!);
+              const db = Math.abs(bufA[idx + 2]! - bufB[idx + 2]!);
+              if (dr + dg + db > diffThresh) diff++;
+              total++;
+            }
+          }
+          return total > 0 ? (diff / total) * 100 : 0;
+        }
+
+        // Per-banner tracker.
+        interface BannerCapture {
+          label: string;
+          round: number;
+          modifierId: string | null;
+          previous: string | null;
+          first: string | null;
+          mid: string | null;
+          last: string | null;
+          next: string | null;
+          startDiffPct: number;
+          endDiffPct: number;
+          done: boolean;
+          /** True if this banner starts right after another ends (same tick). */
+          chainedStart: boolean;
+          /** True if this banner ends right before another starts (same tick). */
+          chainedEnd: boolean;
+        }
+
+        type BannerEvent = {
+          type: "start" | "end";
+          text: string;
+          modifierId?: string;
+          round: number;
+        };
+
+        const captures: BannerCapture[] = [];
+        let activeTracker: BannerCapture | null = null;
+        let prevPng: string | null = null;
+        let prevPixels: Uint8ClampedArray | null = null;
+        let lastCandidatePng: string | null = null;
+        let lastCandidatePixels: Uint8ClampedArray | null = null;
+        let prevEventCount = 0;
+        // After a banner ends, capture "next" on the following rAF.
+        let pendingNextTracker: BannerCapture | null = null;
+        // Set true when a banner ends, cleared after one rAF tick.
+        // If a new start fires while this is true, they're chained.
+        let bannerJustEnded = false;
+
+        return new Promise<BannerCapture[]>((resolve) => {
+          const prevRAF = globalThis.requestAnimationFrame;
+          globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
+            prevRAF((time: number) => {
+              cb(time);
+
+              const e2e = win.__e2e as Record<string, unknown> | undefined;
+              if (!e2e) return;
+              const mode = e2e.mode as string | undefined;
+              if (mode === "STOPPED") {
+                resolve(captures);
+                return;
+              }
+
+              const events = (e2e.bannerEvents ?? []) as BannerEvent[];
+              const overlay = e2e.overlay as
+                | Record<string, unknown>
+                | undefined;
+              const banner = overlay?.banner as
+                | { y: number }
+                | null
+                | undefined;
+              const newEvents = events.slice(prevEventCount);
+              prevEventCount = events.length;
+
+              const curPng = smallPng();
+              const curPixels = fullPixels();
+
+              // ── "next" capture (one frame after previous banner ended) ──
+              if (pendingNextTracker) {
+                pendingNextTracker.next = curPng;
+                if (
+                  !pendingNextTracker.done &&
+                  lastCandidatePixels
+                ) {
+                  const scale = canvas.height / (mapH + 32);
+                  const bannerHPx = Math.round(bannerHMap * scale);
+                  const skipA = canvas.height - 40 - bannerHPx - 8;
+                  pendingNextTracker.endDiffPct = diffPct(
+                    lastCandidatePixels,
+                    curPixels,
+                    skipA,
+                    canvas.height,
+                  );
+                }
+                pendingNextTracker.done = true;
+                pendingNextTracker = null;
+              }
+
+              // ── Detect chaining ──
+              const prevJustEnded = bannerJustEnded;
+              bannerJustEnded = false;
+
+              // ── Process new bus events ──
+              for (const ev of newEvents) {
+                if (ev.type === "start") {
+                  const chainedStart = prevJustEnded;
+                  if (chainedStart && captures.length > 0) {
+                    captures[captures.length - 1]!.chainedEnd = true;
+                  }
+                  const tracker: BannerCapture = {
+                    label: ev.modifierId
+                      ? `${ev.text} [${ev.modifierId}]`
+                      : ev.text,
+                    round: ev.round,
+                    modifierId: ev.modifierId ?? null,
+                    previous: prevPng,
+                    first: curPng,
+                    mid: null,
+                    last: null,
+                    next: null,
+                    startDiffPct: -1,
+                    endDiffPct: -1,
+                    done: false,
+                    chainedStart,
+                    chainedEnd: false,
+                  };
+                  if (!chainedStart && prevPixels) {
+                    const scale = canvas.height / (mapH + 32);
+                    const bannerHPx = Math.round(bannerHMap * scale);
+                    tracker.startDiffPct = diffPct(
+                      prevPixels,
+                      curPixels,
+                      0,
+                      bannerHPx + 8,
+                    );
+                  }
+                  captures.push(tracker);
+                  activeTracker = tracker;
+                  lastCandidatePng = null;
+                  lastCandidatePixels = null;
+                }
+
+                if (ev.type === "end" && activeTracker) {
+                  bannerJustEnded = true;
+                  activeTracker.last = lastCandidatePng ?? curPng;
+                  pendingNextTracker = activeTracker;
+                  activeTracker = null;
+                }
+              }
+
+              // ── Active banner: capture mid + track last candidate ──
+              if (activeTracker && banner) {
+                if (
+                  banner.y >= mapH * 0.4 &&
+                  banner.y <= mapH * 0.6 &&
+                  !activeTracker.mid
+                ) {
+                  activeTracker.mid = curPng;
+                }
+                // Strip is on screen when its top edge is above screen bottom.
+                if (banner.y - bannerHMap / 2 < mapH) {
+                  lastCandidatePng = curPng;
+                  lastCandidatePixels = curPixels;
+                }
+              }
+
+              prevPng = curPng;
+              prevPixels = curPixels;
+            });
+        });
       },
-      undefined,
-      { timeout: 120_000 },
+      [TARGET_W, DIFF_THRESHOLD, MAP_H, BANNER_RATIO] as [
+        number,
+        number,
+        number,
+        number,
+      ],
     );
 
-    const result = (await game.page.evaluate(() => {
-      const win = globalThis as unknown as Record<string, unknown>;
-      return win.__bannerShotCapture as CaptureResult;
-    })) as CaptureResult;
+    // Save screenshots + run assertions.
+    console.log(`\nCaptured ${banners.length} banner transitions:\n`);
 
-    mkdirSync("test/screenshots", { recursive: true });
+    for (const banner of banners) {
+      const slug = banner.label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/-+$/, "");
+      const dir = `tmp/screenshots/r${banner.round}-${slug}`;
+      mkdirSync(dir, { recursive: true });
 
-    for (const shot of [result.modifierShot, result.upgradeShot]) {
-      if (!shot) {
-        test.check("captured shot", false, "shot was null");
-        continue;
+      const frames = [
+        ["1-previous", banner.previous],
+        ["2-first", banner.first],
+        ["3-mid", banner.mid],
+        ["4-last", banner.last],
+        ["5-next", banner.next],
+      ] as const;
+
+      for (const [name, dataUrl] of frames) {
+        if (!dataUrl || !dataUrl.startsWith("data:")) continue;
+        const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
+        const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0));
+        Deno.writeFileSync(`${dir}/${name}.png`, bytes);
       }
-      const pngBase64 = shot.dataUrl.replace(/^data:image\/png;base64,/, "");
-      const pngBytes = Uint8Array.from(atob(pngBase64), (ch) =>
-        ch.charCodeAt(0),
-      );
-      const path = `test/screenshots/${shot.label}.png`;
-      writeFileSync(path, pngBytes);
+
+      const chainTag = (start: boolean, end: boolean) => {
+        const parts: string[] = [];
+        if (start) parts.push("chained-start");
+        if (end) parts.push("chained-end");
+        return parts.length ? ` [${parts.join(", ")}]` : "";
+      };
+      const tag = chainTag(banner.chainedStart, banner.chainedEnd);
+      const startStr =
+        banner.startDiffPct >= 0
+          ? `${banner.startDiffPct.toFixed(3)}%`
+          : "n/a";
+      const endStr =
+        banner.endDiffPct >= 0 ? `${banner.endDiffPct.toFixed(3)}%` : "n/a";
+
       console.log(
-        `Saved ${path} (${pngBytes.length} bytes) — ` +
-          `round=${shot.round} phase=${shot.phase} banner.y=${shot.bannerY.toFixed(1)} ` +
-          `text="${shot.bannerText}" modifierId=${shot.modifierId}`,
+        `  r${banner.round} ${banner.label}${tag}: start=${startStr} end=${endStr}`,
       );
-      test.check(`captured ${shot.label}`, pngBytes.length > 0);
+
+      // Skip assertions on chained boundaries — "previous" of a chained
+      // successor is the prior banner's last frame, and "next" of a
+      // chained predecessor is the successor's first frame. These differ
+      // by design. Screenshots still saved for visual inspection.
+      if (!banner.chainedStart) {
+        const startOk =
+          banner.startDiffPct >= 0 &&
+          banner.startDiffPct < MAX_DIFF_PERCENT;
+        test.check(
+          `r${banner.round} ${banner.label}: previous ≈ first`,
+          startOk,
+          `${startStr} (threshold ${MAX_DIFF_PERCENT}%)`,
+        );
+      }
+      if (!banner.chainedEnd && banner.endDiffPct >= 0) {
+        const endOk = banner.endDiffPct < MAX_DIFF_PERCENT;
+        test.check(
+          `r${banner.round} ${banner.label}: last ≈ next`,
+          endOk,
+          `${endStr} (threshold ${MAX_DIFF_PERCENT}%)`,
+        );
+      }
     }
   } finally {
     await game.close();
