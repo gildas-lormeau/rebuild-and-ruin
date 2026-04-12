@@ -1,5 +1,5 @@
 import {
-  MODIFIER_ID,
+  type ModifierId,
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
@@ -113,6 +113,36 @@ const MODIFIER_PULSE_MS = 400;
 // Modifier banner pulse: base alpha and amplitude
 const MODIFIER_PULSE_BASE = 0.25;
 const MODIFIER_PULSE_AMP = 0.3;
+/** Per-modifier color palette for the reveal banner (chrome + tile pulse).
+ *  `title` lights the banner headline, `border` the top/bottom rules, and
+ *  `pulseColor` fills the pulsing tile overlay (alpha applied via
+ *  globalAlpha). Colors are tuned so phase banners (gold) are clearly
+ *  distinct from a modifier reveal at a glance. */
+const MODIFIER_COLORS: Record<
+  ModifierId,
+  { title: string; border: string; pulseColor: string }
+> = {
+  wildfire: { title: "#ff8040", border: "#ff5010", pulseColor: "#ff6414" },
+  crumbling_walls: {
+    title: "#d0a060",
+    border: "#a07030",
+    pulseColor: "#b48c50",
+  },
+  grunt_surge: { title: "#ff6060", border: "#c02020", pulseColor: "#dc3232" },
+  frozen_river: {
+    title: "#80d0ff",
+    border: "#4090d0",
+    pulseColor: "#64c8ff",
+  },
+  sinkhole: { title: "#d0a070", border: "#704020", pulseColor: "#a05a28" },
+  high_tide: { title: "#60b0ff", border: "#2060c0", pulseColor: "#3c8cf0" },
+  dust_storm: { title: "#e0c070", border: "#a07020", pulseColor: "#dcb450" },
+  rubble_clearing: {
+    title: "#90d080",
+    border: "#408030",
+    pulseColor: "#8cc878",
+  },
+};
 
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
@@ -138,7 +168,10 @@ export function drawAnnouncement(
   overlayCtx.restore();
 }
 
-/** Draw phase transition banner sweeping across the screen. */
+/** Draw phase transition banner sweeping across the screen.
+ *  A modifier reveal banner recolors the title and top/bottom rules with
+ *  the modifier's palette so players can distinguish it from an ordinary
+ *  phase banner at a glance. */
 export function drawBanner(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
@@ -148,9 +181,14 @@ export function drawBanner(
   if (!overlay?.ui?.banner) return;
   const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
   const by = Math.round(overlay.ui.banner.y - bannerH / 2);
+  const modifierId = overlay.ui.banner.modifierDiff?.id;
+  const palette = modifierId ? MODIFIER_COLORS[modifierId] : undefined;
+  const borderColor = palette?.border ?? GOLD;
+  const titleColor = palette?.title ?? GOLD_LIGHT;
+  const subtitleColor = palette?.title ?? GOLD_SUBTITLE;
   overlayCtx.fillStyle = PANEL_BG(BG_BANNER);
   overlayCtx.fillRect(0, by, W, bannerH);
-  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillStyle = borderColor;
   overlayCtx.fillRect(0, by, W, 2);
   overlayCtx.fillRect(0, by + bannerH - 2, W, 2);
   overlayCtx.save();
@@ -165,11 +203,11 @@ export function drawBanner(
     W / 2,
     titleY,
     SHADOW_COLOR,
-    GOLD_LIGHT,
+    titleColor,
   );
   if (hasSubtitle) {
     overlayCtx.font = FONT_FLOAT_SM;
-    overlayCtx.fillStyle = GOLD_SUBTITLE;
+    overlayCtx.fillStyle = subtitleColor;
     overlayCtx.fillText(
       overlay.ui.banner.subtitle!,
       W / 2,
@@ -201,16 +239,9 @@ export function drawModifierRevealHighlight(
     MODIFIER_PULSE_AMP *
       (0.5 + 0.5 * Math.sin((now / MODIFIER_PULSE_MS) * Math.PI * 2));
 
-  const color =
-    diff.id === MODIFIER_ID.WILDFIRE
-      ? `rgba(255,100,20,${pulse})`
-      : diff.id === MODIFIER_ID.FROZEN_RIVER
-        ? `rgba(100,200,255,${pulse})`
-        : diff.id === MODIFIER_ID.CRUMBLING_WALLS
-          ? `rgba(180,140,80,${pulse})`
-          : `rgba(255,255,100,${pulse})`;
-
-  overlayCtx.fillStyle = color;
+  overlayCtx.save();
+  overlayCtx.globalAlpha = pulse;
+  overlayCtx.fillStyle = MODIFIER_COLORS[diff.id].pulseColor;
   for (const key of diff.changedTiles) {
     const row = Math.floor(key / GRID_COLS);
     const col = key % GRID_COLS;
@@ -219,6 +250,7 @@ export function drawModifierRevealHighlight(
     if (py + TILE_SIZE > revealY) continue;
     overlayCtx.fillRect(col * TILE_SIZE, py, TILE_SIZE, TILE_SIZE);
   }
+  overlayCtx.restore();
 }
 
 /** Draw score deltas floating over each player's territory. */

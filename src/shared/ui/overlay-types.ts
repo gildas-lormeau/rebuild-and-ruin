@@ -5,6 +5,7 @@ import type {
   Grunt,
   Impact,
 } from "../core/battle-types.ts";
+import type { ModifierId } from "../core/game-constants.ts";
 import type {
   GameMap,
   House,
@@ -192,7 +193,7 @@ export interface UIOverlay {
     /** Modifier reveal diff — when set, the banner is a modifier reveal and
      *  the renderer should progressively highlight changed tiles. */
     modifierDiff?: {
-      id: string;
+      id: ModifierId;
       changedTiles: readonly number[];
       gruntsSpawned: number;
     };
