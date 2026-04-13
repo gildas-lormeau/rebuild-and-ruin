@@ -81,6 +81,11 @@ export interface E2EScenario {
   /** Wait until the game reaches STOPPED mode.
    *  Bus handlers fire for each new event during the wait. */
   runGame(opts?: { timeout?: number }): Promise<void>;
+  /** Enable per-frame canvas snapshot capture. Tick entries during banners
+   *  and banner events always carry snapshots; enabling this also captures
+   *  the "frame before banner" via `_prevSnapshot`. Opt-in because
+   *  `toDataURL` every frame is expensive. */
+  enableCanvasSnapshots(): Promise<void>;
   /** Input helpers — world coordinates, converted to client coords via bridge. */
   input: {
     mouseMove(wx: number, wy: number): Promise<void>;
@@ -371,6 +376,13 @@ export async function createE2EScenario(
         timeout,
       );
     },
+
+    enableCanvasSnapshots: () =>
+      page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { captureTickSnapshots?: boolean } | undefined;
+        if (e2e) e2e.captureTickSnapshots = true;
+      }),
 
     input: {
       mouseMove: async (wx, wy) => {

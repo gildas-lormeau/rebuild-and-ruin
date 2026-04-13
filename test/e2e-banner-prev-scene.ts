@@ -271,12 +271,7 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
 
   try {
     // Enable per-frame canvas capture so _prevSnapshot is populated.
-    await sc.page.evaluate(() => {
-      const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as
-        | { captureTickSnapshots?: boolean }
-        | undefined;
-      if (e2e) e2e.captureTickSnapshots = true;
-    });
+    await sc.enableCanvasSnapshots();
 
     // Run the game to completion.
     await sc.runGame({ timeout: 300_000 });
