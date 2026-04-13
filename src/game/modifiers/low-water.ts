@@ -1,13 +1,11 @@
 /**
- * Low Water modifier — converts shallow river-edge tiles to grass per zone.
- * Only selects water tiles with at least one orthogonal grass neighbor
- * and at least two orthogonal water neighbors (won't pinch the river).
+ * Low Water modifier — converts all shallow river-edge tiles to grass
+ * (river banks narrow by 1 tile). Mirror of high tide.
  */
 
 import { removeWallFromAllPlayers } from "../../shared/core/board-occupancy.ts";
 import { FID } from "../../shared/core/feature-defs.ts";
-import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
-import { isPlayerSeated } from "../../shared/core/player-types.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "../../shared/core/grid.ts";
 import {
   cannonSize,
   DIRS_4,
@@ -21,8 +19,6 @@ import {
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
-/** Low water: number of bank tiles converted per active zone. */
-const LOW_WATER_TILES_PER_ZONE = 5;
 export const lowWaterImpl: ModifierImpl = {
   apply: (state: GameState) => ({
     changedTiles: [...applyLowWater(state)],
@@ -52,64 +48,77 @@ function reapplyLowWaterTiles(state: GameState): void {
   state.map.mapVersion++;
 }
 
-/** Apply low water: convert a few shallow river-edge tiles to grass per zone. */
+/** Apply low water: erode one layer of bank tiles, preserving 2×2 water
+ *  blocks so the river never thins to a 1-wide channel. */
 function applyLowWater(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const tiles = state.map.tiles;
-  const activeZones = state.players
-    .filter(isPlayerSeated)
-    .map((player) => player.homeTower.zone);
   const converted = new Set<number>();
-
-  for (const zone of activeZones) {
-    // Collect candidate bank tiles in this zone
-    const candidates: number[] = [];
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (!isWater(tiles, r, c)) continue;
-        // Must border at least one grass tile (it's a bank)
-        let grassNeighbors = 0;
-        let waterNeighbors = 0;
-        for (const [dr, dc] of DIRS_4) {
-          const nr = r + dr;
-          const nc = c + dc;
-          if (isGrass(tiles, nr, nc)) grassNeighbors++;
-          if (isWater(tiles, nr, nc)) waterNeighbors++;
+  // Snapshot bank tiles before any mutations.
+  const banks: number[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (!isWater(tiles, r, c)) continue;
+      for (const [dr, dc] of DIRS_4) {
+        if (isGrass(tiles, r + dr, c + dc)) {
+          banks.push(packTile(r, c));
+          break;
         }
-        if (grassNeighbors === 0) continue;
-        // Must keep at least 2 water neighbors so removal doesn't pinch the river
-        if (waterNeighbors < 2) continue;
-        // Assign to the zone of the adjacent grass neighbor
-        let matchesZone = false;
-        for (const [dr, dc] of DIRS_4) {
-          const nr = r + dr;
-          const nc = c + dc;
-          if (isGrass(tiles, nr, nc) && state.map.zones[nr]?.[nc] === zone) {
-            matchesZone = true;
-            break;
-          }
-        }
-        if (!matchesZone) continue;
-        candidates.push(packTile(r, c));
       }
     }
-    if (candidates.length === 0) continue;
-    state.rng.shuffle(candidates);
-    const count = Math.min(LOW_WATER_TILES_PER_ZONE, candidates.length);
-    for (let i = 0; i < count; i++) {
-      converted.add(candidates[i]!);
+  }
+  // Greedy erosion: convert each bank tile only if every remaining water
+  // neighbor still belongs to at least one 2×2 water block afterwards.
+  for (const key of banks) {
+    const { r, c } = unpackTile(key);
+    if (!isWater(tiles, r, c)) continue;
+    // Tentatively convert
+    setGrass(tiles, r, c);
+    // Check all water neighbors still have a 2×2
+    let safe = true;
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!isWater(tiles, nr, nc)) continue;
+      if (!inWater2x2(tiles, nr, nc)) {
+        safe = false;
+        break;
+      }
+    }
+    if (safe) {
+      converted.add(key);
+    } else {
+      // Revert
+      setWater(tiles, r, c);
     }
   }
   if (converted.size === 0) return converted;
-  // Convert to grass
-  for (const key of converted) {
-    const { r, c } = unpackTile(key);
-    setGrass(tiles, r, c);
-  }
   modern.lowWaterTiles = converted;
   state.map.mapVersion++;
   return converted;
+}
+
+/** True when (r,c) belongs to at least one 2×2 all-water square. */
+function inWater2x2(
+  tiles: readonly (readonly Tile[])[],
+  r: number,
+  c: number,
+): boolean {
+  return (
+    (isWater(tiles, r, c + 1) &&
+      isWater(tiles, r + 1, c) &&
+      isWater(tiles, r + 1, c + 1)) ||
+    (isWater(tiles, r, c - 1) &&
+      isWater(tiles, r + 1, c) &&
+      isWater(tiles, r + 1, c - 1)) ||
+    (isWater(tiles, r, c + 1) &&
+      isWater(tiles, r - 1, c) &&
+      isWater(tiles, r - 1, c + 1)) ||
+    (isWater(tiles, r, c - 1) &&
+      isWater(tiles, r - 1, c) &&
+      isWater(tiles, r - 1, c - 1))
+  );
 }
 
 /** Revert low water: restore converted tiles back to water. */

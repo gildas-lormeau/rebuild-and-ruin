@@ -95,6 +95,7 @@ const MODIFIER_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
       "high_tide",
       "dust_storm",
       "rubble_clearing",
+      "low_water",
     ] satisfies readonly ModifierId[]
   ).map((modifierId) => [
     `modifier:${modifierId}`,
