@@ -10,13 +10,12 @@ import {
 import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonPlacement } from "../game/cannon-system.ts";
 import {
-  cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
   canPlacePiece,
   consumeRapidEmplacement,
+  effectivePlacementCost,
   highlightTowerSelection,
-  rapidEmplacementDiscount,
 } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import {
@@ -263,9 +262,10 @@ function handleCannonPlaced(
     if (!player) return DROPPED;
     const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
     const normalizedMode = toCannonMode(msg.mode);
-    const discount = rapidEmplacementDiscount(player);
-    const cost = Math.max(1, cannonSlotCost(normalizedMode) - discount);
-    if (cannonSlotsUsed(player) + cost > maxCannons) {
+    if (
+      cannonSlotsUsed(player) + effectivePlacementCost(player, normalizedMode) >
+      maxCannons
+    ) {
       deps.log(
         `cannon_placed: rejected invalid placement for P${msg.playerId}`,
       );
@@ -279,7 +279,6 @@ function handleCannonPlaced(
     }
   }
   const cannonPlayer = state.players[msg.playerId]!;
-  const hadDiscount = rapidEmplacementDiscount(cannonPlayer) > 0;
   applyCannonPlacement(
     cannonPlayer,
     msg.row,
@@ -287,7 +286,7 @@ function handleCannonPlaced(
     toCannonMode(msg.mode),
     state,
   );
-  if (hadDiscount) consumeRapidEmplacement(cannonPlayer);
+  consumeRapidEmplacement(cannonPlayer);
   return APPLIED;
 }
 

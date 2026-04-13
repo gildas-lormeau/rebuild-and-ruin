@@ -3,15 +3,12 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
   canPlacePiece,
+  effectivePlacementCost,
   hasAnyCannonPlacement,
   placeCannon,
-  rapidEmplacementDiscount,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
-import {
-  cannonModeDef,
-  cannonModesForGame,
-} from "../shared/core/cannon-mode-defs.ts";
+import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -127,12 +124,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  MUST be called before canPlaceCannon() in cannonTick() — otherwise the preview
    *  may show an impossible placement that confuses the player. */
   private downgradeCannonModeIfNeeded(remaining: number, player: Player): void {
-    const discount = rapidEmplacementDiscount(player);
-    const cost = Math.max(
-      1,
-      cannonModeDef(this.cannonPlaceMode).slotCost - discount,
-    );
-    if (remaining < cost) {
+    if (remaining < effectivePlacementCost(player, this.cannonPlaceMode)) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
   }
@@ -301,14 +293,13 @@ export class HumanController extends BaseController implements InputReceiver {
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
     const player = state.players[this.playerId]!;
     const used = cannonSlotsUsed(player);
-    const discount = rapidEmplacementDiscount(player);
     const modes = cannonModesForGame(this.modern);
     const currentIdx = modes.findIndex(
       (def) => def.id === this.cannonPlaceMode,
     );
     for (let offset = 1; offset < modes.length; offset++) {
       const next = modes[(currentIdx + offset) % modes.length]!;
-      if (used + Math.max(1, next.slotCost - discount) <= maxSlots) {
+      if (used + effectivePlacementCost(player, next.id) <= maxSlots) {
         this.cannonPlaceMode = next.id;
         this.clampCannonCursorToMode();
         return;

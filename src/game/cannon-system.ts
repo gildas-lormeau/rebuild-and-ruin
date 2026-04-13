@@ -127,13 +127,11 @@ export function placeCannon(
   },
 ): boolean {
   if (isPlayerEliminated(player)) return false;
-  const used = cannonSlotsUsed(player);
-  const discount = rapidEmplacementDiscount(player);
-  const cost = Math.max(1, cannonSlotCost(mode) - discount);
-  if (used + cost > maxCannons) return false;
+  const cost = effectivePlacementCost(player, mode);
+  if (cannonSlotsUsed(player) + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, mode, state)) return false;
   applyCannonPlacement(player, row, col, mode, state);
-  if (discount > 0) consumeRapidEmplacement(player);
+  consumeRapidEmplacement(player);
   emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
     playerId: player.id,
     row,
@@ -287,6 +285,14 @@ export function homeEnclosedRegion(player: Player): Set<number> {
     }
   }
   return visited;
+}
+
+/** Effective slot cost for placing a cannon, accounting for Rapid Emplacement discount. */
+export function effectivePlacementCost(
+  player: Player,
+  mode: CannonMode,
+): number {
+  return Math.max(1, cannonSlotCost(mode) - rapidEmplacementDiscount(player));
 }
 
 /** Find the first legal cannon placement in interior-iteration order, or

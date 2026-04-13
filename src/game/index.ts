@@ -24,6 +24,7 @@ export {
   cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
+  effectivePlacementCost,
   filterActiveFiringCannons,
   hasAnyCannonPlacement,
   isCannonEnclosed,
@@ -71,7 +72,4 @@ export {
   shouldSkipBattle,
   useSmallPieces,
 } from "./upgrade-system.ts";
-export {
-  consumeRapidEmplacement,
-  rapidEmplacementDiscount,
-} from "./upgrades/rapid-emplacement.ts";
+export { consumeRapidEmplacement } from "./upgrades/rapid-emplacement.ts";
