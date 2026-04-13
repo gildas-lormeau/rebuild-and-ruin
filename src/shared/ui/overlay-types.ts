@@ -6,7 +6,7 @@ import type {
   Impact,
   ThawingTile,
 } from "../core/battle-types.ts";
-import type { ModifierId } from "../core/game-constants.ts";
+import type { ModifierDiff } from "../core/game-constants.ts";
 import type {
   GameMap,
   House,
@@ -165,12 +165,7 @@ export interface BattleOverlay {
     incendiary?: boolean;
     mortar?: boolean;
   }[];
-  crosshairs?: {
-    x: number;
-    y: number;
-    playerId: ValidPlayerSlot;
-    cannonReady?: boolean;
-  }[];
+  crosshairs?: Crosshair[];
   impacts?: Impact[];
   balloons?: {
     x: number;
@@ -195,11 +190,7 @@ export interface UIOverlay {
     y: number;
     /** Modifier reveal diff — when set, the banner is a modifier reveal and
      *  the renderer should progressively highlight changed tiles. */
-    modifierDiff?: {
-      id: ModifierId;
-      changedTiles: readonly number[];
-      gruntsSpawned: number;
-    };
+    modifierDiff?: ModifierDiff;
   };
   /** Pixel snapshot of the scene canvas captured before phase mutations.
    *  Composited below the banner sweep line during the animation. */

@@ -6,7 +6,6 @@ import {
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import type {
   Cannonball,
-  CannonMode,
   Crosshair,
   Impact,
   ThawingTile,
@@ -98,13 +97,7 @@ interface TickWatcherCannonPhantomsDeps {
   localController: PlayerController | null;
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
-  sendOpponentCannonPhantom: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    mode: CannonMode;
-    valid: boolean;
-  }) => void;
+  sendOpponentCannonPhantom: (msg: CannonPhantom) => void;
 }
 
 interface TickWatcherBuildPhantomsDeps {
@@ -114,13 +107,7 @@ interface TickWatcherBuildPhantomsDeps {
   localController: PlayerController | null;
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
-  sendOpponentPiecePhantom: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-    valid: boolean;
-  }) => void;
+  sendOpponentPiecePhantom: (msg: PiecePhantom) => void;
 }
 
 /** Orbital idle wobble frequency on X axis (rad/s — coprime with Y to avoid repetition). */

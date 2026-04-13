@@ -12,7 +12,7 @@
  * Checkpoint apply functions (online-checkpoints.ts) trust host-provided data.
  */
 
-import type { ModifierId } from "../shared/core/game-constants.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 
 export interface SerializedCannon {
@@ -122,11 +122,7 @@ export interface BattleStartData {
   /** Modifier visual diff for the reveal banner. null = no modifier this round.
    *  The display label is intentionally NOT serialized — it's deterministic
    *  from `id` via `modifierDef(id).label` and both ends share `modifier-defs.ts`. */
-  modifierDiff: {
-    id: ModifierId;
-    changedTiles: readonly number[];
-    gruntsSpawned: number;
-  } | null;
+  modifierDiff: ModifierDiff | null;
 }
 
 /** Data needed to sync state at build phase start. */

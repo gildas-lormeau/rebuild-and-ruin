@@ -1,5 +1,4 @@
 import {
-  type CannonMode,
   isBalloonMode,
   isRampartMode,
   isSuperMode,
@@ -8,6 +7,7 @@ import {
 import { IMPACT_FLASH_DURATION } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
+import type { CannonPhantom } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   facingToCardinal,
@@ -788,13 +788,7 @@ function crosshairGeometry(
  *  with multiple shapes. Each shape has a normal color and a red-tinted invalid variant. */
 function drawPhantomCannon(
   overlayCtx: CanvasRenderingContext2D,
-  phantom: {
-    readonly row: number;
-    readonly col: number;
-    readonly valid: boolean;
-    readonly mode: CannonMode;
-    readonly playerId: ValidPlayerSlot;
-  },
+  phantom: Readonly<CannonPhantom>,
   defaultFacings?: ReadonlyMap<ValidPlayerSlot, number>,
 ): void {
   const { row, col, valid, mode, playerId } = phantom;

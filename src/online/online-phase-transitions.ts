@@ -21,6 +21,7 @@ import type {
 } from "../runtime/runtime-contracts.ts";
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import { runBuildEndSequence } from "../runtime/runtime-transition-steps.ts";
+import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -116,15 +117,7 @@ export interface TransitionContext {
   // ── Battle lifecycle ──
   battleLifecycle: {
     setFlights: (
-      value: readonly {
-        flight: {
-          startX: number;
-          startY: number;
-          endX: number;
-          endY: number;
-        };
-        progress: number;
-      }[],
+      value: readonly { flight: BalloonFlight; progress: number }[],
     ) => void;
     snapshotTerritory: () => Set<number>[];
     /** Battle-start territory snapshot (for banner old-scene rendering). */

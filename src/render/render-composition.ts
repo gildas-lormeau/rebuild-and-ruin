@@ -3,6 +3,7 @@ import type {
   OnlineOverlayParams,
   RenderSummaryParams,
 } from "../runtime/runtime-contracts.ts";
+import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   UPGRADE_PICK_MAX_TIMER,
@@ -743,10 +744,7 @@ function buildBattleCannonballsPayload(
 }
 
 function buildBattleBalloonsPayload(
-  flights: ReadonlyArray<{
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }>,
+  flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>,
 ):
   | Array<{
       x: number;

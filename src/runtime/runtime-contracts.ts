@@ -1,4 +1,9 @@
-import type { Impact, ThawingTile } from "../shared/core/battle-types.ts";
+import type {
+  BalloonFlight,
+  Crosshair,
+  Impact,
+  ThawingTile,
+} from "../shared/core/battle-types.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
@@ -208,20 +213,12 @@ export interface OnlineOverlayParams {
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
-    flights: ReadonlyArray<{
-      flight: { startX: number; startY: number; endX: number; endY: number };
-      progress: number;
-    }>;
+    flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>;
     impacts: Impact[];
     thawing: ThawingTile[];
   };
   frame: {
-    crosshairs: Array<{
-      x: number;
-      y: number;
-      playerId: ValidPlayerSlot;
-      cannonReady?: boolean;
-    }>;
+    crosshairs: Crosshair[];
     phantoms: RenderOverlay["phantoms"];
     announcement?: string;
     gameOver?: GameOverOverlay;

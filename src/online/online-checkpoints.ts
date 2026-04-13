@@ -9,7 +9,10 @@ import type {
   BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
-import type { ThawingTile } from "../shared/core/battle-types.ts";
+import type {
+  BalloonFlight,
+  ThawingTile,
+} from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
@@ -33,10 +36,7 @@ import {
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
   walls: Set<number>[];
-  flights: readonly {
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }[];
+  flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: { row: number; col: number; age: number }[];
   thawing: ThawingTile[];
 }

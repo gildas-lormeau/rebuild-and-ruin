@@ -2,43 +2,7 @@
   "overlaps": [],
   "inline": [
     {
-      "key": "src/online/online-checkpoints.ts:37 → BalloonFlight"
-    },
-    {
-      "key": "src/online/online-phase-transitions.ts:120 → BalloonFlight"
-    },
-    {
-      "key": "src/online/online-serialize.ts:43 → BalloonFlight"
-    },
-    {
-      "key": "src/online/online-watcher-battle.ts:101 → CannonPhantom"
-    },
-    {
-      "key": "src/online/online-watcher-battle.ts:117 → PiecePhantom"
-    },
-    {
-      "key": "src/protocol/checkpoint-data.ts:125 → ModifierDiff"
-    },
-    {
-      "key": "src/render/render-composition.ts:747 → BalloonFlight"
-    },
-    {
-      "key": "src/render/render-effects.ts:791 → CannonPhantom"
-    },
-    {
-      "key": "src/runtime/runtime-contracts.ts:212 → BalloonFlight"
-    },
-    {
-      "key": "src/runtime/runtime-contracts.ts:219 → Crosshair"
-    },
-    {
       "key": "src/shared/core/spatial.ts:362 → SerializedBonusSquare"
-    },
-    {
-      "key": "src/shared/ui/overlay-types.ts:168 → Crosshair"
-    },
-    {
-      "key": "src/shared/ui/overlay-types.ts:198 → ModifierDiff"
     }
   ]
 }

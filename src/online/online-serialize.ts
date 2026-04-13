@@ -39,10 +39,7 @@ import { Rng } from "../shared/platform/rng.ts";
 import { toCannonMode } from "./online-types.ts";
 
 interface FullStateResult {
-  balloonFlights?: {
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }[];
+  balloonFlights?: { flight: BalloonFlight; progress: number }[];
 }
 
 /** Returned when validation fails — no state was mutated. */
