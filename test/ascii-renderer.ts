@@ -24,20 +24,23 @@ import type {
 } from "../src/shared/ui/overlay-types.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 
-export interface AsciiRenderer extends RendererInterface {
+export interface AsciiRenderer {
   /** All captured frames as text. */
   readonly frames: readonly string[];
   /** The most recent frame, or empty string if none captured yet. */
   readonly lastFrame: string;
   /** Render the current state on demand (outside the draw loop). */
   snapshot(layer?: MapLayer): string;
-  /** Late-bind the state getter. Called by createScenario after the
-   *  runtime is constructed — the renderer is created first (passed as
-   *  a dep), the runtime second (produces the state). */
+}
+
+/** Internal type — includes RendererInterface + bind for createScenario. */
+export interface AsciiRendererInternal
+  extends AsciiRenderer,
+    RendererInterface {
   bind(stateGetter: () => GameState): void;
 }
 
-export function createAsciiRenderer(): AsciiRenderer {
+export function createAsciiRenderer(): AsciiRendererInternal {
   const frames: string[] = [];
   const container = createStubElement();
   const eventTarget = createStubElement();

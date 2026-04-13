@@ -65,7 +65,11 @@ import type { BannerState } from "../src/runtime/runtime-contracts.ts";
 import type { DialogRuntimeState } from "../src/runtime/runtime-state.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
-import type { AsciiRenderer } from "./ascii-renderer.ts";
+import {
+  createAsciiRenderer,
+  type AsciiRenderer,
+  type AsciiRendererInternal,
+} from "./ascii-renderer.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
@@ -87,12 +91,6 @@ export interface ScenarioOptions {
    *  normal-sized sub-steps instead of one inflated dt. Used by tests
    *  that exercise the speed mechanism. */
   speedMultiplier?: number;
-  /** Canvas recorder. When provided, the scenario runs the *real* canvas
-   *  renderer (instead of the no-op stub) wired to the recorder's mock
-   *  canvases — every frame fires the full draw pipeline, and tests can
-   *  observe via the `renderObserver` option (or inspect the recorder log
-   *  directly). Use this when you need to assert on render-side invariants. */
-  recorder?: CanvasRecorder;
   /** When false, leaves the runtime in lobby mode with `lobby.active = true`
    *  instead of auto-starting the game. Tests use this to drive the lobby
    *  through real input handlers (clicking a slot, joining via key). The
@@ -107,17 +105,14 @@ export interface ScenarioOptions {
    *  BEFORE the platform/level gate. Threaded through to
    *  `createSoundSystem({ observer })` via the runtime's `observers` bag. */
   soundObserver?: SoundObserver;
-  /** Test observer for terrain-draw intents. Captures every `terrainDrawn`
-   *  callback fired by the canvas renderer. Only meaningful when paired with
-   *  a `recorder` (the no-op stub renderer never draws terrain). Passed
-   *  directly to `createCanvasRenderer({ observer })`, so the renderer
-   *  closure owns it — no module-level state involved. */
-  renderObserver?: RenderObserver;
-  /** ASCII renderer. When provided, replaces the default no-op stub with a
-   *  text-based renderer that captures every frame as a string grid via
-   *  `buildGrid`. Create with `createAsciiRenderer()` from
-   *  `test/ascii-renderer.ts`. Mutually exclusive with `recorder`. */
-  ascii?: AsciiRenderer;
+  /** Renderer override. Omit for the default no-op stub.
+   *  - `"ascii"` — text-based renderer via `buildGrid`; access the handle
+   *    on the returned `Scenario.renderer`.
+   *  - `{ canvas: CanvasRecorder, observer? }` — real canvas renderer wired
+   *    to the recorder's mock canvases. */
+  renderer?:
+    | "ascii"
+    | { canvas: CanvasRecorder; observer?: RenderObserver };
 }
 
 export interface Scenario extends Disposable {
@@ -183,6 +178,9 @@ export interface Scenario extends Disposable {
    *  real input handlers, instead of mutating state or calling controller
    *  methods directly. */
   readonly input: ScenarioInput;
+  /** ASCII renderer handle — only present when `renderer: true` was passed
+   *  to `createScenario`. Provides `frames`, `lastFrame`, and `snapshot()`. */
+  readonly renderer?: AsciiRenderer;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -253,9 +251,7 @@ export function loadSeed(
     Pick<
       ScenarioOptions,
       | "rounds"
-      | "ascii"
-      | "recorder"
-      | "renderObserver"
+      | "renderer"
       | "hapticsObserver"
       | "soundObserver"
     >
@@ -277,9 +273,7 @@ export function loadSeed(
     seed,
     mode: condition.mode,
     rounds: overrides?.rounds ?? condition.rounds,
-    ascii: overrides?.ascii,
-    recorder: overrides?.recorder,
-    renderObserver: overrides?.renderObserver,
+    renderer: overrides?.renderer,
     hapticsObserver: overrides?.hapticsObserver,
     soundObserver: overrides?.soundObserver,
   });
@@ -289,53 +283,40 @@ export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
   const sentMessages: GameMessage[] = [];
+  const ascii =
+    opts.renderer === "ascii" ? createAsciiRenderer() : undefined;
   const headless = await createHeadlessRuntime(
-    buildHeadlessOptions(opts, sentMessages),
+    buildHeadlessOptions(opts, sentMessages, ascii),
   );
-  if (opts.ascii) {
-    opts.ascii.bind(() => headless.runtime.runtimeState.state);
+  if (ascii) {
+    ascii.bind(() => headless.runtime.runtimeState.state);
   }
-  return wrapHeadless(headless, sentMessages);
+  const scenario = wrapHeadless(headless, sentMessages);
+  if (ascii) {
+    (scenario as { renderer: AsciiRenderer }).renderer = ascii;
+  }
+  return scenario;
 }
 
 /** Translate `ScenarioOptions` into the matching `createHeadlessRuntime`
  *  options bag. Exported so the online-loopback wrapper
  *  (`test/online-headless.ts`) can apply the exact same wiring rules
- *  before forcing its host-mode-specific overrides — without that the
- *  online wrapper silently dropped `hapticsObserver`, `soundObserver`,
- *  `renderObserver`, and `recorder` from `OnlineScenarioOptions`.
- *
- *  Validates one rule the type system can't express:
- *  `renderObserver` only fires from the real canvas renderer, so it
- *  requires a `recorder`. We throw on the bad combination instead of
- *  silently dropping the observer (the previous behaviour). */
+ *  before forcing its host-mode-specific overrides. */
 export function buildHeadlessOptions(
   opts: ScenarioOptions,
   sentMessages: GameMessage[],
+  asciiRenderer?: AsciiRendererInternal,
 ): Parameters<typeof createHeadlessRuntime>[0] {
-  if (opts.renderObserver && !opts.recorder) {
-    throw new Error(
-      "scenario: `renderObserver` requires a `recorder` — the no-op stub renderer never draws terrain, so the observer would never fire. Pass `recorder: createCanvasRecorder({ discardCalls: true })` alongside `renderObserver`.",
-    );
+  let renderer: Parameters<typeof createHeadlessRuntime>[0]["renderer"];
+  if (asciiRenderer) {
+    renderer = asciiRenderer;
+  } else if (typeof opts.renderer === "object") {
+    const rec = opts.renderer;
+    renderer = createCanvasRenderer(rec.canvas.displayCanvas, {
+      canvasFactory: rec.canvas.factory,
+      observer: rec.observer,
+    });
   }
-  if (opts.ascii && opts.recorder) {
-    throw new Error(
-      "scenario: `ascii` and `recorder` are mutually exclusive — both replace the renderer.",
-    );
-  }
-  // When a recorder is provided, build the real renderer over the
-  // recorder's display canvas. Each `createCanvasRenderer` call owns its own
-  // closure-bound `renderMap` instance (canvas factory + observer + scene
-  // caches), so multiple recorder-backed scenarios in the same test file
-  // remain isolated without any cleanup step.
-  const renderer = opts.ascii
-    ? opts.ascii
-    : opts.recorder
-      ? createCanvasRenderer(opts.recorder.displayCanvas, {
-          canvasFactory: opts.recorder.factory,
-          observer: opts.renderObserver,
-        })
-      : undefined;
   return {
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,

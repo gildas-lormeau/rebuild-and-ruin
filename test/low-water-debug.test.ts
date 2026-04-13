@@ -5,7 +5,6 @@
  */
 
 import { assert } from "@std/assert";
-import { createAsciiRenderer } from "./ascii-renderer.ts";
 import { createScenario, waitForModifier } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
@@ -19,10 +18,10 @@ const LOW_WATER: ModifierId = "low_water";
 Deno.test("low_water: every water tile in a 2x2 block after modifier", async () => {
   let testedCount = 0;
   for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
-    const ascii = createAsciiRenderer();
     let sc: Awaited<ReturnType<typeof createScenario>> | undefined;
     try {
-      sc = await createScenario({ seed, mode: "modern", rounds: 10, ascii });
+      sc = await createScenario({ seed, mode: "modern", rounds: 10, renderer: "ascii" });
+      const ascii = sc.renderer!;
 
       let beforeSnapshot = "";
       sc.bus.on(GAME_EVENT.PHASE_START, () => {

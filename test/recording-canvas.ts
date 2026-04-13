@@ -26,33 +26,16 @@
  *
  *     const recorder = createCanvasRecorder({ discardCalls: true });
  *     const sc = await createScenario({
- *       recorder,
- *       renderObserver: { terrainDrawn: (target, mapRef) => { ... } },
+ *       renderer: { canvas: recorder, observer: { terrainDrawn: (target, mapRef) => { ... } } },
  *     });
  *     // ... drive scenario ...
- *     // assertions via the renderObserver callbacks, not recorder.log
+ *     // assertions via the observer callbacks, not recorder.log
  */
 
 // ── ImageData polyfill ──────────────────────────────────────────────
 // `render-map.ts` builds terrain bitmaps via `new ImageData(w, h)`. In
 // browsers ImageData is a global; in deno it isn't. We install a minimal
 // shim before any render code runs.
-if (typeof (globalThis as { ImageData?: unknown }).ImageData === "undefined") {
-  class ImageDataShim {
-    readonly data: Uint8ClampedArray;
-    readonly width: number;
-    readonly height: number;
-    constructor(width: number, height: number) {
-      this.width = width;
-      this.height = height;
-      this.data = new Uint8ClampedArray(width * height * 4);
-    }
-  }
-  (globalThis as { ImageData: unknown }).ImageData =
-    ImageDataShim as unknown as typeof ImageData;
-}
-
-// ── Types ───────────────────────────────────────────────────────────
 
 export interface RecordedCall {
   /** 2D context method name (drawImage, putImageData, fillRect, ...). */
@@ -70,14 +53,14 @@ export interface CanvasRecorderOptions {
   /** When true, the mock context's methods are no-ops and recording is
    *  skipped entirely. Use this for long-running tests that drive many
    *  thousands of frames and observe the renderer through the
-   *  `renderObserver` scenario option rather than the call log —
+   *  `renderer.observer` scenario option rather than the call log —
    *  recording every context call would dwarf the test's CPU budget. */
   discardCalls?: boolean;
 }
 
 export interface CanvasRecorder {
-  /** Pass via `createCanvasRenderer(canvas, { canvasFactory: recorder.factory })`
-   *  (or via `createScenario({ recorder })`). Each call returns a fresh
+  /** Pass via `createScenario({ renderer: { canvas: recorder } })`. Each
+   *  call returns a fresh
    *  recording canvas with a new id. */
   readonly factory: () => HTMLCanvasElement;
   /** A pre-allocated "main display canvas" (id 0). Pass to `createCanvasRenderer`. */
@@ -92,8 +75,6 @@ export interface CanvasRecorder {
   /** Drop all recorded calls (used to ignore pre-banner setup noise). */
   reset(): void;
 }
-
-// ── Implementation ──────────────────────────────────────────────────
 
 /** Backing storage for stateful 2D context properties. The renderer
  *  reads back some of these (e.g. fillStyle), so we let writes round-trip. */
@@ -121,28 +102,132 @@ interface ContextState {
 
 const NOOP = (): void => {};
 
-function createContextState(): ContextState {
+export function createCanvasRecorder(
+  opts: CanvasRecorderOptions = {},
+): CanvasRecorder {
+  const log: RecordedCall[] = [];
+  const recordTarget: RecordedCall[] | null = opts.discardCalls ? null : log;
+  let nextCanvasId = 0;
+
+  function makeCanvas(): HTMLCanvasElement {
+    const id = nextCanvasId++;
+    return createRecordingCanvas(id, recordTarget);
+  }
+
+  const displayCanvas = makeCanvas();
+
   return {
-    fillStyle: "#000",
-    strokeStyle: "#000",
-    lineWidth: 1,
-    lineCap: "butt",
-    lineJoin: "miter",
-    miterLimit: 10,
-    font: "10px sans-serif",
-    textAlign: "start",
-    textBaseline: "alphabetic",
-    direction: "inherit",
-    globalAlpha: 1,
-    globalCompositeOperation: "source-over",
-    imageSmoothingEnabled: true,
-    imageSmoothingQuality: "low",
-    shadowColor: "rgba(0,0,0,0)",
-    shadowBlur: 0,
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-    filter: "none",
+    factory: makeCanvas,
+    displayCanvas,
+    log,
+    calls: (method) => log.filter((entry) => entry.method === method),
+    callsOn: (canvasId) => log.filter((entry) => entry.canvasId === canvasId),
+    reset: () => {
+      log.length = 0;
+    },
   };
+}
+
+if (typeof (globalThis as { ImageData?: unknown }).ImageData === "undefined") {
+  class ImageDataShim {
+    readonly data: Uint8ClampedArray;
+    readonly width: number;
+    readonly height: number;
+    constructor(width: number, height: number) {
+      this.width = width;
+      this.height = height;
+      this.data = new Uint8ClampedArray(width * height * 4);
+    }
+  }
+  (globalThis as { ImageData: unknown }).ImageData =
+    ImageDataShim as unknown as typeof ImageData;
+}
+
+function createRecordingCanvas(
+  id: number,
+  log: RecordedCall[] | null,
+): HTMLCanvasElement {
+  let width = 0;
+  let height = 0;
+
+  // Holder pattern: the context's `canvas` getter reads from `holder.canvas`,
+  // which gets assigned just below. This avoids a forward-declared `let`
+  // (deno-lint flags it because canvas is only assigned once).
+  const holder: { canvas?: HTMLCanvasElement } = {};
+  const getCanvas = () => holder.canvas as HTMLCanvasElement;
+  const ctx = (
+    log === null
+      ? buildNoopContext(getCanvas)
+      : buildRecordingContext(id, log, getCanvas)
+  ) as unknown as CanvasRenderingContext2D;
+
+  const canvas = {
+    __recordingId: id,
+    get width() {
+      return width;
+    },
+    set width(value: number) {
+      width = value;
+    },
+    get height() {
+      return height;
+    },
+    set height(value: number) {
+      height = value;
+    },
+    parentElement: createStubParent(),
+    getContext: (_kind: string, _opts?: unknown) => ctx,
+    getBoundingClientRect: () => ({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: height,
+      toJSON: () => ({}),
+    }),
+    addEventListener: NOOP,
+    removeEventListener: NOOP,
+  } as unknown as HTMLCanvasElement;
+  holder.canvas = canvas;
+
+  return canvas;
+}
+
+/** Build a recording context — wraps each method with a closure that
+ *  pushes to the log. Slower than the no-op path, only used when a test
+ *  needs to assert on individual calls. */
+function buildRecordingContext(
+  id: number,
+  log: RecordedCall[],
+  getCanvas: () => HTMLCanvasElement,
+): object {
+  const noop = buildNoopContext(getCanvas);
+  const recording: Record<string, unknown> = { ...noop };
+
+  for (const key of Object.keys(noop)) {
+    const original = (noop as Record<string, unknown>)[key];
+    if (typeof original !== "function") continue;
+    recording[key] = (...args: unknown[]) => {
+      log.push({
+        method: key,
+        args: args.map((arg) => sanitizeArg(arg)),
+        canvasId: id,
+      });
+      return (original as (...a: unknown[]) => unknown)(...args);
+    };
+  }
+
+  // Preserve the live `canvas` getter (it's not a function so the loop
+  // above didn't replace it, but we need it to point at the right canvas).
+  Object.defineProperty(recording, "canvas", {
+    get: () => getCanvas(),
+    enumerable: true,
+  });
+
+  return recording;
 }
 
 /** Build a no-op context — every method is a direct function reference,
@@ -234,38 +319,28 @@ function buildNoopContext(getCanvas: () => HTMLCanvasElement): object {
   };
 }
 
-/** Build a recording context — wraps each method with a closure that
- *  pushes to the log. Slower than the no-op path, only used when a test
- *  needs to assert on individual calls. */
-function buildRecordingContext(
-  id: number,
-  log: RecordedCall[],
-  getCanvas: () => HTMLCanvasElement,
-): object {
-  const noop = buildNoopContext(getCanvas);
-  const recording: Record<string, unknown> = { ...noop };
-
-  for (const key of Object.keys(noop)) {
-    const original = (noop as Record<string, unknown>)[key];
-    if (typeof original !== "function") continue;
-    recording[key] = (...args: unknown[]) => {
-      log.push({
-        method: key,
-        args: args.map((arg) => sanitizeArg(arg)),
-        canvasId: id,
-      });
-      return (original as (...a: unknown[]) => unknown)(...args);
-    };
-  }
-
-  // Preserve the live `canvas` getter (it's not a function so the loop
-  // above didn't replace it, but we need it to point at the right canvas).
-  Object.defineProperty(recording, "canvas", {
-    get: () => getCanvas(),
-    enumerable: true,
-  });
-
-  return recording;
+function createContextState(): ContextState {
+  return {
+    fillStyle: "#000",
+    strokeStyle: "#000",
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    miterLimit: 10,
+    font: "10px sans-serif",
+    textAlign: "start",
+    textBaseline: "alphabetic",
+    direction: "inherit",
+    globalAlpha: 1,
+    globalCompositeOperation: "source-over",
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: "low",
+    shadowColor: "rgba(0,0,0,0)",
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+    filter: "none",
+  };
 }
 
 /** Replace arguments that are canvases or ImageData with tagged descriptors.
@@ -312,83 +387,4 @@ function createStubParent(): HTMLElement {
     removeEventListener: NOOP,
   };
   return stub as unknown as HTMLElement;
-}
-
-function createRecordingCanvas(
-  id: number,
-  log: RecordedCall[] | null,
-): HTMLCanvasElement {
-  let width = 0;
-  let height = 0;
-
-  // Holder pattern: the context's `canvas` getter reads from `holder.canvas`,
-  // which gets assigned just below. This avoids a forward-declared `let`
-  // (deno-lint flags it because canvas is only assigned once).
-  const holder: { canvas?: HTMLCanvasElement } = {};
-  const getCanvas = () => holder.canvas as HTMLCanvasElement;
-  const ctx = (
-    log === null
-      ? buildNoopContext(getCanvas)
-      : buildRecordingContext(id, log, getCanvas)
-  ) as unknown as CanvasRenderingContext2D;
-
-  const canvas = {
-    __recordingId: id,
-    get width() {
-      return width;
-    },
-    set width(value: number) {
-      width = value;
-    },
-    get height() {
-      return height;
-    },
-    set height(value: number) {
-      height = value;
-    },
-    parentElement: createStubParent(),
-    getContext: (_kind: string, _opts?: unknown) => ctx,
-    getBoundingClientRect: () => ({
-      x: 0,
-      y: 0,
-      width,
-      height,
-      top: 0,
-      left: 0,
-      right: width,
-      bottom: height,
-      toJSON: () => ({}),
-    }),
-    addEventListener: NOOP,
-    removeEventListener: NOOP,
-  } as unknown as HTMLCanvasElement;
-  holder.canvas = canvas;
-
-  return canvas;
-}
-
-export function createCanvasRecorder(
-  opts: CanvasRecorderOptions = {},
-): CanvasRecorder {
-  const log: RecordedCall[] = [];
-  const recordTarget: RecordedCall[] | null = opts.discardCalls ? null : log;
-  let nextCanvasId = 0;
-
-  function makeCanvas(): HTMLCanvasElement {
-    const id = nextCanvasId++;
-    return createRecordingCanvas(id, recordTarget);
-  }
-
-  const displayCanvas = makeCanvas();
-
-  return {
-    factory: makeCanvas,
-    displayCanvas,
-    log,
-    calls: (method) => log.filter((entry) => entry.method === method),
-    callsOn: (canvasId) => log.filter((entry) => entry.canvasId === canvasId),
-    reset: () => {
-      log.length = 0;
-    },
-  };
 }

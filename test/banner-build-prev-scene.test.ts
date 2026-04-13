@@ -25,8 +25,7 @@ Deno.test("build banner after upgrade fires with active banner state", async () 
     seed: 1,
     mode: "modern",
     rounds: 10,
-    recorder,
-    renderObserver: { terrainDrawn: () => {} },
+    renderer: { canvas: recorder, observer: { terrainDrawn: () => {} } },
   });
 
   let upgradeEnded = false;

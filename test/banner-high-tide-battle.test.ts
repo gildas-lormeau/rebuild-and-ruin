@@ -24,8 +24,7 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
     seed: 1,
     mode: "modern",
     rounds: 10,
-    recorder,
-    renderObserver: { terrainDrawn: () => {} },
+    renderer: { canvas: recorder, observer: { terrainDrawn: () => {} } },
   });
 
   let highTideChangedTiles: readonly number[] = [];

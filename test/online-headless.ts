@@ -46,8 +46,8 @@
 
 // MUST be first — installs `document` global before online-runtime-deps.ts
 // transitively evaluates online-dom.ts.
-import "./online-dom-shim.ts";
 
+import "./online-dom-shim.ts";
 import {
   handleServerMessage,
   initDeps,
@@ -95,6 +95,15 @@ export interface OnlineHarness {
   readonly client: OnlineClient;
 }
 
+/** Convenience wrapper that returns just the `Scenario`. Use
+ *  `createOnlineHarness` if you need to read `client.ctx.*` for assertions. */
+export async function createOnlineScenario(
+  opts: OnlineScenarioOptions = {},
+): Promise<Scenario> {
+  const harness = await createOnlineHarness(opts);
+  return harness.scenario;
+}
+
 /** Build a `Scenario` whose `deliverMessage(...)` routes through the
  *  production `handleServerMessage` dispatcher, and return it together
  *  with the underlying `OnlineClient` so tests can inspect watcher state.
@@ -108,10 +117,9 @@ export async function createOnlineHarness(
   const remotePlayerSlots =
     opts.remotePlayerSlots ?? new Set<ValidPlayerSlot>([1 as ValidPlayerSlot]);
   const sentMessages: GameMessage[] = [];
-  // Reuse `buildHeadlessOptions` so every observer / recorder option a
-  // test passes via `OnlineScenarioOptions` is honored — without this
-  // the wrapper silently dropped `hapticsObserver` / `soundObserver` /
-  // `renderObserver` / `recorder`. We then layer the receive-side
+  // Reuse `buildHeadlessOptions` so every observer / renderer option a
+  // test passes via `OnlineScenarioOptions` is honored. We then layer
+  // the receive-side
   // overrides on top: force `hostMode: true` and inject the
   // `remotePlayerSlots` set the dispatcher needs.
   const headless = await createHeadlessRuntime({
@@ -140,15 +148,6 @@ export async function createOnlineHarness(
 
   const scenario = wrapHeadless(headless, sentMessages);
   return { scenario, client };
-}
-
-/** Convenience wrapper that returns just the `Scenario`. Use
- *  `createOnlineHarness` if you need to read `client.ctx.*` for assertions. */
-export async function createOnlineScenario(
-  opts: OnlineScenarioOptions = {},
-): Promise<Scenario> {
-  const harness = await createOnlineHarness(opts);
-  return harness.scenario;
 }
 
 /** Build a minimal `OnlineClient`-shaped object using the real session /
