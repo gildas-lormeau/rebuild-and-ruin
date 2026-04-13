@@ -17,6 +17,7 @@ import { chromium, type Page } from "playwright";
 import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
+  E2EBusEntryOf,
 } from "../src/runtime/runtime-e2e-bridge.ts";
 import {
   GAME_EVENT,
@@ -28,7 +29,10 @@ import type { Mode } from "../src/shared/ui/ui-mode.ts";
 
 // Re-export so tests can import GAME_EVENT from the same place.
 export { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-export type { E2EBusEntry } from "../src/runtime/runtime-e2e-bridge.ts";
+export type {
+  E2EBusEntry,
+  E2EBusEntryOf,
+} from "../src/runtime/runtime-e2e-bridge.ts";
 
 /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
  *  emits names rather than numeric values so E2E tests compare against string
@@ -51,14 +55,17 @@ export interface E2EScenarioOptions {
   roomCode?: string;
 }
 
-/** Event type — accepts GAME_EVENT constants or raw strings. */
+/** Event type — GAME_EVENT constants (string literal keys of GameEventMap). */
 type E2EEventType = keyof GameEventMap;
 
-/** Handler for a specific event type. Receives the busLog entry. */
-type E2EBusHandler = (event: E2EBusEntry) => void;
+/** Typed handler for a specific event type. Receives the busLog entry with
+ *  the event's full payload fields + bridge metadata. */
+export type E2EBusHandler<K extends E2EEventType> = (
+  event: E2EBusEntryOf<K>,
+) => void;
 
 /** Catch-all handler. Receives the event type string and the entry. */
-type E2EAnyHandler = (type: string, event: E2EBusEntry) => void;
+type E2EAnyHandler = (type: E2EEventType, event: E2EBusEntry) => void;
 
 export interface E2EScenario {
   /** Escape hatch for custom page.evaluate calls. */
@@ -74,16 +81,20 @@ export interface E2EScenario {
   /** Game bus — mirrors the headless GameEventBus shape. Handlers fire
    *  during `runUntil` / `runGame` as new events appear in busLog. */
   bus: {
-    /** Subscribe to a specific event type. Accepts GAME_EVENT constants. */
-    on(eventType: E2EEventType, handler: E2EBusHandler): void;
+    /** Subscribe to a specific event type. The handler receives the full
+     *  typed payload (same shape as the headless `GameEventBus`) plus the
+     *  bridge's recording metadata (`_seq`, `_canvasSnapshot`, …). */
+    on<K extends E2EEventType>(eventType: K, handler: E2EBusHandler<K>): void;
     /** Unsubscribe from a specific event type. */
-    off(eventType: E2EEventType, handler: E2EBusHandler): void;
+    off<K extends E2EEventType>(eventType: K, handler: E2EBusHandler<K>): void;
     /** Subscribe to ALL events. */
     onAny(handler: E2EAnyHandler): void;
     /** Unsubscribe a catch-all handler. */
     offAny(handler: E2EAnyHandler): void;
-    /** Read the full event log (or filtered by type). */
-    events(eventType?: E2EEventType): Promise<E2EBusEntry[]>;
+    /** Read the full event log, or filter by type. The filtered overload
+     *  returns the entries narrowed to that event type's payload. */
+    events(): Promise<E2EBusEntry[]>;
+    events<K extends E2EEventType>(eventType: K): Promise<E2EBusEntryOf<K>[]>;
   };
   /** Drive the game until a predicate returns true. The predicate
    *  receives the scenario itself — use `await sc.phase()`, `await sc.state()`,
@@ -225,7 +236,10 @@ export async function createE2EScenario(
   }
 
   // --- Bus handler state ---
-  const typedHandlers = new Map<string, Set<E2EBusHandler>>();
+  // The internal storage type is existential over K — each set holds handlers
+  // for one event type, and the generic `bus.on<K>` API casts at the boundary.
+  type InternalHandler = (event: E2EBusEntry) => void;
+  const typedHandlers = new Map<E2EEventType, Set<InternalHandler>>();
   const anyHandlers = new Set<E2EAnyHandler>();
   let lastSeenSeq = 0;
 
@@ -253,12 +267,14 @@ export async function createE2EScenario(
     for (const entry of newEntries) {
       lastSeenSeq = entry._seq + 1;
       // Fire typed handlers.
-      const handlers = typedHandlers.get(entry.type);
+      const handlers = typedHandlers.get(entry.type as E2EEventType);
       if (handlers) {
         for (const handler of handlers) handler(entry);
       }
       // Fire catch-all handlers.
-      for (const handler of anyHandlers) handler(entry.type, entry);
+      for (const handler of anyHandlers) {
+        handler(entry.type as E2EEventType, entry);
+      }
     }
   }
 
@@ -343,16 +359,22 @@ export async function createE2EScenario(
     lobbyActive: async () => (await scenario.mode()) === "LOBBY",
 
     bus: {
-      on(eventType: string, handler: E2EBusHandler): void {
+      on<K extends E2EEventType>(
+        eventType: K,
+        handler: E2EBusHandler<K>,
+      ): void {
         let set = typedHandlers.get(eventType);
         if (!set) {
           set = new Set();
           typedHandlers.set(eventType, set);
         }
-        set.add(handler);
+        set.add(handler as unknown as InternalHandler);
       },
-      off(eventType: string, handler: E2EBusHandler): void {
-        typedHandlers.get(eventType)?.delete(handler);
+      off<K extends E2EEventType>(
+        eventType: K,
+        handler: E2EBusHandler<K>,
+      ): void {
+        typedHandlers.get(eventType)?.delete(handler as unknown as InternalHandler);
       },
       onAny(handler: E2EAnyHandler): void {
         anyHandlers.add(handler);
@@ -360,14 +382,16 @@ export async function createE2EScenario(
       offAny(handler: E2EAnyHandler): void {
         anyHandlers.delete(handler);
       },
-      events: (eventType?: string): Promise<E2EBusEntry[]> =>
+      events: (<K extends E2EEventType>(
+        eventType?: K,
+      ): Promise<E2EBusEntry[] | E2EBusEntryOf<K>[]> =>
         page.evaluate((filterType?: string) => {
           const e2e = (globalThis as unknown as Record<string, unknown>)
             .__e2e as { busLog?: unknown[] } | undefined;
           const log = (e2e?.busLog ?? []) as E2EBusEntry[];
           if (!filterType) return log;
           return log.filter((entry) => entry.type === filterType);
-        }, eventType),
+        }, eventType)) as E2EScenario["bus"]["events"],
     },
 
     runUntil: async (predicate, opts2) => {
@@ -437,14 +461,15 @@ export async function createE2EScenario(
 }
 
 /** Tick until a `phaseStart` event for `phase` fires. Returns the captured
- *  bus entry. Mirrors the headless `waitForPhase` — same shape, async. */
+ *  bus entry with full `phaseStart` payload typing. Mirrors the headless
+ *  `waitForPhase` — same shape, async. */
 export async function waitForPhase(
   sc: E2EScenario,
   phase: Phase,
   opts?: { timeout?: number },
-): Promise<E2EBusEntry> {
-  let captured: E2EBusEntry | null = null;
-  const handler = (ev: E2EBusEntry) => {
+): Promise<E2EBusEntryOf<"phaseStart">> {
+  let captured: E2EBusEntryOf<"phaseStart"> | null = null;
+  const handler = (ev: E2EBusEntryOf<"phaseStart">) => {
     if (captured === null && ev.phase === phase) captured = ev;
   };
   sc.bus.on(GAME_EVENT.PHASE_START, handler);
@@ -464,7 +489,7 @@ export function waitForModifier(
   sc: E2EScenario,
   modifierId?: ModifierId,
   opts?: { timeout?: number },
-): Promise<E2EBusEntry> {
+): Promise<E2EBusEntryOf<"bannerStart">> {
   return waitForBanner(
     sc,
     (ev) =>
@@ -477,11 +502,11 @@ export function waitForModifier(
 /** Tick until a `bannerStart` event matching `predicate` fires. */
 export async function waitForBanner(
   sc: E2EScenario,
-  predicate: (ev: E2EBusEntry) => boolean,
+  predicate: (ev: E2EBusEntryOf<"bannerStart">) => boolean,
   opts?: { timeout?: number },
-): Promise<E2EBusEntry> {
-  let captured: E2EBusEntry | null = null;
-  const handler = (ev: E2EBusEntry) => {
+): Promise<E2EBusEntryOf<"bannerStart">> {
+  let captured: E2EBusEntryOf<"bannerStart"> | null = null;
+  const handler = (ev: E2EBusEntryOf<"bannerStart">) => {
     if (captured === null && predicate(ev)) captured = ev;
   };
   sc.bus.on(GAME_EVENT.BANNER_START, handler);

@@ -7,7 +7,10 @@
  */
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
-import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import {
+  GAME_EVENT,
+  type GameEventMap,
+} from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { Viewport } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
@@ -99,11 +102,10 @@ interface E2EBridge extends E2EBridgeSnapshot {
   captureTickSnapshots: boolean;
 }
 
-/** A bus event as recorded by the bridge. The `_seq` field is a monotonic
- *  index across all event types; `_canvasSnapshot` is populated for
- *  bannerStart, bannerEnd, and tick events (during banners + one after). */
-export type E2EBusEntry = Record<string, unknown> & {
-  type: string;
+/** Bridge metadata attached to every recorded bus entry. `_seq` is a
+ *  monotonic index across all event types; `_canvasSnapshot` is populated
+ *  for bannerStart, bannerEnd, and tick events (during banners + one after). */
+export interface E2EEntryMeta {
   _seq: number;
   /** Canvas PNG dataURL captured at emission time. */
   _canvasSnapshot?: string | null;
@@ -112,7 +114,20 @@ export type E2EBusEntry = Record<string, unknown> & {
   _prevSnapshot?: string | null;
   /** On tick events: the banner sweep Y position (null when no banner). */
   _bannerY?: number | null;
-};
+}
+
+/** A bus entry for a specific event type — the full typed payload from
+ *  `GameEventMap[K]` plus the bridge's recording metadata. Consumers that
+ *  know the event type (e.g. `bus.on("bannerStart", …)`) get full field
+ *  typing on `event.text`, `event.phase`, etc. */
+export type E2EBusEntryOf<K extends keyof GameEventMap> = GameEventMap[K] &
+  E2EEntryMeta;
+
+/** A bus event as recorded by the bridge — union over all known event types.
+ *  Each element is narrowable by `entry.type`. */
+export type E2EBusEntry = {
+  [K in keyof GameEventMap]: E2EBusEntryOf<K>;
+}[keyof GameEventMap];
 
 interface E2EBridgeDeps {
   runtimeState: RuntimeState;
@@ -221,13 +236,16 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   let captureNextTick = false;
   let prevTickSnapshot: string | undefined;
 
-  // Generic: record every bus event into busLog.
+  // Generic: record every bus event into busLog. The spread carries every
+  // payload field from `event`; the `as E2EBusEntry` cast is safe because
+  // `type` comes from the typed bus and payload structure is guaranteed
+  // by `GameEventMap[type]`.
   bus.onAny((type, event) => {
-    const entry: E2EBusEntry = {
+    const entry = {
       ...(event as Record<string, unknown>),
       type,
       _seq: ref.busLog.length,
-    };
+    } as E2EBusEntry;
 
     if (entry.type === "bannerStart" || entry.type === "bannerEnd") {
       entry._canvasSnapshot = captureCanvas();
