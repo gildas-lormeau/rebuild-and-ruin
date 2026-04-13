@@ -208,7 +208,11 @@ export async function createE2EScenario(
   const anyHandlers = new Set<E2EAnyHandler>();
   let lastSeenSeq = 0;
 
-  /** Fetch new busLog entries since lastSeenSeq and fire handlers. */
+  /** Fetch new busLog entries since lastSeenSeq and fire handlers.
+   *  Strips _canvasSnapshot and _prevSnapshot from entries to avoid
+   *  transferring megabytes of PNG data across the Playwright IPC
+   *  boundary — handlers don't need pixel data. Use bus.events() to
+   *  read entries with snapshots intact. */
   async function drainBus(): Promise<void> {
     const newEntries: E2EBusEntry[] = await page.evaluate(
       (fromSeq: number) => {
@@ -216,7 +220,11 @@ export async function createE2EScenario(
           .__e2e as { busLog?: E2EBusEntry[] } | undefined;
         const log = e2e?.busLog;
         if (!log || log.length <= fromSeq) return [];
-        return log.slice(fromSeq);
+        return log.slice(fromSeq).map((entry) => {
+          if (!entry._canvasSnapshot && !entry._prevSnapshot) return entry;
+          const { _canvasSnapshot, _prevSnapshot, ...rest } = entry;
+          return rest as typeof entry;
+        });
       },
       lastSeenSeq,
     );
