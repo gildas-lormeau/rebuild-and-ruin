@@ -2,7 +2,7 @@
  * Grunt Surge modifier — spawns extra grunts distributed across all alive towers.
  *
  * The actual spawning call (spawnGruntSurgeOnZone) lives in a higher layer
- * (grunt-system.ts), so it's injected by round-modifiers.ts via applyGruntSurge.
+ * (grunt-system.ts), so it's injected by modifier-system.ts via applyGruntSurge.
  */
 
 import { FIRST_GRUNT_SPAWN_ROUND } from "../../shared/core/game-constants.ts";

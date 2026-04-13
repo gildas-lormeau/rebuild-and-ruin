@@ -81,7 +81,7 @@ export const EMPTY_FEATURES: ReadonlySet<FeatureId> = new Set<FeatureId>();
  * TypeScript + the scenario/determinism tests. */
 export const FEATURE_CONSUMERS = {
   modifiers: {
-    "gate:rollModifier": "src/game/modifiers/round-modifiers.ts",
+    "gate:rollModifier": "src/game/modifier-system.ts",
     "gate:clearFrozenRiver": "src/game/modifiers/frozen-river.ts",
     "gate:enterBattleFromCannon": "src/game/phase-setup.ts",
     "stateAccess:applyBattleStartModifiers": "src/game/phase-setup.ts",

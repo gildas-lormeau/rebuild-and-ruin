@@ -98,7 +98,7 @@ import {
   MODIFIER_REGISTRY,
   resetModifierTilesForZone,
   rollModifier,
-} from "./modifiers/round-modifiers.ts";
+} from "./modifier-system.ts";
 import {
   buildTimerBonus,
   generateUpgradeOffers,

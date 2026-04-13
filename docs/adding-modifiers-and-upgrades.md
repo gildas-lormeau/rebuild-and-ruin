@@ -18,7 +18,7 @@ dust storm).
 | 1 | `src/shared/core/game-constants.ts` | Add string literal to `ModifierId` union + `MODIFIER_ID` map |
 | 2 | `src/shared/core/modifier-defs.ts` | Add pool entry (`weight`, `needsCheckpoint`, `tileMutationPrev`) + `MODIFIER_CONSUMERS` entry |
 | 3 | `src/game/modifiers/<name>.ts` | Create modifier file exporting a `ModifierImpl` object |
-| 4 | `src/game/modifiers/round-modifiers.ts` | Import the impl and add entry to `MODIFIER_IMPLS` |
+| 4 | `src/game/modifiers/modifier-system.ts` | Import the impl and add entry to `MODIFIER_IMPLS` |
 | 5 | `src/render/render-ui.ts` | Add banner color entry to `MODIFIER_COLORS` |
 | 6 | `.import-layers.json` | Register the new file (most modifiers land in "deep logic") |
 | 7 | *(if tile-mutating)* `src/shared/core/types.ts` | Add `fooTiles: Set<number> \| null` to `ModernState` + initial `null` in `createModernState()` |
@@ -39,14 +39,14 @@ Each modifier lives in its own file under `src/game/modifiers/`, exporting a
 ```
 src/game/modifiers/
   modifier-types.ts       — ModifierImpl interface + ModifierTileData
-  round-modifiers.ts      — MODIFIER_IMPLS registry, rollModifier, checkpoint orchestration
+  modifier-system.ts      — MODIFIER_IMPLS registry, rollModifier, checkpoint orchestration
   wildfire.ts             — wildfire impl + shared fire helpers (buildCanBurnPredicate, applyWildfireScar)
   crumbling-walls.ts
   grunt-surge.ts
   frozen-river.ts
   sinkhole.ts
   high-tide.ts
-  dust-storm.ts           — impl + applyDustStormJitter (re-exported by round-modifiers.ts)
+  dust-storm.ts           — impl + applyDustStormJitter (re-exported by modifier-system.ts)
   rubble-clearing.ts
   low-water.ts
   dry-lightning.ts        — reuses wildfire's burn predicate + scar applicator
@@ -55,7 +55,7 @@ src/game/modifiers/
 ### ModifierImpl interface
 
 Every modifier exports a `ModifierImpl` object from its file, then
-`round-modifiers.ts` imports it into the `MODIFIER_IMPLS` map. The
+`modifier-system.ts` imports it into the `MODIFIER_IMPLS` map. The
 `satisfies Record<ModifierId, ModifierImpl>` check catches omissions at
 compile time.
 
@@ -78,7 +78,7 @@ export const myModifierImpl: ModifierImpl = {
 };
 ```
 
-Then in `round-modifiers.ts`:
+Then in `modifier-system.ts`:
 ```ts
 import { myModifierImpl } from "./my-modifier.ts";
 
@@ -135,7 +135,7 @@ checkpoint state, serialization, clear, or zoneReset. They just need:
 1. The ID in `ModifierId` + `MODIFIER_ID`
 2. A pool entry in `modifier-defs.ts`
 3. A file in `src/game/modifiers/` exporting a `ModifierImpl`
-4. An import + entry in `MODIFIER_IMPLS` in `round-modifiers.ts`
+4. An import + entry in `MODIFIER_IMPLS` in `modifier-system.ts`
 5. A banner color in `render-ui.ts`
 
 ---

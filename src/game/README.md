@@ -87,7 +87,7 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
 - **`combo-system.ts`** — Combo scoring streaks during battle. Init
   in `enterBattleFromCannon`, scoring in `scoreImpactCombo`, final
   awards in `awardComboBonuses`. Gated by `hasFeature(state, "combos")`.
-- **`round-modifiers.ts`** — Environmental modifiers (wildfire,
+- **`modifier-system.ts`** — Environmental modifiers (wildfire,
   crumbling walls, grunt surge, frozen river, sinkhole, high tide,
   dust storm, rubble clearing). Each has an `apply` function.
   `rollModifier()` picks the next one using seeded RNG. Gated by
@@ -149,7 +149,7 @@ file path; TypeScript's `satisfies` clause will catch you if you miss
 a union member.
 
 ### Add a new environmental modifier
-See `round-modifiers.ts` for the pattern. Each modifier has:
+See `modifier-system.ts` for the pattern. Each modifier has:
 - An `apply*` function that mutates state (and optionally records tile state)
 - A `clear*` / `reapply*` function if it needs checkpoint restore
 - A `MODIFIER_CONSUMERS[<id>]` entry in `modifier-defs.ts`

@@ -371,7 +371,7 @@ sufficient for LLM agents to follow correctly.
     limit = skip target entirely. Both are gap counts but at different decision points.
 
 48. **Modifier tuning constants are playtesting-calibrated** —
-    game/round-modifiers.ts:71 block comment warns against adjusting multiple simultaneously.
+    game/modifier-system.ts:71 block comment warns against adjusting multiple simultaneously.
 
 49. **Fanfare note frequencies are musical constants** — runtime/runtime-sound.ts:587 comment
     documents G4=392, C5=523, E5=659, G5=784 Hz.

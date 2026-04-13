@@ -351,7 +351,7 @@ Most entries below were discovered and executed by LLM-based agents under script
 | L14 "online infrastructure" over-classified (max dep L4) | Moved entire group from L14 to L5 (after "shared types & config"); no L5–L13 files import from it; eliminated 9-layer gap |
 | `runtime-e2e-bridge.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L6 "runtime primitives" — max dep L6 (runtime-state); dev-only bridge with no render/input deps |
 | `runtime-selection.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L8 "phase orchestration" — max dep L7 (game logic); eliminated L14→L7 edge from runtime sub-systems |
-| `ModifierDiff` dual import path | Removed re-export from `round-modifiers.ts`; updated 3 consumers to import from canonical source `game-constants.ts` |
+| `ModifierDiff` dual import path | Removed re-export from `modifier-system.ts`; updated 3 consumers to import from canonical source `game-constants.ts` |
 | `game-phase.ts` mixed 3 domain concerns | Split into `game-phase.ts` (Phase enum + predicates), `ui-mode.ts` (Mode enum + predicates), `input-action.ts` (Action enum); 33 import sites updated |
 | `router.ts` stateful singleton in shared/ | Moved to `src/runtime/router.ts` — all 4 consumers in runtime/online/entry domains (can import runtime) |
 | `dialog-types.ts` over-classified in L3 | Reclassified to L0 — all imports are L0 only (player-slot, upgrade-defs) |

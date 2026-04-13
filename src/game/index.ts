@@ -50,7 +50,7 @@ export {
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
-export { applyCheckpointModifierTiles } from "./modifiers/round-modifiers.ts";
+export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
   enterBuildSkippingBattle,

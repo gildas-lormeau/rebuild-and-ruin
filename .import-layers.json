@@ -186,7 +186,7 @@
       "src/ai/ai-build-fallback.ts",
       "src/game/build-system.ts",
       "src/game/cannon-system.ts",
-      "src/game/modifiers/round-modifiers.ts",
+      "src/game/modifier-system.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",

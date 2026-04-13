@@ -6,28 +6,31 @@
  * Selection uses the synced RNG for online determinism.
  */
 
-import { FID } from "../../shared/core/feature-defs.ts";
+import { FID } from "../shared/core/feature-defs.ts";
 import {
   MODIFIER_FIRST_ROUND,
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
-} from "../../shared/core/game-constants.ts";
-import { IMPLEMENTED_MODIFIERS } from "../../shared/core/modifier-defs.ts";
-import { type GameState, hasFeature } from "../../shared/core/types.ts";
-import { spawnGruntSurgeOnZone } from "../grunt-system.ts";
-import { crumblingWallsImpl } from "./crumbling-walls.ts";
-import { dryLightningImpl } from "./dry-lightning.ts";
-import { dustStormImpl } from "./dust-storm.ts";
-import { frozenRiverImpl } from "./frozen-river.ts";
-import { createGruntSurgeImpl } from "./grunt-surge.ts";
-import { highTideImpl } from "./high-tide.ts";
-import { lowWaterImpl } from "./low-water.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
-import { rubbleClearingImpl } from "./rubble-clearing.ts";
-import { sinkholeImpl } from "./sinkhole.ts";
-import { wildfireImpl } from "./wildfire.ts";
+} from "../shared/core/game-constants.ts";
+import { IMPLEMENTED_MODIFIERS } from "../shared/core/modifier-defs.ts";
+import { type GameState, hasFeature } from "../shared/core/types.ts";
+import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
+import { crumblingWallsImpl } from "./modifiers/crumbling-walls.ts";
+import { dryLightningImpl } from "./modifiers/dry-lightning.ts";
+import { dustStormImpl } from "./modifiers/dust-storm.ts";
+import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
+import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
+import { highTideImpl } from "./modifiers/high-tide.ts";
+import { lowWaterImpl } from "./modifiers/low-water.ts";
+import type {
+  ModifierImpl,
+  ModifierTileData,
+} from "./modifiers/modifier-types.ts";
+import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
+import { sinkholeImpl } from "./modifiers/sinkhole.ts";
+import { wildfireImpl } from "./modifiers/wildfire.ts";
 
-export { applyDustStormJitter } from "./dust-storm.ts";
+export { applyDustStormJitter } from "./modifiers/dust-storm.ts";
 
 /** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
 const MODIFIER_IMPLS = {

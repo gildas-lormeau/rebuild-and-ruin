@@ -31,7 +31,7 @@ const rules: BoundaryRule[] = [
       file.startsWith("src/game/") &&
       (file.endsWith("-system.ts") ||
         file.endsWith("/phase-setup.ts") ||
-        file.endsWith("/round-modifiers.ts") ||
+        file.endsWith("/modifier-system.ts") ||
         file.endsWith("/upgrade-system.ts")),
     isAllowedImporter: (file) =>
       startsWithAny(file, ["src/game/"]) ||
