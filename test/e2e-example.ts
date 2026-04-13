@@ -10,7 +10,7 @@
  */
 
 import { assert, assertEquals, assertGreater } from "@std/assert";
-import { createE2EScenario } from "./e2e-scenario.ts";
+import { createE2EScenario, GAME_EVENT } from "./e2e-scenario.ts";
 
 Deno.test("e2e: full game plays to completion with banners", async () => {
   const sc = await createE2EScenario({
@@ -22,7 +22,7 @@ Deno.test("e2e: full game plays to completion with banners", async () => {
 
   try {
     const bannerTexts: string[] = [];
-    sc.bus.on("bannerStart", (ev) => {
+    sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
       bannerTexts.push(ev.text as string);
     });
 
@@ -48,7 +48,7 @@ Deno.test("e2e: runUntil stops at first battle phase", async () => {
 
   try {
     const phases: string[] = [];
-    sc.bus.on("phaseStart", (ev) => {
+    sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
       phases.push(ev.phase as string);
     });
 

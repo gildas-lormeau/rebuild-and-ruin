@@ -18,6 +18,11 @@ import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
 } from "../src/runtime/runtime-e2e-bridge.ts";
+import type { GameEventMap } from "../src/shared/core/game-event-bus.ts";
+
+// Re-export so tests can import GAME_EVENT from the same place.
+export { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
+export type { E2EBusEntry } from "../src/runtime/runtime-e2e-bridge.ts";
 
 export interface E2EScenarioOptions {
   seed?: number;
@@ -31,6 +36,9 @@ export interface E2EScenarioOptions {
   /** Room code to join when `online: "join"`. */
   roomCode?: string;
 }
+
+/** Event type — accepts GAME_EVENT constants or raw strings. */
+type E2EEventType = keyof GameEventMap;
 
 /** Handler for a specific event type. Receives the busLog entry. */
 type E2EBusHandler = (event: E2EBusEntry) => void;
@@ -50,16 +58,16 @@ export interface E2EScenario {
   /** Game bus — mirrors the headless GameEventBus shape. Handlers fire
    *  during `runUntil` / `runGame` as new events appear in busLog. */
   bus: {
-    /** Subscribe to a specific event type. */
-    on(eventType: string, handler: E2EBusHandler): void;
+    /** Subscribe to a specific event type. Accepts GAME_EVENT constants. */
+    on(eventType: E2EEventType, handler: E2EBusHandler): void;
     /** Unsubscribe from a specific event type. */
-    off(eventType: string, handler: E2EBusHandler): void;
+    off(eventType: E2EEventType, handler: E2EBusHandler): void;
     /** Subscribe to ALL events. */
     onAny(handler: E2EAnyHandler): void;
     /** Unsubscribe a catch-all handler. */
     offAny(handler: E2EAnyHandler): void;
     /** Read the full event log (or filtered by type). */
-    events(eventType?: string): Promise<E2EBusEntry[]>;
+    events(eventType?: E2EEventType): Promise<E2EBusEntry[]>;
   };
   /** Drive the game until a predicate returns true. The predicate
    *  receives the scenario itself — use `await sc.phase()`, `await sc.state()`,

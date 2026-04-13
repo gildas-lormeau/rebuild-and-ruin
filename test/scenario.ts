@@ -60,6 +60,7 @@ import {
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
+import type { OnlineClient } from "../src/online/online-stores.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
@@ -189,6 +190,10 @@ export interface Scenario extends Disposable {
   /** ASCII renderer handle — only present when `renderer: true` was passed
    *  to `createScenario`. Provides `frames`, `lastFrame`, and `snapshot()`. */
   readonly renderer?: AsciiRenderer;
+  /** Online client — only present when `online: "host"` was passed.
+   *  Provides access to `onlineClient.ctx.session`, `.ctx.watcher`,
+   *  `.ctx.dedup` for asserting dispatcher state after `deliverMessage`. */
+  readonly onlineClient?: OnlineClient;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -298,7 +303,9 @@ export async function createScenario(
       ...opts,
       remotePlayerSlots: opts.remotePlayerSlots,
     });
-    return harness.scenario;
+    const scenario = harness.scenario;
+    (scenario as { onlineClient: OnlineClient }).onlineClient = harness.client;
+    return scenario;
   }
 
   const sentMessages: GameMessage[] = [];

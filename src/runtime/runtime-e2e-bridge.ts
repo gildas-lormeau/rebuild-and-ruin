@@ -83,46 +83,11 @@ export interface E2EBridgeSnapshot {
   busLog: E2EBusEntry[];
 }
 
-/** The full bridge object exposed on window.__e2e. */
-interface E2EBridge {
-  // Core state
-  mode: string;
-  phase: string;
-  round: number;
-  timer: number;
-
-  // Render overlay
-  overlay: {
-    /** Whether a prev-scene ImageData is captured for the banner sweep. */
-    hasBannerPrevScene: boolean;
-    banner: E2EBannerSnapshot | null;
-    battle: E2EBattleSnapshot | null;
-    ui: E2EUISnapshot;
-  };
-
-  // Human controller
-  controller: E2EControllerSnapshot | null;
-
-  // Coord conversion (callable from page.evaluate)
+/** The full bridge object exposed on window.__e2e. Extends the
+ *  serializable snapshot with function fields and mutable flags. */
+interface E2EBridge extends E2EBridgeSnapshot {
   worldToClient: (wx: number, wy: number) => { cx: number; cy: number };
   tileToClient: (row: number, col: number) => { cx: number; cy: number };
-
-  // Pause / step
-  paused: boolean;
-  step: boolean;
-
-  // Battle targeting (computed from state for e2e battle simulation)
-  targeting: {
-    enemyCannons: { x: number; y: number }[];
-    enemyTargets: { x: number; y: number }[];
-  };
-
-  /** All game bus events, in emission order. Each entry is the raw event
-   *  payload (which always contains `type`) plus a monotonic `_seq` index.
-   *  Banner and tick events carry `_canvasSnapshot` (PNG dataURL captured
-   *  synchronously at emission time). */
-  busLog: E2EBusEntry[];
-
   /** When true, the bridge captures a canvas PNG on every non-banner tick
    *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
    *  `toDataURL` every frame is expensive. Set by E2E tests that need
