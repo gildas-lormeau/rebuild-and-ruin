@@ -65,6 +65,7 @@ import type { BannerState } from "../src/runtime/runtime-contracts.ts";
 import type { DialogRuntimeState } from "../src/runtime/runtime-state.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
+import type { AsciiRenderer } from "./ascii-renderer.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
@@ -112,6 +113,11 @@ export interface ScenarioOptions {
    *  directly to `createCanvasRenderer({ observer })`, so the renderer
    *  closure owns it — no module-level state involved. */
   renderObserver?: RenderObserver;
+  /** ASCII renderer. When provided, replaces the default no-op stub with a
+   *  text-based renderer that captures every frame as a string grid via
+   *  `buildGrid`. Create with `createAsciiRenderer()` from
+   *  `test/ascii-renderer.ts`. Mutually exclusive with `recorder`. */
+  ascii?: AsciiRenderer;
 }
 
 export interface Scenario extends Disposable {
@@ -247,6 +253,7 @@ export function loadSeed(
     Pick<
       ScenarioOptions,
       | "rounds"
+      | "ascii"
       | "recorder"
       | "renderObserver"
       | "hapticsObserver"
@@ -270,6 +277,7 @@ export function loadSeed(
     seed,
     mode: condition.mode,
     rounds: overrides?.rounds ?? condition.rounds,
+    ascii: overrides?.ascii,
     recorder: overrides?.recorder,
     renderObserver: overrides?.renderObserver,
     hapticsObserver: overrides?.hapticsObserver,
@@ -284,6 +292,9 @@ export async function createScenario(
   const headless = await createHeadlessRuntime(
     buildHeadlessOptions(opts, sentMessages),
   );
+  if (opts.ascii) {
+    opts.ascii.bind(() => headless.runtime.runtimeState.state);
+  }
   return wrapHeadless(headless, sentMessages);
 }
 
@@ -307,17 +318,24 @@ export function buildHeadlessOptions(
       "scenario: `renderObserver` requires a `recorder` — the no-op stub renderer never draws terrain, so the observer would never fire. Pass `recorder: createCanvasRecorder({ discardCalls: true })` alongside `renderObserver`.",
     );
   }
+  if (opts.ascii && opts.recorder) {
+    throw new Error(
+      "scenario: `ascii` and `recorder` are mutually exclusive — both replace the renderer.",
+    );
+  }
   // When a recorder is provided, build the real renderer over the
   // recorder's display canvas. Each `createCanvasRenderer` call owns its own
   // closure-bound `renderMap` instance (canvas factory + observer + scene
   // caches), so multiple recorder-backed scenarios in the same test file
   // remain isolated without any cleanup step.
-  const renderer = opts.recorder
-    ? createCanvasRenderer(opts.recorder.displayCanvas, {
-        canvasFactory: opts.recorder.factory,
-        observer: opts.renderObserver,
-      })
-    : undefined;
+  const renderer = opts.ascii
+    ? opts.ascii
+    : opts.recorder
+      ? createCanvasRenderer(opts.recorder.displayCanvas, {
+          canvasFactory: opts.recorder.factory,
+          observer: opts.renderObserver,
+        })
+      : undefined;
   return {
     seed: opts.seed ?? 42,
     gameMode: opts.mode === "modern" ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
