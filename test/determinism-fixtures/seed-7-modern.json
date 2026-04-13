@@ -248,24 +248,24 @@
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 0,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 112,
-        "startY": 96,
-        "targetX": 376,
-        "targetY": 312
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
         "playerId": 0,
         "speed": 150,
         "startX": 336,
         "startY": 336,
         "targetX": 568,
         "targetY": 184
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 0,
+        "playerId": 2,
+        "speed": 150,
+        "startX": 112,
+        "startY": 96,
+        "targetX": 376,
+        "targetY": 312
       }
     },
     {
@@ -1127,21 +1127,21 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 0,
+        "playerId": 2,
         "tileKeys": [
-          864,
-          908,
-          863
+          441,
+          442
         ]
       }
     },
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 2,
+        "playerId": 0,
         "tileKeys": [
-          441,
-          442
+          864,
+          908,
+          863
         ]
       }
     },
@@ -1830,19 +1830,19 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 30,
-        "playerId": 1,
-        "row": 4,
-        "shooterId": 0
+        "col": 25,
+        "playerId": 0,
+        "row": 19,
+        "shooterId": 2
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 25,
-        "playerId": 0,
-        "row": 19,
-        "shooterId": 2
+        "col": 30,
+        "playerId": 1,
+        "row": 4,
+        "shooterId": 0
       }
     },
     {
@@ -2031,6 +2031,15 @@
     {
       "type": "wallDestroyed",
       "payload": {
+        "col": 21,
+        "playerId": 0,
+        "row": 19,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
         "col": 31,
         "playerId": 1,
         "row": 4,
@@ -2047,15 +2056,6 @@
         "startY": 336,
         "targetX": 472,
         "targetY": 120
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 21,
-        "playerId": 0,
-        "row": 19,
-        "shooterId": 2
       }
     },
     {

@@ -307,6 +307,10 @@ export async function createHeadlessRuntime(
   // by `isStateReady`) to hydrate frameMeta before calling startGame.
   setMode(runtime.runtimeState, Mode.LOBBY);
   runtime.runtimeState.lastTime = clock;
+  // Advance clock by one full simulation tick (≈17ms at 60fps) so the
+  // fixed-step accumulator produces at least 1 step, hydrating frameMeta
+  // before startGame() touches it.
+  clock += 17;
   runtime.mainLoop(clock);
 
   if (autoStartGame) {

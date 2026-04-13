@@ -33,6 +33,7 @@ export interface ModifierDiff {
   readonly gruntsSpawned: number;
 }
 
+const US_PER_SEC = 1_000_000;
 /** String identifiers for modifiers. Labels live in modifier-defs.ts (MODIFIER_POOL). */
 export const MODIFIER_ID = {
   WILDFIRE: "wildfire",
@@ -159,6 +160,12 @@ export const LIFE_LOST_AUTO_DELAY = 2.0;
 export const LIFE_LOST_MAX_TIMER = 10.0;
 /** Maximum frame delta time in seconds (caps large frame gaps). */
 export const MAX_FRAME_DT = 0.1;
+/** Fixed simulation tick step (seconds). The game loop accumulates real
+ *  elapsed time and drains it in chunks of this size, so the simulation
+ *  is frame-rate independent. 1/60 ≈ 16.67ms — matches 60 fps. */
+export const SIM_TICK_DT = 1 / 60;
+/** Microseconds per simulation tick (integer math avoids FP drift). */
+const SIM_TICK_US = Math.round(SIM_TICK_DT * 1_000_000);
 /** Duration to display score-delta popups (seconds). */
 export const SCORE_DELTA_DISPLAY_TIME = 2;
 /** Duration of host-migration announcement overlay (seconds). */
@@ -214,3 +221,23 @@ export const UPGRADE_PICK_MAX_TIMER = 15;
  *  pulse on the final card actually gets draw frames. The render layer uses
  *  the same constant to drive the expanding ring animation. */
 export const UPGRADE_PICK_PULSE_DURATION = 0.45;
+
+/** Accumulator that converts variable frame dt into a deterministic
+ *  number of fixed-size simulation ticks. Uses integer microsecond
+ *  math internally to eliminate floating-point rounding differences
+ *  between frame rates. */
+export class SimTickAccumulator {
+  private accumUs = 0;
+
+  /** Feed a frame's dt (seconds) and return the number of fixed ticks. */
+  drain(frameDt: number): number {
+    this.accumUs += Math.round(frameDt * US_PER_SEC);
+    const steps = Math.floor(this.accumUs / SIM_TICK_US);
+    this.accumUs -= steps * SIM_TICK_US;
+    return steps;
+  }
+
+  reset(): void {
+    this.accumUs = 0;
+  }
+}

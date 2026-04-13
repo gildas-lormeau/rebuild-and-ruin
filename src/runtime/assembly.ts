@@ -1,4 +1,8 @@
-import { MAX_FRAME_DT } from "../shared/core/game-constants.ts";
+import {
+  MAX_FRAME_DT,
+  SIM_TICK_DT,
+  SimTickAccumulator,
+} from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type {
   PlayerSlotId,
@@ -95,18 +99,19 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     return raw;
   }
 
-  /** Maximum sub-step count per real frame. Capped because higher values
-   *  pin the CPU without producing perceptibly faster gameplay (the browser
-   *  needs to display each frame). Matches the cap in `__dev.speed`. */
-  const MAX_SUB_STEPS = 16;
+  /** Maximum simulation ticks per real frame. Prevents runaway catch-up
+   *  when a long pause is followed by a resume (e.g. tab hidden).
+   *  At 16× speed with ~16ms frames, expect ~16 ticks; with 100ms E2E
+   *  frames expect ~96. Cap generously above both. */
+  const MAX_TICKS_PER_FRAME = 128;
 
-  /** Run the per-tick logic once with the given `dt`. Extracted from
-   *  `mainLoop` so we can call it N times per real frame when
-   *  `speedMultiplier > 1` — N sub-steps with normal-sized dt is the
-   *  *only* way to speed up the simulation without breaking determinism.
-   *  Returns false when the loop should stop scheduling further frames
-   *  (Mode.STOPPED). */
-  function runOneSubStep(dt: number): boolean {
+  const simAccum = new SimTickAccumulator();
+
+  /** Run the per-tick logic once with a fixed dt (SIM_TICK_DT). Extracted
+   *  from `mainLoop` so we can call it N times per real frame. Returns
+   *  false when the loop should stop scheduling further frames. */
+  function runOneSubStep(): boolean {
+    const dt = SIM_TICK_DT;
     deps.runtimeState.frameDt = dt;
     clearFrameData();
 
@@ -157,19 +162,19 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   }
 
   function mainLoop(now: number): void {
-    const dt = clampedFrameDt(now);
-    const subSteps = Math.max(
-      1,
-      Math.min(MAX_SUB_STEPS, Math.floor(deps.runtimeState.speedMultiplier)),
-    );
+    const realDt = clampedFrameDt(now);
+    // Speed multiplier scales how much simulation time is fed into the
+    // accumulator — higher speed = more fixed ticks per real frame.
+    const simDt = realDt * deps.runtimeState.speedMultiplier;
+    const ticks = Math.min(simAccum.drain(simDt), MAX_TICKS_PER_FRAME);
 
     let shouldContinue = true;
-    for (let i = 0; i < subSteps; i++) {
+    for (let i = 0; i < ticks; i++) {
       if (deps.runtimeState.mode === Mode.STOPPED) {
         shouldContinue = false;
         break;
       }
-      shouldContinue = runOneSubStep(dt);
+      shouldContinue = runOneSubStep();
       if (!shouldContinue) break;
     }
 

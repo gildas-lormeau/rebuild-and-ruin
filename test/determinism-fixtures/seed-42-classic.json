@@ -1308,19 +1308,19 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 2,
+        "playerId": 1,
         "tileKeys": [
-          570,
-          571
+          677
         ]
       }
     },
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 1,
+        "playerId": 2,
         "tileKeys": [
-          677
+          570,
+          571
         ]
       }
     },

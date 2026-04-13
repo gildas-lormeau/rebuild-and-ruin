@@ -7,6 +7,7 @@
  */
 
 import { aimCannons, nextReadyCombined } from "../game/index.ts";
+import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
@@ -15,7 +16,7 @@ import type {
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { StrategicPixelPos } from "./ai-build-types.ts";
-import { AI_TICK_DT, STEP, secondsToTicks } from "./ai-constants.ts";
+import { STEP, secondsToTicks } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 
 /** Callback that executes a fire intent against mutable game state.
@@ -61,9 +62,9 @@ interface BattlePhase {
 }
 
 /** Fixed dt passed to aimCannons (visual-only rotation, no RNG). */
-const AIM_DT = AI_TICK_DT;
+const AIM_DT = SIM_TICK_DT;
 /** Per-tick multiplier for orbit angular speed (rad/s → rad/tick). */
-const ORBIT_DT = AI_TICK_DT;
+const ORBIT_DT = SIM_TICK_DT;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
 const ORBIT_ENGAGEMENT_DISTANCE_PX = 12;
 /** Base orbit angular speed (rad/s) when targeting a strategic tile. */
