@@ -654,7 +654,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           row: phantom.row,
           col: phantom.col,
           playerId: phantom.playerId,
-          valid: phantom.valid ?? true,
+          valid: phantom.valid,
         });
         if (
           isHost &&
@@ -668,7 +668,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             row: phantom.row,
             col: phantom.col,
             offsets: phantom.offsets,
-            valid: phantom.valid ?? true,
+            valid: phantom.valid,
           });
         }
       }

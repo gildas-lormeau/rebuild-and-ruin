@@ -85,7 +85,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     if (!isStateReady(runtimeState)) return;
 
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
-    const chList = runtimeState.frame.crosshairs ?? [];
+    const chList = runtimeState.frame.crosshairs;
     const selH = runtimeState.overlay.selection?.highlights;
     deps.logThrottled(
       "render-summary",

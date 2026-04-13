@@ -1,0 +1,9 @@
+[
+  "src/entry.ts:123:?.",
+  "src/input/input-recorder.ts:168:?.",
+  "src/online/online-runtime-deps.ts:92:!expr",
+  "src/online/online-runtime-promote.ts:55:!expr",
+  "src/online/online-runtime-ws.ts:58:!expr",
+  "src/render/render-sprites.ts:111:??",
+  "src/shared/platform/platform.ts:27:?."
+]

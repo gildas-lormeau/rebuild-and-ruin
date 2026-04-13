@@ -1039,7 +1039,6 @@ function buildOwnerTables(
     }
     if (walls) {
       for (const set of walls) {
-        if (!set) continue;
         for (const key of set) wallTiles.add(key);
       }
     }

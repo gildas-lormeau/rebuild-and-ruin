@@ -226,7 +226,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const { x: cssX, y: cssY } = deps.screenToContainerCSS(sx, sy);
   const nearTop = cssY < deps.containerHeight * NEAR_TOP_THRESHOLD;
   deps.floatingActions.update(true, cssX, cssY, nearTop, deps.leftHanded);
-  deps.floatingActions.setConfirmValid(phantomValid ?? false);
+  deps.floatingActions.setConfirmValid(phantomValid);
 }
 
 /** @returns true if phantom valid, false if invalid, undefined if no phantom for this phase. */
