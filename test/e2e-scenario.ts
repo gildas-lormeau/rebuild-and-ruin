@@ -18,11 +18,25 @@ import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
 } from "../src/runtime/runtime-e2e-bridge.ts";
-import type { GameEventMap } from "../src/shared/core/game-event-bus.ts";
+import {
+  GAME_EVENT,
+  type GameEventMap,
+} from "../src/shared/core/game-event-bus.ts";
+import type { Phase } from "../src/shared/core/game-phase.ts";
+import type { ModifierId } from "../src/shared/core/game-constants.ts";
+import type { Mode } from "../src/shared/ui/ui-mode.ts";
 
 // Re-export so tests can import GAME_EVENT from the same place.
 export { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 export type { E2EBusEntry } from "../src/runtime/runtime-e2e-bridge.ts";
+
+/** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
+ *  emits names rather than numeric values so E2E tests compare against string
+ *  literals; "" before the first frame. */
+export type E2EMode = keyof typeof Mode | "";
+
+/** `Phase` enum (string-valued), or "" before state is ready. */
+export type E2EPhase = Phase | "";
 
 export interface E2EScenarioOptions {
   seed?: number;
@@ -51,10 +65,10 @@ export interface E2EScenario {
   readonly page: Page;
   /** Read the current bridge snapshot. */
   state(): Promise<E2EBridgeSnapshot>;
-  /** Current UI mode (LOBBY, GAME, STOPPED, etc). */
-  mode(): Promise<string>;
-  /** Current game phase. */
-  phase(): Promise<string>;
+  /** Current UI mode (LOBBY, GAME, STOPPED, …) — stringified `Mode` enum key. */
+  mode(): Promise<E2EMode>;
+  /** Current game phase — `Phase` enum (string-valued), or "" before ready. */
+  phase(): Promise<E2EPhase>;
   /** Whether the lobby UI is currently active. */
   lobbyActive(): Promise<boolean>;
   /** Game bus — mirrors the headless GameEventBus shape. Handlers fire
@@ -316,14 +330,14 @@ export async function createE2EScenario(
       page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as { mode?: string } | undefined;
-        return e2e?.mode ?? "";
+        return (e2e?.mode ?? "") as E2EMode;
       }),
 
     phase: () =>
       page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as { phase?: string } | undefined;
-        return e2e?.phase ?? "";
+        return (e2e?.phase ?? "") as E2EPhase;
       }),
 
     lobbyActive: async () => (await scenario.mode()) === "LOBBY",
@@ -420,6 +434,66 @@ export async function createE2EScenario(
   };
 
   return scenario;
+}
+
+/** Tick until a `phaseStart` event for `phase` fires. Returns the captured
+ *  bus entry. Mirrors the headless `waitForPhase` — same shape, async. */
+export async function waitForPhase(
+  sc: E2EScenario,
+  phase: Phase,
+  opts?: { timeout?: number },
+): Promise<E2EBusEntry> {
+  let captured: E2EBusEntry | null = null;
+  const handler = (ev: E2EBusEntry) => {
+    if (captured === null && ev.phase === phase) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.PHASE_START, handler);
+  try {
+    await sc.runUntil(() => captured !== null, opts);
+  } finally {
+    sc.bus.off(GAME_EVENT.PHASE_START, handler);
+  }
+  if (captured === null) {
+    throw new Error(`waitForPhase(${phase}) timed out`);
+  }
+  return captured;
+}
+
+/** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
+export function waitForModifier(
+  sc: E2EScenario,
+  modifierId?: ModifierId,
+  opts?: { timeout?: number },
+): Promise<E2EBusEntry> {
+  return waitForBanner(
+    sc,
+    (ev) =>
+      ev.modifierId !== undefined &&
+      (modifierId === undefined || ev.modifierId === modifierId),
+    opts,
+  );
+}
+
+/** Tick until a `bannerStart` event matching `predicate` fires. */
+export async function waitForBanner(
+  sc: E2EScenario,
+  predicate: (ev: E2EBusEntry) => boolean,
+  opts?: { timeout?: number },
+): Promise<E2EBusEntry> {
+  let captured: E2EBusEntry | null = null;
+  const handler = (ev: E2EBusEntry) => {
+    if (captured === null && predicate(ev)) captured = ev;
+  };
+  sc.bus.on(GAME_EVENT.BANNER_START, handler);
+  try {
+    await sc.runUntil(() => captured !== null, opts);
+  } finally {
+    sc.bus.off(GAME_EVENT.BANNER_START, handler);
+  }
+  if (captured === null) {
+    throw new Error("waitForBanner timed out");
+  }
+  return captured;
 }
 
 /** Lightweight assertion tracker for e2e tests. Prints PASS/FAIL per check,

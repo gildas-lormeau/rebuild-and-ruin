@@ -63,8 +63,12 @@ export interface E2EControllerSnapshot {
 /** Serializable subset of the bridge — what `state()` returns across
  *  the Playwright boundary (functions stripped by JSON.stringify). */
 export interface E2EBridgeSnapshot {
-  mode: string;
-  phase: string;
+  /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"), or "" before
+   *  the first frame. Compare with string literals, not the numeric enum value. */
+  mode: keyof typeof Mode | "";
+  /** `Phase` enum (string-valued), or "" before state is ready. Compare directly
+   *  with `Phase.BATTLE` etc. */
+  phase: Phase | "";
   round: number;
   timer: number;
   overlay: {
@@ -261,9 +265,9 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   const { runtimeState, config } = deps;
 
   // --- Core ---
-  ref.mode = Mode[runtimeState.mode];
+  ref.mode = Mode[runtimeState.mode] as keyof typeof Mode;
   const ready = isStateReady(runtimeState);
-  ref.phase = ready ? Phase[runtimeState.state.phase] : "";
+  ref.phase = ready ? runtimeState.state.phase : "";
   ref.round = ready ? runtimeState.state.round : 0;
   ref.timer = ready ? runtimeState.state.timer : 0;
 

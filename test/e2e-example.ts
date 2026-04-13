@@ -10,7 +10,12 @@
  */
 
 import { assert, assertEquals, assertGreater } from "@std/assert";
-import { createE2EScenario, GAME_EVENT } from "./e2e-scenario.ts";
+import {
+  createE2EScenario,
+  GAME_EVENT,
+  waitForPhase,
+} from "./e2e-scenario.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 
 Deno.test("e2e: full game plays to completion with banners", async () => {
   const sc = await createE2EScenario({
@@ -52,10 +57,10 @@ Deno.test("e2e: runUntil stops at first battle phase", async () => {
       phases.push(ev.phase as string);
     });
 
-    await sc.runUntil(async (sc) => (await sc.phase()) === "BATTLE");
+    await waitForPhase(sc, Phase.BATTLE);
 
     const currentPhase = await sc.phase();
-    assertEquals(currentPhase, "BATTLE");
+    assertEquals(currentPhase, Phase.BATTLE);
     assertGreater(phases.length, 0, "expected phaseStart events before battle");
   } finally {
     await sc.close();
