@@ -23,6 +23,15 @@ import {
 } from "./spatial.ts";
 import type { GameViewState } from "./system-interfaces.ts";
 
+/** Pre-built tile-key Sets for fast O(1) occupancy checks.
+ *  Build once via `buildOccupancyCache`, then pass to `canPlacePiece`
+ *  to avoid per-tile linear scans over towers/cannons/grunts. */
+export interface OccupancyCache {
+  readonly towerKeys: ReadonlySet<number>;
+  readonly cannonKeys: ReadonlySet<number>;
+  readonly gruntKeys: ReadonlySet<number>;
+}
+
 /**
  * Interior freshness tracking — lazy epoch pairs (wallsEpoch, interiorEpoch).
  *
@@ -294,6 +303,26 @@ export function hasCannonAt(
       return isCannonTile(cannon, r, c);
     }),
   );
+}
+
+export function buildOccupancyCache(
+  state: GameViewState & { readonly grunts: readonly Grunt[] },
+): OccupancyCache {
+  const towerKeys = new Set<number>();
+  for (const tower of state.map.towers) {
+    forEachTowerTile(tower, (_r, _c, key) => towerKeys.add(key));
+  }
+  const cannonKeys = new Set<number>();
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      for (const key of computeCannonTileSet(cannon)) cannonKeys.add(key);
+    }
+  }
+  const gruntKeys = new Set<number>();
+  for (const grunt of state.grunts) {
+    gruntKeys.add(packTile(grunt.row, grunt.col));
+  }
+  return { towerKeys, cannonKeys, gruntKeys };
 }
 
 /** Return a player's owned towers that are still alive. */

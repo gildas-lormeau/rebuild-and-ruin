@@ -17,6 +17,7 @@ import {
   hasWallAt,
   isTileOwnedByPlayer,
   markInteriorFresh,
+  type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
 import {
   BONUS_SQUARE_MIN_DISTANCE,
@@ -93,6 +94,7 @@ export function canPlacePiece(
   row: number,
   col: number,
   excludeInterior?: ReadonlySet<number>,
+  cache?: OccupancyCache,
 ): boolean {
   const player = state.players[playerId];
   if (!player) return false;
@@ -120,9 +122,15 @@ export function canPlacePiece(
         return false;
       }
     }
-    if (hasTowerAt(state, r, c)) return false;
-    if (hasCannonAt(state, r, c)) return false;
-    if (hasGruntAt(state.grunts, r, c)) return false;
+    if (cache) {
+      if (cache.towerKeys.has(key)) return false;
+      if (cache.cannonKeys.has(key)) return false;
+      if (cache.gruntKeys.has(key)) return false;
+    } else {
+      if (hasTowerAt(state, r, c)) return false;
+      if (hasCannonAt(state, r, c)) return false;
+      if (hasGruntAt(state.grunts, r, c)) return false;
+    }
 
     if (hasPitAt(state.burningPits, r, c) && !allowPitOverlap) return false;
 

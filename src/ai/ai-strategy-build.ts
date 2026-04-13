@@ -11,7 +11,11 @@
  */
 
 import { canPlacePiece } from "../game/index.ts";
-import { getInterior, hasGruntAt } from "../shared/core/board-occupancy.ts";
+import {
+  buildOccupancyCache,
+  getInterior,
+  hasGruntAt,
+} from "../shared/core/board-occupancy.ts";
 import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
@@ -290,14 +294,15 @@ function selectBestPlacement(
     if (noBuildTargets) {
       return null;
     }
-    const noSmallEnclosure = (c: Candidate): boolean =>
-      !createsSmallEnclosure(c, walls, outside, state);
+    const isSmallEnclosure = memoize((candidate: Candidate) =>
+      createsSmallEnclosure(candidate, walls, outside, state),
+    );
 
     const open = allCandidates.filter(
       (c) =>
         c.wallAdjacent === 0 &&
         fatBlockCountFor(c) === 0 &&
-        noSmallEnclosure(c),
+        !isSmallEnclosure(c),
     );
     if (open.length > 0) {
       open.sort((a, b) =>
@@ -312,15 +317,15 @@ function selectBestPlacement(
     }
     // Allow fat-free first, fall back to least fat — still reject small enclosures
     const noFat = allCandidates.filter(
-      (c) => fatBlockCountFor(c) === 0 && noSmallEnclosure(c),
+      (c) => fatBlockCountFor(c) === 0 && !isSmallEnclosure(c),
     );
     if (noFat.length > 0) {
       return candidateToPlacement(noFat[0]!);
     }
     // Last resort: least fat, prefer no small enclosure
     const least = [...allCandidates].sort((a, b) => {
-      const aEncloses = createsSmallEnclosure(a, walls, outside, state) ? 1 : 0;
-      const bEncloses = createsSmallEnclosure(b, walls, outside, state) ? 1 : 0;
+      const aEncloses = isSmallEnclosure(a) ? 1 : 0;
+      const bEncloses = isSmallEnclosure(b) ? 1 : 0;
       if (aEncloses !== bEncloses) return aEncloses - bEncloses;
       return fatBlockCountFor(a) - fatBlockCountFor(b);
     });
@@ -428,6 +433,7 @@ function enumerateCandidates(
   targetGaps: Set<number>,
   interiorExcludingGaps: Set<number>,
 ): Candidate[] {
+  const cache = buildOccupancyCache(state);
   const candidates: Candidate[] = [];
   let rotated = piece;
   for (let rotation = 0; rotation < 4; rotation++) {
@@ -441,6 +447,7 @@ function enumerateCandidates(
             r,
             c,
             interiorExcludingGaps,
+            cache,
           )
         )
           continue;

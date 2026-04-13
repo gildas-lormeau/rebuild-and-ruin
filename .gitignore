@@ -39,3 +39,4 @@ old
 tmp
 .claude
 memory
+.deno-coverage
