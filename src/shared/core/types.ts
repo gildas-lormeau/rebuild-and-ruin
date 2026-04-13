@@ -161,6 +161,9 @@ export interface ModernState {
   /** High tide tiles (packed tile keys) — grass tiles temporarily flooded.
    *  Set when high_tide modifier fires, cleared at next battle start. null otherwise. */
   highTideTiles: Set<number> | null;
+  /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
+   *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
+  lowWaterTiles: Set<number> | null;
 }
 
 /** Player selection lobby state. */
@@ -251,5 +254,6 @@ function createModernState(): ModernState {
     frozenTiles: null,
     sinkholeTiles: null,
     highTideTiles: null,
+    lowWaterTiles: null,
   };
 }

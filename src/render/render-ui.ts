@@ -142,6 +142,7 @@ const MODIFIER_COLORS: Record<
     border: "#408030",
     pulseColor: "#8cc878",
   },
+  low_water: { title: "#a0d8b0", border: "#508060", pulseColor: "#78c890" },
 };
 
 /** Draw announcement text centered on screen. */

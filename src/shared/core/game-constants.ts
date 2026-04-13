@@ -15,7 +15,8 @@ export type ModifierId =
   | "sinkhole"
   | "high_tide"
   | "dust_storm"
-  | "rubble_clearing";
+  | "rubble_clearing"
+  | "low_water";
 
 /** Visual diff produced by a modifier apply function.
  *  Consumed by the modifier reveal banner to progressively show map changes.
@@ -41,6 +42,7 @@ export const MODIFIER_ID = {
   HIGH_TIDE: "high_tide",
   DUST_STORM: "dust_storm",
   RUBBLE_CLEARING: "rubble_clearing",
+  LOW_WATER: "low_water",
 } as const satisfies Record<string, ModifierId>;
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";

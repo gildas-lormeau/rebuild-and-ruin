@@ -63,9 +63,11 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
+  DIRS_4,
   isBalloonCannon,
   packTile,
   setGrass,
+  setWater,
   unpackTile,
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
@@ -104,11 +106,13 @@ import {
   applyFrozenRiver,
   applyGruntSurge,
   applyHighTide,
+  applyLowWater,
   applyRubbleClearing,
   applySinkhole,
   applyWildfire,
   clearFrozenRiver,
   clearHighTide,
+  clearLowWater,
   rollModifier,
 } from "./round-modifiers.ts";
 import {
@@ -142,6 +146,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
   clearHighTide(state);
+  clearLowWater(state);
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
   // lastModifierId was already saved in enterBuildFromBattle (before the checkpoint).
   if (hasFeature(state, FID.MODIFIERS)) {
@@ -182,6 +187,7 @@ export function enterBuildSkippingBattle(state: GameState): void {
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
   clearHighTide(state);
+  clearLowWater(state);
   enterBuildFromBattle(state);
 }
 
@@ -424,6 +430,26 @@ export function resetZoneState(state: GameState, zone: number): void {
     if (sinkhole.size === 0) state.modern!.sinkholeTiles = null;
     state.map.mapVersion++;
   }
+  // Revert low water tiles adjacent to this zone back to water
+  const lowWater = state.modern?.lowWaterTiles;
+  if (lowWater) {
+    for (const key of lowWater) {
+      const { r, c } = unpackTile(key);
+      // Low water tiles were water (zone 0) — check if any grass neighbor
+      // belongs to the reset zone, meaning this tile served that zone's bank.
+      const adjacentToZone = DIRS_4.some(([dr, dc]) => {
+        const nr = r + dr;
+        const nc = c + dc;
+        return state.map.zones[nr]?.[nc] === zone;
+      });
+      if (adjacentToZone) {
+        setWater(state.map.tiles, r, c);
+        lowWater.delete(key);
+      }
+    }
+    if (lowWater.size === 0) state.modern!.lowWaterTiles = null;
+    state.map.mapVersion++;
+  }
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {
       state.towerAlive[towerIndex] = true;
@@ -498,6 +524,11 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   if (mod === MODIFIER_ID.RUBBLE_CLEARING) {
     const cleared = applyRubbleClearing(state);
     return { id: mod, changedTiles: cleared, gruntsSpawned: 0 };
+  }
+  if (mod === MODIFIER_ID.LOW_WATER) {
+    const exposed = applyLowWater(state);
+    recheckTerritory(state);
+    return { id: mod, changedTiles: [...exposed], gruntsSpawned: 0 };
   }
   return null;
 }

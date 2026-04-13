@@ -136,6 +136,17 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     // Dead cannons + burning pits are entity-layer. No tile mutation.
     tileMutationPrev: null,
   },
+  {
+    id: "low_water",
+    label: "Low Water",
+    description:
+      "Shallow river-edge tiles become grass for one round, expanding buildable land",
+    weight: 2,
+    implemented: true,
+    needsCheckpoint: true,
+    // River bank tiles were water before — banner snapshot reverts to water.
+    tileMutationPrev: 1, // Tile.Water — value import of Tile is restricted
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -186,6 +197,15 @@ export const MODIFIER_CONSUMERS = {
   rubble_clearing: {
     apply: "src/game/round-modifiers.ts",
     dispatch: "src/game/phase-setup.ts",
+  },
+  low_water: {
+    apply: "src/game/round-modifiers.ts",
+    dispatch: "src/game/phase-setup.ts",
+    clear: "src/game/round-modifiers.ts",
+    reapply: "src/game/round-modifiers.ts",
+    serialize: "src/online/online-serialize.ts",
+    checkpoint: "src/game/round-modifiers.ts",
+    zoneReset: "src/game/phase-setup.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

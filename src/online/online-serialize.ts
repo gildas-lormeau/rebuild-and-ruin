@@ -94,6 +94,9 @@ export function createCannonStartMessage(state: GameState) {
     highTideTiles: state.modern?.highTideTiles
       ? [...state.modern.highTideTiles]
       : null,
+    lowWaterTiles: state.modern?.lowWaterTiles
+      ? [...state.modern.lowWaterTiles]
+      : null,
   };
 }
 
@@ -138,10 +141,7 @@ export function createBattleStartMessage(
 export function createFullStateMessage(
   state: GameState,
   migrationSeq: number,
-  flights?: readonly {
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }[],
+  flights?: readonly { flight: BalloonFlight; progress: number }[],
 ): FullStateMessage {
   return {
     type: MESSAGE.FULL_STATE,
@@ -479,6 +479,9 @@ function serializeModifierTileSets(state: GameState) {
       : null,
     sinkholeTiles: state.modern?.sinkholeTiles
       ? [...state.modern.sinkholeTiles]
+      : null,
+    lowWaterTiles: state.modern?.lowWaterTiles
+      ? [...state.modern.lowWaterTiles]
       : null,
   };
 }
