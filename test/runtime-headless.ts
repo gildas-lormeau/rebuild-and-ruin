@@ -20,6 +20,7 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
   LOBBY_TIMER,
+  SIM_TICK_DT,
 } from "../src/shared/core/game-constants.ts";
 import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
 import type {
@@ -340,28 +341,52 @@ export async function createHeadlessRuntime(
     }
   }
 
+  /** Advance the mock clock and run one mainLoop frame. */
   function tick(dtMs = 16): void {
     clock += dtMs;
     fireTimeouts();
     runtime.mainLoop(clock);
   }
 
+  /** Tick size for per-sim-tick stepping (ms). The accumulator converts
+   *  this to exactly 1 sim tick per mainLoop call, so predicates are
+   *  checked at sim-tick granularity regardless of the caller's dtMs. */
+  const SIM_TICK_MS = Math.round(SIM_TICK_DT * 1000);
+
   function runUntil(
     predicate: () => boolean,
     maxTicks = 10000,
     dtMs = 16,
   ): number {
-    for (let i = 0; i < maxTicks; i++) {
-      if (predicate()) return i;
-      tick(dtMs);
+    // Step one sim tick at a time so the predicate is checked between
+    // every sim tick — not between variable-sized frames. The dtMs
+    // parameter controls how many sim ticks count as one "frame" for
+    // the return value (frame count), preserving API compatibility.
+    const simTicksPerFrame = Math.max(1, Math.round(dtMs / SIM_TICK_MS));
+    let frame = 0;
+    for (; frame < maxTicks; frame++) {
+      if (predicate()) return frame;
+      for (let sub = 0; sub < simTicksPerFrame; sub++) {
+        tick(SIM_TICK_MS);
+        // Check predicate between sim ticks within a frame.
+        if (predicate()) return frame;
+      }
     }
     return -1;
   }
 
+  function isStopped(): boolean {
+    return (runtime.runtimeState.mode as Mode) === Mode.STOPPED;
+  }
+
   function runGame(maxTicks = 50000, dtMs = 16): void {
-    for (let i = 0; i < maxTicks; i++) {
-      if (runtime.runtimeState.mode === Mode.STOPPED) return;
-      tick(dtMs);
+    const simTicksPerFrame = Math.max(1, Math.round(dtMs / SIM_TICK_MS));
+    for (let frame = 0; frame < maxTicks; frame++) {
+      if (isStopped()) return;
+      for (let sub = 0; sub < simTicksPerFrame; sub++) {
+        tick(SIM_TICK_MS);
+        if (isStopped()) return;
+      }
     }
   }
 
