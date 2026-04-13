@@ -28,7 +28,10 @@ import {
   LOBBY_TIMER,
   SELECT_TIMER,
 } from "../src/shared/core/game-constants.ts";
-import type { E2EEntitySnapshot } from "../src/runtime/runtime-e2e-bridge.ts";
+import type {
+  E2EBusEntry,
+  E2EEntitySnapshot,
+} from "../src/runtime/runtime-e2e-bridge.ts";
 import type { Viewport } from "../src/shared/core/geometry-types.ts";
 
 interface E2EBridgeSnapshot {
@@ -545,6 +548,21 @@ export class E2EGame {
           time: number;
         }[];
       });
+    },
+  };
+
+  // --- Bus (game event log) ---
+
+  readonly bus = {
+    /** All bus events recorded so far, in emission order. */
+    events: (eventType?: string): Promise<E2EBusEntry[]> => {
+      return this.page.evaluate((filterType?: string) => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { busLog?: unknown[] } | undefined;
+        const log = (e2e?.busLog ?? []) as E2EBusEntry[];
+        if (!filterType) return log;
+        return log.filter((entry) => entry.type === filterType);
+      }, eventType);
     },
   };
 

@@ -8,6 +8,7 @@
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { Viewport } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { tileCenterPx, unpackTile } from "../shared/core/spatial.ts";
@@ -125,7 +126,7 @@ interface E2EBridge {
 
   // Camera
   camera: {
-    viewport: { x: number; y: number; w: number; h: number } | undefined;
+    viewport: Viewport | undefined;
   };
 
   // Coord conversion (callable from page.evaluate)
@@ -148,11 +149,25 @@ interface E2EBridge {
     logLevel: "type" | "full";
   };
 
-  /** Banner lifecycle events forwarded from the game event bus.
-   *  Pushed on BANNER_START and BANNER_END — tests use these for
-   *  precise frame-timing of screenshot captures. */
+  /** All game bus events, in emission order. Each entry is the raw event
+   *  payload (which always contains `type`) plus a monotonic `_seq` index.
+   *  Banner events additionally carry `_canvasSnapshot` (PNG dataURL
+   *  captured synchronously at emission time). */
+  busLog: E2EBusEntry[];
+
+  /** @deprecated Use `busLog` filtered by type. Kept temporarily for
+   *  in-flight E2E tests that read `bannerEvents` directly. */
   bannerEvents: E2EBannerEvent[];
 }
+
+/** A bus event as recorded by the bridge. The `_seq` field is a monotonic
+ *  index across all event types; `_canvasSnapshot` is populated only for
+ *  bannerStart / bannerEnd events. */
+export type E2EBusEntry = Record<string, unknown> & {
+  type: string;
+  _seq: number;
+  _canvasSnapshot?: string | null;
+};
 
 interface E2EBannerEvent {
   type: "start" | "end";
@@ -173,9 +188,7 @@ interface E2EBridgeDeps {
   config: Pick<RuntimeConfig, "network">;
   camera: {
     worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
-    getViewport: () =>
-      | { x: number; y: number; w: number; h: number }
-      | undefined;
+    getViewport: () => Viewport | undefined;
   };
   renderer: {
     eventTarget: HTMLElement;
@@ -186,9 +199,9 @@ interface E2EBridgeDeps {
  *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
  *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
-/** One-shot: subscribe to BANNER_START / BANNER_END on the game event bus
- *  and forward them to `bridge.bannerEvents`. Deferred until state is ready
- *  (the bus lives on `runtimeState.state`). Idempotent. */
+/** One-shot: subscribe to all game bus events via `onAny` and forward them
+ *  to `bridge.busLog` (+ legacy `bannerEvents`). Deferred until state is
+ *  ready (the bus lives on `runtimeState.state`). Idempotent. */
 let busSubscribed = false;
 
 /** Update the E2E bridge on `window.__e2e` with the current frame's state.
@@ -227,6 +240,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       paused: false,
       step: false,
       network: { messages: [], logLevel: "type" },
+      busLog: [],
       bannerEvents: [],
     };
     win.__e2e = bridge;
@@ -244,11 +258,11 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
     }
   }
 
-  subscribeBannerBus(ref, deps);
+  subscribeBus(ref, deps);
   updateBridgeSnapshots(ref, deps);
 }
 
-function subscribeBannerBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
+function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   if (busSubscribed || !isStateReady(deps.runtimeState)) return;
   busSubscribed = true;
   const bus = deps.runtimeState.state.bus;
@@ -264,6 +278,21 @@ function subscribeBannerBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
     return canvas.toDataURL("image/png");
   };
 
+  // Generic: record every bus event into busLog.
+  bus.onAny((type, event) => {
+    const entry: E2EBusEntry = {
+      ...(event as Record<string, unknown>),
+      type,
+      _seq: ref.busLog.length,
+    };
+    // Attach canvas snapshot for banner events (existing tests need it).
+    if (entry.type === "bannerStart" || entry.type === "bannerEnd") {
+      entry._canvasSnapshot = captureCanvas();
+    }
+    ref.busLog.push(entry);
+  });
+
+  // Legacy: keep bannerEvents populated for existing E2E tests.
   bus.on("bannerStart", (event) => {
     ref.bannerEvents.push({
       type: "start",

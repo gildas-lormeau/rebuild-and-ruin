@@ -35,7 +35,6 @@ export interface CannonHost {
     targetCol: number,
     baseSpeed: number,
     boostThreshold: number,
-    dt: number,
   ): boolean;
 }
 
@@ -127,7 +126,6 @@ export function tickCannon(
   host: CannonHost,
   phase: CannonPhase,
   state: CannonViewState,
-  dt: number,
 ): CannonPlacementPreview | null {
   const player = state.players[host.playerId]!;
 
@@ -136,7 +134,7 @@ export function tickCannon(
       return null;
 
     case STEP.THINKING: {
-      phase.state.timer -= dt;
+      phase.state.timer--;
       if (phase.state.timer > 0) return null;
       if (phase.plannedPlacements.length === 0) {
         phase.state = { step: STEP.IDLE };
@@ -162,11 +160,11 @@ export function tickCannon(
         );
       }
       phase.state = { step: STEP.MOVING };
-      return tickMoving(host, phase, state, player, dt);
+      return tickMoving(host, phase, state, player);
     }
 
     case STEP.MODE_SWITCHING: {
-      phase.state.timer -= dt;
+      phase.state.timer--;
       if (phase.state.timer <= 0) {
         phase.state = { step: STEP.MOVING };
       }
@@ -180,10 +178,10 @@ export function tickCannon(
     }
 
     case STEP.MOVING:
-      return tickMoving(host, phase, state, player, dt);
+      return tickMoving(host, phase, state, player);
 
     case STEP.DWELLING: {
-      phase.state.timer -= dt;
+      phase.state.timer--;
       if (phase.state.timer <= 0) {
         const target = phase.plannedPlacements[0];
         if (!target) {
@@ -220,7 +218,6 @@ function tickMoving(
   phase: CannonPhase,
   state: CannonViewState,
   player: Player,
-  dt: number,
 ): CannonPlacementPreview | null {
   const target = phase.plannedPlacements[0];
   if (!target) return null;
@@ -232,7 +229,6 @@ function tickMoving(
       target.col,
       host.cannonCursorSpeed,
       host.boostThreshold,
-      dt,
     )
   ) {
     phase.state = {

@@ -21,17 +21,18 @@ import { isGrass } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
+import { secondsToTicks } from "./ai-constants.ts";
 
 const SMALL_PIECES_TERRITORY_RATIO = 0.8;
 /** Extra delay per auto-resolving entry (by entry index) so AI picks land
- *  one at a time instead of all snapping on the same frame. */
-const UPGRADE_PICK_STAGGER = 0.5;
-/** Time between focus "steps" while an AI entry cycles through its offers
+ *  one at a time instead of all snapping on the same frame (ticks). */
+const UPGRADE_PICK_STAGGER = secondsToTicks(0.5);
+/** Ticks between focus "steps" while an AI entry cycles through its offers
  *  during the delay. */
-const UPGRADE_PICK_CYCLE_STEP = 0.22;
+const UPGRADE_PICK_CYCLE_STEP = secondsToTicks(0.22);
 /** Window at the end of the delay where the AI stops cycling and locks
- *  focus onto its final pick, so the reveal isn't a random-looking snap. */
-const UPGRADE_PICK_LOCK_IN = 0.35;
+ *  focus onto its final pick, so the reveal isn't a random-looking snap (ticks). */
+const UPGRADE_PICK_LOCK_IN = secondsToTicks(0.35);
 
 /** Per-frame auto-resolve tick for one upgrade-pick dialog entry.
  *  Called by `game/upgrade-pick.ts` via an injected callback (the game
@@ -46,13 +47,12 @@ const UPGRADE_PICK_LOCK_IN = 0.35;
 export function tickAiUpgradePickEntry(
   entry: UpgradePickEntry,
   entryIdx: number,
-  dt: number,
-  autoDelay: number,
+  autoDelayTicks: number,
   dialogTimer: number,
   state: GameState,
 ): void {
-  entry.autoTimer += dt;
-  const effectiveDelay = autoDelay + entryIdx * UPGRADE_PICK_STAGGER;
+  entry.autoTimer++;
+  const effectiveDelay = autoDelayTicks + entryIdx * UPGRADE_PICK_STAGGER;
   // Clamp at 0 so shrinking autoDelay below LOCK_IN doesn't produce a
   // negative window that silently skips the cycling phase.
   const lockInStart = Math.max(0, effectiveDelay - UPGRADE_PICK_LOCK_IN);

@@ -58,7 +58,7 @@ Deno.test("scenario: waitForModifier captures a modifier banner in modern mode",
 });
 
 Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", async () => {
-  const sc = await createScenario({ seed: 42, rounds: 3 });
+  const sc = await createScenario({ seed: 1, rounds: 3 });
 
   // Track house positions and grunt spawns during build phases.
   const houseGruntDistances: number[] = [];

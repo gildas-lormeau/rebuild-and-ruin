@@ -89,7 +89,6 @@ export function initSelection(
 export function tickSelection(
   host: SelectionHost,
   phase: SelectionPhase,
-  dt: number,
   // Optional: selection phase can tick without state during initial lobby setup.
   state?: GameViewState,
 ): boolean {
@@ -98,7 +97,7 @@ export function tickSelection(
       return false;
     case STEP.BROWSING: {
       const battleState = phase.state;
-      battleState.browseTimer -= dt;
+      battleState.browseTimer--;
       if (battleState.browseTimer <= 0 && battleState.queue.length > 1) {
         battleState.queue.shift();
         battleState.browseTimer = host.scaledDelay(0.8, 0.6);
@@ -121,7 +120,7 @@ export function tickSelection(
       return false;
     }
     case STEP.CONFIRMING: {
-      phase.state.timer -= dt;
+      phase.state.timer--;
       return phase.state.timer <= 0;
     }
   }

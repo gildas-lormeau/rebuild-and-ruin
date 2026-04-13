@@ -23,6 +23,7 @@
  * host + watcher), test/runtime-headless.ts (tests).
  */
 
+import { AiTickAccumulator, secondsToTicks } from "../ai/ai-constants.ts";
 import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
 import {
   forcePickUpgradeEntry,
@@ -511,6 +512,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Upgrade pick sub-system (delegated to runtime-upgrade-pick.ts)
   // -------------------------------------------------------------------------
 
+  const upgradePickAccum = new AiTickAccumulator();
   const upgradePick: UpgradePickSystem = createUpgradePickSystem({
     runtimeState,
     log: config.log,
@@ -519,15 +521,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ? (playerId, choice) =>
           config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
-    tickAiEntry: (entry, entryIdx, dt, autoDelay, dialogTimer) =>
-      tickAiUpgradePickEntry(
-        entry,
-        entryIdx,
-        dt,
-        autoDelay,
-        dialogTimer,
-        runtimeState.state,
-      ),
+    tickAiEntry: (entry, entryIdx, dt, autoDelay, dialogTimer) => {
+      const steps = upgradePickAccum.drain(dt);
+      const autoDelayTicks = secondsToTicks(autoDelay);
+      for (let idx = 0; idx < steps; idx++) {
+        tickAiUpgradePickEntry(
+          entry,
+          entryIdx,
+          autoDelayTicks,
+          dialogTimer,
+          runtimeState.state,
+        );
+      }
+    },
     forcePickEntry: (entry) => forcePickUpgradeEntry(entry, runtimeState.state),
   });
 

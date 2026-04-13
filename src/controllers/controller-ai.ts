@@ -10,7 +10,12 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
-import { STEP } from "../ai/ai-constants.ts";
+import {
+  AI_TICK_DT,
+  AiTickAccumulator,
+  STEP,
+  secondsToTicks,
+} from "../ai/ai-constants.ts";
 import {
   type BattleHost,
   createBattlePhase,
@@ -87,6 +92,9 @@ export class AiController extends BaseController implements AiAnimatable {
   private readonly _buildPhase = createBuildPhase();
   private readonly _cannonPhase = createCannonPhase();
   private readonly _battlePhase = createBattlePhase();
+
+  // --- Fixed-step accumulator (converts variable dt → deterministic AI ticks) ---
+  private readonly tickAccum = new AiTickAccumulator();
 
   // --- Movement state (used by stepTileCursorToward) ---
   /** Which axis to move first — randomized when a new target is set. */
@@ -167,14 +175,17 @@ export class AiController extends BaseController implements AiAnimatable {
     return this.strategy.cursorSkill >= 2;
   }
 
-  /** Humanize AI timing: `(base + rng * spread) * delayScale`.
-   *  Typical ranges by phase (before delayScale):
+  /** Humanize AI timing — returns an integer **tick count**.
+   *  Callers in ai-phase-*.ts decrement by 1 each AI sub-step.
+   *  Typical ranges (seconds, before delayScale):
    *    Selection: 0.8–1.0s base (slow, mimics browsing)
    *    Build/Cannon: 0.2–0.3s base (fast placement decisions)
    *    Battle: 0.1–0.2s base (reactive targeting)
    *  delayScale: ~1.4× easy, 1.0× normal, ~0.65× hard. */
   scaledDelay(base: number, spread: number): number {
-    return (base + this.strategy.rng.next() * spread) * this.delayScale;
+    const seconds =
+      (base + this.strategy.rng.next() * spread) * this.delayScale;
+    return secondsToTicks(seconds);
   }
 
   // -----------------------------------------------------------------------
@@ -186,7 +197,11 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   override selectionTick(dt: number, state?: GameState): boolean {
-    return tickSelection(this, this.selectionPhase, dt, state);
+    const steps = this.tickAccum.drain(dt);
+    for (let idx = 0; idx < steps; idx++) {
+      if (tickSelection(this, this.selectionPhase, state)) return true;
+    }
+    return false;
   }
 
   override selectReplacementTower(state: GameState, zone: number): void {
@@ -202,7 +217,12 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   buildTick(state: GameState, dt: number): PiecePlacementPreview[] {
-    return tickBuild(this, this._buildPhase, state, dt);
+    const steps = this.tickAccum.drain(dt);
+    let result: PiecePlacementPreview[] = [];
+    for (let idx = 0; idx < steps; idx++) {
+      result = tickBuild(this, this._buildPhase, state);
+    }
+    return result;
   }
 
   protected override onFinalizeBuildPhase(state: GameState): void {
@@ -222,7 +242,12 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   cannonTick(state: GameState, dt: number): CannonPlacementPreview | null {
-    return tickCannon(this, this._cannonPhase, state, dt);
+    const steps = this.tickAccum.drain(dt);
+    let result: CannonPlacementPreview | undefined;
+    for (let idx = 0; idx < steps; idx++) {
+      result = tickCannon(this, this._cannonPhase, state) ?? undefined;
+    }
+    return result ?? null;
   }
 
   flushCannons(state: GameState, maxSlots: number): void {
@@ -250,7 +275,10 @@ export class AiController extends BaseController implements AiAnimatable {
       this.cannonRotationIdx = fired.rotationIdx;
       return true;
     };
-    tickBattle(this, this._battlePhase, state, dt, executeFire);
+    const steps = this.tickAccum.drain(dt);
+    for (let idx = 0; idx < steps; idx++) {
+      tickBattle(this, this._battlePhase, state, executeFire);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -290,7 +318,6 @@ export class AiController extends BaseController implements AiAnimatable {
     targetCol: number,
     baseSpeed: number,
     boostThreshold: number,
-    dt: number,
   ): boolean {
     const dr = targetRow - cursor.row;
     const dc = targetCol - cursor.col;
@@ -301,7 +328,7 @@ export class AiController extends BaseController implements AiAnimatable {
       return true;
     }
     const speed = baseSpeed * (dist > boostThreshold ? 2 : 1);
-    let remaining = speed * dt;
+    let remaining = speed * AI_TICK_DT;
 
     // Randomize axis priority and jitter offset when starting a new movement
     if (Math.abs(dr) > 0.5 && Math.abs(dc) > 0.5) {
@@ -324,7 +351,8 @@ export class AiController extends BaseController implements AiAnimatable {
           (rowFirst ? targetCol : targetRow) + this.tileJitterOffset;
         const perpCurrent = rowFirst ? cursor.col : cursor.row;
         const nudge =
-          (perpTarget - perpCurrent) * Math.min(1, JITTER_DECAY_RATE * dt);
+          (perpTarget - perpCurrent) *
+          Math.min(1, JITTER_DECAY_RATE * AI_TICK_DT);
         if (rowFirst) cursor.col += nudge;
         else cursor.row += nudge;
       }
@@ -339,18 +367,13 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   /** Move crosshair one step toward (tx, ty) at battle speed. */
-  stepCrosshairToward(
-    tx: PixelPos["x"],
-    ty: PixelPos["y"],
-    dt: number,
-  ): boolean {
+  stepCrosshairToward(tx: PixelPos["x"], ty: PixelPos["y"]): boolean {
     const dx = tx - this.crosshair.x;
     const dy = ty - this.crosshair.y;
     const fraction = moveStepFraction(
       Math.sqrt(dx * dx + dy * dy),
       CROSSHAIR_SPEED,
       this.battleBoostDist,
-      dt,
     );
     if (fraction >= 1) {
       this.crosshair.x = tx;
@@ -368,10 +391,9 @@ function moveStepFraction(
   dist: number,
   baseSpeed: number,
   boostThreshold: number,
-  dt: number,
 ): number {
   if (dist <= 0) return 1;
-  const step = baseSpeed * (dist > boostThreshold ? 2 : 1) * dt;
+  const step = baseSpeed * (dist > boostThreshold ? 2 : 1) * AI_TICK_DT;
   return step >= dist ? 1 : step / dist;
 }
 

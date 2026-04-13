@@ -14,7 +14,7 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
 import type { PiecePlacementPreview } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { STEP } from "./ai-constants.ts";
+import { STEP, secondsToTicks } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 
 /** Subset of AiController accessed by build-phase logic.
@@ -37,7 +37,6 @@ export interface BuildHost {
     targetCol: number,
     baseSpeed: number,
     boostThreshold: number,
-    dt: number,
   ): boolean;
 }
 
@@ -61,24 +60,24 @@ interface BuildPhase {
   state: BuildState;
 }
 
-/** Base delay per rotation animation frame. */
-const ROTATION_FRAME_BASE_SEC = 0.12;
-/** Random variation added to each rotation frame delay. */
-const ROTATION_FRAME_RANGE_SEC = 0.08;
-/** Base delay before the first rotation frame starts. */
-const ROTATION_INITIAL_BASE_SEC = 0.15;
-/** Random variation added to the initial rotation delay. */
-const ROTATION_INITIAL_RANGE_SEC = 0.1;
+/** Base delay per rotation animation frame (ticks). */
+const ROTATION_FRAME_BASE = secondsToTicks(0.12);
+/** Random variation added to each rotation frame delay (ticks). */
+const ROTATION_FRAME_RANGE = secondsToTicks(0.08);
+/** Base delay before the first rotation frame starts (ticks). */
+const ROTATION_INITIAL_BASE = secondsToTicks(0.15);
+/** Random variation added to the initial rotation delay (ticks). */
+const ROTATION_INITIAL_RANGE = secondsToTicks(0.1);
 /** Pause after placing a piece before thinking about the next one. */
 const POST_PLACE_DELAY_SEC = 0.3;
 const POST_PLACE_SPREAD_SEC = 0.4;
 /** Pause on target tile before attempting placement. */
 const PRE_PLACE_DELAY_SEC = 0.2;
 const PRE_PLACE_SPREAD_SEC = 0.3;
-/** Wait time when placement is blocked and retrying. */
-const BLOCKED_RETRY_DELAY_SEC = 1.0;
-/** Minimum re-think delay after a blocked retry. */
-const QUICK_RETHINK_DELAY_SEC = 0.1;
+/** Wait time when placement is blocked and retrying (ticks). */
+const BLOCKED_RETRY_DELAY = secondsToTicks(1.0);
+/** Minimum re-think delay after a blocked retry (ticks). */
+const QUICK_RETHINK_DELAY = secondsToTicks(0.1);
 /** AI build-phase cursor speed in tiles per second, indexed by cursorSkill-1
  *  (skill 1→[0], 2→[1], 3→[2]).
  *  Reduced from [8,12,14] to compensate for Manhattan movement being faster
@@ -124,7 +123,6 @@ export function tickBuild(
   host: BuildHost,
   phase: BuildPhase,
   state: GameState,
-  dt: number,
 ): PiecePlacementPreview[] {
   if (!host.currentPiece) return [];
 
@@ -142,7 +140,7 @@ export function tickBuild(
     case STEP.THINKING: {
       const phaseState = phase.state;
       if (phaseState.timer > 0) {
-        phaseState.timer -= dt;
+        phaseState.timer--;
         return [phantomAtCursor(host, state)];
       }
       // Timer expired — compute next placement
@@ -153,12 +151,12 @@ export function tickBuild(
           target,
           rotation: buildRotationFor(host, target),
         };
-        return tickMoving(host, phase, state, dt);
+        return tickMoving(host, phase, state);
       }
       if (state.timer > 2) {
-        phase.state = { step: STEP.THINKING, timer: 1.0 };
+        phase.state = { step: STEP.THINKING, timer: secondsToTicks(1.0) };
       } else {
-        phase.state = { step: STEP.GAVE_UP, retryTimer: 1.0 };
+        phase.state = { step: STEP.GAVE_UP, retryTimer: secondsToTicks(1.0) };
       }
       return [phantomAtCursor(host, state)];
     }
@@ -173,9 +171,8 @@ export function tickBuild(
         home.col,
         host.buildCursorSpeed,
         Infinity,
-        dt,
       );
-      phaseState.retryTimer -= dt;
+      phaseState.retryTimer--;
       if (phaseState.retryTimer <= 0) {
         const target = computeNextPlacement(host, state);
         if (target) {
@@ -185,18 +182,18 @@ export function tickBuild(
             rotation: buildRotationFor(host, target),
           };
         } else {
-          phaseState.retryTimer = 1.0;
+          phaseState.retryTimer = secondsToTicks(1.0);
         }
       }
       return [phantomAtCursor(host, state)];
     }
 
     case STEP.MOVING:
-      return tickMoving(host, phase, state, dt);
+      return tickMoving(host, phase, state);
 
     case STEP.DWELLING: {
       const phaseState = phase.state;
-      phaseState.timer -= dt;
+      phaseState.timer--;
       if (phaseState.timer <= 0) {
         const placed = placePiece(
           state,
@@ -219,9 +216,9 @@ export function tickBuild(
         // Placement blocked (e.g. grunt moved onto target)
         if (!phaseState.hasRetried) {
           phaseState.hasRetried = true;
-          phaseState.timer = BLOCKED_RETRY_DELAY_SEC;
+          phaseState.timer = BLOCKED_RETRY_DELAY;
         } else {
-          phase.state = { step: STEP.THINKING, timer: QUICK_RETHINK_DELAY_SEC };
+          phase.state = { step: STEP.THINKING, timer: QUICK_RETHINK_DELAY };
         }
         return [];
       }
@@ -243,20 +240,18 @@ function tickMoving(
   host: BuildHost,
   phase: BuildPhase,
   state: GameState,
-  dt: number,
 ): PiecePlacementPreview[] {
   const phaseState = phase.state as Extract<BuildState, { step: "moving" }>;
   const { target, rotation } = phaseState;
 
   // Tick rotation animation concurrently with movement
   if (rotation.idx < rotation.seq.length) {
-    rotation.timer -= dt;
+    rotation.timer--;
     if (rotation.timer <= 0) {
       rotation.idx++;
       if (rotation.idx < rotation.seq.length) {
         rotation.timer =
-          ROTATION_FRAME_BASE_SEC +
-          host.strategy.rng.next() * ROTATION_FRAME_RANGE_SEC;
+          ROTATION_FRAME_BASE + host.strategy.rng.next() * ROTATION_FRAME_RANGE;
       }
     }
   }
@@ -268,7 +263,6 @@ function tickMoving(
     target.col,
     host.buildCursorSpeed,
     host.boostThreshold,
-    dt,
   );
   if (arrived && rotation.idx >= rotation.seq.length) {
     phase.state = {
@@ -331,8 +325,7 @@ function buildRotationFor(host: BuildHost, target: BuildTarget): BuildRotation {
     seq,
     idx: 0,
     timer:
-      ROTATION_INITIAL_BASE_SEC +
-      host.strategy.rng.next() * ROTATION_INITIAL_RANGE_SEC,
+      ROTATION_INITIAL_BASE + host.strategy.rng.next() * ROTATION_INITIAL_RANGE,
   };
 }
 

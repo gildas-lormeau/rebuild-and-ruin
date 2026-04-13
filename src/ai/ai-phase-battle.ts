@@ -15,7 +15,7 @@ import type {
   FireIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { StrategicPixelPos } from "./ai-build-types.ts";
-import { STEP } from "./ai-constants.ts";
+import { AI_TICK_DT, STEP, secondsToTicks } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 
 /** Callback that executes a fire intent against mutable game state.
@@ -33,7 +33,7 @@ export interface BattleHost {
   readonly anticipatesTarget: boolean;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
-  stepCrosshairToward(tx: number, ty: number, dt: number): boolean;
+  stepCrosshairToward(tx: number, ty: number): boolean;
   fire(state: BattleViewState): FireIntent | null;
 }
 
@@ -60,6 +60,10 @@ interface BattlePhase {
   orbitAngle: number;
 }
 
+/** Fixed dt passed to aimCannons (visual-only rotation, no RNG). */
+const AIM_DT = AI_TICK_DT;
+/** Per-tick multiplier for orbit angular speed (rad/s → rad/tick). */
+const ORBIT_DT = AI_TICK_DT;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
 const ORBIT_ENGAGEMENT_DISTANCE_PX = 12;
 /** Base orbit angular speed (rad/s) when targeting a strategic tile. */
@@ -81,8 +85,8 @@ const CHAIN_DWELL_SPREAD_SEC = 0.1;
 /** Thinking delay after firing before picking the next target. */
 const POST_FIRE_THINK_SEC = 0.1;
 const POST_FIRE_THINK_SPREAD_SEC = 0.2;
-/** Retry wait when no cannon is ready to fire. */
-const CANNON_RETRY_WAIT_SEC = 0.05;
+/** Retry wait when no cannon is ready to fire (ticks). */
+const CANNON_RETRY_WAIT = secondsToTicks(0.05);
 
 export function createBattlePhase(): BattlePhase {
   return {
@@ -127,13 +131,12 @@ export function tickBattle(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  dt: number,
   executeFire: ExecuteFireFn,
 ): void {
   if (!nextReadyCombined(state, host.playerId)) return;
 
   const aimAt = phase.crosshairTarget ?? host.crosshair;
-  aimCannons(state, host.playerId, aimAt.x, aimAt.y, dt);
+  aimCannons(state, host.playerId, aimAt.x, aimAt.y, AIM_DT);
 
   // During countdown or after battle timer expires: move/orbit only
   if (state.battleCountdown > 0 || state.timer <= 0) {
@@ -150,7 +153,7 @@ export function tickBattle(
       const first = phase.chainTargets[phase.chainIdx]!;
       phase.crosshairTarget = tileCenterPx(first.row, first.col);
     }
-    tickCountdown(host, phase, state, dt);
+    tickCountdown(host, phase, state);
     return;
   }
 
@@ -168,13 +171,13 @@ export function tickBattle(
 
   switch (phase.state.step) {
     case STEP.CHAIN_MOVING:
-      tickChainMoving(host, phase, state, dt);
+      tickChainMoving(host, phase, state);
       break;
     case STEP.CHAIN_DWELLING:
-      tickChainDwelling(host, phase, state, dt, executeFire);
+      tickChainDwelling(host, phase, state, executeFire);
       break;
     case STEP.THINKING:
-      phase.state.timer -= dt;
+      phase.state.timer--;
       if (phase.state.timer <= 0) {
         phase.state = { step: STEP.PICKING };
       }
@@ -193,7 +196,6 @@ export function tickBattle(
           host.stepCrosshairToward(
             phase.crosshairTarget.x,
             phase.crosshairTarget.y,
-            dt,
           )
         ) {
           phase.state = {
@@ -207,7 +209,7 @@ export function tickBattle(
       }
       break;
     case STEP.DWELLING:
-      tickDwelling(host, phase, state, dt, executeFire);
+      tickDwelling(host, phase, state, executeFire);
       break;
     default:
       // IDLE and COUNTDOWN are handled by early returns above (lines 126–154).
@@ -221,7 +223,6 @@ function tickCountdown(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  dt: number,
 ): void {
   if (!phase.crosshairTarget) {
     phase.crosshairTarget = host.strategy.pickTarget(
@@ -244,7 +245,6 @@ function tickCountdown(
       host.stepCrosshairToward(
         phase.crosshairTarget.x,
         phase.crosshairTarget.y,
-        dt,
       );
     } else {
       if (!phaseState.orbit) {
@@ -270,7 +270,7 @@ function tickCountdown(
           host.crosshair.x - phase.crosshairTarget.x,
         );
       }
-      phase.orbitAngle += phaseState.orbit.speed * dt;
+      phase.orbitAngle += phaseState.orbit.speed * ORBIT_DT;
       host.crosshair.x =
         phase.crosshairTarget.x +
         Math.cos(phase.orbitAngle) * phaseState.orbit.rx;
@@ -279,11 +279,7 @@ function tickCountdown(
         Math.sin(phase.orbitAngle) * phaseState.orbit.ry;
     }
   } else {
-    host.stepCrosshairToward(
-      phase.crosshairTarget.x,
-      phase.crosshairTarget.y,
-      dt,
-    );
+    host.stepCrosshairToward(phase.crosshairTarget.x, phase.crosshairTarget.y);
   }
 }
 
@@ -292,7 +288,6 @@ function tickChainMoving(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  dt: number,
 ): void {
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
     phase.state = { step: STEP.PICKING };
@@ -332,7 +327,7 @@ function tickChainMoving(
     }
   }
   const center = tileCenterPx(target.row, target.col);
-  if (host.stepCrosshairToward(center.x, center.y, dt)) {
+  if (host.stepCrosshairToward(center.x, center.y)) {
     phase.state = {
       step: STEP.CHAIN_DWELLING,
       timer: host.scaledDelay(CHAIN_DWELL_DELAY_SEC, CHAIN_DWELL_SPREAD_SEC),
@@ -345,14 +340,13 @@ function tickChainDwelling(
   host: BattleHost,
   phase: BattlePhase,
   _state: BattleViewState,
-  dt: number,
   executeFire: ExecuteFireFn,
 ): void {
   const phaseState = phase.state as Extract<
     BattleState,
     { step: "chain_dwelling" }
   >;
-  phaseState.timer -= dt;
+  phaseState.timer--;
   if (phaseState.timer > 0) return;
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
@@ -376,7 +370,7 @@ function tickChainDwelling(
     }
   } else {
     // No cannon ready — wait a bit longer
-    phaseState.timer = CANNON_RETRY_WAIT_SEC;
+    phaseState.timer = CANNON_RETRY_WAIT;
   }
 }
 
@@ -385,16 +379,15 @@ function tickDwelling(
   host: BattleHost,
   phase: BattlePhase,
   state: BattleViewState,
-  dt: number,
   executeFire: ExecuteFireFn,
 ): void {
   const phaseState = phase.state as Extract<BattleState, { step: "dwelling" }>;
-  phaseState.timer -= dt;
+  phaseState.timer--;
   if (phaseState.timer > 0) return;
 
   const intent = host.fire(state);
   if (!intent) {
-    phaseState.timer = CANNON_RETRY_WAIT_SEC;
+    phaseState.timer = CANNON_RETRY_WAIT;
     return;
   }
   executeFire(intent);
