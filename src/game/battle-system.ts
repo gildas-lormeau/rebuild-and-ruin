@@ -72,7 +72,7 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
-import { applyDustStormJitter } from "./round-modifiers.ts";
+import { applyDustStormJitter } from "./modifiers/round-modifiers.ts";
 import {
   ballSpeedMult,
   onCannonKilled,

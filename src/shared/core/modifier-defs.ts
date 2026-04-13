@@ -166,39 +166,39 @@ export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
  *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
 export const MODIFIER_CONSUMERS = {
   wildfire: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/wildfire.ts",
   },
   crumbling_walls: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/crumbling-walls.ts",
   },
   grunt_surge: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/grunt-surge.ts",
   },
   frozen_river: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/frozen-river.ts",
     serialize: "src/online/online-serialize.ts",
   },
   sinkhole: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/sinkhole.ts",
     serialize: "src/online/online-serialize.ts",
   },
   high_tide: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/high-tide.ts",
     serialize: "src/online/online-serialize.ts",
   },
   dust_storm: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/dust-storm.ts",
     jitter: "src/game/battle-system.ts",
   },
   rubble_clearing: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/rubble-clearing.ts",
   },
   low_water: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/low-water.ts",
     serialize: "src/online/online-serialize.ts",
   },
   dry_lightning: {
-    impl: "src/game/round-modifiers.ts",
+    impl: "src/game/modifiers/dry-lightning.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

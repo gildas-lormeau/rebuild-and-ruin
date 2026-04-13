@@ -16,10 +16,12 @@ dust storm).
 |------|------|------------|
 | 1 | `src/shared/core/game-constants.ts` | Add string literal to `ModifierId` union + `MODIFIER_ID` map |
 | 2 | `src/shared/core/modifier-defs.ts` | Add pool entry (`weight`, `needsCheckpoint`, `tileMutationPrev`) + `MODIFIER_CONSUMERS` entry |
-| 3 | `src/game/round-modifiers.ts` | Write `applyFoo()` function + add entry to `MODIFIER_IMPLS` |
-| 4 | `src/render/render-ui.ts` | Add banner color entry to `MODIFIER_COLORS` |
-| 5 | *(if tile-mutating)* `src/shared/core/types.ts` | Add `fooTiles: Set<number> \| null` to `ModernState` + initial `null` in `createModernState()` |
-| 6 | *(if tile-mutating)* `src/online/online-serialize.ts` | Add to both `createBuildStartMessage()` and `serializeModifierTileSets()` |
+| 3 | `src/game/modifiers/<name>.ts` | Create modifier file exporting a `ModifierImpl` object |
+| 4 | `src/game/modifiers/round-modifiers.ts` | Import the impl and add entry to `MODIFIER_IMPLS` |
+| 5 | `src/render/render-ui.ts` | Add banner color entry to `MODIFIER_COLORS` |
+| 6 | `.import-layers.json` | Register the new file (most modifiers land in "deep logic") |
+| 7 | *(if tile-mutating)* `src/shared/core/types.ts` | Add `fooTiles: Set<number> \| null` to `ModernState` + initial `null` in `createModernState()` |
+| 8 | *(if tile-mutating)* `src/online/online-serialize.ts` | Add to both `createBuildStartMessage()` and `serializeModifierTileSets()` |
 
 ### Files you do NOT touch
 
@@ -28,22 +30,61 @@ dust storm).
   `clearActiveModifiers()`, and `resetModifierTilesForZone()` handle
   everything automatically.
 
-### MODIFIER_IMPLS entry
+### Per-modifier file layout
 
-Every modifier needs an entry in the `MODIFIER_IMPLS` object in
-`round-modifiers.ts`. The `satisfies Record<ModifierId, ModifierImpl>` check
-catches omissions at compile time.
+Each modifier lives in its own file under `src/game/modifiers/`, exporting a
+`ModifierImpl` object. This mirrors the `src/game/upgrades/` layout.
+
+```
+src/game/modifiers/
+  modifier-types.ts       — ModifierImpl interface + ModifierTileData
+  round-modifiers.ts      — MODIFIER_IMPLS registry, rollModifier, checkpoint orchestration
+  wildfire.ts             — wildfire impl + shared fire helpers (buildCanBurnPredicate, applyWildfireScar)
+  crumbling-walls.ts
+  grunt-surge.ts
+  frozen-river.ts
+  sinkhole.ts
+  high-tide.ts
+  dust-storm.ts           — impl + applyDustStormJitter (re-exported by round-modifiers.ts)
+  rubble-clearing.ts
+  low-water.ts
+  dry-lightning.ts        — reuses wildfire's burn predicate + scar applicator
+```
+
+### ModifierImpl interface
+
+Every modifier exports a `ModifierImpl` object from its file, then
+`round-modifiers.ts` imports it into the `MODIFIER_IMPLS` map. The
+`satisfies Record<ModifierId, ModifierImpl>` check catches omissions at
+compile time.
 
 ```ts
-my_modifier: {
+// src/game/modifiers/my-modifier.ts
+export const myModifierImpl: ModifierImpl = {
   apply: (state: GameState) => ({
     changedTiles: [...applyMyModifier(state)],
     gruntsSpawned: 0,
   }),
   needsRecheck: true,          // true if territory changes (tile mutations, wall destruction)
   clear: clearMyModifier,      // optional — revert temporary state before next battle
-  zoneReset: resetMyModifierTilesForZone,  // optional — revert tiles for an eliminated zone
-},
+  zoneReset: resetMyModifierForZone,  // optional — revert tiles for an eliminated zone
+  restore: (state, data) => {  // optional — restore tile state from checkpoint
+    state.modern!.myModifierTiles = data.myModifierTiles
+      ? new Set(data.myModifierTiles)
+      : null;
+    reapplyMyModifierTiles(state);
+  },
+};
+```
+
+Then in `round-modifiers.ts`:
+```ts
+import { myModifierImpl } from "./my-modifier.ts";
+
+const MODIFIER_IMPLS = {
+  // ...existing entries...
+  my_modifier: myModifierImpl,
+} as const satisfies Record<ModifierId, ModifierImpl>;
 ```
 
 **`apply`** — called at battle start. Returns `{ changedTiles, gruntsSpawned }`
@@ -61,6 +102,10 @@ null check on your tile set.
 **`zoneReset`** — reverts tiles belonging to a specific zone when a player is
 eliminated. Only needed for modifiers with `needsCheckpoint: true`.
 
+**`restore`** — deserializes checkpoint data and re-applies tile mutations on
+a map regenerated from seed. Only needed for tile-mutating modifiers. Each
+modifier reads only its own field from `ModifierTileData`.
+
 ### Pool entry fields
 
 | Field | Meaning |
@@ -75,8 +120,9 @@ If your modifier mutates `map.tiles`, you need:
 
 1. A `Set<number> | null` field on `ModernState` to track the mutated keys
 2. Serialization in `online-serialize.ts` (both checkpoint functions)
-3. A `reapplyFooTiles()` function + call in `applyCheckpointModifierTiles()`
-4. Update `ModifierTileData` interface in `round-modifiers.ts`
+3. A `restore` hook on your `ModifierImpl` that deserializes + reapplies tiles
+4. A `reapplyFooTiles()` private function in your modifier file (called by `restore`)
+5. Update `ModifierTileData` interface in `src/game/modifiers/modifier-types.ts`
 
 The `lint:checkpoint-fields` lint verifies that every `ModernState` field
 appears in the serialization file.
@@ -87,8 +133,9 @@ Modifiers like grunt surge, crumbling walls, and rubble clearing don't need
 checkpoint state, serialization, clear, or zoneReset. They just need:
 1. The ID in `ModifierId` + `MODIFIER_ID`
 2. A pool entry in `modifier-defs.ts`
-3. An apply function + `MODIFIER_IMPLS` entry in `round-modifiers.ts`
-4. A banner color in `render-ui.ts`
+3. A file in `src/game/modifiers/` exporting a `ModifierImpl`
+4. An import + entry in `MODIFIER_IMPLS` in `round-modifiers.ts`
+5. A banner color in `render-ui.ts`
 
 ---
 

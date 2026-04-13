@@ -50,6 +50,7 @@ export {
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
+export { applyCheckpointModifierTiles } from "./modifiers/round-modifiers.ts";
 export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
@@ -58,7 +59,6 @@ export {
   prepareCastleWallsForPlayer,
   resetZoneState,
 } from "./phase-setup.ts";
-export { applyCheckpointModifierTiles } from "./round-modifiers.ts";
 export {
   allSelectionsConfirmed,
   confirmTowerSelection,
