@@ -126,13 +126,23 @@ export interface Crosshair {
   cannonReady?: boolean;
 }
 
+/** A tile that was recently thawed — drives the crack-and-fade animation. */
+export interface ThawingTile extends TilePos {
+  /** Seconds since the tile was thawed. */
+  age: number;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
   walls: Set<number>[];
   flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
+  thawing: ThawingTile[];
 }
+
+/** Duration of the ice-thaw crack-and-fade animation (seconds). */
+export const THAW_DURATION = 0.6;
 
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
@@ -150,22 +160,30 @@ export function isRampartMode(mode: CannonMode): mode is CannonMode.RAMPART {
 }
 
 export function createBattleAnimState(): BattleAnimState {
-  return { territory: [], walls: [], flights: [], impacts: [] };
+  return { territory: [], walls: [], flights: [], impacts: [], thawing: [] };
 }
 
 /** Clear all impact flashes (e.g. on phase transition to build). */
-export function clearImpacts(battleAnim: { impacts: Impact[] }): void {
+export function clearImpacts(battleAnim: {
+  impacts: Impact[];
+  thawing: ThawingTile[];
+}): void {
   battleAnim.impacts = [];
+  battleAnim.thawing = [];
 }
 
-/** Age impact flashes by `dt` seconds and remove expired ones. */
+/** Age impact flashes and thaw animations by `dt` seconds and remove expired ones. */
 export function ageImpacts(
-  battleAnim: { impacts: Impact[] },
+  battleAnim: { impacts: Impact[]; thawing: ThawingTile[] },
   dt: number,
   flashDuration: number,
 ): void {
   for (const imp of battleAnim.impacts) imp.age += dt;
   battleAnim.impacts = battleAnim.impacts.filter(
     (imp) => imp.age < flashDuration,
+  );
+  for (const th of battleAnim.thawing) th.age += dt;
+  battleAnim.thawing = battleAnim.thawing.filter(
+    (th) => th.age < THAW_DURATION,
   );
 }

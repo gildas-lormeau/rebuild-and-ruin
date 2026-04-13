@@ -4,6 +4,7 @@ import type {
   Crosshair,
   Grunt,
   Impact,
+  ThawingTile,
 } from "../core/battle-types.ts";
 import type { ModifierId } from "../core/game-constants.ts";
 import type {
@@ -134,6 +135,8 @@ export interface EntityOverlay {
   homeTowers?: Map<number, number>;
   /** Frozen river tiles for rendering ice overlay. */
   frozenTiles?: ReadonlySet<number>;
+  /** Recently thawed tiles — drives the crack-and-fade break animation. */
+  thawingTiles?: readonly ThawingTile[];
   /** Sinkhole tiles for rendering dark pool overlay. */
   sinkholeTiles?: ReadonlySet<number>;
 }

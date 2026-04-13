@@ -39,6 +39,7 @@ function applyFrozenRiver(state: GameState): ReadonlySet<number> {
   }
   if (frozen.size === 0) return frozen;
   modern.frozenTiles = frozen;
+  state.map.mapVersion++;
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
@@ -58,4 +59,5 @@ function clearFrozenRiver(state: GameState): void {
     );
   }
   modern.frozenTiles = null;
+  state.map.mapVersion++;
 }

@@ -573,6 +573,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     for (const imp of result.newImpacts) {
       battleAnim.impacts.push({ ...imp, age: 0 });
     }
+    // Record thaw animations for ice-break effect
+    for (const evt of result.impactEvents) {
+      if (evt.type === BATTLE_MESSAGE.ICE_THAWED) {
+        battleAnim.thawing.push({ row: evt.row, col: evt.col, age: 0 });
+      }
+    }
 
     // Sound, haptics, and stats are now handled by bus subscribers (onAny above).
 

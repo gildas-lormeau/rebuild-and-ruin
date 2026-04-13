@@ -633,6 +633,7 @@ export function applyImpactEvent(
     }
     case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
+      state.map.mapVersion++;
       break;
     case BATTLE_MESSAGE.WALL_ABSORBED: {
       const player = state.players[event.playerId];

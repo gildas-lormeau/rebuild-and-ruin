@@ -1,4 +1,4 @@
-import type { Impact } from "../shared/core/battle-types.ts";
+import type { Impact, ThawingTile } from "../shared/core/battle-types.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
@@ -213,6 +213,7 @@ export interface OnlineOverlayParams {
       progress: number;
     }>;
     impacts: Impact[];
+    thawing: ThawingTile[];
   };
   frame: {
     crosshairs: Array<{

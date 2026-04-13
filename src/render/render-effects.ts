@@ -3,6 +3,7 @@ import {
   isBalloonMode,
   isRampartMode,
   isSuperMode,
+  THAW_DURATION,
 } from "../shared/core/battle-types.ts";
 import { IMPACT_FLASH_DURATION } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
@@ -148,6 +149,13 @@ const CROSSHAIR_ALPHA_IDLE_BASE = 0.35;
 const CROSSHAIR_ALPHA_IDLE_AMP = 0.15;
 const CROSSHAIR_GAP_READY = 5;
 const CROSSHAIR_GAP_IDLE = 3;
+// ── Frozen river constants ──
+// Crack rendering (detail drawn on top of terrain-cached ice fill)
+const CRACK_ALPHA = 0.4;
+const CRACK_WIDTH = 0.6;
+// Thaw animation: radial crack burst
+const THAW_CRACK_COUNT = 6;
+const THAW_CRACK_LEN = 10;
 
 /** Draw phantom piece/cannon previews.
  *  Draw order: cannon phantoms (behind), then piece phantoms (on top).
@@ -326,7 +334,10 @@ export function drawBurningPits(
   overlayCtx.restore();
 }
 
-/** Draw ice overlay on frozen river tiles.
+/** Draw ice detail on frozen river tiles (cracks, shimmer, frost edge glow)
+ *  and thaw break animations.  The base ice color is baked into the terrain
+ *  cache (renderTerrainPixels swaps WATER_COLOR → ICE_COLOR for frozen tiles),
+ *  so this function only adds surface detail on top.
  *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawFrozenTiles(
   overlayCtx: CanvasRenderingContext2D,
@@ -334,37 +345,147 @@ export function drawFrozenTiles(
   now: number = performance.now(),
 ): void {
   const frozen = overlay?.entities?.frozenTiles;
-  if (!frozen || frozen.size === 0) return;
+  const thawing = overlay?.entities?.thawingTiles;
+  const hasFrozen = frozen && frozen.size > 0;
+  const hasThawing = thawing && thawing.length > 0;
+  if (!hasFrozen && !hasThawing) return;
+
   overlayCtx.save();
   const time = now / 1000;
 
-  for (const key of frozen) {
-    const { r, c } = unpackTile(key);
-    const px = c * TILE_SIZE;
-    const py = r * TILE_SIZE;
+  // ── Frozen tile detail: cracks + shimmer ──
+  // (Base ice color is baked into terrain cache; bank transitions shape the edges.)
+  if (hasFrozen) {
+    for (const key of frozen) {
+      const { r, c } = unpackTile(key);
+      const px = c * TILE_SIZE;
+      const py = r * TILE_SIZE;
+      const seed = r * SEED_ROW + c * SEED_COL;
 
-    // Base ice fill: semi-transparent light blue over water
-    overlayCtx.fillStyle = "rgba(180, 220, 240, 0.75)";
-    overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      // Branching crack pattern
+      drawCracks(overlayCtx, px, py, seed);
 
-    // Frost crack lines (deterministic from tile position)
-    const seed = r * SEED_ROW + c * SEED_COL;
-    overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.4)";
-    overlayCtx.lineWidth = 0.5;
-    overlayCtx.beginPath();
-    overlayCtx.moveTo(px + (seed % 7) + 1, py + 1);
-    overlayCtx.lineTo(
-      px + TILE_SIZE - ((seed >> 3) % 5) - 1,
-      py + TILE_SIZE - 1,
-    );
-    overlayCtx.stroke();
-
-    // Subtle shimmer — slow-moving highlight
-    const shimmer = Math.sin(time * 1.5 + r * 0.3 + c * 0.5) * 0.5 + 0.5;
-    overlayCtx.fillStyle = `rgba(220, 240, 255, ${(0.05 + shimmer * 0.1).toFixed(3)})`;
-    overlayCtx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+      // Subtle shimmer — slow-moving specular highlight
+      const shimmer = Math.sin(time * 1.5 + r * 0.3 + c * 0.5) * 0.5 + 0.5;
+      overlayCtx.fillStyle = `rgba(230, 245, 255, ${(0.04 + shimmer * 0.1).toFixed(3)})`;
+      overlayCtx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+    }
   }
+
+  // ── Thawing tiles — crack burst + fade ──
+  if (hasThawing) {
+    for (const tile of thawing) {
+      const progress = tile.age / THAW_DURATION; // 0→1
+      const px = tile.col * TILE_SIZE;
+      const py = tile.row * TILE_SIZE;
+      const cx = px + TILE_SIZE / 2;
+      const cy = py + TILE_SIZE / 2;
+      const seed = tile.row * SEED_ROW + tile.col * SEED_COL;
+
+      // Fading ice tint — radial gradient so edges dissolve softly
+      const fadeAlpha = (1 - progress) * 0.6;
+      const fadeRadius = TILE_SIZE * (0.7 - progress * 0.4);
+      if (fadeAlpha > 0.01 && fadeRadius > 0) {
+        const grad = overlayCtx.createRadialGradient(
+          cx,
+          cy,
+          0,
+          cx,
+          cy,
+          fadeRadius,
+        );
+        grad.addColorStop(0, `rgba(165, 210, 230, ${fadeAlpha.toFixed(3)})`);
+        grad.addColorStop(1, "rgba(165, 210, 230, 0)");
+        overlayCtx.fillStyle = grad;
+        overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      }
+
+      // Radial crack burst — white lines radiating outward from center
+      const burstAlpha = Math.max(0, 1 - progress * 1.5);
+      if (burstAlpha > 0) {
+        overlayCtx.strokeStyle = `rgba(255, 255, 255, ${burstAlpha.toFixed(3)})`;
+        overlayCtx.lineWidth = 1;
+        const burstLen = THAW_CRACK_LEN * Math.min(1, progress * 2.5);
+        for (let ray = 0; ray < THAW_CRACK_COUNT; ray++) {
+          const angle =
+            ((Math.PI * 2) / THAW_CRACK_COUNT) * ray +
+            ((seed >> (ray % 8)) % 10) * 0.1;
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(cx, cy);
+          overlayCtx.lineTo(
+            cx + Math.cos(angle) * burstLen,
+            cy + Math.sin(angle) * burstLen,
+          );
+          overlayCtx.stroke();
+        }
+      }
+
+      // Brief white flash at the start — radial so it doesn't square off
+      if (progress < 0.15) {
+        const flashAlpha = (1 - progress / 0.15) * 0.4;
+        const flashGrad = overlayCtx.createRadialGradient(
+          cx,
+          cy,
+          0,
+          cx,
+          cy,
+          TILE_SIZE * 0.6,
+        );
+        flashGrad.addColorStop(
+          0,
+          `rgba(255, 255, 255, ${flashAlpha.toFixed(3)})`,
+        );
+        flashGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        overlayCtx.fillStyle = flashGrad;
+        overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+      }
+    }
+  }
+
   overlayCtx.restore();
+}
+
+/** Draw a deterministic branching crack pattern seeded by tile position. */
+function drawCracks(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  seed: number,
+): void {
+  ctx.strokeStyle = `rgba(255, 255, 255, ${CRACK_ALPHA})`;
+  ctx.lineWidth = CRACK_WIDTH;
+
+  // Primary crack: diagonal across the tile
+  const x0 = px + (seed % 7) + 1;
+  const y0 = py + ((seed >> 2) % 5) + 1;
+  const x1 = px + TILE_SIZE - ((seed >> 3) % 5) - 1;
+  const y1 = py + TILE_SIZE - ((seed >> 5) % 4) - 1;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+
+  // Secondary crack: branches off midpoint of primary
+  const mx = (x0 + x1) / 2;
+  const my = (y0 + y1) / 2;
+  const bx = px + ((seed >> 7) % TILE_SIZE);
+  const by = py + ((seed >> 4) % (TILE_SIZE - 2)) + 1;
+  ctx.beginPath();
+  ctx.moveTo(mx, my);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+
+  // Tertiary short crack (only on ~half of tiles for variety)
+  if (seed % 3 !== 0) {
+    const t0x = px + ((seed >> 9) % (TILE_SIZE - 4)) + 2;
+    const t0y = py + ((seed >> 6) % (TILE_SIZE - 4)) + 2;
+    const t1x = t0x + ((seed >> 11) % 5) - 2;
+    const t1y = t0y + ((seed >> 8) % 5) - 2;
+    ctx.beginPath();
+    ctx.moveTo(t0x, t0y);
+    ctx.lineTo(t1x, t1y);
+    ctx.stroke();
+  }
 }
 
 function drawImpacts(

@@ -6,6 +6,7 @@
 import type { BurningPit } from "../../shared/core/battle-types.ts";
 import {
   hasCannonAt,
+  hasTowerAt,
   removeWallFromAllPlayers,
 } from "../../shared/core/board-occupancy.ts";
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
@@ -33,6 +34,7 @@ export function buildCanBurnPredicate(
     if (!isGrass(tiles, row, col)) return false;
     if (zones[row]?.[col] !== targetZone) return false;
     if (burningSet.has(packTile(row, col))) return false;
+    if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
     // 1-tile gap from map edges and water so players can enclose the scar
     if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)

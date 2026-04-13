@@ -9,6 +9,7 @@ import type {
   CannonMode,
   Crosshair,
   Impact,
+  ThawingTile,
 } from "../shared/core/battle-types.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
@@ -27,6 +28,7 @@ import type {
   ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { packTile } from "../shared/core/spatial.ts";
 import type {
   OrbitParams,
   PlayerController,
@@ -47,6 +49,7 @@ interface WatcherBattleFrame {
 
 interface WatcherBattleAnimState {
   impacts: Impact[];
+  thawing: ThawingTile[];
 }
 
 interface WatcherBattleDeps {
@@ -183,6 +186,11 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     const hit = advanceCannonball(ball, dt);
     if (hit) {
       battleAnim.impacts.push({ ...hit, age: 0 });
+      // Record thaw animation if this hit landed on frozen water
+      const frozenSet = state.modern?.frozenTiles;
+      if (frozenSet?.has(packTile(hit.row, hit.col))) {
+        battleAnim.thawing.push({ row: hit.row, col: hit.col, age: 0 });
+      }
     } else {
       remaining.push(ball);
     }

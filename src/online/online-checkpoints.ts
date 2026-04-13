@@ -9,6 +9,7 @@ import type {
   BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
+import type { ThawingTile } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
@@ -37,6 +38,7 @@ export interface CheckpointBattleAnim {
     progress: number;
   }[];
   impacts: { row: number; col: number; age: number }[];
+  thawing: ThawingTile[];
 }
 
 export interface CheckpointAccums {
@@ -201,6 +203,7 @@ function applyCommonCheckpoint(
 function clearBattleProjectiles(deps: CheckpointDeps): void {
   deps.state.cannonballs = [];
   deps.battleAnim.impacts = [];
+  deps.battleAnim.thawing = [];
 }
 
 /** Clear all watcher crosshair/orbit tracking maps. */

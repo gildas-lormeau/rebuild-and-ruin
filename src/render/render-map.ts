@@ -175,6 +175,8 @@ const GRASS_BATTLE: RGB = [
 ];
 const WATER_COLOR: RGB = [40, 104, 176];
 // river fill
+const ICE_COLOR: RGB = [165, 210, 230];
+// frozen river fill (replaces WATER_COLOR for frozen tiles)
 const BANK_COLOR: RGB = [139, 58, 26];
 // river bank / shoreline
 // Neutral stone color used for all walls during battle phase
@@ -231,6 +233,8 @@ const WAVE_LO: { x: number; y: number; w: number }[] = [
 const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const SPRITE_CANNON = "cannon";
+// Transition width in pixels for ice→water blend at frozen tile boundaries.
+const ICE_BLEND_WIDTH = 4;
 
 export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   const observer = deps.observer;
@@ -557,6 +561,7 @@ function drawTerrain(
   const inBattle = !!overlay?.battle?.inBattle;
   const cachedImage = inBattle ? cache.battle : cache.normal;
   const sinkholeTiles = overlay?.entities?.sinkholeTiles;
+  const frozenTiles = overlay?.entities?.frozenTiles;
   const needsSinkholeClusters =
     !!sinkholeTiles && sinkholeTiles.size > 0 && !cache.sinkholeClusters;
   if (cachedImage && !needsSinkholeClusters) {
@@ -569,7 +574,7 @@ function drawTerrain(
 
   if (!cachedImage) {
     const imgData = overlayCtx.createImageData(W, H);
-    renderTerrainPixels(imgData, sdf, W, H, map, inBattle);
+    renderTerrainPixels(imgData, sdf, W, H, map, inBattle, frozenTiles);
     overlayCtx.putImageData(imgData, 0, 0);
     if (inBattle) cache.battle = imgData;
     else cache.normal = imgData;
@@ -731,6 +736,7 @@ function renderTerrainPixels(
   H: number,
   map: GameMap,
   inBattle: boolean,
+  frozenTiles?: ReadonlySet<number>,
 ): void {
   const data = imgData.data;
 
@@ -752,7 +758,18 @@ function renderTerrainPixels(
         lx,
         ly,
       );
-      const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
+      // Use ice color for frozen water tiles — bank transitions adapt automatically.
+      // At ice/water tile boundaries, blend ICE_COLOR → WATER_COLOR over a few
+      // pixels so thawed tiles don't produce hard squared edges.
+      const tileKey = tr * GRID_COLS + tc;
+      const tileIsFrozen = frozenTiles?.has(tileKey);
+      let waterBase: RGB = WATER_COLOR;
+      if (tileIsFrozen) {
+        const iceBlend = iceEdgeBlend(frozenTiles!, tr, tc, lx, ly);
+        waterBase =
+          iceBlend < 1 ? lerp3(WATER_COLOR, ICE_COLOR, iceBlend) : ICE_COLOR;
+      }
+      const water = texturedColor(WATER_TEX, waterBase, inBattle, lx, ly);
 
       // Blend grass → bank → water based on SDF distance
       const color = selectTerrainColor(
@@ -1119,17 +1136,52 @@ function tileAt(map: GameMap, r: number, c: number): number {
   return map.tiles[r]![c]!;
 }
 
-function smoothClamp(interpolationFactor: number): number {
-  const c = Math.max(0, Math.min(1, interpolationFactor));
-  return c * c * (3 - 2 * c);
-}
-
 function lerp3(a: RGB, b: RGB, interpolationFactor: number): RGB {
   return [
     a[0] + (b[0] - a[0]) * interpolationFactor,
     a[1] + (b[1] - a[1]) * interpolationFactor,
     a[2] + (b[2] - a[2]) * interpolationFactor,
   ];
+}
+
+/** For a pixel inside a frozen tile, return 0–1 indicating how "icy" it is.
+ *  1 = fully ice (interior), 0 = fully water (right at a non-frozen neighbor edge).
+ *  Checks cardinal neighbors — if any is water but not frozen, the pixel
+ *  fades toward water over ICE_BLEND_WIDTH pixels from that edge. */
+function iceEdgeBlend(
+  frozenTiles: ReadonlySet<number>,
+  tr: number,
+  tc: number,
+  lx: number,
+  ly: number,
+): number {
+  const top = !frozenTiles.has((tr - 1) * GRID_COLS + tc);
+  const bot = !frozenTiles.has((tr + 1) * GRID_COLS + tc);
+  const lft = !frozenTiles.has(tr * GRID_COLS + tc - 1);
+  const rgt = !frozenTiles.has(tr * GRID_COLS + tc + 1);
+  const ey = TILE_SIZE - 1 - ly; // distance to bottom edge
+  const ex = TILE_SIZE - 1 - lx; // distance to right edge
+
+  // Cardinal edge distances
+  let minDist = ICE_BLEND_WIDTH;
+  if (top) minDist = Math.min(minDist, ly);
+  if (bot) minDist = Math.min(minDist, ey);
+  if (lft) minDist = Math.min(minDist, lx);
+  if (rgt) minDist = Math.min(minDist, ex);
+
+  // Diagonal corner distances — use Euclidean distance to the corner point
+  // so the blend rounds off instead of forming a small square.
+  if (top && lft) minDist = Math.min(minDist, Math.sqrt(lx * lx + ly * ly));
+  if (top && rgt) minDist = Math.min(minDist, Math.sqrt(ex * ex + ly * ly));
+  if (bot && lft) minDist = Math.min(minDist, Math.sqrt(lx * lx + ey * ey));
+  if (bot && rgt) minDist = Math.min(minDist, Math.sqrt(ex * ex + ey * ey));
+
+  return smoothClamp(minDist / ICE_BLEND_WIDTH);
+}
+
+function smoothClamp(interpolationFactor: number): number {
+  const c = Math.max(0, Math.min(1, interpolationFactor));
+  return c * c * (3 - 2 * c);
 }
 
 /** Draw castle walls, interiors, wall debris, and cannons for all players. */
