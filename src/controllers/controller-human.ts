@@ -5,6 +5,7 @@ import {
   canPlacePiece,
   hasAnyCannonPlacement,
   placeCannon,
+  rapidEmplacementDiscount,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import {
@@ -112,7 +113,7 @@ export class HumanController extends BaseController implements InputReceiver {
     player: Player,
     state: CannonViewState,
   ): boolean {
-    this.downgradeCannonModeIfNeeded(remaining);
+    this.downgradeCannonModeIfNeeded(remaining, player);
     return canPlaceCannon(
       player,
       this.cannonCursor.row,
@@ -125,8 +126,13 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Downgrade cannon mode if its slot cost exceeds remaining slots.
    *  MUST be called before canPlaceCannon() in cannonTick() — otherwise the preview
    *  may show an impossible placement that confuses the player. */
-  private downgradeCannonModeIfNeeded(remaining: number): void {
-    if (remaining < cannonModeDef(this.cannonPlaceMode).slotCost) {
+  private downgradeCannonModeIfNeeded(remaining: number, player: Player): void {
+    const discount = rapidEmplacementDiscount(player);
+    const cost = Math.max(
+      1,
+      cannonModeDef(this.cannonPlaceMode).slotCost - discount,
+    );
+    if (remaining < cost) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
   }
@@ -293,14 +299,16 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Skips modes whose slot cost exceeds remaining slots.
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
-    const used = cannonSlotsUsed(state.players[this.playerId]!);
+    const player = state.players[this.playerId]!;
+    const used = cannonSlotsUsed(player);
+    const discount = rapidEmplacementDiscount(player);
     const modes = cannonModesForGame(this.modern);
     const currentIdx = modes.findIndex(
       (def) => def.id === this.cannonPlaceMode,
     );
     for (let offset = 1; offset < modes.length; offset++) {
       const next = modes[(currentIdx + offset) % modes.length]!;
-      if (used + next.slotCost <= maxSlots) {
+      if (used + Math.max(1, next.slotCost - discount) <= maxSlots) {
         this.cannonPlaceMode = next.id;
         this.clampCannonCursorToMode();
         return;

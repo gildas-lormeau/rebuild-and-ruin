@@ -71,3 +71,7 @@ export {
   shouldSkipBattle,
   useSmallPieces,
 } from "./upgrade-system.ts";
+export {
+  consumeRapidEmplacement,
+  rapidEmplacementDiscount,
+} from "./upgrades/rapid-emplacement.ts";

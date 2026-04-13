@@ -48,6 +48,10 @@ import {
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
 import { cannonSlotsBonus } from "./upgrade-system.ts";
+import {
+  consumeRapidEmplacement,
+  rapidEmplacementDiscount,
+} from "./upgrades/rapid-emplacement.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
@@ -124,10 +128,12 @@ export function placeCannon(
 ): boolean {
   if (isPlayerEliminated(player)) return false;
   const used = cannonSlotsUsed(player);
-  const cost = cannonSlotCost(mode);
+  const discount = rapidEmplacementDiscount(player);
+  const cost = Math.max(1, cannonSlotCost(mode) - discount);
   if (used + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, mode, state)) return false;
   applyCannonPlacement(player, row, col, mode, state);
+  if (discount > 0) consumeRapidEmplacement(player);
   emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
     playerId: player.id,
     row,

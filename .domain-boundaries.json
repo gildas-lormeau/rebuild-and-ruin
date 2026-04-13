@@ -58,6 +58,7 @@
       "src/game/upgrades/foundations.ts",
       "src/game/upgrades/master-builder.ts",
       "src/game/upgrades/mortar.ts",
+      "src/game/upgrades/rapid-emplacement.ts",
       "src/game/upgrades/rapid-fire.ts",
       "src/game/upgrades/reclamation.ts",
       "src/game/upgrades/reinforced-walls.ts",

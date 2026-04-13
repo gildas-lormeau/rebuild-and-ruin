@@ -25,7 +25,8 @@ export type UpgradeId =
   | "territorial_ambition"
   | "reclamation"
   | "demolition"
-  | "restoration_crew";
+  | "restoration_crew"
+  | "rapid_emplacement";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -90,6 +91,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   RECLAMATION: "reclamation",
   DEMOLITION: "demolition",
   RESTORATION_CREW: "restoration_crew",
+  RAPID_EMPLACEMENT: "rapid_emplacement",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -291,6 +293,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Restoration Crew",
     description: "One dead tower revives immediately when enclosed",
     category: BUILD,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: true,
+    global: false,
+    implemented: true,
+  },
+  {
+    id: "rapid_emplacement",
+    label: "Rapid Emplacement",
+    description: "Next cannon costs 1 fewer slot (min 1)",
+    category: BATTLE,
     weight: WEIGHT_UNCOMMON,
     oneUse: true,
     global: false,

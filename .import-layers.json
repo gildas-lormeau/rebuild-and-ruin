@@ -72,6 +72,7 @@
     "files": [
       "server/game-room.ts",
       "src/game/upgrades/architect.ts",
+      "src/game/upgrades/rapid-emplacement.ts",
       "src/game/upgrades/rapid-fire.ts",
       "src/game/upgrades/reinforced-walls.ts",
       "src/game/upgrades/restoration-crew.ts",
