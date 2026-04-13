@@ -147,6 +147,17 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     // River bank tiles were water before — banner snapshot reverts to water.
     tileMutationPrev: 1, // Tile.Water — value import of Tile is restricted
   },
+  {
+    id: "dry_lightning",
+    label: "Dry Lightning",
+    description:
+      "Random grass tiles ignite as burning pits without needing wall destruction",
+    weight: 2,
+    implemented: true,
+    needsCheckpoint: false,
+    // Burning pits are entity-layer overlays, not tile mutations.
+    tileMutationPrev: null,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -185,6 +196,9 @@ export const MODIFIER_CONSUMERS = {
   low_water: {
     impl: "src/game/round-modifiers.ts",
     serialize: "src/online/online-serialize.ts",
+  },
+  dry_lightning: {
+    impl: "src/game/round-modifiers.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

@@ -143,6 +143,11 @@ const MODIFIER_COLORS: Record<
     pulseColor: "#8cc878",
   },
   low_water: { title: "#a0d8b0", border: "#508060", pulseColor: "#78c890" },
+  dry_lightning: {
+    title: "#ffe080",
+    border: "#c0a030",
+    pulseColor: "#f0d060",
+  },
 };
 
 /** Draw announcement text centered on screen. */

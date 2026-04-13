@@ -88,6 +88,9 @@ interface ModifierImpl {
  *  so 6-10 extra is a serious but not overwhelming spike. */
 const GRUNT_SURGE_COUNT_MIN = 6;
 const GRUNT_SURGE_COUNT_MAX = 10;
+/** Dry lightning: random scattered strikes per active zone. */
+const DRY_LIGHTNING_MIN = 3;
+const DRY_LIGHTNING_MAX = 5;
 /** Spine length for wildfire scar (fattened neighbors bring total to ~10). */
 const WILDFIRE_SPINE_LENGTH = 4;
 /** Wildfire: probability the fire continues in its main direction (vs random). */
@@ -237,6 +240,13 @@ const MODIFIER_IMPLS = {
     needsRecheck: true,
     clear: clearLowWater,
     zoneReset: resetLowWaterTilesForZone,
+  },
+  dry_lightning: {
+    apply: (state: GameState) => ({
+      changedTiles: [...applyDryLightning(state)],
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
   },
 } as const satisfies Record<ModifierId, ModifierImpl>;
 /** Registry map for dispatching modifier lifecycle hooks by id. */
@@ -906,6 +916,35 @@ function growWildfireFromSeed(
   }
 
   return scar;
+}
+
+/** Apply dry lightning: scatter random burning pits on grass tiles per active zone.
+ *  Reuses the wildfire burn predicate (avoids towers, cannons, water-adjacent tiles)
+ *  and the scar applicator (creates pits + destroys structures). */
+function applyDryLightning(state: GameState): ReadonlySet<number> {
+  const activeZones = state.players
+    .filter(isPlayerSeated)
+    .map((player) => player.homeTower.zone);
+  const allStrikes = new Set<number>();
+  for (const zone of activeZones) {
+    const canBurn = buildCanBurnPredicate(state, zone);
+    const candidates: number[] = [];
+    for (let row = 1; row < GRID_ROWS - 1; row++) {
+      for (let col = 1; col < GRID_COLS - 1; col++) {
+        if (canBurn(row, col)) candidates.push(packTile(row, col));
+      }
+    }
+    if (candidates.length === 0) continue;
+    const count = Math.min(
+      state.rng.int(DRY_LIGHTNING_MIN, DRY_LIGHTNING_MAX),
+      candidates.length,
+    );
+    state.rng.shuffle(candidates);
+    for (let idx = 0; idx < count; idx++) allStrikes.add(candidates[idx]!);
+  }
+  if (allStrikes.size === 0) return allStrikes;
+  applyWildfireScar(state, allStrikes);
+  return allStrikes;
 }
 
 /** Build a predicate for whether a tile can burn in a specific zone. */
