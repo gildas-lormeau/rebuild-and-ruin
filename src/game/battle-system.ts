@@ -338,7 +338,7 @@ export function fireNextReadyCannon(
   if (result.type === "own") {
     fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
   } else {
-    fireSingleCaptured(state, result.captured, targetRow, targetCol);
+    fireCapturedCannon(state, result.captured, targetRow, targetCol);
   }
   return { result, rotationIdx: result.combinedIdx };
 }
@@ -699,18 +699,6 @@ export function canFireOwnCannon(
   return !state.cannonballs.some(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
   );
-}
-
-/**
- * Fire a single captured cannon at a target tile. Returns true if fired.
- */
-function fireSingleCaptured(
-  state: GameState,
-  captured: CapturedCannon,
-  targetRow: number,
-  targetCol: number,
-): boolean {
-  return fireCapturedCannon(state, captured, targetRow, targetCol);
 }
 
 /** The player who gets credit for this cannonball's effects.

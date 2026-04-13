@@ -6,7 +6,7 @@
 import {
   buildTimerBonus,
   enterCannonPhase,
-  finalizeAndEnterCannonPhase,
+  finalizeCastleConstruction,
 } from "../game/index.ts";
 import type { MutableAccums } from "../runtime/runtime-tick-context.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
@@ -79,8 +79,8 @@ export function rebuildControllersForPhase(
  * can immediately resume gameplay.
  */
 export function skipCastleBuildAnimation(state: GameState): void {
-  finalizeAndEnterCannonPhase(state);
-  // finalizeAndEnterCannonPhase no longer flips the phase — enterCannonPhase
+  finalizeCastleConstruction(state);
+  // finalizeCastleConstruction no longer flips the phase — enterCannonPhase
   // owns the CANNON_PLACE transition + preparation. Per-player init data
   // is ignored here; the new host rebuilds controllers separately via
   // rebuildControllersForPhase.

@@ -51,7 +51,6 @@ import {
   enterBattleFromCannon,
   enterBuildFromBattle,
   finalizeBuildPhase,
-  finalizeCastleConstruction,
   setPhase,
 } from "./phase-setup.ts";
 import {
@@ -302,28 +301,10 @@ export function finishBuildPhase(
   return { wallsBeforeSweep, needsReselect, eliminated };
 }
 
-/** Finalize castle construction and prepare for cannon phase.
- *  Combined here so callers cannot accidentally reverse the steps. */
-export function snapshotAndFinalizeForCannonPhase(state: GameState): void {
-  finalizeAndEnterCannonPhase(state);
-}
-
-/** Finalize castle construction. Used after castle selection + build
- *  completes (both initial and reselection), and during host promotion to
- *  skip the castle build animation.
- *
- *  Does NOT flip the phase — the caller must subsequently run
- *  `enterCannonPhase(state)` (typically inside startCannonPhase's
- *  applyCheckpoint step) to transition to CANNON_PLACE. This keeps the
- *  phase flip + preparation bundled in one engine entry point. */
-export function finalizeAndEnterCannonPhase(state: GameState): void {
-  finalizeCastleConstruction(state);
-}
-
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and
  *  timer; callers should prefer `enterCannonPhase` which additionally runs
  *  preparation (limits, facings) and returns per-player init data.
- *  Private — internal helper for enterCannonPhase + finalizeAndEnterCannonPhase. */
+ *  Private — internal helper for enterCannonPhase. */
 function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;

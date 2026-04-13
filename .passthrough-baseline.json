@@ -1,0 +1,18 @@
+[
+  "src/ai/ai-strategy-battle.ts:planGruntSweep",
+  "src/game/upgrade-system.ts:canBuildThisFrame",
+  "src/game/upgrade-system.ts:canPlaceOverBurningPit",
+  "src/game/upgrade-system.ts:cannonSlotsBonus",
+  "src/game/upgrade-system.ts:onBuildPhaseStart",
+  "src/game/upgrade-system.ts:onCannonKilled",
+  "src/game/upgrade-system.ts:onGruntKilled",
+  "src/game/upgrade-system.ts:onImpactResolved",
+  "src/game/upgrade-system.ts:onPiecePlaced",
+  "src/game/upgrade-system.ts:shouldAbsorbWallHit",
+  "src/game/upgrade-system.ts:shouldSkipBattle",
+  "src/game/upgrade-system.ts:territoryScoreMult",
+  "src/game/upgrade-system.ts:tickBuildUpgrades",
+  "src/game/upgrade-system.ts:useSmallPieces",
+  "src/game/upgrade-system.ts:wallOverlapAllowance",
+  "src/online/online-router.ts:onRoute"
+]

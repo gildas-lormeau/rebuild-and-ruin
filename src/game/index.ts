@@ -43,10 +43,8 @@ export {
   enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
-  finalizeAndEnterCannonPhase,
   finishBuildPhase,
   isSelectionComplete,
-  snapshotAndFinalizeForCannonPhase,
   tickBuildPhase,
 } from "./game-engine.ts";
 export { tickGrunts } from "./grunt-movement.ts";
@@ -54,6 +52,7 @@ export { generateMap } from "./map-generation.ts";
 export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
+  finalizeCastleConstruction,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
   resetZoneState,

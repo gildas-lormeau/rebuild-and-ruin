@@ -4,13 +4,13 @@ import {
   enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
+  finalizeCastleConstruction,
   finalizeReselectedPlayers,
   finishSelectionPhase,
   highlightTowerSelection,
   isSelectionComplete,
   prepareCastleWallsForPlayer,
   recheckTerritory,
-  snapshotAndFinalizeForCannonPhase,
 } from "../game/index.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
@@ -374,7 +374,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    snapshotAndFinalizeForCannonPhase(runtimeState.state);
+    finalizeCastleConstruction(runtimeState.state);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
       setMode(runtimeState, Mode.GAME);
