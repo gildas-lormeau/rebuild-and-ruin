@@ -9,6 +9,11 @@
 
 import type { Player } from "../../shared/core/player-types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+/** Restoration Crew is wired directly through build-system.ts (instant
+ *  tower revival query), not through the registry dispatch. */
+export const restorationCrewImpl: UpgradeImpl = {};
 
 /** If the player owns Restoration Crew, consume it and return true
  *  (caller should revive the tower immediately). Returns false when

@@ -9,10 +9,7 @@
  * injected by cannon-system to avoid an L5 → L6 import cycle.
  */
 
-import {
-  isPlayerEliminated,
-  type Player,
-} from "../../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import {
   cannonSize,
   isBalloonCannon,
@@ -22,19 +19,22 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { BattleStartCannonDeps, UpgradeImpl } from "./upgrade-types.ts";
+
+export const shieldBatteryImpl: UpgradeImpl = { onBattlePhaseStart };
 
 /** Mark every cannon inside the home enclosed region as shielded.
  *  Skips dead cannons, balloons, and rampart cannons (which already
  *  carry their own shield mechanic). */
-export function shieldBatteryElectAll(
+function onBattlePhaseStart(
   state: GameState,
-  homeEnclosedRegion: (player: Player) => Set<number>,
+  deps: BattleStartCannonDeps,
 ): void {
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     if (!player.upgrades.get(UID.SHIELD_BATTERY)) continue;
     if (!player.homeTower) continue;
-    const region = homeEnclosedRegion(player);
+    const region = deps.homeEnclosedRegion(player);
     for (const cannon of player.cannons) {
       if (
         !isCannonAlive(cannon) ||

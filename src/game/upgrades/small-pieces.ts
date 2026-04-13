@@ -10,8 +10,11 @@
 
 import type { Player } from "../../shared/core/player-types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+export const smallPiecesImpl: UpgradeImpl = { useSmallPieces };
 
 /** True when this player owns Small Pieces this round. */
-export function smallPiecesOwns(player: Player): boolean {
+function useSmallPieces(player: Player): boolean {
   return !!player.upgrades.get(UID.SMALL_PIECES);
 }

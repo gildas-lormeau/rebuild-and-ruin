@@ -82,6 +82,7 @@
       "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
+      "src/game/upgrades/upgrade-types.ts",
       "src/game/index.ts"
     ],
     "ai": [

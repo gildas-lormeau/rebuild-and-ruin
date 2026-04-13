@@ -4,7 +4,7 @@
  * outside (reachable from map edges) — enclosures stay intact and thick
  * walls get thinned to a single-tile shell. Can merge adjacent castles.
  *
- * Hook implemented: onPickApplied (per-entry side effect).
+ * Hook implemented: onPick (per-entry side effect).
  * Wired through src/game/upgrade-system.ts. Uses deletePlayerWallsBatch
  * (skips markWallsDirty) — interior is rechecked at the next piece
  * placement or end-of-build via recheckTerritory.
@@ -19,13 +19,13 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import { UID, type UpgradeId } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
 
-/** Strip non-load-bearing walls from all players when the picked upgrade
- *  is Demolition. No-op for any other upgrade. Idempotent — a second
+export const demolitionImpl: UpgradeImpl = { onPick };
+
+/** Strip non-load-bearing walls from all players. Idempotent — a second
  *  call finds no inner walls because the first call already removed them. */
-export function demolitionOnPick(state: GameState, choice: UpgradeId): void {
-  if (choice !== UID.DEMOLITION) return;
+function onPick(state: GameState): void {
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     if (player.walls.size === 0) continue;

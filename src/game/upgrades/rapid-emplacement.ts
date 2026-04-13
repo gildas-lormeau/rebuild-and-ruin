@@ -7,6 +7,11 @@
 
 import type { Player } from "../../shared/core/player-types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+/** Rapid Emplacement is wired directly through cannon-system.ts (slot
+ *  cost discount + consume), not through the registry dispatch. */
+export const rapidEmplacementImpl: UpgradeImpl = {};
 
 /** Slot cost discount for the next cannon placement (1 if upgrade active, else 0). */
 export function rapidEmplacementDiscount(player: Player): number {

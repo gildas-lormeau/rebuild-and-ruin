@@ -1,7 +1,8 @@
 # Adding Modifiers & Upgrades
 
 Agent-facing guide for implementing new environmental modifiers and player
-upgrades. Both use the pool pattern with compile-time exhaustiveness checks.
+upgrades. Both use the pool pattern with compile-time exhaustiveness checks
+and registry-driven dispatch.
 
 ## Modifiers (environmental round effects)
 
@@ -145,15 +146,144 @@ Upgrades are offered starting round 3 in modern mode. Players pick one of
 three weighted-random offers. All upgrades last one round (cleared by
 `resetPlayerUpgrades()`).
 
+Upgrades use the same registry-driven dispatch as modifiers. Each upgrade
+exports an `UpgradeImpl` object from its file, and `upgrade-system.ts`
+imports them all into the `UPGRADE_IMPLS` map with compile-time
+exhaustiveness via `satisfies Record<UpgradeId, UpgradeImpl>`.
+
 ### Files to touch
 
 | Step | File | What to do |
 |------|------|------------|
 | 1 | `src/shared/core/upgrade-defs.ts` | Add string literal to `UpgradeId` union + `UID` map + `UPGRADE_POOL` entry |
-| 2 | `src/game/upgrades/<name>.ts` | Create upgrade file with the effect function(s) |
-| 3 | *(varies)* Consumer file | Import and call the effect at the right hook point |
-| 4 | `.import-layers.json` | Register the new file at the correct layer |
+| 2 | `src/game/upgrades/<name>.ts` | Create upgrade file exporting an `UpgradeImpl` object |
+| 3 | `src/game/upgrade-system.ts` | Import the impl and add entry to `UPGRADE_IMPLS` |
+| 4 | `.import-layers.json` | Register the new file (most upgrades land in "first logic") |
 | 5 | `.domain-boundaries.json` | Register the new file in the `game` domain |
+
+### Files you do NOT touch
+
+- **`upgrade-system.ts` dispatchers** — all lifecycle, event, and query hooks
+  are registry-driven. Adding your impl to `UPGRADE_IMPLS` is enough for the
+  dispatchers to pick up your hooks automatically.
+
+### Per-upgrade file layout
+
+Each upgrade lives in its own file under `src/game/upgrades/`, exporting an
+`UpgradeImpl` object. The interface is defined in `upgrade-types.ts`.
+
+```
+src/game/upgrades/
+  upgrade-types.ts        — UpgradeImpl interface + BattleStartCannonDeps + shared types
+  architect.ts
+  ceasefire.ts
+  clear-the-field.ts
+  conscription.ts
+  demolition.ts
+  double-time.ts
+  foundations.ts
+  master-builder.ts
+  mortar.ts               — impl + mortarSpeedMult (direct export for ballSpeedMult interaction)
+  rapid-emplacement.ts    — impl + direct exports for cannon-system
+  rapid-fire.ts           — impl + direct exports for ballSpeedMult interaction
+  reclamation.ts
+  reinforced-walls.ts
+  restoration-crew.ts     — impl + direct export for build-system
+  ricochet.ts
+  salvage.ts
+  second-wind.ts
+  shield-battery.ts
+  small-pieces.ts
+  supply-drop.ts
+  territorial-ambition.ts
+```
+
+### UpgradeImpl interface
+
+All hooks are optional — upgrades only implement the hooks relevant to their
+mechanic. Dispatchers in `upgrade-system.ts` iterate the registry and call
+each hook with the appropriate aggregation strategy.
+
+```ts
+// src/game/upgrades/my-upgrade.ts
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+function buildTimerBonus(state: GameState): number {
+  // ... your logic
+}
+
+export const myUpgradeImpl: UpgradeImpl = { buildTimerBonus };
+```
+
+Then in `upgrade-system.ts`:
+```ts
+import { myUpgradeImpl } from "./upgrades/my-upgrade.ts";
+
+const UPGRADE_IMPLS = {
+  // ...existing entries...
+  my_upgrade: myUpgradeImpl,
+} as const satisfies Record<UpgradeId, UpgradeImpl>;
+```
+
+### Hook points
+
+#### Pick-time hooks (called once when upgrade is picked)
+
+| Hook | Aggregation | Example upgrades |
+|------|-------------|------------------|
+| `onPick(state, player)` | Targeted lookup by choice ID | second wind, clear the field, demolition, reclamation |
+
+The registry lookup by choice ID means no UID guard is needed inside the
+implementation — your `onPick` receives only the state and the picking player.
+
+#### Phase lifecycle hooks (called at phase boundaries, iterate all impls)
+
+| Hook | When it fires | Example upgrades |
+|------|---------------|------------------|
+| `onBuildPhaseStart(state)` | Start of build phase | master builder |
+| `tickBuild(state, dt)` | Every build-phase frame | master builder (lockout timer) |
+| `onBattlePhaseStart(state, deps)` | Start of battle phase | mortar (cannon election), shield battery |
+
+#### Event hooks (called on specific game events, iterate all impls)
+
+| Hook | When it fires | Example upgrades |
+|------|---------------|------------------|
+| `onPiecePlaced(state, player, pieceKeys)` | After a piece is placed | foundations |
+| `onImpactResolved(state, shooterId, ...)` | After each cannonball impact | ricochet |
+| `onGruntKilled(state, shooterId)` | After a grunt is killed (first non-null wins) | conscription |
+| `onCannonKilled(state, shooterId)` | After a cannon is destroyed | salvage |
+
+#### Query hooks (aggregated across all impls)
+
+| Hook | Aggregation | Example upgrades |
+|------|-------------|------------------|
+| `shouldSkipBattle(state)` | boolean OR | ceasefire |
+| `canBuildThisFrame(state, playerId)` | boolean AND | master builder |
+| `buildTimerBonus(state)` | additive sum | master builder, double time |
+| `shouldAbsorbWallHit(player, tileKey)` | boolean OR | reinforced walls |
+| `territoryScoreMult(player)` | multiplicative | territorial ambition |
+| `cannonSlotsBonus(player)` | additive sum | supply drop |
+| `useSmallPieces(player)` | boolean OR | small pieces |
+| `wallOverlapAllowance(player)` | additive sum | architect |
+| `canPlaceOverBurningPit(player)` | boolean OR | foundations |
+
+### Direct exports (outside the registry)
+
+Some upgrades have effects that don't fit the registry dispatch:
+
+- **`ballSpeedMult`** — cross-upgrade interaction between Rapid Fire and
+  Mortar (they cancel out). The dispatcher calls `rapidFireOwns()`,
+  `rapidFireBallMult()`, and `mortarSpeedMult()` directly. These functions
+  stay as named exports alongside the impl.
+- **`restorationCrewInstantRevive()`** — called by `build-system.ts` during
+  end-of-build tower revival. Direct export alongside an empty impl.
+- **`rapidEmplacementDiscount()` / `consumeRapidEmplacement()`** — called
+  by `cannon-system.ts` during placement. Direct exports alongside an empty
+  impl.
+
+For new upgrades, prefer using the registry hooks. Only use direct exports
+when your effect involves cross-upgrade interaction or is called from a
+system that doesn't go through `upgrade-system.ts`.
 
 ### Upgrade categories
 
@@ -172,39 +302,6 @@ three weighted-random offers. All upgrades last one round (cleared by
 | `oneUse` | Metadata flag — all upgrades are cleared each round regardless |
 | `global` | `true` = effect applies to all players when any player picks it |
 | `implemented` | Set `true` when gameplay code exists (gates draft eligibility) |
-
-### Hook points
-
-Upgrades integrate through `upgrade-system.ts` which provides lifecycle hooks.
-Choose the hook that matches your effect's timing:
-
-| Hook | When it fires | Example upgrades |
-|------|---------------|------------------|
-| `onUpgradePicked()` | Immediately at pick time | second wind, clear the field, demolition, reclamation |
-| `onBuildPhaseStart()` | Start of build phase | master builder |
-| `tickBuildUpgrades()` | Every build-phase frame | master builder (lockout timer) |
-| `onBattlePhaseStart()` | Start of battle phase | mortar (cannon election), shield battery |
-| `onImpactResolved()` | After each cannonball impact | ricochet |
-| `onGruntKilled()` | After a grunt is killed | conscription |
-| `onCannonKilled()` | After a cannon is destroyed | salvage |
-
-For **query-style** upgrades (where game code checks "does this player have X?"),
-export a query function from your upgrade file and call it directly from the
-consumer (e.g. `rapidFireBallMult()`, `foundationsIgnoresPits()`,
-`architectWallOverlapAllowance()`). These don't go through upgrade-system.ts
-hooks — they're called inline by the relevant game system.
-
-For **build-phase effects** that modify `reviveEnclosedTowers` or similar
-end-of-build logic, the upgrade file exports a function that `build-system.ts`
-calls directly (e.g. `restorationCrewInstantRevive()`).
-
-### Pick-time upgrades (one-shot side effects)
-
-If your upgrade should fire immediately when picked:
-
-1. Export a `fooOnPick(state, choice)` function from your upgrade file
-2. Add a call to `onUpgradePicked()` in `upgrade-system.ts`
-3. Guard with `if (choice !== UID.FOO) return;`
 
 ### Consuming the upgrade in game code
 
@@ -225,10 +322,10 @@ return true;
 
 ### Layer placement
 
-Upgrade files that only import from `upgrade-defs.ts` (L0) and
-`player-types.ts` (L3, type-only) land at L4 (core state & interfaces).
-Files that also import from `spatial.ts` (L4) or `types.ts` (L4) land at
-L5 (first logic). Check `.import-layers.json` before placing.
+All upgrade files land at L5 (first logic) alongside `modifier-types.ts`
+and `upgrade-types.ts` (L4). The `upgrade-types.ts` interface file sits at
+L4 (core state & interfaces) so that upgrade impls can import downward from
+it. Check `.import-layers.json` before placing.
 
 ---
 
@@ -238,8 +335,9 @@ Both registries use the same exhaustiveness pattern:
 
 1. A `type PoolComplete = Id extends PoolIds ? true : never` check ensures
    every ID has a pool entry
-2. `MODIFIER_IMPLS satisfies Record<ModifierId, ModifierImpl>` ensures every
-   modifier has an implementation
+2. `MODIFIER_IMPLS satisfies Record<ModifierId, ModifierImpl>` and
+   `UPGRADE_IMPLS satisfies Record<UpgradeId, UpgradeImpl>` ensure every
+   entry has an implementation
 3. `MODIFIER_CONSUMERS satisfies Record<ModifierId, ...>` ensures every
    modifier has consumer documentation
 4. The `lint:registries` pre-commit check verifies every consumer file path

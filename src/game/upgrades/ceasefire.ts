@@ -7,8 +7,11 @@
 
 import type { GameState } from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+export const ceasefireImpl: UpgradeImpl = { shouldSkipBattle };
 
 /** True when any player owns Ceasefire — triggers battle-skip for this round. */
-export function ceasefireShouldSkipBattle(state: GameState): boolean {
+function shouldSkipBattle(state: GameState): boolean {
   return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
 }

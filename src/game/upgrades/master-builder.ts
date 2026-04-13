@@ -3,7 +3,7 @@
  *
  * Hooks implemented:
  *   - onBuildPhaseStart — configure masterBuilderOwners + masterBuilderLockout
- *   - tickBuildUpgrades — decrement the lockout timer each frame
+ *   - tickBuild         — decrement the lockout timer each frame
  *   - canBuildThisFrame — locked-out players cannot build
  *   - buildTimerBonus   — +N seconds while any player owns MB
  *
@@ -16,18 +16,25 @@ import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Extra build seconds granted by Master Builder. With 1 owner, that owner
  *  gets these seconds as an exclusive head-start (others locked out). With
  *  2+ owners, the bonus is added to everyone's timer (cancels out
  *  competitively, no lockout). Internal: callers go through the dispatcher. */
 const MASTER_BUILDER_BONUS_SECONDS = 5;
+export const masterBuilderImpl: UpgradeImpl = {
+  onBuildPhaseStart,
+  tickBuild,
+  canBuildThisFrame,
+  buildTimerBonus,
+};
 
 /** Configure Master Builder state at the start of a build phase.
  *  - 1 owner  → that player gets an exclusive head-start; others are locked out
  *  - 2+ owners → everyone's timer gets the bonus (cancels out competitively), no lockout
  *  - 0 owners → no-op */
-export function masterBuilderOnBuildStart(state: GameState): void {
+function onBuildPhaseStart(state: GameState): void {
   if (!hasFeature(state, FID.UPGRADES)) return;
   const mbPlayers = state.players.filter(
     (player) =>
@@ -41,7 +48,7 @@ export function masterBuilderOnBuildStart(state: GameState): void {
 
 /** Decrement the Master Builder lockout timer each build frame.
  *  No-op outside upgrades mode or when the lockout has already elapsed. */
-export function masterBuilderTick(state: GameState, dt: number): void {
+function tickBuild(state: GameState, dt: number): void {
   if (!hasFeature(state, FID.UPGRADES)) return;
   const modern = state.modern;
   if (modern && modern.masterBuilderLockout > 0) {
@@ -52,7 +59,7 @@ export function masterBuilderTick(state: GameState, dt: number): void {
 /** Whether this player is allowed to build this frame under Master Builder.
  *  Returns true unless exactly one player owns MB, the lockout is still
  *  running, and this player is not the owner. */
-export function masterBuilderAllowsBuild(
+function canBuildThisFrame(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): boolean {
@@ -67,7 +74,7 @@ export function masterBuilderAllowsBuild(
 
 /** Build timer bonus contributed by Master Builder.
  *  Returns +N seconds while any player owns MB, 0 otherwise. */
-export function masterBuilderTimerBonus(state: GameState): number {
+function buildTimerBonus(state: GameState): number {
   return (state.modern?.masterBuilderOwners?.size ?? 0) > 0
     ? MASTER_BUILDER_BONUS_SECONDS
     : 0;

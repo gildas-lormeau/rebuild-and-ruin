@@ -1,5 +1,13 @@
+/**
+ * Upgrade dispatcher — registry + orchestration layer.
+ *
+ * Per-upgrade implementations live in sibling files (upgrades/*.ts),
+ * mirroring the modifiers/ layout. Registry-driven dispatch replaces
+ * hardcoded per-upgrade imports for all hooks except ballSpeedMult
+ * (which has cross-upgrade interaction logic between Rapid Fire and Mortar).
+ */
+
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
-import type { Cannon } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -14,57 +22,77 @@ import {
   type UpgradeId,
 } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import { architectWallOverlapAllowance } from "./upgrades/architect.ts";
-import { ceasefireShouldSkipBattle } from "./upgrades/ceasefire.ts";
-import { clearTheFieldOnPick } from "./upgrades/clear-the-field.ts";
+import { architectImpl } from "./upgrades/architect.ts";
+import { ceasefireImpl } from "./upgrades/ceasefire.ts";
+import { clearTheFieldImpl } from "./upgrades/clear-the-field.ts";
+import { conscriptionImpl } from "./upgrades/conscription.ts";
+import { demolitionImpl } from "./upgrades/demolition.ts";
+import { doubleTimeImpl } from "./upgrades/double-time.ts";
+import { foundationsImpl } from "./upgrades/foundations.ts";
+import { masterBuilderImpl } from "./upgrades/master-builder.ts";
+import { mortarImpl, mortarSpeedMult } from "./upgrades/mortar.ts";
+import { rapidEmplacementImpl } from "./upgrades/rapid-emplacement.ts";
 import {
-  type ConscriptionRespawnTarget,
-  conscriptionPickRespawnTarget,
-} from "./upgrades/conscription.ts";
-import { demolitionOnPick } from "./upgrades/demolition.ts";
-import { doubleTimeBuildTimerBonus } from "./upgrades/double-time.ts";
-import {
-  foundationsExtinguishOnPlace,
-  foundationsIgnoresPits,
-} from "./upgrades/foundations.ts";
-import {
-  masterBuilderAllowsBuild,
-  masterBuilderOnBuildStart,
-  masterBuilderTick,
-  masterBuilderTimerBonus,
-} from "./upgrades/master-builder.ts";
-import { mortarElectAll, mortarSpeedMult } from "./upgrades/mortar.ts";
-import { rapidFireBallMult, rapidFireOwns } from "./upgrades/rapid-fire.ts";
-import { reclamationOnPick } from "./upgrades/reclamation.ts";
-import { reinforcedWallsShouldAbsorb } from "./upgrades/reinforced-walls.ts";
-import {
-  type RicochetApplyBounce,
-  ricochetProcessBounces,
-} from "./upgrades/ricochet.ts";
-import { salvageOnCannonKilled } from "./upgrades/salvage.ts";
-import { secondWindOnPick } from "./upgrades/second-wind.ts";
-import { shieldBatteryElectAll } from "./upgrades/shield-battery.ts";
-import { smallPiecesOwns } from "./upgrades/small-pieces.ts";
-import { supplyDropCannonSlotsBonus } from "./upgrades/supply-drop.ts";
-import { territorialAmbitionScoreMult } from "./upgrades/territorial-ambition.ts";
+  rapidFireBallMult,
+  rapidFireImpl,
+  rapidFireOwns,
+} from "./upgrades/rapid-fire.ts";
+import { reclamationImpl } from "./upgrades/reclamation.ts";
+import { reinforcedWallsImpl } from "./upgrades/reinforced-walls.ts";
+import { restorationCrewImpl } from "./upgrades/restoration-crew.ts";
+import { ricochetImpl } from "./upgrades/ricochet.ts";
+import { salvageImpl } from "./upgrades/salvage.ts";
+import { secondWindImpl } from "./upgrades/second-wind.ts";
+import { shieldBatteryImpl } from "./upgrades/shield-battery.ts";
+import { smallPiecesImpl } from "./upgrades/small-pieces.ts";
+import { supplyDropImpl } from "./upgrades/supply-drop.ts";
+import { territorialAmbitionImpl } from "./upgrades/territorial-ambition.ts";
+import type {
+  BattleStartCannonDeps,
+  ConscriptionRespawnTarget,
+  RicochetApplyBounce,
+  UpgradeImpl,
+} from "./upgrades/upgrade-types.ts";
 
-/** Helpers from cannon-system that battle-start hooks need. Injected by
- *  phase-setup.ts so this dispatcher (L6) doesn't have to import from
- *  cannon-system (also L6 — would create a cycle via cannonSlotsBonus). */
-interface BattleStartCannonDeps {
-  readonly filterActiveFiringCannons: (player: Player) => Cannon[];
-  readonly isCannonEnclosed: (cannon: Cannon, player: Player) => boolean;
-  readonly homeEnclosedRegion: (player: Player) => Set<number>;
-}
-
+/** Compile-time exhaustiveness: every UpgradeId must have an impl entry. */
+const UPGRADE_IMPLS = {
+  mortar: mortarImpl,
+  rapid_fire: rapidFireImpl,
+  ricochet: ricochetImpl,
+  shield_battery: shieldBatteryImpl,
+  reinforced_walls: reinforcedWallsImpl,
+  master_builder: masterBuilderImpl,
+  small_pieces: smallPiecesImpl,
+  double_time: doubleTimeImpl,
+  architect: architectImpl,
+  foundations: foundationsImpl,
+  reclamation: reclamationImpl,
+  territorial_ambition: territorialAmbitionImpl,
+  conscription: conscriptionImpl,
+  salvage: salvageImpl,
+  ceasefire: ceasefireImpl,
+  supply_drop: supplyDropImpl,
+  second_wind: secondWindImpl,
+  demolition: demolitionImpl,
+  clear_the_field: clearTheFieldImpl,
+  restoration_crew: restorationCrewImpl,
+  rapid_emplacement: rapidEmplacementImpl,
+} as const satisfies Record<UpgradeId, UpgradeImpl>;
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
+/** Registry map for dispatching upgrade lifecycle hooks by id. */
+const UPGRADE_REGISTRY = new Map<UpgradeId, UpgradeImpl>(
+  Object.entries(UPGRADE_IMPLS) as [UpgradeId, UpgradeImpl][],
+);
 
 /** True when this round's battle phase should be skipped entirely. */
 export function shouldSkipBattle(state: GameState): boolean {
-  return ceasefireShouldSkipBattle(state);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.shouldSkipBattle?.(state)) return true;
+  }
+  return false;
 }
 
 /** Whether this player is allowed to build this frame.
@@ -73,17 +101,26 @@ export function canBuildThisFrame(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): boolean {
-  return masterBuilderAllowsBuild(state, playerId);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.canBuildThisFrame && !impl.canBuildThisFrame(state, playerId))
+      return false;
+  }
+  return true;
 }
 
 /** Build timer bonus contributed by active upgrades (additive). */
 export function buildTimerBonus(state: GameState): number {
-  return masterBuilderTimerBonus(state) + doubleTimeBuildTimerBonus(state);
+  let bonus = 0;
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    bonus += impl.buildTimerBonus?.(state) ?? 0;
+  }
+  return bonus;
 }
 
 /** Cannonball speed multiplier for a firing cannon. Combines upgrade
  *  contributions (Rapid Fire) with cannon-mode effects (mortar). Encodes
- *  the design rule that Rapid Fire + Mortar cancel out to normal speed. */
+ *  the design rule that Rapid Fire + Mortar cancel out to normal speed.
+ *  Wired directly — cross-upgrade interaction doesn't fit the registry. */
 export function ballSpeedMult(player: Player, isMortar: boolean): number {
   const hasRapidFire = rapidFireOwns(player);
   if (isMortar && hasRapidFire) return 1;
@@ -95,35 +132,56 @@ export function ballSpeedMult(player: Player, isMortar: boolean): number {
  *  Caller is responsible for emitting WALL_ABSORBED and marking the tile
  *  in damagedWalls via the event dispatch. */
 export function shouldAbsorbWallHit(player: Player, tileKey: number): boolean {
-  return reinforcedWallsShouldAbsorb(player, tileKey);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.shouldAbsorbWallHit?.(player, tileKey)) return true;
+  }
+  return false;
 }
 
 /** End-of-build territory score multiplier for a player (multiplicative). */
 export function territoryScoreMult(player: Player): number {
-  return territorialAmbitionScoreMult(player);
+  let mult = 1;
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    mult *= impl.territoryScoreMult?.(player) ?? 1;
+  }
+  return mult;
 }
 
 /** Extra cannon slots granted to a player by active upgrades (additive). */
 export function cannonSlotsBonus(player: Player): number {
-  return supplyDropCannonSlotsBonus(player);
+  let bonus = 0;
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    bonus += impl.cannonSlotsBonus?.(player) ?? 0;
+  }
+  return bonus;
 }
 
 /** True when this player's build bag should draw from the small-piece
  *  sub-pool this round. Consumed by controller-types.ts's initBag. */
 export function useSmallPieces(player: Player): boolean {
-  return smallPiecesOwns(player);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.useSmallPieces?.(player)) return true;
+  }
+  return false;
 }
 
 /** How many own-wall tiles this player may overlap with a single piece
  *  placement. Aggregates every upgrade that relaxes wall-overlap rules. */
 export function wallOverlapAllowance(player: Player): number {
-  return architectWallOverlapAllowance(player);
+  let allowance = 0;
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    allowance += impl.wallOverlapAllowance?.(player) ?? 0;
+  }
+  return allowance;
 }
 
 /** True when this player may place pieces on top of burning pits.
  *  Callers should skip the pit-block check when this returns true. */
 export function canPlaceOverBurningPit(player: Player): boolean {
-  return foundationsIgnoresPits(player);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.canPlaceOverBurningPit?.(player)) return true;
+  }
+  return false;
 }
 
 /** Post-placement hook: run upgrade-driven side effects triggered by a
@@ -133,13 +191,66 @@ export function onPiecePlaced(
   player: Player,
   pieceKeys: ReadonlySet<number>,
 ): void {
-  foundationsExtinguishOnPlace(state, player, pieceKeys);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onPiecePlaced?.(state, player, pieceKeys);
+  }
+}
+
+/** Post-impact hook: run any follow-up impacts triggered by upgrades.
+ *  Battle-system supplies `applyBounce`, which owns computeImpact +
+ *  applyImpactEvent + emit machinery; the upgrade file owns the
+ *  RNG-driven bounce geometry. */
+export function onImpactResolved(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+  hitRow: number,
+  hitCol: number,
+  initialImpactEvents: readonly ImpactEvent[],
+  applyBounce: RicochetApplyBounce,
+): void {
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onImpactResolved?.(
+      state,
+      shooterId,
+      hitRow,
+      hitCol,
+      initialImpactEvents,
+      applyBounce,
+    );
+  }
+}
+
+/** Post-grunt-kill hook: query upgrades for a replacement spawn target.
+ *  Returns the victim's home-tower anchor so the caller can run
+ *  findGruntSpawnNear from there. First non-null wins. */
+export function onGruntKilled(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+): ConscriptionRespawnTarget | null {
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    const result = impl.onGruntKilled?.(state, shooterId);
+    if (result) return result;
+  }
+  return null;
+}
+
+/** Post-cannon-kill hook: award upgrade effects triggered when a shooter
+ *  destroys an enemy cannon. */
+export function onCannonKilled(
+  state: GameState,
+  shooterId: ValidPlayerSlot,
+): void {
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onCannonKilled?.(state, shooterId);
+  }
 }
 
 /** Phase-boundary hook: configure upgrade state at the start of a build phase.
  *  Called by phase-setup.ts's build-phase initializer. */
 export function onBuildPhaseStart(state: GameState): void {
-  masterBuilderOnBuildStart(state);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onBuildPhaseStart?.(state);
+  }
 }
 
 /** Phase-boundary hook: run battle-start upgrade elections (Mortar picks
@@ -151,61 +262,22 @@ export function onBattlePhaseStart(
   state: GameState,
   deps: BattleStartCannonDeps,
 ): void {
-  mortarElectAll(state, deps.filterActiveFiringCannons, deps.isCannonEnclosed);
-  shieldBatteryElectAll(state, deps.homeEnclosedRegion);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onBattlePhaseStart?.(state, deps);
+  }
 }
 
 /** Per-frame hook: advance upgrade-effect timers during the build phase.
  *  Called from the engine's tickBuildPhase entry point. */
 export function tickBuildUpgrades(state: GameState, dt: number): void {
-  masterBuilderTick(state, dt);
-}
-
-/** Post-impact hook: run any follow-up impacts triggered by upgrades.
- *  Today only Ricochet uses this. Battle-system supplies `applyBounce`,
- *  which owns computeImpact + applyImpactEvent + emit machinery; the
- *  upgrade file owns the RNG-driven bounce geometry. */
-export function onImpactResolved(
-  state: GameState,
-  shooterId: ValidPlayerSlot,
-  hitRow: number,
-  hitCol: number,
-  initialImpactEvents: readonly ImpactEvent[],
-  applyBounce: RicochetApplyBounce,
-): void {
-  ricochetProcessBounces(
-    state,
-    shooterId,
-    hitRow,
-    hitCol,
-    initialImpactEvents,
-    applyBounce,
-  );
-}
-
-/** Post-grunt-kill hook: query upgrades for a replacement spawn target.
- *  Today only Conscription uses this. Returns the victim's home-tower
- *  anchor so the caller can run findGruntSpawnNear from there. */
-export function onGruntKilled(
-  state: GameState,
-  shooterId: ValidPlayerSlot,
-): ConscriptionRespawnTarget | null {
-  return conscriptionPickRespawnTarget(state, shooterId);
-}
-
-/** Post-cannon-kill hook: award upgrade effects triggered when a shooter
- *  destroys an enemy cannon. Today only Salvage uses this. */
-export function onCannonKilled(
-  state: GameState,
-  shooterId: ValidPlayerSlot,
-): void {
-  salvageOnCannonKilled(state, shooterId);
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.tickBuild?.(state, dt);
+  }
 }
 
 /** Apply all picked upgrades to player state. Each per-upgrade pick hook
- *  is idempotent and guards on its own UID internally, so per-entry
- *  dispatch is safe even when multiple players pick the same global
- *  upgrade (second wind, clear the field, demolition). */
+ *  is idempotent, so per-entry dispatch is safe even when multiple players
+ *  pick the same global upgrade (second wind, clear the field, demolition). */
 export function applyUpgradePicks(
   state: GameState,
   dialog: UpgradePickDialogState,
@@ -219,7 +291,7 @@ export function applyUpgradePicks(
       playerId: entry.playerId,
       upgradeId: entry.choice,
     });
-    onUpgradePicked(state, player, entry.choice);
+    UPGRADE_REGISTRY.get(entry.choice)?.onPick?.(state, player);
   }
 }
 
@@ -248,26 +320,12 @@ export function resetPlayerUpgrades(state: GameState): void {
   }
 }
 
-/** Pick-time hook: route a freshly-picked upgrade to per-upgrade side
- *  effects. Each per-upgrade function no-ops when the choice doesn't
- *  match its UID, so the dispatcher stays UID.*-free. */
-function onUpgradePicked(
-  state: GameState,
-  player: Player,
-  choice: UpgradeId,
-): void {
-  secondWindOnPick(state, choice);
-  clearTheFieldOnPick(state, choice);
-  demolitionOnPick(state, choice);
-  reclamationOnPick(player, choice);
-}
-
 /** Draw N unique upgrades from the implemented pool using state.rng. */
 function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   const pool = [...IMPLEMENTED_UPGRADES];
   const picked: UpgradeId[] = [];
 
-  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
+  for (let idx = 0; idx < OFFER_COUNT && pool.length > 0; idx++) {
     const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
     let roll = state.rng.next() * totalWeight;
     let chosenIdx = pool.length - 1;

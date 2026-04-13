@@ -18,28 +18,17 @@ import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-
-/** Dedup key set shared across bounces: identifies cannons already damaged
- *  in the chain so later bounces can't re-hit them. */
-export type RicochetHitSet = Set<string>;
-
-/** Callback supplied by battle-system to apply an impact at a bounce position.
- *  Receives the same hitCannons set on every call so the caller can skip
- *  cannon events for cannons already hit earlier in the chain. */
-export type RicochetApplyBounce = (
-  row: number,
-  col: number,
-  hitCannons: RicochetHitSet,
-) => void;
+import type { RicochetApplyBounce, UpgradeImpl } from "./upgrade-types.ts";
 
 /** Number of random bounces after a ricochet impact. */
 const RICOCHET_BOUNCES = 2;
 /** Max Chebyshev distance for each successive bounce (decays to simulate energy loss). */
 const RICOCHET_RADII: readonly number[] = [5, 3];
+export const ricochetImpl: UpgradeImpl = { onImpactResolved };
 
 /** Run ricochet bounces for an initial impact. No-op when the shooter
  *  doesn't own Ricochet. Consumes state.rng twice per bounce (dr, dc). */
-export function ricochetProcessBounces(
+function onImpactResolved(
   state: GameState,
   shooterId: ValidPlayerSlot,
   hitRow: number,
@@ -49,7 +38,7 @@ export function ricochetProcessBounces(
 ): void {
   if (!state.players[shooterId]?.upgrades.get(UID.RICOCHET)) return;
 
-  const hitCannons: RicochetHitSet = new Set();
+  const hitCannons: Set<string> = new Set();
   for (const evt of initialImpactEvents) {
     if (evt.type === BATTLE_MESSAGE.CANNON_DAMAGED) {
       hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);

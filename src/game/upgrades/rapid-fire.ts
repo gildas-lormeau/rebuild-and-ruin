@@ -7,10 +7,14 @@
 
 import type { Player } from "../../shared/core/player-types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Cannonball speed multiplier when Rapid Fire is active.
  *  Cancels out with Mortar's slowdown by design — see ballSpeedMult dispatcher. */
 const RAPID_FIRE_SPEED_MULT = 1.5;
+/** Rapid Fire hooks are wired directly through the ballSpeedMult dispatcher
+ *  (cross-upgrade interaction with Mortar), not through the registry. */
+export const rapidFireImpl: UpgradeImpl = {};
 
 /** Ball speed multiplier contributed by Rapid Fire (1 if not owned). */
 export function rapidFireBallMult(player: Player): number {

@@ -7,8 +7,11 @@
 
 import type { Player } from "../../shared/core/player-types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
+import type { UpgradeImpl } from "./upgrade-types.ts";
+
+export const territorialAmbitionImpl: UpgradeImpl = { territoryScoreMult };
 
 /** Territory score multiplier contributed by Territorial Ambition. */
-export function territorialAmbitionScoreMult(player: Player): number {
+function territoryScoreMult(player: Player): number {
   return player.upgrades.get(UID.TERRITORIAL_AMBITION) ? 2 : 1;
 }

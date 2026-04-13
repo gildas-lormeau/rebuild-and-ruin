@@ -11,22 +11,19 @@ import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-
-/** Respawn target returned to the caller. Anchor coords are the victim's
- *  home tower — the caller runs findGruntSpawnNear from there. */
-export interface ConscriptionRespawnTarget {
-  readonly victimId: ValidPlayerSlot;
-  readonly anchorRow: number;
-  readonly anchorCol: number;
-}
+import type {
+  ConscriptionRespawnTarget,
+  UpgradeImpl,
+} from "./upgrade-types.ts";
 
 /** Probability that a killed grunt triggers a Conscription respawn. */
 const CONSCRIPTION_SPAWN_CHANCE = 0.75;
+export const conscriptionImpl: UpgradeImpl = { onGruntKilled };
 
 /** Roll for a Conscription respawn after the shooter kills a grunt.
  *  Returns a victim anchor point, or null if the upgrade is inactive or the
  *  roll fails. Consumes state.rng (bool + pick) only when Conscription owns. */
-export function conscriptionPickRespawnTarget(
+function onGruntKilled(
   state: GameState,
   shooterId: ValidPlayerSlot,
 ): ConscriptionRespawnTarget | null {

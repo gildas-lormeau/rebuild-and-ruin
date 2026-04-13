@@ -14,6 +14,13 @@
       "rationale": "Fire helpers need hasCannonAt + removeWallFromAllPlayers from board-occupancy — both are stable leaf utilities",
       "owner": "Gildas",
       "expiresOn": "2027-04-13"
+    },
+    {
+      "from": "src/game/upgrades/upgrade-types.ts",
+      "to": "src/shared/core/types.ts",
+      "rationale": "UpgradeImpl interface needs GameState — mirrors modifier-types.ts pattern; type-only import",
+      "owner": "Gildas",
+      "expiresOn": "2027-04-13"
     }
   ]
 }
