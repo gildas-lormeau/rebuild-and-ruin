@@ -111,44 +111,23 @@ await sc.close();
 test.done(); // prints summary, exits with code 1 on failure
 ```
 
-Create options: `{ seed?, humans?, headless?, rounds?, mode? }`.
-`mode: "modern"` passes `?mode=modern` URL param for modern-mode games.
+Options: `{ seed?, humans?, headless?, rounds?, mode?, online?: "host" | "join", roomCode? }`.
 
-The E2E bridge (`window.__e2e`) exposes structured state snapshots each frame:
-- **Game state**: `mode`, `phase`, `round`, `timer`, `players`
-- **Render overlay**: `overlay.entities` (houses, grunts, towers, frozenTiles), `overlay.phantoms`, `overlay.banner`, `overlay.battle`, `overlay.ui`
-- **Banner prev scene**: `overlay.hasBannerPrevScene` (true when ImageData captured for banner sweep)
-- **Controller**: `controller.cannonCursor`, `controller.buildCursor`, `controller.crosshair`
-- **Camera**: `camera.viewport`
-- **Coord conversion**: `worldToClient(wx, wy)`, `tileToClient(row, col)` — callable from page.evaluate
-- **Targeting**: `targeting.enemyCannons`, `targeting.enemyTargets` — pixel positions of enemy entities
-- **Pause/step**: set `paused = true` to freeze, `step = true` to advance one frame
+Same shape as headless `createScenario` — `bus.on()`, `runUntil()`, `runGame()`, `state()`, `input.*`:
+```typescript
+sc.bus.on(GAME_EVENT.BANNER_START, (ev) => { ... });  // live event subscription
+await sc.runUntil(async (sc) => (await sc.phase()) === "BATTLE");
+await sc.runGame();
+const state = await sc.state();  // typed E2EBridgeSnapshot
+await sc.input.click(wx, wy);    // world-coordinate input
+```
 
-**Lifecycle & phase control:**
-- `game.advanceTo("CANNON_PLACE")` — waits for phase (timeout from game constants)
-- `game.waitForGameOver()` — waits for mode === "STOPPED"
-- `game.waitUntil(predicateString)` — custom bridge predicate
-- `game.setFastMode(false)` — disable fast mode for precise mouse/timing
-- `game.pause()` / `game.resume()` / `game.step()`
+The bridge (`window.__e2e`) exposes: `mode`, `phase`, `round`, `timer`,
+`overlay.banner`, `overlay.battle`, `overlay.ui`, `controller`, `targeting`,
+`worldToClient`, `tileToClient`, `busLog` (all game events with canvas snapshots).
 
-**Input:**
-- `game.mouse.moveToWorld(wx, wy)` / `game.mouse.moveToTile(row, col)`
-- `game.mouse.clickTile(row, col)` / `game.mouse.rightClickWorld(wx, wy)`
-- `game.mouse.sweep(from, to, { stepPx })` — pixel-by-pixel sweep
-- `game.keyboard.press("n")` / `game.dom.clickButton("confirm")`
-
-**Query:**
-- `game.query.state()` / `game.query.phase()` / `game.query.timer()`
-- `game.query.controller()` / `game.query.overlay()` / `game.query.players()`
-
-Fast mode is ON by default (accelerates lobby + phase timers). Disable fast mode with
-`game.setFastMode(false)` when you need precise mouse/timing interaction.
-
-Use bridge state snapshots for render verification — `overlay.entities`,
-`overlay.banner`, `overlay.ui`, `players` are all updated every frame.
-
-Run with: `deno run -A test/your-file.ts`
-No external `timeout` command needed — tests handle their own lifecycle.
+Fast mode is ON by default (RAF replaced with 1ms setTimeout).
+Run with: `deno run -A test/your-file.ts` or `deno test --no-check -A test/your-file.ts`.
 
 ### Step 4: Read the log output — NOW you can analyze
 Only now, with log output in front of you, trace what actually happened.
