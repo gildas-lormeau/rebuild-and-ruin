@@ -111,6 +111,32 @@ Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", asy
   }
 });
 
+Deno.test("scenario: entities present during banner sweeps", async () => {
+  const sc = await createScenario({ seed: 42, rounds: 1 });
+
+  let towersSeenDuringBanner = false;
+  let housesSeenDuringBanner = false;
+  let cannonsSeenDuringBanner = false;
+
+  sc.bus.on(GAME_EVENT.BANNER_START, () => {
+    if (sc.state.towerAlive.some(Boolean)) {
+      towersSeenDuringBanner = true;
+    }
+    if (sc.state.map.houses.some((house) => house.alive)) {
+      housesSeenDuringBanner = true;
+    }
+    if (sc.state.players.some((player) => player.cannons.length > 0)) {
+      cannonsSeenDuringBanner = true;
+    }
+  });
+
+  sc.runGame(30000);
+
+  assert(towersSeenDuringBanner, "towers should be present during at least one banner");
+  assert(housesSeenDuringBanner, "houses should be present during at least one banner");
+  assert(cannonsSeenDuringBanner, "cannons should be present during at least one banner");
+});
+
 Deno.test("scenario: runGame plays a full game to completion", async () => {
   const sc = await createScenario({ seed: 42, rounds: 2 });
   sc.runGame(30000);

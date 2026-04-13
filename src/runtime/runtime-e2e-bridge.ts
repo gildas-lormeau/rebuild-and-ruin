@@ -7,6 +7,7 @@
  */
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
+import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { Viewport } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
@@ -20,32 +21,7 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 
-export interface E2EEntitySnapshot {
-  houses: { row: number; col: number; alive: boolean }[];
-  grunts: { row: number; col: number }[];
-  towerAlive: boolean[];
-  burningPits: { row: number; col: number }[];
-  bonusSquares: { row: number; col: number }[];
-  frozenTiles: number[];
-}
-
-interface E2EPhantomSnapshot {
-  pieces: {
-    row: number;
-    col: number;
-    valid: boolean;
-    playerId: number;
-  }[];
-  cannons: {
-    row: number;
-    col: number;
-    valid: boolean;
-    mode: string;
-    playerId: number;
-  }[];
-}
-
-interface E2EBannerSnapshot {
+export interface E2EBannerSnapshot {
   text: string;
   y: number;
   modifierDiff: {
@@ -55,13 +31,13 @@ interface E2EBannerSnapshot {
   } | null;
 }
 
-interface E2EBattleSnapshot {
+export interface E2EBattleSnapshot {
   cannonballs: number;
   impacts: number;
   crosshairs: { x: number; y: number; playerId: number }[];
 }
 
-interface E2EUISnapshot {
+export interface E2EUISnapshot {
   statusBar: {
     round: string;
     phase: string;
@@ -77,26 +53,34 @@ interface E2EUISnapshot {
   } | null;
 }
 
-interface E2EPlayerSnapshot {
-  id: number;
-  score: number;
-  lives: number;
-  eliminated: boolean;
-  walls: number;
-  cannons: number;
-}
-
-interface E2EControllerSnapshot {
+export interface E2EControllerSnapshot {
   buildCursor: { row: number; col: number } | null;
   cannonCursor: { row: number; col: number } | null;
   cannonMode: string | null;
   crosshair: { x: number; y: number } | null;
 }
 
-interface E2ENetworkMessage {
-  dir: "in" | "out";
-  type: string;
-  time: number;
+/** Serializable subset of the bridge — what `state()` returns across
+ *  the Playwright boundary (functions stripped by JSON.stringify). */
+export interface E2EBridgeSnapshot {
+  mode: string;
+  phase: string;
+  round: number;
+  timer: number;
+  overlay: {
+    hasBannerPrevScene: boolean;
+    banner: E2EBannerSnapshot | null;
+    battle: E2EBattleSnapshot | null;
+    ui: E2EUISnapshot;
+  };
+  controller: E2EControllerSnapshot | null;
+  paused: boolean;
+  step: boolean;
+  targeting: {
+    enemyCannons: { x: number; y: number }[];
+    enemyTargets: { x: number; y: number }[];
+  };
+  busLog: E2EBusEntry[];
 }
 
 /** The full bridge object exposed on window.__e2e. */
@@ -109,25 +93,15 @@ interface E2EBridge {
 
   // Render overlay
   overlay: {
-    entities: E2EEntitySnapshot | null;
     /** Whether a prev-scene ImageData is captured for the banner sweep. */
     hasBannerPrevScene: boolean;
-    phantoms: E2EPhantomSnapshot | null;
     banner: E2EBannerSnapshot | null;
     battle: E2EBattleSnapshot | null;
     ui: E2EUISnapshot;
   };
 
-  // Players
-  players: E2EPlayerSnapshot[];
-
   // Human controller
   controller: E2EControllerSnapshot | null;
-
-  // Camera
-  camera: {
-    viewport: Viewport | undefined;
-  };
 
   // Coord conversion (callable from page.evaluate)
   worldToClient: (wx: number, wy: number) => { cx: number; cy: number };
@@ -143,45 +117,33 @@ interface E2EBridge {
     enemyTargets: { x: number; y: number }[];
   };
 
-  // Network
-  network: {
-    messages: E2ENetworkMessage[];
-    logLevel: "type" | "full";
-  };
-
   /** All game bus events, in emission order. Each entry is the raw event
    *  payload (which always contains `type`) plus a monotonic `_seq` index.
-   *  Banner events additionally carry `_canvasSnapshot` (PNG dataURL
-   *  captured synchronously at emission time). */
+   *  Banner and tick events carry `_canvasSnapshot` (PNG dataURL captured
+   *  synchronously at emission time). */
   busLog: E2EBusEntry[];
 
-  /** @deprecated Use `busLog` filtered by type. Kept temporarily for
-   *  in-flight E2E tests that read `bannerEvents` directly. */
-  bannerEvents: E2EBannerEvent[];
+  /** When true, the bridge captures a canvas PNG on every non-banner tick
+   *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
+   *  `toDataURL` every frame is expensive. Set by E2E tests that need
+   *  per-frame pixel data. */
+  captureTickSnapshots: boolean;
 }
 
 /** A bus event as recorded by the bridge. The `_seq` field is a monotonic
- *  index across all event types; `_canvasSnapshot` is populated only for
- *  bannerStart / bannerEnd events. */
+ *  index across all event types; `_canvasSnapshot` is populated for
+ *  bannerStart, bannerEnd, and tick events (during banners + one after). */
 export type E2EBusEntry = Record<string, unknown> & {
   type: string;
   _seq: number;
+  /** Canvas PNG dataURL captured at emission time. */
   _canvasSnapshot?: string | null;
+  /** On bannerStart: the previous tick's canvas snapshot (the frame before
+   *  the banner appeared). */
+  _prevSnapshot?: string | null;
+  /** On tick events: the banner sweep Y position (null when no banner). */
+  _bannerY?: number | null;
 };
-
-interface E2EBannerEvent {
-  type: "start" | "end";
-  text: string;
-  modifierId?: string;
-  round: number;
-  /** Sequence index within the bannerEvents array. */
-  frame: number;
-  /** Canvas snapshot (PNG dataURL) captured synchronously at the moment
-   *  the event fires — before any chained callback can re-render. Tests
-   *  read this for precise boundary screenshots. Null if the canvas
-   *  element isn't found (shouldn't happen in e2e). */
-  canvasSnapshot: string | null;
-}
 
 interface E2EBridgeDeps {
   runtimeState: RuntimeState;
@@ -200,8 +162,8 @@ interface E2EBridgeDeps {
  *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
 /** One-shot: subscribe to all game bus events via `onAny` and forward them
- *  to `bridge.busLog` (+ legacy `bannerEvents`). Deferred until state is
- *  ready (the bus lives on `runtimeState.state`). Idempotent. */
+ *  to `bridge.busLog`. Deferred until state is ready (the bus lives on
+ *  `runtimeState.state`). Idempotent. */
 let busSubscribed = false;
 
 /** Update the E2E bridge on `window.__e2e` with the current frame's state.
@@ -219,9 +181,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       round: 0,
       timer: 0,
       overlay: {
-        entities: null,
         hasBannerPrevScene: false,
-        phantoms: null,
         banner: null,
         battle: null,
         ui: {
@@ -231,17 +191,14 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
           upgradePick: null,
         },
       },
-      players: [],
       controller: null,
-      camera: { viewport: undefined },
       worldToClient,
       tileToClient: makeTileToClient(worldToClient),
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
       step: false,
-      network: { messages: [], logLevel: "type" },
       busLog: [],
-      bannerEvents: [],
+      captureTickSnapshots: false,
     };
     win.__e2e = bridge;
   }
@@ -259,6 +216,16 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   }
 
   subscribeBus(ref, deps);
+
+  // Emit a per-frame tick event so E2E tests can read per-frame data
+  // from busLog (with canvas snapshots) instead of wrapping RAF.
+  if (isStateReady(deps.runtimeState)) {
+    deps.runtimeState.state.bus.emit(GAME_EVENT.TICK, {
+      type: GAME_EVENT.TICK,
+      dt: deps.runtimeState.frameDt,
+    });
+  }
+
   updateBridgeSnapshots(ref, deps);
 }
 
@@ -267,7 +234,7 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   busSubscribed = true;
   const bus = deps.runtimeState.state.bus;
 
-  // Capture a small PNG synchronously — runs inside the bus handler
+  // Capture a PNG synchronously — runs inside the bus handler
   // BEFORE any chained callback can re-render the canvas.
   const captureCanvas = (): string | null => {
     const canvas =
@@ -278,6 +245,13 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
     return canvas.toDataURL("image/png");
   };
 
+  // Track banner state for tick snapshot gating: only capture canvas
+  // snapshots on tick events during banner transitions (+ one frame
+  // before and after) to avoid storing thousands of PNGs.
+  let bannerActive = false;
+  let captureNextTick = false;
+  let prevTickSnapshot: string | undefined;
+
   // Generic: record every bus event into busLog.
   bus.onAny((type, event) => {
     const entry: E2EBusEntry = {
@@ -285,32 +259,35 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
       type,
       _seq: ref.busLog.length,
     };
-    // Attach canvas snapshot for banner events (existing tests need it).
+
     if (entry.type === "bannerStart" || entry.type === "bannerEnd") {
       entry._canvasSnapshot = captureCanvas();
+      if (entry.type === "bannerStart") {
+        bannerActive = true;
+        // Attach the previous tick's snapshot as _prevSnapshot so
+        // the test can read the "frame before banner" without storing
+        // every tick's PNG.
+        entry._prevSnapshot = prevTickSnapshot;
+      } else {
+        bannerActive = false;
+        captureNextTick = true;
+      }
+    } else if (entry.type === GAME_EVENT.TICK) {
+      if (bannerActive || captureNextTick) {
+        // During banners + one frame after: capture for the test.
+        entry._canvasSnapshot = captureCanvas();
+        captureNextTick = false;
+      }
+      // Keep prevTickSnapshot for the "frame before banner" only when
+      // E2E tests opted in via __e2e.captureTickSnapshots = true.
+      if (ref.captureTickSnapshots && !bannerActive) {
+        prevTickSnapshot = captureCanvas() ?? undefined;
+      }
+      // Propagate banner y position for mid-sweep detection.
+      entry._bannerY = ref.overlay.banner?.y ?? null;
     }
-    ref.busLog.push(entry);
-  });
 
-  // Legacy: keep bannerEvents populated for existing E2E tests.
-  bus.on("bannerStart", (event) => {
-    ref.bannerEvents.push({
-      type: "start",
-      text: event.text,
-      modifierId: event.modifierId,
-      round: event.round,
-      frame: ref.bannerEvents.length,
-      canvasSnapshot: captureCanvas(),
-    });
-  });
-  bus.on("bannerEnd", (event) => {
-    ref.bannerEvents.push({
-      type: "end",
-      text: event.text,
-      round: event.round,
-      frame: ref.bannerEvents.length,
-      canvasSnapshot: captureCanvas(),
-    });
+    ref.busLog.push(entry);
   });
 }
 
@@ -326,25 +303,17 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.timer = ready ? runtimeState.state.timer : 0;
 
   // --- Overlay ---
-  ref.overlay.entities = snapshotEntities(runtimeState);
   ref.overlay.hasBannerPrevScene =
     runtimeState.overlay.ui?.bannerPrevScene !== undefined;
-  ref.overlay.phantoms = snapshotPhantoms(runtimeState);
   ref.overlay.banner = snapshotBanner(runtimeState);
   ref.overlay.battle = snapshotBattle(runtimeState);
   ref.overlay.ui = snapshotUI(runtimeState);
-
-  // --- Players ---
-  ref.players = ready ? snapshotPlayers(runtimeState.state) : [];
 
   // --- Controller ---
   // In local mode myPlayerId() returns -1; fall back to slot 0 (first human)
   const myPid =
     config.network.myPlayerId() >= 0 ? config.network.myPlayerId() : 0;
   ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
-
-  // --- Camera ---
-  ref.camera.viewport = deps.camera.getViewport();
 
   // --- Targeting (battle simulation) ---
   if (ready) {
@@ -392,58 +361,6 @@ function makeTileToClient(
 ): (row: number, col: number) => { cx: number; cy: number } {
   return (row: number, col: number) =>
     worldToClient((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE);
-}
-
-function snapshotEntities(
-  runtimeState: RuntimeState,
-): E2EEntitySnapshot | null {
-  const ent = runtimeState.overlay.entities;
-  return ent ? entityOverlayToSnapshot(ent) : null;
-}
-
-function entityOverlayToSnapshot(
-  ent: NonNullable<RuntimeState["overlay"]["entities"]>,
-): E2EEntitySnapshot {
-  return {
-    houses: (ent.houses ?? []).map((h) => ({
-      row: h.row,
-      col: h.col,
-      alive: h.alive,
-    })),
-    grunts: (ent.grunts ?? []).map((gr) => ({ row: gr.row, col: gr.col })),
-    towerAlive: [...(ent.towerAlive ?? [])],
-    burningPits: (ent.burningPits ?? []).map((pit) => ({
-      row: pit.row,
-      col: pit.col,
-    })),
-    bonusSquares: (ent.bonusSquares ?? []).map((b) => ({
-      row: b.row,
-      col: b.col,
-    })),
-    frozenTiles: ent.frozenTiles ? [...ent.frozenTiles] : [],
-  };
-}
-
-function snapshotPhantoms(
-  runtimeState: RuntimeState,
-): E2EPhantomSnapshot | null {
-  const phantoms = runtimeState.overlay.phantoms;
-  if (!phantoms) return null;
-  return {
-    pieces: (phantoms.piecePhantoms ?? []).map((piece) => ({
-      row: piece.row,
-      col: piece.col,
-      valid: piece.valid,
-      playerId: piece.playerId,
-    })),
-    cannons: (phantoms.cannonPhantoms ?? []).map((cannon) => ({
-      row: cannon.row,
-      col: cannon.col,
-      valid: cannon.valid,
-      mode: String(cannon.mode),
-      playerId: cannon.playerId,
-    })),
-  };
 }
 
 function snapshotBanner(runtimeState: RuntimeState): E2EBannerSnapshot | null {
@@ -505,17 +422,6 @@ function snapshotUI(runtimeState: RuntimeState): E2EUISnapshot {
         }
       : null,
   };
-}
-
-function snapshotPlayers(state: GameViewState): E2EPlayerSnapshot[] {
-  return state.players.map((player) => ({
-    id: player.id,
-    score: player.score,
-    lives: player.lives,
-    eliminated: player.eliminated,
-    walls: player.walls.size,
-    cannons: player.cannons.length,
-  }));
 }
 
 function snapshotController(

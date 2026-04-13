@@ -18,18 +18,18 @@
  * Assertions: previous ≈ first, last ≈ next (masking banner strip + status bar).
  * All frames saved to tmp/screenshots/<game>/<banner-label>/ for visual inspection.
  *
+ * Uses the E2E bridge busLog: banner events carry canvas snapshots, tick events
+ * during banners carry snapshots + banner Y position. No RAF wrapping needed.
+ *
  * Run: deno run -A test/e2e-banner-prev-scene.ts
  * Requires: npm run dev
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { E2EGame, E2ETest } from "./e2e-helpers.ts";
+import type { E2EBusEntry } from "../src/runtime/runtime-e2e-bridge.ts";
+import { createE2EScenario, E2ETest } from "./e2e-scenario.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
-/** Game configurations. Each uses a seed chosen to cover specific modifiers.
- *  seed 0 → wildfire, crumbling_walls, grunt_surge, frozen_river
- *  seed 1 → dust_storm, high_tide, rubble_clearing, sinkhole
- *  Classic mode covers the no-modifier, no-upgrade phase banner path. */
 interface GameConfig {
   label: string;
   seed: number;
@@ -48,23 +48,16 @@ interface BannerCapture {
   next: string | null;
   startDiffPct: number;
   endDiffPct: number;
-  /** Mid-sweep top region vs "next" top region — verifies new scene above banner. */
   midTopDiffPct: number;
-  /** Mid-sweep bottom region vs "first" bottom region — verifies old scene below banner. */
   midBottomDiffPct: number;
-  /** next[n-1] vs previous[n] — continuity between consecutive banners. */
   continuityDiffPct: number;
-  done: boolean;
   chainedStart: boolean;
   chainedEnd: boolean;
 }
 
-const TARGET_W = 400;
 const DIFF_THRESHOLD = 30;
 const DEFAULT_MAX_DIFF = 1.0;
 const MAP_H = 448;
-const BANNER_RATIO = 0.15;
-/** All 8 modifier IDs. The test asserts every one was seen at least once. */
 const ALL_MODIFIERS = [
   "wildfire",
   "crumbling_walls",
@@ -75,7 +68,6 @@ const ALL_MODIFIERS = [
   "dust_storm",
   "rubble_clearing",
 ] as const;
-/** All non-modifier banner texts the game produces. */
 const PHASE_BANNERS = [
   "Place Cannons",
   "Prepare for Battle",
@@ -93,7 +85,6 @@ async function run(): Promise<void> {
 
   console.log(`\nPlanned games: ${configs.map((gc) => gc.label).join(", ")}\n`);
 
-  // Track which banner types we've seen across all games.
   const seenModifiers = new Set<string>();
   const seenPhaseBanners = new Set<string>();
   let seenUpgradeChain = false;
@@ -108,7 +99,6 @@ async function run(): Promise<void> {
 
     for (let bi = 0; bi < banners.length; bi++) {
       const banner = banners[bi]!;
-      // Track coverage.
       if (banner.modifierId) seenModifiers.add(banner.modifierId);
       if (PHASE_BANNERS.some((pb) => banner.label.startsWith(pb))) {
         seenPhaseBanners.add(
@@ -135,22 +125,19 @@ async function run(): Promise<void> {
       const dir = `tmp/screenshots/${config.label}/${seq}-r${banner.round}-${slug}`;
       mkdirSync(dir, { recursive: true });
 
-      const frames = [
+      for (const [name, dataUrl] of [
         ["1-previous", banner.previous],
         ["2-first", banner.first],
         ["3-mid", banner.mid],
         ["4-last", banner.last],
         ["5-next", banner.next],
-      ] as const;
-
-      for (const [name, dataUrl] of frames) {
+      ] as const) {
         if (!dataUrl || !dataUrl.startsWith("data:")) continue;
         const base64 = dataUrl.replace(/^data:image\/png;base64,/, "");
         const bytes = Uint8Array.from(atob(base64), (ch) => ch.charCodeAt(0));
         Deno.writeFileSync(`${dir}/${name}.png`, bytes);
       }
 
-      // Save event metadata.
       writeFileSync(
         `${dir}/events.json`,
         JSON.stringify(
@@ -175,89 +162,56 @@ async function run(): Promise<void> {
         return parts.length ? ` [${parts.join(", ")}]` : "";
       };
       const tag = chainTag(banner.chainedStart, banner.chainedEnd);
-      const startStr =
-        banner.startDiffPct >= 0
-          ? `${banner.startDiffPct.toFixed(3)}%`
-          : "n/a";
-      const endStr =
-        banner.endDiffPct >= 0 ? `${banner.endDiffPct.toFixed(3)}%` : "n/a";
-
-      const midTopStr =
-        banner.midTopDiffPct >= 0
-          ? `${banner.midTopDiffPct.toFixed(3)}%`
-          : "n/a";
-      const midBotStr =
-        banner.midBottomDiffPct >= 0
-          ? `${banner.midBottomDiffPct.toFixed(3)}%`
-          : "n/a";
-      const contStr =
-        banner.continuityDiffPct >= 0
-          ? `${banner.continuityDiffPct.toFixed(3)}%`
-          : "n/a";
+      const fmt = (val: number) => (val >= 0 ? `${val.toFixed(3)}%` : "n/a");
 
       console.log(
-        `  r${banner.round} ${banner.label}${tag}: start=${startStr} end=${endStr} midTop=${midTopStr} midBot=${midBotStr} cont=${contStr}  → ${dir}/`,
+        `  r${banner.round} ${banner.label}${tag}: start=${fmt(banner.startDiffPct)} end=${fmt(banner.endDiffPct)} midTop=${fmt(banner.midTopDiffPct)} midBot=${fmt(banner.midBottomDiffPct)} cont=${fmt(banner.continuityDiffPct)}  → ${dir}/`,
       );
 
       // Pixel-boundary assertions (skip chained boundaries).
       if (!banner.chainedStart) {
         const startMax = getThreshold(banner.label, "start", banner.modifierId);
-        const startOk =
-          banner.startDiffPct >= 0 &&
-          banner.startDiffPct < startMax;
         test.check(
           `[${config.label}] r${banner.round} ${banner.label}: previous ≈ first  → ${dir}/`,
-          startOk,
-          `${startStr} (threshold ${startMax}%)`,
+          banner.startDiffPct >= 0 && banner.startDiffPct < startMax,
+          `${fmt(banner.startDiffPct)} (threshold ${startMax}%)`,
         );
       }
       if (!banner.chainedEnd && banner.endDiffPct >= 0) {
         const endMax = getThreshold(banner.label, "end", banner.modifierId);
-        const endOk = banner.endDiffPct < endMax;
         test.check(
           `[${config.label}] r${banner.round} ${banner.label}: last ≈ next  → ${dir}/`,
-          endOk,
-          `${endStr} (threshold ${endMax}%)`,
+          banner.endDiffPct < endMax,
+          `${fmt(banner.endDiffPct)} (threshold ${endMax}%)`,
         );
       }
-      // Mid-sweep compositing: top portion of mid matches new scene,
-      // bottom portion of mid matches old scene (captured ImageData).
-      // Skip mid-top for chained-end banners — their "next" is the
-      // successor banner's first frame (completely different scene).
-      // Mid-sweep compositing: top of mid ≈ new scene, bottom of mid ≈ old scene.
-      // Battle banners get a higher top threshold — "next" includes the "Ready"
-      // countdown overlay and cannon rotation that aren't present mid-sweep.
       if (banner.midTopDiffPct >= 0 && !banner.chainedEnd) {
         const midTopMax = banner.label.startsWith("Prepare for Battle") ? 12 : 5;
         test.check(
           `[${config.label}] r${banner.round} ${banner.label}: mid-top ≈ next  → ${dir}/`,
           banner.midTopDiffPct < midTopMax,
-          `${midTopStr} (threshold ${midTopMax}%)`,
+          `${fmt(banner.midTopDiffPct)} (threshold ${midTopMax}%)`,
         );
       }
       if (banner.midBottomDiffPct >= 0) {
         test.check(
           `[${config.label}] r${banner.round} ${banner.label}: mid-bottom ≈ first  → ${dir}/`,
           banner.midBottomDiffPct < 5,
-          `${midBotStr} (threshold 5%)`,
+          `${fmt(banner.midBottomDiffPct)} (threshold 5%)`,
         );
       }
-      // Cross-banner continuity: next[n-1] ≈ previous[n].
-      // Uses the same threshold as "previous ≈ first" for that banner type.
       if (banner.continuityDiffPct >= 0) {
         const contMax = getThreshold(banner.label, "start", banner.modifierId);
         test.check(
           `[${config.label}] r${banner.round} ${banner.label}: continuity next[n-1] ≈ previous[n]  → ${dir}/`,
           banner.continuityDiffPct < contMax,
-          `${contStr} (threshold ${contMax}%)`,
+          `${fmt(banner.continuityDiffPct)} (threshold ${contMax}%)`,
         );
       }
     }
   }
 
-  // ── Coverage assertions ──────────────────────────────────────────────
   console.log("\n═══ Coverage ═══\n");
-
   for (const mod of ALL_MODIFIERS) {
     test.check(`modifier coverage: ${mod}`, seenModifiers.has(mod));
   }
@@ -266,55 +220,26 @@ async function run(): Promise<void> {
   }
   test.check("upgrade chain coverage: Choose Upgrade → Build & Repair", seenUpgradeChain);
   test.check("classic mode coverage", seenClassicPhase);
-
   test.done();
 }
 
-/** Per-banner-type diff thresholds (%).
- *  Each threshold sits above the observed max for that class so regressions
- *  are caught without flaky false positives.
- *
- *  Observed maxima (ImageData-based banners):
- *    Build & Repair     START  8.7%   END  1.4%   (battle→build terrain diff behind upgrade dialog)
- *    Choose Upgrade     START 16.2%   END  5.0%
- *    Place Cannons      START  0.9%   END  0.1%
- *    Prepare for Battle START 14.1%   END  8.8%
- *    Modifier banners   START 13.2%   END 11.3%
- */
 function getThreshold(
   label: string,
   side: "start" | "end",
   modifierId: string | null,
 ): number {
-  // Modifier start: preceding tile-mutation effects (high-tide recede,
-  // sinkhole, wildfire). Max observed: 13.2%.
   if (side === "start" && modifierId) return 17;
-  // Modifier end: chained into battle banner, large scene change.
-  // Max observed: 11.3%.
   if (side === "end" && modifierId) return 15;
-  // Prepare for Battle start: follows modifier or cannon phase.
-  // Max observed: 14.1%.
   if (label === "Prepare for Battle" && side === "start") return 18;
-  // Prepare for Battle end: grunts spawn, territory highlights.
-  // Max observed: 8.8%.
   if (label === "Prepare for Battle" && side === "end") return 11;
-  // Choose Upgrade start: follows battle, large scene change at
-  // high rounds. Max observed: 16.2%.
   if (label === "Choose Upgrade" && side === "start") return 20;
-  // Choose Upgrade end: AI picks change dialog overlay.
-  // Max observed: 5.0%.
   if (label === "Choose Upgrade" && side === "end") return 6;
-  // Build & Repair: ImageData is captured at end of battle (before upgrade
-  // dialog). "previous" shows the upgrade dialog with build-phase terrain
-  // behind it — the battle→build terrain change + cannon rotation visible
-  // through the dialog causes ~2-9% diffs. Max observed: 8.7%.
   if (label.startsWith("Build & Repair")) return 10;
   return DEFAULT_MAX_DIFF;
 }
 
 function buildGameConfigs(): GameConfig[] {
   const fixtures = SEED_FIXTURES as Record<string, number>;
-  // Group modifier seeds by seed value to minimize game count.
   const seedToModifiers = new Map<number, string[]>();
   for (const mod of ALL_MODIFIERS) {
     const seed = fixtures[`modifier:${mod}`];
@@ -329,20 +254,14 @@ function buildGameConfigs(): GameConfig[] {
 
   const configs: GameConfig[] = [];
   for (const [seed] of seedToModifiers) {
-    configs.push({
-      label: `modern-s${seed}`,
-      seed,
-      mode: "modern",
-      rounds: 20,
-    });
+    configs.push({ label: `modern-s${seed}`, seed, mode: "modern", rounds: 20 });
   }
-  // Classic mode — any seed, short game, covers pure phase banners.
   configs.push({ label: "classic-s0", seed: 0, mode: "classic", rounds: 3 });
   return configs;
 }
 
 async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
-  const game = await E2EGame.create({
+  const sc = await createE2EScenario({
     seed: config.seed,
     humans: 0,
     headless: !Deno.args.includes("--visible"),
@@ -351,256 +270,276 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
   });
 
   try {
-    const banners = await game.page.evaluate(
-      ([targetW, diffThresh, mapH, bannerRatio]: [
-        number,
-        number,
-        number,
-        number,
-      ]) => {
-        const win = globalThis as unknown as Record<string, unknown>;
-        const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) throw new Error("no 2d context");
+    // Enable per-frame canvas capture so _prevSnapshot is populated.
+    await sc.page.evaluate(() => {
+      const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as
+        | { captureTickSnapshots?: boolean }
+        | undefined;
+      if (e2e) e2e.captureTickSnapshots = true;
+    });
 
-        const bannerHMap = Math.round(mapH * bannerRatio);
+    // Run the game to completion.
+    await sc.runGame({ timeout: 300_000 });
 
-        function smallPng(): string {
-          const aspect = canvas.height / canvas.width;
-          const th = Math.round(targetW * aspect);
-          const small = document.createElement("canvas");
-          small.width = targetW;
-          small.height = th;
-          const sctx = small.getContext("2d")!;
-          sctx.imageSmoothingEnabled = true;
-          sctx.drawImage(canvas, 0, 0, targetW, th);
-          return small.toDataURL("image/png");
-        }
+    // Read all bus events from the bridge.
+    const events = await sc.bus.events();
 
-        function fullPixels(): Uint8ClampedArray {
-          return ctx!.getImageData(0, 0, canvas.width, canvas.height).data;
-        }
+    // Extract banner captures from the event log (Deno-side).
+    const captures = extractBannerCaptures(events);
 
-        /** Compare pixels in a vertical band of the canvas.
-         *  @param cropTop — fraction of height to skip at the top (0–1)
-         *  @param cropBottom — fraction of height to skip at the bottom (0–1)
-         *  The middle region (1 - cropTop - cropBottom) is compared. */
-        function diffPct(
-          bufA: Uint8ClampedArray,
-          bufB: Uint8ClampedArray,
-          cropTop: number,
-          cropBottom: number,
-        ): number {
-          const cw = canvas.width;
-          const ch = canvas.height;
-          const yStart = Math.round(ch * cropTop);
-          const yEnd = Math.round(ch * (1 - cropBottom));
-          let diff = 0;
-          let total = 0;
-          for (let y = yStart; y < yEnd; y++) {
-            for (let x = 0; x < cw; x++) {
-              const idx = (y * cw + x) * 4;
-              const dr = Math.abs(bufA[idx]! - bufB[idx]!);
-              const dg = Math.abs(bufA[idx + 1]! - bufB[idx + 1]!);
-              const db = Math.abs(bufA[idx + 2]! - bufB[idx + 2]!);
-              if (dr + dg + db > diffThresh) diff++;
-              total++;
-            }
-          }
-          return total > 0 ? (diff / total) * 100 : 0;
-        }
+    // Pixel diffing must happen in-browser (needs canvas context to decode PNGs).
+    // Collect the PNG pairs to diff and send them in a single page.evaluate.
+    interface DiffPair {
+      captureIdx: number;
+      field: string;
+      pngA: string;
+      pngB: string;
+      cropTop: number;
+      cropBottom: number;
+    }
 
-        type BannerEvent = {
-          type: "start" | "end";
-          text: string;
-          modifierId?: string;
-          round: number;
-        };
+    const pairs: DiffPair[] = [];
+    for (let ci = 0; ci < captures.length; ci++) {
+      const cap = captures[ci]!;
 
-        const captures: BannerCapture[] = [];
-        let activeTracker: BannerCapture | null = null;
-        let prevPng: string | null = null;
-        let prevPixels: Uint8ClampedArray | null = null;
-        let lastCandidatePng: string | null = null;
-        let lastCandidatePixels: Uint8ClampedArray | null = null;
-        /** Pixels captured at banner start (for mid-bottom comparison). */
-        let firstPixelsForMid: Uint8ClampedArray | null = null;
-        /** Pixels captured at mid-sweep (for mid-top/bottom comparison). */
-        let midPixelsForMid: Uint8ClampedArray | null = null;
-        let prevEventCount = 0;
-        let pendingNextTracker: BannerCapture | null = null;
-        let bannerJustEnded = false;
-
-        return new Promise<BannerCapture[]>((resolve) => {
-          const prevRAF = globalThis.requestAnimationFrame;
-          globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
-            prevRAF((time: number) => {
-              cb(time);
-
-              const e2e = win.__e2e as Record<string, unknown> | undefined;
-              if (!e2e) return;
-              const mode = e2e.mode as string | undefined;
-              if (mode === "STOPPED") {
-                resolve(captures);
-                return;
-              }
-
-              const events = (e2e.bannerEvents ?? []) as BannerEvent[];
-              const overlay = e2e.overlay as
-                | Record<string, unknown>
-                | undefined;
-              const banner = overlay?.banner as
-                | { y: number }
-                | null
-                | undefined;
-              const newEvents = events.slice(prevEventCount);
-              prevEventCount = events.length;
-
-              const curPng = smallPng();
-              const curPixels = fullPixels();
-
-              // ── "next" capture (one frame after previous banner ended) ──
-              if (pendingNextTracker) {
-                pendingNextTracker.next = curPng;
-                if (
-                  !pendingNextTracker.done &&
-                  lastCandidatePixels
-                ) {
-                  // last ≈ next: banner strip is near the bottom → crop bottom 1/6
-                  pendingNextTracker.endDiffPct = diffPct(
-                    lastCandidatePixels,
-                    curPixels,
-                    0,
-                    1 / 6,
-                  );
-                }
-                // Mid-sweep compositing check: top of mid ≈ top of next (new
-                // scene), bottom of mid ≈ bottom of first (old scene).
-                if (midPixelsForMid) {
-                  // Top 30%: new scene above the banner sweep line.
-                  pendingNextTracker.midTopDiffPct = diffPct(
-                    midPixelsForMid,
-                    curPixels,
-                    0,
-                    0.7,
-                  );
-                  // Bottom 30%: old scene below the banner sweep line.
-                  if (firstPixelsForMid) {
-                    pendingNextTracker.midBottomDiffPct = diffPct(
-                      midPixelsForMid,
-                      firstPixelsForMid,
-                      0.7,
-                      0,
-                    );
-                  }
-                }
-                pendingNextTracker.done = true;
-                pendingNextTracker = null;
-              }
-
-              // ── Detect chaining ──
-              const prevJustEnded = bannerJustEnded;
-              bannerJustEnded = false;
-
-              // ── Process new bus events ──
-              for (const ev of newEvents) {
-                if (ev.type === "start") {
-                  const chainedStart = prevJustEnded;
-                  if (chainedStart && captures.length > 0) {
-                    captures[captures.length - 1]!.chainedEnd = true;
-                  }
-                  const tracker: BannerCapture = {
-                    label: ev.modifierId
-                      ? `${ev.text} [${ev.modifierId}]`
-                      : ev.text,
-                    round: ev.round,
-                    modifierId: ev.modifierId ?? null,
-                    previous: prevPng,
-                    first: curPng,
-                    mid: null,
-                    last: null,
-                    next: null,
-                    startDiffPct: -1,
-                    endDiffPct: -1,
-                    midTopDiffPct: -1,
-                    midBottomDiffPct: -1,
-                    continuityDiffPct: -1,
-                    done: false,
-                    chainedStart,
-                    chainedEnd: false,
-                  };
-                  // Continuity: compare previous banner's "next" pixels
-                  // with this banner's "first" pixels.
-                  if (captures.length >= 2) {
-                    const prev = captures[captures.length - 2]!;
-                    if (prev.done && prevPixels) {
-                      // prevPixels here is the frame before this banner
-                      // started = the "next" frame of the previous banner.
-                      // curPixels is the "first" frame of this banner.
-                      tracker.continuityDiffPct = diffPct(
-                        prevPixels,
-                        curPixels,
-                        1 / 6,
-                        0,
-                      );
-                    }
-                  }
-                  firstPixelsForMid = curPixels;
-                  midPixelsForMid = null;
-                  if (!chainedStart && prevPixels) {
-                    // previous ≈ first: banner strip is near the top → crop top 1/6
-                    tracker.startDiffPct = diffPct(
-                      prevPixels,
-                      curPixels,
-                      1 / 6,
-                      0,
-                    );
-                  }
-                  captures.push(tracker);
-                  activeTracker = tracker;
-                  lastCandidatePng = null;
-                  lastCandidatePixels = null;
-                }
-
-                if (ev.type === "end" && activeTracker) {
-                  bannerJustEnded = true;
-                  activeTracker.last = lastCandidatePng ?? curPng;
-                  pendingNextTracker = activeTracker;
-                  activeTracker = null;
-                }
-              }
-
-              // ── Active banner: capture mid + track last candidate ──
-              if (activeTracker && banner) {
-                if (
-                  banner.y >= mapH * 0.4 &&
-                  banner.y <= mapH * 0.6 &&
-                  !activeTracker.mid
-                ) {
-                  activeTracker.mid = curPng;
-                  midPixelsForMid = curPixels;
-                }
-                if (banner.y - bannerHMap / 2 < mapH) {
-                  lastCandidatePng = curPng;
-                  lastCandidatePixels = curPixels;
-                }
-              }
-
-              prevPng = curPng;
-              prevPixels = curPixels;
-            });
+      // start: previous ≈ first
+      if (!cap.chainedStart && cap.previous && cap.first) {
+        pairs.push({
+          captureIdx: ci,
+          field: "startDiffPct",
+          pngA: cap.previous,
+          pngB: cap.first,
+          cropTop: 1 / 6,
+          cropBottom: 0,
         });
-      },
-      [TARGET_W, DIFF_THRESHOLD, MAP_H, BANNER_RATIO] as [
-        number,
-        number,
-        number,
-        number,
-      ],
-    );
+      }
+      // end: last ≈ next
+      if (cap.last && cap.next) {
+        pairs.push({
+          captureIdx: ci,
+          field: "endDiffPct",
+          pngA: cap.last,
+          pngB: cap.next,
+          cropTop: 0,
+          cropBottom: 1 / 6,
+        });
+      }
+      // mid-top: mid ≈ next
+      if (cap.mid && cap.next && !cap.chainedEnd) {
+        pairs.push({
+          captureIdx: ci,
+          field: "midTopDiffPct",
+          pngA: cap.mid,
+          pngB: cap.next,
+          cropTop: 0,
+          cropBottom: 0.7,
+        });
+      }
+      // mid-bottom: mid ≈ first
+      if (cap.mid && cap.first) {
+        pairs.push({
+          captureIdx: ci,
+          field: "midBottomDiffPct",
+          pngA: cap.mid,
+          pngB: cap.first,
+          cropTop: 0.7,
+          cropBottom: 0,
+        });
+      }
+      // continuity: previous[n] ≈ next[n-1]
+      if (ci >= 1 && cap.previous && captures[ci - 1]!.next) {
+        pairs.push({
+          captureIdx: ci,
+          field: "continuityDiffPct",
+          pngA: captures[ci - 1]!.next!,
+          pngB: cap.previous,
+          cropTop: 1 / 6,
+          cropBottom: 0,
+        });
+      }
+    }
 
-    return banners;
+    // Decode PNGs and compute diffs in-browser.
+    if (pairs.length > 0) {
+      const results = await sc.page.evaluate(
+        (args: { pairs: DiffPair[]; diffThreshold: number }) => {
+          function decodePng(
+            dataUrl: string,
+          ): Promise<{ data: Uint8ClampedArray; width: number; height: number }> {
+            return new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => {
+                const cv = document.createElement("canvas");
+                cv.width = img.width;
+                cv.height = img.height;
+                const cvCtx = cv.getContext("2d")!;
+                cvCtx.drawImage(img, 0, 0);
+                const imageData = cvCtx.getImageData(0, 0, cv.width, cv.height);
+                resolve({
+                  data: imageData.data,
+                  width: cv.width,
+                  height: cv.height,
+                });
+              };
+              img.onerror = reject;
+              img.src = dataUrl;
+            });
+          }
+
+          function diffPct(
+            bufA: Uint8ClampedArray,
+            bufB: Uint8ClampedArray,
+            width: number,
+            height: number,
+            cropTop: number,
+            cropBottom: number,
+            threshold: number,
+          ): number {
+            const yStart = Math.round(height * cropTop);
+            const yEnd = Math.round(height * (1 - cropBottom));
+            let diff = 0;
+            let total = 0;
+            for (let y = yStart; y < yEnd; y++) {
+              for (let x = 0; x < width; x++) {
+                const idx = (y * width + x) * 4;
+                const dr = Math.abs(bufA[idx]! - bufB[idx]!);
+                const dg = Math.abs(bufA[idx + 1]! - bufB[idx + 1]!);
+                const db = Math.abs(bufA[idx + 2]! - bufB[idx + 2]!);
+                if (dr + dg + db > threshold) diff++;
+                total++;
+              }
+            }
+            return total > 0 ? (diff / total) * 100 : 0;
+          }
+
+          return Promise.all(
+            args.pairs.map(async (pair) => {
+              const [imgA, imgB] = await Promise.all([
+                decodePng(pair.pngA),
+                decodePng(pair.pngB),
+              ]);
+              const pct = diffPct(
+                imgA.data,
+                imgB.data,
+                imgA.width,
+                imgA.height,
+                pair.cropTop,
+                pair.cropBottom,
+                args.diffThreshold,
+              );
+              return { captureIdx: pair.captureIdx, field: pair.field, pct };
+            }),
+          );
+        },
+        { pairs, diffThreshold: DIFF_THRESHOLD },
+      );
+
+      // Apply diff results back to captures.
+      for (const result of results) {
+        const cap = captures[result.captureIdx]!;
+        (cap as unknown as Record<string, unknown>)[result.field] = result.pct;
+      }
+    }
+
+    return captures;
   } finally {
-    await game.close();
+    await sc.close();
   }
+}
+
+/** Extract banner captures from busLog events. Each banner gets its 5 frames
+ *  identified from the bridge data: previous (from bannerStart._prevSnapshot),
+ *  first (bannerStart._canvasSnapshot), mid (tick with banner.y ~50%),
+ *  last (last tick before bannerEnd), next (tick after bannerEnd). */
+function extractBannerCaptures(events: E2EBusEntry[]): BannerCapture[] {
+  const captures: BannerCapture[] = [];
+
+  for (let idx = 0; idx < events.length; idx++) {
+    const ev = events[idx]!;
+    if (ev.type !== "bannerStart") continue;
+
+    // Find the matching bannerEnd.
+    let endIdx = -1;
+    for (let jdx = idx + 1; jdx < events.length; jdx++) {
+      if (events[jdx]!.type === "bannerEnd") {
+        endIdx = jdx;
+        break;
+      }
+    }
+    if (endIdx < 0) continue;
+
+    const endEv = events[endIdx]!;
+
+    // Previous frame: stored on bannerStart._prevSnapshot by the bridge.
+    const previous = (ev._prevSnapshot as string) ?? null;
+
+    // First frame: bannerStart._canvasSnapshot.
+    const first = (ev._canvasSnapshot as string) ?? null;
+
+    // Mid frame: find tick with banner.y closest to 50% of MAP_H.
+    let midSnapshot: string | null = null;
+    let bestMidDist = Infinity;
+    for (let jdx = idx + 1; jdx < endIdx; jdx++) {
+      const tick = events[jdx]!;
+      if (tick.type !== "tick" || !tick._canvasSnapshot) continue;
+      const bannerY = tick._bannerY as number | null;
+      if (bannerY === null) continue;
+      const dist = Math.abs(bannerY - MAP_H * 0.5);
+      if (dist < bestMidDist) {
+        bestMidDist = dist;
+        midSnapshot = (tick._canvasSnapshot as string) ?? null;
+      }
+    }
+
+    // Last frame: last tick before bannerEnd that has a snapshot.
+    let lastSnapshot: string | null = null;
+    for (let jdx = endIdx - 1; jdx > idx; jdx--) {
+      const tick = events[jdx]!;
+      if (tick.type === "tick" && tick._canvasSnapshot) {
+        lastSnapshot = (tick._canvasSnapshot as string) ?? null;
+        break;
+      }
+    }
+
+    // Next frame: first tick after bannerEnd with a snapshot.
+    let nextSnapshot: string | null = null;
+    for (let jdx = endIdx + 1; jdx < events.length; jdx++) {
+      const tick = events[jdx]!;
+      if (tick.type === "tick" && tick._canvasSnapshot) {
+        nextSnapshot = (tick._canvasSnapshot as string) ?? null;
+        break;
+      }
+      // Stop searching at the next banner start.
+      if (tick.type === "bannerStart") break;
+    }
+
+    // Detect chaining: bannerStart immediately follows a bannerEnd.
+    const chainedStart =
+      captures.length > 0 && idx > 0 && events[idx - 1]?.type === "bannerEnd";
+    if (chainedStart && captures.length > 0) {
+      captures[captures.length - 1]!.chainedEnd = true;
+    }
+
+    captures.push({
+      label: ev.modifierId
+        ? `${ev.text} [${ev.modifierId}]`
+        : (ev.text as string) ?? "",
+      round: (ev.round as number) ?? 0,
+      modifierId: (ev.modifierId as string) ?? null,
+      previous,
+      first,
+      mid: midSnapshot,
+      last: lastSnapshot ?? (endEv._canvasSnapshot as string) ?? null,
+      next: nextSnapshot,
+      startDiffPct: -1,
+      endDiffPct: -1,
+      midTopDiffPct: -1,
+      midBottomDiffPct: -1,
+      continuityDiffPct: -1,
+      chainedStart,
+      chainedEnd: false,
+    });
+  }
+
+  return captures;
 }

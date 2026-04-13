@@ -99,14 +99,15 @@ Scenario API (`test/scenario.ts`):
 
 **There is NO method to mutate state, scripted-place pieces, or skip phases.** The AI plays the game end-to-end, just like in a browser. If you need a specific game condition, find a seed that produces it via `deno run -A scripts/find-seed.ts` (one-off exploration) or register it in `test/seed-conditions.ts` and use `loadSeed(name)` (drift-safe, recommended for committed tests — see the "Drift-safe seeds" section below). Tests that hack state are exactly the antipattern this API replaces.
 
-**For input/rendering/browser bugs** — use the E2E helpers:
+**For input/rendering/browser bugs** — use the E2E scenario API:
 ```typescript
-import { E2EGame, E2ETest } from "./e2e-helpers.ts";
+import { createE2EScenario, E2ETest } from "./e2e-scenario.ts";
 const test = new E2ETest("my test");
-const game = await E2EGame.create({ seed: 42, humans: 1, headless: true });
-// ... assertions ...
+const sc = await createE2EScenario({ seed: 42, humans: 1, headless: true });
+await sc.runGame();
+const events = await sc.bus.events("bannerStart");
 test.check("label", condition);
-await game.close();
+await sc.close();
 test.done(); // prints summary, exits with code 1 on failure
 ```
 
@@ -173,13 +174,12 @@ Return:
 ## E2E test commands
 
 ```sh
-npm run test:e2e:cannon-cursor     # cannon phantom stability (9s)
-npm run test:e2e:banner            # banner entity rendering (5s)
-npm run test:e2e:all               # all focused e2e tests
-npm run test:e2e:local:quick       # legacy full simulation (headless, 1 round)
+npm run test:e2e:banner-prev-scene # banner transition pixel verification
+npm run test:e2e:local:quick       # full simulation (headless, 1 round)
+deno test --no-check -A test/e2e-example.ts  # API example tests (local + online)
 ```
 
-Flags for legacy e2e: `--headless`, `--fast`, `--seed N`, `--mobile`, `--screenshot`,
+Flags for online-e2e: `--headless`, `--seed N`, `--mobile`, `--screenshot`,
 `--action "phase:X click:Y screenshot:label"`, `--assert "phase:X button:Y visible"`
 
 ## Finding seeds for e2e tests

@@ -61,6 +61,7 @@ import {
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
 import type { DialogRuntimeState } from "../src/runtime/runtime-state.ts";
 import type { GameState } from "../src/shared/core/types.ts";
@@ -113,6 +114,13 @@ export interface ScenarioOptions {
   renderer?:
     | "ascii"
     | { canvas: CanvasRecorder; observer?: RenderObserver };
+  /** When `"host"`, wires the production `handleServerMessage` dispatcher
+   *  so `deliverMessage()` routes through the real receive path. Forces
+   *  `hostMode: true`. Replaces the separate `createOnlineHarness` API. */
+  online?: "host";
+  /** Slots to treat as remote-controlled when `online: "host"` is set.
+   *  Ignored when `online` is not set. Defaults to `{1}`. */
+  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
 }
 
 export interface Scenario extends Disposable {
@@ -282,6 +290,17 @@ export function loadSeed(
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
+  // Online host mode — delegate to createOnlineHarness (lazy-imported to
+  // avoid pulling the DOM shim into every test that doesn't need it).
+  if (opts.online === "host") {
+    const { createOnlineHarness } = await import("./online-headless.ts");
+    const harness = await createOnlineHarness({
+      ...opts,
+      remotePlayerSlots: opts.remotePlayerSlots,
+    });
+    return harness.scenario;
+  }
+
   const sentMessages: GameMessage[] = [];
   const ascii =
     opts.renderer === "ascii" ? createAsciiRenderer() : undefined;

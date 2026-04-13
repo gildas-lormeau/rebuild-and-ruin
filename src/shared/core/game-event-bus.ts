@@ -50,7 +50,11 @@ export type LifecycleEvent =
       text: string;
       phase: Phase;
       round: number;
-    };
+    }
+  /** Dev-only per-frame tick. Emitted once per frame after rendering, only
+   *  when IS_DEV is true. The E2E bridge attaches a canvas snapshot to the
+   *  busLog entry so browser-based tests can read per-frame pixel data. */
+  | { type: "tick"; dt: number };
 
 export type EntityEvent =
   | {
@@ -159,6 +163,7 @@ const LIFECYCLE_EVENT = {
   LIFE_LOST: "lifeLost",
   BANNER_START: "bannerStart",
   BANNER_END: "bannerEnd",
+  TICK: "tick",
 } as const;
 const ENTITY_EVENT = {
   WALL_PLACED: "wallPlaced",
