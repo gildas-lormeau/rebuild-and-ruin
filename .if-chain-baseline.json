@@ -1,0 +1,10 @@
+[
+  "src/controllers/controller-types.ts:moveBuildCursor:direction",
+  "src/controllers/controller-types.ts:moveCannonCursor:direction",
+  "src/game/phase-setup.ts:applyBattleStartModifiers:mod",
+  "src/input/input-dispatch.ts:dispatchOverlayAction:action",
+  "src/input/input-mouse.ts:registerMouseHandlers:mode",
+  "src/render/render-ui-screens.ts:optionValue:idx",
+  "src/runtime/runtime-sound.ts:battleEvents:key",
+  "src/shared/ui/settings-ui.ts:formatKeyName:key"
+]
