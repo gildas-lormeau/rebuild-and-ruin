@@ -55,6 +55,8 @@ export interface E2EScenario {
   mode(): Promise<string>;
   /** Current game phase. */
   phase(): Promise<string>;
+  /** Whether the lobby UI is currently active. */
+  lobbyActive(): Promise<boolean>;
   /** Game bus — mirrors the headless GameEventBus shape. Handlers fire
    *  during `runUntil` / `runGame` as new events appear in busLog. */
   bus: {
@@ -318,6 +320,8 @@ export async function createE2EScenario(
           .__e2e as { phase?: string } | undefined;
         return e2e?.phase ?? "";
       }),
+
+    lobbyActive: async () => (await scenario.mode()) === "LOBBY",
 
     bus: {
       on(eventType: string, handler: E2EBusHandler): void {

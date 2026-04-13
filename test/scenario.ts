@@ -64,7 +64,6 @@ import type { OnlineClient } from "../src/online/online-stores.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
-import type { DialogRuntimeState } from "../src/runtime/runtime-state.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
@@ -163,11 +162,6 @@ export interface Scenario extends Disposable {
    *  predicate or right after a `runUntil` call, never hold a reference
    *  across frames. Never mutate. */
   readonly banner: () => Readonly<BannerState>;
-  /** Current dialog runtime state (life-lost, upgrade-pick, etc.). Lives
-   *  on `runtimeState`, same caveats as `banner()` — live reference, never
-   *  mutate. Tests use this to observe whether the upgrade-pick overlay is
-   *  still active during a phase transition. */
-  readonly dialogs: () => Readonly<DialogRuntimeState>;
   /** Current simulated time (ms). */
   readonly now: () => number;
   /** Drive the game until `predicate` returns true. Returns the frame count
@@ -379,7 +373,6 @@ export function wrapHeadless(
     mode: () => headless.runtime.runtimeState.mode,
     lobbyActive: () => headless.runtime.runtimeState.lobby.active,
     banner: () => headless.runtime.runtimeState.banner,
-    dialogs: () => headless.runtime.runtimeState.dialogs,
     now: headless.now,
     runUntil: headless.runUntil,
     runGame: headless.runGame,
