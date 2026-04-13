@@ -79,6 +79,8 @@ When adding a new entry to any of these registries:
 3. Add an entry to the matching `*_CONSUMERS` map listing every file that implements the entry. The `satisfies Record<Id, ...>` clause forces exhaustiveness — adding a new ID without a matching consumer map is a compile error.
 4. Implement the actual game logic in each consumer file.
 
+For modifiers and upgrades specifically, read `docs/adding-modifiers-and-upgrades.md` — it has file-by-file checklists, hook point tables, and serialization requirements. Modifiers use a registry-driven dispatch (`MODIFIER_IMPLS` in `round-modifiers.ts`) so `phase-setup.ts` never needs editing.
+
 The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` maps and verifies every listed file path exists on disk. Role-based string-presence checks (e.g. "the gate consumer must contain a `hasFeature()` call") were intentionally dropped — TypeScript exhaustiveness + scenario tests catch the same class of bug, and the role names in the consumer maps are now free-form documentation strings, not enforced fields.
 
 ### Game rules (non-obvious, guide correctness)
