@@ -1,8 +1,4 @@
 {
   "overlaps": [],
-  "inline": [
-    {
-      "key": "src/shared/core/spatial.ts:362 → SerializedBonusSquare"
-    }
-  ]
+  "inline": []
 }

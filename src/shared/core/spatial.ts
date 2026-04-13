@@ -359,7 +359,7 @@ export function towerAtPixel(
 
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
 export function findNearestTower(
-  towers: readonly { row: number; col: number; zone: number }[],
+  towers: readonly Tower[],
   currentIdx: number,
   direction: Action,
   zone?: number,
