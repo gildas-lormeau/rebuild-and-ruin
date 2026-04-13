@@ -48,7 +48,6 @@ import {
 import { FID } from "../shared/core/feature-defs.ts";
 import {
   BATTLE_TIMER,
-  MODIFIER_ID,
   type ModifierDiff,
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
@@ -62,14 +61,7 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
-import {
-  DIRS_4,
-  isBalloonCannon,
-  packTile,
-  setGrass,
-  setWater,
-  unpackTile,
-} from "../shared/core/spatial.ts";
+import { isBalloonCannon, packTile } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
@@ -102,17 +94,9 @@ import {
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
 import {
-  applyCrumblingWalls,
-  applyFrozenRiver,
-  applyGruntSurge,
-  applyHighTide,
-  applyLowWater,
-  applyRubbleClearing,
-  applySinkhole,
-  applyWildfire,
-  clearFrozenRiver,
-  clearHighTide,
-  clearLowWater,
+  clearActiveModifiers,
+  MODIFIER_REGISTRY,
+  resetModifierTilesForZone,
   rollModifier,
 } from "./round-modifiers.ts";
 import {
@@ -144,9 +128,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   sweepAllPlayersWalls(state);
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
-  clearFrozenRiver(state);
-  clearHighTide(state);
-  clearLowWater(state);
+  clearActiveModifiers(state);
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
   // lastModifierId was already saved in enterBuildFromBattle (before the checkpoint).
   if (hasFeature(state, FID.MODIFIERS)) {
@@ -185,9 +167,7 @@ export function enterBuildSkippingBattle(state: GameState): void {
   sweepAllPlayersWalls(state);
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
-  clearFrozenRiver(state);
-  clearHighTide(state);
-  clearLowWater(state);
+  clearActiveModifiers(state);
   enterBuildFromBattle(state);
 }
 
@@ -404,52 +384,7 @@ export function resetZoneState(state: GameState, zone: number): void {
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
-  // Revert high tide tiles on this zone back to grass
-  const highTide = state.modern?.highTideTiles;
-  if (highTide) {
-    for (const key of highTide) {
-      const { r, c } = unpackTile(key);
-      if (state.map.zones[r]?.[c] === zone) {
-        setGrass(state.map.tiles, r, c);
-        highTide.delete(key);
-      }
-    }
-    if (highTide.size === 0) state.modern!.highTideTiles = null;
-    state.map.mapVersion++;
-  }
-  // Revert sinkhole tiles on this zone back to grass
-  const sinkhole = state.modern?.sinkholeTiles;
-  if (sinkhole) {
-    for (const key of sinkhole) {
-      const { r, c } = unpackTile(key);
-      if (state.map.zones[r]?.[c] === zone) {
-        setGrass(state.map.tiles, r, c);
-        sinkhole.delete(key);
-      }
-    }
-    if (sinkhole.size === 0) state.modern!.sinkholeTiles = null;
-    state.map.mapVersion++;
-  }
-  // Revert low water tiles adjacent to this zone back to water
-  const lowWater = state.modern?.lowWaterTiles;
-  if (lowWater) {
-    for (const key of lowWater) {
-      const { r, c } = unpackTile(key);
-      // Low water tiles were water (zone 0) — check if any grass neighbor
-      // belongs to the reset zone, meaning this tile served that zone's bank.
-      const adjacentToZone = DIRS_4.some(([dr, dc]) => {
-        const nr = r + dr;
-        const nc = c + dc;
-        return state.map.zones[nr]?.[nc] === zone;
-      });
-      if (adjacentToZone) {
-        setWater(state.map.tiles, r, c);
-        lowWater.delete(key);
-      }
-    }
-    if (lowWater.size === 0) state.modern!.lowWaterTiles = null;
-    state.map.mapVersion++;
-  }
+  resetModifierTilesForZone(state, zone);
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {
       state.towerAlive[towerIndex] = true;
@@ -481,56 +416,20 @@ function decayBurningPits(state: GameState): void {
 }
 
 /** Modern mode: apply environmental modifiers at battle start.
+ *  Dispatches to the modifier registry — no per-modifier knowledge needed here.
  *  Returns a ModifierDiff for the reveal banner, or null if no modifier fired. */
 function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
   if (!mod) return null;
-  if (mod === MODIFIER_ID.WILDFIRE) {
-    const scar = applyWildfire(state);
-    recheckTerritory(state);
-    return { id: mod, changedTiles: [...scar], gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.CRUMBLING_WALLS) {
-    const destroyed = applyCrumblingWalls(state);
-    recheckTerritory(state);
-    return { id: mod, changedTiles: destroyed, gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.GRUNT_SURGE) {
-    const count = applyGruntSurge(state);
-    return { id: mod, changedTiles: [], gruntsSpawned: count };
-  }
-  if (mod === MODIFIER_ID.FROZEN_RIVER) {
-    applyFrozenRiver(state);
-    // Frozen river doesn't mutate `map.tiles` — the visual change is drawn
-    // as an overlay by `drawFrozenTiles`. Returning the frozen keys as
-    // `changedTiles` would trip `buildModifierSnapshotMap` into reverting
-    // water→grass in the banner prev-scene, flashing grass strips where
-    // the river should be. Same pattern as grunt_surge / dust_storm.
-    return { id: mod, changedTiles: [], gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.SINKHOLE) {
-    const sunk = applySinkhole(state);
-    recheckTerritory(state);
-    return { id: mod, changedTiles: [...sunk], gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.HIGH_TIDE) {
-    const flooded = applyHighTide(state);
-    recheckTerritory(state);
-    return { id: mod, changedTiles: [...flooded], gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.DUST_STORM) {
-    return { id: mod, changedTiles: [], gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.RUBBLE_CLEARING) {
-    const cleared = applyRubbleClearing(state);
-    return { id: mod, changedTiles: cleared, gruntsSpawned: 0 };
-  }
-  if (mod === MODIFIER_ID.LOW_WATER) {
-    const exposed = applyLowWater(state);
-    recheckTerritory(state);
-    return { id: mod, changedTiles: [...exposed], gruntsSpawned: 0 };
-  }
-  return null;
+  const impl = MODIFIER_REGISTRY.get(mod);
+  if (!impl) return null;
+  const result = impl.apply(state);
+  if (impl.needsRecheck) recheckTerritory(state);
+  return {
+    id: mod,
+    changedTiles: result.changedTiles,
+    gruntsSpawned: result.gruntsSpawned,
+  };
 }
 
 /** Award combo demolition bonuses and clear the tracker. */

@@ -63,6 +63,26 @@ interface ModifierTileData {
   readonly lowWaterTiles?: readonly number[] | null;
 }
 
+/** Result shape returned by every modifier's apply function. */
+interface ModifierApplyResult {
+  readonly changedTiles: readonly number[];
+  readonly gruntsSpawned: number;
+}
+
+/** Implementation hooks for a single modifier. Only `apply` is required;
+ *  `clear` and `zoneReset` are needed only for modifiers that store
+ *  temporary tile state (needsCheckpoint: true in the pool). */
+interface ModifierImpl {
+  /** Apply the modifier at battle start. */
+  apply(state: GameState): ModifierApplyResult;
+  /** Whether recheckTerritory() should run after apply. */
+  needsRecheck: boolean;
+  /** Revert temporary state before the next battle. Idempotent. */
+  clear?: (state: GameState) => void;
+  /** Revert modifier tiles belonging to a specific zone during zone reset. */
+  zoneReset?: (state: GameState, zone: number) => void;
+}
+
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
  *  so 6-10 extra is a serious but not overwhelming spike. */
@@ -150,6 +170,79 @@ const SINKHOLE_SHAPES: ReadonlyMap<number, readonly SinkholeShape[]> = new Map([
     ],
   ],
 ]);
+/** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
+const MODIFIER_IMPLS = {
+  wildfire: {
+    apply: (state: GameState) => ({
+      changedTiles: [...applyWildfire(state)],
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
+  },
+  crumbling_walls: {
+    apply: (state: GameState) => ({
+      changedTiles: applyCrumblingWalls(state),
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
+  },
+  grunt_surge: {
+    apply: (state: GameState) => ({
+      changedTiles: [] as number[],
+      gruntsSpawned: applyGruntSurge(state),
+    }),
+    needsRecheck: false,
+  },
+  frozen_river: {
+    apply: (state: GameState) => {
+      applyFrozenRiver(state);
+      return { changedTiles: [] as number[], gruntsSpawned: 0 };
+    },
+    needsRecheck: false,
+    clear: clearFrozenRiver,
+  },
+  sinkhole: {
+    apply: (state: GameState) => ({
+      changedTiles: [...applySinkhole(state)],
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
+    zoneReset: resetSinkholeTilesForZone,
+  },
+  high_tide: {
+    apply: (state: GameState) => ({
+      changedTiles: [...applyHighTide(state)],
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
+    clear: clearHighTide,
+    zoneReset: resetHighTideTilesForZone,
+  },
+  dust_storm: {
+    apply: () => ({ changedTiles: [] as number[], gruntsSpawned: 0 }),
+    needsRecheck: false,
+  },
+  rubble_clearing: {
+    apply: (state: GameState) => ({
+      changedTiles: applyRubbleClearing(state),
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: false,
+  },
+  low_water: {
+    apply: (state: GameState) => ({
+      changedTiles: [...applyLowWater(state)],
+      gruntsSpawned: 0,
+    }),
+    needsRecheck: true,
+    clear: clearLowWater,
+    zoneReset: resetLowWaterTilesForZone,
+  },
+} as const satisfies Record<ModifierId, ModifierImpl>;
+/** Registry map for dispatching modifier lifecycle hooks by id. */
+export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(
+  Object.entries(MODIFIER_IMPLS) as [ModifierId, ModifierImpl][],
+);
 
 /** Apply Dust Storm trajectory jitter to a target offset. Returns the
  *  perturbed (x, y) world position when Dust Storm is active, or the
@@ -201,9 +294,57 @@ export function rollModifier(state: GameState): ModifierId | null {
   return candidates[candidates.length - 1]!.id;
 }
 
+/** Restore tile-mutating modifier state from checkpoint data (watcher +
+ *  host-promotion path). Sets frozenTiles / highTideTiles / sinkholeTiles on
+ *  state.modern from the checkpoint, then re-mutates the map tiles (which
+ *  are regenerated from seed and thus need the modifier tiles reapplied).
+ *
+ *  No-op if the modifiers feature is not active for this match. */
+export function applyCheckpointModifierTiles(
+  state: GameState,
+  data: ModifierTileData,
+): void {
+  if (!hasFeature(state, FID.MODIFIERS)) return;
+  if ("frozenTiles" in data) {
+    state.modern!.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
+  }
+  state.modern!.highTideTiles = data.highTideTiles
+    ? new Set(data.highTideTiles)
+    : null;
+  state.modern!.sinkholeTiles = data.sinkholeTiles
+    ? new Set(data.sinkholeTiles)
+    : null;
+  state.modern!.lowWaterTiles = data.lowWaterTiles
+    ? new Set(data.lowWaterTiles)
+    : null;
+  reapplyHighTideTiles(state);
+  reapplySinkholeTiles(state);
+  reapplyLowWaterTiles(state);
+}
+
+/** Clear all modifier temporary state (frozen tiles, high tide, low water).
+ *  Called before each battle start. Each clear function is idempotent. */
+export function clearActiveModifiers(state: GameState): void {
+  for (const impl of MODIFIER_REGISTRY.values()) {
+    impl.clear?.(state);
+  }
+}
+
+/** Revert modifier tiles belonging to a specific zone during zone reset. */
+export function resetModifierTilesForZone(
+  state: GameState,
+  zone: number,
+): void {
+  for (const impl of MODIFIER_REGISTRY.values()) {
+    impl.zoneReset?.(state, zone);
+  }
+}
+
 /** Apply wildfire: one scar per active zone, ~10 tiles each.
  *  Avoids towers, cannons, and water. Returns all scar tile keys for the reveal banner. */
-export function applyWildfire(state: GameState): ReadonlySet<number> {
+function applyWildfire(state: GameState): ReadonlySet<number> {
   const activeZones = state.players
     .filter(isPlayerSeated)
     .map((player) => player.homeTower.zone);
@@ -219,7 +360,7 @@ export function applyWildfire(state: GameState): ReadonlySet<number> {
 
 /** Apply crumbling walls: destroy a fraction of each player's outermost walls.
  *  Returns the array of destroyed wall tile keys for the reveal banner. */
-export function applyCrumblingWalls(state: GameState): readonly number[] {
+function applyCrumblingWalls(state: GameState): readonly number[] {
   const destroyed: number[] = [];
 
   for (const player of state.players) {
@@ -262,7 +403,7 @@ export function applyCrumblingWalls(state: GameState): readonly number[] {
 
 /** Apply grunt surge: spawn extra grunts distributed across all alive towers.
  *  Returns the number of grunts spawned for the reveal banner. */
-export function applyGruntSurge(state: GameState): number {
+function applyGruntSurge(state: GameState): number {
   if (state.round < FIRST_GRUNT_SPAWN_ROUND) return 0;
   const gruntsBefore = state.grunts.length;
   const extraCount = state.rng.int(
@@ -278,7 +419,7 @@ export function applyGruntSurge(state: GameState): number {
 /** Apply frozen river: freeze the entire river, allowing grunts to walk
  *  across zones and target any tower. Lasts through battle + build phase.
  *  Returns the set of frozen tile keys for the reveal banner. */
-export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
+function applyFrozenRiver(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const frozen = new Set<number>();
@@ -300,7 +441,7 @@ export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
 }
 
 /** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
-export function clearFrozenRiver(state: GameState): void {
+function clearFrozenRiver(state: GameState): void {
   const modern = state.modern;
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (modern.frozenTiles) {
@@ -314,7 +455,7 @@ export function clearFrozenRiver(state: GameState): void {
 /** Apply high tide: flood grass tiles adjacent to water (river banks widen by 1 tile).
  *  Destroys walls, houses, grunts, bonus squares, and burning pits on flooded tiles.
  *  Returns the set of flooded tile keys for the reveal banner. */
-export function applyHighTide(state: GameState): ReadonlySet<number> {
+function applyHighTide(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const tiles = state.map.tiles;
@@ -377,7 +518,7 @@ export function applyHighTide(state: GameState): ReadonlySet<number> {
 }
 
 /** Revert high tide: restore flooded tiles back to grass. */
-export function clearHighTide(state: GameState): void {
+function clearHighTide(state: GameState): void {
   const modern = state.modern;
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (!modern.highTideTiles) return;
@@ -394,7 +535,7 @@ export function clearHighTide(state: GameState): void {
  *  Only selects water tiles that (a) have at least one orthogonal grass neighbor
  *  and (b) have at least two orthogonal water neighbors (won't pinch the river).
  *  Returns the set of converted tile keys for the reveal banner. */
-export function applyLowWater(state: GameState): ReadonlySet<number> {
+function applyLowWater(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const tiles = state.map.tiles;
@@ -454,7 +595,7 @@ export function applyLowWater(state: GameState): ReadonlySet<number> {
 }
 
 /** Revert low water: restore converted tiles back to water. */
-export function clearLowWater(state: GameState): void {
+function clearLowWater(state: GameState): void {
   const modern = state.modern;
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (!modern.lowWaterTiles) return;
@@ -497,7 +638,7 @@ export function clearLowWater(state: GameState): void {
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water.
  *  Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  *  Returns the set of all sinkhole tile keys for the reveal banner. */
-export function applySinkhole(state: GameState): ReadonlySet<number> {
+function applySinkhole(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const existing = modern.sinkholeTiles?.size ?? 0;
@@ -574,39 +715,9 @@ export function applySinkhole(state: GameState): ReadonlySet<number> {
   return allSunk;
 }
 
-/** Restore tile-mutating modifier state from checkpoint data (watcher +
- *  host-promotion path). Sets frozenTiles / highTideTiles / sinkholeTiles on
- *  state.modern from the checkpoint, then re-mutates the map tiles (which
- *  are regenerated from seed and thus need the modifier tiles reapplied).
- *
- *  No-op if the modifiers feature is not active for this match. */
-export function applyCheckpointModifierTiles(
-  state: GameState,
-  data: ModifierTileData,
-): void {
-  if (!hasFeature(state, FID.MODIFIERS)) return;
-  if ("frozenTiles" in data) {
-    state.modern!.frozenTiles = data.frozenTiles
-      ? new Set(data.frozenTiles)
-      : null;
-  }
-  state.modern!.highTideTiles = data.highTideTiles
-    ? new Set(data.highTideTiles)
-    : null;
-  state.modern!.sinkholeTiles = data.sinkholeTiles
-    ? new Set(data.sinkholeTiles)
-    : null;
-  state.modern!.lowWaterTiles = data.lowWaterTiles
-    ? new Set(data.lowWaterTiles)
-    : null;
-  reapplyHighTideTiles(state);
-  reapplySinkholeTiles(state);
-  reapplyLowWaterTiles(state);
-}
-
 /** Apply rubble clearing: remove all dead cannon debris and burning pits.
  *  Returns the tile keys of cleared positions for the reveal banner. */
-export function applyRubbleClearing(state: GameState): readonly number[] {
+function applyRubbleClearing(state: GameState): readonly number[] {
   const cleared: number[] = [];
   // Collect dead cannon tile positions before removal
   for (const player of state.players) {
@@ -843,4 +954,54 @@ function applyWildfireScar(state: GameState, scar: ReadonlySet<number>): void {
     (bonus) => !scar.has(packTile(bonus.row, bonus.col)),
   );
   state.burningPits.push(...newPits);
+}
+
+/** Per-zone tile revert for high tide (zones[r][c] === zone → grass). */
+function resetHighTideTilesForZone(state: GameState, zone: number): void {
+  const highTide = state.modern?.highTideTiles;
+  if (!highTide) return;
+  for (const key of highTide) {
+    const { r, c } = unpackTile(key);
+    if (state.map.zones[r]?.[c] === zone) {
+      setGrass(state.map.tiles, r, c);
+      highTide.delete(key);
+    }
+  }
+  if (highTide.size === 0) state.modern!.highTideTiles = null;
+  state.map.mapVersion++;
+}
+
+/** Per-zone tile revert for sinkhole (zones[r][c] === zone → grass). */
+function resetSinkholeTilesForZone(state: GameState, zone: number): void {
+  const sinkhole = state.modern?.sinkholeTiles;
+  if (!sinkhole) return;
+  for (const key of sinkhole) {
+    const { r, c } = unpackTile(key);
+    if (state.map.zones[r]?.[c] === zone) {
+      setGrass(state.map.tiles, r, c);
+      sinkhole.delete(key);
+    }
+  }
+  if (sinkhole.size === 0) state.modern!.sinkholeTiles = null;
+  state.map.mapVersion++;
+}
+
+/** Per-zone tile revert for low water (adjacent grass in zone → water). */
+function resetLowWaterTilesForZone(state: GameState, zone: number): void {
+  const lowWater = state.modern?.lowWaterTiles;
+  if (!lowWater) return;
+  for (const key of lowWater) {
+    const { r, c } = unpackTile(key);
+    const adjacentToZone = DIRS_4.some(([dr, dc]) => {
+      const nr = r + dr;
+      const nc = c + dc;
+      return state.map.zones[nr]?.[nc] === zone;
+    });
+    if (adjacentToZone) {
+      setWater(state.map.tiles, r, c);
+      lowWater.delete(key);
+    }
+  }
+  if (lowWater.size === 0) state.modern!.lowWaterTiles = null;
+  state.map.mapVersion++;
 }
