@@ -74,6 +74,7 @@
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/rapid-fire.ts",
       "src/game/upgrades/reinforced-walls.ts",
+      "src/game/upgrades/restoration-crew.ts",
       "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",

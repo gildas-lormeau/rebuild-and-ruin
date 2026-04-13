@@ -61,6 +61,7 @@
       "src/game/upgrades/rapid-fire.ts",
       "src/game/upgrades/reclamation.ts",
       "src/game/upgrades/reinforced-walls.ts",
+      "src/game/upgrades/restoration-crew.ts",
       "src/game/upgrades/ricochet.ts",
       "src/game/upgrades/salvage.ts",
       "src/game/upgrades/second-wind.ts",

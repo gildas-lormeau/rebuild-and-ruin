@@ -59,6 +59,7 @@ import {
   territoryScoreMult,
   wallOverlapAllowance,
 } from "./upgrade-system.ts";
+import { restorationCrewInstantRevive } from "./upgrades/restoration-crew.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -489,13 +490,17 @@ function updateOwnedTowers(state: GameState, player: Player): void {
 
 /** Process delayed tower revival for a single player (end-of-build-phase only).
  *  Dead towers enclosed for two consecutive build phases are revived.
- *  Dead towers enclosed for only one phase are marked pending. */
+ *  Dead towers enclosed for only one phase are marked pending.
+ *  Restoration Crew: the first newly-pending tower skips the wait and
+ *  revives immediately (the upgrade is consumed on use). */
 function reviveEnclosedTowers(state: GameState, player: Player): void {
   for (const tower of player.ownedTowers) {
     if (state.towerAlive[tower.index]) continue;
     if (state.towerPendingRevive.has(tower.index)) {
       state.towerAlive[tower.index] = true;
       state.towerPendingRevive.delete(tower.index);
+    } else if (restorationCrewInstantRevive(player)) {
+      state.towerAlive[tower.index] = true;
     } else {
       state.towerPendingRevive.add(tower.index);
     }
