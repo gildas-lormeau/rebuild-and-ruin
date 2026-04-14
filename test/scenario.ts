@@ -40,6 +40,7 @@
 
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
+import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
@@ -236,6 +237,14 @@ export interface ScenarioInput {
   /** Sugar for the common "single-finger tap at (x, y)" sequence —
    *  fires `touchstart` then `touchend` with the same coordinates. */
   tap(x: number, y: number): void;
+  /** Move the mouse to the centre of a game tile (row, col). Preferred
+   *  over `mouseMove` for gameplay assertions — tile coords are stable
+   *  across headless/E2E and don't depend on camera/letterbox math. */
+  hoverTile(row: number, col: number): void;
+  /** Left-click at the centre of a tile. */
+  clickTile(row: number, col: number): void;
+  /** Single-finger tap at the centre of a tile. */
+  tapTile(row: number, col: number): void;
 }
 
 export interface RecordedEvent {
@@ -581,6 +590,33 @@ function createScenarioInput(headless: HeadlessRuntime): ScenarioInput {
       dispatchTouch("touchstart", [{ x, y }]);
       dispatchTouch("touchend", [], [{ x, y }]);
     },
+    hoverTile: (row, col) => {
+      const { x, y } = tileCenterCanvasPx(row, col);
+      dispatchMouse("mousemove", x, y);
+    },
+    clickTile: (row, col) => {
+      const { x, y } = tileCenterCanvasPx(row, col);
+      dispatchMouse("click", x, y);
+    },
+    tapTile: (row, col) => {
+      const { x, y } = tileCenterCanvasPx(row, col);
+      dispatchTouch("touchstart", [{ x, y }]);
+      dispatchTouch("touchend", [], [{ x, y }]);
+    },
+  };
+}
+
+/** Headless tile → canvas-space centre pixel. Headless canvas uses
+ *  `SCALE`-multiplied coordinates (world pixels × 2) because the
+ *  stub renderer's `clientToSurface` is the identity — the camera
+ *  then divides by `SCALE` to recover world pixels. */
+function tileCenterCanvasPx(
+  row: number,
+  col: number,
+): { x: number; y: number } {
+  return {
+    x: (col + 0.5) * TILE_SIZE * SCALE,
+    y: (row + 0.5) * TILE_SIZE * SCALE,
   };
 }
 

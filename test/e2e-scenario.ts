@@ -26,6 +26,7 @@ import {
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
+import { TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
 
 // Re-export so tests can import GAME_EVENT from the same place.
@@ -121,13 +122,22 @@ export interface E2EScenario {
    *  the "frame before banner" via `_prevSnapshot`. Opt-in because
    *  `toDataURL` every frame is expensive. */
   enableCanvasSnapshots(): Promise<void>;
-  /** Input helpers — world coordinates, converted to client coords via bridge. */
+  /** Input helpers. The `*Tile(row, col)` variants are preferred — they
+   *  work the same on headless and E2E. The raw pixel variants take
+   *  world-space coords (converted to client coords via the bridge). */
   input: {
     mouseMove(wx: number, wy: number): Promise<void>;
     click(wx: number, wy: number): Promise<void>;
     rightClick(wx: number, wy: number): Promise<void>;
     pressKey(key: string): Promise<void>;
     tap(wx: number, wy: number): Promise<void>;
+    /** Move the mouse to the centre of a game tile. Stable across
+     *  camera/letterbox — same call signature as headless. */
+    hoverTile(row: number, col: number): Promise<void>;
+    /** Left-click at the centre of a tile. */
+    clickTile(row: number, col: number): Promise<void>;
+    /** Single-finger tap at the centre of a tile. */
+    tapTile(row: number, col: number): Promise<void>;
   };
   /** Room code (only available when `online: "host"`). */
   roomCode(): Promise<string>;
@@ -462,6 +472,21 @@ export async function createE2EScenario(
         const { cx, cy } = await worldToClient(wx, wy);
         await page.touchscreen.tap(cx, cy);
       },
+      hoverTile: async (row, col) => {
+        const { wx, wy } = tileCenterWorld(row, col);
+        const { cx, cy } = await worldToClient(wx, wy);
+        await page.mouse.move(cx, cy);
+      },
+      clickTile: async (row, col) => {
+        const { wx, wy } = tileCenterWorld(row, col);
+        const { cx, cy } = await worldToClient(wx, wy);
+        await page.mouse.click(cx, cy);
+      },
+      tapTile: async (row, col) => {
+        const { wx, wy } = tileCenterWorld(row, col);
+        const { cx, cy } = await worldToClient(wx, wy);
+        await page.touchscreen.tap(cx, cy);
+      },
     },
 
     roomCode: () => {
@@ -572,4 +597,17 @@ export class E2ETest {
   get failures(): number {
     return this.failed;
   }
+}
+
+/** Tile → world-pixel centre. Used by the `*Tile(row, col)` input helpers
+ *  to convert stable tile coords into the world-space coords that
+ *  `worldToClient` accepts. */
+function tileCenterWorld(
+  row: number,
+  col: number,
+): { wx: number; wy: number } {
+  return {
+    wx: (col + 0.5) * TILE_SIZE,
+    wy: (row + 0.5) * TILE_SIZE,
+  };
 }
