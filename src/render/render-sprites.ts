@@ -7,6 +7,8 @@
  *   drawSprite(ctx, "house", x, y); // blit a sprite onto a canvas
  */
 
+import { OFFSCREEN_SCALE } from "../shared/core/grid.ts";
+
 interface SpriteRect {
   x: number;
   y: number;
@@ -609,18 +611,17 @@ const SPRITES: Record<string, SpriteRect> = {
 const BASE = import.meta.env?.BASE_URL ?? "/";
 
 let atlas: HTMLImageElement | undefined;
+let atlasScale = 1;
 
-export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      atlas = img;
-      resolve();
-    };
-    img.onerror = () =>
-      reject(new Error(`Failed to load sprite atlas: ${src}`));
-    img.src = src;
-  });
+/** Load the sprite sheet. When the offscreen is rendered at 2× (hi-dpi),
+ *  prefer `sprites@2x.png` and fall back to the 1× atlas if it fails.
+ *  Callers can override `src` to pick a specific atlas (tests, headless). */
+export function loadAtlas(src?: string): Promise<void> {
+  if (src !== undefined) return loadAtlasFrom(src, 1);
+  const baseSrc = `${BASE}assets/sprites.png`;
+  if (OFFSCREEN_SCALE < 2) return loadAtlasFrom(baseSrc, 1);
+  const hiDpiSrc = `${BASE}assets/sprites@2x.png`;
+  return loadAtlasFrom(hiDpiSrc, 2).catch(() => loadAtlasFrom(baseSrc, 1));
 }
 
 /**
@@ -656,6 +657,20 @@ export function drawSpriteCentered(
   return true;
 }
 
+function loadAtlasFrom(src: string, scale: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      atlas = img;
+      atlasScale = scale;
+      resolve();
+    };
+    img.onerror = () =>
+      reject(new Error(`Failed to load sprite atlas: ${src}`));
+    img.src = src;
+  });
+}
+
 /** Resolve atlas + sprite rect, or null if not ready/unknown. */
 function resolveSprite(
   name: string,
@@ -673,12 +688,13 @@ function blitSprite(
   dx: number,
   dy: number,
 ): void {
+  const scale = atlasScale;
   canvasCtx.drawImage(
     sprite.img,
-    sprite.rect.x,
-    sprite.rect.y,
-    sprite.rect.w,
-    sprite.rect.h,
+    sprite.rect.x * scale,
+    sprite.rect.y * scale,
+    sprite.rect.w * scale,
+    sprite.rect.h * scale,
     dx,
     dy,
     sprite.rect.w,
