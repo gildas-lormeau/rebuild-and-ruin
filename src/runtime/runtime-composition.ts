@@ -380,7 +380,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     haptics,
     sound,
     render: () => render(),
-    captureScene: () => renderer.captureScene(),
+    captureScene: captureCleanScene,
   });
 
   // -------------------------------------------------------------------------
@@ -441,6 +441,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getContainerHeight: () => gameContainer.clientHeight,
     updateTouchControls,
   });
+
+  // Scene capture for banner prev-scene: strip transient overlays (phantoms,
+  // crosshairs) and re-render before grabbing pixels so placement previews and
+  // aim reticles don't bake into the frozen "old scene" below the sweep line.
+  // Function declaration (hoisted) so the banner system — wired above — can
+  // reference it before this line in source order.
+  function captureCleanScene() {
+    runtimeState.frame.phantoms = {};
+    runtimeState.frame.crosshairs = [];
+    render();
+    return renderer.captureScene();
+  }
 
   // -------------------------------------------------------------------------
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
@@ -561,7 +573,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    captureScene: () => renderer.captureScene(),
+    captureScene: captureCleanScene,
     showCannonTransition,
     showBattleTransition,
     showBuildTransition,
@@ -784,7 +796,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    captureScene: () => renderer.captureScene(),
+    captureScene: captureCleanScene,
     showCannonTransition,
     showBattleTransition,
     showBuildTransition,

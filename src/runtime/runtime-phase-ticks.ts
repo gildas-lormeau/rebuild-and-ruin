@@ -586,6 +586,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.render();
 
     if (state.timer > 0 || state.cannonballs.length > 0) return false;
+    // Safe margin: let impact flashes and ice-thaw animations finish before
+    // capturing the "old scene" snapshot for the Build banner. Without this,
+    // mid-animation explosion/thaw visuals bake into the prev-scene image.
+    if (battleAnim.impacts.length > 0 || battleAnim.thawing.length > 0)
+      return false;
 
     // Battle ended — finalize controllers and transition
     // NOTE: Intentionally includes eliminated players — they need battle state
