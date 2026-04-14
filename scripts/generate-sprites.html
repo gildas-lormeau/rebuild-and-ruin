@@ -301,6 +301,170 @@ for (const dir of DIRECTIONS) {
   });
 }
 
+// ---- Mortar cannon (2x2) — 8 facing directions ----
+// Stubby wide-bore barrel with orange bands (matches the orange diamond
+// indicator drawn on mortar-elected cannons in render-map.ts).
+function drawMortar(ctx, cx, cy, angle) {
+  const s = TILE * 2;
+  const mid = s / 2;
+  ctx.save();
+  ctx.translate(cx + mid, cy + mid);
+  ctx.rotate(angle);
+  // Carriage (wider, squatter than normal cannon)
+  ctx.fillStyle = "#1a1a1a"; ctx.fillRect(-11, -3, 22, 13);
+  // Base plate
+  ctx.fillStyle = "#0f0f0f"; ctx.fillRect(-12, 7, 24, 3);
+  // Wheels (small, flush to carriage)
+  ctx.fillStyle = "#333";
+  ctx.fillRect(-13, 0, 3, 7);
+  ctx.fillRect(10, 0, 3, 7);
+  // Axle
+  ctx.fillStyle = "#2a2a2a"; ctx.fillRect(-11, 4, 22, 2);
+  // Short wide barrel
+  ctx.fillStyle = "#555"; ctx.fillRect(-5, -9, 10, 11);
+  // Muzzle rim (lighter)
+  ctx.fillStyle = "#777"; ctx.fillRect(-6, -9, 12, 2);
+  // Wide bore
+  ctx.fillStyle = "#111"; ctx.fillRect(-3, -8, 6, 3);
+  // Orange reinforcement bands (mortar identifier)
+  ctx.fillStyle = "#cc6600";
+  ctx.fillRect(-5, -4, 10, 2);
+  ctx.fillStyle = "#a04400";
+  ctx.fillRect(-5, 0, 10, 1);
+  ctx.restore();
+}
+
+for (const dir of DIRECTIONS) {
+  addSprite(`mortar_${dir.name}`, 2, 2, (ctx, x, y) => {
+    drawMortar(ctx, x, y, dir.angle);
+  });
+}
+
+// ---- Rampart (2x2) — armored bunker / shield emitter, no facing ----
+// Reads as a defensive dome: octagonal stone base, metal reinforcement
+// bands, central shield emblem (matches the green shield-HP overlay).
+addSprite("rampart", 2, 2, (ctx, x, y) => {
+  const s = TILE * 2;
+  const mid = s / 2;
+  const cx = x + mid;
+  const cy = y + mid;
+
+  // Outer shadow ring (octagonal footprint)
+  ctx.fillStyle = "#2a3340";
+  ctx.fillRect(x + 4, y + 2, s - 8, s - 4);
+  ctx.fillRect(x + 2, y + 4, s - 4, s - 8);
+
+  // Stone base (mid)
+  ctx.fillStyle = "#556677";
+  ctx.fillRect(x + 5, y + 3, s - 10, s - 6);
+  ctx.fillRect(x + 3, y + 5, s - 6, s - 10);
+
+  // Top highlight (dome lighting from above-left)
+  ctx.fillStyle = "#7a8899";
+  ctx.fillRect(x + 5, y + 3, s - 10, 3);
+  ctx.fillRect(x + 3, y + 5, 3, 6);
+  ctx.fillRect(x + 4, y + 4, s - 10, 2);
+  // Bottom shadow
+  ctx.fillStyle = "#3a4455";
+  ctx.fillRect(x + 5, y + s - 6, s - 10, 3);
+  ctx.fillRect(x + s - 6, y + 11, 3, 10);
+
+  // Metal reinforcement bands (horizontal rivets)
+  ctx.fillStyle = "#8a8070";
+  ctx.fillRect(x + 4, y + 10, s - 8, 2);
+  ctx.fillRect(x + 4, y + 20, s - 8, 2);
+  // Rivet highlights
+  ctx.fillStyle = "#b8a898";
+  ctx.fillRect(x + 5, y + 10, 1, 1);
+  ctx.fillRect(x + 11, y + 10, 1, 1);
+  ctx.fillRect(x + 19, y + 10, 1, 1);
+  ctx.fillRect(x + 25, y + 10, 1, 1);
+  ctx.fillRect(x + 5, y + 20, 1, 1);
+  ctx.fillRect(x + 11, y + 20, 1, 1);
+  ctx.fillRect(x + 19, y + 20, 1, 1);
+  ctx.fillRect(x + 25, y + 20, 1, 1);
+  // Rivet shadows
+  ctx.fillStyle = "#4a4030";
+  ctx.fillRect(x + 5, y + 11, 1, 1);
+  ctx.fillRect(x + 11, y + 11, 1, 1);
+  ctx.fillRect(x + 19, y + 11, 1, 1);
+  ctx.fillRect(x + 25, y + 11, 1, 1);
+
+  // Central shield emblem (recessed plate)
+  ctx.fillStyle = "#3a4455";
+  ctx.fillRect(cx - 5, cy - 5, 10, 10);
+  // Shield outline (lighter)
+  ctx.fillStyle = "#8899aa";
+  ctx.fillRect(cx - 5, cy - 5, 10, 1);
+  ctx.fillRect(cx - 5, cy - 5, 1, 10);
+  ctx.fillStyle = "#2a3340";
+  ctx.fillRect(cx - 5, cy + 4, 10, 1);
+  ctx.fillRect(cx + 4, cy - 5, 1, 10);
+  // Shield crest (small pointed shape)
+  ctx.fillStyle = "#a8b0c0";
+  ctx.fillRect(cx - 3, cy - 3, 6, 4);
+  ctx.fillRect(cx - 2, cy + 1, 4, 2);
+  ctx.fillRect(cx - 1, cy + 3, 2, 1);
+  // Crest shading
+  ctx.fillStyle = "#5a6778";
+  ctx.fillRect(cx, cy - 3, 3, 4);
+  ctx.fillRect(cx, cy + 1, 2, 2);
+  ctx.fillRect(cx, cy + 3, 1, 1);
+});
+
+// ---- Rampart debris (2x2) — collapsed battlement rubble ----
+addSprite("rampart_debris", 2, 2, (ctx, x, y) => {
+  const s = TILE * 2;
+  const mid = s / 2;
+
+  // Large collapsed stone chunks (mid-grey stonework colors)
+  ctx.fillStyle = "#6a7788";
+  ctx.save(); ctx.translate(x + mid - 2, y + mid + 3); ctx.rotate(0.2);
+  ctx.fillRect(-8, -4, 16, 7); ctx.restore();
+
+  ctx.fillStyle = "#556677";
+  ctx.save(); ctx.translate(x + mid + 5, y + mid - 3); ctx.rotate(-0.35);
+  ctx.fillRect(-6, -3, 12, 6); ctx.restore();
+
+  ctx.fillStyle = "#7a8899";
+  ctx.save(); ctx.translate(x + mid - 6, y + mid - 4); ctx.rotate(0.55);
+  ctx.fillRect(-5, -3, 10, 6); ctx.restore();
+
+  // Partial merlon silhouette (one block still standing low-left)
+  ctx.fillStyle = "#4a5566";
+  ctx.fillRect(x + 3, y + 12, 5, 6);
+  ctx.fillStyle = "#6a7788";
+  ctx.fillRect(x + 3, y + 12, 5, 1);
+
+  // Top-right chunk
+  ctx.fillStyle = "#556677";
+  ctx.save(); ctx.translate(x + s - 8, y + 6); ctx.rotate(-0.4);
+  ctx.fillRect(-3, -2, 8, 5); ctx.restore();
+
+  // Bottom-right chunk
+  ctx.fillStyle = "#4a5566";
+  ctx.save(); ctx.translate(x + s - 7, y + s - 6); ctx.rotate(0.3);
+  ctx.fillRect(-4, -2, 8, 4); ctx.restore();
+
+  // Cracks / dark gaps
+  ctx.fillStyle = "#2a3340";
+  ctx.fillRect(x + 10, y + 8, 1, 4);
+  ctx.fillRect(x + 18, y + 14, 1, 5);
+  ctx.fillRect(x + 24, y + 20, 4, 1);
+
+  // Small fragments / pebbles
+  ctx.fillStyle = "#3a4455";
+  ctx.fillRect(x + 14, y + 4, 2, 2);
+  ctx.fillRect(x + 27, y + 10, 2, 2);
+  ctx.fillRect(x + 5, y + 24, 2, 2);
+
+  // Dust specks
+  ctx.fillStyle = "rgba(130, 140, 150, 0.3)";
+  ctx.fillRect(x + 8, y + 6, 1, 1);
+  ctx.fillRect(x + 20, y + 22, 1, 1);
+  ctx.fillRect(x + 12, y + 18, 1, 1);
+});
+
 // ---- Cannon debris (2x2) — shattered metal chunks filling the tile ----
 addSprite("cannon_debris", 2, 2, (ctx, x, y) => {
   const s = TILE * 2;

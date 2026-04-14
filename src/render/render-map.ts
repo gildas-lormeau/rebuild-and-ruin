@@ -1361,22 +1361,7 @@ function drawCastleCannons(
     const cy = cannon.row * TILE_SIZE;
     if (!isCannonAlive(cannon)) {
       if (isRampartCannon(cannon)) {
-        // Dead rampart: dark cracked block spanning 2×2
-        overlayCtx.fillStyle = "#3a3a3a";
-        overlayCtx.fillRect(
-          cx + 2,
-          cy + 2,
-          TILE_SIZE * 2 - 4,
-          TILE_SIZE * 2 - 4,
-        );
-        overlayCtx.strokeStyle = "#222";
-        overlayCtx.lineWidth = 1;
-        overlayCtx.strokeRect(
-          cx + 2,
-          cy + 2,
-          TILE_SIZE * 2 - 4,
-          TILE_SIZE * 2 - 4,
-        );
+        drawSprite(overlayCtx, "rampart_debris", cx, cy);
       } else {
         drawSprite(
           overlayCtx,
@@ -1388,33 +1373,17 @@ function drawCastleCannons(
       continue;
     }
     if (isRampartCannon(cannon)) {
-      // Rampart base: solid stone block, no barrel
-      overlayCtx.fillStyle = "#556677";
-      overlayCtx.fillRect(cx + 2, cy + 2, TILE_SIZE * 2 - 4, TILE_SIZE * 2 - 4);
-      overlayCtx.strokeStyle = "#334455";
-      overlayCtx.lineWidth = 2;
-      overlayCtx.strokeRect(
-        cx + 2,
-        cy + 2,
-        TILE_SIZE * 2 - 4,
-        TILE_SIZE * 2 - 4,
-      );
-      // Shield HP overlay: green circle when shieldHp > 0
-      if ((cannon.shieldHp ?? 0) > 0) {
-        const size = TILE_SIZE * 2;
-        const mid = size / 2;
-        overlayCtx.strokeStyle = "#33cc33";
-        overlayCtx.lineWidth = 2;
-        overlayCtx.beginPath();
-        overlayCtx.arc(cx + mid, cy + mid, mid - 2, 0, Math.PI * 2);
-        overlayCtx.stroke();
-      }
+      drawSprite(overlayCtx, "rampart", cx, cy);
       continue;
     }
     if (isBalloonCannon(cannon)) {
       drawSprite(overlayCtx, "balloon_base", cx, cy);
     } else {
-      const prefix = isSuperCannon(cannon) ? "super" : SPRITE_CANNON;
+      const prefix = isSuperCannon(cannon)
+        ? "super"
+        : cannon.mortar
+          ? "mortar"
+          : SPRITE_CANNON;
       const dir = facingToDir8(cannon.facing ?? 0);
       drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
       // Shield overlay: cyan circle outline so both owner and opponents can identify it
@@ -1426,22 +1395,6 @@ function drawCastleCannons(
         overlayCtx.lineWidth = 2;
         overlayCtx.beginPath();
         overlayCtx.arc(cx + mid, cy + mid, mid - 2, 0, Math.PI * 2);
-        overlayCtx.stroke();
-        overlayCtx.restore();
-      }
-      // Mortar overlay: orange diamond outline so both owner and opponents can identify it
-      if (cannon.mortar) {
-        const size = isSuperCannon(cannon) ? TILE_SIZE * 3 : TILE_SIZE * 2;
-        const mid = size / 2;
-        overlayCtx.save();
-        overlayCtx.strokeStyle = "#ff6600";
-        overlayCtx.lineWidth = 2;
-        overlayCtx.beginPath();
-        overlayCtx.moveTo(cx + mid, cy + 1);
-        overlayCtx.lineTo(cx + size - 1, cy + mid);
-        overlayCtx.lineTo(cx + mid, cy + size - 1);
-        overlayCtx.lineTo(cx + 1, cy + mid);
-        overlayCtx.closePath();
         overlayCtx.stroke();
         overlayCtx.restore();
       }
