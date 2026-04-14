@@ -9,6 +9,7 @@
 import { computeLetterboxLayout } from "../render/render-layout.ts";
 import {
   GAME_EVENT,
+  type GameEventBus,
   type GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -187,10 +188,12 @@ interface E2EBridgeDeps {
  *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
  *  closures. No direct GameState references are retained between frames. */
 let bridge: E2EBridge | undefined;
-/** One-shot: subscribe to all game bus events via `onAny` and forward them
- *  to `bridge.busLog`. Deferred until state is ready (the bus lives on
- *  `runtimeState.state`). Idempotent. */
-let busSubscribed = false;
+/** The bus instance we're currently forwarding into `bridge.busLog`.
+ *  Deferred until state is ready. When the game restarts (new bus
+ *  instance after a checkpoint hand-off or `page.reload()` scenario),
+ *  this pointer changes and `subscribeBus` resubscribes against the
+ *  new bus. Undefined means "no subscription yet". */
+let subscribedBus: GameEventBus | undefined;
 
 /** Update the E2E bridge on `window.__e2e` with the current frame's state.
  *  Called once per frame from the main loop (dev-only). */
@@ -261,9 +264,15 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 }
 
 function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
-  if (busSubscribed || !isStateReady(deps.runtimeState)) return;
-  busSubscribed = true;
+  if (!isStateReady(deps.runtimeState)) return;
   const bus = deps.runtimeState.state.bus;
+  // Re-subscribe when the bus instance changes — new game = new bus.
+  // The previous subscription dangles harmlessly (its bus is GC'd with
+  // the old game state). Also reset busLog so the new game starts with
+  // a fresh event stream.
+  if (subscribedBus === bus) return;
+  subscribedBus = bus;
+  ref.busLog.length = 0;
 
   // Capture a PNG synchronously — runs inside the bus handler
   // BEFORE any chained callback can re-render the canvas.
