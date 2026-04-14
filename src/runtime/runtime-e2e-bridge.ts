@@ -283,11 +283,12 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   const bus = deps.runtimeState.state.bus;
   // Re-subscribe when the bus instance changes — new game = new bus.
   // The previous subscription dangles harmlessly (its bus is GC'd with
-  // the old game state). Also reset busLog so the new game starts with
-  // a fresh event stream.
+  // the old game state). busLog is NOT reset — `_seq` keeps growing
+  // monotonically so E2E drainBus's `lastSeenSeq` cursor remains valid
+  // across games. Agents that want only the current game's events can
+  // filter by round / phase fields on the entries.
   if (subscribedBus === bus) return;
   subscribedBus = bus;
-  ref.busLog.length = 0;
 
   // Capture a PNG synchronously — runs inside the bus handler
   // BEFORE any chained callback can re-render the canvas.
