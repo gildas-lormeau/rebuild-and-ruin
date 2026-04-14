@@ -144,8 +144,25 @@ export interface E2EScenario extends AsyncDisposable {
     mouseMove(wx: number, wy: number): Promise<void>;
     click(wx: number, wy: number): Promise<void>;
     rightClick(wx: number, wy: number): Promise<void>;
+    /** Press + release a key in one call. */
     pressKey(key: string): Promise<void>;
+    /** Press a key (no release). Pair with `keyUp` for held-key tests. */
+    keyDown(key: string): Promise<void>;
+    /** Release a previously-pressed key. */
+    keyUp(key: string): Promise<void>;
     tap(wx: number, wy: number): Promise<void>;
+    /** Dispatch a `touchstart` event at the given world-space points.
+     *  Each touch gets a sequential identifier; keep that order for
+     *  matching `touchMove` / `touchEnd` calls. */
+    touchStart(touches: readonly { wx: number; wy: number }[]): Promise<void>;
+    /** Dispatch a `touchmove` event with the current touch positions. */
+    touchMove(touches: readonly { wx: number; wy: number }[]): Promise<void>;
+    /** Dispatch a `touchend`. `touches` is the set of fingers still on
+     *  screen; `changedTouches` is the fingers being lifted. */
+    touchEnd(
+      touches?: readonly { wx: number; wy: number }[],
+      changedTouches?: readonly { wx: number; wy: number }[],
+    ): Promise<void>;
     /** Move the mouse to the centre of a game tile. Stable across
      *  camera/letterbox — same call signature as headless. */
     hoverTile(row: number, col: number): Promise<void>;
@@ -380,6 +397,65 @@ export async function createE2EScenario(
     );
   }
 
+  /** Dispatch a multi-touch `TouchEvent` at the canvas. World-space points
+   *  are converted to client coords before crossing the Playwright IPC
+   *  boundary. Playwright's `touchscreen.tap` is single-finger only, so
+   *  multi-touch flows need a hand-dispatched event. */
+  async function dispatchTouch(
+    type: "touchstart" | "touchmove" | "touchend",
+    touches: readonly { wx: number; wy: number }[],
+    changedTouches?: readonly { wx: number; wy: number }[],
+  ): Promise<void> {
+    const touchClient = await Promise.all(
+      touches.map((t) => worldToClient(t.wx, t.wy)),
+    );
+    const changedClient = changedTouches
+      ? await Promise.all(
+          changedTouches.map((t) => worldToClient(t.wx, t.wy)),
+        )
+      : touchClient;
+    await page.evaluate(
+      ({
+        eventType,
+        touchPoints,
+        changedPoints,
+      }: {
+        eventType: "touchstart" | "touchmove" | "touchend";
+        touchPoints: { cx: number; cy: number }[];
+        changedPoints: { cx: number; cy: number }[];
+      }) => {
+        const canvas = document.getElementById(
+          "canvas",
+        ) as HTMLCanvasElement | null;
+        if (!canvas) throw new Error("canvas element not found");
+        const mkList = (points: { cx: number; cy: number }[]): Touch[] =>
+          points.map(
+            (p, index) =>
+              new Touch({
+                identifier: index,
+                clientX: p.cx,
+                clientY: p.cy,
+                target: canvas,
+              }),
+          );
+        canvas.dispatchEvent(
+          new TouchEvent(eventType, {
+            bubbles: true,
+            cancelable: true,
+            touches: mkList(touchPoints),
+            targetTouches: mkList(touchPoints),
+            changedTouches: mkList(changedPoints),
+          }),
+        );
+      },
+      {
+        eventType: type,
+        touchPoints: touchClient,
+        changedPoints: changedClient,
+      },
+    );
+  }
+
   // --- Build scenario object ---
   const scenario: E2EScenario = {
     page,
@@ -510,10 +586,25 @@ export async function createE2EScenario(
       pressKey: async (key) => {
         await page.keyboard.press(key);
       },
+      keyDown: async (key) => {
+        await page.keyboard.down(key);
+      },
+      keyUp: async (key) => {
+        await page.keyboard.up(key);
+      },
       tap: async (wx, wy) => {
         const { cx, cy } = await worldToClient(wx, wy);
         await page.touchscreen.tap(cx, cy);
       },
+      touchStart: (touches) => dispatchTouch("touchstart", touches),
+      touchMove: (touches) => dispatchTouch("touchmove", touches),
+      touchEnd: (touches = [], changedTouches) =>
+        dispatchTouch(
+          "touchend",
+          touches,
+          changedTouches ??
+            (touches.length === 0 ? [{ wx: 0, wy: 0 }] : touches),
+        ),
       hoverTile: async (row, col) => {
         const { wx, wy } = tileCenterWorld(row, col);
         const { cx, cy } = await worldToClient(wx, wy);
