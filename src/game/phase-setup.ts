@@ -317,7 +317,26 @@ export function finalizeBuildPhase(state: GameState): {
 } {
   sweepAllPlayersWalls(state);
   finalizeTerritoryWithScoring(state);
-  return applyLifePenalties(state);
+  const result = applyLifePenalties(state);
+  sweepGruntsInDeadZones(state);
+  return result;
+}
+
+/** Remove grunts sitting in any eliminated player's zone. resetZoneState
+ *  handles the one-shot sweep at the moment of elimination; this covers
+ *  stragglers that drift into a dead zone in subsequent rounds (e.g.
+ *  frozen-river crossings when the zone owner was already eliminated). */
+function sweepGruntsInDeadZones(state: GameState): void {
+  const deadZones = new Set<number>();
+  for (const player of state.players) {
+    if (!isPlayerEliminated(player)) continue;
+    const zone = state.playerZones[player.id];
+    if (zone !== undefined) deadZones.add(zone);
+  }
+  if (deadZones.size === 0) return;
+  state.grunts = state.grunts.filter(
+    (grunt) => !deadZones.has(state.map.zones[grunt.row]?.[grunt.col] ?? -1),
+  );
 }
 
 function sweepAllPlayersWalls(state: GameState): void {
