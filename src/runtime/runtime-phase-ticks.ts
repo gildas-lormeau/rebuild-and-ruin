@@ -586,14 +586,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Step 2 depends on state produced by step 1.
 
     // Step 1: tick controllers → fire events
-    const ballsBefore = state.cannonballs.length;
+    // Broadcast only AI-originated balls — human-driven controllers
+    // (including AssistedHuman) send their own CANNON_FIRED via the human
+    // action path, so duplicating here would double-spawn on the receiver.
+    const fireEvents: CannonFiredMessage[] = [];
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
+      const ballsBefore = state.cannonballs.length;
       ctrl.battleTick(state, dt);
-    }
-    const fireEvents: CannonFiredMessage[] = [];
-    for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
-      fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
+      if (!isHuman(ctrl)) {
+        for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
+          fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
+        }
+      }
     }
 
     // Step 2: tower kills + cannonball impacts (load-bearing internal order)
