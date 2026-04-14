@@ -24,9 +24,10 @@ export const TILE_SIZE = 16;
 export const SCALE = 2;
 /** Offscreen-buffer resolution multiplier (1 = base, 2 = hi-dpi via sprites@2x).
  *  Independent of `SCALE` (which is the offscreen → display upscale).
- *  Not yet consumed by the render pipeline — exists to anchor the
- *  upcoming scale-parameterization refactor. */
-export const OFFSCREEN_SCALE = 1;
+ *  Reads devicePixelRatio at module load in browser environments; falls back
+ *  to 1 on Deno/Node (server + headless tests) where the global is absent. */
+export const OFFSCREEN_SCALE =
+  typeof devicePixelRatio === "number" && devicePixelRatio >= 2 ? 2 : 1;
 /** Map dimensions in world-pixels (unscaled). */
 export const MAP_PX_W = GRID_COLS * TILE_SIZE;
 export const MAP_PX_H = GRID_ROWS * TILE_SIZE;
