@@ -20,6 +20,7 @@ import {
   type GameViewState,
   isHuman,
 } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
@@ -95,6 +96,10 @@ export interface E2EBridgeSnapshot {
 interface E2EBridge extends E2EBridgeSnapshot {
   worldToClient: (wx: number, wy: number) => { cx: number; cy: number };
   tileToClient: (row: number, col: number) => { cx: number; cy: number };
+  /** Serialize the current `GameState` into a JSON-safe snapshot. Returns
+   *  null before the state is ready (lobby). Sets/Maps are converted to
+   *  arrays; `bus` and `rng` are dropped. */
+  gameState: () => SerializedGameState | null;
   /** When true, the bridge captures a canvas PNG on every non-banner tick
    *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
    *  `toDataURL` every frame is expensive. Set by E2E tests that need
@@ -128,6 +133,39 @@ export type E2EBusEntryOf<K extends keyof GameEventMap> = GameEventMap[K] &
 export type E2EBusEntry = {
   [K in keyof GameEventMap]: E2EBusEntryOf<K>;
 }[keyof GameEventMap];
+
+/** Matches any function (contravariant `never[]` parameters accept all
+ *  argument lists). Used to filter methods out of `Serialized<T>`. */
+type AnyFn = (...args: never[]) => unknown;
+
+/** Recursive type transformer that mirrors the runtime sanitizer applied to
+ *  `GameState` before crossing the Playwright boundary:
+ *  - `Set` / `ReadonlySet` become arrays
+ *  - `Map` / `ReadonlyMap` become entry-tuple arrays
+ *  - functions and class instances with method shapes are dropped
+ *    (keys whose value extends `AnyFn` are filtered out)
+ *  - plain arrays / objects are walked recursively */
+export type Serialized<T> =
+  T extends ReadonlyMap<infer K, infer V>
+    ? (readonly [K, Serialized<V>])[]
+    : T extends ReadonlySet<infer U>
+      ? Serialized<U>[]
+      : T extends readonly (infer U)[]
+        ? Serialized<U>[]
+        : T extends AnyFn
+          ? never
+          : T extends object
+            ? {
+                [K in keyof T as T[K] extends AnyFn ? never : K]: Serialized<
+                  T[K]
+                >;
+              }
+            : T;
+
+/** Serialized `GameState` — the shape returned by `sc.gameState()`. Matches
+ *  the in-memory `GameState` field-for-field with Sets/Maps converted to
+ *  array forms and the transient service fields (`bus`, `rng`) dropped. */
+export type SerializedGameState = Serialized<Omit<GameState, "bus" | "rng">>;
 
 interface E2EBridgeDeps {
   runtimeState: RuntimeState;
@@ -178,6 +216,10 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       controller: null,
       worldToClient,
       tileToClient: makeTileToClient(worldToClient),
+      gameState: () =>
+        isStateReady(deps.runtimeState)
+          ? serializeGameState(deps.runtimeState.state)
+          : null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
       step: false,
@@ -458,4 +500,23 @@ function collectEnemyTargets(
   }
 
   return { enemyCannons, enemyTargets };
+}
+
+/** Serialize `GameState` into a JSON-safe snapshot for the E2E bridge.
+ *  Matches the shape declared by `SerializedGameState`. */
+function serializeGameState(state: GameState): SerializedGameState {
+  return JSON.parse(
+    JSON.stringify(state, serializeStateReplacer),
+  ) as SerializedGameState;
+}
+
+/** JSON.stringify replacer that converts Sets/Maps to JSON-safe arrays,
+ *  drops functions, and drops the transient `bus` and `rng` fields. Kept as
+ *  a top-level const so the same function is reused across calls. */
+function serializeStateReplacer(key: string, value: unknown): unknown {
+  if (key === "bus" || key === "rng") return undefined;
+  if (typeof value === "function") return undefined;
+  if (value instanceof Set) return Array.from(value);
+  if (value instanceof Map) return Array.from(value.entries());
+  return value;
 }

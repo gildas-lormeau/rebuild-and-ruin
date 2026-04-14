@@ -62,6 +62,14 @@ Deno.test("e2e: runUntil stops at first battle phase", async () => {
     const currentPhase = await sc.phase();
     assertEquals(currentPhase, Phase.BATTLE);
     assertGreater(phases.length, 0, "expected phaseStart events before battle");
+
+    // gameState() returns the full GameState with Sets/Maps converted —
+    // agents read player.lives / grunts.length / etc. the same way
+    // headless tests do via `sc.state.*`.
+    const game = await sc.gameState();
+    assert(game !== null, "expected gameState once BATTLE starts");
+    assertEquals(game.phase, Phase.BATTLE);
+    assertGreater(game.players.length, 0, "expected players array populated");
   } finally {
     await sc.close();
   }

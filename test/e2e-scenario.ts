@@ -18,6 +18,7 @@ import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
   E2EBusEntryOf,
+  SerializedGameState,
 } from "../src/runtime/runtime-e2e-bridge.ts";
 import {
   GAME_EVENT,
@@ -32,6 +33,7 @@ export { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 export type {
   E2EBusEntry,
   E2EBusEntryOf,
+  SerializedGameState,
 } from "../src/runtime/runtime-e2e-bridge.ts";
 
 /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
@@ -70,8 +72,16 @@ type E2EAnyHandler = (type: E2EEventType, event: E2EBusEntry) => void;
 export interface E2EScenario {
   /** Escape hatch for custom page.evaluate calls. */
   readonly page: Page;
-  /** Read the current bridge snapshot. */
+  /** Read the current bridge snapshot (UI-facing summary — mode, phase,
+   *  overlay, controller). For the full game state (players, grunts,
+   *  cannonballs, …), use `gameState()`. */
   state(): Promise<E2EBridgeSnapshot>;
+  /** Read the current `GameState` as a JSON-safe snapshot. Mirrors the
+   *  headless `sc.state` field: same field names, same structure, but
+   *  `Set`s are arrays, `Map`s are entry-tuple arrays, and the transient
+   *  `bus` / `rng` services are dropped. Returns `null` before the state
+   *  is ready (e.g. while the lobby is still up). */
+  gameState(): Promise<SerializedGameState | null>;
   /** Current UI mode (LOBBY, GAME, STOPPED, …) — stringified `Mode` enum key. */
   mode(): Promise<E2EMode>;
   /** Current game phase — `Phase` enum (string-valued), or "" before ready. */
@@ -341,6 +351,16 @@ export async function createE2EScenario(
           }),
         );
       }),
+
+    gameState: () =>
+      page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as
+          | { gameState?: () => SerializedGameState | null }
+          | undefined;
+        if (!e2e) throw new Error("__e2e bridge not available");
+        return e2e.gameState?.() ?? null;
+      }) as Promise<SerializedGameState | null>,
 
     mode: () =>
       page.evaluate(() => {
