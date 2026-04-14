@@ -49,7 +49,10 @@ function applyFrozenRiver(state: GameState): ReadonlySet<number> {
   return frozen;
 }
 
-/** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
+/** Thaw frozen river: kill grunts stranded on water, clear frozen state.
+ *  Also resets all surviving grunts' targets so they re-lock against the
+ *  post-thaw zone filter (cross-zone targets picked while frozen are no
+ *  longer reachable once water is impassable again). */
 function clearFrozenRiver(state: GameState): void {
   const modern = state.modern;
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
@@ -57,6 +60,9 @@ function clearFrozenRiver(state: GameState): void {
     state.grunts = state.grunts.filter(
       (gr) => !modern.frozenTiles!.has(packTile(gr.row, gr.col)),
     );
+    for (const grunt of state.grunts) {
+      grunt.targetTowerIdx = undefined;
+    }
   }
   modern.frozenTiles = null;
   state.map.mapVersion++;
