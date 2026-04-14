@@ -15,6 +15,7 @@
 import {
   buildGrid,
   buildLegend,
+  formatGrid,
   type MapLayer,
 } from "../src/runtime/dev-console-grid.ts";
 import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
@@ -24,13 +25,23 @@ import type {
 } from "../src/shared/ui/overlay-types.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 
+export interface AsciiSnapshotOptions {
+  layer?: MapLayer;
+  /** Wrap the grid with row/col coordinate margins. Defaults to `false`
+   *  on headless to keep existing tests (which grep on the raw grid)
+   *  working; E2E defaults to `true`. */
+  coords?: boolean;
+}
+
 export interface AsciiRenderer {
   /** All captured frames as text. */
   readonly frames: readonly string[];
   /** The most recent frame, or empty string if none captured yet. */
   readonly lastFrame: string;
-  /** Render the current state on demand (outside the draw loop). */
-  snapshot(layer?: MapLayer): string;
+  /** Render the current state on demand (outside the draw loop). Accepts
+   *  either a bare `MapLayer` (back-compat) or an options object that
+   *  also toggles coordinate margins. */
+  snapshot(opts?: MapLayer | AsciiSnapshotOptions): string;
 }
 
 /** Internal type — includes RendererInterface + bind for createScenario. */
@@ -46,12 +57,19 @@ export function createAsciiRenderer(): AsciiRendererInternal {
   const eventTarget = createStubElement();
   let getState: (() => GameState) | undefined;
 
-  function renderState(layer: MapLayer = "all"): string {
+  function renderState(opts: AsciiSnapshotOptions = {}): string {
     if (!getState) throw new Error("AsciiRenderer not bound — call bind() first");
     const state = getState();
-    const grid = buildGrid(state, layer, undefined);
-    const lines = grid.map((row) => row.map((cell) => cell.char).join(""));
-    return `${buildLegend(state)}\n${lines.join("\n")}`;
+    const grid = buildGrid(state, opts.layer ?? "all", undefined);
+    return formatGrid(grid, buildLegend(state), { coords: opts.coords ?? false });
+  }
+
+  function resolveOpts(
+    arg: MapLayer | AsciiSnapshotOptions | undefined,
+  ): AsciiSnapshotOptions {
+    if (arg === undefined) return {};
+    if (typeof arg === "string") return { layer: arg };
+    return arg;
   }
 
   return {
@@ -79,8 +97,8 @@ export function createAsciiRenderer(): AsciiRendererInternal {
     get lastFrame() {
       return frames.length > 0 ? frames[frames.length - 1]! : "";
     },
-    snapshot(layer?: MapLayer) {
-      return renderState(layer);
+    snapshot(opts?: MapLayer | AsciiSnapshotOptions) {
+      return renderState(resolveOpts(opts));
     },
     bind(stateGetter: () => GameState) {
       getState = stateGetter;

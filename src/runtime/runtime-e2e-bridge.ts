@@ -27,6 +27,7 @@ import {
   buildGrid,
   buildLegend,
   DEFAULT_MAP_LAYER,
+  formatGrid,
   type MapLayer,
 } from "./dev-console-grid.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
@@ -114,8 +115,12 @@ interface E2EBridge extends E2EBridgeSnapshot {
   /** Text-grid snapshot of the map — identical output to the headless
    *  ASCII renderer (`AsciiRenderer.snapshot()`), produced on demand
    *  from the live `GameState`. Returns null before state is ready.
-   *  `layer` defaults to "all"; pass "terrain" or "walls" to filter. */
-  asciiSnapshot: (layer?: MapLayer) => string | null;
+   *  Accepts a bare `MapLayer` for back-compat or an options object.
+   *  Coordinate margins default ON for E2E (so agents can cite tiles
+   *  by index without character-counting). */
+  asciiSnapshot: (
+    opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
+  ) => string | null;
   /** When true, the bridge captures a canvas PNG on every non-banner tick
    *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
    *  `toDataURL` every frame is expensive. Set by E2E tests that need
@@ -239,9 +244,9 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
         isStateReady(deps.runtimeState)
           ? serializeGameState(deps.runtimeState.state)
           : null,
-      asciiSnapshot: (layer = DEFAULT_MAP_LAYER) =>
+      asciiSnapshot: (opts) =>
         isStateReady(deps.runtimeState)
-          ? renderAscii(deps.runtimeState.state, layer)
+          ? renderAscii(deps.runtimeState.state, opts)
           : null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
@@ -543,11 +548,27 @@ function serializeGameState(state: GameState): SerializedGameState {
 
 /** Render the current `GameState` as an ASCII grid + legend string.
  *  Output matches the headless `AsciiRenderer.snapshot()` format so
- *  agents can copy-paste inspection idioms across APIs. */
-function renderAscii(state: GameState, layer: MapLayer): string {
+ *  agents can copy-paste inspection idioms across APIs. Coordinate
+ *  margins default ON here (E2E) and OFF on headless (tests pattern-
+ *  match on the raw grid). */
+function renderAscii(
+  state: GameState,
+  opts: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined,
+): string {
+  const { layer, coords } = normalizeAsciiOpts(opts);
   const grid = buildGrid(state, layer, undefined);
-  const lines = grid.map((row) => row.map((cell) => cell.char).join(""));
-  return `${buildLegend(state)}\n${lines.join("\n")}`;
+  return formatGrid(grid, buildLegend(state), { coords });
+}
+
+function normalizeAsciiOpts(
+  opts: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined,
+): { layer: MapLayer; coords: boolean } {
+  if (opts === undefined) return { layer: DEFAULT_MAP_LAYER, coords: true };
+  if (typeof opts === "string") return { layer: opts, coords: true };
+  return {
+    layer: opts.layer ?? DEFAULT_MAP_LAYER,
+    coords: opts.coords ?? true,
+  };
 }
 
 /** JSON.stringify replacer that converts Sets/Maps to JSON-safe arrays,

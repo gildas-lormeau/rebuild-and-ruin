@@ -107,8 +107,12 @@ export interface E2EScenario extends AsyncDisposable {
    *  defaults to "all". Useful for inspection in failing-test logs:
    *
    *      console.log(await sc.asciiSnapshot());
-   */
-  asciiSnapshot(layer?: MapLayer): Promise<string | null>;
+   *
+   *  Coordinate margins default ON (set `coords: false` to match the
+   *  headless format). Accepts a bare `MapLayer` for back-compat. */
+  asciiSnapshot(
+    opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
+  ): Promise<string | null>;
   /** Current UI mode (LOBBY, GAME, STOPPED, …) — stringified `Mode` enum key. */
   mode(): Promise<E2EMode>;
   /** Current game phase — `Phase` enum (string-valued), or "" before ready. */
@@ -503,15 +507,24 @@ export async function createE2EScenario(
         return e2e.gameState?.() ?? null;
       }) as Promise<SerializedGameState | null>,
 
-    asciiSnapshot: (layer = "all") =>
-      page.evaluate((filterLayer: MapLayer) => {
-        const e2e = (globalThis as unknown as Record<string, unknown>)
-          .__e2e as
-          | { asciiSnapshot?: (layer: MapLayer) => string | null }
-          | undefined;
-        if (!e2e) throw new Error("__e2e bridge not available");
-        return e2e.asciiSnapshot?.(filterLayer) ?? null;
-      }, layer),
+    asciiSnapshot: (opts) =>
+      page.evaluate(
+        (arg: MapLayer | { layer?: MapLayer; coords?: boolean } | undefined) => {
+          const e2e = (globalThis as unknown as Record<string, unknown>)
+            .__e2e as
+            | {
+                asciiSnapshot?: (
+                  opts?:
+                    | MapLayer
+                    | { layer?: MapLayer; coords?: boolean },
+                ) => string | null;
+              }
+            | undefined;
+          if (!e2e) throw new Error("__e2e bridge not available");
+          return e2e.asciiSnapshot?.(arg) ?? null;
+        },
+        opts,
+      ),
 
     mode: () =>
       page.evaluate(() => {

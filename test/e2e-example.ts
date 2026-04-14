@@ -71,6 +71,41 @@ Deno.test("e2e: runUntil stops at first battle phase", async () => {
   assertGreater(game.players.length, 0, "expected players array populated");
 });
 
+Deno.test("e2e: asciiSnapshot has coordinate margins by default", async () => {
+  await using sc = await createE2EScenario({
+    seed: 42,
+    humans: 0,
+    headless: true,
+    rounds: 1,
+  });
+
+  await waitForPhase(sc, Phase.BATTLE);
+
+  // Default E2E format: coord margins on. Every body row is wrapped in
+  // `  NN |…|` so agents can cite tiles by index, and a `+----…----+`
+  // border sits above the grid.
+  const withCoords = await sc.asciiSnapshot();
+  assert(withCoords !== null, "expected snapshot once battle starts");
+  const lines = withCoords.split("\n");
+  assert(
+    lines.some((line) => /^\s*\d+\s\|.*\|$/.test(line)),
+    "expected at least one row wrapped in `  NN |…|` margins",
+  );
+  assert(
+    lines.some((line) => /^\s*\+-+\+$/.test(line)),
+    "expected a top border line",
+  );
+
+  // Opt out — output matches the headless AsciiRenderer (no margins,
+  // no border).
+  const plain = await sc.asciiSnapshot({ coords: false });
+  assert(plain !== null);
+  assert(
+    !plain.split("\n").some((line) => /^\s*\+-+\+$/.test(line)),
+    "plain snapshot should not contain a border line",
+  );
+});
+
 Deno.test("e2e: two browsers play online with AI", async () => {
   // Host creates a room
   await using host = await createE2EScenario({

@@ -229,6 +229,29 @@ export function zoneBounds(state: GameState, zone: number): Rect | undefined {
   };
 }
 
+/** Render a `Cell[][]` grid as an ASCII string, optionally with coordinate
+ *  margins. Factored out of `AsciiRenderer.snapshot` / E2E `asciiSnapshot`
+ *  so both call sites can opt into margins uniformly. */
+export function formatGrid(
+  cells: readonly (readonly Cell[])[],
+  legend: string,
+  opts?: { coords?: boolean },
+): string {
+  const lines = cells.map((row) => row.map((cell) => cell.char).join(""));
+  if (!opts?.coords) return `${legend}\n${lines.join("\n")}`;
+
+  const cols = cells[0]?.length ?? 0;
+  const rowLabelW = String(cells.length - 1).length;
+  const pad = " ".repeat(rowLabelW);
+  const tensHeader = `${pad}  ${buildTensHeader(cols)}`;
+  const onesHeader = `${pad}  ${buildOnesHeader(cols)}`;
+  const border = `${pad} +${"-".repeat(cols)}+`;
+  const body = lines.map(
+    (row, index) => `${String(index).padStart(rowLabelW, " ")} |${row}|`,
+  );
+  return [legend, tensHeader, onesHeader, border, ...body].join("\n");
+}
+
 export function buildLegend(state: GameState): string {
   const playerInfo = state.players
     .map(
@@ -243,6 +266,20 @@ export function buildLegend(state: GameState): string {
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
     "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
   ].join("\n");
+}
+
+function buildTensHeader(cols: number): string {
+  let line = "";
+  for (let col = 0; col < cols; col++) {
+    line += col >= 10 && col % 10 === 0 ? String(Math.floor(col / 10)) : " ";
+  }
+  return line;
+}
+
+function buildOnesHeader(cols: number): string {
+  let line = "";
+  for (let col = 0; col < cols; col++) line += String(col % 10);
+  return line;
 }
 
 function setCell(
