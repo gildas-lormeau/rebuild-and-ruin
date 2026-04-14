@@ -8,9 +8,7 @@ import {
   CannonMode,
 } from "../shared/core/battle-types.ts";
 import {
-  assertInteriorFresh,
   filterAliveOwnedTowers,
-  getInterior,
   hasWallAt,
   isCannonEnclosed,
 } from "../shared/core/board-occupancy.ts";
@@ -24,6 +22,10 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
+import {
+  assertInteriorFresh,
+  getInterior,
+} from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,

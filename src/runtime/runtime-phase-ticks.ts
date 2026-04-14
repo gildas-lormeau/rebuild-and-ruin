@@ -26,7 +26,6 @@ import {
   type Crosshair,
   clearImpacts,
 } from "../shared/core/battle-types.ts";
-import { getInterior } from "../shared/core/board-occupancy.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -46,6 +45,7 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type HapticsSystem,

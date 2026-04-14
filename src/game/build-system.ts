@@ -10,11 +10,9 @@ import {
   BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
   collectOccupiedTiles,
-  getInterior,
   hasGruntAt,
   hasWallAt,
   isTileOwnedByPlayer,
-  markInteriorFresh,
   type OccupancyCache,
 } from "../shared/core/board-occupancy.ts";
 import {
@@ -31,6 +29,10 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
+import {
+  getInterior,
+  markInteriorFresh,
+} from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type FreshInterior,

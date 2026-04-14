@@ -18,7 +18,6 @@ import type {
 } from "../shared/core/battle-types.ts";
 import {
   filterActiveEnemies,
-  getInterior,
   zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
 import {
@@ -34,6 +33,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,

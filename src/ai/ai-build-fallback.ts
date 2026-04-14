@@ -5,10 +5,10 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
-import { getInterior } from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import {
   computeOutside,
   isCannonTile,

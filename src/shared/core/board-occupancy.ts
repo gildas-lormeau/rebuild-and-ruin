@@ -1,12 +1,9 @@
 import type { BurningPit, Cannon, Grunt } from "./battle-types.ts";
 import type { BonusSquare } from "./geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
+import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import {
-  type FreshInterior,
-  isPlayerAlive,
-  type Player,
-} from "./player-types.ts";
+import { isPlayerAlive, type Player } from "./player-types.ts";
 import {
   cannonSize,
   computeCannonTileSet,
@@ -33,23 +30,6 @@ export interface OccupancyCache {
   readonly gruntKeys: ReadonlySet<number>;
 }
 
-/**
- * Interior freshness tracking — lazy epoch pairs (wallsEpoch, interiorEpoch).
- *
- * CONTRACT:
- *   1. markWallsDirty(player) after any wall mutation (bumps wallsEpoch).
- *   2. recomputeInterior(player) to recompute interior (syncs interiorEpoch).
- *   3. assertInteriorFresh(player) before reading interior (checks epochs match).
- *
- * Epochs are undefined until the first markWallsDirty() call — this is safe:
- * assertInteriorFresh() returns early (no-op) when epochs are uninitialized,
- * allowing tests and code that never mutates walls to skip the overhead.
- *
- * BATTLE EXCEPTION: Interior is intentionally stale while walls are destroyed
- * frame-by-frame. It is rebuilt at the next build phase via recheckTerritory().
- */
-const wallsEpoch = new WeakMap<Player, number>();
-const interiorEpoch = new WeakMap<Player, number>();
 /** Preset: tiles that block bonus square placement.
  *  Does NOT include interior: bonus squares CAN appear inside territory
  *  (the separate `enclosed` check in replenishBonusSquares filters those).
@@ -344,20 +324,6 @@ export function sweepIsolatedWalls(player: Player): void {
   markWallsDirty(player);
 }
 
-/** Mark a player's interior as freshly recomputed and brand the set.
- *  Called by recomputeInterior inside recheckTerritory — do NOT call from other code.
- *  When `fresh` is provided, assigns it as the new interior (handles branded-type cast). */
-export function markInteriorFresh(
-  player: Player,
-  fresh?: Set<number>,
-): FreshInterior {
-  if (fresh !== undefined) {
-    (player as unknown as { interior: Set<number> }).interior = fresh;
-  }
-  interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
-  return player.interior;
-}
-
 /** Check whether all tiles of a cannon are inside the player's enclosed territory.
  *  Freshness of `player.interior` is asserted — callers that read during battle
  *  (when interior is intentionally stale) should still get the build-time snapshot. */
@@ -373,37 +339,12 @@ export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
   return true;
 }
 
-/** Return a player's interior after asserting it's fresh.
- *  Use this in build/cannon game logic — it guarantees the set reflects the
- *  current wall state. During battle, use `getBattleInterior()` instead
- *  (interior is intentionally stale while walls are being destroyed). */
-export function getInterior(player: Player): FreshInterior {
-  assertInteriorFresh(player);
-  return player.interior;
-}
-
 /** Return a player's interior WITHOUT freshness assertion.
  *  Battle-phase only: interior is intentionally stale during battle because
  *  walls destroyed by cannonballs are not reflected until the next build phase.
  *  Do NOT use outside battle code — use `getInterior()` everywhere else. */
 export function getBattleInterior(player: Player): ReadonlySet<number> {
   return player.interior;
-}
-
-/** Assert that a player's interior is not stale (walls haven't changed since
- *  the last recheckTerritory). Throws if stale — this is a programming error,
- *  not a runtime condition. No-op if epochs were never initialized (e.g. tests
- *  that don't call markWallsDirty). */
-export function assertInteriorFresh(player: Player): void {
-  const currentWallsEpoch = wallsEpoch.get(player);
-  if (currentWallsEpoch === undefined) return; // epoch tracking not active for this player
-  const currentInteriorEpoch = interiorEpoch.get(player) ?? -1;
-  if (currentInteriorEpoch < currentWallsEpoch) {
-    throw new Error(
-      `Stale interior for player ${player.id}: walls epoch ${currentWallsEpoch} > interior epoch ${currentInteriorEpoch}. ` +
-        `Call recheckTerritory() after wall mutations before reading interior.`,
-    );
-  }
 }
 
 function collectAllCannonTiles(
@@ -433,16 +374,6 @@ function removeIsolatedWalls(walls: Set<number>): void {
   for (const key of toRemove) walls.delete(key);
 }
 
-/** Mark a player's wall set as modified. Call after any .add/.delete/.clear
- *  on player.walls. Omitting this call is safe (assertion may false-negative)
- *  but including it catches stale-interior bugs. */
-function markWallsDirty(player: Player): void {
-  wallsEpoch.set(player, (wallsEpoch.get(player) ?? 0) + 1);
-}
-
-/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
- *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 /** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
 function mutableWalls(player: Player): Set<number> {
   return player.walls as Set<number>;

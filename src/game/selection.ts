@@ -1,6 +1,6 @@
-import { getInterior } from "../shared/core/board-occupancy.ts";
 import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,

@@ -14,6 +14,7 @@
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/occupancy-queries.ts",
       "src/shared/core/pieces.ts",
+      "src/shared/core/player-interior.ts",
       "src/shared/core/player-slot.ts",
       "src/shared/core/player-types.ts",
       "src/shared/core/player-walls.ts",

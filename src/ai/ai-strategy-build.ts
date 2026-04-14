@@ -13,12 +13,12 @@
 import { canPlacePiece } from "../game/index.ts";
 import {
   buildOccupancyCache,
-  getInterior,
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
 import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
+import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
