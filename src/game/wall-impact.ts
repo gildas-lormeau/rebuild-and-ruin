@@ -10,6 +10,7 @@
  */
 
 import type { Cannon } from "../shared/core/battle-types.ts";
+import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -96,6 +97,7 @@ function findShieldingRampart(
     const cannon = wallOwner.cannons[idx]!;
     if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
     if ((cannon.shieldHp ?? 0) <= 0) continue;
+    if (!isCannonEnclosed(cannon, wallOwner)) continue;
     // Chebyshev distance from rampart center (2×2 → center at +1,+1) to wall tile
     const dist = Math.max(
       Math.abs(wallRow - (cannon.row + 1)),

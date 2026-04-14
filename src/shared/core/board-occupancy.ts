@@ -1,4 +1,4 @@
-import type { BurningPit, Grunt } from "./battle-types.ts";
+import type { BurningPit, Cannon, Grunt } from "./battle-types.ts";
 import type { BonusSquare } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
@@ -7,6 +7,7 @@ import {
   type Player,
 } from "./player-types.ts";
 import {
+  cannonSize,
   computeCannonTileSet,
   countWallNeighbors,
   DIRS_4,
@@ -403,6 +404,21 @@ export function markInteriorFresh(
   }
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
   return player.interior;
+}
+
+/** Check whether all tiles of a cannon are inside the player's enclosed territory.
+ *  Freshness of `player.interior` is asserted — callers that read during battle
+ *  (when interior is intentionally stale) should still get the build-time snapshot. */
+export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
+  assertInteriorFresh(player);
+  const sz = cannonSize(cannon.mode);
+  for (let dr = 0; dr < sz; dr++) {
+    for (let dc = 0; dc < sz; dc++) {
+      if (!player.interior.has(packTile(cannon.row + dr, cannon.col + dc)))
+        return false;
+    }
+  }
+  return true;
 }
 
 /** Return a player's interior after asserting it's fresh.

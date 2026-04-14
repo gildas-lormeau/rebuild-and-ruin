@@ -12,6 +12,7 @@ import {
   filterAliveOwnedTowers,
   getInterior,
   hasWallAt,
+  isCannonEnclosed,
 } from "../shared/core/board-occupancy.ts";
 import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
 import {
@@ -52,6 +53,8 @@ import {
   consumeRapidEmplacement,
   rapidEmplacementDiscount,
 } from "./upgrades/rapid-emplacement.ts";
+
+export { isCannonEnclosed };
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
@@ -212,28 +215,6 @@ export function prepareControllerCannonPhase(
     if (snapped) cursorPos = snapped;
   }
   return { maxSlots, cursorPos };
-}
-
-/** Check whether all tiles of a cannon are inside enclosed territory.
- *
- *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
- *  recheckTerritory() after any wall change. The required call order is:
- *    1. Place/destroy walls  (+ markWallsDirty)
- *    2. recheckTerritory()   — recomputes player.interior via flood fill
- *    3. isCannonEnclosed()   — reads the freshly computed interior
- *  Skipping step 2 is caught by assertInteriorFresh() at runtime when
- *  epoch tracking is active (all production code paths call markWallsDirty). */
-export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
-  assertInteriorFresh(player);
-  const { interior } = player;
-  const sz = cannonSize(cannon.mode);
-  for (let dr = 0; dr < sz; dr++) {
-    for (let dc = 0; dc < sz; dc++) {
-      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc)))
-        return false;
-    }
-  }
-  return true;
 }
 
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
