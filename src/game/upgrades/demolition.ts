@@ -15,6 +15,7 @@ import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import {
   computeOutside,
   DIRS_8,
+  inBounds,
   packTile,
   unpackTile,
 } from "../../shared/core/spatial.ts";
@@ -35,7 +36,9 @@ function onPick(state: GameState): void {
       const { r, c } = unpackTile(key);
       let loadBearing = false;
       for (const [dr, dc] of DIRS_8) {
-        if (outside.has(packTile(r + dr, c + dc))) {
+        const nr = r + dr,
+          nc = c + dc;
+        if (!inBounds(nr, nc) || outside.has(packTile(nr, nc))) {
           loadBearing = true;
           break;
         }
