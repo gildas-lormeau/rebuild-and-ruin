@@ -13,17 +13,16 @@
 import { assert } from "@std/assert";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
-import { createScenario } from "./scenario.ts";
+import { loadSeed } from "./scenario.ts";
 
-const MAX_TIMEOUT_MS = 120_000;
+/** Generous sim-time budget — high_tide fires on a late round for the
+ *  seed registry's entry, and we need another battle cycle after it. */
+const MAX_TIMEOUT_MS = 1_200_000;
 
 Deno.test("battle banner chains after high_tide modifier banner", async () => {
   const recorder = createCanvasRecorder({ discardCalls: true });
 
-  using sc = await createScenario({
-    seed: 1,
-    mode: "modern",
-    rounds: 10,
+  using sc = await loadSeed("modifier:high_tide", {
     renderer: { canvas: recorder, observer: { terrainDrawn: () => {} } },
   });
 

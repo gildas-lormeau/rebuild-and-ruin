@@ -33,7 +33,7 @@
     "test:dt-divergence": "deno test --no-check test/dt-divergence.test.ts",
     "find-seed": "deno run -A scripts/find-seed.ts",
     "record-seeds": "deno run -A scripts/record-seeds.ts",
-    "test:all": "npm run test:scenario && npm run test:determinism && npm run test:sync && npm run test:speed && npm run test:input && npm run test:touch && npm run test:haptics && npm run test:sound && npm run test:network && npm run test:receive && npm run test:online && npm run test:banner && npm run test:e2e:local:quick",
+    "test:all": "npm run test:scenario && npm run test:determinism && npm run test:sync && npm run test:speed && npm run test:input && npm run test:touch && npm run test:haptics && npm run test:sound && npm run test:network && npm run test:receive && npm run test:online && npm run test:banner && npm run test:banner:high-tide && npm run test:upgrades && npm run test:e2e:local:quick",
     "format": "biome format --write src/ server/",
     "format:check": "biome format src/ server/",
     "lint": "biome check src/ server/",

@@ -29,6 +29,19 @@ import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
 import { loadSeed, type Scenario } from "./scenario.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 
+interface Pick {
+  readonly upgradeId: UpgradeId;
+  readonly playerId: number;
+}
+
+/** Per-upgrade effect probe. `install` subscribes to bus events and/or
+ *  snapshots state, and returns a finalizer that answers "did the effect
+ *  fire at least once for `picker`?" */
+interface EffectProbe {
+  readonly description: string;
+  install(sc: Scenario): (picker: number) => boolean;
+}
+
 const UPGRADE_IDS: readonly UpgradeId[] = [
   "mortar",
   "rapid_fire",
@@ -50,25 +63,13 @@ const UPGRADE_IDS: readonly UpgradeId[] = [
   "demolition",
   "clear_the_field",
 ];
-
-const MAX_TIMEOUT_MS = 120_000;
+/** 10-round modern games routinely need >2min of sim time to surface
+ *  every upgrade draft, especially rare ones. Matches the seed registry
+ *  scanner's budget (`scripts/record-seeds.ts`). */
+const MAX_TIMEOUT_MS = 1_200_000;
 /** Rounds per scenario run. Enough rounds so every targeted upgrade has
  *  multiple chances to be picked and fire its effect. */
 const ROUNDS = 10;
-
-interface Pick {
-  readonly upgradeId: UpgradeId;
-  readonly playerId: number;
-}
-
-/** Per-upgrade effect probe. `install` subscribes to bus events and/or
- *  snapshots state, and returns a finalizer that answers "did the effect
- *  fire at least once for `picker`?" */
-interface EffectProbe {
-  readonly description: string;
-  install(sc: Scenario): (picker: number) => boolean;
-}
-
 /** Effect probes for the 9 easy-tier upgrades. See file header for the
  *  design rationale. Missing entries fall back to pick-only assertions.
  *
@@ -280,8 +281,8 @@ const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
     },
   },
 };
-
 const seedGroups = new Map<number, UpgradeId[]>();
+
 for (const upgradeId of UPGRADE_IDS) {
   const seed = (SEED_FIXTURES as Record<string, number>)[
     `upgrade:${upgradeId}`
@@ -346,4 +347,3 @@ for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
     }
   });
 }
-
