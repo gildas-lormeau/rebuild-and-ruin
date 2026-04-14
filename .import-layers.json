@@ -29,7 +29,7 @@
     ]
   },
   {
-    "name": "foundational definitions",
+    "name": "foundational types & local entry",
     "tier": "types",
     "files": [
       "src/entry.ts",
@@ -57,7 +57,7 @@
     ]
   },
   {
-    "name": "core game types",
+    "name": "wire format & config types",
     "tier": "types",
     "files": [
       "src/protocol/protocol.ts",
@@ -67,7 +67,7 @@
     ]
   },
   {
-    "name": "core state & interfaces",
+    "name": "core game state & server stubs",
     "tier": "types",
     "files": [
       "server/game-room.ts",
@@ -98,7 +98,7 @@
     ]
   },
   {
-    "name": "deep logic",
+    "name": "upgrades, modifiers & runtime contracts",
     "tier": "logic",
     "files": [
       "server/server.ts",
@@ -140,7 +140,7 @@
     ]
   },
   {
-    "name": "handlers",
+    "name": "cross-domain handlers",
     "tier": "systems",
     "files": [
       "src/ai/ai-castle-rect.ts",
@@ -219,7 +219,7 @@
     ]
   },
   {
-    "name": "assembly",
+    "name": "mid-depth assembly",
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy-build.ts",
@@ -229,7 +229,7 @@
     ]
   },
   {
-    "name": "controllers",
+    "name": "game & runtime composition",
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
@@ -240,7 +240,7 @@
     ]
   },
   {
-    "name": "orchestration",
+    "name": "phase orchestration & app entry",
     "tier": "assembly",
     "files": [
       "src/ai/ai-phase-battle.ts",
@@ -272,7 +272,7 @@
     ]
   },
   {
-    "name": "app roots",
+    "name": "online session lifecycle",
     "tier": "roots",
     "files": [
       "src/online/online-checkpoints.ts",

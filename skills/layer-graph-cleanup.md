@@ -35,7 +35,7 @@ deno run -A scripts/layer-graph.ts
 
 This emits a dot graph where each **node = one layer group**, and each **edge = at least one file in group A imports a file in group B**. Paste the output at https://dreampuf.github.io/GraphvizOnline/ or render with `dot`.
 
-The graph is far more readable than a file-level graph: ~17 nodes instead of ~150. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L16).
+The graph is far more readable than a file-level graph: ~19 nodes instead of ~190. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
 
 ## Step 2 — Read the graph for smells
 
@@ -133,7 +133,9 @@ After moving files, check that group names and tiers still describe their conten
 - A file whose only reason for being in group G is a single type → move the type, then move the file
 - If a group moved across a tier boundary (e.g., from logic to systems), update its `tier` field
 
-Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L16).
+Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14+).
+
+**Name drift after refactors.** The generator preserves `name` and `tier` across regens (indexed by layer number); it never rewrites them. After any refactor that adds/removes files at a layer, the preserved label may no longer describe the contents. Treat this as a **bug**, not cosmetic: the project's stated invariant is a perfect graph where every group name honestly describes its files. When a refactor lands, re-read every affected group's file list and rename if the label lies. Legitimate min-depth edge cases (entry points, server stubs, barrel files) should be accommodated by broader names (e.g., "foundational types & local entry"), not hidden behind a narrower label.
 
 ## Step 7 — Find single-consumer exports crossing domains
 
@@ -393,3 +395,4 @@ Most entries below were discovered and executed by LLM-based agents under script
 | `player/` was a 3-file fictional domain that clustered with `ai/` | First merged player files into `ai/` → exposed the lie that `ai/controller-human.ts` makes ("human controller in AI domain"). Re-extracted into a new `controllers/` domain holding `controller-{types,human,ai,factory}.ts` (the 3 ex-player files plus `controller-ai.ts` from `ai/`); `ai/` is now strategy-only. `controllers → ai` allowed (controller-ai wraps `DefaultStrategy`) |
 | `input/sound-system.ts` and `input/haptics-system.ts` are observers, not input | Both files' own docstrings say "Follows the factory-with-deps pattern used by **other runtime sub-systems**." Moved + renamed: `src/runtime/runtime-sound.ts`, `src/runtime/runtime-haptics.ts`. They join the existing 13 runtime sub-systems via the `runtime-` prefix; added to `lint-architecture.ts` `EXEMPT` set (they're factories with single deps + observer, not generic primitives). `input/` is now 9 files of true input handlers |
 | Lateral-imports allowlist became fully stale after layer shifts | Cleared `scripts/lateral-imports-allowlist.json` to `[]` — the layer regen turned all 3 prior lateral edges into normal downward imports |
+| Group names drifted after upgrade/modifier split + `controllers/` extraction (April 2026) | Nine groups renamed to match contents without moving any files: L1 "foundational definitions" → "foundational types & local entry" (now accommodates `entry.ts`); L3 "core game types" → "wire format & config types"; L4 "core state & interfaces" → "core game state & server stubs" (holds `server/game-room.ts`, `online-lobby-ui.ts` alongside types); L6 "deep logic" → "upgrades, modifiers & runtime contracts" (22 per-upgrade/per-modifier files dominate); L7 "handlers" → "cross-domain handlers" (24 files from 6 domains — no single theme); L10 "assembly" → "mid-depth assembly"; L11 "controllers" → "game & runtime composition" (the only controller lives at L13); L12 "orchestration" → "phase orchestration & app entry" (adds `main.ts`); L15 "app roots" → "online session lifecycle". No structural violations — this was pure semantic drift in preserved `name`/`tier` fields |
