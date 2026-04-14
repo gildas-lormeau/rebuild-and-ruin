@@ -178,6 +178,8 @@ export function enterBuildFromBattle(state: GameState): void {
   cleanupBattleArtifacts(state);
   spawnIdleFirstBattleGrunts(state);
   recheckTerritory(state);
+  // End of the protected battle — clear the fresh-castle grace period flag.
+  for (const player of state.players) player.freshCastle = false;
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
   // Must happen here (not in enterBattleFromCannon) so watchers see the same
@@ -241,6 +243,8 @@ export function finalizeReselectedPlayers(
     if (!player.homeTower) continue;
     // Protect animated walls from debris sweep
     player.castleWallTiles = new Set(player.walls);
+    // Grace period: skip modifiers on this player's zone for the upcoming battle.
+    player.freshCastle = true;
     // Destroy houses under rebuilt castle walls
     for (const house of state.map.houses) {
       if (!house.alive) continue;

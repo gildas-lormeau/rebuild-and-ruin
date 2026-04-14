@@ -353,6 +353,7 @@ export function applyPlayersCheckpoint(
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
     player.damagedWalls = new Set(entry.damagedWalls ?? []);
+    player.freshCastle = entry.freshCastle ?? false;
   }
 }
 
@@ -432,6 +433,7 @@ function serializePlayerCore(player: Player) {
       player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
     damagedWalls:
       player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
+    freshCastle: player.freshCastle || undefined,
   };
 }
 

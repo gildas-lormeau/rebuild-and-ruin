@@ -52,6 +52,7 @@
       "src/game/modifiers/grunt-surge.ts",
       "src/game/modifiers/high-tide.ts",
       "src/game/modifiers/low-water.ts",
+      "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/modifier-types.ts",
       "src/game/modifier-system.ts",
       "src/game/modifiers/rubble-clearing.ts",

@@ -19,6 +19,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import { getGraceCastleZones } from "./modifier-eligibility.ts";
 
 /** Build a predicate for whether a tile can burn in a specific zone. */
 export function buildCanBurnPredicate(
@@ -51,6 +52,18 @@ export function applyFireScar(
   state: GameState,
   scar: ReadonlySet<number>,
 ): void {
+  const graceZones = getGraceCastleZones(state);
+  if (graceZones.size > 0) {
+    for (const key of scar) {
+      const { r, c } = unpackTile(key);
+      const zone = state.map.zones[r]?.[c];
+      if (zone !== undefined && graceZones.has(zone)) {
+        throw new Error(
+          `applyFireScar touched fresh-castle zone ${zone} at (${r},${c}) — use getModifierEligibleZones() to select targets`,
+        );
+      }
+    }
+  }
   const newPits: BurningPit[] = [];
   for (const key of scar) {
     const { r, c } = unpackTile(key);

@@ -1,26 +1,4 @@
 {
   "maxLateralImports": 3,
-  "edges": [
-    {
-      "from": "src/shared/core/system-interfaces.ts",
-      "to": "src/shared/core/phantom-types.ts",
-      "rationale": "PlacementPreview types are aliases of Phantom types — dedup via shape-duplicate lint",
-      "owner": "Gildas",
-      "expiresOn": "2027-04-13"
-    },
-    {
-      "from": "src/game/modifiers/fire-helpers.ts",
-      "to": "src/shared/core/board-occupancy.ts",
-      "rationale": "Fire helpers need hasCannonAt + removeWallFromAllPlayers from board-occupancy — both are stable leaf utilities",
-      "owner": "Gildas",
-      "expiresOn": "2027-04-13"
-    },
-    {
-      "from": "src/game/upgrades/upgrade-types.ts",
-      "to": "src/shared/core/types.ts",
-      "rationale": "UpgradeImpl interface needs GameState — mirrors modifier-types.ts pattern; type-only import",
-      "owner": "Gildas",
-      "expiresOn": "2027-04-13"
-    }
-  ]
+  "edges": []
 }

@@ -66,6 +66,8 @@ export interface SerializedPlayer {
   upgrades?: [string, number][];
   /** Wall tiles that absorbed one hit (reinforced walls). */
   damagedWalls?: number[];
+  /** True during the grace-period battle after a reselect auto-build. */
+  freshCastle?: boolean;
 }
 
 export interface SerializedBurningPit {

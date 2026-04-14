@@ -58,6 +58,10 @@ export interface Player {
   /** Wall tiles that have absorbed one hit (reinforced walls upgrade).
    *  Cleared at build phase start. Second hit destroys normally. */
   damagedWalls: Set<number>;
+  /** True for one battle after the player's castle is freshly (re)built.
+   *  Modifiers skip this player's zone while set — grace period so a newly
+   *  rebuilt castle isn't immediately battered. Cleared in enterBuildFromBattle. */
+  freshCastle: boolean;
 }
 
 /** Create a branded empty interior set. Use at Player creation. */

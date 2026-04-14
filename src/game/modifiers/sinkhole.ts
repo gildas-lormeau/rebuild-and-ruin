@@ -9,7 +9,6 @@ import {
   removeWallFromAllPlayers,
 } from "../../shared/core/board-occupancy.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
-import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import {
   DIRS_8,
   isGrass,
@@ -20,6 +19,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import { getModifierEligibleZones } from "./modifier-eligibility.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 /** A sinkhole shape is a list of (row, col) offsets from a top-left anchor.
@@ -152,9 +152,8 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   if (existing >= SINKHOLE_MAX_TOTAL) return new Set();
 
   // One shape per active zone — same tile count for fairness
-  const activeZones = state.players
-    .filter(isPlayerSeated)
-    .map((player) => player.homeTower.zone);
+  const activeZones = getModifierEligibleZones(state);
+  if (activeZones.length === 0) return new Set();
   const candidateBudget = Math.min(
     state.rng.int(SINKHOLE_MIN_SIZE, SINKHOLE_MAX_SIZE),
     Math.floor((SINKHOLE_MAX_TOTAL - existing) / activeZones.length),
