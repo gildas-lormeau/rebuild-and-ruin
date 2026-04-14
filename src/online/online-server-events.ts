@@ -239,7 +239,12 @@ function handlePiecePlaced(
   deps.log(
     `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
   );
-  const hadInterior = getInterior(state.players[msg.playerId]!).size > 0;
+  // Read interior size directly (not via getInterior) — the fanfare-trigger
+  // check is cosmetic, and the interior may legitimately be stale on the
+  // receive side immediately after a castle build animation or mid-round
+  // reselect. applyPiecePlacement runs recheckTerritory afterward, so the
+  // post-state read is always fresh.
+  const hadInterior = state.players[msg.playerId]!.interior.size > 0;
   applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
   if (!hadInterior && getInterior(state.players[msg.playerId]!).size > 0) {
     deps.onFirstEnclosure?.(msg.playerId);
