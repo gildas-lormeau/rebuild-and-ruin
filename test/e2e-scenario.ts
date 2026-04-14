@@ -70,7 +70,7 @@ export type E2EBusHandler<K extends E2EEventType> = (
 /** Catch-all handler. Receives the event type string and the entry. */
 type E2EAnyHandler = (type: E2EEventType, event: E2EBusEntry) => void;
 
-export interface E2EScenario {
+export interface E2EScenario extends AsyncDisposable {
   /** Escape hatch for custom page.evaluate calls. */
   readonly page: Page;
   /** Read the current bridge snapshot (UI-facing summary — mode, phase,
@@ -497,6 +497,10 @@ export async function createE2EScenario(
     },
 
     close: async () => {
+      await page.close().catch(() => {});
+      await browser.close().catch(() => {});
+    },
+    [Symbol.asyncDispose]: async () => {
       await page.close().catch(() => {});
       await browser.close().catch(() => {});
     },
