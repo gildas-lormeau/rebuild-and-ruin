@@ -13,7 +13,7 @@ import {
   type ServerMessage,
 } from "../protocol/protocol.ts";
 import {
-  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
   type GameMode,
   LOBBY_TIMER,
 } from "../shared/core/game-constants.ts";
@@ -94,7 +94,7 @@ export function createSession(): OnlineSession {
     roomSeed: 0,
     roomMaxRounds: 0,
     roomCannonMaxHp: DEFAULT_CANNON_HP,
-    roomGameMode: GAME_MODE_CLASSIC,
+    roomGameMode: GAME_MODE_MODERN,
     keepaliveTimer: null,
     lobbyStartTime: 0,
     earlyLifeLostChoices: new Map(),

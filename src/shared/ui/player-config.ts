@@ -134,7 +134,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   seedMode: SEED_RANDOM,
   keyBindings: [],
   leftHanded: false,
-  gameMode: GAME_MODE_CLASSIC,
+  gameMode: GAME_MODE_MODERN,
 };
 export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
@@ -171,9 +171,9 @@ export function loadSettings(): GameSettings {
         seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
         gameMode:
-          saved.gameMode === GAME_MODE_MODERN
-            ? GAME_MODE_MODERN
-            : GAME_MODE_CLASSIC,
+          saved.gameMode === GAME_MODE_CLASSIC
+            ? GAME_MODE_CLASSIC
+            : GAME_MODE_MODERN,
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS

@@ -14,7 +14,7 @@ import {
 } from "../protocol/protocol.ts";
 import { isHostInContext } from "../runtime/runtime-tick-context.ts";
 import {
-  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -131,7 +131,7 @@ export async function handleServerLifecycleMessage(
       deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.session.roomGameMode =
-        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_CLASSIC;
+        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_MODERN;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
@@ -140,7 +140,7 @@ export async function handleServerLifecycleMessage(
       deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.session.roomGameMode =
-        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_CLASSIC;
+        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_MODERN;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.session.lobbyStartTime = performance.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {

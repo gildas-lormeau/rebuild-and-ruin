@@ -18,6 +18,7 @@ import {
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
 import type { CannonMode } from "../shared/core/battle-types.ts";
+import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
@@ -38,7 +39,7 @@ export interface RoomSettings {
   cannonMaxHp: number; // 3, 6, 9, or 12
   waitTimerSec: number; // lobby wait duration before auto-start (seconds)
   seed?: number; // optional map seed (server generates random if omitted)
-  gameMode?: string; // "classic" or "modern" (default "classic")
+  gameMode?: string; // "classic" or "modern" (default "modern")
 }
 
 export type ClientMessage =
@@ -406,7 +407,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   const cannonMaxHp = Number(raw.cannonMaxHp);
   const wait = Number(raw.waitTimerSec);
   const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
-  const gameMode = String(raw.gameMode ?? "classic");
+  const gameMode = String(raw.gameMode ?? GAME_MODE_MODERN);
   return {
     maxRounds: VALID_MAX_ROUNDS.includes(maxRounds) ? maxRounds : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(cannonMaxHp)
@@ -417,6 +418,6 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
         ? Math.min(wait, MAX_WAIT_TIMER_SEC)
         : DEFAULT_WAIT_TIMER_SEC,
     seed: Number.isFinite(seed) ? seed : undefined,
-    gameMode: VALID_GAME_MODES.includes(gameMode) ? gameMode : "classic",
+    gameMode: VALID_GAME_MODES.includes(gameMode) ? gameMode : GAME_MODE_MODERN,
   };
 }
