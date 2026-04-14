@@ -8,7 +8,7 @@
  */
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
-import { applyFireScar } from "../src/game/modifiers/fire-helpers.ts";
+import { applyFireScar } from "../src/game/modifiers/fire.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,

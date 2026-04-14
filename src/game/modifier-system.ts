@@ -16,8 +16,8 @@ import { IMPLEMENTED_MODIFIERS } from "../shared/core/modifier-defs.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 import { crumblingWallsImpl } from "./modifiers/crumbling-walls.ts";
-import { dryLightningImpl } from "./modifiers/dry-lightning.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
+import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
 import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
 import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
 import { highTideImpl } from "./modifiers/high-tide.ts";
@@ -28,7 +28,6 @@ import type {
 } from "./modifiers/modifier-types.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";
-import { wildfireImpl } from "./modifiers/wildfire.ts";
 
 export { applyDustStormJitter } from "./modifiers/dust-storm.ts";
 

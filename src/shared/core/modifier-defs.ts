@@ -166,7 +166,7 @@ export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
  *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
 export const MODIFIER_CONSUMERS = {
   wildfire: {
-    impl: "src/game/modifiers/wildfire.ts",
+    impl: "src/game/modifiers/fire.ts",
   },
   crumbling_walls: {
     impl: "src/game/modifiers/crumbling-walls.ts",
@@ -198,7 +198,7 @@ export const MODIFIER_CONSUMERS = {
     serialize: "src/online/online-serialize.ts",
   },
   dry_lightning: {
-    impl: "src/game/modifiers/dry-lightning.ts",
+    impl: "src/game/modifiers/fire.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 
