@@ -38,6 +38,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { type Browser, chromium, devices, type Page } from "playwright";
 import { MESSAGE } from "../src/protocol/protocol.ts";
+import { installFastMode } from "../test/e2e-fast-mode.ts";
 
 // Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
 interface TestAction {
@@ -333,18 +334,8 @@ async function runLocal() {
   await page.waitForSelector("#game-container.active", { timeout: 5000 });
   await page.waitForTimeout(500);
 
-  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
-  // Injected early so the lobby countdown also runs fast.
-  if (FAST) {
-    await page.evaluate(() => {
-      let fakeTime = performance.now();
-      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
-        setTimeout(() => {
-          fakeTime += 100;
-          cb(fakeTime);
-        }, 1) as unknown as number;
-    });
-  }
+  // --fast: override requestAnimationFrame so the lobby countdown runs fast.
+  if (FAST) await installFastMode(page);
 
   // Join human slots
   if (MOBILE && NUM_HUMANS > 0) {
@@ -908,7 +899,9 @@ async function installVibrateSpy(page: Page): Promise<void> {
   if (!MOBILE) return;
   await page.addInitScript(() => {
     const calls: number[] = [];
-    (window as unknown as Window & { __vibrateCalls: number[] }).__vibrateCalls = calls;
+    (
+      window as unknown as Window & { __vibrateCalls: number[] }
+    ).__vibrateCalls = calls;
     const orig = navigator.vibrate?.bind(navigator);
     navigator.vibrate = ((pattern: VibratePattern) => {
       const ms = typeof pattern === "number" ? pattern : ([...pattern][0] ?? 0);
@@ -921,7 +914,11 @@ async function installVibrateSpy(page: Page): Promise<void> {
 async function printHapticSummary(page: Page): Promise<void> {
   if (!MOBILE) return;
   const calls = await page
-    .evaluate(() => ((window as unknown as Window & { __vibrateCalls: number[] }).__vibrateCalls) ?? [])
+    .evaluate(
+      () =>
+        (window as unknown as Window & { __vibrateCalls: number[] })
+          .__vibrateCalls ?? [],
+    )
     .catch(() => []);
   if (calls.length === 0) {
     console.log("\n=== HAPTICS: no vibrate calls ===");

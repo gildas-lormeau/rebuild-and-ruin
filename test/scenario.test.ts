@@ -6,7 +6,7 @@ import {
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { packTile } from "../src/shared/core/spatial.ts";
+import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
@@ -142,8 +142,7 @@ Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
 
   // Sample a wall tile — inspection should report the wall owner.
   const wallKey = player.walls.values().next().value!;
-  const wallRow = Math.floor(wallKey / 44);
-  const wallCol = wallKey % 44;
+  const { r: wallRow, c: wallCol } = unpackTile(wallKey);
   const wallInspect = sc.tileAt(wallRow, wallCol);
   assert(
     wallInspect.wall?.playerId === player.id,
@@ -153,8 +152,7 @@ Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
   // Sample an interior tile — inspection should report interior ownership
   // and a valid zone id.
   const interiorKey = player.interior.values().next().value!;
-  const interiorRow = Math.floor(interiorKey / 44);
-  const interiorCol = interiorKey % 44;
+  const { r: interiorRow, c: interiorCol } = unpackTile(interiorKey);
   const interiorInspect = sc.tileAt(interiorRow, interiorCol);
   assert(
     interiorInspect.interior.includes(player.id),

@@ -237,14 +237,7 @@ function renderStyledGrid(
 ): void {
   const { minRow, maxRow, minCol, maxCol } = crop;
 
-  // Column headers
-  const pad = "   ";
-  let tens = pad;
-  let units = pad;
-  for (let col = minCol; col <= maxCol; col++) {
-    tens += col >= 10 ? String(Math.floor(col / 10)) : " ";
-    units += String(col % 10);
-  }
+  const { tens, units } = buildColHeaders(minCol, maxCol);
   console.log(tens);
   console.log(units);
 
@@ -300,13 +293,7 @@ function renderPlainGrid(
   const lines: string[] = [];
 
   if (coords) {
-    const pad = "   ";
-    let tens = pad;
-    let units = pad;
-    for (let col = minCol; col <= maxCol; col++) {
-      tens += col >= 10 ? String(Math.floor(col / 10)) : " ";
-      units += String(col % 10);
-    }
+    const { tens, units } = buildColHeaders(minCol, maxCol);
     lines.push(tens, units);
   }
 
@@ -324,6 +311,23 @@ function renderPlainGrid(
   }
 
   return lines.join("\n");
+}
+
+function buildColHeaders(
+  minCol: number,
+  maxCol: number,
+): {
+  tens: string;
+  units: string;
+} {
+  const pad = "   ";
+  let tens = pad;
+  let units = pad;
+  for (let col = minCol; col <= maxCol; col++) {
+    tens += col >= 10 ? String(Math.floor(col / 10)) : " ";
+    units += String(col % 10);
+  }
+  return { tens, units };
 }
 
 /** In plain text, use player initial for owned entities to distinguish colors. */

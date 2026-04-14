@@ -14,6 +14,7 @@
  */
 
 import { chromium, type Page } from "playwright";
+import { installFastMode } from "./e2e-fast-mode.ts";
 import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
@@ -215,6 +216,8 @@ const POLL_MS = 50;
  *  `runGame`'s 120s because wait helpers target a single event, not the
  *  whole game. */
 const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+/** Timeout for online lobby page readiness + transition off after create/join. */
+const ONLINE_PAGE_TIMEOUT_MS = 10_000;
 
 /** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate / target
  *  state doesn't materialize within the budget. Carries `elapsedMs` so tests
@@ -268,13 +271,13 @@ export async function createE2EScenario(
   if (online === "host") {
     // Create an online room.
     await page.click("#btn-online");
-    await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
+    await page.waitForSelector("#page-online[data-ready]", { timeout: ONLINE_PAGE_TIMEOUT_MS });
     await page.selectOption("#create-wait", "10");
     await page.selectOption("#create-rounds", String(rounds));
     await page.click("#btn-create-confirm");
     await page.waitForFunction(
       () => document.getElementById("page-online")?.hidden === true,
-      { timeout: 10000 },
+      { timeout: ONLINE_PAGE_TIMEOUT_MS },
     );
     await page.waitForTimeout(300);
     extractedRoomCode = await page.evaluate(() => {
@@ -287,12 +290,12 @@ export async function createE2EScenario(
   } else if (online === "join") {
     if (!joinCode) throw new Error("online: 'join' requires roomCode");
     await page.click("#btn-online");
-    await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
+    await page.waitForSelector("#page-online[data-ready]", { timeout: ONLINE_PAGE_TIMEOUT_MS });
     await page.fill("#join-code", joinCode);
     await page.click("#btn-join-confirm");
     await page.waitForFunction(
       () => document.getElementById("page-online")?.hidden === true,
-      { timeout: 10000 },
+      { timeout: ONLINE_PAGE_TIMEOUT_MS },
     );
   } else {
     // Local game.
@@ -300,17 +303,7 @@ export async function createE2EScenario(
     await page.waitForSelector("#game-container.active", { timeout: 5000 });
   }
 
-  // Fast mode — replace RAF with a tight setTimeout loop. Each callback
-  // advances the fake clock by 100ms of sim time but fires after ~1ms of
-  // real time, giving ~100× speed without touching __dev.
-  await page.evaluate(() => {
-    let fakeTime = performance.now();
-    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) =>
-      setTimeout(() => {
-        fakeTime += 100;
-        cb(fakeTime);
-      }, 1) as unknown) as typeof requestAnimationFrame;
-  });
+  await installFastMode(page);
 
   // Join human slots (local only — online lobby handles slots differently).
   // Skipped when autoStartGame is false so tests can drive the lobby UI

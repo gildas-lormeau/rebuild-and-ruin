@@ -18,6 +18,7 @@ import {
   formatGrid,
   type MapLayer,
 } from "../src/runtime/dev-console-grid.ts";
+import { createStubElement } from "./stub-dom.ts";
 import type { GameMap, Viewport } from "../src/shared/core/geometry-types.ts";
 import type {
   RendererInterface,
@@ -104,21 +105,4 @@ export function createAsciiRenderer(): AsciiRendererInternal {
       getState = stateGetter;
     },
   };
-}
-
-function createStubElement(): HTMLElement {
-  const target = new EventTarget();
-  const props = {
-    clientHeight: 720,
-    clientWidth: 1280,
-    classList: {
-      add: () => {},
-      remove: () => {},
-      contains: () => false,
-      toggle: () => false,
-    },
-    querySelector: () => null,
-    style: { cursor: "default" },
-  };
-  return Object.assign(target, props) as unknown as HTMLElement;
 }

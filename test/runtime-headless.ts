@@ -41,6 +41,7 @@ import {
   createLocalNetworkApi,
 } from "../src/runtime/runtime-composition.ts";
 import { setMode } from "../src/runtime/runtime-state.ts";
+import { createStubElement } from "./stub-dom.ts";
 import type {
   GameRuntime,
   OnlinePhaseTicks,
@@ -527,30 +528,4 @@ function createStubRenderer(): RendererInterface {
     eventTarget,
     container,
   };
-}
-
-/**
- * Minimal `HTMLElement` stub. Backed by a real `EventTarget` so production
- * input handlers can attach listeners and tests can dispatch events at the
- * same surface. Carries the few non-event properties the runtime touches:
- *   - `clientHeight` / `clientWidth` (camera, layout)
- *   - `classList.{add,remove,contains,toggle}` (mode toggles in main.ts)
- *   - `querySelector` (touch UI lookup, returns null)
- *   - `style.cursor` (input-mouse writes this on every mousemove)
- */
-function createStubElement(): HTMLElement {
-  const target = new EventTarget();
-  const props = {
-    clientHeight: 720,
-    clientWidth: 1280,
-    classList: {
-      add: () => {},
-      remove: () => {},
-      contains: () => false,
-      toggle: () => false,
-    },
-    querySelector: () => null,
-    style: { cursor: "default" },
-  };
-  return Object.assign(target, props) as unknown as HTMLElement;
 }

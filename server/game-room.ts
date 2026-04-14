@@ -28,19 +28,9 @@ import { LifeLostChoice } from "../src/shared/ui/interaction-types.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
-/** Phase values the server tracks for message gating.
- *  Includes all game-engine Phase enum values (CASTLE_SELECT, WALL_BUILD,
- *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals.
- *  When adding a new phase: if it's part of game logic, add to the Phase enum
- *  in shared/core/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
-const SERVER_ONLY_PHASE = {
-  /** Before game starts (no Phase enum equivalent). */
-  LOBBY: "LOBBY",
-  /** Castle wall animation (UI-only state, no Phase enum equivalent). */
-  CASTLE_BUILD: "CASTLE_BUILD",
-} as const;
 type ServerOnlyPhase =
   (typeof SERVER_ONLY_PHASE)[keyof typeof SERVER_ONLY_PHASE];
+
 type ServerPhase = Phase | ServerOnlyPhase;
 
 // Compile-time guarantee: server-only phase strings must NOT collide with any
@@ -58,23 +48,21 @@ type ServerPhase = Phase | ServerOnlyPhase;
 type PhaseServerOverlap =
   | Extract<ServerOnlyPhase, Phase>
   | Extract<Phase, ServerOnlyPhase>;
-type PhaseServerDisjoint = [PhaseServerOverlap] extends [never] ? true : false;
-const phaseServerDisjointCheck: PhaseServerDisjoint = true;
-void phaseServerDisjointCheck;
 
-// ---------------------------------------------------------------------------
-// Message validation tables
-// ---------------------------------------------------------------------------
-// When adding a new message type, check each table:
-//   HOST_ONLY         — add if only the host may send it (transitions, checkpoints)
-//   PHASE_GATES       — add if the message is only valid during specific phases
-//   validatePayload() — add a case if the message has fields needing bounds checks
-//   RATE_LIMITED_TYPES — add only for high-frequency cosmetic/display messages
-//
-// ---------------------------------------------------------------------------
-// Rate limiting — cosmetic/display messages only
-// ---------------------------------------------------------------------------
-// Only high-frequency display messages (phantoms, aim updates) are rate-limited.
+type PhaseServerDisjoint = [PhaseServerOverlap] extends [never] ? true : false;
+
+/** Phase values the server tracks for message gating.
+ *  Includes all game-engine Phase enum values (CASTLE_SELECT, WALL_BUILD,
+ *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals.
+ *  When adding a new phase: if it's part of game logic, add to the Phase enum
+ *  in shared/core/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
+const SERVER_ONLY_PHASE = {
+  /** Before game starts (no Phase enum equivalent). */
+  LOBBY: "LOBBY",
+  /** Castle wall animation (UI-only state, no Phase enum equivalent). */
+  CASTLE_BUILD: "CASTLE_BUILD",
+} as const;
+const phaseServerDisjointCheck: PhaseServerDisjoint = true;
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
 // life_lost_choice) are NEVER rate-limited — they are low-frequency, must
 // never be silently dropped, and the host sends AI-player actions through a
@@ -82,7 +70,8 @@ void phaseServerDisjointCheck;
 /** Per-socket, per-message-type sliding window rate limit.
  *  Each (socket, messageType) pair has its own bucket — types do not compete for quota.
  *  100 messages per 1-second window; the window slides on each incoming message. */
-const RATE_LIMIT_PER_WINDOW = 100; // ~60fps × 4 players phantom updates; generous but blocks flooding
+const RATE_LIMIT_PER_WINDOW = 100;
+// ~60fps × 4 players phantom updates; generous but blocks flooding
 const RATE_LIMIT_WINDOW_MS = 1000;
 /** Exhaustive set of message types subject to rate limiting.
  *  All other types pass through without rate checks.
@@ -99,7 +88,6 @@ const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
   MESSAGE.OPPONENT_CANNON_PHANTOM,
   MESSAGE.AIM_UPDATE,
 ] as const satisfies readonly MessageType[]);
-
 // Messages only the host socket can send.
 // Invariant: HOST_ONLY and PHASE_GATES are disjoint — host-only messages skip phase
 // checks (host sends when appropriate). Do NOT add a message to both sets.
@@ -128,123 +116,22 @@ const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.ICE_THAWED,
   MESSAGE.TOWER_KILLED,
 ] as const satisfies readonly MessageType[]);
-
-// ---------------------------------------------------------------------------
-// Payload validation — reject obviously malformed values before relaying
-// ---------------------------------------------------------------------------
-
 // Upper bounds for payload validation — reject clearly malformed values before relaying.
 // These are generous limits (well above real game maximums) to catch garbage data.
 const MAX_PLAYER_ID = MAX_PLAYERS - 1;
-const MAX_TOWER_IDX = 30; // maps generate ≤15 towers, allow headroom
-const MAX_CANNON_IDX = 30; // players can place ~8–10 cannons max per round
-const MAX_PIECE_TILES = 50; // largest piece is 5 tiles; generous for batched placements
+const MAX_TOWER_IDX = 30;
+// maps generate ≤15 towers, allow headroom
+const MAX_CANNON_IDX = 30;
+// players can place ~8–10 cannons max per round
+const MAX_PIECE_TILES = 50;
+// largest piece is 5 tiles; generous for batched placements
 const MAX_PIXEL = Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE + 100;
 const VALID_CHOICES: ReadonlySet<string> = new Set([
   LifeLostChoice.CONTINUE,
   LifeLostChoice.ABANDON,
 ]);
-
-function isInt(val: unknown, min: number, max: number): boolean {
-  return (
-    typeof val === "number" && Number.isInteger(val) && val >= min && val <= max
-  );
-}
-function isFinite(val: unknown): boolean {
-  return typeof val === "number" && Number.isFinite(val);
-}
-function isFiniteRange(val: unknown, min: number, max: number): boolean {
-  return (
-    typeof val === "number" && Number.isFinite(val) && val >= min && val <= max
-  );
-}
-
 /** Max offset in a piece phantom preview (piece-relative coordinates). */
 const MAX_PHANTOM_OFFSET = 4;
-
-function hasValidPlayer(msg: Record<string, unknown>): boolean {
-  return isInt(msg.playerId, 0, MAX_PLAYER_ID);
-}
-
-function hasValidGridPos(msg: Record<string, unknown>): boolean {
-  return isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1);
-}
-
-function hasValidOffsets(
-  msg: Record<string, unknown>,
-  minOffset: number,
-  maxOffset: number,
-): boolean {
-  return (
-    Array.isArray(msg.offsets) &&
-    msg.offsets.length >= 1 &&
-    msg.offsets.length <= MAX_PIECE_TILES &&
-    msg.offsets.every(
-      (o: unknown) =>
-        Array.isArray(o) &&
-        o.length === 2 &&
-        isInt(o[0], minOffset, maxOffset) &&
-        isInt(o[1], minOffset, maxOffset),
-    )
-  );
-}
-
-function hasValidCannonMode(msg: Record<string, unknown>): boolean {
-  return (CANNON_MODE_IDS as ReadonlySet<string>).has(msg.mode as string);
-}
-
-function validatePayload(msg: Record<string, unknown>): boolean {
-  switch (msg.type) {
-    case MESSAGE.OPPONENT_TOWER_SELECTED:
-      return hasValidPlayer(msg) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
-    case MESSAGE.OPPONENT_PIECE_PLACED:
-      // Offsets can be piece-relative (humans) or absolute grid coords (AI host).
-      // Absolute coords use [row, col] pairs where col can reach GRID_COLS-1,
-      // so the range must cover the larger dimension.
-      return (
-        hasValidPlayer(msg) &&
-        hasValidGridPos(msg) &&
-        hasValidOffsets(msg, -(GRID_COLS - 1), GRID_COLS - 1)
-      );
-    case MESSAGE.OPPONENT_CANNON_PLACED:
-      return (
-        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
-      );
-    case MESSAGE.CANNON_FIRED:
-      return (
-        hasValidPlayer(msg) &&
-        isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
-        isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.targetX, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.speed, 1, 1000)
-      );
-    case MESSAGE.LIFE_LOST_CHOICE:
-      return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
-    case MESSAGE.UPGRADE_PICK:
-      return hasValidPlayer(msg) && typeof msg.choice === "string";
-    case MESSAGE.AIM_UPDATE:
-      return hasValidPlayer(msg) && isFinite(msg.x) && isFinite(msg.y);
-    case MESSAGE.OPPONENT_PHANTOM:
-      return (
-        hasValidPlayer(msg) &&
-        hasValidGridPos(msg) &&
-        hasValidOffsets(msg, -MAX_PHANTOM_OFFSET, MAX_PHANTOM_OFFSET)
-      );
-    case MESSAGE.OPPONENT_CANNON_PHANTOM:
-      return (
-        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
-      );
-    default:
-      // Unknown types pass through: host-only messages are already gated by the
-      // HOST_ONLY set check in handleMessage(); remaining unknowns are relayed
-      // game-state messages with no field-level validation needed. If adding a
-      // new message type with user-supplied fields, add a case above.
-      return true;
-  }
-}
-
 // Phase gating: which message types are valid in which phases.
 // Partial<Record<MessageType, ...>> so missing entries mean "no phase gate",
 // but keys that ARE present must be valid MessageType literals — a renamed
@@ -258,17 +145,6 @@ const PHASE_GATES: Partial<Record<MessageType, Set<ServerPhase>>> = {
   [MESSAGE.OPPONENT_TOWER_SELECTED]: new Set([Phase.CASTLE_SELECT]),
   [MESSAGE.AIM_UPDATE]: new Set([Phase.BATTLE]),
 };
-
-// Runtime assertion: HOST_ONLY and PHASE_GATES must be disjoint.
-// Host-only messages skip phase checks; adding a message to both sets
-// would silently bypass phase gating for non-host senders.
-for (const type of HOST_ONLY) {
-  if (type in PHASE_GATES) {
-    throw new Error(
-      `SERVER BUG: "${type}" is in both HOST_ONLY and PHASE_GATES — these sets must be disjoint`,
-    );
-  }
-}
 
 export class GameRoom {
   /** Shared read-only references to RoomEntry's maps — single source of truth
@@ -298,14 +174,18 @@ export class GameRoom {
   constructor(
     players: ReadonlyMap<WebSocket, number>,
     broadcastRecipients: ReadonlySet<WebSocket>,
+    onGameStart: () => void,
     settings?: Partial<RoomSettings>,
     seed?: number,
   ) {
     this.players = players;
     this.broadcastRecipients = broadcastRecipients;
+    this.onGameStart = onGameStart;
     this.seed = seed ?? Math.floor(Math.random() * 1000000);
     this.settings = sanitizeRoomSettings(settings ?? {});
   }
+
+  private readonly onGameStart: () => void;
 
   // ---------------------------------------------------------------------------
   // Player management
@@ -389,6 +269,10 @@ export class GameRoom {
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
       this.updatePhaseFromMessage(type);
+      // INIT is the host's "game is starting" signal — flip the room to
+      // started so late joins are rejected and a host disconnect takes
+      // the migration path instead of teardown.
+      if (type === MESSAGE.INIT) this.onGameStart();
     }
 
     // ── Stage 2: Identity validation ──
@@ -434,5 +318,117 @@ export class GameRoom {
       if (socket === senderSocket) continue;
       safeSendRaw(socket, rawJson);
     }
+  }
+}
+
+void phaseServerDisjointCheck;
+
+function validatePayload(msg: Record<string, unknown>): boolean {
+  switch (msg.type) {
+    case MESSAGE.OPPONENT_TOWER_SELECTED:
+      return hasValidPlayer(msg) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
+    case MESSAGE.OPPONENT_PIECE_PLACED:
+      // Offsets can be piece-relative (humans) or absolute grid coords (AI host).
+      // Absolute coords use [row, col] pairs where col can reach GRID_COLS-1,
+      // so the range must cover the larger dimension.
+      return (
+        hasValidPlayer(msg) &&
+        hasValidGridPos(msg) &&
+        hasValidOffsets(msg, -(GRID_COLS - 1), GRID_COLS - 1)
+      );
+    case MESSAGE.OPPONENT_CANNON_PLACED:
+      return (
+        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
+      );
+    case MESSAGE.CANNON_FIRED:
+      return (
+        hasValidPlayer(msg) &&
+        isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
+        isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.targetX, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.speed, 1, 1000)
+      );
+    case MESSAGE.LIFE_LOST_CHOICE:
+      return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
+    case MESSAGE.UPGRADE_PICK:
+      return hasValidPlayer(msg) && typeof msg.choice === "string";
+    case MESSAGE.AIM_UPDATE:
+      return hasValidPlayer(msg) && isFinite(msg.x) && isFinite(msg.y);
+    case MESSAGE.OPPONENT_PHANTOM:
+      return (
+        hasValidPlayer(msg) &&
+        hasValidGridPos(msg) &&
+        hasValidOffsets(msg, -MAX_PHANTOM_OFFSET, MAX_PHANTOM_OFFSET)
+      );
+    case MESSAGE.OPPONENT_CANNON_PHANTOM:
+      return (
+        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
+      );
+    default:
+      // Unknown types pass through: host-only messages are already gated by the
+      // HOST_ONLY set check in handleMessage(); remaining unknowns are relayed
+      // game-state messages with no field-level validation needed. If adding a
+      // new message type with user-supplied fields, add a case above.
+      return true;
+  }
+}
+
+function isFiniteRange(val: unknown, min: number, max: number): boolean {
+  return (
+    typeof val === "number" && Number.isFinite(val) && val >= min && val <= max
+  );
+}
+
+function isFinite(val: unknown): boolean {
+  return typeof val === "number" && Number.isFinite(val);
+}
+
+function hasValidPlayer(msg: Record<string, unknown>): boolean {
+  return isInt(msg.playerId, 0, MAX_PLAYER_ID);
+}
+
+function hasValidGridPos(msg: Record<string, unknown>): boolean {
+  return isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1);
+}
+
+function hasValidOffsets(
+  msg: Record<string, unknown>,
+  minOffset: number,
+  maxOffset: number,
+): boolean {
+  return (
+    Array.isArray(msg.offsets) &&
+    msg.offsets.length >= 1 &&
+    msg.offsets.length <= MAX_PIECE_TILES &&
+    msg.offsets.every(
+      (o: unknown) =>
+        Array.isArray(o) &&
+        o.length === 2 &&
+        isInt(o[0], minOffset, maxOffset) &&
+        isInt(o[1], minOffset, maxOffset),
+    )
+  );
+}
+
+function isInt(val: unknown, min: number, max: number): boolean {
+  return (
+    typeof val === "number" && Number.isInteger(val) && val >= min && val <= max
+  );
+}
+
+function hasValidCannonMode(msg: Record<string, unknown>): boolean {
+  return (CANNON_MODE_IDS as ReadonlySet<string>).has(msg.mode as string);
+}
+
+// Runtime assertion: HOST_ONLY and PHASE_GATES must be disjoint.
+// Host-only messages skip phase checks; adding a message to both sets
+// would silently bypass phase gating for non-host senders.
+for (const type of HOST_ONLY) {
+  if (type in PHASE_GATES) {
+    throw new Error(
+      `SERVER BUG: "${type}" is in both HOST_ONLY and PHASE_GATES — these sets must be disjoint`,
+    );
   }
 }

@@ -8,14 +8,6 @@ import { MAX_PLAYERS, PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import { GameRoom } from "./game-room.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
-const MAX_ROOMS = 50;
-/** Grace period before destroying a room after game over — allows clients to see final screen. */
-const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s: allow clients to fetch final screen state before cleanup
-/** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
-const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-/** 4 chars from 24-letter alphabet ≈ 330K combinations — sufficient for concurrent rooms. */
-const ROOM_CODE_LENGTH = 4; // 24^4 = 331,776 combinations
-
 interface RoomEntry {
   room: GameRoom;
   code: string;
@@ -25,7 +17,7 @@ interface RoomEntry {
    *  determines their playerId for the entire session. Only set for sockets
    *  that have picked a slot; spectators are in connectedSockets but not here. */
   slotAssignments: Map<WebSocket, ValidPlayerSlot>;
-  /** True once the game has started (wait timer fired or manual start).
+  /** True once the game has started (host sent INIT or wait timer fired).
    *  No new players can join after this point. */
   started: boolean;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
@@ -40,6 +32,15 @@ interface SlotSelectionResult {
    *  a previousPlayerId so clients can clean up the vacated slot's UI. */
   previousPlayerId: ValidPlayerSlot | null;
 }
+
+const MAX_ROOMS = 50;
+/** Grace period before destroying a room after game over — allows clients to see final screen. */
+const ROOM_CLEANUP_DELAY_MS = 60_000;
+// 60s: allow clients to fetch final screen state before cleanup
+/** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
+const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+/** 4 chars from 24-letter alphabet ≈ 330K combinations — sufficient for concurrent rooms. */
+const ROOM_CODE_LENGTH = 4;
 
 export class RoomManager {
   private rooms = new Map<string, RoomEntry>();
@@ -64,9 +65,15 @@ export class RoomManager {
     const code = this.generateCode();
     const connectedSockets = new Set([hostSocket]);
     const slotAssignments = new Map<WebSocket, ValidPlayerSlot>();
+    // entryRef closes over the RoomEntry for the onGameStart callback;
+    // the entry is constructed below since GameRoom is one of its fields.
+    const entryRef: { current: RoomEntry | undefined } = { current: undefined };
     const room = new GameRoom(
       slotAssignments,
       connectedSockets,
+      () => {
+        if (entryRef.current) this.doStartGame(entryRef.current);
+      },
       settings,
       settings.seed,
     );
@@ -81,6 +88,7 @@ export class RoomManager {
       autoStartTimer: null,
       createdAt: Date.now(),
     };
+    entryRef.current = entry;
     // Step 3: Register in lookup maps
     this.rooms.set(code, entry);
     this.socketToRoom.set(hostSocket, entry);
