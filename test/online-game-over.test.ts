@@ -13,6 +13,7 @@ import { assert } from "@std/assert";
 import { chromium, type Page } from "playwright";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import { installFastMode } from "./e2e-fast-mode.ts";
+import { waitForPageFn } from "./e2e-helpers.ts";
 
 const PAGE_URL = "http://localhost:5173/?server=localhost:8001";
 
@@ -29,9 +30,10 @@ Deno.test("1-round online game delivers gameOver to watcher via browser", async 
     await joinRoom(watcherPage, code);
 
     // Wait for host to reach STOPPED (game over)
-    await hostPage.waitForFunction(
+    await waitForPageFn(
+      hostPage,
       () => (globalThis as unknown as Record<string, Record<string, unknown>>).__e2e?.mode === "STOPPED",
-      { timeout: 120_000 },
+      120_000,
     );
 
     // Poll watcher logs for gameOver — the relay may need a moment to
@@ -65,9 +67,10 @@ async function createRoom(page: Page): Promise<string> {
   await page.selectOption("#create-wait", "10");
   await page.selectOption("#create-rounds", "1");
   await page.click("#btn-create-confirm");
-  await page.waitForFunction(
+  await waitForPageFn(
+    page,
     () => document.getElementById("page-online")?.hidden === true,
-    { timeout: 30000 },
+    30000,
   );
   await page.waitForTimeout(300);
   const code = await page.evaluate(() => {
@@ -85,8 +88,9 @@ async function joinRoom(page: Page, code: string): Promise<void> {
   await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
   await page.fill("#join-code", code);
   await page.click("#btn-join-confirm");
-  await page.waitForFunction(
+  await waitForPageFn(
+    page,
     () => document.getElementById("page-online")?.hidden === true,
-    { timeout: 30000 },
+    30000,
   );
 }

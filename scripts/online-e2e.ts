@@ -39,6 +39,7 @@ import process from "node:process";
 import { type Browser, chromium, devices, type Page } from "playwright";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import { installFastMode } from "../test/e2e-fast-mode.ts";
+import { waitForPageExpr, waitForPageFn } from "../test/e2e-helpers.ts";
 
 // Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
 interface TestAction {
@@ -371,13 +372,14 @@ async function runLocal() {
   // Wait for the game to start (lobby timer expires or immediate on mobile)
   console.log(`${ts()} Waiting for game to start...`);
   await takeScreenshot(page, "game", "lobby");
-  await page.waitForFunction(
+  await waitForPageFn(
+    page,
     () => {
       const w = window as unknown as Record<string, unknown>;
       const e2e = w.__e2e as unknown as { mode?: string };
       return e2e?.mode !== undefined && e2e?.mode !== "LOBBY";
     },
-    { timeout: 90_000 },
+    90_000,
   );
   console.log(`${ts()} Game started`);
 
@@ -563,7 +565,7 @@ async function replayRecording(
       }
 
       case "waitForExpression":
-        await page.waitForFunction(step.expression!, { timeout: stepTimeout });
+        await waitForPageExpr(page, step.expression!, stepTimeout);
         break;
 
       case "close":
@@ -1129,9 +1131,10 @@ async function createRoom(page: Page): Promise<string> {
   await page.selectOption("#create-wait", "10");
   await page.selectOption("#create-rounds", ONLINE_SELECTED_ROUNDS);
   await page.click("#btn-create-confirm");
-  await page.waitForFunction(
+  await waitForPageFn(
+    page,
     () => document.getElementById("page-online")?.hidden === true,
-    { timeout: 10000 },
+    10000,
   );
   await page.waitForTimeout(300);
   const code = await page.evaluate(() => {
@@ -1148,9 +1151,10 @@ async function joinRoom(page: Page, code: string): Promise<void> {
   await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
   await page.fill("#join-code", code);
   await page.click("#btn-join-confirm");
-  await page.waitForFunction(
+  await waitForPageFn(
+    page,
     () => document.getElementById("page-online")?.hidden === true,
-    { timeout: 10000 },
+    10000,
   );
 }
 

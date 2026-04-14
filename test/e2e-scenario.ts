@@ -15,6 +15,7 @@
 
 import { chromium, type Page } from "playwright";
 import { installFastMode } from "./e2e-fast-mode.ts";
+import { waitForPageFn } from "./e2e-helpers.ts";
 import type {
   E2EBridgeSnapshot,
   E2EBusEntry,
@@ -275,9 +276,10 @@ export async function createE2EScenario(
     await page.selectOption("#create-wait", "10");
     await page.selectOption("#create-rounds", String(rounds));
     await page.click("#btn-create-confirm");
-    await page.waitForFunction(
+    await waitForPageFn(
+      page,
       () => document.getElementById("page-online")?.hidden === true,
-      { timeout: ONLINE_PAGE_TIMEOUT_MS },
+      ONLINE_PAGE_TIMEOUT_MS,
     );
     await page.waitForTimeout(300);
     extractedRoomCode = await page.evaluate(() => {
@@ -293,9 +295,10 @@ export async function createE2EScenario(
     await page.waitForSelector("#page-online[data-ready]", { timeout: ONLINE_PAGE_TIMEOUT_MS });
     await page.fill("#join-code", joinCode);
     await page.click("#btn-join-confirm");
-    await page.waitForFunction(
+    await waitForPageFn(
+      page,
       () => document.getElementById("page-online")?.hidden === true,
-      { timeout: ONLINE_PAGE_TIMEOUT_MS },
+      ONLINE_PAGE_TIMEOUT_MS,
     );
   } else {
     // Local game.
@@ -319,7 +322,8 @@ export async function createE2EScenario(
   // runGame/runUntil so both host and client can join before the timer expires).
   // Also skip when autoStartGame=false so tests can drive the lobby themselves.
   if (!online && autoStartGame) {
-    await page.waitForFunction(
+    await waitForPageFn(
+      page,
       () => {
         const win = globalThis as unknown as Record<string, unknown>;
         const e2e = win.__e2e as { mode?: string } | undefined;
@@ -327,7 +331,7 @@ export async function createE2EScenario(
           e2e?.mode !== undefined && e2e.mode !== "" && e2e.mode !== "LOBBY"
         );
       },
-      { timeout: 90_000 },
+      90_000,
     );
   }
 

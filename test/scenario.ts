@@ -522,6 +522,23 @@ export function waitForEvent<K extends keyof GameEventMap>(
   return captured;
 }
 
+/** Label a narrative beat of a test. If `fn` throws, re-throws with the
+ *  label prepended so failure messages point at the beat that failed.
+ *  No-op overhead on success. Sync or async `fn` both work. */
+export async function step<T>(
+  label: string,
+  fn: () => T | Promise<T>,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`step "${label}" failed: ${message}`, {
+      cause: err instanceof Error ? err : undefined,
+    });
+  }
+}
+
 /** Subscribe to every bus event and accumulate them in order.
  *  Call BEFORE driving the runtime so no events are missed. */
 export function recordEvents(sc: Scenario): RecordedEvent[] {
