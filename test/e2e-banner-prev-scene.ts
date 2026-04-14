@@ -274,7 +274,7 @@ async function runOneGame(config: GameConfig): Promise<BannerCapture[]> {
     await sc.enableCanvasSnapshots();
 
     // Run the game to completion.
-    await sc.runGame({ timeout: 300_000 });
+    await sc.runGame({ timeoutMs: 300_000 });
 
     // Read all bus events from the bridge.
     const events = await sc.bus.events();

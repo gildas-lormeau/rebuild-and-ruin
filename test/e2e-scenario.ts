@@ -50,7 +50,8 @@ export interface E2EScenarioOptions {
   humans?: number;
   headless?: boolean;
   rounds?: number;
-  mode?: string;
+  /** Game mode. Matches the headless `ScenarioOptions.mode` shape. */
+  mode?: "classic" | "modern";
   /** Online mode. `"host"` creates a room and waits for peers.
    *  `"join"` joins an existing room via `roomCode`. Omit for local play. */
   online?: "host" | "join";
@@ -60,6 +61,15 @@ export interface E2EScenarioOptions {
 
 /** Event type — GAME_EVENT constants (string literal keys of GameEventMap). */
 type E2EEventType = keyof GameEventMap;
+
+/** Shared opts shape for `runUntil` / `runGame` / `waitFor*`. Units are
+ *  wall-clock milliseconds because the Playwright poll loop is real-time.
+ *  (The headless equivalents measure in sim frames — `maxTicks`.) */
+export interface E2ERunOpts {
+  /** Wall-clock budget in milliseconds. Defaults to 120_000 for run-game-
+   *  level operations, 30_000 for waitFor* helpers. */
+  timeoutMs?: number;
+}
 
 /** Typed handler for a specific event type. Receives the busLog entry with
  *  the event's full payload fields + bridge metadata. */
@@ -109,14 +119,19 @@ export interface E2EScenario extends AsyncDisposable {
   };
   /** Drive the game until a predicate returns true. The predicate
    *  receives the scenario itself — use `await sc.phase()`, `await sc.state()`,
-   *  etc. Bus handlers fire for each new event during the wait. */
+   *  etc. Bus handlers fire for each new event during the wait.
+   *
+   *  Throws `E2ETimeoutError` if the predicate never fires within
+   *  `timeoutMs` (default 120_000). The headless equivalent returns -1
+   *  on timeout; E2E throws because the alternative (silent success) has
+   *  bitten tests in the past. */
   runUntil(
     predicate: (sc: E2EScenario) => Promise<boolean> | boolean,
-    opts?: { timeout?: number },
+    opts?: E2ERunOpts,
   ): Promise<void>;
-  /** Wait until the game reaches STOPPED mode.
+  /** Wait until the game reaches STOPPED mode. Throws on timeout.
    *  Bus handlers fire for each new event during the wait. */
-  runGame(opts?: { timeout?: number }): Promise<void>;
+  runGame(opts?: E2ERunOpts): Promise<void>;
   /** Enable per-frame canvas snapshot capture. Tick entries during banners
    *  and banner events always carry snapshots; enabling this also captures
    *  the "frame before banner" via `_prevSnapshot`. Opt-in because
@@ -148,6 +163,22 @@ export interface E2EScenario extends AsyncDisposable {
 const BASE_URL = "http://localhost:5173";
 /** Polling interval (ms) for draining busLog during runUntil/runGame. */
 const POLL_MS = 50;
+/** Default budget for wait helpers (30s wall-clock). Shorter than
+ *  `runGame`'s 120s because wait helpers target a single event, not the
+ *  whole game. */
+const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+
+/** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate / target
+ *  state doesn't materialize within the budget. Carries `elapsedMs` so tests
+ *  can assert on timing too. */
+export class E2ETimeoutError extends Error {
+  readonly elapsedMs: number;
+  constructor(message: string, elapsedMs: number) {
+    super(`${message} (waited ${elapsedMs}ms)`);
+    this.name = "E2ETimeoutError";
+    this.elapsedMs = elapsedMs;
+  }
+}
 
 export async function createE2EScenario(
   opts: E2EScenarioOptions = {},
@@ -298,23 +329,27 @@ export async function createE2EScenario(
     }
   }
 
-  /** Polling loop: drain bus + check predicate until done or timeout. */
+  /** Polling loop: drain bus + check predicate until done or timeout.
+   *  Returns true on predicate success, false on timeout. Callers decide
+   *  whether to throw — `runUntil` / `runGame` / `waitFor*` all throw. */
   async function pollUntil(
     checkDone: () => Promise<boolean>,
-    timeout: number,
-  ): Promise<void> {
-    const deadline = Date.now() + timeout;
+    timeoutMs: number,
+  ): Promise<{ ok: true } | { ok: false; elapsedMs: number }> {
+    const start = Date.now();
+    const deadline = start + timeoutMs;
     while (Date.now() < deadline) {
       await drainBus();
       if (await checkDone()) {
         // One final drain to catch events emitted on the same frame.
         await drainBus();
-        return;
+        return { ok: true };
       }
       await page.waitForTimeout(POLL_MS);
     }
     // Final drain even on timeout.
     await drainBus();
+    return { ok: false, elapsedMs: Date.now() - start };
   }
 
   // --- Coord conversion helper ---
@@ -425,24 +460,31 @@ export async function createE2EScenario(
     },
 
     runUntil: async (predicate, opts2) => {
-      const timeout = opts2?.timeout ?? 120_000;
-      await pollUntil(
+      const result = await pollUntil(
         async () => Boolean(await predicate(scenario)),
-        timeout,
+        opts2?.timeoutMs ?? 120_000,
       );
+      if (!result.ok) {
+        throw new E2ETimeoutError("runUntil predicate never fired", result.elapsedMs);
+      }
     },
 
     runGame: async (opts2) => {
-      const timeout = opts2?.timeout ?? 120_000;
-      await pollUntil(
+      const result = await pollUntil(
         () =>
           page.evaluate(() => {
             const e2e = (globalThis as unknown as Record<string, unknown>)
               .__e2e as { mode?: string } | undefined;
             return e2e?.mode === "STOPPED";
           }),
-        timeout,
+        opts2?.timeoutMs ?? 120_000,
       );
+      if (!result.ok) {
+        throw new E2ETimeoutError(
+          "runGame: mode did not reach STOPPED",
+          result.elapsedMs,
+        );
+      }
     },
 
     enableCanvasSnapshots: () =>
@@ -510,12 +552,12 @@ export async function createE2EScenario(
 }
 
 /** Tick until a `phaseStart` event for `phase` fires. Returns the captured
- *  bus entry with full `phaseStart` payload typing. Mirrors the headless
- *  `waitForPhase` — same shape, async. */
+ *  bus entry with full `phaseStart` payload typing. Throws
+ *  `E2ETimeoutError` on timeout. Mirrors the headless `waitForPhase`. */
 export async function waitForPhase(
   sc: E2EScenario,
   phase: Phase,
-  opts?: { timeout?: number },
+  opts?: E2ERunOpts,
 ): Promise<E2EBusEntryOf<"phaseStart">> {
   let captured: E2EBusEntryOf<"phaseStart"> | null = null;
   const handler = (ev: E2EBusEntryOf<"phaseStart">) => {
@@ -523,12 +565,21 @@ export async function waitForPhase(
   };
   sc.bus.on(GAME_EVENT.PHASE_START, handler);
   try {
-    await sc.runUntil(() => captured !== null, opts);
+    await sc.runUntil(() => captured !== null, {
+      timeoutMs: opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+    });
+  } catch (err) {
+    if (err instanceof E2ETimeoutError) {
+      throw new E2ETimeoutError(`waitForPhase(${phase})`, err.elapsedMs);
+    }
+    throw err;
   } finally {
     sc.bus.off(GAME_EVENT.PHASE_START, handler);
   }
+  // Unreachable unless runUntil succeeded without the predicate being true,
+  // which would be a pollUntil invariant violation.
   if (captured === null) {
-    throw new Error(`waitForPhase(${phase}) timed out`);
+    throw new Error(`waitForPhase(${phase}): handler did not capture`);
   }
   return captured;
 }
@@ -537,7 +588,7 @@ export async function waitForPhase(
 export function waitForModifier(
   sc: E2EScenario,
   modifierId?: ModifierId,
-  opts?: { timeout?: number },
+  opts?: E2ERunOpts,
 ): Promise<E2EBusEntryOf<"bannerStart">> {
   return waitForBanner(
     sc,
@@ -548,11 +599,12 @@ export function waitForModifier(
   );
 }
 
-/** Tick until a `bannerStart` event matching `predicate` fires. */
+/** Tick until a `bannerStart` event matching `predicate` fires. Throws
+ *  `E2ETimeoutError` on timeout. */
 export async function waitForBanner(
   sc: E2EScenario,
   predicate: (ev: E2EBusEntryOf<"bannerStart">) => boolean,
-  opts?: { timeout?: number },
+  opts?: E2ERunOpts,
 ): Promise<E2EBusEntryOf<"bannerStart">> {
   let captured: E2EBusEntryOf<"bannerStart"> | null = null;
   const handler = (ev: E2EBusEntryOf<"bannerStart">) => {
@@ -560,12 +612,19 @@ export async function waitForBanner(
   };
   sc.bus.on(GAME_EVENT.BANNER_START, handler);
   try {
-    await sc.runUntil(() => captured !== null, opts);
+    await sc.runUntil(() => captured !== null, {
+      timeoutMs: opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
+    });
+  } catch (err) {
+    if (err instanceof E2ETimeoutError) {
+      throw new E2ETimeoutError("waitForBanner", err.elapsedMs);
+    }
+    throw err;
   } finally {
     sc.bus.off(GAME_EVENT.BANNER_START, handler);
   }
   if (captured === null) {
-    throw new Error("waitForBanner timed out");
+    throw new Error("waitForBanner: handler did not capture");
   }
   return captured;
 }
