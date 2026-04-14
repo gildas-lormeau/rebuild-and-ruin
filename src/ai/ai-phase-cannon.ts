@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { canPlaceCannon, placeCannon } from "../game/index.ts";
+import { canPlaceCannon } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -14,6 +14,7 @@ import { type Player } from "../shared/core/player-types.ts";
 import type {
   CannonPlacementPreview,
   CannonViewState,
+  PlaceCannonIntent,
 } from "../shared/core/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
@@ -107,16 +108,16 @@ export function isCannonDone(phase: CannonPhase): boolean {
 /** Place all remaining queued cannons instantly (timer expired). */
 export function flushCannon(
   phase: CannonPhase,
-  state: CannonViewState,
   playerId: ValidPlayerSlot,
-  maxSlots: number,
+  executePlaceCannon: (intent: PlaceCannonIntent) => boolean,
 ): void {
-  const player = state.players[playerId]!;
   for (const target of phase.plannedPlacements) {
-    const mode = target.mode;
-    if (canPlaceCannon(player, target.row, target.col, mode, state)) {
-      placeCannon(player, target.row, target.col, maxSlots, mode, state);
-    }
+    executePlaceCannon({
+      playerId,
+      row: target.row,
+      col: target.col,
+      mode: target.mode,
+    });
   }
   phase.plannedPlacements = [];
   phase.state = { step: STEP.IDLE };
@@ -126,6 +127,7 @@ export function tickCannon(
   host: CannonHost,
   phase: CannonPhase,
   state: CannonViewState,
+  executePlaceCannon: (intent: PlaceCannonIntent) => boolean,
 ): CannonPlacementPreview | null {
   const player = state.players[host.playerId]!;
 
@@ -188,17 +190,12 @@ export function tickCannon(
           phase.state = { step: STEP.IDLE };
           return null;
         }
-        const targetMode = target.mode;
-        if (canPlaceCannon(player, target.row, target.col, targetMode, state)) {
-          placeCannon(
-            player,
-            target.row,
-            target.col,
-            phase.maxSlots,
-            targetMode,
-            state,
-          );
-        }
+        executePlaceCannon({
+          playerId: host.playerId,
+          row: target.row,
+          col: target.col,
+          mode: target.mode,
+        });
         phase.plannedPlacements.shift();
         phase.state = {
           step: STEP.THINKING,

@@ -270,6 +270,7 @@
     "name": "composition roots",
     "tier": "roots",
     "files": [
+      "src/controllers/controller-ai-assisted-human.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-session.ts"

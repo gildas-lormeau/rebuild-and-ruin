@@ -12,11 +12,13 @@ import type {
   BattleController,
   BuildController,
   FireIntent,
+  PlaceCannonIntent,
   PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { fireNextReadyCannon } from "./battle-system.ts";
 import { placePiece } from "./build-system.ts";
+import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 
 /** Execute a piece placement intent against game state.
  *  On success, advances the player's piece bag and clamps the cursor. */
@@ -38,6 +40,28 @@ export function executePlacePiece(
     ctrl.clampBuildCursor(intent.piece);
   }
   return placed;
+}
+
+/** Execute a cannon-placement intent against game state.
+ *  Returns true on success, false when validation fails (occupied tile, etc.). */
+export function executePlaceCannon(
+  state: GameState,
+  intent: PlaceCannonIntent,
+  maxSlots: number,
+): boolean {
+  const player = state.players[intent.playerId];
+  if (!player) return false;
+  if (!canPlaceCannon(player, intent.row, intent.col, intent.mode, state)) {
+    return false;
+  }
+  return placeCannon(
+    player,
+    intent.row,
+    intent.col,
+    maxSlots,
+    intent.mode,
+    state,
+  );
 }
 
 /** Execute a fire intent against game state.

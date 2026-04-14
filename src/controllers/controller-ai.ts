@@ -45,7 +45,11 @@ import {
   tickSelection,
 } from "../ai/ai-phase-select.ts";
 import { type AiStrategy, DefaultStrategy } from "../ai/ai-strategy.ts";
-import { fireNextReadyCannon } from "../game/index.ts";
+import {
+  executePlaceCannon,
+  executePlacePiece,
+  fireNextReadyCannon,
+} from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -56,6 +60,8 @@ import {
   type FireIntent,
   type OrbitParams,
   type PiecePlacementPreview,
+  type PlaceCannonIntent,
+  type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { BaseController } from "./controller-types.ts";
@@ -79,15 +85,15 @@ const _assertAiControllerSatisfiesAllHosts = (
 ): AllAiPhaseHosts => controller;
 
 export class AiController extends BaseController implements AiAnimatable {
-  override readonly kind = "ai" as const;
+  override readonly kind: "ai" | "human" = "ai";
   /** Pluggable AI strategy (decision-making). */
   readonly strategy: AiStrategy;
 
   // --- Phase state holders ---
-  private readonly selectionPhase = createSelectionPhase();
-  private readonly _buildPhase = createBuildPhase();
-  private readonly _cannonPhase = createCannonPhase();
-  private readonly _battlePhase = createBattlePhase();
+  protected readonly selectionPhase = createSelectionPhase();
+  protected readonly _buildPhase = createBuildPhase();
+  protected readonly _cannonPhase = createCannonPhase();
+  protected readonly _battlePhase = createBattlePhase();
 
   // --- Movement state (used by stepTileCursorToward) ---
   /** Which axis to move first — randomized when a new target is set. */
@@ -206,7 +212,9 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
-    return tickBuild(this, this._buildPhase, state);
+    const executePlace = (intent: PlacePieceIntent): boolean =>
+      executePlacePiece(state, intent, this);
+    return tickBuild(this, this._buildPhase, state, executePlace);
   }
 
   protected override onFinalizeBuildPhase(state: GameState): void {
@@ -226,11 +234,15 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   cannonTick(state: GameState, _dt: number): CannonPlacementPreview | null {
-    return tickCannon(this, this._cannonPhase, state);
+    const executePlace = (intent: PlaceCannonIntent): boolean =>
+      executePlaceCannon(state, intent, this._cannonPhase.maxSlots);
+    return tickCannon(this, this._cannonPhase, state, executePlace);
   }
 
   flushCannons(state: GameState, maxSlots: number): void {
-    flushCannon(this._cannonPhase, state, this.playerId, maxSlots);
+    const executePlace = (intent: PlaceCannonIntent): boolean =>
+      executePlaceCannon(state, intent, maxSlots);
+    flushCannon(this._cannonPhase, this.playerId, executePlace);
   }
 
   // -----------------------------------------------------------------------

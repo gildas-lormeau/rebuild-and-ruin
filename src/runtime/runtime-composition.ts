@@ -803,5 +803,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),
+    networkSend: config.network.send,
   };
 }

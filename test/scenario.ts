@@ -210,6 +210,19 @@ export interface Scenario extends Disposable {
    *  Provides access to `onlineClient.ctx.session`, `.ctx.watcher`,
    *  `.ctx.dedup` for asserting dispatcher state after `deliverMessage`. */
   readonly onlineClient?: OnlineClient;
+  /** Replace the controller at `playerId` with an `AiAssistedHumanController`
+   *  — AI drives gameplay but every placement/fire flows through the same
+   *  `network.send` pathway humans use, producing wire messages on
+   *  `sentMessages`. Useful for protocol fuzzing tests.
+   *
+   *  Call AFTER `createScenario` returns (controllers must exist). The helper
+   *  re-invokes the phase-init hook for the new controller so mid-phase
+   *  installs don't lose state. Currently supports install during
+   *  `CASTLE_SELECT`; throws otherwise (keeps scope tight for v1). */
+  installAssistedController(
+    playerId: ValidPlayerSlot,
+    opts?: { strategySeed?: number },
+  ): Promise<void>;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -412,6 +425,43 @@ export function wrapHeadless(
     input,
     tileAt: (row, col) =>
       inspectTile(headless.runtime.runtimeState.state, row, col),
+    installAssistedController: async (playerId, opts) => {
+      const { AiAssistedHumanController } = await import(
+        "../src/controllers/controller-ai-assisted-human.ts"
+      );
+      const { DefaultStrategy } = await import("../src/ai/ai-strategy.ts");
+      const { Phase } = await import("../src/shared/core/game-phase.ts");
+      const { MESSAGE } = await import("../src/protocol/protocol.ts");
+      const { createCannonFiredMsg } = await import(
+        "../src/shared/core/battle-events.ts"
+      );
+      const { runtimeState } = headless.runtime;
+      const state = runtimeState.state;
+      const send = headless.runtime.networkSend;
+      const strategy = new DefaultStrategy(undefined, opts?.strategySeed);
+      const ctrl = new AiAssistedHumanController(playerId, {
+        strategy,
+        senders: {
+          sendPiecePlaced: (payload) =>
+            send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
+          sendCannonPlaced: (payload) =>
+            send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
+          sendCannonFired: (ball) => send(createCannonFiredMsg(ball)),
+        },
+      });
+      runtimeState.controllers[playerId] = ctrl;
+      // Re-run phase init so the swapped-in controller picks up where the
+      // replaced one left off. v1 only supports CASTLE_SELECT to keep the
+      // contract narrow; expand as real tests need other phases.
+      if (state.phase === Phase.CASTLE_SELECT) {
+        const zone = state.playerZones[playerId] ?? 0;
+        ctrl.selectInitialTower(state, zone);
+      } else {
+        throw new Error(
+          `installAssistedController: install during phase ${state.phase} is not supported yet`,
+        );
+      }
+    },
     [Symbol.dispose]: () => {
       // No cleanup is performed for the *observers* this Scenario installed:
       // every haptics / sound / render observer is closure-scoped to the

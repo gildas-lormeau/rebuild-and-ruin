@@ -6,14 +6,16 @@
  * readable and testable.
  */
 
-import { canPlacePiece, placePiece } from "../game/index.ts";
+import { canPlacePiece } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { advancePlayerBag } from "../shared/core/player-types.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
-import type { PiecePlacementPreview } from "../shared/core/system-interfaces.ts";
+import type {
+  PiecePlacementPreview,
+  PlacePieceIntent,
+} from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
@@ -122,6 +124,7 @@ export function tickBuild(
   host: BuildHost,
   phase: BuildPhase,
   state: GameState,
+  executePlace: (intent: PlacePieceIntent) => boolean,
 ): PiecePlacementPreview[] {
   const currentPiece = state.players[host.playerId]?.currentPiece;
   if (!currentPiece) return [];
@@ -195,16 +198,13 @@ export function tickBuild(
       const phaseState = phase.state;
       phaseState.timer--;
       if (phaseState.timer <= 0) {
-        const placed = placePiece(
-          state,
-          host.playerId,
-          phaseState.target.piece,
-          phaseState.target.row,
-          phaseState.target.col,
-        );
+        const placed = executePlace({
+          playerId: host.playerId,
+          piece: phaseState.target.piece,
+          row: phaseState.target.row,
+          col: phaseState.target.col,
+        });
         if (placed) {
-          const player = state.players[host.playerId];
-          if (player) advancePlayerBag(player, true);
           phase.state = {
             step: STEP.THINKING,
             timer: host.scaledDelay(

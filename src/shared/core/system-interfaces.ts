@@ -19,7 +19,11 @@ import type {
   PixelPos,
   TilePos,
 } from "./geometry-types.ts";
-import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
+import type {
+  CannonPhantom,
+  CannonPlacedPayload,
+  PiecePhantom,
+} from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
@@ -102,6 +106,9 @@ export interface PlacePieceIntent {
   readonly row: number;
   readonly col: number;
 }
+
+/** Intent to place a cannon — aliased to CannonPlacedPayload (same shape). */
+export type PlaceCannonIntent = CannonPlacedPayload;
 
 /** Visual preview of a piece the player is about to place (not yet committed to game state). */
 export type PiecePlacementPreview = PiecePhantom;

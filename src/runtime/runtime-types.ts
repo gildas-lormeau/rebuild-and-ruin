@@ -518,4 +518,10 @@ export interface GameRuntime extends BannerTransitions {
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */
   warmMapCache: (map: GameMap) => void;
+
+  /** Outbound network send — same callback every production broadcast flows
+   *  through. Exposed so tests (and any other consumer constructing their
+   *  own controllers) can wire into the runtime's broadcast pipeline
+   *  without rebuilding the NetworkApi. */
+  networkSend: NetworkApi["send"];
 }

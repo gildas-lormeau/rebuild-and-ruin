@@ -3,11 +3,14 @@ import {
   createScenario,
   waitForModifier,
   waitForPhase,
+  waitUntilRound,
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
 import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
+import { MESSAGE } from "../src/protocol/protocol.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
   const sc = await createScenario({ seed: 42 });
@@ -204,3 +207,60 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
     "expected game to progress past round 1",
   );
 });
+
+Deno.test(
+  "scenario: assisted controller broadcasts placements through network.send",
+  async () => {
+    const sc = await createScenario({ seed: 42, rounds: 3 });
+    await sc.installAssistedController(1 as ValidPlayerSlot);
+
+    // Round 1 auto-builds castles (WALL_BUILD skipped), so drive to round 2+
+    // to exercise the real build phase before checking message broadcasts.
+    waitUntilRound(sc, 2, { timeoutMs: 120_000 });
+    waitForPhase(sc, Phase.BATTLE, { timeoutMs: 120_000 });
+
+    const placedByPlayer = new Map<number, number>();
+    const cannonByPlayer = new Map<number, number>();
+    for (const msg of sc.sentMessages) {
+      if (msg.type === MESSAGE.OPPONENT_PIECE_PLACED) {
+        placedByPlayer.set(
+          msg.playerId,
+          (placedByPlayer.get(msg.playerId) ?? 0) + 1,
+        );
+      } else if (msg.type === MESSAGE.OPPONENT_CANNON_PLACED) {
+        cannonByPlayer.set(
+          msg.playerId,
+          (cannonByPlayer.get(msg.playerId) ?? 0) + 1,
+        );
+      }
+    }
+
+    // Slot 1 is assisted → broadcasts per-intent (one message per placement,
+    // with the piece's real row/col). Slot 0 (pure AI) also produces some
+    // OPPONENT_PIECE_PLACED traffic but via a different mechanism
+    // (host-side wall diff after buildTick, with dummy row/col=0).
+    assertGreater(
+      placedByPlayer.get(1) ?? 0,
+      0,
+      "assisted slot should broadcast OPPONENT_PIECE_PLACED",
+    );
+    assertGreater(
+      cannonByPlayer.get(1) ?? 0,
+      0,
+      "assisted slot should broadcast OPPONENT_CANNON_PLACED",
+    );
+    // Per-intent messages carry the real placement row/col (not 0,0 dummies
+    // the AI wall-diff path uses). This distinguishes the assisted pipeline.
+    const assistedPlacements = sc.sentMessages.filter(
+      (msg) =>
+        msg.type === MESSAGE.OPPONENT_PIECE_PLACED &&
+        msg.playerId === 1 &&
+        (msg.row !== 0 || msg.col !== 0),
+    );
+    assertGreater(
+      assistedPlacements.length,
+      0,
+      "assisted slot should produce per-intent placement messages with real coords",
+    );
+  },
+);

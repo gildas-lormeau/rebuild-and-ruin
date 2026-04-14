@@ -110,6 +110,7 @@
       "src/controllers/controller-types.ts",
       "src/controllers/controller-human.ts",
       "src/controllers/controller-ai.ts",
+      "src/controllers/controller-ai-assisted-human.ts",
       "src/controllers/controller-factory.ts"
     ],
     "input": [

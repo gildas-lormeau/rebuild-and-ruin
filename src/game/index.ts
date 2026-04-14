@@ -15,7 +15,6 @@ export {
 export {
   canPlacePiece,
   diffNewWalls,
-  placePiece,
   recheckTerritory,
   recomputeAllTerritory,
 } from "./build-system.ts";
@@ -34,7 +33,11 @@ export {
 } from "./cannon-system.ts";
 export { createCastle } from "./castle-generation.ts";
 export { rehydrateComboTracker } from "./combo-system.ts";
-export { executeCannonFire, executePlacePiece } from "./game-actions.ts";
+export {
+  executeCannonFire,
+  executePlaceCannon,
+  executePlacePiece,
+} from "./game-actions.ts";
 export {
   applyGameConfig,
   createGameFromSeed,
