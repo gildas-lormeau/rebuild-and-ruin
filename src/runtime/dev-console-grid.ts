@@ -47,6 +47,11 @@ export interface Rect {
   maxCol: number;
 }
 
+/** Number of lines the legend produced by `buildLegend` occupies. Used by
+ *  `extractGridLines` to strip legend without pattern-matching it. */
+const LEGEND_LINE_COUNT = 4;
+/** Maximum diff lines emitted by `diffAsciiSnapshots` before truncating. */
+const DIFF_LINE_LIMIT = 100;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
@@ -252,6 +257,44 @@ export function formatGrid(
   return [legend, tensHeader, onesHeader, border, ...body].join("\n");
 }
 
+/** Diff two ASCII snapshots (with or without coord margins) and return a
+ *  plain-text list of differing tiles. Margins, legend, and borders are
+ *  stripped before comparison so snapshots rendered with different
+ *  options can still be compared. Capped at 100 lines with a
+ *  `... +N more` trailer. Doesn't try to infer causation — each line
+ *  reports the raw before/after characters. */
+export function diffAsciiSnapshots(before: string, after: string): string {
+  const beforeRows = extractGridLines(before);
+  const afterRows = extractGridLines(after);
+  if (beforeRows.length === 0 || afterRows.length === 0) {
+    return "(no grid found in snapshots)";
+  }
+  if (beforeRows.length !== afterRows.length) {
+    return `(snapshot row count mismatch: ${beforeRows.length} vs ${afterRows.length})`;
+  }
+  const diffs: string[] = [];
+  const rowLabelW = String(beforeRows.length - 1).length;
+  const maxCol = Math.max(...beforeRows.map((row) => row.length));
+  const colLabelW = String(Math.max(0, maxCol - 1)).length;
+  for (let row = 0; row < beforeRows.length; row++) {
+    const beforeRow = beforeRows[row]!;
+    const afterRow = afterRows[row]!;
+    const width = Math.min(beforeRow.length, afterRow.length);
+    for (let col = 0; col < width; col++) {
+      if (beforeRow[col] === afterRow[col]) continue;
+      diffs.push(
+        `row ${String(row).padStart(rowLabelW, " ")}, ` +
+          `col ${String(col).padStart(colLabelW, " ")}: ` +
+          `${beforeRow[col]} → ${afterRow[col]}`,
+      );
+    }
+  }
+  if (diffs.length === 0) return "(no tile differences)";
+  if (diffs.length <= DIFF_LINE_LIMIT) return diffs.join("\n");
+  const extra = diffs.length - DIFF_LINE_LIMIT;
+  return `${diffs.slice(0, DIFF_LINE_LIMIT).join("\n")}\n... +${extra} more`;
+}
+
 export function buildLegend(state: GameState): string {
   const playerInfo = state.players
     .map(
@@ -266,6 +309,21 @@ export function buildLegend(state: GameState): string {
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
     "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
   ].join("\n");
+}
+
+/** Extract only the grid body from an ASCII snapshot. Handles both plain
+ *  and coord-margin formats so `diffAsciiSnapshots` can compare across
+ *  format variants. */
+function extractGridLines(snapshot: string): string[] {
+  const lines = snapshot.split("\n");
+  const marginPattern = /^\s*\d+\s\|(.*)\|$/;
+  const marginRows = lines
+    .map((line) => marginPattern.exec(line)?.[1])
+    .filter((inner): inner is string => inner !== undefined);
+  if (marginRows.length > 0) return marginRows;
+  // Plain format: legend occupies the first LEGEND_LINE_COUNT lines,
+  // grid body follows. Drop empty trailing lines (from trailing newline).
+  return lines.slice(LEGEND_LINE_COUNT).filter((line) => line.length > 0);
 }
 
 function buildTensHeader(cols: number): string {

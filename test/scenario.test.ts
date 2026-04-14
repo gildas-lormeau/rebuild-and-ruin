@@ -7,6 +7,7 @@ import {
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
+import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
   const sc = await createScenario({ seed: 42 });
@@ -109,6 +110,24 @@ Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", asy
       `grunt spawned ${dist} tiles from destroyed house (max 8)`,
     );
   }
+});
+
+Deno.test("scenario: diffAsciiSnapshots lists tile changes across phases", async () => {
+  const sc = await createScenario({ seed: 42, rounds: 2, renderer: "ascii" });
+  const ascii = sc.renderer!;
+
+  // Snapshot at game start (no walls / cannons yet), then again once the
+  // first battle begins. The diff should surface new walls, cannons, and
+  // other entities introduced during round 1.
+  const before = ascii.snapshot("all");
+  waitForPhase(sc, Phase.BATTLE);
+  const after = ascii.snapshot("all");
+
+  const diff = diffAsciiSnapshots(before, after);
+  assert(
+    diff !== "(no tile differences)" && diff.includes("→"),
+    `expected tile transitions in diff, got: ${diff.slice(0, 200)}`,
+  );
 });
 
 Deno.test("scenario: entities present during banner sweeps", async () => {
