@@ -34,7 +34,11 @@
 
 import type { ModifierId } from "../src/shared/core/game-constants.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import type { UpgradeId } from "../src/shared/core/upgrade-defs.ts";
+import { IMPLEMENTED_MODIFIERS } from "../src/shared/core/modifier-defs.ts";
+import {
+  IMPLEMENTED_UPGRADES,
+  type UpgradeId,
+} from "../src/shared/core/upgrade-defs.ts";
 import type { Scenario } from "./scenario.ts";
 
 export interface SeedCondition {
@@ -48,61 +52,34 @@ export interface SeedCondition {
 /** Typed name of a registered condition. */
 export type SeedConditionName = keyof typeof SEED_CONDITIONS;
 
-/** Every implemented upgrade as a seed condition.
- *  Adding a new upgrade? Add one line here and run `npm run record-seeds`. */
+/** Default round budget. Most modern-mode conditions fire within 10 rounds; bump
+ *  per-entry if a specific condition needs more headroom. */
+const DEFAULT_ROUNDS = 10;
+/** Every implemented upgrade/modifier is auto-registered as a seed condition
+ *  by reading `IMPLEMENTED_UPGRADES` / `IMPLEMENTED_MODIFIERS` from the pool
+ *  registries. Flipping `implemented: true` on a pool entry is the only step —
+ *  run `npm run record-seeds` to pick up the new condition.
+ *
+ *  Caveat: a pool entry with `implemented: false` has no seed fixture, so
+ *  `loadSeed("upgrade:x")` on an unimplemented id fails at test time rather
+ *  than compile time. That's intentional — don't seed what doesn't exist. */
 const UPGRADE_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
-  (
-    [
-      "mortar",
-      "rapid_fire",
-      "ricochet",
-      "shield_battery",
-      "reinforced_walls",
-      "master_builder",
-      "small_pieces",
-      "double_time",
-      "architect",
-      "foundations",
-      "reclamation",
-      "territorial_ambition",
-      "conscription",
-      "salvage",
-      "ceasefire",
-      "supply_drop",
-      "second_wind",
-      "demolition",
-      "clear_the_field",
-    ] satisfies readonly UpgradeId[]
-  ).map((upgradeId) => [
-    `upgrade:${upgradeId}`,
+  IMPLEMENTED_UPGRADES.map((def) => [
+    `upgrade:${def.id}`,
     {
       mode: "modern",
-      rounds: 10,
-      match: (sc) => latchUpgradePicked(sc, upgradeId),
+      rounds: DEFAULT_ROUNDS,
+      match: (sc) => latchUpgradePicked(sc, def.id),
     } satisfies SeedCondition,
   ]),
 );
-/** Every implemented modifier as a seed condition. Adding a new modifier?
- *  Add one line here and run `npm run record-seeds`. */
 const MODIFIER_CONDITIONS: Record<string, SeedCondition> = Object.fromEntries(
-  (
-    [
-      "wildfire",
-      "crumbling_walls",
-      "grunt_surge",
-      "frozen_river",
-      "sinkhole",
-      "high_tide",
-      "dust_storm",
-      "rubble_clearing",
-      "low_water",
-    ] satisfies readonly ModifierId[]
-  ).map((modifierId) => [
-    `modifier:${modifierId}`,
+  IMPLEMENTED_MODIFIERS.map((def) => [
+    `modifier:${def.id}`,
     {
       mode: "modern",
-      rounds: 10,
-      match: (sc) => latchModifierFired(sc, modifierId),
+      rounds: DEFAULT_ROUNDS,
+      match: (sc) => latchModifierFired(sc, def.id),
     } satisfies SeedCondition,
   ]),
 );
@@ -111,7 +88,7 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
   ...MODIFIER_CONDITIONS,
   "modifier:sinkhole_then_high_tide": {
     mode: "modern",
-    rounds: 10,
+    rounds: DEFAULT_ROUNDS,
     match: (sc) => latchModifierSequence(sc, "sinkhole", "high_tide"),
   },
 };
