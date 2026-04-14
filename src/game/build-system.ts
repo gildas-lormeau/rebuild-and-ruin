@@ -11,9 +11,7 @@ import {
   collectAllInterior,
   collectOccupiedTiles,
   getInterior,
-  hasCannonAt,
   hasGruntAt,
-  hasTowerAt,
   hasWallAt,
   isTileOwnedByPlayer,
   markInteriorFresh,
@@ -31,6 +29,7 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {

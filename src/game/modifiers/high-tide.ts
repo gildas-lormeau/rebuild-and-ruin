@@ -3,9 +3,9 @@
  * Destroys walls, houses, grunts, bonus squares, burning pits, and cannons on flooded tiles.
  */
 
-import { hasTowerAt } from "../../shared/core/board-occupancy.ts";
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { hasTowerAt } from "../../shared/core/occupancy-queries.ts";
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   cannonSize,

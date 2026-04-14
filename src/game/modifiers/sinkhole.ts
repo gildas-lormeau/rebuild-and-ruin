@@ -3,8 +3,11 @@
  * Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  */
 
-import { hasCannonAt, hasTowerAt } from "../../shared/core/board-occupancy.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import {
+  hasCannonAt,
+  hasTowerAt,
+} from "../../shared/core/occupancy-queries.ts";
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_8,

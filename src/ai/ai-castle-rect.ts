@@ -6,14 +6,10 @@
  */
 
 import type { BurningPit } from "../shared/core/battle-types.ts";
-import {
-  hasCannonAt,
-  hasEnemyWallAt,
-  hasGruntAt,
-  hasTowerAt,
-} from "../shared/core/board-occupancy.ts";
+import { hasEnemyWallAt, hasGruntAt } from "../shared/core/board-occupancy.ts";
 import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
 import {

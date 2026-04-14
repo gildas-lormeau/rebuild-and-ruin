@@ -1,5 +1,6 @@
 import type { BurningPit, Cannon, Grunt } from "./battle-types.ts";
 import type { BonusSquare } from "./geometry-types.ts";
+import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   type FreshInterior,
@@ -16,7 +17,6 @@ import {
   inBounds,
   isAtTile,
   isBalloonCannon,
-  isCannonTile,
   isTowerTile,
   isWater,
   packTile,
@@ -273,29 +273,6 @@ export function zoneOwnerIdAt(
     if (state.playerZones[pid] === zone) return pid as ValidPlayerSlot;
   }
   return 0 as ValidPlayerSlot;
-}
-
-export function hasTowerAt(
-  state: GameViewState,
-  r: number,
-  c: number,
-): boolean {
-  return state.map.towers.some((tower) => isTowerTile(tower, r, c));
-}
-
-export function hasCannonAt(
-  state: GameViewState,
-  r: number,
-  c: number,
-  options?: { excludeBalloonCannons?: boolean },
-): boolean {
-  return state.players.some((player) =>
-    player.cannons.some((cannon) => {
-      if (options?.excludeBalloonCannons && isBalloonCannon(cannon))
-        return false;
-      return isCannonTile(cannon, r, c);
-    }),
-  );
 }
 
 export function buildOccupancyCache(

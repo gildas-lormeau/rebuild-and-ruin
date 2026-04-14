@@ -16,10 +16,10 @@ import { CannonMode } from "../shared/core/battle-types.ts";
 import {
   filterActiveEnemies,
   getInterior,
-  hasTowerAt,
 } from "../shared/core/board-occupancy.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   cannonSize,

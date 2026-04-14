@@ -12,6 +12,7 @@
       "src/shared/core/geometry-types.ts",
       "src/shared/core/grid.ts",
       "src/shared/core/modifier-defs.ts",
+      "src/shared/core/occupancy-queries.ts",
       "src/shared/core/pieces.ts",
       "src/shared/core/player-slot.ts",
       "src/shared/core/player-types.ts",

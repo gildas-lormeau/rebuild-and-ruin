@@ -14,14 +14,13 @@ import type { Grunt } from "../shared/core/battle-types.ts";
 import {
   findLivingTowerIndexAt,
   hasAliveHouseAt,
-  hasCannonAt,
   hasGruntAt,
   hasInteriorAt,
-  hasTowerAt,
   hasWallAt,
 } from "../shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
+import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
