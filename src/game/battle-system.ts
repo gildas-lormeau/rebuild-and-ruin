@@ -17,7 +17,6 @@ import type {
   CombinedCannonResult,
 } from "../shared/core/battle-types.ts";
 import {
-  deletePlayerWallBattle,
   filterActiveEnemies,
   getInterior,
   zoneOwnerIdAt,
@@ -40,6 +39,7 @@ import {
   isPlayerEliminated,
   type Player,
 } from "../shared/core/player-types.ts";
+import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   cannonCenter,
   computeFacing45,

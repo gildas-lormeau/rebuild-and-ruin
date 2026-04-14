@@ -77,14 +77,6 @@ export function isTileOwnedByPlayer(player: Player, key: number): boolean {
   return player.interior.has(key) || player.walls.has(key);
 }
 
-/** Remove a wall tile from all players. Used during battle (grunt attacks). */
-export function removeWallFromAllPlayers(
-  state: GameViewState,
-  key: number,
-): void {
-  for (const player of state.players) deletePlayerWallBattle(player, key);
-}
-
 export function collectOccupiedTiles(
   state: GameViewState & {
     readonly burningPits: readonly BurningPit[];
@@ -356,23 +348,6 @@ export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
   const walls = mutableWalls(player);
   for (const key of keys) walls.add(key);
   markWallsDirty(player);
-}
-
-/** Delete a wall during battle. Intentionally skips markWallsDirty — interior is
- *  stale during battle by design; recheckTerritory runs at the next phase start.
- *  WARNING: Leaves interior stale. No recheckTerritory needed until next build phase. */
-export function deletePlayerWallBattle(player: Player, key: number): void {
-  mutableWalls(player).delete(key);
-}
-
-/** Batch-delete wall keys during a modifier (e.g. crumbling walls).
- *  Intentionally skips markWallsDirty — modifier runs between phases. */
-export function deletePlayerWallsBatch(
-  player: Player,
-  keys: readonly number[],
-): void {
-  const walls = mutableWalls(player);
-  for (const key of keys) walls.delete(key);
 }
 
 /** Clear all walls and mark dirty. Used when resetting a player's board state.

@@ -73,6 +73,7 @@
       "server/game-room.ts",
       "src/online/online-lobby-ui.ts",
       "src/shared/core/phantom-types.ts",
+      "src/shared/core/player-walls.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/types.ts"
     ]
@@ -107,11 +108,13 @@
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/frozen-river.ts",
       "src/game/modifiers/grunt-surge.ts",
+      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",
       "src/game/upgrades/conscription.ts",
+      "src/game/upgrades/demolition.ts",
       "src/game/upgrades/double-time.ts",
       "src/game/upgrades/foundations.ts",
       "src/game/upgrades/master-builder.ts",
@@ -152,10 +155,9 @@
       "src/game/modifiers/crumbling-walls.ts",
       "src/game/modifiers/fire-helpers.ts",
       "src/game/modifiers/high-tide.ts",
-      "src/game/modifiers/low-water.ts",
       "src/game/modifiers/sinkhole.ts",
       "src/game/selection.ts",
-      "src/game/upgrades/demolition.ts",
+      "src/game/upgrade-system.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
       "src/input/input-touch-update.ts",
@@ -176,9 +178,10 @@
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
       "src/controllers/controller-factory.ts",
+      "src/game/cannon-system.ts",
       "src/game/modifiers/dry-lightning.ts",
       "src/game/modifiers/wildfire.ts",
-      "src/game/upgrade-system.ts",
+      "src/game/wall-impact.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
@@ -199,8 +202,7 @@
     "tier": "systems",
     "files": [
       "src/ai/ai-build-fallback.ts",
-      "src/game/cannon-system.ts",
-      "src/game/wall-impact.ts",
+      "src/game/grunt-system.ts",
       "src/online/online-watcher-tick.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
@@ -223,7 +225,8 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy-build.ts",
-      "src/game/grunt-system.ts",
+      "src/game/build-system.ts",
+      "src/game/modifier-system.ts",
       "src/online/online-stores.ts",
       "src/render/render-canvas.ts"
     ]
@@ -233,8 +236,7 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
-      "src/game/build-system.ts",
-      "src/game/modifier-system.ts",
+      "src/game/battle-system.ts",
       "src/online/online-runtime-ws.ts",
       "src/runtime/runtime-composition.ts"
     ]
@@ -247,9 +249,11 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
-      "src/game/battle-system.ts",
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
       "src/main.ts",
-      "src/online/online-runtime-lobby.ts"
+      "src/online/online-runtime-lobby.ts",
+      "src/online/online-server-events.ts"
     ]
   },
   {
@@ -257,22 +261,13 @@
     "tier": "assembly",
     "files": [
       "src/controllers/controller-ai.ts",
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/online/online-server-events.ts"
-    ]
-  },
-  {
-    "name": "composition roots",
-    "tier": "roots",
-    "files": [
       "src/game/game-engine.ts",
       "src/online/online-phase-transitions.ts",
       "src/online/online-serialize.ts"
     ]
   },
   {
-    "name": "online session lifecycle",
+    "name": "composition roots",
     "tier": "roots",
     "files": [
       "src/online/online-checkpoints.ts",
@@ -281,7 +276,7 @@
     ]
   },
   {
-    "name": "online wiring",
+    "name": "online session lifecycle",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts",
@@ -289,14 +284,14 @@
     ]
   },
   {
-    "name": "online composition root",
+    "name": "online wiring",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "online entry",
+    "name": "online composition root",
     "tier": "roots",
     "files": [
       "src/online-client.ts"

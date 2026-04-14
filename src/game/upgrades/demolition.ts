@@ -10,8 +10,8 @@
  * placement or end-of-build via recheckTerritory.
  */
 
-import { deletePlayerWallsBatch } from "../../shared/core/board-occupancy.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import {
   computeOutside,
   DIRS_8,

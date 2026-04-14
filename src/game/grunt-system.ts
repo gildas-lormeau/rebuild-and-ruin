@@ -13,7 +13,6 @@ import {
   hasGruntAt,
   hasInteriorAt,
   hasWallAt,
-  removeWallFromAllPlayers,
   zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
 import {
@@ -33,6 +32,7 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
+import { removeWallFromAllPlayers } from "../shared/core/player-walls.ts";
 import {
   DIRS_4,
   distanceToTower,

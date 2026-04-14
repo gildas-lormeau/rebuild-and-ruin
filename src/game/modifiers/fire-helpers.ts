@@ -4,13 +4,10 @@
  */
 
 import type { BurningPit } from "../../shared/core/battle-types.ts";
-import {
-  hasCannonAt,
-  hasTowerAt,
-  removeWallFromAllPlayers,
-} from "../../shared/core/board-occupancy.ts";
+import { hasCannonAt, hasTowerAt } from "../../shared/core/board-occupancy.ts";
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_4,
   isGrass,

@@ -3,9 +3,10 @@
  * (river banks narrow by 1 tile). Mirror of high tide.
  */
 
-import { removeWallFromAllPlayers } from "../../shared/core/board-occupancy.ts";
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../../shared/core/grid.ts";
+import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
+// jscpd:ignore-start
 import {
   cannonSize,
   DIRS_4,

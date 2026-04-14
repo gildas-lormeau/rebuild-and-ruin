@@ -15,6 +15,7 @@
       "src/shared/core/pieces.ts",
       "src/shared/core/player-slot.ts",
       "src/shared/core/player-types.ts",
+      "src/shared/core/player-walls.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",

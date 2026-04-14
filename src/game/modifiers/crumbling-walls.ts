@@ -2,11 +2,9 @@
  * Crumbling Walls modifier — destroys a fraction of each player's outermost walls.
  */
 
-import {
-  deletePlayerWallsBatch,
-  getInterior,
-} from "../../shared/core/board-occupancy.ts";
+import { getInterior } from "../../shared/core/board-occupancy.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
+import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import { DIRS_4, packTile, unpackTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
