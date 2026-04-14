@@ -1,3 +1,10 @@
+/**
+ * Ambient type declaration for the `jsfxr` npm package (which ships no
+ * `.d.ts`). Consumers must add a triple-slash `/// <reference path>` to
+ * pull this file into Deno's per-file module graph — tsc finds it via
+ * the tsconfig `include` glob, but Deno only follows explicit edges.
+ */
+
 declare module "jsfxr" {
   interface SfxrParams {
     readonly wave_type?: number;

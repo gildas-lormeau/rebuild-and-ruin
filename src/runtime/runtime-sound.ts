@@ -20,6 +20,8 @@
  * it sees the intent regardless. Production callers omit it.
  */
 
+/// <reference path="../shared/platform/jsfxr.d.ts" />
+
 import { sfxr } from "jsfxr";
 import {
   BATTLE_MESSAGE,
