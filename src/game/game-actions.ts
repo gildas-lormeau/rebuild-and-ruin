@@ -7,6 +7,7 @@
  */
 
 import type { Cannonball } from "../shared/core/battle-types.ts";
+import { advancePlayerBag } from "../shared/core/player-types.ts";
 import type {
   BattleController,
   BuildController,
@@ -18,7 +19,7 @@ import { fireNextReadyCannon } from "./battle-system.ts";
 import { placePiece } from "./build-system.ts";
 
 /** Execute a piece placement intent against game state.
- *  On success, advances the controller's piece bag and clamps the cursor. */
+ *  On success, advances the player's piece bag and clamps the cursor. */
 export function executePlacePiece(
   state: GameState,
   intent: PlacePieceIntent,
@@ -32,7 +33,8 @@ export function executePlacePiece(
     intent.col,
   );
   if (placed) {
-    ctrl.advanceBag(true);
+    const player = state.players[intent.playerId];
+    if (player) advancePlayerBag(player, true);
     ctrl.clampBuildCursor(intent.piece);
   }
   return placed;

@@ -415,7 +415,7 @@ export function dispatchPointerMove(
       }
     } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);
-      human.setBuildCursor(row, col);
+      human.setBuildCursor(state, row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
       const w = coords.screenToWorld(x, y);
       human.setCannonCursor(w.wx, w.wy);
@@ -495,7 +495,7 @@ function rotatePlacement(
   onPieceRotated?: () => void,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    ctrl.rotatePiece();
+    ctrl.rotatePiece(state);
     onPieceRotated?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
@@ -510,7 +510,7 @@ function dispatchMoveForCtrl(
   state: GameState,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    ctrl.moveBuildCursor(action);
+    ctrl.moveBuildCursor(state, action);
   } else if (state.phase === Phase.CANNON_PLACE) {
     ctrl.moveCannonCursor(action);
   }

@@ -6,8 +6,15 @@
  * Modules that only need Player no longer transitively depend on GameState.
  */
 
+import type { Rng } from "../platform/rng.ts";
 import type { Cannon } from "./battle-types.ts";
 import type { Castle, Tower } from "./geometry-types.ts";
+import {
+  type BagState,
+  createBag,
+  nextPiece,
+  type PieceShape,
+} from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
@@ -63,6 +70,39 @@ export interface Player {
    *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via
    *  getProtectedCastleTiles. Cleared in enterBuildFromBattle. */
   freshCastle: boolean;
+  /** Build-phase piece bag (deterministic from round + rng + smallPieces).
+   *  Not serialized — regenerated on each peer at build-phase start. */
+  bag: BagState | undefined;
+  /** Current piece drawn from the bag (may be rotated by player input). */
+  currentPiece: PieceShape | undefined;
+}
+
+/** Create a new piece bag on a player and draw the first piece. */
+export function initPlayerBag(
+  player: Player,
+  round: number,
+  rng?: Rng,
+  smallPieces?: boolean,
+): void {
+  player.bag = createBag(round, rng, smallPieces);
+  player.currentPiece = nextPiece(player.bag);
+}
+
+/** Advance the piece bag after a successful placement.
+ *  @param _placed — must be literal `true` (compile-time guard ensuring
+ *  callers advance only after verified placement, never speculatively). */
+export function advancePlayerBag(player: Player, _placed: true): void {
+  if (!player.bag) {
+    console.warn("advancePlayerBag called with null bag — likely a desync");
+    return;
+  }
+  player.currentPiece = nextPiece(player.bag);
+}
+
+/** Clear the piece bag (end of build phase / life lost / reset). */
+export function clearPlayerBag(player: Player): void {
+  player.bag = undefined;
+  player.currentPiece = undefined;
 }
 
 /** Create a branded empty interior set. Use at Player creation. */

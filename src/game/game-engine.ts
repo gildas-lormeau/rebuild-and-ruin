@@ -333,6 +333,8 @@ function createGameState(
       upgrades: new Map(),
       damagedWalls: new Set(),
       freshCastle: false,
+      bag: undefined,
+      currentPiece: undefined,
     });
   }
 

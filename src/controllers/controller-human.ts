@@ -18,7 +18,7 @@ import {
 } from "../shared/core/grid.ts";
 import { rotateCW } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { type Player } from "../shared/core/player-types.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
 import {
   type BattleViewState,
@@ -160,10 +160,6 @@ export class HumanController extends BaseController implements InputReceiver {
     );
   }
 
-  override moveBuildCursor(direction: Action): void {
-    super.moveBuildCursor(direction, this.currentPiece);
-  }
-
   override moveCannonCursor(direction: Action): void {
     super.moveCannonCursor(direction, cannonSize(this.cannonPlaceMode));
   }
@@ -172,30 +168,36 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Offsets by the current piece's pivot so the clicked tile aligns with the piece's visual center.
    *  Contrast with setCannonCursor() which offsets by floor(cannonSize/2) instead. */
   // Offsets by piece pivot — pieces have asymmetric shapes with a defined rotation center.
-  override setBuildCursor(row: number, col: number): void {
-    if (this.currentPiece) {
-      const [pr, pc] = this.currentPiece.pivot;
+  override setBuildCursor(
+    state: BuildViewState,
+    row: number,
+    col: number,
+  ): void {
+    const piece = state.players[this.playerId]?.currentPiece;
+    if (piece) {
+      const [pr, pc] = piece.pivot;
       row -= pr;
       col -= pc;
     }
-    super.setBuildCursor(row, col, this.currentPiece);
+    super.setBuildCursor(state, row, col);
   }
 
   // startBuildPhase: uses base class template (initBuildPhase + onStartBuildPhase)
   // No onStartBuildPhase override needed — human has no AI targeting setup.
 
   buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
-    if (!this.currentPiece) return [];
+    const piece = state.players[this.playerId]?.currentPiece;
+    if (!piece) return [];
     const valid = canPlacePiece(
       state,
       this.playerId,
-      this.currentPiece.offsets,
+      piece.offsets,
       this.buildCursor.row,
       this.buildCursor.col,
     );
     return [
       {
-        offsets: this.currentPiece.offsets,
+        offsets: piece.offsets,
         row: this.buildCursor.row,
         col: this.buildCursor.col,
         valid,
@@ -258,33 +260,35 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Contrast with tryPlaceCannon above, which is intentionally boolean — see
    *  its JSDoc for why cannon placement never adopted the intent pattern. */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null {
-    if (!this.currentPiece || !this.bag) return null;
+    const player = state.players[this.playerId];
+    if (!player?.currentPiece || !player.bag) return null;
+    const piece = player.currentPiece;
     const valid = canPlacePiece(
       state,
       this.playerId,
-      this.currentPiece.offsets,
+      piece.offsets,
       this.buildCursor.row,
       this.buildCursor.col,
     );
     if (!valid) return null;
     return {
       playerId: this.playerId,
-      piece: this.currentPiece,
+      piece,
       row: this.buildCursor.row,
       col: this.buildCursor.col,
     };
   }
 
   /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
-  rotatePiece(): void {
-    if (this.currentPiece) {
-      const prevPivot = this.currentPiece.pivot;
-      this.currentPiece = rotateCW(this.currentPiece);
-      const newPivot = this.currentPiece.pivot;
-      this.buildCursor.row += prevPivot[0] - newPivot[0];
-      this.buildCursor.col += prevPivot[1] - newPivot[1];
-      this.clampBuildCursor(this.currentPiece);
-    }
+  rotatePiece(state: BuildViewState): void {
+    const player = state.players[this.playerId];
+    if (!player?.currentPiece) return;
+    const prevPivot = player.currentPiece.pivot;
+    player.currentPiece = rotateCW(player.currentPiece);
+    const newPivot = player.currentPiece.pivot;
+    this.buildCursor.row += prevPivot[0] - newPivot[0];
+    this.buildCursor.col += prevPivot[1] - newPivot[1];
+    this.clampBuildCursor(player.currentPiece);
   }
 
   /** Cycle cannon placement mode through IMPLEMENTED_CANNON_MODES.

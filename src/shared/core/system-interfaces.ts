@@ -163,24 +163,13 @@ export interface BuildController {
   /** Called at the end of the build phase. */
   finalizeBuildPhase(state: BuildViewState): void;
 
-  /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
-  moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
+  /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping via state lookup. */
+  moveBuildCursor(state: BuildViewState, direction: Action): void;
 
   /** Set build cursor to absolute position (mouse/touch).
    *  HumanController overrides to offset by the piece pivot so the clicked tile
-   *  aligns with the piece's visual center. Piece-aware clamping when provided. */
-  setBuildCursor(
-    row: number,
-    col: number,
-    piece?: PieceShape | undefined,
-  ): void;
-
-  /** Get the current build piece (for sending placement data). */
-  getCurrentPiece(): PieceShape | undefined;
-
-  /** Draw the next piece from the bag after a successful placement.
-   *  @param _placed — must be literal `true` (compile-time guard). */
-  advanceBag(_placed: true): void;
+   *  aligns with the piece's visual center. Piece-aware clamping via state lookup. */
+  setBuildCursor(state: BuildViewState, row: number, col: number): void;
 
   /** Clamp build cursor so the entire piece stays within the grid. */
   clampBuildCursor(piece: PieceShape | undefined): void;
@@ -282,11 +271,11 @@ export interface InputReceiver {
   handleKeyUp(action: Action): void;
 
   /** Rotate the current build piece clockwise. */
-  rotatePiece(): void;
+  rotatePiece(state: BuildViewState): void;
 
   /** Compute a place-piece intent at the cursor.
    *  Returns null if placement is invalid. The orchestrator executes the
-   *  mutation via placePiece() then calls ctrl.advanceBag(true). */
+   *  mutation via placePiece() then calls advancePlayerBag(player, true). */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null;
 
   /** Try to place a cannon at the cursor. */

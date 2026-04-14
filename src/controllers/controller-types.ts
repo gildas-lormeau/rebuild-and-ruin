@@ -6,13 +6,9 @@ import {
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import {
-  type BagState,
-  createBag,
-  nextPiece,
-  type PieceShape,
-} from "../shared/core/pieces.ts";
+import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { clearPlayerBag, initPlayerBag } from "../shared/core/player-types.ts";
 import {
   pxToTile,
   towerCenter,
@@ -28,7 +24,6 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import type { Rng } from "../shared/platform/rng.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 
@@ -71,33 +66,8 @@ export abstract class BaseController implements PlayerController {
    *  Reset in initBattleState() and onLifeLost(). */
   cannonRotationIdx: number | undefined;
 
-  /** Piece bag for the build phase (shared by AI and Human). */
-  protected bag: BagState | undefined;
-  /** Current piece drawn from the bag. */
-  currentPiece: PieceShape | undefined;
-
   constructor(playerId: ValidPlayerSlot) {
     this.playerId = playerId;
-  }
-
-  /** Create a new piece bag and draw the first piece. */
-  protected initBag(round: number, rng?: Rng, smallPieces?: boolean): void {
-    this.bag = createBag(round, rng, smallPieces);
-    this.currentPiece = nextPiece(this.bag);
-  }
-
-  /** Draw the next piece from the bag.
-   *  @param _placed — must be literal `true`. This is a compile-time guard:
-   *  callers can only pass `true` (not a variable), ensuring advanceBag is
-   *  only called after a verified successful placement. Advancing without
-   *  placing would skip a piece and desynchronize the bag with the board state.
-   *  Do NOT remove this parameter or widen its type. */
-  advanceBag(_placed: true): void {
-    if (!this.bag) {
-      console.warn("advanceBag called with null bag — likely a desync");
-      return;
-    }
-    this.currentPiece = nextPiece(this.bag);
   }
 
   centerOn(row: number, col: number): void {
@@ -133,12 +103,13 @@ export abstract class BaseController implements PlayerController {
    *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: BuildViewState): void {
     const player = state.players[this.playerId];
-    const smallPieces = player ? useSmallPieces(player) : false;
-    this.initBag(state.round, state.rng, smallPieces);
-    if (player?.homeTower) {
+    if (!player) return;
+    const smallPieces = useSmallPieces(player);
+    initPlayerBag(player, state.round, state.rng, smallPieces);
+    if (player.homeTower) {
       this.buildCursor = towerCenterTile(player.homeTower);
     }
-    this.clampBuildCursor(this.currentPiece);
+    this.clampBuildCursor(player.currentPiece);
   }
 
   /** @final Template method — do NOT override. Override onStartBuildPhase() instead.
@@ -160,8 +131,8 @@ export abstract class BaseController implements PlayerController {
    *  Calls the hook then clears bag/piece. */
   finalizeBuildPhase(state: BuildViewState): void {
     this.onFinalizeBuildPhase(state);
-    this.bag = undefined;
-    this.currentPiece = undefined;
+    const player = state.players[this.playerId];
+    if (player) clearPlayerBag(player);
   }
 
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
@@ -210,8 +181,6 @@ export abstract class BaseController implements PlayerController {
   endBattle(): void {}
   onLifeLost(): void {
     this.cannonRotationIdx = undefined;
-    this.bag = undefined;
-    this.currentPiece = undefined;
   }
   reset(): void {
     this.buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
@@ -221,8 +190,6 @@ export abstract class BaseController implements PlayerController {
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
     this.cannonRotationIdx = undefined;
-    this.bag = undefined;
-    this.currentPiece = undefined;
   }
   /** Called at start of cannon phase. Override to reset cannon cursor/mode. */
   startCannonPhase(_state: CannonViewState): void {}
@@ -231,10 +198,6 @@ export abstract class BaseController implements PlayerController {
    *  AI overrides to return true after its selection animation completes. */
   selectionTick(_dt: number, _state?: GameViewState): boolean {
     return false;
-  }
-
-  getCurrentPiece(): PieceShape | undefined {
-    return this.currentPiece;
   }
 
   /** Clamp build cursor so the entire piece stays within the grid. */
@@ -250,7 +213,8 @@ export abstract class BaseController implements PlayerController {
     );
   }
 
-  moveBuildCursor(direction: Action, piece?: PieceShape | undefined): void {
+  moveBuildCursor(state: BuildViewState, direction: Action): void {
+    const piece = state.players[this.playerId]?.currentPiece;
     const h = piece ? piece.height : 1;
     const w = piece ? piece.width : 1;
     if (direction === Action.UP)
@@ -282,11 +246,8 @@ export abstract class BaseController implements PlayerController {
       );
   }
 
-  setBuildCursor(
-    row: number,
-    col: number,
-    piece?: PieceShape | undefined,
-  ): void {
+  setBuildCursor(state: BuildViewState, row: number, col: number): void {
+    const piece = state.players[this.playerId]?.currentPiece;
     this.buildCursor = { row, col };
     if (piece) this.clampBuildCursor(piece);
   }

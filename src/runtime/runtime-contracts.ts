@@ -651,7 +651,7 @@ export interface PointerMoveDeps {
 /** Deps for the per-frame touch controls update (loupe, d-pad, zoom, quit, floating actions). */
 export interface TouchControlsDeps {
   mode: Mode;
-  state: { phase: Phase };
+  state: GameState;
   phantoms: {
     piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
     cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];

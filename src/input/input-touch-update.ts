@@ -138,7 +138,10 @@ function updateLoupe(deps: TouchControlsDeps): void {
   } else if (human) {
     const cursor =
       phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
-    const piece = phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
+    const piece =
+      phase === Phase.WALL_BUILD
+        ? (deps.state.players[human.playerId]?.currentPiece ?? null)
+        : null;
     const pivotR = piece ? piece.pivot[0] : 0;
     const pivotC = piece ? piece.pivot[1] : 0;
     wx = (cursor.col + pivotC + 0.5) * TILE_SIZE;
@@ -211,7 +214,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   let wy: number;
   if (phase === Phase.WALL_BUILD) {
     const cursor = human.buildCursor;
-    const piece = human.getCurrentPiece();
+    const piece = deps.state.players[human.playerId]?.currentPiece;
     const pc = piece ? piece.pivot[1] : 0;
     wx = (cursor.col + pc + 0.5) * TILE_SIZE;
     wy = cursor.row * TILE_SIZE;

@@ -11,6 +11,7 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { advancePlayerBag } from "../shared/core/player-types.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
 import type { PiecePlacementPreview } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -24,12 +25,10 @@ export interface BuildHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   buildCursor: TilePos;
-  currentPiece: PieceShape | undefined;
   readonly buildCursorSpeed: number;
   readonly boostThreshold: number;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
-  advanceBag(_placed: true): void;
   clampBuildCursor(piece: PieceShape | undefined): void;
   stepTileCursorToward(
     cursor: TilePos,
@@ -103,7 +102,7 @@ export function initBuild(
     phase.state = {
       step: STEP.MOVING,
       target,
-      rotation: buildRotationFor(host, target),
+      rotation: buildRotationFor(host, state, target),
     };
   } else {
     phase.state = { step: STEP.THINKING, timer: 0 };
@@ -124,13 +123,14 @@ export function tickBuild(
   phase: BuildPhase,
   state: GameState,
 ): PiecePlacementPreview[] {
-  if (!host.currentPiece) return [];
+  const currentPiece = state.players[host.playerId]?.currentPiece;
+  if (!currentPiece) return [];
 
   // Clamp cursor so phantom never extends beyond the grid
   const clampPiece =
     phase.state.step === STEP.MOVING || phase.state.step === STEP.DWELLING
       ? phase.state.target.piece
-      : host.currentPiece;
+      : currentPiece;
   host.clampBuildCursor(clampPiece);
 
   switch (phase.state.step) {
@@ -149,7 +149,7 @@ export function tickBuild(
         phase.state = {
           step: STEP.MOVING,
           target,
-          rotation: buildRotationFor(host, target),
+          rotation: buildRotationFor(host, state, target),
         };
         return tickMoving(host, phase, state);
       }
@@ -179,7 +179,7 @@ export function tickBuild(
           phase.state = {
             step: STEP.MOVING,
             target,
-            rotation: buildRotationFor(host, target),
+            rotation: buildRotationFor(host, state, target),
           };
         } else {
           phaseState.retryTimer = secondsToTicks(1.0);
@@ -203,7 +203,8 @@ export function tickBuild(
           phaseState.target.col,
         );
         if (placed) {
-          host.advanceBag(true);
+          const player = state.players[host.playerId];
+          if (player) advancePlayerBag(player, true);
           phase.state = {
             step: STEP.THINKING,
             timer: host.scaledDelay(
@@ -306,8 +307,12 @@ function tickMoving(
 }
 
 /** Build rotation animation sequence from current bag piece to target orientation. */
-function buildRotationFor(host: BuildHost, target: BuildTarget): BuildRotation {
-  const bag = host.currentPiece!;
+function buildRotationFor(
+  host: BuildHost,
+  state: GameState,
+  target: BuildTarget,
+): BuildRotation {
+  const bag = state.players[host.playerId]!.currentPiece!;
   if (sameShape(bag, target.piece)) {
     return { seq: [], idx: 0, timer: 0 };
   }
@@ -333,7 +338,7 @@ function phantomAtCursor(
   host: BuildHost,
   state: GameState,
 ): PiecePlacementPreview {
-  const piece = host.currentPiece!;
+  const piece = state.players[host.playerId]!.currentPiece!;
   const row = Math.round(host.buildCursor.row);
   const col = Math.round(host.buildCursor.col);
   return makePhantom(
@@ -359,11 +364,12 @@ function computeNextPlacement(
   host: BuildHost,
   state: GameState,
 ): BuildTarget | null {
-  if (!host.currentPiece) return null;
+  const currentPiece = state.players[host.playerId]?.currentPiece;
+  if (!currentPiece) return null;
   const result = host.strategy.pickPlacement(
     state,
     host.playerId,
-    host.currentPiece,
+    currentPiece,
     {
       row: Math.round(host.buildCursor.row),
       col: Math.round(host.buildCursor.col),

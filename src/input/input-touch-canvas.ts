@@ -28,6 +28,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
@@ -147,7 +148,7 @@ function handleTouchStart(
     const tile = coords.pixelToTile(x, y);
     let hit = false;
     deps.withPointerPlayer((human) => {
-      hit = isOnPhantom(human, state.phase, tile.row, tile.col);
+      hit = isOnPhantom(human, state, tile.row, tile.col);
     });
     if (hit) {
       gestureState.shouldDirectlyPlaceOnTap = true;
@@ -295,12 +296,13 @@ function isTap(touch: Touch, gestureState: GestureState): boolean {
 /** Check whether a tile position overlaps the current piece/cannon phantom. */
 function isOnPhantom(
   human: PlayerController & InputReceiver,
-  phase: Phase,
+  state: GameState,
   row: number,
   col: number,
 ): boolean {
+  const phase = state.phase;
   if (phase === Phase.WALL_BUILD) {
-    const piece = human.getCurrentPiece();
+    const piece = state.players[human.playerId]?.currentPiece;
     if (!piece) return false;
     const cr = human.buildCursor.row;
     const cc = human.buildCursor.col;

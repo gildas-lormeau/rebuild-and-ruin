@@ -289,7 +289,7 @@ export function createFloatingActions(
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
       if (state.phase === Phase.WALL_BUILD) {
-        human.rotatePiece();
+        human.rotatePiece(state);
         deps.onPieceRotated?.();
       } else if (state.phase === Phase.CANNON_PLACE) {
         const max = state.cannonLimits[human.playerId] ?? 0;
