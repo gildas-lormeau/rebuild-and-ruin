@@ -244,6 +244,9 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
 
   let scene: OffscreenPair | undefined;
   let bannerScene: OffscreenPair | undefined;
+  /** Intermediate 1× canvas used to route putImageData through drawImage so
+   *  the target context's scale transform applies (putImageData ignores it). */
+  let imageDataBridge: OffscreenPair | undefined;
   // Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile.
   let mainCtxCache:
     | {
@@ -343,6 +346,40 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return bannerScene;
   }
 
+  /** Paint an ImageData onto a (possibly-scaled) target context.
+   *  Works regardless of the target's transform, because putImageData is
+   *  written to a 1× bridge canvas first, then drawImage respects scale. */
+  function blitImageData(
+    targetCtx: CanvasRenderingContext2D,
+    img: ImageData,
+    dx: number,
+    dy: number,
+  ): void {
+    if (!imageDataBridge) {
+      const canvas = createOffscreenCanvas();
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      imageDataBridge = { canvas, ctx };
+    }
+    const { canvas, ctx } = imageDataBridge;
+    if (canvas.width < img.width || canvas.height < img.height) {
+      canvas.width = Math.max(canvas.width, img.width);
+      canvas.height = Math.max(canvas.height, img.height);
+      ctx.imageSmoothingEnabled = false;
+    }
+    ctx.putImageData(img, 0, 0);
+    targetCtx.drawImage(
+      canvas,
+      0,
+      0,
+      img.width,
+      img.height,
+      dx,
+      dy,
+      img.width,
+      img.height,
+    );
+  }
+
   function ensureOffscreenSize(width: number, height: number): void {
     const physW = width * OFFSCREEN_SCALE;
     const physH = height * OFFSCREEN_SCALE;
@@ -395,7 +432,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     overlayCtx.beginPath();
     overlayCtx.rect(0, clipY, W, H - clipY);
     overlayCtx.clip();
-    overlayCtx.drawImage(getBannerScene().canvas, 0, 0);
+    overlayCtx.drawImage(getBannerScene().canvas, 0, 0, W, H);
     overlayCtx.restore();
     observer?.bannerComposited?.({
       clipY,
@@ -458,12 +495,14 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
 
     // Draw the new (target) scene — layers that change between phases
     const liveCache = getTerrainCache(map, W, H);
-    drawTerrain(overlayCtx, W, H, map, liveCache, overlay);
+    const blit = (img: ImageData, dx: number, dy: number) =>
+      blitImageData(overlayCtx, img, dx, dy);
+    drawTerrain(W, H, map, liveCache, blit, overlay);
     observer?.terrainDrawn?.("main", map);
     drawWaterAnimation(overlayCtx, map, overlay, now);
     drawFrozenTiles(overlayCtx, overlay, now);
     drawCastles(overlayCtx, overlay);
-    drawSinkholeOverlays(overlayCtx, map, liveCache, overlay);
+    drawSinkholeOverlays(map, liveCache, blit, overlay);
     drawBonusSquares(overlayCtx, overlay, now);
     drawHouses(overlayCtx, overlay);
     drawTowers(overlayCtx, map, overlay, now);
@@ -558,11 +597,11 @@ for (const w of WAVE_LO) {
  *  reads `cache.normal` / `cache.battle` / `cache.sinkholeClusters` and
  *  writes the corresponding fields when it has to rebuild. */
 function drawTerrain(
-  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   map: GameMap,
   cache: TerrainImageCache,
+  blit: (img: ImageData, dx: number, dy: number) => void,
   overlay?: RenderOverlay,
 ): void {
   const inBattle = !!overlay?.battle?.inBattle;
@@ -572,7 +611,7 @@ function drawTerrain(
   const needsSinkholeClusters =
     !!sinkholeTiles && sinkholeTiles.size > 0 && !cache.sinkholeClusters;
   if (cachedImage && !needsSinkholeClusters) {
-    overlayCtx.putImageData(cachedImage, 0, 0);
+    blit(cachedImage, 0, 0);
     return;
   }
 
@@ -580,13 +619,13 @@ function drawTerrain(
   blurSignedDistanceField(sdf, W, H);
 
   if (!cachedImage) {
-    const imgData = overlayCtx.createImageData(W, H);
+    const imgData = new ImageData(W, H);
     renderTerrainPixels(imgData, sdf, W, H, map, inBattle, frozenTiles);
-    overlayCtx.putImageData(imgData, 0, 0);
+    blit(imgData, 0, 0);
     if (inBattle) cache.battle = imgData;
     else cache.normal = imgData;
   } else {
-    overlayCtx.putImageData(cachedImage, 0, 0);
+    blit(cachedImage, 0, 0);
   }
 
   if (needsSinkholeClusters && sinkholeTiles) {
@@ -1009,9 +1048,9 @@ function selectTerrainColor(
  *  about (which would read ownership from stale castles and paint the wrong
  *  color on the first frame of a reveal banner). */
 function drawSinkholeOverlays(
-  overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
   cache: TerrainImageCache,
+  blit: (img: ImageData, dx: number, dy: number) => void,
   overlay?: RenderOverlay,
 ): void {
   const sinkholeTiles = overlay?.entities?.sinkholeTiles;
@@ -1030,11 +1069,7 @@ function drawSinkholeOverlays(
     for (const tile of cluster.tiles) {
       const patch = tile.patches.get(key);
       if (!patch) continue;
-      overlayCtx.putImageData(
-        patch,
-        tile.col * TILE_SIZE,
-        tile.row * TILE_SIZE,
-      );
+      blit(patch, tile.col * TILE_SIZE, tile.row * TILE_SIZE);
     }
   }
 }
