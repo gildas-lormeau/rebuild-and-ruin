@@ -117,12 +117,21 @@ export interface HeadlessRuntime {
   readonly runtime: GameRuntime;
   /** Current mock clock (ms). */
   now(): number;
-  /** Drive the simulation until `predicate` returns true or `maxFrames`
-   *  reached. Returns the number of frames taken, or -1 if the predicate
-   *  never fired. */
-  runUntil(predicate: () => boolean, maxFrames?: number, dtMs?: number): number;
-  /** Drive the simulation until `mode === STOPPED` (game over) or
-   *  `maxFrames` reached. */
+  /** Drive the simulation until `predicate` returns true. Returns the
+   *  number of frames taken. Throws `ScenarioTimeoutError` if the
+   *  predicate never fires within `maxFrames` — use `tick()` for the
+   *  "just run N frames" case where the predicate is `() => false`. */
+  runUntil(
+    predicate: () => boolean,
+    maxFrames?: number,
+    dtMs?: number,
+  ): number;
+  /** Advance the simulation by a fixed number of frames without
+   *  checking any predicate. Mirrors the `sc.tick()` method on the
+   *  Scenario facade — preferred over `runUntil(() => false, N)`. */
+  tick(frames?: number, dtMs?: number): void;
+  /** Drive the simulation until `mode === STOPPED` (game over).
+   *  Throws `ScenarioTimeoutError` on timeout. */
   runGame(maxFrames?: number, dtMs?: number): void;
   /** Real `EventTarget` the keyboard handler is bound to. Tests dispatch
    *  `KeyboardEvent` instances here to drive the same code path the browser
@@ -148,6 +157,20 @@ export interface HeadlessRuntime {
   subscribeNetworkMessage(
     handler: (msg: ServerMessage) => void | Promise<void>,
   ): () => void;
+}
+
+/** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate /
+ *  target state doesn't materialize within the frame budget. Mirrors
+ *  `E2ETimeoutError` on the browser side — both APIs now fail loudly
+ *  instead of silently returning. `maxFrames` is the budget that was
+ *  exhausted. */
+export class ScenarioTimeoutError extends Error {
+  readonly maxFrames: number;
+  constructor(message: string, maxFrames: number) {
+    super(message);
+    this.name = "ScenarioTimeoutError";
+    this.maxFrames = maxFrames;
+  }
 }
 
 export async function createHeadlessRuntime(
@@ -372,7 +395,19 @@ export async function createHeadlessRuntime(
         if (predicate()) return frame;
       }
     }
-    return -1;
+    throw new ScenarioTimeoutError(
+      `runUntil predicate never fired within ${maxTicks} frames`,
+      maxTicks,
+    );
+  }
+
+  function tickFrames(frames = 1, dtMs = 16): void {
+    const simTicksPerFrame = Math.max(1, Math.round(dtMs / SIM_TICK_MS));
+    for (let frame = 0; frame < frames; frame++) {
+      for (let sub = 0; sub < simTicksPerFrame; sub++) {
+        tick(SIM_TICK_MS);
+      }
+    }
   }
 
   function isStopped(): boolean {
@@ -388,6 +423,10 @@ export async function createHeadlessRuntime(
         if (isStopped()) return;
       }
     }
+    throw new ScenarioTimeoutError(
+      `runGame: mode did not reach STOPPED within ${maxTicks} frames`,
+      maxTicks,
+    );
   }
 
   async function deliverNetworkMessage(msg: ServerMessage): Promise<void> {
@@ -413,6 +452,7 @@ export async function createHeadlessRuntime(
     runtime,
     now: () => clock,
     runUntil,
+    tick: tickFrames,
     runGame,
     keyboardEventSource: keyboardEventSource as unknown as EventTarget,
     pointerEventTarget: renderer.eventTarget as unknown as EventTarget,

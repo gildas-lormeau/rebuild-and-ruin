@@ -658,36 +658,19 @@ export async function createE2EScenario(
 }
 
 /** Tick until a `phaseStart` event for `phase` fires. Returns the captured
- *  bus entry with full `phaseStart` payload typing. Throws
- *  `E2ETimeoutError` on timeout. Mirrors the headless `waitForPhase`. */
-export async function waitForPhase(
+ *  bus entry with full `phaseStart` payload typing. Throws `E2ETimeoutError`
+ *  on timeout. Mirrors the headless `waitForPhase`. */
+export function waitForPhase(
   sc: E2EScenario,
   phase: Phase,
   opts?: E2ERunOpts,
 ): Promise<E2EBusEntryOf<"phaseStart">> {
-  let captured: E2EBusEntryOf<"phaseStart"> | null = null;
-  const handler = (ev: E2EBusEntryOf<"phaseStart">) => {
-    if (captured === null && ev.phase === phase) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.PHASE_START, handler);
-  try {
-    await sc.runUntil(() => captured !== null, {
-      timeoutMs: opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
-    });
-  } catch (err) {
-    if (err instanceof E2ETimeoutError) {
-      throw new E2ETimeoutError(`waitForPhase(${phase})`, err.elapsedMs);
-    }
-    throw err;
-  } finally {
-    sc.bus.off(GAME_EVENT.PHASE_START, handler);
-  }
-  // Unreachable unless runUntil succeeded without the predicate being true,
-  // which would be a pollUntil invariant violation.
-  if (captured === null) {
-    throw new Error(`waitForPhase(${phase}): handler did not capture`);
-  }
-  return captured;
+  return waitForEvent(
+    sc,
+    GAME_EVENT.PHASE_START,
+    (ev) => ev.phase === phase,
+    { ...opts, label: `waitForPhase(${phase})` },
+  );
 }
 
 /** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
@@ -707,31 +690,48 @@ export function waitForModifier(
 
 /** Tick until a `bannerStart` event matching `predicate` fires. Throws
  *  `E2ETimeoutError` on timeout. */
-export async function waitForBanner(
+export function waitForBanner(
   sc: E2EScenario,
   predicate: (ev: E2EBusEntryOf<"bannerStart">) => boolean,
   opts?: E2ERunOpts,
 ): Promise<E2EBusEntryOf<"bannerStart">> {
-  let captured: E2EBusEntryOf<"bannerStart"> | null = null;
-  const handler = (ev: E2EBusEntryOf<"bannerStart">) => {
+  return waitForEvent(sc, GAME_EVENT.BANNER_START, predicate, {
+    ...opts,
+    label: "waitForBanner",
+  });
+}
+
+/** Generic "drive the game until an event matching `predicate` fires"
+ *  helper. Mirrors the headless `waitForEvent` — the three specific
+ *  `waitFor*` functions below are one-line wrappers. Throws
+ *  `E2ETimeoutError` (re-thrown from `runUntil` with `opts.label`) if
+ *  the target event never fires within the budget. */
+export async function waitForEvent<K extends keyof GameEventMap>(
+  sc: E2EScenario,
+  eventType: K,
+  predicate: (ev: E2EBusEntryOf<K>) => boolean,
+  opts?: E2ERunOpts & { label?: string },
+): Promise<E2EBusEntryOf<K>> {
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
+  const label = opts?.label ?? `waitForEvent(${String(eventType)})`;
+  let captured: E2EBusEntryOf<K> | null = null;
+  const handler = (ev: E2EBusEntryOf<K>) => {
     if (captured === null && predicate(ev)) captured = ev;
   };
-  sc.bus.on(GAME_EVENT.BANNER_START, handler);
+  sc.bus.on(eventType, handler);
   try {
-    await sc.runUntil(() => captured !== null, {
-      timeoutMs: opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
-    });
+    await sc.runUntil(() => captured !== null, { timeoutMs });
   } catch (err) {
     if (err instanceof E2ETimeoutError) {
-      throw new E2ETimeoutError("waitForBanner", err.elapsedMs);
+      throw new E2ETimeoutError(label, err.elapsedMs);
     }
     throw err;
   } finally {
-    sc.bus.off(GAME_EVENT.BANNER_START, handler);
+    sc.bus.off(eventType, handler);
   }
-  if (captured === null) {
-    throw new Error("waitForBanner: handler did not capture");
-  }
+  // Unreachable: runUntil either succeeded (captured is non-null) or
+  // threw above. Kept as a belt-and-braces invariant check.
+  if (captured === null) throw new Error(`${label}: handler did not capture`);
   return captured;
 }
 

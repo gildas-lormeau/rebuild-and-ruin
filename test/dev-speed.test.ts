@@ -32,7 +32,7 @@ for (const SPEED of [2, 4, 16] as const) {
       // Reference run at normal speed.
       const reference = await createScenario({ seed: SEED, mode: "modern" });
       const referenceEvents = recordEvents(reference);
-      reference.runUntil(() => false, FRAMES_AT_SPEED_N * SPEED);
+      reference.tick(FRAMES_AT_SPEED_N * SPEED);
 
       // Sub-stepped run at SPEED× — fewer outer frames, but each frame
       // sub-steps SPEED times so the total game-time advance matches.
@@ -42,7 +42,7 @@ for (const SPEED of [2, 4, 16] as const) {
         speedMultiplier: SPEED,
       });
       const spedEvents = recordEvents(sped);
-      sped.runUntil(() => false, FRAMES_AT_SPEED_N);
+      sped.tick(FRAMES_AT_SPEED_N);
 
       // Bus event logs must match byte-for-byte. Compare event count first
       // so the failure message points at the first divergence (much more

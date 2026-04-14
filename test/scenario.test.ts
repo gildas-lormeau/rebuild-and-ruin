@@ -145,13 +145,11 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
     `expected at least 1 round played, got round=${sc.state.round}`,
   );
   // The runtime should have reached the final state (game over banner or stopped).
+  const reducedToOne =
+    sc.state.players.filter((player) => !player.eliminated).length <= 1;
   assert(
     sc.state.players.some((player) => player.eliminated) ||
-      sc.runUntil(
-        () =>
-          sc.state.players.filter((player) => !player.eliminated).length <= 1,
-        100,
-      ) >= 0 ||
+      reducedToOne ||
       sc.state.round >= 2,
     "expected game to progress past round 1",
   );

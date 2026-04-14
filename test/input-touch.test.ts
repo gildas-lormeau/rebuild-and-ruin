@@ -23,16 +23,6 @@ import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario } from "./scenario.ts";
 
-/** Center of slot N in canvas-space pixels. Identical to the helper in
- *  `input-lobby.test.ts` — see that file for the SCALE-conversion notes. */
-function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
-  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
-  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
-    layout.rectW / 2;
-  const tileY = layout.rectY + layout.rectH / 2;
-  return { x: tileX * SCALE, y: tileY * SCALE };
-}
-
 Deno.test(
   "lobby touch: tapping a slot joins it and starts the game before the 15s timeout",
   async () => {
@@ -58,7 +48,7 @@ Deno.test(
     // is evaluated against the latest `timerAccum`.
     for (let i = 0; i < LOBBY_TIMER; i++) {
       sc.input.tap(slot0.x, slot0.y);
-      sc.runUntil(() => false, 1);
+      sc.tick(1);
     }
 
     // Stage 1 — drive sync frames until `tickLobby` flips
@@ -68,12 +58,8 @@ Deno.test(
     const startedAt = sc.now();
     const FRAMES_PER_SEC = 1000 / 16;
     const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
-    const framesToInactive = sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
     const elapsedSec = (sc.now() - startedAt) / 1000;
-    assert(
-      framesToInactive >= 0,
-      `lobby never deactivated after ${maxFrames} frames (${elapsedSec}s)`,
-    );
     assert(
       elapsedSec <= LOBBY_SKIP_LOCKOUT + 0.5,
       `lobby took ${elapsedSec.toFixed(2)}s to drain after spam-tap (expected ≈${LOBBY_SKIP_LOCKOUT}s)`,
@@ -101,3 +87,13 @@ Deno.test(
     );
   },
 );
+
+/** Center of slot N in canvas-space pixels. Identical to the helper in
+ *  `input-lobby.test.ts` — see that file for the SCALE-conversion notes. */
+function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
+  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
+  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
+    layout.rectW / 2;
+  const tileY = layout.rectY + layout.rectH / 2;
+  return { x: tileX * SCALE, y: tileY * SCALE };
+}

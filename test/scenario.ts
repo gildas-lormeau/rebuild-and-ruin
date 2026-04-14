@@ -49,6 +49,7 @@ import type {
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
+  ScenarioTimeoutError,
 } from "./runtime-headless.ts";
 import {
   GAME_MODE_CLASSIC,
@@ -75,6 +76,8 @@ import {
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
+
+export { ScenarioTimeoutError } from "./runtime-headless.ts";
 
 export interface ScenarioOptions {
   /** Map seed — controls map, AI, and modifier rolls. Defaults to 42. */
@@ -165,16 +168,20 @@ export interface Scenario extends Disposable {
   readonly banner: () => Readonly<BannerState>;
   /** Current simulated time (ms). */
   readonly now: () => number;
-  /** Drive the game until `predicate` returns true. Returns the frame count
-   *  taken, or -1 if the predicate never fired before `maxFrames`. Tests
-   *  observe via the bus and assert on `state` reads — never advance the
-   *  simulation manually frame-by-frame. */
+  /** Drive the game until `predicate` returns true. Returns the frame
+   *  count taken. Throws `ScenarioTimeoutError` if the predicate never
+   *  fires within `maxFrames` — use `tick()` for the "just run N frames"
+   *  case. Tests observe via the bus and assert on `state` reads —
+   *  never advance the simulation manually frame-by-frame. */
   runUntil(
     predicate: () => boolean,
     maxFrames?: number,
     dtMs?: number,
   ): number;
-  /** Drive the game until it ends (mode reaches STOPPED). */
+  /** Advance the simulation by a fixed number of frames without checking
+   *  any predicate. Use this instead of `runUntil(() => false, N)`. */
+  tick(frames?: number, dtMs?: number): void;
+  /** Drive the game until it ends (mode reaches STOPPED). Throws on timeout. */
   runGame(maxFrames?: number, dtMs?: number): void;
   /** Synthetic input — dispatches events at the same `EventTarget`s the
    *  production browser path uses (`document` for keys, the canvas element
@@ -384,6 +391,7 @@ export function wrapHeadless(
     banner: () => headless.runtime.runtimeState.banner,
     now: headless.now,
     runUntil: headless.runUntil,
+    tick: headless.tick,
     runGame: headless.runGame,
     input,
     [Symbol.dispose]: () => {
@@ -407,28 +415,16 @@ export function wrapHeadless(
   };
 }
 
-/** Tick until a `phaseStart` event for `phase` fires. Returns the event. */
+/** Tick until a `phaseStart` event for `phase` fires. */
 export function waitForPhase(
   sc: Scenario,
   phase: Phase,
   maxTicks = DEFAULT_MAX_TICKS,
 ): GameEventMap["phaseStart"] {
-  let captured: GameEventMap["phaseStart"] | null = null;
-  const handler = (ev: GameEventMap["phaseStart"]) => {
-    if (ev.phase === phase && captured === null) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.PHASE_START, handler);
-  try {
-    sc.runUntil(() => captured !== null, maxTicks);
-  } finally {
-    sc.bus.off(GAME_EVENT.PHASE_START, handler);
-  }
-  if (captured === null) {
-    throw new Error(
-      `waitForPhase(${phase}) timed out after ${maxTicks} ticks`,
-    );
-  }
-  return captured;
+  return waitForEvent(sc, GAME_EVENT.PHASE_START, (ev) => ev.phase === phase, {
+    maxTicks,
+    label: `waitForPhase(${phase})`,
+  });
 }
 
 /** Tick until a `roundStart` event for `round` fires. Useful for skipping
@@ -439,22 +435,10 @@ export function waitUntilRound(
   round: number,
   maxTicks = DEFAULT_MAX_TICKS,
 ): GameEventMap["roundStart"] {
-  let captured: GameEventMap["roundStart"] | null = null;
-  const handler = (ev: GameEventMap["roundStart"]) => {
-    if (ev.round >= round && captured === null) captured = ev;
-  };
-  sc.bus.on(GAME_EVENT.ROUND_START, handler);
-  try {
-    sc.runUntil(() => captured !== null, maxTicks);
-  } finally {
-    sc.bus.off(GAME_EVENT.ROUND_START, handler);
-  }
-  if (captured === null) {
-    throw new Error(
-      `waitUntilRound(${round}) timed out after ${maxTicks} ticks`,
-    );
-  }
-  return captured;
+  return waitForEvent(sc, GAME_EVENT.ROUND_START, (ev) => ev.round >= round, {
+    maxTicks,
+    label: `waitUntilRound(${round})`,
+  });
 }
 
 /** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
@@ -478,19 +462,45 @@ export function waitForBanner(
   predicate: (ev: GameEventMap["bannerStart"]) => boolean,
   maxTicks = DEFAULT_MAX_TICKS,
 ): GameEventMap["bannerStart"] {
-  let captured: GameEventMap["bannerStart"] | null = null;
-  const handler = (ev: GameEventMap["bannerStart"]) => {
+  return waitForEvent(sc, GAME_EVENT.BANNER_START, predicate, {
+    maxTicks,
+    label: "waitForBanner",
+  });
+}
+
+/** Generic "drive the game until an event matching `predicate` fires"
+ *  helper. All three specific `waitFor*` functions are one-line wrappers
+ *  over this. Throws `ScenarioTimeoutError` (re-thrown from `runUntil`
+ *  with a nicer `label`) if the target event never fires. */
+export function waitForEvent<K extends keyof GameEventMap>(
+  sc: Scenario,
+  eventType: K,
+  predicate: (ev: GameEventMap[K]) => boolean,
+  opts?: { maxTicks?: number; label?: string },
+): GameEventMap[K] {
+  const maxTicks = opts?.maxTicks ?? DEFAULT_MAX_TICKS;
+  const label = opts?.label ?? `waitForEvent(${String(eventType)})`;
+  let captured: GameEventMap[K] | null = null;
+  const handler = (ev: GameEventMap[K]) => {
     if (captured === null && predicate(ev)) captured = ev;
   };
-  sc.bus.on(GAME_EVENT.BANNER_START, handler);
+  sc.bus.on(eventType, handler);
   try {
     sc.runUntil(() => captured !== null, maxTicks);
+  } catch (err) {
+    if (err instanceof ScenarioTimeoutError) {
+      throw new ScenarioTimeoutError(
+        `${label} timed out after ${maxTicks} frames`,
+        maxTicks,
+      );
+    }
+    throw err;
   } finally {
-    sc.bus.off(GAME_EVENT.BANNER_START, handler);
+    sc.bus.off(eventType, handler);
   }
-  if (captured === null) {
-    throw new Error(`waitForBanner timed out after ${maxTicks} ticks`);
-  }
+  // Unreachable: runUntil either succeeded (captured is non-null) or
+  // threw above. Kept as a belt-and-braces invariant check.
+  if (captured === null) throw new Error(`${label}: handler did not capture`);
   return captured;
 }
 

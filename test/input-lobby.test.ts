@@ -36,30 +36,6 @@ import {
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario, type Scenario } from "./scenario.ts";
 
-/** Center of slot N in canvas-space pixels — what the test dispatches as
- *  the `clientX/Y` of a `MouseEvent`. The hit-tester divides by SCALE to
- *  get back to tile-space. */
-function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
-  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
-  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
-    layout.rectW / 2;
-  const tileY = layout.rectY + layout.rectH / 2;
-  return { x: tileX * SCALE, y: tileY * SCALE };
-}
-
-/** Drain microtasks + tasks so the queued `onTickLobbyExpired` body
- *  (await startGame → bootstrapNewGame → ensureAiModulesLoaded) runs
- *  to completion, then drive a few more frames so the runtime sees the
- *  new mode. Tests that exit the lobby through input call this once
- *  the lobby is no longer active. */
-async function settleLobbyExit(sc: Scenario): Promise<void> {
-  // setTimeout(0) lets I/O / dynamic-import tasks settle (bootstrapGame
-  // awaits AI module loading), Promise.resolve() drains microtasks.
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-  sc.runUntil(() => sc.mode() !== Mode.LOBBY, 10);
-}
-
 Deno.test(
   "lobby input: clicking a slot joins it and starts the game before the 15s timeout",
   async () => {
@@ -88,7 +64,7 @@ Deno.test(
     // against the latest `timerAccum`.
     for (let i = 0; i < LOBBY_TIMER; i++) {
       sc.input.click(slot0.x, slot0.y);
-      sc.runUntil(() => false, 1);
+      sc.tick(1);
     }
 
     // Stage 1 — sync frames until `tickLobby` notices `getLobbyRemaining()
@@ -100,12 +76,10 @@ Deno.test(
     const startedAt = sc.now();
     const FRAMES_PER_SEC = 1000 / 16;
     const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
-    const framesToInactive = sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    // runUntil throws ScenarioTimeoutError if the lobby never deactivates —
+    // the resulting stack points at the real bug.
+    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
     const elapsedSec = (sc.now() - startedAt) / 1000;
-    assert(
-      framesToInactive >= 0,
-      `lobby never deactivated after ${maxFrames} frames (${elapsedSec}s)`,
-    );
     // After spam-skipping the lobby should drain in roughly LOBBY_SKIP_LOCKOUT
     // seconds (the floor below which skipping has no effect). A tiny margin
     // covers rounding from per-frame dt accumulation.
@@ -140,6 +114,17 @@ Deno.test(
   },
 );
 
+/** Center of slot N in canvas-space pixels — what the test dispatches as
+ *  the `clientX/Y` of a `MouseEvent`. The hit-tester divides by SCALE to
+ *  get back to tile-space. */
+function slotCenterCanvas(slotIndex: number): { x: number; y: number } {
+  const layout = computeLobbyLayout(MAP_PX_W, MAP_PX_H, MAX_PLAYERS);
+  const tileX = layout.gap + slotIndex * (layout.rectW + layout.gap) +
+    layout.rectW / 2;
+  const tileY = layout.rectY + layout.rectH / 2;
+  return { x: tileX * SCALE, y: tileY * SCALE };
+}
+
 Deno.test(
   "lobby input: pressing the confirm key joins a slot and starts the game before the 15s timeout",
   async () => {
@@ -166,18 +151,14 @@ Deno.test(
     for (let i = 0; i <= LOBBY_TIMER; i++) {
       sc.input.pressKey(slot0Confirm);
       await Promise.resolve();
-      sc.runUntil(() => false, 1);
+      sc.tick(1);
     }
 
     const startedAt = sc.now();
     const FRAMES_PER_SEC = 1000 / 16;
     const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
-    const framesToInactive = sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
     const elapsedSec = (sc.now() - startedAt) / 1000;
-    assert(
-      framesToInactive >= 0,
-      `lobby never deactivated after ${maxFrames} frames (${elapsedSec}s)`,
-    );
     assert(
       elapsedSec <= LOBBY_SKIP_LOCKOUT + 0.5,
       `lobby took ${elapsedSec.toFixed(2)}s to drain after key spam (expected ≈${LOBBY_SKIP_LOCKOUT}s)`,
@@ -201,3 +182,16 @@ Deno.test(
     );
   },
 );
+
+/** Drain microtasks + tasks so the queued `onTickLobbyExpired` body
+ *  (await startGame → bootstrapNewGame → ensureAiModulesLoaded) runs
+ *  to completion, then drive a few more frames so the runtime sees the
+ *  new mode. Tests that exit the lobby through input call this once
+ *  the lobby is no longer active. */
+async function settleLobbyExit(sc: Scenario): Promise<void> {
+  // setTimeout(0) lets I/O / dynamic-import tasks settle (bootstrapGame
+  // awaits AI module loading), Promise.resolve() drains microtasks.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  sc.runUntil(() => sc.mode() !== Mode.LOBBY, 10);
+}
