@@ -429,6 +429,9 @@ export function wrapHeadless(
       const { AiAssistedHumanController } = await import(
         "../src/controllers/controller-ai-assisted-human.ts"
       );
+      const { AiController } = await import(
+        "../src/controllers/controller-ai.ts"
+      );
       const { DefaultStrategy } = await import("../src/ai/ai-strategy.ts");
       const { Phase } = await import("../src/shared/core/game-phase.ts");
       const { MESSAGE } = await import("../src/protocol/protocol.ts");
@@ -438,7 +441,18 @@ export function wrapHeadless(
       const { runtimeState } = headless.runtime;
       const state = runtimeState.state;
       const send = headless.runtime.networkSend;
-      const strategy = new DefaultStrategy(undefined, opts?.strategySeed);
+      // Inherit the existing AI controller's strategy so the swap is
+      // deterministic across runs — it was seeded from state.rng during
+      // bootstrap and has already consumed RNG for the initial selection
+      // tick. An explicit `strategySeed` override wins for tests that want
+      // a different strategy.
+      const existing = runtimeState.controllers[playerId];
+      const strategy =
+        opts?.strategySeed !== undefined
+          ? new DefaultStrategy(undefined, opts.strategySeed)
+          : existing instanceof AiController
+            ? existing.strategy
+            : new DefaultStrategy();
       const ctrl = new AiAssistedHumanController(playerId, {
         strategy,
         senders: {
