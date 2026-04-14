@@ -1011,7 +1011,7 @@ function collectAllBalloons(
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     for (const c of player.cannons) {
-      if (isBalloonCannon(c) && isCannonAlive(c))
+      if (isBalloonCannon(c) && isCannonAlive(c) && isCannonEnclosed(c, player))
         result.push({ balloon: c, ownerId: player.id });
     }
   }
