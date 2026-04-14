@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 296,
+  "eventCount": 282,
   "events": [
     {
       "type": "phaseEnd",
@@ -236,24 +236,12 @@
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 0,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 432,
-        "startY": 320,
-        "targetX": 88,
-        "targetY": 440
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
         "playerId": 0,
         "speed": 150,
         "startX": 96,
         "startY": 352,
-        "targetX": 424,
-        "targetY": 296
+        "targetX": 488,
+        "targetY": 392
       }
     },
     {
@@ -264,20 +252,20 @@
         "speed": 150,
         "startX": 464,
         "startY": 64,
-        "targetX": 520,
-        "targetY": 328
+        "targetX": 120,
+        "targetY": 344
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 1,
-        "playerId": 2,
+        "cannonIdx": 0,
+        "playerId": 1,
         "speed": 150,
-        "startX": 464,
-        "startY": 128,
-        "targetX": 488,
-        "targetY": 408
+        "startX": 432,
+        "startY": 320,
+        "targetX": 504,
+        "targetY": 40
       }
     },
     {
@@ -288,7 +276,7 @@
         "speed": 150,
         "startX": 48,
         "startY": 352,
-        "targetX": 408,
+        "targetX": 504,
         "targetY": 392
       }
     },
@@ -300,38 +288,20 @@
         "speed": 150,
         "startX": 496,
         "startY": 384,
-        "targetX": 88,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 20,
-        "shooterId": 2
+        "targetX": 472,
+        "targetY": 40
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 2,
+        "cannonIdx": 1,
         "playerId": 2,
         "speed": 150,
-        "startX": 528,
+        "startX": 464,
         "startY": 128,
-        "targetX": 472,
-        "targetY": 296
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 26,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 0
+        "targetX": 40,
+        "targetY": 344
       }
     },
     {
@@ -342,125 +312,8 @@
         "speed": 150,
         "startX": 96,
         "startY": 400,
-        "targetX": 520,
-        "targetY": 344
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 2,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 432,
-        "startY": 384,
-        "targetX": 24,
-        "targetY": 440
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 5,
-        "playerId": 0,
-        "row": 27,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 30,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 96,
-        "startY": 352,
-        "targetX": 520,
-        "targetY": 312
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 64,
-        "targetX": 408,
-        "targetY": 376
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 29,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 432,
-        "startY": 320,
-        "targetX": 120,
-        "targetY": 424
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 24,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 128,
-        "targetX": 408,
-        "targetY": 344
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 5,
-        "playerId": 0,
-        "row": 20,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 48,
-        "startY": 352,
-        "targetX": 488,
-        "targetY": 296
+        "targetX": 504,
+        "targetY": 392
       }
     },
     {
@@ -471,56 +324,38 @@
         "speed": 150,
         "startX": 528,
         "startY": 128,
-        "targetX": 520,
-        "targetY": 376
+        "targetX": 56,
+        "targetY": 344
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 1,
+        "cannonIdx": 2,
         "playerId": 1,
         "speed": 150,
-        "startX": 496,
+        "startX": 432,
         "startY": 384,
-        "targetX": 72,
-        "targetY": 328
+        "targetX": 488,
+        "targetY": 152
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 1,
-        "playerId": 0,
-        "row": 27,
+        "col": 31,
+        "playerId": 2,
+        "row": 2,
         "shooterId": 1
       }
     },
     {
-      "type": "wallDestroyed",
+      "type": "cannonDamaged",
       "payload": {
-        "col": 32,
+        "cannonIdx": 1,
+        "newHp": 2,
         "playerId": 1,
-        "row": 21,
         "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 21,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 23,
-        "shooterId": 2
       }
     },
     {
@@ -528,28 +363,91 @@
       "payload": {
         "col": 7,
         "playerId": 0,
-        "row": 26,
+        "row": 21,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 29,
+        "playerId": 2,
+        "row": 2,
         "shooterId": 1
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 2,
+        "cannonIdx": 0,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 432,
+        "startY": 320,
+        "targetX": 472,
+        "targetY": 72
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 0,
         "playerId": 0,
         "speed": 150,
         "startX": 96,
-        "startY": 400,
-        "targetX": 440,
-        "targetY": 296
+        "startY": 352,
+        "targetX": 520,
+        "targetY": 344
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 0,
+        "playerId": 2,
+        "speed": 150,
+        "startX": 464,
+        "startY": 64,
+        "targetX": 40,
+        "targetY": 344
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 1,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 496,
+        "startY": 384,
+        "targetX": 456,
+        "targetY": 56
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 32,
+        "col": 30,
+        "playerId": 2,
+        "row": 9,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 1,
         "playerId": 1,
-        "row": 19,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 0,
+        "playerId": 1,
         "shooterId": 0
       }
     },
@@ -561,100 +459,16 @@
         "speed": 150,
         "startX": 432,
         "startY": 384,
-        "targetX": 8,
-        "targetY": 376
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 64,
-        "targetX": 408,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 23,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 96,
-        "startY": 352,
         "targetX": 456,
-        "targetY": 408
+        "targetY": 56
       }
     },
     {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 30,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 432,
-        "startY": 320,
-        "targetX": 104,
-        "targetY": 440
-      }
-    },
-    {
-      "type": "cannonFired",
+      "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 1,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 128,
-        "targetX": 504,
-        "targetY": 408
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 4,
+        "newHp": 2,
         "playerId": 0,
-        "row": 20,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 27,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 20,
         "shooterId": 2
       }
     },
@@ -666,8 +480,128 @@
         "speed": 150,
         "startX": 48,
         "startY": 352,
-        "targetX": 408,
-        "targetY": 312
+        "targetX": 456,
+        "targetY": 296
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 0,
+        "newHp": 2,
+        "playerId": 2,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 1,
+        "playerId": 0,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 2,
+        "playerId": 0,
+        "speed": 150,
+        "startX": 96,
+        "startY": 400,
+        "targetX": 440,
+        "targetY": 408
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 0,
+        "newHp": 1,
+        "playerId": 2,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 0,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 432,
+        "startY": 320,
+        "targetX": 456,
+        "targetY": 136
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 0,
+        "newHp": 0,
+        "playerId": 2,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 32,
+        "playerId": 1,
+        "row": 21,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 2,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 432,
+        "startY": 384,
+        "targetX": 456,
+        "targetY": 136
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 0,
+        "playerId": 0,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 1,
+        "playerId": 2,
+        "speed": 150,
+        "startX": 464,
+        "startY": 128,
+        "targetX": 424,
+        "targetY": 376
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 2,
+        "playerId": 2,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 28,
+        "playerId": 1,
+        "row": 18,
+        "shooterId": 0
       }
     },
     {
@@ -679,27 +613,36 @@
         "startX": 528,
         "startY": 128,
         "targetX": 440,
-        "targetY": 408
+        "targetY": 376
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 1,
+        "cannonIdx": 0,
         "playerId": 1,
         "speed": 150,
-        "startX": 496,
-        "startY": 384,
-        "targetX": 8,
-        "targetY": 424
+        "startX": 432,
+        "startY": 320,
+        "targetX": 472,
+        "targetY": 120
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 0,
-        "playerId": 0,
-        "row": 23,
+        "col": 27,
+        "playerId": 1,
+        "row": 25,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 1,
+        "playerId": 2,
         "shooterId": 1
       }
     },
@@ -707,12 +650,30 @@
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 0,
-        "playerId": 2,
+        "playerId": 0,
         "speed": 150,
-        "startX": 464,
-        "startY": 64,
+        "startX": 96,
+        "startY": 352,
         "targetX": 472,
-        "targetY": 408
+        "targetY": 136
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 2,
+        "newHp": 2,
+        "playerId": 1,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 1,
+        "newHp": 0,
+        "playerId": 2,
+        "shooterId": 1
       }
     },
     {
@@ -723,80 +684,59 @@
         "speed": 150,
         "startX": 96,
         "startY": 400,
-        "targetX": 520,
-        "targetY": 360
+        "targetX": 456,
+        "targetY": 136
       }
     },
     {
-      "type": "wallDestroyed",
+      "type": "cannonFired",
       "payload": {
-        "col": 28,
+        "cannonIdx": 2,
         "playerId": 1,
-        "row": 25,
-        "shooterId": 0
+        "speed": 150,
+        "startX": 432,
+        "startY": 384,
+        "targetX": 552,
+        "targetY": 136
       }
     },
     {
-      "type": "wallDestroyed",
+      "type": "cannonDamaged",
       "payload": {
-        "col": 31,
+        "cannonIdx": 2,
+        "newHp": 1,
         "playerId": 1,
-        "row": 25,
         "shooterId": 2
       }
     },
     {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 2,
+        "playerId": 2,
+        "speed": 150,
+        "startX": 528,
+        "startY": 128,
+        "targetX": 424,
+        "targetY": 376
+      }
+    },
+    {
       "type": "wallDestroyed",
       "payload": {
-        "col": 6,
-        "playerId": 0,
-        "row": 27,
+        "col": 34,
+        "playerId": 2,
+        "row": 8,
         "shooterId": 1
       }
     },
     {
-      "type": "wallDestroyed",
+      "type": "cannonDamaged",
       "payload": {
-        "col": 27,
+        "cannonIdx": 2,
+        "newHp": 0,
         "playerId": 1,
-        "row": 25,
         "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 19,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 29,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 22,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 0,
-        "playerId": 0,
-        "row": 26,
-        "shooterId": 1
       }
     },
     {
@@ -853,62 +793,9 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          343,
-          344,
-          345
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 36,
-        "row": 6,
-        "victimPlayerId": 2
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          928,
-          884,
-          840,
-          885
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 1,
         "tileKeys": [
-          818
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          346,
-          347,
-          348
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          821,
-          822,
-          865
+          1127
         ]
       }
     },
@@ -917,228 +804,10 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1150,
-          1151,
-          1152
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          33,
-          34,
-          77
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          948,
-          949,
-          905,
-          861
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1012
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          217,
-          216,
-          260,
-          304
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1193,
-          1194
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          868,
-          869,
-          911,
-          912
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          35,
-          36,
-          37
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1144,
-          1145
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          956,
-          1000,
-          1044
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          38
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          837,
-          838,
-          839
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          39,
-          40,
-          41,
-          84
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1127,
-          1128,
-          1129
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          841,
-          842
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          128
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1035,
-          1036,
-          1037,
-          1080
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          171,
-          172
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 14,
-        "row": 13,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 29,
-        "row": 15,
-        "victimPlayerId": 1
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          844,
           888,
-          843
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1130,
-          1131
+          932,
+          976,
+          931
         ]
       }
     },
@@ -1147,8 +816,180 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          305,
-          306,
+          75,
+          119,
+          163
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          753,
+          754,
+          755
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          386,
+          387,
+          388
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          776,
+          777,
+          820
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          752
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          470,
+          471,
+          514
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1002,
+          958,
+          957,
+          956
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          750,
+          751
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          756,
+          757
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          730,
+          774,
+          685,
+          729
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          30,
+          29,
+          73,
+          117
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          682,
+          683,
+          684
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          618,
+          662,
+          706
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          467,
+          468,
+          469
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          679,
+          680,
+          681
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          758,
+          759
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
           307
         ]
       }
@@ -1156,20 +997,12 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1189
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 1,
         "tileKeys": [
-          1122,
-          1123,
-          1124
+          1034,
+          1035,
+          1036,
+          1079
         ]
       }
     },
@@ -1178,10 +1011,10 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          565,
-          609,
-          520,
-          564
+          304,
+          305,
+          306,
+          349
         ]
       }
     },
@@ -1190,9 +1023,27 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          354,
-          355,
-          398
+          530,
+          531,
+          574
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 2,
+        "row": 11,
+        "victimPlayerId": 0
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          677,
+          678
         ]
       }
     },
@@ -1208,11 +1059,19 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 1,
+        "playerId": 0,
         "tileKeys": [
-          775,
-          776,
-          819
+          486
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          302,
+          303
         ]
       }
     },
@@ -1221,18 +1080,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          0
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          432,
-          476,
-          431
+          398,
+          399,
+          442
         ]
       }
     },
@@ -1241,8 +1091,18 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          1033,
-          1034
+          1031,
+          1032,
+          1033
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          354
         ]
       }
     },
@@ -1251,8 +1111,214 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          566,
-          567
+          395,
+          439,
+          483
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          765,
+          721,
+          766
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          671,
+          672,
+          715
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          526,
+          527,
+          569,
+          570
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          809,
+          853
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          571
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          583,
+          627
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          897,
+          941
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          300,
+          301,
+          344
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 35,
+        "row": 7,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          495,
+          539
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          686
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          567,
+          568
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          364,
+          363,
+          407,
+          451
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 12,
+        "row": 7,
+        "victimPlayerId": 0
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          360,
+          361,
+          362
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          985,
+          986,
+          987
+        ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 14,
+        "row": 13,
+        "victimPlayerId": 0
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 31,
+        "row": 12,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 14,
+        "row": 12,
+        "victimPlayerId": 0
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 29,
+        "row": 11,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          565,
+          566
         ]
       }
     },
@@ -1267,21 +1333,11 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          352,
-          308,
-          353
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 1,
         "tileKeys": [
-          1031,
-          1032
+          895,
+          896,
+          939
         ]
       }
     },
@@ -1290,8 +1346,8 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          568,
-          569
+          432,
+          476
         ]
       }
     },
@@ -1300,8 +1356,7 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1,
-          2
+          355
         ]
       }
     },
@@ -1310,28 +1365,10 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          677
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          570,
-          571
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          678,
-          679,
-          680
+          1167,
+          1078,
+          1122,
+          1166
         ]
       }
     },
@@ -1340,8 +1377,10 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          3,
-          4
+          313,
+          314,
+          358,
+          359
         ]
       }
     },
@@ -1350,42 +1389,10 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          438,
-          527,
-          483,
-          439
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          682,
-          726,
-          681
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          177,
-          176,
-          220,
-          264
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          395
+          520,
+          562,
+          563,
+          564
         ]
       }
     },
@@ -1402,10 +1409,51 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          44,
-          88,
-          132
+          357,
+          401,
+          312,
+          356
         ]
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 29,
+        "row": 15,
+        "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 30,
+        "row": 16,
+        "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 31,
+        "row": 12,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 28,
+        "row": 15,
+        "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 32,
+        "row": 12,
+        "victimPlayerId": 2
       }
     },
     {
@@ -1413,19 +1461,8 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          810,
-          721,
-          765,
-          809
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          5
+          982,
+          983
         ]
       }
     },
@@ -1434,9 +1471,7 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          16,
-          17,
-          60
+          33
         ]
       }
     },
@@ -1458,24 +1493,42 @@
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
-        "col": 2,
+        "col": 6,
         "playerId": 0,
-        "row": 25
+        "row": 9
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 4,
-        "col": 1,
+        "col": 3,
         "playerId": 0,
-        "row": 23
+        "row": 12
+      }
+    },
+    {
+      "type": "cannonPlaced",
+      "payload": {
+        "cannonIdx": 5,
+        "col": 9,
+        "playerId": 0,
+        "row": 12
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
+        "col": 18,
+        "playerId": 1,
+        "row": 18
+      }
+    },
+    {
+      "type": "cannonPlaced",
+      "payload": {
+        "cannonIdx": 4,
         "col": 30,
         "playerId": 1,
         "row": 19
@@ -1484,16 +1537,25 @@
     {
       "type": "cannonPlaced",
       "payload": {
-        "cannonIdx": 4,
-        "col": 28,
+        "cannonIdx": 5,
+        "col": 20,
         "playerId": 1,
-        "row": 19
+        "row": 21
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
+        "col": 37,
+        "playerId": 2,
+        "row": 7
+      }
+    },
+    {
+      "type": "cannonPlaced",
+      "payload": {
+        "cannonIdx": 4,
         "col": 32,
         "playerId": 2,
         "row": 3
@@ -1502,25 +1564,7 @@
     {
       "type": "cannonPlaced",
       "payload": {
-        "cannonIdx": 4,
-        "col": 38,
-        "playerId": 2,
-        "row": 5
-      }
-    },
-    {
-      "type": "cannonPlaced",
-      "payload": {
         "cannonIdx": 5,
-        "col": 37,
-        "playerId": 2,
-        "row": 10
-      }
-    },
-    {
-      "type": "cannonPlaced",
-      "payload": {
-        "cannonIdx": 6,
         "col": 28,
         "playerId": 2,
         "row": 5
@@ -1547,24 +1591,33 @@
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
-        "col": 30,
-        "playerId": 1,
-        "row": 19
+        "col": 37,
+        "playerId": 2,
+        "row": 7
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
-        "col": 2,
+        "col": 6,
         "playerId": 0,
-        "row": 25
+        "row": 9
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
+        "col": 18,
+        "playerId": 1,
+        "row": 18
+      }
+    },
+    {
+      "type": "cannonPlaced",
+      "payload": {
+        "cannonIdx": 4,
         "col": 32,
         "playerId": 2,
         "row": 3
@@ -1574,16 +1627,16 @@
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 4,
-        "col": 1,
+        "col": 3,
         "playerId": 0,
-        "row": 23
+        "row": 12
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 4,
-        "col": 28,
+        "col": 30,
         "playerId": 1,
         "row": 19
       }
@@ -1591,8 +1644,8 @@
     {
       "type": "cannonPlaced",
       "payload": {
-        "cannonIdx": 4,
-        "col": 38,
+        "cannonIdx": 5,
+        "col": 28,
         "playerId": 2,
         "row": 5
       }
@@ -1601,18 +1654,18 @@
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 5,
-        "col": 37,
-        "playerId": 2,
-        "row": 10
+        "col": 9,
+        "playerId": 0,
+        "row": 12
       }
     },
     {
       "type": "cannonPlaced",
       "payload": {
-        "cannonIdx": 6,
-        "col": 28,
-        "playerId": 2,
-        "row": 5
+        "cannonIdx": 5,
+        "col": 20,
+        "playerId": 1,
+        "row": 21
       }
     },
     {
@@ -1650,24 +1703,12 @@
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 0,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 64,
-        "targetX": 472,
-        "targetY": 408
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
         "playerId": 0,
         "speed": 150,
         "startX": 96,
         "startY": 352,
-        "targetX": 536,
-        "targetY": 40
+        "targetX": 600,
+        "targetY": 200
       }
     },
     {
@@ -1678,32 +1719,8 @@
         "speed": 150,
         "startX": 432,
         "startY": 320,
-        "targetX": 536,
-        "targetY": 40
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 48,
-        "startY": 352,
-        "targetX": 488,
-        "targetY": 152
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 128,
-        "targetX": 472,
-        "targetY": 296
+        "targetX": 440,
+        "targetY": 136
       }
     },
     {
@@ -1714,47 +1731,8 @@
         "speed": 150,
         "startX": 528,
         "startY": 128,
-        "targetX": 408,
-        "targetY": 312
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 33,
-        "playerId": 2,
-        "row": 2,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 29,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 29,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 3,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 528,
-        "startY": 64,
-        "targetX": 488,
-        "targetY": 296
+        "targetX": 120,
+        "targetY": 344
       }
     },
     {
@@ -1765,35 +1743,41 @@
         "speed": 150,
         "startX": 96,
         "startY": 400,
-        "targetX": 520,
-        "targetY": 360
-      }
-    },
-    {
-      "type": "towerKilled",
-      "payload": {
-        "towerIdx": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 19,
-        "shooterId": 2
+        "targetX": 584,
+        "targetY": 136
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 4,
+        "cannonIdx": 3,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 304,
+        "startY": 304,
+        "targetX": 552,
+        "targetY": 104
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 3,
         "playerId": 2,
         "speed": 150,
-        "startX": 624,
-        "startY": 96,
-        "targetX": 504,
-        "targetY": 296
+        "startX": 608,
+        "startY": 128,
+        "targetX": 88,
+        "targetY": 440
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 27,
+        "playerId": 2,
+        "row": 8,
+        "shooterId": 1
       }
     },
     {
@@ -1802,52 +1786,34 @@
         "cannonIdx": 3,
         "playerId": 0,
         "speed": 150,
-        "startX": 48,
-        "startY": 416,
-        "targetX": 408,
-        "targetY": 344
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 496,
-        "startY": 384,
-        "targetX": 8,
-        "targetY": 376
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 30,
-        "playerId": 2,
-        "row": 9,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 30,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 2
+        "startX": 112,
+        "startY": 160,
+        "targetX": 520,
+        "targetY": 136
       }
     },
     {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 4,
-        "playerId": 0,
+        "playerId": 2,
         "speed": 150,
-        "startX": 32,
-        "startY": 384,
-        "targetX": 408,
-        "targetY": 360
+        "startX": 528,
+        "startY": 64,
+        "targetX": 120,
+        "targetY": 392
+      }
+    },
+    {
+      "type": "towerKilled",
+      "payload": {
+        "towerIdx": 11
+      }
+    },
+    {
+      "type": "towerKilled",
+      "payload": {
+        "towerIdx": 3
       }
     },
     {
@@ -1856,31 +1822,103 @@
         "cannonIdx": 5,
         "playerId": 2,
         "speed": 150,
-        "startX": 608,
-        "startY": 176,
-        "targetX": 440,
-        "targetY": 408
+        "startX": 464,
+        "startY": 96,
+        "targetX": 8,
+        "targetY": 360
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 4,
+        "playerId": 0,
+        "speed": 150,
+        "startX": 64,
+        "startY": 208,
+        "targetX": 488,
+        "targetY": 296
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 31,
-        "playerId": 1,
-        "row": 18,
+        "col": 7,
+        "playerId": 0,
+        "row": 21,
         "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 34,
+        "playerId": 2,
+        "row": 6,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 37,
+        "playerId": 2,
+        "row": 12,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 4,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 496,
+        "startY": 320,
+        "targetX": 184,
+        "targetY": 200
       }
     },
     {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 2,
-        "playerId": 1,
+        "playerId": 2,
         "speed": 150,
-        "startX": 432,
-        "startY": 384,
-        "targetX": 40,
-        "targetY": 440
+        "startX": 528,
+        "startY": 128,
+        "targetX": 72,
+        "targetY": 328
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 2,
+        "newHp": 2,
+        "playerId": 2,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 36,
+        "playerId": 2,
+        "row": 8,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 5,
+        "playerId": 0,
+        "speed": 150,
+        "startX": 160,
+        "startY": 208,
+        "targetX": 536,
+        "targetY": 120
       }
     },
     {
@@ -1891,134 +1929,56 @@
         "speed": 150,
         "startX": 96,
         "startY": 352,
-        "targetX": 408,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 6,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
-        "startY": 96,
-        "targetX": 424,
-        "targetY": 408
+        "targetX": 536,
+        "targetY": 120
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 32,
+        "col": 5,
+        "playerId": 0,
+        "row": 27,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 7,
+        "playerId": 0,
+        "row": 24,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 30,
         "playerId": 1,
-        "row": 22,
+        "row": 18,
         "shooterId": 0
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 11,
+        "playerId": 0,
+        "row": 12,
+        "shooterId": 1
       }
     },
     {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 3,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 496,
-        "startY": 320,
-        "targetX": 104,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 21,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 48,
-        "startY": 352,
-        "targetX": 520,
-        "targetY": 392
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 0,
         "playerId": 2,
         "speed": 150,
-        "startX": 464,
-        "startY": 64,
-        "targetX": 520,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 27,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 22,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 1,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 464,
+        "startX": 608,
         "startY": 128,
-        "targetX": 520,
-        "targetY": 344
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 20,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 26,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 4,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 464,
-        "startY": 320,
-        "targetX": 8,
-        "targetY": 408
+        "targetX": 56,
+        "targetY": 216
       }
     },
     {
@@ -2026,8 +1986,50 @@
       "payload": {
         "col": 0,
         "playerId": 0,
-        "row": 23,
-        "shooterId": 1
+        "row": 22,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 5,
+        "playerId": 1,
+        "speed": 150,
+        "startX": 336,
+        "startY": 352,
+        "targetX": 552,
+        "targetY": 120
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 4,
+        "playerId": 2,
+        "speed": 150,
+        "startX": 528,
+        "startY": 64,
+        "targetX": 72,
+        "targetY": 216
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 2,
+        "newHp": 1,
+        "playerId": 2,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 4,
+        "playerId": 0,
+        "row": 20,
+        "shooterId": 2
       }
     },
     {
@@ -2038,29 +2040,8 @@
         "speed": 150,
         "startX": 96,
         "startY": 400,
-        "targetX": 456,
-        "targetY": 296
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 2,
-        "playerId": 0,
-        "row": 27,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 2,
-        "playerId": 2,
-        "speed": 150,
-        "startX": 528,
-        "startY": 128,
-        "targetX": 488,
-        "targetY": 408
+        "targetX": 312,
+        "targetY": 312
       }
     },
     {
@@ -2071,205 +2052,124 @@
         "speed": 150,
         "startX": 432,
         "startY": 320,
-        "targetX": 8,
-        "targetY": 392
+        "targetX": 472,
+        "targetY": 168
       }
     },
     {
-      "type": "cannonFired",
+      "type": "cannonDamaged",
       "payload": {
-        "cannonIdx": 3,
-        "playerId": 0,
-        "speed": 150,
-        "startX": 48,
-        "startY": 416,
-        "targetX": 440,
-        "targetY": 296
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 20,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 21,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 3,
+        "cannonIdx": 2,
+        "newHp": 0,
         "playerId": 2,
+        "shooterId": 0
+      }
+    },
+    {
+      "type": "cannonFired",
+      "payload": {
+        "cannonIdx": 3,
+        "playerId": 1,
         "speed": 150,
-        "startX": 528,
-        "startY": 64,
-        "targetX": 408,
-        "targetY": 408
+        "startX": 304,
+        "startY": 304,
+        "targetX": 536,
+        "targetY": 152
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 6,
-        "playerId": 0,
-        "row": 20,
+        "col": 34,
+        "playerId": 2,
+        "row": 7,
         "shooterId": 1
       }
     },
     {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 29,
+        "playerId": 2,
+        "row": 10,
+        "shooterId": 1
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 3,
+        "newHp": 2,
+        "playerId": 1,
+        "shooterId": 0
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 1,
+        "cannonIdx": 4,
         "playerId": 1,
         "speed": 150,
         "startX": 496,
-        "startY": 384,
-        "targetX": 88,
-        "targetY": 328
+        "startY": 320,
+        "targetX": 552,
+        "targetY": 136
       }
     },
     {
       "type": "cannonFired",
       "payload": {
-        "cannonIdx": 4,
-        "playerId": 0,
+        "cannonIdx": 5,
+        "playerId": 1,
         "speed": 150,
-        "startX": 32,
-        "startY": 384,
-        "targetX": 456,
-        "targetY": 408
+        "startX": 336,
+        "startY": 352,
+        "targetX": 504,
+        "targetY": 152
       }
     },
     {
-      "type": "cannonFired",
+      "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 4,
+        "newHp": 2,
+        "playerId": 0,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "cannonDamaged",
+      "payload": {
+        "cannonIdx": 4,
+        "newHp": 1,
+        "playerId": 0,
+        "shooterId": 2
+      }
+    },
+    {
+      "type": "wallDestroyed",
+      "payload": {
+        "col": 34,
         "playerId": 2,
-        "speed": 150,
-        "startX": 624,
-        "startY": 96,
-        "targetX": 392,
-        "targetY": 392
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 32,
-        "playerId": 1,
-        "row": 24,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 30,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonFired",
-      "payload": {
-        "cannonIdx": 2,
-        "playerId": 1,
-        "speed": 150,
-        "startX": 432,
-        "startY": 384,
-        "targetX": 56,
-        "targetY": 328
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 28,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 0,
-        "playerId": 0,
-        "row": 25,
+        "row": 8,
         "shooterId": 1
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 0,
-        "playerId": 0,
-        "row": 24,
+        "col": 33,
+        "playerId": 2,
+        "row": 9,
         "shooterId": 1
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 27,
-        "playerId": 1,
-        "row": 18,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 25,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 5,
-        "playerId": 0,
-        "row": 20,
-        "shooterId": 1
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 24,
-        "playerId": 1,
-        "row": 24,
-        "shooterId": 2
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 28,
-        "playerId": 1,
-        "row": 25,
-        "shooterId": 0
-      }
-    },
-    {
-      "type": "wallDestroyed",
-      "payload": {
-        "col": 3,
-        "playerId": 0,
-        "row": 20,
+        "col": 31,
+        "playerId": 2,
+        "row": 9,
         "shooterId": 1
       }
     },
@@ -2329,8 +2229,8 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          1081,
-          1125
+          1080,
+          1124
         ]
       }
     },
@@ -2339,10 +2239,11 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          78,
-          167,
-          123,
-          79
+          429,
+          472,
+          473,
+          474,
+          517
         ]
       }
     },
@@ -2351,8 +2252,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          885,
-          886
+          1064,
+          1063,
+          1020
         ]
       }
     },
@@ -2361,7 +2263,17 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1190
+          840,
+          884
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          379
         ]
       }
     },
@@ -2370,7 +2282,7 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          1088
+          689
         ]
       }
     },
@@ -2379,63 +2291,29 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          469,
-          470
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1012,
-          1056,
-          1100
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          471,
-          515,
-          516,
-          517
+          243,
+          287,
+          286,
+          285,
+          329
         ]
       }
     },
     {
       "type": "gruntSpawn",
       "payload": {
-        "col": 32,
-        "row": 10,
+        "col": 22,
+        "row": 5,
         "victimPlayerId": 2
       }
     },
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          729,
-          730,
-          773
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 0,
         "tileKeys": [
-          356,
-          400,
-          355,
-          310,
-          354
+          1149,
+          1193
         ]
       }
     },
@@ -2444,124 +2322,77 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          860,
-          861,
-          905,
-          949,
-          950
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          76,
-          75,
-          32
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 10,
-        "row": 24,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          4,
-          5,
-          6
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1126,
-          1127
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          22,
-          23,
-          67,
-          111,
-          112
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          7,
-          8
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          21
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          731
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          357,
-          358,
-          359
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          280
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          780,
-          736,
           735,
-          734
+          736,
+          780,
+          781
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          968,
+          969
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          298,
+          342,
+          253,
+          297
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1133,
+          1176,
+          1177,
+          1178,
+          1221
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          494
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          382,
+          426
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1169,
+          1213,
+          1168,
+          1123,
+          1167
         ]
       }
     },
@@ -2581,8 +2412,149 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
+          299,
+          343
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          687,
+          688
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          521,
+          522,
+          565
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          265,
+          308,
+          309,
+          310,
+          353
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          779
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          431,
+          475
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          228,
+          227,
+          184
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          825
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          16
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          264
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1001,
+          1045,
+          1089
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          17,
           18,
-          19,
+          19
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          176,
+          177,
+          220
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          869
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
           20
         ]
       }
@@ -2590,22 +2562,10 @@
     {
       "type": "wallPlaced",
       "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1128,
-          1129
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
         "playerId": 0,
         "tileKeys": [
-          184,
-          185,
-          227,
-          228
+          7,
+          8
         ]
       }
     },
@@ -2614,9 +2574,9 @@
       "payload": {
         "playerId": 2,
         "tileKeys": [
-          281,
-          282,
-          283
+          21,
+          22,
+          23
         ]
       }
     },
@@ -2625,31 +2585,9 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          956,
-          957,
-          1000
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          360
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          16,
-          17,
-          60,
-          103,
-          104
+          1170,
+          1171,
+          1214
         ]
       }
     },
@@ -2658,130 +2596,10 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          912
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          95
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          689,
-          733,
-          777
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          192,
-          193,
-          236
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          488,
-          444,
-          489
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          285,
-          329,
-          284
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          1130,
+          1172,
           1173,
-          1174,
-          1175,
-          1218
+          1174
         ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          286,
-          287
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 22,
-        "row": 5,
-        "victimPlayerId": 2
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          991,
-          992,
-          993
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 10,
-        "row": 24,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          93,
-          49,
-          94
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 6,
-        "row": 3,
-        "victimPlayerId": 0
       }
     },
     {
@@ -2798,7 +2616,7 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          92
+          352
         ]
       }
     },
@@ -2807,8 +2625,21 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          685,
-          686
+          1219,
+          1175,
+          1220
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          282,
+          283,
+          284,
+          327
         ]
       }
     },
@@ -2817,32 +2648,7 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          187,
-          188,
-          232,
-          276,
-          277
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          155,
-          199
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          682,
-          683,
-          684
+          0
         ]
       }
     },
@@ -2851,56 +2657,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          97,
-          98
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          243,
-          244,
-          245
-        ]
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 10,
-        "row": 24,
-        "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "gruntSpawn",
-      "payload": {
-        "col": 28,
-        "row": 15,
-        "victimPlayerId": 1
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 1,
-        "tileKeys": [
-          809,
-          853,
-          897
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          24,
-          25
+          44,
+          88,
+          132
         ]
       }
     },
@@ -2909,10 +2668,19 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          941,
-          983,
-          984,
-          985
+          914,
+          958,
+          913
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          60,
+          104
         ]
       }
     },
@@ -2921,22 +2689,9 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          225,
-          224,
-          268,
-          312
-        ]
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 2,
-        "tileKeys": [
-          26,
-          27,
-          28,
-          71
+          1,
+          2,
+          3
         ]
       }
     },
@@ -2945,10 +2700,91 @@
       "payload": {
         "playerId": 1,
         "tileKeys": [
-          1075,
-          1031,
-          987,
-          1032
+          1091,
+          1135,
+          1179
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          67,
+          111,
+          155
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          1223,
+          1224,
+          1225
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          48,
+          6,
+          5,
+          4
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          193,
+          192,
+          236,
+          280
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 1,
+        "tileKeys": [
+          872,
+          873,
+          915,
+          916
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          496,
+          497,
+          453,
+          409
+        ]
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 2,
+        "tileKeys": [
+          157,
+          199,
+          200,
+          201
         ]
       }
     },

@@ -38,7 +38,7 @@ import type {
 } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 
-type TargetCandidate = PrioritizedTilePos;
+type TargetCandidate = PrioritizedTilePos & { isCannon?: boolean };
 
 /** Persistent target memory — keeps the AI locked onto one enclosure across
  *  shots so it doesn't oscillate between random enclosures. The anchor is any
@@ -81,6 +81,9 @@ const TARGET_SWITCH_PROBABILITY = 0.25;
 const STRATEGIC_TARGET_PROBABILITY = 1 / 4;
 /** Chance to target a wall tile blocking a grunt's path to its tower. */
 const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
+/** Chance to target a fresh (undamaged) enemy cannon before defaulting to
+ *  enclosure-wall sieging. Damaged cannons are handled by the priority pool. */
+const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
 /** Pixel inset from tile edges to prevent cannonballs spilling into neighbors. */
@@ -540,6 +543,28 @@ export function pickTarget(
     return jitterWithinTile(target.row, target.col, rand);
   }
 
+  // Fresh cannon targeting — without this, enclosure-wall sieging always wins
+  // and undamaged cannons are never shot. Damaged cannons already fire above.
+  const freshCannonProb = traitLookup(battleTactics, [
+    0,
+    FRESH_CANNON_TARGET_PROBABILITY,
+    1 / 2,
+  ] as const);
+  if (rand() < freshCannonProb) {
+    const freshCannons = filtered.filter(
+      (cand) => cand.isCannon && !cand.priority,
+    );
+    if (freshCannons.length > 0) {
+      const target = pickSweetSpotTarget(
+        freshCannons,
+        currentRow,
+        currentCol,
+        rand,
+      );
+      return jitterWithinTile(target.row, target.col, rand);
+    }
+  }
+
   // Pick a random enclosure of the enemy, then target a wall bordering it.
   // This distributes fire across the enemy's fortress instead of clustering
   // near the AI's crosshair (which starts at the AI's own home tower).
@@ -695,7 +720,12 @@ function collectEnemyTargets(
         const size = cannonSize(cannon.mode);
         const targetRow = cannon.row + (size - 1) / 2;
         const targetCol = cannon.col + (size - 1) / 2;
-        targets.push({ row: targetRow, col: targetCol, priority: shots > 0 });
+        targets.push({
+          row: targetRow,
+          col: targetCol,
+          priority: shots > 0,
+          isCannon: true,
+        });
       }
     }
 
