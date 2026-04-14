@@ -27,72 +27,18 @@
  * fail loudly if it no longer fires.
  */
 
+import { createScenario } from "../test/scenario.ts";
 import {
   SEED_CONDITIONS,
   type SeedCondition,
 } from "../test/seed-conditions.ts";
-import { createScenario } from "../test/scenario.ts";
 
 interface CliConfig {
   max: number;
-  maxTicksPerSeed: number;
+  timeoutMsPerSeed: number;
 }
 
-function parseArgs(): CliConfig {
-  const args = Deno.args;
-  let max = 100;
-  let maxTicksPerSeed = 60000;
-  for (let idx = 0; idx < args.length; idx++) {
-    const arg = args[idx];
-    if (arg === "--max" && args[idx + 1]) max = Number(args[++idx]);
-    else if (arg === "--max-ticks" && args[idx + 1]) {
-      maxTicksPerSeed = Number(args[++idx]);
-    }
-  }
-  return { max, maxTicksPerSeed };
-}
-
-async function scanMode(
-  mode: "classic" | "modern",
-  conditions: Map<string, SeedCondition>,
-  config: CliConfig,
-): Promise<Map<string, number>> {
-  const results = new Map<string, number>();
-  const pending = new Set(conditions.keys());
-  const maxRounds = Math.max(
-    ...Array.from(conditions.values(), (cond) => cond.rounds),
-  );
-
-  for (let seed = 0; seed < config.max && pending.size > 0; seed++) {
-    let sc;
-    try {
-      sc = await createScenario({ seed, mode, rounds: maxRounds });
-    } catch (err) {
-      console.log(`  seed=${seed}  ERROR: ${(err as Error).message}`);
-      continue;
-    }
-    const pollers = new Map<string, () => boolean>();
-    for (const name of pending) {
-      pollers.set(name, conditions.get(name)!.match(sc));
-    }
-    sc.runUntil(
-      () => Array.from(pollers.values()).every((poll) => poll()),
-      config.maxTicksPerSeed,
-    );
-    const fired: string[] = [];
-    for (const [name, poll] of pollers) {
-      if (poll()) {
-        results.set(name, seed);
-        pending.delete(name);
-        fired.push(name);
-      }
-    }
-    console.log(
-      `  seed=${seed}  covered=${results.size}/${conditions.size}  new=${fired.length > 0 ? fired.join(",") : "(none)"}`,
-    );
-  }
-  return results;
-}
+run();
 
 async function run(): Promise<void> {
   const config = parseArgs();
@@ -130,14 +76,70 @@ async function run(): Promise<void> {
     sorted[name] = allResults[name]!;
   }
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  const path = new URL(
-    "../test/seed-fixtures.json",
-    import.meta.url,
-  ).pathname;
+  const path = new URL("../test/seed-fixtures.json", import.meta.url).pathname;
   await Deno.writeTextFile(path, `${JSON.stringify(sorted, null, 2)}\n`);
   console.log(
     `\nWrote ${Object.keys(sorted).length} seeds in ${elapsed}s → test/seed-fixtures.json`,
   );
 }
 
-run();
+function parseArgs(): CliConfig {
+  const args = Deno.args;
+  let max = 100;
+  let timeoutMsPerSeed = 960_000;
+  for (let idx = 0; idx < args.length; idx++) {
+    const arg = args[idx];
+    if (arg === "--max" && args[idx + 1]) max = Number(args[++idx]);
+    else if (arg === "--timeout-ms" && args[idx + 1]) {
+      timeoutMsPerSeed = Number(args[++idx]);
+    }
+  }
+  return { max, timeoutMsPerSeed };
+}
+
+async function scanMode(
+  mode: "classic" | "modern",
+  conditions: Map<string, SeedCondition>,
+  config: CliConfig,
+): Promise<Map<string, number>> {
+  const results = new Map<string, number>();
+  const pending = new Set(conditions.keys());
+  const maxRounds = Math.max(
+    ...Array.from(conditions.values(), (cond) => cond.rounds),
+  );
+
+  for (let seed = 0; seed < config.max && pending.size > 0; seed++) {
+    let sc;
+    try {
+      sc = await createScenario({ seed, mode, rounds: maxRounds });
+    } catch (err) {
+      console.log(`  seed=${seed}  ERROR: ${(err as Error).message}`);
+      continue;
+    }
+    const pollers = new Map<string, () => boolean>();
+    for (const name of pending) {
+      pollers.set(name, conditions.get(name)!.match(sc));
+    }
+    // Timeout (no condition fired on this seed) is the expected common
+    // case — swallow it so the loop records partial matches and moves on.
+    try {
+      sc.runUntil(() => Array.from(pollers.values()).every((poll) => poll()), {
+        timeoutMs: config.timeoutMsPerSeed,
+      });
+    } catch {
+      // ScenarioTimeoutError — fall through to the per-poller check below.
+    }
+    const fired: string[] = [];
+    for (const [name, poll] of pollers) {
+      if (poll()) {
+        results.set(name, seed);
+        pending.delete(name);
+        fired.push(name);
+      }
+    }
+    console.log(
+      `  seed=${seed}  covered=${results.size}/${conditions.size}  new=${fired.length > 0 ? fired.join(",") : "(none)"}`,
+    );
+  }
+  return results;
+}

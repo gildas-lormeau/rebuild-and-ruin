@@ -86,6 +86,12 @@ async function collectEvents(dtMs: number): Promise<EventEntry[]> {
       events.push({ ...(event as Record<string, unknown>), type });
     }
   });
-  sc.runUntil(() => sc.state.round > ROUNDS - 1, 80000, dtMs);
+  // Generous sim-time budget — 7 rounds of modern mode consume a lot of
+  // virtual time (phase timers + banners per round), and this test also
+  // varies `dtMs` across runs.
+  sc.runUntil(() => sc.state.round > ROUNDS - 1, {
+    timeoutMs: 1_200_000,
+    dtMs,
+  });
   return events;
 }

@@ -51,7 +51,7 @@ const UPGRADE_IDS: readonly UpgradeId[] = [
   "clear_the_field",
 ];
 
-const MAX_TICKS = 60000;
+const MAX_TIMEOUT_MS = 120_000;
 /** Rounds per scenario run. Enough rounds so every targeted upgrade has
  *  multiple chances to be picked and fire its effect. */
 const ROUNDS = 10;
@@ -315,7 +315,7 @@ for (const [seed, upgradeIds] of [...seedGroups].sort(([a], [b]) => a - b)) {
     });
 
     // Run the full game so every probe has maximum opportunity to fire.
-    sc.runGame(MAX_TICKS);
+    sc.runGame({ timeoutMs: MAX_TIMEOUT_MS });
 
     for (const upgradeId of upgradeIds) {
       await t.step(`"${upgradeId}" is picked`, () => {

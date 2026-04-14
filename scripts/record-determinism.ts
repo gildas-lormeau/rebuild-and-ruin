@@ -16,7 +16,7 @@
  * Usage:
  *   deno run -A scripts/record-determinism.ts                         # default: seed 42, classic, 2 rounds
  *   deno run -A scripts/record-determinism.ts --seed 7 --mode modern --rounds 3
- *   deno run -A scripts/record-determinism.ts --max-ticks 50000
+ *   deno run -A scripts/record-determinism.ts --timeout-ms 800000
  */
 
 import { createScenario, recordEvents } from "../test/scenario.ts";
@@ -25,45 +25,20 @@ interface CliConfig {
   seed: number;
   mode: "classic" | "modern";
   rounds: number;
-  maxTicks: number;
+  timeoutMs: number;
 }
 
 interface FixtureFile {
   seed: number;
   opts: { seed: number; mode: "classic" | "modern"; rounds: number };
-  maxTicks: number;
+  timeoutMs: number;
   eventCount: number;
   events: ReturnType<typeof recordEvents>;
 }
 
 const FIXTURES_DIR = "test/determinism-fixtures";
 
-function parseArgs(): CliConfig {
-  const args = Deno.args;
-  let seed = 42;
-  let mode: "classic" | "modern" = "classic";
-  let rounds = 2;
-  let maxTicks = 30000;
-
-  for (let idx = 0; idx < args.length; idx++) {
-    const arg = args[idx];
-    if (arg === "--seed" && args[idx + 1]) seed = Number(args[++idx]);
-    else if (arg === "--mode" && args[idx + 1]) {
-      const next = args[++idx]!;
-      mode = next === "modern" ? "modern" : "classic";
-    } else if (arg === "--rounds" && args[idx + 1]) rounds = Number(args[++idx]);
-    else if (arg === "--max-ticks" && args[idx + 1]) {
-      maxTicks = Number(args[++idx]);
-    } else if (arg === "--help" || arg === "-h") {
-      console.log(
-        "Usage: deno run -A scripts/record-determinism.ts [--seed N] [--mode classic|modern] [--rounds N] [--max-ticks N]",
-      );
-      Deno.exit(0);
-    }
-  }
-
-  return { seed, mode, rounds, maxTicks };
-}
+run();
 
 async function run(): Promise<void> {
   const config = parseArgs();
@@ -78,7 +53,7 @@ async function run(): Promise<void> {
     rounds: config.rounds,
   });
   const events = recordEvents(sc);
-  sc.runGame(config.maxTicks);
+  sc.runGame({ timeoutMs: config.timeoutMs });
 
   const fixture: FixtureFile = {
     seed: config.seed,
@@ -87,7 +62,7 @@ async function run(): Promise<void> {
       mode: config.mode,
       rounds: config.rounds,
     },
-    maxTicks: config.maxTicks,
+    timeoutMs: config.timeoutMs,
     eventCount: events.length,
     events,
   };
@@ -101,4 +76,30 @@ async function run(): Promise<void> {
   );
 }
 
-run();
+function parseArgs(): CliConfig {
+  const args = Deno.args;
+  let seed = 42;
+  let mode: "classic" | "modern" = "classic";
+  let rounds = 2;
+  let timeoutMs = 480_000;
+
+  for (let idx = 0; idx < args.length; idx++) {
+    const arg = args[idx];
+    if (arg === "--seed" && args[idx + 1]) seed = Number(args[++idx]);
+    else if (arg === "--mode" && args[idx + 1]) {
+      const next = args[++idx]!;
+      mode = next === "modern" ? "modern" : "classic";
+    } else if (arg === "--rounds" && args[idx + 1])
+      rounds = Number(args[++idx]);
+    else if (arg === "--timeout-ms" && args[idx + 1]) {
+      timeoutMs = Number(args[++idx]);
+    } else if (arg === "--help" || arg === "-h") {
+      console.log(
+        "Usage: deno run -A scripts/record-determinism.ts [--seed N] [--mode classic|modern] [--rounds N] [--timeout-ms N]",
+      );
+      Deno.exit(0);
+    }
+  }
+
+  return { seed, mode, rounds, timeoutMs };
+}

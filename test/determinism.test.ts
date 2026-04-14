@@ -24,7 +24,7 @@ interface Fixture {
     readonly mode: "classic" | "modern";
     readonly rounds: number;
   };
-  readonly maxTicks: number;
+  readonly timeoutMs: number;
   readonly eventCount: number;
   readonly events: RecordedEvent[];
 }
@@ -42,7 +42,7 @@ for (const fixtureFile of FIXTURES) {
 
     const sc = await createScenario(fixture.opts);
     const events = recordEvents(sc);
-    sc.runGame(fixture.maxTicks);
+    sc.runGame({ timeoutMs: fixture.timeoutMs });
 
     // Event count must match exactly. A mismatch usually means the runtime
     // entered a different code path (e.g. an extra grunt spawned, a banner

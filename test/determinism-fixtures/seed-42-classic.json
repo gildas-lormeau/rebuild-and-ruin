@@ -5,7 +5,7 @@
     "mode": "classic",
     "rounds": 2
   },
-  "maxTicks": 30000,
+  "timeoutMs": 480000,
   "eventCount": 296,
   "events": [
     {

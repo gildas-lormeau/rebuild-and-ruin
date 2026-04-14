@@ -85,7 +85,7 @@ Deno.test(
     waitForPhase(sc, Phase.BATTLE);
     sc.runUntil(
       () => calls.some((call) => call.reason === "cannonFired"),
-      2000,
+      { timeoutMs: 32_000 },
     );
 
     const cannonFired = calls.filter((call) => call.reason === "cannonFired");

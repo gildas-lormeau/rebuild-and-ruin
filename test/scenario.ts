@@ -48,7 +48,9 @@ import type {
 } from "../src/shared/core/system-interfaces.ts";
 import {
   createHeadlessRuntime,
+  DEFAULT_RUNUNTIL_TIMEOUT_MS,
   type HeadlessRuntime,
+  type RunOpts,
   ScenarioTimeoutError,
 } from "./runtime-headless.ts";
 import {
@@ -81,7 +83,12 @@ import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
 
-export { ScenarioTimeoutError } from "./runtime-headless.ts";
+export {
+  DEFAULT_RUNGAME_TIMEOUT_MS,
+  DEFAULT_RUNUNTIL_TIMEOUT_MS,
+  type RunOpts,
+  ScenarioTimeoutError,
+} from "./runtime-headless.ts";
 
 export interface ScenarioOptions {
   /** Map seed — controls map, AI, and modifier rolls. Defaults to 42. */
@@ -172,21 +179,19 @@ export interface Scenario extends Disposable {
   readonly banner: () => Readonly<BannerState>;
   /** Current simulated time (ms). */
   readonly now: () => number;
-  /** Drive the game until `predicate` returns true. Returns the frame
-   *  count taken. Throws `ScenarioTimeoutError` if the predicate never
-   *  fires within `maxFrames` — use `tick()` for the "just run N frames"
-   *  case. Tests observe via the bus and assert on `state` reads —
-   *  never advance the simulation manually frame-by-frame. */
-  runUntil(
-    predicate: () => boolean,
-    maxFrames?: number,
-    dtMs?: number,
-  ): number;
+  /** Drive the game until `predicate` returns true. Throws
+   *  `ScenarioTimeoutError` if the predicate never fires within
+   *  `opts.timeoutMs` (sim-ms, matching the E2E mirror's unit).
+   *  Use `tick(N)` for the "just run N frames" case — that's the
+   *  frame-denominated tool; this one is budget-denominated. */
+  runUntil(predicate: () => boolean, opts?: RunOpts): void;
   /** Advance the simulation by a fixed number of frames without checking
-   *  any predicate. Use this instead of `runUntil(() => false, N)`. */
+   *  any predicate. Use this instead of `runUntil(() => false, N)` —
+   *  frame-precision tool, unaffected by the `runUntil` budget shape. */
   tick(frames?: number, dtMs?: number): void;
-  /** Drive the game until it ends (mode reaches STOPPED). Throws on timeout. */
-  runGame(maxFrames?: number, dtMs?: number): void;
+  /** Drive the game until it ends (mode reaches STOPPED). Throws
+   *  `ScenarioTimeoutError` on timeout. Default budget is 120_000ms. */
+  runGame(opts?: RunOpts): void;
   /** Synthetic input — dispatches events at the same `EventTarget`s the
    *  production browser path uses (`document` for keys, the canvas element
    *  for mouse/touch). Tests use these to drive the runtime through the
@@ -268,7 +273,9 @@ export interface RecordedEvent {
   readonly payload: Record<string, unknown>;
 }
 
-const DEFAULT_MAX_TICKS = 5000;
+/** Default budget for wait helpers — matches the E2E mirror's default
+ *  so agents don't mix up units when copying test code between APIs. */
+const DEFAULT_WAIT_TIMEOUT_MS = DEFAULT_RUNUNTIL_TIMEOUT_MS;
 
 /** Boot a scenario for a registered seed condition. Looks up the cached
  *  seed in `test/seed-fixtures.json` and uses the condition's declared
@@ -430,10 +437,10 @@ export function wrapHeadless(
 export function waitForPhase(
   sc: Scenario,
   phase: Phase,
-  maxTicks = DEFAULT_MAX_TICKS,
+  opts?: { timeoutMs?: number },
 ): GameEventMap["phaseStart"] {
   return waitForEvent(sc, GAME_EVENT.PHASE_START, (ev) => ev.phase === phase, {
-    maxTicks,
+    ...opts,
     label: `waitForPhase(${phase})`,
   });
 }
@@ -444,10 +451,10 @@ export function waitForPhase(
 export function waitUntilRound(
   sc: Scenario,
   round: number,
-  maxTicks = DEFAULT_MAX_TICKS,
+  opts?: { timeoutMs?: number },
 ): GameEventMap["roundStart"] {
   return waitForEvent(sc, GAME_EVENT.ROUND_START, (ev) => ev.round >= round, {
-    maxTicks,
+    ...opts,
     label: `waitUntilRound(${round})`,
   });
 }
@@ -456,14 +463,14 @@ export function waitUntilRound(
 export function waitForModifier(
   sc: Scenario,
   modifierId?: ModifierId,
-  maxTicks = DEFAULT_MAX_TICKS,
+  opts?: { timeoutMs?: number },
 ): GameEventMap["bannerStart"] {
   return waitForBanner(
     sc,
     (ev) =>
       ev.modifierId !== undefined &&
       (modifierId === undefined || ev.modifierId === modifierId),
-    maxTicks,
+    opts,
   );
 }
 
@@ -471,10 +478,10 @@ export function waitForModifier(
 export function waitForBanner(
   sc: Scenario,
   predicate: (ev: GameEventMap["bannerStart"]) => boolean,
-  maxTicks = DEFAULT_MAX_TICKS,
+  opts?: { timeoutMs?: number },
 ): GameEventMap["bannerStart"] {
   return waitForEvent(sc, GAME_EVENT.BANNER_START, predicate, {
-    maxTicks,
+    ...opts,
     label: "waitForBanner",
   });
 }
@@ -487,9 +494,9 @@ export function waitForEvent<K extends keyof GameEventMap>(
   sc: Scenario,
   eventType: K,
   predicate: (ev: GameEventMap[K]) => boolean,
-  opts?: { maxTicks?: number; label?: string },
+  opts?: { timeoutMs?: number; label?: string },
 ): GameEventMap[K] {
-  const maxTicks = opts?.maxTicks ?? DEFAULT_MAX_TICKS;
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
   const label = opts?.label ?? `waitForEvent(${String(eventType)})`;
   let captured: GameEventMap[K] | null = null;
   const handler = (ev: GameEventMap[K]) => {
@@ -497,12 +504,12 @@ export function waitForEvent<K extends keyof GameEventMap>(
   };
   sc.bus.on(eventType, handler);
   try {
-    sc.runUntil(() => captured !== null, maxTicks);
+    sc.runUntil(() => captured !== null, { timeoutMs });
   } catch (err) {
     if (err instanceof ScenarioTimeoutError) {
       throw new ScenarioTimeoutError(
-        `${label} timed out after ${maxTicks} frames`,
-        maxTicks,
+        `${label} timed out after ${timeoutMs}ms`,
+        timeoutMs,
       );
     }
     throw err;

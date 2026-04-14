@@ -15,7 +15,7 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
 import { createScenario } from "./scenario.ts";
 
-const MAX_TICKS = 120_000;
+const MAX_TIMEOUT_MS = 120_000;
 
 Deno.test("battle banner chains after high_tide modifier banner", async () => {
   const recorder = createCanvasRecorder({ discardCalls: true });
@@ -59,7 +59,7 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
     }
   });
 
-  sc.runUntil(() => battleBannerEnded, MAX_TICKS);
+  sc.runUntil(() => battleBannerEnded, { timeoutMs: MAX_TIMEOUT_MS });
 
   assert(
     modifierBannerEnded,

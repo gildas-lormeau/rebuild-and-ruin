@@ -16,7 +16,7 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import { createCanvasRecorder } from "./recording-canvas.ts";
 import { createScenario } from "./scenario.ts";
 
-const MAX_TICKS = 120_000;
+const MAX_TIMEOUT_MS = 120_000;
 
 Deno.test("build banner after upgrade fires with active banner state", async () => {
   const recorder = createCanvasRecorder({ discardCalls: true });
@@ -51,7 +51,7 @@ Deno.test("build banner after upgrade fires with active banner state", async () 
     }
   });
 
-  sc.runUntil(() => buildChecked, MAX_TICKS);
+  sc.runUntil(() => buildChecked, { timeoutMs: MAX_TIMEOUT_MS });
 
   assert(upgradeEnded, "Choose Upgrade banner never ended");
   assert(buildChecked, "Build banner after upgrade never started");

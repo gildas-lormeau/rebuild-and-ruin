@@ -29,7 +29,7 @@ Deno.test("low_water: every water tile in a 2x2 block after modifier", async () 
       });
 
       try {
-        waitForModifier(sc, LOW_WATER, 30000);
+        waitForModifier(sc, LOW_WATER, { timeoutMs: 480_000 });
       } catch {
         continue;
       }

@@ -53,7 +53,7 @@ Deno.test("scenario: waitForModifier captures a modifier banner in modern mode",
     mode: "modern",
     rounds: 6,
   });
-  const banner = waitForModifier(sc, undefined, 30000);
+  const banner = waitForModifier(sc, undefined, { timeoutMs: 480_000 });
   assert(banner.modifierId !== undefined);
   assert(banner.text.length > 0);
 });
@@ -97,7 +97,7 @@ Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", asy
     houseGruntDistances.push(dist);
   });
 
-  sc.runGame(30000);
+  sc.runGame({ timeoutMs: 600_000 });
 
   assertGreater(
     houseGruntDistances.length,
@@ -182,7 +182,7 @@ Deno.test("scenario: entities present during banner sweeps", async () => {
     }
   });
 
-  sc.runGame(30000);
+  sc.runGame({ timeoutMs: 600_000 });
 
   assert(towersSeenDuringBanner, "towers should be present during at least one banner");
   assert(housesSeenDuringBanner, "houses should be present during at least one banner");
@@ -191,7 +191,7 @@ Deno.test("scenario: entities present during banner sweeps", async () => {
 
 Deno.test("scenario: runGame plays a full game to completion", async () => {
   const sc = await createScenario({ seed: 42, rounds: 2 });
-  sc.runGame(30000);
+  sc.runGame({ timeoutMs: 600_000 });
   assert(
     sc.state.round >= 1,
     `expected at least 1 round played, got round=${sc.state.round}`,

@@ -113,26 +113,35 @@ interface HeadlessRuntimeOptions {
   soundObserver?: SoundObserver;
 }
 
+export interface RunOpts {
+  /** Wall-clock budget in sim-milliseconds. Applied to the mock clock
+   *  — NOT wall time. Defaults: 30_000 for `runUntil` / wait helpers,
+   *  120_000 for `runGame`. The runtime converts this to sim ticks
+   *  internally (`Math.ceil(timeoutMs / SIM_TICK_MS)`). */
+  timeoutMs?: number;
+  /** Per-frame dt for predicate cadence. Defaults to 16ms (≈60fps).
+   *  Doesn't affect the total budget — only how often `predicate` is
+   *  checked between sim ticks. */
+  dtMs?: number;
+}
+
 export interface HeadlessRuntime {
   readonly runtime: GameRuntime;
   /** Current mock clock (ms). */
   now(): number;
-  /** Drive the simulation until `predicate` returns true. Returns the
-   *  number of frames taken. Throws `ScenarioTimeoutError` if the
-   *  predicate never fires within `maxFrames` — use `tick()` for the
-   *  "just run N frames" case where the predicate is `() => false`. */
-  runUntil(
-    predicate: () => boolean,
-    maxFrames?: number,
-    dtMs?: number,
-  ): number;
+  /** Drive the simulation until `predicate` returns true. Throws
+   *  `ScenarioTimeoutError` if the predicate never fires within
+   *  `opts.timeoutMs` (sim-ms, not wall-clock). Use `tick()` for the
+   *  "just run N frames" case — unit is deliberately different. */
+  runUntil(predicate: () => boolean, opts?: RunOpts): void;
   /** Advance the simulation by a fixed number of frames without
    *  checking any predicate. Mirrors the `sc.tick()` method on the
-   *  Scenario facade — preferred over `runUntil(() => false, N)`. */
+   *  Scenario facade — this is the frame-denominated precision tool;
+   *  `runUntil` / `runGame` are budget-denominated. */
   tick(frames?: number, dtMs?: number): void;
   /** Drive the simulation until `mode === STOPPED` (game over).
    *  Throws `ScenarioTimeoutError` on timeout. */
-  runGame(maxFrames?: number, dtMs?: number): void;
+  runGame(opts?: RunOpts): void;
   /** Real `EventTarget` the keyboard handler is bound to. Tests dispatch
    *  `KeyboardEvent` instances here to drive the same code path the browser
    *  uses (`document.addEventListener("keydown", ...)`). */
@@ -159,17 +168,28 @@ export interface HeadlessRuntime {
   ): () => void;
 }
 
+/** Default budget for `runUntil` and wait helpers (`waitFor*`). Sim-ms.
+ *  Budgets are in MOCK-CLOCK milliseconds (virtual time) — the headless
+ *  simulation advances the mock clock by ~17ms per sim tick, so a 60_000ms
+ *  budget gets you ~60 seconds of in-game time. Full matches take several
+ *  build/battle cycles (~5–10 virtual minutes), so `runGame` has its own
+ *  larger default. */
+export const DEFAULT_RUNUNTIL_TIMEOUT_MS = 60_000;
+/** Default budget for `runGame` — a full 3-round match is several
+ *  virtual minutes because phase timers, banner sweeps, and battle
+ *  rounds all consume sim time. */
+export const DEFAULT_RUNGAME_TIMEOUT_MS = 600_000;
+
 /** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate /
- *  target state doesn't materialize within the frame budget. Mirrors
- *  `E2ETimeoutError` on the browser side — both APIs now fail loudly
- *  instead of silently returning. `maxFrames` is the budget that was
- *  exhausted. */
+ *  target state doesn't materialize within the sim-ms budget. Mirrors
+ *  `E2ETimeoutError` on the browser side — both APIs now share the
+ *  same `{ timeoutMs }` shape so agents don't mix up units. */
 export class ScenarioTimeoutError extends Error {
-  readonly maxFrames: number;
-  constructor(message: string, maxFrames: number) {
+  readonly timeoutMs: number;
+  constructor(message: string, timeoutMs: number) {
     super(message);
     this.name = "ScenarioTimeoutError";
-    this.maxFrames = maxFrames;
+    this.timeoutMs = timeoutMs;
   }
 }
 
@@ -376,28 +396,22 @@ export async function createHeadlessRuntime(
    *  checked at sim-tick granularity regardless of the caller's dtMs. */
   const SIM_TICK_MS = Math.round(SIM_TICK_DT * 1000);
 
-  function runUntil(
-    predicate: () => boolean,
-    maxTicks = 10000,
-    dtMs = 16,
-  ): number {
-    // Step one sim tick at a time so the predicate is checked between
-    // every sim tick — not between variable-sized frames. The dtMs
-    // parameter controls how many sim ticks count as one "frame" for
-    // the return value (frame count), preserving API compatibility.
+  function runUntil(predicate: () => boolean, opts?: RunOpts): void {
+    const timeoutMs = opts?.timeoutMs ?? DEFAULT_RUNUNTIL_TIMEOUT_MS;
+    const dtMs = opts?.dtMs ?? 16;
     const simTicksPerFrame = Math.max(1, Math.round(dtMs / SIM_TICK_MS));
-    let frame = 0;
-    for (; frame < maxTicks; frame++) {
-      if (predicate()) return frame;
+    const frameCount = Math.ceil(timeoutMs / (simTicksPerFrame * SIM_TICK_MS));
+    for (let frame = 0; frame < frameCount; frame++) {
+      if (predicate()) return;
       for (let sub = 0; sub < simTicksPerFrame; sub++) {
         tick(SIM_TICK_MS);
-        // Check predicate between sim ticks within a frame.
-        if (predicate()) return frame;
+        if (predicate()) return;
       }
     }
     throw new ScenarioTimeoutError(
-      `runUntil predicate never fired within ${maxTicks} frames`,
-      maxTicks,
+      `runUntil predicate never fired within ${timeoutMs}ms ` +
+        `(${frameCount * simTicksPerFrame} sim ticks)`,
+      timeoutMs,
     );
   }
 
@@ -414,9 +428,12 @@ export async function createHeadlessRuntime(
     return (runtime.runtimeState.mode as Mode) === Mode.STOPPED;
   }
 
-  function runGame(maxTicks = 50000, dtMs = 16): void {
+  function runGame(opts?: RunOpts): void {
+    const timeoutMs = opts?.timeoutMs ?? DEFAULT_RUNGAME_TIMEOUT_MS;
+    const dtMs = opts?.dtMs ?? 16;
     const simTicksPerFrame = Math.max(1, Math.round(dtMs / SIM_TICK_MS));
-    for (let frame = 0; frame < maxTicks; frame++) {
+    const frameCount = Math.ceil(timeoutMs / (simTicksPerFrame * SIM_TICK_MS));
+    for (let frame = 0; frame < frameCount; frame++) {
       if (isStopped()) return;
       for (let sub = 0; sub < simTicksPerFrame; sub++) {
         tick(SIM_TICK_MS);
@@ -424,8 +441,9 @@ export async function createHeadlessRuntime(
       }
     }
     throw new ScenarioTimeoutError(
-      `runGame: mode did not reach STOPPED within ${maxTicks} frames`,
-      maxTicks,
+      `runGame: mode did not reach STOPPED within ${timeoutMs}ms ` +
+        `(${frameCount * simTicksPerFrame} sim ticks)`,
+      timeoutMs,
     );
   }
 

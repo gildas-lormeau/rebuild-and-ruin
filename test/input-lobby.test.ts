@@ -74,11 +74,10 @@ Deno.test(
     // worth of frames) so the assertion below points at the real bug,
     // not a tight cap.
     const startedAt = sc.now();
-    const FRAMES_PER_SEC = 1000 / 16;
-    const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
+    const timeoutMs = LOBBY_TIMER * 1000;
     // runUntil throws ScenarioTimeoutError if the lobby never deactivates —
     // the resulting stack points at the real bug.
-    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs });
     const elapsedSec = (sc.now() - startedAt) / 1000;
     // After spam-skipping the lobby should drain in roughly LOBBY_SKIP_LOCKOUT
     // seconds (the floor below which skipping has no effect). A tiny margin
@@ -155,9 +154,8 @@ Deno.test(
     }
 
     const startedAt = sc.now();
-    const FRAMES_PER_SEC = 1000 / 16;
-    const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
-    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    const timeoutMs = LOBBY_TIMER * 1000;
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs });
     const elapsedSec = (sc.now() - startedAt) / 1000;
     assert(
       elapsedSec <= LOBBY_SKIP_LOCKOUT + 0.5,
@@ -193,5 +191,5 @@ async function settleLobbyExit(sc: Scenario): Promise<void> {
   // awaits AI module loading), Promise.resolve() drains microtasks.
   await new Promise((resolve) => setTimeout(resolve, 0));
   for (let i = 0; i < 10; i++) await Promise.resolve();
-  sc.runUntil(() => sc.mode() !== Mode.LOBBY, 10);
+  sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
 }

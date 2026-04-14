@@ -77,11 +77,13 @@ export interface E2EScenarioOptions {
 type E2EEventType = keyof GameEventMap;
 
 /** Shared opts shape for `runUntil` / `runGame` / `waitFor*`. Units are
- *  wall-clock milliseconds because the Playwright poll loop is real-time.
- *  (The headless equivalents measure in sim frames — `maxTicks`.) */
+ *  wall-clock milliseconds (Playwright's poll loop is real-time).
+ *  Matches the headless `RunOpts` shape so agents don't mix up units —
+ *  the only difference is clock type (wall-clock here, mock clock on
+ *  headless). */
 export interface E2ERunOpts {
-  /** Wall-clock budget in milliseconds. Defaults to 120_000 for run-game-
-   *  level operations, 30_000 for waitFor* helpers. */
+  /** Wall-clock budget in milliseconds. Defaults to 120_000 for
+   *  `runGame`, 30_000 for `waitFor*`, 30_000 for `runUntil`. */
   timeoutMs?: number;
 }
 

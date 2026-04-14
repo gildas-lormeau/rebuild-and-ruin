@@ -56,9 +56,8 @@ Deno.test(
     // in about LOBBY_SKIP_LOCKOUT seconds (the floor below which
     // skipping has no effect).
     const startedAt = sc.now();
-    const FRAMES_PER_SEC = 1000 / 16;
-    const maxFrames = Math.ceil(LOBBY_TIMER * FRAMES_PER_SEC);
-    sc.runUntil(() => !sc.lobbyActive(), maxFrames);
+    const timeoutMs = LOBBY_TIMER * 1000;
+    sc.runUntil(() => !sc.lobbyActive(), { timeoutMs });
     const elapsedSec = (sc.now() - startedAt) / 1000;
     assert(
       elapsedSec <= LOBBY_SKIP_LOCKOUT + 0.5,
@@ -69,7 +68,7 @@ Deno.test(
     // startGame → bootstrapNewGame → ensureAiModulesLoaded) settles.
     await new Promise((resolve) => setTimeout(resolve, 0));
     for (let i = 0; i < 10; i++) await Promise.resolve();
-    sc.runUntil(() => sc.mode() !== Mode.LOBBY, 10);
+    sc.runUntil(() => sc.mode() !== Mode.LOBBY, { timeoutMs: 500 });
 
     assertEquals(
       sc.lobbyActive(),

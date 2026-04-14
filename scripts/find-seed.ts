@@ -40,16 +40,21 @@ import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { createScenario } from "../test/scenario.ts";
 
-// ---------------------------------------------------------------------------
-// Condition registry
-// ---------------------------------------------------------------------------
-
 type Condition = (state: GameState, seq: readonly string[]) => boolean;
+
+interface CliConfig {
+  condition: string;
+  expr: string;
+  rounds: number;
+  tries: number;
+  mode: "modern" | "classic";
+  /** Max sim-ms per seed before giving up. */
+  timeoutMsPerSeed: number;
+}
 
 const CONDITIONS: Record<string, Condition> = {
   wildfire: (state) => state.modern?.activeModifier === "wildfire",
-  crumblingWalls: (state) =>
-    state.modern?.activeModifier === "crumbling_walls",
+  crumblingWalls: (state) => state.modern?.activeModifier === "crumbling_walls",
   gruntSurge: (state) => state.modern?.activeModifier === "grunt_surge",
   frozenRiver: (state) => state.modern?.activeModifier === "frozen_river",
   highTide: (state) => state.modern?.activeModifier === "high_tide",
@@ -58,65 +63,7 @@ const CONDITIONS: Record<string, Condition> = {
   manyGrunts: (state) => state.grunts.length >= 10,
 };
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
-
-interface CliConfig {
-  condition: string;
-  expr: string;
-  rounds: number;
-  tries: number;
-  mode: "modern" | "classic";
-  /** Max ticks per seed before giving up (16ms per tick). */
-  maxTicksPerSeed: number;
-}
-
-function parseArgs(): CliConfig {
-  const args = Deno.args;
-  let condition = "";
-  let expr = "";
-  let rounds = 6;
-  let tries = 100;
-  let mode: "modern" | "classic" = "modern";
-  let maxTicksPerSeed = 30000;
-
-  for (let idx = 0; idx < args.length; idx++) {
-    const arg = args[idx];
-    if (arg === "--condition" && args[idx + 1]) condition = args[++idx]!;
-    else if (arg === "--expr" && args[idx + 1]) expr = args[++idx]!;
-    else if (arg === "--rounds" && args[idx + 1]) rounds = Number(args[++idx]);
-    else if (arg === "--tries" && args[idx + 1]) tries = Number(args[++idx]);
-    else if (arg === "--mode" && args[idx + 1]) {
-      const next = args[++idx]!;
-      mode = next === "classic" ? "classic" : "modern";
-    } else if (arg === "--max-ticks" && args[idx + 1]) {
-      maxTicksPerSeed = Number(args[++idx]);
-    } else if (arg === "--help" || arg === "-h") {
-      console.log(
-        "Usage: deno run -A scripts/find-seed.ts --condition <name> [--rounds N] [--tries N] [--mode modern|classic] [--max-ticks N]",
-      );
-      console.log("\nConditions:", Object.keys(CONDITIONS).join(", "));
-      console.log(
-        'Or use --expr \'<JS expression>\' with `state` (GameState) in scope.',
-      );
-      Deno.exit(0);
-    }
-  }
-
-  if (!condition && !expr) {
-    console.error(
-      "Error: --condition or --expr required. Use --help for usage.",
-    );
-    Deno.exit(1);
-  }
-
-  return { condition, expr, rounds, tries, mode, maxTicksPerSeed };
-}
-
-// ---------------------------------------------------------------------------
-// Runner — drives the full runtime per seed and checks the predicate per tick
-// ---------------------------------------------------------------------------
+run();
 
 async function run(): Promise<void> {
   const config = parseArgs();
@@ -151,17 +98,14 @@ async function run(): Promise<void> {
       sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
         if (ev.modifierId) seq.push(ev.modifierId);
       });
-      const ticksUsed = sc.runUntil(
-        () => check(sc.state, seq),
-        config.maxTicksPerSeed,
-      );
-      if (ticksUsed >= 0) {
-        matches.push({ seed, round: sc.state.round, seq: [...seq] });
-        const seqStr = seq.length > 0 ? `  seq=[${seq.join(",")}]` : "";
-        console.log(`  seed=${seed}  round=${sc.state.round}${seqStr}`);
-      }
+      sc.runUntil(() => check(sc.state, seq), {
+        timeoutMs: config.timeoutMsPerSeed,
+      });
+      matches.push({ seed, round: sc.state.round, seq: [...seq] });
+      const seqStr = seq.length > 0 ? `  seq=[${seq.join(",")}]` : "";
+      console.log(`  seed=${seed}  round=${sc.state.round}${seqStr}`);
     } catch {
-      // Some seeds produce unplayable maps or runtime errors — skip.
+      // Timeout (predicate never fired) or unplayable map — skip.
     }
   }
 
@@ -180,4 +124,44 @@ async function run(): Promise<void> {
   );
 }
 
-run();
+function parseArgs(): CliConfig {
+  const args = Deno.args;
+  let condition = "";
+  let expr = "";
+  let rounds = 6;
+  let tries = 100;
+  let mode: "modern" | "classic" = "modern";
+  let timeoutMsPerSeed = 480_000;
+
+  for (let idx = 0; idx < args.length; idx++) {
+    const arg = args[idx];
+    if (arg === "--condition" && args[idx + 1]) condition = args[++idx]!;
+    else if (arg === "--expr" && args[idx + 1]) expr = args[++idx]!;
+    else if (arg === "--rounds" && args[idx + 1]) rounds = Number(args[++idx]);
+    else if (arg === "--tries" && args[idx + 1]) tries = Number(args[++idx]);
+    else if (arg === "--mode" && args[idx + 1]) {
+      const next = args[++idx]!;
+      mode = next === "classic" ? "classic" : "modern";
+    } else if (arg === "--timeout-ms" && args[idx + 1]) {
+      timeoutMsPerSeed = Number(args[++idx]);
+    } else if (arg === "--help" || arg === "-h") {
+      console.log(
+        "Usage: deno run -A scripts/find-seed.ts --condition <name> [--rounds N] [--tries N] [--mode modern|classic] [--timeout-ms N]",
+      );
+      console.log("\nConditions:", Object.keys(CONDITIONS).join(", "));
+      console.log(
+        "Or use --expr '<JS expression>' with `state` (GameState) in scope.",
+      );
+      Deno.exit(0);
+    }
+  }
+
+  if (!condition && !expr) {
+    console.error(
+      "Error: --condition or --expr required. Use --help for usage.",
+    );
+    Deno.exit(1);
+  }
+
+  return { condition, expr, rounds, tries, mode, timeoutMsPerSeed };
+}
