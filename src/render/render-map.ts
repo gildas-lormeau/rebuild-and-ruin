@@ -18,6 +18,7 @@ import {
   GRID_ROWS,
   MAP_PX_H,
   MAP_PX_W,
+  OFFSCREEN_SCALE,
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
@@ -343,15 +344,21 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   function ensureOffscreenSize(width: number, height: number): void {
-    const sceneCanvas = getScene().canvas;
-    if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
-      sceneCanvas.width = width;
-      sceneCanvas.height = height;
+    const physW = width * OFFSCREEN_SCALE;
+    const physH = height * OFFSCREEN_SCALE;
+    const { canvas: sceneCanvas, ctx: sceneCtx } = getScene();
+    if (sceneCanvas.width !== physW || sceneCanvas.height !== physH) {
+      sceneCanvas.width = physW;
+      sceneCanvas.height = physH;
+      sceneCtx.setTransform(OFFSCREEN_SCALE, 0, 0, OFFSCREEN_SCALE, 0, 0);
+      sceneCtx.imageSmoothingEnabled = false;
     }
-    const bannerCanvas = getBannerScene().canvas;
-    if (bannerCanvas.width !== width || bannerCanvas.height !== height) {
-      bannerCanvas.width = width;
-      bannerCanvas.height = height;
+    const { canvas: bannerCanvas, ctx: bannerCtx } = getBannerScene();
+    if (bannerCanvas.width !== physW || bannerCanvas.height !== physH) {
+      bannerCanvas.width = physW;
+      bannerCanvas.height = physH;
+      bannerCtx.setTransform(OFFSCREEN_SCALE, 0, 0, OFFSCREEN_SCALE, 0, 0);
+      bannerCtx.imageSmoothingEnabled = false;
       bannerScenePainted = undefined;
     }
   }
@@ -487,10 +494,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (viewport) {
       canvasCtx.drawImage(
         offscreenCanvas,
-        viewport.x,
-        viewport.y,
-        viewport.w,
-        viewport.h,
+        viewport.x * OFFSCREEN_SCALE,
+        viewport.y * OFFSCREEN_SCALE,
+        viewport.w * OFFSCREEN_SCALE,
+        viewport.h * OFFSCREEN_SCALE,
         0,
         0,
         cw,
