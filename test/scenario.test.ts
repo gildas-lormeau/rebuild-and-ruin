@@ -130,6 +130,39 @@ Deno.test("scenario: diffAsciiSnapshots lists tile changes across phases", async
   );
 });
 
+Deno.test("scenario: tileAt inspects a walled-in interior tile", async () => {
+  const sc = await createScenario({ seed: 42, rounds: 3 });
+  waitForPhase(sc, Phase.BATTLE);
+
+  // Pick a player that has both walls and interior after build.
+  const player = sc.state.players.find(
+    (p) => p.walls.size > 0 && p.interior.size > 0,
+  );
+  assert(player !== undefined, "expected a player with walls + interior");
+
+  // Sample a wall tile — inspection should report the wall owner.
+  const wallKey = player.walls.values().next().value!;
+  const wallRow = Math.floor(wallKey / 44);
+  const wallCol = wallKey % 44;
+  const wallInspect = sc.tileAt(wallRow, wallCol);
+  assert(
+    wallInspect.wall?.playerId === player.id,
+    `wall owner mismatch: expected ${player.id}, got ${wallInspect.wall?.playerId}`,
+  );
+
+  // Sample an interior tile — inspection should report interior ownership
+  // and a valid zone id.
+  const interiorKey = player.interior.values().next().value!;
+  const interiorRow = Math.floor(interiorKey / 44);
+  const interiorCol = interiorKey % 44;
+  const interiorInspect = sc.tileAt(interiorRow, interiorCol);
+  assert(
+    interiorInspect.interior.includes(player.id),
+    `interior owner missing: ${interiorInspect.interior.join(",")}`,
+  );
+  assert(interiorInspect.zone !== null, "expected non-null zone");
+});
+
 Deno.test("scenario: entities present during banner sweeps", async () => {
   const sc = await createScenario({ seed: 42, rounds: 1 });
 

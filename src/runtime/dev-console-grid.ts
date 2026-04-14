@@ -6,10 +6,19 @@
  * to keep the game public surface free of debug concerns.
  */
 
+import type { CannonMode } from "../shared/core/battle-types.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { isWater, unpackTile } from "../shared/core/spatial.ts";
+import {
+  hasPitAt,
+  isCannonTile,
+  isTowerTile,
+  isWater,
+  packTile,
+  unpackTile,
+} from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 
@@ -45,6 +54,19 @@ export interface Rect {
   maxRow: number;
   minCol: number;
   maxCol: number;
+}
+
+export interface TileInspection {
+  row: number;
+  col: number;
+  terrain: "grass" | "water" | "frozenWater" | "lowWater";
+  wall: { playerId: ValidPlayerSlot } | null;
+  tower: { index: number; alive: boolean } | null;
+  cannon: { playerId: ValidPlayerSlot; hp: number; mode: CannonMode } | null;
+  grunt: { playerId: ValidPlayerSlot } | null;
+  burningPit: boolean;
+  interior: readonly ValidPlayerSlot[];
+  zone: number | null;
 }
 
 /** Number of lines the legend produced by `buildLegend` occupies. Used by
@@ -231,6 +253,76 @@ export function zoneBounds(state: GameState, zone: number): Rect | undefined {
     maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
     minCol: Math.max(0, minCol - 1),
     maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
+  };
+}
+
+/** Structured read of everything that lives at a single tile. Used by the
+ *  test-facing `tileAt(row, col)` so agents can assert on occupancy
+ *  without counting characters in an ASCII dump. */
+export function inspectTile(
+  state: GameState,
+  row: number,
+  col: number,
+): TileInspection {
+  const key = packTile(row, col);
+  const tiles = state.map.tiles;
+  const frozen = state.modern?.frozenTiles;
+  const lowWater = state.modern?.lowWaterTiles;
+  const terrainTile = tiles[row]?.[col];
+  let terrain: TileInspection["terrain"];
+  if (terrainTile !== undefined && isWater(tiles, row, col)) {
+    terrain = frozen?.has(key) ? "frozenWater" : "water";
+  } else if (lowWater?.has(key)) {
+    terrain = "lowWater";
+  } else {
+    terrain = "grass";
+  }
+
+  let wall: TileInspection["wall"] = null;
+  const interior: ValidPlayerSlot[] = [];
+  let cannon: TileInspection["cannon"] = null;
+  let grunt: TileInspection["grunt"] = null;
+  for (const player of state.players) {
+    if (isPlayerEliminated(player)) continue;
+    if (player.walls.has(key)) wall = { playerId: player.id };
+    if (player.interior.has(key)) interior.push(player.id);
+    for (const cannonEntity of player.cannons) {
+      if (isCannonTile(cannonEntity, row, col)) {
+        cannon = {
+          playerId: player.id,
+          hp: cannonEntity.hp,
+          mode: cannonEntity.mode,
+        };
+        break;
+      }
+    }
+  }
+  for (const gruntEntity of state.grunts) {
+    if (gruntEntity.row === row && gruntEntity.col === col) {
+      grunt = { playerId: gruntEntity.victimPlayerId };
+      break;
+    }
+  }
+
+  let tower: TileInspection["tower"] = null;
+  for (let index = 0; index < state.map.towers.length; index++) {
+    if (isTowerTile(state.map.towers[index]!, row, col)) {
+      tower = { index, alive: state.towerAlive[index] ?? false };
+      break;
+    }
+  }
+
+  return {
+    row,
+    col,
+    terrain,
+    wall,
+    tower,
+    cannon,
+    grunt,
+    burningPit: hasPitAt(state.burningPits, row, col),
+    interior,
+    zone: state.map.zones[row]?.[col] ?? null,
   };
 }
 

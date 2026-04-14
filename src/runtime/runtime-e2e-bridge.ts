@@ -28,7 +28,9 @@ import {
   buildLegend,
   DEFAULT_MAP_LAYER,
   formatGrid,
+  inspectTile,
   type MapLayer,
+  type TileInspection,
 } from "./dev-console-grid.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
@@ -121,6 +123,11 @@ interface E2EBridge extends E2EBridgeSnapshot {
   asciiSnapshot: (
     opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
   ) => string | null;
+  /** Structured read of everything at a single tile — terrain, wall,
+   *  tower, cannon, grunt, burning pit, interior ownership, zone.
+   *  Returns null before state is ready. Cheaper than rendering the
+   *  whole grid and counting characters. */
+  tileAt: (row: number, col: number) => TileInspection | null;
   /** When true, the bridge captures a canvas PNG on every non-banner tick
    *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
    *  `toDataURL` every frame is expensive. Set by E2E tests that need
@@ -247,6 +254,10 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       asciiSnapshot: (opts) =>
         isStateReady(deps.runtimeState)
           ? renderAscii(deps.runtimeState.state, opts)
+          : null,
+      tileAt: (row, col) =>
+        isStateReady(deps.runtimeState)
+          ? inspectTile(deps.runtimeState.state, row, col)
           : null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,

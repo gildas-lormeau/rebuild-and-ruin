@@ -73,6 +73,10 @@ import {
   type AsciiRenderer,
   type AsciiRendererInternal,
 } from "./ascii-renderer.ts";
+import {
+  inspectTile,
+  type TileInspection,
+} from "../src/runtime/dev-console-grid.ts";
 import type { CanvasRecorder } from "./recording-canvas.ts";
 import SEED_FIXTURES from "./seed-fixtures.json" with { type: "json" };
 import { SEED_CONDITIONS } from "./seed-conditions.ts";
@@ -192,6 +196,11 @@ export interface Scenario extends Disposable {
   /** ASCII renderer handle — only present when `renderer: true` was passed
    *  to `createScenario`. Provides `frames`, `lastFrame`, and `snapshot()`. */
   readonly renderer?: AsciiRenderer;
+  /** Structured read of everything at a single tile — terrain, wall,
+   *  tower, cannon, grunt, burning pit, interior ownership, zone.
+   *  On-demand debug primitive: cheaper than rendering the whole ASCII
+   *  grid and counting characters to assert on a specific tile. */
+  tileAt(row: number, col: number): TileInspection;
   /** Online client — only present when `online: "host"` was passed.
    *  Provides access to `onlineClient.ctx.session`, `.ctx.watcher`,
    *  `.ctx.dedup` for asserting dispatcher state after `deliverMessage`. */
@@ -394,6 +403,8 @@ export function wrapHeadless(
     tick: headless.tick,
     runGame: headless.runGame,
     input,
+    tileAt: (row, col) =>
+      inspectTile(headless.runtime.runtimeState.state, row, col),
     [Symbol.dispose]: () => {
       // No cleanup is performed for the *observers* this Scenario installed:
       // every haptics / sound / render observer is closure-scoped to the

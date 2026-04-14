@@ -106,6 +106,28 @@ Deno.test("e2e: asciiSnapshot has coordinate margins by default", async () => {
   );
 });
 
+Deno.test("e2e: tileAt returns structured tile data", async () => {
+  await using sc = await createE2EScenario({
+    seed: 42,
+    humans: 0,
+    headless: true,
+    rounds: 1,
+  });
+
+  await waitForPhase(sc, Phase.BATTLE);
+
+  // tileAt mirrors the headless API — pick a tower tile from the
+  // serialized game state and inspect it across the Playwright boundary.
+  const game = await sc.gameState();
+  assert(game !== null, "expected gameState");
+  const tower = game.map.towers[0];
+  assert(tower !== undefined, "expected at least one tower");
+  const inspect = await sc.tileAt(tower.row, tower.col);
+  assert(inspect !== null, "expected tileAt to return non-null once ready");
+  assert(inspect.tower !== null, "expected tower cell");
+  assert(inspect.zone !== null, "expected zone id on tower tile");
+});
+
 Deno.test("e2e: two browsers play online with AI", async () => {
   // Host creates a room
   await using host = await createE2EScenario({

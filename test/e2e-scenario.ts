@@ -20,7 +20,10 @@ import type {
   E2EBusEntryOf,
   SerializedGameState,
 } from "../src/runtime/runtime-e2e-bridge.ts";
-import type { MapLayer } from "../src/runtime/dev-console-grid.ts";
+import type {
+  MapLayer,
+  TileInspection,
+} from "../src/runtime/dev-console-grid.ts";
 import {
   GAME_EVENT,
   type GameEventMap,
@@ -37,7 +40,10 @@ export type {
   E2EBusEntryOf,
   SerializedGameState,
 } from "../src/runtime/runtime-e2e-bridge.ts";
-export type { MapLayer } from "../src/runtime/dev-console-grid.ts";
+export type {
+  MapLayer,
+  TileInspection,
+} from "../src/runtime/dev-console-grid.ts";
 
 /** Stringified `Mode` enum key (e.g. "LOBBY", "GAME", "STOPPED"). The bridge
  *  emits names rather than numeric values so E2E tests compare against string
@@ -113,6 +119,9 @@ export interface E2EScenario extends AsyncDisposable {
   asciiSnapshot(
     opts?: MapLayer | { layer?: MapLayer; coords?: boolean },
   ): Promise<string | null>;
+  /** Structured read of a single tile — mirrors the headless
+   *  `Scenario.tileAt(row, col)`. Returns null before state is ready. */
+  tileAt(row: number, col: number): Promise<TileInspection | null>;
   /** Current UI mode (LOBBY, GAME, STOPPED, …) — stringified `Mode` enum key. */
   mode(): Promise<E2EMode>;
   /** Current game phase — `Phase` enum (string-valued), or "" before ready. */
@@ -525,6 +534,19 @@ export async function createE2EScenario(
         },
         opts,
       ),
+
+    tileAt: (row, col) =>
+      page.evaluate(
+        ([r, c]: [number, number]) => {
+          const e2e = (globalThis as unknown as Record<string, unknown>)
+            .__e2e as
+            | { tileAt?: (row: number, col: number) => TileInspection | null }
+            | undefined;
+          if (!e2e) throw new Error("__e2e bridge not available");
+          return e2e.tileAt?.(r, c) ?? null;
+        },
+        [row, col] as [number, number],
+      ) as Promise<TileInspection | null>,
 
     mode: () =>
       page.evaluate(() => {
