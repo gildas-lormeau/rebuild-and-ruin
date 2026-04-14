@@ -62,6 +62,7 @@
       "src/game/selection.ts",
       "src/game/phase-banner.ts",
       "src/game/upgrade-system.ts",
+      "src/game/wall-impact.ts",
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",

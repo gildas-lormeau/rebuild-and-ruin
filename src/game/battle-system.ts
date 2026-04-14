@@ -30,7 +30,6 @@ import {
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
   HOUSE_GRUNT_SPAWN_CHANCE,
-  RAMPART_SHIELD_RADIUS,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/core/game-constants.ts";
@@ -78,8 +77,8 @@ import {
   onCannonKilled,
   onGruntKilled,
   onImpactResolved,
-  shouldAbsorbWallHit,
 } from "./upgrade-system.ts";
+import { resolveWallShield, ShieldKind } from "./wall-impact.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -866,63 +865,34 @@ function collectWallImpacts(
   shooterId: ValidPlayerSlot,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
-  let hitWall = false;
-  for (const player of state.players) {
-    if (player.walls.has(key)) {
-      // Upgrade-driven absorption (Reinforced Walls): first hit is absorbed,
-      // wall survives (no pit either). hitWall intentionally NOT set —
-      // absorbed hits must not trigger incendiary pits.
-      if (shouldAbsorbWallHit(player, key)) {
-        events.push({
-          type: BATTLE_MESSAGE.WALL_ABSORBED,
-          playerId: player.id,
-          tileKey: key,
-        });
-        continue;
-      }
-      // Rampart absorption: allied rampart within shield radius saves the wall
-      const rampart = findShieldingRampart(player, row, col);
-      if (rampart) {
-        events.push({
-          type: BATTLE_MESSAGE.WALL_SHIELDED,
-          playerId: player.id,
-          cannonIdx: rampart.idx,
-          newShieldHp: (rampart.cannon.shieldHp ?? 0) - 1,
-        });
-        continue;
-      }
-      hitWall = true;
-      events.push({
-        type: BATTLE_MESSAGE.WALL_DESTROYED,
-        row,
-        col,
-        playerId: player.id,
-        shooterId,
-      });
-    }
+  const result = resolveWallShield(state, row, col, key);
+  if (result === null) return { events, hitWall: false };
+  if (result.absorbed && result.kind === ShieldKind.Reinforced) {
+    // Reinforced Walls: wall survives, no pit (hitWall stays false).
+    events.push({
+      type: BATTLE_MESSAGE.WALL_ABSORBED,
+      playerId: result.playerId,
+      tileKey: result.tileKey,
+    });
+    return { events, hitWall: false };
   }
-  return { events, hitWall };
-}
-
-/** Find a rampart that can shield a wall tile at (row, col).
- *  Returns the first alive rampart within RAMPART_SHIELD_RADIUS with shieldHp > 0. */
-function findShieldingRampart(
-  wallOwner: Player,
-  wallRow: number,
-  wallCol: number,
-): { cannon: Cannon; idx: number } | null {
-  for (let idx = 0; idx < wallOwner.cannons.length; idx++) {
-    const cannon = wallOwner.cannons[idx]!;
-    if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
-    if ((cannon.shieldHp ?? 0) <= 0) continue;
-    // Chebyshev distance from rampart center (2×2 → center at +1,+1) to wall tile
-    const dist = Math.max(
-      Math.abs(wallRow - (cannon.row + 1)),
-      Math.abs(wallCol - (cannon.col + 1)),
-    );
-    if (dist <= RAMPART_SHIELD_RADIUS) return { cannon, idx };
+  if (result.absorbed && result.kind === ShieldKind.Rampart) {
+    events.push({
+      type: BATTLE_MESSAGE.WALL_SHIELDED,
+      playerId: result.playerId,
+      cannonIdx: result.cannonIdx,
+      newShieldHp: result.newShieldHp,
+    });
+    return { events, hitWall: false };
   }
-  return null;
+  events.push({
+    type: BATTLE_MESSAGE.WALL_DESTROYED,
+    row,
+    col,
+    playerId: result.playerId,
+    shooterId,
+  });
+  return { events, hitWall: true };
 }
 
 /** Collect cannon damage events at a tile. */

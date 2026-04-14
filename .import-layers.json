@@ -177,6 +177,7 @@
       "src/ai/ai-build-target.ts",
       "src/controllers/controller-factory.ts",
       "src/game/grunt-system.ts",
+      "src/game/wall-impact.ts",
       "src/game/modifiers/dry-lightning.ts",
       "src/game/modifiers/wildfire.ts",
       "src/game/upgrade-system.ts",

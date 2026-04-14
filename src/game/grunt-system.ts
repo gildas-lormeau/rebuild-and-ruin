@@ -52,6 +52,7 @@ import {
   isAdjacentToLivingTower,
   isGruntPassableTile,
 } from "./grunt-movement.ts";
+import { applyWallShield, resolveWallShield } from "./wall-impact.ts";
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;
@@ -222,9 +223,17 @@ export function gruntAttackTowers(
       );
       if (bestWallKey >= 0) {
         if (tickGruntAttackTimer(grunt, dt)) {
-          // Destroy wall but stay in place.
+          // Wall survives if a Reinforced Walls absorption or nearby allied
+          // Rampart shields it; shield side effects applied directly (no bus
+          // events — matches today's silent grunt wall removal).
           // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          removeWallFromAllPlayers(state, bestWallKey);
+          const { r, c } = unpackTile(bestWallKey);
+          const result = resolveWallShield(state, r, c, bestWallKey);
+          if (result?.absorbed) {
+            applyWallShield(state, result);
+          } else {
+            removeWallFromAllPlayers(state, bestWallKey);
+          }
           grunt.attackingWall = false;
         }
         continue;

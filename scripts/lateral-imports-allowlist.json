@@ -1,4 +1,21 @@
 {
   "maxLateralImports": 3,
-  "edges": []
+  "edges": [
+    {
+      "from": "src/game/grunt-system.ts",
+      "to": "src/game/wall-impact.ts",
+      "rationale": "Shared wall-shield resolution (rampart + reinforced walls) reused across cannonball and grunt wall-attack paths.",
+      "owner": "game",
+      "expiresOn": "2026-12-31",
+      "removalPlan": "Permanent — wall-impact is the canonical home for shield/absorption logic; both subsystems are peers."
+    },
+    {
+      "from": "src/game/wall-impact.ts",
+      "to": "src/game/upgrade-system.ts",
+      "rationale": "Reinforced Walls absorption is dispatched through the upgrade registry.",
+      "owner": "game",
+      "expiresOn": "2026-12-31",
+      "removalPlan": "Permanent — wall shielding is the upgrade registry's natural consumer for this hook."
+    }
+  ]
 }
