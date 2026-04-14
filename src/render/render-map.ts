@@ -1386,17 +1386,13 @@ function drawCastleCannons(
           : SPRITE_CANNON;
       const dir = facingToDir8(cannon.facing ?? 0);
       drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
-      // Shield overlay: cyan circle outline so both owner and opponents can identify it
+      // Shield aura overlay: armor rivets + metallic corner frame so shielded
+      // cannons read as stronger (replaces the old cyan HP ring).
       if (cannon.shielded) {
-        const size = isSuperCannon(cannon) ? TILE_SIZE * 3 : TILE_SIZE * 2;
-        const mid = size / 2;
-        overlayCtx.save();
-        overlayCtx.strokeStyle = "#00ccff";
-        overlayCtx.lineWidth = 2;
-        overlayCtx.beginPath();
-        overlayCtx.arc(cx + mid, cy + mid, mid - 2, 0, Math.PI * 2);
-        overlayCtx.stroke();
-        overlayCtx.restore();
+        const aura = isSuperCannon(cannon)
+          ? "shield_aura_3x3"
+          : "shield_aura_2x2";
+        drawSprite(overlayCtx, aura, cx, cy);
       }
     }
   }

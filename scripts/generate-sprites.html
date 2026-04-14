@@ -465,6 +465,54 @@ addSprite("rampart_debris", 2, 2, (ctx, x, y) => {
   ctx.fillRect(x + 12, y + 18, 1, 1);
 });
 
+// ---- Shield aura overlays — drawn on top of shielded cannons to read as "armored". ----
+// Transparent bg, corner rivets + thin metallic frame + soft cyan inner glow.
+function drawShieldAura(ctx, x, y, tiles) {
+  const s = TILE * tiles;
+  // Corner armor rivets (dark base + cyan highlight)
+  const rivet = (rx, ry) => {
+    ctx.fillStyle = "#1a2028";
+    ctx.fillRect(rx - 1, ry - 1, 3, 3);
+    ctx.fillStyle = "#66ccff";
+    ctx.fillRect(rx, ry, 1, 1);
+  };
+  rivet(x + 2, y + 2);
+  rivet(x + s - 3, y + 2);
+  rivet(x + 2, y + s - 3);
+  rivet(x + s - 3, y + s - 3);
+  // Thin metallic frame (corners only — don't hide the barrel)
+  ctx.fillStyle = "#88ccee";
+  // Top-left corner bracket
+  ctx.fillRect(x + 2, y + 1, 4, 1);
+  ctx.fillRect(x + 1, y + 2, 1, 4);
+  // Top-right
+  ctx.fillRect(x + s - 6, y + 1, 4, 1);
+  ctx.fillRect(x + s - 2, y + 2, 1, 4);
+  // Bottom-left
+  ctx.fillRect(x + 2, y + s - 2, 4, 1);
+  ctx.fillRect(x + 1, y + s - 6, 1, 4);
+  // Bottom-right
+  ctx.fillRect(x + s - 6, y + s - 2, 4, 1);
+  ctx.fillRect(x + s - 2, y + s - 6, 1, 4);
+  // Soft cyan inner glow dots (scattered)
+  ctx.fillStyle = "rgba(102, 204, 255, 0.35)";
+  if (tiles === 2) {
+    ctx.fillRect(x + 6, y + 3, 1, 1);
+    ctx.fillRect(x + s - 7, y + 4, 1, 1);
+    ctx.fillRect(x + 4, y + s - 7, 1, 1);
+    ctx.fillRect(x + s - 5, y + s - 5, 1, 1);
+  } else {
+    ctx.fillRect(x + 8, y + 4, 1, 1);
+    ctx.fillRect(x + s - 9, y + 5, 1, 1);
+    ctx.fillRect(x + 5, y + s - 9, 1, 1);
+    ctx.fillRect(x + s - 6, y + s - 6, 1, 1);
+    ctx.fillRect(x + s / 2, y + 3, 1, 1);
+    ctx.fillRect(x + 3, y + s / 2, 1, 1);
+  }
+}
+addSprite("shield_aura_2x2", 2, 2, (ctx, x, y) => drawShieldAura(ctx, x, y, 2));
+addSprite("shield_aura_3x3", 3, 3, (ctx, x, y) => drawShieldAura(ctx, x, y, 3));
+
 // ---- Cannon debris (2x2) — shattered metal chunks filling the tile ----
 addSprite("cannon_debris", 2, 2, (ctx, x, y) => {
   const s = TILE * 2;
