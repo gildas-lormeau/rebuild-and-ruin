@@ -52,6 +52,12 @@ export interface E2EScenarioOptions {
   rounds?: number;
   /** Game mode. Matches the headless `ScenarioOptions.mode` shape. */
   mode?: "classic" | "modern";
+  /** When false, the factory returns while the lobby is still up instead
+   *  of waiting for the game to auto-start. Tests that exercise lobby
+   *  input (slot clicks, key joins) use this to drive the UI before
+   *  players are seated. Defaults to true. Mirrors the headless
+   *  `ScenarioOptions.autoStartGame`. */
+  autoStartGame?: boolean;
   /** Online mode. `"host"` creates a room and waits for peers.
    *  `"join"` joins an existing room via `roomCode`. Omit for local play. */
   online?: "host" | "join";
@@ -206,6 +212,7 @@ export async function createE2EScenario(
     headless = true,
     rounds = 3,
     mode,
+    autoStartGame = true,
     online,
     roomCode: joinCode,
   } = opts;
@@ -281,7 +288,9 @@ export async function createE2EScenario(
   });
 
   // Join human slots (local only — online lobby handles slots differently).
-  if (!online) {
+  // Skipped when autoStartGame is false so tests can drive the lobby UI
+  // from scratch.
+  if (!online && autoStartGame) {
     const slotKeys = ["n", "f", "h"];
     for (let idx = 0; idx < humans; idx++) {
       await page.keyboard.press(slotKeys[idx]!);
@@ -290,7 +299,8 @@ export async function createE2EScenario(
 
   // Wait for game to start (skip for online — lobby exit happens during
   // runGame/runUntil so both host and client can join before the timer expires).
-  if (!online) {
+  // Also skip when autoStartGame=false so tests can drive the lobby themselves.
+  if (!online && autoStartGame) {
     await page.waitForFunction(
       () => {
         const win = globalThis as unknown as Record<string, unknown>;
@@ -497,7 +507,12 @@ export async function createE2EScenario(
         return (e2e?.phase ?? "") as E2EPhase;
       }),
 
-    lobbyActive: async () => (await scenario.mode()) === "LOBBY",
+    lobbyActive: () =>
+      page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { lobbyActive?: boolean } | undefined;
+        return e2e?.lobbyActive ?? false;
+      }),
 
     bus: {
       on<K extends E2EEventType>(

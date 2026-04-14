@@ -73,6 +73,10 @@ export interface E2EBridgeSnapshot {
   /** `Phase` enum (string-valued), or "" before state is ready. Compare directly
    *  with `Phase.BATTLE` etc. */
   phase: Phase | "";
+  /** Whether the lobby UI is currently active (mirrors `runtimeState.lobby.active`).
+   *  Distinct from `mode === "LOBBY"` — the flag can flip off a frame or two
+   *  before the mode transition completes. */
+  lobbyActive: boolean;
   round: number;
   timer: number;
   overlay: {
@@ -200,6 +204,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
     bridge = {
       mode: "",
       phase: "",
+      lobbyActive: false,
       round: 0,
       timer: 0,
       overlay: {
@@ -328,6 +333,7 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   ref.mode = Mode[runtimeState.mode] as keyof typeof Mode;
   const ready = isStateReady(runtimeState);
   ref.phase = ready ? runtimeState.state.phase : "";
+  ref.lobbyActive = runtimeState.lobby.active;
   ref.round = ready ? runtimeState.state.round : 0;
   ref.timer = ready ? runtimeState.state.timer : 0;
 
