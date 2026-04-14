@@ -1,62 +1,70 @@
 /**
- * Grace-period helpers for modifier targeting.
+ * Fresh-castle protection helpers for modifier targeting.
  *
- * Verifies that freshCastle filters a player's zone/identity out of
- * getModifierEligibleZones / getModifierEligiblePlayers, and that the
- * applyFireScar assertion catches a scar that would hit a grace zone.
+ * Verifies that a freshly-reselected castle's tiles land in
+ * getProtectedCastleTiles (tower + castle walls), that seated-player zone
+ * enumeration excludes eliminated players, and that applyFireScar asserts
+ * against protected tiles.
  */
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import { applyFireScar } from "../src/game/modifiers/fire-helpers.ts";
 import {
-  getGraceCastleZones,
-  getModifierEligiblePlayers,
-  getModifierEligibleZones,
+  getActiveZones,
+  getProtectedCastleTiles,
 } from "../src/game/modifiers/modifier-eligibility.ts";
+import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
 import { createScenario } from "./scenario.ts";
 
-Deno.test("grace: flag is false by default, all seated players eligible", async () => {
+Deno.test("protected-tiles: empty when no player has freshCastle", async () => {
   const sc = await createScenario({ seed: 42 });
   for (const player of sc.state.players) {
     assertEquals(player.freshCastle, false);
   }
-  // Without any grace flags, getModifierEligiblePlayers matches seated players.
-  const eligible = getModifierEligiblePlayers(sc.state);
-  const seated = sc.state.players.filter((p) => !!p.homeTower && !p.eliminated);
-  assertEquals(eligible.length, seated.length);
-  assertEquals(getGraceCastleZones(sc.state).size, 0);
+  assertEquals(getProtectedCastleTiles(sc.state).size, 0);
 });
 
-Deno.test("grace: freshCastle excludes player's zone from eligibility", async () => {
+Deno.test("protected-tiles: freshCastle contributes tower + castle walls", async () => {
   const sc = await createScenario({ seed: 42 });
   const target = sc.state.players.find((p) => !!p.homeTower && !p.eliminated);
   assert(target, "need at least one seated player");
   target.freshCastle = true;
-  const targetZone = target.homeTower!.zone;
+  target.castleWallTiles = new Set(target.walls);
+  const tower = target.homeTower!;
 
-  const eligibleZones = getModifierEligibleZones(sc.state);
-  assert(
-    !eligibleZones.includes(targetZone),
-    `zone ${targetZone} should be filtered out`,
-  );
-  const eligiblePlayers = getModifierEligiblePlayers(sc.state);
-  assert(!eligiblePlayers.some((p) => p.id === target.id));
-  assert(getGraceCastleZones(sc.state).has(targetZone));
+  const protectedTiles = getProtectedCastleTiles(sc.state);
+  for (let dr = 0; dr < TOWER_SIZE; dr++) {
+    for (let dc = 0; dc < TOWER_SIZE; dc++) {
+      assert(protectedTiles.has(packTile(tower.row + dr, tower.col + dc)));
+    }
+  }
+  for (const key of target.castleWallTiles) {
+    assert(protectedTiles.has(key));
+  }
 });
 
-Deno.test("grace: applyFireScar throws if scar touches a grace zone", async () => {
+Deno.test("active-zones: eliminated players are excluded", async () => {
+  const sc = await createScenario({ seed: 42 });
+  const target = sc.state.players.find((p) => !!p.homeTower && !p.eliminated);
+  assert(target, "need at least one seated player");
+  const targetZone = target.homeTower!.zone;
+
+  assert(getActiveZones(sc.state).includes(targetZone));
+  target.eliminated = true;
+  assert(!getActiveZones(sc.state).includes(targetZone));
+});
+
+Deno.test("applyFireScar throws if scar touches a protected tile", async () => {
   const sc = await createScenario({ seed: 42 });
   const target = sc.state.players.find((p) => !!p.homeTower && !p.eliminated);
   assert(target, "need at least one seated player");
   target.freshCastle = true;
   const tower = target.homeTower!;
-  // Any tile in the zones grid matching target's zone triggers the assert.
-  // Use tower's top-left as a stable representative tile.
   const scar = new Set<number>([packTile(tower.row, tower.col)]);
   assertThrows(
     () => applyFireScar(sc.state, scar),
     Error,
-    "fresh-castle zone",
+    "fresh-castle tile",
   );
 });

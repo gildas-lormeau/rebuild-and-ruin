@@ -19,13 +19,16 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import { getGraceCastleZones } from "./modifier-eligibility.ts";
+import { getProtectedCastleTiles } from "./modifier-eligibility.ts";
 
-/** Build a predicate for whether a tile can burn in a specific zone. */
+/** Build a predicate for whether a tile can burn in a specific zone. Tiles
+ *  protected by a fresh castle's grace period are rejected so scars never
+ *  land on the castle tower or its wall ring. */
 export function buildCanBurnPredicate(
   state: GameState,
   targetZone: number,
 ): (row: number, col: number) => boolean {
+  const protectedTiles = getProtectedCastleTiles(state);
   const tiles = state.map.tiles;
   const zones = state.map.zones;
   const burningSet = new Set(
@@ -34,6 +37,7 @@ export function buildCanBurnPredicate(
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
     if (zones[row]?.[col] !== targetZone) return false;
+    if (protectedTiles.has(packTile(row, col))) return false;
     if (burningSet.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
@@ -52,14 +56,13 @@ export function applyFireScar(
   state: GameState,
   scar: ReadonlySet<number>,
 ): void {
-  const graceZones = getGraceCastleZones(state);
-  if (graceZones.size > 0) {
+  const protectedTiles = getProtectedCastleTiles(state);
+  if (protectedTiles.size > 0) {
     for (const key of scar) {
-      const { r, c } = unpackTile(key);
-      const zone = state.map.zones[r]?.[c];
-      if (zone !== undefined && graceZones.has(zone)) {
+      if (protectedTiles.has(key)) {
+        const { r, c } = unpackTile(key);
         throw new Error(
-          `applyFireScar touched fresh-castle zone ${zone} at (${r},${c}) — use getModifierEligibleZones() to select targets`,
+          `applyFireScar touched fresh-castle tile (${r},${c}) — buildCanBurnPredicate already rejects these, so the caller likely bypassed the predicate`,
         );
       }
     }

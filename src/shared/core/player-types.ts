@@ -59,8 +59,9 @@ export interface Player {
    *  Cleared at build phase start. Second hit destroys normally. */
   damagedWalls: Set<number>;
   /** True for one battle after the player's castle is freshly (re)built.
-   *  Modifiers skip this player's zone while set — grace period so a newly
-   *  rebuilt castle isn't immediately battered. Cleared in enterBuildFromBattle. */
+   *  Modifiers still apply to this player's zone, but tile-placing effects
+   *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via
+   *  getProtectedCastleTiles. Cleared in enterBuildFromBattle. */
   freshCastle: boolean;
 }
 

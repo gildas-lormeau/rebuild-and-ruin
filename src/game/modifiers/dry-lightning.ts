@@ -7,7 +7,7 @@ import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { applyFireScar, buildCanBurnPredicate } from "./fire-helpers.ts";
-import { getModifierEligibleZones } from "./modifier-eligibility.ts";
+import { getActiveZones } from "./modifier-eligibility.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Dry lightning: random scattered strikes per active zone. */
@@ -23,7 +23,7 @@ export const dryLightningImpl: ModifierImpl = {
 
 /** Apply dry lightning: scatter random burning pits on grass tiles per active zone. */
 function applyDryLightning(state: GameState): ReadonlySet<number> {
-  const activeZones = getModifierEligibleZones(state);
+  const activeZones = getActiveZones(state);
   const allStrikes = new Set<number>();
   for (const zone of activeZones) {
     const canBurn = buildCanBurnPredicate(state, zone);

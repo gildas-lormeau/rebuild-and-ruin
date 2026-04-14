@@ -1,39 +1,45 @@
-/** Grace-period helpers for modifier targeting.
+/** Fresh-castle protection helpers for modifier targeting.
  *
- *  A player whose castle was just (re)built gets one battle of protection from
- *  modifier effects — `player.freshCastle` is set in finalizeReselectedPlayers
- *  and cleared in enterBuildFromBattle at end of the protected battle. These
- *  helpers centralize the "which zones/players can modifiers touch" rule so
- *  every modifier applies the same grace-period logic. */
+ *  A player whose castle was just (re)built gets one battle of protection for
+ *  the castle itself — `player.freshCastle` is set in finalizeReselectedPlayers
+ *  and cleared in enterBuildFromBattle at end of the protected battle. The
+ *  protection is tile-scoped (2x2 tower + castle-wall ring), not zone-scoped:
+ *  modifiers still apply to the fresh player's zone, they just can't land on
+ *  the castle footprint itself. Grunt surges still spawn, crumbling walls
+ *  still crumble outer walls, wildfire still burns elsewhere in the zone. */
 
-import type { Tower } from "../../shared/core/geometry-types.ts";
-import { isPlayerSeated, type Player } from "../../shared/core/player-types.ts";
+import { TOWER_SIZE } from "../../shared/core/game-constants.ts";
+import { isPlayerSeated } from "../../shared/core/player-types.ts";
+import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 
-type SeatedPlayer = Player & { homeTower: Tower };
-
-/** Zones eligible for modifier effects this battle (see above). */
-export function getModifierEligibleZones(state: GameState): number[] {
-  return getModifierEligiblePlayers(state).map(
-    (player) => player.homeTower.zone,
-  );
-}
-
-/** Seated players eligible for modifier effects this battle.
- *  Excludes freshly-reselected players (one-battle grace period). */
-export function getModifierEligiblePlayers(state: GameState): SeatedPlayer[] {
-  return state.players
-    .filter(isPlayerSeated)
-    .filter((player) => !player.freshCastle);
-}
-
-/** Set of zones in a grace period — used for assertions in wall/zone mutators
- *  to surface modifier authors who forget to filter via the helpers above. */
-export function getGraceCastleZones(state: GameState): ReadonlySet<number> {
-  const zones = new Set<number>();
+/** Zones owned by a seated (non-eliminated) player. Modifiers that target
+ *  territory (wildfire, dry lightning, sinkhole, grunt surge, crumbling walls)
+ *  must never mutate an eliminated player's zone. */
+export function getActiveZones(state: GameState): number[] {
+  const zones: number[] = [];
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    if (player.freshCastle) zones.add(player.homeTower.zone);
+    zones.push(player.homeTower.zone);
   }
   return zones;
+}
+
+/** Tile keys covered by any fresh castle's 2x2 tower + castle-wall ring.
+ *  Modifiers that place damage on tiles (wildfire, dry lightning, sinkhole)
+ *  skip these; applyFireScar asserts it never touches one. */
+export function getProtectedCastleTiles(state: GameState): ReadonlySet<number> {
+  const protectedTiles = new Set<number>();
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    if (!player.freshCastle) continue;
+    for (const key of player.castleWallTiles) protectedTiles.add(key);
+    const { row, col } = player.homeTower;
+    for (let dr = 0; dr < TOWER_SIZE; dr++) {
+      for (let dc = 0; dc < TOWER_SIZE; dc++) {
+        protectedTiles.add(packTile(row + dr, col + dc));
+      }
+    }
+  }
+  return protectedTiles;
 }

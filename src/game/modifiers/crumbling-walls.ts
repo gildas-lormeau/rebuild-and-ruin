@@ -6,9 +6,9 @@ import {
   deletePlayerWallsBatch,
   getInterior,
 } from "../../shared/core/board-occupancy.ts";
+import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { DIRS_4, packTile, unpackTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import { getModifierEligiblePlayers } from "./modifier-eligibility.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Crumbling walls: fraction of outer walls destroyed. */
@@ -28,7 +28,8 @@ export const crumblingWallsImpl: ModifierImpl = {
 function applyCrumblingWalls(state: GameState): readonly number[] {
   const destroyed: number[] = [];
 
-  for (const player of getModifierEligiblePlayers(state)) {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
     if (player.walls.size === 0) continue;
 
     // Outer walls: wall tiles with at least one non-wall non-interior neighbor

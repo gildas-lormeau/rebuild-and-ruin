@@ -7,8 +7,8 @@
 
 import { FIRST_GRUNT_SPAWN_ROUND } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import { getModifierEligiblePlayers } from "./modifier-eligibility.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Extra grunts per player during a grunt surge.
@@ -51,7 +51,8 @@ function applyGruntSurge(
     GRUNT_SURGE_COUNT_MIN,
     GRUNT_SURGE_COUNT_MAX,
   );
-  for (const player of getModifierEligiblePlayers(state)) {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
     spawnOnZone(state, player.id, extraCount);
   }
   return state.grunts.length - gruntsBefore;

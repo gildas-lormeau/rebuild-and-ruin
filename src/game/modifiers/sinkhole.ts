@@ -19,7 +19,10 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import { getModifierEligibleZones } from "./modifier-eligibility.ts";
+import {
+  getActiveZones,
+  getProtectedCastleTiles,
+} from "./modifier-eligibility.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 /** A sinkhole shape is a list of (row, col) offsets from a top-left anchor.
@@ -152,7 +155,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   if (existing >= SINKHOLE_MAX_TOTAL) return new Set();
 
   // One shape per active zone — same tile count for fairness
-  const activeZones = getModifierEligibleZones(state);
+  const activeZones = getActiveZones(state);
   if (activeZones.length === 0) return new Set();
   const candidateBudget = Math.min(
     state.rng.int(SINKHOLE_MIN_SIZE, SINKHOLE_MAX_SIZE),
@@ -256,9 +259,11 @@ function buildCanSinkPredicate(
   const tiles = state.map.tiles;
   const zones = state.map.zones;
   const existingSinkhole = state.modern?.sinkholeTiles ?? new Set<number>();
+  const protectedTiles = getProtectedCastleTiles(state);
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
     if (zones[row]?.[col] !== targetZone) return false;
+    if (protectedTiles.has(packTile(row, col))) return false;
     if (existingSinkhole.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
