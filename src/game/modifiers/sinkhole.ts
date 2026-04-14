@@ -11,8 +11,8 @@ import {
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_8,
+  hasEnclosableMargin,
   isGrass,
-  isWater,
   packTile,
   setGrass,
   setWater,
@@ -267,11 +267,9 @@ function buildCanSinkPredicate(
     if (existingSinkhole.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
-    // 1-tile gap from map edges, towers, and water so players can wall around
-    if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)
-      return false;
+    // 1-tile gap from map edges, water, and towers so players can wall around
+    if (!hasEnclosableMargin(tiles, row, col)) return false;
     for (const [dr, dc] of DIRS_8) {
-      if (isWater(tiles, row + dr, col + dc)) return false;
       if (hasTowerAt(state, row + dr, col + dc)) return false;
     }
     return true;

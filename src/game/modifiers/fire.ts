@@ -16,8 +16,8 @@ import {
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_4,
+  hasEnclosableMargin,
   isGrass,
-  isWater,
   packTile,
   unpackTile,
 } from "../../shared/core/spatial.ts";
@@ -170,12 +170,9 @@ function buildCanBurnPredicate(
     if (burningSet.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
-    // 1-tile gap from map edges and water so players can enclose the scar
-    if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)
-      return false;
-    for (const [dr, dc] of DIRS_4) {
-      if (isWater(tiles, row + dr, col + dc)) return false;
-    }
+    // 1-tile gap from map edges and water (all 8 directions) so players
+    // can always enclose the scar on their territory
+    if (!hasEnclosableMargin(tiles, row, col)) return false;
     return true;
   };
 }

@@ -427,15 +427,6 @@ export function orderByNearest<T extends TilePos>(
   return ordered;
 }
 
-/** True if tile at (r,c) is water. Returns false for out-of-bounds. */
-export function isWater(
-  tiles: readonly (readonly Tile[])[],
-  r: number,
-  c: number,
-): boolean {
-  return tiles[r]?.[c] === Tile.Water;
-}
-
 /** True if tile at (r,c) is grass. Returns false for out-of-bounds. */
 export function isGrass(
   tiles: readonly (readonly Tile[])[],
@@ -443,6 +434,32 @@ export function isGrass(
   c: number,
 ): boolean {
   return tiles[r]?.[c] === Tile.Grass;
+}
+
+/** True if all 8 neighbors of (r,c) are in-bounds and non-water — i.e. a
+ *  player can build a wall ring around the tile to enclose it. Used by
+ *  placement predicates for houses, bonus squares, and modifier pits. */
+export function hasEnclosableMargin(
+  tiles: readonly (readonly Tile[])[],
+  r: number,
+  c: number,
+): boolean {
+  for (const [dr, dc] of DIRS_8) {
+    const nr = r + dr;
+    const nc = c + dc;
+    if (!inBounds(nr, nc)) return false;
+    if (isWater(tiles, nr, nc)) return false;
+  }
+  return true;
+}
+
+/** True if tile at (r,c) is water. Returns false for out-of-bounds. */
+export function isWater(
+  tiles: readonly (readonly Tile[])[],
+  r: number,
+  c: number,
+): boolean {
+  return tiles[r]?.[c] === Tile.Water;
 }
 
 /** Mutate a tile to water. Used by sinkhole modifier for permanent terrain changes. */

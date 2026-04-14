@@ -42,11 +42,10 @@ import {
 } from "../shared/core/player-types.ts";
 import {
   computeOutside,
-  DIRS_8,
+  hasEnclosableMargin,
   hasPitAt,
   inBounds,
   isGrass,
-  isWater,
   manhattanDistance,
   packTile,
   unpackTile,
@@ -349,14 +348,7 @@ function findBonusSpawnCandidates(
       if (occupied.has(key)) continue;
       if (enclosed.has(key)) continue;
       // Must not be adjacent to map edge or water (unenclosable)
-      if (
-        DIRS_8.some(([dr, dc]) => {
-          const nr = r + dr,
-            nc = c + dc;
-          return !inBounds(nr, nc) || isWater(tiles, nr, nc);
-        })
-      )
-        continue;
+      if (!hasEnclosableMargin(tiles, r, c)) continue;
       candidates.push([r, c]);
     }
   }
