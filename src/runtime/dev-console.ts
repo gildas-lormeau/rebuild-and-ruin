@@ -5,6 +5,7 @@ import {
   buildLegend,
   type Cell,
   CellKind,
+  DEFAULT_MAP_LAYER,
   type MapLayer,
   type Rect,
   zoneBounds,
@@ -72,7 +73,7 @@ export function exposeDevConsole(
       printHelp();
     },
 
-    map(layer: MapLayer = "all") {
+    map(layer: MapLayer = DEFAULT_MAP_LAYER) {
       const state = requireState();
       if (!state) return;
       const grid = buildGrid(state, layer, undefined);
@@ -87,7 +88,7 @@ export function exposeDevConsole(
       const state = requireState();
       if (!state) return "";
       const {
-        layer = "all",
+        layer = DEFAULT_MAP_LAYER,
         zone,
         player,
         coords = true,

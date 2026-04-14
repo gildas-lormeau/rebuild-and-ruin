@@ -47,6 +47,9 @@ export interface Rect {
   maxCol: number;
 }
 
+/** Default layer for map-rendering helpers — shows every layer stacked. */
+export const DEFAULT_MAP_LAYER: MapLayer = "all";
+
 export function buildGrid(
   state: GameState,
   layer: MapLayer,

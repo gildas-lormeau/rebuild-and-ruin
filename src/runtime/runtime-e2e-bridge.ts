@@ -23,6 +23,12 @@ import {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import {
+  buildGrid,
+  buildLegend,
+  DEFAULT_MAP_LAYER,
+  type MapLayer,
+} from "./dev-console-grid.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 
@@ -105,6 +111,11 @@ interface E2EBridge extends E2EBridgeSnapshot {
    *  null before the state is ready (lobby). Sets/Maps are converted to
    *  arrays; `bus` and `rng` are dropped. */
   gameState: () => SerializedGameState | null;
+  /** Text-grid snapshot of the map — identical output to the headless
+   *  ASCII renderer (`AsciiRenderer.snapshot()`), produced on demand
+   *  from the live `GameState`. Returns null before state is ready.
+   *  `layer` defaults to "all"; pass "terrain" or "walls" to filter. */
+  asciiSnapshot: (layer?: MapLayer) => string | null;
   /** When true, the bridge captures a canvas PNG on every non-banner tick
    *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
    *  `toDataURL` every frame is expensive. Set by E2E tests that need
@@ -227,6 +238,10 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       gameState: () =>
         isStateReady(deps.runtimeState)
           ? serializeGameState(deps.runtimeState.state)
+          : null,
+      asciiSnapshot: (layer = DEFAULT_MAP_LAYER) =>
+        isStateReady(deps.runtimeState)
+          ? renderAscii(deps.runtimeState.state, layer)
           : null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
@@ -523,6 +538,15 @@ function serializeGameState(state: GameState): SerializedGameState {
   return JSON.parse(
     JSON.stringify(state, serializeStateReplacer),
   ) as SerializedGameState;
+}
+
+/** Render the current `GameState` as an ASCII grid + legend string.
+ *  Output matches the headless `AsciiRenderer.snapshot()` format so
+ *  agents can copy-paste inspection idioms across APIs. */
+function renderAscii(state: GameState, layer: MapLayer): string {
+  const grid = buildGrid(state, layer, undefined);
+  const lines = grid.map((row) => row.map((cell) => cell.char).join(""));
+  return `${buildLegend(state)}\n${lines.join("\n")}`;
 }
 
 /** JSON.stringify replacer that converts Sets/Maps to JSON-safe arrays,
