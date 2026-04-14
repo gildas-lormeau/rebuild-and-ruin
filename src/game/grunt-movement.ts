@@ -55,17 +55,6 @@ export function tickGrunts(state: GameState): boolean {
   let anyMoved = false;
   const deadZones = getDeadZones(state);
 
-  // Sweep grunts standing in an eliminated player's zone — they can no longer
-  // target anything (same-zone towers are all dead) and resetZoneState only
-  // fires once at elimination, so grunts wandering in later (e.g. frozen
-  // river crossings after a player was already eliminated) would otherwise
-  // linger forever with no valid target.
-  if (deadZones.size > 0) {
-    state.grunts = state.grunts.filter(
-      (grunt) => !deadZones.has(state.map.zones[grunt.row]?.[grunt.col] ?? -1),
-    );
-  }
-
   // Pass 1: Lock all targets before sorting — all mutation happens here, once per grunt
   for (const grunt of state.grunts) {
     lockGruntTarget(state, grunt, deadZones);
