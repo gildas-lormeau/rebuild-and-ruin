@@ -119,16 +119,19 @@ type DisplayStep =
     };
 
 /** Per-role mutation: host mutates by running game logic, watcher mutates
- *  by applying a checkpoint. Both return the same shape. */
+ *  by applying a checkpoint. Both return the same shape. `watcher` is
+ *  omitted for host-only transitions (game-over); the runner throws if a
+ *  watcher ctx dispatches one. */
 interface MutationFns {
   readonly host: (ctx: PhaseTransitionCtx) => TransitionResult;
-  readonly watcher: (ctx: PhaseTransitionCtx) => TransitionResult;
+  readonly watcher?: (ctx: PhaseTransitionCtx) => TransitionResult;
 }
 
-/** Side-effects after the display steps complete. */
+/** Side-effects after the display steps complete. Each role optional —
+ *  transitions that do nothing for a role omit that entry. */
 interface PostDisplayFns {
-  readonly host: (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
-  readonly watcher: (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
+  readonly host?: (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
+  readonly watcher?: (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
 }
 
 interface Transition {
@@ -338,6 +341,7 @@ export interface PhaseTransitionCtx {
 
 /** Discriminator values for `DisplayStep.kind` / `PhaseTransitionCtx.role`. */
 const STEP_BANNER = "banner" as const;
+const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
 /** `cannon-place-done` — CANNON_PLACE → BATTLE.
  *
  *  Host: `enterBattlePhase` computes the modifier, balloon flights, and the
@@ -373,14 +377,11 @@ const CANNON_PLACE_DONE: Transition = {
       ctx.battle.clearImpacts();
       ctx.battle.setTerritory(entry.territory);
       ctx.battle.setWalls(entry.walls);
-      (ctx.runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
-      if (ctx.runtimeState.frameMeta.hostAtFrameStart) {
-        ctx.broadcast?.battleStart?.(
-          ctx.state,
-          entry.flights,
-          entry.modifierDiff,
-        );
-      }
+      ctx.broadcast?.battleStart?.(
+        ctx.state,
+        entry.flights,
+        entry.modifierDiff,
+      );
       return { modifierDiff: entry.modifierDiff, flights: entry.flights };
     },
     watcher: (ctx) => {
@@ -473,7 +474,7 @@ const WALL_BUILD_DONE: Transition = {
       };
     },
   },
-  display: [{ kind: "score-overlay" }, { kind: "life-lost-dialog" }],
+  display: [{ kind: "score-overlay" }, { kind: STEP_LIFE_LOST_DIALOG }],
 };
 /** Shared display list for every transition that enters WALL_BUILD and
  *  shows the "Build & Repair" banner (optionally preceded by the
@@ -573,11 +574,10 @@ const CEASEFIRE: Transition = {
   mutate: {
     host: (ctx) => {
       ctx.sound.drumsStop();
-      ctx.log(`startBattle (round=${ctx.state.round})`);
+      ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset?.();
       ctx.snapshotForNextBanner();
       ctx.ceasefireSkipBattle?.();
-      ctx.log("ceasefire: skipping battle");
       ctx.broadcast?.buildStart?.(ctx.state);
       return {};
     },
@@ -706,7 +706,9 @@ const ADVANCE_TO_CANNON: Transition = {
   postDisplay: CASTLE_SELECT_DONE.postDisplay,
 };
 /** `round-limit-reached` — the round counter went past `maxRounds`.
- *  The winner is whoever has the highest score among alive players. */
+ *  The winner is whoever has the highest score among alive players.
+ *  Host-only: watchers receive GAME_OVER via `handleGameOverTransition`,
+ *  which writes the game-over frame directly and bypasses the machine. */
 const ROUND_LIMIT_REACHED: Transition = {
   id: "round-limit-reached",
   from: "*",
@@ -716,13 +718,13 @@ const ROUND_LIMIT_REACHED: Transition = {
       if (ctx.winner) ctx.endGame?.(ctx.winner);
       return {};
     },
-    watcher: () => ({}),
   },
   display: [],
 };
 /** `last-player-standing` — one or fewer players still alive.
  *  Same shape as `round-limit-reached`; kept as a distinct id because the
- *  trigger semantic differs, which is useful for telemetry / tests. */
+ *  trigger semantic differs, which is useful for telemetry / tests.
+ *  Host-only (see `round-limit-reached`). */
 const LAST_PLAYER_STANDING: Transition = {
   id: "last-player-standing",
   from: "*",
@@ -783,6 +785,11 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   // `snapshotForNextBanner` on `PhaseTransitionCtx`.
   const mutateFn =
     ctx.role === ROLE_HOST ? transition.mutate.host : transition.mutate.watcher;
+  if (!mutateFn) {
+    throw new Error(
+      `runTransition: transition "${id}" has no ${ctx.role} mutate (host-only transition dispatched from watcher ctx)`,
+    );
+  }
   const result = mutateFn(ctx);
 
   runDisplay(transition.display, ctx, result, () => {
@@ -792,6 +799,28 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
         : transition.postDisplay?.watcher;
     postDisplay?.(ctx, result);
   });
+}
+
+/** A `life-lost-dialog` step is terminal — the resolve chain dispatches the
+ *  next transition externally, so the runner does not invoke `onDone` after
+ *  it. Enforce at module load that any transition containing this step has
+ *  it as the LAST display entry and declares no `postDisplay` (which would
+ *  silently never run). */
+for (const transition of TRANSITIONS) {
+  const lastIdx = transition.display.length - 1;
+  for (let idx = 0; idx < transition.display.length; idx++) {
+    if (transition.display[idx]!.kind !== STEP_LIFE_LOST_DIALOG) continue;
+    if (idx !== lastIdx) {
+      throw new Error(
+        `Transition "${transition.id}": life-lost-dialog must be the last display step (it is terminal)`,
+      );
+    }
+    if (transition.postDisplay) {
+      throw new Error(
+        `Transition "${transition.id}": cannot define postDisplay — life-lost-dialog is terminal and the runner never reaches postDisplay`,
+      );
+    }
+  }
 }
 
 /** Walk the display steps in order, calling `onDone` after the last step
@@ -835,9 +864,12 @@ function runStep(
     case "score-overlay":
       ctx.scoreDelta.show(onDone);
       return;
-    case "life-lost-dialog":
+    case STEP_LIFE_LOST_DIALOG:
+      // Terminal step: the life-lost resolve chain dispatches the next
+      // transition externally (castle-reselect-done / advance-to-cannon /
+      // game-over). Do NOT call onDone — postDisplay would either no-op or
+      // race the modal. `assertLifeLostStepIsTerminal` enforces this at load.
       runLifeLostDialogStep(ctx, result);
-      onDone();
       return;
     case "upgrade-pick":
       runUpgradePickStep(step, ctx, result, onDone);
@@ -872,19 +904,20 @@ function runBannerStep(
   );
 }
 
-/** Life-lost dialog step — fire-and-forget:
+/** Life-lost dialog step — TERMINAL:
  *
  *   1. Notify each affected player's controller (per-player side-effect).
  *   2. If nobody lost a life, call `lifeLost.resolve()` to advance the game
  *      directly (no dialog needed).
  *   3. Else play the life-lost sound and invoke `lifeLost.tryShow(...)` —
  *      the dialog is modal; its own resolution chain drives the subsequent
- *      transition (reselect / continue / game-over) OUTSIDE the machine
- *      for now.
+ *      transition (reselect / continue / game-over) OUTSIDE the machine.
  *
- *  The machine's promise resolves immediately in both branches. The
- *  continuation into the next transition is driven by the life-lost
- *  resolve chain; step 5/6 folds that back into the machine. */
+ *  In BOTH branches the next transition is dispatched externally by the
+ *  life-lost resolve chain, NOT by the machine. The runner therefore
+ *  treats this step as terminal: it does not call `onDone`, so any
+ *  `postDisplay` on the enclosing transition would never run. The
+ *  module-load assert below enforces that constraint. */
 function runLifeLostDialogStep(
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
