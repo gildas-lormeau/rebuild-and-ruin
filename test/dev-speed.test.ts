@@ -31,7 +31,7 @@ for (const SPEED of [2, 4, 16] as const) {
     async () => {
       // Reference run at normal speed.
       const reference = await createScenario({ seed: SEED, mode: "modern" });
-      const referenceEvents = recordEvents(reference);
+      const referenceEventsRaw = recordEvents(reference);
       reference.tick(FRAMES_AT_SPEED_N * SPEED);
 
       // Sub-stepped run at SPEED× — fewer outer frames, but each frame
@@ -41,8 +41,16 @@ for (const SPEED of [2, 4, 16] as const) {
         mode: "modern",
         speedMultiplier: SPEED,
       });
-      const spedEvents = recordEvents(sped);
+      const spedEventsRaw = recordEvents(sped);
       sped.tick(FRAMES_AT_SPEED_N);
+
+      // `tick` is a render-frame observation (one per outer animation frame),
+      // not an engine event — so its count scales with the number of outer
+      // frames, not with sim time. Filtering it out lets the parity check
+      // focus on engine-state events (RNG, mutations, phase changes), which
+      // is what the speed-multiplier invariant is actually about.
+      const referenceEvents = referenceEventsRaw.filter((e) => e.type !== "tick");
+      const spedEvents = spedEventsRaw.filter((e) => e.type !== "tick");
 
       // Bus event logs must match byte-for-byte. Compare event count first
       // so the failure message points at the first divergence (much more
