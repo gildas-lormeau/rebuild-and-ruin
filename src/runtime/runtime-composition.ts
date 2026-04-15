@@ -73,6 +73,7 @@ import {
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
 import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
+import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
@@ -121,7 +122,12 @@ import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createSoundSystem } from "./runtime-sound.ts";
-import { createRuntimeState, safeState, setMode } from "./runtime-state.ts";
+import {
+  createRuntimeState,
+  isStateReady,
+  safeState,
+  setMode,
+} from "./runtime-state.ts";
 import type {
   GameRuntime,
   NetworkApi,
@@ -288,6 +294,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     ticks: modeTickers,
     onAfterFrame: () => {
+      // Per-frame tick event — emitted in BOTH headless and E2E so tests
+      // can subscribe consistently across runtimes. Gated on state-ready
+      // so it does not fire during the lobby.
+      if (isStateReady(runtimeState)) {
+        runtimeState.state.bus.emit(GAME_EVENT.TICK, {
+          type: GAME_EVENT.TICK,
+          dt: runtimeState.frameDt,
+        });
+      }
       if (IS_DEV) {
         exposeE2EBridge({ runtimeState, config, camera, renderer });
         exposeDevConsole(runtimeState, timing);
@@ -364,9 +379,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
-    showCannonTransition,
-    showBattleTransition,
-    showBuildTransition,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
@@ -374,7 +386,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     haptics,
     sound,
     render: () => render(),
-    captureScene: captureCleanScene,
   });
 
   // -------------------------------------------------------------------------
@@ -402,8 +413,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     syncSelectionOverlay: updateSelectionOverlay,
     render: () => render(),
     pointerPlayer,
-    startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
-    captureScene: captureCleanScene,
+    startCannonPhase: () => phaseTicks.startCannonPhase(),
+    enterCannonAfterCastleSelect: () =>
+      phaseTicks.enterCannonAfterCastleSelect(),
+    enterCannonAfterCastleReselect: (pids) =>
+      phaseTicks.enterCannonAfterCastleReselect(pids),
+    captureScene: () => renderer.captureScene(),
     clearBannerSnapshots,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
@@ -436,18 +451,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getContainerHeight: () => gameContainer.clientHeight,
     updateTouchControls,
   });
-
-  // Scene capture for banner prev-scene: strip transient overlays (phantoms,
-  // crosshairs) and re-render before grabbing pixels so placement previews and
-  // aim reticles don't bake into the frozen "old scene" below the sweep line.
-  // Function declaration (hoisted) so the banner system — wired above — can
-  // reference it before this line in source order.
-  function captureCleanScene() {
-    runtimeState.frame.phantoms = {};
-    runtimeState.frame.crosshairs = [];
-    render();
-    return renderer.captureScene();
-  }
 
   // -------------------------------------------------------------------------
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
@@ -509,7 +512,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     render,
     panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
-    endGame: lifecycle.endGame,
+    dispatchGameOver: (winner, reason) =>
+      phaseTicks.dispatchGameOver(winner, reason),
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
   });
@@ -558,10 +562,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    captureScene: captureCleanScene,
-    showCannonTransition,
-    showBattleTransition,
-    showBuildTransition,
+    snapshotForNextBanner: () => {
+      runtimeState.banner.prevSceneImageData = renderer.captureScene();
+    },
+    showBanner,
     lifeLost,
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
@@ -577,7 +581,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     haptics,
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
     prepareUpgradePick: () => upgradePick.prepare(),
+    getUpgradePickDialog: () => upgradePick.get(),
     clearUpgradePickDialog: () => upgradePick.set(null),
+    endGame: lifecycle.endGame,
   });
 
   // -------------------------------------------------------------------------
@@ -781,10 +787,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    captureScene: captureCleanScene,
-    showCannonTransition,
-    showBattleTransition,
-    showBuildTransition,
+    captureScene: () => renderer.captureScene(),
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

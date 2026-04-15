@@ -50,15 +50,15 @@ Deno.test("scenario: bus emits banner lifecycle events", async () => {
   );
 });
 
-Deno.test("scenario: waitForModifier captures a modifier banner in modern mode", async () => {
+Deno.test("scenario: waitForModifier captures a MODIFIER_APPLIED event in modern mode", async () => {
   const sc = await createScenario({
     seed: 7,
     mode: "modern",
     rounds: 6,
   });
-  const banner = waitForModifier(sc, undefined, { timeoutMs: 480_000 });
-  assert(banner.modifierId !== undefined);
-  assert(banner.text.length > 0);
+  const ev = waitForModifier(sc, undefined, { timeoutMs: 480_000 });
+  assert(ev.modifierId !== undefined);
+  assertGreater(ev.round, 0);
 });
 
 Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", async () => {

@@ -105,13 +105,15 @@ function latchUpgradePicked(
   return () => seen;
 }
 
-/** Latch a modifier banner firing (any instance of the given id). */
+/** Latch a modifier firing (any instance of the given id). Subscribes to
+ *  `MODIFIER_APPLIED` — the dedicated domain event. The banner no longer
+ *  carries modifier metadata (retired with the banner-reveal refactor). */
 function latchModifierFired(
   sc: Scenario,
   modifierId: ModifierId,
 ): () => boolean {
   let seen = false;
-  sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+  sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
     if (ev.modifierId === modifierId) seen = true;
   });
   return () => seen;
@@ -125,7 +127,7 @@ function latchModifierSequence(
 ): () => boolean {
   let sawFirst = false;
   let sawSecond = false;
-  sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
+  sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
     if (ev.modifierId === first) sawFirst = true;
     else if (ev.modifierId === second && sawFirst) sawSecond = true;
   });

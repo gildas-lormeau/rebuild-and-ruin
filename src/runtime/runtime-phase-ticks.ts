@@ -4,12 +4,9 @@ import {
   diffNewWalls,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
-  enterBattlePhase,
-  enterBuildPhase,
   enterBuildSkippingBattle,
-  enterCannonPhase,
-  finalizeBuildPhase,
   nextReadyCombined,
+  prepareControllerCannonPhase,
   resetCannonFacings,
   shouldSkipBattle,
   tickGrunts,
@@ -22,7 +19,6 @@ import {
 } from "../shared/core/battle-events.ts";
 import {
   ageImpacts,
-  type BalloonFlight,
   type Crosshair,
   clearImpacts,
 } from "../shared/core/battle-types.ts";
@@ -31,7 +27,6 @@ import {
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
-  type ModifierDiff,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
@@ -46,6 +41,7 @@ import {
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type HapticsSystem,
@@ -53,8 +49,15 @@ import {
   type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { GameOverReason } from "./runtime-life-lost-core.ts";
+import {
+  type PhaseTransitionCtx,
+  ROLE_HOST,
+  runTransition,
+} from "./runtime-phase-machine.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -71,7 +74,6 @@ import {
   resetAccum,
   tickGruntsIfDue,
 } from "./runtime-tick-context.ts";
-import { runBuildEndSequence } from "./runtime-transition-steps.ts";
 import type {
   OnlinePhaseTicks,
   RuntimeConfig,
@@ -102,24 +104,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  /** Capture the current offscreen scene as ImageData for banner prev-scene. */
-  captureScene: () => ImageData | undefined;
-  /** Build→cannon banner (captures scene + shows banner). */
-  showCannonTransition: (onDone: () => void) => void;
-  /** Modifier → battle banner chain (shared orchestration). */
-  showBattleTransition: (
-    modifierDiff: ModifierDiff | null,
-    onDone: () => void,
-  ) => void;
-  /** Upgrade pick → build banner chain (shared orchestration). */
-  showBuildTransition: (
-    upgradePick:
-      | { tryShow: (onDone: () => void) => boolean; prepare: () => boolean }
-      | undefined,
-    hasPendingOffers: boolean,
-    onBannerDone: () => void,
-    onBuildStart: () => void,
-  ) => void;
+  /** Grab the current offscreen scene pixels into
+   *  `banner.prevSceneImageData`. Called by the machine's mutate fns
+   *  immediately before map-visible changes. */
+  snapshotForNextBanner: () => void;
+  /** Show a full-screen banner. `onDone` fires once when the sweep completes.
+   *  Callers chain banners by nesting `showBanner` calls inside `onDone`. */
+  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
   lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
   scoreDelta: {
     capturePreScores: () => void;
@@ -138,16 +129,40 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   tryShowUpgradePick?: (onDone: () => void) => boolean;
   /** Pre-create the upgrade pick dialog for progressive reveal during banner. */
   prepareUpgradePick?: () => boolean;
+  /** Read the live upgrade-pick dialog state — used by the machine to pass
+   *  resolved picks into `applyUpgradePicks`. */
+  getUpgradePickDialog?: () => UpgradePickDialogState | null;
   /** Tear down the upgrade-pick dialog. Called from the build banner's
    *  onDone (after the sweep) so `drawUpgradePick` can keep clipping the
    *  dialog against `banner.y` for the entire animation. The watcher path
-   *  has its own counterpart at `TransitionContext.clearUpgradePickDialog`
-   *  in `online-phase-transitions.ts`. */
+   *  has its own counterpart at the `clearUpgradePickDialog` hook in
+   *  `online-phase-transitions.ts`. */
   clearUpgradePickDialog?: () => void;
+  /** End-game side effects (set game-over frame, stop sound, switch to
+   *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
+   *  composition. The machine's `round-limit-reached` /
+   *  `last-player-standing` mutate calls this through `ctx.endGame`. */
+  endGame: (winner: { id: number }) => void;
 }
 
 export interface PhaseTicksSystem {
-  startCannonPhase: (onBannerDone?: () => void) => void;
+  /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
+   *  path). The mutate runs `enterCannonPhase` only — castle finalize was
+   *  already done by an earlier transition. */
+  startCannonPhase: () => void;
+  /** Dispatch the `castle-select-done` transition: round-1 / initial
+   *  castle selection is complete; the mutate finalizes castle
+   *  construction (spawn houses + bonus squares) and enters cannon phase. */
+  enterCannonAfterCastleSelect: () => void;
+  /** Dispatch the `castle-reselect-done` transition: a player who lost a
+   *  life finished re-selecting; the mutate runs `finalizeReselectedPlayers`
+   *  with the given pids, then finalize castle construction + enter cannon. */
+  enterCannonAfterCastleReselect: (
+    reselectionPids: readonly ValidPlayerSlot[],
+  ) => void;
+  /** Dispatch the game-over transition (`last-player-standing` or
+   *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
+  dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
   startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
   beginBattle: () => void;
@@ -236,103 +251,147 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Cannon phase
   // -------------------------------------------------------------------------
 
-  function startCannonPhase(onBannerDone?: () => void) {
-    subscribeBus();
-    deps.sound.drumsQuiet();
-    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
-    // Engine-owned phase entry: the struct is populated in applyCheckpoint
-    // and consumed in initControllers. Closed over by both step adapters.
-    // 1. Banner
-    if (onBannerDone) {
-      deps.showCannonTransition(onBannerDone);
-    }
+  function startCannonPhase() {
+    runTransition("advance-to-cannon", buildHostPhaseCtx());
+  }
 
-    // 2. Checkpoint: set phase → compute limits/facings → per-player init
-    const entry = enterCannonPhase(runtimeState.state);
-    resetAccum(runtimeState.accum, ACCUM_CANNON);
-    if (runtimeState.frameMeta.hostAtFrameStart) {
-      online?.broadcastCannonStart?.(runtimeState.state);
-    }
+  function enterCannonAfterCastleSelect() {
+    runTransition("castle-select-done", buildHostPhaseCtx());
+  }
 
-    // 3. Init controllers
-    for (const ctrl of runtimeState.controllers) {
-      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      const prep = entry.playerInit[ctrl.playerId];
-      if (!prep) continue;
-      ctrl.placeCannons(runtimeState.state, prep.maxSlots);
-      ctrl.cannonCursor = prep.cursorPos;
-      ctrl.startCannonPhase(runtimeState.state);
-    }
+  function enterCannonAfterCastleReselect(
+    reselectionPids: readonly ValidPlayerSlot[],
+  ) {
+    runTransition("castle-reselect-done", {
+      ...buildHostPhaseCtx(),
+      reselectionPids,
+    });
+  }
+
+  function dispatchGameOver(winner: { id: number }, reason: GameOverReason) {
+    runTransition(reason, {
+      ...buildHostPhaseCtx(),
+      winner,
+    });
   }
 
   // -------------------------------------------------------------------------
   // Battle
   // -------------------------------------------------------------------------
 
-  /** Send build checkpoint + enter build phase (via upgrade pick gate).
-   *  Checkpoint is sent here — not in the transition steps — because it must
-   *  precede the upgrade pick dialog (which reads post-battle state). */
-  function enterBuildViaUpgradePick(): void {
-    if (runtimeState.frameMeta.hostAtFrameStart) {
-      online?.broadcastBuildStart?.(runtimeState.state);
-    }
-    const upgradePick = deps.tryShowUpgradePick
-      ? { tryShow: deps.tryShowUpgradePick, prepare: deps.prepareUpgradePick! }
-      : undefined;
-    deps.showBuildTransition(
-      upgradePick,
-      !!runtimeState.state.modern?.pendingUpgradeOffers,
-      () => {
-        deps.clearUpgradePickDialog?.();
-        setMode(runtimeState, Mode.GAME);
-      },
-      () => startBuildPhase(),
-    );
-  }
-
   function startBattle() {
-    subscribeBus();
-    const { state, battleAnim, banner } = runtimeState;
-    deps.sound.drumsStop();
-    deps.log(`startBattle (round=${state.round})`);
-    deps.scoreDelta.reset();
-
+    const { state } = runtimeState;
     if (shouldSkipBattle(state)) {
-      enterBuildSkippingBattle(state);
-      deps.log("ceasefire: skipping battle");
-      enterBuildViaUpgradePick();
+      runTransition("ceasefire", buildHostPhaseCtx());
       return;
     }
+    runTransition("cannon-place-done", buildHostPhaseCtx());
+  }
 
-    let flights: BalloonFlight[] = [];
-
-    const proceedToBattle = () => {
-      if (flights.length > 0) {
-        battleAnim.flights = flights.map((flight) => ({
-          flight,
-          progress: 0,
-        }));
-        setMode(runtimeState, Mode.BALLOON_ANIM);
-      } else {
-        beginBattle();
-      }
+  /** Single host-side `PhaseTransitionCtx` factory shared by every call
+   *  site (advance-to-cannon, ceasefire, cannon-place-done, battle-done,
+   *  wall-build-done, plus the deferred castle-select-done /
+   *  castle-reselect-done / game-over once they land here too).
+   *
+   *  Every hook any host-role mutate/postDisplay might need is populated.
+   *  Hooks the active transition doesn't read are inert — the cost of
+   *  including them is one closure allocation per `runTransition` call. */
+  function buildHostPhaseCtx(): PhaseTransitionCtx {
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
+    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
+    const isHost = runtimeState.frameMeta.hostAtFrameStart;
+    const { battleAnim } = runtimeState;
+    return {
+      state: runtimeState.state,
+      runtimeState,
+      role: ROLE_HOST,
+      showBanner: deps.showBanner,
+      snapshotForNextBanner: deps.snapshotForNextBanner,
+      setMode: (mode) => setMode(runtimeState, mode),
+      log: deps.log,
+      scoreDelta: deps.scoreDelta,
+      sound: {
+        drumsStop: deps.sound.drumsStop,
+        lifeLost: deps.sound.lifeLost,
+      },
+      hostPrepare: subscribeBus,
+      soundDrumsQuiet: deps.sound.drumsQuiet,
+      battle: {
+        setFlights: (flights) => {
+          battleAnim.flights = [...flights];
+        },
+        setTerritory: (territory) => {
+          battleAnim.territory = territory.map((set) => new Set(set));
+        },
+        setWalls: (walls) => {
+          battleAnim.walls = walls.map((set) => new Set(set));
+        },
+        clearImpacts: () => {
+          battleAnim.impacts = [];
+        },
+        begin: beginBattle,
+      },
+      initLocalCannonControllers: () => {
+        resetAccum(runtimeState.accum, ACCUM_CANNON);
+        for (const ctrl of runtimeState.controllers) {
+          if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
+          const prep = prepareControllerCannonPhase(
+            ctrl.playerId,
+            runtimeState.state,
+          );
+          if (!prep) continue;
+          ctrl.placeCannons(runtimeState.state, prep.maxSlots);
+          ctrl.cannonCursor = prep.cursorPos;
+          ctrl.startCannonPhase(runtimeState.state);
+        }
+      },
+      upgradePick: deps.tryShowUpgradePick
+        ? {
+            prepare: () => deps.prepareUpgradePick!(),
+            tryShow: (onDone) => deps.tryShowUpgradePick!(onDone),
+            getDialog: () => deps.getUpgradePickDialog?.() ?? null,
+            clear: deps.clearUpgradePickDialog,
+          }
+        : undefined,
+      clearUpgradePickDialog: deps.clearUpgradePickDialog,
+      ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
+      startBuildPhaseLocal: startBuildPhase,
+      endBattleLocalControllers: () => {
+        for (const ctrl of local) ctrl.endBattle();
+      },
+      saveBattleCrosshair: deps.saveBattleCrosshair,
+      lifeLost: {
+        tryShow: deps.lifeLost.tryShow,
+        resolve: (continuing) => {
+          deps.lifeLost.onResolved(continuing);
+        },
+      },
+      notifyLifeLost: (pid) => {
+        if (!isRemotePlayer(pid, remotePlayerSlots)) {
+          runtimeState.controllers[pid]!.onLifeLost();
+        }
+      },
+      finalizeLocalControllersBuildPhase: () => {
+        for (const ctrl of local) {
+          ctrl.finalizeBuildPhase(runtimeState.state);
+        }
+      },
+      endGame: deps.endGame,
+      broadcast: isHost
+        ? {
+            cannonStart: (state) => online?.broadcastCannonStart?.(state),
+            battleStart: (state, flights, modifierDiff) =>
+              online?.broadcastBattleStart?.(state, [...flights], modifierDiff),
+            buildStart: (state) => online?.broadcastBuildStart?.(state),
+            buildEnd: (state, payload) =>
+              online?.broadcastBuildEnd?.(state, {
+                needsReselect: [...payload.needsReselect],
+                eliminated: [...payload.eliminated],
+                scores: [...payload.scores],
+              }),
+          }
+        : undefined,
     };
-
-    // Capture the current scene BEFORE enterBattlePhase mutates state.
-    banner.prevSceneImageData = deps.captureScene();
-
-    const entry = enterBattlePhase(state);
-    flights = entry.flights;
-    battleAnim.impacts = [];
-    battleAnim.territory = entry.territory;
-    battleAnim.walls = entry.walls;
-    (runtimeState.frameMeta as { inBattle: boolean }).inBattle = true;
-    if (runtimeState.frameMeta.hostAtFrameStart) {
-      online?.broadcastBattleStart?.(state, flights, entry.modifierDiff);
-    }
-
-    deps.showBattleTransition(entry.modifierDiff ?? null, proceedToBattle);
   }
 
   function tickBalloonAnim(dt: number) {
@@ -600,19 +659,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (battleAnim.impacts.length > 0 || battleAnim.thawing.length > 0)
       return false;
 
-    // Battle ended — finalize controllers and transition
-    // NOTE: Intentionally includes eliminated players — they need battle state
-    // cleanup (clear fire targets, etc.) for potential castle reselection.
-    for (const ctrl of local) {
-      ctrl.endBattle();
-    }
-    deps.saveBattleCrosshair?.();
-    // Capture the last battle frame for the Build banner's old scene.
-    // Must happen here (before upgrade dialog) — captureScene at
-    // showBanner time would capture the dialog overlay instead.
-    runtimeState.banner.prevSceneImageData = deps.captureScene();
-    enterBuildPhase(state, battleAnim.territory, battleAnim.walls);
-    enterBuildViaUpgradePick();
+    // Battle ended — delegate to the battle-done transition.
+    runTransition("battle-done", buildHostPhaseCtx());
     return true;
   }
 
@@ -623,7 +671,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    const { state, accum, frame, banner } = runtimeState;
+    const { state, accum, frame } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const piecePhantomDedup =
       online?.piecePhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
@@ -705,48 +753,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.render();
     if (state.timer > 0) return false;
 
-    // --- End of phase: finalize controllers + snapshot + life-lost ---
-
-    // PASS 2: Finalize local controllers (remote humans are SKIPPED —
-    // bag state is re-initialized via startBuildPhase at next round).
-    for (const ctrl of local) {
-      ctrl.finalizeBuildPhase(state);
-    }
-
-    // Capture the pre-sweep scene for the cannons banner's prev-scene.
-    // Must happen BEFORE finalizeBuildPhase mutates walls/territory/towers;
-    // the banner composites this pixel snapshot below the sweep line so the
-    // post-sweep state is revealed progressively as the curtain passes.
-    banner.prevSceneImageData = deps.captureScene();
-    const { needsReselect, eliminated } = finalizeBuildPhase(state);
-
-    // Build-end checkpoint (host only) — the online hook serializes the
-    // post-build player snapshot itself; the runtime supplies only the
-    // structural summary it already computed.
-    if (isHost) {
-      online?.broadcastBuildEnd?.(state, {
-        needsReselect,
-        eliminated,
-        scores: state.players.map((player) => player.score),
-      });
-    }
-
-    // Life-lost dialog + score deltas
-    runBuildEndSequence({
-      needsReselect,
-      eliminated,
-      showScoreDeltas: deps.scoreDelta.show,
-      notifyLifeLost: (pid) => {
-        if (!isRemotePlayer(pid, remotePlayerSlots)) {
-          runtimeState.controllers[pid]!.onLifeLost();
-        }
-      },
-      showLifeLostDialog: (reselect, elim) => {
-        deps.sound.lifeLost();
-        deps.lifeLost.tryShow(reselect, elim);
-      },
-      onLifeLostResolved: deps.lifeLost.onResolved,
-    });
+    // --- End of phase: delegate to the wall-build-done transition ---
+    runTransition("wall-build-done", buildHostPhaseCtx());
     return true;
   }
 
@@ -806,6 +814,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   return {
     startCannonPhase,
+    enterCannonAfterCastleSelect,
+    enterCannonAfterCastleReselect,
+    dispatchGameOver,
     startBattle,
     tickBalloonAnim,
     beginBattle,

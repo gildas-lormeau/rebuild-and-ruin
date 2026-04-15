@@ -57,6 +57,7 @@ export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
   finalizeBuildPhase,
+  finalizeBuildVisuals,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,

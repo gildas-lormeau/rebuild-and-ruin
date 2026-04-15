@@ -67,6 +67,7 @@ import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
   recheckTerritory,
+  recomputeAllTerritory,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
@@ -315,15 +316,39 @@ export function prepareCastleWallsForPlayer(
  * Exported for game-engine.ts finishBuildPhase composition only —
  * not a public API; game-engine.ts is the canonical caller.
  */
+/** Phase A of end-of-build finalization — state mutations that the score
+ *  overlay and life-lost dialog depend on:
+ *    - territory + scoring + tower revival + enclosed house/grunt/bonus
+ *      resolution (`finalizeTerritoryWithScoring`)
+ *    - life penalties (`applyLifePenalties`)
+ *
+ *  Visual-only sweeps (isolated-wall removal, grunts in eliminated zones)
+ *  are deferred to `finalizeBuildVisuals` so they reveal under the
+ *  cannons banner rather than popping during the score overlay. */
 export function finalizeBuildPhase(state: GameState): {
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
 } {
-  sweepAllPlayersWalls(state);
   finalizeTerritoryWithScoring(state);
-  const result = applyLifePenalties(state);
+  return applyLifePenalties(state);
+}
+
+/** Phase B — visual-only mutations deferred from `finalizeBuildPhase`.
+ *  Called from the transition that fires the cannons banner (or the
+ *  reselect / game-over flows) so the sweep reveals under the banner
+ *  instead of during the score overlay.
+ *
+ *  `recomputeAllTerritory` refreshes interior after the wall mutation to
+ *  keep the `walls epoch == interior epoch` invariant that downstream
+ *  readers enforce. Critically, it does NOT run the full `recheckTerritory`
+ *  pass 2 (which does enclosed-grunt respawn using `state.rng.bool`) —
+ *  that would consume RNG and desync every seed-dependent test. Territory
+ *  mutations (grunt respawn, house destruction, bonus capture) already
+ *  ran in Phase A via `finalizeTerritoryWithScoring`. */
+export function finalizeBuildVisuals(state: GameState): void {
+  sweepAllPlayersWalls(state);
+  recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
-  return result;
 }
 
 /** Remove grunts sitting in any eliminated player's zone. resetZoneState

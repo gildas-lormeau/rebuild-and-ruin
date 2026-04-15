@@ -19,10 +19,14 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   state: GameState;
 }
 
+/** Reason a game-over fires — threaded into the machine's transition id
+ *  so each path stays distinct in telemetry / tests / future divergence. */
+export type GameOverReason = "last-player-standing" | "round-limit-reached";
+
 interface ResolveAfterLifeLostDeps {
   state: GameState;
   continuing: readonly ValidPlayerSlot[];
-  onGameOver: (winner: { id: ValidPlayerSlot }) => void;
+  onGameOver: (winner: { id: ValidPlayerSlot }, reason: GameOverReason) => void;
   onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
   onContinue: () => void;
 }
@@ -171,7 +175,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
         player.score > best.score ? player : best,
       );
     emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
-    onGameOver(winner);
+    onGameOver(winner, "last-player-standing");
     return true;
   }
 
@@ -181,7 +185,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
       alive[0]!,
     );
     emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
-    onGameOver(winner);
+    onGameOver(winner, "round-limit-reached");
     return true;
   }
 

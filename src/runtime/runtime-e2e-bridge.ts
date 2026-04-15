@@ -7,10 +7,9 @@
  */
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
-import {
-  GAME_EVENT,
-  type GameEventBus,
-  type GameEventMap,
+import type {
+  GameEventBus,
+  GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { Viewport } from "../shared/core/geometry-types.ts";
@@ -128,25 +127,28 @@ interface E2EBridge extends E2EBridgeSnapshot {
    *  Returns null before state is ready. Cheaper than rendering the
    *  whole grid and counting characters. */
   tileAt: (row: number, col: number) => TileInspection | null;
-  /** When true, the bridge captures a canvas PNG on every non-banner tick
-   *  to populate `_prevSnapshot` on the next bannerStart. Opt-in because
-   *  `toDataURL` every frame is expensive. Set by E2E tests that need
-   *  per-frame pixel data. */
-  captureTickSnapshots: boolean;
+  /** Register a capture filter: whenever a bus event of `type` fires whose
+   *  payload matches `predicateSrc` (a stringified `(ev) => boolean`, or
+   *  `null` to match all events of the type), the bridge attaches a PNG
+   *  of the canvas to the resulting busLog entry as `entry.capture`. The
+   *  `toDataURL` call happens synchronously inside the bus handler, so
+   *  subsequent renders cannot overwrite the capture.
+   *
+   *  Fires every time the event occurs — this is an event-listener style
+   *  registration, not a one-shot promise. Tests read results by walking
+   *  busLog (or via `sc.bus.on`) after the scenario runs. Missing captures
+   *  appear as entries with no `capture` field, never as infinite hangs. */
+  captureOn: (type: string, predicateSrc: string | null) => void;
 }
 
 /** Bridge metadata attached to every recorded bus entry. `_seq` is a
- *  monotonic index across all event types; `_canvasSnapshot` is populated
- *  for bannerStart, bannerEnd, and tick events (during banners + one after). */
+ *  monotonic index across all event types; `capture` is populated for
+ *  entries matching a `captureOn` filter. */
 export interface E2EEntryMeta {
   _seq: number;
-  /** Canvas PNG dataURL captured at emission time. */
-  _canvasSnapshot?: string | null;
-  /** On bannerStart: the previous tick's canvas snapshot (the frame before
-   *  the banner appeared). */
-  _prevSnapshot?: string | null;
-  /** On tick events: the banner sweep Y position (null when no banner). */
-  _bannerY?: number | null;
+  /** Canvas PNG data-URL, attached when the entry matches a `captureOn`
+   *  filter registered via `bridge.captureOn`. */
+  capture?: string | null;
 }
 
 /** A bus entry for a specific event type — the full typed payload from
@@ -207,6 +209,18 @@ interface E2EBridgeDeps {
   };
 }
 
+interface CaptureFilter {
+  readonly type: string;
+  readonly predicate: (ev: unknown) => boolean;
+}
+
+/** Registered via `bridge.captureOn`. Consumed inside the bus onAny
+ *  handler: when a matching event fires, the canvas is captured
+ *  synchronously and attached to the busLog entry as `entry.capture`.
+ *  Filters persist — they fire for every matching event, not just the
+ *  first one. */
+const captureFilters: CaptureFilter[] = [];
+
 /** Module-scoped singleton — created on first call, reused across frames.
  *  Holds only shallow snapshots (rebuilt each frame) and coordinate-conversion
  *  closures. No direct GameState references are retained between frames. */
@@ -263,7 +277,14 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       paused: false,
       step: false,
       busLog: [],
-      captureTickSnapshots: false,
+      captureOn: (type, predicateSrc) => {
+        const predicate: (ev: unknown) => boolean = predicateSrc
+          ? (new Function("ev", `return (${predicateSrc})(ev);`) as (
+              ev: unknown,
+            ) => boolean)
+          : () => true;
+        captureFilters.push({ type, predicate });
+      },
     };
     win.__e2e = bridge;
   }
@@ -281,16 +302,6 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   }
 
   subscribeBus(ref, deps);
-
-  // Emit a per-frame tick event so E2E tests can read per-frame data
-  // from busLog (with canvas snapshots) instead of wrapping RAF.
-  if (isStateReady(deps.runtimeState)) {
-    deps.runtimeState.state.bus.emit(GAME_EVENT.TICK, {
-      type: GAME_EVENT.TICK,
-      dt: deps.runtimeState.frameDt,
-    });
-  }
-
   updateBridgeSnapshots(ref, deps);
 }
 
@@ -306,8 +317,8 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   if (subscribedBus === bus) return;
   subscribedBus = bus;
 
-  // Capture a PNG synchronously — runs inside the bus handler
-  // BEFORE any chained callback can re-render the canvas.
+  // Capture a PNG synchronously — runs inside the bus handler BEFORE
+  // any chained callback can re-render the canvas.
   const captureCanvas = (): string | null => {
     const canvas =
       typeof document !== "undefined"
@@ -317,17 +328,11 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
     return canvas.toDataURL("image/png");
   };
 
-  // Track banner state for tick snapshot gating: only capture canvas
-  // snapshots on tick events during banner transitions (+ one frame
-  // before and after) to avoid storing thousands of PNGs.
-  let bannerActive = false;
-  let captureNextTick = false;
-  let prevTickSnapshot: string | undefined;
-
-  // Generic: record every bus event into busLog. The spread carries every
-  // payload field from `event`; the `as E2EBusEntry` cast is safe because
-  // `type` comes from the typed bus and payload structure is guaranteed
-  // by `GameEventMap[type]`.
+  // Record every bus event into busLog. When an event matches a filter
+  // registered via `bridge.captureOn`, attach the current canvas as
+  // `entry.capture`. The spread carries every payload field from
+  // `event`; the `as E2EBusEntry` cast is safe because `type` comes from
+  // the typed bus and payload structure is guaranteed by `GameEventMap`.
   bus.onAny((type, event) => {
     const entry = {
       ...(event as Record<string, unknown>),
@@ -335,31 +340,11 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
       _seq: ref.busLog.length,
     } as E2EBusEntry;
 
-    if (entry.type === "bannerStart" || entry.type === "bannerEnd") {
-      entry._canvasSnapshot = captureCanvas();
-      if (entry.type === "bannerStart") {
-        bannerActive = true;
-        // Attach the previous tick's snapshot as _prevSnapshot so
-        // the test can read the "frame before banner" without storing
-        // every tick's PNG.
-        entry._prevSnapshot = prevTickSnapshot;
-      } else {
-        bannerActive = false;
-        captureNextTick = true;
+    for (const filter of captureFilters) {
+      if (filter.type === type && filter.predicate(event)) {
+        entry.capture = captureCanvas();
+        break;
       }
-    } else if (entry.type === GAME_EVENT.TICK) {
-      if (bannerActive || captureNextTick) {
-        // During banners + one frame after: capture for the test.
-        entry._canvasSnapshot = captureCanvas();
-        captureNextTick = false;
-      }
-      // Keep prevTickSnapshot for the "frame before banner" only when
-      // E2E tests opted in via __e2e.captureTickSnapshots = true.
-      if (ref.captureTickSnapshots && !bannerActive) {
-        prevTickSnapshot = captureCanvas() ?? undefined;
-      }
-      // Propagate banner y position for mid-sweep detection.
-      entry._bannerY = ref.overlay.banner?.y ?? null;
     }
 
     ref.busLog.push(entry);

@@ -19,7 +19,6 @@ export type LifecycleEvent =
   | { type: "phaseEnd"; phase: Phase; round: number }
   | { type: "roundStart"; round: number }
   | { type: "roundEnd"; round: number }
-  | { type: "gameStart"; round: number }
   | { type: "gameEnd"; round: number }
   | { type: "playerEliminated"; playerId: ValidPlayerSlot; round: number }
   | {
@@ -51,6 +50,13 @@ export type LifecycleEvent =
       phase: Phase;
       round: number;
     }
+  /** Between-rounds score-delta overlay started. Fires when
+   *  `scoreDelta.show` arms the delta timer at end of WALL_BUILD; pairs
+   *  with `scoreOverlayEnd` when the timer expires. */
+  | { type: "scoreOverlayStart"; round: number }
+  /** Between-rounds score-delta overlay finished. Emitted immediately
+   *  before the `onDone` callback runs (life-lost dialog or next banner). */
+  | { type: "scoreOverlayEnd"; round: number }
   /** Dev-only per-frame tick. Emitted once per frame after rendering, only
    *  when IS_DEV is true. The E2E bridge attaches a canvas snapshot to the
    *  busLog entry so browser-based tests can read per-frame pixel data. */
@@ -157,12 +163,13 @@ const LIFECYCLE_EVENT = {
   PHASE_END: "phaseEnd",
   ROUND_START: "roundStart",
   ROUND_END: "roundEnd",
-  GAME_START: "gameStart",
   GAME_END: "gameEnd",
   PLAYER_ELIMINATED: "playerEliminated",
   LIFE_LOST: "lifeLost",
   BANNER_START: "bannerStart",
   BANNER_END: "bannerEnd",
+  SCORE_OVERLAY_START: "scoreOverlayStart",
+  SCORE_OVERLAY_END: "scoreOverlayEnd",
   TICK: "tick",
 } as const;
 const ENTITY_EVENT = {

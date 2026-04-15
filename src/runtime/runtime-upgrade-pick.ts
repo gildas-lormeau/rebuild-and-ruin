@@ -18,7 +18,6 @@
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
-import { applyUpgradePicks, recheckTerritory } from "../game/index.ts";
 import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
@@ -167,18 +166,16 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    applyUpgradePicks(runtimeState.state, dialog);
-    // Recheck territory after picks — demolition strips walls from all
-    // players, leaving player.interior stale. Without this, the build
-    // banner and build phase render the wrong checkerboard pattern.
-    recheckTerritory(runtimeState.state);
+    // The machine's `runUpgradePickStep` owns the mutation sequence:
+    // snapshot-for-banner → applyUpgradePicks → recheckTerritory. This
+    // system just signals "all resolved" so that chain can run.
+    //
     // NOTE: dialog is intentionally NOT cleared here. The next phase's
     // banner (build banner) needs the dialog state in place during its
     // sweep so `drawUpgradePick` can clip it progressively against
-    // `banner.y`. The build banner's onDone callback (defined in
-    // `runtime-phase-ticks.ts:enterBuildViaUpgradePick` and the watcher
-    // counterpart in `online-phase-transitions.ts`) clears the dialog
-    // after the sweep completes.
+    // `banner.y`. The `battle-done` and `ceasefire` transitions in
+    // `runtime-phase-machine.ts` call `clearUpgradePickDialog` from
+    // their postDisplay, after the build banner finishes sweeping.
     const callback = resolveCallback;
     resolveCallback = undefined;
     callback?.();

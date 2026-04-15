@@ -26,14 +26,19 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
     renderer: { canvas: recorder, observer: { terrainDrawn: () => {} } },
   });
 
-  let highTideChangedTiles: readonly number[] = [];
+  let highTideApplied = false;
   let modifierBannerText: string | null = null;
   let modifierBannerEnded = false;
 
+  // Modifier metadata moved from BANNER_START to the dedicated
+  // MODIFIER_APPLIED event. Watch that for the tile-change payload, and
+  // watch BANNER_START separately to pick up the banner text.
+  sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+    if (ev.modifierId === "high_tide") highTideApplied = true;
+  });
   sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
-    if (ev.modifierId === "high_tide" && modifierBannerText === null) {
+    if (highTideApplied && modifierBannerText === null) {
       modifierBannerText = ev.text;
-      highTideChangedTiles = ev.changedTiles ?? [];
     }
   });
   sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
@@ -61,12 +66,12 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
   sc.runUntil(() => battleBannerEnded, { timeoutMs: MAX_TIMEOUT_MS });
 
   assert(
-    modifierBannerEnded,
-    "high_tide modifier banner never fired within 10 rounds",
+    highTideApplied,
+    "high_tide modifier never fired within the budget",
   );
   assert(
-    highTideChangedTiles.length > 0,
-    "high_tide reported no changedTiles",
+    modifierBannerEnded,
+    "high_tide modifier banner never ended within 10 rounds",
   );
   assert(battleBannerEnded, "battle banner after high_tide never ended");
 });

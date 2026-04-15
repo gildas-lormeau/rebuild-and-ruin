@@ -37,7 +37,6 @@
       "src/online/online-full-state-recovery.ts",
       "src/protocol/checkpoint-data.ts",
       "src/render/render-sprites.ts",
-      "src/runtime/runtime-transition-steps.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/geometry-types.ts",
       "src/shared/core/modifier-defs.ts",
@@ -215,7 +214,6 @@
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts"
     ]
@@ -237,8 +235,7 @@
     "files": [
       "src/ai/ai-strategy.ts",
       "src/game/battle-system.ts",
-      "src/online/online-runtime-ws.ts",
-      "src/runtime/runtime-composition.ts"
+      "src/online/online-runtime-ws.ts"
     ]
   },
   {
@@ -251,7 +248,6 @@
       "src/ai/ai-phase-select.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
-      "src/main.ts",
       "src/online/online-runtime-lobby.ts",
       "src/online/online-server-events.ts"
     ]
@@ -262,8 +258,8 @@
     "files": [
       "src/controllers/controller-ai.ts",
       "src/game/game-engine.ts",
-      "src/online/online-phase-transitions.ts",
-      "src/online/online-serialize.ts"
+      "src/online/online-serialize.ts",
+      "src/runtime/runtime-phase-machine.ts"
     ]
   },
   {
@@ -273,27 +269,35 @@
       "src/controllers/controller-ai-assisted-human.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-runtime-promote.ts",
-      "src/online/online-runtime-session.ts"
+      "src/online/online-runtime-session.ts",
+      "src/runtime/runtime-phase-ticks.ts"
     ]
   },
   {
     "name": "online session lifecycle",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-deps.ts",
-      "src/online/online-runtime-transition.ts"
+      "src/online/online-phase-transitions.ts",
+      "src/runtime/runtime-composition.ts"
     ]
   },
   {
     "name": "online wiring",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-game.ts"
+      "src/main.ts",
+      "src/online/online-runtime-deps.ts"
     ]
   },
   {
     "name": "online composition root",
     "tier": "roots",
+    "files": [
+      "src/online/online-runtime-game.ts"
+    ]
+  },
+  {
+    "name": "layer 18",
     "files": [
       "src/online-client.ts"
     ]

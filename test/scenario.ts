@@ -511,18 +511,20 @@ export function waitUntilRound(
   });
 }
 
-/** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
+/** Tick until a modifier is applied. Filter by `modifierId` if provided.
+ *  Listens to the domain event (`MODIFIER_APPLIED`), not the UI banner — a
+ *  modifier is a gameplay concept; its reveal banner is a downstream UI
+ *  concern that tests shouldn't couple to. */
 export function waitForModifier(
   sc: Scenario,
   modifierId?: ModifierId,
   opts?: { timeoutMs?: number },
-): GameEventMap["bannerStart"] {
-  return waitForBanner(
+): GameEventMap["modifierApplied"] {
+  return waitForEvent(
     sc,
-    (ev) =>
-      ev.modifierId !== undefined &&
-      (modifierId === undefined || ev.modifierId === modifierId),
-    opts,
+    GAME_EVENT.MODIFIER_APPLIED,
+    (ev) => modifierId === undefined || ev.modifierId === modifierId,
+    { ...opts, label: "waitForModifier" },
   );
 }
 

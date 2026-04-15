@@ -134,21 +134,11 @@ export function createBannerUi(
   text: string,
   progress: number,
   subtitle?: string,
-  modifierDiff?: {
-    id: string;
-    changedTiles: readonly number[];
-    gruntsSpawned: number;
-  },
 ):
   | {
       text: string;
       subtitle?: string;
       y: number;
-      modifierDiff?: {
-        id: string;
-        changedTiles: readonly number[];
-        gruntsSpawned: number;
-      };
     }
   | undefined {
   if (!active) return undefined;
@@ -160,7 +150,6 @@ export function createBannerUi(
     text,
     subtitle,
     y: startY + progress * (endY - startY),
-    modifierDiff,
   };
 }
 

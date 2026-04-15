@@ -509,6 +509,14 @@ export function drawUpgradePick(
     const bannerTop = Math.round(banner.y - bannerH / 2);
     const bannerBottom = Math.round(banner.y + bannerH / 2);
     const allResolved = pick.entries.every((entry) => entry.resolved);
+    // When the banner has a captured prev-scene AND this is the hide
+    // direction, the unswept region below the banner is already painted
+    // by `drawBannerPrevScene` — and that snapshot already contains the
+    // dialog (captured while it was active). Drawing it again here would
+    // stack a second dim backdrop on top of the one in the snapshot,
+    // giving the below-sweep region a visibly darker appearance than the
+    // live dialog had. Skip in that case; the snapshot is sufficient.
+    if (allResolved && overlay.ui?.bannerPrevScene) return;
     overlayCtx.save();
     overlayCtx.beginPath();
     if (allResolved) {

@@ -400,12 +400,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
-  /** Composite the pre-transition scene below the banner sweep line.
-   *
-   *  Uses `prevSceneImageData` (captured via `captureScene()` before phase
-   *  mutations) — no state cloning, no re-rendering, no cache.
-   *  putImageData ignores clip regions, so we paint the ImageData onto the
-   *  banner temp canvas once, then drawImage with a clip rect. */
   function drawBannerPrevScene(
     overlayCtx: CanvasRenderingContext2D,
     W: number,

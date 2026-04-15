@@ -44,7 +44,7 @@ import {
   handleCannonStartTransition,
   handleCastleWallsTransition,
   handleGameOverTransition,
-  type TransitionContext,
+  type WatcherDeps,
 } from "./online-phase-transitions.ts";
 import { promoteToHost } from "./online-runtime-promote.ts";
 import {
@@ -63,7 +63,7 @@ interface DepsInit {
   readonly initFromServer: (msg: InitMessage) => Promise<void>;
   readonly restoreFullState: (msg: FullStateMessage) => void;
   readonly showWaitingRoom: (code: string, seed: number) => void;
-  readonly transitionCtx: TransitionContext;
+  readonly watcherDeps: WatcherDeps;
   readonly client: OnlineClient;
 }
 
@@ -171,7 +171,7 @@ function buildUiDeps() {
     clearUpgradePickDialog: () => {
       // Route through the subsystem boundary, matching the phase-transition
       // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
-      // watcher: `online-runtime-transition.ts:clearUpgradePickDialog`)
+      // watcher: `online-phase-transitions.ts:clearUpgradePickDialog`)
       // and the host-promotion path (`online-runtime-promote.ts`).
       _depsInit.runtime.upgradePick.set(null);
     },
@@ -200,17 +200,17 @@ function buildGameDeps() {
 function buildTransitionDeps() {
   return {
     onCastleWalls: (msg: ServerMessage) =>
-      handleCastleWallsTransition(msg, _depsInit.transitionCtx),
+      handleCastleWallsTransition(msg, _depsInit.watcherDeps),
     onCannonStart: (msg: ServerMessage) =>
-      handleCannonStartTransition(msg, _depsInit.transitionCtx),
+      handleCannonStartTransition(msg, _depsInit.watcherDeps),
     onBattleStart: (msg: ServerMessage) =>
-      handleBattleStartTransition(msg, _depsInit.transitionCtx),
+      handleBattleStartTransition(msg, _depsInit.watcherDeps),
     onBuildStart: (msg: ServerMessage) =>
-      handleBuildStartTransition(msg, _depsInit.transitionCtx),
+      handleBuildStartTransition(msg, _depsInit.watcherDeps),
     onBuildEnd: (msg: ServerMessage) =>
-      handleBuildEndTransition(msg, _depsInit.transitionCtx),
+      handleBuildEndTransition(msg, _depsInit.watcherDeps),
     onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, _depsInit.transitionCtx),
+      handleGameOverTransition(msg, _depsInit.watcherDeps),
   };
 }
 

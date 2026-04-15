@@ -4,7 +4,6 @@ import type {
   Impact,
   ThawingTile,
 } from "../shared/core/battle-types.ts";
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
 import type {
@@ -116,21 +115,11 @@ export type CreateBannerUiFn = (
   text: string,
   progress: number,
   subtitle?: string,
-  modifierDiff?: {
-    id: string;
-    changedTiles: readonly number[];
-    gruntsSpawned: number;
-  },
 ) =>
   | {
       text: string;
       subtitle?: string;
       y: number;
-      modifierDiff?: {
-        id: string;
-        changedTiles: readonly number[];
-        gruntsSpawned: number;
-      };
     }
   | undefined;
 
@@ -249,30 +238,6 @@ export interface BannerState {
    *  helpers never capture. Set by the transition code via
    *  `renderer.captureScene()`. */
   prevSceneImageData?: ImageData;
-  /** Modifier reveal diff — set when showing a modifier reveal banner.
-   *  Consumed by the renderer to progressively show map changes. */
-  modifierDiff?: ModifierDiff;
-}
-
-/** Phase transition orchestration methods shared by host and watcher.
- *  Defined here (not in runtime-banner.ts) to avoid lateral imports. */
-export interface BannerTransitions {
-  /** Build→cannon transition: captures scene + shows Place Cannons banner. */
-  showCannonTransition: (onDone: () => void) => void;
-  /** Cannon→battle transition: modifier reveal (if any) → battle banner. */
-  showBattleTransition: (
-    modifierDiff: ModifierDiff | null,
-    onDone: () => void,
-  ) => void;
-  /** Battle→build transition: upgrade pick (if any) → build banner. */
-  showBuildTransition: (
-    upgradePick:
-      | { tryShow: (onDone: () => void) => boolean; prepare: () => boolean }
-      | undefined,
-    hasPendingOffers: boolean,
-    onBannerDone: () => void,
-    onBuildStart: () => void,
-  ) => void;
 }
 
 export interface SeedField {

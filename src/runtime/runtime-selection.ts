@@ -4,8 +4,6 @@ import {
   enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
-  finalizeCastleConstruction,
-  finalizeReselectedPlayers,
   finishSelectionPhase,
   highlightTowerSelection,
   isSelectionComplete,
@@ -91,10 +89,20 @@ interface SelectionSystemDeps {
   // Sibling systems / parent callbacks
   render: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
-  startCannonPhase: (onBannerDone?: () => void) => void;
+  /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
+   *  path). */
+  startCannonPhase: () => void;
+  /** Dispatch the `castle-select-done` transition (round-1 / initial). */
+  enterCannonAfterCastleSelect: () => void;
+  /** Dispatch the `castle-reselect-done` transition (after a player who
+   *  lost a life rebuilt their castle). */
+  enterCannonAfterCastleReselect: (
+    reselectionPids: readonly ValidPlayerSlot[],
+  ) => void;
   /** Capture the offscreen scene as ImageData for the cannons banner's
-   *  prev-scene — must be called BEFORE finalizeCastleConstruction mutates
-   *  houses/bonus squares on the round-1 / reselect path. */
+   *  prev-scene. The machine handles capture-before-mutate inside
+   *  `runTransition`, but selection still needs this for the castle-build
+   *  animation. */
   captureScene: () => ImageData | undefined;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
@@ -377,26 +385,15 @@ export function createSelectionSystem(
     runtimeState.overlay.selection = { highlighted: null, selected: null };
   }
 
-  function finalizeAndAdvance(): void {
-    // Capture the pre-mutation scene for the cannons banner's prev-scene.
-    // finalizeCastleConstruction pops houses + bonus squares into the map;
-    // the banner sweep composites this snapshot below its curtain so those
-    // entities are revealed progressively as the curtain passes.
-    runtimeState.banner.prevSceneImageData = deps.captureScene();
-    finalizeCastleConstruction(runtimeState.state);
-    deps.camera.clearCastleBuildViewport();
-    deps.startCannonPhase(() => {
-      setMode(runtimeState, Mode.GAME);
-    });
-  }
-
   function finishSelection() {
     if (
       !finishSelectionPhase(runtimeState.state, runtimeState.selection.states)
     )
       return;
     resetOverlaySelection();
-    finalizeAndAdvance();
+    // Castle-select-done's mutate handles finalizeCastleConstruction +
+    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
+    deps.enterCannonAfterCastleSelect();
   }
 
   /** Generate + broadcast castle walls for a confirmed player.
@@ -510,11 +507,10 @@ export function createSelectionSystem(
     runtimeState.selection.states.clear();
     resetOverlaySelection();
     runtimeState.selection.reselectQueue.length = 0;
-    finalizeReselectedPlayers(
-      runtimeState.state,
-      runtimeState.selection.reselectionPids,
-    );
-    finalizeAndAdvance();
+    // Castle-reselect-done's mutate handles finalizeReselectedPlayers +
+    // finalizeCastleConstruction + clearCastleBuildViewport + enterCannonPhase
+    // + cannon-start broadcast — we just hand it the pids.
+    deps.enterCannonAfterCastleReselect(runtimeState.selection.reselectionPids);
   }
 
   /** Full reset for game restart / rematch. Clears all selection, reselection,
@@ -542,11 +538,10 @@ export function createSelectionSystem(
     tick: tickSelection,
     finish: finishSelection,
     advanceToCannonPhase: () => {
-      // enterCannonPhase (inside startCannonPhase → applyCheckpoint) handles
-      // the phase flip + preparation; no separate enterCannonPlacePhase call.
-      deps.startCannonPhase(() => {
-        setMode(runtimeState, Mode.GAME);
-      });
+      // enterCannonPhase (inside startCannonPhase → runTransition) handles
+      // the phase flip + banner + setMode(GAME) via the transition's
+      // postDisplay.
+      deps.startCannonPhase();
     },
     tickCastleBuild,
     setCastleBuildViewport: (

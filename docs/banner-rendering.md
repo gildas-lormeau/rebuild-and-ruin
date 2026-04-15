@@ -103,29 +103,26 @@ The old scene is a pixel-perfect snapshot of what the player last saw.
 
 ## Capture timing
 
-Each transition captures `ImageData` at the right moment:
+Capture is centralized in [`runtime-phase-machine.ts`](../src/runtime/runtime-phase-machine.ts).
+`runTransition(id, ctx)` does **one thing first**:
 
-Every capture sits **immediately before** the state mutation its banner
-reveals. Banner helpers (`showCannonTransition` etc.) never capture —
-only call sites do, at the pre-mutation point.
+```ts
+ctx.runtimeState.banner.prevSceneImageData = ctx.captureScene();
+```
 
-| Transition | Capture point | What mutates next |
-| --- | --- | --- |
-| Selection → Cannon (round 1 / reselect) | `finalizeAndAdvance` in `runtime-selection.ts` | `finalizeCastleConstruction` spawns houses + bonus squares |
-| Build → Cannon (rounds 2+) | `tickBuildPhase` end in `runtime-phase-ticks.ts` | `finalizeBuildPhase` sweeps walls, finalizes territory, revives towers |
-| Cannon → Battle | `startBattle` in `runtime-phase-ticks.ts`, before `enterBattlePhase` | Modifier roll + territory snapshot |
-| Modifier → Battle (chain) | Modifier callback in `runtime-banner.ts`, before the battle banner | Re-capture post-modifier for the next banner in the chain |
-| Battle → Build | `tickBattlePhase` end in `runtime-phase-ticks.ts`, before `enterBuildPhase` | Last battle frame, before upgrade-pick dialog |
+…before any mutate fn runs. Every transition (host or watcher) goes
+through this single point, so capture-before-mutate is structural — not
+something call sites have to remember.
 
-Watcher parity: the host's pre-mutation point maps to a pre-`apply*Checkpoint`
-point in [`online-phase-transitions.ts`](../src/online/online-phase-transitions.ts).
-`handleCannonStartTransition` captures only when `state.phase !== WALL_BUILD`
-— the rounds-2+ path entered WALL_BUILD at `handleBuildEndTransition`, which
-already captured pre-sweep; round 1 / reselect arrive from `CASTLE_SELECT`
-with no prior capture.
+Chained banners (modifier-reveal → battle, upgrade-pick → build) flag
+the first display step with `recaptureAfter: true`; the runner grabs a
+fresh snapshot when that step's `onDone` fires, so the next banner in
+the chain reveals its own delta.
 
-For chained banners (modifier → battle, upgrade → build), the chain callback
-re-captures so each banner reveals its own transition.
+Watcher parity: the watcher's `runTransition` call is the same call,
+with `role: "watcher"` selecting a different mutate (apply checkpoint
+instead of run game logic). The pre-mutation capture happens
+identically.
 
 ## Event signals
 

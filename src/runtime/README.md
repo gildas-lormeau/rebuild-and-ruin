@@ -113,8 +113,17 @@ exempt from the "sub-systems must not import from each other" rule.
 - **`runtime-life-lost-core.ts`** — Pure dialog state helpers for the
   life-lost system (separated from the factory for testability).
 - **`runtime-upgrade-pick-core.ts`** — Same pattern for upgrade-pick.
-- **`runtime-transition-steps.ts`** — Reusable step functions for phase
-  transitions (shared between local and online paths).
+- **`runtime-phase-machine.ts`** — Pure data-driven phase-transition
+  state machine. The `TRANSITIONS` table declares each transition's
+  mutate (host vs watcher), display steps (banner / score-overlay /
+  life-lost-dialog / upgrade-pick), and postDisplay side-effects.
+  `runTransition(id, ctx)` is the single entry point — captures the
+  scene, runs mutate, walks the display, fires postDisplay. Both host
+  ([`runtime-phase-ticks.ts`](runtime-phase-ticks.ts):`buildHostPhaseCtx`)
+  and watcher
+  ([`../online/online-phase-transitions.ts`](../online/online-phase-transitions.ts):`buildWatcherPhaseCtx`)
+  build the `PhaseTransitionCtx`; the machine picks the role-specific
+  fn off `ctx.role`.
 - **`banner-messages.ts`** — Phase transition banner string constants.
 - **`assembly.ts`** — `createRuntimeLoop(deps)` + input adapter wiring.
   Called once by the composition root.

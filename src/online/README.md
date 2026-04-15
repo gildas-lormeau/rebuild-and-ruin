@@ -140,18 +140,26 @@ If you hold those three in mind, the file structure makes sense.
   script verifies every GameState field is referenced at least once
   in this file, so drift becomes a lint failure.
 
-### Runtime helpers (4 files)
+### Runtime helpers (3 files)
 - **`online-runtime-session.ts`** — `createOnlineRuntimeSessionHelpers()`
   — session reset, show-lobby, show-waiting-room, init-from-server.
-- **`online-runtime-transition.ts`** — `createOnlineTransitionContext()`
-  — builds the `TransitionContext` passed to
-  `executeTransition()` from runtime-transition-steps.
 - **`online-runtime-lobby.ts`** — Online lobby DOM bootstrap + init.
   Exports `lobbyReady` — the single public API consumed by
   `entry.ts`.
 - **`online-dom.ts`** — Centralized `getElementById` for all DOM
   elements the online client reads. One file = one boundary for all
   DOM access in online/.
+
+### Watcher transition handlers
+- **`online-phase-transitions.ts`** — six handlers (`handleCastleWalls`,
+  `handleCannonStart`, `handleBattleStart`, `handleBuildStart`,
+  `handleBuildEnd`, `handleGameOver`). Four of them dispatch to the
+  shared phase state machine via `runTransition(id, ctx)` from
+  `runtime/runtime-phase-machine.ts` — the `WatcherDeps` bag is the
+  only watcher-specific seam; the rest is the same machine the host
+  uses, with `role: "watcher"` selecting the per-role mutate /
+  postDisplay. The two non-machine handlers (castle-walls, game-over)
+  use runtime + session directly because they're not phase changes.
 
 ### Lobby UI (1 file)
 - **`online-lobby-ui.ts`** — Online-specific lobby UI rendering.

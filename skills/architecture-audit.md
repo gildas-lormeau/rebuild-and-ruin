@@ -575,10 +575,13 @@ sufficient for LLM agents to follow correctly.
     online/online-runtime-game.ts:207-215 ORDERING INVARIANT comment documents the
     required call order: initWs → initPromote → initDeps.
 
-95. **Mode transition timing convention has per-handler cross-references** —
-    online/online-phase-transitions.ts: each handler has a one-line JSDoc noting when
-    setMode is called (immediately vs inside banner callback). TransitionContext JSDoc
-    at line 47-55 is the canonical source.
+95. **Phase transitions are a pure data-driven state machine** —
+    runtime/runtime-phase-machine.ts owns the `TRANSITIONS` table; every host /
+    watcher entry point calls `runTransition(id, ctx)`. setMode timing is uniform:
+    pre-mutation `captureScene` happens inside `runTransition`, mutate runs the
+    role-appropriate fn, display steps walk in order, postDisplay flips
+    `Mode.GAME` (or `STOPPED` for game-over). Per-handler JSDoc no longer
+    needed — the machine enforces the convention structurally.
 
 96. **Serialization contract documented in checkpoint-data.ts header** —
     protocol/checkpoint-data.ts:1-12 documents intentionally loose typing (strings vs enums),
@@ -593,11 +596,13 @@ sufficient for LLM agents to follow correctly.
     Do not use magic numbers 0/1/3 or 0.5 for these.
 
 99. **`setWatcherPhaseTimerAtBannerEnd` is the canonical watcher phase-timer anchor** —
-    online/online-types.ts exports the helper; online/online-phase-transitions.ts
-    calls it from inside every banner onComplete callback (cannon-start AND
-    build-start). Do NOT pre-compute the origin as `bannerStartedAt + bannerDuration`
-    — the helper uses `performance.now()` inside the callback, which is robust
-    to frame drops. The two call sites intentionally share the same pattern.
+    online/online-types.ts exports the helper; the watcher's `WatcherHooks.setPhaseTimerAtBannerEnd`
+    is wired in `online/online-phase-transitions.ts` and called from each
+    cannon/build transition's `postDisplay.watcher` in
+    `runtime/runtime-phase-machine.ts`. Do NOT pre-compute the origin as
+    `bannerStartedAt + bannerDuration` — the helper uses `performance.now()`
+    inside the postDisplay callback, which fires at true banner-end and is
+    robust to frame drops.
 
 100. **Server validation tables (RATE_LIMITED_TYPES, HOST_ONLY, PHASE_GATES) are typed
     against MessageType** — server/game-room.ts seed arrays use

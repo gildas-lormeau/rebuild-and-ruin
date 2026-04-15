@@ -85,6 +85,13 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
   "src/online/online-serialize.ts": {
     "../game/phase-setup.ts": new Set(["setPhase"]),
   },
+  "src/runtime/runtime-phase-machine.ts": {
+    // Machine transitions call setPhase directly inside watcher mutate fns
+    // (post-checkpoint phase flip) — the symbol belongs to the
+    // network-state-conformance primitive set, same rationale as the
+    // online-phase-transitions.ts / online-serialize.ts exemptions.
+    "../game/phase-setup.ts": new Set(["setPhase"]),
+  },
 };
 
 main();

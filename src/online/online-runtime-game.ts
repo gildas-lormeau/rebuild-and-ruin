@@ -24,11 +24,11 @@ import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
+import type { WatcherDeps } from "./online-phase-transitions.ts";
 import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
-import { createOnlineTransitionContext } from "./online-runtime-transition.ts";
 import { initWs } from "./online-runtime-ws.ts";
 import { createOnlineSendActions } from "./online-send-actions.ts";
 import {
@@ -88,11 +88,11 @@ const sessionHelpers = createOnlineRuntimeSessionHelpers({
   log: devLog,
   container: renderer.container,
 });
-const transitionCtx = createOnlineTransitionContext({
+const watcherDeps: WatcherDeps = {
   getRuntime: () => runtime,
   session: ctx.session,
   watcher: ctx.watcher,
-});
+};
 // ── Send-on-success action wrappers ────────────────────────────────
 // `send` and `getState` are bound once here so individual call sites
 // (input dispatch, AI tick) don't have to plumb them through.
@@ -269,7 +269,7 @@ export function initOnlineRuntime(): void {
     initFromServer: sessionHelpers.initFromServer,
     restoreFullState: sessionHelpers.restoreFullState,
     showWaitingRoom: sessionHelpers.showWaitingRoom,
-    transitionCtx,
+    watcherDeps,
     client: defaultClient,
   });
 

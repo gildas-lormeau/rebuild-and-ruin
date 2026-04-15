@@ -34,7 +34,7 @@ import {
   handleServerMessage,
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
-import { createOnlineTransitionContext } from "../src/online/online-runtime-transition.ts";
+import type { WatcherDeps } from "../src/online/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -157,7 +157,7 @@ async function buildWatcherRuntime(
   // the `onlinePhaseTicks` we pass in.
   const client = buildWatcherClient(allRemote);
   const headlessHolder: { current?: HeadlessRuntime } = {};
-  const transitionCtx = createOnlineTransitionContext({
+  const watcherDeps: WatcherDeps = {
     getRuntime: () => {
       const h = headlessHolder.current;
       if (!h) throw new Error("watcher runtime not yet constructed");
@@ -165,7 +165,7 @@ async function buildWatcherRuntime(
     },
     session: client.ctx.session,
     watcher: client.ctx.watcher,
-  });
+  };
   const tickCtx: WatcherTickContext = {
     getState: () => headlessHolder.current!.runtime.runtimeState.state,
     getFrame: () => headlessHolder.current!.runtime.runtimeState.frame,
@@ -196,7 +196,7 @@ async function buildWatcherRuntime(
     initFromServer: () => Promise.resolve(),
     restoreFullState: () => {},
     showWaitingRoom: () => {},
-    transitionCtx,
+    watcherDeps,
     client,
   });
   headless.subscribeNetworkMessage(handleServerMessage);

@@ -15,6 +15,7 @@ import {
   continuingPlayers,
   createLifeLostDialogState,
   eliminateAbandoned,
+  type GameOverReason,
   isLifeLostAllResolved,
   resolveAfterLifeLost,
   tickLifeLostDialog,
@@ -34,7 +35,11 @@ interface LifeLostSystemDeps {
 
   render: () => void;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
-  endGame: (winner: { id: number }) => void;
+  /** Dispatch the game-over transition (`last-player-standing` or
+   *  `round-limit-reached`). The transition's mutate calls `endGame` on
+   *  the lifecycle subsystem; everything else (sound, frame, mode) is
+   *  driven from there. */
+  dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
 }
@@ -136,7 +141,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     return resolveAfterLifeLost({
       state: runtimeState.state,
       continuing,
-      onGameOver: deps.endGame,
+      onGameOver: deps.dispatchGameOver,
       onReselect: (players) => {
         runtimeState.selection.reselectQueue = [...players];
         deps.startReselection();

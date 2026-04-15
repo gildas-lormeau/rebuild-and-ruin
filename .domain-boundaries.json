@@ -161,7 +161,6 @@
       "src/online/online-runtime-game.ts",
       "src/online/online-runtime-deps.ts",
       "src/online/online-runtime-session.ts",
-      "src/online/online-runtime-transition.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-ws.ts",
       "src/online/online-runtime-lobby.ts"
@@ -191,7 +190,7 @@
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-transition-steps.ts",
+      "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-render.ts",

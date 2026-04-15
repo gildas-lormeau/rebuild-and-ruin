@@ -15,6 +15,7 @@
 
 import { computeScoreDeltas } from "../game/index.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
@@ -77,6 +78,9 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
       deps.clearPhaseZoom();
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
       scoreDisplay.deltaOnDone = onDone;
+      emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {
+        round: runtimeState.state.round,
+      });
     } else {
       onDone();
     }
@@ -94,6 +98,9 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     if (scoreDisplay.deltaTimer <= 0) {
       scoreDisplay.deltas = [];
       scoreDisplay.deltaTimer = 0;
+      emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_END, {
+        round: runtimeState.state.round,
+      });
       // fireOnce: invokes scoreDisplay.deltaOnDone at most once, then clears it
       fireOnce(scoreDisplay, "deltaOnDone");
     }

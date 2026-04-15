@@ -137,7 +137,7 @@ export interface E2EScenario extends AsyncDisposable {
   bus: {
     /** Subscribe to a specific event type. The handler receives the full
      *  typed payload (same shape as the headless `GameEventBus`) plus the
-     *  bridge's recording metadata (`_seq`, `_canvasSnapshot`, …). */
+     *  bridge's recording metadata (`_seq`, `capture`, …). */
     on<K extends E2EEventType>(eventType: K, handler: E2EBusHandler<K>): void;
     /** Unsubscribe from a specific event type. */
     off<K extends E2EEventType>(eventType: K, handler: E2EBusHandler<K>): void;
@@ -165,11 +165,23 @@ export interface E2EScenario extends AsyncDisposable {
   /** Wait until the game reaches STOPPED mode. Throws on timeout.
    *  Bus handlers fire for each new event during the wait. */
   runGame(opts?: E2ERunOpts): Promise<void>;
-  /** Enable per-frame canvas snapshot capture. Tick entries during banners
-   *  and banner events always carry snapshots; enabling this also captures
-   *  the "frame before banner" via `_prevSnapshot`. Opt-in because
-   *  `toDataURL` every frame is expensive. */
-  enableCanvasSnapshots(): Promise<void>;
+  /** Register a capture filter: every bus event of `type` matching
+   *  `predicate` will carry a PNG of the canvas, captured synchronously
+   *  in-browser at the event's emit moment, as `entry.capture` on its
+   *  busLog record.
+   *
+   *  `predicate` runs in-browser (stringified + re-constructed via
+   *  `new Function`); it may only reference the event payload, not
+   *  closures from the Deno-side test. Omit to match every event of
+   *  the given type.
+   *
+   *  Fires for every matching event — this is listener-style. Tests
+   *  read captured PNGs by walking the busLog (`await sc.bus.events()`)
+   *  after running, or via `sc.bus.on(type, (ev) => ev.capture)`. */
+  captureOn<K extends keyof GameEventMap>(
+    type: K,
+    predicate?: (ev: GameEventMap[K]) => boolean,
+  ): Promise<void>;
   /** Input helpers. The `*Tile(row, col)` variants are preferred — they
    *  work the same on headless and E2E. The raw pixel variants take
    *  world-space coords (converted to client coords via the bridge). */
@@ -344,10 +356,10 @@ export async function createE2EScenario(
   let lastSeenSeq = 0;
 
   /** Fetch new busLog entries since lastSeenSeq and fire handlers.
-   *  Strips _canvasSnapshot and _prevSnapshot from entries to avoid
-   *  transferring megabytes of PNG data across the Playwright IPC
-   *  boundary — handlers don't need pixel data. Use bus.events() to
-   *  read entries with snapshots intact. */
+   *  Strips the `capture` PNG payload from entries to avoid transferring
+   *  megabytes of data across the Playwright IPC boundary for handlers
+   *  that don't need pixels. Use `sc.bus.events()` to read entries with
+   *  captures intact. */
   async function drainBus(): Promise<void> {
     const newEntries: E2EBusEntry[] = await page.evaluate(
       (fromSeq: number) => {
@@ -356,8 +368,8 @@ export async function createE2EScenario(
         const log = e2e?.busLog;
         if (!log || log.length <= fromSeq) return [];
         return log.slice(fromSeq).map((entry) => {
-          if (!entry._canvasSnapshot && !entry._prevSnapshot) return entry;
-          const { _canvasSnapshot, _prevSnapshot, ...rest } = entry;
+          if (!entry.capture) return entry;
+          const { capture: _c, ...rest } = entry;
           return rest as typeof entry;
         });
       },
@@ -632,12 +644,27 @@ export async function createE2EScenario(
       }
     },
 
-    enableCanvasSnapshots: () =>
-      page.evaluate(() => {
-        const e2e = (globalThis as unknown as Record<string, unknown>)
-          .__e2e as { captureTickSnapshots?: boolean } | undefined;
-        if (e2e) e2e.captureTickSnapshots = true;
-      }),
+    captureOn: async (type, predicate) => {
+      const predicateSrc = predicate ? predicate.toString() : null;
+      await page.evaluate(
+        (args) => {
+          const e2e = (globalThis as unknown as Record<string, unknown>)
+            .__e2e as
+            | {
+                captureOn?: (
+                  type: string,
+                  predicateSrc: string | null,
+                ) => void;
+              }
+            | undefined;
+          if (!e2e?.captureOn) {
+            throw new Error("__e2e.captureOn not installed");
+          }
+          e2e.captureOn(args.type, args.predicateSrc);
+        },
+        { type: String(type), predicateSrc },
+      );
+    },
 
     input: {
       mouseMove: async (wx, wy) => {
@@ -727,18 +754,18 @@ export function waitForPhase(
   );
 }
 
-/** Tick until a modifier banner fires. Filter by `modifierId` if provided. */
+/** Tick until a modifier is applied. Filter by `modifierId` if provided.
+ *  Listens to the domain event (`MODIFIER_APPLIED`), not the UI banner. */
 export function waitForModifier(
   sc: E2EScenario,
   modifierId?: ModifierId,
   opts?: E2ERunOpts,
-): Promise<E2EBusEntryOf<"bannerStart">> {
-  return waitForBanner(
+): Promise<E2EBusEntryOf<"modifierApplied">> {
+  return waitForEvent(
     sc,
-    (ev) =>
-      ev.modifierId !== undefined &&
-      (modifierId === undefined || ev.modifierId === modifierId),
-    opts,
+    GAME_EVENT.MODIFIER_APPLIED,
+    (ev) => modifierId === undefined || ev.modifierId === modifierId,
+    { ...opts, label: "waitForModifier" },
   );
 }
 

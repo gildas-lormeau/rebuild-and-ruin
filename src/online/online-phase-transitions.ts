@@ -1,13 +1,8 @@
 import {
   createCastle,
   prepareControllerCannonPhase,
-  recomputeAllTerritory,
   resetZoneState,
 } from "../game/index.ts";
-// Deep import: setPhase is a network-state-conformance primitive used inside
-// watcher checkpoint apply steps. Allowlisted in
-// scripts/lint-restricted-imports.ts.
-import { setPhase } from "../game/phase-setup.ts";
 import type {
   BattleStartData,
   BuildEndData,
@@ -15,15 +10,15 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
-import type {
-  BannerShow,
-  BannerTransitions,
-} from "../runtime/runtime-contracts.ts";
-import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
-import { runBuildEndSequence } from "../runtime/runtime-transition-steps.ts";
+import {
+  type PhaseTransitionCtx,
+  ROLE_WATCHER,
+  runTransition,
+  type TransitionId,
+} from "../runtime/runtime-phase-machine.ts";
+import { type RuntimeState, setMode } from "../runtime/runtime-state.ts";
+import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
-import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
 import {
@@ -31,158 +26,64 @@ import {
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
-import type { PlayerController } from "../shared/core/system-interfaces.ts";
-import { type GameState } from "../shared/core/types.ts";
 import {
   FOCUS_REMATCH,
-  type GameOverFocus,
+  LifeLostChoice,
 } from "../shared/ui/interaction-types.ts";
-import type { RGB } from "../shared/ui/theme.ts";
+import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import {
+  applyBattleStartCheckpoint,
+  applyBuildEndCheckpoint,
+  applyBuildStartCheckpoint,
+  applyCannonStartCheckpoint,
+  type CheckpointDeps,
+} from "./online-checkpoints.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimerAtBannerEnd } from "./online-types.ts";
+import type { WatcherState } from "./online-watcher-tick.ts";
 
-/**
- * Mode-setting timing convention across transition handlers:
- *  - CASTLE_BUILD: setMode immediately (animation starts without banner)
- *  - CANNON_PLACE / WALL_BUILD: setMode inside banner onComplete callback
- *    (game resumes only after banner finishes)
- *  - BATTLE: setMode via BALLOON_ANIM or beginBattle() inside banner callback
- *    (balloon flight plays first if there are flights, otherwise battle begins directly)
- *  - STOPPED (game over): setMode immediately after building game-over frame
- */
-export interface TransitionContext {
-  // ── Core state access ──
-  getState: () => GameState;
-  session: Pick<OnlineSession, "myPlayerId">;
-  getControllers: () => PlayerController[];
-  /** Set the UI rendering mode. Valid transitions from phase handlers:
-   *  - CASTLE_BUILD — castle wall animation playing
-   *  - GAME — normal gameplay (cannon, battle, build phases)
-   *  - BALLOON_ANIM — balloon flight animation before battle
-   *  - STOPPED — game over
-   *
-   *  Host promotion (skipPendingAnimations) may also set GAME from
-   *  CASTLE_BUILD, LIFE_LOST, BANNER, or BALLOON_ANIM. */
-  setMode: (mode: Mode) => void;
-
-  // ── Banner & UI ──
-  ui: BannerTransitions & {
-    showBanner: BannerShow;
-    banner: {
-      prevSceneImageData?: ImageData;
-      modifierDiff?: ModifierDiff;
-    };
-    /** Capture the current offscreen scene as ImageData for banner prev-scene. */
-    captureScene: () => ImageData | undefined;
-    render: () => void;
-    watcherTiming: WatcherTimingState;
-  };
-
-  // ── Checkpoint application ──
-  // Each method accepts an optional `capturePreState` callback that runs BEFORE
-  // applyPlayersCheckpoint mutates state. Use it to capture pre-state (walls,
-  // scores, entities) needed for banner animations — the ordering is guaranteed.
-  checkpoint: {
-    applyCannonStart: (
-      data: CannonStartData,
-      capturePreState?: () => void,
-    ) => void;
-    applyBattleStart: (
-      data: BattleStartData,
-      capturePreState?: () => void,
-    ) => void;
-    applyBuildStart: (
-      data: BuildStartData,
-      capturePreState?: () => void,
-    ) => void;
-    applyBuildEnd: (data: BuildEndData, capturePreState?: () => void) => void;
-  };
-
-  // ── Selection & castle build ──
-  selection: {
-    clearSelectionOverlay: () => void;
-    getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
-    setCastleBuildFromPlans: (
-      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
-      maxTiles: number,
-      onDone: () => void,
-    ) => void;
-    setCastleBuildViewport: (
-      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
-    ) => void;
-  };
-
-  // ── Battle lifecycle ──
-  battleLifecycle: {
-    setFlights: (
-      value: readonly { flight: BalloonFlight; progress: number }[],
-    ) => void;
-    snapshotTerritory: () => Set<number>[];
-    /** Battle-start territory snapshot (for banner old-scene rendering). */
-    getTerritory: () => Set<number>[];
-    /** Battle-start wall snapshot (for banner old-scene rendering). */
-    getWalls: () => Set<number>[];
-    /** Update battleAnim territory snapshot (after watcher territory recompute). */
-    setTerritory: (territory: readonly Set<number>[]) => void;
-    /** Update battleAnim wall snapshot. */
-    setWalls: (walls: readonly Set<number>[]) => void;
-    /** Initiate the battle countdown.  Handles initBattleState, countdown,
-     *  watcher timing, aimAtEnemyCastle, and Mode.GAME — so the banner
-     *  callback doesn't need to duplicate any of it. */
-    beginBattle: () => void;
-  };
-
-  // ── End-of-phase (life-lost, scoring, game over) ──
-  endPhase: {
-    showLifeLostDialog: (
-      needsReselect: readonly ValidPlayerSlot[],
-      eliminated: readonly ValidPlayerSlot[],
-    ) => void;
-    showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
-    setGameOverFrame: (payload: {
-      winner: string;
-      scores: {
-        name: string;
-        score: number;
-        color: RGB;
-        eliminated: boolean;
-        territory?: number;
-        stats?: { wallsDestroyed: number; cannonsKilled: number };
-      }[];
-      focused: GameOverFocus;
-    }) => void;
-    playerColors: ReadonlyArray<{ wall: RGB }>;
-  };
-
-  // ── Upgrade pick (modern mode) ──
-  upgradePick?: {
-    tryShow: (onDone: () => void) => boolean;
-    prepare: () => boolean;
-  };
-  /** Clear the upgrade-pick dialog state. Called from the build banner's
-   *  onDone after the sweep completes — see the host counterpart in
-   *  `runtime-phase-ticks.ts:enterBuildViaUpgradePick`. The dialog has to
-   *  stay alive through the build banner sweep so `drawUpgradePick` can
-   *  progressively clip it against `banner.y`; this callback is what
-   *  finally tears it down. */
-  clearUpgradePickDialog?: () => void;
+/** Dependencies the watcher-side transition handlers need.
+ *
+ *  Passed to every handler. Handlers build a `PhaseTransitionCtx` from this
+ *  and dispatch to `runTransition(id, ctx)` — the state machine then runs
+ *  the role-appropriate mutate/display/postDisplay steps.
+ *
+ *  - `getRuntime` is a closure so the bag can be constructed BEFORE the
+ *    runtime itself (circular init order).
+ *  - `session` carries the watcher's own player id plus early-choice maps
+ *    that buffer dialog picks arriving ahead of the host's checkpoint. */
+export interface WatcherDeps {
+  readonly getRuntime: () => GameRuntime;
+  readonly session: Pick<
+    OnlineSession,
+    "myPlayerId" | "earlyLifeLostChoices" | "earlyUpgradePickChoices"
+  >;
+  readonly watcher: Pick<
+    WatcherState,
+    | "timing"
+    | "remoteCrosshairs"
+    | "watcherCrosshairPos"
+    | "watcherOrbitParams"
+    | "watcherOrbitAngles"
+  >;
 }
 
-/** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
-/** Mode timing: setMode(CASTLE_BUILD) immediately. See TransitionContext JSDoc. */
+/** Watcher-only: processes CASTLE_WALLS from host (triggers castle build
+ *  animation). Not a machine-driven transition — castle construction is a
+ *  one-shot animation, not a phase change. */
 export function handleCastleWallsTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.CASTLE_WALLS) return;
-  const state = transitionCtx.getState();
+  const runtime = deps.getRuntime();
+  const state = runtime.runtimeState.state;
   const plans = msg.plans.map((plan) => ({
     ...plan,
     tiles: plan.tiles.filter((tile) => tile >= 0 && tile < TILE_COUNT),
   }));
   const maxTiles = Math.max(...plans.map((plan) => plan.tiles.length), 0);
-  // Set player.castle so walls render during the build animation
   for (const plan of plans) {
     const player = state.players[plan.playerId];
     if (player?.homeTower && !player.castle) {
@@ -193,229 +94,323 @@ export function handleCastleWallsTransition(
       );
     }
   }
-  transitionCtx.selection.getStates().clear();
-  transitionCtx.selection.clearSelectionOverlay();
-  // Zoom to the local player's castle on mobile
+  runtime.selection.getStates().clear();
+  clearSelectionOverlay(runtime.runtimeState);
   const myPlan = plans.find(
-    (plan) => plan.playerId === transitionCtx.session.myPlayerId,
+    (plan) => plan.playerId === deps.session.myPlayerId,
   );
-  if (myPlan) transitionCtx.selection.setCastleBuildViewport([myPlan]);
-
-  transitionCtx.selection.setCastleBuildFromPlans(plans, maxTiles, () => {
-    // No phase transition — cannon_start checkpoint drives it and reconciles state.
+  if (myPlan) runtime.selection.setCastleBuildViewport([myPlan]);
+  runtime.runtimeState.selection.castleBuilds.push({
+    wallPlans: plans,
+    maxTiles,
+    wallTimelineIdx: 0,
+    accum: 0,
   });
-  transitionCtx.setMode(Mode.CASTLE_BUILD);
+  runtime.runtimeState.selection.castleBuildOnDone = () => {
+    // No phase transition — cannon_start checkpoint drives it.
+  };
+  setMode(runtime.runtimeState, Mode.CASTLE_BUILD);
 }
 
-/** Watcher-only: processes CANNON_START checkpoint and transitions to cannon phase. */
-/** Mode timing: setMode(GAME) inside banner onComplete. See TransitionContext JSDoc. */
+/** Watcher-only: processes CANNON_START checkpoint and transitions to
+ *  cannon phase. Dispatches to `advance-to-cannon` — the three host-side
+ *  entry points (castle-select-done / castle-reselect-done /
+ *  advance-to-cannon) all broadcast the same CANNON_START message and
+ *  share watcher display + postDisplay, so one id is enough. */
 export function handleCannonStartTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.CANNON_START) return;
-  const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.session.myPlayerId;
-  transitionCtx.selection.clearSelectionOverlay();
-
-  // Capture the pre-mutation scene for the cannons banner's prev-scene,
-  // but only on paths that introduce the mutation here. Rounds 2+ arrive
-  // with state.phase === WALL_BUILD (mutation already captured at
-  // handleBuildEndTransition before the wall sweep); the CANNON_START
-  // checkpoint on that path just flips the phase and adds cannon limits.
-  // Round 1 / reselect arrive with state.phase === CASTLE_SELECT or
-  // CASTLE_RESELECT — no BUILD_END ran, so the CANNON_START checkpoint
-  // itself delivers the first post-finalizeCastleConstruction state
-  // (houses, bonus squares), and capturing before applyCannonStart grabs
-  // the pre-finalize picture the banner needs to reveal against.
-  if (state.phase !== Phase.WALL_BUILD) {
-    transitionCtx.ui.banner.prevSceneImageData =
-      transitionCtx.ui.captureScene();
-  }
-  transitionCtx.checkpoint.applyCannonStart(msg);
-
-  const initLocalController = () => {
-    if (isActivePlayer(myPlayerId)) {
-      const ctrl = transitionCtx.getControllers()[myPlayerId];
-      if (!ctrl) return;
-      const prep = prepareControllerCannonPhase(ctrl.playerId, state);
-      if (!prep) return;
-      ctrl.placeCannons(state, prep.maxSlots);
-      ctrl.cannonCursor = prep.cursorPos;
-      ctrl.startCannonPhase(state);
-    }
-  };
-
-  // Dedup guard: checkpoint already set the phase (e.g. full-state recovery).
-  // Init the local controller but skip the full transition.
+  const state = deps.getRuntime().runtimeState.state;
+  // Dedup guard: full-state recovery already set phase. Just init the
+  // local controller; skip banner + mode transition.
   if (state.phase === Phase.CANNON_PLACE) {
-    initLocalController();
+    initLocalCannonControllerIfActive(deps);
     return;
   }
-
-  // 1. Banner
-  transitionCtx.ui.showCannonTransition(() => {
-    setWatcherPhaseTimerAtBannerEnd(
-      transitionCtx.ui.watcherTiming,
-      state.timer,
-    );
-    transitionCtx.setMode(Mode.GAME);
-  });
-
-  // 2. Checkpoint
-  setPhase(state, Phase.CANNON_PLACE);
-  state.timer = state.cannonPlaceTimer;
-
-  // 3. Init controllers
-  initLocalController();
+  dispatchWatcher("advance-to-cannon", msg, deps);
 }
 
-/** Watcher-only: processes BATTLE_START checkpoint and transitions to battle phase. */
-/** Mode timing: setMode via BALLOON_ANIM or beginBattle() inside banner callback. See TransitionContext JSDoc. */
+/** Watcher-only: processes BATTLE_START checkpoint and transitions to
+ *  battle phase. */
 export function handleBattleStartTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BATTLE_START) return;
-  const state = transitionCtx.getState();
-  const battleFlights = msg.flights;
-
-  // Capture scene before checkpoint mutates state.
-  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
-
-  const modifierDiff = msg.modifierDiff ?? null;
-
-  const proceedToBattle = () => {
-    if (battleFlights && battleFlights.length > 0) {
-      transitionCtx.battleLifecycle.setFlights(
-        battleFlights.map((flight) => ({
-          flight: {
-            startX: flight.startX,
-            startY: flight.startY,
-            endX: flight.endX,
-            endY: flight.endY,
-          },
-          progress: 0,
-        })),
-      );
-      transitionCtx.setMode(Mode.BALLOON_ANIM);
-    } else {
-      transitionCtx.battleLifecycle.beginBattle();
-    }
-  };
-
-  // 1. Banner (modifier chain handled by the banner system)
-  transitionCtx.ui.showBattleTransition(modifierDiff, proceedToBattle);
-
-  // 2. Checkpoint
-  transitionCtx.checkpoint.applyBattleStart(msg);
-  recomputeAllTerritory(state);
-  setPhase(state, Phase.BATTLE);
-
-  // 3. Snapshot territory/walls for battleAnim
-  const postTerritory = transitionCtx.battleLifecycle.snapshotTerritory();
-  const postWalls = snapshotAllWalls(state);
-  transitionCtx.battleLifecycle.setTerritory(postTerritory);
-  transitionCtx.battleLifecycle.setWalls(postWalls);
+  dispatchWatcher("cannon-place-done", msg, deps);
 }
 
-/** Watcher-only: processes BUILD_START checkpoint and transitions to build phase.
- *  Mode timing: setMode(GAME) inside banner onComplete. See TransitionContext JSDoc. */
+/** Watcher-only: processes BUILD_START checkpoint and transitions to build
+ *  phase. */
 export function handleBuildStartTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
-  const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.session.myPlayerId;
-
-  // Capture scene before checkpoint mutates state.
-  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
-
-  // Step 1: apply checkpoint (deserializes offers, modifier, players)
-  transitionCtx.checkpoint.applyBuildStart(msg);
-  setPhase(state, Phase.WALL_BUILD);
-
-  // Step 2→3: upgrade pick (if any) → build banner → game
-  transitionCtx.ui.showBuildTransition(
-    transitionCtx.upgradePick,
-    !!state.modern?.pendingUpgradeOffers,
-    () => {
-      setWatcherPhaseTimerAtBannerEnd(
-        transitionCtx.ui.watcherTiming,
-        state.timer,
-      );
-      transitionCtx.clearUpgradePickDialog?.();
-      transitionCtx.setMode(Mode.GAME);
-    },
-    () => {
-      if (isActivePlayer(myPlayerId)) {
-        const player = state.players[myPlayerId];
-        if (isPlayerAlive(player)) {
-          transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
-        }
-      }
-    },
-  );
+  dispatchWatcher("battle-done", msg, deps);
 }
 
-/** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.
- *
- *  The score-delta animation relies on comparing old scores against the new ones the host
- *  computed. Without the delta delay, the non-host would send life_lost_choice before the
- *  host has created its dialog, causing the choice to be silently dropped. */
+/** Watcher-only: processes BUILD_END checkpoint. Score deltas + life-lost
+ *  dialog are driven by the machine's display steps (`score-overlay` then
+ *  `life-lost-dialog`). No banner — the banner sweep happens later when
+ *  the host broadcasts CANNON_START (or the next life-lost resolution). */
 export function handleBuildEndTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BUILD_END) return;
-  const state = transitionCtx.getState();
-
-  // Capture scene before checkpoint mutates state.
-  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
-
-  let preScores: number[] = [];
-  transitionCtx.checkpoint.applyBuildEnd(msg, () => {
-    preScores = state.players.map((player) => player.score);
-  });
-  for (const pid of [...msg.needsReselect, ...msg.eliminated]) {
-    const zone = state.playerZones[pid];
-    if (zone !== undefined) resetZoneState(state, zone);
-  }
-  // Shared build-end sequence: score deltas → onLifeLost → dialog.
-  // Without the score-delta delay, non-host sends life_lost_choice before
-  // host creates its dialog.
-  const myPlayerId = transitionCtx.session.myPlayerId;
-  runBuildEndSequence({
-    needsReselect: msg.needsReselect,
-    eliminated: msg.eliminated,
-    showScoreDeltas: (onDone) =>
-      transitionCtx.endPhase.showScoreDeltas(preScores, onDone),
-    notifyLifeLost: (pid) => {
-      if (pid === myPlayerId) transitionCtx.getControllers()[pid]?.onLifeLost();
-    },
-    showLifeLostDialog: transitionCtx.endPhase.showLifeLostDialog,
-    // No onLifeLostResolved — watcher waits for host's next phase message
-  });
+  dispatchWatcher("wall-build-done", msg, deps);
 }
 
-/** Mode timing: setMode(STOPPED) immediately. See TransitionContext JSDoc. */
+/** Watcher-only: builds the final game-over frame and switches to STOPPED.
+ *  Not machine-driven — game-over isn't a phase transition, it's a
+ *  terminal state. */
 export function handleGameOverTransition(
   msg: ServerMessage,
-  transitionCtx: TransitionContext,
+  deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
-  transitionCtx.endPhase.setGameOverFrame({
+  const runtime = deps.getRuntime();
+  runtime.runtimeState.frame.gameOver = {
     winner: msg.winner,
-    scores: msg.scores.map((score, i) => ({
+    scores: msg.scores.map((score, idx) => ({
       ...score,
-      color:
-        transitionCtx.endPhase.playerColors[
-          i % transitionCtx.endPhase.playerColors.length
-        ]!.wall,
+      color: PLAYER_COLORS[idx % PLAYER_COLORS.length]!.wall,
     })),
     focused: FOCUS_REMATCH,
-  });
-  transitionCtx.ui.render();
-  transitionCtx.setMode(Mode.STOPPED);
+  };
+  runtime.render();
+  setMode(runtime.runtimeState, Mode.STOPPED);
+}
+
+function dispatchWatcher(
+  id: TransitionId,
+  msg: ServerMessage,
+  deps: WatcherDeps,
+): void {
+  runTransition(id, buildWatcherPhaseCtx(msg, deps));
+}
+
+/** Assemble the watcher-role `PhaseTransitionCtx` consumed by the machine.
+ *
+ *  Every hook that the watcher actually uses in the current set of
+ *  transitions (advance-to-cannon, cannon-place-done, battle-done,
+ *  wall-build-done) is populated. Host-only hooks (broadcast, endGame,
+ *  initLocalCannonControllers w/ entry, etc.) are omitted. */
+function buildWatcherPhaseCtx(
+  msg: ServerMessage,
+  deps: WatcherDeps,
+): PhaseTransitionCtx {
+  const runtime = deps.getRuntime();
+  const runtimeState = runtime.runtimeState;
+  const myPlayerId = deps.session.myPlayerId;
+  return {
+    state: runtimeState.state,
+    runtimeState,
+    role: ROLE_WATCHER,
+    showBanner: runtime.showBanner,
+    snapshotForNextBanner: () => {
+      runtimeState.banner.prevSceneImageData = runtime.captureScene();
+    },
+    setMode: (mode) => setMode(runtimeState, mode),
+    log: (text) => {
+      // Watcher logs go through the shared runtime log (not client.devLog);
+      // the log string is informational and low-volume on the watcher.
+      if (text) void text;
+    },
+    scoreDelta: {
+      show: (onDone) => runtime.scoreDelta.show(onDone),
+      // Reset / isActive are host-only concerns; watcher never reads them.
+      reset: () => {},
+      isActive: () => false,
+      setPreScores: (scores) => runtime.scoreDelta.setPreScores([...scores]),
+    },
+    lifeLost: {
+      tryShow: (needsReselect, eliminated) =>
+        showLifeLostDialogWithEarlyChoices(
+          runtime,
+          needsReselect,
+          eliminated,
+          deps.session.earlyLifeLostChoices,
+        ),
+      // Watcher doesn't drive its own continue-vs-game-over — the host's
+      // next phase message is authoritative. No-op resolve.
+      resolve: () => {},
+    },
+    notifyLifeLost: (pid) => {
+      if (pid === myPlayerId) runtimeState.controllers[pid]?.onLifeLost();
+    },
+    clearUpgradePickDialog: () => runtime.upgradePick.set(null),
+    upgradePick: {
+      prepare: () => runtime.upgradePick.prepare(),
+      tryShow: (onDone) =>
+        showUpgradePickWithEarlyChoices(
+          runtime,
+          onDone,
+          deps.session.earlyUpgradePickChoices,
+        ),
+      getDialog: () => runtime.upgradePick.get(),
+    },
+    sound: {
+      drumsStop: runtime.sound.drumsStop,
+      lifeLost: runtime.sound.lifeLost,
+    },
+    battle: buildWatcherBattleHooks(runtime),
+    checkpoint: buildWatcherCheckpointHooks(deps),
+    watcher: buildWatcherHooks(deps),
+    incomingMsg: msg,
+  };
+}
+
+function buildWatcherBattleHooks(runtime: GameRuntime) {
+  const battleAnim = runtime.runtimeState.battleAnim;
+  return {
+    setFlights: (flights: { flight: BalloonFlight; progress: number }[]) => {
+      battleAnim.flights = flights;
+    },
+    setTerritory: (territory: readonly Set<number>[]) => {
+      battleAnim.territory = territory as Set<number>[];
+    },
+    setWalls: (walls: readonly Set<number>[]) => {
+      battleAnim.walls = walls as Set<number>[];
+    },
+    clearImpacts: () => {
+      battleAnim.impacts = [];
+    },
+    begin: () => runtime.phaseTicks.beginBattle(),
+  };
+}
+
+function buildWatcherCheckpointHooks(deps: WatcherDeps) {
+  return {
+    applyCannonStart: (msg: CannonStartData) => {
+      applyCannonStartCheckpoint(msg, buildCheckpointDeps(deps));
+      // Selection overlay is a UI concern tied to the host's state handoff;
+      // clear it here so the cannon banner reveals against a clean scene.
+      clearSelectionOverlay(deps.getRuntime().runtimeState);
+    },
+    applyBattleStart: (msg: BattleStartData) => {
+      applyBattleStartCheckpoint(msg, buildCheckpointDeps(deps));
+    },
+    applyBuildStart: (msg: BuildStartData) => {
+      applyBuildStartCheckpoint(msg, buildCheckpointDeps(deps));
+    },
+    applyBuildEnd: (msg: BuildEndData, capturePreScores: () => void) => {
+      applyBuildEndCheckpoint(msg, buildCheckpointDeps(deps), capturePreScores);
+    },
+  };
+}
+
+function buildWatcherHooks(deps: WatcherDeps) {
+  return {
+    setPhaseTimerAtBannerEnd: (phaseDuration: number) => {
+      setWatcherPhaseTimerAtBannerEnd(deps.watcher.timing, phaseDuration);
+    },
+    initLocalCannonControllerIfActive: () =>
+      initLocalCannonControllerIfActive(deps),
+    initLocalBuildControllerIfActive: () =>
+      initLocalBuildControllerIfActive(deps),
+    resetRemovedPlayerZones: (
+      needsReselect: readonly ValidPlayerSlot[],
+      eliminated: readonly ValidPlayerSlot[],
+    ) => {
+      const state = deps.getRuntime().runtimeState.state;
+      for (const pid of [...needsReselect, ...eliminated]) {
+        const zone = state.playerZones[pid];
+        if (zone !== undefined) resetZoneState(state, zone);
+      }
+    },
+  };
+}
+
+function buildCheckpointDeps(deps: WatcherDeps): CheckpointDeps {
+  const runtime = deps.getRuntime();
+  return {
+    state: runtime.runtimeState.state,
+    battleAnim: runtime.runtimeState.battleAnim,
+    accum: runtime.runtimeState.accum,
+    remoteCrosshairs: deps.watcher.remoteCrosshairs,
+    watcherCrosshairPos: deps.watcher.watcherCrosshairPos,
+    watcherOrbitParams: deps.watcher.watcherOrbitParams,
+    watcherOrbitAngles: deps.watcher.watcherOrbitAngles,
+    snapshotTerritory: () => runtime.snapshotTerritory(),
+  };
+}
+
+function initLocalCannonControllerIfActive(deps: WatcherDeps): void {
+  const myPlayerId = deps.session.myPlayerId;
+  if (!isActivePlayer(myPlayerId)) return;
+  const runtime = deps.getRuntime();
+  const state = runtime.runtimeState.state;
+  const ctrl = runtime.runtimeState.controllers[myPlayerId];
+  if (!ctrl) return;
+  const prep = prepareControllerCannonPhase(ctrl.playerId, state);
+  if (!prep) return;
+  ctrl.placeCannons(state, prep.maxSlots);
+  ctrl.cannonCursor = prep.cursorPos;
+  ctrl.startCannonPhase(state);
+}
+
+function initLocalBuildControllerIfActive(deps: WatcherDeps): void {
+  const myPlayerId = deps.session.myPlayerId;
+  if (!isActivePlayer(myPlayerId)) return;
+  const runtime = deps.getRuntime();
+  const state = runtime.runtimeState.state;
+  const player = state.players[myPlayerId];
+  if (!isPlayerAlive(player)) return;
+  runtime.runtimeState.controllers[myPlayerId]?.startBuildPhase(state);
+}
+
+function clearSelectionOverlay(runtimeState: RuntimeState): void {
+  const overlay = runtimeState.overlay;
+  if (overlay.selection) {
+    overlay.selection.highlights = undefined;
+    overlay.selection.highlighted = null;
+    overlay.selection.selected = null;
+  }
+}
+
+function showLifeLostDialogWithEarlyChoices(
+  runtime: GameRuntime,
+  needsReselect: readonly ValidPlayerSlot[],
+  eliminated: readonly ValidPlayerSlot[],
+  earlyChoices: Map<number, LifeLostChoice>,
+): boolean {
+  const shown = runtime.lifeLost.tryShow(needsReselect, eliminated);
+  const dialog = runtime.lifeLost.get();
+  if (dialog) {
+    for (const [playerId, choice] of earlyChoices) {
+      const entry = dialog.entries.find((e) => e.playerId === playerId);
+      if (entry && entry.choice === LifeLostChoice.PENDING) {
+        entry.choice = choice;
+      }
+    }
+  }
+  earlyChoices.clear();
+  return shown;
+}
+
+function showUpgradePickWithEarlyChoices(
+  runtime: GameRuntime,
+  onDone: () => void,
+  earlyChoices: Map<number, string>,
+): boolean {
+  const shown = runtime.upgradePick.tryShow(onDone);
+  if (!shown) return false;
+  const dialog = runtime.upgradePick.get();
+  if (dialog) {
+    for (const [playerId, choice] of earlyChoices) {
+      const entry = dialog.entries.find(
+        (e) =>
+          e.playerId === playerId &&
+          e.choice === null &&
+          e.offers.includes(choice as never),
+      );
+      if (entry) entry.choice = choice as never;
+    }
+    earlyChoices.clear();
+  }
+  return true;
 }
