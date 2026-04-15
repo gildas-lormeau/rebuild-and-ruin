@@ -47,7 +47,6 @@ export {
   enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
-  finishBuildPhase,
   isSelectionComplete,
   tickBuildPhase,
 } from "./game-engine.ts";
@@ -57,6 +56,7 @@ export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
+  finalizeBuildPhase,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,

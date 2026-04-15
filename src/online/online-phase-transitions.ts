@@ -71,7 +71,6 @@ export interface TransitionContext {
     showBanner: BannerShow;
     banner: {
       prevSceneImageData?: ImageData;
-      wallsBeforeSweep?: Set<number>[];
       modifierDiff?: ModifierDiff;
     };
     /** Capture the current offscreen scene as ImageData for banner prev-scene. */
@@ -219,8 +218,20 @@ export function handleCannonStartTransition(
   const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
-  // Capture scene before checkpoint mutates state.
-  transitionCtx.ui.banner.prevSceneImageData = transitionCtx.ui.captureScene();
+  // Capture the pre-mutation scene for the cannons banner's prev-scene,
+  // but only on paths that introduce the mutation here. Rounds 2+ arrive
+  // with state.phase === WALL_BUILD (mutation already captured at
+  // handleBuildEndTransition before the wall sweep); the CANNON_START
+  // checkpoint on that path just flips the phase and adds cannon limits.
+  // Round 1 / reselect arrive with state.phase === CASTLE_SELECT or
+  // CASTLE_RESELECT — no BUILD_END ran, so the CANNON_START checkpoint
+  // itself delivers the first post-finalizeCastleConstruction state
+  // (houses, bonus squares), and capturing before applyCannonStart grabs
+  // the pre-finalize picture the banner needs to reveal against.
+  if (state.phase !== Phase.WALL_BUILD) {
+    transitionCtx.ui.banner.prevSceneImageData =
+      transitionCtx.ui.captureScene();
+  }
   transitionCtx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
@@ -365,11 +376,6 @@ export function handleBuildEndTransition(
 
   let preScores: number[] = [];
   transitionCtx.checkpoint.applyBuildEnd(msg, () => {
-    // Stash pre-sweep walls so the live scene keeps showing walls during
-    // score delta animation (between finalize and the cannon banner).
-    transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
-      (player) => new Set(player.walls),
-    );
     preScores = state.players.map((player) => player.score);
   });
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {

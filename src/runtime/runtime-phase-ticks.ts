@@ -8,7 +8,7 @@ import {
   enterBuildPhase,
   enterBuildSkippingBattle,
   enterCannonPhase,
-  finishBuildPhase,
+  finalizeBuildPhase,
   nextReadyCombined,
   resetCannonFacings,
   shouldSkipBattle,
@@ -713,12 +713,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.finalizeBuildPhase(state);
     }
 
-    // Engine owns the end-of-build orchestration: snapshot walls BEFORE
-    // finalize (load-bearing — sweep would delete them), finalize territory
-    // + life penalties.
-    const { wallsBeforeSweep, needsReselect, eliminated } =
-      finishBuildPhase(state);
-    banner.wallsBeforeSweep = wallsBeforeSweep;
+    // Capture the pre-sweep scene for the cannons banner's prev-scene.
+    // Must happen BEFORE finalizeBuildPhase mutates walls/territory/towers;
+    // the banner composites this pixel snapshot below the sweep line so the
+    // post-sweep state is revealed progressively as the curtain passes.
+    banner.prevSceneImageData = deps.captureScene();
+    const { needsReselect, eliminated } = finalizeBuildPhase(state);
 
     // Build-end checkpoint (host only) — the online hook serializes the
     // post-build player snapshot itself; the runtime supplies only the

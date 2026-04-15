@@ -56,12 +56,15 @@ interface BannerSystem extends BannerTransitions {
    *  methods below for phase-specific banner chains. */
   showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
   tickBanner: (dt: number) => void;
-  /** Clear stale snapshot data (wallsBeforeSweep) — called
-   *  when selection state is reset (e.g. after losing a life). */
+  /** Clear stale `prevSceneImageData` — called when selection state is
+   *  reset (e.g. after losing a life), so a stale snapshot from a previous
+   *  banner doesn't bleed into the next one. */
   clearSnapshots: () => void;
   /** Reset banner state for game restart / rematch. */
   reset: () => void;
-  /** Build→cannon transition: captures scene + shows Place Cannons banner. */
+  /** Build→cannon transition: shows the "Place Cannons" banner. The caller
+   *  is responsible for capturing the pre-mutation scene into
+   *  `banner.prevSceneImageData` BEFORE invoking this. */
   showCannonTransition: (onDone: () => void) => void;
   /** Cannon→battle transition: modifier reveal (if any) → battle banner.
    *  Handles the chained re-capture between modifier and battle banners. */
@@ -147,16 +150,17 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   }
 
   function clearSnapshots(): void {
-    runtimeState.banner.wallsBeforeSweep = undefined;
+    runtimeState.banner.prevSceneImageData = undefined;
   }
 
   function reset(): void {
     runtimeState.banner = createBannerState();
   }
 
-  /** "Place Cannons" banner with scene capture. */
+  /** Show the "Place Cannons" banner. The caller must set
+   *  `banner.prevSceneImageData` BEFORE the mutation it is transitioning
+   *  across (castle-finalize for round 1, wall-sweep for rounds 2+). */
   function showCannonTransition(onDone: () => void): void {
-    runtimeState.banner.prevSceneImageData = deps.captureScene();
     showBanner(BANNER_PLACE_CANNONS, onDone, BANNER_PLACE_CANNONS_SUB);
   }
 
@@ -226,7 +230,6 @@ function showBannerTransition(
     setModeBanner: () => void;
   },
 ): void {
-  banner.wallsBeforeSweep = undefined;
   banner.active = true;
   banner.progress = 0;
   banner.text = opts.text;

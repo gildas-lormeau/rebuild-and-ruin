@@ -206,10 +206,7 @@ export type CreateOnlineOverlayFn = (
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
-  banner: Pick<
-    BannerState,
-    "active" | "prevSceneImageData" | "wallsBeforeSweep"
-  >;
+  banner: Pick<BannerState, "active" | "prevSceneImageData">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -247,14 +244,11 @@ export interface BannerState {
   subtitle?: string;
   callback: (() => void) | null;
   /** Pixel snapshot of the scene canvas captured BEFORE phase transition
-   *  mutations. Composited below the banner sweep line during animation,
-   *  replacing the old state-cloning approach (prevCastles, prevEntities, etc.).
-   *  Set by the transition code via `renderer.captureScene()`. */
+   *  mutations. Composited below the banner sweep line during animation.
+   *  Each transition captures this at its own pre-mutation point; banner
+   *  helpers never capture. Set by the transition code via
+   *  `renderer.captureScene()`. */
   prevSceneImageData?: ImageData;
-  /** Pre-sweep wall snapshot — keeps walls visible in the live scene during
-   *  score-delta animation (between finalizeBuildPhase and cannon banner).
-   *  NOT used for banner rendering (that uses prevSceneImageData). */
-  wallsBeforeSweep?: Set<number>[];
   /** Modifier reveal diff — set when showing a modifier reveal banner.
    *  Consumed by the renderer to progressively show map changes. */
   modifierDiff?: ModifierDiff;

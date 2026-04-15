@@ -50,7 +50,6 @@ import { generateMap, topZonesBySize } from "./map-generation.ts";
 import {
   enterBattleFromCannon,
   enterBuildFromBattle,
-  finalizeBuildPhase,
   setPhase,
 } from "./phase-setup.ts";
 import {
@@ -88,19 +87,6 @@ interface PlayerCannonInit {
  *  Index = playerId; null entries are eliminated players or empty slots. */
 interface CannonPhaseEntry {
   playerInit: readonly (PlayerCannonInit | null)[];
-}
-
-/** Result of `finishBuildPhase` — end-of-phase cleanup outcome. The caller
- *  uses wallsBeforeSweep for the live-scene wall override during score delta,
- *  and needsReselect/eliminated for the life-lost dialog + reselect flow. */
-interface BuildPhaseResult {
-  /** Per-player walls BEFORE wall-sweep deleted isolated fragments. Keeps
-   *  walls visible in the live scene during score delta animation. */
-  wallsBeforeSweep: Set<number>[];
-  /** Players who lost their last tower this round and must re-pick. */
-  needsReselect: ValidPlayerSlot[];
-  /** Players eliminated this round (lives hit zero). */
-  eliminated: ValidPlayerSlot[];
 }
 
 /** Result of `tickBuildPhase` — per-frame engine summary the runtime needs
@@ -280,25 +266,6 @@ export function enterBuildPhase(
 export function tickBuildPhase(state: GameState, dt: number): BuildPhaseTick {
   tickBuildUpgrades(state, dt);
   return { timerMax: state.buildTimer + buildTimerBonus(state) };
-}
-
-/** Finish the WALL_BUILD phase. Snapshots all walls BEFORE wall sweep (so the
- *  banner can show destroyed walls), runs finalize (wall sweep + territory
- *  scoring + tower revival + life penalties), then re-snapshots zone-dependent
- *  entities when any player needs reselect or elimination so the banner
- *  reflects the post-resetZoneState world that the life-lost dialog will show.
- *
- *  INVARIANT (load-bearing): the wall snapshot MUST precede finalizeBuildPhase.
- *  Wall sweeping deletes isolated walls; snapshotting after would hide the
- *  destruction from the build-end banner.
- *
- *  Replaces the runtime's manual `snapshotThenFinalize` call. */
-export function finishBuildPhase(
-  state: GameState,
-): Omit<BuildPhaseResult, "prevEntities"> {
-  const wallsBeforeSweep = snapshotAllWalls(state);
-  const { needsReselect, eliminated } = finalizeBuildPhase(state);
-  return { wallsBeforeSweep, needsReselect, eliminated };
 }
 
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and

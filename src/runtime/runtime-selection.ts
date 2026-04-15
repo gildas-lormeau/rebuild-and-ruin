@@ -92,6 +92,10 @@ interface SelectionSystemDeps {
   render: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   startCannonPhase: (onBannerDone?: () => void) => void;
+  /** Capture the offscreen scene as ImageData for the cannons banner's
+   *  prev-scene — must be called BEFORE finalizeCastleConstruction mutates
+   *  houses/bonus squares on the round-1 / reselect path. */
+  captureScene: () => ImageData | undefined;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
 
@@ -109,9 +113,9 @@ export function createSelectionSystem(
 
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map,
-   *  reselectionPids, overlay selection display, and stale banner snapshots
-   *  (wallsBeforeSweep / prevCastles captured at BUILD_END become invalid
-   *  when a player's zone is reset after losing a life). */
+   *  reselectionPids, overlay selection display, and any stale banner
+   *  prev-scene snapshot (invalid once a player's zone is reset after
+   *  losing a life). */
   function resetSelectionState(): void {
     runtimeState.selection.states.clear();
     runtimeState.selection.reselectionPids = [];
@@ -374,6 +378,11 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
+    // Capture the pre-mutation scene for the cannons banner's prev-scene.
+    // finalizeCastleConstruction pops houses + bonus squares into the map;
+    // the banner sweep composites this snapshot below its curtain so those
+    // entities are revealed progressively as the curtain passes.
+    runtimeState.banner.prevSceneImageData = deps.captureScene();
     finalizeCastleConstruction(runtimeState.state);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {

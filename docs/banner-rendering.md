@@ -39,7 +39,6 @@ for the active sweep:
 | `text`, `subtitle` | Strings drawn on the strip. |
 | `callback` | Fires exactly once at `progress === 1`, via `fireOnce`. |
 | `prevSceneImageData` | Pixel snapshot (`ImageData`) of the offscreen canvas captured before phase mutations. Composited below the sweep line. |
-| `wallsBeforeSweep` | Pre-sweep wall set stashed before `finalizeBuildPhase` — keeps walls visible in the live scene during score-delta animation. NOT used for banner rendering. |
 | `modifierDiff` | `{ id, changedTiles, gruntsSpawned }` for modifier reveals. Drives the tile pulse highlight. |
 
 `prevSceneImageData` and `modifierDiff` are cleared when the banner ends.
@@ -106,17 +105,27 @@ The old scene is a pixel-perfect snapshot of what the player last saw.
 
 Each transition captures `ImageData` at the right moment:
 
-| Transition | Capture point | Why |
-| --- | --- | --- |
-| Build → Cannon | `startCannonPhase` showBanner step | After score deltas, latest frame player saw |
-| Cannon → Battle | `startBattle` showBanner step, before `enterBattlePhase` | Before modifier/territory mutations |
-| Modifier → Battle (chain) | Modifier callback, before `showBattlePhaseBanner` | Post-modifier scene for the battle banner |
-| Battle → Build | `tickBattlePhase` end, before `enterBuildPhase` | Last battle frame, before upgrade dialog |
-| Selection → Cannon | `startCannonPhase` showBanner step | After castle build animation |
+Every capture sits **immediately before** the state mutation its banner
+reveals. Banner helpers (`showCannonTransition` etc.) never capture —
+only call sites do, at the pre-mutation point.
 
-For chained banners (modifier → battle, upgrade → build), a fresh
-`captureScene()` call in the chain callback replaces the previous
-`prevSceneImageData` so each banner in the chain shows the correct old scene.
+| Transition | Capture point | What mutates next |
+| --- | --- | --- |
+| Selection → Cannon (round 1 / reselect) | `finalizeAndAdvance` in `runtime-selection.ts` | `finalizeCastleConstruction` spawns houses + bonus squares |
+| Build → Cannon (rounds 2+) | `tickBuildPhase` end in `runtime-phase-ticks.ts` | `finalizeBuildPhase` sweeps walls, finalizes territory, revives towers |
+| Cannon → Battle | `startBattle` in `runtime-phase-ticks.ts`, before `enterBattlePhase` | Modifier roll + territory snapshot |
+| Modifier → Battle (chain) | Modifier callback in `runtime-banner.ts`, before the battle banner | Re-capture post-modifier for the next banner in the chain |
+| Battle → Build | `tickBattlePhase` end in `runtime-phase-ticks.ts`, before `enterBuildPhase` | Last battle frame, before upgrade-pick dialog |
+
+Watcher parity: the host's pre-mutation point maps to a pre-`apply*Checkpoint`
+point in [`online-phase-transitions.ts`](../src/online/online-phase-transitions.ts).
+`handleCannonStartTransition` captures only when `state.phase !== WALL_BUILD`
+— the rounds-2+ path entered WALL_BUILD at `handleBuildEndTransition`, which
+already captured pre-sweep; round 1 / reselect arrive from `CASTLE_SELECT`
+with no prior capture.
+
+For chained banners (modifier → battle, upgrade → build), the chain callback
+re-captures so each banner reveals its own transition.
 
 ## Event signals
 
@@ -222,6 +231,7 @@ with the build banner that follows.
 - **Forgetting chained re-capture**: when a modifier banner chains into a
   battle banner, call `captureScene()` in the callback before showing the
   next banner — otherwise the battle banner reuses the modifier's pre-scene.
-- **`clearSnapshots()` scope**: only wipes `wallsBeforeSweep` (for selection
-  resets). `prevSceneImageData` and `modifierDiff` are cleared by `tickBanner`
-  at `progress === 1`.
+- **`clearSnapshots()` scope**: wipes `prevSceneImageData` on selection
+  reset so a stale capture from a previous banner cycle doesn't bleed into
+  the next one. `modifierDiff` is cleared by `tickBanner` at
+  `progress === 1` alongside the ImageData clear.

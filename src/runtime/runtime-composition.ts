@@ -403,6 +403,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
+    captureScene: captureCleanScene,
     clearBannerSnapshots,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);

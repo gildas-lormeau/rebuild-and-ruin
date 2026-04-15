@@ -386,7 +386,7 @@ export function createOnlineOverlay(
 
   return {
     selection: previousSelection,
-    castles: buildCastleOverlay(state, banner.wallsBeforeSweep),
+    castles: buildCastleOverlay(state),
     entities: {
       houses: state.map.houses,
       grunts: state.grunts,
@@ -597,22 +597,17 @@ function upgradePickEntryH(): number {
   return UPGRADE_NAME_H + UPGRADE_CARD_H + UPGRADE_ROW_GAP;
 }
 
-function buildCastleOverlay(
-  state: GameState,
-  wallsBeforeSweep?: readonly ReadonlySet<number>[],
-): CastleData[] {
+function buildCastleOverlay(state: GameState): CastleData[] {
   return state.players
     .filter((player) => player.castle)
-    .map((player) => {
-      return {
-        walls: wallsBeforeSweep?.[player.id] ?? player.walls,
-        interior: player.interior,
-        cannons: player.cannons,
-        playerId: player.id,
-        damagedWalls:
-          player.damagedWalls.size > 0 ? player.damagedWalls : undefined,
-      };
-    });
+    .map((player) => ({
+      walls: player.walls,
+      interior: player.interior,
+      cannons: player.cannons,
+      playerId: player.id,
+      damagedWalls:
+        player.damagedWalls.size > 0 ? player.damagedWalls : undefined,
+    }));
 }
 
 function buildHomeTowersByIndex(state: GameState): Map<number, number> {
