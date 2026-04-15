@@ -12,6 +12,7 @@ import { setMode } from "../runtime/runtime-state.ts";
 import { isHostInContext } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
+  BATTLE_COUNTDOWN,
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
@@ -203,7 +204,10 @@ const runtime: GameRuntime = createGameRuntime({
 
     // ── Watcher: per-frame state apply ────────────────────────────────
     tickWatcher: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
-    watcherTiming: ctx.watcher.timing,
+    watcherBeginBattle: (nowMs) => {
+      ctx.watcher.timing.countdownStartTime = nowMs;
+      ctx.watcher.timing.countdownDuration = BATTLE_COUNTDOWN;
+    },
 
     // ── Both roles: cross-machine merging ─────────────────────────────
     extendCrosshairs: (crosshairs, dt) =>

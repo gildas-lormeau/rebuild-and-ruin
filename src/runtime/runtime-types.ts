@@ -96,7 +96,6 @@ import type {
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { WatcherTimingState } from "./runtime-tick-context.ts";
 
 export type { FrameContext } from "../shared/core/types.ts";
 
@@ -171,8 +170,10 @@ export interface OnlinePhaseTicks {
   /** Watcher: drive the per-frame state apply (replaces the host tick on
    *  non-host machines). Implementation lives entirely in `online/`. */
   tickWatcher?: (dt: number) => void;
-  /** Watcher: timing state for the non-host battle countdown sync. */
-  watcherTiming?: WatcherTimingState;
+  /** Watcher: record the battle-countdown start so the non-host display can
+   *  sync to it. Called unconditionally from `beginBattle`; host wiring is a
+   *  no-op (host drives its own countdown via `state.battleCountdown`). */
+  watcherBeginBattle?: (nowMs: number) => void;
 
   // ── Both roles: cross-machine merging ──────────────────────────────────
   /** Both: extend the locally collected crosshair list with remote-human

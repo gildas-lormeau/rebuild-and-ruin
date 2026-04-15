@@ -503,7 +503,7 @@ function noopHostPhaseTicks(): OnlinePhaseTicks {
     piecePhantomDedup: () => NOOP_DEDUP_CHANNEL,
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
-    // tickWatcher / watcherTiming intentionally omitted — host-only stub.
+    // tickWatcher / watcherBeginBattle intentionally omitted — host-only stub.
   };
 }
 

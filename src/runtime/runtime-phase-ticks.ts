@@ -432,11 +432,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     runtimeState.state.battleCountdown = BATTLE_COUNTDOWN;
     resetAccum(runtimeState.accum, ACCUM_BATTLE);
     setMode(runtimeState, Mode.GAME);
-    // Watcher timing: record countdown start for non-host clients
-    if (!runtimeState.frameMeta.hostAtFrameStart && online?.watcherTiming) {
-      online.watcherTiming.countdownStartTime = deps.timing.now();
-      online.watcherTiming.countdownDuration = BATTLE_COUNTDOWN;
-    }
+    online?.watcherBeginBattle?.(deps.timing.now());
     deps.onBeginBattle?.();
   }
 

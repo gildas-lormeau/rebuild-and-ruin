@@ -54,6 +54,7 @@ import {
   type WatcherState,
   type WatcherTickContext,
 } from "../src/online/online-watcher-tick.ts";
+import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
 import { NOOP_DEDUP_CHANNEL } from "../src/shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
@@ -234,14 +235,17 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
 }
 
 /** Watcher-side `OnlinePhaseTicks` with real `tickWatcher` wired plus the
- *  `watcherTiming` handle the runtime reads for battle countdown sync. */
+ *  `watcherBeginBattle` hook the runtime calls to sync the battle countdown. */
 function buildWatcherPhaseTicks(
   ctx: WatcherTickContext,
   watcherState: WatcherState,
 ): OnlinePhaseTicks {
   return {
     tickWatcher: (dt) => tickWatcher(watcherState, dt, ctx),
-    watcherTiming: watcherState.timing,
+    watcherBeginBattle: (nowMs) => {
+      watcherState.timing.countdownStartTime = nowMs;
+      watcherState.timing.countdownDuration = BATTLE_COUNTDOWN;
+    },
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
   };
