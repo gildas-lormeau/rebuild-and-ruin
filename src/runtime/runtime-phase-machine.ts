@@ -407,11 +407,12 @@ const CANNON_PLACE_DONE: Transition = {
       const msg = ctx.incomingMsg as BattleStartData;
       // See host mutate comment — snapshot before applyBattleStart so the
       // battle / modifier banner reveals the modifier's tile changes.
-      // `applyBattleStart` is the watcher-side counterpart to
-      // `enterBattlePhase`: when it returns, state is already in
-      // Phase.BATTLE with recomputed, post-modifier territory.
+      // `applyBattleStart` applies post-modifier tiles + recomputes
+      // territory; the machine owns the phase flip (uniform with every
+      // other watcher checkpoint apply).
       ctx.snapshotForNextBanner();
       ctx.checkpoint?.applyBattleStart?.(msg);
+      setPhase(ctx.state, Phase.BATTLE);
       return {
         modifierDiff: msg.modifierDiff ?? null,
         flights: msg.flights ?? [],

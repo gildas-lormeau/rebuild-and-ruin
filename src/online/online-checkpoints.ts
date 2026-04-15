@@ -2,7 +2,6 @@ import {
   applyCheckpointModifierTiles,
   recomputeAllTerritory,
   rehydrateComboTracker,
-  setPhase,
 } from "../game/index.ts";
 import type {
   BattleStartData,
@@ -12,7 +11,6 @@ import type {
 } from "../protocol/checkpoint-data.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
-import { Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
@@ -76,9 +74,11 @@ export function applyCannonStartCheckpoint(
 }
 
 /** Apply a battle-start checkpoint received from the host. Watcher-side
- *  counterpart to `enterBattlePhase` — when this returns, `state` is in
- *  `Phase.BATTLE` with post-modifier tiles and recomputed territory, so
- *  the caller just needs to return the modifier / flights result.
+ *  counterpart to `enterBattlePhase` — when this returns, `state` has
+ *  post-modifier tiles and recomputed territory. Phase flip to
+ *  `Phase.BATTLE` is the machine's responsibility (uniform with every
+ *  other watcher checkpoint apply fn): the caller does
+ *  `setPhase(state, Phase.BATTLE)` after this returns.
  *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears watcher crosshairs via resetWatcherCrosshairs(), re-initializes
@@ -109,12 +109,10 @@ export function applyBattleStartCheckpoint(
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
 
-  // Territory recompute must run on the post-modifier map; setPhase fires
-  // the PHASE_START bus event that matches host's enterBattleFromCannon.
-  // Keeping both inside the checkpoint completes the host/watcher symmetry
-  // at the machine layer: both roles now do a single source-of-truth call.
+  // Territory recompute runs on the post-modifier map. Phase flip happens
+  // in the machine's watcher mutate, uniform with cannon-start / build-start
+  // / build-end (which also don't setPhase inside the checkpoint apply fn).
   recomputeAllTerritory(deps.state);
-  setPhase(deps.state, Phase.BATTLE);
 }
 
 /** Apply a build-start checkpoint received from the host.
