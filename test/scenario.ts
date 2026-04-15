@@ -64,7 +64,6 @@ import {
   type GameEventMap,
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
-import type { OnlineClient } from "../src/online/online-stores.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
@@ -98,9 +97,10 @@ export interface ScenarioOptions {
   /** Number of rounds before the game ends. Defaults to 3. */
   rounds?: number;
   /** When true, runs the runtime in "online host" mode with no-op
-   *  network broadcasts. Used by host-vs-local sync tests to verify that
-   *  the online code path produces the same state as the local one. The
-   *  runtime never receives any messages because there are no peers. */
+   *  network broadcasts. The runtime takes the online code path (wires
+   *  OnlinePhaseTicks) but all broadcasts go to `sc.sentMessages` with
+   *  no peer on the other end. Tests use this to assert on outbound
+   *  wire messages without a second runtime. */
   hostMode?: boolean;
   /** Initial dev speed multiplier (1..16, integer). Drives the sub-step
    *  loop in `mainLoop` — at speed=N, each tick advances the game by N
@@ -129,13 +129,6 @@ export interface ScenarioOptions {
   renderer?:
     | "ascii"
     | { canvas: CanvasRecorder; observer?: RenderObserver };
-  /** When `"host"`, wires the production `handleServerMessage` dispatcher
-   *  so `deliverMessage()` routes through the real receive path. Forces
-   *  `hostMode: true`. Replaces the separate `createOnlineHarness` API. */
-  online?: "host";
-  /** Slots to treat as remote-controlled when `online: "host"` is set.
-   *  Ignored when `online` is not set. Defaults to `{1}`. */
-  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
 }
 
 export interface Scenario extends Disposable {
@@ -206,10 +199,6 @@ export interface Scenario extends Disposable {
    *  On-demand debug primitive: cheaper than rendering the whole ASCII
    *  grid and counting characters to assert on a specific tile. */
   tileAt(row: number, col: number): TileInspection;
-  /** Online client — only present when `online: "host"` was passed.
-   *  Provides access to `onlineClient.ctx.session`, `.ctx.watcher`,
-   *  `.ctx.dedup` for asserting dispatcher state after `deliverMessage`. */
-  readonly onlineClient?: OnlineClient;
   /** Replace the controller at `playerId` with an `AiAssistedHumanController`
    *  — AI drives gameplay but every placement/fire flows through the same
    *  `network.send` pathway humans use, producing wire messages on
@@ -334,19 +323,6 @@ export function loadSeed(
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
-  // Online host mode — delegate to createOnlineHarness (lazy-imported to
-  // avoid pulling the DOM shim into every test that doesn't need it).
-  if (opts.online === "host") {
-    const { createOnlineHarness } = await import("./online-headless.ts");
-    const harness = await createOnlineHarness({
-      ...opts,
-      remotePlayerSlots: opts.remotePlayerSlots,
-    });
-    const scenario = harness.scenario;
-    (scenario as { onlineClient: OnlineClient }).onlineClient = harness.client;
-    return scenario;
-  }
-
   const sentMessages: GameMessage[] = [];
   const ascii =
     opts.renderer === "ascii" ? createAsciiRenderer() : undefined;
@@ -364,9 +340,7 @@ export async function createScenario(
 }
 
 /** Translate `ScenarioOptions` into the matching `createHeadlessRuntime`
- *  options bag. Exported so the online-loopback wrapper
- *  (`test/online-headless.ts`) can apply the exact same wiring rules
- *  before forcing its host-mode-specific overrides. */
+ *  options bag. */
 export function buildHeadlessOptions(
   opts: ScenarioOptions,
   sentMessages: GameMessage[],
@@ -396,11 +370,7 @@ export function buildHeadlessOptions(
   };
 }
 
-/** Build a `Scenario` over an existing `HeadlessRuntime`. Exported so the
- *  online-loopback wrapper (`test/online-headless.ts`) can construct its own
- *  headless first, plug the production `handleServerMessage` dispatcher into
- *  the receive seam, then hand the result back to tests with the same shape
- *  `createScenario` returns. */
+/** Build a `Scenario` over an existing `HeadlessRuntime`. */
 export function wrapHeadless(
   headless: HeadlessRuntime,
   sentMessages: readonly GameMessage[],
@@ -490,11 +460,6 @@ export function wrapHeadless(
       // Module state we DO NOT clean up — and intentionally so:
       //   - `lastTouchTime` in `src/input/input-dispatch.ts` (a single number,
       //     seeded to -Infinity, no cross-test interference).
-      //   - `online-runtime-deps.ts:initDeps` reassigns module-level
-      //     dispatcher state on every call. Sequential
-      //     `createOnlineHarness` calls overwrite each other's wiring
-      //     cleanly, but parallel test execution would race — see
-      //     test/online-headless.ts header for the details.
       //   - The duplicate-literals baseline + jscpd state is also module-
       //     level but only relevant to lint, not runtime tests.
     },
