@@ -5,18 +5,27 @@
  * CANNON_PLACE, CANNON_PLACE → BATTLE, BATTLE → WALL_BUILD, reselect, game
  * over) is an entry in `TRANSITIONS`. Each entry declares:
  *
- *   - `from` / `toPhase`: source and target phase (or `"game-over"` sentinel)
+ *   - `from`: source phase asserted on host dispatch. `"*"` opts out of
+ *     the guard (game-over transitions may fire from any phase). The
+ *     assertion is host-only because the watcher collapses multiple host
+ *     sources into a single dispatched id (e.g. CANNON_START arrives
+ *     after host's `castle-select-done` / `castle-reselect-done` /
+ *     `advance-to-cannon`, all handled via `advance-to-cannon` on the
+ *     watcher). Per-transition target phase lives in the docstring, not
+ *     in a field, because several transitions don't setPhase themselves
+ *     (`wall-build-done` stays in WALL_BUILD; the continuation flips it).
  *   - `mutate.host` (required) and `mutate.watcher` (optional, omitted for
  *     host-only transitions like `round-limit-reached` /
- *     `last-player-standing` — the runner throws if a watcher ctx
- *     dispatches one). Host runs game logic; watcher applies an incoming
- *     checkpoint.
+ *     `last-player-standing` / `ceasefire` — the runner throws if a
+ *     watcher ctx dispatches one). Host runs game logic; watcher applies
+ *     an incoming checkpoint.
  *   - `postMutate` (optional): shared sync that runs synchronously after
  *     `mutate` returns and BEFORE the first display step. Use for work
  *     that is genuinely identical between host and watcher (e.g.
  *     rebuilding `battleAnim` snapshots from the freshly-mutated state).
- *   - `display`: the ordered UI steps that play between mutation and arrival
- *     at `to` (banner / score-overlay / life-lost-dialog / upgrade-pick).
+ *   - `display`: ordered UI steps that play between mutation and the
+ *     terminal frame (banner / score-overlay / life-lost-dialog /
+ *     upgrade-pick).
  *   - `postDisplay` (optional, per-role): side-effects that complete the
  *     transition after the display steps (e.g. balloon-anim vs begin-battle).
  *
@@ -84,10 +93,6 @@ export type TransitionId =
   | "round-limit-reached"
   | "last-player-standing";
 
-/** Target of a transition. `"game-over"` is a sentinel — the machine routes
- *  it to the game-over frame rather than a Phase. */
-type TransitionTarget = Phase | "game-over";
-
 /** Opaque result produced by a transition's mutate fn, threaded through the
  *  display steps. */
 interface TransitionResult {
@@ -151,8 +156,9 @@ interface PostDisplayFns {
 
 interface Transition {
   readonly id: TransitionId;
+  /** Source phase asserted on host dispatch. `"*"` opts out of the guard
+   *  (used by game-over transitions which may fire from any phase). */
   readonly from: Phase | "*";
-  readonly toPhase: TransitionTarget;
   readonly mutate: MutationFns;
   /** Shared post-mutation sync. Runs after mutate, before display. Applies
    *  to both roles; omit if the transition has no shared post-work. */
@@ -377,7 +383,6 @@ const STEP_UPGRADE_PICK = "upgrade-pick" as const;
 const CANNON_PLACE_DONE: Transition = {
   id: "cannon-place-done",
   from: Phase.CANNON_PLACE,
-  toPhase: Phase.BATTLE,
   mutate: {
     host: (ctx) => {
       ctx.sound.drumsStop();
@@ -448,12 +453,12 @@ const CANNON_PLACE_DONE: Transition = {
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
  *  does NOT call `setPhase`: the continuation (reselect vs continue vs
  *  game-over) is driven by the life-lost resolve chain, which fires the
- *  next transition (castle-reselect-done / castle-select-done-for-cannons
- *  / game-over) once the user resolves the dialog. */
+ *  next transition (castle-reselect-done / advance-to-cannon /
+ *  round-limit-reached / last-player-standing) once the user resolves
+ *  the dialog. */
 const WALL_BUILD_DONE: Transition = {
   id: "wall-build-done",
   from: Phase.WALL_BUILD,
-  toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
       ctx.finalizeLocalControllersBuildPhase?.();
@@ -504,16 +509,15 @@ const BUILD_ENTRY_DISPLAY: readonly DisplayStep[] = [
     subtitle: BANNER_BUILD_SUB,
   },
 ];
-/** Shared postDisplay for the ceasefire path — mirrors `battle-done`'s
- *  host postDisplay (clear upgrade dialog + setMode + startBuildPhaseLocal)
- *  with a no-op watcher since the ceasefire transition is host-only. */
-const BUILD_ENTRY_POSTDISPLAY_CEASEFIRE: PostDisplayFns = {
-  host: (ctx) => {
-    ctx.clearUpgradePickDialog?.();
-    ctx.setMode(Mode.GAME);
-    ctx.startBuildPhaseLocal?.();
-  },
-  watcher: () => {},
+/** Shared host postDisplay for every transition that enters WALL_BUILD:
+ *  tear down any upgrade-pick dialog, flip the UI mode back to GAME, and
+ *  run the host-side build-phase setup (score-delta reset, controller
+ *  startBuildPhase, accumulator resets). Used by both `battle-done` and
+ *  `ceasefire`. */
+const buildEntryHostPostDisplay = (ctx: PhaseTransitionCtx): void => {
+  ctx.clearUpgradePickDialog?.();
+  ctx.setMode(Mode.GAME);
+  ctx.startBuildPhaseLocal?.();
 };
 /** `battle-done` — BATTLE → WALL_BUILD.
  *
@@ -532,7 +536,6 @@ const BUILD_ENTRY_POSTDISPLAY_CEASEFIRE: PostDisplayFns = {
 const BATTLE_DONE: Transition = {
   id: "battle-done",
   from: Phase.BATTLE,
-  toPhase: Phase.WALL_BUILD,
   mutate: {
     host: (ctx) => {
       ctx.endBattleLocalControllers?.();
@@ -557,11 +560,7 @@ const BATTLE_DONE: Transition = {
   postMutate: clearBattleAnim,
   display: BUILD_ENTRY_DISPLAY,
   postDisplay: {
-    host: (ctx) => {
-      ctx.clearUpgradePickDialog?.();
-      ctx.setMode(Mode.GAME);
-      ctx.startBuildPhaseLocal?.();
-    },
+    host: buildEntryHostPostDisplay,
     watcher: (ctx) => {
       ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
       ctx.clearUpgradePickDialog?.();
@@ -584,7 +583,6 @@ const BATTLE_DONE: Transition = {
 const CEASEFIRE: Transition = {
   id: "ceasefire",
   from: Phase.CANNON_PLACE,
-  toPhase: Phase.WALL_BUILD,
   mutate: {
     host: (ctx) => {
       ctx.sound.drumsStop();
@@ -595,11 +593,35 @@ const CEASEFIRE: Transition = {
       ctx.broadcast?.buildStart?.(ctx.state);
       return {};
     },
-    watcher: () => ({}),
+    // No watcher mutate: host broadcasts BUILD_START and the watcher routes
+    // through `battle-done`. Accidental dispatch from a watcher ctx throws
+    // via the runner's missing-mutate guard.
   },
   postMutate: clearBattleAnim,
   display: BUILD_ENTRY_DISPLAY,
-  postDisplay: BUILD_ENTRY_POSTDISPLAY_CEASEFIRE,
+  postDisplay: { host: buildEntryHostPostDisplay },
+};
+/** Shared watcher mutate for every transition that enters CANNON_PLACE
+ *  (`castle-select-done`, `castle-reselect-done`, `advance-to-cannon`).
+ *  The watcher dispatches one id regardless of host-side source, so all
+ *  three transitions point their `mutate.watcher` at this fn.
+ *  `applyCannonStart` restores `state.timer` from the checkpoint payload —
+ *  no separate override needed since the host serializes it right after
+ *  `enterCannonPhase` (which set it to `cannonPlaceTimer`). */
+const CANNON_ENTRY_WATCHER_MUTATE = (
+  ctx: PhaseTransitionCtx,
+): TransitionResult => {
+  const msg = ctx.incomingMsg as CannonStartData;
+  ctx.snapshotForNextBanner();
+  ctx.checkpoint?.applyCannonStart?.(msg);
+  setPhase(ctx.state, Phase.CANNON_PLACE);
+  return {};
+};
+/** Shared watcher postDisplay paired with `CANNON_ENTRY_WATCHER_MUTATE`. */
+const CANNON_ENTRY_WATCHER_POSTDISPLAY = (ctx: PhaseTransitionCtx): void => {
+  ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
+  ctx.setMode(Mode.GAME);
+  ctx.watcher?.initLocalCannonControllerIfActive();
 };
 /** `castle-select-done` — CASTLE_SELECT → CANNON_PLACE (round 1 / initial).
  *
@@ -612,25 +634,9 @@ const CEASEFIRE: Transition = {
  *
  *  postDisplay (host): initialize local cannon controllers (placeCannons +
  *  cursor + startCannonPhase) + setMode(GAME). */
-const CANNON_ENTRY_WATCHER_MUTATE = (
-  ctx: PhaseTransitionCtx,
-): TransitionResult => {
-  const msg = ctx.incomingMsg as CannonStartData;
-  ctx.snapshotForNextBanner();
-  ctx.checkpoint?.applyCannonStart?.(msg);
-  setPhase(ctx.state, Phase.CANNON_PLACE);
-  ctx.state.timer = ctx.state.cannonPlaceTimer;
-  return {};
-};
-const CANNON_ENTRY_WATCHER_POSTDISPLAY = (ctx: PhaseTransitionCtx): void => {
-  ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
-  ctx.setMode(Mode.GAME);
-  ctx.watcher?.initLocalCannonControllerIfActive();
-};
 const CASTLE_SELECT_DONE: Transition = {
   id: "castle-select-done",
   from: Phase.CASTLE_SELECT,
-  toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
       ctx.soundDrumsQuiet?.();
@@ -668,7 +674,6 @@ const CASTLE_SELECT_DONE: Transition = {
 const CASTLE_RESELECT_DONE: Transition = {
   id: "castle-reselect-done",
   from: Phase.CASTLE_RESELECT,
-  toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
       ctx.soundDrumsQuiet?.();
@@ -702,7 +707,6 @@ const CASTLE_RESELECT_DONE: Transition = {
 const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
-  toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
       ctx.soundDrumsQuiet?.();
@@ -727,10 +731,14 @@ const ADVANCE_TO_CANNON: Transition = {
 const ROUND_LIMIT_REACHED: Transition = {
   id: "round-limit-reached",
   from: "*",
-  toPhase: "game-over",
   mutate: {
     host: (ctx) => {
-      if (ctx.winner) ctx.endGame?.(ctx.winner);
+      if (!ctx.winner) {
+        throw new Error(
+          "round-limit-reached / last-player-standing dispatched without ctx.winner",
+        );
+      }
+      ctx.endGame?.(ctx.winner);
       return {};
     },
   },
@@ -743,7 +751,6 @@ const ROUND_LIMIT_REACHED: Transition = {
 const LAST_PLAYER_STANDING: Transition = {
   id: "last-player-standing",
   from: "*",
-  toPhase: "game-over",
   mutate: ROUND_LIMIT_REACHED.mutate,
   display: [],
 };
@@ -795,6 +802,20 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     throw new Error(`runTransition: unknown transition id "${id}"`);
   }
 
+  // Host-only source-phase guard. Watcher collapses multiple host
+  // sources into a single dispatched id (e.g. `advance-to-cannon` fires
+  // for any of host's three CANNON_START-broadcasting transitions), so
+  // the watcher can legitimately be in a different phase than `from`.
+  if (
+    ctx.role === ROLE_HOST &&
+    transition.from !== "*" &&
+    ctx.state.phase !== transition.from
+  ) {
+    throw new Error(
+      `runTransition: transition "${id}" expects phase "${transition.from}" but state is in "${ctx.state.phase}"`,
+    );
+  }
+
   // No capture here — snapshotting is the responsibility of each mutation
   // site inside the mutate fns (and the upgrade-pick display step). See
   // `snapshotForNextBanner` on `PhaseTransitionCtx`.
@@ -817,24 +838,28 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   });
 }
 
+assertLifeLostStepIsTerminal();
+
 /** A `life-lost-dialog` step is terminal — the resolve chain dispatches the
  *  next transition externally, so the runner does not invoke `onDone` after
  *  it. Enforce at module load that any transition containing this step has
  *  it as the LAST display entry and declares no `postDisplay` (which would
- *  silently never run). */
-for (const transition of TRANSITIONS) {
-  const lastIdx = transition.display.length - 1;
-  for (let idx = 0; idx < transition.display.length; idx++) {
-    if (transition.display[idx]!.kind !== STEP_LIFE_LOST_DIALOG) continue;
-    if (idx !== lastIdx) {
-      throw new Error(
-        `Transition "${transition.id}": life-lost-dialog must be the last display step (it is terminal)`,
-      );
-    }
-    if (transition.postDisplay) {
-      throw new Error(
-        `Transition "${transition.id}": cannot define postDisplay — life-lost-dialog is terminal and the runner never reaches postDisplay`,
-      );
+ *  silently never run). Called once at module init next to `BY_ID`. */
+function assertLifeLostStepIsTerminal(): void {
+  for (const transition of TRANSITIONS) {
+    const lastIdx = transition.display.length - 1;
+    for (let idx = 0; idx < transition.display.length; idx++) {
+      if (transition.display[idx]!.kind !== STEP_LIFE_LOST_DIALOG) continue;
+      if (idx !== lastIdx) {
+        throw new Error(
+          `Transition "${transition.id}": life-lost-dialog must be the last display step (it is terminal)`,
+        );
+      }
+      if (transition.postDisplay) {
+        throw new Error(
+          `Transition "${transition.id}": cannot define postDisplay — life-lost-dialog is terminal and the runner never reaches postDisplay`,
+        );
+      }
     }
   }
 }
