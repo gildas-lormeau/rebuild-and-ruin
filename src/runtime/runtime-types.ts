@@ -481,6 +481,11 @@ export interface RuntimeLobby {
 
 export interface RuntimeLifecycle {
   startGame: () => Promise<void>;
+  /** Full reset + fresh bootstrap — production-equivalent to the rematch
+   *  button on the game-over screen. Clears game-over / demo-timer state,
+   *  then calls `startGame`. Tests use this via `sc.rematch()` to drive
+   *  the "finish game 1, start game 2 on the same runtime" path. */
+  rematch: () => void | Promise<void>;
   resetUIState: () => void;
 }
 

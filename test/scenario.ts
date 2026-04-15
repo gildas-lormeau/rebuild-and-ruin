@@ -224,6 +224,13 @@ export interface Scenario extends Disposable {
     playerId: ValidPlayerSlot,
     opts?: { strategySeed?: number },
   ): Promise<void>;
+  /** Start a fresh game on the same runtime — production-equivalent to the
+   *  rematch button on the game-over screen. Installs a new `state` (with
+   *  a new `state.bus`) via `bootstrapGame`, which in turn re-runs the
+   *  `onStateReady` hook (e.g. rebinds sound / haptics / stats observers
+   *  to the new bus). Use for multi-game tests. Calling this throws away
+   *  `sc.state` identity — re-read `sc.state` after `await sc.rematch()`. */
+  rematch(): Promise<void>;
 }
 
 /** Synthetic input dispatcher backed by real `EventTarget`s. Each call
@@ -414,6 +421,9 @@ export function wrapHeadless(
     input,
     tileAt: (row, col) =>
       inspectTile(headless.runtime.runtimeState.state, row, col),
+    rematch: async () => {
+      await headless.runtime.lifecycle.rematch();
+    },
     installAssistedController: async (playerId, opts) => {
       const { AiAssistedHumanController } = await import(
         "../src/controllers/controller-ai-assisted-human.ts"

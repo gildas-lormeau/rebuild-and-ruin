@@ -770,6 +770,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lobby: { renderLobby: lobby.renderLobby },
     lifecycle: {
       startGame: lifecycle.startGame,
+      rematch: lifecycle.rematch,
       resetUIState: lifecycle.resetUIState,
     },
     phaseTicks: {
