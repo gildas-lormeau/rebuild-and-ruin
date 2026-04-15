@@ -230,7 +230,7 @@
     ]
   },
   {
-    "name": "game & runtime composition",
+    "name": "system composition",
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
@@ -274,7 +274,7 @@
     ]
   },
   {
-    "name": "online session lifecycle",
+    "name": "session & runtime lifecycle",
     "tier": "roots",
     "files": [
       "src/online/online-phase-transitions.ts",
@@ -282,7 +282,7 @@
     ]
   },
   {
-    "name": "online wiring",
+    "name": "app wiring",
     "tier": "roots",
     "files": [
       "src/main.ts",
@@ -297,7 +297,8 @@
     ]
   },
   {
-    "name": "layer 18",
+    "name": "online client entry",
+    "tier": "roots",
     "files": [
       "src/online-client.ts"
     ]

@@ -31,6 +31,13 @@ minimum import-depth layer. Each group has a `tier` field: **types** (L0–L4), 
 **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L18). Phase 1 audits by domain
 (vertical coherence), Phase 2 audits by tier (horizontal consistency across domains).
 
+**Reading order.** `.import-layers.json` is an array where **array index = layer number**: the
+*first* entry is L0 (leaves, no deps), the *last* entry is L18 (top — `online-client.ts`).
+Imports flow **downward by number** (L18 may import from L0, never the reverse). When tracing
+from an entry point, scroll to the bottom of the file first; when tracing a dependency chain
+toward leaves, scroll up. Layer numbers are mechanical (`layer(f) = 1 + max(layer(dep))`), not
+semantic — a file's layer is determined by its deepest import, not by what "feels" architectural.
+
 ## Execution
 
 ### Phase 1: Parallel domain audits

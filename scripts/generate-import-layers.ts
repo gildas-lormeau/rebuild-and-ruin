@@ -26,56 +26,15 @@
  *   --server        Include server/ files in the analysis
  */
 
-import { Project } from "ts-morph";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
-
-const args = process.argv.slice(2);
-const checkMode = args.includes("--check");
-const printOnly = args.includes("--print");
-const includeServer = args.includes("--server");
-
-const LAYER_FILE = ".import-layers.json";
-
-// ---------------------------------------------------------------------------
-// Layer file format
-// ---------------------------------------------------------------------------
+import { Project } from "ts-morph";
 
 interface LayerGroup {
   name: string;
   tier?: string;
   files: string[];
-}
-
-// ---------------------------------------------------------------------------
-// Parse imports — shared by both modes
-// ---------------------------------------------------------------------------
-
-const project = new Project({
-  tsConfigFilePath: "tsconfig.json",
-  skipAddingFilesFromTsConfig: true,
-});
-
-const globs = ["src/**/*.ts"];
-if (includeServer) globs.push("server/**/*.ts");
-for (const glob of globs) {
-  project.addSourceFilesAtPaths(glob);
-}
-
-/** Normalize a file path to a short key like "src/types.ts" */
-function fileKey(absPath: string): string {
-  return path.relative(process.cwd(), absPath).replace(/\\/g, "/");
-}
-
-/** Resolve a relative import specifier to a file key. */
-function resolveImport(fromFile: string, specifier: string): string | null {
-  const dir = path.dirname(fromFile);
-  return fileKey(path.resolve(dir, specifier));
 }
 
 interface ImportEdge {
@@ -84,9 +43,36 @@ interface ImportEdge {
   typeOnly: boolean;
 }
 
+const args = process.argv.slice(2);
+const checkMode = args.includes("--check");
+const printOnly = args.includes("--print");
+const includeServer = args.includes("--server");
+const LAYER_FILE = ".import-layers.json";
+const project = new Project({
+  tsConfigFilePath: "tsconfig.json",
+  skipAddingFilesFromTsConfig: true,
+});
+const globs = ["src/**/*.ts"];
 const allFiles = new Set<string>();
 const edges: ImportEdge[] = [];
 const edgesByFile = new Map<string, Set<string>>();
+const layers = new Map<string, number>();
+const visiting = new Set<string>();
+// Build groups sorted by layer then alphabetically
+const groupMap = new Map<number, string[]>();
+const maxLayer = Math.max(...layers.values());
+const pad = String(maxLayer).length;
+// If a layer file already exists, preserve group names and tiers for layers
+// that still exist at the same index
+const existingNames = new Map<number, string>();
+const existingTiers = new Map<number, string>();
+const outputGroups: LayerGroup[] = [];
+
+if (includeServer) globs.push("server/**/*.ts");
+
+for (const glob of globs) {
+  project.addSourceFilesAtPaths(glob);
+}
 
 for (const sf of project.getSourceFiles()) {
   allFiles.add(fileKey(sf.getFilePath()));
@@ -115,11 +101,107 @@ for (const sf of project.getSourceFiles()) {
   // needs at compile time), not to the architectural dependency graph.
 }
 
-// ---------------------------------------------------------------------------
-// Read layer file → file-to-layer map
-// ---------------------------------------------------------------------------
+/** Resolve a relative import specifier to a file key. */
+function resolveImport(fromFile: string, specifier: string): string | null {
+  const dir = path.dirname(fromFile);
+  return fileKey(path.resolve(dir, specifier));
+}
 
-function readLayerFile(): { groups: LayerGroup[]; fileToLayer: Map<string, number>; layerNames: Map<number, string>; layerTiers: Map<number, string> } {
+/** Normalize a file path to a short key like "src/types.ts" */
+function fileKey(absPath: string): string {
+  return path.relative(process.cwd(), absPath).replace(/\\/g, "/");
+}
+
+if (checkMode) {
+  if (!fs.existsSync(LAYER_FILE)) {
+    console.error(
+      `${LAYER_FILE} not found. Run without --check first to generate it.`,
+    );
+    process.exit(1);
+  }
+
+  const { fileToLayer, layerNames, layerTiers } = readLayerFile();
+
+  function tierTag(layer: number): string {
+    const tier = layerTiers.get(layer);
+    return tier ? ` (${tier})` : "";
+  }
+
+  // Files missing from the layer map — fail so new files can't ship unlayered.
+  // Run without --check to regenerate and assign a layer based on the file's imports.
+  const missing: string[] = [];
+  for (const file of allFiles) {
+    if (!fileToLayer.has(file)) missing.push(file);
+  }
+  if (missing.length > 0) {
+    console.error(`\n✗ ${missing.length} file(s) not in ${LAYER_FILE}:`);
+    for (const f of missing.sort()) console.error(`  ${f}`);
+    console.error(
+      `\nRun: deno run -A scripts/generate-import-layers.ts${includeServer ? " --server" : ""}`,
+    );
+    process.exit(1);
+  }
+
+  // Collect violations: from_layer < to_layer means an upward import
+  interface Violation {
+    from: string;
+    fromLayer: number;
+    fromGroup: string;
+    to: string;
+    toLayer: number;
+    toGroup: string;
+    typeOnly: boolean;
+  }
+  const violations: Violation[] = [];
+
+  for (const edge of edges) {
+    const fromLayer = fileToLayer.get(edge.from) ?? 0;
+    const toLayer = fileToLayer.get(edge.to) ?? 0;
+    if (fromLayer < toLayer) {
+      if (!violations.some((v) => v.from === edge.from && v.to === edge.to)) {
+        violations.push({
+          from: edge.from,
+          fromLayer,
+          fromGroup: layerNames.get(fromLayer) ?? `layer ${fromLayer}`,
+          to: edge.to,
+          toLayer,
+          toGroup: layerNames.get(toLayer) ?? `layer ${toLayer}`,
+          typeOnly: edge.typeOnly,
+        });
+      }
+    }
+  }
+
+  violations.sort(
+    (a, b) => a.fromLayer - b.fromLayer || a.from.localeCompare(b.from),
+  );
+
+  if (violations.length === 0) {
+    console.log(
+      `\n✔ No layer violations (${allFiles.size} files, ${edges.length} imports checked)\n`,
+    );
+    process.exit(0);
+  }
+
+  console.log(`\n✘ ${violations.length} layer violation(s) found:\n`);
+  for (const v of violations) {
+    const tag = v.typeOnly ? " (type-only)" : "";
+    const fromTier = tierTag(v.fromLayer);
+    const toTier = tierTag(v.toLayer);
+    console.log(
+      `  ${v.from} [${v.fromGroup}${fromTier}] → ${v.to} [${v.toGroup}${toTier}]${tag}`,
+    );
+  }
+  console.log("");
+  process.exit(1);
+}
+
+function readLayerFile(): {
+  groups: LayerGroup[];
+  fileToLayer: Map<string, number>;
+  layerNames: Map<number, string>;
+  layerTiers: Map<number, string>;
+} {
   const raw = fs.readFileSync(LAYER_FILE, "utf-8");
   const groups: LayerGroup[] = JSON.parse(raw);
 
@@ -139,89 +221,9 @@ function readLayerFile(): { groups: LayerGroup[]; fileToLayer: Map<string, numbe
   return { groups, fileToLayer, layerNames, layerTiers };
 }
 
-// ---------------------------------------------------------------------------
-// --check mode: lint against intended layer map
-// ---------------------------------------------------------------------------
-
-if (checkMode) {
-  if (!fs.existsSync(LAYER_FILE)) {
-    console.error(`${LAYER_FILE} not found. Run without --check first to generate it.`);
-    process.exit(1);
-  }
-
-  const { fileToLayer, layerNames, layerTiers } = readLayerFile();
-
-  function tierTag(layer: number): string {
-    const tier = layerTiers.get(layer);
-    return tier ? ` (${tier})` : "";
-  }
-
-  // Warn about files missing from the layer map
-  const missing: string[] = [];
-  for (const file of allFiles) {
-    if (!fileToLayer.has(file)) missing.push(file);
-  }
-  if (missing.length > 0) {
-    console.log(`\nWarning: ${missing.length} file(s) not in ${LAYER_FILE} (treated as layer 0):`);
-    for (const f of missing.sort()) console.log(`  ${f}`);
-  }
-
-  // Collect violations: from_layer < to_layer means an upward import
-  interface Violation {
-    from: string;
-    fromLayer: number;
-    fromGroup: string;
-    to: string;
-    toLayer: number;
-    toGroup: string;
-    typeOnly: boolean;
-  }
-  const violations: Violation[] = [];
-
-  for (const edge of edges) {
-    const fromLayer = fileToLayer.get(edge.from) ?? 0;
-    const toLayer = fileToLayer.get(edge.to) ?? 0;
-    if (fromLayer < toLayer) {
-      if (!violations.some(v => v.from === edge.from && v.to === edge.to)) {
-        violations.push({
-          from: edge.from,
-          fromLayer,
-          fromGroup: layerNames.get(fromLayer) ?? `layer ${fromLayer}`,
-          to: edge.to,
-          toLayer,
-          toGroup: layerNames.get(toLayer) ?? `layer ${toLayer}`,
-          typeOnly: edge.typeOnly,
-        });
-      }
-    }
-  }
-
-  violations.sort((a, b) => a.fromLayer - b.fromLayer || a.from.localeCompare(b.from));
-
-  if (violations.length === 0) {
-    console.log(`\n✔ No layer violations (${allFiles.size} files, ${edges.length} imports checked)\n`);
-    process.exit(0);
-  }
-
-  console.log(`\n✘ ${violations.length} layer violation(s) found:\n`);
-  for (const v of violations) {
-    const tag = v.typeOnly ? " (type-only)" : "";
-    const fromTier = tierTag(v.fromLayer);
-    const toTier = tierTag(v.toLayer);
-    console.log(
-      `  ${v.from} [${v.fromGroup}${fromTier}] → ${v.to} [${v.toGroup}${toTier}]${tag}`,
-    );
-  }
-  console.log("");
-  process.exit(1);
+for (const file of allFiles) {
+  computeLayer(file);
 }
-
-// ---------------------------------------------------------------------------
-// Default mode: compute layers from import graph
-// ---------------------------------------------------------------------------
-
-const layers = new Map<string, number>();
-const visiting = new Set<string>();
 
 function computeLayer(file: string): number {
   if (layers.has(file)) return layers.get(file)!;
@@ -244,38 +246,29 @@ function computeLayer(file: string): number {
   return layer;
 }
 
-for (const file of allFiles) {
-  computeLayer(file);
-}
-
-// Build groups sorted by layer then alphabetically
-const groupMap = new Map<number, string[]>();
 for (const [file, layer] of layers) {
   if (!groupMap.has(layer)) groupMap.set(layer, []);
   groupMap.get(layer)!.push(file);
 }
+
 for (const files of groupMap.values()) {
   files.sort();
 }
 
-const maxLayer = Math.max(...layers.values());
-const pad = String(maxLayer).length;
-
-// If a layer file already exists, preserve group names and tiers for layers
-// that still exist at the same index
-const existingNames = new Map<number, string>();
-const existingTiers = new Map<number, string>();
 if (fs.existsSync(LAYER_FILE)) {
   try {
-    const existing: LayerGroup[] = JSON.parse(fs.readFileSync(LAYER_FILE, "utf-8"));
+    const existing: LayerGroup[] = JSON.parse(
+      fs.readFileSync(LAYER_FILE, "utf-8"),
+    );
     for (let i = 0; i < existing.length; i++) {
       existingNames.set(i, existing[i]!.name);
       if (existing[i]!.tier) existingTiers.set(i, existing[i]!.tier!);
     }
-  } catch { /* ignore parse errors */ }
+  } catch {
+    /* ignore parse errors */
+  }
 }
 
-const outputGroups: LayerGroup[] = [];
 for (let l = 0; l <= maxLayer; l++) {
   const files = groupMap.get(l) ?? [];
   const name = existingNames.get(l) ?? `layer ${l}`;
@@ -284,11 +277,16 @@ for (let l = 0; l <= maxLayer; l++) {
 }
 
 // Print
-console.log(`\nImport layer map (${allFiles.size} files, ${maxLayer + 1} layers)\n`);
+console.log(
+  `\nImport layer map (${allFiles.size} files, ${maxLayer + 1} layers)\n`,
+);
+
 for (let l = 0; l <= maxLayer; l++) {
   const g = outputGroups[l]!;
   const tierLabel = g.tier ? ` [${g.tier}]` : "";
-  console.log(`  ${String(l).padStart(pad)}: ${g.name}${tierLabel}  (${g.files.length} files)`);
+  console.log(
+    `  ${String(l).padStart(pad)}: ${g.name}${tierLabel}  (${g.files.length} files)`,
+  );
   for (const f of g.files) {
     console.log(`      ${f}`);
   }

@@ -31,10 +31,10 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 `shared/` (types, constants, config) · `protocol/` (wire format: messages, routes, checkpoints) · `game/` (systems, phase logic) · `ai/` (AI strategy / decision logic only — no controllers) · `controllers/` (BaseController + Human + AI controller wrappers + factory) · `input/` (keyboard, mouse, touch handlers — true input only) · `render/` (canvas, sprites, layout, render UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle, UI deps-object contracts, sound/haptics observer sub-systems).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (16 groups in 5 tiers, `.import-layers.json`)
-Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L15).
-L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 subsystems → L9 system implementations → L10 assembly → L11 controllers → L12 orchestration → L13 wiring → L14 composition roots → L15 app roots. Imports must flow downward (higher layer imports lower).
-Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L12, `online-client.ts` at L15).
+### Module layers (19 groups in 5 tiers, `.import-layers.json`)
+Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
+L0 leaf modules → L1 foundational types & local entry → L2 derived types → L3 wire format & config types → L4 core game state & server stubs → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration & app entry → L13 wiring → L14 composition roots → L15 session & runtime lifecycle → L16 app wiring → L17 online composition root → L18 online client entry. Imports must flow downward (higher layer imports lower).
+Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L16, `online-client.ts` at L18).
 
 ### Type file organization (L1–L4)
 - `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
@@ -112,7 +112,8 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 ### Conventions
 - ESLint enforces min 2-char identifiers. When fixing a 1-letter name, choose an expressive name (e.g. `player`, `tower`), never a 2-letter abbreviation (`pl`, `tw`).
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
-- Always check `.import-layers.json` before placing new code in a file
+- Always check `.import-layers.json` before placing new code in a file. Array index = layer number (L0 leaves → L18 entry points). Imports flow downward by number.
+- After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts --server` to assign it a layer, then review the diff. The pre-commit `--check` fails if any file is missing from the map — the fix is always to regenerate, never to hand-assign (the generator computes the layer from imports).
 - Use `npx biome check --write <files>` for import sorting, never reorder manually
 - Prefer spatial helpers (`isWater`, `isGrass`, `waterKeys`) over importing Tile enum directly
 - Check existing helpers (`npm run export-search`) before inlining logic; create new helpers when a pattern appears 2+ times
