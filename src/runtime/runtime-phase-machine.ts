@@ -5,17 +5,25 @@
  * CANNON_PLACE, CANNON_PLACE → BATTLE, BATTLE → WALL_BUILD, reselect, game
  * over) is an entry in `TRANSITIONS`. Each entry declares:
  *
- *   - `from` / `to` phase
- *   - `mutate`: the pair of functions (host + watcher) that apply the state
- *     change — host runs game logic, watcher applies an incoming checkpoint
+ *   - `from` / `toPhase`: source and target phase (or `"game-over"` sentinel)
+ *   - `mutate.host` (required) and `mutate.watcher` (optional, omitted for
+ *     host-only transitions like `round-limit-reached` /
+ *     `last-player-standing` — the runner throws if a watcher ctx
+ *     dispatches one). Host runs game logic; watcher applies an incoming
+ *     checkpoint.
+ *   - `postMutate` (optional): shared sync that runs synchronously after
+ *     `mutate` returns and BEFORE the first display step. Use for work
+ *     that is genuinely identical between host and watcher (e.g.
+ *     rebuilding `battleAnim` snapshots from the freshly-mutated state).
  *   - `display`: the ordered UI steps that play between mutation and arrival
- *     at `to` (banner / score-overlay / life-lost-dialog / upgrade-pick)
- *   - `postDisplay`: side-effects that complete the transition after the
- *     display steps (e.g. balloon-anim vs begin-battle)
+ *     at `to` (banner / score-overlay / life-lost-dialog / upgrade-pick).
+ *   - `postDisplay` (optional, per-role): side-effects that complete the
+ *     transition after the display steps (e.g. balloon-anim vs begin-battle).
  *
  * `runTransition(id, ctx)` executes the entry: runs the role-appropriate
- * mutate, walks the display steps in order, then runs postDisplay. Host and
- * watcher call the same runner; only the `mutate` fn differs.
+ * mutate, runs `postMutate`, walks the display steps in order, then runs the
+ * role-appropriate postDisplay. Host and watcher call the same runner; only
+ * the `mutate` and `postDisplay` fns differ.
  *
  * The bus is NOT used as control flow. Bus events (PHASE_START/END,
  * BANNER_START/END, SCORE_OVERLAY_START/END) remain pure observations
@@ -347,7 +355,9 @@ export interface PhaseTransitionCtx {
 
 /** Discriminator values for `DisplayStep.kind` / `PhaseTransitionCtx.role`. */
 const STEP_BANNER = "banner" as const;
+const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
+const STEP_UPGRADE_PICK = "upgrade-pick" as const;
 /** `cannon-place-done` — CANNON_PLACE → BATTLE.
  *
  *  Host: `enterBattlePhase` computes the modifier, balloon flights, and the
@@ -477,7 +487,7 @@ const WALL_BUILD_DONE: Transition = {
       };
     },
   },
-  display: [{ kind: "score-overlay" }, { kind: STEP_LIFE_LOST_DIALOG }],
+  display: [{ kind: STEP_SCORE_OVERLAY }, { kind: STEP_LIFE_LOST_DIALOG }],
 };
 /** Shared display list for every transition that enters WALL_BUILD and
  *  shows the "Build & Repair" banner (optionally preceded by the
@@ -485,7 +495,7 @@ const WALL_BUILD_DONE: Transition = {
  *  `battle-done` and `ceasefire`. */
 const BUILD_ENTRY_DISPLAY: readonly DisplayStep[] = [
   {
-    kind: "upgrade-pick",
+    kind: STEP_UPGRADE_PICK,
     when: (state) => !!state.modern?.pendingUpgradeOffers,
   },
   {
@@ -874,7 +884,7 @@ function runStep(
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);
       return;
-    case "score-overlay":
+    case STEP_SCORE_OVERLAY:
       ctx.scoreDelta.show(onDone);
       return;
     case STEP_LIFE_LOST_DIALOG:
@@ -884,7 +894,7 @@ function runStep(
       // race the modal. `assertLifeLostStepIsTerminal` enforces this at load.
       runLifeLostDialogStep(ctx, result);
       return;
-    case "upgrade-pick":
+    case STEP_UPGRADE_PICK:
       runUpgradePickStep(step, ctx, result, onDone);
       return;
   }

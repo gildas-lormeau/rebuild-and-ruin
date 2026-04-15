@@ -14,7 +14,6 @@
  */
 
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
-import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { EMPTY_FEATURES } from "../shared/core/feature-defs.ts";
 import {
   BUILD_TIMER,
@@ -41,7 +40,7 @@ import {
   setGameMode,
 } from "../shared/core/types.ts";
 import { Rng } from "../shared/platform/rng.ts";
-import { resolveBalloons, snapshotTerritory } from "./battle-system.ts";
+import { resolveBalloons } from "./battle-system.ts";
 import {
   prepareCannonPhase,
   prepareControllerCannonPhase,
@@ -60,19 +59,17 @@ import {
 } from "./selection.ts";
 import { buildTimerBonus, tickBuildUpgrades } from "./upgrade-system.ts";
 
-/** Result of `enterBattlePhase` — everything the caller needs to wire up
- *  banners, balloon animation, visual snapshots, and online broadcast.
+/** Result of `enterBattlePhase` — what the caller needs to wire up the
+ *  modifier-reveal banner, balloon animation, and online broadcast.
  *  The engine has already mutated state to BATTLE phase by the time this
- *  is returned; the struct is the read-only view of what happened. */
+ *  is returned; the struct is the read-only view of what happened.
+ *  battleAnim territory / wall snapshots are rebuilt from `state` by the
+ *  machine's `postMutate: syncBattleAnim`, so they're not threaded here. */
 interface BattlePhaseEntry {
   /** Modifier rolled for this battle, or null if classic mode / no roll. */
   modifierDiff: ModifierDiff | null;
   /** Balloons launched this battle (empty if no balloon cannons). */
   flights: BalloonFlight[];
-  /** Per-player territory snapshot (interior + walls), post-modifier. */
-  territory: Set<number>[];
-  /** Per-player wall snapshot, post-modifier. */
-  walls: Set<number>[];
 }
 
 /** Per-player init data for the cannon placement phase.
@@ -154,9 +151,7 @@ export function enterCastleReselectPhase(state: GameState): void {
 export function enterBattlePhase(state: GameState): BattlePhaseEntry {
   const modifierDiff = enterBattleFromCannon(state);
   const flights = resolveBalloons(state);
-  const territory = snapshotTerritory(state.players);
-  const walls = snapshotAllWalls(state);
-  return { modifierDiff, flights, territory, walls };
+  return { modifierDiff, flights };
 }
 
 /** Enter the cannon placement phase. Sets the phase flag, computes cannon
