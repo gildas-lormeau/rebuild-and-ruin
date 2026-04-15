@@ -45,6 +45,11 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // Unzoom before banner so the full map is visible during transition
     assertStateReady(runtimeState);
     clearPhaseZoom();
+    // Re-entry isn't a bug on its own: watchers replay banners from
+    // checkpoint messages that can arrive during an earlier banner's sweep
+    // (retransmits, host-migration recovery). Log so we notice unexpected
+    // cases, then overwrite — `runTransition` owns ordering for host-driven
+    // banners, and watchers take the latest host intent.
     if (runtimeState.banner.active) {
       log(
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
