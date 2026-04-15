@@ -527,10 +527,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     render,
-    sendUpgradePick: isOnline
-      ? (playerId, choice) =>
-          config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
-      : undefined,
+    sendUpgradePick: (playerId, choice) =>
+      config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
   });
 
   // -------------------------------------------------------------------------

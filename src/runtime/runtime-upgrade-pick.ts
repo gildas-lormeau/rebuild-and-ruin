@@ -50,7 +50,7 @@ interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly render: () => void;
-  readonly sendUpgradePick?: (
+  readonly sendUpgradePick: (
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
   ) => void;
@@ -190,7 +190,7 @@ export function createUpgradePickSystem(
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
     const choice = resolveUpgradePickEntry(entry, cardIdx, dialog.timer);
-    deps.sendUpgradePick?.(entry.playerId, choice);
+    deps.sendUpgradePick(entry.playerId, choice);
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
