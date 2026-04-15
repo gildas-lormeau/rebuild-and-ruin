@@ -297,7 +297,6 @@ export class AiController extends BaseController implements AiAnimatable {
       secondsToTicks(autoDelaySeconds),
       dialogTimer,
       state,
-      this.strategy.rng,
     );
   }
 

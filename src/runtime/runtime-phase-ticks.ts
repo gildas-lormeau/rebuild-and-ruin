@@ -1,7 +1,6 @@
 import {
   advanceBattleCountdown,
   canBuildThisFrame,
-  cannonSlotsUsed,
   diffNewWalls,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
@@ -14,7 +13,6 @@ import {
   resetCannonFacings,
   shouldSkipBattle,
   tickGrunts,
-  useSmallPieces,
 } from "../game/index.ts";
 import {
   BATTLE_MESSAGE,
@@ -48,10 +46,7 @@ import {
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import {
-  initPlayerBag,
-  isPlayerEliminated,
-} from "../shared/core/player-types.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type HapticsSystem,
   isHuman,
@@ -392,18 +387,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       "startBuildPhase called outside WALL_BUILD",
     );
     resetCannonFacings(runtimeState.state);
-    // Init piece bags UNIFORMLY for all non-eliminated players — the
-    // state.rng draws must happen in the same order on every peer
-    // regardless of which slots are local vs remote. If this loop were
-    // gated on `isRemotePlayer`, a receiver with a remote slot would
-    // consume fewer state.rng values than the host, causing the per-peer
-    // RNG stream to diverge at round-2 WALL_BUILD start.
-    const state = runtimeState.state;
-    for (const player of state.players) {
-      if (isPlayerEliminated(player)) continue;
-      const smallPieces = useSmallPieces(player);
-      initPlayerBag(player, state.round, state.rng, smallPieces);
-    }
     for (const ctrl of runtimeState.controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
@@ -496,34 +479,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     deps.render();
 
-    // Check every slot (local + remote) uniformly by cannon count. Using
-    // controller.isCannonPhaseDone() for local slots introduced a timing
-    // skew between host and receiver: local AI controllers have internal
-    // state-machine delays (post-place thinking timer) that keep them
-    // "not done" for a few ticks after placing the last cannon, whereas
-    // receiver-side remote slots have no such delay — the dispatcher just
-    // applies cannons one-shot. Aligning on "cannons >= limit" removes
-    // the skew and keeps phase transitions in lockstep across host and
-    // any receiver running against the same slot counts.
-    const allLocalDone = local.every((ctrl) => {
+    const allDone = local.every((ctrl) => {
       const player = state.players[ctrl.playerId]!;
       if (isPlayerEliminated(player)) return true;
       const max = state.cannonLimits[player.id] ?? 0;
       return ctrl.isCannonPhaseDone(state, max);
     });
-    // Remote slots are "done" when their broadcast cannons fill their limit.
-    // Without this check, a receiver transitions to BATTLE as soon as its
-    // local AIs finish — not waiting for the remote slot's late messages —
-    // which desynchronizes the cannon-phase end sweep across peers.
-    const allRemoteDone = runtimeState.controllers
-      .filter((ctrl) => isRemotePlayer(ctrl.playerId, remotePlayerSlots))
-      .every((ctrl) => {
-        const player = state.players[ctrl.playerId]!;
-        if (isPlayerEliminated(player)) return true;
-        const max = state.cannonLimits[player.id] ?? 0;
-        return cannonSlotsUsed(player) >= max;
-      });
-    const allDone = allLocalDone && allRemoteDone;
 
     if (state.timer > 0 && !allDone) return false;
 

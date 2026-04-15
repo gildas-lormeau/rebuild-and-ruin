@@ -21,7 +21,6 @@ import { tickBuild } from "../ai/ai-phase-build.ts";
 import { flushCannon, tickCannon } from "../ai/ai-phase-cannon.ts";
 import type { AiStrategy } from "../ai/ai-strategy.ts";
 import {
-  cannonSlotsUsed,
   executeCannonFire,
   executePlaceCannon,
   executePlacePiece,
@@ -123,20 +122,6 @@ export class AiAssistedHumanController
       return placed;
     };
     flushCannon(this._cannonPhase, this.playerId, executePlace);
-  }
-
-  /** Override the AI state-machine "done" check with the same count-based
-   *  check the runtime uses for remote slots in host-mode (see
-   *  `runtime-phase-ticks.ts` ~line 518). AiController.isCannonPhaseDone
-   *  waits for the AI's post-place "thinking" delay — on the host, that
-   *  holds the CANNON_PLACE → BATTLE transition ~10 frames longer than
-   *  the receiver (which sees slot 1 as remote and gates on cannon count).
-   *  The drift cascades into every later phase; aligning on count here
-   *  keeps host and receiver in lockstep. */
-  override isCannonPhaseDone(state: GameState, maxSlots: number): boolean {
-    const player = state.players[this.playerId];
-    if (!player) return true;
-    return cannonSlotsUsed(player) >= maxSlots;
   }
 
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──

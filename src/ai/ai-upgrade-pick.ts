@@ -7,14 +7,6 @@
  *     commit). Called by AiController.tickUpgradePick (inherited by
  *     AssistedHumanController, which broadcasts the resulting pick).
  *
- * Randomness invariant — the heuristic's random tiebreak draws from
- * `strategy.rng` (per-AI, seeded at bootstrap), NEVER from `state.rng`
- * (shared, must be consumed identically on host and peers). Using
- * `state.rng` would desync the moment a broadcast-only slot picks: the
- * host would consume one draw that the receiver applies via `UPGRADE_PICK`
- * without touching rng. Controllers own the strategy and forward it here;
- * randomness stays in AI code, not in controller or network layers.
- *
  * The decision function (aiPickUpgrade) stays file-local — the animation
  * tick invokes it at lock-in and caches the result in `entry.plannedChoice`.
  * Max-timer force-pick fallback (`plannedChoice ?? random`) lives on
@@ -26,7 +18,6 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isGrass } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
-import type { Rng } from "../shared/platform/rng.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { secondsToTicks } from "./ai-constants.ts";
 
@@ -57,7 +48,6 @@ export function tickAiUpgradePickEntry(
   autoDelayTicks: number,
   dialogTimer: number,
   state: GameState,
-  rng: Rng,
 ): void {
   entry.autoTimer++;
   const effectiveDelay = autoDelayTicks + entryIdx * UPGRADE_PICK_STAGGER;
@@ -67,8 +57,7 @@ export function tickAiUpgradePickEntry(
 
   if (entry.autoTimer >= effectiveDelay) {
     const pick =
-      entry.plannedChoice ??
-      aiPickUpgrade(entry.offers, state, entry.playerId, rng);
+      entry.plannedChoice ?? aiPickUpgrade(entry.offers, state, entry.playerId);
     entry.choice = pick;
     entry.focusedCard = entry.offers.indexOf(pick);
     entry.pickedAtTimer = dialogTimer;
@@ -77,12 +66,7 @@ export function tickAiUpgradePickEntry(
 
   if (entry.autoTimer >= lockInStart) {
     if (entry.plannedChoice === null) {
-      entry.plannedChoice = aiPickUpgrade(
-        entry.offers,
-        state,
-        entry.playerId,
-        rng,
-      );
+      entry.plannedChoice = aiPickUpgrade(entry.offers, state, entry.playerId);
     }
     entry.focusedCard = entry.offers.indexOf(entry.plannedChoice);
     return;
@@ -97,14 +81,11 @@ export function tickAiUpgradePickEntry(
 }
 
 /** AI-aware pick: contextual upgrade selection based on game state.
- *  File-local — invoked by tickAiUpgradePickEntry at lock-in/commit.
- *  Draws its random tiebreak from the AI's own `strategy.rng`, not from
- *  `state.rng` — see the file-header "Randomness invariant". */
+ *  File-local — invoked by tickAiUpgradePickEntry at lock-in/commit. */
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: GameState,
   playerId: ValidPlayerSlot,
-  rng: Rng,
 ): UpgradeId {
   const hasDeadTowers = playerHasDeadTowers(state, playerId);
   if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
@@ -142,7 +123,7 @@ function aiPickUpgrade(
   if (!playerHasThickWalls(state, playerId)) excluded.add(UID.DEMOLITION);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
-  return pool[Math.floor(rng.next() * pool.length)]!;
+  return pool[Math.floor(state.rng.next() * pool.length)]!;
 }
 
 function playerTerritoryRatio(

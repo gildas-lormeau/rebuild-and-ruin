@@ -1,10 +1,14 @@
-import { autoPlaceRound1Cannons, nextReadyCombined } from "../game/index.ts";
+import {
+  autoPlaceRound1Cannons,
+  nextReadyCombined,
+  useSmallPieces,
+} from "../game/index.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { clearPlayerBag } from "../shared/core/player-types.ts";
+import { clearPlayerBag, initPlayerBag } from "../shared/core/player-types.ts";
 import {
   pxToTile,
   towerCenter,
@@ -100,16 +104,14 @@ export abstract class BaseController implements PlayerController {
     state: CannonViewState,
     dt: number,
   ): CannonPlacementPreview | null;
-  /** Shared build-phase init: cursor on home tower.
+  /** Shared build-phase init: bag + cursor on home tower.
    *  Private — only called as an internal step of the startBuildPhase() template method.
-   *  The piece bag is NOT initialized here: it's initialized uniformly for all
-   *  players in a runtime pre-pass so state.rng consumption is identical across
-   *  host and peers (regardless of which slots are local vs remote). See
-   *  initAllPlayerBags in runtime-phase-ticks.ts. Contrast with initCannons()
-   *  which is public for remote-controller use. */
+   *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: BuildViewState): void {
     const player = state.players[this.playerId];
     if (!player) return;
+    const smallPieces = useSmallPieces(player);
+    initPlayerBag(player, state.round, state.rng, smallPieces);
     if (player.homeTower) {
       this.buildCursor = towerCenterTile(player.homeTower);
     }
