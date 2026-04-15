@@ -32,7 +32,6 @@ import {
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   recheckTerritory,
-  recomputeAllTerritory,
   snapshotTerritory,
 } from "../game/index.ts";
 import { setPhase } from "../game/phase-setup.ts";
@@ -354,9 +353,11 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  Host: `enterBattlePhase` computes the modifier, balloon flights, and the
  *  post-modifier territory/wall snapshots; the host broadcasts BATTLE_START.
  *
- *  Watcher: `applyBattleStart` deserializes the incoming checkpoint;
- *  territory is recomputed; setPhase fires PHASE_END/PHASE_START; then the
- *  watcher snapshots territory+walls for battleAnim.
+ *  Watcher: `applyBattleStart` is the symmetric counterpart — it
+ *  deserializes the checkpoint, applies modifier tiles, recomputes
+ *  territory, and sets Phase.BATTLE (so PHASE_END/PHASE_START fire).
+ *  Both paths leave state in the same post-modifier, post-setPhase shape;
+ *  `postMutate: syncBattleAnim` rebuilds battleAnim from that state.
  *
  *  Display: conditional modifier-reveal banner (when modifier rolled) →
  *  "Prepare for Battle" banner. The modifier banner's `recaptureAfter`
@@ -389,15 +390,17 @@ const CANNON_PLACE_DONE: Transition = {
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BattleStartData;
-      const modifierDiff = msg.modifierDiff ?? null;
-      const battleFlights: readonly BalloonFlight[] = msg.flights ?? [];
       // See host mutate comment — snapshot before applyBattleStart so the
       // battle / modifier banner reveals the modifier's tile changes.
+      // `applyBattleStart` is the watcher-side counterpart to
+      // `enterBattlePhase`: when it returns, state is already in
+      // Phase.BATTLE with recomputed, post-modifier territory.
       ctx.snapshotForNextBanner();
       ctx.checkpoint?.applyBattleStart?.(msg);
-      recomputeAllTerritory(ctx.state);
-      setPhase(ctx.state, Phase.BATTLE);
-      return { modifierDiff, flights: battleFlights };
+      return {
+        modifierDiff: msg.modifierDiff ?? null,
+        flights: msg.flights ?? [],
+      };
     },
   },
   postMutate: syncBattleAnim,
@@ -837,7 +840,7 @@ function runDisplay(
   runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
 }
 
-/** Shared post-mutation sync for battle entry: clear transient battle-anim
+/**Can we fix that point 4 Shared post-mutation sync for battle entry: clear transient battle-anim
  *  visuals (impact flashes + thaw animations) and rebuild the per-player
  *  territory / wall snapshots from the freshly-mutated state. Host and
  *  watcher arrive at the same post-state through different routes, so this

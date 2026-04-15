@@ -2,6 +2,7 @@ import {
   applyCheckpointModifierTiles,
   recomputeAllTerritory,
   rehydrateComboTracker,
+  setPhase,
 } from "../game/index.ts";
 import type {
   BattleStartData,
@@ -15,6 +16,7 @@ import type {
 } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
@@ -86,21 +88,21 @@ export function applyCannonStartCheckpoint(
   resetWatcherCrosshairs(deps);
 }
 
-/** Apply a battle-start checkpoint received from the host.
+/** Apply a battle-start checkpoint received from the host. Watcher-side
+ *  counterpart to `enterBattlePhase` — when this returns, `state` is in
+ *  `Phase.BATTLE` with post-modifier tiles and recomputed territory, so
+ *  the caller just needs to return the modifier / flights result.
  *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears watcher crosshairs via resetWatcherCrosshairs(), re-initializes
- *  crosshair positions from home towers. Clears in-flight cannonballs and impacts. */
+ *  crosshair positions from home towers. Clears in-flight cannonballs. Impact
+ *  / thaw flashes are cleared by the machine's postMutate. */
 export function applyBattleStartCheckpoint(
   data: BattleStartData,
   deps: CheckpointDeps,
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
-  // No territory recompute / battleAnim snapshot here — the watcher's map
-  // is pre-modifier at this point. The caller recomputes territory after
-  // modifier tiles are restored, and `postMutate` on the cannon-place-done
-  // transition syncs `battleAnim.territory` / `.walls` from that fresh state.
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
@@ -111,18 +113,21 @@ export function applyBattleStartCheckpoint(
   applyCheckpointModifierTiles(deps.state, data);
 
   // State-level projectile clear (mirrors host's enterBattleFromCannon).
-  // Impact / thaw flashes are cleared by the machine's postMutate via
-  // `ctx.battle.clearImpacts()`, which uses the shared battle-types helper
-  // (covers both impacts and thawing).
   deps.state.cannonballs = [];
   deps.state.timer = BATTLE_TIMER;
-  // Matches host's enterBattleFromCannon.
   rehydrateComboTracker(deps.state);
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
     if (!isPlayerSeated(player)) continue;
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
+
+  // Territory recompute must run on the post-modifier map; setPhase fires
+  // the PHASE_START bus event that matches host's enterBattleFromCannon.
+  // Keeping both inside the checkpoint completes the host/watcher symmetry
+  // at the machine layer: both roles now do a single source-of-truth call.
+  recomputeAllTerritory(deps.state);
+  setPhase(deps.state, Phase.BATTLE);
 }
 
 /** Apply a build-start checkpoint received from the host.
