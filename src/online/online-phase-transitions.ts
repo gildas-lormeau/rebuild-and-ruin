@@ -18,7 +18,10 @@ import {
 } from "../runtime/runtime-phase-machine.ts";
 import { type RuntimeState, setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
-import type { BalloonFlight } from "../shared/core/battle-types.ts";
+import {
+  type BalloonFlight,
+  clearImpacts,
+} from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { TILE_COUNT } from "../shared/core/grid.ts";
 import {
@@ -276,9 +279,7 @@ function buildWatcherBattleHooks(runtime: GameRuntime) {
     setWalls: (walls: readonly Set<number>[]) => {
       battleAnim.walls = walls as Set<number>[];
     },
-    clearImpacts: () => {
-      battleAnim.impacts = [];
-    },
+    clearImpacts: () => clearImpacts(battleAnim),
     begin: () => runtime.phaseTicks.beginBattle(),
   };
 }

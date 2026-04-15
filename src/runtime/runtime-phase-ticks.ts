@@ -336,9 +336,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         setWalls: (walls) => {
           battleAnim.walls = walls.map((set) => new Set(set));
         },
-        clearImpacts: () => {
-          battleAnim.impacts = [];
-        },
+        clearImpacts: () => clearImpacts(battleAnim),
         begin: beginBattle,
       },
       initLocalCannonControllers: () => {

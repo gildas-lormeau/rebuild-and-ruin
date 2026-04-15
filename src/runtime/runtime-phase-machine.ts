@@ -127,6 +127,14 @@ interface MutationFns {
   readonly watcher?: (ctx: PhaseTransitionCtx) => TransitionResult;
 }
 
+/** Shared post-mutation sync. Runs synchronously after `mutate` returns and
+ *  BEFORE the first display step. Use for work that is genuinely identical
+ *  between host and watcher (e.g. rebuilding `battleAnim` snapshots from the
+ *  freshly-mutated state). Keeping it separate from `mutate` removes the
+ *  duplicated trailing calls that every role-specific mutate would otherwise
+ *  re-emit. */
+type PostMutateFn = (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
+
 /** Side-effects after the display steps complete. Each role optional —
  *  transitions that do nothing for a role omit that entry. */
 interface PostDisplayFns {
@@ -139,6 +147,9 @@ interface Transition {
   readonly from: Phase | "*";
   readonly toPhase: TransitionTarget;
   readonly mutate: MutationFns;
+  /** Shared post-mutation sync. Runs after mutate, before display. Applies
+   *  to both roles; omit if the transition has no shared post-work. */
+  readonly postMutate?: PostMutateFn;
   readonly display: readonly DisplayStep[];
   readonly postDisplay?: PostDisplayFns;
 }
@@ -369,9 +380,6 @@ const CANNON_PLACE_DONE: Transition = {
       // battle banner briefly shows a stale map without houses/cannons.
       ctx.snapshotForNextBanner();
       const entry = enterBattlePhase(ctx.state);
-      ctx.battle.clearImpacts();
-      ctx.battle.setTerritory(entry.territory);
-      ctx.battle.setWalls(entry.walls);
       ctx.broadcast?.battleStart?.(
         ctx.state,
         entry.flights,
@@ -389,13 +397,10 @@ const CANNON_PLACE_DONE: Transition = {
       ctx.checkpoint?.applyBattleStart?.(msg);
       recomputeAllTerritory(ctx.state);
       setPhase(ctx.state, Phase.BATTLE);
-      const postTerritory = snapshotTerritory(ctx.state.players);
-      const postWalls = snapshotAllWalls(ctx.state);
-      ctx.battle.setTerritory(postTerritory);
-      ctx.battle.setWalls(postWalls);
       return { modifierDiff, flights: battleFlights };
     },
   },
+  postMutate: syncBattleAnim,
   display: [
     {
       kind: STEP_BANNER,
@@ -783,6 +788,7 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
   const result = mutateFn(ctx);
+  transition.postMutate?.(ctx, result);
 
   runDisplay(transition.display, ctx, result, () => {
     const postDisplay =
@@ -829,6 +835,18 @@ function runDisplay(
   }
   const [first, ...rest] = steps;
   runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
+}
+
+/** Shared post-mutation sync for battle entry: clear transient battle-anim
+ *  visuals (impact flashes + thaw animations) and rebuild the per-player
+ *  territory / wall snapshots from the freshly-mutated state. Host and
+ *  watcher arrive at the same post-state through different routes, so this
+ *  step is identical for both and lives in `postMutate` instead of being
+ *  re-emitted at the end of each role-specific mutate. */
+function syncBattleAnim(ctx: PhaseTransitionCtx): void {
+  ctx.battle.clearImpacts();
+  ctx.battle.setTerritory(snapshotTerritory(ctx.state.players));
+  ctx.battle.setWalls(snapshotAllWalls(ctx.state));
 }
 
 function proceedToBattle(

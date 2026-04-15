@@ -13,7 +13,6 @@ import type {
   BalloonFlight,
   ThawingTile,
 } from "../shared/core/battle-types.ts";
-import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
@@ -98,21 +97,24 @@ export function applyBattleStartCheckpoint(
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
-  // No territory recompute here — the watcher's map is pre-modifier at this point,
-  // so callers that need fresh territory (handleBattleStartTransition) recompute
-  // after this call, before modifier tiles are restored.
+  // No territory recompute / battleAnim snapshot here — the watcher's map
+  // is pre-modifier at this point. The caller recomputes territory after
+  // modifier tiles are restored, and `postMutate` on the cannon-place-done
+  // transition syncs `battleAnim.territory` / `.walls` from that fresh state.
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
   deps.state.towerAlive = data.towerAlive;
-  deps.battleAnim.territory = deps.snapshotTerritory();
-  deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   applyCapturedCannons(deps.state, data.capturedCannons);
 
   applyCheckpointModifierTiles(deps.state, data);
 
-  clearBattleProjectiles(deps);
+  // State-level projectile clear (mirrors host's enterBattleFromCannon).
+  // Impact / thaw flashes are cleared by the machine's postMutate via
+  // `ctx.battle.clearImpacts()`, which uses the shared battle-types helper
+  // (covers both impacts and thawing).
+  deps.state.cannonballs = [];
   deps.state.timer = BATTLE_TIMER;
   // Matches host's enterBattleFromCannon.
   rehydrateComboTracker(deps.state);
