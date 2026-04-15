@@ -45,7 +45,12 @@ import type {
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Action } from "../shared/ui/input-action.ts";
-import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
+import {
+  LifeLostChoice,
+  type LifeLostEntry,
+  type ResolvedChoice,
+  type UpgradePickEntry,
+} from "../shared/ui/interaction-types.ts";
 import { AiController } from "./controller-ai.ts";
 
 /** Typed wire-broadcast callbacks. The controller stays protocol-agnostic
@@ -55,6 +60,7 @@ interface AssistedSenders {
   sendCannonPlaced: (payload: CannonPlacedPayload) => void;
   sendCannonFired: (ball: Cannonball) => void;
   sendUpgradePick: (choice: UpgradeId) => void;
+  sendLifeLostChoice: (choice: ResolvedChoice) => void;
 }
 
 interface AssistedControllerOptions {
@@ -174,6 +180,21 @@ export class AiAssistedHumanController
     const choice = super.forceUpgradePick(entry, state);
     this.senders.sendUpgradePick(choice);
     return choice;
+  }
+
+  // ── Life-lost: AI auto-resolves; broadcast the committed choice ──
+
+  override tickLifeLost(
+    entry: LifeLostEntry,
+    dt: number,
+    autoDelaySeconds: number,
+    state: GameState,
+  ): void {
+    const wasPending = entry.choice === LifeLostChoice.PENDING;
+    super.tickLifeLost(entry, dt, autoDelaySeconds, state);
+    if (wasPending && entry.choice !== LifeLostChoice.PENDING) {
+      this.senders.sendLifeLostChoice(entry.choice);
+    }
   }
 
   // ── InputReceiver stubs (v1 — no real human input handled yet) ──

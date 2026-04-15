@@ -23,7 +23,10 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Action } from "../shared/ui/input-action.ts";
-import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
+import type {
+  LifeLostEntry,
+  UpgradePickEntry,
+} from "../shared/ui/interaction-types.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
@@ -277,6 +280,20 @@ export abstract class BaseController implements PlayerController {
   autoResolvesUpgradePick(): boolean {
     return false;
   }
+
+  /** Default matches HumanController: entry waits for local UI input.
+   *  AiController overrides to auto-resolve via `aiChooseLifeLost`. */
+  autoResolvesLifeLost(): boolean {
+    return false;
+  }
+
+  /** Default no-op — only auto-resolving controllers need to tick. */
+  tickLifeLost(
+    _entry: LifeLostEntry,
+    _dt: number,
+    _autoDelaySeconds: number,
+    _state: GameViewState,
+  ): void {}
 
   /** Default no-op — only auto-resolving controllers need to tick. */
   tickUpgradePick(

@@ -11,6 +11,7 @@
  */
 
 import { STEP, secondsToTicks } from "../ai/ai-constants.ts";
+import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
 import {
   type BattleHost,
   createBattlePhase,
@@ -65,7 +66,11 @@ import {
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
+import {
+  LifeLostChoice,
+  type LifeLostEntry,
+  type UpgradePickEntry,
+} from "../shared/ui/interaction-types.ts";
 import { BaseController } from "./controller-types.ts";
 
 // Compile-time guarantee: AiController structurally satisfies every phase
@@ -294,6 +299,27 @@ export class AiController extends BaseController implements AiAnimatable {
       state,
       this.strategy.rng,
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Life-lost dialog (auto-resolve via aiChooseLifeLost)
+  // -----------------------------------------------------------------------
+
+  override autoResolvesLifeLost(): boolean {
+    return true;
+  }
+
+  override tickLifeLost(
+    entry: LifeLostEntry,
+    dt: number,
+    autoDelaySeconds: number,
+    state: GameState,
+  ): void {
+    if (entry.choice !== LifeLostChoice.PENDING) return;
+    entry.autoTimer += dt;
+    if (entry.autoTimer >= autoDelaySeconds) {
+      entry.choice = aiChooseLifeLost(entry, state);
+    }
   }
 
   // -----------------------------------------------------------------------

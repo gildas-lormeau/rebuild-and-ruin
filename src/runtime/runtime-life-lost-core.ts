@@ -27,38 +27,35 @@ interface ResolveAfterLifeLostDeps {
   onContinue: () => void;
 }
 
-/** AI decision callback for auto-resolving life-lost entries. Injected by
- *  the runtime from `ai/ai-life-lost.ts` so game/ stays decoupled from AI. */
-type AiLifeLostChoose = (entry: LifeLostEntry) => ResolvedChoice;
+/** Per-entry auto-resolve tick. Dispatched by the runtime to the owning
+ *  controller (`controller.tickLifeLost`). Closes over the per-call
+ *  GameState, `dt`, and `autoDelaySeconds`. */
+type ControllerLifeLostTick = (entry: LifeLostEntry) => void;
 
 /** Tick the life-lost dialog.
  *
- *  Drives dialog-layer state only: increments timers and delegates the
- *  actual choice for auto-resolve entries to the injected `aiChoose`
- *  callback (AI decision lives in `ai/ai-life-lost.ts`). The max-timer
- *  fallback picks ABANDON as a hard safety net, not as a decision.
+ *  Drives dialog-layer state only: increments `dialog.timer`, delegates
+ *  each pending auto-resolve entry to the per-entry `tickEntry` callback,
+ *  and applies the max-timer safety net (ABANDON) as a hard fallback.
+ *  `tickEntry` dispatches to the controller that owns each slot.
  *
  *  Returns true when all entries are resolved.
  *  @param dt — Delta time in seconds (not ms).
- *  @param autoDelay — Per-entry auto-resolve delay in seconds.
  *  @param maxTimer — Global force-resolve deadline in seconds.
- *  @param aiChoose — AI decision callback (closed over GameState). */
+ *  @param tickEntry — Per-entry tick (closed over state + dt + autoDelay). */
 // Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,
   dt: number,
-  autoDelay: number,
   maxTimer: number,
-  aiChoose: AiLifeLostChoose,
+  tickEntry: ControllerLifeLostTick,
 ): boolean {
   dialog.timer += dt;
 
   for (const entry of dialog.entries) {
     if (entry.choice !== LifeLostChoice.PENDING) continue;
-    if (entry.autoResolve) {
-      entry.autoTimer += dt;
-      if (entry.autoTimer >= autoDelay) entry.choice = aiChoose(entry);
-    }
+    if (!entry.autoResolve) continue;
+    tickEntry(entry);
   }
 
   if (dialog.timer >= maxTimer) {

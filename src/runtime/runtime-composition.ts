@@ -23,7 +23,6 @@
  * host + watcher), test/runtime-headless.ts (tests).
  */
 
-import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
 import {
   executeCannonFire,
   executePlacePiece,
@@ -512,7 +511,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
-    aiChoose: (entry) => aiChooseLifeLost(entry, runtimeState.state),
   });
 
   // -------------------------------------------------------------------------

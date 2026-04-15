@@ -1,6 +1,9 @@
 import type { Rng } from "../platform/rng.ts";
 import { Action } from "../ui/input-action.ts";
-import type { UpgradePickEntry } from "../ui/interaction-types.ts";
+import type {
+  LifeLostEntry,
+  UpgradePickEntry,
+} from "../ui/interaction-types.ts";
 import type { KeyBindings } from "../ui/player-config.ts";
 import type { BattleEvent } from "./battle-events.ts";
 import {
@@ -310,6 +313,34 @@ export interface UpgradePickController {
   ): UpgradeId;
 }
 
+/** Life-lost dialog resolution (after failing to enclose a tower).
+ *
+ *  Parallel to `UpgradePickController`: HumanController waits for UI input,
+ *  AiController auto-resolves via `aiChooseLifeLost`, AssistedHumanController
+ *  broadcasts the committed choice over the wire for protocol testing.
+ *
+ *  The dialog state (timer, per-entry autoTimer, focus) lives on
+ *  `LifeLostEntry`; the controller decides whether to commit and what to
+ *  pick. The orchestrator (`runtime-life-lost.ts`) iterates entries each
+ *  tick and calls `tickLifeLost` on auto-resolving controllers; the
+ *  max-timer fallback in `tickLifeLostDialog` picks ABANDON directly. */
+export interface LifeLostController {
+  /** True if this controller's entry auto-resolves (AI-driven commit).
+   *  False if it waits for local UI input. Queried at dialog-create time
+   *  to populate `LifeLostEntry.autoResolve`. */
+  autoResolvesLifeLost(): boolean;
+
+  /** Per-frame tick for an auto-resolving entry. Mutates `entry.autoTimer`
+   *  and `entry.choice` in place. No-op for controllers that return `false`
+   *  from `autoResolvesLifeLost`. */
+  tickLifeLost(
+    entry: LifeLostEntry,
+    dt: number,
+    autoDelaySeconds: number,
+    state: GameViewState,
+  ): void;
+}
+
 /** Full controller interface — intersection of all phase-scoped sub-interfaces.
  *  Use this when a module genuinely crosses phases (orchestrators, factories).
  *  Prefer the narrower sub-interfaces when only one phase is needed. */
@@ -319,7 +350,8 @@ export interface PlayerController
     BuildController,
     CannonController,
     BattleController,
-    UpgradePickController {}
+    UpgradePickController,
+    LifeLostController {}
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {

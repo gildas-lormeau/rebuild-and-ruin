@@ -463,6 +463,8 @@ export function wrapHeadless(
           sendCannonFired: (ball) => send(createCannonFiredMsg(ball)),
           sendUpgradePick: (choice) =>
             send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
+          sendLifeLostChoice: (choice) =>
+            send({ type: MESSAGE.LIFE_LOST_CHOICE, playerId, choice }),
         },
       });
       runtimeState.controllers[playerId] = ctrl;

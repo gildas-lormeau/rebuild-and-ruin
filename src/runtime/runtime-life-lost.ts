@@ -3,11 +3,9 @@ import {
   LIFE_LOST_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { isHuman } from "../shared/core/system-interfaces.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
-  type LifeLostEntry,
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -39,10 +37,6 @@ interface LifeLostSystemDeps {
   endGame: (winner: { id: number }) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
-  /** AI decision for auto-resolving life-lost entries. Wired by the
-   *  composition root (`runtime-composition.ts`) from `ai/ai-life-lost.ts`. Subsystems
-   *  can't import from ai/ directly — only the root may. */
-  aiChoose: (entry: LifeLostEntry) => ResolvedChoice;
 }
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
@@ -78,7 +72,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       myPlayerId: runtimeState.frameMeta.myPlayerId,
       remotePlayerSlots,
       needsLocalInput: (playerId) =>
-        isHuman(runtimeState.controllers[playerId]!),
+        !runtimeState.controllers[playerId]!.autoResolvesLifeLost(),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
     if (isLifeLostAllResolved(dialog)) {
@@ -104,12 +98,18 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const dialog = runtimeState.dialogs.lifeLost;
     if (!dialog) return;
 
+    const state = runtimeState.state;
     const dialogResolved = tickLifeLostDialog(
       dialog,
       dt,
-      LIFE_LOST_AUTO_DELAY,
       LIFE_LOST_MAX_TIMER,
-      deps.aiChoose,
+      (entry) =>
+        runtimeState.controllers[entry.playerId]!.tickLifeLost(
+          entry,
+          dt,
+          LIFE_LOST_AUTO_DELAY,
+          state,
+        ),
     );
 
     deps.render();
