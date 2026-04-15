@@ -330,7 +330,6 @@ function buildCheckpointDeps(deps: WatcherDeps): CheckpointDeps {
   const runtime = deps.getRuntime();
   return {
     state: runtime.runtimeState.state,
-    battleAnim: runtime.runtimeState.battleAnim,
     accum: runtime.runtimeState.accum,
     remoteCrosshairs: deps.watcher.remoteCrosshairs,
     watcherCrosshairPos: deps.watcher.watcherCrosshairPos,

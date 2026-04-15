@@ -10,10 +10,6 @@ import type {
   BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
-import type {
-  BalloonFlight,
-  ThawingTile,
-} from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -34,14 +30,6 @@ import {
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 
-export interface CheckpointBattleAnim {
-  territory: Set<number>[];
-  walls: Set<number>[];
-  flights: readonly { flight: BalloonFlight; progress: number }[];
-  impacts: { row: number; col: number; age: number }[];
-  thawing: ThawingTile[];
-}
-
 export interface CheckpointAccums {
   battle: number;
   cannon: number;
@@ -58,7 +46,6 @@ export interface CheckpointAccums {
  *  direct variant (battle-start/build-end) calls it inline before player mutation. */
 export interface CheckpointDeps {
   state: GameState;
-  battleAnim: CheckpointBattleAnim;
   accum: CheckpointAccums;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
@@ -84,7 +71,7 @@ export function applyCannonStartCheckpoint(
   deps.state.timer = data.timer;
 
   applyCheckpointModifierTiles(deps.state, data);
-  clearBattleProjectiles(deps);
+  clearInflightCannonballs(deps);
   resetWatcherCrosshairs(deps);
 }
 
@@ -159,7 +146,7 @@ export function applyBuildStartCheckpoint(
       ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
       : null;
   }
-  clearBattleProjectiles(deps);
+  clearInflightCannonballs(deps);
   deps.accum.grunt = 0;
 }
 
@@ -207,10 +194,12 @@ function applyCommonCheckpoint(
   deps.state.burningPits = data.burningPits;
 }
 
-function clearBattleProjectiles(deps: CheckpointDeps): void {
+/** Clear in-flight cannonballs from game state. Checkpoints only touch
+ *  game state; the corresponding battleAnim visual clears (impact + thaw
+ *  flashes) happen at the machine level via `postMutate: clearBattleAnim`
+ *  on every exiting-battle / cannon-entry transition. */
+function clearInflightCannonballs(deps: CheckpointDeps): void {
   deps.state.cannonballs = [];
-  deps.battleAnim.impacts = [];
-  deps.battleAnim.thawing = [];
 }
 
 /** Clear all watcher crosshair/orbit tracking maps. */

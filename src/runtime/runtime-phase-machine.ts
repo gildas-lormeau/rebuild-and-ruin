@@ -554,6 +554,7 @@ const BATTLE_DONE: Transition = {
       return {};
     },
   },
+  postMutate: clearBattleAnim,
   display: BUILD_ENTRY_DISPLAY,
   postDisplay: {
     host: (ctx) => {
@@ -596,6 +597,7 @@ const CEASEFIRE: Transition = {
     },
     watcher: () => ({}),
   },
+  postMutate: clearBattleAnim,
   display: BUILD_ENTRY_DISPLAY,
   postDisplay: BUILD_ENTRY_POSTDISPLAY_CEASEFIRE,
 };
@@ -641,6 +643,7 @@ const CASTLE_SELECT_DONE: Transition = {
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
+  postMutate: clearBattleAnim,
   display: [
     {
       kind: STEP_BANNER,
@@ -683,6 +686,7 @@ const CASTLE_RESELECT_DONE: Transition = {
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
+  postMutate: clearBattleAnim,
   display: CASTLE_SELECT_DONE.display,
   postDisplay: CASTLE_SELECT_DONE.postDisplay,
 };
@@ -712,6 +716,7 @@ const ADVANCE_TO_CANNON: Transition = {
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
+  postMutate: clearBattleAnim,
   display: CASTLE_SELECT_DONE.display,
   postDisplay: CASTLE_SELECT_DONE.postDisplay,
 };
@@ -850,16 +855,26 @@ function runDisplay(
   runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
 }
 
-/**Can we fix that point 4 Shared post-mutation sync for battle entry: clear transient battle-anim
- *  visuals (impact flashes + thaw animations) and rebuild the per-player
- *  territory / wall snapshots from the freshly-mutated state. Host and
- *  watcher arrive at the same post-state through different routes, so this
- *  step is identical for both and lives in `postMutate` instead of being
- *  re-emitted at the end of each role-specific mutate. */
+/** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
+ *  transient battle-anim visuals and rebuild the per-player territory /
+ *  wall snapshots from the freshly-mutated state. Host and watcher arrive
+ *  at the same post-state through different routes, so this step is
+ *  identical for both and lives in `postMutate`. */
 function syncBattleAnim(ctx: PhaseTransitionCtx): void {
-  ctx.battle.clearImpacts();
+  clearBattleAnim(ctx);
   ctx.battle.setTerritory(snapshotTerritory(ctx.state.players));
   ctx.battle.setWalls(snapshotAllWalls(ctx.state));
+}
+
+/** Shared post-mutation sync for EXITING a battle (battle-done, ceasefire)
+ *  or entering the cannon phase after a completed battle / build cycle
+ *  (castle-select-done, castle-reselect-done, advance-to-cannon): clear
+ *  any lingering battle-anim visuals (impact flashes + thaw flashes) so
+ *  the next phase renders against a clean slate. Every battleAnim reset
+ *  in the phase machine goes through this hook so the authoritative clear
+ *  is always machine-level (not buried in a checkpoint-apply fn). */
+function clearBattleAnim(ctx: PhaseTransitionCtx): void {
+  ctx.battle.clearImpacts();
 }
 
 function proceedToBattle(
