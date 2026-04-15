@@ -29,7 +29,6 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   UpgradePickDialogState,
@@ -48,16 +47,6 @@ import {
   tickUpgradePickDialog,
 } from "./runtime-upgrade-pick-core.ts";
 
-type TickAiEntry = (
-  entry: UpgradePickEntry,
-  entryIdx: number,
-  dt: number,
-  autoDelay: number,
-  dialogTimer: number,
-) => void;
-
-type ForcePickEntry = (entry: UpgradePickEntry) => UpgradeId;
-
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
@@ -66,13 +55,6 @@ interface UpgradePickSystemDeps {
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
   ) => void;
-  /** AI auto-resolve tick (cycle → lock-in → commit) for one dialog entry.
-   *  Wired by the composition root (`runtime-composition.ts`) from `ai/ai-upgrade-pick.ts`.
-   *  Subsystems can't import from ai/ directly — only the root may. */
-  readonly tickAiEntry: TickAiEntry;
-  /** Max-timer force-pick fallback for one dialog entry. Wired from the
-   *  composition root for the same domain-decoupling reason. */
-  readonly forcePickEntry: ForcePickEntry;
 }
 
 export interface UpgradePickSystem {
@@ -114,8 +96,8 @@ export function createUpgradePickSystem(
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
       remotePlayerSlots: runtimeState.frameMeta.remotePlayerSlots,
-      isHumanController: (playerId) =>
-        isHuman(runtimeState.controllers[playerId]!),
+      needsLocalInput: (playerId) =>
+        !runtimeState.controllers[playerId]!.autoResolvesUpgradePick(),
     });
     if (!dialog) return null;
     runtimeState.dialogs.upgradePick = dialog;
@@ -149,13 +131,24 @@ export function createUpgradePickSystem(
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return;
 
+    const state = runtimeState.state;
     const allResolved = tickUpgradePickDialog(
       dialog,
       dt,
-      UPGRADE_PICK_AUTO_DELAY,
       UPGRADE_PICK_MAX_TIMER,
-      deps.tickAiEntry,
-      deps.forcePickEntry,
+      (entry, entryIdx) =>
+        runtimeState.controllers[entry.playerId]!.tickUpgradePick(
+          entry,
+          entryIdx,
+          UPGRADE_PICK_AUTO_DELAY,
+          dialog.timer,
+          state,
+        ),
+      (entry) =>
+        runtimeState.controllers[entry.playerId]!.forceUpgradePick(
+          entry,
+          state,
+        ),
     );
 
     deps.render();

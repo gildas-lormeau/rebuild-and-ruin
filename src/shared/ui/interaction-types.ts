@@ -63,7 +63,11 @@ export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
   readonly myPlayerId: PlayerSlotId;
   readonly remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
-  readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
+  /** True if this player's entry waits for local UI input (i.e. should
+   *  NOT auto-resolve). Wired from the controller's
+   *  `autoResolvesUpgradePick()` / `isHuman()` check depending on the
+   *  dialog. */
+  readonly needsLocalInput: (playerId: ValidPlayerSlot) => boolean;
 }
 
 export interface CastleBuildState {
@@ -98,6 +102,6 @@ export function shouldAutoResolve(
   deps: AutoResolveDeps,
 ): boolean {
   return deps.hostAtFrameStart
-    ? !deps.isHumanController(playerId) && !deps.remotePlayerSlots.has(playerId)
+    ? !deps.needsLocalInput(playerId) && !deps.remotePlayerSlots.has(playerId)
     : playerId !== deps.myPlayerId;
 }

@@ -23,12 +23,7 @@
  * host + watcher), test/runtime-headless.ts (tests).
  */
 
-import { secondsToTicks } from "../ai/ai-constants.ts";
 import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
-import {
-  forcePickUpgradeEntry,
-  tickAiUpgradePickEntry,
-} from "../ai/ai-upgrade-pick.ts";
 import {
   executeCannonFire,
   executePlacePiece,
@@ -532,15 +527,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ? (playerId, choice) =>
           config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
-    tickAiEntry: (entry, entryIdx, _dt, autoDelay, dialogTimer) =>
-      tickAiUpgradePickEntry(
-        entry,
-        entryIdx,
-        secondsToTicks(autoDelay),
-        dialogTimer,
-        runtimeState.state,
-      ),
-    forcePickEntry: (entry) => forcePickUpgradeEntry(entry, runtimeState.state),
   });
 
   // -------------------------------------------------------------------------

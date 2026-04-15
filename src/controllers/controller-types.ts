@@ -19,8 +19,11 @@ import type {
   GameViewState,
   PiecePlacementPreview,
   PlayerController,
+  UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Action } from "../shared/ui/input-action.ts";
+import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
@@ -266,5 +269,33 @@ export abstract class BaseController implements PlayerController {
     if (!nextReadyCombined(state, this.playerId, this.cannonRotationIdx))
       return null;
     return { playerId: this.playerId, targetRow, targetCol };
+  }
+
+  /** Default matches HumanController: entry waits for local UI input,
+   *  which commits via the runtime's `resolveAndSend` path. AiController
+   *  overrides to auto-resolve. */
+  autoResolvesUpgradePick(): boolean {
+    return false;
+  }
+
+  /** Default no-op — only auto-resolving controllers need to tick. */
+  tickUpgradePick(
+    _entry: UpgradePickEntry,
+    _entryIdx: number,
+    _autoDelaySeconds: number,
+    _dialogTimer: number,
+    _state: UpgradePickViewState,
+  ): void {}
+
+  /** Deterministic max-timer fallback shared by every controller: prefer
+   *  the AI's pre-cached `plannedChoice` (set during the lock-in window),
+   *  otherwise roll `state.rng` — synced across host/peer so the fallback
+   *  converges without a broadcast. Pure arithmetic, no AI imports. */
+  forceUpgradePick(
+    entry: UpgradePickEntry,
+    state: UpgradePickViewState,
+  ): UpgradeId {
+    if (entry.plannedChoice !== null) return entry.plannedChoice;
+    return entry.offers[Math.floor(state.rng.next() * entry.offers.length)]!;
   }
 }

@@ -1,18 +1,16 @@
 /**
  * AI upgrade-pick logic: per-entry auto-resolve tick (cycle → lock-in →
- * commit) plus the contextual decision heuristic it uses internally.
+ * commit) and the contextual decision heuristic it uses.
  *
  * Exported surface:
- *   - tickAiUpgradePickEntry: per-entry dialog tick used by
- *     game/upgrade-pick.ts via an injected callback (game/ may not
- *     import ai/). Owns the "AI considering" animation and the AI's
- *     final choice — both live in the ai/ domain.
- *   - forcePickUpgradeEntry: max-timer force-pick fallback. Same domain
- *     reason — deciding which upgrade a non-responsive entry receives is
- *     AI-role logic, not a game rule.
+ *   - tickAiUpgradePickEntry: per-entry animation tick (cycle → lock-in →
+ *     commit). Called by AiController.tickUpgradePick (inherited by
+ *     AssistedHumanController, which broadcasts the resulting pick).
  *
- * The decision function (aiPickUpgrade) is a file-local helper, invoked
- * once per entry at lock-in and cached in `entry.plannedChoice`.
+ * The decision function (aiPickUpgrade) stays file-local — the animation
+ * tick invokes it at lock-in and caches the result in `entry.plannedChoice`.
+ * Max-timer force-pick fallback (`plannedChoice ?? random`) lives on
+ * BaseController.forceUpgradePick — pure arithmetic, no AI knowledge.
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
@@ -82,20 +80,8 @@ export function tickAiUpgradePickEntry(
   entry.focusedCard = (((start + dir * rawStep) % len) + len) % len;
 }
 
-/** Force-pick fallback for max-timer expiry. Prefers `plannedChoice`
- *  (already decided by the auto-resolve tick), otherwise rolls a random
- *  offer using the synced RNG so non-responsive humans still resolve
- *  deterministically. Called from `tickUpgradePickDialog` via callback
- *  (game/ may not import ai/). */
-export function forcePickUpgradeEntry(
-  entry: UpgradePickEntry,
-  state: GameState,
-): UpgradeId {
-  if (entry.plannedChoice !== null) return entry.plannedChoice;
-  return entry.offers[Math.floor(state.rng.next() * entry.offers.length)]!;
-}
-
-/** AI-aware pick: contextual upgrade selection based on game state. */
+/** AI-aware pick: contextual upgrade selection based on game state.
+ *  File-local — invoked by tickAiUpgradePickEntry at lock-in/commit. */
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: GameState,

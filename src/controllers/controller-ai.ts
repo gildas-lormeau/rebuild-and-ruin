@@ -45,6 +45,7 @@ import {
   tickSelection,
 } from "../ai/ai-phase-select.ts";
 import { type AiStrategy, DefaultStrategy } from "../ai/ai-strategy.ts";
+import { tickAiUpgradePickEntry } from "../ai/ai-upgrade-pick.ts";
 import {
   executePlaceCannon,
   executePlacePiece,
@@ -64,6 +65,7 @@ import {
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { BaseController } from "./controller-types.ts";
 
 // Compile-time guarantee: AiController structurally satisfies every phase
@@ -267,6 +269,30 @@ export class AiController extends BaseController implements AiAnimatable {
       return true;
     };
     tickBattle(this, this._battlePhase, state, executeFire);
+  }
+
+  // -----------------------------------------------------------------------
+  // Upgrade pick (modern mode)
+  // -----------------------------------------------------------------------
+
+  override autoResolvesUpgradePick(): boolean {
+    return true;
+  }
+
+  override tickUpgradePick(
+    entry: UpgradePickEntry,
+    entryIdx: number,
+    autoDelaySeconds: number,
+    dialogTimer: number,
+    state: GameState,
+  ): void {
+    tickAiUpgradePickEntry(
+      entry,
+      entryIdx,
+      secondsToTicks(autoDelaySeconds),
+      dialogTimer,
+      state,
+    );
   }
 
   // -----------------------------------------------------------------------

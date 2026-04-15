@@ -1,5 +1,6 @@
 import type { Rng } from "../platform/rng.ts";
 import { Action } from "../ui/input-action.ts";
+import type { UpgradePickEntry } from "../ui/interaction-types.ts";
 import type { KeyBindings } from "../ui/player-config.ts";
 import type { BattleEvent } from "./battle-events.ts";
 import {
@@ -27,6 +28,7 @@ import type {
 import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
 /** Minimal game-state slice used in controller method signatures.
  *  Breaks the coupling chain: consumers of controller interfaces no longer
@@ -62,6 +64,17 @@ export interface CannonViewState extends GameViewState {
   readonly burningPits: readonly BurningPit[];
   readonly cannonMaxHp: number;
   readonly gameMode: GameMode;
+}
+
+/** Upgrade-pick dialog state slice.  4 fields on top of GameViewState.
+ *  Used by UpgradePickController.tickUpgradePick and forceUpgradePick —
+ *  covers the fields read by the AI decision heuristic (aiPickUpgrade)
+ *  plus the rng needed for deterministic fallback randomization. */
+export interface UpgradePickViewState extends GameViewState {
+  readonly rng: Rng;
+  readonly towerAlive: readonly boolean[];
+  readonly grunts: readonly Grunt[];
+  readonly burningPits: readonly BurningPit[];
 }
 
 /** Battle-phase state slice.  14 fields.
@@ -256,6 +269,47 @@ export interface BattleController {
   endBattle(): void;
 }
 
+/** Upgrade-pick dialog resolution (modern mode).
+ *
+ *  The dialog state (focus, timers, offers) lives on `UpgradePickEntry`;
+ *  the controller decides when to commit a pick and which one. The
+ *  orchestrator (`runtime-upgrade-pick.ts`) iterates entries each tick
+ *  and calls `tickUpgradePick` on auto-resolving controllers, falling
+ *  back to `forceUpgradePick` at max-timer expiry.
+ *
+ *  HumanController inherits the default no-op / `false` auto-resolve so
+ *  its entry waits for UI input (which commits via the runtime's existing
+ *  `resolveAndSend` path). AiController overrides to animate + commit
+ *  via `aiPickUpgrade`. AssistedHumanController extends AiController and
+ *  broadcasts the committed pick over the wire for protocol testing. */
+export interface UpgradePickController {
+  /** True if this controller's entry auto-resolves (AI-driven commit).
+   *  False if it waits for local UI input. Queried at dialog-create time
+   *  to populate `UpgradePickEntry.autoResolve`. */
+  autoResolvesUpgradePick(): boolean;
+
+  /** Per-frame tick for an auto-resolving entry. Mutates
+   *  `entry.autoTimer` / `focusedCard` / `plannedChoice` / `choice` /
+   *  `pickedAtTimer` in place. No-op for controllers that return `false`
+   *  from `autoResolvesUpgradePick`. */
+  tickUpgradePick(
+    entry: UpgradePickEntry,
+    entryIdx: number,
+    autoDelaySeconds: number,
+    dialogTimer: number,
+    state: UpgradePickViewState,
+  ): void;
+
+  /** Max-timer fallback: produce a deterministic commit choice for a
+   *  still-pending entry. Must use `state.rng` if randomizing so host
+   *  and peer agree. The orchestrator applies the returned UpgradeId to
+   *  `entry.choice` / `focusedCard` / `pickedAtTimer`. */
+  forceUpgradePick(
+    entry: UpgradePickEntry,
+    state: UpgradePickViewState,
+  ): UpgradeId;
+}
+
 /** Full controller interface — intersection of all phase-scoped sub-interfaces.
  *  Use this when a module genuinely crosses phases (orchestrators, factories).
  *  Prefer the narrower sub-interfaces when only one phase is needed. */
@@ -264,7 +318,8 @@ export interface PlayerController
     SelectionController,
     BuildController,
     CannonController,
-    BattleController {}
+    BattleController,
+    UpgradePickController {}
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {

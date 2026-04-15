@@ -42,7 +42,9 @@ import type {
   PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import { Action } from "../shared/ui/input-action.ts";
+import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
 import { AiController } from "./controller-ai.ts";
 
 /** Typed wire-broadcast callbacks. The controller stays protocol-agnostic
@@ -51,6 +53,7 @@ interface AssistedSenders {
   sendPiecePlaced: (payload: PiecePlacedPayload) => void;
   sendCannonPlaced: (payload: CannonPlacedPayload) => void;
   sendCannonFired: (ball: Cannonball) => void;
+  sendUpgradePick: (choice: UpgradeId) => void;
 }
 
 interface AssistedControllerOptions {
@@ -125,6 +128,37 @@ export class AiAssistedHumanController
       return true;
     };
     tickBattle(this, this._battlePhase, state, executeFire);
+  }
+
+  // ── Upgrade pick: AI animates + commits; pick broadcast via senders.sendUpgradePick ──
+
+  override tickUpgradePick(
+    entry: UpgradePickEntry,
+    entryIdx: number,
+    autoDelaySeconds: number,
+    dialogTimer: number,
+    state: GameState,
+  ): void {
+    const wasCommitted = entry.choice !== null;
+    super.tickUpgradePick(
+      entry,
+      entryIdx,
+      autoDelaySeconds,
+      dialogTimer,
+      state,
+    );
+    if (!wasCommitted && entry.choice !== null) {
+      this.senders.sendUpgradePick(entry.choice);
+    }
+  }
+
+  override forceUpgradePick(
+    entry: UpgradePickEntry,
+    state: GameState,
+  ): UpgradeId {
+    const choice = super.forceUpgradePick(entry, state);
+    this.senders.sendUpgradePick(choice);
+    return choice;
   }
 
   // ── InputReceiver stubs (v1 — no real human input handled yet) ──

@@ -77,7 +77,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
       remotePlayerSlots,
-      isHumanController: (playerId) =>
+      needsLocalInput: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
