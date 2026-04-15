@@ -13,7 +13,8 @@ import type { ModifierImpl } from "./modifier-types.ts";
 const DUST_STORM_JITTER_DEG = 15;
 export const dustStormImpl: ModifierImpl = {
   apply: () => ({ changedTiles: [] as number[], gruntsSpawned: 0 }),
-  needsRecheck: false,
+  // Trajectory jitter only — no map / wall mutation.
+  skipsRecheck: true,
 };
 
 /** Apply Dust Storm trajectory jitter to a target offset. Returns the

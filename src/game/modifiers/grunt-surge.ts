@@ -31,7 +31,8 @@ export function createGruntSurgeImpl(
       changedTiles: [] as number[],
       gruntsSpawned: applyGruntSurge(state, spawnOnZone),
     }),
-    needsRecheck: false,
+    // Spawns grunts only — no map / wall mutation.
+    skipsRecheck: true,
   };
 }
 

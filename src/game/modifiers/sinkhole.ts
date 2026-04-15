@@ -109,7 +109,6 @@ export const sinkholeImpl: ModifierImpl = {
     changedTiles: [...applySinkhole(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
   zoneReset: resetSinkholeTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {
     state.modern!.sinkholeTiles = data.sinkholeTiles

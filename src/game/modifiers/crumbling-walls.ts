@@ -18,7 +18,6 @@ export const crumblingWallsImpl: ModifierImpl = {
     changedTiles: applyCrumblingWalls(state),
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
 };
 
 /** Apply crumbling walls: destroy a fraction of each player's outermost walls.

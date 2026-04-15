@@ -25,7 +25,6 @@ export const highTideImpl: ModifierImpl = {
     changedTiles: [...applyHighTide(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
   clear: clearHighTide,
   zoneReset: resetHighTideTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {

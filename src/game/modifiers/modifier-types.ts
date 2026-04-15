@@ -14,8 +14,15 @@ export interface ModifierApplyResult {
 export interface ModifierImpl {
   /** Apply the modifier at battle start. */
   apply(state: GameState): ModifierApplyResult;
-  /** Whether recheckTerritory() should run after apply. */
-  needsRecheck: boolean;
+  /** Opt-out flag: set `true` ONLY when the modifier provably leaves
+   *  walls and tile passability untouched (no map mutation, no wall
+   *  destruction, no grunt enclosure changes). The default — recheck —
+   *  matches the watcher's `applyBattleStartCheckpoint`, which always
+   *  recomputes territory after restoring modifier tiles. Forgetting to
+   *  opt out is harmless (one extra recheck); forgetting to opt IN to a
+   *  recheck on a tile-mutating modifier would silently desync host vs
+   *  watcher territory. Default-on closes that footgun. */
+  skipsRecheck?: boolean;
   /** Revert temporary state before the next battle. Idempotent. */
   clear?: (state: GameState) => void;
   /** Revert modifier tiles belonging to a specific zone during zone reset. */

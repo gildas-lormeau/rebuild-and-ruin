@@ -42,14 +42,12 @@ export const dryLightningImpl: ModifierImpl = {
     changedTiles: [...applyDryLightning(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
 };
 export const wildfireImpl: ModifierImpl = {
   apply: (state: GameState) => ({
     changedTiles: [...applyWildfire(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
 };
 
 /** Apply dry lightning: scatter random burning pits on grass tiles per active zone. */

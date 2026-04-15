@@ -14,7 +14,9 @@ export const frozenRiverImpl: ModifierImpl = {
     applyFrozenRiver(state);
     return { changedTiles: [] as number[], gruntsSpawned: 0 };
   },
-  needsRecheck: false,
+  // Marks frozen positions in a Set; does not mutate `state.map.tiles`
+  // (water stays water, just walkable). Interior is unaffected.
+  skipsRecheck: true,
   clear: clearFrozenRiver,
   restore: (state: GameState, data: ModifierTileData) => {
     if ("frozenTiles" in data) {

@@ -127,6 +127,11 @@ export function finalizeCastleConstruction(state: GameState): void {
 export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
+  // Pre-modifier recheck: reconcile interior + grunts/houses against the
+  // post-sweep wall set. A SECOND post-modifier recheck happens inside
+  // `applyBattleStartModifiers` (default-on; modifiers opt out via
+  // `skipsRecheck`). The watcher's `applyBattleStartCheckpoint` mirrors
+  // the second recheck via `recomputeAllTerritory` after restoring tiles.
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearActiveModifiers(state);
@@ -468,6 +473,8 @@ function decayBurningPits(state: GameState): void {
 
 /** Modern mode: apply environmental modifiers at battle start.
  *  Dispatches to the modifier registry — no per-modifier knowledge needed here.
+ *  Always reconciles territory afterwards unless the impl opts out via
+ *  `skipsRecheck: true` (see ModifierImpl docs).
  *  Returns a ModifierDiff for the reveal banner, or null if no modifier fired. */
 function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
@@ -475,7 +482,7 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const impl = MODIFIER_REGISTRY.get(mod);
   if (!impl) return null;
   const result = impl.apply(state);
-  if (impl.needsRecheck) recheckTerritory(state);
+  if (!impl.skipsRecheck) recheckTerritory(state);
   return {
     id: mod,
     changedTiles: result.changedTiles,

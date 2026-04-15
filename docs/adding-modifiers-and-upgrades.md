@@ -66,7 +66,9 @@ export const myModifierImpl: ModifierImpl = {
     changedTiles: [...applyMyModifier(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,          // true if territory changes (tile mutations, wall destruction)
+  // skipsRecheck omitted = recheckTerritory runs after apply (default).
+  // Set `skipsRecheck: true` ONLY if your modifier provably leaves walls
+  // and tile passability untouched (e.g. visual-only or grunt-spawn-only).
   clear: clearMyModifier,      // optional — revert temporary state before next battle
   zoneReset: resetMyModifierForZone,  // optional — revert tiles for an eliminated zone
   restore: (state, data) => {  // optional — restore tile state from checkpoint
@@ -92,9 +94,14 @@ const MODIFIER_IMPLS = {
 for the reveal banner. Tile-mutating modifiers return the changed keys;
 overlay modifiers (frozen river, dust storm) return empty arrays.
 
-**`needsRecheck`** — set `true` when the modifier changes territory
-(tile mutations, wall destruction). `recheckTerritory()` runs automatically
-after apply.
+**`skipsRecheck`** — opt-OUT flag (default: omit, recheck happens). The
+dispatcher always runs `recheckTerritory()` after apply unless this is
+`true`. Set it ONLY when the modifier provably touches no walls and no
+tile passability — visual-only effects (dust storm jitter), grunt-spawn-only
+(grunt surge), water-overlay (frozen river), debris cleanup (rubble
+clearing). Forgetting to opt out wastes one recheck per battle (cheap);
+forgetting to opt IN under the old `needsRecheck` design silently desynced
+host vs watcher territory, which is why the default flipped.
 
 **`clear`** — idempotent function that reverts temporary state. Called before
 every battle start (not just when this modifier was active). Guard with a

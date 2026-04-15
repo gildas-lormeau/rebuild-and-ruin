@@ -16,7 +16,8 @@ export const rubbleClearingImpl: ModifierImpl = {
     changedTiles: applyRubbleClearing(state),
     gruntsSpawned: 0,
   }),
-  needsRecheck: false,
+  // Removes dead cannons + burning pits — neither affects walls or interior.
+  skipsRecheck: true,
 };
 
 /** Apply rubble clearing: remove all dead cannon debris and burning pits.

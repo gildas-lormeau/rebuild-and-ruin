@@ -25,7 +25,6 @@ export const lowWaterImpl: ModifierImpl = {
     changedTiles: [...applyLowWater(state)],
     gruntsSpawned: 0,
   }),
-  needsRecheck: true,
   clear: clearLowWater,
   zoneReset: resetLowWaterTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {
