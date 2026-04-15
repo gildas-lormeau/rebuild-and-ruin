@@ -145,6 +145,12 @@ checkpoint state, serialization, clear, or zoneReset. They just need:
 4. An import + entry in `MODIFIER_IMPLS` in `modifier-system.ts`
 5. A banner color in `render-ui.ts`
 
+If the effect provably leaves walls and tile passability alone (visual-only
+like dust storm, or grunt-spawn-only like grunt surge), set
+`skipsRecheck: true` on the impl — see the `skipsRecheck` section above.
+Crumbling walls is the counter-example: it destroys walls, so it takes the
+default (recheck runs).
+
 ---
 
 ## Upgrades (player draft picks)
