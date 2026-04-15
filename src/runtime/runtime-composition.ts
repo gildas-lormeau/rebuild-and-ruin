@@ -472,6 +472,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             clearFrameData,
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
+            onStateReady: () => phaseTicks.subscribeBusObservers(),
           },
           config.getUrlModeOverride,
         ),
@@ -774,6 +775,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     phaseTicks: {
       startCannonPhase: phaseTicks.startCannonPhase,
       beginBattle: phaseTicks.beginBattle,
+      subscribeBusObservers: phaseTicks.subscribeBusObservers,
     },
 
     upgradePick,

@@ -279,10 +279,6 @@ export interface PhaseTransitionCtx {
 
   // ── Host-only hooks ──
 
-  /** Pre-mutation hook for the active transition — e.g. `subscribeBus` on
-   *  host's `startBattle`, or empty on watcher. */
-  readonly hostPrepare?: () => void;
-
   readonly broadcast?: {
     readonly cannonStart?: (state: GameState) => void;
     readonly battleStart?: (
@@ -362,7 +358,6 @@ const CANNON_PLACE_DONE: Transition = {
   toPhase: Phase.BATTLE,
   mutate: {
     host: (ctx) => {
-      ctx.hostPrepare?.();
       ctx.sound.drumsStop();
       ctx.log(`startBattle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset();
@@ -618,7 +613,6 @@ const CASTLE_SELECT_DONE: Transition = {
   toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
-      ctx.hostPrepare?.();
       ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       finalizeCastleConstruction(ctx.state);
@@ -656,7 +650,6 @@ const CASTLE_RESELECT_DONE: Transition = {
   toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
-      ctx.hostPrepare?.();
       ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) + reselect-specific
@@ -690,7 +683,6 @@ const ADVANCE_TO_CANNON: Transition = {
   toPhase: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
-      ctx.hostPrepare?.();
       ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) run under the

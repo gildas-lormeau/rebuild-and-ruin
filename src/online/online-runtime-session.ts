@@ -126,6 +126,7 @@ export function createOnlineRuntimeSessionHelpers(
         deps.resetNetworkingForNewGame();
       },
       enterSelection: () => runtime.selection.enter(),
+      onStateReady: () => runtime.phaseTicks.subscribeBusObservers(),
     });
   }
 

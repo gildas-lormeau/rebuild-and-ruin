@@ -28,6 +28,7 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
+import type { GameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   type CannonPhantomPayload,
@@ -173,6 +174,10 @@ export interface PhaseTicksSystem {
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
+  /** Subscribe the battle-event observers (sound / haptics / stats) to the
+   *  current `state.bus`. Idempotent per-bus; safe (and required) to call
+   *  after every new-game setState so rematches rebind to the fresh bus. */
+  subscribeBusObservers: () => void;
 }
 
 /** Set of all battle event type strings — used to filter bus events. */
@@ -186,14 +191,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   // -------------------------------------------------------------------------
   // Bus → sound / haptics / stats (observation subscribers)
-  // Deferred: state.bus isn't available at system creation time.
+  //
+  // Each new game installs a fresh `state.bus`, so subscription must run
+  // AFTER setState. The caller invokes `subscribeBusObservers` from the
+  // bootstrap `onStateReady` hook; the bus-identity guard keeps it
+  // idempotent within a single game (extra calls are a no-op) and lets
+  // it resubscribe cleanly on rematch (new bus identity).
   // -------------------------------------------------------------------------
 
-  let busSubscribed = false;
-  function subscribeBus(): void {
-    if (busSubscribed) return;
-    busSubscribed = true;
-    runtimeState.state.bus.onAny((type, event) => {
+  let subscribedBus: GameEventBus | undefined;
+  function subscribeBusObservers(): void {
+    const bus = runtimeState.state.bus;
+    if (subscribedBus === bus) return;
+    subscribedBus = bus;
+    bus.onAny((type, event) => {
       if (!BATTLE_EVENT_TYPES.has(type)) return;
       const pov = runtimeState.frameMeta.povPlayerId;
       const evt = event as BattleEvent;
@@ -314,7 +325,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         drumsStop: deps.sound.drumsStop,
         lifeLost: deps.sound.lifeLost,
       },
-      hostPrepare: subscribeBus,
       soundDrumsQuiet: deps.sound.drumsQuiet,
       battle: {
         setFlights: (flights) => {
@@ -827,5 +837,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickBuildPhase,
     tickGame,
     syncCrosshairs,
+    subscribeBusObservers,
   };
 }

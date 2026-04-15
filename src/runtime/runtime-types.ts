@@ -487,6 +487,10 @@ export interface RuntimeLifecycle {
 export interface RuntimePhaseTicks {
   startCannonPhase: () => void;
   beginBattle: () => void;
+  /** Subscribe the runtime's battle-event observers (sound / haptics /
+   *  stats) to the current `state.bus`. Must be called after each new-game
+   *  `setState` so rematches rebind to the fresh bus. */
+  subscribeBusObservers: () => void;
 }
 
 export interface GameRuntime {

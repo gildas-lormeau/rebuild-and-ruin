@@ -73,12 +73,18 @@ interface InitGameDeps {
   resetUIState: () => void;
   /** Called after state + controllers are ready. Enters tower selection. */
   enterSelection: () => void;
+  /** Called immediately after `setState`, before controllers are created.
+   *  Hook for any subscription that needs to bind to the fresh `state.bus`
+   *  (sound / haptics / stats observers). Required because each game gets
+   *  a new bus and the previous game's subscription is discarded with it. */
+  onStateReady: () => void;
 }
 
 interface BootstrapFromSettingsDeps {
   readonly clearFrameData: () => void;
   readonly resetUIState: () => void;
   readonly enterSelection: () => void;
+  readonly onStateReady: () => void;
 }
 
 /** Resolved game configuration from settings + URL overrides.
@@ -172,6 +178,7 @@ export async function bootstrapNewGameFromSettings(
     difficulty: runtimeState.settings.difficulty,
     resetUIState: deps.resetUIState,
     enterSelection: deps.enterSelection,
+    onStateReady: deps.onStateReady,
   });
 }
 
@@ -232,6 +239,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   );
 
   deps.setState(state);
+  deps.onStateReady();
   deps.setControllers(nextControllers);
   deps.enterSelection();
 }
