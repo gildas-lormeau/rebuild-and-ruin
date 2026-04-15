@@ -69,11 +69,10 @@ interface HeadlessRuntimeOptions {
   /** When true, runtime log lines are forwarded to console. Defaults to false. */
   log?: boolean;
   /** When true, the runtime is wired in "online host" mode: it constructs a
-   *  no-op `OnlinePhaseTicks` so every host fan-out hook fires (broadcasts go
-   *  to /dev/null, dedup channels are NOOP, watcher hooks unset). Used by the
-   *  host-vs-local sync test to verify the online code path produces the same
-   *  state as the local one. The runtime never receives any messages because
-   *  there are no peers. */
+   *  no-op `OnlinePhaseTicks` so every host fan-out hook fires (broadcasts
+   *  go to /dev/null, dedup channels are NOOP, watcher hooks unset). Tests
+   *  that need real broadcasts pass an explicit `onlinePhaseTicks` instead;
+   *  see `test/network-setup.ts`. */
   hostMode?: boolean;
   /** Optional renderer override. When provided, replaces the default no-op
    *  stub renderer — used by tests that need the real draw pipeline to fire
@@ -112,6 +111,12 @@ interface HeadlessRuntimeOptions {
    *  BEFORE the platform/level gate, so tests can assert on game-event →
    *  sound mappings without a real `AudioContext`. */
   soundObserver?: SoundObserver;
+  /** Explicit `OnlinePhaseTicks` override. Takes precedence over the
+   *  `hostMode` noop default. Used by network tests that need real
+   *  broadcast emitters (host side) or a wired `tickWatcher` (watcher
+   *  side). When undefined, falls back to `hostMode`-driven default
+   *  (noop emitters if `hostMode`, no online hooks otherwise). */
+  onlinePhaseTicks?: OnlinePhaseTicks;
 }
 
 export interface RunOpts {
@@ -159,11 +164,11 @@ export interface HeadlessRuntime {
    *  the receive side before asserting on game state. */
   deliverNetworkMessage(msg: ServerMessage): Promise<void>;
   /** Register an additional receive-side handler outside the runtime's
-   *  own `network.onMessage` subscriptions. Used by `test/online-headless.ts`
-   *  to plug the production `handleServerMessage` dispatcher (which lives
-   *  in `online/`, a layer the runtime cannot import) into the same
-   *  delivery loop `deliverNetworkMessage` walks. Returns an unsubscribe
-   *  function. */
+   *  own `network.onMessage` subscriptions. Used by the network test setup
+   *  (`test/network-setup.ts`) to plug the production `handleServerMessage`
+   *  dispatcher (which lives in `online/`, a layer the runtime cannot
+   *  import) into the same delivery loop `deliverNetworkMessage` walks.
+   *  Returns an unsubscribe function. */
   subscribeNetworkMessage(
     handler: (msg: ServerMessage) => void | Promise<void>,
   ): () => void;
@@ -210,6 +215,7 @@ export async function createHeadlessRuntime(
     remotePlayerSlots,
     hapticsObserver,
     soundObserver,
+    onlinePhaseTicks: onlinePhaseTicksOverride,
   } = opts;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
@@ -321,7 +327,8 @@ export async function createHeadlessRuntime(
       await built.lifecycle.startGame();
       setMode(built.runtimeState, Mode.SELECTION);
     },
-    onlinePhaseTicks: hostMode ? noopHostPhaseTicks() : undefined,
+    onlinePhaseTicks:
+      onlinePhaseTicksOverride ?? (hostMode ? noopHostPhaseTicks() : undefined),
     observers:
       hapticsObserver || soundObserver
         ? { haptics: hapticsObserver, sound: soundObserver }

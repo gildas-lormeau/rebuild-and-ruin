@@ -100,8 +100,20 @@ export interface ScenarioOptions {
    *  network broadcasts. The runtime takes the online code path (wires
    *  OnlinePhaseTicks) but all broadcasts go to `sc.sentMessages` with
    *  no peer on the other end. Tests use this to assert on outbound
-   *  wire messages without a second runtime. */
+   *  wire messages without a second runtime. Mutually exclusive with
+   *  `online`. */
   hostMode?: boolean;
+  /** Online role — mirrors the E2E API's `online: "host" | "join"`.
+   *  - `"host"` — full host with real broadcast emitters (CANNON_START /
+   *    BATTLE_START / BUILD_START / BUILD_END + per-action). Outbound
+   *    messages land in `sc.sentMessages`.
+   *  - `"watcher"` — pure watcher. `session.isHost = false`, every slot
+   *    remote (no local AI), `tickWatcher` wired, production
+   *    `handleServerMessage` dispatcher subscribed to the receive channel.
+   *    Messages arrive via `sc.deliverMessage(msg)`.
+   *  Pair them via `createNetworkedPair({ ... })` in `network-setup.ts`
+   *  when you need a full two-runtime loopback. */
+  online?: "host" | "watcher";
   /** Initial dev speed multiplier (1..16, integer). Drives the sub-step
    *  loop in `mainLoop` — at speed=N, each tick advances the game by N
    *  normal-sized sub-steps instead of one inflated dt. Used by tests
@@ -323,6 +335,13 @@ export function loadSeed(
 export async function createScenario(
   opts: ScenarioOptions = {},
 ): Promise<Scenario> {
+  // Online modes delegate to the network setup module so this core factory
+  // stays free of the online/ import (and its DOM shim) when tests don't
+  // need it.
+  if (opts.online === "host" || opts.online === "watcher") {
+    const { createOnlineScenario } = await import("./network-setup.ts");
+    return createOnlineScenario(opts);
+  }
   const sentMessages: GameMessage[] = [];
   const ascii =
     opts.renderer === "ascii" ? createAsciiRenderer() : undefined;
