@@ -52,16 +52,12 @@ interface LobbySystem {
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   const { runtimeState, uiCtx } = deps;
 
-  // Cache the confirm-key map — rebuilt lazily when keyBindings change
   let cachedConfirmKeys: Map<string, number> | undefined;
-  let cachedKeyBindings: readonly KeyBindings[] | undefined;
 
   function getConfirmKeys(): Map<string, number> {
-    if (cachedConfirmKeys && cachedKeyBindings === uiCtx.settings.keyBindings) {
-      return cachedConfirmKeys;
+    if (!cachedConfirmKeys) {
+      cachedConfirmKeys = buildLobbyConfirmKeys(uiCtx.settings.keyBindings);
     }
-    cachedKeyBindings = uiCtx.settings.keyBindings;
-    cachedConfirmKeys = buildLobbyConfirmKeys(cachedKeyBindings);
     return cachedConfirmKeys;
   }
 
