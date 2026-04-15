@@ -52,10 +52,10 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
-  emptyFreshInterior,
   isPlayerAlive,
   isPlayerEliminated,
   isPlayerSeated,
@@ -424,7 +424,10 @@ function resetPlayerBoardState(
   options?: { keepHomeTower?: boolean },
 ): void {
   clearPlayerWalls(player);
-  player.interior = emptyFreshInterior();
+  // clearPlayerWalls bumps wallsEpoch; sync interiorEpoch here so a remote-slot
+  // receiver doesn't throw stale-interior before the rebuild's recheckTerritory
+  // catches up (castle animation runs from OPPONENT_PIECE_PLACED only).
+  markInteriorFresh(player, new Set());
   player.cannons = [];
   player.ownedTowers = [];
   player.castle = null;
