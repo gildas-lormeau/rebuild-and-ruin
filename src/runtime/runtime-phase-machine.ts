@@ -561,6 +561,11 @@ const BATTLE_DONE: Transition = {
   postMutate: clearBattleAnim,
   display: BUILD_ENTRY_DISPLAY,
   postDisplay: {
+    // Host's phase timer is driven by `enterBuildPhase` (engine-level)
+    // plus `startBuildPhaseLocal` inside `buildEntryHostPostDisplay`
+    // (controller resets + accumulator clears), so no explicit anchor is
+    // needed. Watcher has no engine-level tick, so it anchors its phase
+    // timer at the banner-end moment to match the host's ticking baseline.
     host: buildEntryHostPostDisplay,
     watcher: (ctx) => {
       ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
