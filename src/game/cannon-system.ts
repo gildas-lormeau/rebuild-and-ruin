@@ -43,6 +43,7 @@ import {
   isCannonTile,
   isRampartCannon,
   isTowerTile,
+  isWater,
   packTile,
   snapAngle,
   towerCenter,
@@ -397,6 +398,7 @@ export function canPlaceCannon(
       if (!inBounds(r, c)) return false;
       const key = packTile(r, c);
       if (!interior.has(key)) return false;
+      if (isWater(state.map.tiles, r, c)) return false;
       if (hasWallAt(state, r, c)) return false;
       if (overlapsOwnedTower(player.ownedTowers, r, c)) return false;
       if (overlapsExistingCannon(player.cannons, r, c)) return false;

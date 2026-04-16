@@ -498,7 +498,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawWaterAnimation(overlayCtx, map, overlay, now);
     drawFrozenTiles(overlayCtx, overlay, now);
     drawCastles(overlayCtx, overlay);
-    drawSinkholeOverlays(map, liveCache, blit, overlay);
+    drawSinkholeOverlays(liveCache, blit, overlay);
     drawBonusSquares(overlayCtx, overlay, now);
     drawHouses(overlayCtx, overlay);
     drawTowers(overlayCtx, map, overlay, now);
@@ -1046,7 +1046,6 @@ function selectTerrainColor(
  *  about (which would read ownership from stale castles and paint the wrong
  *  color on the first frame of a reveal banner). */
 function drawSinkholeOverlays(
-  map: GameMap,
   cache: TerrainImageCache,
   blit: (img: ImageData, dx: number, dy: number) => void,
   overlay?: RenderOverlay,
@@ -1061,7 +1060,7 @@ function drawSinkholeOverlays(
     // during a reveal banner only knows about pre-existing lakes.
     const clusterKeys = collectClusterKeys(cluster);
     if (!clusterBelongsToScene(clusterKeys, sinkholeTiles)) continue;
-    const owner = findSinkholeOwner(cluster, clusterKeys, owners, map);
+    const owner = findSinkholeOwner(cluster, owners);
     if (owner === undefined) continue;
     const key = variantId(inBattle, owner);
     for (const tile of cluster.tiles) {
@@ -1110,43 +1109,23 @@ function buildOwnerTables(
   return { interiorOwners, wallTiles };
 }
 
-/** Decide which player encloses a sinkhole cluster, if any. A cluster is
- *  enclosed iff every cardinal neighbor of every cluster tile is one of:
- *    - water (river / another lake tile / cluster member)
- *    - a wall tile
- *    - interior of one specific player (no two-player ambiguity allowed)
- *  Any "open grass" cardinal neighbor (grass not in any interior) means the
- *  lake escapes to the outside, so we return null and the base terrain — with
- *  green/cobblestone bank — is left untouched. This matters because a lake
- *  can sit *next* to a player's territory (the water itself acts as the
- *  enclosure boundary on that side) without actually being inside it; the
- *  earlier "any neighbor in interior" check classified those as enclosed. */
+/** Decide which player encloses a sinkhole cluster, if any. Game-state
+ *  `player.interior` is the authoritative enclosure signal (`computeOutside`
+ *  flood from the edges — walls block, everything else propagates, including
+ *  water). Any cluster tile that lands inside a player's enclosed region is
+ *  in `interiorOwners`; if two players both claim tiles in the same cluster
+ *  (not currently possible — zones are isolated by rivers), the cluster is
+ *  contested and we bail. */
 function findSinkholeOwner(
   cluster: SinkholeCluster,
-  clusterKeys: ReadonlySet<number>,
   owners: OwnerTables,
-  map: GameMap,
 ): ValidPlayerSlot | undefined {
   let candidate: ValidPlayerSlot | undefined;
   for (const tile of cluster.tiles) {
-    for (const [dr, dc] of DIRS_4) {
-      const nr = tile.row + dr;
-      const nc = tile.col + dc;
-      const neighborKey = packTile(nr, nc);
-      if (clusterKeys.has(neighborKey)) continue;
-      const interiorOwner = owners.interiorOwners.get(neighborKey);
-      if (interiorOwner !== undefined) {
-        if (candidate === undefined) candidate = interiorOwner;
-        else if (candidate !== interiorOwner) return undefined;
-        continue;
-      }
-      if (owners.wallTiles.has(neighborKey)) continue;
-      const tileType = tileAt(map, nr, nc);
-      // Water (river / another lake tile) is a benign neighbor — the wall
-      // could go around the larger water system. Anything else (grass not in
-      // any interior, or off-map) means the lake is open on that side.
-      if (tileType !== 1) return undefined;
-    }
+    const owner = owners.interiorOwners.get(packTile(tile.row, tile.col));
+    if (owner === undefined) continue;
+    if (candidate === undefined) candidate = owner;
+    else if (candidate !== owner) return undefined;
   }
   return candidate;
 }

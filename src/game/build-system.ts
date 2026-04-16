@@ -191,7 +191,7 @@ export function recheckTerritory(state: GameState): void {
   // Grunt respawn (pass 2) calls hasInteriorAt which asserts freshness for
   // every player — all interiors must be fresh before any cross-player reads.
   for (const player of state.players) {
-    recomputeInterior(state, player);
+    recomputeInterior(player);
   }
   // Pass 2: territory-dependent operations (safe — all interiors are fresh).
   for (const player of state.players) {
@@ -212,7 +212,7 @@ export function recheckTerritory(state: GameState): void {
 export function finalizeTerritoryWithScoring(state: GameState): void {
   // Pass 1: recompute ALL interiors (same rationale as recheckTerritory).
   for (const player of state.players) {
-    recomputeInterior(state, player);
+    recomputeInterior(player);
   }
   // Pass 2: territory-dependent operations + scoring.
   for (const player of state.players) {
@@ -328,7 +328,7 @@ export function diffNewWalls(
  *  Used by checkpoint restore where grunts/houses/bonus are already correct. */
 /** Private — callers outside this file should use `recomputeAllTerritory`. */
 function recomputeTerritoryFromWalls(state: GameState, player: Player): void {
-  recomputeInterior(state, player);
+  recomputeInterior(player);
   updateOwnedTowers(state, player);
 }
 
@@ -466,16 +466,14 @@ function clearUnenclosedPendingRevives(state: GameState): void {
 /** Recompute a player's interior via inverse flood-fill from map edges.
  *  Grass tiles not reachable through non-wall tiles become interior (territory).
  *  Calls markInteriorFresh() — after this, getInterior(player) is safe. */
-function recomputeInterior(state: GameState, player: Player): void {
+function recomputeInterior(player: Player): void {
   const fresh = new Set<number>();
   const outside = computeOutside(player.walls);
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const key = packTile(r, c);
       if (!outside.has(key) && !player.walls.has(key)) {
-        if (isGrass(state.map.tiles, r, c)) {
-          fresh.add(key);
-        }
+        fresh.add(key);
       }
     }
   }
