@@ -245,12 +245,16 @@ export function drawFogOfWar(
   if (!overlay?.castles) return;
   overlayCtx.save();
   const time = now / 1000;
+  const sinkholeTiles = overlay.entities?.sinkholeTiles;
   for (const castle of overlay.castles) {
     if (castle.interior.size === 0) continue;
     const walls =
       overlay.battle?.battleWalls?.[castle.playerId] ?? castle.walls;
     drawFogTiles(overlayCtx, castle.interior, time);
     drawFogTiles(overlayCtx, filterInnerWalls(walls), time);
+    if (sinkholeTiles) {
+      drawFogTiles(overlayCtx, filterTilesInRegion(sinkholeTiles, walls), time);
+    }
   }
   overlayCtx.restore();
 }
@@ -492,6 +496,21 @@ export function drawFrozenTiles(
   }
 
   overlayCtx.restore();
+}
+
+/** Yield tiles from `source` that fall inside the wall ring (not
+ *  reachable from edges through non-wall tiles). Covers sinkhole/high-tide
+ *  tiles that were interior before a modifier converted them to water. */
+function filterTilesInRegion(
+  source: ReadonlySet<number>,
+  walls: ReadonlySet<number>,
+): number[] {
+  const outside = computeOutside(walls);
+  const result: number[] = [];
+  for (const key of source) {
+    if (!outside.has(key)) result.push(key);
+  }
+  return result;
 }
 
 /** Keep only walls unreachable by the outside flood — inner walls buried
