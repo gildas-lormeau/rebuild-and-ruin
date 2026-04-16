@@ -24,6 +24,7 @@
       "src/shared/core/phantom-types.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/platform/jsfxr.d.ts",
+      "src/shared/platform/opl2.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
       "src/shared/platform/utils.ts",
@@ -208,6 +209,7 @@
       "src/runtime/runtime-contracts.ts",
       "src/runtime/runtime-tick-context.ts",
       "src/runtime/runtime-sound.ts",
+      "src/runtime/runtime-sound-opl.ts",
       "src/runtime/runtime-haptics.ts"
     ],
     "entry": [

@@ -34,6 +34,8 @@ import type {
   SoundReason,
   SoundSystem,
 } from "../shared/core/system-interfaces.ts";
+import { FANFARE_PATCH, FANFARE_SCORES } from "../shared/platform/opl2.ts";
+import { playOplScore } from "./runtime-sound-opl.ts";
 
 /** Construction-time deps for the sound sub-system. `observer` is the
  *  test seam — production callers omit it. */
@@ -206,7 +208,6 @@ const DRUMS_QUIET_LEVEL = 0.75;
 const DRUM_RAMP_BASE = 0.5;
 const COOLDOWN_MS = 60;
 const POOL_SIZE = 3;
-const FANFARE_PITCH = [1.0, 1.122, 0.794];
 const CANNON_BOOM_VOL = 0.12;
 const CANNON_BASS_START_HZ = 200;
 const CANNON_BASS_END_HZ = 40;
@@ -237,8 +238,6 @@ const WHISTLE_ENEMY_END_HZ = 1600;
 const WHISTLE_ATTACK_FRACTION = 0.3;
 const WHISTLE_RELEASE_FRACTION = 0.15;
 const WHISTLE_PEAK_VOL = 0.15;
-/** Fanfare tempo: ~408 BPM sixteenth note. */
-const FANFARE_NOTE_STEP = 0.147;
 const MAX_BOOMS = 4;
 const MAX_WHISTLES = 6;
 const MAX_IMPACTS = 4;
@@ -704,29 +703,9 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
       const audioCtx = getCtx();
       audioCtx.resume().catch(() => {});
 
-      const pitch = FANFARE_PITCH[playerId] ?? 1;
-      // Musical note frequencies (Hz): G4=392, C5=523, E5=659, G5=784
-      const G4 = 392 * pitch;
-      const C5 = 523 * pitch;
-      const E5 = 659 * pitch;
-      const G5 = 784 * pitch;
-      const noteStep = FANFARE_NOTE_STEP;
+      const score = FANFARE_SCORES[playerId] ?? FANFARE_SCORES[0]!;
       const volScale = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
-
-      const score: [number, number, number, boolean][] = [
-        [G4, noteStep, 0.28, false],
-        [C5, noteStep, 0.32, false],
-        [E5, noteStep, 0.36, false],
-        [G5, noteStep, 0.4, true],
-        [E5, noteStep, 0.36, false],
-        [G5, noteStep * 6, 0.45, true],
-      ];
-
-      let time = audioCtx.currentTime + 0.05;
-      for (const [freq, dur, vol, accent] of score) {
-        fanfareNote(audioCtx, freq, time, dur * 0.92, vol * volScale, accent);
-        time += dur;
-      }
+      playOplScore(audioCtx, FANFARE_PATCH, score, volScale);
     },
 
     lifeLost() {
@@ -792,51 +771,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
       activeImpacts = 0;
     },
   };
-}
-
-function fanfareNote(
-  audioCtx: AudioContext,
-  freq: number,
-  startTime: number,
-  duration: number,
-  vol: number,
-  accent: boolean,
-): void {
-  const volume = accent ? vol * 1.3 : vol;
-
-  for (const detune of [-6, 6]) {
-    const osc = audioCtx.createOscillator();
-    osc.type = "sawtooth";
-    osc.frequency.value = freq;
-    osc.detune.value = detune;
-    const gain = audioCtx.createGain();
-    const attackEnd = startTime + 0.006;
-    gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(volume * 1.4, attackEnd);
-    gain.gain.exponentialRampToValueAtTime(volume, attackEnd + 0.03);
-    gain.gain.setValueAtTime(volume * 0.85, startTime + duration - 0.02);
-    gain.gain.linearRampToValueAtTime(0, startTime + duration);
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = LOWPASS;
-    filter.frequency.setValueAtTime(3500, startTime);
-    filter.frequency.exponentialRampToValueAtTime(1800, startTime + 0.06);
-    filter.Q.value = 2;
-    osc.connect(filter).connect(gain).connect(audioCtx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration);
-  }
-
-  const sub = audioCtx.createOscillator();
-  sub.type = "square";
-  sub.frequency.value = freq / 2;
-  const subGain = audioCtx.createGain();
-  subGain.gain.setValueAtTime(0, startTime);
-  subGain.gain.linearRampToValueAtTime(volume * 0.15, startTime + 0.01);
-  subGain.gain.setValueAtTime(volume * 0.12, startTime + duration - 0.02);
-  subGain.gain.linearRampToValueAtTime(0, startTime + duration);
-  sub.connect(subGain).connect(audioCtx.destination);
-  sub.start(startTime);
-  sub.stop(startTime + duration);
 }
 
 function scheduleDrumBar(
