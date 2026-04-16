@@ -23,11 +23,7 @@ import {
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
-import {
-  type PlayerSlotId,
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   UpgradePickDialogState,
@@ -74,9 +70,12 @@ export interface UpgradePickSystem {
   confirmChoice: (playerId: ValidPlayerSlot) => void;
   /** Pick a specific card directly (e.g. from a click). */
   pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
-  /** Which player's entry accepts local input (SPECTATOR_SLOT if none). */
-  interactivePlayerId: () => PlayerSlotId;
+  /** Slots whose entries accept input from this machine (one slot online,
+   *  every local human in shared-screen mode). Empty if none. */
+  interactiveSlots: () => ReadonlySet<ValidPlayerSlot>;
 }
+
+const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerSlot> = new Set();
 
 export function createUpgradePickSystem(
   deps: UpgradePickSystemDeps,
@@ -211,17 +210,20 @@ export function createUpgradePickSystem(
     );
   }
 
-  /** Compute which player's upgrade pick entry accepts local input.
-   *  Returns the player ID, or SPECTATOR_SLOT if no local player is picking. */
-  function interactivePlayerId(): PlayerSlotId {
+  /** Slots whose entries accept input from this machine. An entry is locally
+   *  driven when it doesn't auto-resolve and isn't owned by a remote peer —
+   *  that resolves to `{myPlayerId}` online and to every local-human slot in
+   *  shared-screen play. */
+  function interactiveSlots(): ReadonlySet<ValidPlayerSlot> {
     const dialog = runtimeState.dialogs.upgradePick;
-    if (!dialog) return SPECTATOR_SLOT;
-    const myId = runtimeState.frameMeta.myPlayerId;
-    const entry = dialog.entries.find(
-      (entry) =>
-        entry.playerId === myId && !entry.autoResolve && entry.choice === null,
-    );
-    return entry ? (entry.playerId as PlayerSlotId) : SPECTATOR_SLOT;
+    if (!dialog) return EMPTY_SLOT_SET;
+    const remote = runtimeState.frameMeta.remotePlayerSlots;
+    const slots = new Set<ValidPlayerSlot>();
+    for (const entry of dialog.entries) {
+      if (entry.autoResolve || remote.has(entry.playerId)) continue;
+      slots.add(entry.playerId);
+    }
+    return slots;
   }
 
   return {
@@ -235,6 +237,6 @@ export function createUpgradePickSystem(
     moveFocus,
     confirmChoice,
     pickDirect,
-    interactivePlayerId,
+    interactiveSlots,
   };
 }

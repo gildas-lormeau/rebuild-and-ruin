@@ -6,10 +6,7 @@ import type {
 } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -215,7 +212,7 @@ export interface OnlineOverlayParams {
   inBattle: boolean;
   povPlayerId: ValidPlayerSlot;
   hasPointerPlayer: boolean;
-  upgradePickInteractiveId: PlayerSlotId;
+  upgradePickInteractiveSlots: ReadonlySet<ValidPlayerSlot>;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {

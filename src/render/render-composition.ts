@@ -19,10 +19,7 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type ComboEvent,
   type GameState,
@@ -367,7 +364,7 @@ export function createOnlineOverlay(
     upgradePickDialog,
     povPlayerId,
     hasPointerPlayer,
-    upgradePickInteractiveId,
+    upgradePickInteractiveSlots,
     playerNames,
     playerColors,
     getLifeLostPanelPos,
@@ -426,7 +423,7 @@ export function createOnlineOverlay(
         : undefined,
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
-        upgradePickInteractiveId,
+        upgradePickInteractiveSlots,
         playerNames,
         playerColors,
       ),
@@ -646,14 +643,14 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  interactivePlayerId: PlayerSlotId,
+  interactiveSlots: ReadonlySet<ValidPlayerSlot>,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
   if (!dialog) return undefined;
 
   const entries = dialog.entries.map((entry) => {
-    const isInteractive = entry.playerId === interactivePlayerId;
+    const isInteractive = interactiveSlots.has(entry.playerId);
     // focusedCard is only meaningful when someone is actively moving it —
     // the local interactive player (via input) or an auto-resolving AI
     // (via the cycling/lock-in tick). Remote human entries on the host

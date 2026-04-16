@@ -7,10 +7,7 @@
 
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   InputReceiver,
   PlayerController,
@@ -50,7 +47,7 @@ interface RenderSystemDeps {
   ) => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
-  readonly upgradePickInteractiveId: () => PlayerSlotId;
+  readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerSlot>;
   readonly syncCrosshairs: (weaponsActive: boolean) => void;
   readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
     px: number;
@@ -127,7 +124,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       upgradePickDialog: runtimeState.dialogs.upgradePick,
       povPlayerId: runtimeState.frameMeta.povPlayerId,
       hasPointerPlayer: runtimeState.frameMeta.hasPointerPlayer,
-      upgradePickInteractiveId: deps.upgradePickInteractiveId(),
+      upgradePickInteractiveSlots: deps.upgradePickInteractiveSlots(),
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
