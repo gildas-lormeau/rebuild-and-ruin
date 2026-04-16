@@ -805,20 +805,13 @@ function drawPhantomCannon(
     : PHANTOM_CANNON_INVALID_ALPHA;
 
   if (isBalloonMode(mode)) {
-    drawBalloonPhantom(overlayCtx, cx, cy, size, valid);
+    drawSpritePhantom(overlayCtx, "balloon_base", cx, cy, size, valid);
     overlayCtx.restore();
     return;
   }
 
   if (isRampartMode(mode)) {
-    // Rampart phantom: stone block with shield circle
-    overlayCtx.fillStyle = valid ? "#556677" : "#774444";
-    overlayCtx.fillRect(cx + 2, cy + 2, size - 4, size - 4);
-    overlayCtx.strokeStyle = valid ? "#33cc33" : "#cc4444";
-    overlayCtx.lineWidth = 2;
-    overlayCtx.beginPath();
-    overlayCtx.arc(cx + mid, cy + mid, mid - 4, 0, Math.PI * 2);
-    overlayCtx.stroke();
+    drawSpritePhantom(overlayCtx, "rampart", cx, cy, size, valid);
     overlayCtx.restore();
     return;
   }
@@ -912,15 +905,16 @@ function saturateRgb(c: RGB, factor: number): RGB {
   ];
 }
 
-/** Draw balloon base phantom — sprite with red tint overlay if invalid. */
-function drawBalloonPhantom(
+/** Draw a sprite-based cannon phantom — sprite with red tint overlay if invalid. */
+function drawSpritePhantom(
   overlayCtx: CanvasRenderingContext2D,
+  sprite: string,
   x: number,
   y: number,
   size: number,
   valid: boolean,
 ): void {
-  drawSprite(overlayCtx, "balloon_base", x, y);
+  drawSprite(overlayCtx, sprite, x, y);
   if (!valid) {
     overlayCtx.fillStyle = "rgba(170, 34, 34, 0.4)";
     overlayCtx.fillRect(x, y, size, size);
