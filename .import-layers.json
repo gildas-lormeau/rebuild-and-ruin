@@ -122,6 +122,7 @@
       "src/game/upgrades/conscription.ts",
       "src/game/upgrades/demolition.ts",
       "src/game/upgrades/double-time.ts",
+      "src/game/upgrades/entomb.ts",
       "src/game/upgrades/foundations.ts",
       "src/game/upgrades/master-builder.ts",
       "src/game/upgrades/mortar.ts",

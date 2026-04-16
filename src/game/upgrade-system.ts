@@ -28,6 +28,7 @@ import { clearTheFieldImpl } from "./upgrades/clear-the-field.ts";
 import { conscriptionImpl } from "./upgrades/conscription.ts";
 import { demolitionImpl } from "./upgrades/demolition.ts";
 import { doubleTimeImpl } from "./upgrades/double-time.ts";
+import { entombImpl } from "./upgrades/entomb.ts";
 import { foundationsImpl } from "./upgrades/foundations.ts";
 import { masterBuilderImpl } from "./upgrades/master-builder.ts";
 import { mortarImpl, mortarSpeedMult } from "./upgrades/mortar.ts";
@@ -77,6 +78,7 @@ const UPGRADE_IMPLS = {
   clear_the_field: clearTheFieldImpl,
   restoration_crew: restorationCrewImpl,
   rapid_emplacement: rapidEmplacementImpl,
+  entomb: entombImpl,
 } as const satisfies Record<UpgradeId, UpgradeImpl>;
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
@@ -180,6 +182,18 @@ export function wallOverlapAllowance(player: Player): number {
 export function canPlaceOverBurningPit(player: Player): boolean {
   for (const impl of UPGRADE_REGISTRY.values()) {
     if (impl.canPlaceOverBurningPit?.(player)) return true;
+  }
+  return false;
+}
+
+/** True when this player may place pieces on top of grunts. Takes the
+ *  players array because the only implementer (Entomb) is global. */
+export function canPlaceOverGrunt(
+  players: readonly Player[],
+  player: Player,
+): boolean {
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    if (impl.canPlaceOverGrunt?.(players, player)) return true;
   }
   return false;
 }

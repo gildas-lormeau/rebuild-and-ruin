@@ -56,6 +56,7 @@ import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {
   canPlaceOverBurningPit,
+  canPlaceOverGrunt,
   onPiecePlaced,
   territoryScoreMult,
   wallOverlapAllowance,
@@ -101,6 +102,7 @@ export function canPlacePiece(
   const playerZone = player.homeTower?.zone;
   const overlapAllowance = wallOverlapAllowance(player);
   const allowPitOverlap = canPlaceOverBurningPit(player);
+  const allowGruntOverlap = canPlaceOverGrunt(state.players, player);
   let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
@@ -125,11 +127,11 @@ export function canPlacePiece(
     if (cache) {
       if (cache.towerKeys.has(key)) return false;
       if (cache.cannonKeys.has(key)) return false;
-      if (cache.gruntKeys.has(key)) return false;
+      if (!allowGruntOverlap && cache.gruntKeys.has(key)) return false;
     } else {
       if (hasTowerAt(state, r, c)) return false;
       if (hasCannonAt(state, r, c)) return false;
-      if (hasGruntAt(state.grunts, r, c)) return false;
+      if (!allowGruntOverlap && hasGruntAt(state.grunts, r, c)) return false;
     }
 
     if (hasPitAt(state.burningPits, r, c) && !allowPitOverlap) return false;

@@ -26,7 +26,8 @@ export type UpgradeId =
   | "reclamation"
   | "demolition"
   | "restoration_crew"
-  | "rapid_emplacement";
+  | "rapid_emplacement"
+  | "entomb";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -92,6 +93,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   DEMOLITION: "demolition",
   RESTORATION_CREW: "restoration_crew",
   RAPID_EMPLACEMENT: "rapid_emplacement",
+  ENTOMB: "entomb",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -306,6 +308,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: WEIGHT_UNCOMMON,
     oneUse: true,
     global: false,
+    implemented: true,
+  },
+  {
+    id: "entomb",
+    label: "Entomb",
+    description: "All players can bury grunts under placed walls",
+    category: BUILD,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: true,
     implemented: true,
   },
 ];

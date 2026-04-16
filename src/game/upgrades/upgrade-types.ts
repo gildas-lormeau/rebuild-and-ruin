@@ -100,4 +100,7 @@ export interface UpgradeImpl {
   wallOverlapAllowance?: (player: Player) => number;
   /** True → pieces may cover burning pits (boolean OR). */
   canPlaceOverBurningPit?: (player: Player) => boolean;
+  /** True → pieces may cover grunts (boolean OR). Takes the players array
+   *  because global upgrades (Entomb) need access to every owner. */
+  canPlaceOverGrunt?: (players: readonly Player[], player: Player) => boolean;
 }
