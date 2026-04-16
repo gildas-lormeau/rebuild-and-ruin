@@ -283,10 +283,14 @@ export function handleUpgradePickClick(params: {
   W: number;
   H: number;
   dialog: UpgradePickDialogState;
+  /** Canvas-pixel X coordinate (divided by SCALE internally for game-space hit testing). */
   screenX: number;
+  /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
 }): { playerId: ValidPlayerSlot; cardIdx: number } | null {
   const { W, H, dialog, screenX, screenY } = params;
+  const gameX = screenX / SCALE;
+  const gameY = screenY / SCALE;
   const entryH = upgradePickEntryH();
   const startY = upgradePickStartY(H, dialog.entries.length);
   const rowX = (W - UPGRADE_ROW_W) / 2;
@@ -299,10 +303,10 @@ export function handleUpgradePickClick(params: {
     for (let cardIdx = 0; cardIdx < UPGRADE_CARDS_PER_ROW; cardIdx++) {
       const cx = rowX + cardIdx * (UPGRADE_CARD_W + UPGRADE_CARD_GAP);
       if (
-        screenX >= cx &&
-        screenX <= cx + UPGRADE_CARD_W &&
-        screenY >= cardsY &&
-        screenY <= cardsY + UPGRADE_CARD_H
+        gameX >= cx &&
+        gameX <= cx + UPGRADE_CARD_W &&
+        gameY >= cardsY &&
+        gameY <= cardsY + UPGRADE_CARD_H
       ) {
         return { playerId: entry.playerId, cardIdx };
       }
