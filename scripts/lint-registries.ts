@@ -26,24 +26,18 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { ONLINE_PHASE_TICKS_CONSUMERS } from "../src/runtime/runtime-types.ts";
+import { BATTLE_EVENT_CONSUMERS } from "../src/shared/core/battle-events.ts";
+import { CANNON_MODE_CONSUMERS } from "../src/shared/core/cannon-mode-defs.ts";
 import { FEATURE_CONSUMERS } from "../src/shared/core/feature-defs.ts";
 import { MODIFIER_CONSUMERS } from "../src/shared/core/modifier-defs.ts";
-import { CANNON_MODE_CONSUMERS } from "../src/shared/core/cannon-mode-defs.ts";
-import { BATTLE_EVENT_CONSUMERS } from "../src/shared/core/battle-events.ts";
-
-const ROOT = process.cwd();
 
 interface RegistryInput {
   readonly name: string;
-  readonly consumers: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  readonly consumers: Readonly<
+    Record<string, Readonly<Record<string, string>>>
+  >;
 }
-
-const REGISTRIES: readonly RegistryInput[] = [
-  { name: "feature", consumers: FEATURE_CONSUMERS },
-  { name: "modifier", consumers: MODIFIER_CONSUMERS },
-  { name: "cannon-mode", consumers: CANNON_MODE_CONSUMERS },
-  { name: "battle-event", consumers: BATTLE_EVENT_CONSUMERS },
-];
 
 interface Violation {
   readonly registry: string;
@@ -51,6 +45,17 @@ interface Violation {
   readonly role: string;
   readonly path: string;
 }
+
+const ROOT = process.cwd();
+const REGISTRIES: readonly RegistryInput[] = [
+  { name: "feature", consumers: FEATURE_CONSUMERS },
+  { name: "modifier", consumers: MODIFIER_CONSUMERS },
+  { name: "cannon-mode", consumers: CANNON_MODE_CONSUMERS },
+  { name: "battle-event", consumers: BATTLE_EVENT_CONSUMERS },
+  { name: "online-phase-ticks", consumers: ONLINE_PHASE_TICKS_CONSUMERS },
+];
+
+main();
 
 function main(): void {
   const violations: Violation[] = [];
@@ -89,5 +94,3 @@ function main(): void {
   }
   process.exit(1);
 }
-
-main();
