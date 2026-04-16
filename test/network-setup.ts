@@ -55,7 +55,6 @@ import {
   type WatcherTickContext,
 } from "../src/online/online-watcher-tick.ts";
 import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
-import { NOOP_DEDUP_CHANNEL } from "../src/shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
@@ -227,8 +226,6 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
       }),
     remoteCannonPhantoms: () => [],
     remotePiecePhantoms: () => [],
-    cannonPhantomDedup: () => NOOP_DEDUP_CHANNEL,
-    piecePhantomDedup: () => NOOP_DEDUP_CHANNEL,
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
   };

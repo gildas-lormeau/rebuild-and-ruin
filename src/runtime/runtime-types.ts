@@ -68,7 +68,6 @@ import type {
 } from "../shared/core/geometry-types.ts";
 import type {
   CannonPhantom,
-  DedupChannel,
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
 import type {
@@ -158,13 +157,14 @@ export interface OnlinePhaseTicks {
   remoteCannonPhantoms?: () => readonly CannonPhantom[];
   /** Host: pending remote piece phantoms to merge into the local frame. */
   remotePiecePhantoms?: () => readonly PiecePhantom[];
-  /** Host: dedup channel for outgoing cannon-phantom broadcasts. Returned
-   *  via getter so the runtime never caches a stale reference across host
-   *  migration. */
-  cannonPhantomDedup?: () => DedupChannel;
-  /** Host: dedup channel for outgoing piece-phantom broadcasts. Same
-   *  late-binding pattern as `cannonPhantomDedup`. */
-  piecePhantomDedup?: () => DedupChannel;
+  /** Host: check-then-update for outgoing cannon-phantom broadcasts. Returns
+   *  true if the runtime should emit (key differs from last send for this
+   *  player). Implementation owns the dedup storage and its lifecycle across
+   *  host migration — the runtime just asks yes/no per phantom. */
+  shouldSendCannonPhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
+  /** Host: check-then-update for outgoing piece-phantom broadcasts. Same
+   *  contract as `shouldSendCannonPhantom`. */
+  shouldSendPiecePhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
 
   // ── Watcher-only: per-frame state apply ────────────────────────────────
   /** Watcher: drive the per-frame state apply (replaces the host tick on

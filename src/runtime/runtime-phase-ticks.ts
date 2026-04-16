@@ -35,7 +35,6 @@ import {
   type CannonPlacedPayload,
   cannonPhantomKey,
   filterAlivePhantoms,
-  NOOP_DEDUP_CHANNEL,
   type PiecePhantomPayload,
   type PiecePlacedPayload,
   phantomWireMode,
@@ -470,8 +469,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, frame } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
-    const cannonPhantomDedup =
-      online?.cannonPhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
     advancePhaseTimer(
       runtimeState.accum,
@@ -519,7 +516,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
       if (
         isHost &&
-        cannonPhantomDedup.shouldSend(ctrl.playerId, cannonPhantomKey(phantom))
+        (online?.shouldSendCannonPhantom?.(
+          ctrl.playerId,
+          cannonPhantomKey(phantom),
+        ) ??
+          true)
       ) {
         deps.sendOpponentCannonPhantom({
           playerId: ctrl.playerId,
@@ -677,8 +678,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, accum, frame } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
-    const piecePhantomDedup =
-      online?.piecePhantomDedup?.() ?? NOOP_DEDUP_CHANNEL;
 
     // --- Engine tick (advances upgrade-effect timers, returns timer max) ---
     const { timerMax } = engineTickBuildPhase(state, dt);
@@ -729,10 +728,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         });
         if (
           isHost &&
-          piecePhantomDedup.shouldSend(
+          (online?.shouldSendPiecePhantom?.(
             phantom.playerId,
             piecePhantomKey(phantom),
-          )
+          ) ??
+            true)
         ) {
           deps.sendOpponentPhantom({
             playerId: phantom.playerId,

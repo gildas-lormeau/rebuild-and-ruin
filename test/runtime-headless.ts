@@ -32,7 +32,6 @@ import type {
   HapticsObserver,
   SoundObserver,
 } from "../src/shared/core/system-interfaces.ts";
-import { NOOP_DEDUP_CHANNEL } from "../src/shared/core/phantom-types.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
@@ -499,8 +498,6 @@ function noopHostPhaseTicks(): OnlinePhaseTicks {
     broadcastLocalCrosshair: () => {},
     remoteCannonPhantoms: () => [],
     remotePiecePhantoms: () => [],
-    cannonPhantomDedup: () => NOOP_DEDUP_CHANNEL,
-    piecePhantomDedup: () => NOOP_DEDUP_CHANNEL,
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
     // tickWatcher / watcherBeginBattle intentionally omitted — host-only stub.

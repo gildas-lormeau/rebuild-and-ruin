@@ -56,13 +56,6 @@ export interface DedupChannel {
   clear(): void;
 }
 
-/** Sentinel channel for local play — never blocks sends (always returns true).
- *  Used as a fallback when networking deps are absent. */
-export const NOOP_DEDUP_CHANNEL: DedupChannel = {
-  shouldSend: () => true,
-  clear: () => {},
-};
-
 /** Return the cannon mode for network transmission. Currently identity (returns
  *  phantom.mode directly), but provides an abstraction point if wire format diverges. */
 export function phantomWireMode(phantom: CannonPhantom): CannonMode {

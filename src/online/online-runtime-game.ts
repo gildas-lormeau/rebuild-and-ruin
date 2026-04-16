@@ -199,8 +199,10 @@ const runtime: GameRuntime = createGameRuntime({
     // ── Host: per-frame phantom dedup ─────────────────────────────────
     remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
     remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
-    cannonPhantomDedup: () => ctx.dedup.cannonPhantom,
-    piecePhantomDedup: () => ctx.dedup.piecePhantom,
+    shouldSendCannonPhantom: (playerId, key) =>
+      ctx.dedup.cannonPhantom.shouldSend(playerId, key),
+    shouldSendPiecePhantom: (playerId, key) =>
+      ctx.dedup.piecePhantom.shouldSend(playerId, key),
 
     // ── Watcher: per-frame state apply ────────────────────────────────
     tickWatcher: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
