@@ -176,6 +176,10 @@ export interface BattleOverlay {
   }[];
   battleTerritory?: Set<number>[];
   battleWalls?: Set<number>[];
+  /** True when Fog of War is active — renderer blankets each castle's
+   *  walls + interior with an animated fog layer so players must aim
+   *  from memory. */
+  fogOfWar?: boolean;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */

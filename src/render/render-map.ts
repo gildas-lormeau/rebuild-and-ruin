@@ -47,9 +47,11 @@ import {
   STATUSBAR_HEIGHT,
 } from "../shared/ui/theme.ts";
 import {
-  drawBattleEffects,
+  drawBattleEffectsAboveFog,
+  drawBattleEffectsBelowFog,
   drawBonusSquares,
   drawBurningPits,
+  drawFogOfWar,
   drawFrozenTiles,
   drawGrunts,
   drawHouses,
@@ -502,13 +504,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawTowers(overlayCtx, map, overlay, now);
     drawBurningPits(overlayCtx, overlay, now);
     drawGrunts(overlayCtx, overlay);
+    drawBattleEffectsBelowFog(overlayCtx, map, overlay, now);
+    drawFogOfWar(overlayCtx, overlay, now);
 
     // If banner is active with old data, composite the old scene below the banner.
     drawBannerPrevScene(overlayCtx, W, H, overlay);
 
     // Layers that don't change between phases — draw once on top
     drawPhantoms(overlayCtx, overlay);
-    drawBattleEffects(overlayCtx, map, overlay, now);
+    drawBattleEffectsAboveFog(overlayCtx, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
     drawModifierRevealHighlight(overlayCtx, H, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);

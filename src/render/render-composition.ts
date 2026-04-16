@@ -6,6 +6,7 @@ import type {
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
+  MODIFIER_ID,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -396,6 +397,8 @@ export function createOnlineOverlay(
       impacts: inBattle ? battleAnim.impacts : undefined,
       crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
+      fogOfWar:
+        inBattle && state.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
     },
     phantoms: frame.phantoms,
     ui: {

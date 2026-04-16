@@ -148,6 +148,11 @@ const MODIFIER_COLORS: Record<
     border: "#c0a030",
     pulseColor: "#f0d060",
   },
+  fog_of_war: {
+    title: "#c8d0d8",
+    border: "#6c7480",
+    pulseColor: "#a0a8b4",
+  },
 };
 
 /** Draw announcement text centered on screen. */

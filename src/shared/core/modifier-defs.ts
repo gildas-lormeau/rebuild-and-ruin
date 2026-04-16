@@ -158,6 +158,17 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     // Burning pits are entity-layer overlays, not tile mutations.
     tileMutationPrev: null,
   },
+  {
+    id: "fog_of_war",
+    label: "Fog of War",
+    description:
+      "Thick fog covers every merged castle during battle — players must aim from memory",
+    weight: 2,
+    implemented: true,
+    needsCheckpoint: false,
+    // Visual-only overlay drawn over castle walls + interior. No tile mutation.
+    tileMutationPrev: null,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -199,6 +210,10 @@ export const MODIFIER_CONSUMERS = {
   },
   dry_lightning: {
     impl: "src/game/modifiers/fire.ts",
+  },
+  fog_of_war: {
+    impl: "src/game/modifiers/fog-of-war.ts",
+    render: "src/render/render-effects.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

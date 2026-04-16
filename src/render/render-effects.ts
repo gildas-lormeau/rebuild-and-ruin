@@ -10,8 +10,11 @@ import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { CannonPhantom } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
+  computeOutside,
+  DIRS_8,
   facingToCardinal,
   isWater,
+  packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -156,6 +159,15 @@ const CRACK_WIDTH = 0.6;
 // Thaw animation: radial crack burst
 const THAW_CRACK_COUNT = 6;
 const THAW_CRACK_LEN = 10;
+// ── Fog of War constants ──
+// Near-opaque (0.95) — leaves a faint silhouette of what's underneath so
+// the effect reads as fog rather than a flat tarp. Animation comes from
+// the drifting highlight band.
+const FOG_BASE_ALPHA = 0.95;
+const FOG_BASE_COLOR = "120, 128, 140";
+const FOG_HIGHLIGHT_COLOR = "200, 210, 220";
+const FOG_HIGHLIGHT_ALPHA = 0.18;
+const FOG_DRIFT_HZ = 0.6;
 
 /** Draw phantom piece/cannon previews.
  *  Draw order: cannon phantoms (behind), then piece phantoms (on top).
@@ -216,6 +228,31 @@ export function drawHouses(
     const hy = house.row * TILE_SIZE;
     drawSprite(overlayCtx, "house", hx, hy);
   }
+}
+
+/** Blanket each merged castle (interior + enclosing walls) with animated
+ *  fog so players must aim from memory. Walls that don't border any
+ *  interior tile are left clear — only enclosure-forming walls get fogged.
+ *  No-op unless Fog of War is active and battle is in progress. Drawn
+ *  after grunts/impacts/balloons; only crosshairs and cannonballs remain
+ *  visible on top. */
+export function drawFogOfWar(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+  now: number = performance.now(),
+): void {
+  if (!overlay?.battle?.fogOfWar) return;
+  if (!overlay?.castles) return;
+  overlayCtx.save();
+  const time = now / 1000;
+  for (const castle of overlay.castles) {
+    if (castle.interior.size === 0) continue;
+    const walls =
+      overlay.battle?.battleWalls?.[castle.playerId] ?? castle.walls;
+    drawFogTiles(overlayCtx, castle.interior, time);
+    drawFogTiles(overlayCtx, filterInnerWalls(walls), time);
+  }
+  overlayCtx.restore();
 }
 
 /** Draw grunts (little tanks, top-down, rotated to facing). */
@@ -287,18 +324,30 @@ export function drawWaterAnimation(
   overlayCtx.restore();
 }
 
-/** Draw impact flashes, cannonballs, balloons, crosshairs, and timer. */
-export function drawBattleEffects(
+/** Battle effects drawn UNDER Fog of War — impacts, balloons, phase timer.
+ *  Anything spatially anchored to the map that should be hidden when fog
+ *  covers its tile belongs here. */
+export function drawBattleEffectsBelowFog(
   overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
   drawImpacts(overlayCtx, overlay);
-  drawCannonballs(overlayCtx, overlay);
   drawBalloons(overlayCtx, overlay);
-  drawCrosshairs(overlayCtx, overlay, now);
   drawPhaseTimer(overlayCtx, map, overlay, now);
+}
+
+/** Battle effects drawn OVER Fog of War — only the player aiming aids
+ *  (crosshairs) and in-flight cannonballs remain visible through the fog
+ *  so players can still aim and follow their shots from memory. */
+export function drawBattleEffectsAboveFog(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  drawCannonballs(overlayCtx, overlay);
+  drawCrosshairs(overlayCtx, overlay, now);
 }
 
 /** Draw burning pit ember glows.
@@ -443,6 +492,51 @@ export function drawFrozenTiles(
   }
 
   overlayCtx.restore();
+}
+
+/** Keep only walls unreachable by the outside flood — inner walls buried
+ *  inside thick wall structures. Ring walls and isolated walls are
+ *  excluded because the flood touches them. */
+function filterInnerWalls(walls: ReadonlySet<number>): number[] {
+  if (walls.size === 0) return [];
+  const outside = computeOutside(walls);
+  const result: number[] = [];
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    let hasOutsideNeighbor = false;
+    for (const [dr, dc] of DIRS_8) {
+      if (outside.has(packTile(r + dr, c + dc))) {
+        hasOutsideNeighbor = true;
+        break;
+      }
+    }
+    if (!hasOutsideNeighbor) result.push(key);
+  }
+  return result;
+}
+
+/** Paint a 95%-opaque fog layer over a set of tile keys. A faint
+ *  silhouette of what's underneath remains so the effect reads as fog;
+ *  a drifting highlight band adds the cloudy motion. */
+function drawFogTiles(
+  overlayCtx: CanvasRenderingContext2D,
+  tiles: Iterable<number>,
+  time: number,
+): void {
+  for (const key of tiles) {
+    const { r, c } = unpackTile(key);
+    const px = c * TILE_SIZE;
+    const py = r * TILE_SIZE;
+    const seed = r * SEED_ROW + c * SEED_COL;
+    overlayCtx.fillStyle = `rgba(${FOG_BASE_COLOR}, ${FOG_BASE_ALPHA})`;
+    overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    // Soft highlight drifts across the tile for a cloudy feel.
+    const wave = Math.sin(time * FOG_DRIFT_HZ + seed);
+    const highlightAlpha = FOG_HIGHLIGHT_ALPHA * (0.6 + wave * 0.4);
+    overlayCtx.fillStyle = `rgba(${FOG_HIGHLIGHT_COLOR}, ${highlightAlpha.toFixed(3)})`;
+    const bandY = py + (Math.sin(time + seed) + 1) * 0.5 * (TILE_SIZE - 3);
+    overlayCtx.fillRect(px, bandY, TILE_SIZE, 2);
+  }
 }
 
 /** Draw a deterministic branching crack pattern seeded by tile position. */
