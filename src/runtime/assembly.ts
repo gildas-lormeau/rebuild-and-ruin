@@ -133,6 +133,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
         pointer !== null &&
         deps.runtimeState.selection.reselectionPids.includes(pointer.playerId),
       hasPointerPlayer: pointer !== null,
+      pointerPlayerId: pointer?.playerId ?? null,
       myPlayerId: deps.myPlayerId(),
       hostAtFrameStart: deps.amHost(),
       remotePlayerSlots: deps.remotePlayerSlots(),

@@ -175,6 +175,7 @@ interface FrameContextInputs {
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   hasPointerPlayer: boolean;
+  pointerPlayerId: ValidPlayerSlot | null;
   myPlayerId: PlayerSlotId;
   hostAtFrameStart: boolean;
   remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
@@ -366,6 +367,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     isSelectionReady,
     humanIsReselecting,
     hasPointerPlayer,
+    pointerPlayerId,
     myPlayerId,
     hostAtFrameStart,
     remotePlayerSlots,
@@ -384,9 +386,10 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   const shouldUnzoom = uiBlocking || phaseEnding;
   const isTransition = isTransitionMode(mode);
 
+  // Online: myPlayerId. Local: pointer player slot. Demo: 0.
   const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
     ? myPlayerId
-    : (0 as ValidPlayerSlot);
+    : (pointerPlayerId ?? (0 as ValidPlayerSlot));
 
   return {
     myPlayerId,
