@@ -9,7 +9,7 @@
  * This module finds them and draws to whichever is currently visible.
  */
 
-import { MAP_PX_H, MAP_PX_W } from "../shared/core/grid.ts";
+import { MAP_PX_H, MAP_PX_W, OFFSCREEN_SCALE } from "../shared/core/grid.ts";
 import type { LoupeHandle } from "../shared/ui/overlay-types.ts";
 
 // Loupe rendering constants
@@ -88,13 +88,13 @@ export function createLoupe(
     const ih = h - bw * 2;
     const ir = Math.max(0, radius - bw);
 
-    // Source rect on sceneCanvas (tile-pixel space)
-    const srcW = iw / (dpr * LOUPE_ZOOM);
-    const srcH = ih / (dpr * LOUPE_ZOOM);
-    let srcX = worldX - srcW / 2;
-    let srcY = worldY - srcH / 2;
-    srcX = Math.max(0, Math.min(MAP_PX_W - srcW, srcX));
-    srcY = Math.max(0, Math.min(MAP_PX_H - srcH, srcY));
+    // Source rect on sceneCanvas (physical pixels — scene is OFFSCREEN_SCALE×).
+    const srcW = (iw / (dpr * LOUPE_ZOOM)) * OFFSCREEN_SCALE;
+    const srcH = (ih / (dpr * LOUPE_ZOOM)) * OFFSCREEN_SCALE;
+    let srcX = worldX * OFFSCREEN_SCALE - srcW / 2;
+    let srcY = worldY * OFFSCREEN_SCALE - srcH / 2;
+    srcX = Math.max(0, Math.min(MAP_PX_W * OFFSCREEN_SCALE - srcW, srcX));
+    srcY = Math.max(0, Math.min(MAP_PX_H * OFFSCREEN_SCALE - srcH, srcY));
 
     // Clear
     canvasCtx.clearRect(0, 0, w, h);
