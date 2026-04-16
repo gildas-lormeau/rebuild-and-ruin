@@ -60,13 +60,14 @@ const layers = new Map<string, number>();
 const visiting = new Set<string>();
 // Build groups sorted by layer then alphabetically
 const groupMap = new Map<number, string[]>();
-const maxLayer = Math.max(...layers.values());
-const pad = String(maxLayer).length;
 // If a layer file already exists, preserve group names and tiers for layers
 // that still exist at the same index
 const existingNames = new Map<number, string>();
 const existingTiers = new Map<number, string>();
 const outputGroups: LayerGroup[] = [];
+
+let maxLayer = -1;
+let pad = 1;
 
 if (includeServer) globs.push("server/**/*.ts");
 
@@ -254,6 +255,10 @@ for (const [file, layer] of layers) {
 for (const files of groupMap.values()) {
   files.sort();
 }
+
+maxLayer = layers.size === 0 ? -1 : Math.max(...layers.values());
+
+pad = String(Math.max(maxLayer, 0)).length;
 
 if (fs.existsSync(LAYER_FILE)) {
   try {
