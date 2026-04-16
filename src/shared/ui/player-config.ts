@@ -48,8 +48,8 @@ export interface GameSettings {
   gameMode: GameMode;
 }
 
-/** Index into ROUNDS_OPTIONS (not the value itself — value is 0 = infinite). */
-const ROUNDS_TO_THE_DEATH_INDEX = 4;
+/** Index into ROUNDS_OPTIONS — index 2 is the 8-rounds option. */
+const ROUNDS_DEFAULT_INDEX = 2;
 /** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */
 const CANNON_HP_DEFAULT_INDEX = 0;
 const SETTINGS_KEY = "castles99_settings";
@@ -126,7 +126,7 @@ export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
 export const SEED_RANDOM = "random";
 const DEFAULT_SETTINGS: GameSettings = {
   difficulty: DIFFICULTY_NORMAL,
-  rounds: ROUNDS_TO_THE_DEATH_INDEX,
+  rounds: ROUNDS_DEFAULT_INDEX,
   cannonHp: CANNON_HP_DEFAULT_INDEX,
   haptics: HAPTICS_ALL,
   sound: SOUND_OFF,
