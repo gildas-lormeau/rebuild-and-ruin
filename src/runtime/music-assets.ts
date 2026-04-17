@@ -22,7 +22,7 @@ export interface MusicAssets {
   readonly xmi: Readonly<Record<XmiFileKey, Uint8Array>>;
 }
 
-export interface StoredFileStatus {
+interface StoredFileStatus {
   readonly key: AssetKey;
   readonly present: boolean;
   readonly size: number | null;
@@ -61,9 +61,9 @@ const RSC_XMI_NAME_MAP: Readonly<Record<string, XmiFileKey>> = {
   RXMI_TIT: "RXMI_TITLE.xmi",
   RXMI_WIN: "RXMI_WINBAT.xmi",
 };
+const RAMP_AD_KEY = "RAMP.AD" as const;
 export const DEFAULT_ARCHIVE_URL =
   "https://cors.archive.org/cors/msdos_Rampart_1992/Rampart_1992.zip";
-export const RAMP_AD_KEY = "RAMP.AD" as const;
 export const XMI_FILE_KEYS = [
   "RXMI_TITLE.xmi",
   "RXMI_BATTLE.xmi",
@@ -95,10 +95,12 @@ export async function loadStoredAssets(): Promise<MusicAssets | undefined> {
 export async function storeAssets(files: Iterable<File>): Promise<StoreResult> {
   const entries: { name: string; bytes: Uint8Array }[] = [];
   for (const file of files) {
-    entries.push({
-      name: file.name,
-      bytes: new Uint8Array(await file.arrayBuffer()),
-    });
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (isZipBytes(file.name, bytes)) {
+      for (const entry of extractAssetsFromZip(bytes)) entries.push(entry);
+    } else {
+      entries.push({ name: file.name, bytes });
+    }
   }
   return writeEntries(entries);
 }
@@ -109,6 +111,12 @@ export async function fetchAndStoreFromArchive(
   const response = await fetch(url);
   if (!response.ok) throw new Error(`fetch ${url}: ${response.status}`);
   const zipBytes = new Uint8Array(await response.arrayBuffer());
+  return writeEntries(extractAssetsFromZip(zipBytes));
+}
+
+function extractAssetsFromZip(
+  zipBytes: Uint8Array,
+): { name: string; bytes: Uint8Array }[] {
   // The IA mirror of the DOS install ships RMUSIC.RSC (a Miles RSC bundle) plus
   // RAMP.AD — there are no standalone RXMI_*.xmi files to match. We extract the
   // XMIs out of RMUSIC.RSC below, so also accept .RSC here (filter=undefined
@@ -126,17 +134,19 @@ export async function fetchAndStoreFromArchive(
       entries.push({ name, bytes });
     }
   }
-  return writeEntries(entries);
+  return entries;
 }
 
-export async function clearStoredAssets(): Promise<void> {
-  if (typeof indexedDB === "undefined") return;
-  const database = await openDatabase();
-  try {
-    await runTransaction(database, "readwrite", (store) => store.clear());
-  } finally {
-    database.close();
-  }
+function isZipBytes(name: string, bytes: Uint8Array): boolean {
+  if (name.toLowerCase().endsWith(".zip")) return true;
+  // ZIP local-file-header magic: PK\x03\x04
+  return (
+    bytes.length >= 4 &&
+    bytes[0] === 0x50 &&
+    bytes[1] === 0x4b &&
+    bytes[2] === 0x03 &&
+    bytes[3] === 0x04
+  );
 }
 
 function extractXmiFromRsc(

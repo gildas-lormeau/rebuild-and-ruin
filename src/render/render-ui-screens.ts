@@ -32,6 +32,7 @@ import {
   OPT_HAPTICS,
   OPT_ROUNDS,
   OPT_SEED,
+  OPT_SOUND,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
 } from "../shared/ui/settings-defs.ts";
@@ -54,8 +55,8 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   const readOnly = frameCtx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
-    // Seed is typed, Controls is opened via confirm — neither uses left/right cycling
-    if (i === OPT_SEED || i === OPT_CONTROLS)
+    // Seed is typed, Controls + Sound open sub-screens — none use left/right cycling
+    if (i === OPT_SEED || i === OPT_CONTROLS || i === OPT_SOUND)
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
@@ -186,8 +187,16 @@ export function visibleOptions(frameCtx: UIContext): number[] {
           OPT_SEED,
           OPT_CONTROLS,
           OPT_DPAD,
+          OPT_SOUND,
         ]
-      : [OPT_ROUNDS, OPT_CANNON_HP, OPT_GAME_MODE, OPT_SEED, OPT_CONTROLS];
+      : [
+          OPT_ROUNDS,
+          OPT_CANNON_HP,
+          OPT_GAME_MODE,
+          OPT_SEED,
+          OPT_CONTROLS,
+          OPT_SOUND,
+        ];
   return IS_TOUCH_DEVICE
     ? [
         OPT_DIFFICULTY,
@@ -198,6 +207,7 @@ export function visibleOptions(frameCtx: UIContext): number[] {
         OPT_SEED,
         OPT_CONTROLS,
         OPT_DPAD,
+        OPT_SOUND,
       ]
     : [
         OPT_DIFFICULTY,
@@ -206,6 +216,7 @@ export function visibleOptions(frameCtx: UIContext): number[] {
         OPT_GAME_MODE,
         OPT_SEED,
         OPT_CONTROLS,
+        OPT_SOUND,
       ];
 }
 
@@ -232,6 +243,7 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === OPT_DPAD) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
   if (idx === OPT_GAME_MODE)
     return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
+  if (idx === OPT_SOUND) return frameCtx.getSoundReady() ? "Ready" : "Off";
   return "";
 }
 

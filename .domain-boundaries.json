@@ -216,7 +216,8 @@
       "src/runtime/runtime-haptics.ts",
       "src/runtime/music-assets.ts",
       "src/runtime/music-player.ts",
-      "src/runtime/music-synth-loader.ts"
+      "src/runtime/music-synth-loader.ts",
+      "src/runtime/sound-modal.ts"
     ],
     "entry": [
       "src/entry.ts",

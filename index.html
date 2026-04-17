@@ -23,24 +23,6 @@
         <button type="button" class="lobby-btn" id="btn-local">Local Play</button>
         <button type="button" class="lobby-btn secondary" id="btn-online">Play Online</button>
       </nav>
-      <section class="home-music" aria-label="Music files">
-        <h2>Music (optional)</h2>
-        <p class="music-hint">
-          The game ships without the original Rampart soundtrack — the music files are
-          copyrighted. To enable music you need a legitimate copy of the DOS game's files
-          (<code>RAMP.AD</code> + <code>RXMI_*.xmi</code>).
-        </p>
-        <div class="setting-row">
-          <label for="music-source-url" class="setting-label">Source URL (zip)</label>
-          <input class="lobby-input" id="music-source-url" type="url" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="home-music-actions">
-          <button type="button" class="lobby-btn secondary" id="btn-music-load">Load from URL</button>
-          <button type="button" class="lobby-btn secondary" id="btn-music-pick">Or pick local files…</button>
-          <input type="file" id="music-file-picker" multiple hidden>
-        </div>
-        <output class="music-status" id="music-status" aria-live="polite"></output>
-      </section>
     </div>
   </main>
 
@@ -196,6 +178,34 @@
       </div>
     </div>
   </main>
+
+  <!-- Modal: Sound settings (opened from canvas options screen) -->
+  <div id="sound-modal" class="sound-modal" hidden>
+    <div class="sound-modal-backdrop"></div>
+    <div class="sound-modal-panel" role="dialog" aria-labelledby="sound-modal-title">
+      <header class="sound-modal-header">
+        <h2 id="sound-modal-title">Sound</h2>
+        <button type="button" class="sound-modal-close" id="btn-sound-close" aria-label="Close">&#x2715;</button>
+      </header>
+      <p class="music-hint">
+        The game ships without the original Rampart soundtrack — the music and sound effect
+        files are copyrighted. To enable sound you need a legitimate copy of the DOS game's
+        files (<code>RAMP.AD</code> + <code>RXMI_*.xmi</code>).
+      </p>
+      <div class="setting-row">
+        <label for="music-url" class="setting-label">Source URL (zip)</label>
+        <input class="lobby-input" id="music-url" type="url" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="sound-modal-actions">
+        <button type="button" class="lobby-btn secondary" id="btn-music-load-url">Load from URL</button>
+        <button type="button" class="lobby-btn secondary" id="btn-music-pick-zip">Pick zip file…</button>
+        <button type="button" class="lobby-btn secondary" id="btn-music-pick-files">Pick individual files…</button>
+        <input type="file" id="music-zip-picker" accept=".zip,application/zip" hidden>
+        <input type="file" id="music-files-picker" multiple hidden>
+      </div>
+      <output class="music-status" id="music-status" aria-live="polite"></output>
+    </div>
+  </div>
 
   <script type="module" src="/src/entry.ts"></script>
 </body>

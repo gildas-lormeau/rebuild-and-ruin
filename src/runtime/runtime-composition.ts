@@ -139,6 +139,7 @@ import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
+import { createSoundModal } from "./sound-modal.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
@@ -238,6 +239,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getAssets: () => musicAssets,
     assetsReady: musicAssetsReady,
     observer: config.observers?.music,
+  });
+  // The Sound modal (URL field + file pickers) lives in index.html. Headless
+  // tests run without DOM — skip construction and pass a no-op opener so the
+  // options screen still renders the row (it just won't open anything there).
+  const soundModal =
+    typeof document !== "undefined" && document.getElementById("sound-modal")
+      ? createSoundModal()
+      : undefined;
+  soundModal?.setOnClose((assets) => {
+    musicAssets = assets;
+    // If assets were just loaded and the lobby is showing the title screen,
+    // kick off playback. Safe to call repeatedly — the subsystem is idempotent
+    // and no-ops when already playing or when assets are still missing.
+    if (assets && runtimeState.mode === Mode.LOBBY) {
+      void music.startTitle();
+    }
   });
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
@@ -659,6 +676,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getFrame: () => runtimeState.frame,
     getLobbyRemaining: config.getLobbyRemaining,
     isOnline,
+    getSoundReady: () => musicAssets !== undefined,
   };
   const inputAdapters = createRuntimeInputAdapters({
     config,
@@ -686,6 +704,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline,
     remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
+    showSoundModal: () => soundModal?.show(),
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;
       runtimeState.settings.seed = digits;

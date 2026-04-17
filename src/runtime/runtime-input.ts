@@ -20,7 +20,7 @@ import type {
   LoupeHandle,
   RendererInterface,
 } from "../shared/ui/overlay-types.ts";
-import { OPT_CONTROLS } from "../shared/ui/settings-defs.ts";
+import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type {
   CreateDpadFn,
@@ -111,6 +111,7 @@ interface InputSystemDeps {
     closeOptions: () => void;
     showControls: () => void;
     closeControls: () => void;
+    showSound: () => void;
     changeOption: (dir: number) => void;
     visibleToActualOptionIdx: () => number;
     togglePause: () => boolean;
@@ -604,10 +605,11 @@ function buildOverlayActionDeps(
   };
 }
 
-/** Confirm the currently focused option (open controls or close options). */
+/** Confirm the currently focused option (open sub-screen or close options). */
 function confirmCurrentOption(options: InputSystemDeps["options"]): void {
-  if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-    options.showControls();
+  const realIdx = options.visibleToActualOptionIdx();
+  if (realIdx === OPT_CONTROLS) options.showControls();
+  else if (realIdx === OPT_SOUND) options.showSound();
   else options.closeOptions();
 }
 

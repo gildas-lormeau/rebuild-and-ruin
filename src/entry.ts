@@ -26,23 +26,6 @@ const serverHostInput = document.getElementById(
 ) as HTMLInputElement;
 const params = new URLSearchParams(location.search);
 const autoJoinCode = params.get("join");
-// --- Music asset loading (home page) ---
-const MUSIC_URL_STORAGE_KEY = "castles99_music_url";
-const musicSourceUrlInput = document.getElementById(
-  "music-source-url",
-) as HTMLInputElement;
-const musicLoadButton = document.getElementById(
-  "btn-music-load",
-) as HTMLButtonElement;
-const musicPickButton = document.getElementById(
-  "btn-music-pick",
-) as HTMLButtonElement;
-const musicFilePicker = document.getElementById(
-  "music-file-picker",
-) as HTMLInputElement;
-const musicStatus = document.getElementById(
-  "music-status",
-) as HTMLOutputElement;
 
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
 try {
@@ -102,99 +85,6 @@ serverHostInput.addEventListener("change", () => {
   if (val) localStorage.setItem(SERVER_STORAGE_KEY, val);
   else localStorage.removeItem(SERVER_STORAGE_KEY);
 });
-
-void import("./runtime/music-assets.ts").then(
-  ({ DEFAULT_ARCHIVE_URL, listStoredAssets }) => {
-    musicSourceUrlInput.value =
-      localStorage.getItem(MUSIC_URL_STORAGE_KEY) || DEFAULT_ARCHIVE_URL;
-    void listStoredAssets().then((status) => {
-      const missing = status.filter((entry) => !entry.present).length;
-      musicStatus.textContent =
-        missing === 0
-          ? `Music files loaded (${status.length} files in browser storage).`
-          : `Music not loaded — ${missing} of ${status.length} files missing.`;
-    });
-  },
-);
-
-musicSourceUrlInput.addEventListener("change", () => {
-  const val = musicSourceUrlInput.value.trim();
-  if (val) localStorage.setItem(MUSIC_URL_STORAGE_KEY, val);
-  else localStorage.removeItem(MUSIC_URL_STORAGE_KEY);
-});
-
-musicLoadButton.addEventListener(CLICK_EVENT, () => {
-  void handleMusicLoadFromUrl();
-});
-
-musicPickButton.addEventListener(CLICK_EVENT, () => musicFilePicker.click());
-
-musicFilePicker.addEventListener("change", () => {
-  void handleMusicLoadFromFiles();
-});
-
-async function handleMusicLoadFromUrl(): Promise<void> {
-  const url = musicSourceUrlInput.value.trim();
-  if (!url) {
-    musicStatus.textContent = "Please enter a URL.";
-    return;
-  }
-  musicStatus.textContent = `Fetching ${url} …`;
-  musicLoadButton.disabled = true;
-  try {
-    const { fetchAndStoreFromArchive } = await import(
-      "./runtime/music-assets.ts"
-    );
-    const result = await fetchAndStoreFromArchive(url);
-    reportMusicResult(result);
-  } catch (error) {
-    musicStatus.textContent = `Load failed: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
-  } finally {
-    musicLoadButton.disabled = false;
-  }
-}
-
-async function handleMusicLoadFromFiles(): Promise<void> {
-  const files = musicFilePicker.files;
-  if (!files?.length) return;
-  musicStatus.textContent = `Saving ${files.length} file(s) …`;
-  try {
-    const { storeAssets } = await import("./runtime/music-assets.ts");
-    const result = await storeAssets(Array.from(files));
-    reportMusicResult(result);
-  } catch (error) {
-    musicStatus.textContent = `Save failed: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
-  } finally {
-    musicFilePicker.value = "";
-  }
-}
-
-function reportMusicResult(result: {
-  accepted: readonly string[];
-  rejected: readonly { name: string; reason: string }[];
-  missing: readonly string[];
-}): void {
-  const parts: string[] = [];
-  if (result.accepted.length) {
-    parts.push(`Saved ${result.accepted.length} file(s).`);
-  }
-  if (result.missing.length) {
-    parts.push(`Still missing: ${result.missing.join(", ")}.`);
-  }
-  if (result.rejected.length) {
-    parts.push(
-      `Rejected: ${result.rejected.map((entry) => `${entry.name} (${entry.reason})`).join("; ")}.`,
-    );
-  }
-  if (!result.missing.length && !result.rejected.length) {
-    parts.push("Music is ready — click Local Play to hear it.");
-  }
-  musicStatus.textContent = parts.join(" ");
-}
 
 // Fullscreen on Create/Join confirm (needs user gesture — click for mobile compat)
 document

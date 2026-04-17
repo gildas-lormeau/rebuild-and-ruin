@@ -41,6 +41,7 @@
       "src/protocol/checkpoint-data.ts",
       "src/render/render-sprites.ts",
       "src/runtime/music-synth-loader.ts",
+      "src/runtime/sound-modal.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/geometry-types.ts",
       "src/shared/core/modifier-defs.ts",

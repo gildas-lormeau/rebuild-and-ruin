@@ -58,6 +58,9 @@ export interface UIContext {
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
   isOnline?: boolean;
+  /** True when all player-supplied Rampart sound files are in IndexedDB, so the
+   *  "Sound" row in the options screen can render status at a glance. */
+  getSoundReady: () => boolean;
 }
 
 export type CreateOptionsOverlayFn = (ctx: UIContext) => {

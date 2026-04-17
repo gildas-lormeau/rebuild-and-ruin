@@ -18,6 +18,7 @@ import {
   HIT_CLOSE,
   OPT_CONTROLS,
   OPT_SEED,
+  OPT_SOUND,
 } from "../shared/ui/settings-defs.ts";
 import type { CycleOptionFn } from "../shared/ui/settings-ui.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
@@ -55,6 +56,8 @@ interface OptionsSystemDeps {
   isOnline: boolean;
   remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
   onCloseOptions?: () => void;
+  /** Open the HTML Sound modal (player-supplied Rampart file loader). */
+  showSoundModal: () => void;
   seedField: SeedField;
 
   // Render-domain functions (injected from composition root)
@@ -81,6 +84,8 @@ interface OptionsSystem {
   renderControls: () => void;
   showControls: () => void;
   closeControls: () => void;
+  /** Open the HTML Sound modal (player-supplied Rampart file loader). */
+  showSound: () => void;
   togglePause: () => boolean;
 }
 
@@ -222,6 +227,9 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     if (realIdx === OPT_CONTROLS) {
       blurSeedInput();
       showControls();
+    } else if (realIdx === OPT_SOUND) {
+      blurSeedInput();
+      deps.showSoundModal();
     } else if (realIdx === OPT_SEED) {
       focusSeedInput();
     } else {
@@ -275,6 +283,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     renderControls,
     showControls,
     closeControls,
+    showSound: deps.showSoundModal,
     togglePause,
   };
 }

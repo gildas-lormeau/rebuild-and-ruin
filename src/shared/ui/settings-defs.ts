@@ -32,6 +32,7 @@ export const OPTION_NAMES = [
   "Controls",
   "D-Pad",
   "Game Mode",
+  "Sound",
 ];
 /** Option indices — positions in the OPTION_NAMES / visible-options arrays.
  *  INVARIANT: Indices must match the order in OPTION_NAMES above. */
@@ -43,6 +44,7 @@ export const OPT_SEED = 4;
 export const OPT_CONTROLS = 5;
 export const OPT_DPAD = 6;
 export const OPT_GAME_MODE = 7;
+export const OPT_SOUND = 8;
 /** Hit-test discriminators for options/controls screens.
  *  Shared between render (producer) and runtime (consumer). */
 export const HIT_CLOSE = "close";
