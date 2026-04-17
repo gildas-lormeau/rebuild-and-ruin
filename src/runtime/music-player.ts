@@ -34,6 +34,10 @@ import {
   type GameEventHandler,
 } from "../shared/core/game-event-bus.ts";
 import type { MusicObserver } from "../shared/core/system-interfaces.ts";
+import {
+  xmiContainerBlocks,
+  xmidToSmf,
+} from "../shared/platform/xmi-to-smf.ts";
 import type { MusicAssets } from "./music-assets.ts";
 import type { SynthHandle } from "./music-synth-loader.ts";
 
@@ -123,8 +127,24 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const synth = await ensureSynth();
     if (!synth || !wantsTitle || paused) return;
     try {
-      synth.selectSongNum(TITLE_SONG_INDEX);
-      await synth.loadMidi(copyBuffer(assets.xmi[TITLE_TRACK]));
+      // Convert XMI sub-song → SMF in memory before handing to libADLMIDI.
+      // Its native XMI parser reorders same-tick note-offs and retriggers
+      // percussion voices on the "wrong" cleanups, which is catastrophic for
+      // drum-channel SFX (verified by `tmp/music-player/scripts/
+      // render-and-compare.mjs`; SMF path produces bit-identical PCM to the
+      // Python reference tool). Title = sub-song 0 of RXMI_TITLE.xmi.
+      const blocks = xmiContainerBlocks(assets.xmi[TITLE_TRACK]);
+      const smf = xmidToSmf(blocks[TITLE_SONG_INDEX]!.block);
+      if (!smf) {
+        console.error("[music] title sub-song has no EVNT chunk");
+        return;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      // Lobby can sit on the title screen indefinitely — loop the ~30s track
+      // instead of dropping to silence. Must be set after loadMidi (the flag
+      // applies to the currently loaded file).
+      synth.setLoopEnabled(true);
+      await logLoopInfo(synth);
       await synth.play();
       playing = true;
       deps.observer?.onPlay?.(TITLE_TRACK);
@@ -205,6 +225,25 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     setPaused,
     dispose,
   };
+}
+
+async function logLoopInfo(synth: SynthHandle): Promise<void> {
+  try {
+    const [start, end, title, markers, songs] = await Promise.all([
+      synth.getLoopStartTime(),
+      synth.getLoopEndTime(),
+      synth.getMusicTitle(),
+      synth.getMarkerCount(),
+      synth.getSongsCount(),
+    ]);
+    const startStr = start < 0 ? "—" : `${start.toFixed(3)}s`;
+    const endStr = end < 0 ? "—" : `${end.toFixed(3)}s`;
+    console.log(
+      `[music] title="${title}" songs=${songs} markers=${markers} loop=${startStr}→${endStr}`,
+    );
+  } catch (error) {
+    console.warn("[music] loop info query failed:", error);
+  }
 }
 
 function copyBuffer(bytes: Uint8Array): ArrayBuffer {

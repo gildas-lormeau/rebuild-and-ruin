@@ -30,6 +30,7 @@
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
       "src/shared/platform/utils.ts",
+      "src/shared/platform/xmi-to-smf.ts",
       "src/shared/ui/input-action.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/overlay-types.ts",

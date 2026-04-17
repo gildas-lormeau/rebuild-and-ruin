@@ -12,5 +12,11 @@ declare module "libadlmidi-js/nuked" {
     play(): Promise<void>;
     stop(): Promise<void>;
     selectSongNum(num: number): void;
+    setLoopEnabled(enabled: boolean): void;
+    getLoopStartTime(): Promise<number>;
+    getLoopEndTime(): Promise<number>;
+    getMusicTitle(): Promise<string>;
+    getMarkerCount(): Promise<number>;
+    getSongsCount(): Promise<number>;
   }
 }

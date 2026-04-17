@@ -16,6 +16,17 @@ export interface SynthHandle {
   play(): Promise<void>;
   stop(): Promise<void>;
   selectSongNum(num: number): void;
+  /** Enable/disable looping for the loaded file. XMI files with explicit
+   *  loopstart/loopend markers honor them; files without markers loop from
+   *  the end back to the start. */
+  setLoopEnabled(enabled: boolean): void;
+  /** Detected loop markers in seconds, or -1 if absent. XMI `FOR/NEXT` and
+   *  standard MIDI `loopStart`/`loopEnd` text markers both surface here. */
+  getLoopStartTime(): Promise<number>;
+  getLoopEndTime(): Promise<number>;
+  getMusicTitle(): Promise<string>;
+  getMarkerCount(): Promise<number>;
+  getSongsCount(): Promise<number>;
 }
 
 export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
