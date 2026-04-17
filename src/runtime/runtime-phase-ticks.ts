@@ -53,7 +53,10 @@ import {
   type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { PHASE_MUSIC_MIDI } from "../shared/platform/phase-music.ts";
+import {
+  PHASE_MUSIC as PHASE_MUSIC_SONGS,
+  type PhaseMusic,
+} from "../shared/platform/phase-music.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -193,20 +196,20 @@ const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
  *  Phases missing from the map get silence. Battle is a one-shot Jaws
  *  stinger — plays once at phase start, silence after. */
 const PHASE_MUSIC: Partial<
-  Record<Phase, { midi: Uint8Array; loop: boolean; volumeScale: number }>
+  Record<Phase, { song: PhaseMusic; loop: boolean; volumeScale: number }>
 > = {
   [Phase.WALL_BUILD]: {
-    midi: PHASE_MUSIC_MIDI.build,
+    song: PHASE_MUSIC_SONGS.build,
     loop: true,
     volumeScale: 2.5,
   },
   [Phase.CANNON_PLACE]: {
-    midi: PHASE_MUSIC_MIDI.cannon,
+    song: PHASE_MUSIC_SONGS.cannon,
     loop: true,
     volumeScale: 1.0,
   },
   [Phase.BATTLE]: {
-    midi: PHASE_MUSIC_MIDI.battle,
+    song: PHASE_MUSIC_SONGS.battle,
     loop: false,
     volumeScale: 0.4,
   },
@@ -250,7 +253,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const { phase } = event as LifecycleEvent & { type: "bannerEnd" };
         const entry = PHASE_MUSIC[phase];
         if (entry) {
-          deps.sound.startPhaseMusic(entry.midi, {
+          deps.sound.startPhaseMusic(entry.song, {
             loop: entry.loop,
             volumeScale: entry.volumeScale,
           });

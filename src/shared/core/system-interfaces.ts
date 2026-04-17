@@ -1,3 +1,4 @@
+import type { PhaseMusic } from "../platform/phase-music.ts";
 import type { Rng } from "../platform/rng.ts";
 import { Action } from "../ui/input-action.ts";
 import type {
@@ -496,11 +497,11 @@ export interface SoundSystem {
   drumsQuiet: () => void;
   drumsStop: () => void;
 
-  /** Start looping phase music from an in-memory MIDI blob.
+  /** Start phase music from a pre-parsed song (shared/platform/phase-music.ts).
    *  Stops any currently playing music first. `volumeScale` compensates
    *  for MusyngKite instruments that are unusually loud/quiet. */
   startPhaseMusic: (
-    midi: Uint8Array,
+    song: PhaseMusic,
     opts?: { loop?: boolean; volumeScale?: number },
   ) => void;
   /** Stop the current phase music immediately. */

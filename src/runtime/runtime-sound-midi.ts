@@ -1,44 +1,26 @@
 /**
- * MIDI → soundfont-player renderer for Rampart's phase music.
+ * Pre-parsed phase-music → Web Audio renderer.
  *
- * Pipeline:
- *   Uint8Array (inlined via shared/platform/phase-music.ts) →
- *   parseMidiEvents (in-file, no deps) →
- *   for each noteOn:
- *     - ch9 (drums) → schedule via playOplNote + OPL2 snare patch
- *     - else       → Soundfont.instrument(program).play(note, time)
+ * Takes a PhaseMusic (tempo-resolved event array from
+ * shared/platform/phase-music.ts) and schedules each event on the given
+ * AudioContext:
+ *   - ch10 note-ons  → RAMPART.AD OPL2 snare (via runtime-sound-opl.ts)
+ *   - other note-ons → soundfont-player GM instrument looked up by the
+ *     channel's most recent programChange
  *
- * All MIDIs in this game use only snare (note 38) on the drum channel,
- * so we reuse the pre-decoded OPL2 snare from RAMPART.AD bank 0x7F.
+ * All Rampart phase MIDIs only ever hit snare (MIDI note 38) on the
+ * drum channel, so the drum path is hard-coded to one OPL2 patch.
  *
- * Runtime is fully async: loadAndPlay() fetches MIDI + all needed
- * instruments, then schedules the entire song up front. stop() cancels
- * everything. This is a fire-and-forget pattern that matches phase
- * transitions (which stop any prior music on entry to a new phase).
+ * The entire song is scheduled up-front at start time. stop() cancels
+ * any pending voices. Fire-and-forget — no per-frame driver loop.
  */
 
 /// <reference path="../shared/platform/soundfont-player.d.ts" />
 
 import Soundfont, { type SoundfontPlayer } from "soundfont-player";
 import { decodeOplPatch, type OplPatch } from "../shared/platform/opl2.ts";
+import type { PhaseMusic } from "../shared/platform/phase-music.ts";
 import { playOplNote } from "./runtime-sound-opl.ts";
-
-interface MidiEvent {
-  readonly tick: number;
-  readonly kind: "noteOn" | "pc" | "tempo";
-  readonly ch?: number;
-  readonly note?: number;
-  readonly vel?: number;
-  readonly durTicks?: number;
-  readonly program?: number;
-  readonly value?: number;
-}
-
-interface ParsedMidi {
-  readonly div: number;
-  readonly events: readonly MidiEvent[];
-  readonly totalTicks: number;
-}
 
 interface ScheduledNode {
   stop(when?: number): void;
@@ -53,10 +35,10 @@ export interface PhaseMusicOpts {
 }
 
 export interface MidiMusicPlayer {
-  /** Parse a MIDI blob and start playing immediately. Any currently
-   *  playing song is stopped first. Returns once scheduling is complete
-   *  (instruments may still be streaming in the background). */
-  startPhaseMusic(midi: Uint8Array, opts?: PhaseMusicOpts): Promise<void>;
+  /** Schedule a pre-parsed song and start playing immediately. Any
+   *  currently playing song is stopped first. Returns once scheduling
+   *  is complete (instruments may still be streaming in the background). */
+  startPhaseMusic(song: PhaseMusic, opts?: PhaseMusicOpts): Promise<void>;
   /** Stop any currently playing song. */
   stopPhaseMusic(): void;
 }
@@ -67,10 +49,8 @@ const MIDI_A4_NOTE = 69;
 const SEMITONES_PER_OCTAVE = 12;
 /** MIDI velocity max — used to normalize velocity to 0..1. */
 const MIDI_VELOCITY_MAX = 127;
-/** Default MIDI tempo (μs per quarter note). */
-const DEFAULT_TEMPO_US = 1_000_000;
-/** MIDI drum channel (ch 10 in 1-indexed conventional MIDI). */
-const DRUM_CHANNEL = 9;
+/** GM drum channel (1-indexed in phase-music.ts event data). */
+const DRUM_CHANNEL = 10;
 /** Master gain baseline for all MIDI music. MusyngKite samples have
  *  wildly different natural loudness per instrument (music box is quiet,
  *  cello is LOUD), so a single gain can't balance them. The master here
@@ -172,53 +152,41 @@ export function createMidiMusicPlayer(
 
   function scheduleOnce(
     ctx: AudioContext,
-    parsed: ParsedMidi,
+    song: PhaseMusic,
     t0: number,
     volumeScale: number,
   ): number {
-    const chProgram = new Array(16).fill(0);
-    let currentTempo = DEFAULT_TEMPO_US;
-    let tickSec = currentTempo / 1_000_000 / parsed.div;
-    let lastTick = 0;
-    let clockSec = 0;
-
-    for (const midiEvent of parsed.events) {
-      clockSec += (midiEvent.tick - lastTick) * tickSec;
-      lastTick = midiEvent.tick;
-      if (midiEvent.kind === "tempo") {
-        currentTempo = midiEvent.value!;
-        tickSec = currentTempo / 1_000_000 / parsed.div;
-      } else if (midiEvent.kind === "pc") {
-        chProgram[midiEvent.ch!] = midiEvent.program!;
-      } else if (midiEvent.kind === "noteOn") {
-        const startTime = t0 + clockSec;
-        if (midiEvent.ch === DRUM_CHANNEL) {
-          const snareFreq = midiToFreq(SNARE_PATCH.transposition);
-          playOplNote(
-            ctx,
-            SNARE_PATCH,
-            snareFreq,
-            startTime,
-            SNARE_HIT_SEC,
-            midiEvent.vel! * SNARE_VELOCITY_SCALE * volumeScale,
-          );
-        } else {
-          const inst = instrumentCache.get(chProgram[midiEvent.ch!]);
-          if (inst) {
-            const node = inst.play(midiEvent.note!, startTime, {
-              duration: midiEvent.durTicks! * tickSec,
-              gain: (midiEvent.vel! / MIDI_VELOCITY_MAX) * volumeScale,
-            });
-            activeNodes.push(node);
-          }
+    const chProgram = new Array(17).fill(0); // 1-indexed channels 1-16
+    for (const event of song.events) {
+      const startTime = t0 + event.t / 1000;
+      if ("program" in event) {
+        chProgram[event.ch] = event.program;
+      } else if (event.ch === DRUM_CHANNEL) {
+        const snareFreq = midiToFreq(SNARE_PATCH.transposition);
+        playOplNote(
+          ctx,
+          SNARE_PATCH,
+          snareFreq,
+          startTime,
+          SNARE_HIT_SEC,
+          event.vel * SNARE_VELOCITY_SCALE * volumeScale,
+        );
+      } else {
+        const inst = instrumentCache.get(chProgram[event.ch]);
+        if (inst) {
+          const node = inst.play(event.note, startTime, {
+            duration: event.dur / 1000,
+            gain: (event.vel / MIDI_VELOCITY_MAX) * volumeScale,
+          });
+          activeNodes.push(node);
         }
       }
     }
-    return clockSec + (parsed.totalTicks - lastTick) * tickSec;
+    return song.durationMs / 1000;
   }
 
   async function startPhaseMusic(
-    midi: Uint8Array,
+    song: PhaseMusic,
     opts: PhaseMusicOpts = {},
   ): Promise<void> {
     stopInternal();
@@ -227,11 +195,9 @@ export function createMidiMusicPlayer(
     ctx.resume().catch(() => {});
     const volumeScale = opts.volumeScale ?? 1;
 
-    const parsed = parseMidiEvents(midi);
-
     const programs = new Set<number>([0]);
-    for (const midiEvent of parsed.events) {
-      if (midiEvent.kind === "pc") programs.add(midiEvent.program!);
+    for (const event of song.events) {
+      if ("program" in event) programs.add(event.program);
     }
     await Promise.all(
       [...programs].map((program) => ensureInstrument(ctx, program)),
@@ -239,20 +205,15 @@ export function createMidiMusicPlayer(
     if (requestId !== playRequestId) return;
 
     const t0 = ctx.currentTime + START_OFFSET_SEC;
-    const songDur = scheduleOnce(ctx, parsed, t0, volumeScale);
+    const songDur = scheduleOnce(ctx, song, t0, volumeScale);
 
     if (opts.loop) {
       const loopSchedule = (nextStart: number) => {
         if (requestId !== playRequestId) return;
-        activeNodes.push({
-          stop: () => {
-            /* loop cancel marker */
-          },
-        });
         const timer = self.setTimeout(
           () => {
             if (requestId !== playRequestId) return;
-            const nextEnd = scheduleOnce(ctx, parsed, nextStart, volumeScale);
+            const nextEnd = scheduleOnce(ctx, song, nextStart, volumeScale);
             const wait = Math.max(0, nextEnd - LOOP_LOOKAHEAD_SEC) * 1000;
             self.setTimeout(() => loopSchedule(nextStart + nextEnd), wait);
           },
@@ -277,95 +238,4 @@ export function createMidiMusicPlayer(
 
 function midiToFreq(note: number): number {
   return MIDI_A4_HZ * 2 ** ((note - MIDI_A4_NOTE) / SEMITONES_PER_OCTAVE);
-}
-
-function parseMidiEvents(data: Uint8Array): ParsedMidi {
-  const div = (data[12]! << 8) | data[13]!;
-  let index = 22; // skip MThd(14) + MTrk header(8)
-  let running = 0;
-  let ticks = 0;
-  const events: MidiEvent[] = [];
-  const pendingOff = new Map<string, { startTick: number; vel: number }>();
-
-  while (index < data.length) {
-    let delta = 0;
-    while (index < data.length) {
-      const byte = data[index++]!;
-      delta = (delta << 7) | (byte & 0x7f);
-      if (!(byte & 0x80)) break;
-    }
-    ticks += delta;
-    if (index >= data.length) break;
-    let status = data[index]!;
-    if (status < 0x80) {
-      status = running;
-    } else {
-      running = status;
-      index++;
-    }
-    if (status === 0xff) {
-      const meta = data[index++]!;
-      let metaLen = 0;
-      while (index < data.length) {
-        const byte = data[index++]!;
-        metaLen = (metaLen << 7) | (byte & 0x7f);
-        if (!(byte & 0x80)) break;
-      }
-      if (meta === 0x51 && metaLen === 3) {
-        const value =
-          (data[index]! << 16) | (data[index + 1]! << 8) | data[index + 2]!;
-        events.push({ tick: ticks, kind: "tempo", value });
-      }
-      index += metaLen;
-      if (meta === 0x2f) break;
-    } else if (status >= 0x90 && status <= 0x9f) {
-      const note = data[index]!;
-      const vel = data[index + 1]!;
-      const ch = status & 0xf;
-      index += 2;
-      if (vel > 0) {
-        pendingOff.set(`${ch}:${note}`, { startTick: ticks, vel });
-      } else {
-        flushNoteOff(events, pendingOff, ch, note, ticks);
-      }
-    } else if (status >= 0x80 && status <= 0x8f) {
-      const note = data[index]!;
-      const ch = status & 0xf;
-      index += 2;
-      flushNoteOff(events, pendingOff, ch, note, ticks);
-    } else if (status >= 0xa0 && status <= 0xbf) {
-      index += 2;
-    } else if (status >= 0xe0 && status <= 0xef) {
-      index += 2;
-    } else if (status >= 0xc0 && status <= 0xcf) {
-      const program = data[index++]!;
-      events.push({ tick: ticks, kind: "pc", ch: status & 0xf, program });
-    } else if (status >= 0xd0 && status <= 0xdf) {
-      index += 1;
-    }
-  }
-
-  events.sort((first, second) => first.tick - second.tick);
-  return { div, events, totalTicks: ticks };
-}
-
-function flushNoteOff(
-  events: MidiEvent[],
-  pending: Map<string, { startTick: number; vel: number }>,
-  ch: number,
-  note: number,
-  ticks: number,
-): void {
-  const key = `${ch}:${note}`;
-  const ref = pending.get(key);
-  if (!ref) return;
-  events.push({
-    tick: ref.startTick,
-    kind: "noteOn",
-    ch,
-    note,
-    vel: ref.vel,
-    durTicks: ticks - ref.startTick,
-  });
-  pending.delete(key);
 }

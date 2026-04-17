@@ -32,6 +32,7 @@ export default [
             "e",            // event handlers
             "id",           // identifier (player/entity IDs)
             "dt",           // delta time
+            "t",            // timestamp (ms) in MIDI/music event data
             "hp",           // hit points
             "ms",           // milliseconds
             "ok",           // boolean result
