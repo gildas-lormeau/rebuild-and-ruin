@@ -376,9 +376,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           dt: runtimeState.frameDt,
         });
         // Presentational derivations run after all state mutation — SFX
-        // diffs GameState-derived signals (countdown-active, etc.)
-        // against last frame to issue start/stop cues.
+        // and music both diff GameState-derived signals (countdown-active,
+        // build-bg decrescendo threshold) against last frame to issue
+        // start/stop/ramp cues.
         sfx.tickPresentation(runtimeState.state);
+        music.tickPresentation(runtimeState.state);
       }
       if (IS_DEV) {
         exposeE2EBridge({ runtimeState, config, camera, renderer });

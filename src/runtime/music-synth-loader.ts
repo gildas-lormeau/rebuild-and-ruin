@@ -31,6 +31,11 @@ export interface SynthHandle {
    *  worklet node and the AudioContext destination. Use to level tracks
    *  whose XMI mix is quieter than others (e.g. RXMI_CANNON vs TETRIS). */
   setVolume(value: number): void;
+  /** Ramp the gain linearly to `value` over `durationSec` on the synth's
+   *  AudioContext clock. Cancels any prior ramp in flight. Used for
+   *  phase-transition decrescendos (e.g. build bg fading into the
+   *  countdown snare). */
+  fadeTo(value: number, durationSec: number): void;
 }
 
 export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
@@ -61,6 +66,16 @@ export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
   return Object.assign(synth, {
     setVolume(value: number): void {
       if (gainNode) gainNode.gain.value = value;
+    },
+    fadeTo(value: number, durationSec: number): void {
+      if (!gainNode || !ctx) return;
+      const now = ctx.currentTime;
+      // Pin current value then ramp — without setValueAtTime the ramp
+      // would start from the last scheduled point, which breaks mid-fade
+      // cancellations (e.g. immediate stop during a decrescendo).
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(value, now + durationSec);
     },
   });
 }

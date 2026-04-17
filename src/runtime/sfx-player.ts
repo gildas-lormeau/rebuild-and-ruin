@@ -114,6 +114,12 @@ const COUNTDOWN_SNARE_PHASES: ReadonlySet<Phase> = new Set([
  *  trigger (ceil(6.72 - TIMER_DISPLAY_LAG_SEC) = ceil(5.72) = 6), which
  *  is when the player expects the drum-roll. */
 const COUNTDOWN_SNARE_RAW_SEC = 6.72;
+/** Crescendo applied to the looping snare when it starts — snarerl1 is a
+ *  uniform-volume drum roll (peak mid-cycle, no natural ramp-in), so we
+ *  ramp the output gain from 0 to 1 over this window for the drum-roll
+ *  tension build-up. Mirrors the build-bg decrescendo in music-player.ts
+ *  so the two signals cross-fade on the same 1 s window. */
+const SNARE_CRESCENDO_SEC = 1;
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
@@ -354,7 +360,16 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    source.connect(context.destination);
+    // Interpose a gain node to apply the crescendo. snarerl1 has no
+    // natural ramp-in on its own, so we ramp the output 0 → 1 linearly
+    // over SNARE_CRESCENDO_SEC. The build-bg synth is decrescendoing on
+    // the same window, yielding a clean cross-fade.
+    const gain = context.createGain();
+    const now = context.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(1, now + SNARE_CRESCENDO_SEC);
+    source.connect(gain);
+    gain.connect(context.destination);
     source.start(0);
     snareSource = source;
   }
