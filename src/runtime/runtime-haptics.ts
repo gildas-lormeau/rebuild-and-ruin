@@ -4,8 +4,7 @@
  * Subscribes to the game event bus and fires `navigator.vibrate` on
  * lifecycle + battle events. No sibling subsystem sees a haptics "deps"
  * field — every trigger flows through the bus. All calls are no-ops on
- * devices without vibration support. Respects the haptics setting:
- * 0=off, 1=phase changes only, 2=all.
+ * devices without vibration support. Respects the on/off haptics setting.
  *
  * ### Wiring
  *
@@ -17,19 +16,16 @@
  * ### Test observer
  *
  * Tests pass an optional `observer` that captures every vibrate intent
- * (reason + ms + minLevel) BEFORE the platform/level gate, so tests can
- * assert "this bus event would have triggered haptic X at level Y"
- * independently of `CAN_VIBRATE` and the haptics level.
+ * (reason + ms) BEFORE the platform/level gate, so tests can assert
+ * "this bus event would have triggered haptic X" independently of
+ * `CAN_VIBRATE` and the haptics setting.
  */
 
 import {
   BATTLE_MESSAGE,
   type BattleEvent,
 } from "../shared/core/battle-events.ts";
-import {
-  HAPTICS_ALL,
-  HAPTICS_PHASE_ONLY,
-} from "../shared/core/game-constants.ts";
+import { HAPTICS_ON } from "../shared/core/game-constants.ts";
 import {
   GAME_EVENT,
   type GameEventBus,
@@ -43,7 +39,7 @@ import { CAN_VIBRATE } from "../shared/platform/platform.ts";
 
 interface HapticsSubsystemDeps {
   /** Live getter — read once per haptic fire so setting changes take effect
-   *  immediately without a separate `setLevel` path. */
+   *  immediately without a separate `setLevel` path. Returns 0=off, 1=on. */
   getLevel: () => number;
   /** Point-of-view player, used to filter battle events to the local
    *  perspective (camera follows pov in shared-screen mode). */
@@ -59,12 +55,17 @@ interface HapticsSubsystem {
   subscribeBus: (bus: GameEventBus) => void;
 }
 
-const HAPTIC_PHASE_CHANGE_MS = 40;
-const HAPTIC_WALL_HIT_MS = 30;
-const HAPTIC_CANNON_DAMAGED_MS = 80;
-const HAPTIC_CANNON_DESTROYED_MS = 150;
-const HAPTIC_TOWER_KILLED_MS = 200;
-const HAPTIC_CANNON_FIRED_MS = 15;
+// Durations are tuned for commodity Android motors (ERM / LRA) which need
+// ~20–40ms just to spin up before any pulse is perceptible. The empirical
+// floor — from the pulses used in progressier's public vibration demo and
+// confirmed in /haptics-test.html — is 100–150ms; anything shorter fires
+// the API but typically isn't felt.
+const HAPTIC_TAP_MS = 50;
+const HAPTIC_WALL_HIT_MS = 200;
+const HAPTIC_PHASE_CHANGE_MS = 250;
+const HAPTIC_CANNON_DAMAGED_MS = 300;
+const HAPTIC_CANNON_DESTROYED_MS = 450;
+const HAPTIC_TOWER_KILLED_MS = 600;
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
 );
@@ -75,29 +76,24 @@ export function createHapticsSubsystem(
   const { getLevel, getPovPlayerId, observer } = deps;
   let subscribedBus: GameEventBus | undefined;
 
-  function vibrate(reason: HapticReason, ms: number, minLevel: 1 | 2): void {
-    observer?.vibrate?.(reason, ms, minLevel);
-    if (CAN_VIBRATE && getLevel() >= minLevel) navigator.vibrate(ms);
+  function vibrate(reason: HapticReason, ms: number): void {
+    observer?.vibrate?.(reason, ms);
+    if (CAN_VIBRATE && getLevel() >= HAPTICS_ON) navigator.vibrate(ms);
   }
 
   function handleBattleEvent(evt: BattleEvent): void {
     const pov = getPovPlayerId();
     if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED && evt.playerId === pov) {
-      vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS, HAPTICS_ALL);
+      vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS);
     } else if (
       evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
       evt.playerId === pov
     ) {
       if (evt.newHp === 0)
-        vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS, HAPTICS_ALL);
-      else vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS, HAPTICS_ALL);
+        vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS);
+      else vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS);
     } else if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) {
-      vibrate(BATTLE_MESSAGE.TOWER_KILLED, HAPTIC_TOWER_KILLED_MS, HAPTICS_ALL);
-    } else if (
-      evt.type === BATTLE_MESSAGE.CANNON_FIRED &&
-      evt.playerId === pov
-    ) {
-      vibrate("cannonFired", HAPTIC_CANNON_FIRED_MS, HAPTICS_ALL);
+      vibrate(BATTLE_MESSAGE.TOWER_KILLED, HAPTIC_TOWER_KILLED_MS);
     }
   }
 
@@ -105,7 +101,10 @@ export function createHapticsSubsystem(
     if (subscribedBus === bus) return;
     subscribedBus = bus;
     bus.on(GAME_EVENT.BANNER_START, () => {
-      vibrate("phaseChange", HAPTIC_PHASE_CHANGE_MS, HAPTICS_PHASE_ONLY);
+      vibrate("phaseChange", HAPTIC_PHASE_CHANGE_MS);
+    });
+    bus.on(GAME_EVENT.UI_TAP, () => {
+      vibrate("tap", HAPTIC_TAP_MS);
     });
     // The early-out below skips the per-event walk on devices where vibration
     // is unavailable AND no test observer is listening — that's the hot path
@@ -114,7 +113,7 @@ export function createHapticsSubsystem(
     // `navigator.vibrate` ultimately won't fire.
     bus.onAny((type, event) => {
       if (!BATTLE_EVENT_TYPES.has(type)) return;
-      if (!observer && (!CAN_VIBRATE || getLevel() < HAPTICS_ALL)) return;
+      if (!observer && (!CAN_VIBRATE || getLevel() < HAPTICS_ON)) return;
       handleBattleEvent(event as BattleEvent);
     });
   }

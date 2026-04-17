@@ -716,6 +716,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     upgradePick,
     selection: { ...selection, isReady: isSelectionReady },
     camera,
+    emitUiTap: () => {
+      const state = safeState(runtimeState);
+      if (state) state.bus.emit(GAME_EVENT.UI_TAP, { type: GAME_EVENT.UI_TAP });
+    },
     inputHandlers: {
       dispatchPointerMove,
       registerKeyboard: registerKeyboardHandlers,

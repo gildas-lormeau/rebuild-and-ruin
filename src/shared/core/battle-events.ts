@@ -138,7 +138,6 @@ export const BATTLE_MESSAGE = {
 export const BATTLE_EVENT_CONSUMERS = {
   cannonFired: {
     stateApply: "src/game/battle-system.ts",
-    haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
   },

@@ -394,12 +394,12 @@ export interface AiAnimatable {
  *  overlays) attribute a vibration to the game event that triggered it
  *  instead of just seeing a duration. */
 export type HapticReason =
+  | "tap"
   | "phaseChange"
   | "wallDestroyed"
   | "cannonDamaged"
   | "cannonDestroyed"
-  | "towerKilled"
-  | "cannonFired";
+  | "towerKilled";
 
 /** Test observer — receives every vibrate intent BEFORE the platform/level
  *  gate. Tests use this to assert that bus events triggered the right
@@ -407,7 +407,7 @@ export type HapticReason =
  *  via the runtime's `observers` bag from the test scenario; production
  *  callers omit it. */
 export interface HapticsObserver {
-  vibrate?(reason: HapticReason, ms: number, minLevel: 1 | 2): void;
+  vibrate?(reason: HapticReason, ms: number): void;
 }
 
 /** Battle crosshair movement speed in pixels per second. */

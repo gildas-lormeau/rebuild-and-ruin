@@ -284,6 +284,7 @@ export function createFloatingActions(
   )!;
 
   function handleRotate() {
+    deps.emitUiTap?.();
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
@@ -298,6 +299,7 @@ export function createFloatingActions(
   }
 
   function handleConfirm() {
+    deps.emitUiTap?.();
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
@@ -339,6 +341,7 @@ export function createFloatingActions(
 
 /** Action button: confirm selection / place piece / place cannon / lobby join. */
 function handleDpadAction(deps: DpadDeps): void {
+  deps.emitUiTap?.();
   if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
   const mode = deps.getMode();
   if (mode === Mode.LOBBY) {
@@ -403,6 +406,9 @@ function wireDpadArrows(
         e.stopPropagation();
         pressDown(btn);
         deps.clearDirectTouch?.();
+        // Emit once per physical press — avoids continuous vibration during
+        // auto-repeat.
+        deps.emitUiTap?.();
         if (isBattlePhase()) battleKeyDown(action);
         else startRepeat(action);
       },
@@ -440,11 +446,12 @@ function createKeyRepeatController(fireDirection: (action: Action) => void): {
   startRepeat: (action: Action) => void;
   stopRepeat: () => void;
 } {
-  const REPEAT_DELAY = 120;
-  // 100 ms (10 Hz) instead of the prior 50 ms (20 Hz) — at 20 Hz the
-  // release window between ticks was tighter than typical reaction time
-  // (~200 ms), so a hold consistently overshot the target by one tile.
-  const REPEAT_RATE = 100;
+  // Initial delay well above typical reaction time (~200 ms) so a brief
+  // tap-and-release moves exactly one tile and never triggers a repeat.
+  const REPEAT_DELAY = 300;
+  // Repeat interval kept at ~5 Hz — slow enough that the player can stop
+  // on the target tile, fast enough for longer slides to feel responsive.
+  const REPEAT_RATE = 180;
   let repeatTimer: ReturnType<typeof setTimeout> | undefined;
 
   function stopRepeat() {

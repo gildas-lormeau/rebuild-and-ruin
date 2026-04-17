@@ -109,12 +109,20 @@ export type ModernEvent =
       upgradeId: UpgradeId;
     };
 
+/** UI interaction events — user-driven touch/click feedback signals that
+ *  don't belong to any game-logic category (not a lifecycle beat, not an
+ *  entity change). Consumers are typically feedback subsystems (haptics,
+ *  future sound) that react to "the user just tapped a control" without
+ *  the control itself knowing about the feedback subsystem. */
+export type InteractionEvent = { type: "uiTap" };
+
 /** All game events across all categories. */
 export type GameEvent =
   | BattleEvent
   | LifecycleEvent
   | EntityEvent
-  | ModernEvent;
+  | ModernEvent
+  | InteractionEvent;
 
 /** Union of all event type strings. */
 type GameEventType = GameEvent["type"];
@@ -192,6 +200,9 @@ const MODERN_EVENT = {
   MODIFIER_APPLIED: "modifierApplied",
   UPGRADE_PICKED: "upgradePicked",
 } as const;
+const INTERACTION_EVENT = {
+  UI_TAP: "uiTap",
+} as const;
 const busComplete: BusComplete = true;
 /** All event type constants. Use GAME_EVENT.* in emit/on/off calls. */
 export const GAME_EVENT = {
@@ -199,6 +210,7 @@ export const GAME_EVENT = {
   ...LIFECYCLE_EVENT,
   ...ENTITY_EVENT,
   ...MODERN_EVENT,
+  ...INTERACTION_EVENT,
 } as const;
 
 export function createGameEventBus(): GameEventBus {

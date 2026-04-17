@@ -150,6 +150,10 @@ interface InputSystemDeps {
     | "setCameraZone"
     | "enableMobileZoom"
   >;
+  /** Emit the `uiTap` bus event so feedback subsystems (haptics, future
+   *  sound) can react to touch-UI taps without the input layer importing
+   *  them. Composition root supplies the closure. */
+  readonly emitUiTap: () => void;
 
   // Input handler registration + pointer dispatch
   readonly inputHandlers: {
@@ -536,6 +540,7 @@ function setupDpadAndActions(
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
       withPointerPlayer,
+      emitUiTap: deps.emitUiTap,
       isHost: deps.network.amHost,
       lobbyAction: () =>
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
@@ -683,6 +688,7 @@ function setupFloatingActions(
         getState: () => safeState(runtimeState),
         getMode: () => runtimeState.mode,
         withPointerPlayer,
+        emitUiTap: deps.emitUiTap,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
         onDrag: (clientX, clientY) => {

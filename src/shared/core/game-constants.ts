@@ -207,11 +207,9 @@ export const DIFFICULTY_PARAMS = [
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
 ];
-/** Haptics level encoding shared across settings UI and subsystem.
- *  0=off, 1=phase changes only, 2=all. */
-// HAPTICS_OFF = 0  (implicit — checked via >= HAPTICS_PHASE_ONLY)
-export const HAPTICS_PHASE_ONLY = 1;
-export const HAPTICS_ALL = 2;
+/** Haptics toggle encoding shared across settings UI and subsystem.
+ *  0=off, 1=on. */
+export const HAPTICS_ON = 1;
 /** Upgrade-pick dialog: auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Upgrade-pick dialog: max time before force-picking for pending players (seconds). */

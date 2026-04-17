@@ -20,7 +20,7 @@ export const CANNON_HP_OPTIONS = [
   { value: 9, label: "9 hits" },
   { value: 12, label: "12 hits" },
 ];
-export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
+export const HAPTICS_LABELS = ["Off", "On"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [

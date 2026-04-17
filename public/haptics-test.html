@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Haptics test</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font: 16px/1.4 system-ui, sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #111;
+        color: #eee;
+      }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      .env {
+        font-size: 13px;
+        background: #1a1a1a;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 16px;
+        white-space: pre-wrap;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        padding: 20px 8px;
+        background: #2a4;
+        color: #fff;
+        border: 0;
+        border-radius: 6px;
+        touch-action: manipulation;
+      }
+      button:active { background: #162; }
+      .pattern { grid-column: 1 / -1; background: #44a; }
+      .pattern:active { background: #227; }
+      #log {
+        margin-top: 16px;
+        font: 13px/1.4 ui-monospace, monospace;
+        background: #1a1a1a;
+        padding: 8px;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      #log div { padding: 2px 0; border-bottom: 1px solid #222; }
+      #log .ok { color: #6f6; }
+      #log .fail { color: #f66; }
+    </style>
+  </head>
+  <body>
+    <h1>Haptics test</h1>
+    <div class="env" id="env"></div>
+    <div class="grid" id="grid"></div>
+    <div id="log"></div>
+
+    <script>
+      const env = document.getElementById("env");
+      env.textContent =
+        "isSecureContext: " + window.isSecureContext +
+        "\nprotocol: " + location.protocol +
+        "\nvibrate: " + typeof navigator.vibrate +
+        "\nuserAgent: " + navigator.userAgent;
+
+      const log = document.getElementById("log");
+      function line(msg, ok) {
+        const d = document.createElement("div");
+        d.textContent = msg;
+        d.className = ok ? "ok" : "fail";
+        log.prepend(d);
+      }
+
+      const durations = [8, 15, 30, 40, 80, 100, 150, 200, 300, 500, 1000, 2000];
+      const grid = document.getElementById("grid");
+      for (const ms of durations) {
+        const b = document.createElement("button");
+        b.textContent = ms + " ms";
+        b.addEventListener("click", () => {
+          const r = navigator.vibrate?.(ms);
+          line(ms + "ms -> " + r, r === true);
+        });
+        grid.appendChild(b);
+      }
+
+      const pattern = [300, 100, 300, 100, 300];
+      const pb = document.createElement("button");
+      pb.className = "pattern";
+      pb.textContent = "pattern [300,100,300,100,300]";
+      pb.addEventListener("click", () => {
+        const r = navigator.vibrate?.(pattern);
+        line(JSON.stringify(pattern) + " -> " + r, r === true);
+      });
+      grid.appendChild(pb);
+    </script>
+  </body>
+</html>

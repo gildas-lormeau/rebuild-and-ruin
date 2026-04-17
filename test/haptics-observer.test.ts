@@ -14,9 +14,8 @@
  * Coverage:
  *   - `phaseChange` — fires once per phase banner; expected several
  *     times across the first build → cannon → battle sequence.
- *   - `battleEvents` — fires for `cannonFired`, `wallDestroyed`, etc.
- *     during the first battle. We assert that AT LEAST `cannonFired`
- *     reaches the observer because every battle has cannons firing.
+ *   - `towerKilled` — fires at least once per full match as grunts reach
+ *     towers. Proxy for "battle events reach the observer."
  */
 
 import { assert, assertGreater } from "@std/assert";
@@ -27,7 +26,6 @@ import { createScenario, waitForPhase } from "./scenario.ts";
 interface HapticCall {
   reason: HapticReason;
   ms: number;
-  minLevel: 1 | 2;
 }
 
 Deno.test(
@@ -37,8 +35,8 @@ Deno.test(
     using sc = await createScenario({
       seed: 42,
       hapticsObserver: {
-        vibrate: (reason, ms, minLevel) => {
-          calls.push({ reason, ms, minLevel });
+        vibrate: (reason, ms) => {
+          calls.push({ reason, ms });
         },
       },
     });
@@ -54,8 +52,8 @@ Deno.test(
       0,
       "expected at least one phaseChange haptic during the first build→battle sequence",
     );
-    // Sanity: the duration matches HAPTIC_PHASE_CHANGE_MS in haptics-system.ts.
-    const PHASE_CHANGE_MS = 40;
+    // Sanity: the duration matches HAPTIC_PHASE_CHANGE_MS in runtime-haptics.ts.
+    const PHASE_CHANGE_MS = 250;
     assert(
       phaseChanges.every((call) => call.ms === PHASE_CHANGE_MS),
       `phaseChange ms should always be ${PHASE_CHANGE_MS}, got ${phaseChanges
@@ -66,42 +64,34 @@ Deno.test(
 );
 
 Deno.test(
-  "haptics observer: battle events fire cannonFired through observer even though CAN_VIBRATE=false",
+  "haptics observer: towerKilled reaches the observer even though CAN_VIBRATE=false",
   async () => {
     const calls: HapticCall[] = [];
     using sc = await createScenario({
       seed: 42,
       hapticsObserver: {
-        vibrate: (reason, ms, minLevel) => {
-          calls.push({ reason, ms, minLevel });
+        vibrate: (reason, ms) => {
+          calls.push({ reason, ms });
         },
       },
     });
 
-    // Drive past the first battle's mid-point so cannons have a chance
-    // to fire. The simplest "saw cannons firing" check: wait until
-    // BATTLE phase, then run a few hundred frames so the AI controllers
-    // queue at least one shot per zone.
-    waitForPhase(sc, Phase.BATTLE);
-    sc.runUntil(
-      () => calls.some((call) => call.reason === "cannonFired"),
-      { timeoutMs: 32_000 },
-    );
+    // Run the full match — grunts reaching towers are the most reliable
+    // way to guarantee a towerKilled event at any fixed seed.
+    sc.runGame();
 
-    const cannonFired = calls.filter((call) => call.reason === "cannonFired");
+    const towerKilled = calls.filter((call) => call.reason === "towerKilled");
     assertGreater(
-      cannonFired.length,
+      towerKilled.length,
       0,
-      "expected at least one cannonFired haptic during the first battle (was the observer installed?)",
+      "expected at least one towerKilled haptic during the match (was the observer installed?)",
     );
-    // Cannon-fired haptics target the local POV player (slot 0 in headless
-    // single-machine mode); both `minLevel` and `ms` should match the
-    // constants in haptics-system.ts so a refactor of the constants makes
-    // this test fail loudly instead of silently drifting.
-    const CANNON_FIRED_MS = 15;
+    // Duration should match the constant in runtime-haptics.ts so a
+    // refactor fails loudly instead of silently drifting.
+    const TOWER_KILLED_MS = 600;
     assert(
-      cannonFired[0]!.ms === CANNON_FIRED_MS,
-      `cannonFired ms should be ${CANNON_FIRED_MS}, got ${cannonFired[0]!.ms}`,
+      towerKilled[0]!.ms === TOWER_KILLED_MS,
+      `towerKilled ms should be ${TOWER_KILLED_MS}, got ${towerKilled[0]!.ms}`,
     );
   },
 );

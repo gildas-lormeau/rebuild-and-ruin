@@ -312,6 +312,11 @@ export interface DpadDeps {
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => boolean;
+  /** Emit a `uiTap` bus event so the haptics subsystem (and any future
+   *  feedback subsystem) can react to the user tapping a d-pad button
+   *  without the d-pad importing those subsystems directly. No-op when
+   *  game state isn't ready (lobby pre-state). */
+  emitUiTap?: () => void;
   isHost: () => boolean;
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
@@ -369,6 +374,8 @@ export interface FloatingActionsDeps {
   onPiecePlaced?: () => void;
   onPieceFailed?: () => void;
   onCannonPlaced?: () => void;
+  /** Emit a `uiTap` bus event — see `DpadDeps.emitUiTap`. */
+  emitUiTap?: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }

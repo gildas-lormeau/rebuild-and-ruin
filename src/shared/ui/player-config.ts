@@ -9,7 +9,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
-  HAPTICS_ALL,
+  HAPTICS_ON,
 } from "../core/game-constants.ts";
 import type { ValidPlayerSlot } from "../core/player-slot.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
@@ -126,7 +126,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   difficulty: DIFFICULTY_NORMAL,
   rounds: ROUNDS_DEFAULT_INDEX,
   cannonHp: CANNON_HP_DEFAULT_INDEX,
-  haptics: HAPTICS_ALL,
+  haptics: HAPTICS_ON,
   seed: "",
   seedMode: SEED_RANDOM,
   keyBindings: [],
