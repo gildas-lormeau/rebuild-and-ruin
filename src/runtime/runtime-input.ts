@@ -4,7 +4,6 @@ import {
   type BattleViewState,
   type BuildViewState,
   type CannonViewState,
-  type HapticsSystem,
   type InputReceiver,
   isHuman,
   type PlayerController,
@@ -151,7 +150,6 @@ interface InputSystemDeps {
     | "setCameraZone"
     | "enableMobileZoom"
   >;
-  readonly haptics: Pick<HapticsSystem, "tap">;
 
   // Input handler registration + pointer dispatch
   readonly inputHandlers: {
@@ -529,8 +527,7 @@ function setupDpadAndActions(
   touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
-  const { runtimeState, gameContainer, haptics, lobby, withPointerPlayer } =
-    deps;
+  const { runtimeState, gameContainer, lobby, withPointerPlayer } = deps;
 
   const overlayActionDeps = buildOverlayActionDeps(deps, inputDeps);
 
@@ -539,7 +536,6 @@ function setupDpadAndActions(
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
       withPointerPlayer,
-      onHapticTap: haptics.tap,
       isHost: deps.network.amHost,
       lobbyAction: () =>
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
@@ -674,7 +670,7 @@ function setupFloatingActions(
   touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
-  const { runtimeState, renderer, haptics, withPointerPlayer } = deps;
+  const { runtimeState, renderer, withPointerPlayer } = deps;
   const {
     tryPlacePieceAndSend: placePieceAction,
     tryPlaceCannonAndSend: placeCannonAction,
@@ -689,7 +685,6 @@ function setupFloatingActions(
         withPointerPlayer,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
-        onHapticTap: haptics.tap,
         onDrag: (clientX, clientY) => {
           const state = safeState(runtimeState);
           if (!state) return;

@@ -284,7 +284,6 @@ export function createFloatingActions(
   )!;
 
   function handleRotate() {
-    deps.onHapticTap?.();
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
@@ -299,7 +298,6 @@ export function createFloatingActions(
   }
 
   function handleConfirm() {
-    deps.onHapticTap?.();
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
@@ -341,7 +339,6 @@ export function createFloatingActions(
 
 /** Action button: confirm selection / place piece / place cannon / lobby join. */
 function handleDpadAction(deps: DpadDeps): void {
-  deps.onHapticTap?.();
   if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
   const mode = deps.getMode();
   if (mode === Mode.LOBBY) {
@@ -378,7 +375,6 @@ function wireDpadArrows(
   const { startRepeat, stopRepeat } = createKeyRepeatController(fireDirection);
 
   function fireDirection(action: Action) {
-    deps.onHapticTap?.();
     if (dispatchOverlayAction(action, deps.overlay)) return;
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
@@ -392,7 +388,6 @@ function wireDpadArrows(
   }
 
   function battleKeyDown(action: Action) {
-    deps.onHapticTap?.();
     deps.withPointerPlayer((human) => human.handleKeyDown(action));
   }
 
@@ -508,7 +503,6 @@ function wireRotateButtons(
   battleKeyUp: (action: Action) => void,
 ): void {
   function handleRotate() {
-    deps.onHapticTap?.();
     if (dispatchOverlayAction(Action.ROTATE, deps.overlay)) return;
     if (!isInteractiveMode(deps.getMode())) return;
     const state = deps.getState();

@@ -22,7 +22,6 @@ interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly clearPhaseZoom: () => void;
   readonly log: (msg: string) => void;
-  readonly haptics: { phaseChange: () => void };
   readonly render: () => void;
 }
 
@@ -34,7 +33,7 @@ interface BannerSystem {
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
-  const { runtimeState, clearPhaseZoom, log, haptics, render } = deps;
+  const { runtimeState, clearPhaseZoom, log, render } = deps;
   // True between showBanner() and the first tick. Defers `bannerStart` so
   // consecutive showBanner calls in the same tick collapse into a single
   // event for the final content.
@@ -63,7 +62,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       },
     });
     pendingStartEvent = true;
-    haptics.phaseChange();
   }
 
   function tickBanner(dt: number) {

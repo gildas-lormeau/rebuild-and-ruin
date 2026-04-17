@@ -312,7 +312,6 @@ export interface DpadDeps {
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => boolean;
-  onHapticTap?: () => void;
   isHost: () => boolean;
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
@@ -370,7 +369,6 @@ export interface FloatingActionsDeps {
   onPiecePlaced?: () => void;
   onPieceFailed?: () => void;
   onCannonPlaced?: () => void;
-  onHapticTap?: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }

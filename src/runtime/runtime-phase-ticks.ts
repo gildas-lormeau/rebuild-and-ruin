@@ -42,10 +42,7 @@ import {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import {
-  type HapticsSystem,
-  isHuman,
-} from "../shared/core/system-interfaces.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
@@ -120,7 +117,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  haptics: HapticsSystem;
   /** Try to show upgrade pick overlay. Returns true if shown (caller should
    *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
   tryShowUpgradePick?: (onDone: () => void) => boolean;
@@ -170,9 +166,9 @@ export interface PhaseTicksSystem {
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
-  /** Subscribe the battle-event observers (sound / haptics / stats) to the
-   *  current `state.bus`. Idempotent per-bus; safe (and required) to call
-   *  after every new-game setState so rematches rebind to the fresh bus. */
+  /** Subscribe the stats accumulator to the current `state.bus`. Idempotent
+   *  per-bus; safe (and required) to call after every new-game setState so
+   *  rematches rebind to the fresh bus. */
   subscribeBusObservers: () => void;
 }
 
@@ -186,7 +182,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const online = deps.online;
 
   // -------------------------------------------------------------------------
-  // Bus → sound / haptics / stats (observation subscribers)
+  // Bus → stats accumulator (observation subscriber)
   //
   // Each new game installs a fresh `state.bus`, so subscription must run
   // AFTER setState. The caller invokes `subscribeBusObservers` from the
@@ -202,10 +198,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     subscribedBus = bus;
     bus.onAny((type, event) => {
       if (BATTLE_EVENT_TYPES.has(type)) {
-        const pov = runtimeState.frameMeta.povPlayerId;
-        const evt = event as BattleEvent;
-        deps.haptics.battleEvents([evt], pov);
-        accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
+        accumulateBattleStats(
+          [event as BattleEvent],
+          runtimeState.scoreDisplay.gameStats,
+        );
       }
     });
   }
@@ -644,7 +640,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
 
-    // Sound, haptics, and stats are now handled by bus subscribers (onAny above).
+    // Haptics and stats are handled by bus subscribers (onAny above / haptics subsystem).
 
     syncCrosshairs(/* weaponsActive */ true, dt);
     deps.render();

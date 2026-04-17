@@ -1,23 +1,25 @@
 /**
- * Haptic feedback sub-system factory.
- * All calls are no-ops on devices without vibration support.
- * Respects the haptics setting: 0=off, 1=phase changes only, 2=all.
+ * Haptic feedback sub-system — bus-driven vibration.
  *
- * Follows the factory-with-deps pattern used by sound, camera, selection, etc.
+ * Subscribes to the game event bus and fires `navigator.vibrate` on
+ * lifecycle + battle events. No sibling subsystem sees a haptics "deps"
+ * field — every trigger flows through the bus. All calls are no-ops on
+ * devices without vibration support. Respects the haptics setting:
+ * 0=off, 1=phase changes only, 2=all.
+ *
+ * ### Wiring
+ *
+ * The composition root constructs the subsystem once and calls
+ * `subscribeBus(state.bus)` from the bootstrap `onStateReady` hook so
+ * every new game (first launch + rematch) binds to its fresh bus.
+ * `subscribeBus` is idempotent per-bus identity.
  *
  * ### Test observer
  *
- * Tests pass an optional `observer` in the deps bag to capture every
- * vibrate intent — including which game event triggered it — without
- * needing a real `navigator.vibrate`. The observer fires whether or not
- * `CAN_VIBRATE` is true and whether or not the current `hapticsLevel`
- * gates the call, so tests can assert "this game event would have
- * triggered haptic X at level Y" independently of the platform/setting.
- *
- * The observer is a write-only sink, threaded from the test scenario
- * through `createHeadlessRuntime` → `createGameRuntime` → here. Production
- * callers (`main.ts`, `online-runtime-game.ts`) pass nothing, so the
- * observer property access is the only added overhead in the hot path.
+ * Tests pass an optional `observer` that captures every vibrate intent
+ * (reason + ms + minLevel) BEFORE the platform/level gate, so tests can
+ * assert "this bus event would have triggered haptic X at level Y"
+ * independently of `CAN_VIBRATE` and the haptics level.
  */
 
 import {
@@ -28,92 +30,94 @@ import {
   HAPTICS_ALL,
   HAPTICS_PHASE_ONLY,
 } from "../shared/core/game-constants.ts";
+import {
+  GAME_EVENT,
+  type GameEventBus,
+} from "../shared/core/game-event-bus.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   HapticReason,
   HapticsObserver,
-  HapticsSystem,
 } from "../shared/core/system-interfaces.ts";
 import { CAN_VIBRATE } from "../shared/platform/platform.ts";
 
-/** Construction-time deps for the haptics sub-system. `observer` is the
- *  test seam — production callers omit it. */
-interface HapticsSystemDeps {
+interface HapticsSubsystemDeps {
+  /** Live getter — read once per haptic fire so setting changes take effect
+   *  immediately without a separate `setLevel` path. */
+  getLevel: () => number;
+  /** Point-of-view player, used to filter battle events to the local
+   *  perspective (camera follows pov in shared-screen mode). */
+  getPovPlayerId: () => ValidPlayerSlot;
+  /** Test observer — production callers omit. */
   observer?: HapticsObserver;
 }
 
-const HAPTIC_TAP_MS = 8;
+interface HapticsSubsystem {
+  /** Subscribe to a fresh game-event bus. Idempotent per bus identity —
+   *  safe to call on every `onStateReady` hook so rematches rebind to the
+   *  new bus. */
+  subscribeBus: (bus: GameEventBus) => void;
+}
+
 const HAPTIC_PHASE_CHANGE_MS = 40;
 const HAPTIC_WALL_HIT_MS = 30;
 const HAPTIC_CANNON_DAMAGED_MS = 80;
 const HAPTIC_CANNON_DESTROYED_MS = 150;
 const HAPTIC_TOWER_KILLED_MS = 200;
 const HAPTIC_CANNON_FIRED_MS = 15;
+const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
+  Object.values(BATTLE_MESSAGE),
+);
 
-export function createHapticsSystem(
-  deps: HapticsSystemDeps = {},
-): HapticsSystem {
-  const { observer } = deps;
-  let hapticsLevel = HAPTICS_ALL;
+export function createHapticsSubsystem(
+  deps: HapticsSubsystemDeps,
+): HapticsSubsystem {
+  const { getLevel, getPovPlayerId, observer } = deps;
+  let subscribedBus: GameEventBus | undefined;
 
   function vibrate(reason: HapticReason, ms: number, minLevel: 1 | 2): void {
     observer?.vibrate?.(reason, ms, minLevel);
-    if (CAN_VIBRATE && hapticsLevel >= minLevel) navigator.vibrate(ms);
+    if (CAN_VIBRATE && getLevel() >= minLevel) navigator.vibrate(ms);
   }
 
-  function setLevel(level: number): void {
-    hapticsLevel = level;
-  }
-
-  /** Light tap for d-pad / button presses. */
-  function tap(): void {
-    vibrate("tap", HAPTIC_TAP_MS, HAPTICS_ALL);
-  }
-
-  /** Phase transition banner. */
-  function phaseChange(): void {
-    vibrate("phaseChange", HAPTIC_PHASE_CHANGE_MS, HAPTICS_PHASE_ONLY);
-  }
-
-  /** Process battle events and trigger appropriate haptics for the local player.
-   *
-   *  The early-out below skips the per-event walk on devices where vibration
-   *  is unavailable AND no test observer is listening — that's the hot path
-   *  in production. When an observer IS installed (deno tests, future debug
-   *  overlays), we walk the events so the observer sees every intent even
-   *  though `navigator.vibrate` ultimately won't fire. */
-  function battleEvents(
-    events: ReadonlyArray<BattleEvent>,
-    povPlayerId: ValidPlayerSlot,
-  ): void {
-    if (!observer && (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL)) return;
-    for (const evt of events) {
-      if (
-        evt.type === BATTLE_MESSAGE.WALL_DESTROYED &&
-        evt.playerId === povPlayerId
-      ) {
-        vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS, HAPTICS_ALL);
-      } else if (
-        evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
-        evt.playerId === povPlayerId
-      ) {
-        if (evt.newHp === 0)
-          vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS, HAPTICS_ALL);
-        else vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS, HAPTICS_ALL);
-      } else if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) {
-        vibrate(
-          BATTLE_MESSAGE.TOWER_KILLED,
-          HAPTIC_TOWER_KILLED_MS,
-          HAPTICS_ALL,
-        );
-      } else if (
-        evt.type === BATTLE_MESSAGE.CANNON_FIRED &&
-        evt.playerId === povPlayerId
-      ) {
-        vibrate("cannonFired", HAPTIC_CANNON_FIRED_MS, HAPTICS_ALL);
-      }
+  function handleBattleEvent(evt: BattleEvent): void {
+    const pov = getPovPlayerId();
+    if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED && evt.playerId === pov) {
+      vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS, HAPTICS_ALL);
+    } else if (
+      evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
+      evt.playerId === pov
+    ) {
+      if (evt.newHp === 0)
+        vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS, HAPTICS_ALL);
+      else vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS, HAPTICS_ALL);
+    } else if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) {
+      vibrate(BATTLE_MESSAGE.TOWER_KILLED, HAPTIC_TOWER_KILLED_MS, HAPTICS_ALL);
+    } else if (
+      evt.type === BATTLE_MESSAGE.CANNON_FIRED &&
+      evt.playerId === pov
+    ) {
+      vibrate("cannonFired", HAPTIC_CANNON_FIRED_MS, HAPTICS_ALL);
     }
   }
 
-  return { setLevel, tap, phaseChange, battleEvents };
+  function subscribeBus(bus: GameEventBus): void {
+    if (subscribedBus === bus) return;
+    subscribedBus = bus;
+    bus.on(GAME_EVENT.BANNER_START, () => {
+      vibrate("phaseChange", HAPTIC_PHASE_CHANGE_MS, HAPTICS_PHASE_ONLY);
+    });
+    // The early-out below skips the per-event walk on devices where vibration
+    // is unavailable AND no test observer is listening — that's the hot path
+    // in production. When an observer IS installed (deno tests, future debug
+    // overlays), we walk so the observer sees every intent even though
+    // `navigator.vibrate` ultimately won't fire.
+    bus.onAny((type, event) => {
+      if (!BATTLE_EVENT_TYPES.has(type)) return;
+      if (!observer && (!CAN_VIBRATE || getLevel() < HAPTICS_ALL)) return;
+      handleBattleEvent(event as BattleEvent);
+    });
+  }
+
+  return { subscribeBus };
 }

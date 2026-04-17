@@ -5,7 +5,6 @@ import type {
   UpgradePickEntry,
 } from "../ui/interaction-types.ts";
 import type { KeyBindings } from "../ui/player-config.ts";
-import type { BattleEvent } from "./battle-events.ts";
 import {
   type BurningPit,
   type Cannonball,
@@ -395,7 +394,6 @@ export interface AiAnimatable {
  *  overlays) attribute a vibration to the game event that triggered it
  *  instead of just seeing a duration. */
 export type HapticReason =
-  | "tap"
   | "phaseChange"
   | "wallDestroyed"
   | "cannonDamaged"
@@ -404,23 +402,12 @@ export type HapticReason =
   | "cannonFired";
 
 /** Test observer — receives every vibrate intent BEFORE the platform/level
- *  gate. Tests use this to assert that game events triggered the right
+ *  gate. Tests use this to assert that bus events triggered the right
  *  haptic feedback without needing a real `navigator.vibrate`. Threaded in
- *  via the `HapticsSystemDeps` bag from the test scenario; production
+ *  via the runtime's `observers` bag from the test scenario; production
  *  callers omit it. */
 export interface HapticsObserver {
   vibrate?(reason: HapticReason, ms: number, minLevel: 1 | 2): void;
-}
-
-/** Haptic feedback contract — vibration patterns for game events. */
-export interface HapticsSystem {
-  setLevel: (level: number) => void;
-  tap: () => void;
-  phaseChange: () => void;
-  battleEvents: (
-    events: ReadonlyArray<BattleEvent>,
-    povPlayerId: ValidPlayerSlot,
-  ) => void;
 }
 
 /** Battle crosshair movement speed in pixels per second. */

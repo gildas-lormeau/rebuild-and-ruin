@@ -126,7 +126,7 @@ export interface ScenarioOptions {
   autoStartGame?: boolean;
   /** Test observer for haptics intents. Receives every `vibrate(reason, ms,
    *  minLevel)` call BEFORE the platform/level gate. Threaded through to
-   *  `createHapticsSystem({ observer })` via the runtime's `observers` bag. */
+   *  `createHapticsSubsystem({ observer })` via the runtime's `observers` bag. */
   hapticsObserver?: HapticsObserver;
   /** Test observer for sound intents. Receives every `played(reason)` call
    *  BEFORE the platform/level gate. */

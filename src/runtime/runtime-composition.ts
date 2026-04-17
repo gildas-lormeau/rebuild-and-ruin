@@ -105,7 +105,7 @@ import {
   buildLifecycleDeps,
   createGameLifecycle,
 } from "./runtime-game-lifecycle.ts";
-import { createHapticsSystem } from "./runtime-haptics.ts";
+import { createHapticsSubsystem } from "./runtime-haptics.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import {
@@ -215,8 +215,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const runtimeState = createRuntimeState();
-  const haptics = createHapticsSystem({ observer: config.observers?.haptics });
-  haptics.setLevel(runtimeState.settings.haptics);
+  const haptics = createHapticsSubsystem({
+    getLevel: () => runtimeState.settings.haptics,
+    getPovPlayerId: () => runtimeState.frameMeta.povPlayerId,
+    observer: config.observers?.haptics,
+  });
 
   // Touch handles created early — render, options, and lifecycle read them
   // via closure. Populated once by createInputSystem(), then frozen (see below).
@@ -380,7 +383,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
     log: config.log,
-    haptics,
     render: () => render(),
   });
 
@@ -467,7 +469,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             clearFrameData,
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
-            onStateReady: () => phaseTicks.subscribeBusObservers(),
+            onStateReady: () => {
+              phaseTicks.subscribeBusObservers();
+              haptics.subscribeBus(runtimeState.state.bus);
+            },
           },
           config.getUrlModeOverride,
         ),
@@ -572,7 +577,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,
-    haptics,
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
     prepareUpgradePick: () => upgradePick.prepare(),
     getUpgradePickDialog: () => upgradePick.get(),
@@ -637,7 +641,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setDpadLeftHanded: (left: boolean) =>
       touchHandles.dpad?.setLeftHanded(left),
     refreshLobbySeed,
-    haptics,
     isOnline,
     remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
@@ -713,7 +716,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     upgradePick,
     selection: { ...selection, isReady: isSelectionReady },
     camera,
-    haptics,
     inputHandlers: {
       dispatchPointerMove,
       registerKeyboard: registerKeyboardHandlers,
@@ -756,7 +758,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Sub-system handles
     selection,
     lifeLost,
-    haptics,
     lobby: { renderLobby: lobby.renderLobby },
     lifecycle: {
       startGame: lifecycle.startGame,
