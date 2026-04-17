@@ -16,12 +16,14 @@
  * touch the bus-subscription code.
  */
 
-import type {
-  GameEventBus,
-  GameEventHandler,
-  GameEventMap,
+import {
+  GAME_EVENT,
+  type GameEventBus,
+  type GameEventHandler,
+  type GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { SfxObserver } from "../shared/core/system-interfaces.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
@@ -34,10 +36,11 @@ interface SfxSubsystem {
   /** Prime the AudioContext inside a user-gesture handler. Safe to call
    *  repeatedly; later calls are no-ops. */
   activate(): Promise<void>;
-  /** Play a named SOUND.RSC sample once. Returns immediately; actual audio
-   *  output is scheduled on the shared AudioContext. No-op if assets aren't
-   *  loaded or the name doesn't exist in SOUND.RSC. */
-  playSample(name: string): Promise<void>;
+  /** Play a named SOUND.RSC sample once. Resolves with the
+   *  `AudioBufferSourceNode` driving playback (so callers can chain
+   *  `onended`) or undefined when the sample or context isn't available.
+   *  No-op if assets aren't loaded. */
+  playSample(name: string): Promise<AudioBufferSourceNode | undefined>;
   /** Bind to a per-game bus so entity/lifecycle events fire the mapped
    *  sample. Re-binding unsubscribes from the previous bus. */
   subscribeBus(bus: GameEventBus): void;
@@ -50,6 +53,10 @@ interface SfxSubsystemDeps {
   readonly getAssets: () => MusicAssets | undefined;
   readonly assetsReady?: Promise<void>;
   readonly observer?: SfxObserver;
+  /** Called once per player per build/select phase, scheduled to fire right
+   *  as the enclosure stinger (elechit1) finishes — the composition root
+   *  wires this to the music subsystem's fanfare playback. */
+  readonly onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
 }
 
 interface SfxMapping<K extends keyof GameEventMap> {
@@ -58,6 +65,17 @@ interface SfxMapping<K extends keyof GameEventMap> {
    *  scope per-event-type handlers to specific payload shapes (e.g. the banner
    *  whoosh fires on BATTLE transitions only, not every phase swap). */
   readonly filter?: (event: GameEventMap[K]) => boolean;
+  /** Minimum seconds between consecutive plays of this sample — events
+   *  firing sooner are silently dropped. Used for rate-limiting rapid
+   *  streams (castle prebuild blkhit1: ~30 tile events per castle coalesce
+   *  down to ~12 audible hits). Tracked by sample name in wall-clock, so
+   *  two parallel castle builds share the same airspace instead of
+   *  doubling up. Omit for unconstrained firing. */
+  readonly minGapSec?: number;
+  /** Symmetric jitter (± seconds) added to the next cooldown after each
+   *  play — turns a metronomic stream into a clumsy-worker stream. Only
+   *  meaningful with `minGapSec`. */
+  readonly minGapJitterSec?: number;
 }
 
 type SfxEventMap = {
@@ -67,17 +85,28 @@ type SfxEventMap = {
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
-  cannonPlaced: { sample: "clunk1" },
+  // cannonPlaced: { sample: "clunk1" }, // temporarily disabled
   cannonFired: { sample: "cannon1" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,
   },
+  castleBuildTile: {
+    sample: "blkhit1",
+    // 30-tile castle = 4.8s of tile events (one every 160ms). ~400ms
+    // average gap collapses to ~12 audible hits per castle; two parallel
+    // builds staggered by ~1s cap at ~14-15 total because the rate-limit
+    // is per-sample-name. Jitter (±200ms) gives the hits a clumsy-worker
+    // rhythm instead of a steady metronome.
+    minGapSec: 0.4,
+    minGapJitterSec: 0.2,
+  },
+  // towerEnclosed is handled outside this map — it both plays elechit1 AND
+  // (on first per-player-per-phase) chains the player's fanfare via the
+  // BufferSource's onended event, so it stays together in one handler.
   // Unmapped on purpose:
   //   - wallPlaced: the authentic per-tile brick stinger is an XMI sub-song
   //     (music-player territory), not a SOUND.RSC sample.
-  //   - tower-enclosed (clunk2): will wire once we have a dedicated bus event
-  //     for enclosure completion.
   //   - placecan: tutorial voice line; scoped to the tutorial when we add it.
 };
 
@@ -85,6 +114,19 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   let audioContext: AudioContext | undefined;
   let samplesByName: Map<string, PcmSample> | undefined;
   const buffers = new Map<string, AudioBuffer>();
+  // performance.now() timestamp (ms) the next play of each sample is
+  // allowed at — used to enforce `minGapSec` (+ per-play jitter). Plain
+  // wall-clock because that's what matters perceptually, and it doesn't
+  // depend on AudioContext existing.
+  const nextAllowedMsBySample = new Map<string, number>();
+  // Players who've already triggered their fanfare in the current build /
+  // select phase. Cleared on every `phaseStart` event — CASTLE_SELECT,
+  // WALL_BUILD, and CASTLE_RESELECT each get a fresh first-enclosure.
+  const fanfarePlayedThisPhase = new Set<ValidPlayerSlot>();
+  // Looping snare-roll source while a timed phase is in its last 6
+  // seconds. Single source because the player only ever hears one
+  // countdown at a time.
+  let snareSource: AudioBufferSourceNode | undefined;
   let boundBus: GameEventBus | undefined;
   type EventKey = keyof GameEventMap;
   const boundHandlers: Array<{
@@ -140,21 +182,23 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     return buffer;
   }
 
-  async function playSample(name: string): Promise<void> {
-    if (disposed || paused) return;
+  async function playSample(
+    name: string,
+  ): Promise<AudioBufferSourceNode | undefined> {
+    if (disposed || paused) return undefined;
     const samples = ensureSamples();
     const sample = samples?.get(name);
     if (!sample) {
       deps.observer?.onMissing?.(name);
-      return;
+      return undefined;
     }
     const context = ensureContext();
-    if (!context) return;
+    if (!context) return undefined;
     if (context.state === AUDIO_CONTEXT_SUSPENDED) {
       try {
         await context.resume();
       } catch {
-        return;
+        return undefined;
       }
     }
     const buffer = decodeSample(sample, context);
@@ -163,6 +207,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     source.connect(context.destination);
     source.start(0);
     deps.observer?.onPlaySample?.(name);
+    return source;
   }
 
   function unbindCurrentBus(): void {
@@ -173,6 +218,9 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
     boundBus = undefined;
     boundHandlers.length = 0;
+    // Rematch / dispose shouldn't leave a snare loop ringing.
+    stopSnareLoop();
+    fanfarePlayedThisPhase.clear();
   }
 
   function subscribeBus(bus: GameEventBus): void {
@@ -182,14 +230,111 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     for (const [eventType, mapping] of Object.entries(SFX_EVENT_MAP) as Array<
       [EventKey, SfxMapping<EventKey>]
     >) {
-      const { sample, filter } = mapping;
+      const { sample, filter, minGapSec, minGapJitterSec } = mapping;
       const handler: GameEventHandler<EventKey> = (event) => {
         if (filter && !filter(event)) return;
+        if (minGapSec !== undefined) {
+          const nowMs = performance.now();
+          const nextAllowedMs = nextAllowedMsBySample.get(sample) ?? 0;
+          if (nowMs < nextAllowedMs) return;
+          // Each play schedules its own cooldown: base gap ± jitter.
+          // Rolling the jitter at play time (not at event time) means
+          // dropped events don't inflate the real cadence.
+          const jitterSec = (minGapJitterSec ?? 0) * (Math.random() * 2 - 1);
+          const nextGapMs = Math.max(0, (minGapSec + jitterSec) * 1000);
+          nextAllowedMsBySample.set(sample, nowMs + nextGapMs);
+        }
         void playSample(sample);
       };
       bus.on(eventType, handler);
       boundHandlers.push({ type: eventType, handler });
     }
+    // phaseStart — fresh fanfare budget for the new phase.
+    const phaseStartHandler: GameEventHandler<"phaseStart"> = () => {
+      fanfarePlayedThisPhase.clear();
+    };
+    bus.on(GAME_EVENT.PHASE_START, phaseStartHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.PHASE_START,
+      handler: phaseStartHandler as GameEventHandler<EventKey>,
+    });
+    // towerEnclosed — play elechit1, and on the player's first enclosure
+    // this phase schedule the fanfare via Web Audio's own clock: stop the
+    // BufferSource at +FANFARE_AFTER_SEC so the `ended` event fires
+    // exactly there. No setTimeout, no wall-clock math.
+    const FANFARE_AFTER_SEC = 0.4;
+    const enclosedHandler: GameEventHandler<"towerEnclosed"> = (event) => {
+      const isFirst = !fanfarePlayedThisPhase.has(event.playerId);
+      const playerId = event.playerId;
+      void playSample("elechit1").then((source) => {
+        if (!isFirst) return;
+        fanfarePlayedThisPhase.add(playerId);
+        if (!deps.onFirstEnclosure) return;
+        if (!source || !audioContext) {
+          deps.onFirstEnclosure(playerId);
+          return;
+        }
+        try {
+          source.stop(audioContext.currentTime + FANFARE_AFTER_SEC);
+        } catch {
+          // Some browsers throw if stop() is scheduled past buffer end —
+          // the natural-end `ended` event still fires in that case.
+        }
+        source.addEventListener("ended", () => {
+          if (disposed) return;
+          deps.onFirstEnclosure?.(playerId);
+        });
+      });
+    };
+    bus.on(GAME_EVENT.TOWER_ENCLOSED, enclosedHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.TOWER_ENCLOSED,
+      handler: enclosedHandler as GameEventHandler<EventKey>,
+    });
+    // phaseCountdownCritical / phaseEnd — drive the looping snare-roll
+    // for the "last 6 seconds" of CASTLE_SELECT / WALL_BUILD / etc.
+    const countdownHandler: GameEventHandler<"phaseCountdownCritical"> = () => {
+      startSnareLoop();
+    };
+    bus.on(GAME_EVENT.PHASE_COUNTDOWN_CRITICAL, countdownHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.PHASE_COUNTDOWN_CRITICAL,
+      handler: countdownHandler as GameEventHandler<EventKey>,
+    });
+    const phaseEndHandler: GameEventHandler<"phaseEnd"> = () => {
+      stopSnareLoop();
+    };
+    bus.on(GAME_EVENT.PHASE_END, phaseEndHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.PHASE_END,
+      handler: phaseEndHandler as GameEventHandler<EventKey>,
+    });
+  }
+
+  function startSnareLoop(): void {
+    if (snareSource || disposed || paused) return;
+    const samples = ensureSamples();
+    const sample = samples?.get("snarerl1");
+    if (!sample) return;
+    const context = ensureContext();
+    if (!context) return;
+    const buffer = decodeSample(sample, context);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(context.destination);
+    source.start(0);
+    snareSource = source;
+  }
+
+  function stopSnareLoop(): void {
+    if (!snareSource) return;
+    try {
+      snareSource.stop();
+    } catch {
+      // already ended — fine
+    }
+    snareSource = undefined;
   }
 
   async function setPaused(next: boolean): Promise<void> {
@@ -219,6 +364,8 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
     buffers.clear();
     samplesByName = undefined;
+    nextAllowedMsBySample.clear();
+    fanfarePlayedThisPhase.clear();
   }
 
   return { activate, playSample, subscribeBus, setPaused, dispose };

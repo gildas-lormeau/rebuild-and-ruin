@@ -33,6 +33,7 @@ import {
   type GameEventBus,
   type GameEventHandler,
 } from "../shared/core/game-event-bus.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { MusicObserver } from "../shared/core/system-interfaces.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
@@ -56,6 +57,11 @@ interface MusicSubsystem {
   startTitle(): Promise<void>;
   /** Stop any active playback. Idempotent. */
   stopTitle(): Promise<void>;
+  /** Play the one-shot tower-enclosure fanfare for a player. Picks a
+   *  TETRIS sub-song by player slot (5/6/7 cycle). Interrupts any
+   *  currently-loaded MIDI — safe because title has already stopped by
+   *  the time the first enclosure happens. */
+  playFanfare(playerId: ValidPlayerSlot): Promise<void>;
   /** Bind to the supplied game bus so PHASE_START=WALL_BUILD auto-stops the
    *  title track when the first castle goes down. Re-binding to a different
    *  bus (rematch) unbinds the previous one. */
@@ -82,9 +88,20 @@ interface MusicSubsystemDeps {
 
 const TITLE_TRACK = "RXMI_TITLE.xmi";
 const TITLE_SONG_INDEX = 0;
+const FANFARE_TRACK = "RXMI_TETRIS.xmi";
+// Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
+// RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
+// variant per player slot; a hypothetical 4th player reuses slot 0's.
+const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
 
 export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let synthPromise: Promise<SynthHandle> | undefined;
+  // One synth per fanfare slot. Each synth owns its own AudioContext +
+  // WASM instance, so four fanfares can ring simultaneously when
+  // enclosures land within the same ~second (parallel prebuilds). Lazy
+  // init on first request per slot; stored by index to match
+  // FANFARE_SONG_BY_SLOT.
+  const fanfareSynths = new Map<number, Promise<SynthHandle | undefined>>();
   let boundBus: GameEventBus | undefined;
   let boundHandler: GameEventHandler<"castlePlaced"> | undefined;
   // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
@@ -157,6 +174,62 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
   }
 
+  function ensureFanfareSynth(
+    playerId: ValidPlayerSlot,
+  ): Promise<SynthHandle | undefined> {
+    const cached = fanfareSynths.get(playerId);
+    if (cached) return cached;
+    const songIdx = FANFARE_SONG_BY_SLOT[playerId] ?? FANFARE_SONG_BY_SLOT[0]!;
+    const promise = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const synth = await loader.loadSynth(assets);
+      const blocks = xmiContainerBlocks(assets.xmi[FANFARE_TRACK]);
+      const block = blocks[songIdx]?.block;
+      if (!block) {
+        console.warn(`[music] fanfare song ${songIdx} missing in TETRIS.xmi`);
+        return undefined;
+      }
+      const smf = xmidToSmf(block);
+      if (!smf) {
+        console.warn(`[music] fanfare song ${songIdx} has no EVNT chunk`);
+        return undefined;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      synth.setLoopEnabled(false);
+      return synth;
+    })().catch((error) => {
+      console.error(
+        `[music] fanfare synth init failed for slot ${playerId}:`,
+        error,
+      );
+      fanfareSynths.delete(playerId);
+      return undefined;
+    });
+    fanfareSynths.set(playerId, promise);
+    return promise;
+  }
+
+  async function playFanfare(playerId: ValidPlayerSlot): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureFanfareSynth(playerId);
+    if (!synth) return;
+    try {
+      // stop() then play() rewinds so a repeat enclosure (next phase)
+      // replays the fanfare from the top instead of idling at the tail.
+      await synth.stop();
+      await synth.play();
+      deps.observer?.onPlay?.(`${FANFARE_TRACK}#slot${playerId}`);
+    } catch (error) {
+      console.error(
+        `[music] fanfare playback failed for slot ${playerId}:`,
+        error,
+      );
+    }
+  }
+
   async function stopPlayback(
     reason: "phase" | "rematch" | "dispose",
   ): Promise<void> {
@@ -198,17 +271,33 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     await ensureSynth();
   }
 
+  async function suspendContext(context: AudioContext | null): Promise<void> {
+    if (!context || context.state !== AUDIO_CONTEXT_RUNNING) return;
+    await context.suspend().catch(() => {});
+  }
+
+  async function resumeContext(context: AudioContext | null): Promise<void> {
+    if (!context || context.state !== AUDIO_CONTEXT_SUSPENDED) return;
+    await context.resume().catch(() => {});
+  }
+
   async function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
-    const synth = synthPromise
+    const mainSynth = synthPromise
       ? await synthPromise.catch(() => undefined)
       : undefined;
-    const context = synth?.audioContext;
-    if (context) {
-      if (nextPaused && context.state === AUDIO_CONTEXT_RUNNING)
-        await context.suspend();
-      else if (!nextPaused && context.state === AUDIO_CONTEXT_SUSPENDED)
-        await context.resume();
+    // Suspend/resume every synth — the fanfare pool holds its own
+    // AudioContexts, so backgrounding the tab needs to quiet them too
+    // (otherwise a fanfare started just before visibility-change keeps
+    // ringing).
+    const fanfareSnapshots = await Promise.all(
+      Array.from(fanfareSynths.values()).map((pending) =>
+        pending.catch(() => undefined),
+      ),
+    );
+    for (const synth of [mainSynth, ...fanfareSnapshots]) {
+      if (nextPaused) await suspendContext(synth?.audioContext ?? null);
+      else await resumeContext(synth?.audioContext ?? null);
     }
     // Deferred start: if we were asked to play title while paused, kick it off
     // now that the tab is visible again.
@@ -220,12 +309,23 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   async function dispose(): Promise<void> {
     unbindCurrentBus();
     await stopPlayback("dispose");
+    // Shut down the fanfare synth pool — each owns an AudioContext we
+    // must explicitly close, otherwise rematches stack new ones on top
+    // (browsers cap the total and will refuse new contexts eventually).
+    for (const [, fanfarePromise] of fanfareSynths) {
+      const synth = await fanfarePromise.catch(() => undefined);
+      if (!synth) continue;
+      await synth.stop().catch(() => {});
+      await synth.audioContext?.close().catch(() => {});
+    }
+    fanfareSynths.clear();
   }
 
   return {
     activate,
     startTitle: playTitle,
     stopTitle: () => stopPlayback("phase"),
+    playFanfare,
     subscribeBus,
     setPaused,
     dispose,

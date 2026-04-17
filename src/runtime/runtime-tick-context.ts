@@ -42,7 +42,12 @@
  * skips prerequisites (e.g. flush before init, sweep before score).
  */
 
-import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
+import {
+  GRUNT_TICK_INTERVAL,
+  TIMER_DISPLAY_LAG_SEC,
+} from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -97,6 +102,21 @@ export interface WatcherTimingState {
   countdownDuration: number;
 }
 
+/** Displayed digit that triggers the snare-roll — when "6s" first
+ *  appears on screen, the snare kicks in. Derived on top of the shared
+ *  `TIMER_DISPLAY_LAG_SEC` so both stay in sync if the lag ever changes. */
+const COUNTDOWN_CRITICAL_DISPLAY_SEC = 6;
+const COUNTDOWN_CRITICAL_SEC =
+  COUNTDOWN_CRITICAL_DISPLAY_SEC + TIMER_DISPLAY_LAG_SEC;
+/** Phases whose timers gate the snare-roll. Battle has `state.timer` too
+ *  but it's driven by the battle countdown (Ready/Aim/Fire) rather than a
+ *  drafting timer — no snare there. */
+const COUNTDOWN_CRITICAL_PHASES: ReadonlySet<Phase> = new Set([
+  Phase.CASTLE_SELECT,
+  Phase.CASTLE_RESELECT,
+  Phase.WALL_BUILD,
+  Phase.CANNON_PLACE,
+]);
 /** Timer accumulator key constants. */
 export const ACCUM_BATTLE = "battle" satisfies keyof TimerAccums;
 export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
@@ -122,12 +142,35 @@ export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
 export function advancePhaseTimer<K extends string>(
   accum: Record<K, number>,
   key: K,
-  state: { timer: number },
+  state: GameState,
   dt: number,
   max: number,
 ): void {
+  const prevTimer = state.timer;
   const elapsed = (accum[key] += dt);
   state.timer = Math.max(0, max - elapsed);
+  emitCountdownCriticalIfCrossed(state, prevTimer);
+}
+
+/** Emit `phaseCountdownCritical` the instant `state.timer` crosses
+ *  `COUNTDOWN_CRITICAL_SEC` from above, while still > 0. Idempotent past
+ *  the threshold — repeat calls with prevTimer ≤ 6 don't re-fire. Callers
+ *  capture `state.timer` *before* the update and pass it here *after*. */
+export function emitCountdownCriticalIfCrossed(
+  state: GameState,
+  prevTimer: number,
+): void {
+  if (!COUNTDOWN_CRITICAL_PHASES.has(state.phase)) return;
+  if (
+    prevTimer > COUNTDOWN_CRITICAL_SEC &&
+    state.timer <= COUNTDOWN_CRITICAL_SEC &&
+    state.timer > 0
+  ) {
+    emitGameEvent(state.bus, GAME_EVENT.PHASE_COUNTDOWN_CRITICAL, {
+      phase: state.phase,
+      round: state.round,
+    });
+  }
 }
 
 /** Advance grunt accumulator and tick grunts when the interval elapses.

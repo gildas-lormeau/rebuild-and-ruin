@@ -102,7 +102,13 @@ export const BUILD_TIMER = 25;
 /** Duration of the cannon placement phase in seconds. */
 export const CANNON_PLACE_TIMER = 15;
 /** Duration of the castle selection phase in seconds. */
-export const SELECT_TIMER = 10;
+export const SELECT_TIMER = 16;
+/** Seconds the countdown display lags the real `state.timer` — renders
+ *  `ceil(state.timer - TIMER_DISPLAY_LAG_SEC)` so "0s" stays on screen
+ *  for the last second of every timed phase. Shared because the SFX
+ *  snare-roll trigger needs to track the *displayed* digit, not the
+ *  raw timer value. */
+export const TIMER_DISPLAY_LAG_SEC = 1;
 export const SELECT_ANNOUNCEMENT_DURATION = 1;
 /** Duration of the pre-battle countdown in seconds (Ready 3s + Aim 2s + Fire! 1s). */
 export const BATTLE_COUNTDOWN = 6;

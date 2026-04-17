@@ -249,6 +249,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getAssets: () => musicAssets,
     assetsReady: musicAssetsReady,
     observer: config.observers?.sfx,
+    // First tower enclosure of a phase → player-specific fanfare sub-song.
+    // SFX has already played elechit1 and delayed the callback by the
+    // stinger's duration, so the fanfare lands cleanly after it.
+    onFirstEnclosure: (playerId) => void music.playFanfare(playerId),
   });
   // The Sound modal (URL field + file pickers) lives in index.html. Headless
   // tests run without DOM — skip construction and pass a no-op opener so the

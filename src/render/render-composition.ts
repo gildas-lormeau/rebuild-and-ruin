@@ -7,6 +7,7 @@ import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
+  TIMER_DISPLAY_LAG_SEC,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -182,7 +183,14 @@ export function createStatusBar(
         ? `R${state.round}`
         : `R${state.round}/${state.maxRounds}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
-    timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
+    // Display lags the real timer by TIMER_DISPLAY_LAG_SEC so "0s"
+    // shows during the last second of the phase instead of blipping
+    // past. Pure visual — the real countdown (state.timer) still hits
+    // 0 at the actual phase end.
+    timer:
+      state.timer > 0
+        ? `${Math.max(0, Math.ceil(state.timer - TIMER_DISPLAY_LAG_SEC))}s`
+        : "",
     modifier,
     upgrades,
     players: state.players.map((player, i) => ({

@@ -59,6 +59,13 @@ export type LifecycleEvent =
       phase: Phase;
       round: number;
     }
+  /** Any timed phase's countdown just crossed the "last 6 seconds"
+   *  threshold — CASTLE_SELECT, WALL_BUILD, CANNON_PLACE all fire this
+   *  when `state.timer` drops ≤ 6s (while still > 0). Consumed by the
+   *  SFX layer to start the snare-roll loop. Naturally paired with
+   *  `phaseEnd` (snare stops when the phase exits, timer-zero or
+   *  everyone-confirmed, whichever comes first). */
+  | { type: "phaseCountdownCritical"; phase: Phase; round: number }
   /** Between-rounds score-delta overlay started. Fires when
    *  `scoreDelta.show` arms the delta timer at end of WALL_BUILD; pairs
    *  with `scoreOverlayEnd` when the timer expires. */
@@ -87,6 +94,19 @@ export type EntityEvent =
       playerId: ValidPlayerSlot;
       tileKeys: readonly number[];
     }
+  /** One tile of a castle prebuild animation (round-1 autobuild /
+   *  reselect) was just dropped in. Fires per tile, so N tiles in a
+   *  castle = N events. Separate from `wallPlaced` (which is for
+   *  player-driven build-phase placement) so consumers can disambiguate
+   *  the two gameplay beats — cosmetic-only event for SFX pacing. */
+  | { type: "castleBuildTile"; playerId: ValidPlayerSlot; tileKey: number }
+  /** A tower transitioned from un-enclosed to enclosed by a player (all
+   *  footprint tiles became interior-or-wall). Fires from inside the
+   *  territory flood-fill, so prebuild animations AND player-driven wall
+   *  placement both trigger it identically. Consumers decide whether to
+   *  dedupe — the SFX layer tracks "first this phase per player" locally
+   *  to gate the fanfare. */
+  | { type: "towerEnclosed"; playerId: ValidPlayerSlot; towerIndex: number }
   | {
       type: "cannonPlaced";
       playerId: ValidPlayerSlot;
@@ -196,6 +216,7 @@ const LIFECYCLE_EVENT = {
   LIFE_LOST_DIALOG_SHOW: "lifeLostDialogShow",
   BANNER_START: "bannerStart",
   BANNER_END: "bannerEnd",
+  PHASE_COUNTDOWN_CRITICAL: "phaseCountdownCritical",
   SCORE_OVERLAY_START: "scoreOverlayStart",
   SCORE_OVERLAY_END: "scoreOverlayEnd",
   TICK: "tick",
@@ -203,6 +224,8 @@ const LIFECYCLE_EVENT = {
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",
   WALL_PLACED: "wallPlaced",
+  CASTLE_BUILD_TILE: "castleBuildTile",
+  TOWER_ENCLOSED: "towerEnclosed",
   CANNON_PLACED: "cannonPlaced",
   GRUNT_SPAWN: "gruntSpawn",
   GRUNT_SPAWN_BLOCKED: "gruntSpawnBlocked",

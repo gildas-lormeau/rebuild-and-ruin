@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8045,
+  "eventCount": 8154,
   "events": [
     {
       "type": "tick",
@@ -1194,9 +1194,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 1,
+        "tileKey": 817
       }
     },
     {
@@ -1245,6 +1246,19 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 818
       }
     },
     {
@@ -1311,9 +1325,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 1,
+        "tileKey": 819
       }
     },
     {
@@ -1347,9 +1362,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 0,
+        "tileKey": 924
       }
     },
     {
@@ -1383,9 +1399,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 1,
+        "tileKey": 820
       }
     },
     {
@@ -1419,9 +1436,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 0,
+        "tileKey": 925
       }
     },
     {
@@ -1455,9 +1473,41 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 821
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 968
       }
     },
     {
@@ -1491,9 +1541,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 1,
+        "tileKey": 822
       }
     },
     {
@@ -1527,9 +1578,41 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1012
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 823
       }
     },
     {
@@ -1563,9 +1646,41 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1056
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 824
       }
     },
     {
@@ -1599,9 +1714,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 0,
+        "tileKey": 1100
       }
     },
     {
@@ -1635,21 +1751,10 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castleBuildTile",
       "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
+        "playerId": 1,
+        "tileKey": 868
       }
     },
     {
@@ -1692,6 +1797,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1144
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -1719,6 +1831,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 912
       }
     },
     {
@@ -1731,6 +1850,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 115
       }
     },
     {
@@ -1743,6 +1869,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1188
       }
     },
     {
@@ -1773,6 +1906,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 911
       }
     },
     {
@@ -1794,6 +1934,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 116
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -1803,6 +1950,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1189
       }
     },
     {
@@ -1827,6 +1981,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 956
       }
     },
     {
@@ -1839,6 +2000,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 117
       }
     },
     {
@@ -1857,6 +2025,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1190
       }
     },
     {
@@ -1881,6 +2056,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 957
       }
     },
     {
@@ -1899,6 +2081,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 118
       }
     },
     {
@@ -1911,6 +2100,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1191
       }
     },
     {
@@ -1941,6 +2137,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1000
       }
     },
     {
@@ -1962,6 +2165,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 119
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -1971,6 +2181,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1192
       }
     },
     {
@@ -2001,6 +2218,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 999
       }
     },
     {
@@ -2013,6 +2237,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 120
       }
     },
     {
@@ -2028,6 +2259,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1193
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2055,6 +2293,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1044
       }
     },
     {
@@ -2073,6 +2318,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 121
       }
     },
     {
@@ -2085,6 +2337,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1194
       }
     },
     {
@@ -2118,6 +2377,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1088
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2127,6 +2393,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 122
       }
     },
     {
@@ -2139,6 +2412,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1195
       }
     },
     {
@@ -2163,6 +2443,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1132
       }
     },
     {
@@ -2181,6 +2468,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 166
       }
     },
     {
@@ -2196,6 +2490,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1151
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2223,6 +2524,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1131
       }
     },
     {
@@ -2241,6 +2549,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 210
       }
     },
     {
@@ -2253,6 +2568,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1107
       }
     },
     {
@@ -2286,6 +2608,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1130
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2295,6 +2624,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 254
       }
     },
     {
@@ -2307,6 +2643,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1108
       }
     },
     {
@@ -2337,6 +2680,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1129
       }
     },
     {
@@ -2355,6 +2705,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 298
       }
     },
     {
@@ -2367,6 +2724,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1063
       }
     },
     {
@@ -2397,6 +2761,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1085
       }
     },
     {
@@ -2409,6 +2780,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 297
       }
     },
     {
@@ -2427,6 +2805,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1019
       }
     },
     {
@@ -2448,6 +2833,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1128
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2463,6 +2855,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 342
       }
     },
     {
@@ -2475,6 +2874,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 1018
       }
     },
     {
@@ -2505,6 +2911,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1127
       }
     },
     {
@@ -2526,6 +2939,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 386
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2535,6 +2955,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 975
       }
     },
     {
@@ -2565,6 +2992,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1126
       }
     },
     {
@@ -2577,6 +3011,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 430
       }
     },
     {
@@ -2589,6 +3030,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 931
       }
     },
     {
@@ -2622,6 +3070,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1125
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2637,6 +3092,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 429
       }
     },
     {
@@ -2649,6 +3111,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 887
       }
     },
     {
@@ -2679,6 +3148,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1081
       }
     },
     {
@@ -2694,6 +3170,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 428
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2709,6 +3192,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 886
       }
     },
     {
@@ -2727,6 +3217,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1080
       }
     },
     {
@@ -2745,6 +3242,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 427
       }
     },
     {
@@ -2760,6 +3264,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 885
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2787,6 +3298,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 1037
       }
     },
     {
@@ -2805,6 +3323,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 426
       }
     },
     {
@@ -2817,6 +3342,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 884
       }
     },
     {
@@ -2847,6 +3379,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 993
       }
     },
     {
@@ -2859,6 +3398,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 425
       }
     },
     {
@@ -2871,6 +3417,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 928
       }
     },
     {
@@ -2901,6 +3454,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 992
       }
     },
     {
@@ -2919,6 +3479,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 424
       }
     },
     {
@@ -2934,6 +3501,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 883
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -2961,6 +3535,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 949
       }
     },
     {
@@ -2973,6 +3554,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 423
       }
     },
     {
@@ -2991,6 +3579,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 882
       }
     },
     {
@@ -3015,6 +3610,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 905
       }
     },
     {
@@ -3030,6 +3632,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 379
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -3039,6 +3648,20 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 881
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 0,
+        "towerIndex": 1
       }
     },
     {
@@ -3069,9 +3692,23 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 1,
+        "tileKey": 861
       }
     },
     {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 1,
+        "towerIndex": 4
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -3087,6 +3724,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 335
       }
     },
     {
@@ -3099,6 +3743,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 0,
+        "tileKey": 880
       }
     },
     {
@@ -3141,6 +3792,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 291
       }
     },
     {
@@ -3204,6 +3862,13 @@
       }
     },
     {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 247
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -3255,6 +3920,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 203
       }
     },
     {
@@ -3315,6 +3987,20 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castleBuildTile",
+      "payload": {
+        "playerId": 2,
+        "tileKey": 159
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 2,
+        "towerIndex": 8
       }
     },
     {
@@ -16253,6 +16939,13 @@
       }
     },
     {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 0,
+        "towerIndex": 1
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -17439,6 +18132,13 @@
       }
     },
     {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 1,
+        "towerIndex": 4
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -18569,6 +19269,13 @@
           468,
           469
         ]
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 2,
+        "towerIndex": 8
       }
     },
     {
@@ -22718,6 +23425,13 @@
       }
     },
     {
+      "type": "phaseCountdownCritical",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 2
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -23307,6 +24021,13 @@
           986,
           987
         ]
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 1,
+        "towerIndex": 7
       }
     },
     {
@@ -24542,6 +25263,13 @@
       }
     },
     {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 2,
+        "towerIndex": 10
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 14,
@@ -24859,6 +25587,13 @@
           312,
           356
         ]
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 0,
+        "towerIndex": 0
       }
     },
     {
@@ -41157,6 +41892,13 @@
       }
     },
     {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 0,
+        "towerIndex": 1
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -43421,6 +44163,20 @@
           431,
           475
         ]
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 2,
+        "towerIndex": 8
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 2,
+        "towerIndex": 10
       }
     },
     {
@@ -45995,6 +46751,13 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "phaseCountdownCritical",
+      "payload": {
+        "phase": "WALL_BUILD",
+        "round": 3
       }
     },
     {
