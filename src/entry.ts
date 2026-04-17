@@ -27,6 +27,12 @@ const serverHostInput = document.getElementById(
 const params = new URLSearchParams(location.search);
 const autoJoinCode = params.get("join");
 
+// Flips to true when the user clicks "Local Play" — the click both activates
+// the AudioContext (needs a user gesture) and enters #/play. A direct hit on
+// `/#play` (bookmark, reload, shared link) would bypass that gesture, so we
+// redirect those visits to the home page.
+let userInitiatedPlay = false;
+
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
 try {
   (
@@ -49,6 +55,14 @@ onRoute(ROUTE_ONLINE, () => {
 });
 
 onRoute(ROUTE_PLAY, () => {
+  if (!userInitiatedPlay) {
+    // Direct entry (bookmark, reload, shared link) — bounce back home so the
+    // visitor has to click "Local Play", which is the only place we get a user
+    // gesture to unlock the AudioContext before music boot.
+    navigateTo(ROUTE_HOME, true);
+    return;
+  }
+  userInitiatedPlay = false; // consume; require a fresh gesture on the next entry
   tryFullscreen(); // works when navigated via user gesture; silently fails on bookmark
   // Fallback: first tap on any game UI button triggers fullscreen
   gameContainer.addEventListener(CLICK_EVENT, () => tryFullscreen(), {
@@ -72,6 +86,7 @@ document.getElementById("btn-local")!.addEventListener(CLICK_EVENT, () => {
   // AudioContext.resume(). Safe to call even if no Rampart files are in IDB
   // (subsystem no-ops). Fire-and-forget: audio is optional, never block nav.
   void import("./main.ts").then((module) => module.activateMusic());
+  userInitiatedPlay = true;
   navigateTo(ROUTE_PLAY);
 });
 
