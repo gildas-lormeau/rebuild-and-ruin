@@ -141,9 +141,7 @@ export function createOnlineRuntimeSessionHelpers(
         setMode: (mode) => {
           setMode(runtime.runtimeState, mode);
         },
-        onModeSet: (mode) => {
-          if (mode !== Mode.SELECTION) runtime.sound.stopPhaseMusic();
-        },
+        onModeSet: () => {},
         clearCastleBuilds: () => {
           runtime.runtimeState.selection.castleBuilds = [];
         },

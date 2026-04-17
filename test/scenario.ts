@@ -44,7 +44,6 @@ import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
 import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
-  SoundObserver,
 } from "../src/shared/core/system-interfaces.ts";
 import {
   createHeadlessRuntime,
@@ -130,14 +129,7 @@ export interface ScenarioOptions {
    *  `createHapticsSystem({ observer })` via the runtime's `observers` bag. */
   hapticsObserver?: HapticsObserver;
   /** Test observer for sound intents. Receives every `played(reason)` call
-   *  BEFORE the platform/level gate. Threaded through to
-   *  `createSoundSystem({ observer })` via the runtime's `observers` bag. */
-  soundObserver?: SoundObserver;
-  /** Renderer override. Omit for the default no-op stub.
-   *  - `"ascii"` — text-based renderer via `buildGrid`; access the handle
-   *    on the returned `Scenario.renderer`.
-   *  - `{ canvas: CanvasRecorder, observer? }` — real canvas renderer wired
-   *    to the recorder's mock canvases. */
+   *  BEFORE the platform/level gate. */
   renderer?:
     | "ascii"
     | { canvas: CanvasRecorder; observer?: RenderObserver };
@@ -313,7 +305,6 @@ export function loadSeed(
       | "rounds"
       | "renderer"
       | "hapticsObserver"
-      | "soundObserver"
     >
   >,
 ): Promise<Scenario> {
@@ -334,8 +325,7 @@ export function loadSeed(
     mode: condition.mode,
     rounds: overrides?.rounds ?? condition.rounds,
     renderer: overrides?.renderer,
-    hapticsObserver: overrides?.hapticsObserver,
-    soundObserver: overrides?.soundObserver,
+    hapticsObserver: overrides?.hapticsObserver
   });
 }
 
@@ -392,7 +382,6 @@ export function buildHeadlessOptions(
     autoStartGame: opts.autoStartGame ?? true,
     networkObserver: { sent: (msg) => sentMessages.push(msg) },
     hapticsObserver: opts.hapticsObserver,
-    soundObserver: opts.soundObserver,
   };
 }
 

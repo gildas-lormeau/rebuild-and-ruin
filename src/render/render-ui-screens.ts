@@ -32,10 +32,8 @@ import {
   OPT_HAPTICS,
   OPT_ROUNDS,
   OPT_SEED,
-  OPT_SOUND,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
-  SOUND_LABELS,
 } from "../shared/ui/settings-defs.ts";
 import { formatKeyName } from "../shared/ui/settings-ui.ts";
 
@@ -185,19 +183,11 @@ export function visibleOptions(frameCtx: UIContext): number[] {
           OPT_CANNON_HP,
           OPT_GAME_MODE,
           OPT_HAPTICS,
-          OPT_SOUND,
           OPT_SEED,
           OPT_CONTROLS,
           OPT_DPAD,
         ]
-      : [
-          OPT_ROUNDS,
-          OPT_CANNON_HP,
-          OPT_GAME_MODE,
-          OPT_SOUND,
-          OPT_SEED,
-          OPT_CONTROLS,
-        ];
+      : [OPT_ROUNDS, OPT_CANNON_HP, OPT_GAME_MODE, OPT_SEED, OPT_CONTROLS];
   return IS_TOUCH_DEVICE
     ? [
         OPT_DIFFICULTY,
@@ -205,7 +195,6 @@ export function visibleOptions(frameCtx: UIContext): number[] {
         OPT_CANNON_HP,
         OPT_GAME_MODE,
         OPT_HAPTICS,
-        OPT_SOUND,
         OPT_SEED,
         OPT_CONTROLS,
         OPT_DPAD,
@@ -215,7 +204,6 @@ export function visibleOptions(frameCtx: UIContext): number[] {
         OPT_ROUNDS,
         OPT_CANNON_HP,
         OPT_GAME_MODE,
-        OPT_SOUND,
         OPT_SEED,
         OPT_CONTROLS,
       ];
@@ -234,7 +222,6 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   }
   if (idx === OPT_CANNON_HP) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
   if (idx === OPT_HAPTICS) return HAPTICS_LABELS[settings.haptics] ?? "All";
-  if (idx === OPT_SOUND) return SOUND_LABELS[settings.sound] ?? "All";
   if (idx === OPT_SEED) {
     if (frameCtx.isOnline) return settings.seed || "—";
     if (frameCtx.getOptionsReturnMode() !== null && state) {

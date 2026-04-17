@@ -24,10 +24,8 @@ import {
   type InputReceiver,
   isHuman,
   type PlayerController,
-  type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
-import { PHASE_MUSIC } from "../shared/platform/phase-music.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -79,7 +77,6 @@ interface SelectionSystemDeps {
     | "setCastleBuildViewport"
     | "setSelectionViewport"
   >;
-  sound: Pick<SoundSystem, "chargeFanfare" | "startPhaseMusic">;
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,
@@ -196,10 +193,6 @@ export function createSelectionSystem(
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
     setMode(runtimeState, Mode.SELECTION);
-    deps.sound.startPhaseMusic(PHASE_MUSIC.build, {
-      loop: true,
-      volumeScale: 4.0,
-    });
     resetFrameTiming(runtimeState, deps.timing.now());
     deps.requestFrame();
   }
@@ -432,8 +425,6 @@ export function createSelectionSystem(
         },
       });
       if (!result.next) {
-        for (const plan of build.wallPlans)
-          deps.sound.chargeFanfare(plan.playerId);
         if (build.wallPlans.some((plan) => plan.playerId === humanPid))
           humanBuildDone = true;
         runtimeState.selection.castleBuilds.splice(i, 1);

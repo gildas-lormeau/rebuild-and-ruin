@@ -10,7 +10,6 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
   HAPTICS_ALL,
-  SOUND_OFF,
 } from "../core/game-constants.ts";
 import type { ValidPlayerSlot } from "../core/player-slot.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
@@ -40,7 +39,6 @@ export interface GameSettings {
   /** Index into CANNON_HP_OPTIONS — not the HP value itself. */
   cannonHp: number;
   haptics: number; // 0=off, 1=phase changes only, 2=all
-  sound: number; // 0=off, 1=phase changes only, 2=all
   seed: string;
   seedMode: SeedMode;
   keyBindings: KeyBindings[];
@@ -129,7 +127,6 @@ const DEFAULT_SETTINGS: GameSettings = {
   rounds: ROUNDS_DEFAULT_INDEX,
   cannonHp: CANNON_HP_DEFAULT_INDEX,
   haptics: HAPTICS_ALL,
-  sound: SOUND_OFF,
   seed: "",
   seedMode: SEED_RANDOM,
   keyBindings: [],
@@ -166,7 +163,6 @@ export function loadSettings(): GameSettings {
         rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
         cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
         haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
-        sound: saved.sound ?? DEFAULT_SETTINGS.sound,
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
         seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,

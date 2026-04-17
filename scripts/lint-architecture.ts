@@ -45,8 +45,6 @@ const EXEMPT = new Set([
   "runtime-castle-build.ts", // pure animation primitives, not a factory sub-system
   "runtime-life-lost-core.ts", // pure dialog primitives, not a factory sub-system
   "runtime-upgrade-pick-core.ts", // pure dialog primitives, not a factory sub-system
-  "runtime-sound-opl.ts", // pure OPL2 synth primitives, not a factory sub-system
-  "runtime-sound-midi.ts", // pure MIDI-playback primitives, not a factory sub-system
   "dev-console-grid.ts", // pure debug primitives, not a factory sub-system
 ]);
 /** Prefixes for runtime-layer file families that are not sub-systems. */
@@ -65,8 +63,6 @@ const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-castle-build.ts", // pure animation primitives, consumed by runtime-selection
   "./runtime-life-lost-core.ts", // pure dialog primitives, consumed by runtime-life-lost
   "./runtime-upgrade-pick-core.ts", // pure dialog primitives, consumed by runtime-upgrade-pick
-  "./runtime-sound-opl.ts", // pure OPL2 synth primitives, consumed by runtime-sound
-  "./runtime-sound-midi.ts", // pure MIDI-playback primitives, consumed by runtime-sound
 ]);
 
 main();

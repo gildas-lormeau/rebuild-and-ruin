@@ -1,4 +1,3 @@
-import type { PhaseMusic } from "../platform/phase-music.ts";
 import type { Rng } from "../platform/rng.ts";
 import { Action } from "../ui/input-action.ts";
 import type {
@@ -422,85 +421,6 @@ export interface HapticsSystem {
     events: ReadonlyArray<BattleEvent>,
     povPlayerId: ValidPlayerSlot,
   ) => void;
-}
-
-/** Reason a sound was triggered — covers every public method on
- *  `SoundSystem`. Tests filter on this string to assert that the right
- *  game event reached the sound layer. The "battle:*" prefixed values
- *  fire from inside `battleEvents` per individual `BattleEvent` so a
- *  test can assert on the specific battle reaction (cannon fire vs.
- *  wall hit vs. tower kill) instead of the catch-all "battleEvents". */
-export type SoundReason =
-  | "phaseStart"
-  | "piecePlaced"
-  | "pieceFailed"
-  | "pieceRotated"
-  | "cannonPlaced"
-  | "chargeFanfare"
-  | "lifeLost"
-  | "gameOver"
-  | "startPhaseMusic"
-  | "stopPhaseMusic"
-  | "reset"
-  | "battle:cannonFired"
-  | "battle:wallDestroyed"
-  | "battle:cannonDamaged"
-  | "battle:cannonKilled"
-  | "battle:gruntKilled"
-  | "battle:gruntSpawned"
-  // Inline literal "towerKilled" — allowed in type position because the
-  // duplicate-literals scanner skips type annotations. The runtime call
-  // site uses `BATTLE_MESSAGE.TOWER_KILLED` so no new runtime literal
-  // shows up. (lint-typeof forbids `typeof X.PROP` in type aliases.)
-  | "towerKilled";
-
-/** Test observer — receives every "would have played" sound intent BEFORE
- *  the platform/level gate. Tests use this to assert that game events
- *  reached the sound layer without needing a real `AudioContext`. Threaded
- *  in via the `SoundSystemDeps` bag from the test scenario; production
- *  callers omit it. */
-export interface SoundObserver {
-  played?(reason: SoundReason): void;
-}
-
-/** Sound effects contract — jsfxr one-shots + Web Audio layered sounds. */
-export interface SoundSystem {
-  setLevel: (level: number) => void;
-
-  // Phase transitions (level 1+)
-  phaseStart: () => void;
-
-  // Battle (level 2)
-  battleEvents: (
-    events: ReadonlyArray<BattleEvent>,
-    povPlayerId: ValidPlayerSlot,
-  ) => void;
-
-  // Player actions (level 2)
-  piecePlaced: () => void;
-  pieceFailed: () => void;
-  pieceRotated: () => void;
-  cannonPlaced: () => void;
-
-  // Castle enclosure (level 1+)
-  chargeFanfare: (playerId?: number) => void;
-
-  // Life events (level 1+)
-  lifeLost: () => void;
-  gameOver: () => void;
-
-  /** Start phase music from a pre-parsed song (shared/platform/phase-music.ts).
-   *  Stops any currently playing music first. `volumeScale` compensates
-   *  for MusyngKite instruments that are unusually loud/quiet. */
-  startPhaseMusic: (
-    song: PhaseMusic,
-    opts?: { loop?: boolean; volumeScale?: number },
-  ) => void;
-  /** Stop the current phase music immediately. */
-  stopPhaseMusic: () => void;
-
-  /** Stop all playing audio and reset internal state (rematch). */
-  reset: () => void;
 }
 
 /** Battle crosshair movement speed in pixels per second. */

@@ -1,10 +1,7 @@
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import type {
-  HapticsSystem,
-  SoundSystem,
-} from "../shared/core/system-interfaces.ts";
+import type { HapticsSystem } from "../shared/core/system-interfaces.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
@@ -56,7 +53,6 @@ interface OptionsSystemDeps {
   updateDpad: (enabled: boolean) => void;
   setDpadLeftHanded: (left: boolean) => void;
   refreshLobbySeed: () => void;
-  sound: Pick<SoundSystem, "setLevel">;
   haptics: Pick<HapticsSystem, "setLevel">;
   isOnline: boolean;
   remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
@@ -126,7 +122,6 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       deps.isOnline,
     );
     deps.haptics.setLevel(runtimeState.settings.haptics);
-    deps.sound.setLevel(runtimeState.settings.sound);
     deps.setDpadLeftHanded(runtimeState.settings.leftHanded);
   }
 

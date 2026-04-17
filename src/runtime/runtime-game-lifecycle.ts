@@ -10,7 +10,6 @@
 
 import { DEMO_RETURN_DELAY_MS } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import type { SoundSystem } from "../shared/core/system-interfaces.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -63,10 +62,6 @@ interface GameLifecycleDeps {
   readonly clearDemoTimer: () => void;
   readonly setDemoTimer: (callback: () => void, delay: number) => void;
 
-  // Sound
-  readonly soundReset: () => void;
-  readonly soundGameOver: () => void;
-
   // Rendering / navigation
   readonly render: () => void;
   readonly requestMainLoop: () => void;
@@ -110,7 +105,6 @@ interface LifecycleWiringDeps {
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };
-  readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
   readonly input: { resetForLobby: (rs: RuntimeState) => void };
 
   // Game-over UI
@@ -150,8 +144,6 @@ export function createGameLifecycle(
     deps.resetLifeLostDialog();
     deps.clearAllZoomState();
     deps.onEndGame?.(winner);
-    deps.soundReset();
-    deps.soundGameOver();
     deps.setGameOverFrame(winner);
     deps.render();
     deps.setModeStopped();
@@ -252,7 +244,6 @@ export function buildLifecycleDeps(
       wiringDeps.camera.resetBattleCrosshair();
       runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
       wiringDeps.camera.resetCamera();
-      wiringDeps.sound.reset();
     },
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
@@ -272,9 +263,6 @@ export function buildLifecycleDeps(
         callback();
       }, delay);
     },
-
-    soundReset: wiringDeps.sound.reset,
-    soundGameOver: wiringDeps.sound.gameOver,
 
     render: wiringDeps.render,
     requestMainLoop: wiringDeps.requestMainLoop,

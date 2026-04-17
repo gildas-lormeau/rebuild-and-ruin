@@ -28,10 +28,7 @@ import type {
   RenderOverlay,
 } from "../src/shared/ui/overlay-types.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import type {
-  HapticsObserver,
-  SoundObserver,
-} from "../src/shared/core/system-interfaces.ts";
+import type { HapticsObserver } from "../src/shared/core/system-interfaces.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
@@ -106,10 +103,6 @@ interface HeadlessRuntimeOptions {
    *  minLevel)` call BEFORE the platform/level gate, so tests can assert on
    *  game-event → haptic mappings without a real `navigator.vibrate`. */
   hapticsObserver?: HapticsObserver;
-  /** Test observer for sound intents. Receives every `played(reason)` call
-   *  BEFORE the platform/level gate, so tests can assert on game-event →
-   *  sound mappings without a real `AudioContext`. */
-  soundObserver?: SoundObserver;
   /** Explicit `OnlinePhaseTicks` override. Takes precedence over the
    *  `hostMode` noop default. Used by network tests that need real
    *  broadcast emitters (host side) or a wired `tickWatcher` (watcher
@@ -213,7 +206,6 @@ export async function createHeadlessRuntime(
     networkObserver,
     remotePlayerSlots,
     hapticsObserver,
-    soundObserver,
     onlinePhaseTicks: onlinePhaseTicksOverride,
   } = opts;
 
@@ -328,10 +320,7 @@ export async function createHeadlessRuntime(
     },
     onlinePhaseTicks:
       onlinePhaseTicksOverride ?? (hostMode ? noopHostPhaseTicks() : undefined),
-    observers:
-      hapticsObserver || soundObserver
-        ? { haptics: hapticsObserver, sound: soundObserver }
-        : undefined,
+    observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
   });
   runtimeHolder.current = runtime;
 

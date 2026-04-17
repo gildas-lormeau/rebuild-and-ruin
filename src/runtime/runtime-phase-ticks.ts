@@ -28,10 +28,7 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
-import {
-  GAME_EVENT,
-  type GameEventBus,
-} from "../shared/core/game-event-bus.ts";
+import type { GameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   type CannonPhantomPayload,
@@ -43,23 +40,16 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type HapticsSystem,
   isHuman,
-  type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import {
-  PHASE_MUSIC as PHASE_MUSIC_SONGS,
-  type PhaseMusic,
-} from "../shared/platform/phase-music.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { BANNER_UPGRADE_PICK } from "./banner-messages.ts";
 import type { GameOverReason } from "./runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
@@ -130,7 +120,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  sound: SoundSystem;
   haptics: HapticsSystem;
   /** Try to show upgrade pick overlay. Returns true if shown (caller should
    *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
@@ -191,34 +180,6 @@ export interface PhaseTicksSystem {
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
 );
-/** Inline MIDI per game phase. `volumeScale` compensates for per-instrument
- *  loudness differences in MusyngKite (cello is ~4× louder than music_box).
- *  Phases missing from the map get silence. Battle is a one-shot Jaws
- *  stinger — plays once at phase start, silence after. */
-const PHASE_MUSIC: Partial<
-  Record<Phase, { song: PhaseMusic; loop: boolean; volumeScale: number }>
-> = {
-  [Phase.CASTLE_SELECT]: {
-    song: PHASE_MUSIC_SONGS.build,
-    loop: true,
-    volumeScale: 4.0,
-  },
-  [Phase.WALL_BUILD]: {
-    song: PHASE_MUSIC_SONGS.build,
-    loop: true,
-    volumeScale: 4.0,
-  },
-  [Phase.CANNON_PLACE]: {
-    song: PHASE_MUSIC_SONGS.cannon,
-    loop: true,
-    volumeScale: 2.5,
-  },
-  [Phase.BATTLE]: {
-    song: PHASE_MUSIC_SONGS.battle,
-    loop: false,
-    volumeScale: 1.0,
-  },
-};
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -243,29 +204,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       if (BATTLE_EVENT_TYPES.has(type)) {
         const pov = runtimeState.frameMeta.povPlayerId;
         const evt = event as BattleEvent;
-        deps.sound.battleEvents([evt], pov);
         deps.haptics.battleEvents([evt], pov);
         accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
-      } else if (type === GAME_EVENT.BANNER_END) {
-        // The upgrade-pick banner's onDone opens a modal dialog —
-        // stay silent through the pick. The next banner (build)
-        // will start its own music.
-        const bannerEvent = event as { text: string };
-        if (bannerEvent.text === BANNER_UPGRADE_PICK) return;
-        // After any banner finishes, resume music for whatever phase
-        // the game is currently in. Using runtimeState.state.phase
-        // (not the banner event's phase field) so sub-banners like
-        // modifier reveals correctly resume the current phase's
-        // music instead of starting something unrelated.
-        const entry = PHASE_MUSIC[runtimeState.state.phase];
-        if (entry) {
-          deps.sound.startPhaseMusic(entry.song, {
-            loop: entry.loop,
-            volumeScale: entry.volumeScale,
-          });
-        }
-      } else if (type === GAME_EVENT.LIFE_LOST_DIALOG_SHOW) {
-        deps.sound.lifeLost();
       }
     });
   }
@@ -744,7 +684,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       if (!canBuildThisFrame(state, ctrl.playerId)) continue;
       const player = state.players[ctrl.playerId]!;
-      const hadInterior = getInterior(player).size > 0;
 
       // Snapshot walls BEFORE tick so we can diff new AI placements
       const shouldSnapshot = isHost && !isHuman(ctrl);
@@ -762,11 +701,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             offsets,
           });
         }
-      }
-
-      // First enclosure detection
-      if (!hadInterior && getInterior(player).size > 0) {
-        deps.sound.chargeFanfare(ctrl.playerId);
       }
 
       // Collect phantoms + dedup for network

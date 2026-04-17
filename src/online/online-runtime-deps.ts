@@ -136,8 +136,7 @@ function buildIncrementalDeps() {
     allSelectionsConfirmed: () => _depsInit.runtime.selection.allConfirmed(),
     finishReselection: () => _depsInit.runtime.selection.finishReselection(),
     finishSelection: () => _depsInit.runtime.selection.finish(),
-    onFirstEnclosure: (pid: ValidPlayerSlot) =>
-      _depsInit.runtime.sound.chargeFanfare(pid),
+    onFirstEnclosure: (_pid: ValidPlayerSlot) => {},
     getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
     // Only expose the dialog once Mode.UPGRADE_PICK is active — during the
     // banner preview (prepare) the dialog exists for rendering but picks

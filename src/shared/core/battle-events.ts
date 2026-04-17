@@ -138,14 +138,12 @@ export const BATTLE_MESSAGE = {
 export const BATTLE_EVENT_CONSUMERS = {
   cannonFired: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
   },
   wallDestroyed: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
@@ -154,7 +152,6 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   cannonDamaged: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
@@ -163,7 +160,6 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   gruntKilled: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     combo: "src/game/combo-system.ts",
@@ -175,7 +171,6 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   gruntSpawned: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
   },
@@ -201,7 +196,6 @@ export const BATTLE_EVENT_CONSUMERS = {
   },
   towerKilled: {
     stateApply: "src/game/battle-system.ts",
-    sound: "src/runtime/runtime-sound.ts",
     haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",

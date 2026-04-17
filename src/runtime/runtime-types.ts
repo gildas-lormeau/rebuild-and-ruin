@@ -85,8 +85,6 @@ import type {
   HapticsObserver,
   HapticsSystem,
   InputReceiver,
-  SoundObserver,
-  SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import type {
@@ -335,12 +333,12 @@ export interface RuntimeConfig {
   onEndGame?: (winner: { id: number }, state: GameState) => void;
 
   /** Test-only sub-system observers. Threaded from the test scenario
-   *  through `createHeadlessRuntime` so tests can capture intents (sound,
-   *  haptics, render) without monkey-patching module state. Production
-   *  callers (`main.ts`, `online-runtime-game.ts`) omit this entirely. */
+   *  through `createHeadlessRuntime` so tests can capture intents
+   *  (haptics, render) without monkey-patching module state.
+   *  Production callers (`main.ts`, `online-runtime-game.ts`) omit
+   *  this entirely. */
   observers?: {
     haptics?: HapticsObserver;
-    sound?: SoundObserver;
   };
 }
 
@@ -508,7 +506,6 @@ export interface GameRuntime {
   lifeLost: RuntimeLifeLost;
   upgradePick: RuntimeUpgradePick;
   scoreDelta: RuntimeScoreDelta;
-  sound: SoundSystem;
   haptics: HapticsSystem;
   lobby: RuntimeLobby;
   lifecycle: RuntimeLifecycle;

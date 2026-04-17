@@ -16,9 +16,7 @@ import {
   OPT_GAME_MODE,
   OPT_HAPTICS,
   OPT_ROUNDS,
-  OPT_SOUND,
   ROUNDS_OPTIONS,
-  SOUND_LABELS,
 } from "./settings-defs.ts";
 import type { Mode } from "./ui-mode.ts";
 
@@ -86,9 +84,6 @@ export function cycleOption(
       (settings.haptics + dir + HAPTICS_LABELS.length) % HAPTICS_LABELS.length;
   } else if (optionsCursor === OPT_DPAD) {
     settings.leftHanded = !settings.leftHanded;
-  } else if (optionsCursor === OPT_SOUND) {
-    settings.sound =
-      (settings.sound + dir + SOUND_LABELS.length) % SOUND_LABELS.length;
   } else if (optionsCursor === OPT_GAME_MODE) {
     if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
     settings.gameMode =

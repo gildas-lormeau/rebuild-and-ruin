@@ -21,7 +21,6 @@ export const CANNON_HP_OPTIONS = [
   { value: 12, label: "12 hits" },
 ];
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
-export const SOUND_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [
@@ -32,7 +31,6 @@ export const OPTION_NAMES = [
   "Seed",
   "Controls",
   "D-Pad",
-  "Sound",
   "Game Mode",
 ];
 /** Option indices — positions in the OPTION_NAMES / visible-options arrays.
@@ -44,8 +42,7 @@ export const OPT_HAPTICS = 3;
 export const OPT_SEED = 4;
 export const OPT_CONTROLS = 5;
 export const OPT_DPAD = 6;
-export const OPT_SOUND = 7;
-export const OPT_GAME_MODE = 8;
+export const OPT_GAME_MODE = 7;
 /** Hit-test discriminators for options/controls screens.
  *  Shared between render (producer) and runtime (consumer). */
 export const HIT_CLOSE = "close";

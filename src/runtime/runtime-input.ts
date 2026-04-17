@@ -8,7 +8,6 @@ import {
   type InputReceiver,
   isHuman,
   type PlayerController,
-  type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
@@ -152,10 +151,6 @@ interface InputSystemDeps {
     | "setCameraZone"
     | "enableMobileZoom"
   >;
-  readonly sound: Pick<
-    SoundSystem,
-    "pieceRotated" | "piecePlaced" | "pieceFailed" | "cannonPlaced"
-  >;
   readonly haptics: Pick<HapticsSystem, "tap">;
 
   // Input handler registration + pointer dispatch
@@ -229,9 +224,9 @@ interface InputSystem {
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const touch = deps.touchHandles as MutableTouchHandles;
   const runtimeState = deps.runtimeState;
-  const { camera, sound, lobby, selection } = deps;
+  const { camera, lobby, selection } = deps;
 
-  // ── Placement handlers (raw — sound feedback via dispatch callbacks) ──
+  // ── Placement handlers (raw — placed-piece feedback via dispatch) ──
   const placeCannon =
     deps.actions.tryPlaceCannonAndSend ??
     ((
@@ -259,7 +254,6 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     selection,
     placeCannon,
     placePieceRaw,
-    sound,
     deps.actions.fireAndSend,
   );
 
@@ -517,7 +511,6 @@ function buildGameActionDeps(
   selection: InputSystemDeps["selection"],
   placeCannon: PlaceCannonFn,
   placePiece: PlacePieceFn,
-  sound: InputSystemDeps["sound"],
   fireAndSend: InputSystemDeps["actions"]["fireAndSend"],
 ) {
   return {
@@ -527,10 +520,6 @@ function buildGameActionDeps(
     isSelectionReady: selection.isReady,
     tryPlaceCannonAndSend: placeCannon,
     tryPlacePieceAndSend: placePiece,
-    onPieceRotated: sound.pieceRotated,
-    onPiecePlaced: sound.piecePlaced,
-    onPieceFailed: sound.pieceFailed,
-    onCannonPlaced: sound.cannonPlaced,
     fireAndSend,
   };
 }
@@ -685,7 +674,7 @@ function setupFloatingActions(
   touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
-  const { runtimeState, renderer, sound, haptics, withPointerPlayer } = deps;
+  const { runtimeState, renderer, haptics, withPointerPlayer } = deps;
   const {
     tryPlacePieceAndSend: placePieceAction,
     tryPlaceCannonAndSend: placeCannonAction,
@@ -700,10 +689,6 @@ function setupFloatingActions(
         withPointerPlayer,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
-        onPieceRotated: sound.pieceRotated,
-        onPiecePlaced: sound.piecePlaced,
-        onPieceFailed: sound.pieceFailed,
-        onCannonPlaced: sound.cannonPlaced,
         onHapticTap: haptics.tap,
         onDrag: (clientX, clientY) => {
           const state = safeState(runtimeState);

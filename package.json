@@ -16,7 +16,6 @@
     "test:input": "timeout 30 deno test --no-check test/input-lobby.test.ts",
     "test:touch": "timeout 30 deno test --no-check test/input-touch.test.ts",
     "test:haptics": "timeout 30 deno test --no-check test/haptics-observer.test.ts",
-    "test:sound": "timeout 30 deno test --no-check test/sound-observer.test.ts",
     "test:network": "timeout 30 deno test --no-check test/network-observer.test.ts",
     "test:network-vs-local": "timeout 120 deno test --no-check test/network-vs-local.test.ts",
     "record-determinism": "deno run -A scripts/record-determinism.ts",
@@ -32,7 +31,7 @@
     "test:dt-divergence": "deno test --no-check test/dt-divergence.test.ts",
     "find-seed": "deno run -A scripts/find-seed.ts",
     "record-seeds": "deno run -A scripts/record-seeds.ts --parallel 4",
-    "test:all": "npm run test:scenario && npm run test:determinism && npm run test:speed && npm run test:input && npm run test:touch && npm run test:haptics && npm run test:sound && npm run test:network && npm run test:network-vs-local && npm run test:online && npm run test:banner && npm run test:banner:high-tide && npm run test:upgrades && npm run test:e2e:local:quick",
+    "test:all": "npm run test:scenario && npm run test:determinism && npm run test:speed && npm run test:input && npm run test:touch && npm run test:haptics && npm run test:network && npm run test:network-vs-local && npm run test:online && npm run test:banner && npm run test:banner:high-tide && npm run test:upgrades && npm run test:e2e:local:quick",
     "format": "biome format --write src/ server/",
     "format:check": "biome format src/ server/",
     "lint": "biome check src/ server/",
@@ -89,9 +88,5 @@
     "ts-morph": "^27.0.2",
     "typescript": "^5",
     "vite": "^7.3.1"
-  },
-  "dependencies": {
-    "jsfxr": "^1.4.0",
-    "soundfont-player": "^0.12.0"
   }
 }
