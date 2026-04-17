@@ -35,6 +35,10 @@ import {
 } from "../shared/core/game-event-bus.ts";
 import type { MusicObserver } from "../shared/core/system-interfaces.ts";
 import {
+  AUDIO_CONTEXT_RUNNING,
+  AUDIO_CONTEXT_SUSPENDED,
+} from "../shared/platform/platform.ts";
+import {
   xmiContainerBlocks,
   xmidToSmf,
 } from "../shared/platform/xmi-to-smf.ts";
@@ -201,8 +205,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       : undefined;
     const context = synth?.audioContext;
     if (context) {
-      if (nextPaused && context.state === "running") await context.suspend();
-      else if (!nextPaused && context.state === "suspended")
+      if (nextPaused && context.state === AUDIO_CONTEXT_RUNNING)
+        await context.suspend();
+      else if (!nextPaused && context.state === AUDIO_CONTEXT_SUSPENDED)
         await context.resume();
     }
     // Deferred start: if we were asked to play title while paused, kick it off

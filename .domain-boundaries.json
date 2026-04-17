@@ -29,6 +29,7 @@
       "src/shared/platform/phase-music.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
+      "src/shared/platform/sound-rsc.ts",
       "src/shared/platform/utils.ts",
       "src/shared/platform/xmi-to-smf.ts",
       "src/shared/ui/input-action.ts",
@@ -218,6 +219,7 @@
       "src/runtime/music-assets.ts",
       "src/runtime/music-player.ts",
       "src/runtime/music-synth-loader.ts",
+      "src/runtime/sfx-player.ts",
       "src/runtime/sound-modal.ts"
     ],
     "entry": [

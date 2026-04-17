@@ -419,6 +419,14 @@ export interface MusicObserver {
   onInitError?(error: unknown): void;
 }
 
+/** Test observer for the SFX (PCM sample) subsystem. Captures playSample()
+ *  intents so scenario tests can assert that bus events triggered the right
+ *  samples without decoding audio. */
+export interface SfxObserver {
+  onPlaySample?(name: string): void;
+  onMissing?(name: string): void;
+}
+
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 

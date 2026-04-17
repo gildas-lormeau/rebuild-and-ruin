@@ -79,12 +79,14 @@ export function enterLocalLobby(): void {
   void atlasReady.then(() => showLobby());
 }
 
-/** Pre-warm the music sub-system (AudioContext + WASM boot). Must be called
- *  from a user-gesture handler — the home-page "Play" button — otherwise
+/** Pre-warm both audio sub-systems (music WASM + SFX AudioContext). Must be
+ *  called from a user-gesture handler — the home-page "Play" button — otherwise
  *  browsers refuse to resume the AudioContext. No-op if the player hasn't
- *  dropped their Rampart music files into IndexedDB. */
+ *  dropped their Rampart files into IndexedDB yet. */
 export function activateMusic(): Promise<void> {
-  return runtime.music.activate();
+  return Promise.all([runtime.music.activate(), runtime.sfx.activate()]).then(
+    () => {},
+  );
 }
 
 document.addEventListener(GAME_EXIT_EVENT, () => {

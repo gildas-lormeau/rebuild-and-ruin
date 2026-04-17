@@ -85,6 +85,7 @@ import type {
   HapticsObserver,
   InputReceiver,
   MusicObserver,
+  SfxObserver,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import type {
@@ -340,6 +341,7 @@ export interface RuntimeConfig {
   observers?: {
     haptics?: HapticsObserver;
     music?: MusicObserver;
+    sfx?: SfxObserver;
   };
 }
 
@@ -511,6 +513,15 @@ export interface RuntimeMusic {
   startTitle(): Promise<void>;
 }
 
+/** Narrow handle for the SFX sub-system. Parallel to RuntimeMusic so the
+ *  home-page "Play" click can pre-warm the SFX AudioContext at the same
+ *  time as the music synth. */
+export interface RuntimeSfx {
+  /** Create + resume the SFX AudioContext and decode SOUND.RSC. No-op if
+   *  the player hasn't loaded their Rampart files yet. */
+  activate(): Promise<void>;
+}
+
 export interface GameRuntime {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
   runtimeState: RuntimeState;
@@ -524,6 +535,7 @@ export interface GameRuntime {
   lifecycle: RuntimeLifecycle;
   phaseTicks: RuntimePhaseTicks;
   music: RuntimeMusic;
+  sfx: RuntimeSfx;
 
   // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;

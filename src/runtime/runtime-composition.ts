@@ -139,6 +139,7 @@ import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
+import { createSfxSubsystem } from "./sfx-player.ts";
 import { createSoundModal } from "./sound-modal.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
@@ -240,6 +241,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     assetsReady: musicAssetsReady,
     observer: config.observers?.music,
   });
+  // SFX lives in a separate AudioContext from the music synth — Web Audio
+  // natively polyphonic via BufferSource-per-trigger, so fast-firing events
+  // (wallPlaced on each brick) overlap cleanly. Silent until SOUND.RSC is
+  // loaded into IDB; bus subscription is re-established on every new game.
+  const sfx = createSfxSubsystem({
+    getAssets: () => musicAssets,
+    assetsReady: musicAssetsReady,
+    observer: config.observers?.sfx,
+  });
   // The Sound modal (URL field + file pickers) lives in index.html. Headless
   // tests run without DOM — skip construction and pass a no-op opener so the
   // options screen still renders the row (it just won't open anything there).
@@ -273,6 +283,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       pausedByVisibility = false;
     }
     void music.setPaused(hidden);
+    void sfx.setPaused(hidden);
   }
   applyVisibility();
   if (typeof document !== "undefined") {
@@ -531,6 +542,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
               phaseTicks.subscribeBusObservers();
               haptics.subscribeBus(runtimeState.state.bus);
               music.subscribeBus(runtimeState.state.bus);
+              sfx.subscribeBus(runtimeState.state.bus);
             },
           },
           config.getUrlModeOverride,
@@ -835,6 +847,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       subscribeBusObservers: phaseTicks.subscribeBusObservers,
     },
     music: { activate: music.activate, startTitle: music.startTitle },
+    sfx: { activate: sfx.activate },
 
     upgradePick,
     scoreDelta: {

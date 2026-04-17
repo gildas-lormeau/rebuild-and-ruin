@@ -15,11 +15,14 @@ import { unzipSync } from "fflate";
 
 export type XmiFileKey = (typeof XMI_FILE_KEYS)[number];
 
-export type AssetKey = "RAMP.AD" | XmiFileKey;
+export type AssetKey = "RAMP.AD" | "SOUND.RSC" | XmiFileKey;
 
 export interface MusicAssets {
   readonly rampAd: Uint8Array;
   readonly xmi: Readonly<Record<XmiFileKey, Uint8Array>>;
+  /** Optional Sound Blaster PCM sample bundle (37 VOC chunks). Absent when
+   *  the player hasn't loaded SOUND.RSC yet — game plays music but no SFX. */
+  readonly soundRsc?: Uint8Array;
 }
 
 interface StoredFileStatus {
@@ -41,6 +44,7 @@ const STORE_NAME = "assets";
  *  a sanity check in the validator; libadlmidi rejects malformed content later. */
 const EXPECTED_SIZES: Record<AssetKey, { min: number; max: number }> = {
   "RAMP.AD": { min: 2000, max: 6000 },
+  "SOUND.RSC": { min: 50000, max: 2_000_000 },
   "RXMI_TITLE.xmi": { min: 100, max: 80000 },
   "RXMI_BATTLE.xmi": { min: 100, max: 80000 },
   "RXMI_CANNON.xmi": { min: 100, max: 80000 },
@@ -62,6 +66,7 @@ const RSC_XMI_NAME_MAP: Readonly<Record<string, XmiFileKey>> = {
   RXMI_WIN: "RXMI_WINBAT.xmi",
 };
 const RAMP_AD_KEY = "RAMP.AD" as const;
+const SOUND_RSC_KEY = "SOUND.RSC" as const;
 export const DEFAULT_ARCHIVE_URL =
   "https://cors.archive.org/cors/msdos_Rampart_1992/Rampart_1992.zip";
 export const XMI_FILE_KEYS = [
@@ -86,7 +91,10 @@ export async function loadStoredAssets(): Promise<MusicAssets | undefined> {
       if (!bytes) return undefined;
       xmi[key] = bytes;
     }
-    return { rampAd, xmi };
+    // SOUND.RSC is optional — music works without it, SFX doesn't. Players
+    // who loaded files before SOUND.RSC support was added keep their assets.
+    const soundRsc = (await readBytes(database, SOUND_RSC_KEY)) ?? undefined;
+    return { rampAd, xmi, soundRsc };
   } finally {
     database.close();
   }
@@ -192,7 +200,7 @@ async function writeEntries(
     return {
       accepted: [],
       rejected: [{ name: "(all)", reason: "IndexedDB unavailable" }],
-      missing: [RAMP_AD_KEY, ...XMI_FILE_KEYS],
+      missing: [RAMP_AD_KEY, SOUND_RSC_KEY, ...XMI_FILE_KEYS],
     };
   }
   const database = await openDatabase();
@@ -231,7 +239,7 @@ async function writeEntries(
   for (const item of status) {
     if (item.present) presentKeys.add(item.key);
   }
-  for (const key of [RAMP_AD_KEY, ...XMI_FILE_KEYS] as const) {
+  for (const key of [RAMP_AD_KEY, SOUND_RSC_KEY, ...XMI_FILE_KEYS] as const) {
     if (!presentKeys.has(key)) missing.push(key);
   }
   return { accepted, rejected, missing };
@@ -239,7 +247,7 @@ async function writeEntries(
 
 export async function listStoredAssets(): Promise<StoredFileStatus[]> {
   if (typeof indexedDB === "undefined") {
-    return [RAMP_AD_KEY, ...XMI_FILE_KEYS].map((key) => ({
+    return [RAMP_AD_KEY, SOUND_RSC_KEY, ...XMI_FILE_KEYS].map((key) => ({
       key,
       present: false,
       size: null,
@@ -248,7 +256,7 @@ export async function listStoredAssets(): Promise<StoredFileStatus[]> {
   const database = await openDatabase();
   try {
     const result: StoredFileStatus[] = [];
-    for (const key of [RAMP_AD_KEY, ...XMI_FILE_KEYS] as const) {
+    for (const key of [RAMP_AD_KEY, SOUND_RSC_KEY, ...XMI_FILE_KEYS] as const) {
       const bytes = await readBytes(database, key);
       result.push({
         key,
@@ -267,6 +275,7 @@ function matchAssetKey(filename: string): AssetKey | null {
   if (!normalized) return null;
   const lowered = normalized.toLowerCase();
   if (lowered === RAMP_AD_KEY.toLowerCase()) return RAMP_AD_KEY;
+  if (lowered === SOUND_RSC_KEY.toLowerCase()) return SOUND_RSC_KEY;
   for (const key of XMI_FILE_KEYS) {
     if (lowered === key.toLowerCase()) return key;
   }

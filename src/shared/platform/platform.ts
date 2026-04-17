@@ -20,6 +20,10 @@ export const KEY_ESCAPE = "Escape";
 /** CSS cursor values — shared across input and runtime files. */
 export const CURSOR_POINTER = "pointer";
 export const CURSOR_DEFAULT = "default";
+/** Web Audio AudioContext state values — reused by the music and SFX
+ *  subsystems when gating suspend/resume transitions. */
+export const AUDIO_CONTEXT_RUNNING = "running";
+export const AUDIO_CONTEXT_SUSPENDED = "suspended";
 /** Whether running in dev mode (Vite dev server or localhost). */
 export const IS_DEV: boolean =
   // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
