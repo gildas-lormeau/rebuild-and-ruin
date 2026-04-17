@@ -441,6 +441,8 @@ export type SoundReason =
   | "drumsStart"
   | "drumsQuiet"
   | "drumsStop"
+  | "startPhaseMusic"
+  | "stopPhaseMusic"
   | "reset"
   | "battle:cannonFired"
   | "battle:wallDestroyed"
@@ -493,6 +495,16 @@ export interface SoundSystem {
   drumsStart: () => void;
   drumsQuiet: () => void;
   drumsStop: () => void;
+
+  /** Start looping phase music from an in-memory MIDI blob.
+   *  Stops any currently playing music first. `volumeScale` compensates
+   *  for MusyngKite instruments that are unusually loud/quiet. */
+  startPhaseMusic: (
+    midi: Uint8Array,
+    opts?: { loop?: boolean; volumeScale?: number },
+  ) => void;
+  /** Stop the current phase music immediately. */
+  stopPhaseMusic: () => void;
 
   /** Stop all playing audio and reset internal state (rematch). */
   reset: () => void;

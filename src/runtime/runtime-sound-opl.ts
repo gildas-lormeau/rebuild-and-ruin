@@ -30,8 +30,11 @@ const SEMITONES_PER_OCTAVE = 12;
 const MIDI_VELOCITY_MAX = 127;
 /** TL register step in dB (OPL2 spec). */
 const TL_DB_PER_STEP = 0.75;
-/** Carrier output scale so overlapping notes don't clip. */
-const MASTER_SCALE = 0.4;
+/** Carrier output scale — tuned so 2-voice fanfare chords sit ~level
+ *  with the jsfxr SFX layer (piece-placed, cannon-fired) which peaks
+ *  around 0.25-0.3. Each voice peaks at MASTER_SCALE × velocity/127,
+ *  so two voices at max velocity hit ~0.16 peak. */
+const MASTER_SCALE = 0.08;
 /** Modulation index base — higher = more FM sidebands. */
 const MOD_INDEX_BASE = 8;
 /** Mod-index falloff per TL attenuation step. */
@@ -69,7 +72,7 @@ export function playOplScore(
 }
 
 /** Schedule a single OPL-synthesized note on the given audio context. */
-function playOplNote(
+export function playOplNote(
   ctx: AudioContext,
   patch: OplPatch,
   freq: number,

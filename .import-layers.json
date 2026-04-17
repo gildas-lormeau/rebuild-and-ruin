@@ -21,8 +21,10 @@
       "src/shared/core/upgrade-defs.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/opl2.ts",
+      "src/shared/platform/phase-music.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",
+      "src/shared/platform/soundfont-player.d.ts",
       "src/shared/platform/utils.ts",
       "src/shared/ui/input-action.ts",
       "src/shared/ui/settings-defs.ts",
@@ -52,6 +54,7 @@
     "tier": "types",
     "files": [
       "src/render/render-ui-theme.ts",
+      "src/runtime/runtime-sound-midi.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
       "src/shared/ui/player-config.ts"

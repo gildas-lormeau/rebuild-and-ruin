@@ -26,5 +26,5 @@
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["server", "scripts", "test"]
+  "exclude": ["server", "scripts", "test", "dist"]
 }

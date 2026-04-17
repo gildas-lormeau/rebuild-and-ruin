@@ -28,7 +28,11 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
-import type { GameEventBus } from "../shared/core/game-event-bus.ts";
+import {
+  GAME_EVENT,
+  type GameEventBus,
+  type LifecycleEvent,
+} from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   type CannonPhantomPayload,
@@ -49,6 +53,7 @@ import {
   type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { PHASE_MUSIC_MIDI } from "../shared/platform/phase-music.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -183,6 +188,29 @@ export interface PhaseTicksSystem {
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
 );
+/** Inline MIDI per game phase. `volumeScale` compensates for per-instrument
+ *  loudness differences in MusyngKite (cello is ~4× louder than music_box).
+ *  Phases missing from the map get silence. Battle is a one-shot Jaws
+ *  stinger — plays once at phase start, silence after. */
+const PHASE_MUSIC: Partial<
+  Record<Phase, { midi: Uint8Array; loop: boolean; volumeScale: number }>
+> = {
+  [Phase.WALL_BUILD]: {
+    midi: PHASE_MUSIC_MIDI.build,
+    loop: true,
+    volumeScale: 2.5,
+  },
+  [Phase.CANNON_PLACE]: {
+    midi: PHASE_MUSIC_MIDI.cannon,
+    loop: true,
+    volumeScale: 1.0,
+  },
+  [Phase.BATTLE]: {
+    midi: PHASE_MUSIC_MIDI.battle,
+    loop: false,
+    volumeScale: 0.4,
+  },
+};
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -204,12 +232,30 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (subscribedBus === bus) return;
     subscribedBus = bus;
     bus.onAny((type, event) => {
-      if (!BATTLE_EVENT_TYPES.has(type)) return;
-      const pov = runtimeState.frameMeta.povPlayerId;
-      const evt = event as BattleEvent;
-      deps.sound.battleEvents([evt], pov);
-      deps.haptics.battleEvents([evt], pov);
-      accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
+      if (BATTLE_EVENT_TYPES.has(type)) {
+        const pov = runtimeState.frameMeta.povPlayerId;
+        const evt = event as BattleEvent;
+        deps.sound.battleEvents([evt], pov);
+        deps.haptics.battleEvents([evt], pov);
+        accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
+      } else if (type === GAME_EVENT.PHASE_END) {
+        // Stop outgoing music just before the banner's whoosh. Runs
+        // during setPhase() → before runtime-banner schedules its
+        // transition animation and sfx.
+        deps.sound.stopPhaseMusic();
+      } else if (type === GAME_EVENT.BANNER_END) {
+        // Start the new phase's music only after the banner finishes
+        // animating. The whoosh plays over silence, then music fades
+        // in on bannerEnd — closer to how the DOS game sequenced audio.
+        const { phase } = event as LifecycleEvent & { type: "bannerEnd" };
+        const entry = PHASE_MUSIC[phase];
+        if (entry) {
+          deps.sound.startPhaseMusic(entry.midi, {
+            loop: entry.loop,
+            volumeScale: entry.volumeScale,
+          });
+        }
+      }
     });
   }
 

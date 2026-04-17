@@ -32,6 +32,7 @@
         "npm:knip@6.0.3",
         "npm:madge@8.0.0",
         "npm:playwright@^1.58.2",
+        "npm:soundfont-player@0.12",
         "npm:ts-morph@^27.0.2",
         "npm:typescript@5",
         "npm:vite@^7.3.1"

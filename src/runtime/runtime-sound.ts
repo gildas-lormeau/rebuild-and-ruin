@@ -35,6 +35,10 @@ import type {
   SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import { FANFARE_PATCH, FANFARE_SCORES } from "../shared/platform/opl2.ts";
+import {
+  createMidiMusicPlayer,
+  type MidiMusicPlayer,
+} from "./runtime-sound-midi.ts";
 import { playOplScore } from "./runtime-sound-opl.ts";
 
 /** Construction-time deps for the sound sub-system. `observer` is the
@@ -57,6 +61,10 @@ const WAVE_SAWTOOTH = 1;
 const WAVE_NOISE = 3;
 /** Volume scale when sound is set to "phase changes only" (half volume). */
 const PHASE_ONLY_VOL = 0.5;
+/** Global multiplier for jsfxr one-shot SFX (piecePlaced, cannonPlaced,
+ *  phaseStart, lifeLost, etc.). Sits them under the MIDI music + fanfare
+ *  layers instead of on top. */
+const SFX_MASTER_VOLUME = 0.5;
 const RATE = 44100;
 const SFX_DEFS = {
   // Battle
@@ -298,6 +306,14 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
   let drumNodes: StoppableNode[] = [];
   let drumGainNode: GainNode | undefined;
 
+  // MIDI phase-music player (lazy — only instantiated when first needed so
+  // the soundfont-player deps stay out of headless test bundles).
+  let midiPlayer: MidiMusicPlayer | undefined;
+  function getMidiPlayer(): MidiMusicPlayer {
+    if (!midiPlayer) midiPlayer = createMidiMusicPlayer(getCtx);
+    return midiPlayer;
+  }
+
   // ── Internal helpers ───────────────────────────────────────────────
 
   function getCtx(): AudioContext {
@@ -343,7 +359,9 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
     if (now - last < COOLDOWN_MS) return;
     lastPlayTime.set(key, now);
     const audio = getPooledAudio(key);
-    audio.volume = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
+    audio.volume =
+      SFX_MASTER_VOLUME *
+      (soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1);
     audio.play().catch(() => {});
   }
 
@@ -761,9 +779,23 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
       drumsStopInternal();
     },
 
+    startPhaseMusic(url, opts) {
+      notifyPlayed("startPhaseMusic");
+      if (soundLevel < SOUND_PHASE_ONLY) return;
+      getMidiPlayer()
+        .startPhaseMusic(url, opts)
+        .catch(() => {});
+    },
+
+    stopPhaseMusic() {
+      notifyPlayed("stopPhaseMusic");
+      midiPlayer?.stopPhaseMusic();
+    },
+
     reset() {
       notifyPlayed("reset");
       drumsStopInternal();
+      midiPlayer?.stopPhaseMusic();
       lastPlayTime.clear();
       audioPool.clear();
       activeBooms = 0;

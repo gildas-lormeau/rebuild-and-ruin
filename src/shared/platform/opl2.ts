@@ -173,7 +173,7 @@ export const FANFARE_SCORES: readonly OplScore[] = [
  *   [8]    regC0 feedback/connection
  *   [9..13] op2 (carrier): regs 20, 40, 60, 80, E0
  */
-function decodeOplPatch(bytes: Uint8Array): OplPatch {
+export function decodeOplPatch(bytes: Uint8Array): OplPatch {
   const size = bytes[0]! | (bytes[1]! << 8);
   if (size !== OPL_INSTRUMENT_SIZE) {
     throw new Error(`unsupported OPL patch size ${size}`);
