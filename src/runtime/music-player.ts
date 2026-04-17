@@ -33,6 +33,7 @@ import {
   type GameEventBus,
   type GameEventHandler,
 } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { MusicObserver } from "../shared/core/system-interfaces.ts";
 import {
@@ -93,6 +94,13 @@ const FANFARE_TRACK = "RXMI_TETRIS.xmi";
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
 const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
+const CANNON_BG_TRACK = "RXMI_CANNON.xmi";
+const CANNON_BG_SONG_INDEX = 0;
+// RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
+// the original assets. Boost the per-synth gain so cannon-phase bg matches
+// the perceived loudness of fanfares and title music.
+const CANNON_BG_VOLUME = 3.5;
+const STOP_REASON_PHASE = "phase" as const;
 
 export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let synthPromise: Promise<SynthHandle> | undefined;
@@ -102,8 +110,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   // init on first request per slot; stored by index to match
   // FANFARE_SONG_BY_SLOT.
   const fanfareSynths = new Map<number, Promise<SynthHandle | undefined>>();
+  // Cannon-phase background music. One dedicated synth so it doesn't fight
+  // the title synth (still loaded but stopped by the time cannon phase hits)
+  // or the fanfare pool (can overlap if enclosures happen mid-cannon-phase).
+  let cannonBgSynth: Promise<SynthHandle | undefined> | undefined;
   let boundBus: GameEventBus | undefined;
-  let boundHandler: GameEventHandler<"castlePlaced"> | undefined;
+  let boundCastleHandler: GameEventHandler<"castlePlaced"> | undefined;
+  let boundBannerHandler: GameEventHandler<"bannerStart"> | undefined;
   // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
   // is the actual synth state. `paused` means the composition told us the
   // host tab is hidden / externally quieted — we honor wantsTitle but defer
@@ -230,6 +243,67 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
   }
 
+  function ensureCannonBgSynth(): Promise<SynthHandle | undefined> {
+    if (cannonBgSynth) return cannonBgSynth;
+    cannonBgSynth = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const synth = await loader.loadSynth(assets);
+      const blocks = xmiContainerBlocks(assets.xmi[CANNON_BG_TRACK]);
+      const block = blocks[CANNON_BG_SONG_INDEX]?.block;
+      if (!block) {
+        console.warn(`[music] cannon bg song missing in CANNON.xmi`);
+        return undefined;
+      }
+      const smf = xmidToSmf(block);
+      if (!smf) {
+        console.warn(`[music] cannon bg song has no EVNT chunk`);
+        return undefined;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      // Cannon phase runs ~15 s but the XMI track is shorter; loop so the
+      // music covers the whole placement window until BATTLE banner stops it.
+      synth.setLoopEnabled(true);
+      synth.setVolume(CANNON_BG_VOLUME);
+      return synth;
+    })().catch((error) => {
+      console.error("[music] cannon bg synth init failed:", error);
+      cannonBgSynth = undefined;
+      return undefined;
+    });
+    return cannonBgSynth;
+  }
+
+  async function playCannonBg(): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureCannonBgSynth();
+    if (!synth || paused) return;
+    try {
+      // stop() then play() rewinds so each round's cannon phase starts the
+      // loop from the top instead of resuming mid-track from a prior round.
+      await synth.stop();
+      await synth.play();
+      deps.observer?.onPlay?.(CANNON_BG_TRACK);
+    } catch (error) {
+      console.error("[music] cannon bg playback failed:", error);
+    }
+  }
+
+  async function stopCannonBg(
+    reason: "phase" | "rematch" | "dispose",
+  ): Promise<void> {
+    if (!cannonBgSynth) return;
+    try {
+      const synth = await cannonBgSynth;
+      await synth?.stop();
+      deps.observer?.onStop?.(reason);
+    } catch {
+      // synth failed to init or is already gone — nothing to stop
+    }
+  }
+
   async function stopPlayback(
     reason: "phase" | "rematch" | "dispose",
   ): Promise<void> {
@@ -246,10 +320,15 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   }
 
   function unbindCurrentBus(): void {
-    if (boundBus && boundHandler)
-      boundBus.off(GAME_EVENT.CASTLE_PLACED, boundHandler);
+    if (boundBus) {
+      if (boundCastleHandler)
+        boundBus.off(GAME_EVENT.CASTLE_PLACED, boundCastleHandler);
+      if (boundBannerHandler)
+        boundBus.off(GAME_EVENT.BANNER_START, boundBannerHandler);
+    }
     boundBus = undefined;
-    boundHandler = undefined;
+    boundCastleHandler = undefined;
+    boundBannerHandler = undefined;
   }
 
   function subscribeBus(bus: GameEventBus): void {
@@ -258,12 +337,22 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // Stop the title track the moment any player confirms their starting
     // castle. Ignore `isReselect` — after a mid-game castle reselect the
     // title isn't playing anyway.
-    const handler: GameEventHandler<"castlePlaced"> = (event) => {
-      if (!event.isReselect) void stopPlayback("phase");
+    const castleHandler: GameEventHandler<"castlePlaced"> = (event) => {
+      if (!event.isReselect) void stopPlayback(STOP_REASON_PHASE);
     };
-    bus.on(GAME_EVENT.CASTLE_PLACED, handler);
+    // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
+    // sweeping and stops when the BATTLE banner takes over. The handler
+    // fires every round, so stop+play rewinds the loop each cycle.
+    const bannerHandler: GameEventHandler<"bannerStart"> = (event) => {
+      if (event.phase === Phase.CANNON_PLACE) void playCannonBg();
+      else if (event.phase === Phase.BATTLE)
+        void stopCannonBg(STOP_REASON_PHASE);
+    };
+    bus.on(GAME_EVENT.CASTLE_PLACED, castleHandler);
+    bus.on(GAME_EVENT.BANNER_START, bannerHandler);
     boundBus = bus;
-    boundHandler = handler;
+    boundCastleHandler = castleHandler;
+    boundBannerHandler = bannerHandler;
   }
 
   async function activate(): Promise<void> {
@@ -295,7 +384,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         pending.catch(() => undefined),
       ),
     );
-    for (const synth of [mainSynth, ...fanfareSnapshots]) {
+    const cannonBg = cannonBgSynth
+      ? await cannonBgSynth.catch(() => undefined)
+      : undefined;
+    for (const synth of [mainSynth, cannonBg, ...fanfareSnapshots]) {
       if (nextPaused) await suspendContext(synth?.audioContext ?? null);
       else await resumeContext(synth?.audioContext ?? null);
     }
@@ -309,6 +401,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   async function dispose(): Promise<void> {
     unbindCurrentBus();
     await stopPlayback("dispose");
+    await stopCannonBg("dispose");
     // Shut down the fanfare synth pool — each owns an AudioContext we
     // must explicitly close, otherwise rematches stack new ones on top
     // (browsers cap the total and will refuse new contexts eventually).
@@ -319,12 +412,18 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       await synth.audioContext?.close().catch(() => {});
     }
     fanfareSynths.clear();
+    // Same teardown for the cannon bg synth.
+    if (cannonBgSynth) {
+      const synth = await cannonBgSynth.catch(() => undefined);
+      await synth?.audioContext?.close().catch(() => {});
+      cannonBgSynth = undefined;
+    }
   }
 
   return {
     activate,
     startTitle: playTitle,
-    stopTitle: () => stopPlayback("phase"),
+    stopTitle: () => stopPlayback(STOP_REASON_PHASE),
     playFanfare,
     subscribeBus,
     setPaused,

@@ -27,6 +27,10 @@ export interface SynthHandle {
   getMusicTitle(): Promise<string>;
   getMarkerCount(): Promise<number>;
   getSongsCount(): Promise<number>;
+  /** Output-level gain for this synth. 1.0 = neutral, applied between the
+   *  worklet node and the AudioContext destination. Use to level tracks
+   *  whose XMI mix is quieter than others (e.g. RXMI_CANNON vs TETRIS). */
+  setVolume(value: number): void;
 }
 
 export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
@@ -37,5 +41,26 @@ export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
   const buffer = new ArrayBuffer(wopl.byteLength);
   new Uint8Array(buffer).set(wopl);
   await synth.loadBankData(buffer);
-  return synth;
+
+  // Insert a GainNode between the worklet and the destination so callers
+  // can trim per-track volume. Transparent at value=1.0. The nuked profile's
+  // AdlMidi re-export doesn't publish types for the inherited `node` field,
+  // so access via a structural cast.
+  const ctx = synth.audioContext;
+  const workletNode = (synth as unknown as { node: AudioWorkletNode | null })
+    .node;
+  let gainNode: GainNode | undefined;
+  if (ctx && workletNode) {
+    gainNode = ctx.createGain();
+    gainNode.gain.value = 1;
+    workletNode.disconnect();
+    workletNode.connect(gainNode);
+    gainNode.connect(ctx.destination);
+  }
+
+  return Object.assign(synth, {
+    setVolume(value: number): void {
+      if (gainNode) gainNode.gain.value = value;
+    },
+  });
 }
