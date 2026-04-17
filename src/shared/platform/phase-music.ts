@@ -3,7 +3,7 @@
  * phase's background track. Human-editable: tweak any `t`, `dur`,
  * `note`, `vel`, or `program` field and the change takes effect
  * on next build. Regenerate from source MIDIs with:
- *   deno run -A scripts/gen-phase-music.ts
+ *   deno run -A tmp/scripts/gen-phase-music.ts
  *
  * Sources (AUTO-GENERATED — do not hand-edit the event arrays if
  * you intend to re-run the generator; it will overwrite them):
@@ -11,6 +11,7 @@
  *   - build: tmp/midi-split/RXMI_TETRIS_song01.mid (169 events, 21392ms)
  *   - cannon: tmp/midi-split/RXMI_CANNON_song01.mid (23 events, 4167ms)
  *   - battle: tmp/midi-split/RXMI_BATTLE_song07.mid (22 events, 7325ms)
+ *   - lifeLost: tmp/midi-split/RXMI_TETRIS_song02.mid (3 events, 3908ms)
  *
  * Event shape:
  *   NoteEvent:    { t: ms, ch: 1-16, note: 0-127, vel: 0-127, dur: ms }
@@ -46,6 +47,7 @@ export const PHASE_MUSIC: {
   readonly build: PhaseMusic;
   readonly cannon: PhaseMusic;
   readonly battle: PhaseMusic;
+  readonly lifeLost: PhaseMusic;
 } = {
   title: {
     durationMs: 32933,
@@ -863,6 +865,14 @@ export const PHASE_MUSIC: {
       { t: 6325, ch: 2, note: 36, vel: 127, dur: 167 },
       { t: 6492, ch: 2, note: 37, vel: 127, dur: 166 },
       { t: 6658, ch: 2, program: 93 },
+    ],
+  },
+  lifeLost: {
+    durationMs: 3908,
+    events: [
+      { t: 0, ch: 2, program: 91 },
+      { t: 17, ch: 2, note: 60, vel: 100, dur: 783 },
+      { t: 875, ch: 2, note: 60, vel: 100, dur: 358 },
     ],
   },
 };

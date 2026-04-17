@@ -35,6 +35,7 @@ import type {
   SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import { FANFARE_PATCH, FANFARE_SCORES } from "../shared/platform/opl2.ts";
+import { PHASE_MUSIC } from "../shared/platform/phase-music.ts";
 import {
   createMidiMusicPlayer,
   type MidiMusicPlayer,
@@ -728,7 +729,10 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
 
     lifeLost() {
       notifyPlayed(REASON_LIFE_LOST);
-      play(REASON_LIFE_LOST, 1);
+      if (soundLevel < SOUND_PHASE_ONLY) return;
+      getMidiPlayer()
+        .startPhaseMusic(PHASE_MUSIC.lifeLost, { loop: false, volumeScale: 1 })
+        .catch(() => {});
     },
     gameOver() {
       notifyPlayed(REASON_GAME_OVER);
