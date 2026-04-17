@@ -95,6 +95,8 @@ import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
+import { loadStoredAssets, type MusicAssets } from "./music-assets.ts";
+import { createMusicSubsystem } from "./music-player.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
@@ -220,6 +222,45 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPovPlayerId: () => runtimeState.frameMeta.povPlayerId,
     observer: config.observers?.haptics,
   });
+  // Music assets are loaded asynchronously from IndexedDB (null until ready / if
+  // the player hasn't dropped Rampart files into the settings dialog). The
+  // subsystem reads the slot live on every `activate()` / `subscribeBus()`, so
+  // files loaded later automatically take effect on the next game.
+  let musicAssets: MusicAssets | undefined;
+  const musicAssetsReady = loadStoredAssets()
+    .then((assets) => {
+      musicAssets = assets;
+    })
+    .catch((error) => {
+      console.error("[music] loadStoredAssets failed:", error);
+    });
+  const music = createMusicSubsystem({
+    getAssets: () => musicAssets,
+    assetsReady: musicAssetsReady,
+    observer: config.observers?.music,
+  });
+  // Pause music (and the game loop) when the tab is backgrounded, resume on
+  // return. rAF throttling already freezes the game on hidden tabs, but music
+  // keeps looping on Web Audio — not acceptable for a single ~30s title track
+  // playing for hours on a stale tab. Paired with the in-tab pause state so
+  // reopening a manually-paused game stays paused. Initial call also covers
+  // the dev hot-reload case of starting in a hidden tab.
+  let pausedByVisibility = false;
+  function applyVisibility(): void {
+    const hidden = typeof document !== "undefined" && document.hidden;
+    if (hidden && !runtimeState.paused) {
+      runtimeState.paused = true;
+      pausedByVisibility = true;
+    } else if (!hidden && pausedByVisibility) {
+      runtimeState.paused = false;
+      pausedByVisibility = false;
+    }
+    void music.setPaused(hidden);
+  }
+  applyVisibility();
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", applyVisibility);
+  }
 
   // Touch handles created early — render, options, and lifecycle read them
   // via closure. Populated once by createInputSystem(), then frozen (see below).
@@ -472,6 +513,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             onStateReady: () => {
               phaseTicks.subscribeBusObservers();
               haptics.subscribeBus(runtimeState.state.bus);
+              music.subscribeBus(runtimeState.state.bus);
             },
           },
           config.getUrlModeOverride,
@@ -773,6 +815,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       beginBattle: phaseTicks.beginBattle,
       subscribeBusObservers: phaseTicks.subscribeBusObservers,
     },
+    music: { activate: music.activate, startTitle: music.startTitle },
 
     upgradePick,
     scoreDelta: {

@@ -23,6 +23,7 @@
       "src/shared/core/types.ts",
       "src/shared/core/phantom-types.ts",
       "src/shared/core/upgrade-defs.ts",
+      "src/shared/platform/ail-to-wopl.ts",
       "src/shared/platform/jsfxr.d.ts",
       "src/shared/platform/opl2.ts",
       "src/shared/platform/phase-music.ts",
@@ -212,7 +213,10 @@
       "src/runtime/runtime-sound.ts",
       "src/runtime/runtime-sound-midi.ts",
       "src/runtime/runtime-sound-opl.ts",
-      "src/runtime/runtime-haptics.ts"
+      "src/runtime/runtime-haptics.ts",
+      "src/runtime/music-assets.ts",
+      "src/runtime/music-player.ts",
+      "src/runtime/music-synth-loader.ts"
     ],
     "entry": [
       "src/entry.ts",

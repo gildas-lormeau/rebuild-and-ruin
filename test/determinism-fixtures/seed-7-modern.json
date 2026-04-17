@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8868,
+  "eventCount": 8871,
   "events": [
     {
       "type": "tick",
@@ -1203,9 +1203,45 @@
       }
     },
     {
+      "type": "castlePlaced",
+      "payload": {
+        "col": 32,
+        "isReselect": false,
+        "playerId": 1,
+        "row": 7
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "castlePlaced",
+      "payload": {
+        "col": 22,
+        "isReselect": false,
+        "playerId": 0,
+        "row": 22
       }
     },
     {
@@ -1299,21 +1335,12 @@
       }
     },
     {
-      "type": "tick",
+      "type": "castlePlaced",
       "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
+        "col": 8,
+        "isReselect": false,
+        "playerId": 2,
+        "row": 7
       }
     },
     {

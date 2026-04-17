@@ -682,3 +682,48 @@ nav.dpad {
   color: var(--color-border);
   font-style: italic;
 }
+
+/* Home-page music section ----------------------------------------------- */
+.home-music {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(200, 160, 64, 0.3);
+  text-align: left;
+}
+
+.home-music h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #c8a040;
+}
+
+.music-hint {
+  margin: 0 0 0.75rem;
+  color: #9a8a78;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.music-hint code {
+  font-size: 0.8rem;
+  color: #d5d9e0;
+}
+
+.home-music-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.music-status {
+  display: block;
+  margin-top: 0.6rem;
+  padding: 0.45rem 0.7rem;
+  background: rgba(20, 24, 32, 0.6);
+  border-left: 3px solid rgba(200, 160, 64, 0.4);
+  border-radius: 2px;
+  font-size: 0.8rem;
+  min-height: 1.4rem;
+  color: #c8d0dd;
+}

@@ -84,6 +84,7 @@ import type {
   ControllerIdentity,
   HapticsObserver,
   InputReceiver,
+  MusicObserver,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import type {
@@ -338,6 +339,7 @@ export interface RuntimeConfig {
    *  this entirely. */
   observers?: {
     haptics?: HapticsObserver;
+    music?: MusicObserver;
   };
 }
 
@@ -496,6 +498,19 @@ export interface RuntimePhaseTicks {
   subscribeBusObservers: () => void;
 }
 
+/** Narrow handle exposed to the app shell so the home-page "Play" button can
+ *  pre-warm audio from within a user-gesture handler, and the lobby entry can
+ *  start the title track before any game bus exists. */
+export interface RuntimeMusic {
+  /** Kick off WASM + AudioContext init inside the click handler, before the
+   *  subsystem is bound to a bus. No-op if Rampart files aren't in IDB yet. */
+  activate(): Promise<void>;
+  /** Start the title track. Called from `enterLocalLobby` so music covers the
+   *  pre-game lobby screen (the bus-based stop-on-WALL_BUILD subscription
+   *  happens separately inside the runtime when a game starts). */
+  startTitle(): Promise<void>;
+}
+
 export interface GameRuntime {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
   runtimeState: RuntimeState;
@@ -508,6 +523,7 @@ export interface GameRuntime {
   lobby: RuntimeLobby;
   lifecycle: RuntimeLifecycle;
   phaseTicks: RuntimePhaseTicks;
+  music: RuntimeMusic;
 
   // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;

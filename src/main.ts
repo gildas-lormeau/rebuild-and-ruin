@@ -73,7 +73,18 @@ const runtime = createGameRuntime({
 /** Enter the local lobby. Waits for sprite atlas on first call. */
 export function enterLocalLobby(): void {
   renderer.container.classList.add(GAME_CONTAINER_ACTIVE);
+  // Fire-and-forget: music is optional and should never block the lobby
+  // render. If assets aren't loaded or the synth fails, we play silently.
+  void runtime.music.startTitle();
   void atlasReady.then(() => showLobby());
+}
+
+/** Pre-warm the music sub-system (AudioContext + WASM boot). Must be called
+ *  from a user-gesture handler — the home-page "Play" button — otherwise
+ *  browsers refuse to resume the AudioContext. No-op if the player hasn't
+ *  dropped their Rampart music files into IndexedDB. */
+export function activateMusic(): Promise<void> {
+  return runtime.music.activate();
 }
 
 document.addEventListener(GAME_EXIT_EVENT, () => {

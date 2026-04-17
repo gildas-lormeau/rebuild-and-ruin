@@ -73,6 +73,16 @@ export type LifecycleEvent =
 
 export type EntityEvent =
   | {
+      type: "castlePlaced";
+      playerId: ValidPlayerSlot;
+      row: number;
+      col: number;
+      /** True when a player is re-picking their starting castle after losing
+       *  all enclosing walls — consumers (music) that only care about the
+       *  initial selection can filter on `isReselect=false`. */
+      isReselect: boolean;
+    }
+  | {
       type: "wallPlaced";
       playerId: ValidPlayerSlot;
       tileKeys: readonly number[];
@@ -191,6 +201,7 @@ const LIFECYCLE_EVENT = {
   TICK: "tick",
 } as const;
 const ENTITY_EVENT = {
+  CASTLE_PLACED: "castlePlaced",
   WALL_PLACED: "wallPlaced",
   CANNON_PLACED: "cannonPlaced",
   GRUNT_SPAWN: "gruntSpawn",
