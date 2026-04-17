@@ -8,12 +8,18 @@
  * and cached for re-play. BufferSource per trigger = native polyphony for
  * free (rapid-fire brick hits can overlap).
  *
+ * Two signal pathways:
+ *   1. **Bus-event mappings (`SFX_EVENT_MAP`)** — one-shot cues tied to
+ *      discrete domain events: cannonFired, bannerStart, towerEnclosed, etc.
+ *   2. **Presentational derivation (`tickPresentation`)** — continuous
+ *      signals computed each frame from `GameState`. The snare-roll loop
+ *      is an observation of "we're in the last 6 displayed seconds of a
+ *      timed phase", not a discrete transition, so it lives here rather
+ *      than on the bus. Adding another continuous cue (e.g. "cannon
+ *      charging", "life critically low") = one line in `deriveSfxSignals`.
+ *
  * Observer hook mirrors music/haptics so scenario tests can assert
  * "wallPlaced emitted sample 'clunk1'" without needing an AudioContext.
- *
- * The map from game bus events → sample names lives in `SFX_EVENT_MAP` so
- * tuning the mapping (swap clunk1 → clunk2, assign per-player cues) doesn't
- * touch the bus-subscription code.
  */
 
 import {
@@ -25,6 +31,7 @@ import {
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { SfxObserver } from "../shared/core/system-interfaces.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
   AUDIO_CONTEXT_SUSPENDED,
@@ -44,9 +51,19 @@ interface SfxSubsystem {
   /** Bind to a per-game bus so entity/lifecycle events fire the mapped
    *  sample. Re-binding unsubscribes from the previous bus. */
   subscribeBus(bus: GameEventBus): void;
+  /** Compute continuous presentational signals from the current game
+   *  state and react to transitions since the last call. Called once per
+   *  frame by the runtime after state mutation — pure enough to skip
+   *  when paused / disposed. */
+  tickPresentation(state: GameState): void;
   /** Suspend/resume the AudioContext — wired to `visibilitychange`. */
   setPaused(paused: boolean): Promise<void>;
   dispose(): Promise<void>;
+}
+
+interface SfxSignals {
+  /** We're in the snare-worthy tail of a timed drafting phase. */
+  readonly countdownActive: boolean;
 }
 
 interface SfxSubsystemDeps {
@@ -82,6 +99,21 @@ type SfxEventMap = {
   readonly [K in keyof GameEventMap]?: SfxMapping<K>;
 };
 
+/** Phases whose countdown triggers the snare-roll. Battle's `state.timer`
+ *  is the Ready/Aim/Fire pre-battle gate, not a drafting timer — skipped. */
+const COUNTDOWN_SNARE_PHASES: ReadonlySet<Phase> = new Set([
+  Phase.CASTLE_SELECT,
+  Phase.CASTLE_RESELECT,
+  Phase.WALL_BUILD,
+  Phase.CANNON_PLACE,
+]);
+/** Start-time for the snare-roll loop, expressed as raw `state.timer`
+ *  seconds. Chosen so that 7 full loops of snarerl1 (7 × 960 ms = 6.72 s)
+ *  fit exactly between the trigger and the phase-end — the final loop
+ *  ends the instant "0s" disappears. Display still reads "6s" at the
+ *  trigger (ceil(6.72 - TIMER_DISPLAY_LAG_SEC) = ceil(5.72) = 6), which
+ *  is when the player expects the drum-roll. */
+const COUNTDOWN_SNARE_RAW_SEC = 6.72;
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
@@ -125,8 +157,12 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   const fanfarePlayedThisPhase = new Set<ValidPlayerSlot>();
   // Looping snare-roll source while a timed phase is in its last 6
   // seconds. Single source because the player only ever hears one
-  // countdown at a time.
+  // countdown at a time. Started/stopped on derived-signal transitions,
+  // not on bus events.
   let snareSource: AudioBufferSourceNode | undefined;
+  // Last frame's derived signals — diffed against the next frame to
+  // detect transitions (signal rose / signal fell).
+  let lastSignals: SfxSignals = { countdownActive: false };
   let boundBus: GameEventBus | undefined;
   type EventKey = keyof GameEventMap;
   const boundHandlers: Array<{
@@ -218,8 +254,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
     boundBus = undefined;
     boundHandlers.length = 0;
-    // Rematch / dispose shouldn't leave a snare loop ringing.
+    // Rematch / dispose shouldn't leave a snare loop ringing. Also reset
+    // the derived-signal memory so the next game's first critical frame
+    // registers as a transition, not a continuation.
     stopSnareLoop();
+    lastSignals = { countdownActive: false };
     fanfarePlayedThisPhase.clear();
   }
 
@@ -291,24 +330,17 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       type: GAME_EVENT.TOWER_ENCLOSED,
       handler: enclosedHandler as GameEventHandler<EventKey>,
     });
-    // phaseCountdownCritical / phaseEnd — drive the looping snare-roll
-    // for the "last 6 seconds" of CASTLE_SELECT / WALL_BUILD / etc.
-    const countdownHandler: GameEventHandler<"phaseCountdownCritical"> = () => {
+  }
+
+  function tickPresentation(state: GameState): void {
+    if (disposed || paused) return;
+    const signals = deriveSfxSignals(state);
+    if (signals.countdownActive && !lastSignals.countdownActive) {
       startSnareLoop();
-    };
-    bus.on(GAME_EVENT.PHASE_COUNTDOWN_CRITICAL, countdownHandler);
-    boundHandlers.push({
-      type: GAME_EVENT.PHASE_COUNTDOWN_CRITICAL,
-      handler: countdownHandler as GameEventHandler<EventKey>,
-    });
-    const phaseEndHandler: GameEventHandler<"phaseEnd"> = () => {
+    } else if (!signals.countdownActive && lastSignals.countdownActive) {
       stopSnareLoop();
-    };
-    bus.on(GAME_EVENT.PHASE_END, phaseEndHandler);
-    boundHandlers.push({
-      type: GAME_EVENT.PHASE_END,
-      handler: phaseEndHandler as GameEventHandler<EventKey>,
-    });
+    }
+    lastSignals = signals;
   }
 
   function startSnareLoop(): void {
@@ -368,5 +400,23 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     fanfarePlayedThisPhase.clear();
   }
 
-  return { activate, playSample, subscribeBus, setPaused, dispose };
+  return {
+    activate,
+    playSample,
+    subscribeBus,
+    tickPresentation,
+    setPaused,
+    dispose,
+  };
+}
+
+/** Pure derivation — GameState → presentational signals. No side effects,
+ *  safe to call any time. Add a line here for each new continuous cue. */
+function deriveSfxSignals(state: GameState): SfxSignals {
+  return {
+    countdownActive:
+      COUNTDOWN_SNARE_PHASES.has(state.phase) &&
+      state.timer > 0 &&
+      state.timer <= COUNTDOWN_SNARE_RAW_SEC,
+  };
 }

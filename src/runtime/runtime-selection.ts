@@ -42,7 +42,6 @@ import {
 } from "./runtime-state.ts";
 import {
   ACCUM_SELECT,
-  emitCountdownCriticalIfCrossed,
   isRemotePlayer,
   type MutableAccums,
   resetAccum,
@@ -294,7 +293,6 @@ export function createSelectionSystem(
 
     // Advance announcement / selection timer (blessed mutation site — see MutableAccums)
     const mutAccum = accum as MutableAccums;
-    const prevTimer = state.timer;
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
       mutAccum.selectAnnouncement += dt;
       runtimeState.frame.announcement = BANNER_SELECT;
@@ -303,7 +301,6 @@ export function createSelectionSystem(
       mutAccum.select += dt;
       state.timer = Math.max(0, SELECT_TIMER - accum.select);
     }
-    emitCountdownCriticalIfCrossed(state, prevTimer);
 
     // Non-host watcher: just render
     if (!isHost && !isActivePlayer(myPlayerId)) {

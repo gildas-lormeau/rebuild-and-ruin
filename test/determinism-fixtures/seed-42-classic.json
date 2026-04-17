@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8154,
+  "eventCount": 8152,
   "events": [
     {
       "type": "tick",
@@ -23425,13 +23425,6 @@
       }
     },
     {
-      "type": "phaseCountdownCritical",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -46751,13 +46744,6 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "phaseCountdownCritical",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3
       }
     },
     {

@@ -59,13 +59,6 @@ export type LifecycleEvent =
       phase: Phase;
       round: number;
     }
-  /** Any timed phase's countdown just crossed the "last 6 seconds"
-   *  threshold — CASTLE_SELECT, WALL_BUILD, CANNON_PLACE all fire this
-   *  when `state.timer` drops ≤ 6s (while still > 0). Consumed by the
-   *  SFX layer to start the snare-roll loop. Naturally paired with
-   *  `phaseEnd` (snare stops when the phase exits, timer-zero or
-   *  everyone-confirmed, whichever comes first). */
-  | { type: "phaseCountdownCritical"; phase: Phase; round: number }
   /** Between-rounds score-delta overlay started. Fires when
    *  `scoreDelta.show` arms the delta timer at end of WALL_BUILD; pairs
    *  with `scoreOverlayEnd` when the timer expires. */
@@ -216,7 +209,6 @@ const LIFECYCLE_EVENT = {
   LIFE_LOST_DIALOG_SHOW: "lifeLostDialogShow",
   BANNER_START: "bannerStart",
   BANNER_END: "bannerEnd",
-  PHASE_COUNTDOWN_CRITICAL: "phaseCountdownCritical",
   SCORE_OVERLAY_START: "scoreOverlayStart",
   SCORE_OVERLAY_END: "scoreOverlayEnd",
   TICK: "tick",
