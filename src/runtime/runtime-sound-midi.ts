@@ -4,12 +4,11 @@
  * Takes a PhaseMusic (tempo-resolved event array from
  * shared/platform/phase-music.ts) and schedules each event on the given
  * AudioContext:
- *   - ch10 note-ons  → RAMPART.AD OPL2 snare (via runtime-sound-opl.ts)
+ *   - ch10 note-ons  → RAMPART.AD bank-0 OPL2 patch selected by the
+ *     channel's most recent programChange (each Rampart song picks a
+ *     different melodic patch to carry its percussive line)
  *   - other note-ons → soundfont-player GM instrument looked up by the
  *     channel's most recent programChange
- *
- * All Rampart phase MIDIs only ever hit snare (MIDI note 38) on the
- * drum channel, so the drum path is hard-coded to one OPL2 patch.
  *
  * The entire song is scheduled up-front at start time. stop() cancels
  * any pending voices. Fire-and-forget — no per-frame driver loop.
@@ -18,7 +17,7 @@
 /// <reference path="../shared/platform/soundfont-player.d.ts" />
 
 import Soundfont, { type SoundfontPlayer } from "soundfont-player";
-import { decodeOplPatch, type OplPatch } from "../shared/platform/opl2.ts";
+import { CH10_PATCHES } from "../shared/platform/opl2.ts";
 import type { PhaseMusic } from "../shared/platform/phase-music.ts";
 import { playOplNote } from "./runtime-sound-opl.ts";
 
@@ -57,25 +56,11 @@ const DRUM_CHANNEL = 10;
  *  is conservative — per-phase compensation lives in the volumeScale
  *  arg passed to startPhaseMusic (see runtime-phase-ticks.ts PHASE_MUSIC). */
 const MIDI_MASTER_GAIN = 1;
-/** Snare-hit duration (seconds) for OPL2 drum rendering. */
-const SNARE_HIT_SEC = 0.12;
-/** Velocity scale for drum hits — drums hit on every beat and through
- *  the loud fanfare MASTER_SCALE they dominate the mix. Halve the
- *  perceived velocity so snares sit underneath the melody, not on top. */
-const SNARE_VELOCITY_SCALE = 0.5;
 /** Initial delay from ctx.currentTime so scheduling has headroom. */
 const START_OFFSET_SEC = 0.05;
 /** Lookahead window for loop scheduling (seconds) — schedule a new loop
  *  pass before the previous one runs out so there's no gap. */
 const LOOP_LOOKAHEAD_SEC = 0.5;
-/** RAMPART.AD bank 0x7F / note 38 — fixed-pitch snare patch. 14 bytes
- *  per Miles AIL format. Duplicated from the offset we extracted once
- *  rather than parsing RAMP.AD at runtime. */
-const SNARE_PATCH_BYTES: Uint8Array = new Uint8Array([
-  0x0e, 0x00, 0x3c, 0x2e, 0x00, 0xff, 0x0f, 0x00, 0x0e, 0x00, 0x18, 0xf6, 0x4c,
-  0x00,
-]);
-const SNARE_PATCH: OplPatch = decodeOplPatch(SNARE_PATCH_BYTES);
 /** General MIDI program → soundfont-player instrument name (MusyngKite).
  *  Covers programs actually referenced by Rampart's phase MIDIs; callers
  *  that hit an unmapped program fall back to acoustic_grand_piano. */
@@ -177,16 +162,23 @@ export function createMidiMusicPlayer(
       if ("program" in event) {
         chProgram[event.ch] = event.program;
       } else if (event.ch === DRUM_CHANNEL) {
-        const snareFreq = midiToFreq(SNARE_PATCH.transposition);
-        playOplNote(
-          ctx,
-          SNARE_PATCH,
-          snareFreq,
-          startTime,
-          SNARE_HIT_SEC,
-          event.vel * SNARE_VELOCITY_SCALE * volumeScale,
-          getMaster(ctx),
-        );
+        // Rampart songs use ch10 melodically, not as a GM drum kit: each
+        // song's program change on ch10 selects a distinct RAMP.AD bank-0
+        // patch. Render the note at its actual pitch through straight FM.
+        const patch = CH10_PATCHES[chProgram[event.ch]];
+        if (patch) {
+          const freq = midiToFreq(event.note + patch.transposition);
+          playOplNote(
+            ctx,
+            patch,
+            freq,
+            startTime,
+            event.dur / 1000,
+            event.vel * volumeScale,
+            getMaster(ctx),
+            activeNodes,
+          );
+        }
       } else {
         const inst = instrumentCache.get(chProgram[event.ch]);
         if (inst) {

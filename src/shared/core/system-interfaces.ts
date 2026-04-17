@@ -439,9 +439,6 @@ export type SoundReason =
   | "chargeFanfare"
   | "lifeLost"
   | "gameOver"
-  | "drumsStart"
-  | "drumsQuiet"
-  | "drumsStop"
   | "startPhaseMusic"
   | "stopPhaseMusic"
   | "reset"
@@ -491,11 +488,6 @@ export interface SoundSystem {
   // Life events (level 1+)
   lifeLost: () => void;
   gameOver: () => void;
-
-  // War drums lifecycle
-  drumsStart: () => void;
-  drumsQuiet: () => void;
-  drumsStop: () => void;
 
   /** Start phase music from a pre-parsed song (shared/platform/phase-music.ts).
    *  Stops any currently playing music first. `volumeScale` compensates

@@ -88,6 +88,24 @@ const FANFARE_PATCH_BYTES: Uint8Array = new Uint8Array([
   0x0e, 0x00, 0x00, 0x21, 0x1b, 0x71, 0xa6, 0x00, 0x0e, 0x21, 0x00, 0xa1, 0x96,
   0x00,
 ]);
+/** Bank 0 / program 0 — patch the cannon-phase MIDI selects for its
+ *  "drum" line on ch10. Percussive FM patch, not a GM piano. */
+const CH10_PATCH_0_BYTES: Uint8Array = new Uint8Array([
+  0x0e, 0x00, 0x00, 0x01, 0x4f, 0xf1, 0x50, 0x00, 0x06, 0x01, 0x04, 0xd3, 0x7c,
+  0x00,
+]);
+/** Bank 0 / program 40 — patch the castle-select (title) MIDI selects
+ *  for its "drum" line on ch10. Not a GM violin. */
+const CH10_PATCH_40_BYTES: Uint8Array = new Uint8Array([
+  0x0e, 0x00, 0x00, 0x11, 0x03, 0x82, 0x97, 0x00, 0x08, 0xe4, 0x41, 0xf0, 0xf2,
+  0x00,
+]);
+/** Bank 0 / program 115 — patch the build-phase MIDI selects for its
+ *  "drum" line on ch10. A woodblock-like click. */
+const CH10_PATCH_115_BYTES: Uint8Array = new Uint8Array([
+  0x0e, 0x00, 0x00, 0x06, 0x00, 0xf0, 0xf0, 0x00, 0x0e, 0x00, 0x00, 0xf8, 0xb6,
+  0x00,
+]);
 /** Attack time in ms for AR 0-15 (YM3812 datasheet, KSR=0). */
 export const OPL_ATTACK_MS: readonly number[] = [
   Infinity,
@@ -132,6 +150,16 @@ export const OPL_SUSTAIN_DB: readonly number[] = [
 ];
 /** Pre-decoded fanfare patch (module-load cost is paid once). */
 export const FANFARE_PATCH: OplPatch = decodeOplPatch(FANFARE_PATCH_BYTES);
+/** Per-song ch10 patches keyed by MIDI program number. Rampart's songs
+ *  each select a different RAMP.AD bank-0 patch to carry their "drum"
+ *  line on ch10 — these are melodic patches used percussively, not GM
+ *  percussion. Lookup at playback time replaces the old one-size-fits-all
+ *  snare. */
+export const CH10_PATCHES: Readonly<Record<number, OplPatch>> = {
+  0: decodeOplPatch(CH10_PATCH_0_BYTES),
+  40: decodeOplPatch(CH10_PATCH_40_BYTES),
+  115: decodeOplPatch(CH10_PATCH_115_BYTES),
+};
 /** Fanfare variants indexed by player slot (0 = mid, 1 = high, 2 = low).
  *  Scores extracted from RXMI_TETRIS songs 5/6/7, two-voice harmony. */
 export const FANFARE_SCORES: readonly OplScore[] = [
@@ -173,7 +201,7 @@ export const FANFARE_SCORES: readonly OplScore[] = [
  *   [8]    regC0 feedback/connection
  *   [9..13] op2 (carrier): regs 20, 40, 60, 80, E0
  */
-export function decodeOplPatch(bytes: Uint8Array): OplPatch {
+function decodeOplPatch(bytes: Uint8Array): OplPatch {
   const size = bytes[0]! | (bytes[1]! << 8);
   if (size !== OPL_INSTRUMENT_SIZE) {
     throw new Error(`unsupported OPL patch size ${size}`);

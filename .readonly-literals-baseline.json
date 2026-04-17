@@ -269,6 +269,10 @@
   },
   {
     "type": "number",
+    "key": "240"
+  },
+  {
+    "type": "number",
     "key": "24350"
   },
   {
@@ -278,10 +282,6 @@
   {
     "type": "number",
     "key": "25"
-  },
-  {
-    "type": "number",
-    "key": "250"
   },
   {
     "type": "number",

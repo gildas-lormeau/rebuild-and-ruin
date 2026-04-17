@@ -74,7 +74,9 @@ export function playOplScore(
 /** Schedule a single OPL-synthesized note on the given audio context.
  *  Routes through `destination` if provided (so callers can gate/mute a
  *  group of scheduled notes by disconnecting the gate node), otherwise
- *  straight to ctx.destination. */
+ *  straight to ctx.destination. If `track` is provided, the underlying
+ *  oscillator nodes are pushed into it so callers can stop them early
+ *  (e.g. on phase-music crossfade). */
 export function playOplNote(
   ctx: AudioContext,
   patch: OplPatch,
@@ -83,6 +85,7 @@ export function playOplNote(
   durationSec: number,
   velocity: number,
   destination?: AudioNode,
+  track?: { stop(when?: number): void }[],
 ): void {
   const endTime = startTime + durationSec + RELEASE_TAIL_SEC;
   const noteOffTime = startTime + durationSec;
@@ -118,6 +121,9 @@ export function playOplNote(
   carOsc.start(startTime);
   modOsc.stop(endTime + STOP_PADDING_SEC);
   carOsc.stop(endTime + STOP_PADDING_SEC);
+  if (track) {
+    track.push(modOsc, carOsc);
+  }
 }
 
 function midiToFreq(note: number): number {

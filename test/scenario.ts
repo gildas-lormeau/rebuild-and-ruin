@@ -580,10 +580,8 @@ export function waitForEvent<K extends keyof GameEventMap>(
   } finally {
     sc.bus.off(eventType, handler);
   }
-  // Unreachable: runUntil either succeeded (captured is non-null) or
-  // threw above. Kept as a belt-and-braces invariant check.
-  if (captured === null) throw new Error(`${label}: handler did not capture`);
-  return captured;
+  // runUntil either succeeded (captured is non-null) or threw above.
+  return captured as NonNullable<typeof captured>;
 }
 
 /** Label a narrative beat of a test. If `fn` throws, re-throws with the

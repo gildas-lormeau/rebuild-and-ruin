@@ -27,6 +27,15 @@ export type LifecycleEvent =
       livesRemaining: number;
       round: number;
     }
+  /** Emitted once when the life-lost dialog is about to show. Lets
+   *  observation subsystems (sound) fire a one-shot cue without
+   *  double-triggering on per-player `lifeLost` events. */
+  | {
+      type: "lifeLostDialogShow";
+      needsReselect: readonly ValidPlayerSlot[];
+      eliminated: readonly ValidPlayerSlot[];
+      round: number;
+    }
   /** Phase-transition banner started. Emitted on the first tick AFTER all
    *  banner content has settled, so mid-frame mutations (e.g. the modifier
    *  reveal replacing the battle banner) are captured with final content. */
@@ -166,6 +175,7 @@ const LIFECYCLE_EVENT = {
   GAME_END: "gameEnd",
   PLAYER_ELIMINATED: "playerEliminated",
   LIFE_LOST: "lifeLost",
+  LIFE_LOST_DIALOG_SHOW: "lifeLostDialogShow",
   BANNER_START: "bannerStart",
   BANNER_END: "bannerEnd",
   SCORE_OVERLAY_START: "scoreOverlayStart",

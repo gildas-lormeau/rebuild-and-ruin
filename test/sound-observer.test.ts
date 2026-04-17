@@ -71,7 +71,7 @@ Deno.test(
 );
 
 Deno.test(
-  "sound observer: drumsStart fires when entering selection / battle",
+  "sound observer: startPhaseMusic fires when entering selection / battle",
   async () => {
     const reasons: SoundReason[] = [];
     using sc = await createScenario({
@@ -79,14 +79,11 @@ Deno.test(
       soundObserver: { played: (reason) => reasons.push(reason) },
     });
 
-    // `runtime-selection.ts:180` and `:500` call `sound.drumsStart()`
-    // when the selection phase enters its drumming sub-phases. Driving
-    // to BATTLE crosses both call sites at least once.
     waitForPhase(sc, Phase.BATTLE);
 
     assert(
-      reasons.includes("drumsStart"),
-      `expected drumsStart sound during selection / pre-battle, got reasons: ${reasons.join(",")}`,
+      reasons.includes("startPhaseMusic"),
+      `expected startPhaseMusic sound during selection / pre-battle, got reasons: ${reasons.join(",")}`,
     );
   },
 );

@@ -131,7 +131,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 | Term | Definition |
 |------|-----------|
 | **Viewport** | The visible portion of the map (tile-pixel coordinates). Supports zoom and pan. Auto-zooms to player's zone during gameplay, unzooms at phase end or during overlays. |
-| **Sound System** | Audio feedback: phase transitions, battle events, piece placement, fanfare, war drums. Two levels: phase-only or all sounds. |
+| **Sound System** | Audio feedback: phase transitions, battle events, piece placement, fanfare, background music. Two levels: phase-only or all sounds. |
 | **Haptics System** | Vibration feedback for game events. Two levels: phase changes only or all events. |
 | **Frame Context** | Per-frame identity and state flags: current player, mode, phase, overlay status, camera directives. |
 

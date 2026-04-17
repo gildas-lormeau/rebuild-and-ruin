@@ -214,9 +214,7 @@ function buildWatcherPhaseCtx(
     runtimeState,
     role: ROLE_WATCHER,
     showBanner: runtime.showBanner,
-    snapshotForNextBanner: () => {
-      runtimeState.banner.prevSceneImageData = runtime.captureScene();
-    },
+    snapshotForNextBanner: runtime.snapshotForNextBanner,
     setMode: (mode) => setMode(runtimeState, mode),
     log: (text) => {
       // Watcher logs go through the shared runtime log (not client.devLog);
@@ -255,10 +253,6 @@ function buildWatcherPhaseCtx(
           deps.session.earlyUpgradePickChoices,
         ),
       getDialog: () => runtime.upgradePick.get(),
-    },
-    sound: {
-      drumsStop: runtime.sound.drumsStop,
-      lifeLost: runtime.sound.lifeLost,
     },
     battle: buildWatcherBattleHooks(runtime),
     checkpoint: buildWatcherCheckpointHooks(deps),

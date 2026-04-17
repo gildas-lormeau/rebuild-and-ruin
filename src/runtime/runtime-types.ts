@@ -523,6 +523,9 @@ export interface GameRuntime {
   showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
   /** Capture the current offscreen scene as ImageData for banner prev-scene. */
   captureScene: () => ImageData | undefined;
+  /** Freeze the current scene into `banner.prevSceneImageData` so the next
+   *  banner sweeps over the pre-mutation scene. Wraps `captureScene`. */
+  snapshotForNextBanner: () => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

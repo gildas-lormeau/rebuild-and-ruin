@@ -62,6 +62,7 @@ import type { BuildEndMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -294,11 +295,6 @@ export interface PhaseTransitionCtx {
     readonly clear?: () => void;
   };
 
-  readonly sound: {
-    readonly drumsStop: () => void;
-    readonly lifeLost?: () => void;
-  };
-
   readonly battle: BattleLifecycle;
 
   // ── Host-only hooks ──
@@ -319,9 +315,6 @@ export interface PhaseTransitionCtx {
   /** Clear the camera's castle-build viewport (zoom-out after castle
    *  construction). Host-only. */
   readonly clearCastleBuildViewport?: () => void;
-  /** Quiet the selection drum-roll sound — called when castle construction
-   *  wraps up and the cannons banner starts. */
-  readonly soundDrumsQuiet?: () => void;
   /** Per-local-controller cannon-phase init after `enterCannonPhase`:
    *  `placeCannons(state, maxSlots)` + `cannonCursor` + `startCannonPhase`.
    *  Host-only. The hook re-derives per-player prep from state via
@@ -385,7 +378,6 @@ const CANNON_PLACE_DONE: Transition = {
   from: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
-      ctx.sound.drumsStop();
       ctx.log(`startBattle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset();
       // Snapshot the cannon-placement scene before entering battle —
@@ -591,7 +583,6 @@ const CEASEFIRE: Transition = {
   from: Phase.CANNON_PLACE,
   mutate: {
     host: (ctx) => {
-      ctx.sound.drumsStop();
       ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset?.();
       ctx.snapshotForNextBanner();
@@ -645,7 +636,6 @@ const CASTLE_SELECT_DONE: Transition = {
   from: Phase.CASTLE_SELECT,
   mutate: {
     host: (ctx) => {
-      ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       finalizeCastleConstruction(ctx.state);
       ctx.clearCastleBuildViewport?.();
@@ -682,7 +672,6 @@ const CASTLE_RESELECT_DONE: Transition = {
   from: Phase.CASTLE_RESELECT,
   mutate: {
     host: (ctx) => {
-      ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) + reselect-specific
       // finalize + castle finalize, then enter cannon phase. All under the
@@ -715,7 +704,6 @@ const ADVANCE_TO_CANNON: Transition = {
   from: Phase.WALL_BUILD,
   mutate: {
     host: (ctx) => {
-      ctx.soundDrumsQuiet?.();
       ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) run under the
       // cannons banner reveal, then cannon phase entry.
@@ -1000,7 +988,11 @@ function runLifeLostDialogStep(
     ctx.lifeLost?.resolve();
     return;
   }
-  ctx.sound.lifeLost?.();
+  emitGameEvent(ctx.state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {
+    needsReselect,
+    eliminated,
+    round: ctx.state.round,
+  });
   ctx.lifeLost?.tryShow(needsReselect, eliminated);
 }
 

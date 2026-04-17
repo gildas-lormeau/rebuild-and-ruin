@@ -546,6 +546,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
   // -------------------------------------------------------------------------
 
+  function snapshotForNextBanner(): void {
+    runtimeState.banner.prevSceneImageData = renderer.captureScene();
+  }
+
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
     timing,
@@ -561,9 +565,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    snapshotForNextBanner: () => {
-      runtimeState.banner.prevSceneImageData = renderer.captureScene();
-    },
+    snapshotForNextBanner,
     showBanner,
     lifeLost,
     scoreDelta,
@@ -789,6 +791,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     showBanner,
     captureScene: () => renderer.captureScene(),
+    snapshotForNextBanner,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

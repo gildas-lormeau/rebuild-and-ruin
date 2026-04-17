@@ -59,6 +59,7 @@ import {
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { BANNER_UPGRADE_PICK } from "./banner-messages.ts";
 import type { GameOverReason } from "./runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
@@ -197,6 +198,11 @@ const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
 const PHASE_MUSIC: Partial<
   Record<Phase, { song: PhaseMusic; loop: boolean; volumeScale: number }>
 > = {
+  [Phase.CASTLE_SELECT]: {
+    song: PHASE_MUSIC_SONGS.build,
+    loop: true,
+    volumeScale: 4.0,
+  },
   [Phase.WALL_BUILD]: {
     song: PHASE_MUSIC_SONGS.build,
     loop: true,
@@ -241,6 +247,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         deps.haptics.battleEvents([evt], pov);
         accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
       } else if (type === GAME_EVENT.BANNER_END) {
+        // The upgrade-pick banner's onDone opens a modal dialog —
+        // stay silent through the pick. The next banner (build)
+        // will start its own music.
+        const bannerEvent = event as { text: string };
+        if (bannerEvent.text === BANNER_UPGRADE_PICK) return;
         // After any banner finishes, resume music for whatever phase
         // the game is currently in. Using runtimeState.state.phase
         // (not the banner event's phase field) so sub-banners like
@@ -253,6 +264,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             volumeScale: entry.volumeScale,
           });
         }
+      } else if (type === GAME_EVENT.LIFE_LOST_DIALOG_SHOW) {
+        deps.sound.lifeLost();
       }
     });
   }
@@ -364,11 +377,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,
-      sound: {
-        drumsStop: deps.sound.drumsStop,
-        lifeLost: deps.sound.lifeLost,
-      },
-      soundDrumsQuiet: deps.sound.drumsQuiet,
       battle: {
         setFlights: (flights) => {
           battleAnim.flights = [...flights];

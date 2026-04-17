@@ -27,6 +27,7 @@ import {
   type SoundSystem,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
+import { PHASE_MUSIC } from "../shared/platform/phase-music.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -78,7 +79,7 @@ interface SelectionSystemDeps {
     | "setCastleBuildViewport"
     | "setSelectionViewport"
   >;
-  sound: Pick<SoundSystem, "drumsStart" | "chargeFanfare">;
+  sound: Pick<SoundSystem, "chargeFanfare" | "startPhaseMusic">;
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,
@@ -195,7 +196,10 @@ export function createSelectionSystem(
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
     setMode(runtimeState, Mode.SELECTION);
-    deps.sound.drumsStart();
+    deps.sound.startPhaseMusic(PHASE_MUSIC.build, {
+      loop: true,
+      volumeScale: 4.0,
+    });
     resetFrameTiming(runtimeState, deps.timing.now());
     deps.requestFrame();
   }
@@ -494,7 +498,6 @@ export function createSelectionSystem(
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
       setMode(runtimeState, Mode.SELECTION);
-      deps.sound.drumsStart();
       if (deps.hostAtFrameStart()) {
         deps.sendSelectStart(SELECT_TIMER);
       }

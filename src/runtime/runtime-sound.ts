@@ -1,7 +1,7 @@
 /**
  * Sound effects sub-system — jsfxr for one-shot SFX, Web Audio API for
  * multi-layered sounds (cannon boom, impact, cannonball whistle,
- * charge fanfare, war drums).
+ * charge fanfare).
  *
  * Follows the factory-with-deps pattern used by other runtime sub-systems.
  * Respects the sound setting: 0=off, 1=phase changes only, 2=all.
@@ -49,11 +49,6 @@ interface SoundSystemDeps {
 }
 
 type SfxKey = keyof typeof SFX_DEFS;
-
-/** A Web Audio node that can be scheduled to stop. */
-interface StoppableNode {
-  stop(when?: number): void;
-}
 
 // Wave shapes for jsfxr SFX definitions.
 const WAVE_SQUARE = 0;
@@ -209,12 +204,6 @@ const SFX_DEFS = {
 } as const;
 /** Target gain for exponential ramps that need to reach silence. */
 const GAIN_SILENT = 0.001;
-/** Near-zero gain for exponential ramps (slightly above GAIN_SILENT). */
-const GAIN_NEAR_ZERO = 0.01;
-/** Volume level when drums drop to quiet (cannon phase). */
-const DRUMS_QUIET_LEVEL = 0.75;
-/** Base volume fraction for drum ramp (0 → this during fade-in, then → 1.0). */
-const DRUM_RAMP_BASE = 0.5;
 const COOLDOWN_MS = 60;
 const POOL_SIZE = 3;
 const CANNON_BOOM_VOL = 0.12;
@@ -246,21 +235,10 @@ const WHISTLE_ENEMY_START_HZ = 2500;
 const WHISTLE_ENEMY_END_HZ = 1600;
 const WHISTLE_ATTACK_FRACTION = 0.3;
 const WHISTLE_RELEASE_FRACTION = 0.15;
-const WHISTLE_PEAK_VOL = 0.15;
+const WHISTLE_PEAK_VOL = 0.05;
 const MAX_BOOMS = 4;
 const MAX_WHISTLES = 6;
 const MAX_IMPACTS = 4;
-const DRUM_MAX_DURATION = 60;
-const DRUM_BEAT = 0.5;
-const DRUM_BAR = DRUM_BEAT * 4;
-const DRUM_STROKE_RATE = 10;
-const DRUM_LOW_PITCH = 55;
-const DRUM_HIGH_PITCH = 50;
-const SNARE_WIRE_HZ = 180;
-const DRUM_FADE_IN_SECONDS = 2;
-const DRUM_RAMP_SECONDS = 30;
-const DRUM_FADE_OUT_SECONDS = 0.5;
-const DRUM_DROP_SECONDS = 0.8;
 // Web Audio API type literals
 const SINE: OscillatorType = "sine";
 const LOWPASS: BiquadFilterType = "lowpass";
@@ -302,10 +280,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
   let activeBooms = 0;
   let activeWhistles = 0;
   let activeImpacts = 0;
-
-  // War drums state
-  let drumNodes: StoppableNode[] = [];
-  let drumGainNode: GainNode | undefined;
 
   // MIDI phase-music player (lazy — only instantiated when first needed so
   // the soundfont-player deps stay out of headless test bundles).
@@ -611,31 +585,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
     };
   }
 
-  // ── Drums internal ─────────────────────────────────────────────────
-
-  function drumsStopInternal(): void {
-    if (drumGainNode && audioCtx) {
-      const now = audioCtx.currentTime;
-      drumGainNode.gain.cancelScheduledValues(now);
-      drumGainNode.gain.setValueAtTime(drumGainNode.gain.value, now);
-      drumGainNode.gain.linearRampToValueAtTime(0, now + DRUM_FADE_OUT_SECONDS);
-      // Schedule all nodes to stop at fade-out end (Web Audio timing, no setTimeout)
-      const stopAt = now + DRUM_FADE_OUT_SECONDS + 0.05;
-      for (const node of drumNodes) {
-        try {
-          node.stop(stopAt);
-        } catch {
-          /* already stopped */
-        }
-      }
-      drumNodes = [];
-      drumGainNode = undefined;
-      return;
-    }
-    stopNodes(drumNodes);
-    drumNodes = [];
-  }
-
   // ── Public API ─────────────────────────────────────────────────────
 
   return {
@@ -739,50 +688,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
       play(REASON_GAME_OVER, 1);
     },
 
-    drumsStart() {
-      notifyPlayed("drumsStart");
-      if (soundLevel < SOUND_ALL) return;
-      drumsStopInternal();
-      const audioCtx = getCtx();
-      audioCtx.resume().catch(() => {});
-
-      drumGainNode = audioCtx.createGain();
-      drumGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-      drumGainNode.connect(audioCtx.destination);
-
-      const maxVol = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
-      const t0 = audioCtx.currentTime + 0.05;
-      let time = t0;
-      const end = time + DRUM_MAX_DURATION;
-      while (time < end) {
-        scheduleDrumBar(
-          audioCtx,
-          drumGainNode,
-          time,
-          maxVol * drumVolume(time - t0),
-          drumNodes,
-        );
-        time += DRUM_BAR;
-      }
-    },
-
-    drumsQuiet() {
-      notifyPlayed("drumsQuiet");
-      if (!drumGainNode || !audioCtx) return;
-      const now = audioCtx.currentTime;
-      drumGainNode.gain.cancelScheduledValues(now);
-      drumGainNode.gain.setValueAtTime(drumGainNode.gain.value, now);
-      drumGainNode.gain.linearRampToValueAtTime(
-        DRUMS_QUIET_LEVEL,
-        now + DRUM_DROP_SECONDS,
-      );
-    },
-
-    drumsStop() {
-      notifyPlayed("drumsStop");
-      drumsStopInternal();
-    },
-
     startPhaseMusic(url, opts) {
       notifyPlayed("startPhaseMusic");
       if (soundLevel < SOUND_PHASE_ONLY) return;
@@ -798,7 +703,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
 
     reset() {
       notifyPlayed("reset");
-      drumsStopInternal();
       midiPlayer?.stopPhaseMusic();
       lastPlayTime.clear();
       audioPool.clear();
@@ -807,181 +711,6 @@ export function createSoundSystem(deps: SoundSystemDeps = {}): SoundSystem {
       activeImpacts = 0;
     },
   };
-}
-
-function scheduleDrumBar(
-  audioCtx: AudioContext,
-  dest: AudioNode,
-  time: number,
-  vol: number,
-  nodes: StoppableNode[],
-): void {
-  const j = () => (Math.random() - 0.5) * DRUM_BEAT * 0.16;
-  const volume = (base: number) => base * (0.85 + Math.random() * 0.3);
-  const pitch = (base: number) => base + (Math.random() - 0.5) * 6;
-
-  timpaniHit(
-    audioCtx,
-    dest,
-    time + j(),
-    volume(vol * 0.65),
-    pitch(DRUM_LOW_PITCH),
-    nodes,
-  );
-  timpaniHit(
-    audioCtx,
-    dest,
-    time + DRUM_BEAT + j(),
-    volume(vol * 0.45),
-    pitch(DRUM_HIGH_PITCH),
-    nodes,
-  );
-  timpaniHit(
-    audioCtx,
-    dest,
-    time + DRUM_BEAT * 1.35 + j(),
-    volume(vol * 0.3),
-    pitch(DRUM_HIGH_PITCH),
-    nodes,
-  );
-  timpaniHit(
-    audioCtx,
-    dest,
-    time + DRUM_BEAT * 3 + j(),
-    volume(vol * 0.55),
-    pitch(DRUM_LOW_PITCH),
-    nodes,
-  );
-  scheduleSnareRoll(audioCtx, dest, time, DRUM_BAR, vol * 0.08, nodes);
-}
-
-function timpaniHit(
-  audioCtx: AudioContext,
-  dest: AudioNode,
-  time: number,
-  vol: number,
-  pitch: number,
-  nodes: StoppableNode[],
-): void {
-  const osc = audioCtx.createOscillator();
-  osc.type = SINE;
-  osc.frequency.setValueAtTime(pitch * 1.15, time);
-  osc.frequency.exponentialRampToValueAtTime(pitch, time + 0.08);
-  const osc2 = audioCtx.createOscillator();
-  osc2.type = SINE;
-  osc2.frequency.value = pitch * 1.5;
-  const gain = audioCtx.createGain();
-  gain.gain.setValueAtTime(vol, time);
-  gain.gain.setValueAtTime(vol * 0.7, time + 0.05);
-  gain.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.8);
-  const gain2 = audioCtx.createGain();
-  gain2.gain.setValueAtTime(vol * 0.25, time);
-  gain2.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.4);
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = LOWPASS;
-  filter.frequency.value = 250;
-  filter.Q.value = 0.7;
-  osc.connect(gain).connect(filter).connect(dest);
-  osc2.connect(gain2).connect(filter);
-  osc.start(time);
-  osc.stop(time + 0.8);
-  osc2.start(time);
-  osc2.stop(time + 0.5);
-  nodes.push(osc, osc2);
-
-  const bufLen = Math.ceil(audioCtx.sampleRate * 0.015);
-  const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
-  const noise = audioCtx.createBufferSource();
-  noise.buffer = buf;
-  const nGain = audioCtx.createGain();
-  nGain.gain.setValueAtTime(vol * 0.3, time);
-  nGain.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.015);
-  const nFilter = audioCtx.createBiquadFilter();
-  nFilter.type = LOWPASS;
-  nFilter.frequency.value = 400;
-  noise.connect(nFilter).connect(nGain).connect(dest);
-  noise.start(time);
-  noise.stop(time + 0.02);
-  nodes.push(noise);
-}
-
-function scheduleSnareRoll(
-  audioCtx: AudioContext,
-  dest: AudioNode,
-  time: number,
-  dur: number,
-  vol: number,
-  nodes: StoppableNode[],
-): void {
-  const strokeInterval = 1 / DRUM_STROKE_RATE;
-  const strokeTimes: number[] = [];
-  for (
-    let strokeIndex = 0;
-    strokeIndex <= Math.ceil(dur * DRUM_STROKE_RATE);
-    strokeIndex++
-  ) {
-    const jitter = (Math.random() - 0.5) * strokeInterval * 0.35;
-    strokeTimes.push(strokeIndex * strokeInterval + jitter);
-  }
-
-  const bands = [
-    { freq: 900, qFactor: 0.6, volMul: 1.0 },
-    { freq: 2200, qFactor: 1.0, volMul: 0.5 },
-  ];
-  const bufLen = Math.ceil(audioCtx.sampleRate * dur);
-
-  for (const band of bands) {
-    const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < bufLen; i++) {
-      const tSample = i / audioCtx.sampleRate;
-      let timeSinceStroke = strokeInterval;
-      for (const stroke of strokeTimes) {
-        const delta = tSample - stroke;
-        if (delta >= 0 && delta < timeSinceStroke) timeSinceStroke = delta;
-      }
-      const phase = timeSinceStroke / strokeInterval;
-      const strokeEnv =
-        phase < 0.15 ? 0.7 + Math.random() * 0.3 : 0.3 + 0.3 * (1 - phase);
-      data[i] = (Math.random() * 2 - 1) * strokeEnv;
-    }
-    const noise = audioCtx.createBufferSource();
-    noise.buffer = buf;
-    const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(vol * band.volMul, time);
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = BANDPASS;
-    filter.frequency.value = band.freq;
-    filter.Q.value = band.qFactor;
-    noise.connect(filter).connect(gain).connect(dest);
-    noise.start(time);
-    noise.stop(time + dur);
-    nodes.push(noise);
-  }
-
-  const wireOsc = audioCtx.createOscillator();
-  wireOsc.type = "triangle";
-  wireOsc.frequency.value = SNARE_WIRE_HZ;
-  const wireGain = audioCtx.createGain();
-  wireGain.gain.setValueAtTime(vol * 0.08, time);
-  wireOsc.connect(wireGain).connect(dest);
-  wireOsc.start(time);
-  wireOsc.stop(time + dur);
-  nodes.push(wireOsc);
-}
-
-function drumVolume(elapsed: number): number {
-  if (elapsed < DRUM_FADE_IN_SECONDS) {
-    const time = elapsed / DRUM_FADE_IN_SECONDS;
-    return DRUM_RAMP_BASE * time * time;
-  }
-  const rampElapsed = elapsed - DRUM_FADE_IN_SECONDS;
-  return (
-    DRUM_RAMP_BASE +
-    DRUM_RAMP_BASE * Math.min(1, rampElapsed / DRUM_RAMP_SECONDS)
-  );
 }
 
 function battleEventSound(
@@ -997,14 +726,4 @@ function battleEventSound(
   if (evt.type === BATTLE_MESSAGE.GRUNT_KILLED) return "gruntKilled";
   if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) return "towerKilled";
   return null;
-}
-
-function stopNodes(nodes: readonly StoppableNode[]): void {
-  for (const node of nodes) {
-    try {
-      node.stop();
-    } catch {
-      /* already stopped */
-    }
-  }
 }
