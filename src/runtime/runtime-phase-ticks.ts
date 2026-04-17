@@ -31,7 +31,6 @@ import {
 import {
   GAME_EVENT,
   type GameEventBus,
-  type LifecycleEvent,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
@@ -201,17 +200,17 @@ const PHASE_MUSIC: Partial<
   [Phase.WALL_BUILD]: {
     song: PHASE_MUSIC_SONGS.build,
     loop: true,
-    volumeScale: 2.5,
+    volumeScale: 4.0,
   },
   [Phase.CANNON_PLACE]: {
     song: PHASE_MUSIC_SONGS.cannon,
     loop: true,
-    volumeScale: 1.0,
+    volumeScale: 2.5,
   },
   [Phase.BATTLE]: {
     song: PHASE_MUSIC_SONGS.battle,
     loop: false,
-    volumeScale: 0.4,
+    volumeScale: 1.0,
   },
 };
 
@@ -241,17 +240,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         deps.sound.battleEvents([evt], pov);
         deps.haptics.battleEvents([evt], pov);
         accumulateBattleStats([evt], runtimeState.scoreDisplay.gameStats);
-      } else if (type === GAME_EVENT.PHASE_END) {
-        // Stop outgoing music just before the banner's whoosh. Runs
-        // during setPhase() → before runtime-banner schedules its
-        // transition animation and sfx.
-        deps.sound.stopPhaseMusic();
       } else if (type === GAME_EVENT.BANNER_END) {
-        // Start the new phase's music only after the banner finishes
-        // animating. The whoosh plays over silence, then music fades
-        // in on bannerEnd — closer to how the DOS game sequenced audio.
-        const { phase } = event as LifecycleEvent & { type: "bannerEnd" };
-        const entry = PHASE_MUSIC[phase];
+        // After any banner finishes, resume music for whatever phase
+        // the game is currently in. Using runtimeState.state.phase
+        // (not the banner event's phase field) so sub-banners like
+        // modifier reveals correctly resume the current phase's
+        // music instead of starting something unrelated.
+        const entry = PHASE_MUSIC[runtimeState.state.phase];
         if (entry) {
           deps.sound.startPhaseMusic(entry.song, {
             loop: entry.loop,

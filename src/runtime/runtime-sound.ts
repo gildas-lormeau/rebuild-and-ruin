@@ -65,7 +65,7 @@ const PHASE_ONLY_VOL = 0.5;
 /** Global multiplier for jsfxr one-shot SFX (piecePlaced, cannonPlaced,
  *  phaseStart, lifeLost, etc.). Sits them under the MIDI music + fanfare
  *  layers instead of on top. */
-const SFX_MASTER_VOLUME = 0.5;
+const SFX_MASTER_VOLUME = 0.2;
 const RATE = 44100;
 const SFX_DEFS = {
   // Battle

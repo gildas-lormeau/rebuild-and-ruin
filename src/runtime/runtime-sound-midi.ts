@@ -112,14 +112,22 @@ export function createMidiMusicPlayer(
 ): MidiMusicPlayer {
   const instrumentCache = new Map<number, SoundfontPlayer>();
   let masterGain: GainNode | undefined;
+  let masterConnected = false;
   let activeNodes: ScheduledNode[] = [];
   let playRequestId = 0;
 
+  /** The master gain that both soundfont-player samples and OPL2 drum
+   *  hits feed into. Disconnecting it on stop silences every voice
+   *  that was scheduled ahead of time — including Web Audio oscillators
+   *  we have no direct stop-handle for. */
   function getMaster(ctx: AudioContext): GainNode {
     if (!masterGain) {
       masterGain = ctx.createGain();
       masterGain.gain.value = MIDI_MASTER_GAIN;
+    }
+    if (!masterConnected) {
       masterGain.connect(ctx.destination);
+      masterConnected = true;
     }
     return masterGain;
   }
@@ -148,6 +156,13 @@ export function createMidiMusicPlayer(
       }
     }
     activeNodes = [];
+    // Pre-scheduled OPL2 drum oscillators and any soundfont-player
+    // voices that didn't respond to .stop() are still live in the
+    // graph. Cutting masterGain → destination silences all of them.
+    if (masterGain && masterConnected) {
+      masterGain.disconnect();
+      masterConnected = false;
+    }
   }
 
   function scheduleOnce(
@@ -170,6 +185,7 @@ export function createMidiMusicPlayer(
           startTime,
           SNARE_HIT_SEC,
           event.vel * SNARE_VELOCITY_SCALE * volumeScale,
+          getMaster(ctx),
         );
       } else {
         const inst = instrumentCache.get(chProgram[event.ch]);

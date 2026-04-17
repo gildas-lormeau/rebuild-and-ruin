@@ -34,7 +34,7 @@ const TL_DB_PER_STEP = 0.75;
  *  with the jsfxr SFX layer (piece-placed, cannon-fired) which peaks
  *  around 0.25-0.3. Each voice peaks at MASTER_SCALE × velocity/127,
  *  so two voices at max velocity hit ~0.16 peak. */
-const MASTER_SCALE = 0.08;
+const MASTER_SCALE = 0.05;
 /** Modulation index base — higher = more FM sidebands. */
 const MOD_INDEX_BASE = 8;
 /** Mod-index falloff per TL attenuation step. */
@@ -71,7 +71,10 @@ export function playOplScore(
   }
 }
 
-/** Schedule a single OPL-synthesized note on the given audio context. */
+/** Schedule a single OPL-synthesized note on the given audio context.
+ *  Routes through `destination` if provided (so callers can gate/mute a
+ *  group of scheduled notes by disconnecting the gate node), otherwise
+ *  straight to ctx.destination. */
 export function playOplNote(
   ctx: AudioContext,
   patch: OplPatch,
@@ -79,6 +82,7 @@ export function playOplNote(
   startTime: number,
   durationSec: number,
   velocity: number,
+  destination?: AudioNode,
 ): void {
   const endTime = startTime + durationSec + RELEASE_TAIL_SEC;
   const noteOffTime = startTime + durationSec;
@@ -108,7 +112,7 @@ export function playOplNote(
   const carPeak = tlToGain(patch.op2.totalLevel) * velGain * MASTER_SCALE;
   applyEnvelope(carEnv, patch.op2, carPeak, startTime, noteOffTime, endTime);
 
-  carOsc.connect(carEnv).connect(ctx.destination);
+  carOsc.connect(carEnv).connect(destination ?? ctx.destination);
 
   modOsc.start(startTime);
   carOsc.start(startTime);

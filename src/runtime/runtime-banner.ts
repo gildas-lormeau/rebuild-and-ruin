@@ -23,7 +23,15 @@ interface BannerSystemDeps {
   readonly clearPhaseZoom: () => void;
   readonly log: (msg: string) => void;
   readonly haptics: { phaseChange: () => void };
-  readonly sound: { phaseStart: () => void };
+  readonly sound: {
+    phaseStart: () => void;
+    /** Cuts any playing phase music synchronously so the banner's
+     *  whoosh plays over silence. Running inline here (not via bus
+     *  subscription) avoids the one-tick gap between showBanner and
+     *  BANNER_START where music would otherwise bleed into the
+     *  banner animation. */
+    stopPhaseMusic: () => void;
+  };
   readonly render: () => void;
 }
 
@@ -55,6 +63,10 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
       );
     }
+    // Silence music immediately — before the banner animation even
+    // starts to paint. This is the one call-site that guarantees
+    // "banner ⇒ silence" without racing bus-event timing.
+    sound.stopPhaseMusic();
     showBannerTransition(runtimeState.banner, {
       text,
       subtitle,
