@@ -116,6 +116,18 @@ const BUILD_BG_VOLUME = 1;
 // cross-fade with mirrored ramps.
 const BUILD_BG_FADE_START_SEC = 6.72;
 const BUILD_BG_FADE_DURATION_SEC = 1;
+// Score-overlay bg music — 0-indexed sub-song 4 of RXMI_SCORE.xmi
+// (mapping.txt lists it 1-indexed as "5 -> bg music score"). Loops for
+// the duration of the between-rounds score-delta overlay.
+const SCORE_BG_TRACK = "RXMI_SCORE.xmi";
+const SCORE_BG_SONG_INDEX = 4;
+const SCORE_BG_VOLUME = 1;
+// Life-lost popup one-shot — 0-indexed sub-song 1 of RXMI_TETRIS.xmi
+// (mapping.txt "2 -> life lost music"). No loop: plays once as the
+// dialog appears, finishing naturally during the subsequent reselect.
+const LIFE_LOST_TRACK = "RXMI_TETRIS.xmi";
+const LIFE_LOST_SONG_INDEX = 1;
+const LIFE_LOST_VOLUME = 1;
 const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
@@ -141,10 +153,17 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let buildBgFadeTriggered = false;
   // Previous-tick phase for leave-WALL_BUILD edge detection.
   let buildBgLastPhase: Phase | undefined;
+  // Score-overlay bg (looped, start/stop on scoreOverlayStart/End).
+  let scoreBgSynth: Promise<SynthHandle | undefined> | undefined;
+  // Life-lost popup one-shot (no loop, natural end).
+  let lifeLostSynth: Promise<SynthHandle | undefined> | undefined;
   let boundBus: GameEventBus | undefined;
   let boundCastleHandler: GameEventHandler<"castlePlaced"> | undefined;
   let boundBannerStartHandler: GameEventHandler<"bannerStart"> | undefined;
   let boundBannerEndHandler: GameEventHandler<"bannerEnd"> | undefined;
+  let boundScoreStartHandler: GameEventHandler<"scoreOverlayStart"> | undefined;
+  let boundScoreEndHandler: GameEventHandler<"scoreOverlayEnd"> | undefined;
+  let boundLifeLostHandler: GameEventHandler<"lifeLostDialogShow"> | undefined;
   // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
   // is the actual synth state. `paused` means the composition told us the
   // host tab is hidden / externally quieted — we honor wantsTitle but defer
@@ -398,6 +417,109 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     synth?.fadeTo(0, BUILD_BG_FADE_DURATION_SEC);
   }
 
+  function ensureScoreBgSynth(): Promise<SynthHandle | undefined> {
+    if (scoreBgSynth) return scoreBgSynth;
+    scoreBgSynth = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const synth = await loader.loadSynth(assets);
+      const blocks = xmiContainerBlocks(assets.xmi[SCORE_BG_TRACK]);
+      const block = blocks[SCORE_BG_SONG_INDEX]?.block;
+      if (!block) {
+        console.warn("[music] score bg song missing in SCORE.xmi");
+        return undefined;
+      }
+      const smf = xmidToSmf(block);
+      if (!smf) {
+        console.warn("[music] score bg song has no EVNT chunk");
+        return undefined;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      synth.setLoopEnabled(true);
+      synth.setVolume(SCORE_BG_VOLUME);
+      return synth;
+    })().catch((error) => {
+      console.error("[music] score bg synth init failed:", error);
+      scoreBgSynth = undefined;
+      return undefined;
+    });
+    return scoreBgSynth;
+  }
+
+  async function playScoreBg(): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureScoreBgSynth();
+    if (!synth || paused) return;
+    try {
+      await synth.stop();
+      await synth.play();
+      deps.observer?.onPlay?.(SCORE_BG_TRACK);
+    } catch (error) {
+      console.error("[music] score bg playback failed:", error);
+    }
+  }
+
+  async function stopScoreBg(
+    reason: "phase" | "rematch" | "dispose",
+  ): Promise<void> {
+    if (!scoreBgSynth) return;
+    try {
+      const synth = await scoreBgSynth;
+      await synth?.stop();
+      deps.observer?.onStop?.(reason);
+    } catch {
+      // synth failed to init or is already gone — nothing to stop
+    }
+  }
+
+  function ensureLifeLostSynth(): Promise<SynthHandle | undefined> {
+    if (lifeLostSynth) return lifeLostSynth;
+    lifeLostSynth = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const synth = await loader.loadSynth(assets);
+      const blocks = xmiContainerBlocks(assets.xmi[LIFE_LOST_TRACK]);
+      const block = blocks[LIFE_LOST_SONG_INDEX]?.block;
+      if (!block) {
+        console.warn("[music] life-lost song missing in TETRIS.xmi");
+        return undefined;
+      }
+      const smf = xmidToSmf(block);
+      if (!smf) {
+        console.warn("[music] life-lost song has no EVNT chunk");
+        return undefined;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      // One-shot — no loop. Playback ends naturally; next lifeLost replays
+      // via stop()+play() rewind in playLifeLost.
+      synth.setLoopEnabled(false);
+      synth.setVolume(LIFE_LOST_VOLUME);
+      return synth;
+    })().catch((error) => {
+      console.error("[music] life-lost synth init failed:", error);
+      lifeLostSynth = undefined;
+      return undefined;
+    });
+    return lifeLostSynth;
+  }
+
+  async function playLifeLost(): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureLifeLostSynth();
+    if (!synth || paused) return;
+    try {
+      await synth.stop();
+      await synth.play();
+      deps.observer?.onPlay?.(LIFE_LOST_TRACK);
+    } catch (error) {
+      console.error("[music] life-lost playback failed:", error);
+    }
+  }
+
   function tickPresentation(state: GameState): void {
     const phase = state.phase;
     // Edge: just left WALL_BUILD — hard-stop the synth (safety net in case
@@ -439,11 +561,20 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         boundBus.off(GAME_EVENT.BANNER_START, boundBannerStartHandler);
       if (boundBannerEndHandler)
         boundBus.off(GAME_EVENT.BANNER_END, boundBannerEndHandler);
+      if (boundScoreStartHandler)
+        boundBus.off(GAME_EVENT.SCORE_OVERLAY_START, boundScoreStartHandler);
+      if (boundScoreEndHandler)
+        boundBus.off(GAME_EVENT.SCORE_OVERLAY_END, boundScoreEndHandler);
+      if (boundLifeLostHandler)
+        boundBus.off(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, boundLifeLostHandler);
     }
     boundBus = undefined;
     boundCastleHandler = undefined;
     boundBannerStartHandler = undefined;
     boundBannerEndHandler = undefined;
+    boundScoreStartHandler = undefined;
+    boundScoreEndHandler = undefined;
+    boundLifeLostHandler = undefined;
   }
 
   function subscribeBus(bus: GameEventBus): void {
@@ -469,13 +600,32 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const bannerEndHandler: GameEventHandler<"bannerEnd"> = (event) => {
       if (event.phase === Phase.WALL_BUILD) void playBuildBg();
     };
+    // Between-rounds score-delta overlay: looped bg music for as long as
+    // the overlay is displayed.
+    const scoreStartHandler: GameEventHandler<"scoreOverlayStart"> = () => {
+      void playScoreBg();
+    };
+    const scoreEndHandler: GameEventHandler<"scoreOverlayEnd"> = () => {
+      void stopScoreBg(STOP_REASON_PHASE);
+    };
+    // Life-lost popup: one-shot track. Continues to play naturally into
+    // the reselect phase (no looped bg music runs during reselect).
+    const lifeLostHandler: GameEventHandler<"lifeLostDialogShow"> = () => {
+      void playLifeLost();
+    };
     bus.on(GAME_EVENT.CASTLE_PLACED, castleHandler);
     bus.on(GAME_EVENT.BANNER_START, bannerStartHandler);
     bus.on(GAME_EVENT.BANNER_END, bannerEndHandler);
+    bus.on(GAME_EVENT.SCORE_OVERLAY_START, scoreStartHandler);
+    bus.on(GAME_EVENT.SCORE_OVERLAY_END, scoreEndHandler);
+    bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, lifeLostHandler);
     boundBus = bus;
     boundCastleHandler = castleHandler;
     boundBannerStartHandler = bannerStartHandler;
     boundBannerEndHandler = bannerEndHandler;
+    boundScoreStartHandler = scoreStartHandler;
+    boundScoreEndHandler = scoreEndHandler;
+    boundLifeLostHandler = lifeLostHandler;
   }
 
   async function activate(): Promise<void> {
@@ -513,7 +663,20 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const buildBg = buildBgSynth
       ? await buildBgSynth.catch(() => undefined)
       : undefined;
-    for (const synth of [mainSynth, cannonBg, buildBg, ...fanfareSnapshots]) {
+    const scoreBg = scoreBgSynth
+      ? await scoreBgSynth.catch(() => undefined)
+      : undefined;
+    const lifeLost = lifeLostSynth
+      ? await lifeLostSynth.catch(() => undefined)
+      : undefined;
+    for (const synth of [
+      mainSynth,
+      cannonBg,
+      buildBg,
+      scoreBg,
+      lifeLost,
+      ...fanfareSnapshots,
+    ]) {
       if (nextPaused) await suspendContext(synth?.audioContext ?? null);
       else await resumeContext(synth?.audioContext ?? null);
     }
@@ -529,6 +692,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     await stopPlayback(STOP_REASON_DISPOSE);
     await stopCannonBg(STOP_REASON_DISPOSE);
     await stopBuildBg(STOP_REASON_DISPOSE);
+    await stopScoreBg(STOP_REASON_DISPOSE);
     // Shut down the fanfare synth pool — each owns an AudioContext we
     // must explicitly close, otherwise rematches stack new ones on top
     // (browsers cap the total and will refuse new contexts eventually).
@@ -550,6 +714,19 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       const synth = await buildBgSynth.catch(() => undefined);
       await synth?.audioContext?.close().catch(() => {});
       buildBgSynth = undefined;
+    }
+    // Same teardown for the score bg synth.
+    if (scoreBgSynth) {
+      const synth = await scoreBgSynth.catch(() => undefined);
+      await synth?.audioContext?.close().catch(() => {});
+      scoreBgSynth = undefined;
+    }
+    // Life-lost synth (one-shot, no explicit stop in the normal flow).
+    if (lifeLostSynth) {
+      const synth = await lifeLostSynth.catch(() => undefined);
+      await synth?.stop().catch(() => {});
+      await synth?.audioContext?.close().catch(() => {});
+      lifeLostSynth = undefined;
     }
   }
 

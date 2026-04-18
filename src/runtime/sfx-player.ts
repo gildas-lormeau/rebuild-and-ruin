@@ -129,6 +129,7 @@ const SFX_EVENT_MAP: SfxEventMap = {
   battleAim: { sample: "aim" },
   battleFire: { sample: "fire" },
   battleCease: { sample: "cease" },
+  wallPlaced: { sample: "dblclic" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,
@@ -147,8 +148,6 @@ const SFX_EVENT_MAP: SfxEventMap = {
   // (on first per-player-per-phase) chains the player's fanfare via the
   // BufferSource's onended event, so it stays together in one handler.
   // Unmapped on purpose:
-  //   - wallPlaced: the authentic per-tile brick stinger is an XMI sub-song
-  //     (music-player territory), not a SOUND.RSC sample.
   //   - placecan: tutorial voice line; scoped to the tutorial when we add it.
 };
 
