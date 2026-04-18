@@ -17,7 +17,11 @@ import type {
   PlaceCannonIntent,
 } from "../shared/core/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
-import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
+import type {
+  AiStrategy,
+  CannonPlacement,
+  CannonPlacementContext,
+} from "./ai-strategy.ts";
 
 /** Subset of AiController accessed by cannon-phase logic.
  *  Exported so controller-ai.ts can statically assert AiController implements
@@ -48,7 +52,14 @@ type CannonState =
 
 interface CannonPhase {
   state: CannonState;
-  plannedPlacements: CannonPlacement[];
+  /** Per-phase placement context. `undefined` before init and once the
+   *  strategy reports no more placements available (phase complete). */
+  ctx: CannonPlacementContext | undefined;
+  /** The placement currently being animated (set by THINKING, consumed
+   *  by DWELLING). Separate from `ctx` so the mode/position the cursor
+   *  is heading toward is stable across MODE_SWITCHING → MOVING →
+   *  DWELLING transitions. */
+  currentTarget: CannonPlacement | undefined;
   maxSlots: number;
   displayedMode: CannonMode | undefined;
 }
@@ -69,7 +80,8 @@ export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 export function createCannonPhase(): CannonPhase {
   return {
     state: { step: STEP.IDLE },
-    plannedPlacements: [],
+    ctx: undefined,
+    currentTarget: undefined,
     maxSlots: 0,
     displayedMode: undefined,
   };
@@ -77,22 +89,27 @@ export function createCannonPhase(): CannonPhase {
 
 export function resetCannonPhase(phase: CannonPhase): void {
   phase.state = { step: STEP.IDLE };
-  phase.plannedPlacements = [];
+  phase.ctx = undefined;
+  phase.currentTarget = undefined;
   phase.maxSlots = 0;
+  phase.displayedMode = undefined;
 }
 
-/** Ask the strategy for cannon placements and begin the queue. */
+/** Set up the cannon-phase placement context and enter THINKING. No
+ *  placements happen here — each cannon is decided on the fly during
+ *  the animation loop via `strategy.nextCannonPlacement`. */
 export function initCannon(
   host: CannonHost,
   phase: CannonPhase,
   state: CannonViewState,
   maxSlots: number,
 ): void {
-  phase.plannedPlacements = host.strategy.placeCannons(
+  phase.ctx = host.strategy.initCannonPhase(
     state.players[host.playerId]!,
     maxSlots,
     state,
   );
+  phase.currentTarget = undefined;
   phase.maxSlots = maxSlots;
   phase.displayedMode = undefined;
   phase.state = {
@@ -102,24 +119,46 @@ export function initCannon(
 }
 
 export function isCannonDone(phase: CannonPhase): boolean {
-  return phase.plannedPlacements.length === 0 && phase.state.step === STEP.IDLE;
+  return phase.state.step === STEP.IDLE && phase.ctx === undefined;
 }
 
-/** Place all remaining queued cannons instantly (timer expired). */
+/** Place all remaining cannons instantly (phase timer expired). Drains
+ *  the in-flight target first (if any), then loops `nextCannonPlacement`
+ *  until the strategy returns undefined. */
 export function flushCannon(
+  host: CannonHost,
   phase: CannonPhase,
-  playerId: ValidPlayerSlot,
+  state: CannonViewState,
   executePlaceCannon: (intent: PlaceCannonIntent) => boolean,
 ): void {
-  for (const target of phase.plannedPlacements) {
+  if (phase.currentTarget) {
     executePlaceCannon({
-      playerId,
-      row: target.row,
-      col: target.col,
-      mode: target.mode,
+      playerId: host.playerId,
+      row: phase.currentTarget.row,
+      col: phase.currentTarget.col,
+      mode: phase.currentTarget.mode,
     });
+    phase.currentTarget = undefined;
   }
-  phase.plannedPlacements = [];
+  if (phase.ctx) {
+    const player = state.players[host.playerId]!;
+    while (true) {
+      const target = host.strategy.nextCannonPlacement(
+        player,
+        phase.maxSlots,
+        state,
+        phase.ctx,
+      );
+      if (!target) break;
+      executePlaceCannon({
+        playerId: host.playerId,
+        row: target.row,
+        col: target.col,
+        mode: target.mode,
+      });
+    }
+  }
+  phase.ctx = undefined;
   phase.state = { step: STEP.IDLE };
 }
 
@@ -138,12 +177,24 @@ export function tickCannon(
     case STEP.THINKING: {
       phase.state.timer--;
       if (phase.state.timer > 0) return null;
-      if (phase.plannedPlacements.length === 0) {
+      // Decide the next placement on the fly. `ctx` is cleared when the
+      // strategy returns undefined so `isCannonDone` reads true cleanly.
+      if (!phase.ctx) {
         phase.state = { step: STEP.IDLE };
         return null;
       }
-      // Check if mode switch is needed
-      const target = phase.plannedPlacements[0]!;
+      const target = host.strategy.nextCannonPlacement(
+        player,
+        phase.maxSlots,
+        state,
+        phase.ctx,
+      );
+      if (!target) {
+        phase.ctx = undefined;
+        phase.state = { step: STEP.IDLE };
+        return null;
+      }
+      phase.currentTarget = target;
       if (target.mode !== phase.displayedMode) {
         phase.displayedMode = target.mode;
         phase.state = {
@@ -185,7 +236,7 @@ export function tickCannon(
     case STEP.DWELLING: {
       phase.state.timer--;
       if (phase.state.timer <= 0) {
-        const target = phase.plannedPlacements[0];
+        const target = phase.currentTarget;
         if (!target) {
           phase.state = { step: STEP.IDLE };
           return null;
@@ -196,14 +247,14 @@ export function tickCannon(
           col: target.col,
           mode: target.mode,
         });
-        phase.plannedPlacements.shift();
+        phase.currentTarget = undefined;
         phase.state = {
           step: STEP.THINKING,
           timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
         };
         return null;
       }
-      const target = phase.plannedPlacements[0];
+      const target = phase.currentTarget;
       if (!target) return null;
       return phantomAt(host.playerId, phase, target.row, target.col, true);
     }
@@ -216,7 +267,7 @@ function tickMoving(
   state: CannonViewState,
   player: Player,
 ): CannonPlacementPreview | null {
-  const target = phase.plannedPlacements[0];
+  const target = phase.currentTarget;
   if (!target) return null;
   const targetMode = target.mode;
   if (
@@ -253,7 +304,7 @@ function phantomAt(
   col: number,
   valid: boolean,
 ): CannonPlacementPreview | null {
-  const target = phase.plannedPlacements[0];
+  const target = phase.currentTarget;
   if (!target) return null;
   const targetMode = target.mode;
   return {

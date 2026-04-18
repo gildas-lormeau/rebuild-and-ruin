@@ -121,7 +121,7 @@ export class AiAssistedHumanController
       if (placed) this.senders.sendCannonPlaced(intent);
       return placed;
     };
-    flushCannon(this._cannonPhase, this.playerId, executePlace);
+    flushCannon(this, this._cannonPhase, state, executePlace);
   }
 
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──

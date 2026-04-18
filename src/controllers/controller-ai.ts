@@ -249,7 +249,7 @@ export class AiController extends BaseController implements AiAnimatable {
   flushCannons(state: GameState, maxSlots: number): void {
     const executePlace = (intent: PlaceCannonIntent): boolean =>
       executePlaceCannon(state, intent, maxSlots);
-    flushCannon(this._cannonPhase, this.playerId, executePlace);
+    flushCannon(this, this._cannonPhase, state, executePlace);
   }
 
   // -----------------------------------------------------------------------

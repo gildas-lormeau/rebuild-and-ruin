@@ -12,7 +12,6 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
-import { CannonMode } from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import {
   DIFFICULTY_EASY,
@@ -28,10 +27,7 @@ import type {
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import {
-  brandFreshInterior,
-  type Player,
-} from "../shared/core/player-types.ts";
+import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
   isTowerEnclosed,
@@ -60,7 +56,15 @@ import {
   trackShot,
 } from "./ai-strategy-battle.ts";
 import { pickPlacement } from "./ai-strategy-build.ts";
-import { autoPlaceCannons, autoSelectTower } from "./ai-strategy-cannon.ts";
+import {
+  autoSelectTower,
+  type CannonPlacement,
+  type CannonPlacementContext,
+  createCannonPlacementContext,
+  nextCannonPlacement,
+} from "./ai-strategy-cannon.ts";
+
+export type { CannonPlacement, CannonPlacementContext };
 
 export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 
@@ -68,13 +72,6 @@ export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 export interface BattlePlan {
   chainTargets: TilePos[] | undefined;
   chainType: ChainType;
-}
-
-/** A single cannon placement decision. */
-export interface CannonPlacement {
-  row: number;
-  col: number;
-  mode: CannonMode;
 }
 
 export interface AiStrategy {
@@ -98,12 +95,24 @@ export interface AiStrategy {
   /** Whether home tower was not enclosed at the end of last build phase. */
   readonly homeWasBroken: boolean;
 
-  /** Decide cannon placements inside the player"s territory. */
-  placeCannons(
+  /** Initialize per-phase cannon-placement context — pre-rolls the
+   *  probabilistic super/rampart/balloon decisions so subsequent
+   *  per-cannon queries are deterministic. Called once at phase start. */
+  initCannonPhase(
     player: Player,
     count: number,
     state: CannonViewState,
-  ): CannonPlacement[];
+  ): CannonPlacementContext;
+
+  /** Decide the next single cannon placement. Returns `undefined` when
+   *  the AI has run out of slots or legal positions. Called each time
+   *  the animation loop is ready for the next placement. */
+  nextCannonPlacement(
+    player: Player,
+    count: number,
+    state: CannonViewState,
+    ctx: CannonPlacementContext,
+  ): CannonPlacement | undefined;
 
   /** Plan the battle: pick focus target, decide chain attacks. */
   planBattle(state: BattleViewState, playerId: ValidPlayerSlot): BattlePlan;
@@ -399,32 +408,28 @@ export class DefaultStrategy implements AiStrategy {
   // Cannon placement
   // -----------------------------------------------------------------------
 
-  placeCannons(
+  initCannonPhase(
     player: Player,
     count: number,
-    state: CannonViewState,
-  ): CannonPlacement[] {
-    const planningPlayer: Player = {
-      ...player,
-      ownedTowers: [...player.ownedTowers],
-      walls: new Set(player.walls),
-      interior: brandFreshInterior(new Set(player.interior)),
-      cannons: [...player.cannons],
-    };
-    const placed = autoPlaceCannons(
-      planningPlayer,
+    _state: CannonViewState,
+  ): CannonPlacementContext {
+    return createCannonPlacementContext(
+      player,
       count,
-      state,
       this.rng,
       this.aggressiveness,
       this.defensiveness,
       this.spatialAwareness,
     );
-    return placed.map((c) => ({
-      row: c.row,
-      col: c.col,
-      mode: c.mode,
-    }));
+  }
+
+  nextCannonPlacement(
+    player: Player,
+    count: number,
+    state: CannonViewState,
+    ctx: CannonPlacementContext,
+  ): CannonPlacement | undefined {
+    return nextCannonPlacement(player, count, state, this.rng, ctx);
   }
 
   // -----------------------------------------------------------------------

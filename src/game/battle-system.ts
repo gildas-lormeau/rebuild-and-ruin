@@ -31,6 +31,7 @@ import {
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -94,6 +95,16 @@ interface BattleCombatResult {
   newImpacts: TilePos[];
 }
 
+/** Pairs each announcement text with its matching bus-event type so
+ *  `setBattleCountdown` can emit without re-deriving the type from the
+ *  text. Instances are compared by identity, which also means the
+ *  string literals here are the single source of truth — no copies
+ *  scattered across the file. */
+interface AnnouncementStep {
+  readonly text: string;
+  readonly eventType: "battleReady" | "battleAim" | "battleFire";
+}
+
 /** Cannon barrel rotation speed: 3π rad/s ≈ 540°/s.
  *  Tuned for snappy visual feedback — cannons should visually track
  *  the crosshair with minimal lag but not feel instant. */
@@ -102,29 +113,49 @@ const CANNON_ROTATE_SPEED = Math.PI * 3;
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
+const READY_STEP: AnnouncementStep = {
+  text: "Ready",
+  eventType: GAME_EVENT.BATTLE_READY,
+};
+const AIM_STEP: AnnouncementStep = {
+  text: "Aim",
+  eventType: GAME_EVENT.BATTLE_AIM,
+};
+const FIRE_STEP: AnnouncementStep = {
+  text: "Fire!",
+  eventType: GAME_EVENT.BATTLE_FIRE,
+};
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
 const CANNON_NOT_FOUND = -1;
 
-/** Decrement the battle countdown timer and return announcement text.
+/** Decrement the battle countdown timer, emit a transition event on each
+ *  Ready/Aim/Fire threshold crossing, and return the announcement text.
  *  Pure game logic — no rendering or crosshair sync. */
 export function advanceBattleCountdown(
   state: GameState,
   dt: number,
 ): string | undefined {
-  state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  return getCountdownAnnouncement(state.battleCountdown);
+  return setBattleCountdown(state, state.battleCountdown - dt);
 }
 
-/** Map battleCountdown to the corresponding announcement text. */
-export function getCountdownAnnouncement(
-  battleCountdown: number,
+/** Set `state.battleCountdown` directly (clamped to ≥ 0) and emit the
+ *  announcement transition event on a threshold crossing. Both the host
+ *  tick (advanceBattleCountdown) and the watcher (timing-derived recompute)
+ *  flow through this so the Ready/Aim/Fire voice-line SFX fire on every
+ *  client regardless of who owns the simulation. */
+export function setBattleCountdown(
+  state: GameState,
+  next: number,
 ): string | undefined {
-  if (battleCountdown > COUNTDOWN_READY_SEC) return "Ready";
-  if (battleCountdown > COUNTDOWN_AIM_SEC) return "Aim";
-  if (battleCountdown > 0) return "Fire!";
-  return undefined;
+  const prev = getAnnouncementStep(state.battleCountdown);
+  state.battleCountdown = Math.max(0, next);
+  const current = getAnnouncementStep(state.battleCountdown);
+  if (current && current !== prev) {
+    emitGameEvent(state.bus, current.eventType, { round: state.round });
+  }
+  return current?.text;
 }
 
 /** Whether a player has a cannon ready to fire or a cannonball in flight. */
@@ -408,6 +439,19 @@ export function applyTowerKilled(
   event: TowerKilledMessage,
 ): void {
   state.towerAlive[event.towerIdx] = false;
+}
+
+/** Map battleCountdown to the corresponding announcement step (text +
+ *  matching bus-event type). Returns a stable const object per step so
+ *  callers can compare by identity instead of re-running the threshold
+ *  ladder. */
+function getAnnouncementStep(
+  battleCountdown: number,
+): AnnouncementStep | undefined {
+  if (battleCountdown > COUNTDOWN_READY_SEC) return READY_STEP;
+  if (battleCountdown > COUNTDOWN_AIM_SEC) return AIM_STEP;
+  if (battleCountdown > 0) return FIRE_STEP;
+  return undefined;
 }
 
 /**

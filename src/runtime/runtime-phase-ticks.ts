@@ -8,6 +8,7 @@ import {
   nextReadyCombined,
   prepareControllerCannonPhase,
   resetCannonFacings,
+  setBattleCountdown,
   shouldSkipBattle,
   tickGrunts,
 } from "../game/index.ts";
@@ -416,7 +417,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         continue;
       ctrl.initBattleState(runtimeState.state);
     }
-    runtimeState.state.battleCountdown = BATTLE_COUNTDOWN;
+    // Go through setBattleCountdown so the jump from 0 → BATTLE_COUNTDOWN
+    // emits the initial `battleReady` bus event — without this the voice
+    // line for "Ready" never fires (the tick-driven transitions only
+    // catch Ready→Aim and Aim→Fire crossings during countdown decay).
+    setBattleCountdown(runtimeState.state, BATTLE_COUNTDOWN);
     resetAccum(runtimeState.accum, ACCUM_BATTLE);
     setMode(runtimeState, Mode.GAME);
     online?.watcherBeginBattle?.(deps.timing.now());

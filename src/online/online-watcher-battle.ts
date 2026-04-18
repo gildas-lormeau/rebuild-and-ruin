@@ -1,7 +1,7 @@
 import {
   advanceCannonball,
   canPlayerFire,
-  getCountdownAnnouncement,
+  setBattleCountdown,
 } from "../game/index.ts";
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import type {
@@ -131,9 +131,10 @@ export function tickWatcherTimers(
 
   if (timing.countdownDuration > 0) {
     const elapsed = Math.max(0, (now() - timing.countdownStartTime) / 1000);
-    state.battleCountdown = Math.max(0, timing.countdownDuration - elapsed);
-
-    frame.announcement = getCountdownAnnouncement(state.battleCountdown);
+    frame.announcement = setBattleCountdown(
+      state,
+      timing.countdownDuration - elapsed,
+    );
     if (!frame.announcement) {
       setWatcherPhaseTimer(
         timing,

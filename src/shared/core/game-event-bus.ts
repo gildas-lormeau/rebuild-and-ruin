@@ -69,7 +69,15 @@ export type LifecycleEvent =
   /** Dev-only per-frame tick. Emitted once per frame after rendering, only
    *  when IS_DEV is true. The E2E bridge attaches a canvas snapshot to the
    *  busLog entry so browser-based tests can read per-frame pixel data. */
-  | { type: "tick"; dt: number };
+  | { type: "tick"; dt: number }
+  /** Pre-battle announcement transitions, emitted once per crossing of the
+   *  `battleCountdown` thresholds (> 3 s → Ready, 1–3 s → Aim, ≤ 1 s →
+   *  Fire!). Drives the voice-line SFX for each beat. Host + watcher both
+   *  derive these locally from their own `state.battleCountdown`
+   *  progression, so the events are never networked. */
+  | { type: "battleReady"; round: number }
+  | { type: "battleAim"; round: number }
+  | { type: "battleFire"; round: number };
 
 export type EntityEvent =
   | {
@@ -212,6 +220,9 @@ const LIFECYCLE_EVENT = {
   SCORE_OVERLAY_START: "scoreOverlayStart",
   SCORE_OVERLAY_END: "scoreOverlayEnd",
   TICK: "tick",
+  BATTLE_READY: "battleReady",
+  BATTLE_AIM: "battleAim",
+  BATTLE_FIRE: "battleFire",
 } as const;
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",

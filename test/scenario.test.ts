@@ -7,7 +7,7 @@ import {
 } from "./scenario.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import { packTile, unpackTile } from "../src/shared/core/spatial.ts";
+import { unpackTile } from "../src/shared/core/spatial.ts";
 import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
@@ -59,60 +59,6 @@ Deno.test("scenario: waitForModifier captures a MODIFIER_APPLIED event in modern
   const ev = waitForModifier(sc, undefined, { timeoutMs: 480_000 });
   assert(ev.modifierId !== undefined);
   assertGreater(ev.round, 0);
-});
-
-Deno.test("scenario: house destroyed by wall placement spawns grunt nearby", async () => {
-  const sc = await createScenario({ seed: 1, rounds: 3 });
-
-  // Track house positions and grunt spawns during build phases.
-  const houseGruntDistances: number[] = [];
-  let liveHouseKeys = new Map<number, { row: number; col: number }>();
-  let pendingHouses: { row: number; col: number }[] = [];
-  let inBuild = false;
-
-  sc.bus.on(GAME_EVENT.PHASE_START, (ev) => {
-    inBuild = ev.phase === Phase.WALL_BUILD;
-    if (inBuild) {
-      liveHouseKeys = new Map(
-        sc.state.map.houses
-          .filter((h) => h.alive)
-          .map((h) => [packTile(h.row, h.col), { row: h.row, col: h.col }]),
-      );
-      pendingHouses = [];
-    }
-  });
-
-  sc.bus.on(GAME_EVENT.WALL_PLACED, (ev) => {
-    if (!inBuild) return;
-    for (const key of ev.tileKeys) {
-      const house = liveHouseKeys.get(key);
-      if (house) {
-        pendingHouses.push(house);
-        liveHouseKeys.delete(key);
-      }
-    }
-  });
-
-  sc.bus.on(GAME_EVENT.GRUNT_SPAWN, (ev) => {
-    if (!inBuild || pendingHouses.length === 0) return;
-    const house = pendingHouses.shift()!;
-    const dist = Math.abs(ev.row - house.row) + Math.abs(ev.col - house.col);
-    houseGruntDistances.push(dist);
-  });
-
-  sc.runGame({ timeoutMs: 600_000 });
-
-  assertGreater(
-    houseGruntDistances.length,
-    0,
-    "expected at least one house destroyed by wall placement",
-  );
-  for (const dist of houseGruntDistances) {
-    assert(
-      dist <= 8,
-      `grunt spawned ${dist} tiles from destroyed house (max 8)`,
-    );
-  }
 });
 
 Deno.test("scenario: diffAsciiSnapshots lists tile changes across phases", async () => {

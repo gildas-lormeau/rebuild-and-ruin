@@ -7,8 +7,8 @@ export {
   canFireOwnCannon,
   canPlayerFire,
   fireNextReadyCannon,
-  getCountdownAnnouncement,
   nextReadyCombined,
+  setBattleCountdown,
   snapshotTerritory,
   tickBattlePhase,
 } from "./battle-system.ts";

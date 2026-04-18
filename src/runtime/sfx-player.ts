@@ -123,8 +123,11 @@ const SNARE_CRESCENDO_SEC = 1;
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
-  // cannonPlaced: { sample: "clunk1" }, // temporarily disabled
+  cannonPlaced: { sample: "clunk1" },
   cannonFired: { sample: "cannon1" },
+  battleReady: { sample: "ready" },
+  battleAim: { sample: "aim" },
+  battleFire: { sample: "fire" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,

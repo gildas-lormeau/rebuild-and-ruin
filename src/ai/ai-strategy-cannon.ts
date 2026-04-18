@@ -10,7 +10,6 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
   isCannonEnclosed,
-  placeCannon,
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
@@ -38,6 +37,30 @@ import type { Rng } from "../shared/platform/rng.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
+
+/** A single cannon placement decision returned by the AI strategy. */
+export interface CannonPlacement {
+  row: number;
+  col: number;
+  mode: CannonMode;
+}
+
+/** Per-phase placement context — computed once at phase init. Tracks
+ *  pre-rolled "try a super / rampart / balloon" decisions so the AI asks
+ *  for one placement at a time (on the fly) during the cannon phase's
+ *  animation loop, instead of planning the whole batch up-front. */
+export interface CannonPlacementContext {
+  readonly noiseScale: number;
+  readonly towerCenters: readonly TilePos[];
+  readonly defensiveness: number;
+  /** Each flag is consumed (flipped to false) the first time we attempt
+   *  that special placement, success or skip. "Pending" means we still
+   *  owe the attempt — `nextCannonPlacement` handles one attempt per call
+   *  in priority order: super → rampart → balloon → normal fill. */
+  pendingSuperGun: boolean;
+  pendingRampart: boolean;
+  pendingBalloon: boolean;
+}
 
 /** Chance to pick the tower closest to zone centroid vs random. */
 const CENTROID_TOWER_PROBABILITY = 2 / 3;
@@ -127,22 +150,17 @@ export function autoSelectTower(
   return rng.pick(zoneTowers);
 }
 
-export function autoPlaceCannons(
+export function createCannonPlacementContext(
   player: Player,
   count: number,
-  state: CannonViewState,
   rng: Rng,
   aggressiveness = 2,
   defensiveness = 2,
   spatialAwareness = 2,
-): { row: number; col: number; mode: CannonMode }[] {
-  const beforeCount = player.cannons.length;
-  // Precompute tower centers once — used by all scoring calls
-  const towerCenters = player.ownedTowers.map(towerCenter);
+): CannonPlacementContext {
   // Cannon scoring noise — controlled by spatialAwareness
   // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
   const noiseScale = traitLookup(spatialAwareness, [5, 1, 0.25] as const);
-
   // Super gun placement — controlled by aggressiveness
   // 1 = never, 2 = 1/3 chance at 8+ slots, 3 = 2/3 chance at 6+ slots
   const superProb = traitLookup(aggressiveness, [
@@ -155,117 +173,104 @@ export function autoPlaceCannons(
     SUPER_GUN_SLOT_THRESHOLD,
     6,
   ] as const);
-  tryPlaceSuperGun(
-    player,
-    count,
-    state,
-    rng,
+  const rampartProb = traitLookup(defensiveness, RAMPART_PROBABILITY);
+  // Pre-roll dice ONCE at init so the per-tick `nextCannonPlacement` is a
+  // pure lookup against ctx flags + current player state — no extra RNG
+  // side-effects leak into the animation loop.
+  const pendingSuperGun = count >= superThreshold && rng.bool(superProb);
+  const pendingRampart =
+    defensiveness >= 2 &&
+    count >= RAMPART_SLOT_THRESHOLD &&
+    rng.bool(rampartProb);
+  return {
     noiseScale,
-    superProb,
-    superThreshold,
-    towerCenters,
-  );
+    towerCenters: player.ownedTowers.map(towerCenter),
+    defensiveness,
+    pendingSuperGun,
+    pendingRampart,
+    pendingBalloon: defensiveness >= 2,
+  };
+}
 
-  // Collect and score normal 2x2 cannon candidates
+/** Return the next single cannon placement the AI would make, given the
+ *  current `player.cannons` and pending budget flags in `ctx`. Each call
+ *  consumes at most one special-placement budget (super / rampart /
+ *  balloon) — after those are exhausted it falls through to the highest-
+ *  scoring NORMAL slot. Returns `undefined` when out of slots or no legal
+ *  position remains. */
+export function nextCannonPlacement(
+  player: Player,
+  count: number,
+  state: CannonViewState,
+  rng: Rng,
+  ctx: CannonPlacementContext,
+): CannonPlacement | undefined {
+  const slotsLeft = count - cannonSlotsUsed(player);
+  if (slotsLeft <= 0) return undefined;
+
+  if (ctx.pendingSuperGun) {
+    ctx.pendingSuperGun = false;
+    if (slotsLeft >= cannonSlotCost(CannonMode.SUPER)) {
+      const best = collectCannonCandidates(
+        player,
+        CannonMode.SUPER,
+        state,
+        rng,
+        ctx.noiseScale,
+        ctx.towerCenters,
+      )[0];
+      if (best) return { row: best.row, col: best.col, mode: CannonMode.SUPER };
+    }
+  }
+
   const normalCandidates = collectCannonCandidates(
     player,
     CannonMode.NORMAL,
     state,
     rng,
-    noiseScale,
-    towerCenters,
+    ctx.noiseScale,
+    ctx.towerCenters,
   );
+  if (normalCandidates.length === 0) return undefined;
 
-  // Place a rampart — controlled by defensiveness (modern mode only)
-  tryPlaceRampart(player, count, state, rng, defensiveness, normalCandidates);
-
-  // Place a propaganda balloon — controlled by defensiveness
-  // 1 = never, 2 = react to enemy super guns or space constraint,
-  // 3 = proactive when enemies have any live cannons
-  tryPlaceBalloon(player, count, state, defensiveness, normalCandidates);
-
-  // Fill remaining slots with normal 2x2 cannons, re-scoring after each placement
-  while (cannonSlotsUsed(player) < count) {
-    const bestPosition = findBestNormalCannonPosition(
-      player,
-      state,
-      rng,
-      noiseScale,
-      towerCenters,
-    );
-    if (!bestPosition) break;
-    placeCannon(
-      player,
-      bestPosition.row,
-      bestPosition.col,
-      count,
-      CannonMode.NORMAL,
-      state,
-    );
-  }
-  return player.cannons.slice(beforeCount).map((c) => ({
-    row: c.row,
-    col: c.col,
-    mode: c.mode,
-  }));
-}
-
-function findBestNormalCannonPosition(
-  player: Player,
-  state: CannonViewState,
-  rng: Rng,
-  noiseScale: number,
-  towerCenters: readonly TilePos[],
-): TilePos | undefined {
-  let bestPosition: TilePos | undefined;
-  let bestScore = -Infinity;
-  for (const key of getInterior(player)) {
-    const { r, c } = unpackTile(key);
-    if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
-    const score = scoreCannonPosition(
-      player,
-      r,
-      c,
-      CannonMode.NORMAL,
-      state,
-      rng,
-      noiseScale,
-      towerCenters,
-    );
-    if (score > bestScore) {
-      bestScore = score;
-      bestPosition = { row: r, col: c };
+  if (ctx.pendingRampart) {
+    ctx.pendingRampart = false;
+    if (
+      state.gameMode === "modern" &&
+      slotsLeft >= cannonSlotCost(CannonMode.RAMPART) &&
+      normalCandidates.length >= 4
+    ) {
+      const position = normalCandidates[0]!;
+      return {
+        row: position.row,
+        col: position.col,
+        mode: CannonMode.RAMPART,
+      };
     }
   }
-  return bestPosition;
-}
 
-function tryPlaceSuperGun(
-  player: Player,
-  count: number,
-  state: CannonViewState,
-  rng: Rng,
-  noiseScale: number,
-  superProb: number,
-  superThreshold: number,
-  towerCenters: readonly TilePos[],
-): void {
-  if (count < superThreshold || !rng.bool(superProb)) return;
-  const superCandidates = collectCannonCandidates(
-    player,
-    CannonMode.SUPER,
-    state,
-    rng,
-    noiseScale,
-    towerCenters,
-  );
-  const best = superCandidates[0];
-  if (
-    best &&
-    count - cannonSlotsUsed(player) >= cannonSlotCost(CannonMode.SUPER)
-  ) {
-    placeCannon(player, best.row, best.col, count, CannonMode.SUPER, state);
+  if (ctx.pendingBalloon) {
+    ctx.pendingBalloon = false;
+    if (
+      slotsLeft >= cannonSlotCost(CannonMode.BALLOON) &&
+      shouldPlaceBalloon(
+        state,
+        player,
+        ctx.defensiveness,
+        normalCandidates.length,
+      )
+    ) {
+      const position = normalCandidates[0]!;
+      return {
+        row: position.row,
+        col: position.col,
+        mode: CannonMode.BALLOON,
+      };
+    }
   }
+
+  const best = normalCandidates[0]!;
+  return { row: best.row, col: best.col, mode: CannonMode.NORMAL };
 }
 
 function collectCannonCandidates(
@@ -423,32 +428,6 @@ function scoreCannonTileLocalPenalty(
   return penalty;
 }
 
-function tryPlaceBalloon(
-  player: Player,
-  count: number,
-  state: CannonViewState,
-  defensiveness: number,
-  normalCandidates: readonly CannonCandidate[],
-): void {
-  const slotsLeft = count - cannonSlotsUsed(player);
-  if (
-    !shouldPlaceBalloon(state, player, defensiveness, normalCandidates.length)
-  )
-    return;
-  if (slotsLeft < cannonSlotCost(CannonMode.BALLOON)) return;
-  const position = normalCandidates[0];
-  if (position) {
-    placeCannon(
-      player,
-      position.row,
-      position.col,
-      count,
-      CannonMode.BALLOON,
-      state,
-    );
-  }
-}
-
 function shouldPlaceBalloon(
   state: CannonViewState,
   player: Player,
@@ -470,36 +449,6 @@ function shouldPlaceBalloon(
     (hasEnemyCannons && normalCandidateCount <= 1) ||
     (defensiveness >= 3 && hasEnemyCannons)
   );
-}
-
-function tryPlaceRampart(
-  player: Player,
-  count: number,
-  state: CannonViewState,
-  rng: Rng,
-  defensiveness: number,
-  normalCandidates: readonly CannonCandidate[],
-): void {
-  if (defensiveness < 2) return;
-  if (state.gameMode !== "modern") return;
-  if (count < RAMPART_SLOT_THRESHOLD) return;
-  const slotsLeft = count - cannonSlotsUsed(player);
-  if (slotsLeft < cannonSlotCost(CannonMode.RAMPART)) return;
-  // Probability gate — only sometimes place a rampart
-  const prob = traitLookup(defensiveness, RAMPART_PROBABILITY);
-  if (!rng.bool(prob)) return;
-  if (normalCandidates.length < 4) return;
-  const position = normalCandidates[0];
-  if (position) {
-    placeCannon(
-      player,
-      position.row,
-      position.col,
-      count,
-      CannonMode.RAMPART,
-      state,
-    );
-  }
 }
 
 function enemyHasLiveCannon(enemy: Player): boolean {
