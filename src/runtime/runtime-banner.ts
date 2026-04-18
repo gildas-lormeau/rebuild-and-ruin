@@ -7,7 +7,10 @@
  * — no state cloning, no re-rendering.
  */
 
-import { BANNER_DURATION } from "../shared/core/game-constants.ts";
+import {
+  BANNER_DURATION,
+  type ModifierId,
+} from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
@@ -40,7 +43,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   // event for the final content.
   let pendingStartEvent = false;
 
-  function showBanner(text: string, onDone: () => void, subtitle?: string) {
+  function showBanner(
+    text: string,
+    onDone: () => void,
+    subtitle?: string,
+    modifierId?: ModifierId,
+  ) {
     // Unzoom before banner so the full map is visible during transition
     assertStateReady(runtimeState);
     clearPhaseZoom();
@@ -57,6 +65,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     showBannerTransition(runtimeState.banner, {
       text,
       subtitle,
+      modifierId,
       onDone,
       setModeBanner: () => {
         setMode(runtimeState, Mode.BANNER);
@@ -83,6 +92,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         phase: state.phase,
         round: state.round,
         isFinalBattle,
+        modifierId: banner.modifierId,
       });
     }
 
@@ -118,6 +128,7 @@ function showBannerTransition(
   opts: {
     text: string;
     subtitle?: string;
+    modifierId?: ModifierId;
     onDone: () => void;
     setModeBanner: () => void;
   },
@@ -126,6 +137,7 @@ function showBannerTransition(
   banner.progress = 0;
   banner.text = opts.text;
   banner.subtitle = opts.subtitle;
+  banner.modifierId = opts.modifierId;
   banner.callback = opts.onDone;
   opts.setModeBanner();
 }

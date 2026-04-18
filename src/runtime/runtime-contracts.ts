@@ -4,6 +4,7 @@ import type {
   Impact,
   ThawingTile,
 } from "../shared/core/battle-types.ts";
+import type { ModifierId } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -238,6 +239,9 @@ export interface BannerState {
    *  helpers never capture. Set by the transition code via
    *  `renderer.captureScene()`. */
   prevSceneImageData?: ImageData;
+  /** Set when the active banner is a modifier-reveal (modern mode).
+   *  Cleared between banners. Forwarded to the bannerStart event. */
+  modifierId?: ModifierId;
 }
 
 export interface SeedField {
@@ -643,6 +647,12 @@ export type BannerShow = (
   text: string,
   onDone: () => void,
   subtitle?: string,
+  /** Set when the banner being shown is a modifier-reveal (the
+   *  mid-frame banner that replaces the normal battle banner in modern
+   *  mode). Forwarded through to the `bannerStart` event so consumers
+   *  can distinguish the modifier banner from the battle banner
+   *  without string-matching the text field. */
+  modifierId?: ModifierId,
 ) => void;
 
 export function createBannerState(): BannerState {

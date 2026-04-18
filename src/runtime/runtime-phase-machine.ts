@@ -61,7 +61,10 @@ import type {
 import type { BuildEndMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import type {
+  ModifierDiff,
+  ModifierId,
+} from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
@@ -112,6 +115,12 @@ type DisplayStep =
        *  result). */
       readonly text: string | ((r: TransitionResult) => string);
       readonly subtitle?: string;
+      /** Set on the modifier-reveal banner step. Resolved at dispatch
+       *  time and forwarded to the banner system so the bannerStart
+       *  event can distinguish modifier reveals from plain phase
+       *  banners. Function form reads the id out of the transition
+       *  result (the rolled modifier lives there). */
+      readonly modifierId?: (r: TransitionResult) => ModifierId | undefined;
       /** Optional predicate: skip when false. Used for modifier-reveal
        *  (only when a modifier was rolled) and upgrade-pick (only when
        *  offers are pending). */
@@ -416,6 +425,7 @@ const CANNON_PLACE_DONE: Transition = {
     {
       kind: STEP_BANNER,
       text: (r) => modifierDef(r.modifierDiff!.id).label,
+      modifierId: (r) => r.modifierDiff?.id,
       when: (_, r) => !!r.modifierDiff,
       // Modifier banner revealed the tile changes — refresh snapshot so
       // the battle banner that follows doesn't re-reveal pre-modifier
@@ -945,6 +955,7 @@ function runBannerStep(
     return;
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
+  const modifierId = step.modifierId?.(result);
   // `prevSceneImageData` was populated by the mutation site (via
   // `ctx.snapshotForNextBanner`) — the banner step just displays.
   // `recaptureAfter` refreshes the snapshot at this banner's onDone so
@@ -958,6 +969,7 @@ function runBannerStep(
         }
       : onDone,
     step.subtitle,
+    modifierId,
   );
 }
 

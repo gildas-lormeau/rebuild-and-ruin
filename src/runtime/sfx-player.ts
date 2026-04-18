@@ -419,9 +419,13 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // Final-battle intro — the BATTLE banner of the last round plays
     // "final" on top of the regular whoosh2 sweep. Out-of-map because
     // bannerStart already maps to whoosh2 via SFX_EVENT_MAP; this is the
-    // second, conditional play for the same event.
+    // second, conditional play for the same event. Skip the modifier-
+    // reveal banner that precedes the battle banner in modern mode —
+    // "final" belongs on the plain "Prepare for Battle" sweep, not on
+    // the modifier announcement.
     const finalBattleHandler: GameEventHandler<"bannerStart"> = (event) => {
       if (!event.isFinalBattle) return;
+      if (event.modifierId !== undefined) return;
       void playSample("final");
     };
     bus.on(GAME_EVENT.BANNER_START, finalBattleHandler);
