@@ -110,15 +110,21 @@ interface AnnouncementStep {
  *  Tuned for snappy visual feedback — cannons should visually track
  *  the crosshair with minimal lag but not feel instant. */
 const CANNON_ROTATE_SPEED = Math.PI * 3;
-/** Seconds before impact at which we fire the descent-whistle SFX event.
- *  Chosen to roughly match the fwwhist* sample length so the whistle
- *  lands on impact. Time-based (not distance-based) so the rapid-fire
- *  upgrade — and any future speed tweak — doesn't desync the cue. */
-const WHISTLE_LEAD_SEC = 0.8;
-/** Minimum total-travel-time for a cannonball to whistle. Shots faster
- *  than this arrive before the descent phase is musically meaningful,
- *  so we skip the whistle entirely (point-blank tower-top shots). */
-const WHISTLE_MIN_TOTAL_SEC = 1.5;
+/** Firework-whistle variants and their actual sample durations (seconds).
+ *  Each fwwhist* sample contains a rising whistle followed by a built-in
+ *  explosion pop — so the whole duration must fit inside the ball's
+ *  remaining travel time for the pop to land on impact. At launch we
+ *  filter to the variants whose duration ≤ total travel time and pick
+ *  one at random via `state.rng`. Balls whose trajectory is shorter
+ *  than every variant skip the whistle entirely (point-blank shots). */
+const WHISTLE_VARIANTS: readonly {
+  readonly sample: "fwwhist1" | "fwwhist2" | "fwwhist3";
+  readonly durationSec: number;
+}[] = [
+  { sample: "fwwhist1", durationSec: 1.888 },
+  { sample: "fwwhist3", durationSec: 2.4 },
+  { sample: "fwwhist2", durationSec: 3.168 },
+];
 /** Countdown thresholds for battle announcement phases:
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY_SEC = 3;
@@ -718,27 +724,28 @@ export function applyImpactEvent(
  *  matching bus-event type). Returns a stable const object per step so
  *  callers can compare by identity instead of re-running the threshold
  *  ladder. */
-/** Emit `cannonballDescending` once per ball when it nears impact.
- *  Time-remaining (distance / speed) trigger so speed modifiers and the
- *  rapid-fire upgrade automatically shift the cue to match. Short shots
- *  whose entire trajectory is shorter than WHISTLE_MIN_TOTAL_SEC are
- *  skipped — we stamp the ball as whistled so the per-tick check is O(1)
- *  on all subsequent frames. */
+/** Emit `cannonballDescending` once per ball when the remaining travel
+ *  time drops below its pre-selected whistle sample's full duration.
+ *  The sample was chosen at launch (see `selectWhistleVariant`) such
+ *  that its tail — which carries the built-in explosion pop — lands on
+ *  impact. Speed-independent by construction: both the lead and the
+ *  sample selection are rooted in time (distance / speed), so
+ *  rapid-fire and any future speed upgrade stay in sync automatically.
+ *  Balls whose trajectory was too short for any variant got no
+ *  `whistleLeadSec` set at launch and are skipped here. */
 function maybeEmitDescendingWhistle(state: GameState, ball: Cannonball): void {
   if (ball.whistled) return;
+  if (!ball.whistleSample || ball.whistleLeadSec === undefined) return;
+  if (ball.speed <= 0) return;
   const dx = ball.targetX - ball.x;
   const dy = ball.targetY - ball.y;
   const distRemaining = Math.sqrt(dx * dx + dy * dy);
-  if (ball.speed <= 0) return;
   const timeRemaining = distRemaining / ball.speed;
-  if (timeRemaining > WHISTLE_LEAD_SEC) return;
-  const totalDx = ball.targetX - ball.startX;
-  const totalDy = ball.targetY - ball.startY;
-  const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
-  const totalTime = totalDist / ball.speed;
+  if (timeRemaining > ball.whistleLeadSec) return;
   ball.whistled = true;
-  if (totalTime < WHISTLE_MIN_TOTAL_SEC) return;
-  emitGameEvent(state.bus, GAME_EVENT.CANNONBALL_DESCENDING, {});
+  emitGameEvent(state.bus, GAME_EVENT.CANNONBALL_DESCENDING, {
+    sample: ball.whistleSample,
+  });
 }
 
 /**
@@ -850,6 +857,12 @@ function launchCannonball(
   cannon.facing = computeFacing45(startX, startY, finalTargetX, finalTargetY);
   const isMortar = !!cannon.mortar;
   const speedMult = ballSpeedMult(state.players[playerId]!, isMortar);
+  const speed = BALL_SPEED * speedMult;
+  const totalDx = finalTargetX - startX;
+  const totalDy = finalTargetY - startY;
+  const totalTravelSec =
+    Math.sqrt(totalDx * totalDx + totalDy * totalDy) / speed;
+  const whistle = selectWhistleVariant(state, totalTravelSec);
   state.cannonballs.push({
     cannonIdx,
     startX,
@@ -858,12 +871,30 @@ function launchCannonball(
     y: startY,
     targetX: finalTargetX,
     targetY: finalTargetY,
-    speed: BALL_SPEED * speedMult,
+    speed,
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,
     mortar: isMortar || undefined,
+    whistleSample: whistle?.sample,
+    whistleLeadSec: whistle?.lead,
   });
+}
+
+/** Pick the longest whistle variant whose duration fits in the ball's
+ *  total travel time, among all eligible variants picked at random.
+ *  Returns undefined when the shot is too short for any variant —
+ *  caller then stores no whistle fields on the ball. */
+function selectWhistleVariant(
+  state: GameState,
+  totalTravelSec: number,
+): { sample: "fwwhist1" | "fwwhist2" | "fwwhist3"; lead: number } | undefined {
+  const eligible = WHISTLE_VARIANTS.filter(
+    (variant) => variant.durationSec <= totalTravelSec,
+  );
+  if (eligible.length === 0) return undefined;
+  const choice = state.rng.pick(eligible);
+  return { sample: choice.sample, lead: choice.durationSec };
 }
 
 /** Check if a captured cannon is ready to fire (not destroyed, no ball in flight).

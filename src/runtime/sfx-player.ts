@@ -130,9 +130,6 @@ const FANFARE_PHASES: ReadonlySet<Phase> = new Set([
  *  tension build-up. Mirrors the build-bg decrescendo in music-player.ts
  *  so the two signals cross-fade on the same 1 s window. */
 const SNARE_CRESCENDO_SEC = 1;
-/** Cannonball descent-whistle variants — picked at random for variety
- *  every time a ball enters its descent phase. */
-const FWWHIST_SAMPLES: readonly string[] = ["fwwhist1", "fwwhist2", "fwwhist3"];
 /** Winner color-end stinger chained after `welldone` at gameEnd. Indexed
  *  by player slot: 0 = Red, 1 = Blue, 2 = Gold (the DOS sample names
  *  abbreviate gold as "org"). A hypothetical 4th slot reuses Red's. */
@@ -432,13 +429,15 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       type: GAME_EVENT.BANNER_START,
       handler: finalBattleHandler as GameEventHandler<EventKey>,
     });
-    // cannonballDescending — pick a random fwwhist variant so back-to-back
-    // cannonballs don't overlay the same sample (three flavours in the
-    // bank). Handled out-of-map because SFX_EVENT_MAP is one-sample-per-
-    // event-type; here we need a runtime choice among three.
-    const descendingHandler: GameEventHandler<"cannonballDescending"> = () => {
-      const idx = Math.floor(Math.random() * FWWHIST_SAMPLES.length);
-      void playSample(FWWHIST_SAMPLES[idx]!);
+    // cannonballDescending — variant was picked at launch (in battle-
+    // system) so its full sample duration fits in the remaining travel
+    // time, putting the built-in pop on impact. We just play whatever
+    // variant the event names. Out-of-map because SFX_EVENT_MAP takes a
+    // single sample per event type, but the sample is payload-driven.
+    const descendingHandler: GameEventHandler<"cannonballDescending"> = (
+      event,
+    ) => {
+      void playSample(event.sample);
     };
     bus.on(GAME_EVENT.CANNONBALL_DESCENDING, descendingHandler);
     boundHandlers.push({

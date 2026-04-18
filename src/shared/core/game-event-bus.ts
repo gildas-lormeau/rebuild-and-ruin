@@ -88,12 +88,20 @@ export type LifecycleEvent =
    *  SFX) key off this, not phaseEnd. Derived locally on host + watcher
    *  when `state.timer` crosses from > 0 to 0 during BATTLE. */
   | { type: "battleCease"; round: number }
-  /** A cannonball has entered its descent phase — fired once per ball,
-   *  approximately `WHISTLE_LEAD_SEC` before impact. Only emitted for
-   *  shots whose total travel time exceeds a minimum (short point-blank
-   *  shots don't whistle). Drives the `fwwhist*` SFX. Time-based trigger
-   *  so it tracks the rapid-fire upgrade's 1.5× ball-speed automatically. */
-  | { type: "cannonballDescending" }
+  /** A cannonball has entered its descent phase — fired once per ball
+   *  at a variant-specific lead time so the whistle sample's full
+   *  duration fits in the remaining travel window. Each fwwhist* sample
+   *  has a built-in explosion pop at its tail; scheduling the start so
+   *  the tail lands on impact avoids doubling up with the separately-
+   *  played impact SFX (exp2 / exp3 / explrg1 / woodcrus). The `sample`
+   *  field carries the pre-selected variant (picked at launch via
+   *  state.rng). Not all cannonballs whistle — short-trajectory shots
+   *  whose travel time is below every variant's duration skip this
+   *  event entirely. */
+  | {
+      type: "cannonballDescending";
+      sample: "fwwhist1" | "fwwhist2" | "fwwhist3";
+    }
   /** A wall piece placed during the build phase landed on top of a live
    *  house, crushing it. Drives the `woodcrus` SFX. Distinct from the
    *  battle-phase `houseDestroyed` event (cannonball impact) — that one
