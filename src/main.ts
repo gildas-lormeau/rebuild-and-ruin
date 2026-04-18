@@ -105,4 +105,11 @@ function showLobby(): void {
   setMode(runtime.runtimeState, Mode.LOBBY);
   resetFrameTiming(runtime.runtimeState, timing.now());
   timing.requestFrame(runtime.mainLoop);
+  // Title music: harmless redundant call on first entry (startTitle is
+  // idempotent — it's also kicked off earlier in enterLocalLobby before
+  // the atlas is ready). Load-bearing for post-game returns — the
+  // previous game stopped the title on `castlePlaced`, and nothing
+  // else restarts it when the player hits "Menu" on the game-over
+  // screen or the all-AI demo timer auto-returns.
+  void runtime.music.startTitle();
 }
