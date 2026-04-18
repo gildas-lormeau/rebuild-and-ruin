@@ -92,23 +92,30 @@ interface MusicSubsystemDeps {
   readonly observer?: MusicObserver;
 }
 
+// Global +25 % boost applied on top of each track's base gain. MIDI
+// output from libADLMIDI sat noticeably below the PCM SFX layer; lifting
+// every synth uniformly keeps the relative mix intact while raising the
+// overall music level.
+const MIDI_VOLUME_BOOST = 1.25;
 const TITLE_TRACK = "RXMI_TITLE.xmi";
 const TITLE_SONG_INDEX = 0;
+const TITLE_VOLUME = MIDI_VOLUME_BOOST;
 const FANFARE_TRACK = "RXMI_TETRIS.xmi";
 // Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
 const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
+const FANFARE_VOLUME = MIDI_VOLUME_BOOST;
 const CANNON_BG_TRACK = "RXMI_CANNON.xmi";
 const CANNON_BG_SONG_INDEX = 0;
 // RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
 // the original assets. Boost the per-synth gain so cannon-phase bg matches
 // the perceived loudness of fanfares and title music.
-const CANNON_BG_VOLUME = 3.5;
+const CANNON_BG_VOLUME = 3.5 * MIDI_VOLUME_BOOST;
 const BUILD_BG_TRACK = "RXMI_TETRIS.xmi";
 const BUILD_BG_SONG_INDEX = 0;
 // RXMI_TETRIS bg music mix — tune by ear; starting point before audition.
-const BUILD_BG_VOLUME = 1;
+const BUILD_BG_VOLUME = MIDI_VOLUME_BOOST;
 // Build bg decrescendo runs on the same 1 s window as the snare's
 // crescendo in sfx-player.ts (SNARE_CRESCENDO_SEC): fade STARTS at
 // timer = 6.72 s (same instant the snare loop kicks in at 0 gain) and
@@ -121,13 +128,13 @@ const BUILD_BG_FADE_DURATION_SEC = 1;
 // the duration of the between-rounds score-delta overlay.
 const SCORE_BG_TRACK = "RXMI_SCORE.xmi";
 const SCORE_BG_SONG_INDEX = 4;
-const SCORE_BG_VOLUME = 1;
+const SCORE_BG_VOLUME = MIDI_VOLUME_BOOST;
 // Life-lost popup one-shot — 0-indexed sub-song 1 of RXMI_TETRIS.xmi
 // (mapping.txt "2 -> life lost music"). No loop: plays once as the
 // dialog appears, finishing naturally during the subsequent reselect.
 const LIFE_LOST_TRACK = "RXMI_TETRIS.xmi";
 const LIFE_LOST_SONG_INDEX = 1;
-const LIFE_LOST_VOLUME = 1;
+const LIFE_LOST_VOLUME = MIDI_VOLUME_BOOST;
 const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
@@ -225,6 +232,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       // instead of dropping to silence. Must be set after loadMidi (the flag
       // applies to the currently loaded file).
       synth.setLoopEnabled(true);
+      synth.setVolume(TITLE_VOLUME);
       await logLoopInfo(synth);
       await synth.play();
       playing = true;
@@ -258,6 +266,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       }
       await synth.loadMidi(copyBuffer(smf));
       synth.setLoopEnabled(false);
+      synth.setVolume(FANFARE_VOLUME);
       return synth;
     })().catch((error) => {
       console.error(
