@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8304,
+  "eventCount": 8312,
   "events": [
     {
       "type": "tick",
@@ -17209,6 +17209,13 @@
       }
     },
     {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 36,
+        "row": 7
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 36,
@@ -21974,6 +21981,13 @@
       }
     },
     {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 2,
+        "row": 12
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 2,
@@ -23928,6 +23942,13 @@
           566,
           567
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 38,
+        "row": 12
       }
     },
     {
@@ -26112,6 +26133,13 @@
           758,
           802
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 10,
+        "row": 18
       }
     },
     {
@@ -42667,6 +42695,13 @@
       }
     },
     {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 22,
+        "row": 6
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 22,
@@ -43248,6 +43283,13 @@
           515,
           559
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 32,
+        "row": 11
       }
     },
     {
@@ -45315,6 +45357,13 @@
       }
     },
     {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 18,
+        "row": 6
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 18,
@@ -45898,6 +45947,13 @@
           1027,
           1028
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 15,
+        "row": 23
       }
     },
     {

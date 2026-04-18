@@ -93,7 +93,13 @@ export type LifecycleEvent =
    *  shots whose total travel time exceeds a minimum (short point-blank
    *  shots don't whistle). Drives the `fwwhist*` SFX. Time-based trigger
    *  so it tracks the rapid-fire upgrade's 1.5× ball-speed automatically. */
-  | { type: "cannonballDescending" };
+  | { type: "cannonballDescending" }
+  /** A wall piece placed during the build phase landed on top of a live
+   *  house, crushing it. Drives the `woodcrus` SFX. Distinct from the
+   *  battle-phase `houseDestroyed` event (cannonball impact) — that one
+   *  is a networked game-state ImpactEvent, this one is purely
+   *  presentational. */
+  | { type: "houseCrushed"; row: number; col: number };
 
 export type EntityEvent =
   | {
@@ -241,6 +247,7 @@ const LIFECYCLE_EVENT = {
   BATTLE_FIRE: "battleFire",
   BATTLE_CEASE: "battleCease",
   CANNONBALL_DESCENDING: "cannonballDescending",
+  HOUSE_CRUSHED: "houseCrushed",
 } as const;
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",

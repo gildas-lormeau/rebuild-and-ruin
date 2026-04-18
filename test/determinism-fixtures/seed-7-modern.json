@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8984,
+  "eventCount": 8987,
   "events": [
     {
       "type": "tick",
@@ -21493,6 +21493,13 @@
       }
     },
     {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 23,
+        "row": 3
+      }
+    },
+    {
       "type": "gruntSpawn",
       "payload": {
         "col": 22,
@@ -22065,6 +22072,13 @@
           378,
           422
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 26,
+        "row": 7
       }
     },
     {
@@ -52369,6 +52383,13 @@
           99,
           143
         ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 11,
+        "row": 2
       }
     },
     {

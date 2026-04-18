@@ -169,6 +169,10 @@ export function applyPiecePlacement(
     if (pieceKeys.has(houseKey)) {
       house.alive = false;
       destroyedHousePositions.push({ row: house.row, col: house.col });
+      emitGameEvent(state.bus, GAME_EVENT.HOUSE_CRUSHED, {
+        row: house.row,
+        col: house.col,
+      });
     }
   }
   state.bonusSquares = state.bonusSquares.filter(

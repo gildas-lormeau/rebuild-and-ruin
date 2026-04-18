@@ -145,6 +145,11 @@ const SFX_EVENT_MAP: SfxEventMap = {
   castlePlaced: { sample: "dblclic" },
   wallDestroyed: { sample: "exp3" },
   cannonDamaged: { sample: "exp2" },
+  // woodcrus — wooden-crunch sample fires in both phases: build-phase
+  // wall-on-top-of-house (via houseCrushed) and battle-phase cannonball
+  // destroying a house (via houseDestroyed).
+  houseCrushed: { sample: "woodcrus" },
+  houseDestroyed: { sample: "woodcrus" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,
