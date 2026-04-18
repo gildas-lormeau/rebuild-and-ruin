@@ -50,8 +50,6 @@ const EXPECTED_SIZES: Record<AssetKey, { min: number; max: number }> = {
   "RXMI_CANNON.xmi": { min: 100, max: 80000 },
   "RXMI_TETRIS.xmi": { min: 100, max: 80000 },
   "RXMI_SCORE.xmi": { min: 100, max: 80000 },
-  "RXMI_WINBAT.xmi": { min: 100, max: 80000 },
-  "RXMI_GIL.xmi": { min: 100, max: 80000 },
 };
 /** DOS 8-char name → long XmiFileKey mapping used inside RMUSIC.RSC.
  *  The chunk bodies are byte-identical to the extracted RXMI_*.xmi files the
@@ -59,11 +57,9 @@ const EXPECTED_SIZES: Record<AssetKey, { min: number; max: number }> = {
 const RSC_XMI_NAME_MAP: Readonly<Record<string, XmiFileKey>> = {
   RXMI_BAT: "RXMI_BATTLE.xmi",
   RXMI_CAN: "RXMI_CANNON.xmi",
-  RXMI_GIL: "RXMI_GIL.xmi",
   RXMI_SCO: "RXMI_SCORE.xmi",
   RXMI_TET: "RXMI_TETRIS.xmi",
   RXMI_TIT: "RXMI_TITLE.xmi",
-  RXMI_WIN: "RXMI_WINBAT.xmi",
 };
 const RAMP_AD_KEY = "RAMP.AD" as const;
 const SOUND_RSC_KEY = "SOUND.RSC" as const;
@@ -75,8 +71,6 @@ export const XMI_FILE_KEYS = [
   "RXMI_CANNON.xmi",
   "RXMI_TETRIS.xmi",
   "RXMI_SCORE.xmi",
-  "RXMI_WINBAT.xmi",
-  "RXMI_GIL.xmi",
 ] as const;
 
 export async function loadStoredAssets(): Promise<MusicAssets | undefined> {
