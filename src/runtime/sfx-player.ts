@@ -146,11 +146,14 @@ const SFX_EVENT_MAP: SfxEventMap = {
   wallDestroyed: { sample: "exp3" },
   // Large explosion reserved for the destruction hit only — non-destroy
   // damage ticks carry no extra SFX (the ball whistle + impact visual
-  // already sell the hit). `exp2` parked as a future mid-damage variant.
+  // already sell the hit).
   cannonDamaged: {
     sample: "explrg1",
     filter: (event) => event.newHp <= 0,
   },
+  // Mid-sized splat — between wall hits (exp3) and cannon destruction
+  // (explrg1). Fits a grunt getting crushed by a cannonball.
+  gruntKilled: { sample: "exp2" },
   // woodcrus — wooden-crunch sample fires in both phases: build-phase
   // wall-on-top-of-house (via houseCrushed) and battle-phase cannonball
   // destroying a house (via houseDestroyed).
