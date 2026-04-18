@@ -263,6 +263,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       : undefined;
   soundModal?.setOnClose((assets) => {
     musicAssets = assets;
+    // SOUND.RSC bytes may have changed — drop the cached sample map so the
+    // next SFX event reparses. Music doesn't need an equivalent because
+    // music-player loads XMI data on synth init and a rematch rebuilds it.
+    sfx.refreshSamples();
     // If assets were just loaded and the lobby is showing the title screen,
     // kick off playback. Safe to call repeatedly — the subsystem is idempotent
     // and no-ops when already playing or when assets are still missing.

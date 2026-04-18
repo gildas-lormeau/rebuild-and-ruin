@@ -51,6 +51,10 @@ interface SfxSubsystem {
   /** Bind to a per-game bus so entity/lifecycle events fire the mapped
    *  sample. Re-binding unsubscribes from the previous bus. */
   subscribeBus(bus: GameEventBus): void;
+  /** Discard the cached SOUND.RSC parse + decoded buffers. Call when the
+   *  asset bytes have changed (sound modal reloaded a different Rampart
+   *  install) so the next `playSample` re-reads from `getAssets()`. */
+  refreshSamples(): void;
   /** Compute continuous presentational signals from the current game
    *  state and react to transitions since the last call. Called once per
    *  frame by the runtime after state mutation — pure enough to skip
@@ -543,10 +547,20 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     fanfarePlayedThisPhase.clear();
   }
 
+  function refreshSamples(): void {
+    // Drop the parsed SOUND.RSC directory and the decoded AudioBuffer cache;
+    // ensureSamples() will reparse from the current asset bytes on next play.
+    // The AudioContext + cooldowns + fanfare-phase tracker stay — they're
+    // independent of sample identity.
+    samplesByName = undefined;
+    buffers.clear();
+  }
+
   return {
     activate,
     playSample,
     subscribeBus,
+    refreshSamples,
     tickPresentation,
     setPaused,
     dispose,
