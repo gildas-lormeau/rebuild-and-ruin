@@ -10,7 +10,6 @@ import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { CannonPhantom } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
-  computeOutside,
   DIRS_8,
   facingToCardinal,
   isWater,
@@ -231,8 +230,9 @@ export function drawHouses(
 }
 
 /** Blanket each merged castle (interior + enclosing walls) with animated
- *  fog so players must aim from memory. Walls that don't border any
- *  interior tile are left clear — only enclosure-forming walls get fogged.
+ *  fog so players must aim from memory. The fogged region is the castle
+ *  footprint (interior ∪ walls) dilated by one tile in all 8 directions,
+ *  so a 1-tile ring outside the castle is also hidden.
  *  No-op unless Fog of War is active and battle is in progress. Drawn
  *  after grunts/impacts/balloons; only crosshairs and cannonballs remain
  *  visible on top. */
@@ -249,8 +249,7 @@ export function drawFogOfWar(
     if (castle.interior.size === 0) continue;
     const walls =
       overlay.battle?.battleWalls?.[castle.playerId] ?? castle.walls;
-    drawFogTiles(overlayCtx, castle.interior, time);
-    drawFogTiles(overlayCtx, filterInnerWalls(walls), time);
+    drawFogTiles(overlayCtx, dilateFogRegion(castle.interior, walls), time);
   }
   overlayCtx.restore();
 }
@@ -494,25 +493,24 @@ export function drawFrozenTiles(
   overlayCtx.restore();
 }
 
-/** Keep only walls unreachable by the outside flood — inner walls buried
- *  inside thick wall structures. Ring walls and isolated walls are
- *  excluded because the flood touches them. */
-function filterInnerWalls(walls: ReadonlySet<number>): number[] {
-  if (walls.size === 0) return [];
-  const outside = computeOutside(walls);
-  const result: number[] = [];
-  for (const key of walls) {
+/** Build the fog footprint: castle interior + walls, dilated by one tile
+ *  in all 8 directions so the fog edge sits one tile beyond the outer
+ *  walls. */
+function dilateFogRegion(
+  interior: ReadonlySet<number>,
+  walls: ReadonlySet<number>,
+): Set<number> {
+  const base = new Set<number>();
+  for (const key of interior) base.add(key);
+  for (const key of walls) base.add(key);
+  const expanded = new Set<number>(base);
+  for (const key of base) {
     const { r, c } = unpackTile(key);
-    let hasOutsideNeighbor = false;
     for (const [dr, dc] of DIRS_8) {
-      if (outside.has(packTile(r + dr, c + dc))) {
-        hasOutsideNeighbor = true;
-        break;
-      }
+      expanded.add(packTile(r + dr, c + dc));
     }
-    if (!hasOutsideNeighbor) result.push(key);
   }
-  return result;
+  return expanded;
 }
 
 /** Paint a 95%-opaque fog layer over a set of tile keys. A faint
