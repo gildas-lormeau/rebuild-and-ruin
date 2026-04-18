@@ -142,7 +142,7 @@ const SFX_EVENT_MAP: SfxEventMap = {
   battleFire: { sample: "fire" },
   battleCease: { sample: "cease" },
   wallPlaced: { sample: "dblclic" },
-  castlePlaced: { sample: "dblclic" },
+  castlePlaced: { sample: "clunk2" },
   wallDestroyed: { sample: "exp3" },
   // Large explosion reserved for the destruction hit only — non-destroy
   // damage ticks carry no extra SFX (the ball whistle + impact visual
