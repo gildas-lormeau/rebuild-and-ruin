@@ -111,7 +111,7 @@ const CANNON_BG_SONG_INDEX = 0;
 // RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
 // the original assets. Boost the per-synth gain so cannon-phase bg matches
 // the perceived loudness of fanfares and title music.
-const CANNON_BG_VOLUME = 3.5 * MIDI_VOLUME_BOOST;
+const CANNON_BG_VOLUME = 4.5 * MIDI_VOLUME_BOOST;
 const BUILD_BG_TRACK = "RXMI_TETRIS.xmi";
 const BUILD_BG_SONG_INDEX = 0;
 // RXMI_TETRIS bg music mix — tune by ear; starting point before audition.
