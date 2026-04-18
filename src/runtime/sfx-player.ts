@@ -99,13 +99,11 @@ type SfxEventMap = {
   readonly [K in keyof GameEventMap]?: SfxMapping<K>;
 };
 
-/** Phases whose countdown triggers the snare-roll. Battle's `state.timer`
- *  is the Ready/Aim/Fire pre-battle gate, not a drafting timer — skipped. */
+/** Phases whose countdown triggers the snare-roll: initial castle select
+ *  and wall-build. Reselect, cannon-place, and battle are skipped. */
 const COUNTDOWN_SNARE_PHASES: ReadonlySet<Phase> = new Set([
   Phase.CASTLE_SELECT,
-  Phase.CASTLE_RESELECT,
   Phase.WALL_BUILD,
-  Phase.CANNON_PLACE,
 ]);
 /** Start-time for the snare-roll loop, expressed as raw `state.timer`
  *  seconds. Chosen so that 7 full loops of snarerl1 (7 × 960 ms = 6.72 s)
