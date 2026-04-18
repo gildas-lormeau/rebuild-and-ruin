@@ -21,10 +21,7 @@
  * `CAN_VIBRATE` and the haptics setting.
  */
 
-import {
-  BATTLE_MESSAGE,
-  type BattleEvent,
-} from "../shared/core/battle-events.ts";
+import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import { HAPTICS_ON } from "../shared/core/game-constants.ts";
 import {
   GAME_EVENT,
@@ -66,9 +63,6 @@ const HAPTIC_PHASE_CHANGE_MS = 250;
 const HAPTIC_CANNON_DAMAGED_MS = 300;
 const HAPTIC_CANNON_DESTROYED_MS = 450;
 const HAPTIC_TOWER_KILLED_MS = 600;
-const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
-  Object.values(BATTLE_MESSAGE),
-);
 
 export function createHapticsSubsystem(
   deps: HapticsSubsystemDeps,
@@ -81,22 +75,6 @@ export function createHapticsSubsystem(
     if (CAN_VIBRATE && getLevel() >= HAPTICS_ON) navigator.vibrate(ms);
   }
 
-  function handleBattleEvent(evt: BattleEvent): void {
-    const pov = getPovPlayerId();
-    if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED && evt.playerId === pov) {
-      vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS);
-    } else if (
-      evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
-      evt.playerId === pov
-    ) {
-      if (evt.newHp === 0)
-        vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS);
-      else vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS);
-    } else if (evt.type === BATTLE_MESSAGE.TOWER_KILLED) {
-      vibrate(BATTLE_MESSAGE.TOWER_KILLED, HAPTIC_TOWER_KILLED_MS);
-    }
-  }
-
   function subscribeBus(bus: GameEventBus): void {
     if (subscribedBus === bus) return;
     subscribedBus = bus;
@@ -106,15 +84,24 @@ export function createHapticsSubsystem(
     bus.on(GAME_EVENT.UI_TAP, () => {
       vibrate("tap", HAPTIC_TAP_MS);
     });
-    // The early-out below skips the per-event walk on devices where vibration
-    // is unavailable AND no test observer is listening — that's the hot path
-    // in production. When an observer IS installed (deno tests, future debug
-    // overlays), we walk so the observer sees every intent even though
-    // `navigator.vibrate` ultimately won't fire.
-    bus.onAny((type, event) => {
-      if (!BATTLE_EVENT_TYPES.has(type)) return;
-      if (!observer && (!CAN_VIBRATE || getLevel() < HAPTICS_ON)) return;
-      handleBattleEvent(event as BattleEvent);
+    bus.on(BATTLE_MESSAGE.WALL_DESTROYED, (event) => {
+      if (event.playerId === getPovPlayerId()) {
+        vibrate("wallDestroyed", HAPTIC_WALL_HIT_MS);
+      }
+    });
+    bus.on(BATTLE_MESSAGE.CANNON_DAMAGED, (event) => {
+      if (event.playerId !== getPovPlayerId()) return;
+      if (event.newHp === 0) {
+        vibrate("cannonDestroyed", HAPTIC_CANNON_DESTROYED_MS);
+      } else {
+        vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS);
+      }
+    });
+    // Tower-kill isn't POV-filtered: the payload carries no playerId, so
+    // haptics can't identify the victim without a GameState lookup. Vibrates
+    // on every tower death — surfaced as a follow-up in the sound review.
+    bus.on(BATTLE_MESSAGE.TOWER_KILLED, () => {
+      vibrate("towerKilled", HAPTIC_TOWER_KILLED_MS);
     });
   }
 
