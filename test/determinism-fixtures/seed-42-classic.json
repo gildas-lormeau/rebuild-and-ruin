@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8264,
+  "eventCount": 8266,
   "events": [
     {
       "type": "tick",
@@ -14467,6 +14467,12 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "battleCease",
+      "payload": {
+        "round": 1
       }
     },
     {
@@ -38027,6 +38033,12 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "battleCease",
+      "payload": {
+        "round": 2
       }
     },
     {

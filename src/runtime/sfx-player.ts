@@ -128,6 +128,7 @@ const SFX_EVENT_MAP: SfxEventMap = {
   battleReady: { sample: "ready" },
   battleAim: { sample: "aim" },
   battleFire: { sample: "fire" },
+  battleCease: { sample: "cease" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,

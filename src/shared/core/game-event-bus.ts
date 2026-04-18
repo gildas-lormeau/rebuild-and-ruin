@@ -77,7 +77,13 @@ export type LifecycleEvent =
    *  progression, so the events are never networked. */
   | { type: "battleReady"; round: number }
   | { type: "battleAim"; round: number }
-  | { type: "battleFire"; round: number };
+  | { type: "battleFire"; round: number }
+  /** Battle timer reached 0. Distinct from `phaseEnd(BATTLE)` — the phase
+   *  hangs around after the timer expires while in-flight cannonballs
+   *  land, so consumers that care about the "cease firing" beat (voice
+   *  SFX) key off this, not phaseEnd. Derived locally on host + watcher
+   *  when `state.timer` crosses from > 0 to 0 during BATTLE. */
+  | { type: "battleCease"; round: number };
 
 export type EntityEvent =
   | {
@@ -223,6 +229,7 @@ const LIFECYCLE_EVENT = {
   BATTLE_READY: "battleReady",
   BATTLE_AIM: "battleAim",
   BATTLE_FIRE: "battleFire",
+  BATTLE_CEASE: "battleCease",
 } as const;
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",

@@ -2,6 +2,7 @@ import {
   advanceBattleCountdown,
   canBuildThisFrame,
   diffNewWalls,
+  emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
   enterBuildSkippingBattle,
@@ -590,6 +591,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { state, battleAnim } = runtimeState;
     const broadcast = isHost ? deps.send : undefined;
 
+    const prevTimer = state.timer;
     advancePhaseTimer(
       runtimeState.accum,
       ACCUM_BATTLE,
@@ -597,6 +599,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       dt,
       BATTLE_TIMER,
     );
+    emitBattleCeaseIfTimerCrossed(state, prevTimer);
 
     // Event collection order (LOAD-BEARING — do not reorder):
     //   1. Tick controllers → fire events (new cannonballs from battleTick)

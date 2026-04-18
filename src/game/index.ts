@@ -6,6 +6,7 @@ export {
   aimCannons,
   canFireOwnCannon,
   canPlayerFire,
+  emitBattleCeaseIfTimerCrossed,
   fireNextReadyCannon,
   nextReadyCombined,
   setBattleCountdown,

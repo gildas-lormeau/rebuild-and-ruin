@@ -32,6 +32,7 @@ import {
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
@@ -129,6 +130,20 @@ const FIRE_STEP: AnnouncementStep = {
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
 const CANNON_NOT_FOUND = -1;
+
+/** Called by both the host tick and the watcher recompute after they
+ *  mutate `state.timer`. If the timer just crossed from > 0 to 0 during
+ *  BATTLE, emit `battleCease` — the "stop firing" beat. Distinct from
+ *  phaseEnd because the phase keeps running until airborne cannonballs
+ *  land. */
+export function emitBattleCeaseIfTimerCrossed(
+  state: GameState,
+  prevTimer: number,
+): void {
+  if (state.phase !== Phase.BATTLE) return;
+  if (prevTimer <= 0 || state.timer > 0) return;
+  emitGameEvent(state.bus, GAME_EVENT.BATTLE_CEASE, { round: state.round });
+}
 
 /** Decrement the battle countdown timer, emit a transition event on each
  *  Ready/Aim/Fire threshold crossing, and return the announcement text.
