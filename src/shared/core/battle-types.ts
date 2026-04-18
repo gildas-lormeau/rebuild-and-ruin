@@ -81,6 +81,10 @@ export interface Cannonball {
   incendiary?: boolean;
   /** If true, this is a mortar round — 3×3 splash damage + burning pit at center. */
   mortar?: boolean;
+  /** Set once after the descent-whistle bus event has fired for this ball.
+   *  Prevents the SFX from retriggering every frame while the ball is in
+   *  the trigger window. Undefined on fresh balls (not yet whistled). */
+  whistled?: true;
 }
 
 export interface CapturedCannon {

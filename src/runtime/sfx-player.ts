@@ -120,6 +120,9 @@ const COUNTDOWN_SNARE_RAW_SEC = 6.72;
  *  tension build-up. Mirrors the build-bg decrescendo in music-player.ts
  *  so the two signals cross-fade on the same 1 s window. */
 const SNARE_CRESCENDO_SEC = 1;
+/** Cannonball descent-whistle variants — picked at random for variety
+ *  every time a ball enters its descent phase. */
+const FWWHIST_SAMPLES: readonly string[] = ["fwwhist1", "fwwhist2", "fwwhist3"];
 /** Winner color-end stinger chained after `welldone` at gameEnd. Indexed
  *  by player slot: 0 = Red, 1 = Blue, 2 = Gold (the DOS sample names
  *  abbreviate gold as "org"). A hypothetical 4th slot reuses Red's. */
@@ -133,13 +136,15 @@ const WINNER_END_SAMPLE_BY_SLOT: readonly string[] = [
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
   cannonPlaced: { sample: "clunk1" },
-  cannonFired: { sample: "cannon1" },
+  cannonFired: { sample: "baboom" },
   battleReady: { sample: "ready" },
   battleAim: { sample: "aim" },
   battleFire: { sample: "fire" },
   battleCease: { sample: "cease" },
   wallPlaced: { sample: "dblclic" },
   castlePlaced: { sample: "dblclic" },
+  wallDestroyed: { sample: "exp3" },
+  cannonDamaged: { sample: "exp2" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,
@@ -384,6 +389,19 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     boundHandlers.push({
       type: GAME_EVENT.BANNER_START,
       handler: finalBattleHandler as GameEventHandler<EventKey>,
+    });
+    // cannonballDescending — pick a random fwwhist variant so back-to-back
+    // cannonballs don't overlay the same sample (three flavours in the
+    // bank). Handled out-of-map because SFX_EVENT_MAP is one-sample-per-
+    // event-type; here we need a runtime choice among three.
+    const descendingHandler: GameEventHandler<"cannonballDescending"> = () => {
+      const idx = Math.floor(Math.random() * FWWHIST_SAMPLES.length);
+      void playSample(FWWHIST_SAMPLES[idx]!);
+    };
+    bus.on(GAME_EVENT.CANNONBALL_DESCENDING, descendingHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.CANNONBALL_DESCENDING,
+      handler: descendingHandler as GameEventHandler<EventKey>,
     });
   }
 

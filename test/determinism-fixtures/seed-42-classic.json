@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8266,
+  "eventCount": 8304,
   "events": [
     {
       "type": "tick",
@@ -11253,10 +11253,30 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -11493,16 +11513,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -11565,10 +11577,46 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -11655,10 +11703,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -11715,22 +11761,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -12045,6 +12077,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -12309,6 +12345,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -12571,6 +12611,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -13077,6 +13121,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -13119,10 +13167,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -13173,10 +13219,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -13201,6 +13245,22 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -13549,6 +13609,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -13693,6 +13757,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -14017,6 +14085,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -14460,6 +14532,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -14530,6 +14606,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -14970,6 +15050,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -15331,6 +15415,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -34777,10 +34865,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -34841,6 +34927,16 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -35084,6 +35180,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -35470,6 +35570,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -35780,6 +35884,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -36095,6 +36203,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -36550,10 +36662,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -36728,6 +36838,16 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -37103,6 +37223,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -37588,6 +37712,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -37883,6 +38011,10 @@
         "row": 27,
         "shooterId": 2
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -38251,10 +38383,42 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -38317,28 +38481,8 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",
@@ -38674,6 +38818,10 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {}
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -38969,6 +39117,10 @@
       "payload": {
         "dt": 0.016666666666666666
       }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {}
     },
     {
       "type": "tick",

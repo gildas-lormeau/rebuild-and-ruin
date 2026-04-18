@@ -110,6 +110,15 @@ interface AnnouncementStep {
  *  Tuned for snappy visual feedback — cannons should visually track
  *  the crosshair with minimal lag but not feel instant. */
 const CANNON_ROTATE_SPEED = Math.PI * 3;
+/** Seconds before impact at which we fire the descent-whistle SFX event.
+ *  Chosen to roughly match the fwwhist* sample length so the whistle
+ *  lands on impact. Time-based (not distance-based) so the rapid-fire
+ *  upgrade — and any future speed tweak — doesn't desync the cue. */
+const WHISTLE_LEAD_SEC = 0.8;
+/** Minimum total-travel-time for a cannonball to whistle. Shots faster
+ *  than this arrive before the descent phase is musically meaningful,
+ *  so we skip the whistle entirely (point-blank tower-top shots). */
+const WHISTLE_MIN_TOTAL_SEC = 1.5;
 /** Countdown thresholds for battle announcement phases:
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY_SEC = 3;
@@ -456,10 +465,6 @@ export function applyTowerKilled(
   state.towerAlive[event.towerIdx] = false;
 }
 
-/** Map battleCountdown to the corresponding announcement step (text +
- *  matching bus-event type). Returns a stable const object per step so
- *  callers can compare by identity instead of re-running the threshold
- *  ladder. */
 function getAnnouncementStep(
   battleCountdown: number,
 ): AnnouncementStep | undefined {
@@ -481,6 +486,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   const remaining: Cannonball[] = [];
 
   for (const ball of state.cannonballs) {
+    maybeEmitDescendingWhistle(state, ball);
     const hit = advanceCannonball(ball, dt);
     if (hit) {
       // Ball has arrived — compute and apply impact
@@ -706,6 +712,33 @@ export function applyImpactEvent(
       break;
     }
   }
+}
+
+/** Map battleCountdown to the corresponding announcement step (text +
+ *  matching bus-event type). Returns a stable const object per step so
+ *  callers can compare by identity instead of re-running the threshold
+ *  ladder. */
+/** Emit `cannonballDescending` once per ball when it nears impact.
+ *  Time-remaining (distance / speed) trigger so speed modifiers and the
+ *  rapid-fire upgrade automatically shift the cue to match. Short shots
+ *  whose entire trajectory is shorter than WHISTLE_MIN_TOTAL_SEC are
+ *  skipped — we stamp the ball as whistled so the per-tick check is O(1)
+ *  on all subsequent frames. */
+function maybeEmitDescendingWhistle(state: GameState, ball: Cannonball): void {
+  if (ball.whistled) return;
+  const dx = ball.targetX - ball.x;
+  const dy = ball.targetY - ball.y;
+  const distRemaining = Math.sqrt(dx * dx + dy * dy);
+  if (ball.speed <= 0) return;
+  const timeRemaining = distRemaining / ball.speed;
+  if (timeRemaining > WHISTLE_LEAD_SEC) return;
+  const totalDx = ball.targetX - ball.startX;
+  const totalDy = ball.targetY - ball.startY;
+  const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+  const totalTime = totalDist / ball.speed;
+  ball.whistled = true;
+  if (totalTime < WHISTLE_MIN_TOTAL_SEC) return;
+  emitGameEvent(state.bus, GAME_EVENT.CANNONBALL_DESCENDING, {});
 }
 
 /**

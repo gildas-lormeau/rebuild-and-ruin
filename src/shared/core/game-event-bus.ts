@@ -87,7 +87,13 @@ export type LifecycleEvent =
    *  land, so consumers that care about the "cease firing" beat (voice
    *  SFX) key off this, not phaseEnd. Derived locally on host + watcher
    *  when `state.timer` crosses from > 0 to 0 during BATTLE. */
-  | { type: "battleCease"; round: number };
+  | { type: "battleCease"; round: number }
+  /** A cannonball has entered its descent phase — fired once per ball,
+   *  approximately `WHISTLE_LEAD_SEC` before impact. Only emitted for
+   *  shots whose total travel time exceeds a minimum (short point-blank
+   *  shots don't whistle). Drives the `fwwhist*` SFX. Time-based trigger
+   *  so it tracks the rapid-fire upgrade's 1.5× ball-speed automatically. */
+  | { type: "cannonballDescending" };
 
 export type EntityEvent =
   | {
@@ -234,6 +240,7 @@ const LIFECYCLE_EVENT = {
   BATTLE_AIM: "battleAim",
   BATTLE_FIRE: "battleFire",
   BATTLE_CEASE: "battleCease",
+  CANNONBALL_DESCENDING: "cannonballDescending",
 } as const;
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",
