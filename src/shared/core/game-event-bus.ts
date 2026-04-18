@@ -50,6 +50,10 @@ export type LifecycleEvent =
       /** Tile keys changed by the modifier — consumed by the progressive
        *  reveal animation. Undefined when the banner has no modifier. */
       changedTiles?: readonly number[];
+      /** True only for the BATTLE banner of the last round in a finite
+       *  game (ignored in "to the death" / infinity mode, where
+       *  `maxRounds` is Infinity). Drives the "final" voice-line SFX. */
+      isFinalBattle?: boolean;
     }
   /** Phase-transition banner finished (progress reached 1). Emitted before
    *  the banner's completion callback fires. */

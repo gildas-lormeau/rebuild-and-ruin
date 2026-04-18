@@ -4026,6 +4026,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 1,
         "subtitle": "Position inside fort walls",
@@ -7324,6 +7325,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": false,
         "phase": "BATTLE",
         "round": 1,
         "subtitle": "Shoot at enemy walls",
@@ -15766,6 +15768,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 2,
         "subtitle": "Surround castles, repair walls",
@@ -27121,6 +27124,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 2,
         "subtitle": "Position inside fort walls",
@@ -30947,6 +30951,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": true,
         "phase": "BATTLE",
         "round": 2,
         "subtitle": "Shoot at enemy walls",
@@ -39395,6 +39400,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 3,
         "subtitle": "Surround castles, repair walls",

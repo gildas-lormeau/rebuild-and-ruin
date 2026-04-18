@@ -9,6 +9,7 @@
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { type BannerState, createBannerState } from "./runtime-contracts.ts";
@@ -70,11 +71,18 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
     if (pendingStartEvent) {
       pendingStartEvent = false;
+      // Last battle in a finite game. Infinity-mode ("to the death")
+      // carries maxRounds=Infinity, so this predicate is always false.
+      const isFinalBattle =
+        state.phase === Phase.BATTLE &&
+        state.maxRounds !== Infinity &&
+        state.round === state.maxRounds;
       emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
         text: banner.text,
         subtitle: banner.subtitle,
         phase: state.phase,
         round: state.round,
+        isFinalBattle,
       });
     }
 
