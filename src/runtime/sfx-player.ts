@@ -173,11 +173,23 @@ const SFX_EVENT_MAP: SfxEventMap = {
     minGapSec: 0.4,
     minGapJitterSec: 0.2,
   },
-  // towerEnclosed is handled outside this map — it both plays elechit1 AND
-  // (on first per-player-per-phase) chains the player's fanfare via the
-  // BufferSource's onended event, so it stays together in one handler.
-  // Unmapped on purpose:
-  //   - placecan: tutorial voice line; scoped to the tutorial when we add it.
+  // Handled outside this map (subscribeBus ties each to a hand-written
+  // handler because the one-sample-per-event-type shape can't express
+  // what they need):
+  //   - towerEnclosed: plays elechit1, then chains the player's fanfare
+  //     on the first enclosure per player per phase.
+  //   - gameEnd: plays welldone, then chains the winner's color stinger
+  //     (redend / bluend / orgend).
+  //   - bannerStart (isFinalBattle branch): layers `final` on top of the
+  //     whoosh2 sweep mapped via this event map.
+  //   - cannonballDescending: picks a random fwwhist1/2/3 variant.
+  //
+  // Reserved for future features (no mapping yet):
+  //   - placecan, capture, rotate, redbeg, blubeg, orgbeg — cannon tutorial.
+  //   - alive, agony2, blade, guill2 — guillotine (defeat) screen.
+  //   - zap1 — "enclosed tower highlight" overlay before/after the score screen.
+  //   - cannon1, magnum1 — parked as alternate cannon-fire samples for future
+  //     variety (e.g. captured-cannon cue). baboom covers all cannons today.
 };
 
 export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
