@@ -19,7 +19,7 @@ export type LifecycleEvent =
   | { type: "phaseEnd"; phase: Phase; round: number }
   | { type: "roundStart"; round: number }
   | { type: "roundEnd"; round: number }
-  | { type: "gameEnd"; round: number }
+  | { type: "gameEnd"; round: number; winner: ValidPlayerSlot }
   | { type: "playerEliminated"; playerId: ValidPlayerSlot; round: number }
   | {
       type: "lifeLost";

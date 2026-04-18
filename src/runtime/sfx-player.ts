@@ -120,6 +120,15 @@ const COUNTDOWN_SNARE_RAW_SEC = 6.72;
  *  tension build-up. Mirrors the build-bg decrescendo in music-player.ts
  *  so the two signals cross-fade on the same 1 s window. */
 const SNARE_CRESCENDO_SEC = 1;
+/** Winner color-end stinger chained after `welldone` at gameEnd. Indexed
+ *  by player slot: 0 = Red, 1 = Blue, 2 = Gold (the DOS sample names
+ *  abbreviate gold as "org"). A hypothetical 4th slot reuses Red's. */
+const WINNER_END_SAMPLE_BY_SLOT: readonly string[] = [
+  "redend",
+  "bluend",
+  "orgend",
+  "redend",
+];
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
@@ -339,6 +348,29 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     boundHandlers.push({
       type: GAME_EVENT.TOWER_ENCLOSED,
       handler: enclosedHandler as GameEventHandler<EventKey>,
+    });
+    // gameEnd — play "well done" then chain the winner's color-end
+    // stinger (redend / bluend / orgend) on the `ended` event of the
+    // welldone source. Slots: 0 = Red, 1 = Blue, 2 = Gold (org in the
+    // DOS sample naming).
+    const gameEndHandler: GameEventHandler<"gameEnd"> = (event) => {
+      const winnerSample = WINNER_END_SAMPLE_BY_SLOT[event.winner];
+      if (!winnerSample) return;
+      void playSample("welldone").then((source) => {
+        if (!source) {
+          void playSample(winnerSample);
+          return;
+        }
+        source.addEventListener("ended", () => {
+          if (disposed) return;
+          void playSample(winnerSample);
+        });
+      });
+    };
+    bus.on(GAME_EVENT.GAME_END, gameEndHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.GAME_END,
+      handler: gameEndHandler as GameEventHandler<EventKey>,
     });
   }
 

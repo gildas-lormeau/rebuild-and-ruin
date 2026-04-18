@@ -174,7 +174,10 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
       state.players.reduce((best, player) =>
         player.score > best.score ? player : best,
       );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
+    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
+      round: state.round,
+      winner: winner.id,
+    });
     onGameOver(winner, "last-player-standing");
     return true;
   }
@@ -184,7 +187,10 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
       (best, player) => (player.score > best.score ? player : best),
       alive[0]!,
     );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, { round: state.round });
+    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
+      round: state.round,
+      winner: winner.id,
+    });
     onGameOver(winner, "round-limit-reached");
     return true;
   }

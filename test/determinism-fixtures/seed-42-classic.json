@@ -50728,7 +50728,8 @@
     {
       "type": "gameEnd",
       "payload": {
-        "round": 3
+        "round": 3,
+        "winner": 2
       }
     },
     {
