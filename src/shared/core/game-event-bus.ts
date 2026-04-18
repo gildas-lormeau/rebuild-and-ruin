@@ -90,6 +90,17 @@ export type LifecycleEvent =
   /** Balloon capture animation finished — fires once when every flight
    *  reaches progress=1. The next frame enters battle proper. */
   | { type: "balloonAnimEnd"; round: number }
+  /** Upgrade-pick dialog is about to show ("Choose Upgrade" banner +
+   *  per-player card dialog). Lets subsystems (music) suppress cues
+   *  tied to the underlying WALL_BUILD phase transition — by the time
+   *  this fires, `state.phase` is already WALL_BUILD, so the upgrade
+   *  banner's bannerEnd would otherwise be indistinguishable from the
+   *  subsequent "Build & Repair" banner's bannerEnd. */
+  | { type: "upgradePickShow"; round: number }
+  /** Upgrade-pick dialog resolved — every player has picked or
+   *  auto-skipped. Pairs with `upgradePickShow` to bookend the
+   *  dialog. The "Build & Repair" banner follows immediately. */
+  | { type: "upgradePickEnd"; round: number }
   /** Battle timer reached 0. Distinct from `phaseEnd(BATTLE)` — the phase
    *  hangs around after the timer expires while in-flight cannonballs
    *  land, so consumers that care about the "cease firing" beat (voice
@@ -264,6 +275,8 @@ const LIFECYCLE_EVENT = {
   BATTLE_CEASE: "battleCease",
   BALLOON_ANIM_START: "balloonAnimStart",
   BALLOON_ANIM_END: "balloonAnimEnd",
+  UPGRADE_PICK_SHOW: "upgradePickShow",
+  UPGRADE_PICK_END: "upgradePickEnd",
   CANNONBALL_DESCENDING: "cannonballDescending",
   HOUSE_CRUSHED: "houseCrushed",
 } as const;

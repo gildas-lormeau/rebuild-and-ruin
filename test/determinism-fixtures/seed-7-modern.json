@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8453,
+  "eventCount": 8455,
   "events": [
     {
       "type": "tick",
@@ -38327,6 +38327,12 @@
       }
     },
     {
+      "type": "upgradePickShow",
+      "payload": {
+        "round": 3
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -40475,6 +40481,12 @@
       "payload": {
         "playerId": 2,
         "upgradeId": "reinforced_walls"
+      }
+    },
+    {
+      "type": "upgradePickEnd",
+      "payload": {
+        "round": 3
       }
     },
     {

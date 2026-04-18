@@ -137,13 +137,14 @@ const LIFE_LOST_SONG_INDEX = 1;
 const LIFE_LOST_VOLUME = MIDI_VOLUME_BOOST;
 // Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
 // (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
-// ~7.66 s long (libADLMIDI playback), and BALLOON_FLIGHT_DURATION is
-// pinned to match so natural playback finish and the balloonAnimEnd
-// event land on the same frame. The paired stop() on end is a safety
-// net against minor synth drift.
+// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION is set
+// to 5.5 s so balloonAnimEnd cuts the track's tail — an intentional
+// trim to keep the animation beat tight.
 const JAWS_TRACK = "RXMI_BATTLE.xmi";
 const JAWS_SONG_INDEX = 6;
-const JAWS_VOLUME = MIDI_VOLUME_BOOST;
+// Boosted 2× over the nominal mix — the jaws theme needs to cut
+// through over the battle-anim visuals and sets the tension beat.
+const JAWS_VOLUME = 2 * MIDI_VOLUME_BOOST;
 const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
@@ -184,6 +185,23 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let boundLifeLostHandler: GameEventHandler<"lifeLostDialogShow"> | undefined;
   let boundJawsStartHandler: GameEventHandler<"balloonAnimStart"> | undefined;
   let boundJawsEndHandler: GameEventHandler<"balloonAnimEnd"> | undefined;
+  let boundUpgradePickShowHandler:
+    | GameEventHandler<"upgradePickShow">
+    | undefined;
+  let boundUpgradePickEndHandler:
+    | GameEventHandler<"upgradePickEnd">
+    | undefined;
+  // True from upgradePickShow to upgradePickEnd. The upgrade-pick step
+  // runs after state.phase has been flipped to WALL_BUILD, so the
+  // "Choose Upgrade" banner's bannerEnd event carries phase=WALL_BUILD
+  // too — indistinguishable from the later "Build & Repair" bannerEnd.
+  // This flag lets the bannerEnd handler skip the upgrade-banner cue.
+  let upgradePickInProgress = false;
+  // Set true when the upgrade flow started cannon-bg music (to cover
+  // the banner + dialog + next banner sweep), stays true until the
+  // Build banner's bannerEnd consumes it — at which point cannon-bg
+  // stops and build-bg takes over.
+  let cannonBgFromUpgrade = false;
   // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
   // is the actual synth state. `paused` means the composition told us the
   // host tab is hidden / externally quieted — we honor wantsTitle but defer
@@ -652,6 +670,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         boundBus.off(GAME_EVENT.BALLOON_ANIM_START, boundJawsStartHandler);
       if (boundJawsEndHandler)
         boundBus.off(GAME_EVENT.BALLOON_ANIM_END, boundJawsEndHandler);
+      if (boundUpgradePickShowHandler)
+        boundBus.off(GAME_EVENT.UPGRADE_PICK_SHOW, boundUpgradePickShowHandler);
+      if (boundUpgradePickEndHandler)
+        boundBus.off(GAME_EVENT.UPGRADE_PICK_END, boundUpgradePickEndHandler);
     }
     boundBus = undefined;
     boundCastleHandler = undefined;
@@ -662,6 +684,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     boundLifeLostHandler = undefined;
     boundJawsStartHandler = undefined;
     boundJawsEndHandler = undefined;
+    boundUpgradePickShowHandler = undefined;
+    boundUpgradePickEndHandler = undefined;
+    upgradePickInProgress = false;
+    cannonBgFromUpgrade = false;
   }
 
   function subscribeBus(bus: GameEventBus): void {
@@ -676,16 +702,30 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
     // sweeping and stops when the BATTLE banner takes over. The handler
     // fires every round, so stop+play rewinds the loop each cycle.
+    // If the upgrade flow started cannon-bg early (upgradePickShow), it
+    // stops here on the Build banner's sweep-start — giving us silence
+    // during the actual banner sweep before build-bg picks up at end.
     const bannerStartHandler: GameEventHandler<"bannerStart"> = (event) => {
       if (event.phase === Phase.CANNON_PLACE) void playCannonBg();
       else if (event.phase === Phase.BATTLE)
         void stopCannonBg(STOP_REASON_PHASE);
+      else if (
+        event.phase === Phase.WALL_BUILD &&
+        !upgradePickInProgress &&
+        cannonBgFromUpgrade
+      ) {
+        cannonBgFromUpgrade = false;
+        void stopCannonBg(STOP_REASON_PHASE);
+      }
     };
     // Build-phase bg music starts AFTER the WALL_BUILD banner finishes
     // sweeping — bannerEnd gives us that post-sweep edge. Fade-out is
-    // state-derived, see tickPresentation.
+    // state-derived, see tickPresentation. Skip while the upgrade-pick
+    // dialog is active: its own banner's bannerEnd also reports
+    // phase=WALL_BUILD but is not the build-phase cue.
     const bannerEndHandler: GameEventHandler<"bannerEnd"> = (event) => {
-      if (event.phase === Phase.WALL_BUILD) void playBuildBg();
+      if (event.phase === Phase.WALL_BUILD && !upgradePickInProgress)
+        void playBuildBg();
     };
     // Between-rounds score-delta overlay: looped bg music for as long as
     // the overlay is displayed.
@@ -710,6 +750,19 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const jawsEndHandler: GameEventHandler<"balloonAnimEnd"> = () => {
       void stopJaws(STOP_REASON_PHASE);
     };
+    // Upgrade-pick dialog: play cannon-bg through the whole screen —
+    // starts at the "Choose Upgrade" banner sweep and keeps playing
+    // across the dialog and the following "Build & Repair" banner
+    // sweep. The bannerEnd handler stops it (and starts build-bg) on
+    // the Build banner's bannerEnd.
+    const upgradePickShowHandler: GameEventHandler<"upgradePickShow"> = () => {
+      upgradePickInProgress = true;
+      cannonBgFromUpgrade = true;
+      void playCannonBg();
+    };
+    const upgradePickEndHandler: GameEventHandler<"upgradePickEnd"> = () => {
+      upgradePickInProgress = false;
+    };
     bus.on(GAME_EVENT.CASTLE_PLACED, castleHandler);
     bus.on(GAME_EVENT.BANNER_START, bannerStartHandler);
     bus.on(GAME_EVENT.BANNER_END, bannerEndHandler);
@@ -718,6 +771,8 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, lifeLostHandler);
     bus.on(GAME_EVENT.BALLOON_ANIM_START, jawsStartHandler);
     bus.on(GAME_EVENT.BALLOON_ANIM_END, jawsEndHandler);
+    bus.on(GAME_EVENT.UPGRADE_PICK_SHOW, upgradePickShowHandler);
+    bus.on(GAME_EVENT.UPGRADE_PICK_END, upgradePickEndHandler);
     boundBus = bus;
     boundCastleHandler = castleHandler;
     boundBannerStartHandler = bannerStartHandler;
@@ -727,11 +782,18 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     boundLifeLostHandler = lifeLostHandler;
     boundJawsStartHandler = jawsStartHandler;
     boundJawsEndHandler = jawsEndHandler;
+    boundUpgradePickShowHandler = upgradePickShowHandler;
+    boundUpgradePickEndHandler = upgradePickEndHandler;
   }
 
   async function activate(): Promise<void> {
     if (deps.assetsReady) await deps.assetsReady;
     await ensureSynth();
+    // Pre-warm the jaws synth so the first balloon capture doesn't pay
+    // the XMI-load + MIDI-parse latency on the bus-event edge. Every
+    // other synth stays lazy — jaws is the only track whose start has
+    // to line up tightly with an animation frame.
+    void ensureJawsSynth();
   }
 
   async function suspendContext(context: AudioContext | null): Promise<void> {

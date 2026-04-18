@@ -1037,6 +1037,9 @@ function runUpgradePickStep(
     onDone();
     return;
   }
+  emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_SHOW, {
+    round: ctx.state.round,
+  });
   ctx.showBanner(
     BANNER_UPGRADE_PICK,
     () => {
@@ -1050,6 +1053,9 @@ function runUpgradePickStep(
           applyUpgradePicks(ctx.state, dialog);
           recheckTerritory(ctx.state);
         }
+        emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_END, {
+          round: ctx.state.round,
+        });
         onDone();
       };
       if (!picker.tryShow(afterPicks)) afterPicks();
