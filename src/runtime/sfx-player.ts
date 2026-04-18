@@ -141,6 +141,17 @@ const WINNER_END_SAMPLE_BY_SLOT: readonly string[] = [
   "orgend",
   "redend",
 ];
+/** Firework-whistle sample name per variant index. Order MUST match
+ *  `WHISTLE_VARIANT_DURATIONS_SEC` in battle-system.ts — the variant id
+ *  on `cannonballDescending` events is that array's index. Keeping the
+ *  asset names here (not in game state) means renaming a sample or
+ *  swapping the SOUND.RSC pack never touches the wire protocol, the
+ *  Cannonball shape, or the determinism fixtures. */
+const CANNONBALL_WHISTLE_SAMPLES: readonly string[] = [
+  "fwwhist1",
+  "fwwhist3",
+  "fwwhist2",
+];
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
@@ -191,7 +202,8 @@ const SFX_EVENT_MAP: SfxEventMap = {
   //     (redend / bluend / orgend).
   //   - bannerStart (isFinalBattle branch): layers `final` on top of the
   //     whoosh2 sweep mapped via this event map.
-  //   - cannonballDescending: picks a random fwwhist1/2/3 variant.
+  //   - cannonballDescending: picks a fwwhist variant by payload index
+  //     (CANNONBALL_WHISTLE_SAMPLES above).
   //
   // Reserved for future features (no mapping yet):
   //   - placecan, capture, rotate, redbeg, blubeg, orgbeg — cannon tutorial.
@@ -437,13 +449,15 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     });
     // cannonballDescending — variant was picked at launch (in battle-
     // system) so its full sample duration fits in the remaining travel
-    // time, putting the built-in pop on impact. We just play whatever
-    // variant the event names. Out-of-map because SFX_EVENT_MAP takes a
-    // single sample per event type, but the sample is payload-driven.
+    // time, putting the built-in pop on impact. The event carries only
+    // an index; this file owns the id → sample name mapping so game state
+    // and the determinism fixtures stay asset-agnostic. Out-of-map
+    // because SFX_EVENT_MAP takes a single sample per event type.
     const descendingHandler: GameEventHandler<"cannonballDescending"> = (
       event,
     ) => {
-      void playSample(event.sample);
+      const sampleName = CANNONBALL_WHISTLE_SAMPLES[event.variant];
+      if (sampleName !== undefined) void playSample(sampleName);
     };
     bus.on(GAME_EVENT.CANNONBALL_DESCENDING, descendingHandler);
     boundHandlers.push({

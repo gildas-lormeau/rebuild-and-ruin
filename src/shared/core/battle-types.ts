@@ -85,16 +85,15 @@ export interface Cannonball {
    *  Prevents the SFX from retriggering every frame while the ball is in
    *  the trigger window. Undefined on fresh balls (not yet whistled). */
   whistled?: true;
-  /** Firework-whistle variant chosen at launch time. The sample is
+  /** Firework-whistle variant index chosen at launch time. The variant is
    *  picked so its full duration fits in the remaining travel window —
-   *  the built-in "pop" at the tail of each fwwhist* file lands
-   *  precisely at impact rather than overlapping the explosion SFX.
-   *  Undefined on balls whose total trajectory is too short for any
-   *  variant (skip the whistle entirely). */
-  whistleSample?: "fwwhist1" | "fwwhist2" | "fwwhist3";
-  /** Duration of `whistleSample` in seconds — trigger window: emit the
-   *  descending event when `time_remaining <= whistleLeadSec`. */
-  whistleLeadSec?: number;
+   *  the built-in "pop" at the tail of the sample lands precisely at
+   *  impact rather than overlapping the explosion SFX. The variant →
+   *  sample mapping lives in sfx-player (game state stays asset-agnostic);
+   *  the variant → duration mapping stays in battle-system where the
+   *  physics lookup runs. Undefined on balls whose total trajectory is
+   *  too short for any variant (skip the whistle entirely). */
+  whistleVariant?: number;
 }
 
 export interface CapturedCannon {

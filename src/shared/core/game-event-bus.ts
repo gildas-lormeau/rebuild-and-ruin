@@ -109,18 +109,15 @@ export type LifecycleEvent =
   | { type: "battleCease"; round: number }
   /** A cannonball has entered its descent phase — fired once per ball
    *  at a variant-specific lead time so the whistle sample's full
-   *  duration fits in the remaining travel window. Each fwwhist* sample
-   *  has a built-in explosion pop at its tail; scheduling the start so
-   *  the tail lands on impact avoids doubling up with the separately-
-   *  played impact SFX (exp2 / exp3 / explrg1 / woodcrus). The `sample`
-   *  field carries the pre-selected variant (picked at launch via
-   *  state.rng). Not all cannonballs whistle — short-trajectory shots
-   *  whose travel time is below every variant's duration skip this
-   *  event entirely. */
-  | {
-      type: "cannonballDescending";
-      sample: "fwwhist1" | "fwwhist2" | "fwwhist3";
-    }
+   *  duration fits in the remaining travel window. Scheduling the start
+   *  so the sample's built-in impact pop lands on impact avoids doubling
+   *  up with the separately-played impact SFX (exp2 / exp3 / explrg1 /
+   *  woodcrus). The `variant` field carries the pre-selected index
+   *  (picked at launch via state.rng); sfx-player owns the variant →
+   *  sample name mapping so game state stays asset-agnostic. Not all
+   *  cannonballs whistle — short-trajectory shots whose travel time is
+   *  below every variant's duration skip this event entirely. */
+  | { type: "cannonballDescending"; variant: number }
   /** A wall piece placed during the build phase landed on top of a live
    *  house, crushing it. Drives the `woodcrus` SFX. Distinct from the
    *  battle-phase `houseDestroyed` event (cannonball impact) — that one

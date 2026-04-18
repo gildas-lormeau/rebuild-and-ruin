@@ -10529,7 +10529,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -10631,7 +10631,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -10805,7 +10805,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -11393,7 +11393,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12020,7 +12020,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12182,7 +12182,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12290,7 +12290,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12308,7 +12308,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -13265,7 +13265,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -13364,7 +13364,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -13478,7 +13478,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -13682,7 +13682,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -14015,7 +14015,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -33447,7 +33447,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -33858,7 +33858,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -34287,7 +34287,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -34743,7 +34743,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -34995,7 +34995,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -35013,7 +35013,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -35282,7 +35282,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -36458,7 +36458,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -36752,7 +36752,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -36830,7 +36830,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -37304,7 +37304,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {

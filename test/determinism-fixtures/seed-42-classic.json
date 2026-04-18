@@ -10799,7 +10799,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -10829,7 +10829,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -10961,7 +10961,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -11147,7 +11147,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -11201,7 +11201,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -11225,7 +11225,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -11244,72 +11244,6 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "cannonballDescending",
-      "payload": {
-        "sample": "fwwhist1"
       }
     },
     {
@@ -11375,7 +11309,73 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {
+        "variant": 0
       }
     },
     {
@@ -11651,7 +11651,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -11942,7 +11942,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12197,7 +12197,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12623,7 +12623,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -12671,7 +12671,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -12764,7 +12764,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -12794,7 +12794,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -13031,7 +13031,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -13169,7 +13169,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -13490,7 +13490,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -13937,7 +13937,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -14231,7 +14231,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -14690,7 +14690,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -15068,7 +15068,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -34651,7 +34651,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -34729,7 +34729,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -35041,7 +35041,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -35449,7 +35449,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -35575,7 +35575,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -36016,7 +36016,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -36118,7 +36118,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -36382,7 +36382,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist2"
+        "variant": 2
       }
     },
     {
@@ -36463,7 +36463,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -36535,7 +36535,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -37084,7 +37084,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -37321,7 +37321,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -37495,7 +37495,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -37534,7 +37534,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist2"
+        "variant": 2
       }
     },
     {
@@ -37546,7 +37546,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -37768,7 +37768,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
@@ -37786,7 +37786,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist1"
+        "variant": 0
       }
     },
     {
@@ -39004,7 +39004,7 @@
     {
       "type": "cannonballDescending",
       "payload": {
-        "sample": "fwwhist3"
+        "variant": 1
       }
     },
     {
