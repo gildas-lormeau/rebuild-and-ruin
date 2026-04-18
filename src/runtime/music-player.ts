@@ -2,6 +2,19 @@
  * Music sub-system — libadlmidi-js-driven OPL3 playback of player-supplied
  * Rampart music files.
  *
+ * ### Synth topology
+ *
+ * All non-overlapping tracks (title / cannon-bg / build-bg / score-bg /
+ * life-lost / jaws) share one `bgSynth`. Game flow guarantees only one plays
+ * at a time — phases are sequential and the stingers (life-lost, jaws) sit in
+ * windows where no other bg track is running. Collapsing them onto one synth
+ * means one AudioContext + WASM instance instead of six, well below the
+ * browser's active-context cap.
+ *
+ * The fanfare pool stays separate: fanfares ring on top of build-bg during
+ * WALL_BUILD (an enclosure completed mid-build fires a fanfare while bg music
+ * keeps playing), so they need their own synths.
+ *
  * Plays RXMI_TITLE.xmi from the moment the subsystem is bound to a game bus
  * (first launch + rematch) until the first WALL_BUILD phase starts. Silent if
  * `MusicAssets` is null (player hasn't dropped in their Rampart files). Mirrors
@@ -32,6 +45,7 @@ import {
   GAME_EVENT,
   type GameEventBus,
   type GameEventHandler,
+  type GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -45,7 +59,7 @@ import {
   xmiContainerBlocks,
   xmidToSmf,
 } from "../shared/platform/xmi-to-smf.ts";
-import type { MusicAssets } from "./music-assets.ts";
+import type { MusicAssets, XmiFileKey } from "./music-assets.ts";
 import type { SynthHandle } from "./music-synth-loader.ts";
 
 interface MusicSubsystem {
@@ -60,9 +74,8 @@ interface MusicSubsystem {
   /** Stop any active playback. Idempotent. */
   stopTitle(): Promise<void>;
   /** Play the one-shot tower-enclosure fanfare for a player. Picks a
-   *  TETRIS sub-song by player slot (5/6/7 cycle). Interrupts any
-   *  currently-loaded MIDI — safe because title has already stopped by
-   *  the time the first enclosure happens. */
+   *  TETRIS sub-song by player slot (5/6/7 cycle). Runs on its own synth
+   *  so it can overlap build-bg during WALL_BUILD. */
   playFanfare(playerId: ValidPlayerSlot): Promise<void>;
   /** Bind to the supplied game bus so PHASE_START=WALL_BUILD auto-stops the
    *  title track when the first castle goes down. Re-binding to a different
@@ -92,30 +105,88 @@ interface MusicSubsystemDeps {
   readonly observer?: MusicObserver;
 }
 
+/** Descriptor for a track that plays on the shared `bgSynth`. `id` is the
+ *  opaque label surfaced to the test observer — disambiguates same-file
+ *  different-sub-song tracks (build-bg vs life-lost both live in TETRIS.xmi). */
+interface BgTrack {
+  readonly id: string;
+  readonly file: XmiFileKey;
+  readonly songIndex: number;
+  readonly loop: boolean;
+  readonly volume: number;
+}
+
 // Global +25 % boost applied on top of each track's base gain. MIDI
 // output from libADLMIDI sat noticeably below the PCM SFX layer; lifting
 // every synth uniformly keeps the relative mix intact while raising the
 // overall music level.
 const MIDI_VOLUME_BOOST = 1.25;
-const TITLE_TRACK = "RXMI_TITLE.xmi";
-const TITLE_SONG_INDEX = 0;
-const TITLE_VOLUME = MIDI_VOLUME_BOOST;
-const FANFARE_TRACK = "RXMI_TETRIS.xmi";
+const BG_TRACK_TITLE: BgTrack = {
+  id: "RXMI_TITLE.xmi",
+  file: "RXMI_TITLE.xmi",
+  songIndex: 0,
+  loop: true,
+  volume: MIDI_VOLUME_BOOST,
+};
+// RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
+// the original assets. Boost the per-synth gain so cannon-phase bg matches
+// the perceived loudness of fanfares and title music.
+const BG_TRACK_CANNON: BgTrack = {
+  id: "RXMI_CANNON.xmi",
+  file: "RXMI_CANNON.xmi",
+  songIndex: 0,
+  loop: true,
+  volume: 4.5 * MIDI_VOLUME_BOOST,
+};
+const BG_TRACK_BUILD: BgTrack = {
+  id: "RXMI_TETRIS.xmi",
+  file: "RXMI_TETRIS.xmi",
+  songIndex: 0,
+  loop: true,
+  volume: MIDI_VOLUME_BOOST,
+};
+// Score-overlay bg music — 0-indexed sub-song 4 of RXMI_SCORE.xmi
+// (mapping.txt lists it 1-indexed as "5 -> bg music score"). Loops for
+// the duration of the between-rounds score-delta overlay.
+const BG_TRACK_SCORE: BgTrack = {
+  id: "RXMI_SCORE.xmi",
+  file: "RXMI_SCORE.xmi",
+  songIndex: 4,
+  loop: true,
+  volume: MIDI_VOLUME_BOOST,
+};
+// Life-lost popup one-shot — 0-indexed sub-song 1 of RXMI_TETRIS.xmi
+// (mapping.txt "2 -> life lost music"). No loop: plays once as the
+// dialog appears. Reselect has no bg music of its own, so the stinger
+// normally finishes naturally before the next WALL_BUILD banner would
+// replace it; if a very short reselect races ahead the tail gets clipped.
+const BG_TRACK_LIFE_LOST: BgTrack = {
+  id: "RXMI_TETRIS.xmi#life-lost",
+  file: "RXMI_TETRIS.xmi",
+  songIndex: 1,
+  loop: false,
+  volume: MIDI_VOLUME_BOOST,
+};
+// Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
+// (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
+// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION is set
+// to 5.5 s so balloonAnimEnd cuts the track's tail — an intentional
+// trim to keep the animation beat tight. Boosted 2× over the nominal
+// mix — the jaws theme needs to cut through over the battle-anim visuals
+// and sets the tension beat.
+const BG_TRACK_JAWS: BgTrack = {
+  id: "RXMI_BATTLE.xmi",
+  file: "RXMI_BATTLE.xmi",
+  songIndex: 6,
+  loop: false,
+  volume: 2 * MIDI_VOLUME_BOOST,
+};
+const FANFARE_TRACK: XmiFileKey = "RXMI_TETRIS.xmi";
 // Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
 const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
 const FANFARE_VOLUME = MIDI_VOLUME_BOOST;
-const CANNON_BG_TRACK = "RXMI_CANNON.xmi";
-const CANNON_BG_SONG_INDEX = 0;
-// RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
-// the original assets. Boost the per-synth gain so cannon-phase bg matches
-// the perceived loudness of fanfares and title music.
-const CANNON_BG_VOLUME = 4.5 * MIDI_VOLUME_BOOST;
-const BUILD_BG_TRACK = "RXMI_TETRIS.xmi";
-const BUILD_BG_SONG_INDEX = 0;
-// RXMI_TETRIS bg music mix — tune by ear; starting point before audition.
-const BUILD_BG_VOLUME = MIDI_VOLUME_BOOST;
 // Build bg decrescendo runs on the same 1 s window as the snare's
 // crescendo in sfx-player.ts (SNARE_CRESCENDO_SEC): fade STARTS at
 // timer = 6.72 s (same instant the snare loop kicks in at 0 gain) and
@@ -123,112 +194,159 @@ const BUILD_BG_VOLUME = MIDI_VOLUME_BOOST;
 // cross-fade with mirrored ramps.
 const BUILD_BG_FADE_START_SEC = 6.72;
 const BUILD_BG_FADE_DURATION_SEC = 1;
-// Score-overlay bg music — 0-indexed sub-song 4 of RXMI_SCORE.xmi
-// (mapping.txt lists it 1-indexed as "5 -> bg music score"). Loops for
-// the duration of the between-rounds score-delta overlay.
-const SCORE_BG_TRACK = "RXMI_SCORE.xmi";
-const SCORE_BG_SONG_INDEX = 4;
-const SCORE_BG_VOLUME = MIDI_VOLUME_BOOST;
-// Life-lost popup one-shot — 0-indexed sub-song 1 of RXMI_TETRIS.xmi
-// (mapping.txt "2 -> life lost music"). No loop: plays once as the
-// dialog appears, finishing naturally during the subsequent reselect.
-const LIFE_LOST_TRACK = "RXMI_TETRIS.xmi";
-const LIFE_LOST_SONG_INDEX = 1;
-const LIFE_LOST_VOLUME = MIDI_VOLUME_BOOST;
-// Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
-// (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
-// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION is set
-// to 5.5 s so balloonAnimEnd cuts the track's tail — an intentional
-// trim to keep the animation beat tight.
-const JAWS_TRACK = "RXMI_BATTLE.xmi";
-const JAWS_SONG_INDEX = 6;
-// Boosted 2× over the nominal mix — the jaws theme needs to cut
-// through over the battle-anim visuals and sets the tension beat.
-const JAWS_VOLUME = 2 * MIDI_VOLUME_BOOST;
 const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
 export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
-  let synthPromise: Promise<SynthHandle> | undefined;
-  // One synth per fanfare slot. Each synth owns its own AudioContext +
-  // WASM instance, so four fanfares can ring simultaneously when
-  // enclosures land within the same ~second (parallel prebuilds). Lazy
-  // init on first request per slot; stored by index to match
-  // FANFARE_SONG_BY_SLOT.
+  // Shared synth for all non-fanfare tracks. Game flow guarantees only one
+  // bg track plays at a time, so one AudioContext + WASM instance handles
+  // all six.
+  let bgSynth: Promise<SynthHandle | undefined> | undefined;
+  // Track currently loaded into bgSynth. loadMidi is skipped when the same
+  // track is (re)played — repeat triggers only pay the stop+play rewind cost.
+  let bgLoaded: BgTrack | undefined;
+  // Track most recently asked to play; cleared by stopBg. Drives
+  // tickPresentation's build-bg fade trigger and the setPaused restart hook.
+  let bgPlaying: BgTrack | undefined;
+  // Cached SMF bytes per (file, songIndex). XMI→SMF conversion happens once
+  // per unique track per session; switching tracks only replays cached bytes
+  // plus a fresh copy (AudioWorklet transfers ownership on loadMidi). null
+  // means "we tried to parse this once and it failed" — don't warn again.
+  const smfCache = new Map<string, Uint8Array | null>();
+
+  // One synth per fanfare slot. Each owns its own AudioContext + WASM
+  // instance, so fanfares can ring on top of build-bg (different synth) and
+  // multiple enclosures landing within the same ~second (parallel prebuilds)
+  // can overlap. Lazy init per slot.
   const fanfareSynths = new Map<number, Promise<SynthHandle | undefined>>();
-  // Cannon-phase background music. One dedicated synth so it doesn't fight
-  // the title synth (still loaded but stopped by the time cannon phase hits)
-  // or the fanfare pool (can overlap if enclosures happen mid-cannon-phase).
-  let cannonBgSynth: Promise<SynthHandle | undefined> | undefined;
-  // Build-phase background music. Separate from the fanfare pool (same XMI
-  // container, different sub-song) so fanfares landing mid-build don't
-  // interrupt the bg loop.
-  let buildBgSynth: Promise<SynthHandle | undefined> | undefined;
+
+  // `wantsTitle` is the caller's intent (lobby said "play title"). `paused`
+  // means the composition told us the host tab is hidden / externally
+  // quieted — we honor wantsTitle but defer the play call until un-paused.
+  let wantsTitle = false;
+  let paused = false;
+
   // Tracks whether the tick-derived fade signal has already fired in the
   // current WALL_BUILD phase — prevents re-triggering the ramp every frame
   // past the threshold.
   let buildBgFadeTriggered = false;
   // Previous-tick phase for leave-WALL_BUILD edge detection.
   let buildBgLastPhase: Phase | undefined;
-  // Score-overlay bg (looped, start/stop on scoreOverlayStart/End).
-  let scoreBgSynth: Promise<SynthHandle | undefined> | undefined;
-  // Life-lost popup one-shot (no loop, natural end).
-  let lifeLostSynth: Promise<SynthHandle | undefined> | undefined;
-  // Balloon-capture jaws theme (one-shot, stops on balloonAnimEnd).
-  let jawsSynth: Promise<SynthHandle | undefined> | undefined;
-  let boundBus: GameEventBus | undefined;
-  let boundCastleHandler: GameEventHandler<"castlePlaced"> | undefined;
-  let boundBannerStartHandler: GameEventHandler<"bannerStart"> | undefined;
-  let boundBannerEndHandler: GameEventHandler<"bannerEnd"> | undefined;
-  let boundScoreStartHandler: GameEventHandler<"scoreOverlayStart"> | undefined;
-  let boundScoreEndHandler: GameEventHandler<"scoreOverlayEnd"> | undefined;
-  let boundLifeLostHandler: GameEventHandler<"lifeLostDialogShow"> | undefined;
-  let boundJawsStartHandler: GameEventHandler<"balloonAnimStart"> | undefined;
-  let boundJawsEndHandler: GameEventHandler<"balloonAnimEnd"> | undefined;
-  let boundUpgradePickShowHandler:
-    | GameEventHandler<"upgradePickShow">
-    | undefined;
-  let boundUpgradePickEndHandler:
-    | GameEventHandler<"upgradePickEnd">
-    | undefined;
-  // True from upgradePickShow to upgradePickEnd. The upgrade-pick step
-  // runs after state.phase has been flipped to WALL_BUILD, so the
-  // "Choose Upgrade" banner's bannerEnd event carries phase=WALL_BUILD
-  // too — indistinguishable from the later "Build & Repair" bannerEnd.
-  // This flag lets the bannerEnd handler skip the upgrade-banner cue.
-  let upgradePickInProgress = false;
-  // Set true when the upgrade flow started cannon-bg music (to cover
-  // the banner + dialog + next banner sweep), stays true until the
-  // Build banner's bannerEnd consumes it — at which point cannon-bg
-  // stops and build-bg takes over.
-  let cannonBgFromUpgrade = false;
-  // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
-  // is the actual synth state. `paused` means the composition told us the
-  // host tab is hidden / externally quieted — we honor wantsTitle but defer
-  // the play call until un-paused.
-  let wantsTitle = false;
-  let playing = false;
-  let paused = false;
 
-  async function ensureSynth(): Promise<SynthHandle | undefined> {
+  // True from upgradePickShow to upgradePickEnd. The upgrade-pick step runs
+  // after state.phase has been flipped to WALL_BUILD, so the "Choose Upgrade"
+  // banner's bannerEnd event carries phase=WALL_BUILD too — indistinguishable
+  // from the later "Build & Repair" bannerEnd. This flag lets the bannerEnd
+  // handler skip the upgrade-banner cue.
+  let upgradePickInProgress = false;
+  // Set true when the upgrade flow started cannon-bg music (to cover the
+  // banner + dialog + next banner sweep); stays true until the Build banner's
+  // bannerStart stops cannon-bg so build-bg can take over at bannerEnd.
+  let cannonBgFromUpgrade = false;
+
+  // Bus binding tracker — one array instead of per-event locals so unbind
+  // is a one-liner (matches sfx-player's pattern).
+  let boundBus: GameEventBus | undefined;
+  type EventKey = keyof GameEventMap;
+  const boundHandlers: Array<{
+    type: EventKey;
+    handler: GameEventHandler<EventKey>;
+  }> = [];
+
+  function loadSmf(track: BgTrack): Uint8Array | undefined {
+    const key = `${track.file}#${track.songIndex}`;
+    if (smfCache.has(key)) return smfCache.get(key) ?? undefined;
     const assets = deps.getAssets();
     if (!assets) return undefined;
-    if (!synthPromise) {
-      synthPromise = (async () => {
-        const loader = await import("./music-synth-loader.ts");
-        return loader.loadSynth(assets);
-      })().catch((error) => {
-        console.error("[music] synth init failed:", error);
-        synthPromise = undefined;
-        deps.observer?.onInitError?.(error);
-        throw error;
-      });
-    }
-    try {
-      return await synthPromise;
-    } catch {
+    const blocks = xmiContainerBlocks(assets.xmi[track.file]);
+    const block = blocks[track.songIndex]?.block;
+    if (!block) {
+      console.warn(
+        `[music] ${track.id} sub-song ${track.songIndex} missing in ${track.file}`,
+      );
+      smfCache.set(key, null);
       return undefined;
     }
+    const smf = xmidToSmf(block);
+    if (!smf) {
+      console.warn(`[music] ${track.id} has no EVNT chunk`);
+      smfCache.set(key, null);
+      return undefined;
+    }
+    smfCache.set(key, smf);
+    return smf;
+  }
+
+  function ensureBgSynth(): Promise<SynthHandle | undefined> {
+    if (bgSynth) return bgSynth;
+    bgSynth = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      return loader.loadSynth(assets);
+    })().catch((error) => {
+      console.error("[music] synth init failed:", error);
+      bgSynth = undefined;
+      deps.observer?.onInitError?.(error);
+      return undefined;
+    });
+    return bgSynth;
+  }
+
+  async function playBg(track: BgTrack): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureBgSynth();
+    if (!synth || paused) return;
+    try {
+      // stop() before (re)play rewinds so a repeat trigger replays from the
+      // top. Also cancels any in-flight fade from the previous use of this
+      // synth (the build-bg decrescendo leaves the gain ramped to 0).
+      await synth.stop();
+      if (bgLoaded !== track) {
+        const smf = loadSmf(track);
+        if (!smf) return;
+        // AudioWorklet messaging transfers ownership — hand over a copy so
+        // the cached SMF stays intact for subsequent replays.
+        await synth.loadMidi(copyBuffer(smf));
+        // Loop flag applies to the currently loaded file; must be set after
+        // loadMidi, not before.
+        synth.setLoopEnabled(track.loop);
+        bgLoaded = track;
+      }
+      // Reset gain every play — the previous track's fade (or its own
+      // different volume) otherwise bleeds in. setVolume writes .gain.value
+      // directly, which beats an already-settled ramp; active ramps are
+      // cancelled by the preceding stop().
+      synth.setVolume(track.volume);
+      await synth.play();
+      bgPlaying = track;
+      buildBgFadeTriggered = false;
+      deps.observer?.onPlay?.(track.id);
+    } catch (error) {
+      console.error(`[music] ${track.id} playback failed:`, error);
+    }
+  }
+
+  async function stopBg(
+    reason: "phase" | "rematch" | "dispose",
+  ): Promise<void> {
+    if (!bgSynth) return;
+    const wasPlaying = bgPlaying !== undefined;
+    bgPlaying = undefined;
+    try {
+      const synth = await bgSynth;
+      await synth?.stop();
+    } catch {
+      // synth failed to init or is already gone — nothing to stop
+    }
+    if (wasPlaying) deps.observer?.onStop?.(reason);
+  }
+
+  async function fadeOutBg(): Promise<void> {
+    if (!bgSynth) return;
+    const synth = await bgSynth;
+    synth?.fadeTo(0, BUILD_BG_FADE_DURATION_SEC);
   }
 
   async function playTitle(): Promise<void> {
@@ -236,41 +354,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // Wait for the initial IDB read — the lobby's startTitle() can race ahead.
     if (deps.assetsReady) await deps.assetsReady;
     if (paused) return; // will start when setPaused(false) fires
-    await startPlaybackNow();
+    if (bgPlaying === BG_TRACK_TITLE) return;
+    await playBg(BG_TRACK_TITLE);
   }
 
-  async function startPlaybackNow(): Promise<void> {
-    if (playing || !wantsTitle || paused) return;
-    const assets = deps.getAssets();
-    if (!assets) return;
-    const synth = await ensureSynth();
-    if (!synth || !wantsTitle || paused) return;
-    try {
-      // Convert XMI sub-song → SMF in memory before handing to libADLMIDI.
-      // Its native XMI parser reorders same-tick note-offs and retriggers
-      // percussion voices on the "wrong" cleanups, which is catastrophic for
-      // drum-channel SFX (verified by `tmp/music-player/scripts/
-      // render-and-compare.mjs`; SMF path produces bit-identical PCM to the
-      // Python reference tool). Title = sub-song 0 of RXMI_TITLE.xmi.
-      const blocks = xmiContainerBlocks(assets.xmi[TITLE_TRACK]);
-      const smf = xmidToSmf(blocks[TITLE_SONG_INDEX]!.block);
-      if (!smf) {
-        console.error("[music] title sub-song has no EVNT chunk");
-        return;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      // Lobby can sit on the title screen indefinitely — loop the ~30s track
-      // instead of dropping to silence. Must be set after loadMidi (the flag
-      // applies to the currently loaded file).
-      synth.setLoopEnabled(true);
-      synth.setVolume(TITLE_VOLUME);
-      await logLoopInfo(synth);
-      await synth.play();
-      playing = true;
-      deps.observer?.onPlay?.(TITLE_TRACK);
-    } catch (error) {
-      console.error("[music] startPlaybackNow failed:", error);
-    }
+  async function stopTitle(): Promise<void> {
+    wantsTitle = false;
+    await stopBg(STOP_REASON_PHASE);
   }
 
   function ensureFanfareSynth(
@@ -330,470 +420,142 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
   }
 
-  function ensureCannonBgSynth(): Promise<SynthHandle | undefined> {
-    if (cannonBgSynth) return cannonBgSynth;
-    cannonBgSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
-      const blocks = xmiContainerBlocks(assets.xmi[CANNON_BG_TRACK]);
-      const block = blocks[CANNON_BG_SONG_INDEX]?.block;
-      if (!block) {
-        console.warn(`[music] cannon bg song missing in CANNON.xmi`);
-        return undefined;
-      }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn(`[music] cannon bg song has no EVNT chunk`);
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      // Cannon phase runs ~15 s but the XMI track is shorter; loop so the
-      // music covers the whole placement window until BATTLE banner stops it.
-      synth.setLoopEnabled(true);
-      synth.setVolume(CANNON_BG_VOLUME);
-      return synth;
-    })().catch((error) => {
-      console.error("[music] cannon bg synth init failed:", error);
-      cannonBgSynth = undefined;
-      return undefined;
-    });
-    return cannonBgSynth;
-  }
-
-  async function playCannonBg(): Promise<void> {
-    if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureCannonBgSynth();
-    if (!synth || paused) return;
-    try {
-      // stop() then play() rewinds so each round's cannon phase starts the
-      // loop from the top instead of resuming mid-track from a prior round.
-      await synth.stop();
-      await synth.play();
-      deps.observer?.onPlay?.(CANNON_BG_TRACK);
-    } catch (error) {
-      console.error("[music] cannon bg playback failed:", error);
-    }
-  }
-
-  async function stopCannonBg(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    if (!cannonBgSynth) return;
-    try {
-      const synth = await cannonBgSynth;
-      await synth?.stop();
-      deps.observer?.onStop?.(reason);
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
-  }
-
-  function ensureBuildBgSynth(): Promise<SynthHandle | undefined> {
-    if (buildBgSynth) return buildBgSynth;
-    buildBgSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
-      const blocks = xmiContainerBlocks(assets.xmi[BUILD_BG_TRACK]);
-      const block = blocks[BUILD_BG_SONG_INDEX]?.block;
-      if (!block) {
-        console.warn("[music] build bg song missing in TETRIS.xmi");
-        return undefined;
-      }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn("[music] build bg song has no EVNT chunk");
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      synth.setLoopEnabled(true);
-      return synth;
-    })().catch((error) => {
-      console.error("[music] build bg synth init failed:", error);
-      buildBgSynth = undefined;
-      return undefined;
-    });
-    return buildBgSynth;
-  }
-
-  async function playBuildBg(): Promise<void> {
-    if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureBuildBgSynth();
-    if (!synth || paused) return;
-    try {
-      // Reset gain to nominal — the previous round's fade ramped it to 0,
-      // and cancelScheduledValues won't retroactively undo the ramp target.
-      synth.setVolume(BUILD_BG_VOLUME);
-      await synth.stop();
-      await synth.play();
-      buildBgFadeTriggered = false;
-      deps.observer?.onPlay?.(BUILD_BG_TRACK);
-    } catch (error) {
-      console.error("[music] build bg playback failed:", error);
-    }
-  }
-
-  async function stopBuildBg(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    if (!buildBgSynth) return;
-    try {
-      const synth = await buildBgSynth;
-      await synth?.stop();
-      deps.observer?.onStop?.(reason);
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
-  }
-
-  async function fadeOutBuildBg(): Promise<void> {
-    if (!buildBgSynth) return;
-    const synth = await buildBgSynth;
-    synth?.fadeTo(0, BUILD_BG_FADE_DURATION_SEC);
-  }
-
-  function ensureScoreBgSynth(): Promise<SynthHandle | undefined> {
-    if (scoreBgSynth) return scoreBgSynth;
-    scoreBgSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
-      const blocks = xmiContainerBlocks(assets.xmi[SCORE_BG_TRACK]);
-      const block = blocks[SCORE_BG_SONG_INDEX]?.block;
-      if (!block) {
-        console.warn("[music] score bg song missing in SCORE.xmi");
-        return undefined;
-      }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn("[music] score bg song has no EVNT chunk");
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      synth.setLoopEnabled(true);
-      synth.setVolume(SCORE_BG_VOLUME);
-      return synth;
-    })().catch((error) => {
-      console.error("[music] score bg synth init failed:", error);
-      scoreBgSynth = undefined;
-      return undefined;
-    });
-    return scoreBgSynth;
-  }
-
-  async function playScoreBg(): Promise<void> {
-    if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureScoreBgSynth();
-    if (!synth || paused) return;
-    try {
-      await synth.stop();
-      await synth.play();
-      deps.observer?.onPlay?.(SCORE_BG_TRACK);
-    } catch (error) {
-      console.error("[music] score bg playback failed:", error);
-    }
-  }
-
-  async function stopScoreBg(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    if (!scoreBgSynth) return;
-    try {
-      const synth = await scoreBgSynth;
-      await synth?.stop();
-      deps.observer?.onStop?.(reason);
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
-  }
-
-  function ensureLifeLostSynth(): Promise<SynthHandle | undefined> {
-    if (lifeLostSynth) return lifeLostSynth;
-    lifeLostSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
-      const blocks = xmiContainerBlocks(assets.xmi[LIFE_LOST_TRACK]);
-      const block = blocks[LIFE_LOST_SONG_INDEX]?.block;
-      if (!block) {
-        console.warn("[music] life-lost song missing in TETRIS.xmi");
-        return undefined;
-      }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn("[music] life-lost song has no EVNT chunk");
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      // One-shot — no loop. Playback ends naturally; next lifeLost replays
-      // via stop()+play() rewind in playLifeLost.
-      synth.setLoopEnabled(false);
-      synth.setVolume(LIFE_LOST_VOLUME);
-      return synth;
-    })().catch((error) => {
-      console.error("[music] life-lost synth init failed:", error);
-      lifeLostSynth = undefined;
-      return undefined;
-    });
-    return lifeLostSynth;
-  }
-
-  async function playLifeLost(): Promise<void> {
-    if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureLifeLostSynth();
-    if (!synth || paused) return;
-    try {
-      await synth.stop();
-      await synth.play();
-      deps.observer?.onPlay?.(LIFE_LOST_TRACK);
-    } catch (error) {
-      console.error("[music] life-lost playback failed:", error);
-    }
-  }
-
-  function ensureJawsSynth(): Promise<SynthHandle | undefined> {
-    if (jawsSynth) return jawsSynth;
-    jawsSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
-      const blocks = xmiContainerBlocks(assets.xmi[JAWS_TRACK]);
-      const block = blocks[JAWS_SONG_INDEX]?.block;
-      if (!block) {
-        console.warn("[music] jaws song missing in BATTLE.xmi");
-        return undefined;
-      }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn("[music] jaws song has no EVNT chunk");
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      synth.setLoopEnabled(false);
-      synth.setVolume(JAWS_VOLUME);
-      return synth;
-    })().catch((error) => {
-      console.error("[music] jaws synth init failed:", error);
-      jawsSynth = undefined;
-      return undefined;
-    });
-    return jawsSynth;
-  }
-
-  async function playJaws(): Promise<void> {
-    if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureJawsSynth();
-    if (!synth || paused) return;
-    try {
-      // stop() before play() rewinds so a back-to-back balloon capture on
-      // the next round replays the theme from the top, not mid-track.
-      await synth.stop();
-      await synth.play();
-      deps.observer?.onPlay?.(JAWS_TRACK);
-    } catch (error) {
-      console.error("[music] jaws playback failed:", error);
-    }
-  }
-
-  async function stopJaws(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    if (!jawsSynth) return;
-    try {
-      const synth = await jawsSynth;
-      await synth?.stop();
-      deps.observer?.onStop?.(reason);
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
-  }
-
   function tickPresentation(state: GameState): void {
     const phase = state.phase;
-    // Edge: just left WALL_BUILD — hard-stop the synth (safety net in case
-    // the fade signal never crossed, e.g. build phase cut short by a rule
-    // we don't know about yet).
+    // Edge: just left WALL_BUILD — hard-stop build-bg (safety net in case
+    // the fade signal never crossed, e.g. build phase cut short). Guarded on
+    // bgPlaying so we don't cut off the next phase's music (cannon-bg may
+    // already have started on the same synth by the time this frame runs).
     if (buildBgLastPhase === Phase.WALL_BUILD && phase !== Phase.WALL_BUILD) {
-      void stopBuildBg(STOP_REASON_PHASE);
+      if (bgPlaying === BG_TRACK_BUILD) void stopBg(STOP_REASON_PHASE);
       buildBgFadeTriggered = false;
     }
     buildBgLastPhase = phase;
 
     if (phase !== Phase.WALL_BUILD) return;
     if (buildBgFadeTriggered) return;
+    if (bgPlaying !== BG_TRACK_BUILD) return;
     if (state.timer <= 0 || state.timer > BUILD_BG_FADE_START_SEC) return;
     buildBgFadeTriggered = true;
-    void fadeOutBuildBg();
-  }
-
-  async function stopPlayback(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    wantsTitle = false;
-    playing = false;
-    if (!synthPromise) return;
-    try {
-      const synth = await synthPromise;
-      await synth.stop();
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
-    deps.observer?.onStop?.(reason);
+    void fadeOutBg();
   }
 
   function unbindCurrentBus(): void {
     if (boundBus) {
-      if (boundCastleHandler)
-        boundBus.off(GAME_EVENT.CASTLE_PLACED, boundCastleHandler);
-      if (boundBannerStartHandler)
-        boundBus.off(GAME_EVENT.BANNER_START, boundBannerStartHandler);
-      if (boundBannerEndHandler)
-        boundBus.off(GAME_EVENT.BANNER_END, boundBannerEndHandler);
-      if (boundScoreStartHandler)
-        boundBus.off(GAME_EVENT.SCORE_OVERLAY_START, boundScoreStartHandler);
-      if (boundScoreEndHandler)
-        boundBus.off(GAME_EVENT.SCORE_OVERLAY_END, boundScoreEndHandler);
-      if (boundLifeLostHandler)
-        boundBus.off(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, boundLifeLostHandler);
-      if (boundJawsStartHandler)
-        boundBus.off(GAME_EVENT.BALLOON_ANIM_START, boundJawsStartHandler);
-      if (boundJawsEndHandler)
-        boundBus.off(GAME_EVENT.BALLOON_ANIM_END, boundJawsEndHandler);
-      if (boundUpgradePickShowHandler)
-        boundBus.off(GAME_EVENT.UPGRADE_PICK_SHOW, boundUpgradePickShowHandler);
-      if (boundUpgradePickEndHandler)
-        boundBus.off(GAME_EVENT.UPGRADE_PICK_END, boundUpgradePickEndHandler);
+      for (const { type, handler } of boundHandlers) {
+        boundBus.off(type, handler);
+      }
     }
     boundBus = undefined;
-    boundCastleHandler = undefined;
-    boundBannerStartHandler = undefined;
-    boundBannerEndHandler = undefined;
-    boundScoreStartHandler = undefined;
-    boundScoreEndHandler = undefined;
-    boundLifeLostHandler = undefined;
-    boundJawsStartHandler = undefined;
-    boundJawsEndHandler = undefined;
-    boundUpgradePickShowHandler = undefined;
-    boundUpgradePickEndHandler = undefined;
+    boundHandlers.length = 0;
     upgradePickInProgress = false;
     cannonBgFromUpgrade = false;
+    buildBgFadeTriggered = false;
+    buildBgLastPhase = undefined;
   }
 
   function subscribeBus(bus: GameEventBus): void {
     if (boundBus === bus) return;
     unbindCurrentBus();
+    boundBus = bus;
+
+    const bind = <K extends EventKey>(
+      type: K,
+      handler: GameEventHandler<K>,
+    ): void => {
+      bus.on(type, handler);
+      boundHandlers.push({
+        type,
+        handler: handler as GameEventHandler<EventKey>,
+      });
+    };
+
     // Stop the title track the moment any player confirms their starting
     // castle. Ignore `isReselect` — after a mid-game castle reselect the
     // title isn't playing anyway.
-    const castleHandler: GameEventHandler<"castlePlaced"> = (event) => {
-      if (!event.isReselect) void stopPlayback(STOP_REASON_PHASE);
-    };
+    bind(GAME_EVENT.CASTLE_PLACED, (event) => {
+      if (event.isReselect) return;
+      wantsTitle = false;
+      void stopBg(STOP_REASON_PHASE);
+    });
+
     // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
-    // sweeping and stops when the BATTLE banner takes over. The handler
-    // fires every round, so stop+play rewinds the loop each cycle.
-    // If the upgrade flow started cannon-bg early (upgradePickShow), it
-    // stops here on the Build banner's sweep-start — giving us silence
-    // during the actual banner sweep before build-bg picks up at end.
-    const bannerStartHandler: GameEventHandler<"bannerStart"> = (event) => {
-      if (event.phase === Phase.CANNON_PLACE) void playCannonBg();
-      else if (event.phase === Phase.BATTLE)
-        void stopCannonBg(STOP_REASON_PHASE);
-      else if (
+    // sweeping and stops when the BATTLE banner takes over. If the upgrade
+    // flow started cannon-bg early (upgradePickShow), the Build banner's
+    // sweep-start stops it — giving us silence during the actual banner
+    // sweep before build-bg picks up at bannerEnd.
+    bind(GAME_EVENT.BANNER_START, (event) => {
+      if (event.phase === Phase.CANNON_PLACE) {
+        void playBg(BG_TRACK_CANNON);
+      } else if (event.phase === Phase.BATTLE) {
+        void stopBg(STOP_REASON_PHASE);
+      } else if (
         event.phase === Phase.WALL_BUILD &&
         !upgradePickInProgress &&
         cannonBgFromUpgrade
       ) {
         cannonBgFromUpgrade = false;
-        void stopCannonBg(STOP_REASON_PHASE);
+        void stopBg(STOP_REASON_PHASE);
       }
-    };
+    });
+
     // Build-phase bg music starts AFTER the WALL_BUILD banner finishes
     // sweeping — bannerEnd gives us that post-sweep edge. Fade-out is
     // state-derived, see tickPresentation. Skip while the upgrade-pick
     // dialog is active: its own banner's bannerEnd also reports
     // phase=WALL_BUILD but is not the build-phase cue.
-    const bannerEndHandler: GameEventHandler<"bannerEnd"> = (event) => {
-      if (event.phase === Phase.WALL_BUILD && !upgradePickInProgress)
-        void playBuildBg();
-    };
+    bind(GAME_EVENT.BANNER_END, (event) => {
+      if (event.phase === Phase.WALL_BUILD && !upgradePickInProgress) {
+        void playBg(BG_TRACK_BUILD);
+      }
+    });
+
     // Between-rounds score-delta overlay: looped bg music for as long as
     // the overlay is displayed.
-    const scoreStartHandler: GameEventHandler<"scoreOverlayStart"> = () => {
-      void playScoreBg();
-    };
-    const scoreEndHandler: GameEventHandler<"scoreOverlayEnd"> = () => {
-      void stopScoreBg(STOP_REASON_PHASE);
-    };
-    // Life-lost popup: one-shot track. Continues to play naturally into
-    // the reselect phase (no looped bg music runs during reselect).
-    const lifeLostHandler: GameEventHandler<"lifeLostDialogShow"> = () => {
-      void playLifeLost();
-    };
-    // Balloon-capture jaws theme: one-shot. Start on animation start,
-    // stop on animation end — the track is pinned to exactly
-    // BALLOON_FLIGHT_DURATION so natural playback finish and the end
-    // event land on the same frame.
-    const jawsStartHandler: GameEventHandler<"balloonAnimStart"> = () => {
-      void playJaws();
-    };
-    const jawsEndHandler: GameEventHandler<"balloonAnimEnd"> = () => {
-      void stopJaws(STOP_REASON_PHASE);
-    };
-    // Upgrade-pick dialog: play cannon-bg through the whole screen —
-    // starts at the "Choose Upgrade" banner sweep and keeps playing
-    // across the dialog and the following "Build & Repair" banner
-    // sweep. The bannerEnd handler stops it (and starts build-bg) on
-    // the Build banner's bannerEnd.
-    const upgradePickShowHandler: GameEventHandler<"upgradePickShow"> = () => {
+    bind(GAME_EVENT.SCORE_OVERLAY_START, () => {
+      void playBg(BG_TRACK_SCORE);
+    });
+    bind(GAME_EVENT.SCORE_OVERLAY_END, () => {
+      void stopBg(STOP_REASON_PHASE);
+    });
+
+    // Life-lost popup: one-shot track. Plays through the dialog and into
+    // reselect naturally (no loop flag). The next phase's playBg (usually
+    // build-bg after a reselect+banner sweep) will cut the tail if it's
+    // still ringing — reselect's timer is normally long enough for the
+    // stinger to finish first.
+    bind(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, () => {
+      void playBg(BG_TRACK_LIFE_LOST);
+    });
+
+    // Balloon-capture jaws theme: one-shot. Start on animation start, stop
+    // on animation end — the track is pinned to exactly BALLOON_FLIGHT_DURATION
+    // so natural playback finish and the end event land on the same frame.
+    bind(GAME_EVENT.BALLOON_ANIM_START, () => {
+      void playBg(BG_TRACK_JAWS);
+    });
+    bind(GAME_EVENT.BALLOON_ANIM_END, () => {
+      void stopBg(STOP_REASON_PHASE);
+    });
+
+    // Upgrade-pick dialog: play cannon-bg through the whole screen — starts
+    // at the "Choose Upgrade" banner sweep and keeps playing across the
+    // dialog and the following "Build & Repair" banner sweep. The
+    // bannerStart(WALL_BUILD) handler stops it; bannerEnd(WALL_BUILD) starts
+    // build-bg.
+    bind(GAME_EVENT.UPGRADE_PICK_SHOW, () => {
       upgradePickInProgress = true;
       cannonBgFromUpgrade = true;
-      void playCannonBg();
-    };
-    const upgradePickEndHandler: GameEventHandler<"upgradePickEnd"> = () => {
+      void playBg(BG_TRACK_CANNON);
+    });
+    bind(GAME_EVENT.UPGRADE_PICK_END, () => {
       upgradePickInProgress = false;
-    };
-    bus.on(GAME_EVENT.CASTLE_PLACED, castleHandler);
-    bus.on(GAME_EVENT.BANNER_START, bannerStartHandler);
-    bus.on(GAME_EVENT.BANNER_END, bannerEndHandler);
-    bus.on(GAME_EVENT.SCORE_OVERLAY_START, scoreStartHandler);
-    bus.on(GAME_EVENT.SCORE_OVERLAY_END, scoreEndHandler);
-    bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, lifeLostHandler);
-    bus.on(GAME_EVENT.BALLOON_ANIM_START, jawsStartHandler);
-    bus.on(GAME_EVENT.BALLOON_ANIM_END, jawsEndHandler);
-    bus.on(GAME_EVENT.UPGRADE_PICK_SHOW, upgradePickShowHandler);
-    bus.on(GAME_EVENT.UPGRADE_PICK_END, upgradePickEndHandler);
-    boundBus = bus;
-    boundCastleHandler = castleHandler;
-    boundBannerStartHandler = bannerStartHandler;
-    boundBannerEndHandler = bannerEndHandler;
-    boundScoreStartHandler = scoreStartHandler;
-    boundScoreEndHandler = scoreEndHandler;
-    boundLifeLostHandler = lifeLostHandler;
-    boundJawsStartHandler = jawsStartHandler;
-    boundJawsEndHandler = jawsEndHandler;
-    boundUpgradePickShowHandler = upgradePickShowHandler;
-    boundUpgradePickEndHandler = upgradePickEndHandler;
+    });
   }
 
   async function activate(): Promise<void> {
     if (deps.assetsReady) await deps.assetsReady;
-    await ensureSynth();
-    // Pre-warm the jaws synth so the first balloon capture doesn't pay
-    // the XMI-load + MIDI-parse latency on the bus-event edge. Every
-    // other synth stays lazy — jaws is the only track whose start has
-    // to line up tightly with an animation frame.
-    void ensureJawsSynth();
+    await ensureBgSynth();
   }
 
   async function suspendContext(context: AudioContext | null): Promise<void> {
@@ -808,59 +570,39 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
 
   async function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
-    const mainSynth = synthPromise
-      ? await synthPromise.catch(() => undefined)
-      : undefined;
-    // Suspend/resume every synth — the fanfare pool holds its own
-    // AudioContexts, so backgrounding the tab needs to quiet them too
-    // (otherwise a fanfare started just before visibility-change keeps
-    // ringing).
+    const bgHandle = bgSynth ? await bgSynth.catch(() => undefined) : undefined;
+    // The fanfare pool holds its own AudioContexts, so backgrounding the
+    // tab needs to quiet them too (otherwise a fanfare started just before
+    // visibility-change keeps ringing).
     const fanfareSnapshots = await Promise.all(
       Array.from(fanfareSynths.values()).map((pending) =>
         pending.catch(() => undefined),
       ),
     );
-    const cannonBg = cannonBgSynth
-      ? await cannonBgSynth.catch(() => undefined)
-      : undefined;
-    const buildBg = buildBgSynth
-      ? await buildBgSynth.catch(() => undefined)
-      : undefined;
-    const scoreBg = scoreBgSynth
-      ? await scoreBgSynth.catch(() => undefined)
-      : undefined;
-    const lifeLost = lifeLostSynth
-      ? await lifeLostSynth.catch(() => undefined)
-      : undefined;
-    const jaws = jawsSynth ? await jawsSynth.catch(() => undefined) : undefined;
-    for (const synth of [
-      mainSynth,
-      cannonBg,
-      buildBg,
-      scoreBg,
-      lifeLost,
-      jaws,
-      ...fanfareSnapshots,
-    ]) {
+    for (const synth of [bgHandle, ...fanfareSnapshots]) {
       if (nextPaused) await suspendContext(synth?.audioContext ?? null);
       else await resumeContext(synth?.audioContext ?? null);
     }
     // Deferred start: if we were asked to play title while paused, kick it off
     // now that the tab is visible again.
-    if (!nextPaused && wantsTitle && !playing) {
-      await startPlaybackNow();
+    if (!nextPaused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
+      await playBg(BG_TRACK_TITLE);
     }
   }
 
   async function dispose(): Promise<void> {
     unbindCurrentBus();
-    await stopPlayback(STOP_REASON_DISPOSE);
-    await stopCannonBg(STOP_REASON_DISPOSE);
-    await stopBuildBg(STOP_REASON_DISPOSE);
-    await stopScoreBg(STOP_REASON_DISPOSE);
-    // Shut down the fanfare synth pool — each owns an AudioContext we
-    // must explicitly close, otherwise rematches stack new ones on top
-    // (browsers cap the total and will refuse new contexts eventually).
+    await stopBg(STOP_REASON_DISPOSE);
+    wantsTitle = false;
+    if (bgSynth) {
+      const synth = await bgSynth.catch(() => undefined);
+      await synth?.audioContext?.close().catch(() => {});
+      bgSynth = undefined;
+      bgLoaded = undefined;
+    }
+    // Shut down the fanfare synth pool — each owns an AudioContext we must
+    // explicitly close, otherwise rematches stack new ones on top (browsers
+    // cap the total and will refuse new contexts eventually).
     for (const [, fanfarePromise] of fanfareSynths) {
       const synth = await fanfarePromise.catch(() => undefined);
       if (!synth) continue;
@@ -868,45 +610,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       await synth.audioContext?.close().catch(() => {});
     }
     fanfareSynths.clear();
-    // Same teardown for the cannon bg synth.
-    if (cannonBgSynth) {
-      const synth = await cannonBgSynth.catch(() => undefined);
-      await synth?.audioContext?.close().catch(() => {});
-      cannonBgSynth = undefined;
-    }
-    // Same teardown for the build bg synth.
-    if (buildBgSynth) {
-      const synth = await buildBgSynth.catch(() => undefined);
-      await synth?.audioContext?.close().catch(() => {});
-      buildBgSynth = undefined;
-    }
-    // Same teardown for the score bg synth.
-    if (scoreBgSynth) {
-      const synth = await scoreBgSynth.catch(() => undefined);
-      await synth?.audioContext?.close().catch(() => {});
-      scoreBgSynth = undefined;
-    }
-    // Life-lost synth (one-shot, no explicit stop in the normal flow).
-    if (lifeLostSynth) {
-      const synth = await lifeLostSynth.catch(() => undefined);
-      await synth?.stop().catch(() => {});
-      await synth?.audioContext?.close().catch(() => {});
-      lifeLostSynth = undefined;
-    }
-    // Jaws synth (one-shot; normally stopped by balloonAnimEnd, but a
-    // mid-flight dispose needs to kill the context too).
-    if (jawsSynth) {
-      const synth = await jawsSynth.catch(() => undefined);
-      await synth?.stop().catch(() => {});
-      await synth?.audioContext?.close().catch(() => {});
-      jawsSynth = undefined;
-    }
+    smfCache.clear();
   }
 
   return {
     activate,
     startTitle: playTitle,
-    stopTitle: () => stopPlayback(STOP_REASON_PHASE),
+    stopTitle,
     playFanfare,
     subscribeBus,
     tickPresentation,
@@ -915,28 +625,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   };
 }
 
-async function logLoopInfo(synth: SynthHandle): Promise<void> {
-  try {
-    const [start, end, title, markers, songs] = await Promise.all([
-      synth.getLoopStartTime(),
-      synth.getLoopEndTime(),
-      synth.getMusicTitle(),
-      synth.getMarkerCount(),
-      synth.getSongsCount(),
-    ]);
-    const startStr = start < 0 ? "—" : `${start.toFixed(3)}s`;
-    const endStr = end < 0 ? "—" : `${end.toFixed(3)}s`;
-    console.log(
-      `[music] title="${title}" songs=${songs} markers=${markers} loop=${startStr}→${endStr}`,
-    );
-  } catch (error) {
-    console.warn("[music] loop info query failed:", error);
-  }
-}
-
 function copyBuffer(bytes: Uint8Array): ArrayBuffer {
   // AudioWorklet messaging transfers ownership — always hand over a copy so the
-  // caller's view of MusicAssets stays intact after postMessage.
+  // caller's view of MusicAssets (and the SMF cache) stays intact after postMessage.
   const copy = new ArrayBuffer(bytes.byteLength);
   new Uint8Array(copy).set(bytes);
   return copy;
