@@ -28,6 +28,7 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
+  findTowerOwner,
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
@@ -266,11 +267,20 @@ export function gruntAttackTowers(
     }
     if (attackTarget !== undefined) {
       if (tickGruntAttackTimer(grunt, dt)) {
+        // Lookup BEFORE mutating towerAlive — applyTowerKilled may not
+        // mutate ownedTowers today, but a future consumer might, and we
+        // want the owner at kill time. If the tower has no owner (very
+        // edge case: untargeted modifier grunt adjacent to a living but
+        // unenclosed tower), skip both the mutation and the emit so
+        // host + watcher stay in sync on this grunt's next tick.
+        const ownerId = findTowerOwner(state.players, attackTarget);
+        if (ownerId === undefined) continue;
         state.towerAlive[attackTarget] = false;
-        const towerEvent = {
+        const towerEvent: TowerKilledMessage = {
           type: BATTLE_MESSAGE.TOWER_KILLED,
           towerIdx: attackTarget,
-        } as const;
+          playerId: ownerId,
+        };
         events.push(towerEvent);
         state.bus.emit(BATTLE_MESSAGE.TOWER_KILLED, towerEvent);
       }

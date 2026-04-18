@@ -97,11 +97,10 @@ export function createHapticsSubsystem(
         vibrate("cannonDamaged", HAPTIC_CANNON_DAMAGED_MS);
       }
     });
-    // Tower-kill isn't POV-filtered: the payload carries no playerId, so
-    // haptics can't identify the victim without a GameState lookup. Vibrates
-    // on every tower death — surfaced as a follow-up in the sound review.
-    bus.on(BATTLE_MESSAGE.TOWER_KILLED, () => {
-      vibrate("towerKilled", HAPTIC_TOWER_KILLED_MS);
+    bus.on(BATTLE_MESSAGE.TOWER_KILLED, (event) => {
+      if (event.playerId === getPovPlayerId()) {
+        vibrate("towerKilled", HAPTIC_TOWER_KILLED_MS);
+      }
     });
   }
 

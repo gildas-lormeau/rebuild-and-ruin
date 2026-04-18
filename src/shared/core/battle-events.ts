@@ -92,10 +92,14 @@ export interface WallShieldedMessage {
   newShieldHp: number;
 }
 
-/** A tower was destroyed by a grunt. */
+/** A tower was destroyed by a grunt. `playerId` is the slot that owned
+ *  the tower at the time of death — lets POV-filtered consumers (haptics)
+ *  react only to the local player's losses, matching wallDestroyed /
+ *  cannonDamaged. */
 export interface TowerKilledMessage {
   type: "towerKilled";
   towerIdx: number;
+  playerId: ValidPlayerSlot;
 }
 
 /** Impact events — effects from cannonball/grunt interactions. */

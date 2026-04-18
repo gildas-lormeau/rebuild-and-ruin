@@ -14,8 +14,10 @@
  * Coverage:
  *   - `phaseChange` — fires once per phase banner; expected several
  *     times across the first build → cannon → battle sequence.
- *   - `towerKilled` — fires at least once per full match as grunts reach
- *     towers. Proxy for "battle events reach the observer."
+ *   - `wallDestroyed` — fires every time a cannonball destroys a wall
+ *     owned by the POV player. Proxy for "POV-filtered battle events
+ *     reach the observer." Picked over `towerKilled` because towers
+ *     die rarely in pure-AI matches; wall destruction is constant.
  */
 
 import { assert, assertGreater } from "@std/assert";
@@ -64,7 +66,7 @@ Deno.test(
 );
 
 Deno.test(
-  "haptics observer: towerKilled reaches the observer even though CAN_VIBRATE=false",
+  "haptics observer: wallDestroyed reaches the observer even though CAN_VIBRATE=false",
   async () => {
     const calls: HapticCall[] = [];
     using sc = await createScenario({
@@ -76,22 +78,25 @@ Deno.test(
       },
     });
 
-    // Run the full match — grunts reaching towers are the most reliable
-    // way to guarantee a towerKilled event at any fixed seed.
+    // Run the full match — player 0's walls take cross-fire damage within
+    // the first round of any AI-vs-AI seed, and the haptic is POV-filtered
+    // to player 0 (the scenario default), so this is seed-robust.
     sc.runGame();
 
-    const towerKilled = calls.filter((call) => call.reason === "towerKilled");
+    const wallDestroyed = calls.filter(
+      (call) => call.reason === "wallDestroyed",
+    );
     assertGreater(
-      towerKilled.length,
+      wallDestroyed.length,
       0,
-      "expected at least one towerKilled haptic during the match (was the observer installed?)",
+      "expected at least one wallDestroyed haptic during the match (was the observer installed?)",
     );
     // Duration should match the constant in runtime-haptics.ts so a
     // refactor fails loudly instead of silently drifting.
-    const TOWER_KILLED_MS = 600;
+    const WALL_HIT_MS = 200;
     assert(
-      towerKilled[0]!.ms === TOWER_KILLED_MS,
-      `towerKilled ms should be ${TOWER_KILLED_MS}, got ${towerKilled[0]!.ms}`,
+      wallDestroyed[0]!.ms === WALL_HIT_MS,
+      `wallDestroyed ms should be ${WALL_HIT_MS}, got ${wallDestroyed[0]!.ms}`,
     );
   },
 );

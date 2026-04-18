@@ -152,6 +152,22 @@ export function selectPlayerTower(player: Player, tower: Tower): void {
   player.homeTower = tower;
 }
 
+/** Find which player currently owns the tower at the given index, or
+ *  `undefined` when no seated player has enclosed it. Linear scan over
+ *  at most four players × a handful of owned towers — call sites that
+ *  need this in a hot loop should cache their own inverse map. */
+export function findTowerOwner(
+  players: readonly Player[],
+  towerIdx: number,
+): ValidPlayerSlot | undefined {
+  for (const player of players) {
+    if (player.ownedTowers.some((tower) => tower.index === towerIdx)) {
+      return player.id;
+    }
+  }
+  return undefined;
+}
+
 /** True when a player has selected a castle and can actively participate. */
 export function isPlayerSeated(
   player: Player | null | undefined,
