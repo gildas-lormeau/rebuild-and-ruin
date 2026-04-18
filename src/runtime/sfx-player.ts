@@ -114,6 +114,16 @@ const COUNTDOWN_SNARE_PHASES: ReadonlySet<Phase> = new Set([
  *  trigger (ceil(6.72 - TIMER_DISPLAY_LAG_SEC) = ceil(5.72) = 6), which
  *  is when the player expects the drum-roll. */
 const COUNTDOWN_SNARE_RAW_SEC = 6.72;
+/** Phases during which the fanfare rule applies: the player's first
+ *  enclosed alive tower in one of these phases triggers the fanfare,
+ *  unless they had an enclosed alive tower at phase entry. Other
+ *  phases (CANNON_PLACE / BATTLE / UPGRADE_PICK) don't produce new
+ *  enclosures, so they're excluded from the pre-seed check. */
+const FANFARE_PHASES: ReadonlySet<Phase> = new Set([
+  Phase.CASTLE_SELECT,
+  Phase.CASTLE_RESELECT,
+  Phase.WALL_BUILD,
+]);
 /** Crescendo applied to the looping snare when it starts — snarerl1 is a
  *  uniform-volume drum roll (peak mid-cycle, no natural ramp-in), so we
  *  ramp the output gain from 0 to 1 over this window for the drum-roll
@@ -204,7 +214,13 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   // Players who've already triggered their fanfare in the current build /
   // select phase. Cleared on every `phaseStart` event — CASTLE_SELECT,
   // WALL_BUILD, and CASTLE_RESELECT each get a fresh first-enclosure.
+  // When entering WALL_BUILD, players who already hold ≥ 1 enclosed alive
+  // tower get pre-added so additional enclosures in that phase stay
+  // silent — the fanfare is an intro cue, not a repeat-landmark cue.
   const fanfarePlayedThisPhase = new Set<ValidPlayerSlot>();
+  // Phase from the previous tick — used in tickPresentation to detect
+  // entries into WALL_BUILD for the fanfare pre-seed.
+  let lastPhase: Phase | undefined;
   // Looping snare-roll source while a timed phase is in its last 6
   // seconds. Single source because the player only ever hears one
   // countdown at a time. Started/stopped on derived-signal transitions,
@@ -433,6 +449,24 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
 
   function tickPresentation(state: GameState): void {
     if (disposed || paused) return;
+    // Entering an enclosure-producing phase (CASTLE_SELECT,
+    // CASTLE_RESELECT, WALL_BUILD): pre-add players who already hold at
+    // least one enclosed alive tower. This suppresses the fanfare for
+    // players who were already established before the phase began. In
+    // SELECT/RESELECT the condition naturally evaluates to false for
+    // everyone (no enclosed towers yet), so the gate is uniform — no
+    // special casing per phase.
+    if (state.phase !== lastPhase) {
+      if (FANFARE_PHASES.has(state.phase)) {
+        for (const player of state.players) {
+          const hasEnclosedAlive = player.ownedTowers.some(
+            (tower) => state.towerAlive[tower.index] === true,
+          );
+          if (hasEnclosedAlive) fanfarePlayedThisPhase.add(player.id);
+        }
+      }
+      lastPhase = state.phase;
+    }
     const signals = deriveSfxSignals(state);
     if (signals.countdownActive && !lastSignals.countdownActive) {
       startSnareLoop();

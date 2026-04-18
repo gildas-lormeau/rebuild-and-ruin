@@ -138,12 +138,18 @@ export function eliminatePlayer(player: Player): void {
   player.lives = 0;
 }
 
-/** Set a player's home tower and initialize their owned towers list.
- *  Called during selection / reselection phase when a player picks or
- *  changes their highlighted tower. */
+/** Set a player's home tower. Called during selection / reselection
+ *  phase when a player picks or changes their highlighted tower.
+ *
+ *  Deliberately does NOT touch `ownedTowers` — that list is derived
+ *  state, maintained by `updateOwnedTowers` in build-system.ts via the
+ *  territory flood-fill. Seeding it here would create a "ghost"
+ *  enclosure at the moment of highlight (before any walls exist), which
+ *  misleads consumers that treat `ownedTowers` as "towers actually
+ *  enclosed by my territory" — notably the SFX layer, which uses the
+ *  list to decide whether a player deserves the fanfare. */
 export function selectPlayerTower(player: Player, tower: Tower): void {
   player.homeTower = tower;
-  player.ownedTowers = [tower];
 }
 
 /** True when a player has selected a castle and can actively participate. */
