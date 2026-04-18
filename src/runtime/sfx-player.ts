@@ -130,6 +130,7 @@ const SFX_EVENT_MAP: SfxEventMap = {
   battleFire: { sample: "fire" },
   battleCease: { sample: "cease" },
   wallPlaced: { sample: "dblclic" },
+  castlePlaced: { sample: "dblclic" },
   bannerStart: {
     sample: "whoosh2",
     filter: (event) => event.phase === Phase.BATTLE,
