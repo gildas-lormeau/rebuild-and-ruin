@@ -91,6 +91,7 @@ document.getElementById("btn-local")!.addEventListener(CLICK_EVENT, () => {
 });
 
 document.getElementById("btn-online")!.addEventListener(CLICK_EVENT, () => {
+  activateOnlineAudio();
   navigateTo(ROUTE_ONLINE);
 });
 
@@ -101,24 +102,41 @@ serverHostInput.addEventListener("change", () => {
   else localStorage.removeItem(SERVER_STORAGE_KEY);
 });
 
-// Fullscreen on Create/Join confirm (needs user gesture — click for mobile compat)
+// Fullscreen + audio boot on Create/Join confirm (needs user gesture — click for mobile compat)
 document
   .getElementById("btn-create-confirm")!
-  .addEventListener(CLICK_EVENT, tryFullscreen);
+  .addEventListener(CLICK_EVENT, () => {
+    tryFullscreen();
+    activateOnlineAudio();
+  });
 
 document
   .getElementById("btn-join-confirm")!
-  .addEventListener(CLICK_EVENT, tryFullscreen);
+  .addEventListener(CLICK_EVENT, () => {
+    tryFullscreen();
+    activateOnlineAudio();
+  });
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
   tryFullscreen(); // call synchronously — QR tap navigation preserves user activation
+  activateOnlineAudio();
   void (async () => {
     navigateTo(ROUTE_ONLINE, true);
     const { lobbyReady } = await import("./online-client.ts");
     const { joinRoom } = await lobbyReady;
     joinRoom(autoJoinCode.toUpperCase());
   })();
+}
+
+// Kick off audio boot inside the click's user-gesture window — same rationale
+// as btn-local's activateMusic call. online-client.ts lazy-loads the online
+// runtime; once resolved, activateAudio warms the music synth + SFX context.
+// Wired to every online entry point (create, join, QR auto-join) as a
+// belt-and-suspenders: any of them is a fresh gesture the browser accepts
+// for AudioContext.resume().
+function activateOnlineAudio(): void {
+  void import("./online-client.ts").then((module) => module.activateAudio());
 }
 
 if (params.has("record-inputs")) {

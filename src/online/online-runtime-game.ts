@@ -237,6 +237,17 @@ const runtime: GameRuntime = createGameRuntime({
   },
 });
 
+/** Pre-warm both audio sub-systems (music WASM + SFX AudioContext) inside a
+ *  user-gesture handler. Mirrors main.ts's activateMusic() for the online
+ *  flow — called from entry.ts on btn-online / btn-create-confirm /
+ *  btn-join-confirm clicks so online games start with a running context.
+ *  No-op if the player hasn't dropped their Rampart files into IDB. */
+export function activateAudio(): Promise<void> {
+  return Promise.all([runtime.music.activate(), runtime.sfx.activate()]).then(
+    () => {},
+  );
+}
+
 // ── Initialize dependent modules and register handlers ─────────────
 /** Wire runtime into ws/promote/deps modules and register input + exit
  *  handlers. Called once from online-client.ts after module evaluation.
