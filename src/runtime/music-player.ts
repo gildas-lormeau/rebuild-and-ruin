@@ -135,6 +135,15 @@ const SCORE_BG_VOLUME = MIDI_VOLUME_BOOST;
 const LIFE_LOST_TRACK = "RXMI_TETRIS.xmi";
 const LIFE_LOST_SONG_INDEX = 1;
 const LIFE_LOST_VOLUME = MIDI_VOLUME_BOOST;
+// Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
+// (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
+// ~7.66 s long (libADLMIDI playback), and BALLOON_FLIGHT_DURATION is
+// pinned to match so natural playback finish and the balloonAnimEnd
+// event land on the same frame. The paired stop() on end is a safety
+// net against minor synth drift.
+const JAWS_TRACK = "RXMI_BATTLE.xmi";
+const JAWS_SONG_INDEX = 6;
+const JAWS_VOLUME = MIDI_VOLUME_BOOST;
 const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
@@ -164,6 +173,8 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let scoreBgSynth: Promise<SynthHandle | undefined> | undefined;
   // Life-lost popup one-shot (no loop, natural end).
   let lifeLostSynth: Promise<SynthHandle | undefined> | undefined;
+  // Balloon-capture jaws theme (one-shot, stops on balloonAnimEnd).
+  let jawsSynth: Promise<SynthHandle | undefined> | undefined;
   let boundBus: GameEventBus | undefined;
   let boundCastleHandler: GameEventHandler<"castlePlaced"> | undefined;
   let boundBannerStartHandler: GameEventHandler<"bannerStart"> | undefined;
@@ -171,6 +182,8 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   let boundScoreStartHandler: GameEventHandler<"scoreOverlayStart"> | undefined;
   let boundScoreEndHandler: GameEventHandler<"scoreOverlayEnd"> | undefined;
   let boundLifeLostHandler: GameEventHandler<"lifeLostDialogShow"> | undefined;
+  let boundJawsStartHandler: GameEventHandler<"balloonAnimStart"> | undefined;
+  let boundJawsEndHandler: GameEventHandler<"balloonAnimEnd"> | undefined;
   // `wantsTitle` is the caller's intent (lobby said "play title"). `playing`
   // is the actual synth state. `paused` means the composition told us the
   // host tab is hidden / externally quieted — we honor wantsTitle but defer
@@ -529,6 +542,65 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
   }
 
+  function ensureJawsSynth(): Promise<SynthHandle | undefined> {
+    if (jawsSynth) return jawsSynth;
+    jawsSynth = (async () => {
+      const assets = deps.getAssets();
+      if (!assets) return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const synth = await loader.loadSynth(assets);
+      const blocks = xmiContainerBlocks(assets.xmi[JAWS_TRACK]);
+      const block = blocks[JAWS_SONG_INDEX]?.block;
+      if (!block) {
+        console.warn("[music] jaws song missing in BATTLE.xmi");
+        return undefined;
+      }
+      const smf = xmidToSmf(block);
+      if (!smf) {
+        console.warn("[music] jaws song has no EVNT chunk");
+        return undefined;
+      }
+      await synth.loadMidi(copyBuffer(smf));
+      synth.setLoopEnabled(false);
+      synth.setVolume(JAWS_VOLUME);
+      return synth;
+    })().catch((error) => {
+      console.error("[music] jaws synth init failed:", error);
+      jawsSynth = undefined;
+      return undefined;
+    });
+    return jawsSynth;
+  }
+
+  async function playJaws(): Promise<void> {
+    if (paused) return;
+    if (deps.assetsReady) await deps.assetsReady;
+    const synth = await ensureJawsSynth();
+    if (!synth || paused) return;
+    try {
+      // stop() before play() rewinds so a back-to-back balloon capture on
+      // the next round replays the theme from the top, not mid-track.
+      await synth.stop();
+      await synth.play();
+      deps.observer?.onPlay?.(JAWS_TRACK);
+    } catch (error) {
+      console.error("[music] jaws playback failed:", error);
+    }
+  }
+
+  async function stopJaws(
+    reason: "phase" | "rematch" | "dispose",
+  ): Promise<void> {
+    if (!jawsSynth) return;
+    try {
+      const synth = await jawsSynth;
+      await synth?.stop();
+      deps.observer?.onStop?.(reason);
+    } catch {
+      // synth failed to init or is already gone — nothing to stop
+    }
+  }
+
   function tickPresentation(state: GameState): void {
     const phase = state.phase;
     // Edge: just left WALL_BUILD — hard-stop the synth (safety net in case
@@ -576,6 +648,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         boundBus.off(GAME_EVENT.SCORE_OVERLAY_END, boundScoreEndHandler);
       if (boundLifeLostHandler)
         boundBus.off(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, boundLifeLostHandler);
+      if (boundJawsStartHandler)
+        boundBus.off(GAME_EVENT.BALLOON_ANIM_START, boundJawsStartHandler);
+      if (boundJawsEndHandler)
+        boundBus.off(GAME_EVENT.BALLOON_ANIM_END, boundJawsEndHandler);
     }
     boundBus = undefined;
     boundCastleHandler = undefined;
@@ -584,6 +660,8 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     boundScoreStartHandler = undefined;
     boundScoreEndHandler = undefined;
     boundLifeLostHandler = undefined;
+    boundJawsStartHandler = undefined;
+    boundJawsEndHandler = undefined;
   }
 
   function subscribeBus(bus: GameEventBus): void {
@@ -622,12 +700,24 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const lifeLostHandler: GameEventHandler<"lifeLostDialogShow"> = () => {
       void playLifeLost();
     };
+    // Balloon-capture jaws theme: one-shot. Start on animation start,
+    // stop on animation end — the track is pinned to exactly
+    // BALLOON_FLIGHT_DURATION so natural playback finish and the end
+    // event land on the same frame.
+    const jawsStartHandler: GameEventHandler<"balloonAnimStart"> = () => {
+      void playJaws();
+    };
+    const jawsEndHandler: GameEventHandler<"balloonAnimEnd"> = () => {
+      void stopJaws(STOP_REASON_PHASE);
+    };
     bus.on(GAME_EVENT.CASTLE_PLACED, castleHandler);
     bus.on(GAME_EVENT.BANNER_START, bannerStartHandler);
     bus.on(GAME_EVENT.BANNER_END, bannerEndHandler);
     bus.on(GAME_EVENT.SCORE_OVERLAY_START, scoreStartHandler);
     bus.on(GAME_EVENT.SCORE_OVERLAY_END, scoreEndHandler);
     bus.on(GAME_EVENT.LIFE_LOST_DIALOG_SHOW, lifeLostHandler);
+    bus.on(GAME_EVENT.BALLOON_ANIM_START, jawsStartHandler);
+    bus.on(GAME_EVENT.BALLOON_ANIM_END, jawsEndHandler);
     boundBus = bus;
     boundCastleHandler = castleHandler;
     boundBannerStartHandler = bannerStartHandler;
@@ -635,6 +725,8 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     boundScoreStartHandler = scoreStartHandler;
     boundScoreEndHandler = scoreEndHandler;
     boundLifeLostHandler = lifeLostHandler;
+    boundJawsStartHandler = jawsStartHandler;
+    boundJawsEndHandler = jawsEndHandler;
   }
 
   async function activate(): Promise<void> {
@@ -678,12 +770,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     const lifeLost = lifeLostSynth
       ? await lifeLostSynth.catch(() => undefined)
       : undefined;
+    const jaws = jawsSynth ? await jawsSynth.catch(() => undefined) : undefined;
     for (const synth of [
       mainSynth,
       cannonBg,
       buildBg,
       scoreBg,
       lifeLost,
+      jaws,
       ...fanfareSnapshots,
     ]) {
       if (nextPaused) await suspendContext(synth?.audioContext ?? null);
@@ -736,6 +830,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       await synth?.stop().catch(() => {});
       await synth?.audioContext?.close().catch(() => {});
       lifeLostSynth = undefined;
+    }
+    // Jaws synth (one-shot; normally stopped by balloonAnimEnd, but a
+    // mid-flight dispose needs to kill the context too).
+    if (jawsSynth) {
+      const synth = await jawsSynth.catch(() => undefined);
+      await synth?.stop().catch(() => {});
+      await synth?.audioContext?.close().catch(() => {});
+      jawsSynth = undefined;
     }
   }
 

@@ -30,7 +30,11 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/core/game-constants.ts";
-import type { GameEventBus } from "../shared/core/game-event-bus.ts";
+import {
+  emitGameEvent,
+  GAME_EVENT,
+  type GameEventBus,
+} from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   type CannonPhantomPayload,
@@ -404,6 +408,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.render();
     if (allDone) {
       battleAnim.flights = [];
+      emitGameEvent(runtimeState.state.bus, GAME_EVENT.BALLOON_ANIM_END, {
+        round: runtimeState.state.round,
+      });
       beginBattle();
     }
   }

@@ -82,6 +82,14 @@ export type LifecycleEvent =
   | { type: "battleReady"; round: number }
   | { type: "battleAim"; round: number }
   | { type: "battleFire"; round: number }
+  /** Balloon capture animation started — fires once at the cannon-place
+   *  → battle transition when at least one flight is queued. Drives the
+   *  jaws-theme music cue; paired with `balloonAnimEnd` so the track stops
+   *  at the exact frame the animation finishes. */
+  | { type: "balloonAnimStart"; round: number }
+  /** Balloon capture animation finished — fires once when every flight
+   *  reaches progress=1. The next frame enters battle proper. */
+  | { type: "balloonAnimEnd"; round: number }
   /** Battle timer reached 0. Distinct from `phaseEnd(BATTLE)` — the phase
    *  hangs around after the timer expires while in-flight cannonballs
    *  land, so consumers that care about the "cease firing" beat (voice
@@ -254,6 +262,8 @@ const LIFECYCLE_EVENT = {
   BATTLE_AIM: "battleAim",
   BATTLE_FIRE: "battleFire",
   BATTLE_CEASE: "battleCease",
+  BALLOON_ANIM_START: "balloonAnimStart",
+  BALLOON_ANIM_END: "balloonAnimEnd",
   CANNONBALL_DESCENDING: "cannonballDescending",
   HOUSE_CRUSHED: "houseCrushed",
 } as const;

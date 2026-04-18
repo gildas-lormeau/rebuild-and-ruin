@@ -913,6 +913,9 @@ function proceedToBattle(
   if (flights.length > 0) {
     ctx.battle.setFlights(flights.map((flight) => ({ flight, progress: 0 })));
     ctx.setMode(Mode.BALLOON_ANIM);
+    emitGameEvent(ctx.state.bus, GAME_EVENT.BALLOON_ANIM_START, {
+      round: ctx.state.round,
+    });
     return;
   }
   ctx.battle.begin();

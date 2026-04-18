@@ -148,8 +148,12 @@ export const RAMPART_SHIELD_HP = 6;
 export const RAMPART_SHIELD_RADIUS = 2;
 /** Maximum total cannon slots a reselecting player can earn. */
 export const MAX_CANNON_LIMIT_ON_RESELECT = 8;
-/** Balloon flight animation duration in seconds. */
-export const BALLOON_FLIGHT_DURATION = 4.0;
+/** Balloon flight animation duration in seconds. Pinned to the jaws
+ *  theme (RXMI_BATTLE.xmi sub-song 6, 7.66 s from libADLMIDI playback)
+ *  so the music finishes at the exact frame the animation ends —
+ *  extending or trimming either side would cut off the track or run
+ *  the balloons over silence. */
+export const BALLOON_FLIGHT_DURATION = 7.66;
 /** Duration of the impact flash effect in seconds. */
 export const IMPACT_FLASH_DURATION = 0.3;
 /** Duration of phase-transition banner sweep in seconds. */
