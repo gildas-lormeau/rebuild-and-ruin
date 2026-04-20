@@ -44,6 +44,7 @@ import {
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import { type GameState } from "../shared/core/types.ts";
+import type { RendererKind } from "../shared/ui/player-config.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   cameraStateFromViewport,
@@ -60,11 +61,16 @@ interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;
   getFrameDt: () => number;
+  getRendererKind: () => RendererKind;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
 }
 
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
+/** Target pitch when entering battle: 30° classic isometric / Rampart 3/4 view. */
+const TILT_BATTLE_PITCH = Math.PI / 6;
+/** Pitch animation duration (seconds). CSS `transition: Xms ease-out` equivalent. */
+const PITCH_DURATION = 0.6;
 
 // Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
 // State is accessed via deps.getState(), deps.getCtx(), etc. throughout.
@@ -126,6 +132,25 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   };
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | undefined;
+
+  // Pitch animation — targetPitch is re-set on phase-enter (see
+  // handlePhaseChangeZoom); currentPitch eases toward target each tick
+  // in tickCamera. Gated on rendererKind=3d — 2D mode has no place to
+  // apply tilt, so we keep both values at 0 there.
+  // TODO(step-6): loupe (render-loupe.ts) and auto-zoom fit
+  // (fitTileBoundsToViewport) are pitch-agnostic; under tilt the loupe
+  // crop and zone fit are slightly off. Cosmetic at 30°; fix in step 6.
+  let currentPitch = 0;
+  let targetPitch = 0;
+  let pitchAnimFrom = 0;
+  let pitchAnimElapsed = PITCH_DURATION;
+
+  function setPitchTarget(next: number): void {
+    if (next === targetPitch) return;
+    pitchAnimFrom = currentPitch;
+    targetPitch = next;
+    pitchAnimElapsed = 0;
+  }
 
   // --- Helpers ---
 
@@ -301,6 +326,30 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const notTransition = !frameCtx.isTransition;
     handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
     followCrosshairInBattle(mobileAuto, frameCtx, notTransition);
+    tickPitch();
+  }
+
+  /** Ease currentPitch toward targetPitch each frame. Hard-zero in 2D mode so
+   *  stale state from a previous 3D session can't leak into a 2D screen↔world
+   *  conversion. */
+  function tickPitch(): void {
+    if (deps.getRendererKind() !== "3d") {
+      currentPitch = 0;
+      targetPitch = 0;
+      pitchAnimFrom = 0;
+      pitchAnimElapsed = PITCH_DURATION;
+      return;
+    }
+    if (pitchAnimElapsed >= PITCH_DURATION) {
+      if (currentPitch !== targetPitch) currentPitch = targetPitch;
+      return;
+    }
+    const dt = deps.getFrameDt();
+    if (dt <= 0) return;
+    pitchAnimElapsed = Math.min(PITCH_DURATION, pitchAnimElapsed + dt);
+    const t = pitchAnimElapsed / PITCH_DURATION;
+    const eased = 1 - (1 - t) * (1 - t) * (1 - t); // cubic ease-out
+    currentPitch = pitchAnimFrom + (targetPitch - pitchAnimFrom) * eased;
   }
 
   /** Clear zoom when UI overlays or phase-end unzoom is active. */
@@ -385,6 +434,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     ) {
       autoZoom(state.phase);
     }
+    // Camera pitch target: battle enters get the classic 3/4 tilt; every
+    // other phase (including lobby/select/reselect/build/upgrade-pick)
+    // rests flat. Applies to everyone, not just mobileAuto — the tilt is
+    // a presentational cue independent of auto-zoom.
+    setPitchTarget(state.phase === Phase.BATTLE ? TILT_BATTLE_PITCH : 0);
     lastAutoZoomPhase = state.phase;
   }
 
@@ -468,7 +522,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function screenToWorld(x: number, y: number): WorldPos {
     const viewport = getViewport();
     if (!viewport) return { wx: x / SCALE, wy: y / SCALE };
-    const state = cameraStateFromViewport(viewport, CANVAS_SIZE);
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, currentPitch);
     const { x: wx, y: wy } = projectScreenToWorld(state, CANVAS_SIZE, x, y);
     return { wx, wy };
   }
@@ -477,7 +531,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function worldToScreen(wx: number, wy: number): { sx: number; sy: number } {
     const viewport = getViewport();
     if (!viewport) return { sx: wx * SCALE, sy: wy * SCALE };
-    const state = cameraStateFromViewport(viewport, CANVAS_SIZE);
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE, currentPitch);
     return projectWorldToScreen(state, CANVAS_SIZE, wx, wy);
   }
 
@@ -601,6 +655,24 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     currentVp.y = fullMapVp.y;
     currentVp.w = fullMapVp.w;
     currentVp.h = fullMapVp.h;
+    currentPitch = 0;
+    targetPitch = 0;
+  }
+
+  /** Request an immediate untilt. Called from the phase-ticks system at
+   *  battle-end, BEFORE the banner captures, so the banner's prev-scene
+   *  snapshot is flat. Idempotent — safe to call every tick while waiting
+   *  for `isPitchSettled()` to return true. */
+  function beginUntilt(): void {
+    setPitchTarget(0);
+  }
+
+  /** True when the pitch animation has reached its target. In 2D mode
+   *  always true (pitch is hard-zeroed). Used by the phase-ticks system
+   *  to gate the battle-end banner capture on the untilt easing. */
+  function isPitchSettled(): boolean {
+    if (deps.getRendererKind() !== "3d") return true;
+    return pitchAnimElapsed >= PITCH_DURATION;
   }
 
   function setCameraZone(zone: number | undefined): void {
@@ -689,6 +761,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     tickCamera,
     updateViewport,
     getViewport,
+    getPitch: () => currentPitch,
+    beginUntilt,
+    isPitchSettled,
     screenToWorld,
     worldToScreen,
     pixelToTile,

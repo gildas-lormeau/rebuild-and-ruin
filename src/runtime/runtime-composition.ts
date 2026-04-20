@@ -416,7 +416,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void {
-    renderer.drawFrame(map, overlay, viewport, timing.now());
+    renderer.drawFrame(map, overlay, viewport, timing.now(), camera.getPitch());
   }
 
   /** True once the selection announcement has finished playing and input is unblocked.
@@ -445,6 +445,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getState: () => safeState(runtimeState),
     getCtx: () => runtimeState.frameMeta,
     getFrameDt: () => runtimeState.frameDt,
+    getRendererKind: () => runtimeState.settings.rendererKind,
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },
@@ -531,7 +532,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createRenderSummaryMessage,
     createStatusBar,
     drawFrame: (map, overlay, viewport, now) =>
-      renderer.drawFrame(map, overlay, viewport, now),
+      renderer.drawFrame(map, overlay, viewport, now, camera.getPitch()),
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
@@ -681,6 +682,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getUpgradePickDialog: () => upgradePick.get(),
     clearUpgradePickDialog: () => upgradePick.set(null),
     endGame: lifecycle.endGame,
+    beginUntilt: camera.beginUntilt,
+    isPitchSettled: camera.isPitchSettled,
   });
 
   // -------------------------------------------------------------------------

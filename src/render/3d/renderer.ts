@@ -38,6 +38,9 @@ export function createRender3d(
   // to restore the camera after it briefly resets to full-map coords
   // for the pre-mutation snapshot.
   let lastViewport: Viewport | undefined;
+  // Cached pitch from the last `drawFrame`. Banner captures render at
+  // pitch=0 (top-down); `lastPitch` is the value we restore to afterwards.
+  let lastPitch = 0;
 
   // Banner prev-scene snapshot scratch canvases. Lazily created on first
   // capture; reused across phase transitions. The composite canvas matches
@@ -136,7 +139,7 @@ export function createRender3d(
       // in colors each frame.
       ctx.terrain.ensureBuilt(map);
     },
-    drawFrame: (map, overlay, viewport, now) => {
+    drawFrame: (map, overlay, viewport, now, pitch = 0) => {
       // Phase 2: render the WebGL scene (terrain mesh, driven by the runtime
       // viewport) behind the 2D canvas. The 2D renderer still handles
       // castles, entities, and UI; Phase 3+ progressively moves them off
@@ -195,12 +198,15 @@ export function createRender3d(
       ctx.fog.update(overlay, now);
       ctx.thawing.update(overlay);
       ctx.renderer.clear();
-      // Phase 7: dramatic phases (castle select/reselect, battle incl. the
-      // Camera: top-down ortho view driven by the runtime viewport.
-      // Tilt animations were reverted — they'll come back as a
-      // dedicated pass once the supporting refactor is in place.
-      updateCameraFromViewport(ctx.camera, viewport);
+      // Camera: ortho view driven by the runtime viewport, tilted by
+      // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
+      // toward a phase-specific target so battle renders with a
+      // classic Rampart 3/4 view. The 2D overlay is still drawn
+      // straight-down — it only carries UI + still-2D layers that
+      // are unaffected by tilt.
+      updateCameraFromViewport(ctx.camera, viewport, pitch);
       lastViewport = viewport ?? undefined;
+      lastPitch = pitch;
       ctx.renderer.render(ctx.scene, ctx.camera);
       canvas2d.drawFrame(map, overlay, viewport, now);
     },
@@ -236,7 +242,7 @@ export function createRender3d(
       // at full-map coords too (`undefined` viewport → full map). Passing
       // Render the WebGL scene at full-map coords so its pixels align
       // with the 2D sceneCanvas' full-map offscreen.
-      updateCameraFromViewport(ctx.camera, undefined);
+      updateCameraFromViewport(ctx.camera, undefined, 0);
       ctx.renderer.clear();
       ctx.renderer.render(ctx.scene, ctx.camera);
       const targetW = scene2d.width;
@@ -301,10 +307,10 @@ export function createRender3d(
         targetW,
         targetH,
       );
-      // Restore the camera to the last drawFrame's viewport and
+      // Restore the camera to the last drawFrame's viewport + pitch and
       // re-render so the browser never composites a differently-framed
       // capture frame onto the visible canvas.
-      updateCameraFromViewport(ctx.camera, lastViewport);
+      updateCameraFromViewport(ctx.camera, lastViewport, lastPitch);
       ctx.renderer.clear();
       ctx.renderer.render(ctx.scene, ctx.camera);
       return imageData;

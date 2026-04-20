@@ -173,10 +173,14 @@ export function fitTileBounds(bounds: TileBounds, pad: number): CameraState {
 
 /** Inverse of {@link visibleGroundAABB} at pitch=0: recover a CameraState that
  *  reproduces `viewport` when re-projected onto `canvas`. `canvas` is
- *  required because zoom depends on the ratio of canvas to viewport size. */
+ *  required because zoom depends on the ratio of canvas to viewport size.
+ *  `pitch` defaults to 0 for the flat case; callers animating tilt (see
+ *  runtime-camera) pass the current pitch so screen↔world round-trips stay
+ *  consistent with what the 3D renderer draws. */
 export function cameraStateFromViewport(
   viewport: Viewport,
   canvas: CanvasSize,
+  pitch: number = 0,
 ): CameraState {
   return {
     center: {
@@ -184,7 +188,7 @@ export function cameraStateFromViewport(
       y: viewport.y + viewport.h / 2,
     },
     zoom: canvas.w / viewport.w,
-    pitch: 0,
+    pitch,
   };
 }
 

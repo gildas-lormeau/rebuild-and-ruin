@@ -298,6 +298,7 @@ export interface RendererInterface {
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,
+    pitch?: number,
   ): void;
   /** Pre-compute terrain image caches so the first render of a new map
    *  doesn't stall the frame. Call after generating/receiving a map. */

@@ -352,6 +352,16 @@ export interface CameraSystem {
 
   // Coordinate conversion
   getViewport: () => Viewport | undefined;
+  /** Current camera pitch in radians (animated on phase transitions). 3D mode
+   *  only — 2D mode always returns 0. */
+  getPitch: () => number;
+  /** Request an immediate pitch=0 ease. Used by the phase-ticks system at
+   *  battle-end so the banner captures a flat scene. Idempotent. */
+  beginUntilt: () => void;
+  /** True when currentPitch has reached targetPitch (within epsilon). 2D
+   *  mode always returns true. Used to gate the battle-end banner capture
+   *  on the untilt easing. */
+  isPitchSettled: () => boolean;
   screenToWorld: (x: number, y: number) => WorldPos;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };

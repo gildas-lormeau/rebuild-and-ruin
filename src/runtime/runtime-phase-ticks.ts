@@ -142,6 +142,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  composition. The machine's `round-limit-reached` /
    *  `last-player-standing` mutate calls this through `ctx.endGame`. */
   endGame: (winner: { id: number }) => void;
+  /** Request an immediate untilt ease at battle-end. Called every tick
+   *  while the phase-ticks system waits for `isPitchSettled()` before
+   *  firing the battle-done banner capture. */
+  beginUntilt: () => void;
+  /** True when the camera pitch has reached its target. Gates the
+   *  battle-done transition so the banner snapshot captures a flat scene. */
+  isPitchSettled: () => boolean;
 }
 
 export interface PhaseTicksSystem {
@@ -182,10 +189,18 @@ export interface PhaseTicksSystem {
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
 );
+/** Wall-clock safety cap for the battle-end untilt wait. If the camera
+ *  math is paused (tab-hidden, etc.) and pitch never settles, fire the
+ *  banner anyway — a one-frame pop is preferable to a stuck phase. */
+const UNTILT_WAIT_TIMEOUT_MS = 1000;
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
   const online = deps.online;
+
+  // Timestamp captured the first tick we decide the battle is ready to end
+  // but the camera is still tilted. Cleared once the transition fires.
+  let untiltWaitStartMs: number | undefined;
 
   // -------------------------------------------------------------------------
   // Bus → stats accumulator (observation subscriber)
@@ -666,6 +681,23 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // mid-animation explosion/thaw visuals bake into the prev-scene image.
     if (battleAnim.impacts.length > 0 || battleAnim.thawing.length > 0)
       return false;
+
+    // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
+    // it to settle BEFORE the battle-done transition runs. Otherwise the
+    // banner's prev-scene snapshot bakes in the tilted view and the
+    // untilt then plays under the banner (visible flat-flash then
+    // re-tilt on next-phase enter). Safety-bounded so a paused camera
+    // (tab-hidden, etc.) can't stall the phase indefinitely.
+    deps.beginUntilt();
+    if (!deps.isPitchSettled()) {
+      if (untiltWaitStartMs === undefined) {
+        untiltWaitStartMs = deps.timing.now();
+      }
+      if (deps.timing.now() - untiltWaitStartMs < UNTILT_WAIT_TIMEOUT_MS) {
+        return false;
+      }
+    }
+    untiltWaitStartMs = undefined;
 
     // Battle ended — delegate to the battle-done transition.
     runTransition("battle-done", buildHostPhaseCtx());

@@ -17,9 +17,14 @@
  * shows the whole map, equivalent to `Viewport { x: 0, y: 0, w: MAP_PX_W,
  * h: MAP_PX_H }`.
  *
- * Tilt support was reverted alongside its runtime plumbing — this module
- * now only handles the straight-down ortho case. A future dedicated
- * refactor will reintroduce tilt with a cleaner animation path.
+ * Pitch support: `updateCameraFromViewport(camera, viewport, pitch)` tilts the
+ * ortho camera around its look-at point on the world X-axis. Pitch > 0 leans
+ * the camera back so far-map rows (small Z) compress toward the top of the
+ * screen, matching the classic Rampart 3/4 view. Under tilt the frustum's Y
+ * extent foreshortens by cos(pitch); the X extent is unchanged (tilt is
+ * X-only, no yaw/roll, so the visible ground stays an axis-aligned rect). The
+ * math mirrors `src/runtime/camera-projection.ts`, so screen↔world round-trips
+ * in the runtime line up with what the 3D renderer draws.
  */
 
 import * as THREE from "three";
@@ -56,37 +61,54 @@ export function createMapCamera(): THREE.OrthographicCamera {
 }
 
 /** Point `camera` at the world rectangle described by `viewport` (in game-1×
- *  pixel units). `null`/`undefined` means "show the whole map".
+ *  pixel units). `null`/`undefined` means "show the whole map". `pitch` in
+ *  radians tilts the camera around the look-at point on the world X-axis;
+ *  defaults to 0 (straight-down ortho — original behaviour).
  *
  *  Edge cases:
  *    - Zero-size viewport (w<=0 or h<=0) → fall back to full-map view. Avoids
  *      a degenerate frustum that three.js would reject.
  *    - Fully-off-map viewport → clamp the center to the map rectangle. The
  *      runtime camera already clamps normal cases; this is defence in depth.
- *    - Non-integer values → center is pixel-snapped to avoid sub-pixel jitter
- *      when the runtime camera lerps. Frustum extents are kept exact so the
- *      visible area matches the 2D renderer's `drawImage` crop byte-for-byte.
+ *    - Non-integer values → X/Z position is pixel-snapped to avoid sub-pixel
+ *      jitter when the runtime camera lerps. Y position (altitude) and
+ *      frustum extents are kept exact so the visible area stays byte-aligned
+ *      with the 2D crop at pitch=0.
  */
 export function updateCameraFromViewport(
   camera: THREE.OrthographicCamera,
   viewport: Viewport | null | undefined,
+  pitch: number = 0,
 ): void {
   const rect = normalizeViewport(viewport);
 
   const halfW = rect.w / 2;
   const halfH = rect.h / 2;
+  const cosP = Math.cos(pitch);
+  const sinP = Math.sin(pitch);
 
+  // Under X-axis tilt the visible ground rect's Y extent foreshortens by
+  // cos(pitch), so shrink the frustum top/bottom by the same factor. The X
+  // extent is unchanged — tilt is X-only, no yaw/roll.
   camera.left = -halfW;
   camera.right = halfW;
-  camera.top = halfH;
-  camera.bottom = -halfH;
+  camera.top = halfH * cosP;
+  camera.bottom = -halfH * cosP;
 
   const centerX = rect.x + halfW;
   const centerZ = rect.y + halfH;
 
-  camera.position.set(centerX, CAMERA_ALTITUDE, centerZ);
+  // Rotate the camera offset (0, CAMERA_ALTITUDE, 0) around the world X-axis
+  // through `pitch`, anchored at the ground look-at point. The look-at stays
+  // on the ground plane at (centerX, 0, centerZ).
+  camera.position.set(
+    centerX,
+    CAMERA_ALTITUDE * cosP,
+    centerZ + CAMERA_ALTITUDE * sinP,
+  );
   snapGroundPlaneComponents(camera.position);
-  camera.up.set(0, 0, -1);
+  // Up-vector rotates with the camera: R_x(pitch) · (0, 0, -1) = (0, sin, -cos).
+  camera.up.set(0, sinP, -cosP);
   camera.lookAt(centerX, 0, centerZ);
   camera.updateProjectionMatrix();
 }
