@@ -238,18 +238,8 @@ options screen for dogfooding; community playtest approval.
   toggle in the options screen.
 
 **Review checklist** (manual QA, per map-example, per phase):
-- Castle-ownership colors match: OK
-- Wall-mask tile variants correct at all orientations: OK
-- Grunt facing rotations align with movement direction: OK
-- Cannonball arcs land on correct tiles: OK
-- Pit state transitions across rounds visible: OK
-- Banner animations (sweep, flash, settle) compose correctly over 3D: OK
-- Loupe shows correct magnified content over 3D canvas: OK
 - Fog-of-war reveals at correct timing
-- Mobile pinch zoom + D-pad + keyboard all work: OK
-- Determinism tests pass (renderer-agnostic — should just work): OK
 - Balloon animation
-- Checkered colors: OK
 
 **Gate**: playtest approval; ready to flip default.
 

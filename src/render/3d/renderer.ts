@@ -199,6 +199,9 @@ export function createRender3d(
       ctx.crosshairs.update(overlay, now);
       ctx.fog.update(overlay, now);
       ctx.thawing.update(overlay);
+      // Fine water-wave highlight pass — battle-only, renders above the
+      // terrain mesh but below walls / entities / fog.
+      ctx.waterWaves.update(map, overlay, now);
       ctx.renderer.clear();
       // Camera: ortho view driven by the runtime viewport, tilted by
       // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch

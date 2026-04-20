@@ -88,14 +88,6 @@ const COBBLESTONE_BASE: [number, number, number] = [90, 85, 80];
 const COBBLESTONE_TINT_FACTOR = 0.15;
 // Bonus square base — matches `bonus_square` sprite fill in generate-sprites.html.
 const BONUS_COLOR: [number, number, number] = [35, 140, 25];
-// Water shimmer parameters — mirror `render-effects.ts` wave math so the 3D
-// water feels spatially identical to 2D even though it's per-tile brightness
-// rather than per-pixel highlights.
-const WAVE_TIME_BASE = 0.8;
-const WAVE_ROW_FREQ = 0.5;
-const WAVE_COL_FREQ = 0.3;
-// Max signed brightness delta applied to water RGB (out of 255).
-const WATER_SHIMMER_AMPLITUDE = 18;
 // Bonus square pulse — matches drawBonusSquares() alphaScale range (0.70–1.00)
 // but we multiply brightness instead of alpha since the mesh is opaque.
 const BONUS_FLASH_MS = 300;
@@ -177,8 +169,6 @@ export function createTerrain(): TerrainContext {
     const sinkholeTiles = overlay?.entities?.sinkholeTiles;
     const inBattle = !!overlay?.battle?.inBattle;
 
-    // Pre-compute frame-wide modulations (cheap constants per frame).
-    const shimmerTime = now / 1000;
     const bonusPulse = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
 
     // Mark bonus tiles for quick lookup. Pit tiles deliberately don't
@@ -234,18 +224,7 @@ export function createTerrain(): TerrainContext {
               green = tint[1];
               blue = tint[2];
             } else {
-              // Per-tile shimmer: the same sinusoidal phase used in 2D
-              // wave math, scaled to a modest brightness delta so still
-              // frames look right and motion reads as "rippling water".
-              const phase =
-                shimmerTime * WAVE_TIME_BASE +
-                r * WAVE_ROW_FREQ +
-                c * WAVE_COL_FREQ;
-              const amp = inBattle ? WATER_SHIMMER_AMPLITUDE : 0;
-              const delta = Math.sin(phase) * amp;
-              red = clamp255(WATER_COLOR[0] + delta);
-              green = clamp255(WATER_COLOR[1] + delta);
-              blue = clamp255(WATER_COLOR[2] + delta);
+              [red, green, blue] = WATER_COLOR;
             }
           }
         } else {
@@ -314,12 +293,6 @@ function writeTileColor(
     target[offset + 1] = green;
     target[offset + 2] = blue;
   }
-}
-
-function clamp255(value: number): number {
-  if (value < 0) return 0;
-  if (value > 255) return 255;
-  return value;
 }
 
 function sRGBToLinear(value: number): number {

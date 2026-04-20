@@ -38,6 +38,10 @@ import {
   type ThawingManager,
 } from "./effects/thawing.ts";
 import {
+  createWaterWavesManager,
+  type WaterWavesManager,
+} from "./effects/water-waves.ts";
+import {
   type BalloonsManager,
   createBalloonsManager,
 } from "./entities/balloons.ts";
@@ -129,6 +133,11 @@ export interface Render3dContext {
    *  `overlay.entities.thawingTiles`. Base frozen-tile ICE_COLOR is
    *  owned by `terrain` (Phase 2). */
   readonly thawing: ThawingManager;
+  /** Fine water-wave highlight overlay — polish pass paired with the
+   *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
+   *  pattern onto a shared canvas each frame and composites it over the
+   *  terrain. Only active during battle. */
+  readonly waterWaves: WaterWavesManager;
 }
 
 /** Build the scene graph used by `createRender3d`. */
@@ -160,6 +169,7 @@ export function createRender3dScene(
   const crosshairs = createCrosshairsManager(scene);
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
+  const waterWaves = createWaterWavesManager(scene);
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -195,5 +205,6 @@ export function createRender3dScene(
     crosshairs,
     fog,
     thawing,
+    waterWaves,
   };
 }
