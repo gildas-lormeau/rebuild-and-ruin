@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8448,
+  "eventCount": 8455,
   "events": [
     {
       "type": "tick",
@@ -34261,6 +34261,18 @@
       }
     },
     {
+      "type": "towerKilled",
+      "payload": {
+        "towerIdx": 10
+      }
+    },
+    {
+      "type": "towerKilled",
+      "payload": {
+        "towerIdx": 1
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -45428,55 +45440,13 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          916,
-          917,
-          918
+          891,
+          892,
+          893
         ]
       }
     },
@@ -45887,8 +45857,50 @@
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          920
+          887
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -46175,56 +46187,56 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          964,
-          965,
-          966
+          888,
+          889,
+          890
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -46642,134 +46654,134 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1229,
-          1228,
-          1185
+          930,
+          931,
+          974
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -47101,6 +47113,16 @@
       }
     },
     {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          929,
+          973
+        ]
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -47299,16 +47321,6 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1230,
-          1231
-        ]
       }
     },
     {
@@ -47718,6 +47730,18 @@
       }
     },
     {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1024,
+          1025,
+          981,
+          937
+        ]
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -47928,18 +47952,6 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1054,
-          1055,
-          1011,
-          967
-        ]
       }
     },
     {
@@ -48348,6 +48360,17 @@
       }
     },
     {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1016,
+          1015,
+          972
+        ]
+      }
+    },
+    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
@@ -48487,17 +48510,6 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "wallPlaced",
-      "payload": {
-        "playerId": 0,
-        "tileKeys": [
-          1143,
-          1187,
-          1142
-        ]
       }
     },
     {
@@ -48792,6 +48804,19 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1060,
+          1103,
+          1104,
+          1105,
+          1148
+        ]
       }
     },
     {
@@ -49169,130 +49194,127 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          846,
-          889,
-          890,
-          891,
-          934
+          1192,
+          1193
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -49611,6 +49633,17 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1194,
+          1195,
+          1196
+        ]
       }
     },
     {
@@ -50105,73 +50138,75 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          1098,
-          1099
+          1069,
+          1113,
+          1157,
+          1112
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -50666,96 +50701,72 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
-          919,
-          963,
-          1007
+          1197
         ]
-      }
-    },
-    {
-      "type": "houseCrushed",
-      "payload": {
-        "col": 39,
-        "row": 21
-      }
-    },
-    {
-      "type": "towerEnclosed",
-      "payload": {
-        "playerId": 0,
-        "towerIndex": 1
-      }
-    },
-    {
-      "type": "gruntSpawnBlocked",
-      "payload": {
-        "placed": 0,
-        "playerId": 1,
-        "requested": 1
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -51097,6 +51108,56 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "wallPlaced",
+      "payload": {
+        "playerId": 0,
+        "tileKeys": [
+          1111,
+          1155,
+          1154,
+          1198
+        ]
+      }
+    },
+    {
+      "type": "houseCrushed",
+      "payload": {
+        "col": 11,
+        "row": 25
+      }
+    },
+    {
+      "type": "towerEnclosed",
+      "payload": {
+        "playerId": 0,
+        "towerIndex": 2
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 33,
+        "row": 15,
+        "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 9,
+        "row": 15,
+        "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "gruntSpawn",
+      "payload": {
+        "col": 12,
+        "row": 26,
+        "victimPlayerId": 0
       }
     },
     {

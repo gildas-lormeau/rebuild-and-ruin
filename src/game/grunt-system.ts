@@ -267,19 +267,17 @@ export function gruntAttackTowers(
     }
     if (attackTarget !== undefined) {
       if (tickGruntAttackTimer(grunt, dt)) {
-        // Lookup BEFORE mutating towerAlive — applyTowerKilled may not
-        // mutate ownedTowers today, but a future consumer might, and we
-        // want the owner at kill time. If the tower has no owner (very
-        // edge case: untargeted modifier grunt adjacent to a living but
-        // unenclosed tower), skip both the mutation and the emit so
-        // host + watcher stay in sync on this grunt's next tick.
+        // Lookup BEFORE mutating towerAlive so POV-filtered consumers
+        // (haptics) see the owner as-of kill time. Unenclosed neutral
+        // towers have no owner — the kill still proceeds (matches pre-
+        // POV-filtering behaviour); playerId is omitted so haptics
+        // correctly no-ops for every POV.
         const ownerId = findTowerOwner(state.players, attackTarget);
-        if (ownerId === undefined) continue;
         state.towerAlive[attackTarget] = false;
         const towerEvent: TowerKilledMessage = {
           type: BATTLE_MESSAGE.TOWER_KILLED,
           towerIdx: attackTarget,
-          playerId: ownerId,
+          ...(ownerId !== undefined && { playerId: ownerId }),
         };
         events.push(towerEvent);
         state.bus.emit(BATTLE_MESSAGE.TOWER_KILLED, towerEvent);
