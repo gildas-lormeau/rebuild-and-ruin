@@ -40,12 +40,18 @@ import {
   bestEnemyZone,
   enemyZones,
   pxToTile,
-  tileBoundsToViewport,
   unpackTile,
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import { type GameState } from "../shared/core/types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
+import {
+  cameraStateFromViewport,
+  fitTileBoundsToViewport,
+  screenToWorld as projectScreenToWorld,
+  worldToScreen as projectWorldToScreen,
+  type TileBounds,
+} from "./camera-projection.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
@@ -57,6 +63,8 @@ interface CameraDeps {
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
 }
+
+const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
 
 // Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
 // State is accessed via deps.getState(), deps.getCtx(), etc. throughout.
@@ -160,11 +168,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       ZONE_PAD_WITH_WALLS,
       ZONE_PAD_NO_WALLS,
     );
-    const result = tileBoundsToViewport(
-      bounds.minR,
-      bounds.maxR,
-      bounds.minC,
-      bounds.maxC,
+    const result = fitTileBoundsToViewport(
+      {
+        minR: bounds.minR,
+        maxR: bounds.maxR,
+        minC: bounds.minC,
+        maxC: bounds.maxC,
+      },
       pad,
     );
     cachedZoneBounds.set(zoneId, { viewport: result, wallHash: hash });
@@ -198,7 +208,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       if (col < minC) minC = col;
       if (col > maxC) maxC = col;
     }
-    return tileBoundsToViewport(minR, maxR, minC, maxC, ZONE_PAD_WITH_WALLS);
+    const tileBounds: TileBounds = { minR, maxR, minC, maxC };
+    return fitTileBoundsToViewport(tileBounds, ZONE_PAD_WITH_WALLS);
   }
 
   // --- Auto-zoom ---
@@ -342,11 +353,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       autoZoom(state.phase);
     }
     if (selectionZoom.pendingVp) {
-      castleBuildVp = tileBoundsToViewport(
-        selectionZoom.pendingVp.row,
-        selectionZoom.pendingVp.row + 1,
-        selectionZoom.pendingVp.col,
-        selectionZoom.pendingVp.col + 1,
+      castleBuildVp = fitTileBoundsToViewport(
+        {
+          minR: selectionZoom.pendingVp.row,
+          maxR: selectionZoom.pendingVp.row + 1,
+          minC: selectionZoom.pendingVp.col,
+          maxC: selectionZoom.pendingVp.col + 1,
+        },
         ZONE_PAD_SELECTION,
       );
       selectionZoom.pendingVp = undefined;
@@ -455,20 +468,17 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function screenToWorld(x: number, y: number): WorldPos {
     const viewport = getViewport();
     if (!viewport) return { wx: x / SCALE, wy: y / SCALE };
-    return {
-      wx: viewport.x + (x / CANVAS_W) * viewport.w,
-      wy: viewport.y + (y / CANVAS_H) * viewport.h,
-    };
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE);
+    const { x: wx, y: wy } = projectScreenToWorld(state, CANVAS_SIZE, x, y);
+    return { wx, wy };
   }
 
   /** Inverse of screenToWorld: world-pixel → canvas backing-store pixel. */
   function worldToScreen(wx: number, wy: number): { sx: number; sy: number } {
     const viewport = getViewport();
     if (!viewport) return { sx: wx * SCALE, sy: wy * SCALE };
-    return {
-      sx: ((wx - viewport.x) / viewport.w) * CANVAS_W,
-      sy: ((wy - viewport.y) / viewport.h) * CANVAS_H,
-    };
+    const state = cameraStateFromViewport(viewport, CANVAS_SIZE);
+    return projectWorldToScreen(state, CANVAS_SIZE, wx, wy);
   }
 
   function pixelToTile(x: number, y: number): { row: number; col: number } {
@@ -500,15 +510,31 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     );
     const newH = newW * (fullMapVp.h / fullMapVp.w);
 
-    const anchorWx =
-      activePinch.startVp.x +
-      (activePinch.startMidX / CANVAS_W) * activePinch.startVp.w;
-    const anchorWy =
-      activePinch.startVp.y +
-      (activePinch.startMidY / CANVAS_H) * activePinch.startVp.h;
+    const startState = cameraStateFromViewport(
+      activePinch.startVp,
+      CANVAS_SIZE,
+    );
+    const { x: anchorWx, y: anchorWy } = projectScreenToWorld(
+      startState,
+      CANVAS_SIZE,
+      activePinch.startMidX,
+      activePinch.startMidY,
+    );
 
-    let x = anchorWx - (midX / CANVAS_W) * newW;
-    let y = anchorWy - (midY / CANVAS_H) * newH;
+    // Solve for new-viewport top-left such that (midX, midY) maps to (anchorWx, anchorWy).
+    // Equivalent to: screenToWorld on a zero-origin viewport of size (newW, newH).
+    const zeroOrigin = cameraStateFromViewport(
+      { x: 0, y: 0, w: newW, h: newH },
+      CANVAS_SIZE,
+    );
+    const { x: midWx, y: midWy } = projectScreenToWorld(
+      zeroOrigin,
+      CANVAS_SIZE,
+      midX,
+      midY,
+    );
+    let x = anchorWx - midWx;
+    let y = anchorWy - midWy;
 
     x = Math.max(0, Math.min(fullMapVp.w - newW, x));
     y = Math.max(0, Math.min(fullMapVp.h - newH, y));
@@ -598,11 +624,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       return;
     }
     selectionZoom.pendingVp = undefined;
-    castleBuildVp = tileBoundsToViewport(
-      towerRow,
-      towerRow + 1,
-      towerCol,
-      towerCol + 1,
+    castleBuildVp = fitTileBoundsToViewport(
+      {
+        minR: towerRow,
+        maxR: towerRow + 1,
+        minC: towerCol,
+        maxC: towerCol + 1,
+      },
       ZONE_PAD_SELECTION,
     );
   }

@@ -221,6 +221,7 @@
     ],
     "runtime": [
       "src/runtime/banner-messages.ts",
+      "src/runtime/camera-projection.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",

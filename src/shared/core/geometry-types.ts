@@ -64,6 +64,14 @@ export interface Viewport {
   h: number;
 }
 
+/** Tile bounding rect — inclusive row/col extremes. */
+export interface TileBounds {
+  minR: number;
+  maxR: number;
+  minC: number;
+  maxC: number;
+}
+
 export interface BonusSquare extends TilePos {
   zone: number;
 }

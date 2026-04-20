@@ -76,6 +76,7 @@
       "src/render/3d/sprites/tower-scene.ts",
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts",
+      "src/runtime/camera-projection.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
       "src/shared/ui/player-config.ts"
