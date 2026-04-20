@@ -153,6 +153,26 @@ interface RenderMap {
   /** Capture the current offscreen scene as ImageData (for banner prev-scene).
    *  Returns undefined if the scene canvas hasn't been initialized yet. */
   captureScene: () => ImageData | undefined;
+  /** Flip individual draw-layer groups on or off. See
+   *  `RendererInterface.setLayersEnabled` for the layer semantics. Omitted
+   *  fields keep their current state; default-on for every layer. */
+  setLayersEnabled: (layers: {
+    terrain?: boolean;
+    walls?: boolean;
+    towers?: boolean;
+    houses?: boolean;
+    debris?: boolean;
+    cannons?: boolean;
+    grunts?: boolean;
+    cannonballs?: boolean;
+    pits?: boolean;
+    balloons?: boolean;
+    impacts?: boolean;
+    crosshairs?: boolean;
+    fog?: boolean;
+    thawingTiles?: boolean;
+    phantoms?: boolean;
+  }) => void;
 }
 
 // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
@@ -261,6 +281,96 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  ImageData is painted. */
   let bannerScenePainted: ImageData | undefined;
 
+  // Per-layer-group enable flags. Defaults to all-on so the 2D code path is
+  // identical to its pre-migration behaviour. The 3D renderer flips
+  // `terrainLayerEnabled` off once, during `createRender3d` setup, to hand
+  // ownership of tile rendering to the WebGL terrain mesh. Flags live in the
+  // closure so toggling is O(1) and doesn't rebuild any caches — the cached
+  // terrain ImageData remains valid if we ever turn the layer back on.
+  let terrainLayerEnabled = true;
+  // Castle wall layer (LIVE stone tiles + bevels + reinforced-wall
+  // cracks). The 3D renderer flips this off once, during Phase 3 setup,
+  // to hand ownership of live-wall rendering to the walls entity
+  // manager. Wall DEBRIS (tiles that used to hold walls) is covered by
+  // the separate `debris` flag so 3D can take the two over
+  // independently. Interiors and live cannons stay on the 2D path
+  // (they're Phase 4+).
+  let wallsLayerEnabled = true;
+  // Castle interior layer (per-tile checkered interior sprites out of
+  // battle; cobblestone sprites during battle). The 3D renderer flips
+  // this off so the 3D terrain mesh can paint the per-tile interior
+  // colors directly into its vertex-color pass — see
+  // `src/render/3d/terrain.ts`.
+  let interiorsLayerEnabled = true;
+  // Tower layer (LIVE tower sprites + player labels + selection
+  // highlights). The 3D renderer flips this off once, during Phase 3
+  // setup, to hand ownership of live-tower rendering to the towers
+  // entity manager. Tower DEBRIS (dead towers) is covered by the
+  // separate `debris` flag.
+  let towersLayerEnabled = true;
+  // House layer (civilian dwelling sprites). The 3D renderer flips this
+  // off once, during Phase 3 setup, to hand ownership of house rendering
+  // to the houses entity manager. Destroyed houses are skipped on both
+  // paths (the `alive` flag gates rendering), so this flag only needs
+  // to switch the whole layer on/off.
+  let housesLayerEnabled = true;
+  // Debris layer — dead walls, dead cannons, dead towers. Separate from
+  // `walls` / `towers` (which cover live entities only) so the 3D
+  // renderer can take over debris rendering independently. The 3D
+  // renderer flips this off once, during Phase 3 setup, to hand all
+  // three rubble variants to the debris entity manager.
+  let debrisLayerEnabled = true;
+  // Live-cannon layer (normal/super/mortar/rampart cannons + shield
+  // auras). The 3D renderer flips this off once, during Phase 4 setup,
+  // to hand ownership of live-cannon rendering to the cannons entity
+  // manager. Dead cannons are covered by the separate `debris` flag;
+  // balloon cannons stay on the 2D path (separate Phase 4 task).
+  let cannonsLayerEnabled = true;
+  // Grunt layer (neutral 1×1 tank sprites). The 3D renderer flips this
+  // off once, during Phase 4 setup, to hand ownership of grunt
+  // rendering to the grunts entity manager. Facing-driven rotation is
+  // handled on the 3D side via a single base variant rotated per-grunt.
+  let gruntsLayerEnabled = true;
+  // Cannonball layer (in-flight projectile sprites: iron / fire /
+  // mortar). The 3D renderer flips this off once, during Phase 4
+  // setup, to hand ownership of projectile rendering to the
+  // cannonballs entity manager. The 3D path mirrors the 2D parabolic
+  // arc (ball grows/rises toward the apex, shrinks/falls to impact).
+  let cannonballsLayerEnabled = true;
+  // Burning-pit layer (3-stage sprite per pit, keyed on roundsLeft).
+  // The 3D renderer flips this off once, during Phase 4 setup, to hand
+  // ownership of pit rendering to the pits entity manager. The
+  // terrain mesh's brown "pit marker" tint stays on under the sprite
+  // as framing — it's part of `terrain`, not `pits`.
+  let pitsLayerEnabled = true;
+  // Balloon layer — `balloon_base` sprite on grounded balloon cannons
+  // and the in-flight balloon animation during capture. The 3D
+  // renderer flips this off once, during Phase 4 setup, to hand
+  // ownership of balloon rendering to the balloons entity manager.
+  let balloonsLayerEnabled = true;
+  // Battle effect layers — Phase 6 of the 3D migration. Each one is
+  // flipped off when the 3D renderer boots so the corresponding 3D
+  // effect manager owns the visual.
+  //   - `impacts`        — cannonball-hit flash / ring / sparks / smoke
+  //   - `crosshairs`     — per-player aim indicators
+  //   - `fog`            — fog-of-war blanket (only active when
+  //                        `overlay.battle.fogOfWar` is set, but the 2D
+  //                        pass must still be gated so 3D owns the visual)
+  //   - `thawingTiles`   — ice-thaw crack-and-fade burst over recently
+  //                        thawed tiles. Note: the base ICE_COLOR for
+  //                        still-frozen tiles is part of the `terrain`
+  //                        flag above (cached ImageData swap), so the
+  //                        thawing flag only gates the break animation,
+  //                        not the steady-state ice tint.
+  let impactsLayerEnabled = true;
+  let crosshairsLayerEnabled = true;
+  let fogLayerEnabled = true;
+  let thawingTilesLayerEnabled = true;
+  // Phantom layer — tetris-piece cell previews during WALL_BUILD and
+  // cannon footprint previews during CANNON_PLACE. The 3D renderer
+  // flips this off once so the phantoms entity manager owns the visual.
+  let phantomsLayerEnabled = true;
+
   // Per-instance terrain cache. Was previously a module-level WeakMap, which
   // meant `precomputeTerrainCache` (the module export) and every `RenderMap`
   // instance shared the same cache state. The doc-comment on this factory
@@ -325,7 +435,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
     if (mainCtxCache?.canvas === canvas) return mainCtxCache.canvasCtx;
-    const canvasCtx = canvas.getContext("2d", { alpha: false })!;
+    // `alpha: true` (the default) so in 3D mode the regions where we skip
+    // the terrain layer remain transparent, letting the WebGL canvas below
+    // show through. 2D mode is unaffected because the terrain layer paints
+    // every pixel each frame, so no background shows through.
+    const canvasCtx = canvas.getContext("2d")!;
     mainCtxCache = { canvas, canvasCtx };
     return canvasCtx;
   }
@@ -462,6 +576,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     ensureOffscreenSize(W, H);
     const overlayCtx = getScene().ctx;
     overlayCtx.clearRect(0, 0, W, H);
+    // Clear the main (display) canvas too. With `alpha: true` this resets
+    // the framebuffer to transparent, so in 3D mode the regions where we
+    // skip the terrain layer reveal the WebGL canvas below. In 2D mode the
+    // entire canvas is overdrawn with opaque terrain+UI pixels every frame,
+    // so the clear is a no-op on the visible result.
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Render layers (order is load-bearing — later layers draw on top):
     //
@@ -489,30 +609,78 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     //  18. Combo floats + announcement text (scaled by SCALE)
     //  19. Status bar (below game scene)
 
-    // Draw the new (target) scene — layers that change between phases
+    // Draw the new (target) scene — layers that change between phases.
+    //
+    // Terrain-group layers (grass/water pixels, water shimmer, frozen-ice
+    // overlay, sinkhole recoloring, bonus pulse, burning-pit glyphs) are
+    // grouped under the `terrain` flag. In 3D mode the WebGL canvas renders
+    // these and this flag is flipped off so the 2D canvas leaves those
+    // regions transparent; castles/entities/UI still render on 2D.
     const liveCache = getTerrainCache(map, W, H);
     const blit = (img: ImageData, dx: number, dy: number) =>
       blitImageData(overlayCtx, img, dx, dy);
-    drawTerrain(W, H, map, liveCache, blit, overlay);
-    observer?.terrainDrawn?.("main", map);
-    drawWaterAnimation(overlayCtx, map, overlay, now);
-    drawFrozenTiles(overlayCtx, overlay, now);
-    drawCastles(overlayCtx, overlay);
-    drawSinkholeOverlays(liveCache, blit, overlay);
-    drawBonusSquares(overlayCtx, overlay, now);
-    drawHouses(overlayCtx, overlay);
-    drawTowers(overlayCtx, map, overlay, now);
-    drawBurningPits(overlayCtx, overlay, now);
-    drawGrunts(overlayCtx, overlay);
-    drawBattleEffectsBelowFog(overlayCtx, map, overlay, now);
-    drawFogOfWar(overlayCtx, overlay, now);
+    if (terrainLayerEnabled) {
+      drawTerrain(W, H, map, liveCache, blit, overlay);
+      observer?.terrainDrawn?.("main", map);
+      drawWaterAnimation(overlayCtx, map, overlay, now);
+    }
+    // Frozen-tile detail splits along two flags:
+    //   - still-frozen shimmer/cracks ride with `terrain` (they overlay
+    //     the cached ice tiles)
+    //   - thaw burst animation rides with `thawingTiles`, so the 3D
+    //     renderer can own it independently (3D thaw manager handles
+    //     the burst on thawing tiles while terrain stays off).
+    if (terrainLayerEnabled || thawingTilesLayerEnabled) {
+      drawFrozenTiles(overlayCtx, overlay, now, {
+        includeFrozen: terrainLayerEnabled,
+        includeThawing: thawingTilesLayerEnabled,
+      });
+    }
+    drawCastles(
+      overlayCtx,
+      overlay,
+      wallsLayerEnabled,
+      debrisLayerEnabled,
+      cannonsLayerEnabled,
+      balloonsLayerEnabled,
+      interiorsLayerEnabled,
+    );
+    if (terrainLayerEnabled) {
+      drawSinkholeOverlays(liveCache, blit, overlay);
+      drawBonusSquares(overlayCtx, overlay, now);
+    }
+    if (housesLayerEnabled) {
+      drawHouses(overlayCtx, overlay);
+    }
+    drawTowers(overlayCtx, map, overlay, now, {
+      live: towersLayerEnabled,
+      debris: debrisLayerEnabled,
+    });
+    if (pitsLayerEnabled) {
+      drawBurningPits(overlayCtx, overlay, now);
+    }
+    if (gruntsLayerEnabled) {
+      drawGrunts(overlayCtx, overlay);
+    }
+    drawBattleEffectsBelowFog(overlayCtx, map, overlay, now, {
+      balloons: balloonsLayerEnabled,
+      impacts: impactsLayerEnabled,
+    });
+    if (fogLayerEnabled) {
+      drawFogOfWar(overlayCtx, overlay, now);
+    }
 
     // If banner is active with old data, composite the old scene below the banner.
     drawBannerPrevScene(overlayCtx, W, H, overlay);
 
     // Layers that don't change between phases — draw once on top
-    drawPhantoms(overlayCtx, overlay);
-    drawBattleEffectsAboveFog(overlayCtx, overlay, now);
+    if (phantomsLayerEnabled) {
+      drawPhantoms(overlayCtx, overlay);
+    }
+    drawBattleEffectsAboveFog(overlayCtx, overlay, now, {
+      cannonballs: cannonballsLayerEnabled,
+      crosshairs: crosshairsLayerEnabled,
+    });
     drawScoreDeltas(overlayCtx, overlay);
     drawModifierRevealHighlight(overlayCtx, H, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);
@@ -557,6 +725,82 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
+  function setLayersEnabled(layers: {
+    terrain?: boolean;
+    walls?: boolean;
+    interiors?: boolean;
+    towers?: boolean;
+    houses?: boolean;
+    debris?: boolean;
+    cannons?: boolean;
+    grunts?: boolean;
+    cannonballs?: boolean;
+    pits?: boolean;
+    balloons?: boolean;
+    impacts?: boolean;
+    crosshairs?: boolean;
+    fog?: boolean;
+    thawingTiles?: boolean;
+    phantoms?: boolean;
+  }): void {
+    // Dispatch by layer name — lets us scale to more layers without
+    // growing the if-chain (which the lint-if-chain check flags at 4+
+    // branches).
+    const setters: Record<string, (value: boolean) => void> = {
+      terrain: (value) => {
+        terrainLayerEnabled = value;
+      },
+      walls: (value) => {
+        wallsLayerEnabled = value;
+      },
+      interiors: (value) => {
+        interiorsLayerEnabled = value;
+      },
+      towers: (value) => {
+        towersLayerEnabled = value;
+      },
+      houses: (value) => {
+        housesLayerEnabled = value;
+      },
+      debris: (value) => {
+        debrisLayerEnabled = value;
+      },
+      cannons: (value) => {
+        cannonsLayerEnabled = value;
+      },
+      grunts: (value) => {
+        gruntsLayerEnabled = value;
+      },
+      cannonballs: (value) => {
+        cannonballsLayerEnabled = value;
+      },
+      pits: (value) => {
+        pitsLayerEnabled = value;
+      },
+      balloons: (value) => {
+        balloonsLayerEnabled = value;
+      },
+      impacts: (value) => {
+        impactsLayerEnabled = value;
+      },
+      crosshairs: (value) => {
+        crosshairsLayerEnabled = value;
+      },
+      fog: (value) => {
+        fogLayerEnabled = value;
+      },
+      thawingTiles: (value) => {
+        thawingTilesLayerEnabled = value;
+      },
+      phantoms: (value) => {
+        phantomsLayerEnabled = value;
+      },
+    };
+    for (const [key, value] of Object.entries(layers)) {
+      if (value !== undefined) setters[key]?.(value);
+    }
+  }
+
   function sceneCanvas(): HTMLCanvasElement {
     return getScene().canvas;
   }
@@ -571,7 +815,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
   }
 
-  return { drawMap, precomputeTerrainCache, sceneCanvas, captureScene };
+  return {
+    drawMap,
+    precomputeTerrainCache,
+    sceneCanvas,
+    captureScene,
+    setLayersEnabled,
+  };
 }
 
 // Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
@@ -1206,16 +1456,37 @@ function smoothClamp(interpolationFactor: number): number {
 /** Draw castle walls, interiors, wall debris, and cannons for all players. */
 function drawCastles(
   overlayCtx: CanvasRenderingContext2D,
-  overlay?: RenderOverlay,
+  overlay: RenderOverlay | undefined,
+  wallsEnabled: boolean,
+  debrisEnabled: boolean,
+  cannonsEnabled: boolean,
+  balloonsEnabled: boolean,
+  interiorsEnabled: boolean,
 ): void {
   if (!overlay?.castles) return;
   for (const castle of overlay.castles) {
     const battleTerritory = overlay.battle?.battleTerritory?.[castle.playerId];
     const battleWalls = overlay.battle?.battleWalls?.[castle.playerId];
-    drawCastleInterior(overlayCtx, castle, battleTerritory);
-    drawCastleWalls(overlayCtx, castle, battleWalls);
-    drawWallDebris(overlayCtx, castle, battleWalls);
-    drawCastleCannons(overlayCtx, castle);
+    if (interiorsEnabled) {
+      drawCastleInterior(overlayCtx, castle, battleTerritory);
+    }
+    // Phase 3: the 3D renderer owns wall meshes. `wallsEnabled` covers
+    // live wall tiles only; `debrisEnabled` covers the rubble that marks
+    // destroyed walls. The two layers are independent so the 3D path
+    // can take them over separately (the 3D renderer flips both off).
+    if (wallsEnabled) {
+      drawCastleWalls(overlayCtx, castle, battleWalls);
+    }
+    if (debrisEnabled) {
+      drawWallDebris(overlayCtx, castle, battleWalls);
+    }
+    drawCastleCannons(
+      overlayCtx,
+      castle,
+      debrisEnabled,
+      cannonsEnabled,
+      balloonsEnabled,
+    );
   }
 }
 
@@ -1374,11 +1645,17 @@ function drawWallDebris(
 function drawCastleCannons(
   overlayCtx: CanvasRenderingContext2D,
   castle: CastleData,
+  debrisEnabled: boolean,
+  cannonsEnabled: boolean,
+  balloonsEnabled: boolean,
 ): void {
   for (const cannon of castle.cannons) {
     const cx = cannon.col * TILE_SIZE;
     const cy = cannon.row * TILE_SIZE;
     if (!isCannonAlive(cannon)) {
+      // Phase 3: dead cannons are debris — the 3D renderer's debris
+      // manager owns them when `debrisEnabled` is false.
+      if (!debrisEnabled) continue;
       if (isRampartCannon(cannon)) {
         drawSprite(overlayCtx, "rampart_debris", cx, cy);
       } else {
@@ -1391,28 +1668,35 @@ function drawCastleCannons(
       }
       continue;
     }
+    // Phase 4: live cannons (normal/super/mortar/rampart) — the 3D
+    // renderer owns them when `cannonsEnabled` is false. Balloon
+    // cannons are owned separately by the balloons entity manager
+    // under the `balloonsEnabled` flag.
+    if (isBalloonCannon(cannon)) {
+      if (balloonsEnabled) {
+        drawSprite(overlayCtx, "balloon_base", cx, cy);
+      }
+      continue;
+    }
+    if (!cannonsEnabled) continue;
     if (isRampartCannon(cannon)) {
       drawSprite(overlayCtx, "rampart", cx, cy);
       continue;
     }
-    if (isBalloonCannon(cannon)) {
-      drawSprite(overlayCtx, "balloon_base", cx, cy);
-    } else {
-      const prefix = isSuperCannon(cannon)
-        ? "super"
-        : cannon.mortar
-          ? "mortar"
-          : SPRITE_CANNON;
-      const dir = facingToDir8(cannon.facing ?? 0);
-      drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
-      // Shield aura overlay: armor rivets + metallic corner frame so shielded
-      // cannons read as stronger (replaces the old cyan HP ring).
-      if (cannon.shielded) {
-        const aura = isSuperCannon(cannon)
-          ? "shield_aura_3x3"
-          : "shield_aura_2x2";
-        drawSprite(overlayCtx, aura, cx, cy);
-      }
+    const prefix = isSuperCannon(cannon)
+      ? "super"
+      : cannon.mortar
+        ? "mortar"
+        : SPRITE_CANNON;
+    const dir = facingToDir8(cannon.facing ?? 0);
+    drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
+    // Shield aura overlay: armor rivets + metallic corner frame so shielded
+    // cannons read as stronger (replaces the old cyan HP ring).
+    if (cannon.shielded) {
+      const aura = isSuperCannon(cannon)
+        ? "shield_aura_3x3"
+        : "shield_aura_2x2";
+      drawSprite(overlayCtx, aura, cx, cy);
     }
   }
 }

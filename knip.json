@@ -1,6 +1,6 @@
 {
   "entry": ["src/main.ts", "src/online-client.ts", "src/input/input-recorder.ts", "server/server.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "project": ["src/**/*.ts", "server/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
-  "ignore": ["test/**"],
+  "ignore": ["test/**", "src/render/3d/sprites/**"],
   "bun": false
 }

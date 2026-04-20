@@ -132,14 +132,21 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.state.modern?.masterBuilderLockout ?? 0,
     });
 
-    // Status bar (rendered inside canvas)
+    // Status bar (rendered inside canvas). Hidden in 3D mode: it makes
+    // the 2D canvas taller than the WebGL canvas, breaking letterbox
+    // alignment between the two stacked layers and causing banner
+    // prev-scene composites to appear shifted. Debug-only UI anyway —
+    // slated for removal.
     if (runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.statusBar = deps.createStatusBar(
-        runtimeState.state,
-        PLAYER_COLORS,
-        runtimeState.frameMeta.povPlayerId,
-        runtimeState.frameMeta.hasPointerPlayer,
-      );
+      runtimeState.overlay.ui.statusBar =
+        runtimeState.settings.rendererKind === "3d"
+          ? undefined
+          : deps.createStatusBar(
+              runtimeState.state,
+              PLAYER_COLORS,
+              runtimeState.frameMeta.povPlayerId,
+              runtimeState.frameMeta.hasPointerPlayer,
+            );
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

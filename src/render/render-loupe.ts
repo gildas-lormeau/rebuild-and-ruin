@@ -9,12 +9,18 @@
  * This module finds them and draws to whichever is currently visible.
  */
 
-import { MAP_PX_H, MAP_PX_W, OFFSCREEN_SCALE } from "../shared/core/grid.ts";
+import { OFFSCREEN_SCALE, TILE_SIZE } from "../shared/core/grid.ts";
 import type { LoupeHandle } from "../shared/ui/overlay-types.ts";
 
 // Loupe rendering constants
 const LOUPE_RADIUS = 12;
-const LOUPE_ZOOM = 2;
+// Fixed source window in world pixels — the loupe magnifies exactly
+// these many tiles regardless of the loupe's display size. Aspect
+// (5/6) matches the CSS `.loupe` aspect-ratio so the source rect maps
+// to the display without distortion. Screen size changes the
+// on-screen size of the loupe but NOT what it shows.
+const LOUPE_SOURCE_TILES_W = 5;
+const LOUPE_SOURCE_TILES_H = 6;
 const LOUPE_BORDER_WIDTH = 6;
 const LOUPE_RIVET_RADIUS = 5;
 const LOUPE_STONE_COLOR = "rgba(50, 40, 30, 0.92)";
@@ -89,12 +95,14 @@ export function createLoupe(
     const ir = Math.max(0, radius - bw);
 
     // Source rect on sceneCanvas (physical pixels — scene is OFFSCREEN_SCALE×).
-    const srcW = (iw / (dpr * LOUPE_ZOOM)) * OFFSCREEN_SCALE;
-    const srcH = (ih / (dpr * LOUPE_ZOOM)) * OFFSCREEN_SCALE;
-    let srcX = worldX * OFFSCREEN_SCALE - srcW / 2;
-    let srcY = worldY * OFFSCREEN_SCALE - srcH / 2;
-    srcX = Math.max(0, Math.min(MAP_PX_W * OFFSCREEN_SCALE - srcW, srcX));
-    srcY = Math.max(0, Math.min(MAP_PX_H * OFFSCREEN_SCALE - srcH, srcY));
+    // Fixed size in world units; centered on the cursor without clamping to
+    // the map bounds so the cursor/phantom is ALWAYS at the loupe's center
+    // (edges of the world render as empty pixels, which `drawImage` handles
+    // automatically by clipping the destination rect).
+    const srcW = LOUPE_SOURCE_TILES_W * TILE_SIZE * OFFSCREEN_SCALE;
+    const srcH = LOUPE_SOURCE_TILES_H * TILE_SIZE * OFFSCREEN_SCALE;
+    const srcX = worldX * OFFSCREEN_SCALE - srcW / 2;
+    const srcY = worldY * OFFSCREEN_SCALE - srcH / 2;
 
     // Clear
     canvasCtx.clearRect(0, 0, w, h);

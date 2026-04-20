@@ -132,8 +132,14 @@
       <button class="btn-round" data-action="quit" aria-label="Quit">X</button>
     </div>
 
-    <!-- Canvas (shared) -->
-    <canvas id="canvas"></canvas>
+    <!-- Shared canvas stack: the 3D world canvas (when active) and the
+         2D UI canvas occupy the same grid cell so they letterbox
+         identically regardless of surrounding panels. DOM order
+         determines z-order — `#world-canvas` first, `#canvas` on top. -->
+    <div class="canvas-stack">
+      <canvas id="world-canvas"></canvas>
+      <canvas id="canvas"></canvas>
+    </div>
 
     <!-- Floating buttons for direct-touch placement (hidden by default) -->
     <div class="floating-actions" id="floating-actions">

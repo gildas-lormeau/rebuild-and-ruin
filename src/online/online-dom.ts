@@ -12,6 +12,9 @@
 // ── Game elements ──────────────────────────────────────────────────
 
 export const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+export const worldCanvas = document.getElementById(
+  "world-canvas",
+) as HTMLCanvasElement;
 export const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 export const pageOnline = document.getElementById("page-online")!;
 // ── Lobby elements ─────────────────────────────────────────────────

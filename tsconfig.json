@@ -26,5 +26,12 @@
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["server", "scripts", "test", "dist", "tmp"]
+  "exclude": [
+    "server",
+    "scripts",
+    "test",
+    "dist",
+    "tmp",
+    "src/render/3d/sprites/*.mjs"
+  ]
 }

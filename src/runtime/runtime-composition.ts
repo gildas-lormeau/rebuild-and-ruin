@@ -47,6 +47,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../protocol/protocol.ts";
+import { createRender3d } from "../render/3d/renderer.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import {
   buildGameOverOverlay,
@@ -88,6 +89,7 @@ import type {
 } from "../shared/ui/overlay-types.ts";
 import {
   computeGameSeed,
+  loadSettings,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/ui/player-config.ts";
@@ -160,16 +162,28 @@ const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerSlot> = new Set();
  * via `test/runtime-headless.ts` and never call this.
  *
  * Lives in the composition root because it value-imports
- * `createCanvasRenderer` from `render/`, which is type-only for
- * other runtime files.
+ * `createCanvasRenderer` / `createRender3d` from `render/`, which
+ * are type-only for other runtime files.
+ *
+ * `rendererKind` from persisted settings picks between the canvas 2D
+ * renderer (default) and the three.js world renderer (Phase 0+ of the
+ * 3D migration). See docs/3d-renderer-migration.md.
  */
-export function createBrowserRuntimeBindings(canvas: HTMLCanvasElement): {
+export function createBrowserRuntimeBindings(
+  uiCanvas: HTMLCanvasElement,
+  worldCanvas: HTMLCanvasElement,
+): {
   renderer: RendererInterface;
   timing: TimingApi;
   keyboardEventSource: Document;
 } {
+  const settings = loadSettings();
+  const renderer =
+    settings.rendererKind === "3d"
+      ? createRender3d(worldCanvas, uiCanvas)
+      : createCanvasRenderer(uiCanvas);
   return {
-    renderer: createCanvasRenderer(canvas),
+    renderer,
     timing: createBrowserTimingApi(),
     keyboardEventSource: document,
   };

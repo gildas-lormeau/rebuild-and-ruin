@@ -20,7 +20,7 @@ import {
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { canvas } from "./online-dom.ts";
+import { canvas, worldCanvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
@@ -52,8 +52,10 @@ import {
 const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
 // ── DOM singletons (from centralized boundary) ─────────────────────
-const { renderer, timing, keyboardEventSource } =
-  createBrowserRuntimeBindings(canvas);
+const { renderer, timing, keyboardEventSource } = createBrowserRuntimeBindings(
+  canvas,
+  worldCanvas,
+);
 // ── Incoming message bus ────────────────────────────────────────────
 // Subscribers register via `network.onMessage(handler)`. The WebSocket
 // handler delivers via `deliverIncomingMessage`. The seam is what lets

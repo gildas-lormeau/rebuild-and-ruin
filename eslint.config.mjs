@@ -7,6 +7,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default [
   {
+    // Sprite scene files author geometry math in ±1 frustum coords using
+    // short mathematical identifiers (N/E/S/W masks, r/R radii, x/y/z UV
+    // axes, pz extrusion depth, etc.) — see sprites/CONVENTIONS.md. The
+    // id-length rule is at odds with that style; exempt the whole folder.
+    ignores: ["src/render/3d/sprites/**"],
+  },
+  {
     files: ["src/**/*.ts"],
     languageOptions: {
       parser: tsParser,
@@ -22,7 +29,7 @@ export default [
           min: 3,
           exceptions: [
             "_",
-            "x", "y",       // pixel/world coordinates
+            "x", "y", "z",  // pixel/world coordinates
             "r", "c",       // row/col (grid coordinates, unpackTile destructuring)
             "w", "h",       // width/height (lowercase)
             "W", "H",       // width/height (canvas constants in render code)
@@ -31,6 +38,7 @@ export default [
             "a", "b",       // sort comparators
             "e",            // event handlers
             "id",           // identifier (player/entity IDs)
+            "cz", "dz",     // collision/interaction zone radius
             "dt",           // delta time
             "t",            // timestamp (ms) in MIDI/music event data
             "hp",           // hit points

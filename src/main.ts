@@ -23,8 +23,13 @@ import { MAX_PLAYERS } from "./shared/ui/player-config.ts";
 import { Mode } from "./shared/ui/ui-mode.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const { renderer, timing, keyboardEventSource } =
-  createBrowserRuntimeBindings(canvas);
+const worldCanvas = document.getElementById(
+  "world-canvas",
+) as HTMLCanvasElement;
+const { renderer, timing, keyboardEventSource } = createBrowserRuntimeBindings(
+  canvas,
+  worldCanvas,
+);
 const atlasReady = loadAtlas().catch((e) => {
   console.warn("[local] sprite atlas failed to load:", e);
 });

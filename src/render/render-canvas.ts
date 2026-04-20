@@ -13,14 +13,33 @@ import { clientToCanvas, computeLetterboxLayout } from "./render-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 
+/** Extended return of `createCanvasRenderer`: the public
+ *  `RendererInterface` plus a getter for the offscreen scene canvas.
+ *  The 3D renderer destructures the getter to build a WebGL+2D
+ *  composite for its loupe (the public interface never exposes the
+ *  offscreen buffer). */
+interface CanvasRenderer extends RendererInterface {
+  /** Internal offscreen scene canvas — the 2D-drawn pre-blit buffer. */
+  sceneCanvas(): HTMLCanvasElement;
+}
+
 export function createCanvasRenderer(
   canvas: HTMLCanvasElement,
   deps: RenderMapDeps = {},
-): RendererInterface {
-  const container = canvas.parentElement as HTMLElement;
+): CanvasRenderer {
+  // `container` is the top-level game container (`#game-container`)
+  // regardless of how the canvas is nested inside it. Callers toggle
+  // the `active` class on this element to show/hide the game area.
+  // Using `closest()` tolerates intermediate wrappers like
+  // `.canvas-stack` without coupling this module to a particular DOM
+  // shape.
+  const container =
+    (canvas.closest("#game-container") as HTMLElement | null) ??
+    (canvas.parentElement as HTMLElement);
   const renderMap = createRenderMap(deps);
   return {
     warmMapCache: renderMap.precomputeTerrainCache,
+    setLayersEnabled: renderMap.setLayersEnabled,
     drawFrame: (map, overlay, viewport, now) =>
       renderMap.drawMap(map, canvas, overlay, viewport, now),
     clientToSurface: (cx, cy) => clientToCanvas(cx, cy, canvas),
@@ -46,5 +65,6 @@ export function createCanvasRenderer(
     eventTarget: canvas,
     container,
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
+    sceneCanvas: renderMap.sceneCanvas,
   };
 }

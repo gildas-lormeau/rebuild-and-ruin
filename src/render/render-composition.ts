@@ -384,6 +384,7 @@ export function createOnlineOverlay(
   const battleWalls = inBattle ? battleAnim.walls : undefined;
 
   return {
+    phase: state.phase,
     selection: previousSelection,
     castles: buildCastleOverlay(state),
     entities: {
@@ -718,6 +719,10 @@ function buildBattleCannonballsPayload(
   | Array<{
       x: number;
       y: number;
+      startX: number;
+      startY: number;
+      targetX: number;
+      targetY: number;
       progress: number;
       incendiary?: boolean;
       mortar?: boolean;
@@ -732,6 +737,10 @@ function buildBattleCannonballsPayload(
     return {
       x: b.x,
       y: b.y,
+      startX: b.startX,
+      startY: b.startY,
+      targetX: b.targetX,
+      targetY: b.targetY,
       progress,
       incendiary: b.incendiary,
       mortar: b.mortar,

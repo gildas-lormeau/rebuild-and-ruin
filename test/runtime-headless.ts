@@ -512,6 +512,13 @@ function createStubRenderer(): RendererInterface {
       _now: number,
     ) => {},
     warmMapCache: (_map: GameMap) => {},
+    setLayersEnabled: (_layers: {
+      terrain?: boolean;
+      walls?: boolean;
+      towers?: boolean;
+      houses?: boolean;
+      debris?: boolean;
+    }) => {},
     captureScene: () => undefined,
     clientToSurface: (clientX: number, clientY: number) => ({
       x: clientX,

@@ -189,20 +189,72 @@ nav.dpad {
 
 /* ===== Game container ===== */
 #game-container {
-  position: relative;
   display: none;
   width: 100vw;
   height: 100dvh;
+  /* Letterbox background: both canvases are transparent so this color
+     shows through around `object-fit: contain`. */
+  background: var(--color-bg);
+}
 
-  canvas:not(.loupe) {
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    object-fit: contain;
-    image-rendering: pixelated;
-    touch-action: none;
-    background: var(--color-bg);
-  }
+/* Shared layout cell for the 3D world canvas and the 2D UI canvas.
+   Both canvases overlap the same grid track so `object-fit: contain`
+   on both produces an identical letterbox. DOM order = z-order
+   (world → UI); no z-index needed.
+
+   Track sizing uses `minmax(0, 1fr)` (NOT bare `1fr`). Per CSS Grid 2
+   §7.2.4 and §11.5, a bare `1fr` expands to `minmax(auto, 1fr)`, whose
+   `auto` minimum takes the item's min-content contribution as a floor.
+   For our canvases — replaced grid items with `width: 100%` /
+   `height: 100%` — that contribution is circular: per CSS Sizing 3
+   §5.2.3 "Intrinsic Contributions of Percentage-Sized Boxes" a
+   percentage resolved under an indefinite constraint contributes zero,
+   so the track's `auto` minimum is 0 and the `1fr` flex factor has no
+   free space to distribute. The row collapses to 0, and the canvases
+   render 0×0. Switching to `minmax(0, 1fr)` pins the minimum at a
+   definite length (CSS Values 4: `<length>` is always definite), which
+   breaks the circular dependency: the `1fr` then resolves against the
+   flex container's definite cross-size (CSS Flexbox 1 §9.8 rule 3)
+   and definite main-size (rule 1), yielding the full container size.
+
+   `.canvas-stack` itself is a flex item with `flex: 1` (= 1 1 0 per
+   CSS Flexbox 1 §7.2): grow 1, shrink 1, basis 0. `#game-container`
+   has definite 100vw × 100dvh, so Flexbox §9.8 rules 1 & 3 make the
+   stack's post-flex inline and cross sizes definite — the necessary
+   precondition for the grid track resolution above. */
+.canvas-stack {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Both canvases target the single track via line-based placement
+   (CSS Grid 2 §8.3): `1 / -1` spans from the first to the last line
+   in each axis. Avoids the named-area shorthand trap where
+   `grid-template: "stack" 1fr / 1fr` re-introduces the bare `1fr`
+   problem. */
+.canvas-stack > canvas {
+  grid-row: 1 / -1;
+  grid-column: 1 / -1;
+  /* Width/height 100% resolve against the grid area, which is
+     definite because the tracks above have a definite length minimum
+     and a definite flex resolution (CSS 2.1 §10.5: percentage heights
+     resolve when the containing block's height is explicit). */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  touch-action: none;
+  background: transparent;
+}
+
+/* The WebGL canvas receives no pointer events — the 2D canvas on top
+   owns the input surface. */
+#world-canvas {
+  pointer-events: none;
 }
 
 #game-container.active {
@@ -319,7 +371,7 @@ nav.dpad {
     flex-direction: row-reverse;
   }
 
-  #game-container canvas:not(.loupe) {
+  #game-container .canvas-stack {
     flex: 2;
   }
 

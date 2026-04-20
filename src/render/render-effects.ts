@@ -325,28 +325,49 @@ export function drawWaterAnimation(
 
 /** Battle effects drawn UNDER Fog of War — impacts, balloons, phase timer.
  *  Anything spatially anchored to the map that should be hidden when fog
- *  covers its tile belongs here. */
+ *  covers its tile belongs here.
+ *
+ *  `opts.balloons`: gates the 2D in-flight balloon pass. The 3D
+ *  renderer sets this false during Phase 4 to hand ownership of balloon
+ *  rendering (both grounded bases and in-flight envelopes) to the
+ *  balloons entity manager. Defaults to true so 2D-mode behaviour is
+ *  unchanged.
+ *
+ *  `opts.impacts`: gates the 2D impact pass (cannonball-hit flash /
+ *  ring / sparks / smoke). The 3D renderer sets this false during
+ *  Phase 6 to hand impact rendering to the impacts effects manager. */
 export function drawBattleEffectsBelowFog(
   overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
   overlay: RenderOverlay | undefined,
   now: number,
+  opts: { balloons?: boolean; impacts?: boolean } = {},
 ): void {
-  drawImpacts(overlayCtx, overlay);
-  drawBalloons(overlayCtx, overlay);
+  if (opts.impacts ?? true) drawImpacts(overlayCtx, overlay);
+  if (opts.balloons ?? true) drawBalloons(overlayCtx, overlay);
   drawPhaseTimer(overlayCtx, map, overlay, now);
 }
 
 /** Battle effects drawn OVER Fog of War — only the player aiming aids
  *  (crosshairs) and in-flight cannonballs remain visible through the fog
- *  so players can still aim and follow their shots from memory. */
+ *  so players can still aim and follow their shots from memory.
+ *
+ *  `opts.cannonballs`: gates the 2D cannonball pass. The 3D renderer
+ *  sets this false during Phase 4 to hand ownership of projectile
+ *  rendering to the cannonballs entity manager. Defaults to true to
+ *  keep the 2D path unchanged.
+ *
+ *  `opts.crosshairs`: gates the 2D crosshair pass. The 3D renderer
+ *  sets this false during Phase 6 to hand crosshair rendering to the
+ *  crosshairs effects manager. */
 export function drawBattleEffectsAboveFog(
   overlayCtx: CanvasRenderingContext2D,
   overlay: RenderOverlay | undefined,
   now: number,
+  opts: { cannonballs?: boolean; crosshairs?: boolean } = {},
 ): void {
-  drawCannonballs(overlayCtx, overlay);
-  drawCrosshairs(overlayCtx, overlay, now);
+  if (opts.cannonballs ?? true) drawCannonballs(overlayCtx, overlay);
+  if (opts.crosshairs ?? true) drawCrosshairs(overlayCtx, overlay, now);
 }
 
 /** Draw burning pit ember glows.
@@ -386,16 +407,29 @@ export function drawBurningPits(
  *  and thaw break animations.  The base ice color is baked into the terrain
  *  cache (renderTerrainPixels swaps WATER_COLOR → ICE_COLOR for frozen tiles),
  *  so this function only adds surface detail on top.
+ *
+ *  `opts.includeFrozen`: draw the still-frozen shimmer + cracks. Defaults
+ *  to true. Phase 6 of the 3D migration sets this false when the terrain
+ *  layer is off (because the base ICE_COLOR is painted by the 3D terrain
+ *  mesh and the 3D migration defers the shimmer/cracks polish).
+ *
+ *  `opts.includeThawing`: draw the thaw crack-and-fade burst animation.
+ *  Defaults to true. Phase 6 of the 3D migration sets this false once
+ *  the 3D `thawing` effect manager is active.
+ *
  *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawFrozenTiles(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
   now: number = performance.now(),
+  opts: { includeFrozen?: boolean; includeThawing?: boolean } = {},
 ): void {
   const frozen = overlay?.entities?.frozenTiles;
   const thawing = overlay?.entities?.thawingTiles;
-  const hasFrozen = frozen && frozen.size > 0;
-  const hasThawing = thawing && thawing.length > 0;
+  const wantFrozen = opts.includeFrozen ?? true;
+  const wantThawing = opts.includeThawing ?? true;
+  const hasFrozen = wantFrozen && frozen && frozen.size > 0;
+  const hasThawing = wantThawing && thawing && thawing.length > 0;
   if (!hasFrozen && !hasThawing) return;
 
   overlayCtx.save();

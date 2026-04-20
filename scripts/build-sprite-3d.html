@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sprite 3D — build</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #eee; margin: 0; padding: 16px; }
+  h1 { margin: 0 0 6px; font-size: 16px; }
+  .intro { color: #aaa; font-size: 12px; margin-bottom: 12px; max-width: 780px; line-height: 1.45; }
+  .intro code { background: #0f1a2e; padding: 1px 4px; border-radius: 3px; }
+  .panes { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+  .pane { display: flex; flex-direction: column; gap: 8px; }
+  .pane h2 { margin: 0; font-size: 13px; color: #c8a040; font-weight: normal; }
+  .pane h2 small { color: #888; margin-left: 6px; }
+  .stage { position: relative; display: inline-block; }
+  canvas { image-rendering: pixelated; display: block; background:
+    repeating-conic-gradient(#222 0% 25%, #2a2a2a 0% 50%) 50%/8px 8px;
+    border: 1px solid #444; }
+  .grid { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .15s; background: transparent; border: 0; }
+  .stage:hover .grid, .show-grid .grid { opacity: 0.4; }
+  .tiny { display: flex; gap: 12px; align-items: center; font-size: 12px; color: #888; }
+  .tiny canvas { width: 64px; height: 64px; }
+  .tiny canvas.small { width: 32px; height: 32px; }
+  .controls { margin-top: 10px; padding: 10px; background: #0f1a2e; border: 1px solid #334; border-radius: 4px; font-size: 12px; }
+  .controls button { font: inherit; padding: 4px 10px; background: #16213e; color: #eee; border: 1px solid #555; cursor: pointer; }
+  .controls button:hover { background: #0f3460; }
+  .controls select { font: inherit; padding: 3px 6px; background: #16213e; color: #eee; border: 1px solid #555; }
+  .pane button.tinybtn { font: inherit; padding: 2px 8px; background: #16213e; color: #eee; border: 1px solid #555; cursor: pointer; font-size: 11px; align-self: flex-start; }
+  .pane button.tinybtn:hover { background: #0f3460; }
+  label { user-select: none; cursor: pointer; }
+  .hint { color: #666; font-size: 11px; }
+</style>
+</head>
+<body>
+<h1>Sprite 3D — build</h1>
+<p class="intro">
+  Generic sprite-iteration page. Pick a scene from <code>src/render/3d/sprites/</code>, see every variant rendered side-by-side at game-1×, game-2×, and 8× zoom with a 1-pixel grid overlay. Use the grid + zoom canvas to talk in integer pixel coordinates ("move the south wall 1 unit down"). Lighting is independent of in-game <code>lights.ts</code> so the previews stay stable while in-game lighting iterates.
+</p>
+
+<div class="controls">
+  scene:
+  <select id="sceneSelect">
+    <option value="tower">tower</option>
+    <option value="cannon">cannon</option>
+    <option value="wall">wall</option>
+    <option value="house">house</option>
+    <option value="debris">debris</option>
+    <option value="grunt">grunt</option>
+    <option value="cannonball">cannonball</option>
+    <option value="pit">pit</option>
+    <option value="balloon">balloon</option>
+    <option value="rampart">rampart</option>
+  </select>
+  &nbsp; <label><input type="checkbox" id="gridToggle"> show pixel grid</label>
+  &nbsp;
+  <button id="renderAll">Re-render all</button>
+  &nbsp; view:
+  <button id="viewTop">top-down</button>
+  <button id="viewTilted">3/4</button>
+  &nbsp; rotate:
+  <button id="rotLeft">← 45°</button>
+  <button id="rotRight">45° →</button>
+  <span class="hint" id="viewLabel">top-down</span>
+  &nbsp; palette:
+  <span class="hint" id="paletteOut"></span>
+</div>
+
+<div class="panes">
+  <div id="variantsRow" class="panes"></div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { createSpritePage } from "./sprites-pipeline.mjs";
+
+// `(three, scene, params)` is the common signature across most scenes;
+// `debris` and `balloon` take the full variant instead. Adapter map
+// keeps the pipeline call uniform.
+const BUILD_SCENE_ADAPTERS = {
+  tower: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  cannon: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  wall: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  house: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  debris: (build) => (scene, variant) => build(THREE, scene, variant),
+  grunt: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  cannonball: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  pit: (build) => (scene, variant) => build(THREE, scene, variant.params),
+  balloon: (build) => (scene, variant) => build(THREE, scene, variant),
+  rampart: (build) => (scene, variant) => build(THREE, scene, variant.params),
+};
+
+const SCENE_MODULES = {
+  tower: () => import("/src/render/3d/sprites/tower-scene.ts"),
+  cannon: () => import("/src/render/3d/sprites/cannon-scene.ts"),
+  wall: () => import("/src/render/3d/sprites/wall-scene.ts"),
+  house: () => import("/src/render/3d/sprites/house-scene.ts"),
+  debris: () => import("/src/render/3d/sprites/debris-scene.ts"),
+  grunt: () => import("/src/render/3d/sprites/grunt-scene.ts"),
+  cannonball: () => import("/src/render/3d/sprites/cannonball-scene.ts"),
+  pit: () => import("/src/render/3d/sprites/pit-scene.ts"),
+  balloon: () => import("/src/render/3d/sprites/balloon-scene.ts"),
+  rampart: () => import("/src/render/3d/sprites/rampart-scene.ts"),
+};
+
+const BUILD_FN_NAMES = {
+  tower: "buildTower",
+  cannon: "buildCannon",
+  wall: "buildWall",
+  house: "buildHouse",
+  debris: "buildDebris",
+  grunt: "buildGrunt",
+  cannonball: "buildCannonball",
+  pit: "buildPit",
+  balloon: "buildBalloon",
+  rampart: "buildRampart",
+};
+
+let currentPage = null;
+const select = document.getElementById("sceneSelect");
+
+async function loadScene(key) {
+  if (currentPage) currentPage.dispose();
+  currentPage = null;
+  const mod = await SCENE_MODULES[key]();
+  const buildFn = mod[BUILD_FN_NAMES[key]];
+  if (typeof buildFn !== "function") {
+    throw new Error(`scene ${key}: missing ${BUILD_FN_NAMES[key]}`);
+  }
+  currentPage = createSpritePage({
+    THREE,
+    variants: mod.VARIANTS,
+    palette: mod.PALETTE,
+    buildScene: BUILD_SCENE_ADAPTERS[key](buildFn),
+  });
+}
+
+select.addEventListener("change", () => {
+  loadScene(select.value).catch((err) => {
+    console.error(err);
+    alert(`Failed to load ${select.value}: ${err.message}`);
+  });
+});
+
+// Initial scene from URL hash (e.g., #cannon) or default to tower.
+const initial = (location.hash.replace(/^#/, "") || select.value);
+if (Object.hasOwn(SCENE_MODULES, initial)) select.value = initial;
+loadScene(select.value).catch(console.error);
+
+// Sync hash on change for shareable links.
+select.addEventListener("change", () => {
+  history.replaceState(null, "", `#${select.value}`);
+});
+</script>
+</body>
+</html>

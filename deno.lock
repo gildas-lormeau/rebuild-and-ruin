@@ -24,6 +24,7 @@
       "dependencies": [
         "npm:@biomejs/biome@2.4.8",
         "npm:@types/node@^25.5.2",
+        "npm:@types/three@0.160",
         "npm:@typescript-eslint/eslint-plugin@^8.57.2",
         "npm:@typescript-eslint/parser@^8.57.2",
         "npm:eslint@^10.1.0",
@@ -33,6 +34,7 @@
         "npm:libadlmidi-js@2",
         "npm:madge@8.0.0",
         "npm:playwright@^1.58.2",
+        "npm:three@0.160",
         "npm:ts-morph@^27.0.2",
         "npm:typescript@5",
         "npm:vite@^7.3.1"

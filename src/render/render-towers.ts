@@ -13,13 +13,26 @@ import {
 } from "../shared/ui/theme.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
 
-/** Draw towers (alive, destroyed, highlighted, selected). */
+/** Draw towers (alive, destroyed, highlighted, selected).
+ *
+ *  `layers` gates which tower categories render:
+ *    • `live` — neutral + home tower sprites, selection highlights,
+ *      player-name labels. Phase 3 of the 3D migration flips this off
+ *      so the 3D tower meshes can take over.
+ *    • `debris` — dead-tower rubble sprites. Phase 3 flips this off
+ *      so the 3D debris manager can take over. Independent from `live`
+ *      because live/dead transitions are orthogonal to ownership.
+ *  Defaults to both-on so non-3D callers see the original behaviour.
+ */
 export function drawTowers(
   overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
   overlay?: RenderOverlay,
   now: number = performance.now(),
+  layers: { live?: boolean; debris?: boolean } = {},
 ): void {
+  const liveEnabled = layers.live ?? true;
+  const debrisEnabled = layers.debris ?? true;
   for (let i = 0; i < map.towers.length; i++) {
     const tower = map.towers[i]!;
     const { x: cx, y: cy } = towerCenterPx(tower);
@@ -30,6 +43,7 @@ export function drawTowers(
 
     const alive = overlay?.entities?.towerAlive?.[i];
     if (alive !== undefined && !alive) {
+      if (!debrisEnabled) continue;
       const debrisName =
         ownerId !== undefined
           ? `tower_debris_p${ownerId}${suffix}`
@@ -37,6 +51,8 @@ export function drawTowers(
       drawSpriteCentered(overlayCtx, debrisName, cx, cy);
       continue;
     }
+
+    if (!liveEnabled) continue;
 
     if (overlay?.selection?.selected === i || ownerId !== undefined) {
       const homeName =
