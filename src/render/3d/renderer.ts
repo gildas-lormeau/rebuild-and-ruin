@@ -12,7 +12,13 @@
  */
 
 import type { Viewport } from "../../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, OFFSCREEN_SCALE } from "../../shared/core/grid.ts";
+import {
+  CANVAS_H,
+  CANVAS_W,
+  MAP_PX_H,
+  MAP_PX_W,
+  OFFSCREEN_SCALE,
+} from "../../shared/core/grid.ts";
 import type { RendererInterface } from "../../shared/ui/overlay-types.ts";
 import { createCanvasRenderer } from "../render-canvas.ts";
 import { createLoupe } from "../render-loupe.ts";
@@ -34,18 +40,14 @@ export function createRender3d(
 
   const ctx: Render3dContext = createRender3dScene(worldCanvas);
 
-  // Cached viewport from the last `drawFrame`. Used by `captureScene`
-  // to restore the camera after it briefly resets to full-map coords
-  // for the pre-mutation snapshot.
+  // Cached viewport from the last `drawFrame`. Used by the loupe composite
+  // to draw the WebGL world canvas at the correct world-space rect.
   let lastViewport: Viewport | undefined;
-  // Cached pitch from the last `drawFrame`. Banner captures render at
-  // pitch=0 (top-down); `lastPitch` is the value we restore to afterwards.
-  let lastPitch = 0;
 
   // Banner prev-scene snapshot scratch canvases. Lazily created on first
   // capture; reused across phase transitions. The composite canvas matches
-  // the 2D scene canvas' OFFSCREEN_SCALE dimensions so the returned
-  // ImageData slots into the 2D banner pipeline unchanged.
+  // the display canvas dimensions (CANVAS_W × CANVAS_H) so the returned
+  // ImageData reflects exactly what was on screen at capture time.
   let captureCompositeCanvas: HTMLCanvasElement | undefined;
   let captureCompositeCtx: CanvasRenderingContext2D | undefined;
   let captureBridgeCanvas: HTMLCanvasElement | undefined;
@@ -206,7 +208,6 @@ export function createRender3d(
       // are unaffected by tilt.
       updateCameraFromViewport(ctx.camera, viewport, pitch);
       lastViewport = viewport ?? undefined;
-      lastPitch = pitch;
       ctx.renderer.render(ctx.scene, ctx.camera);
       canvas2d.drawFrame(map, overlay, viewport, now);
     },
@@ -217,36 +218,17 @@ export function createRender3d(
     clientToSurface: canvas2d.clientToSurface,
     screenToContainerCSS: canvas2d.screenToContainerCSS,
     // Banner prev-scene snapshot in 3D mode: composite the WebGL world
-    // canvas (terrain + 3D entities) with the 2D scene canvas (castles,
-    // UI, anything not yet migrated), so the sweep-below region of the
-    // next banner sees the full pre-mutation frame — not just the 2D
-    // leftovers. Returns `undefined` when the 2D scene isn't initialized
-    // yet (matches the 2D path's "no scene to capture" signal).
-    //
-    // The capture is always done with the camera reset to top-down: the
-    // banner sweep composites the snapshot onto a flat tile grid below
-    // the sweep line, so a perspective-foreshortened capture would drop
-    // back into the sweep region at the wrong scale/angle. After reading
-    // pixels we restore the real tilted camera + re-render so the visible
-    // canvas doesn't flash top-down for a frame. The user may see the
-    // tilt momentarily drop during the banner transition (tilted phase →
-    // banner → tilted phase); that's an acceptable parity gap for now.
+    // canvas (already viewport-cropped + tilted from the last `drawFrame`)
+    // with the 2D display canvas (castles, UI, anything not yet migrated)
+    // at display resolution. The snapshot therefore reflects exactly what
+    // was on screen at capture time — no camera reset, no re-render.
+    // Returns `undefined` when the 2D display hasn't been initialized yet
+    // (matches the 2D path's "no scene to capture" signal).
     captureScene: () => {
-      const scene2d = canvas2d.captureScene();
-      if (!scene2d) return undefined;
-      // Force a top-down, full-map render for the capture. The 2D
-      // `sceneCanvas` (returned by `canvas2d.captureScene`) always holds
-      // the full map in absolute map-pixel coords — the runtime viewport
-      // crop is applied by drawImage at display blit time, not by the
-      // scene canvas itself. To align with that, capture the WebGL view
-      // at full-map coords too (`undefined` viewport → full map). Passing
-      // Render the WebGL scene at full-map coords so its pixels align
-      // with the 2D sceneCanvas' full-map offscreen.
-      updateCameraFromViewport(ctx.camera, undefined, 0);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
-      const targetW = scene2d.width;
-      const targetH = scene2d.height;
+      const uiSnapshot = canvas2d.captureScene();
+      if (!uiSnapshot) return undefined;
+      const targetW = CANVAS_W;
+      const targetH = CANVAS_H;
       if (!captureCompositeCanvas || !captureCompositeCtx) {
         captureCompositeCanvas = document.createElement("canvas");
         captureCompositeCtx = captureCompositeCanvas.getContext("2d", {
@@ -262,13 +244,15 @@ export function createRender3d(
         captureCompositeCtx.imageSmoothingEnabled = false;
       }
       captureCompositeCtx.clearRect(0, 0, targetW, targetH);
-      // 1. Paint the WebGL world canvas (terrain + 3D entities) scaled up
-      //    to the offscreen resolution. `preserveDrawingBuffer: true` in
-      //    scene.ts keeps these pixels readable outside the rAF tick.
+      // 1. Paint the WebGL world canvas stretched to the display size.
+      //    `worldCanvas` already holds the viewport-cropped, tilted view
+      //    from the last `drawFrame`; `preserveDrawingBuffer: true` in
+      //    scene.ts keeps those pixels readable outside the rAF tick.
       captureCompositeCtx.drawImage(worldCanvas, 0, 0, targetW, targetH);
-      // 2. Paint the 2D scene (castles + still-2D layers + UI elements
-      //    the 2D renderer draws to its offscreen) on top. putImageData
-      //    bypasses transforms, so bridge through an intermediate canvas.
+      // 2. Paint the 2D display canvas on top. The 2D path returns a
+      //    CANVAS_W × CANVAS_H ImageData of the display's game region —
+      //    putImageData ignores context transforms, so bridge through an
+      //    intermediate canvas.
       if (!captureBridgeCanvas || !captureBridgeCtx) {
         captureBridgeCanvas = document.createElement("canvas");
         captureBridgeCtx = captureBridgeCanvas.getContext("2d", {
@@ -276,44 +260,32 @@ export function createRender3d(
         })!;
       }
       if (
-        captureBridgeCanvas.width < targetW ||
-        captureBridgeCanvas.height < targetH
+        captureBridgeCanvas.width < uiSnapshot.width ||
+        captureBridgeCanvas.height < uiSnapshot.height
       ) {
         captureBridgeCanvas.width = Math.max(
           captureBridgeCanvas.width,
-          targetW,
+          uiSnapshot.width,
         );
         captureBridgeCanvas.height = Math.max(
           captureBridgeCanvas.height,
-          targetH,
+          uiSnapshot.height,
         );
         captureBridgeCtx.imageSmoothingEnabled = false;
       }
-      captureBridgeCtx.putImageData(scene2d, 0, 0);
+      captureBridgeCtx.putImageData(uiSnapshot, 0, 0);
       captureCompositeCtx.drawImage(
         captureBridgeCanvas,
         0,
         0,
-        targetW,
-        targetH,
+        uiSnapshot.width,
+        uiSnapshot.height,
         0,
         0,
         targetW,
         targetH,
       );
-      const imageData = captureCompositeCtx.getImageData(
-        0,
-        0,
-        targetW,
-        targetH,
-      );
-      // Restore the camera to the last drawFrame's viewport + pitch and
-      // re-render so the browser never composites a differently-framed
-      // capture frame onto the visible canvas.
-      updateCameraFromViewport(ctx.camera, lastViewport, lastPitch);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
-      return imageData;
+      return captureCompositeCtx.getImageData(0, 0, targetW, targetH);
     },
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,

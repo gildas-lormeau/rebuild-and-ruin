@@ -249,7 +249,7 @@ options screen for dogfooding; community playtest approval.
 - Mobile pinch zoom + D-pad + keyboard all work: OK
 - Determinism tests pass (renderer-agnostic — should just work): OK
 - Balloon animation
-- Checkered colors
+- Checkered colors: OK
 
 **Gate**: playtest approval; ready to flip default.
 

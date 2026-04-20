@@ -516,10 +516,17 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
+  // Banner prev-scene is a display-resolution snapshot captured before a phase
+  // mutation (see `captureScene` below). It paints onto the DISPLAY canvas at
+  // 1:1 — never through the offscreen-scene → display blit — because a tilted
+  // or viewport-cropped camera has no "full-map" rect to re-crop from. The
+  // banner strip itself is drawn in the offscreen at map coords and carried
+  // to the display by the normal blit, so we clip the snapshot to the region
+  // BELOW the banner strip to keep the strip visible on top.
   function drawBannerPrevScene(
-    overlayCtx: CanvasRenderingContext2D,
-    W: number,
-    H: number,
+    displayCtx: CanvasRenderingContext2D,
+    displayW: number,
+    displayH: number,
     overlay: RenderOverlay | undefined,
   ): void {
     if (!overlay?.ui?.banner || !overlay.ui.bannerPrevScene) {
@@ -527,28 +534,45 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       return;
     }
 
-    const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-    const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
-    if (clipY >= H) return;
+    // Banner Y is map-pixel coords. During a banner the viewport is always
+    // cleared to the full map (see runtime-banner.ts `clearPhaseZoom`), so
+    // map→display is a uniform SCALE multiply.
+    const bannerHMap = Math.round(MAP_PX_H * BANNER_HEIGHT_RATIO);
+    const bannerTopMap = Math.round(overlay.ui.banner.y - bannerHMap / 2);
+    const bannerBottomMap = bannerTopMap + bannerHMap;
+    const clipY = bannerBottomMap * SCALE;
+    if (clipY >= displayH) return;
 
     // Paint ImageData to temp canvas when it changes (new or chained banner).
-    if (bannerScenePainted !== overlay.ui.bannerPrevScene) {
-      const tmpCtx = getBannerScene().ctx;
-      tmpCtx.putImageData(overlay.ui.bannerPrevScene, 0, 0);
-      bannerScenePainted = overlay.ui.bannerPrevScene;
+    // The snapshot is display-sized; size the banner-temp canvas to match so
+    // a 1:1 drawImage reproduces exactly the captured pixels.
+    const snapshot = overlay.ui.bannerPrevScene;
+    const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerScene();
+    if (
+      tmpCanvas.width !== snapshot.width ||
+      tmpCanvas.height !== snapshot.height
+    ) {
+      tmpCanvas.width = snapshot.width;
+      tmpCanvas.height = snapshot.height;
+      tmpCtx.imageSmoothingEnabled = false;
+      bannerScenePainted = undefined;
+    }
+    if (bannerScenePainted !== snapshot) {
+      tmpCtx.putImageData(snapshot, 0, 0);
+      bannerScenePainted = snapshot;
     }
 
-    overlayCtx.save();
-    overlayCtx.beginPath();
-    overlayCtx.rect(0, clipY, W, H - clipY);
-    overlayCtx.clip();
-    overlayCtx.drawImage(getBannerScene().canvas, 0, 0, W, H);
-    overlayCtx.restore();
+    displayCtx.save();
+    displayCtx.beginPath();
+    displayCtx.rect(0, clipY, displayW, displayH - clipY);
+    displayCtx.clip();
+    displayCtx.drawImage(tmpCanvas, 0, 0, displayW, displayH);
+    displayCtx.restore();
     observer?.bannerComposited?.({
       clipY,
-      H,
-      W,
-      bannerH,
+      H: displayH,
+      W: displayW,
+      bannerH: bannerHMap * SCALE,
     });
   }
 
@@ -670,9 +694,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       drawFogOfWar(overlayCtx, overlay, now);
     }
 
-    // If banner is active with old data, composite the old scene below the banner.
-    drawBannerPrevScene(overlayCtx, W, H, overlay);
-
     // Layers that don't change between phases — draw once on top
     if (phantomsLayerEnabled) {
       drawPhantoms(overlayCtx, overlay);
@@ -711,6 +732,14 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     } else {
       canvasCtx.drawImage(offscreenCanvas, 0, 0, cw, gameH);
     }
+
+    // Banner prev-scene snapshot, painted on the DISPLAY canvas at 1:1 after
+    // the offscreen blit. The snapshot is captured at display resolution so
+    // tilted/viewport-cropped frames can be replayed exactly as they were on
+    // screen. The banner strip (drawn into the offscreen above) is already on
+    // the display surface from the blit — the snapshot is clipped below the
+    // banner bottom so the strip stays visible on top.
+    drawBannerPrevScene(canvasCtx, cw, gameH, overlay);
 
     // HUD text drawn at display resolution (screen-relative, not affected by zoom)
     canvasCtx.save();
@@ -805,14 +834,18 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getScene().canvas;
   }
 
-  /** Grab the current offscreen scene pixels. Called once before a phase
-   *  transition mutates state — the returned ImageData becomes the banner's
-   *  "old scene" below the sweep line. */
+  /** Grab the current DISPLAY-canvas pixels (CANVAS_W × CANVAS_H, the game
+   *  region — status bar excluded). Called once before a phase transition
+   *  mutates state — the returned ImageData becomes the banner's "old scene"
+   *  below the sweep line, and is painted back onto the display at 1:1 so a
+   *  tilted / viewport-cropped capture replays exactly what was on screen.
+   *  Returns undefined if `drawFrame` hasn't run yet (no cached display
+   *  canvas) or the canvas is smaller than the expected game region. */
   function captureScene(): ImageData | undefined {
-    if (!scene) return undefined;
-    const { canvas: offCanvas, ctx: offCtx } = scene;
-    if (offCanvas.width === 0 || offCanvas.height === 0) return undefined;
-    return offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+    if (!mainCtxCache) return undefined;
+    const { canvas, canvasCtx } = mainCtxCache;
+    if (canvas.width < CANVAS_W || canvas.height < CANVAS_H) return undefined;
+    return canvasCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
   }
 
   return {
