@@ -51,8 +51,9 @@ import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import type { PlayerStats } from "../shared/ui/overlay-types.ts";
+import type { PlayerStats, SceneCapture } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { BannerShow } from "./runtime-contracts.ts";
 import type { GameOverReason } from "./runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
@@ -105,13 +106,17 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  /** Grab the current offscreen scene pixels into
-   *  `banner.prevSceneImageData`. Called by the machine's mutate fns
-   *  immediately before map-visible changes. */
-  snapshotForNextBanner: () => void;
-  /** Show a full-screen banner. `onDone` fires once when the sweep completes.
-   *  Callers chain banners by nesting `showBanner` calls inside `onDone`. */
-  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
+  /** Capture the current scene as a `SceneCapture` for the next
+   *  banner's prev-scene. Stamped with the monotonic banner-clock tick
+   *  so the render-side fence can reject stale snapshots. The phase
+   *  machine's `runBannerStep` calls this right before `showBanner`
+   *  and passes the result in via `prevScene`. */
+  captureScene: () => SceneCapture | undefined;
+  /** Show a full-screen banner. `onDone` fires once when the sweep
+   *  completes. Chain banners by nesting `showBanner` calls inside
+   *  `onDone` — each chained call should capture its own prev-scene
+   *  at the moment of the call, not stash one from earlier. */
+  showBanner: BannerShow;
   lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
   scoreDelta: {
     capturePreScores: () => void;
@@ -331,7 +336,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState,
       role: ROLE_HOST,
       showBanner: deps.showBanner,
-      snapshotForNextBanner: deps.snapshotForNextBanner,
+      captureScene: deps.captureScene,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

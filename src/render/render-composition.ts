@@ -132,12 +132,14 @@ export function createBannerUi(
   active: boolean,
   text: string,
   progress: number,
+  startTick: number,
   subtitle?: string,
 ):
   | {
       text: string;
       subtitle?: string;
       y: number;
+      startTick: number;
     }
   | undefined {
   if (!active) return undefined;
@@ -149,6 +151,7 @@ export function createBannerUi(
     text,
     subtitle,
     y: startY + progress * (endY - startY),
+    startTick,
   };
 }
 
@@ -417,7 +420,7 @@ export function createOnlineOverlay(
           ? state.timer
           : undefined,
       banner: bannerUi,
-      bannerPrevScene: banner.active ? banner.prevSceneImageData : undefined,
+      bannerPrevScene: banner.active ? banner.prevScene : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

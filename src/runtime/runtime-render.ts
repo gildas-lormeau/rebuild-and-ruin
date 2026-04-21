@@ -109,6 +109,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.banner.active,
       runtimeState.banner.text,
       runtimeState.banner.progress,
+      runtimeState.banner.startTick,
       runtimeState.banner.subtitle,
     );
 

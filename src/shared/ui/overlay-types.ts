@@ -25,6 +25,23 @@ import type { RGB } from "./theme.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
 
+/** A renderer-produced scene snapshot used for the banner prev-scene
+ *  cross-fade. Carries the raw pixels AND the monotonic tick at which
+ *  capture happened, so the banner can fence against stale snapshots:
+ *  every capture is stamped from the same counter that stamps the
+ *  banner's `startTick`, so `capturedAtTick < startTick` iff the capture
+ *  happened-before the banner's `show()` in call order. If that
+ *  invariant doesn't hold, the banner refuses to paint the prev-scene
+ *  (degrades to a sweep without fade) rather than popping a
+ *  post-mutation image.
+ *
+ *  The counter is opaque to the renderer — it's supplied by the runtime
+ *  at capture time. The renderer's job is just pixels. */
+export interface SceneCapture {
+  readonly image: ImageData;
+  readonly capturedAtTick: number;
+}
+
 /** A single row in the options screen. */
 export interface OptionEntry {
   name: string;
@@ -202,13 +219,18 @@ export interface UIOverlay {
     text: string;
     subtitle?: string;
     y: number;
+    /** Monotonic tick stamped when the banner started. Pairs with
+     *  `bannerPrevScene.capturedAtTick` to fence against stale snapshots —
+     *  a snapshot captured at-or-after this tick is rejected by the
+     *  banner render (no fade that frame) rather than popping. */
+    startTick: number;
     /** Modifier reveal diff — when set, the banner is a modifier reveal and
      *  the renderer should progressively highlight changed tiles. */
     modifierDiff?: ModifierDiff;
   };
   /** Pixel snapshot of the scene canvas captured before phase mutations.
    *  Composited below the banner sweep line during the animation. */
-  bannerPrevScene?: ImageData;
+  bannerPrevScene?: SceneCapture;
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {

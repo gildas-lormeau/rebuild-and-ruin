@@ -472,17 +472,36 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner sub-system (delegated to runtime-banner.ts)
   // -------------------------------------------------------------------------
 
+  // Monotonic banner-clock counter, shared by `capture()` (stamps
+  // SceneCapture.capturedAtTick) and `showBanner` (stamps
+  // BannerState.startTick). Because both increments flow through this
+  // single closure, "capture happened-before show" reduces to
+  // `capturedAtTick < startTick` — no frame-order or drawFrame-tick
+  // dependency. The render path uses this exact fence.
+  let bannerClock = 0;
+  const nextBannerTick = (): number => ++bannerClock;
+
   const {
     showBanner,
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
+    capture: captureSceneForBanner,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
     log: config.log,
     render: () => render(),
+    nextBannerTick,
   });
+
+  /** Capture the current scene for the next banner's prev-scene.
+   *  Returns a tick-stamped `SceneCapture` that callers feed into
+   *  `showBanner` as `prevScene`. `undefined` when there's no canvas
+   *  (headless, pre-first-frame). Never writes to banner state — the
+   *  caller owns ordering. */
+  const captureScene = () =>
+    captureSceneForBanner(() => renderer.captureScene());
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)
@@ -513,7 +532,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       phaseTicks.enterCannonAfterCastleSelect(),
     enterCannonAfterCastleReselect: (pids) =>
       phaseTicks.enterCannonAfterCastleReselect(pids),
-    captureScene: () => renderer.captureScene(),
     clearBannerSnapshots,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
@@ -645,10 +663,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
   // -------------------------------------------------------------------------
 
-  function snapshotForNextBanner(): void {
-    runtimeState.banner.prevSceneImageData = renderer.captureScene();
-  }
-
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     runtimeState,
     timing,
@@ -664,7 +678,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    snapshotForNextBanner,
+    captureScene,
     showBanner,
     lifeLost,
     scoreDelta,
@@ -891,8 +905,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    captureScene: () => renderer.captureScene(),
-    snapshotForNextBanner,
+    captureScene,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

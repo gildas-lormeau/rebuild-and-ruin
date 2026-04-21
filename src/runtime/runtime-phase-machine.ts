@@ -71,6 +71,7 @@ import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
+import type { SceneCapture } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   BANNER_BATTLE,
@@ -125,13 +126,6 @@ type DisplayStep =
        *  (only when a modifier was rolled) and upgrade-pick (only when
        *  offers are pending). */
       readonly when?: (state: GameState, r: TransitionResult) => boolean;
-      /** When the banner's own animation was a visible mutation reveal
-       *  and a subsequent banner in the chain follows, take a fresh
-       *  `prevSceneImageData` snapshot at this banner's `onDone`. Example:
-       *  the modifier-reveal banner reveals tile changes; the battle
-       *  banner that chains afterwards needs prev = post-modifier so it
-       *  doesn't flash pre-modifier tiles below its sweep. */
-      readonly recaptureAfter?: boolean;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" }
@@ -236,11 +230,11 @@ export interface PhaseTransitionCtx {
   readonly role: "host" | "watcher";
 
   readonly showBanner: BannerShow;
-  /** Grab the current offscreen scene pixels into
-   *  `banner.prevSceneImageData`. Call this immediately before any
-   *  map-mutating block whose visual delta the next banner should reveal.
-   *  No-op in headless tests (ascii renderer returns `undefined`). */
-  readonly snapshotForNextBanner: () => void;
+  /** Capture the current scene for a banner's prev-scene. Stamped with
+   *  the monotonic banner-clock tick. Callers pass the result into
+   *  `showBanner({ prevScene })`. Returns `undefined` in headless tests
+   *  (no canvas) — `showBanner` accepts that as "no fade, just sweep". */
+  readonly captureScene: () => SceneCapture | undefined;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -385,8 +379,11 @@ const STEP_UPGRADE_PICK = "upgrade-pick" as const;
  *  `postMutate: syncBattleAnim` rebuilds battleAnim from that state.
  *
  *  Display: conditional modifier-reveal banner (when modifier rolled) →
- *  "Prepare for Battle" banner. The modifier banner's `recaptureAfter`
- *  grabs the post-modifier scene so the battle banner reveals against it.
+ *  "Prepare for Battle" banner. Each banner captures its own prev-scene
+ *  at `showBanner` time (see `runBannerStep`) — the modifier banner
+ *  captures the pre-modifier scene before its sweep starts; by the time
+ *  the battle banner's `showBanner` fires, the modifier's tile changes
+ *  have finished rendering and the capture naturally reflects them.
  *
  *  postDisplay: flights > 0 → BALLOON_ANIM mode; else begin battle. */
 const CANNON_PLACE_DONE: Transition = {
@@ -396,13 +393,6 @@ const CANNON_PLACE_DONE: Transition = {
     host: (ctx) => {
       ctx.log(`startBattle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset();
-      // Snapshot the cannon-placement scene before entering battle —
-      // `enterBattlePhase` rolls the modifier, which applies tile changes
-      // (high-tide, frozen-river, etc.) that the modifier / battle banner
-      // is supposed to reveal. Without this, the prev-scene is whatever
-      // was captured at the last cannons banner (pre-houses) and the
-      // battle banner briefly shows a stale map without houses/cannons.
-      ctx.snapshotForNextBanner();
       const entry = enterBattlePhase(ctx.state);
       ctx.broadcast?.battleStart?.(
         ctx.state,
@@ -413,12 +403,6 @@ const CANNON_PLACE_DONE: Transition = {
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BattleStartData;
-      // See host mutate comment — snapshot before applyBattleStart so the
-      // battle / modifier banner reveals the modifier's tile changes.
-      // `applyBattleStart` applies post-modifier tiles + recomputes
-      // territory; the machine owns the phase flip (uniform with every
-      // other watcher checkpoint apply).
-      ctx.snapshotForNextBanner();
       ctx.checkpoint?.applyBattleStart?.(msg);
       setPhase(ctx.state, Phase.BATTLE);
       return {
@@ -434,10 +418,6 @@ const CANNON_PLACE_DONE: Transition = {
       text: (r) => modifierDef(r.modifierDiff!.id).label,
       modifierId: (r) => r.modifierDiff?.id,
       when: (_, r) => !!r.modifierDiff,
-      // Modifier banner revealed the tile changes — refresh snapshot so
-      // the battle banner that follows doesn't re-reveal pre-modifier
-      // tiles below its sweep line.
-      recaptureAfter: true,
     },
     {
       kind: STEP_BANNER,
@@ -550,7 +530,6 @@ const BATTLE_DONE: Transition = {
     host: (ctx) => {
       ctx.endBattleLocalControllers?.();
       ctx.saveBattleCrosshair?.();
-      ctx.snapshotForNextBanner();
       enterBuildPhase(
         ctx.state,
         ctx.runtimeState.battleAnim.territory,
@@ -561,7 +540,6 @@ const BATTLE_DONE: Transition = {
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BuildStartData;
-      ctx.snapshotForNextBanner();
       ctx.checkpoint?.applyBuildStart?.(msg);
       setPhase(ctx.state, Phase.WALL_BUILD);
       return {};
@@ -602,7 +580,6 @@ const CEASEFIRE: Transition = {
     host: (ctx) => {
       ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset?.();
-      ctx.snapshotForNextBanner();
       ctx.ceasefireSkipBattle?.();
       ctx.broadcast?.buildStart?.(ctx.state);
       return {};
@@ -626,7 +603,6 @@ const CANNON_ENTRY_WATCHER_MUTATE = (
   ctx: PhaseTransitionCtx,
 ): TransitionResult => {
   const msg = ctx.incomingMsg as CannonStartData;
-  ctx.snapshotForNextBanner();
   ctx.checkpoint?.applyCannonStart?.(msg);
   setPhase(ctx.state, Phase.CANNON_PLACE);
   return {};
@@ -653,7 +629,6 @@ const CASTLE_SELECT_DONE: Transition = {
   from: Phase.CASTLE_SELECT,
   mutate: {
     host: (ctx) => {
-      ctx.snapshotForNextBanner();
       finalizeCastleConstruction(ctx.state);
       ctx.clearCastleBuildViewport?.();
       enterCannonPhase(ctx.state);
@@ -689,7 +664,6 @@ const CASTLE_RESELECT_DONE: Transition = {
   from: Phase.CASTLE_RESELECT,
   mutate: {
     host: (ctx) => {
-      ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) + reselect-specific
       // finalize + castle finalize, then enter cannon phase. All under the
       // cannons banner reveal.
@@ -721,7 +695,6 @@ const ADVANCE_TO_CANNON: Transition = {
   from: Phase.WALL_BUILD,
   mutate: {
     host: (ctx) => {
-      ctx.snapshotForNextBanner();
       // Phase B visuals (deferred from wall-build-done) run under the
       // cannons banner reveal, then cannon phase entry.
       finalizeBuildVisuals(ctx.state);
@@ -793,19 +766,18 @@ export const ROLE_WATCHER = "watcher" as const;
  *
  *  Runner contract:
  *
- *   1. **Capture pre-mutation scene** — `banner.prevSceneImageData` is set
- *      to `captureScene()` BEFORE `mutate` runs. Every banner step in the
- *      transition's `display` array composites this snapshot below its
- *      sweep line. If a chained banner needs a mid-sweep recapture (e.g.
- *      modifier reveal → battle banner), the first banner step sets
- *      `recaptureAfter: true`.
- *
- *   2. **Mutate** — runs the role-appropriate mutation (host runs game
+ *   1. **Mutate** — runs the role-appropriate mutation (host runs game
  *      logic; watcher applies a checkpoint).
  *
- *   3. **Display** — walks `display` steps in order, each calling its
- *      `onDone` when the underlying subsystem finishes (banner sweep
- *      completes, score-delta timer expires, dialog resolves).
+ *   2. **postMutate** — shared post-mutation sync (battleAnim rebuilds,
+ *      impact clears). Runs once, before any display step.
+ *
+ *   3. **Display** — walks `display` steps in order. Each banner step
+ *      captures its own `prevScene` at `showBanner`-time (see
+ *      `runBannerStep`), so the snapshot reflects whatever the user
+ *      was last shown — pre-mutation for the first banner in a chain,
+ *      post-previous-banner for each subsequent one. No mutation-site
+ *      capture, no `recaptureAfter` — one rule, everywhere.
  *
  *   4. **postDisplay** — side-effects after all display steps (setMode,
  *      startBuildPhase, beginBattle, etc.).
@@ -833,9 +805,6 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // No capture here — snapshotting is the responsibility of each mutation
-  // site inside the mutate fns (and the upgrade-pick display step). See
-  // `snapshotForNextBanner` on `PhaseTransitionCtx`.
   const mutateFn =
     ctx.role === ROLE_HOST ? transition.mutate.host : transition.mutate.watcher;
   if (!mutateFn) {
@@ -998,21 +967,21 @@ function runBannerStep(
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
   const modifierId = step.modifierId?.(result);
-  // `prevSceneImageData` was populated by the mutation site (via
-  // `ctx.snapshotForNextBanner`) — the banner step just displays.
-  // `recaptureAfter` refreshes the snapshot at this banner's onDone so
-  // a chained next banner reveals against the post-this-banner state.
-  ctx.showBanner(
+  // Capture the prev-scene right at `showBanner`-time. The last
+  // `drawFrame` call still reflects whatever the user was looking at
+  // the instant before this banner started — pre-mutation for the
+  // first banner in a transition (mutate ran this tick, drawFrame
+  // hasn't run again yet), post-previous-banner for every chained
+  // banner (the previous banner's sweep rendered its own end frame
+  // before this callback fired). One rule, no stashing, no fences
+  // for the call site to manage.
+  ctx.showBanner({
     text,
-    step.recaptureAfter
-      ? () => {
-          ctx.snapshotForNextBanner();
-          onDone();
-        }
-      : onDone,
-    step.subtitle,
+    onDone,
+    subtitle: step.subtitle,
     modifierId,
-  );
+    prevScene: ctx.captureScene(),
+  });
 }
 
 /** Life-lost dialog step — TERMINAL:
@@ -1079,16 +1048,20 @@ function runUpgradePickStep(
   emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_SHOW, {
     round: ctx.state.round,
   });
-  ctx.showBanner(
-    BANNER_UPGRADE_PICK,
-    () => {
-      // All players have resolved their picks (or auto-skipped). Snapshot
-      // the pre-mutation scene so the next banner reveals the demolition
-      // cleanly, then apply the picks and recompute territory.
+  ctx.showBanner({
+    text: BANNER_UPGRADE_PICK,
+    subtitle: BANNER_UPGRADE_PICK_SUB,
+    prevScene: ctx.captureScene(),
+    onDone: () => {
+      // All players have resolved their picks (or auto-skipped). Apply
+      // the picks + recompute territory; the NEXT banner in the chain
+      // (the build-phase banner inserted by `BUILD_ENTRY_DISPLAY`) will
+      // capture its own prev-scene at its `showBanner` time — which, by
+      // the time it fires, reflects the post-pick frame the user just
+      // saw. No manual snapshotting here.
       const afterPicks = () => {
         const dialog = picker.getDialog();
         if (dialog) {
-          ctx.snapshotForNextBanner();
           applyUpgradePicks(ctx.state, dialog);
           recheckTerritory(ctx.state);
         }
@@ -1099,6 +1072,5 @@ function runUpgradePickStep(
       };
       if (!picker.tryShow(afterPicks)) afterPicks();
     },
-    BANNER_UPGRADE_PICK_SUB,
-  );
+  });
 }

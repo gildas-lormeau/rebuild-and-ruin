@@ -32,6 +32,7 @@ import type {
   LoupeHandle,
   RendererInterface,
   RenderOverlay,
+  SceneCapture,
 } from "../shared/ui/overlay-types.ts";
 import type {
   GameSettings,
@@ -115,12 +116,14 @@ export type CreateBannerUiFn = (
   active: boolean,
   text: string,
   progress: number,
+  startTick: number,
   subtitle?: string,
 ) =>
   | {
       text: string;
       subtitle?: string;
       y: number;
+      startTick: number;
     }
   | undefined;
 
@@ -196,7 +199,7 @@ export type CreateOnlineOverlayFn = (
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
-  banner: Pick<BannerState, "active" | "prevSceneImageData">;
+  banner: Pick<BannerState, "active" | "prevScene" | "startTick">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -210,7 +213,7 @@ export interface OnlineOverlayParams {
     announcement?: string;
     gameOver?: GameOverOverlay;
   };
-  bannerUi?: { text: string; subtitle?: string; y: number };
+  bannerUi?: { text: string; subtitle?: string; y: number; startTick: number };
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
   inBattle: boolean;
@@ -233,12 +236,21 @@ export interface BannerState {
   text: string;
   subtitle?: string;
   callback: (() => void) | null;
-  /** Pixel snapshot of the scene canvas captured BEFORE phase transition
-   *  mutations. Composited below the banner sweep line during animation.
-   *  Each transition captures this at its own pre-mutation point; banner
-   *  helpers never capture. Set by the transition code via
-   *  `renderer.captureScene()`. */
-  prevSceneImageData?: ImageData;
+  /** Pixel snapshot of the scene, captured by the caller of
+   *  `showBanner` and passed in explicitly. Composited below the sweep
+   *  line during animation. The banner never captures on its own — that
+   *  used to be a load-bearing implicit behaviour with four divergent
+   *  code paths (pre-mutation capture, post-previous-banner recapture,
+   *  per-renderer compositing, per-consumer fallback). Now there is one
+   *  shape: `prevScene` is whatever the caller decided, stamped with
+   *  the capture tick. */
+  prevScene?: SceneCapture;
+  /** Monotonic tick (from the runtime's single banner-clock counter)
+   *  stamped at `showBanner` time. Pairs with `prevScene.capturedAtTick`
+   *  to fence out stale snapshots — the render path refuses to paint a
+   *  prev-scene whose tick is not strictly less than this one, which
+   *  encodes the invariant "capture must have happened-before show". */
+  startTick: number;
   /** Set when the active banner is a modifier-reveal (modern mode).
    *  Cleared between banners. Forwarded to the bannerStart event. */
   modifierId?: ModifierId;
@@ -640,20 +652,37 @@ export interface TouchControlsDeps {
 }
 
 /** Callback signature for showing phase-transition banners.
- *  Defined alongside BannerState as part of the banner UI contract.
- *  The banner's "old scene" comes from `banner.prevSceneImageData` (captured
- *  before mutations) — callers no longer pass snapshot data through here. */
-export type BannerShow = (
-  text: string,
-  onDone: () => void,
-  subtitle?: string,
+ *
+ *  All parameters are passed by name on a single opts object — the API
+ *  used to be positional with creeping optionals, which made new fields
+ *  (the prev-scene snapshot, the modifier id) easy to drop silently.
+ *
+ *  Ownership model: the CALLER decides what the banner's prev-scene is.
+ *  Practically, the phase machine captures the current scene right
+ *  before it calls `showBanner` (so the capture reflects the frame the
+ *  user was last shown) and hands the result in via `prevScene`. The
+ *  banner never captures internally — if no `prevScene` is passed, the
+ *  banner sweeps without a fade. No silent fallback, no hidden state. */
+export type BannerShow = (opts: BannerShowOpts) => void;
+
+export interface BannerShowOpts {
+  readonly text: string;
+  readonly onDone: () => void;
+  readonly subtitle?: string;
   /** Set when the banner being shown is a modifier-reveal (the
    *  mid-frame banner that replaces the normal battle banner in modern
    *  mode). Forwarded through to the `bannerStart` event so consumers
    *  can distinguish the modifier banner from the battle banner
    *  without string-matching the text field. */
-  modifierId?: ModifierId,
-) => void;
+  readonly modifierId?: ModifierId;
+  /** Pre-captured scene snapshot — whatever the user was looking at
+   *  right before this banner started. The banner will sweep over it
+   *  (snapshot below the sweep line, live scene above). `undefined` is
+   *  legal: the banner sweeps without a fade. Callers capture via
+   *  `runtime.captureScene()` which stamps the monotonic tick required
+   *  by the fence in `drawBannerPrevScene`. */
+  readonly prevScene?: SceneCapture;
+}
 
 export function createBannerState(): BannerState {
   return {
@@ -661,5 +690,6 @@ export function createBannerState(): BannerState {
     progress: 0,
     text: "",
     callback: null,
+    startTick: 0,
   };
 }

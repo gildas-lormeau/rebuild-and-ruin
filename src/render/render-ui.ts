@@ -500,9 +500,13 @@ export function drawUpgradePick(
   //     so the dialog paints in the bottom region that hasn't been swept
   //     yet, and gets covered up as the sweep moves down.
   //
-  // The single source of truth is `entry.choice`, exposed as `resolved`
-  // on each `UpgradePickPlayerEntry`. The renderer doesn't need to know
-  // which banner is active.
+  // The dialog always renders live from its resolved state; the snapshot
+  // (if any) is composited independently by `drawBannerPrevScene`. The
+  // small cost is that in the hide direction the snapshot may contain a
+  // residual dim layer behind the live dialog — two 50%-ish backdrops
+  // read as slightly darker than one for the brief span the two overlap.
+  // That's an acceptable tradeoff for never losing the dialog when a
+  // snapshot is missing.
   const banner = overlay.ui?.banner;
   const duringBanner = !!banner;
   if (duringBanner) {
@@ -514,14 +518,6 @@ export function drawUpgradePick(
     const bannerTop = Math.round(banner.y - bannerH / 2);
     const bannerBottom = Math.round(banner.y + bannerH / 2);
     const allResolved = pick.entries.every((entry) => entry.resolved);
-    // When the banner has a captured prev-scene AND this is the hide
-    // direction, the unswept region below the banner is already painted
-    // by `drawBannerPrevScene` — and that snapshot already contains the
-    // dialog (captured while it was active). Drawing it again here would
-    // stack a second dim backdrop on top of the one in the snapshot,
-    // giving the below-sweep region a visibly darker appearance than the
-    // live dialog had. Skip in that case; the snapshot is sufficient.
-    if (allResolved && overlay.ui?.bannerPrevScene) return;
     overlayCtx.save();
     overlayCtx.beginPath();
     if (allResolved) {

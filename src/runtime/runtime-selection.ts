@@ -97,11 +97,6 @@ interface SelectionSystemDeps {
   enterCannonAfterCastleReselect: (
     reselectionPids: readonly ValidPlayerSlot[],
   ) => void;
-  /** Capture the offscreen scene as ImageData for the cannons banner's
-   *  prev-scene. The machine handles capture-before-mutate inside
-   *  `runTransition`, but selection still needs this for the castle-build
-   *  animation. */
-  captureScene: () => ImageData | undefined;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
 

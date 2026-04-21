@@ -1,13 +1,9 @@
 /**
- * Build banner prev-scene: verify captureScene is called at the right time.
- *
- * With the ImageData-based banner system, the "old scene" is a pixel snapshot
- * captured before phase mutations. In headless mode captureScene returns
- * undefined (no real canvas), but we can verify the banner state is set up
- * correctly by checking that prevSceneImageData is at least attempted.
- *
- * This test runs a modern game, waits for the first Build banner after an
- * upgrade pick, and verifies banner.active is true when it fires.
+ * Build banner prev-scene: verify the banner becomes active during the
+ * build-banner-after-upgrade chain (smoke test — headless runs return
+ * undefined from captureScene, so we can only verify state plumbing,
+ * not pixels). The tick-fenced `SceneCapture` contract is exercised at
+ * runtime wherever a renderer is present.
  */
 
 import { assert } from "@std/assert";

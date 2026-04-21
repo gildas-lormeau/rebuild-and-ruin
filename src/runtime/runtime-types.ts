@@ -92,7 +92,11 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
-import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+import type {
+  RendererInterface,
+  SceneCapture,
+} from "../shared/ui/overlay-types.ts";
+import type { BannerShow } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/core/types.ts";
@@ -554,13 +558,16 @@ export interface GameRuntime {
   clearFrameData: () => void;
   render: () => void;
 
-  /** Show a full-screen banner. `onDone` is invoked exactly once when the banner finishes. */
-  showBanner: (text: string, onDone: () => void, subtitle?: string) => void;
-  /** Capture the current offscreen scene as ImageData for banner prev-scene. */
-  captureScene: () => ImageData | undefined;
-  /** Freeze the current scene into `banner.prevSceneImageData` so the next
-   *  banner sweeps over the pre-mutation scene. Wraps `captureScene`. */
-  snapshotForNextBanner: () => void;
+  /** Show a full-screen banner. `onDone` is invoked exactly once when
+   *  the banner finishes. Callers pass `prevScene` for the cross-fade
+   *  (capture via `captureScene`); `undefined` means "sweep without
+   *  fade." See `BannerShow` in runtime-contracts for the full opts. */
+  showBanner: BannerShow;
+  /** Capture the current scene for the next banner's prev-scene. The
+   *  returned `SceneCapture` carries the raw pixels plus a monotonic
+   *  tick stamp used by the render path to fence out stale snapshots.
+   *  Returns `undefined` before the first frame / in headless mode. */
+  captureScene: () => SceneCapture | undefined;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

@@ -595,6 +595,18 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   // banner strip itself is drawn in the offscreen at map coords and carried
   // to the display by the normal blit, so we clip the snapshot to the region
   // BELOW the banner strip to keep the strip visible on top.
+  //
+  // Tick fence: the snapshot carries the monotonic tick from when it was
+  // captured; the banner overlay carries the monotonic tick from when
+  // `showBanner` ran. Both ticks come from the SAME counter in the
+  // runtime, incremented on every capture and every show. So the only
+  // legal ordering is `capturedAtTick < startTick`: capture happened
+  // before show in call order. Any snapshot with a tick >= startTick
+  // either came from a later capture call (stashed state from a future
+  // banner) or was never refreshed across a re-entry — either way,
+  // painting it would show a post-mutation image below the sweep, which
+  // reads as a "pop". We refuse to paint in that case and the banner
+  // sweeps without a fade (graceful degrade, never a pop).
   function drawBannerPrevScene(
     displayCtx: CanvasRenderingContext2D,
     displayW: number,
@@ -602,6 +614,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     overlay: RenderOverlay | undefined,
   ): void {
     if (!overlay?.ui?.banner || !overlay.ui.bannerPrevScene) {
+      bannerScenePainted = undefined;
+      return;
+    }
+    const prev = overlay.ui.bannerPrevScene;
+    if (prev.capturedAtTick >= overlay.ui.banner.startTick) {
+      // Stale or future-stamped — structurally rejected. No pop.
       bannerScenePainted = undefined;
       return;
     }
@@ -618,20 +636,19 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // Paint ImageData to temp canvas when it changes (new or chained banner).
     // The snapshot is display-sized; size the banner-temp canvas to match so
     // a 1:1 drawImage reproduces exactly the captured pixels.
-    const snapshot = overlay.ui.bannerPrevScene;
     const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerScene();
     if (
-      tmpCanvas.width !== snapshot.width ||
-      tmpCanvas.height !== snapshot.height
+      tmpCanvas.width !== prev.image.width ||
+      tmpCanvas.height !== prev.image.height
     ) {
-      tmpCanvas.width = snapshot.width;
-      tmpCanvas.height = snapshot.height;
+      tmpCanvas.width = prev.image.width;
+      tmpCanvas.height = prev.image.height;
       tmpCtx.imageSmoothingEnabled = false;
       bannerScenePainted = undefined;
     }
-    if (bannerScenePainted !== snapshot) {
-      tmpCtx.putImageData(snapshot, 0, 0);
-      bannerScenePainted = snapshot;
+    if (bannerScenePainted !== prev.image) {
+      tmpCtx.putImageData(prev.image, 0, 0);
+      bannerScenePainted = prev.image;
     }
 
     displayCtx.save();
