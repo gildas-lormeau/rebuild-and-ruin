@@ -21,6 +21,10 @@ import type {
   CastleData,
   RenderOverlay,
 } from "../../shared/ui/overlay-types.ts";
+import { boundsYOf as cannonBoundsYOf } from "./sprites/cannon-scene.ts";
+import { boundsYOf as gruntBoundsYOf } from "./sprites/grunt-scene.ts";
+import { boundsYOf as houseBoundsYOf } from "./sprites/house-scene.ts";
+import { boundsYOf as towerBoundsYOf } from "./sprites/tower-scene.ts";
 
 /** Wall body top in world units. wall-scene.ts authors walls with body
  *  height `H = 3.22` sprite units; `entities/walls.ts` scales each cell
@@ -29,14 +33,19 @@ import type {
  *  decorative merlon tops, because balls & crosshairs should land on
  *  the battlement walk. */
 const WALL_TOP_Y = 3.22 * (TILE_SIZE / 2);
-/** Approximate top-Y of the various 3D entities, in world units. Used
- *  only by the crosshair cursor so its glow sits ON the target rather
- *  than on the flat ground plane underneath. Tuned by eye — exact
- *  sprite apex isn't critical. */
-const TOWER_TOP_Y = 56;
-const CANNON_TOP_Y = 14;
-const HOUSE_TOP_Y = 16;
-const GRUNT_TOP_Y = 10;
+/** Top-Y of entity variants in world units, derived at module load from
+ *  each scene file's authored geometry via `boundsYOf`. We pick one
+ *  canonical variant per entity kind (home_tower for towers, tier_1 for
+ *  cannons, house for houses, grunt_n for grunts) and multiply the
+ *  authored maxY by the entity manager's uniform scale (see
+ *  `entities/*.ts`): towers & cannons scale by TILE_SIZE, houses &
+ *  grunts by TILE_SIZE / 2. The fallback values are the pre-derivation
+ *  hand-tuned constants — only used if a scene's builder fails (e.g.
+ *  missing variant, or running where THREE can't instantiate). */
+const TOWER_TOP_Y = deriveTopY(towerBoundsYOf("home_tower"), TILE_SIZE, 56);
+const CANNON_TOP_Y = deriveTopY(cannonBoundsYOf("tier_1"), TILE_SIZE, 14);
+const HOUSE_TOP_Y = deriveTopY(houseBoundsYOf("house"), TILE_SIZE / 2, 16);
+const GRUNT_TOP_Y = deriveTopY(gruntBoundsYOf("grunt_n"), TILE_SIZE / 2, 10);
 /** Global lift applied on top of the aim-elevation so the crosshair
  *  doesn't get buried under the terrain mesh's opaque interior /
  *  bonus / frozen tiles (which sit at Y=0.01). 2 world units = 2
@@ -150,6 +159,18 @@ export function targetTopAt(
   }
 
   return 0;
+}
+
+/** Multiply a scene's authored Y-bounds by its entity-manager scale to
+ *  get the world-Y apex, or fall back to the hand-tuned value when the
+ *  scene's builder couldn't resolve a variant. */
+function deriveTopY(
+  bounds: { minY: number; maxY: number } | undefined,
+  sceneScale: number,
+  fallback: number,
+): number {
+  if (!bounds) return fallback;
+  return bounds.maxY * sceneScale;
 }
 
 /** Wall-only elevation: returns `WALL_TOP_Y` when `(x, y)` lands on a

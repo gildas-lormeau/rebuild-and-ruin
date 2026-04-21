@@ -65,13 +65,13 @@
 
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
-import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
 import {
@@ -91,7 +91,7 @@ import {
 export interface CannonsManager {
   /** Reconcile live cannon meshes across every castle. Cheap no-op when
    *  the composite fingerprint hasn't changed since the last call. */
-  update(overlay: RenderOverlay | undefined, map: GameMap | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -172,10 +172,8 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     );
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    _map: GameMap | undefined,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const signature = computeSignature(overlay);
     if (signature === lastSignature) return;
     lastSignature = signature;

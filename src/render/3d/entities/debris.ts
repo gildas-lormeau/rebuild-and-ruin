@@ -72,6 +72,7 @@ import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
 import {
   cannonKind,
@@ -94,10 +95,7 @@ export interface DebrisManager {
   /** Reconcile all debris meshes (wall / cannon / tower) with the current
    *  overlay + map. Cheap no-op when no source set has changed since the
    *  last call. */
-  update(
-    overlay: RenderOverlay | undefined,
-    towers: readonly Tower[] | undefined,
-  ): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -248,10 +246,9 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     return entries;
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    towers: readonly Tower[] | undefined,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
+    const towers = ctx.map?.towers;
     const signature = computeSignature(overlay, towers);
     if (signature === lastSignature) return;
     lastSignature = signature;

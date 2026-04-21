@@ -53,6 +53,7 @@ import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { targetTopAt } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import {
   buildCannonball,
   getCannonballVariant,
@@ -63,7 +64,7 @@ export interface CannonballsManager {
   /** Per-frame update. Cheap when the ball set hasn't changed — only
    *  positions/scales get rewritten. Rebuilds meshes when the ball
    *  set (count or variant list) changes. */
-  update(overlay: RenderOverlay | undefined, map: GameMap | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -162,10 +163,8 @@ export function createCannonballsManager(
     }
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    map: GameMap | undefined,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map } = ctx;
     const balls = overlay?.battle?.cannonballs ?? [];
     const signature = computeBallSetSignature(balls);
     if (signature !== lastBallSetSignature) {

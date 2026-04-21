@@ -57,7 +57,7 @@
 import * as THREE from "three";
 import type { Grunt } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildGrunt, getGruntVariant } from "../sprites/grunt-scene.ts";
 import {
   type BucketSubPart,
@@ -68,7 +68,7 @@ import {
 export interface GruntsManager {
   /** Reconcile grunt instance matrices with the overlay. Cheap no-op
    *  when the composite fingerprint hasn't changed since the last call. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -137,7 +137,8 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     ownedMaterials.length = 0;
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const grunts = overlay?.entities?.grunts;
     const count = grunts?.length ?? 0;
 

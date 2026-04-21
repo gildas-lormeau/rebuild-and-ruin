@@ -23,6 +23,7 @@ import type { RendererInterface } from "../../shared/ui/overlay-types.ts";
 import { createCanvasRenderer } from "../render-canvas.ts";
 import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
+import type { FrameCtx } from "./frame-ctx.ts";
 import { createRender3dScene, type Render3dContext } from "./scene.ts";
 
 export function createRender3d(
@@ -151,74 +152,30 @@ export function createRender3d(
       // castles, entities, and UI; Phase 3+ progressively moves them off
       // the 2D path.
       ctx.terrain.ensureBuilt(map);
-      ctx.terrain.update(map, overlay, now);
-      // Phase 3: reconcile wall meshes with the current overlay. The
-      // manager early-outs when wall sets haven't changed, so this is
-      // cheap on steady-state frames.
-      ctx.walls.update(overlay);
-      // Phase 3: reconcile tower meshes with the map + overlay. Dead
-      // towers are skipped here — their rubble is rendered by the
-      // debris manager below under the separate `debris` layer.
-      ctx.towers.update(overlay, map.towers);
-      // Phase 3: reconcile house meshes with the map's house list. The
-      // manager filters destroyed houses the same way the 2D path does
-      // and early-outs when the living-house set is unchanged.
-      ctx.houses.update(map.houses);
-      // Phase 3: reconcile rubble meshes for dead walls / cannons /
-      // towers. One manager covers all three rubble kinds — the 2D
-      // path's `debris` layer is flipped off above.
-      ctx.debris.update(overlay, map.towers);
-      // Phase 4: reconcile live cannon meshes (normal/super/mortar/
-      // rampart). Dead cannons are owned by `debris` above; balloon
-      // cannons are deferred to the balloon entity manager task.
-      ctx.cannons.update(overlay, map);
-      // Phase 4: reconcile grunt meshes. Grunts are ownerless 1×1
-      // hazards; the manager rotates a single base variant by
-      // `-grunt.facing` to match the game's CW-from-north convention.
-      ctx.grunts.update(overlay);
-      // Phase 4: reconcile cannonball meshes. Ball set fingerprint
-      // (count + variant list) rebuilds meshes on spawn/despawn;
-      // positions + scales rewrite every frame to follow sub-tile
-      // flight motion.
-      ctx.cannonballs.update(overlay, map);
-      // Phase 4: reconcile burning-pit meshes. Fingerprint is per-pit
-      // `col:row:variant`; a round decrement or set change rebuilds.
-      ctx.pits.update(overlay);
-      // Phase 4: reconcile balloon meshes (grounded bases + in-flight
-      // envelopes). Grounded bases rebuild on cannon set change;
-      // flights position per-frame along the 2D parabolic arc.
-      ctx.balloons.update(overlay, map);
-      // Placement phantoms: tetris-piece cell previews during
-      // WALL_BUILD and cannon footprint previews during CANNON_PLACE.
-      // Rebuilds every frame — the 2D layer is flipped off above so
-      // only the 3D ghost meshes render over the world canvas.
-      ctx.phantoms.update(overlay);
-      // Phase 6: battle effects. Impacts, crosshairs, fog-of-war, and
-      // thawing tiles each render to flat ground-plane meshes and
-      // derive their animation from the same state fields the 2D path
-      // reads (Impact.age, crosshair x/y, castle dilation, ThawingTile
-      // age). The matching 2D layer flags were flipped off above so
-      // the 2D renderer leaves those pixels transparent.
-      ctx.impacts.update(overlay);
-      ctx.crosshairs.update(overlay, map, now);
-      ctx.fog.update(overlay, now);
-      ctx.thawing.update(overlay);
-      // Terrain bitmap overlay — uploads the 2D `getTerrainBitmap`
-      // ImageData (raw grass + water + SDF bank) as a CanvasTexture.
-      // Rebakes on mapVersion or in-battle flips only.
-      ctx.terrainBitmap.update(map, overlay);
-      // Owned-sinkhole bank recoloring — parity with 2D
-      // `drawSinkholeOverlays`. Sits above the terrain mesh so its
-      // pixel-grain bank gradient wins over the mesh's tile-grain
-      // owner tint on sinkhole water tiles.
-      ctx.sinkholeOverlay.update(map, overlay);
-      // Bonus-square pickups — flashing gold discs on the ground plane
-      // outside of battle. Terrain mesh leaves bonus tiles transparent
-      // so the grass checker still shows through the disc's edges.
-      ctx.bonusSquares.update(overlay, now);
-      // Fine water-wave highlight pass — battle-only, renders above the
-      // terrain mesh but below walls / entities / fog.
-      ctx.waterWaves.update(map, overlay, now);
+      // Build the per-frame context once and hand the same object to
+      // every manager — each one unpacks only the fields it needs. The
+      // lifecycle call `terrain.ensureBuilt(map)` stays outside this
+      // contract because it's not a per-frame update.
+      const frame: FrameCtx = { overlay, map, now };
+      ctx.terrain.update(frame);
+      ctx.walls.update(frame);
+      ctx.towers.update(frame);
+      ctx.houses.update(frame);
+      ctx.debris.update(frame);
+      ctx.cannons.update(frame);
+      ctx.grunts.update(frame);
+      ctx.cannonballs.update(frame);
+      ctx.pits.update(frame);
+      ctx.balloons.update(frame);
+      ctx.phantoms.update(frame);
+      ctx.impacts.update(frame);
+      ctx.crosshairs.update(frame);
+      ctx.fog.update(frame);
+      ctx.thawing.update(frame);
+      ctx.terrainBitmap.update(frame);
+      ctx.sinkholeOverlay.update(frame);
+      ctx.bonusSquares.update(frame);
+      ctx.waterWaves.update(frame);
       ctx.renderer.clear();
       // Camera: ortho view driven by the runtime viewport, tilted by
       // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch

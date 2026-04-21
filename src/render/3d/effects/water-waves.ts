@@ -23,18 +23,17 @@
  */
 
 import type * as THREE from "three";
-import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { isWater } from "../../../shared/core/spatial.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface WaterWavesManager {
   /** Per-frame update. No-op outside battle; otherwise redraws the fine
    *  wave pattern onto the shared offscreen canvas and flags the texture
    *  dirty. */
-  update(map: GameMap, overlay: RenderOverlay | undefined, now: number): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -58,19 +57,16 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
     yLift: ELEVATION_STACK.WATER_WAVES,
     transparent: true,
   });
-  const { canvas, ctx, texture, mesh } = layer;
+  const { canvas, ctx: canvasCtx, texture, mesh } = layer;
   mesh.visible = false;
 
   let lastDrawWasEmpty = true;
 
-  function update(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    now: number,
-  ): void {
-    if (!overlay?.battle?.inBattle) {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map, now } = ctx;
+    if (!map || !overlay?.battle?.inBattle) {
       if (!lastDrawWasEmpty) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         texture.needsUpdate = true;
         lastDrawWasEmpty = true;
       }
@@ -78,7 +74,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
       return;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     const time = now / 1000;
     const frozen = overlay.entities?.frozenTiles;
     const sinkholes = overlay.entities?.sinkholeTiles;
@@ -98,7 +94,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
           !isWater(map.tiles, r, c + 1)
         )
           continue;
-        paintTileWaves(ctx, r, c, time);
+        paintTileWaves(canvasCtx, r, c, time);
       }
     }
 

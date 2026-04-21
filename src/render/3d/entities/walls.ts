@@ -50,7 +50,7 @@
 
 import * as THREE from "three";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildWall } from "../sprites/wall-scene.ts";
 import { unpackTileKey } from "./entity-helpers.ts";
 import {
@@ -65,7 +65,7 @@ import {
 export interface WallsManager {
   /** Reconcile wall meshes with the current overlay. Cheap no-op when
    *  the overlay's wall set hasn't changed since the last update. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -129,7 +129,8 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     return built!;
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     // Union all players' wall sets and compute a signature.
     const keys: number[] = [];
     if (overlay?.castles) {

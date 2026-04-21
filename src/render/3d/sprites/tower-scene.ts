@@ -36,6 +36,7 @@ import {
   createMaterial,
   findVariant,
   type MaterialSpec,
+  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { FLAG_RED, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
 
@@ -357,6 +358,7 @@ const TOWER_XZ_SCALE = 1.0;
 const UV_DENSITY = 2.0;
 const ROOF_TILES_PER_WORLD = 16;
 const roofWrapsPerWorld = ROOF_TILES_PER_WORLD / 4;
+const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 export const VARIANTS: Variant[] = [
   {
     // Secondary tower — same layout as home tower minus the gate.
@@ -625,6 +627,24 @@ export const PALETTE: [number, number, number][] = [
 let _stoneTexture: THREE.CanvasTexture | undefined;
 let _doorTexture: THREE.CanvasTexture | undefined;
 let _roofTexture: THREE.CanvasTexture | undefined;
+
+/** Authored Y-bounds of a tower variant, in authored world units. Tower
+ *  authoring applies TOWER_Y_SCALE internally via a child group, so the
+ *  returned values already include that Y inflation — callers multiply
+ *  by the entity-manager's uniform scale (TILE_SIZE) to get world Y. */
+export function boundsYOf(
+  name: string,
+): { minY: number; maxY: number } | undefined {
+  const cached = _boundsYCache.get(name);
+  if (cached) return cached;
+  const variant = getTowerVariant(name);
+  if (!variant) return undefined;
+  const bounds = measureVariantBoundsY((scratch) => {
+    buildTower(THREE, scratch, variant.params);
+  });
+  _boundsYCache.set(name, bounds);
+  return bounds;
+}
 
 // Find a variant by name. Used by the towers entity manager.
 export function getTowerVariant(name: string): Variant | undefined {

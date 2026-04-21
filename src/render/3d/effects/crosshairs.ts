@@ -20,23 +20,18 @@
  */
 
 import * as THREE from "three";
-import type { GameMap } from "../../../shared/core/geometry-types.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import {
   aimElevationAt,
   ELEVATION_STACK,
   RENDER_ORDER,
   Z_FIGHT_MARGIN,
 } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 
 export interface CrosshairsManager {
   /** Per-frame update. Materials + positions/scales always rewrite;
    *  mesh pool only rebuilds when crosshair count changes. */
-  update(
-    overlay: RenderOverlay | undefined,
-    map: GameMap | undefined,
-    now: number,
-  ): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -200,11 +195,8 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
     arm.shadowMesh.visible = arm.mesh.visible;
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    map: GameMap | undefined,
-    now: number,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map, now } = ctx;
     const crosshairs = overlay?.battle?.crosshairs ?? [];
     const colors = crosshairs.map(
       (ch) => CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!,

@@ -19,15 +19,15 @@
 import * as THREE from "three";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { DIRS_8, packTile, unpackTile } from "../../../shared/core/spatial.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
 
 export interface FogManager {
   /** Per-frame update. Rebuilds the fog tile set only when castles'
    *  interior/wall composition changes; otherwise just re-drives the
    *  highlight band positions from `now`. */
-  update(overlay: RenderOverlay | undefined, now: number): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -124,7 +124,8 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     }
   }
 
-  function update(overlay: RenderOverlay | undefined, now: number): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, now } = ctx;
     const fogActive = !!overlay?.battle?.fogOfWar;
     const castles = overlay?.castles;
 

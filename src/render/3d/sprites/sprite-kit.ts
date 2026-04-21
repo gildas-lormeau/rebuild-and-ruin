@@ -93,6 +93,29 @@ export function findVariant<V extends { name: string }>(
 }
 
 /**
+ * Run a variant builder into a scratch Group, walk every mesh, and
+ * return the bounding-box Y range of the authored geometry. The returned
+ * values are in authored world units (±1 frustum) — callers that scale
+ * their scenes (walls/entities use `TILE_SIZE` or `TILE_SIZE / 2` as a
+ * uniform multiplier) must multiply by their scene scale.
+ *
+ * `Box3.setFromObject` walks children recursively and respects any
+ * inner transforms (e.g. the tower-scene's internal TOWER_Y_SCALE group),
+ * so the returned max-Y reflects the full authored silhouette in the
+ * scratch Group's local frame.
+ */
+export function measureVariantBoundsY(build: (scratch: THREE.Group) => void): {
+  minY: number;
+  maxY: number;
+} {
+  const scratch = new THREE.Group();
+  build(scratch);
+  scratch.updateMatrixWorld(true);
+  const bbox = new THREE.Box3().setFromObject(scratch);
+  return { minY: bbox.min.y, maxY: bbox.max.y };
+}
+
+/**
  * Apply box-side UV scaling so a repeating texture tiles uniformly across
  * the four vertical faces (+X, -X, +Z, -Z) of a `BoxGeometry`. Top/bottom
  * faces receive width×depth scaling (they usually carry a plain material

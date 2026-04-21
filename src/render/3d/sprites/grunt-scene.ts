@@ -22,13 +22,14 @@
  * convention of the other `*-scene.ts` files.
  */
 
-import type * as THREE from "three";
+import * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   cells,
   createMaterial,
   findVariant,
   type MaterialSpec,
+  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 
 export interface HullParams {
@@ -141,6 +142,7 @@ const FACINGS: Readonly<Record<"N" | "E" | "S" | "W", number>> = {
   S: 180,
   W: 90,
 };
+const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 export const VARIANTS: GruntVariant[] = (["N", "E", "S", "W"] as const).map(
   (dir) => ({
     name: `grunt_${dir.toLowerCase()}`,
@@ -166,6 +168,23 @@ export const PALETTE: [number, number, number][] = [
   // dark accent
   [0x0a, 0x0a, 0x0a],
 ];
+
+/** Authored Y-bounds of a grunt variant, in authored world units (±1
+ *  frustum frame — no internal scale applied). Callers multiply by the
+ *  entity-manager's uniform scale (TILE_SIZE / 2) to get world Y. */
+export function boundsYOf(
+  name: string,
+): { minY: number; maxY: number } | undefined {
+  const cached = _boundsYCache.get(name);
+  if (cached) return cached;
+  const variant = getGruntVariant(name);
+  if (!variant) return undefined;
+  const bounds = measureVariantBoundsY((scratch) => {
+    buildGrunt(THREE, scratch, variant.params);
+  });
+  _boundsYCache.set(name, bounds);
+  return bounds;
+}
 
 /** Look up a grunt variant by name. */
 export function getGruntVariant(name: string): GruntVariant | undefined {

@@ -21,6 +21,7 @@ import type * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface SinkholeOverlayManager {
@@ -28,7 +29,7 @@ export interface SinkholeOverlayManager {
    *  has changed. No-op on steady-state frames (reference equality on
    *  the returned ImageData). Hides the mesh when there are no owned
    *  clusters. */
-  update(map: GameMap, overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -46,16 +47,21 @@ export function createSinkholeOverlayManager(
     yLift: ELEVATION_STACK.SINKHOLE_OVERLAY,
     transparent: true,
   });
-  const { canvas, ctx, texture, mesh } = layer;
+  const { canvas, ctx: canvasCtx, texture, mesh } = layer;
   mesh.visible = false;
 
   let uploadedImage: ImageData | undefined;
 
-  function update(map: GameMap, overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map } = ctx;
+    if (!map) {
+      mesh.visible = false;
+      return;
+    }
     const bitmap = getSinkholeOverlayBitmap(map, overlay);
     if (!bitmap) {
       if (uploadedImage !== undefined) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         texture.needsUpdate = true;
         uploadedImage = undefined;
       }
@@ -63,8 +69,8 @@ export function createSinkholeOverlayManager(
       return;
     }
     if (uploadedImage !== bitmap) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.putImageData(bitmap, 0, 0);
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      canvasCtx.putImageData(bitmap, 0, 0);
       texture.needsUpdate = true;
       uploadedImage = bitmap;
     }

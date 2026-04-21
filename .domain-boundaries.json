@@ -152,6 +152,7 @@
       "src/render/3d/pixel-snap.ts",
       "src/render/3d/terrain.ts",
       "src/render/3d/elevation.ts",
+      "src/render/3d/frame-ctx.ts",
       "src/render/3d/entities/balloons.ts",
       "src/render/3d/entities/cannonballs.ts",
       "src/render/3d/entities/cannons.ts",

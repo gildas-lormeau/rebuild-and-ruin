@@ -19,13 +19,14 @@
  * convention of the other `*-scene.ts` files.
  */
 
-import type * as THREE from "three";
+import * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
   cells,
   createMaterial,
   findVariant,
   type MaterialSpec,
+  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { BAND_GREEN } from "./sprite-materials.ts";
 
@@ -129,6 +130,7 @@ const SHIELD_AURA: MaterialSpec = {
   side: "double",
   opacity: 0.32,
 };
+const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 // ---------- variant registry ------------------------------------------
 export const VARIANTS: RampartVariant[] = [
   {
@@ -209,6 +211,24 @@ export const PALETTE: readonly [number, number, number][] = [
   // dark accent
   [0x0a, 0x0a, 0x0a],
 ];
+
+/** Authored Y-bounds of a rampart variant, in authored world units (±1
+ *  frustum frame — no internal scale applied). Rampart shares the cannon
+ *  footprint, so callers multiply by the same entity-manager scale
+ *  (TILE_SIZE) to get world Y. */
+export function boundsYOf(
+  name: string,
+): { minY: number; maxY: number } | undefined {
+  const cached = _boundsYCache.get(name);
+  if (cached) return cached;
+  const variant = getRampartVariant(name);
+  if (!variant) return undefined;
+  const bounds = measureVariantBoundsY((scratch) => {
+    buildRampart(THREE, scratch, variant.params);
+  });
+  _boundsYCache.set(name, bounds);
+  return bounds;
+}
 
 /** Look up a rampart variant by name. Matches `getCannonVariant` / other
  *  scene file helpers — lets the entity manager fetch the params

@@ -23,7 +23,7 @@
  * one mesh per `House` on the `GameMap`.
  */
 
-import type * as THREE from "three";
+import * as THREE from "three";
 import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
@@ -31,6 +31,7 @@ import {
   createMaterial,
   findVariant,
   type MaterialSpec,
+  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 
 export interface TexturedSpec extends MaterialSpec {
@@ -150,6 +151,7 @@ const WINDOW_LIT: TexturedSpec = {
   color: 0xfffb7d,
   side: "double",
 };
+const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 export const VARIANTS: VariantDescriptor[] = [
   {
     name: "house",
@@ -222,6 +224,23 @@ export const PALETTE: [number, number, number][] = [
 // don't read as ruler lines. Base is white-ish so the material's
 // ROOF_RED color passes through as the tint.
 let _roofTileTexture: THREE.CanvasTexture | undefined;
+
+/** Authored Y-bounds of a house variant, in authored world units (±1
+ *  frustum frame — no internal scale applied). Callers multiply by the
+ *  entity-manager's uniform scale (TILE_SIZE / 2) to get world Y. */
+export function boundsYOf(
+  name: string,
+): { minY: number; maxY: number } | undefined {
+  const cached = _boundsYCache.get(name);
+  if (cached) return cached;
+  const variant = getHouseVariant(name);
+  if (!variant) return undefined;
+  const bounds = measureVariantBoundsY((scratch) => {
+    buildHouse(THREE, scratch, variant.params);
+  });
+  _boundsYCache.set(name, bounds);
+  return bounds;
+}
 
 export function getHouseVariant(name: string): VariantDescriptor | undefined {
   return findVariant(VARIANTS, name);

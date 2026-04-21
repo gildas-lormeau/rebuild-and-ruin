@@ -33,14 +33,14 @@
 import * as THREE from "three";
 import type { BurningPit } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildPit, getPitVariant } from "../sprites/pit-scene.ts";
 import { disposeGroupSubtree } from "./entity-helpers.ts";
 
 export interface PitsManager {
   /** Reconcile pit meshes with the overlay. Cheap no-op when the
    *  composite fingerprint (per-pit col:row:variant) hasn't changed. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -86,7 +86,8 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
     }
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const pits = overlay?.entities?.burningPits ?? [];
     const signature = computeSignature(pits);
     if (signature === lastSignature) return;

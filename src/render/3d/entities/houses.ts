@@ -24,13 +24,14 @@
 import * as THREE from "three";
 import type { House } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildHouse, getHouseVariant } from "../sprites/house-scene.ts";
 import { disposeGroupSubtree } from "./entity-helpers.ts";
 
 export interface HousesManager {
   /** Reconcile house meshes with the current map. Cheap no-op when the
    *  living-house set hasn't changed since the last update. */
-  update(houses: readonly House[] | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -81,7 +82,8 @@ export function createHousesManager(scene: THREE.Scene): HousesManager {
     disposeGroupSubtree(root, ownedMaterials);
   }
 
-  function update(houses: readonly House[] | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const houses = ctx.map?.houses;
     // Signature: `col:row:alive` per house, sorted for stability against
     // input-order drift. Rebuilds only when one of those changes.
     if (!houses || houses.length === 0) {

@@ -58,15 +58,16 @@ import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
 import { ELEVATION_STACK } from "./elevation.ts";
+import type { FrameCtx } from "./frame-ctx.ts";
 
 export interface TerrainContext {
   readonly mesh: THREE.Mesh;
   /** Rebuild geometry if `map.mapVersion` has changed since last build.
    *  Cheap no-op when the version matches. */
   ensureBuilt(map: GameMap): void;
-  /** Per-frame update: recomputes vertex colors from `map` + `overlay` + `now`.
+  /** Per-frame update: recomputes vertex colors from `ctx.map` + `ctx.overlay`.
    *  Must be called after `ensureBuilt`. */
-  update(map: GameMap, overlay: RenderOverlay | undefined, now: number): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -162,11 +163,9 @@ export function createTerrain(): TerrainContext {
     builtForVersion = map.mapVersion;
   }
 
-  function update(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-    _now: number,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map } = ctx;
+    if (!map) return;
     const frozen = overlay?.entities?.frozenTiles;
     const sinkholeTiles = overlay?.entities?.sinkholeTiles;
     const inBattle = !!overlay?.battle?.inBattle;

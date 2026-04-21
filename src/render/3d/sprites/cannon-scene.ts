@@ -21,12 +21,13 @@
  * convention of the other `*-scene.ts` files).
  */
 
-import type * as THREE from "three";
+import * as THREE from "three";
 import {
   cells,
   createMaterial,
   findVariant,
   type MaterialSpec,
+  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { BORE_DARK } from "./sprite-materials.ts";
 
@@ -148,6 +149,7 @@ export interface CannonVariant {
   params: CannonParams;
 }
 
+const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 // ---------- variant registry -------------------------------------------
 // Each variant fully describes a cannon. tier_1 is the v0 spec (matches
 // the original single-cannon spike numbers exactly). tier_2 / tier_3 /
@@ -1186,6 +1188,23 @@ export const PALETTE: readonly [number, number, number][] = [
 
 let cachedWoodTexture: THREE.Texture | undefined;
 let cachedMetalGripTexture: THREE.Texture | undefined;
+
+/** Authored Y-bounds of a cannon variant, in authored world units (±1
+ *  frustum frame — no internal scale applied). Callers multiply by the
+ *  entity-manager's uniform scale (TILE_SIZE) to get world Y. */
+export function boundsYOf(
+  name: string,
+): { minY: number; maxY: number } | undefined {
+  const cached = _boundsYCache.get(name);
+  if (cached) return cached;
+  const variant = getCannonVariant(name);
+  if (!variant) return undefined;
+  const bounds = measureVariantBoundsY((scratch) => {
+    buildCannon(THREE, scratch, variant.params);
+  });
+  _boundsYCache.set(name, bounds);
+  return bounds;
+}
 
 /** Look up a cannon variant by name. */
 export function getCannonVariant(name: string): CannonVariant | undefined {

@@ -25,15 +25,15 @@ import {
   type ThawingTile,
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createFlatDisc, tileSeed } from "./helpers.ts";
 
 export interface ThawingManager {
   /** Per-frame update. Rebuilds the mesh pool only when the thawing tile
    *  count changes; per-frame animation drives scale/opacity from the
    *  game's `age` field. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -186,7 +186,8 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
     }
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const thawing = overlay?.entities?.thawingTiles ?? [];
     ensurePool(thawing.length);
     for (let i = 0; i < thawing.length; i++) {

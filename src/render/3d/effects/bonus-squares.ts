@@ -18,16 +18,16 @@
 
 import * as THREE from "three";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import {
   BONUS_CIRCLE_COLOR,
   BONUS_FLASH_MS,
 } from "../../../shared/ui/theme.ts";
 import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createFlatDisc, pulse, tileSignature } from "./helpers.ts";
 
 export interface BonusSquaresManager {
-  update(overlay: RenderOverlay | undefined, now: number): void;
+  update(ctx: FrameCtx): void;
   dispose(): void;
 }
 
@@ -88,7 +88,8 @@ export function createBonusSquaresManager(
     }
   }
 
-  function update(overlay: RenderOverlay | undefined, now: number): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, now } = ctx;
     const inBattle = !!overlay?.battle?.inBattle;
     const tiles = inBattle ? undefined : overlay?.entities?.bonusSquares;
     reconcile(tiles);

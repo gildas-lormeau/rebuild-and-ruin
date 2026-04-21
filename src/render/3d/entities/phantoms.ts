@@ -39,12 +39,12 @@ import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import type {
   RenderCannonPhantom,
-  RenderOverlay,
   RenderPiecePhantom,
 } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
 import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
@@ -58,7 +58,7 @@ export interface PhantomsManager {
   /** Rebuild phantom meshes from the current overlay's `phantoms`
    *  field. Called every frame; typical cost is a handful of instance
    *  matrix writes. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -336,7 +336,8 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
     }
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     pieceMeshCount = 0;
 
     const phantoms = overlay?.phantoms;

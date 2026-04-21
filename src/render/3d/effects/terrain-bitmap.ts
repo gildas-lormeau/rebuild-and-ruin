@@ -27,15 +27,15 @@
 
 import type * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface TerrainBitmapManager {
   /** Rebake the terrain texture when the fingerprint
    *  `(map.mapVersion, overlay.battle.inBattle)` has changed since
    *  the last call. No-op on steady-state frames. */
-  update(map: GameMap, overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -50,20 +50,25 @@ export function createTerrainBitmapManager(
     yLift: ELEVATION_STACK.TERRAIN_BITMAP,
     transparent: false,
   });
-  const { ctx, texture, mesh } = layer;
+  const { ctx: canvasCtx, texture, mesh } = layer;
   mesh.visible = false;
 
   let bakedVersion: number | undefined;
   let bakedInBattle: boolean | undefined;
 
-  function update(map: GameMap, overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay, map } = ctx;
+    if (!map) {
+      mesh.visible = false;
+      return;
+    }
     const inBattle = !!overlay?.battle?.inBattle;
     if (bakedVersion === map.mapVersion && bakedInBattle === inBattle) return;
     bakedVersion = map.mapVersion;
     bakedInBattle = inBattle;
 
     const bitmap = getTerrainBitmap(map, inBattle);
-    ctx.putImageData(bitmap, 0, 0);
+    canvasCtx.putImageData(bitmap, 0, 0);
     texture.needsUpdate = true;
     mesh.visible = true;
   }

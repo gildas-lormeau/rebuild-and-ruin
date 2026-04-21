@@ -25,15 +25,15 @@ import * as THREE from "three";
 import type { Impact } from "../../../shared/core/battle-types.ts";
 import { IMPACT_FLASH_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { createFlatDisc, tileSeed, tileSignature } from "./helpers.ts";
 
 export interface ImpactsManager {
   /** Per-frame update. Cheap early-out when the impact set (positions)
    *  hasn't changed; materials always update to drive the time-based
    *  phase animation. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -263,7 +263,8 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
     }
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const impacts = overlay?.battle?.impacts ?? [];
     const signature = tileSignature(impacts);
     if (signature !== lastSignature) {

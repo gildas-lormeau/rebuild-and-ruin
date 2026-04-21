@@ -49,13 +49,13 @@
 
 import * as THREE from "three";
 import type { Cannon } from "../../../shared/core/battle-types.ts";
-import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import {
   disposeGroupSubtree,
@@ -66,7 +66,7 @@ export interface BalloonsManager {
   /** Reconcile balloon meshes (grounded bases + in-flight envelopes)
    *  with the overlay. Cheap no-op when the set fingerprint is
    *  unchanged; flight host positions are still rewritten per frame. */
-  update(overlay: RenderOverlay | undefined, map: GameMap | undefined): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -165,10 +165,8 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
     }
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    _map: GameMap | undefined,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const bases = collectGroundedBalloons(overlay);
     const flights = overlay?.battle?.balloons ?? [];
     const signature = computeSignature(bases, flights);

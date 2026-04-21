@@ -35,17 +35,14 @@ import * as THREE from "three";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type { FrameCtx } from "../frame-ctx.ts";
 import { buildTower, getTowerVariant } from "../sprites/tower-scene.ts";
 import { disposeGroupSubtree, tintNamedMeshes } from "./entity-helpers.ts";
 
 export interface TowersManager {
   /** Reconcile tower meshes with the current overlay. Cheap no-op when
    *  the overlay's tower set hasn't changed since the last update. */
-  update(
-    overlay: RenderOverlay | undefined,
-    towers: readonly Tower[] | undefined,
-  ): void;
+  update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -121,10 +118,9 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
     disposeGroupSubtree(root, ownedMaterials);
   }
 
-  function update(
-    overlay: RenderOverlay | undefined,
-    towers: readonly Tower[] | undefined,
-  ): void {
+  function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
+    const towers = ctx.map?.towers;
     if (!towers || towers.length === 0) {
       if (lastSignature !== "") {
         clear();
