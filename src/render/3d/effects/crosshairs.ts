@@ -79,6 +79,11 @@ const SHADOW_THICKNESS = 5;
 // Arm lifted slightly above terrain + above impact discs so it reads as
 // the topmost effect, matching the 2D layer order (crosshairs > impacts).
 const CROSSHAIR_Y_LIFT = 0.8;
+/** Crosshair draws after everything else and with depth-test off so it
+ *  never collides with cannons / towers / houses whose authored height
+ *  exceeds our elevation lookup's tuned tops. Matches the phantoms'
+ *  always-on-top treatment. */
+const CROSSHAIR_RENDER_ORDER = 900;
 
 export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
   const root = new THREE.Group();
@@ -97,15 +102,19 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       transparent: true,
       opacity: 0,
       depthWrite: false,
+      depthTest: false,
     });
     const shadowMesh = new THREE.Mesh(geometry, shadowMaterial);
+    shadowMesh.renderOrder = CROSSHAIR_RENDER_ORDER;
     const material = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
       opacity: 0,
       depthWrite: false,
+      depthTest: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.renderOrder = CROSSHAIR_RENDER_ORDER + 1;
     return { mesh, material, shadowMesh, shadowMaterial };
   }
 
