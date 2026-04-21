@@ -29,11 +29,7 @@
 
 import * as THREE from "three";
 import type { Viewport } from "../../shared/core/geometry-types.ts";
-import {
-  MAP_PX_H,
-  MAP_PX_W,
-  TOP_MARGIN_MAP_PX,
-} from "../../shared/core/grid.ts";
+import { MAP_PX_H, MAP_PX_W } from "../../shared/core/grid.ts";
 import { pixelSnap } from "./pixel-snap.ts";
 
 /** Altitude for the camera — far enough above the ground plane that entities
@@ -84,20 +80,16 @@ export function updateCameraFromViewport(
   viewport: Viewport | null | undefined,
   pitch: number = 0,
 ): void {
-  const inner = normalizeViewport(viewport);
-  // Reserve a TOP_MARGIN_MAP_PX strip above every viewport — matches the
-  // taller `worldCanvas` in the 3D renderer and the `reserveTopStrip`
-  // strip on the 2D display canvas. World-Y range [-TOP_MARGIN_MAP_PX,
-  // 0) is the reserved strip; [0, MAP_PX_H] is the playable map. This
-  // keeps tall wall meshes at row 0 inside the frustum under battle
-  // tilt, and makes every viewport share the same canvas-aspect
-  // framing so banner transitions across phases are pop-free.
-  const rect: Viewport = {
-    x: inner.x,
-    y: inner.y - TOP_MARGIN_MAP_PX,
-    w: inner.w,
-    h: inner.h + TOP_MARGIN_MAP_PX,
-  };
+  const rect = normalizeViewport(viewport);
+  // Frustum matches the caller's viewport EXACTLY — no top-margin
+  // extension here. The reserved top strip (see TOP_MARGIN_MAP_PX) is
+  // realized by the renderer setting a WebGL sub-viewport when it
+  // renders the scene into the FBO, so the top rows of the FBO stay
+  // blank. Adjusting the frustum instead would shift the world-Y
+  // range the 3D path sees, which the 2D path's viewport-crop blit
+  // does NOT apply — and any zoom would stack that mismatch, making
+  // the 2D overlay (castles, HUD, score deltas) drift out of sync
+  // with the 3D underlay (terrain, entities).
 
   const halfW = rect.w / 2;
   const halfH = rect.h / 2;
