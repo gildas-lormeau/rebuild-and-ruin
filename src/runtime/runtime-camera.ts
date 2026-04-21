@@ -19,6 +19,7 @@ import {
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "../shared/core/game-constants.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
 import type {
   TilePos,
@@ -65,6 +66,18 @@ interface CameraDeps {
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
 }
+
+/** Camera pitch state machine.
+ *  - `flat`: settled at pitch 0 (build / select / lobby / upgrade-pick).
+ *  - `tilting`: easing from flat → battle (or from interrupted untilt back up).
+ *  - `tilted`: settled at the battle 3/4 view pitch.
+ *  - `untilting`: easing battle → flat (or from an interrupted tilt back down).
+ *
+ *  Call sites that need the settle edge subscribe to
+ *  `GAME_EVENT.PITCH_SETTLED`. Call sites that already poll per tick
+ *  (phase-ticks' untilt wait) read `getPitchState()` instead — no need
+ *  to go through the bus for a value the camera already knows. */
+type PitchState = "flat" | "tilting" | "tilted" | "untilting";
 
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
 /** Target pitch when entering battle: 30° classic isometric / Rampart 3/4 view. */
@@ -144,12 +157,25 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let targetPitch = 0;
   let pitchAnimFrom = 0;
   let pitchAnimElapsed = PITCH_DURATION;
+  let pitchState: PitchState = "flat";
 
   function setPitchTarget(next: number): void {
     if (next === targetPitch) return;
     pitchAnimFrom = currentPitch;
     targetPitch = next;
     pitchAnimElapsed = 0;
+    // Entering an animation: `tilting` if the new target is non-zero,
+    // `untilting` otherwise. Covers mid-anim reversals too (e.g. a
+    // paused battle-enter that gets undone before the animation
+    // settles) since direction is derived from the target, not the
+    // prior state.
+    pitchState = next > 0 ? "tilting" : "untilting";
+  }
+
+  function emitPitchSettled(pitch: number): void {
+    const state = deps.getState();
+    if (!state) return;
+    emitGameEvent(state.bus, GAME_EVENT.PITCH_SETTLED, { pitch });
   }
 
   // --- Helpers ---
@@ -331,13 +357,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Ease currentPitch toward targetPitch each frame. Hard-zero in 2D mode so
    *  stale state from a previous 3D session can't leak into a 2D screen↔world
-   *  conversion. */
+   *  conversion. Emits `PITCH_SETTLED` on the frame the animation completes. */
   function tickPitch(): void {
     if (deps.getRendererKind() !== "3d") {
       currentPitch = 0;
       targetPitch = 0;
       pitchAnimFrom = 0;
       pitchAnimElapsed = PITCH_DURATION;
+      pitchState = "flat";
       return;
     }
     if (pitchAnimElapsed >= PITCH_DURATION) {
@@ -350,6 +377,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const t = pitchAnimElapsed / PITCH_DURATION;
     const eased = 1 - (1 - t) * (1 - t) * (1 - t); // cubic ease-out
     currentPitch = pitchAnimFrom + (targetPitch - pitchAnimFrom) * eased;
+    // Settle on the tick that crosses the duration boundary. We only
+    // fire the event here (not in the `>= PITCH_DURATION` early-exit
+    // above) so it triggers exactly once per animation, not on every
+    // idle frame that follows.
+    if (pitchAnimElapsed >= PITCH_DURATION) {
+      currentPitch = targetPitch;
+      pitchState = targetPitch > 0 ? "tilted" : "flat";
+      emitPitchSettled(currentPitch);
+    }
   }
 
   /** Clear zoom when UI overlays or phase-end unzoom is active. */
@@ -657,22 +693,26 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     currentVp.h = fullMapVp.h;
     currentPitch = 0;
     targetPitch = 0;
+    pitchAnimFrom = 0;
+    pitchAnimElapsed = PITCH_DURATION;
+    pitchState = "flat";
   }
 
   /** Request an immediate untilt. Called from the phase-ticks system at
    *  battle-end, BEFORE the banner captures, so the banner's prev-scene
    *  snapshot is flat. Idempotent — safe to call every tick while waiting
-   *  for `isPitchSettled()` to return true. */
+   *  for `getPitchState() === "flat"`. */
   function beginUntilt(): void {
     setPitchTarget(0);
   }
 
-  /** True when the pitch animation has reached its target. In 2D mode
-   *  always true (pitch is hard-zeroed). Used by the phase-ticks system
-   *  to gate the battle-end banner capture on the untilt easing. */
-  function isPitchSettled(): boolean {
-    if (deps.getRendererKind() !== "3d") return true;
-    return pitchAnimElapsed >= PITCH_DURATION;
+  /** Current pitch state machine value. In 2D mode always `"flat"`
+   *  (pitch is hard-zeroed by `tickPitch`). Subscribers that need the
+   *  settle edge should listen for `GAME_EVENT.PITCH_SETTLED` instead
+   *  — this getter is for call sites that already poll per tick. */
+  function getPitchState(): PitchState {
+    if (deps.getRendererKind() !== "3d") return "flat";
+    return pitchState;
   }
 
   function setCameraZone(zone: number | undefined): void {
@@ -763,7 +803,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getViewport,
     getPitch: () => currentPitch,
     beginUntilt,
-    isPitchSettled,
+    getPitchState,
     screenToWorld,
     worldToScreen,
     pixelToTile,

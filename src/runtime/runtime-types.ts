@@ -358,10 +358,12 @@ export interface CameraSystem {
   /** Request an immediate pitch=0 ease. Used by the phase-ticks system at
    *  battle-end so the banner captures a flat scene. Idempotent. */
   beginUntilt: () => void;
-  /** True when currentPitch has reached targetPitch (within epsilon). 2D
-   *  mode always returns true. Used to gate the battle-end banner capture
-   *  on the untilt easing. */
-  isPitchSettled: () => boolean;
+  /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
+   *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
+   *  ease. 2D mode always returns `"flat"`. Subscribers that want the
+   *  settle edge (not the polled state) should listen for
+   *  `GAME_EVENT.PITCH_SETTLED` instead. */
+  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
   screenToWorld: (x: number, y: number) => WorldPos;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };
@@ -569,6 +571,10 @@ export interface GameRuntime {
    *  own controllers) can wire into the runtime's broadcast pipeline
    *  without rebuilding the NetworkApi. */
   networkSend: NetworkApi["send"];
+  /** Camera pitch-state getter exposed so the watcher phase-transition
+   *  ctx (built outside this module) can gate balloon-anim start on
+   *  tilt-in. Host ctx reads the same value via its phase-ticks deps. */
+  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
 }
 
 /** Consumer registry for `OnlinePhaseTicks` hooks.

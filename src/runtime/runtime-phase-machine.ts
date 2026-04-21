@@ -279,6 +279,13 @@ export interface PhaseTransitionCtx {
   /** Save the human player's crosshair position so it can be restored at
    *  the start of the next battle (touch UX). Host-only, no-op otherwise. */
   readonly saveBattleCrosshair?: () => void;
+  /** Camera pitch state machine — used by `proceedToBattle` to hold the
+   *  balloon-anim start until the build→battle tilt completes (otherwise
+   *  the drops play under a still-flattening camera). `"flat"` /
+   *  `"tilted"` are both "don't wait" (2D mode also reports `"flat"`);
+   *  only `"tilting"` / `"untilting"` block. Optional so headless
+   *  contexts that don't own a camera can skip wiring it. */
+  readonly getPitchState?: () => "flat" | "tilting" | "tilted" | "untilting";
   /** Host-only per-frame setup when WALL_BUILD begins: score-delta reset,
    *  cannon facing reset, per-controller startBuildPhase, clear impacts,
    *  accumulator resets. Called from `battle-done` postDisplay, after the
@@ -773,6 +780,12 @@ const TRANSITIONS: readonly Transition[] = [
 const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
   TRANSITIONS.map((transition) => [transition.id, transition] as const),
 );
+/** Safety fallback if the PITCH_SETTLED bus event never fires (tab
+ *  hidden, paused timing, etc.). Far longer than PITCH_DURATION (0.6s)
+ *  so a normal tilt-in never hits the timeout — it only trips on a
+ *  stalled camera. Balloon anim still fires, just under the
+ *  not-quite-settled view. */
+const BALLOON_ANIM_TILT_TIMEOUT_MS = 1500;
 export const ROLE_HOST = "host" as const;
 export const ROLE_WATCHER = "watcher" as const;
 
@@ -910,15 +923,41 @@ function proceedToBattle(
   ctx: PhaseTransitionCtx,
   flights: readonly BalloonFlight[],
 ): void {
-  if (flights.length > 0) {
-    ctx.battle.setFlights(flights.map((flight) => ({ flight, progress: 0 })));
-    ctx.setMode(Mode.BALLOON_ANIM);
+  if (flights.length === 0) {
+    ctx.battle.begin();
+    return;
+  }
+  ctx.battle.setFlights(flights.map((flight) => ({ flight, progress: 0 })));
+  ctx.setMode(Mode.BALLOON_ANIM);
+
+  const startBalloonAnim = (): void => {
     emitGameEvent(ctx.state.bus, GAME_EVENT.BALLOON_ANIM_START, {
       round: ctx.state.round,
     });
+  };
+
+  // Pitch gate: the build→battle tilt starts when the phase flipped to
+  // BATTLE at `cannon-place-done` mutate-time. Banner sweeps consume
+  // enough time that the tilt is usually settled before `postDisplay`
+  // runs, but a short banner or a paused tab can leave pitch mid-ease.
+  // `flat` / `tilted` are both "settled" (2D mode also reports flat).
+  const pitchState = ctx.getPitchState?.() ?? "flat";
+  if (pitchState === "flat" || pitchState === "tilted") {
+    startBalloonAnim();
     return;
   }
-  ctx.battle.begin();
+  const bus = ctx.state.bus;
+  let fired = false;
+  const fireOnce = (): void => {
+    if (fired) return;
+    fired = true;
+    bus.off(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
+    clearTimeout(timer);
+    startBalloonAnim();
+  };
+  const onPitchSettled = (): void => fireOnce();
+  bus.on(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
+  const timer = setTimeout(fireOnce, BALLOON_ANIM_TILT_TIMEOUT_MS);
 }
 
 function runStep(

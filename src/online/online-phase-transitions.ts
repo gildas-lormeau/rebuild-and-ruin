@@ -258,6 +258,7 @@ function buildWatcherPhaseCtx(
     checkpoint: buildWatcherCheckpointHooks(deps),
     watcher: buildWatcherHooks(deps),
     incomingMsg: msg,
+    getPitchState: runtime.getPitchState,
   };
 }
 

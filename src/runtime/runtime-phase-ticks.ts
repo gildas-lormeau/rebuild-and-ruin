@@ -143,12 +143,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  `last-player-standing` mutate calls this through `ctx.endGame`. */
   endGame: (winner: { id: number }) => void;
   /** Request an immediate untilt ease at battle-end. Called every tick
-   *  while the phase-ticks system waits for `isPitchSettled()` before
-   *  firing the battle-done banner capture. */
+   *  while the phase-ticks system waits for `getPitchState() === "flat"`
+   *  before firing the battle-done banner capture. */
   beginUntilt: () => void;
-  /** True when the camera pitch has reached its target. Gates the
-   *  battle-done transition so the banner snapshot captures a flat scene. */
-  isPitchSettled: () => boolean;
+  /** Pitch state machine. Gates the battle-done transition so the
+   *  banner snapshot captures a flat scene — wait until `"flat"` (or
+   *  fall through on the safety timeout). */
+  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
 }
 
 export interface PhaseTicksSystem {
@@ -376,6 +377,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         for (const ctrl of local) ctrl.endBattle();
       },
       saveBattleCrosshair: deps.saveBattleCrosshair,
+      getPitchState: deps.getPitchState,
       lifeLost: {
         tryShow: deps.lifeLost.tryShow,
         resolve: (continuing) => {
@@ -689,7 +691,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // re-tilt on next-phase enter). Safety-bounded so a paused camera
     // (tab-hidden, etc.) can't stall the phase indefinitely.
     deps.beginUntilt();
-    if (!deps.isPitchSettled()) {
+    if (deps.getPitchState() !== "flat") {
       if (untiltWaitStartMs === undefined) {
         untiltWaitStartMs = deps.timing.now();
       }

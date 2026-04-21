@@ -683,7 +683,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearUpgradePickDialog: () => upgradePick.set(null),
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
-    isPitchSettled: camera.isPitchSettled,
+    getPitchState: camera.getPitchState,
   });
 
   // -------------------------------------------------------------------------
@@ -897,5 +897,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),
     networkSend: config.network.send,
+    getPitchState: camera.getPitchState,
   };
 }
