@@ -284,7 +284,7 @@ export function buildRampart(
     aura.rotation.x = -Math.PI / 2;
     aura.position.set(0, shieldSpec.yPos, 0);
     aura.renderOrder = -1;
-    aura.userData.tags = ["render-behind"];
+    aura.userData.tags = ["render-behind", "battle-hidden"];
     scene.add(aura);
   }
 
@@ -328,6 +328,11 @@ export function buildRampart(
       mat(bandSpec.material),
     );
     bandMesh.position.set(0, bandSpec.yPos, 0);
+    // Same hide-during-battle treatment as the regular cannons' ground
+    // discs (see cannon-scene.ts groundShadow/groundAO) — the green
+    // accent ring reads as decorative in build/select, distracting in
+    // combat. Authoring-side tag; cannons.ts drives the visibility.
+    bandMesh.userData.tags = ["battle-hidden"];
     scene.add(bandMesh);
   }
 
