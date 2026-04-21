@@ -91,20 +91,6 @@ const MAIN_CANVAS: CanvasSize = { w: CANVAS_W, h: CANVAS_H };
  *  and the ortho model stops being useful. */
 export const MAX_PITCH = Math.PI / 3;
 
-export function worldToScreen(
-  state: CameraState,
-  canvas: CanvasSize,
-  worldX: number,
-  worldY: number,
-): { sx: number; sy: number } {
-  assertPitchInRange(state.pitch);
-  const cosPitch = Math.cos(state.pitch);
-  return {
-    sx: canvas.w / 2 + state.zoom * (worldX - state.center.x),
-    sy: canvas.h / 2 + state.zoom * cosPitch * (worldY - state.center.y),
-  };
-}
-
 export function screenToWorld(
   state: CameraState,
   canvas: CanvasSize,
@@ -141,6 +127,20 @@ export function fitWorldRect(
     center: { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
     zoom,
     pitch: state.pitch,
+  };
+}
+
+export function worldToScreen(
+  state: CameraState,
+  canvas: CanvasSize,
+  worldX: number,
+  worldY: number,
+): { sx: number; sy: number } {
+  assertPitchInRange(state.pitch);
+  const cosPitch = Math.cos(state.pitch);
+  return {
+    sx: canvas.w / 2 + state.zoom * (worldX - state.center.x),
+    sy: canvas.h / 2 + state.zoom * cosPitch * (worldY - state.center.y),
   };
 }
 

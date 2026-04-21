@@ -37,10 +37,27 @@ const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
  * @param sceneCanvas - Returns the offscreen scene canvas to magnify.
  *   Passed as a getter so it can be resolved lazily (the canvas may not
  *   exist at createLoupe call time).
+ * @param worldToScene - Optional override: maps a world-pixel point
+ *   (where the cursor sits, in the runtime's untransformed world space)
+ *   to the scene canvas pixel coordinate whose neighborhood should be
+ *   magnified. Defaults to `(wx, wy) => (wx * OS, wy * OS)` which is
+ *   the flat top-down 2D renderer's contract. The 3D renderer supplies
+ *   its own mapper so the loupe stays centered on the cursor even when
+ *   the scene is tilted — `cos(pitch)` foreshortens Y around the
+ *   viewport center, so the flat formula samples the wrong tile under
+ *   tilt. Kept as a parameter (not a hard-coded pitch handler) so
+ *   future renderers with different projections can plug in.
  */
 export function createLoupe(
   container: HTMLElement,
   sceneCanvas: () => HTMLCanvasElement,
+  worldToScene?: (
+    worldX: number,
+    worldY: number,
+  ) => {
+    x: number;
+    y: number;
+  },
 ): LoupeHandle {
   const canvases = Array.from(
     container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"),
@@ -98,11 +115,17 @@ export function createLoupe(
     // Fixed size in world units; centered on the cursor without clamping to
     // the map bounds so the cursor/phantom is ALWAYS at the loupe's center
     // (edges of the world render as empty pixels, which `drawImage` handles
-    // automatically by clipping the destination rect).
+    // automatically by clipping the destination rect). The center is
+    // delegated to `worldToScene` so renderers that transform the scene
+    // (e.g. 3D tilt) can override where a given world point ends up in
+    // scene-canvas space.
     const srcW = LOUPE_SOURCE_TILES_W * TILE_SIZE * OFFSCREEN_SCALE;
     const srcH = LOUPE_SOURCE_TILES_H * TILE_SIZE * OFFSCREEN_SCALE;
-    const srcX = worldX * OFFSCREEN_SCALE - srcW / 2;
-    const srcY = worldY * OFFSCREEN_SCALE - srcH / 2;
+    const center = worldToScene
+      ? worldToScene(worldX, worldY)
+      : { x: worldX * OFFSCREEN_SCALE, y: worldY * OFFSCREEN_SCALE };
+    const srcX = center.x - srcW / 2;
+    const srcY = center.y - srcH / 2;
 
     // Clear
     canvasCtx.clearRect(0, 0, w, h);

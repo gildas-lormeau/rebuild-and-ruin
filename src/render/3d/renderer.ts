@@ -45,9 +45,13 @@ export function createRender3d(
     canvas2d.getSinkholeOverlayBitmap,
   );
 
-  // Cached viewport from the last `drawFrame`. Used by the loupe composite
-  // to draw the WebGL world canvas at the correct world-space rect.
+  // Cached viewport + pitch from the last `drawFrame`. Used by the
+  // loupe composite (draws the WebGL world canvas at the correct
+  // world-space rect) and by the loupe's `worldToScene` mapper (folds
+  // the X-axis tilt into the world→scene projection so the source
+  // rect stays centered on the cursor even when the scene is tilted).
   let lastViewport: Viewport | undefined;
+  let lastPitch = 0;
 
   // Banner prev-scene snapshot scratch canvases. Lazily created on first
   // capture; reused across phase transitions. The composite canvas matches
@@ -191,6 +195,7 @@ export function createRender3d(
       // are unaffected by tilt.
       updateCameraFromViewport(ctx.camera, viewport, pitch);
       lastViewport = viewport ?? undefined;
+      lastPitch = pitch;
       // Render twice: once into the capture FBO (readable outside the
       // rAF tick by `captureScene`), once to the default framebuffer
       // for display. Cheaper than rebuilding the scene state at capture
@@ -330,7 +335,21 @@ export function createRender3d(
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,
     // Loupe samples a WebGL+2D composite (not the 2D scene alone,
-    // which in 3D mode is missing terrain + entities).
-    createLoupe: (container) => createLoupe(container, loupeCompositeSource),
+    // which in 3D mode is missing terrain + entities). Under tilt the
+    // scene canvas Y of a world point is not `worldY * OFFSCREEN_SCALE`
+    // anymore — the WebGL render has foreshortened Y by `cos(pitch)`
+    // around the viewport's center, and the composite stretch preserves
+    // that. Reproduce the same transform here so the loupe's source
+    // rect centers on the cursor's true scene position.
+    createLoupe: (container) =>
+      createLoupe(container, loupeCompositeSource, (worldX, worldY) => {
+        const viewport = lastViewport;
+        const centerY = (viewport?.y ?? 0) + (viewport?.h ?? MAP_PX_H) / 2;
+        const cosPitch = Math.cos(lastPitch);
+        return {
+          x: worldX * OFFSCREEN_SCALE,
+          y: (centerY + cosPitch * (worldY - centerY)) * OFFSCREEN_SCALE,
+        };
+      }),
   };
 }
