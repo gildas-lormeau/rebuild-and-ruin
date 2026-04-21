@@ -14,13 +14,6 @@ import type { LoupeHandle } from "../shared/ui/overlay-types.ts";
 
 // Loupe rendering constants
 const LOUPE_RADIUS = 12;
-// Fixed source window in world pixels — the loupe magnifies exactly
-// these many tiles regardless of the loupe's display size. Aspect
-// (5/6) matches the CSS `.loupe` aspect-ratio so the source rect maps
-// to the display without distortion. Screen size changes the
-// on-screen size of the loupe but NOT what it shows.
-const LOUPE_SOURCE_TILES_W = 5;
-const LOUPE_SOURCE_TILES_H = 6;
 const LOUPE_BORDER_WIDTH = 6;
 const LOUPE_RIVET_RADIUS = 5;
 const LOUPE_STONE_COLOR = "rgba(50, 40, 30, 0.92)";
@@ -29,6 +22,16 @@ const LOUPE_RIVET_COLOR = "#c8a040";
 const LOUPE_RIVET_HIGHLIGHT = "rgba(255, 240, 180, 0.6)";
 const LOUPE_CROSSHAIR_COLOR = "rgba(255, 255, 255, 0.5)";
 const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
+// Fixed source window in world pixels — the loupe magnifies exactly
+// these many tiles regardless of the loupe's display size. Aspect
+// (5/6) matches the CSS `.loupe` aspect-ratio so the source rect maps
+// to the display without distortion. Screen size changes the
+// on-screen size of the loupe but NOT what it shows.
+// Exported so the 3D renderer can scissor its top-down pre-pass to
+// just this window (plus a margin) around the pointer — full-map
+// top-down rendering was noticeably expensive.
+export const LOUPE_SOURCE_TILES_W = 5;
+export const LOUPE_SOURCE_TILES_H = 6;
 
 /**
  * Find all loupe canvases within a container and return a handle
