@@ -324,5 +324,43 @@ Deno.test(
       mapVersionBeforeQuit,
       `mapVersion must advance past ${mapVersionBeforeQuit} on rematch (got ${sc.state.map.mapVersion})`,
     );
+
+    // Auto-zoom contract during the post-quit all-AI game: even though
+    // `mobileZoomEnabled` is still true from earlier and `zoomActivated`
+    // is re-armed by `resetCamera`, none of the zoom-engagement paths
+    // should fire a zone zoom — `hasPointerPlayer` is false (nobody
+    // joined the lobby, every controller is an AI), and every
+    // zoom-engaging helper is supposed to gate on that.
+    //
+    // The user's reported symptom ("auto-zoom active during the game
+    // played by AIs after the max. 15s on the lobby screen") is
+    // exactly this contract being violated. Drive the post-rematch
+    // all-AI game to battle and assert the camera never engaged a
+    // cropped viewport nor picked a cameraZone.
+    let sawCameraZone = false;
+    let sawPitch = false;
+    let sawCroppedViewport = false;
+    sc.runUntil(
+      () => {
+        if (sc.camera.getCameraZone() !== undefined) sawCameraZone = true;
+        if (sc.camera.getPitch() !== 0) sawPitch = true;
+        if (sc.camera.getViewport() !== undefined) sawCroppedViewport = true;
+        return sc.state.phase === Phase.BATTLE;
+      },
+      { timeoutMs: 120_000 },
+    );
+
+    assert(
+      !sawCameraZone,
+      "all-AI game must never set a cameraZone (no human to follow)",
+    );
+    assert(
+      !sawPitch,
+      "all-AI game must never pitch the camera (battle tilt is a human-viewer cue)",
+    );
+    assert(
+      !sawCroppedViewport,
+      "all-AI game must stay at fullMapVp throughout (no cropped viewport)",
+    );
   },
 );

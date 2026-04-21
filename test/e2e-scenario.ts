@@ -73,6 +73,14 @@ export interface E2EScenarioOptions {
   online?: "host" | "join";
   /** Room code to join when `online: "join"`. */
   roomCode?: string;
+  /** Emulate a touch device (mobile). Sets `isMobile: true`,
+   *  `hasTouch: true`, a phone-sized viewport, and a mobile UA on the
+   *  Playwright browser context. Flips `IS_TOUCH_DEVICE` inside the
+   *  runtime so `setupTouchControls` (and its `camera.enableMobileZoom`
+   *  call) fires naturally — no bridge back-door. Use for tests that
+   *  exercise mobile-only code paths (touch loupe, auto-zoom, ✕ quit
+   *  button). Defaults to false. */
+  mobile?: boolean;
 }
 
 /** Event type — GAME_EVENT constants (string literal keys of GameEventMap). */
@@ -132,6 +140,20 @@ export interface E2EScenario extends AsyncDisposable {
   phase(): Promise<E2EPhase>;
   /** Whether the lobby UI is currently active. */
   lobbyActive(): Promise<boolean>;
+  /** Read current camera state across the Playwright boundary. Mirrors
+   *  the headless `Scenario.camera` accessor. The `enableMobileZoom`
+   *  method flips the camera's `mobileZoomEnabled` flag so tests can
+   *  simulate touch-device setup without wiring a real touch UI. */
+  camera: {
+    state(): Promise<{
+      cameraZone: number | undefined;
+      pitch: number;
+      pitchState: "flat" | "tilting" | "tilted" | "untilting";
+      hasViewport: boolean;
+      autoZoomOn: boolean;
+    }>;
+    enableMobileZoom(): Promise<void>;
+  };
   /** Game bus — mirrors the headless GameEventBus shape. Handlers fire
    *  during `runUntil` / `runGame` as new events appear in busLog. */
   bus: {
@@ -256,10 +278,27 @@ export async function createE2EScenario(
     autoStartGame = true,
     online,
     roomCode: joinCode,
+    mobile = false,
   } = opts;
 
   const browser = await chromium.launch({ headless });
-  const ctx = await browser.newContext();
+  // Mobile emulation: Playwright's `isMobile: true` + `hasTouch: true`
+  // are what the runtime's `IS_TOUCH_DEVICE` detection keys on, so the
+  // touch controls wire up (and `camera.enableMobileZoom` fires from
+  // `setupTouchControls`) just like on a phone. Use a Pixel-5-ish
+  // portrait viewport + UA; any modern phone profile works as long
+  // as the touch flags are set.
+  const ctx = mobile
+    ? await browser.newContext({
+        viewport: { width: 393, height: 851 },
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 " +
+          "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+        deviceScaleFactor: 2.75,
+        isMobile: true,
+        hasTouch: true,
+      })
+    : await browser.newContext();
   const page = await ctx.newPage();
 
   // Navigate
@@ -579,6 +618,40 @@ export async function createE2EScenario(
           .__e2e as { lobbyActive?: boolean } | undefined;
         return e2e?.lobbyActive ?? false;
       }),
+
+    camera: {
+      state: () =>
+        page.evaluate(() => {
+          const e2e = (globalThis as unknown as Record<string, unknown>)
+            .__e2e as
+            | {
+                camera?: {
+                  cameraZone: number | undefined;
+                  pitch: number;
+                  pitchState: "flat" | "tilting" | "tilted" | "untilting";
+                  hasViewport: boolean;
+                  autoZoomOn: boolean;
+                };
+              }
+            | undefined;
+          return (
+            e2e?.camera ?? {
+              cameraZone: undefined as number | undefined,
+              pitch: 0,
+              pitchState: "flat" as const,
+              hasViewport: false,
+              autoZoomOn: false,
+            }
+          );
+        }),
+      enableMobileZoom: async () => {
+        await page.evaluate(() => {
+          const e2e = (globalThis as unknown as Record<string, unknown>)
+            .__e2e as { enableMobileZoom?: () => void } | undefined;
+          e2e?.enableMobileZoom?.();
+        });
+      },
+    },
 
     bus: {
       on<K extends E2EEventType>(

@@ -101,6 +101,18 @@ export interface E2EBridgeSnapshot {
     enemyCannons: { x: number; y: number }[];
     enemyTargets: { x: number; y: number }[];
   };
+  /** Camera state — observable from tests. Mirrors the handful of
+   *  observational methods on `CameraSystem` that tests actually
+   *  assert on (zoom target, pitch, viewport presence, auto-zoom flag).
+   *  Reset tests verify these match across quit / rematch boundaries;
+   *  multi-phase tests can check zoom engagement at specific phases. */
+  camera: {
+    cameraZone: number | undefined;
+    pitch: number;
+    pitchState: "flat" | "tilting" | "tilted" | "untilting";
+    hasViewport: boolean;
+    autoZoomOn: boolean;
+  };
   busLog: E2EBusEntry[];
 }
 
@@ -139,6 +151,11 @@ interface E2EBridge extends E2EBridgeSnapshot {
    *  busLog (or via `sc.bus.on`) after the scenario runs. Missing captures
    *  appear as entries with no `capture` field, never as infinite hangs. */
   captureOn: (type: string, predicateSrc: string | null) => void;
+  /** Enable mobile auto-zoom. E2E tests call this to simulate the
+   *  `setupTouchControls` path without actually wiring touch UI, so
+   *  the camera's `mobileZoomEnabled` flag flips to true and the
+   *  auto-zoom paths become active for assertions. */
+  enableMobileZoom: () => void;
 }
 
 /** Bridge metadata attached to every recorded bus entry. `_seq` is a
@@ -203,6 +220,11 @@ interface E2EBridgeDeps {
   camera: {
     worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
     getViewport: () => Viewport | undefined;
+    getCameraZone: () => number | undefined;
+    getPitch: () => number;
+    getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+    isMobileAutoZoom: () => boolean;
+    enableMobileZoom: () => void;
   };
   renderer: {
     eventTarget: HTMLElement;
@@ -276,6 +298,14 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
       step: false,
+      camera: {
+        cameraZone: undefined,
+        pitch: 0,
+        pitchState: "flat",
+        hasViewport: false,
+        autoZoomOn: false,
+      },
+      enableMobileZoom: () => deps.camera.enableMobileZoom(),
       busLog: [],
       captureOn: (type, predicateSrc) => {
         const predicate: (ev: unknown) => boolean = predicateSrc
@@ -382,6 +412,13 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
     ref.targeting.enemyCannons = targeting.enemyCannons;
     ref.targeting.enemyTargets = targeting.enemyTargets;
   }
+
+  // --- Camera ---
+  ref.camera.cameraZone = deps.camera.getCameraZone();
+  ref.camera.pitch = deps.camera.getPitch();
+  ref.camera.pitchState = deps.camera.getPitchState();
+  ref.camera.hasViewport = deps.camera.getViewport() !== undefined;
+  ref.camera.autoZoomOn = deps.camera.isMobileAutoZoom();
 }
 
 /** Inverse of clientToSurface — world pixels to client coordinates.
