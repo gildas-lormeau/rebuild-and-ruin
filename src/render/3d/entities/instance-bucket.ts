@@ -20,11 +20,19 @@
  */
 
 import * as THREE from "three";
-import { type ExtractedSubPart, extractSubParts } from "./entity-helpers.ts";
+import {
+  type ExtractedSubPart,
+  extractSubParts,
+  subPartHasTag,
+} from "./entity-helpers.ts";
 
 export interface BucketSubPart {
   readonly instanced: THREE.InstancedMesh;
   readonly localMatrix: THREE.Matrix4;
+  /** Behavior tags propagated from the extracted source part so managers
+   *  can make visibility / render-order decisions without a userData
+   *  round-trip or a `.name` string match. */
+  readonly tags: readonly string[];
 }
 
 interface CapacityBucket {
@@ -105,15 +113,22 @@ export function buildVariantBucket(opts: {
   for (let i = 0; i < extracted.length; i++) {
     const part = extracted[i]!;
     const transformed = opts.transformPart ? opts.transformPart(part, i) : part;
-    subParts.push(
-      wrapSubPartAsInstancedMesh(
-        transformed,
-        opts.capacity,
-        opts.root,
-        opts.ownedMaterials,
-        opts.namePrefix,
-      ),
+    const wrapped = wrapSubPartAsInstancedMesh(
+      transformed,
+      opts.capacity,
+      opts.root,
+      opts.ownedMaterials,
+      opts.namePrefix,
     );
+    // Generic authoring-driven render-order hint: any sub-part tagged
+    // "render-behind" (e.g. the rampart shield aura plane) draws before
+    // opaque peers so translucent materials sit underneath without
+    // z-fight. Replaces per-variant index-based patches in the entity
+    // managers.
+    if (subPartHasTag(transformed, "render-behind")) {
+      wrapped.instanced.renderOrder = -1;
+    }
+    subParts.push(wrapped);
   }
   return subParts;
 }
@@ -177,7 +192,7 @@ function wrapSubPartAsInstancedMesh(
   } else {
     ownedMaterials.push(part.material);
   }
-  return { instanced, localMatrix: part.localMatrix };
+  return { instanced, localMatrix: part.localMatrix, tags: part.tags };
 }
 
 /** Detach and dispose every `InstancedMesh` in `subParts`. The mutable

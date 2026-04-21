@@ -76,6 +76,7 @@ import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
 import {
   cannonKind,
+  subPartHasTag,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
@@ -231,14 +232,10 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
       });
       // Ground discs (the swivel base + the authored shadow/AO halos)
       // stay hidden during battle so the cannon reads as planted on the
-      // terrain itself.
+      // terrain itself. Authored-side tag drives the hide — no name
+      // coupling to "base" / "groundShadow" / "groundAO".
       for (const subPart of bucket.subParts) {
-        const partName = subPart.instanced.name;
-        if (
-          partName === "base" ||
-          partName === "groundShadow" ||
-          partName === "groundAO"
-        ) {
+        if (subPartHasTag(subPart, "battle-hidden")) {
           subPart.instanced.visible = !inBattle;
         }
       }
@@ -319,13 +316,8 @@ function buildBucket(
     scratchBuilder,
     namePrefix: `cannon-${variant}`,
   });
-  // Preserve the shield-aura's draw-before-opaque hint from
-  // rampart-scene: the authored plane sets `renderOrder = -1` so
-  // opaque meshes render over it without z-fight. We replicate the
-  // heuristic by authored ordering — the plane is the first sub-part
-  // because `buildRampart` adds it first.
-  if (variant === "rampart_cannon" && subParts.length > 0) {
-    subParts[0]!.instanced.renderOrder = -1;
-  }
+  // Shield-aura render-behind hint now comes from the authored
+  // `render-behind` tag (see rampart-scene.ts); `buildVariantBucket`
+  // applies it generically.
   return { variant, subParts, capacity };
 }

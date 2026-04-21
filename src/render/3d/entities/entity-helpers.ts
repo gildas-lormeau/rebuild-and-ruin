@@ -38,6 +38,11 @@ export interface ExtractedSubPart {
   readonly material: THREE.Material | THREE.Material[];
   readonly localMatrix: THREE.Matrix4;
   readonly name: string;
+  /** Behavior tags surfaced from authoring-time `userData.tags` (or
+   *  `DecorationSpec.tags`). Always defined — empty array when no tags
+   *  were authored. Consumers use `subPartHasTag` instead of matching
+   *  on `name` strings. */
+  readonly tags: readonly string[];
 }
 
 type CannonKind = "balloon" | "rampart" | "super" | "mortar" | "tier_1";
@@ -83,14 +88,30 @@ export function extractSubParts(scratch: THREE.Group): ExtractedSubPart[] {
   const parts: ExtractedSubPart[] = [];
   scratch.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
+    const rawTags = obj.userData.tags;
+    const tags: readonly string[] = Array.isArray(rawTags)
+      ? (rawTags as readonly string[])
+      : [];
     parts.push({
       geometry: obj.geometry,
       material: obj.material,
       localMatrix: obj.matrixWorld.clone(),
       name: obj.name || "",
+      tags,
     });
   });
   return parts;
+}
+
+/** True when the extracted sub-part (or its wrapped bucket form) declares
+ *  `tag` in its behavior tag list. Prefer this over matching on `name`
+ *  strings so authoring can rename a mesh without breaking runtime
+ *  branch logic. */
+export function subPartHasTag(
+  part: { readonly tags: readonly string[] },
+  tag: string,
+): boolean {
+  return part.tags.includes(tag);
 }
 
 /** Dispose every mesh geometry under `root`, detach all children, and

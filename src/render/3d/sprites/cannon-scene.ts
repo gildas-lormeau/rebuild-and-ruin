@@ -131,6 +131,11 @@ export interface DecorationSpec {
   rot?: readonly [number, number, number];
   scale?: readonly [number, number, number];
   material: MaterialSpec;
+  /** Optional behavior tags surfaced through `extractSubParts` onto the
+   *  runtime `ExtractedSubPart.tags`. Used by entity managers for generic
+   *  behavior toggles (e.g. "battle-hidden" / "render-behind") instead of
+   *  coupling to decoration `name` strings. */
+  readonly tags?: readonly string[];
 }
 
 export interface CannonParams {
@@ -313,6 +318,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundShadow",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 1.0, segments: 32 },
           attachTo: "scene",
@@ -322,6 +328,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundAO",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 0.9375, segments: 32 },
           attachTo: "scene",
@@ -525,6 +532,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundShadow",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 1.0, segments: 32 },
           attachTo: "scene",
@@ -534,6 +542,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundAO",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 0.9375, segments: 32 },
           attachTo: "scene",
@@ -732,6 +741,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundShadow",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 1.0, segments: 32 },
           attachTo: "scene",
@@ -741,6 +751,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundAO",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 0.9375, segments: 32 },
           attachTo: "scene",
@@ -939,6 +950,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundShadow",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 1.0, segments: 32 },
           attachTo: "scene",
@@ -948,6 +960,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundAO",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 0.9375, segments: 32 },
           attachTo: "scene",
@@ -1146,6 +1159,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundShadow",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 1.0, segments: 32 },
           attachTo: "scene",
@@ -1155,6 +1169,7 @@ export const VARIANTS: CannonVariant[] = [
         },
         {
           name: "groundAO",
+          tags: ["battle-hidden"],
           shape: "disc",
           dims: { radius: 0.9375, segments: 32 },
           attachTo: "scene",
@@ -1251,6 +1266,7 @@ export function buildCannon(
     mat(params.base.material),
   );
   base.name = "base";
+  base.userData.tags = ["battle-hidden"];
   base.position.y = params.base.height / 2;
   scene.add(base);
 
@@ -1372,6 +1388,7 @@ export function buildCannon(
       mat(dec.material),
     );
     if (dec.name) mesh.name = dec.name;
+    if (dec.tags) mesh.userData.tags = dec.tags;
     const pos = dec.pos;
     mesh.position.set(pos[0], pos[1], pos[2]);
     if (dec.rot) mesh.rotation.set(dec.rot[0], dec.rot[1], dec.rot[2]);

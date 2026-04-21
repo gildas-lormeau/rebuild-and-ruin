@@ -224,7 +224,7 @@ function buildSubParts(
     const localMatrix = obj.matrixWorld.clone();
     root.add(instanced);
     ownedMaterials.push(material);
-    parts.push({ instanced, localMatrix });
+    parts.push({ instanced, localMatrix, tags: [] });
   });
   return parts;
 }

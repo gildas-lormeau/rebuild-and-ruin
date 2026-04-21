@@ -284,6 +284,7 @@ export function buildRampart(
     aura.rotation.x = -Math.PI / 2;
     aura.position.set(0, shieldSpec.yPos, 0);
     aura.renderOrder = -1;
+    aura.userData.tags = ["render-behind"];
     scene.add(aura);
   }
 
