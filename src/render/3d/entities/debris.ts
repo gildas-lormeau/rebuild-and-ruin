@@ -69,7 +69,11 @@ import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
-import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
+import {
+  isCannonAlive,
+  isRampartCannon,
+  isSuperCannon,
+} from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
@@ -374,17 +378,17 @@ function computeSignature(
   return parts.join("|");
 }
 
-/** Pick the debris variant that best matches a dead cannon. Mirrors the
- *  2D path's three-way switch (super / mortar / default): the live game
- *  state doesn't carry a cannon "tier", so every non-super non-mortar
- *  cannon lands on `tier_1_debris`. Rampart cannons have no dedicated
- *  3D variant yet (the 2D path draws a separate `rampart_debris` sprite)
- *  — they fall through to `tier_1_debris` until a rampart_debris variant
- *  is authored. */
+/** Pick the debris variant that best matches a dead cannon. Mirrors
+ *  the 2D path's switch (rampart / super / mortar / default). The live
+ *  game state doesn't carry a cannon "tier", so every regular cannon
+ *  lands on `tier_1_debris`. Rampart cannons use a dedicated variant
+ *  with a metallic-core palette + green emblem so the rubble reads as
+ *  a wrecked forge rather than a wrecked barrel. */
 function cannonDebrisVariantName(cannon: {
   mode: CannonMode;
   mortar?: boolean;
 }): string {
+  if (isRampartCannon(cannon)) return "rampart_debris";
   if (isSuperCannon(cannon)) return "super_gun_debris";
   if (cannon.mortar) return "mortar_debris";
   return "tier_1_debris";

@@ -153,6 +153,28 @@ const BARREL_LIGHT: MaterialSpec = {
   roughness: 0.4,
   metalness: 0.8,
 };
+// Rampart rubble materials — mirror the rampart-scene palette (metallic
+// core + corner pillars + top-light cap) so a destroyed rampart reads as
+// "forge parts scattered on the ground", distinct from regular cannon
+// rubble.
+const RAMPART_METAL_DARK: MaterialSpec = {
+  kind: "standard",
+  color: 0x52524e,
+  roughness: 0.5,
+  metalness: 0.8,
+};
+const RAMPART_METAL_MID: MaterialSpec = {
+  kind: "standard",
+  color: 0x91918d,
+  roughness: 0.45,
+  metalness: 0.85,
+};
+const RAMPART_METAL_LIGHT: MaterialSpec = {
+  kind: "standard",
+  color: 0xefefeb,
+  roughness: 0.4,
+  metalness: 0.85,
+};
 const WOOD_MID: MaterialSpec = {
   kind: "standard",
   color: 0x5a3820,
@@ -174,6 +196,17 @@ const CANNON_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
   [BARREL_LIGHT, 4],
   [WOOD_DARK, 2],
   [WOOD_MID, 2],
+  [BAND_GREEN, 1],
+];
+// Rampart rubble is pure metal + green accent — no wood, no barrel
+// parts. Weights bias toward the mid shade (core metal); dark and light
+// supply highlight/shadow contrast, and BAND_GREEN adds the emblem
+// accent that makes the pile read as a wrecked rampart rather than a
+// regular cannon.
+const RAMPART_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
+  [RAMPART_METAL_DARK, 3],
+  [RAMPART_METAL_MID, 5],
+  [RAMPART_METAL_LIGHT, 3],
   [BAND_GREEN, 1],
 ];
 const TOWER_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
@@ -426,6 +459,59 @@ export const VARIANTS: VariantDescriptor[] = [
           pos: [-0.2, 0.2, 0.3],
           rot: [Math.PI / 2 + 0.2, 0, 0.1],
           material: BARREL_LIGHT,
+        },
+      ],
+    },
+  },
+  {
+    name: "rampart_debris",
+    label: "rampart debris",
+    source: "rampart_cannon",
+    canvasPx: 64,
+    params: {
+      seed: 0xc1a6,
+      rocks: {
+        count: 44,
+        footprint: { width: 1.5, depth: 1.375 },
+        sizeRange: [0.1, 0.22],
+        maxHeight: 0.3125,
+        flatness: [0.4, 0.9],
+        materials: RAMPART_MATERIALS,
+      },
+      chunks: [
+        // Broken core block — the rampart's metal heart, tipped over.
+        {
+          shape: "box",
+          dims: { width: 0.5, height: 0.3, depth: 0.5 },
+          pos: [0.05, 0.15, -0.05],
+          rot: [0.12, 0.35, 0.08],
+          material: RAMPART_METAL_MID,
+        },
+        // Snapped corner pillar — short metal stub leaning.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.13,
+            radiusBottom: 0.13,
+            height: 0.35,
+            segments: 12,
+          },
+          pos: [-0.35, 0.18, 0.3],
+          rot: [Math.PI / 2 - 0.4, 0.15, 0.2],
+          material: RAMPART_METAL_DARK,
+        },
+        // Detached emblem band — green accent tilted on the pile.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.24,
+            radiusBottom: 0.24,
+            height: 0.07,
+            segments: 20,
+          },
+          pos: [0.3, 0.08, 0.3],
+          rot: [Math.PI / 2 + 0.2, 0.1, 0.25],
+          material: BAND_GREEN,
         },
       ],
     },
