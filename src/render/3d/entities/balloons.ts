@@ -86,7 +86,15 @@ type FlightOverlay = {
  *  same scale applies — the sprite extends Y-upward by construction. */
 const BALLOON_SCALE = TILE_SIZE;
 /** Apex lift for the flight arc, in world units. */
-const FLIGHT_ARC_MAX = 100;
+const FLIGHT_ARC_MAX = 200;
+/** XZ progress curve edges — the balloon stays near its launch point
+ *  for the first `XZ_HOLD_START` fraction of the flight (pure
+ *  vertical rise), travels horizontally during the middle, then
+ *  holds above the target for the last `1 - XZ_HOLD_END` fraction
+ *  (pure vertical descent). `smoothstep` between those edges gives a
+ *  gentle ease-in/ease-out. */
+const XZ_HOLD_START = 0.2;
+const XZ_HOLD_END = 0.8;
 /** Envelope "breathing" bob amplitude — ±2% of its authored radius,
  *  applied uniformly on the envelope group's scale so the load ring
  *  rides along with the sphere. */
@@ -178,14 +186,17 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
       const host = flightHosts[i]!;
       const overlay = flightOverlays[i];
       if (!overlay) continue;
-      // Linear XZ interpolation; sine-arc Y lift. Mirrors the 2D
-      // `drawBalloons` trajectory (linear in pixel X/Y with a sine
-      // arc subtracted from Y). The 2D path subtracts the arc from Y
-      // (screen-down) because its Y axis grows downward; in 3D the
-      // arc is a positive world-Y lift.
+      // Real-balloon trajectory: vertical rise first, then cross, then
+      // vertical descent. Y uses a sine arc (symmetric rise/fall with
+      // apex at progress=0.5); XZ uses smoothstep delayed to progress
+      // ∈ [XZ_HOLD_START, XZ_HOLD_END] so the first and last ~20% of
+      // the flight reads as pure vertical motion. Deliberately diverges
+      // from the 2D `drawBalloons` path, which ran linear XZ; the new
+      // curve only affects the 3D visual.
       const progress = overlay.progress;
-      const worldX = overlay.x + (overlay.targetX - overlay.x) * progress;
-      const worldZ = overlay.y + (overlay.targetY - overlay.y) * progress;
+      const xzProgress = smoothstep(XZ_HOLD_START, XZ_HOLD_END, progress);
+      const worldX = overlay.x + (overlay.targetX - overlay.x) * xzProgress;
+      const worldZ = overlay.y + (overlay.targetY - overlay.y) * xzProgress;
       const lift = Math.sin(progress * Math.PI) * FLIGHT_ARC_MAX;
       host.position.set(worldX, lift, worldZ);
       // C2 polish — envelope breathes, basket rocks, gores drift. All
@@ -228,6 +239,14 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
   }
 
   return { update, dispose };
+}
+
+/** Smoothstep: clamped-and-eased remap of `t` from [edge0, edge1] to
+ *  [0, 1] using the canonical `3t² − 2t³` Hermite curve. Returns 0
+ *  below `edge0`, 1 above `edge1`, ease-in/ease-out between. */
+function smoothstep(edge0: number, edge1: number, t: number): number {
+  const x = Math.max(0, Math.min(1, (t - edge0) / (edge1 - edge0)));
+  return x * x * (3 - 2 * x);
 }
 
 /** Collect every live balloon cannon across every castle. Dead
