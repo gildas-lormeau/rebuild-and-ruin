@@ -309,8 +309,13 @@ function buildTowerRoof(three: typeof THREE): THREE.CanvasTexture | undefined {
   });
 }
 
-/** Clay tile rows — staggered 8×4 tiles. Base is white-ish so the house
- *  material's ROOF_RED color multiplies through as the visible tint. */
+/** Clay tile rows — staggered 8×4 tiles, Nintendo-style cel-shaded so
+ *  each tile reads as a rounded ceramic pipe. Per-tile: body at base
+ *  tone, a 1-pixel bright highlight along the TOP (fakes the curved
+ *  pipe's sunlit lip), a 1-pixel mid-dark shadow at the BOTTOM where
+ *  the next course overlaps, and per-tile hue jitter so the roof
+ *  doesn't read as perfectly uniform. Base stays light so the house
+ *  material's ROOF_RED multiplier still dominates the final color. */
 function buildHouseRoofTile(
   three: typeof THREE,
 ): THREE.CanvasTexture | undefined {
@@ -322,12 +327,22 @@ function buildHouseRoofTile(
       const offset = (row % 2) * (tileW / 2);
       for (let col = -1; col * tileW + offset < size; col++) {
         const x = col * tileW + offset;
-        const base = 220 + Math.floor((rand() - 0.5) * 40);
+        const base = 210 + Math.floor((rand() - 0.5) * 30);
+        const lit = Math.min(255, base + 35);
+        const shadow = Math.max(0, base - 45);
+        // Body.
         ctx.fillStyle = `rgb(${base},${base},${base})`;
         ctx.fillRect(x, y, tileW, courseH);
+        // Top-lip highlight — the curved-ceramic sunlit edge.
+        ctx.fillStyle = `rgb(${lit},${lit},${lit})`;
+        ctx.fillRect(x, y, tileW, 1);
+        // Bottom-overlap shadow — where the next course sits on top.
+        ctx.fillStyle = `rgb(${shadow},${shadow},${shadow})`;
+        ctx.fillRect(x, y + courseH - 2, tileW, 1);
       }
     }
-    ctx.fillStyle = "rgb(110,80,70)";
+    // Dark mortar between courses + between tiles.
+    ctx.fillStyle = "rgb(70,45,32)";
     for (let y = courseH - 1; y < size; y += courseH)
       ctx.fillRect(0, y, size, 1);
     for (let row = 0; row * courseH < size; row++) {
