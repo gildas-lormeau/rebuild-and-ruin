@@ -167,6 +167,14 @@ export interface Render3dContext {
    *  circles on the ground plane outside of battle; pulse matches the
    *  2D `drawBonusSquares` alpha timeline. */
   readonly bonusSquares: BonusSquaresManager;
+  /** Off-screen framebuffer the scene is rendered into on each frame.
+   *  Readable via `renderer.readRenderTargetPixels` whenever the banner
+   *  system wants a snapshot (outside the rAF tick). Replaces the old
+   *  `preserveDrawingBuffer: true` workaround — without a render target,
+   *  the default framebuffer's contents are undefined after the frame's
+   *  swap, so drawImage(worldCanvas) outside rAF sampled a cleared or
+   *  stale buffer. */
+  readonly captureTarget: THREE.WebGLRenderTarget;
 }
 
 /** Build the scene graph used by `createRender3d`. */
@@ -212,21 +220,31 @@ export function createRender3dScene(
     canvas,
     alpha: true,
     antialias: true,
-    // `preserveDrawingBuffer` keeps the WebGL framebuffer readable between
-    // the end of a frame and the next draw. The banner prev-scene snapshot
-    // (`captureScene` in renderer.ts) runs during a phase-mutate callback
-    // outside the rAF tick, so without preservation `drawImage(worldCanvas)`
-    // would sample a cleared buffer. Minor perf cost, but this only matters
-    // once per phase transition.
-    preserveDrawingBuffer: true,
   });
   renderer.setClearColor(0x000000, 0);
   renderer.autoClear = false;
+
+  // FBO that mirrors the on-screen render each frame. Capture reads
+  // back from here via `renderer.readRenderTargetPixels` — works
+  // outside the rAF tick (unlike `drawImage(worldCanvas)`, which
+  // requires `preserveDrawingBuffer: true` to keep the default
+  // framebuffer readable after swap). Sized to the same backing-store
+  // resolution as the canvas so pixels line up 1:1.
+  const captureTarget = new THREE.WebGLRenderTarget(
+    canvas.width,
+    canvas.height,
+    {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      generateMipmaps: false,
+    },
+  );
 
   return {
     scene,
     camera,
     renderer,
+    captureTarget,
     terrain,
     walls,
     towers,

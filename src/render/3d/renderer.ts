@@ -57,6 +57,13 @@ export function createRender3d(
   let captureCompositeCtx: CanvasRenderingContext2D | undefined;
   let captureBridgeCanvas: HTMLCanvasElement | undefined;
   let captureBridgeCtx: CanvasRenderingContext2D | undefined;
+  // Scratch canvas used to stage FBO pixels before stretching into the
+  // composite. Sized to the world canvas backing-store (MAP_PX_W ×
+  // MAP_PX_H). Kept separate from `captureBridgeCanvas` (which sizes
+  // to the 2D ImageData) because the two scales differ.
+  let captureFboCanvas: HTMLCanvasElement | undefined;
+  let captureFboCtx: CanvasRenderingContext2D | undefined;
+  let captureFboPixels: Uint8ClampedArray | undefined;
 
   // Loupe source canvas — a WebGL+2D composite. The loupe samples this
   // each frame to magnify "what the user sees", which in 3D mode is the
@@ -176,7 +183,6 @@ export function createRender3d(
       ctx.sinkholeOverlay.update(frame);
       ctx.bonusSquares.update(frame);
       ctx.waterWaves.update(frame);
-      ctx.renderer.clear();
       // Camera: ortho view driven by the runtime viewport, tilted by
       // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
       // toward a phase-specific target so battle renders with a
@@ -185,6 +191,19 @@ export function createRender3d(
       // are unaffected by tilt.
       updateCameraFromViewport(ctx.camera, viewport, pitch);
       lastViewport = viewport ?? undefined;
+      // Render twice: once into the capture FBO (readable outside the
+      // rAF tick by `captureScene`), once to the default framebuffer
+      // for display. Cheaper than rebuilding the scene state at capture
+      // time and doesn't require `preserveDrawingBuffer: true` (which
+      // keeps the on-screen backbuffer alive between swaps at a per-
+      // frame perf cost). The scene is small enough that doubling the
+      // render pass is a measurable wash against the preserved-buffer
+      // overhead on mid-range GPUs.
+      ctx.renderer.setRenderTarget(ctx.captureTarget);
+      ctx.renderer.clear();
+      ctx.renderer.render(ctx.scene, ctx.camera);
+      ctx.renderer.setRenderTarget(null);
+      ctx.renderer.clear();
       ctx.renderer.render(ctx.scene, ctx.camera);
       canvas2d.drawFrame(map, overlay, viewport, now);
     },
@@ -194,8 +213,8 @@ export function createRender3d(
     // projection is correct as-is.
     clientToSurface: canvas2d.clientToSurface,
     screenToContainerCSS: canvas2d.screenToContainerCSS,
-    // Banner prev-scene snapshot in 3D mode: composite the WebGL world
-    // canvas (already viewport-cropped + tilted from the last `drawFrame`)
+    // Banner prev-scene snapshot in 3D mode: composite the WebGL render
+    // target (already viewport-cropped + tilted from the last `drawFrame`)
     // with the 2D display canvas (castles, UI, anything not yet migrated)
     // at display resolution. The snapshot therefore reflects exactly what
     // was on screen at capture time — no camera reset, no re-render.
@@ -221,11 +240,55 @@ export function createRender3d(
         captureCompositeCtx.imageSmoothingEnabled = false;
       }
       captureCompositeCtx.clearRect(0, 0, targetW, targetH);
-      // 1. Paint the WebGL world canvas stretched to the display size.
-      //    `worldCanvas` already holds the viewport-cropped, tilted view
-      //    from the last `drawFrame`; `preserveDrawingBuffer: true` in
-      //    scene.ts keeps those pixels readable outside the rAF tick.
-      captureCompositeCtx.drawImage(worldCanvas, 0, 0, targetW, targetH);
+      // 1. Stage the FBO pixels in an intermediate canvas, then stretch
+      //    into the composite. `readRenderTargetPixels` returns RGBA in
+      //    WebGL Y-up order; the canvas 2D context is Y-down, so a
+      //    `scale(1, -1)` transform on `drawImage` flips vertically. The
+      //    FBO is live after every `drawFrame`, so this path works
+      //    outside the rAF tick (no `preserveDrawingBuffer`).
+      const fboW = worldCanvas.width;
+      const fboH = worldCanvas.height;
+      const pixelCount = fboW * fboH * 4;
+      if (!captureFboPixels || captureFboPixels.length !== pixelCount) {
+        captureFboPixels = new Uint8ClampedArray(pixelCount);
+      }
+      ctx.renderer.readRenderTargetPixels(
+        ctx.captureTarget,
+        0,
+        0,
+        fboW,
+        fboH,
+        captureFboPixels,
+      );
+      if (!captureFboCanvas || !captureFboCtx) {
+        captureFboCanvas = document.createElement("canvas");
+        captureFboCtx = captureFboCanvas.getContext("2d", {
+          willReadFrequently: true,
+        })!;
+      }
+      if (captureFboCanvas.width !== fboW || captureFboCanvas.height !== fboH) {
+        captureFboCanvas.width = fboW;
+        captureFboCanvas.height = fboH;
+        captureFboCtx.imageSmoothingEnabled = false;
+      }
+      const fboImageData = captureFboCtx.createImageData(fboW, fboH);
+      fboImageData.data.set(captureFboPixels);
+      captureFboCtx.putImageData(fboImageData, 0, 0);
+      captureCompositeCtx.save();
+      captureCompositeCtx.translate(0, targetH);
+      captureCompositeCtx.scale(1, -1);
+      captureCompositeCtx.drawImage(
+        captureFboCanvas,
+        0,
+        0,
+        fboW,
+        fboH,
+        0,
+        0,
+        targetW,
+        targetH,
+      );
+      captureCompositeCtx.restore();
       // 2. Paint the 2D display canvas on top. The 2D path returns a
       //    CANVAS_W × CANVAS_H ImageData of the display's game region —
       //    putImageData ignores context transforms, so bridge through an
