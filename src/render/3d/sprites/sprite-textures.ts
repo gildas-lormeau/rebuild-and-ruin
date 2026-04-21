@@ -124,15 +124,21 @@ function buildWallStone(three: typeof THREE): THREE.CanvasTexture | undefined {
 }
 
 /** Flagstone paving for the wall-walk (allure): 4×4 grid of
- *  roughly-square pavers with thick mortar joints. Darker than the
- *  sides so the walk reads as a distinct layer. */
+ *  roughly-square pavers with thick mortar joints. Each paver picks
+ *  one of two base tones — near-white or light-grey — so the walk
+ *  reads as a two-variant checker without the washed mid-gray look. */
 function buildWallTop(three: typeof THREE): THREE.CanvasTexture | undefined {
   return createTiledCanvasTexture(three, 64, ({ ctx, size, rand }) => {
     const cells = 4;
     const cellSize = size / cells;
+    const WHITE_TONE = 240;
+    const GREY_TONE = 190;
+    const TONE_JITTER = 15;
     for (let r = 0; r < cells; r++) {
       for (let col = 0; col < cells; col++) {
-        const base = 85 + Math.floor((rand() - 0.5) * 60);
+        const pickWhite = rand() < 0.5;
+        const baseTone = pickWhite ? WHITE_TONE : GREY_TONE;
+        const base = baseTone + Math.floor((rand() - 0.5) * TONE_JITTER);
         ctx.fillStyle = `rgb(${base},${base},${base - 3})`;
         ctx.fillRect(col * cellSize, r * cellSize, cellSize, cellSize);
         const chips = 4 + Math.floor(rand() * 4);
@@ -148,7 +154,7 @@ function buildWallTop(three: typeof THREE): THREE.CanvasTexture | undefined {
         }
       }
     }
-    ctx.fillStyle = "rgb(60,57,52)";
+    ctx.fillStyle = "rgb(165,165,165)";
     for (let x = 0; x < size; x += cellSize) ctx.fillRect(x, 0, 2, size);
     for (let y = 0; y < size; y += cellSize) ctx.fillRect(0, y, size, 2);
   });

@@ -66,12 +66,15 @@ export const FLAG_RED: MaterialSpec = {
   metalness: 0.0,
   side: "double",
 };
-// Dark, matte plane painted under merlons on the walkway / roof deck
-// to fake the contact shadow where a merlon meets the stone below.
-// Used by both wall-scene (walkway) and tower-scene (turret roof deck).
+// Mid-grey matte plane painted under merlons on the walkway / roof
+// deck to fake the contact shadow where a merlon meets the stone
+// below. Used by both wall-scene (walkway) and tower-scene (turret
+// roof deck). Kept noticeably darker than the walkway's white / light-
+// grey paver tones (~240 / 190) so it still reads as a shadow, but
+// light enough to blend rather than paint a harsh black square.
 export const MERLON_AO: MaterialSpec = {
   kind: "standard",
-  color: 0x282828,
+  color: 0x7a7a7a,
   roughness: 1.0,
   metalness: 0.0,
 };
