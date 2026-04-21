@@ -136,10 +136,12 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     // Status bar (rendered inside canvas). Hidden in 3D mode today
     // because drawStatusBar paints BELOW the game area — that would
     // asymmetrically grow only the 2D canvas, breaking letterbox
-    // alignment with the symmetric WebGL canvas. The 3D equivalent
-    // (reserveTopStrip, below) reserves a strip ABOVE the game area
-    // and grows BOTH canvases, so they stay aspect-matched; a future
-    // status bar would render into that top strip instead.
+    // alignment with the symmetric WebGL canvas. The 3D equivalent is
+    // the top strip reserved at construction time by the 3D renderer
+    // (see `createCanvasRenderer({ reserveTopStrip: true })` in
+    // `src/render/3d/renderer.ts`) — ABOVE the game area, grows BOTH
+    // canvases symmetrically, applies to every overlay (lobby,
+    // options, controls, game) without per-frame plumbing.
     if (runtimeState.overlay.ui) {
       const is3d = runtimeState.settings.rendererKind === "3d";
       runtimeState.overlay.ui.statusBar = is3d
@@ -150,13 +152,6 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
             runtimeState.frameMeta.povPlayerId,
             runtimeState.frameMeta.hasPointerPlayer,
           );
-      // Always reserve the top strip in 3D. Even phases that don't
-      // currently paint a status bar need the headroom so tilted walls
-      // at row 0 have a tile of margin at the top of the canvas. Also
-      // means banner transitions render into a consistent frame rect
-      // across every phase — no sudden shift when entering/leaving
-      // battle.
-      runtimeState.overlay.ui.reserveTopStrip = is3d;
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

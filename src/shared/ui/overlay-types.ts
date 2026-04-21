@@ -215,15 +215,6 @@ export interface UIOverlay {
   /** Master Builder lockout countdown (seconds remaining) shown center-screen.
    *  Set when the POV player is locked out; undefined/0 when inactive. */
   masterBuilderLockout?: number;
-  /** Reserve a TOP_MARGIN_CANVAS_PX strip at the top of the display canvas.
-   *  Set by the runtime in 3D mode (unconditional — even phases that
-   *  don't render a status bar need the headroom so tall wall meshes
-   *  under battle tilt have a tile's worth of margin above row 0 and
-   *  don't clip). The 2D renderer consumes the flag to grow its canvas
-   *  and translate game-area drawing down by the strip height; the 3D
-   *  renderer consumes it to grow `worldCanvas` + offset the WebGL
-   *  viewport. When unset, drawing is unchanged (2D baseline). */
-  reserveTopStrip?: boolean;
   banner?: {
     text: string;
     subtitle?: string;

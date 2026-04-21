@@ -152,6 +152,15 @@ export interface RenderMapDeps {
   /** Test observer — receives every `terrainDrawn` intent. Production
    *  callers omit it. */
   observer?: RenderObserver;
+  /** Reserve a TOP_MARGIN_CANVAS_PX strip at the top of the display
+   *  canvas and translate game-area drawing down by the strip height.
+   *  Construction-level flag (not per-frame) so the canvas size stays
+   *  stable across every overlay (game, lobby, options, controls) —
+   *  otherwise aspect mismatches with the 3D worldCanvas's top strip
+   *  would letterbox the two canvases differently. Set by the 3D
+   *  renderer when it creates its 2D UI canvas; unset in pure 2D mode.
+   *  May later host the status-bar HUD (removed from 3D). */
+  reserveTopStrip?: boolean;
 }
 
 /** Per-renderer instance returned by `createRenderMap`. Holds the closure
@@ -314,11 +323,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       }
     | undefined;
   /** Pixel offset from the top of the display canvas to the top of the
-   *  game area. Equal to `TOP_MARGIN_CANVAS_PX` in 3D mode (via the
-   *  `reserveTopStrip` overlay flag); 0 otherwise. Updated each frame
-   *  by `drawMap`; read by `captureScene` so banner snapshots cover
-   *  the game area only, not the reserved strip above it. */
-  let topStripH = 0;
+   *  game area. Equal to `TOP_MARGIN_CANVAS_PX` when the renderer was
+   *  constructed with `deps.reserveTopStrip = true` (3D mode); 0
+   *  otherwise. Constant across frames — derived once from the
+   *  construction-time flag and referenced by `captureScene` so banner
+   *  snapshots cover the game area only, not the reserved strip. */
+  const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
   /** Tracks which ImageData has been painted onto the banner temp canvas.
    *  When the reference changes (new banner / chained banner), the new
    *  ImageData is painted. */
@@ -692,8 +702,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // all existing map-coord draw code keeps working without per-call
     // offsets. The 2D status bar (when present) still paints at the
     // bottom — it's an independent strip; never both at once today.
-    const TOP_STRIP_H = overlay?.ui?.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
-    topStripH = TOP_STRIP_H;
+    const TOP_STRIP_H = topStripH;
     const cw = CANVAS_W;
     const gameH = CANVAS_H;
     const ch = TOP_STRIP_H + gameH + STATUS_BAR_H;

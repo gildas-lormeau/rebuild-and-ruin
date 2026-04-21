@@ -33,7 +33,13 @@ export function createRender3d(
   uiCanvas: HTMLCanvasElement,
 ): RendererInterface {
   // Delegate 2D work (including UI) to the existing canvas renderer.
-  const canvas2d = createCanvasRenderer(uiCanvas);
+  // `reserveTopStrip` is a construction-time flag: the 2D canvas is
+  // sized with the extra strip for EVERY overlay (game, lobby, options,
+  // controls) so its aspect ratio always matches the 3D worldCanvas
+  // (which grew unconditionally below). Per-frame flipping would
+  // cause mid-overlay aspect jumps — e.g. lobby would letterbox
+  // differently than gameplay, shifting everything.
+  const canvas2d = createCanvasRenderer(uiCanvas, { reserveTopStrip: true });
 
   // Match the world canvas's internal resolution to the 2D canvas so the
   // two stack 1:1 under CSS `object-fit: contain`. The extra
