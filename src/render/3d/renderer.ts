@@ -17,17 +17,12 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   OFFSCREEN_SCALE,
-  TILE_SIZE,
   TOP_MARGIN_CANVAS_PX,
   TOP_MARGIN_MAP_PX,
 } from "../../shared/core/grid.ts";
 import type { RendererInterface } from "../../shared/ui/overlay-types.ts";
 import { createCanvasRenderer } from "../render-canvas.ts";
-import {
-  createLoupe,
-  LOUPE_SOURCE_TILES_H,
-  LOUPE_SOURCE_TILES_W,
-} from "../render-loupe.ts";
+import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
 import { createRender3dScene, type Render3dContext } from "./scene.ts";
@@ -70,22 +65,6 @@ export function createRender3d(
   let captureCompositeCtx: CanvasRenderingContext2D | undefined;
   let captureBridgeCanvas: HTMLCanvasElement | undefined;
   let captureBridgeCtx: CanvasRenderingContext2D | undefined;
-
-  // Loupe pointer state — stashed by the wrapped `LoupeHandle.update`
-  // (see `createLoupe` below) every frame the touch UI runs. When the
-  // loupe is hidden the pre-pass is skipped entirely. When it's
-  // visible, the pre-pass scissors to a window around `loupeFocus`
-  // instead of rendering the whole map top-down — vertex work is the
-  // same, but fragment cost drops to the scissored area (roughly a
-  // LOUPE window + margin = ~10 × ~12 tiles out of the whole map).
-  let loupeVisible = false;
-  let loupeFocusWx = 0;
-  let loupeFocusWy = 0;
-  // Margin (in tiles) around the LOUPE window so small pointer
-  // movements between frames stay inside the scissored area — the
-  // `update` callback runs AFTER `drawFrame`, so scissor bounds in
-  // frame N+1 are positioned against frame N's pointer.
-  const LOUPE_SCISSOR_MARGIN_TILES = 3;
 
   // Loupe TOP-DOWN source — a dedicated 2D canvas that holds the full
   // map rendered at pitch=0, regardless of what the main view is doing.
@@ -222,77 +201,48 @@ export function createRender3d(
       ctx.bonusSquares.update(frame);
       ctx.waterWaves.update(frame);
       // Loupe top-down pre-pass. Rendered BEFORE the main tilted pass
-      // so we can snapshot a pitch=0 frame into `loupeTopDownCanvas`
-      // via a 2D drawImage before the main render overwrites the WebGL
-      // backbuffer. Both renders happen inside the same rAF callback,
-      // so the browser composites only the final (tilted) frame — the
-      // pre-pass is invisible to the user.
+      // so we can snapshot the pitch=0 full-map frame into
+      // `loupeTopDownCanvas` via a 2D drawImage before the main render
+      // overwrites the WebGL backbuffer. Both renders happen inside
+      // the same rAF callback, so the browser composites only the
+      // final (tilted) frame to the display — the top-down pre-pass
+      // is invisible to the user.
       //
-      // Perf: skip entirely when the loupe is hidden. When visible,
-      // scissor the pass to just the LOUPE source window + a small
-      // margin around the pointer so fragment cost stays tiny. Vertex
-      // cost is unchanged (we still process the whole scene graph),
-      // but that's cheap relative to fragment shading on mobile GPUs.
-      // The drawImage copy is likewise restricted to the scissored
-      // area so the rest of `loupeTopDownCanvas` keeps its previous
-      // frame's pixels (outside the loupe window anyway — never sampled).
-      if (loupeVisible) {
-        const loupeTopDown = ensureLoupeTopDownCanvas();
-        const windowWpx =
-          (LOUPE_SOURCE_TILES_W + 2 * LOUPE_SCISSOR_MARGIN_TILES) * TILE_SIZE;
-        const windowHpx =
-          (LOUPE_SOURCE_TILES_H + 2 * LOUPE_SCISSOR_MARGIN_TILES) * TILE_SIZE;
-        // World-space scissor (top-down): centered on the pointer,
-        // clamped to map bounds.
-        const wx0 = Math.max(
-          0,
-          Math.min(MAP_PX_W - windowWpx, loupeFocusWx - windowWpx / 2),
-        );
-        const wy0 = Math.max(
-          0,
-          Math.min(MAP_PX_H - windowHpx, loupeFocusWy - windowHpx / 2),
-        );
-        // WebGL viewport origin is bottom-left. Scene renders into
-        // the bottom MAP_PX_H rows of the canvas (top TOP_MARGIN_MAP_PX
-        // is the reserved strip). In WebGL y coords: gl_y = MAP_PX_H - wy0 - windowH.
-        const glScissorX = Math.floor(wx0);
-        const glScissorY = Math.floor(MAP_PX_H - wy0 - windowHpx);
-        const glScissorW = Math.ceil(windowWpx);
-        const glScissorH = Math.ceil(windowHpx);
-        updateCameraFromViewport(ctx.camera, undefined, 0);
-        ctx.renderer.setRenderTarget(null);
-        ctx.renderer.setViewport(0, 0, MAP_PX_W, MAP_PX_H);
-        ctx.renderer.setScissor(glScissorX, glScissorY, glScissorW, glScissorH);
-        ctx.renderer.setScissorTest(true);
-        ctx.renderer.clear();
-        ctx.renderer.render(ctx.scene, ctx.camera);
-        ctx.renderer.setScissorTest(false);
-        ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
-        // Copy only the scissored region from the world canvas to the
-        // loupe source canvas. Source rect is in CANVAS pixels (top
-        // strip + world coords); dest rect is in OFFSCREEN_SCALE'd
-        // loupe-canvas pixels.
-        const srcX = Math.floor(wx0);
-        const srcY = Math.floor(TOP_MARGIN_MAP_PX + wy0);
-        const srcW = Math.ceil(windowWpx);
-        const srcH = Math.ceil(windowHpx);
-        const destX = Math.floor(wx0 * OFFSCREEN_SCALE);
-        const destY = Math.floor(wy0 * OFFSCREEN_SCALE);
-        const destW = Math.ceil(windowWpx * OFFSCREEN_SCALE);
-        const destH = Math.ceil(windowHpx * OFFSCREEN_SCALE);
-        loupeTopDown.context.clearRect(destX, destY, destW, destH);
-        loupeTopDown.context.drawImage(
-          worldCanvas,
-          srcX,
-          srcY,
-          srcW,
-          srcH,
-          destX,
-          destY,
-          destW,
-          destH,
-        );
-      }
+      // Cost: one extra scene render per frame. Cheap readback-free
+      // pixel copy (drawImage from WebGL canvas → 2D canvas) instead
+      // of `readRenderTargetPixels`, which would stall the GPU
+      // pipeline.
+      const loupeTopDown = ensureLoupeTopDownCanvas();
+      updateCameraFromViewport(ctx.camera, undefined, 0);
+      ctx.renderer.setRenderTarget(null);
+      ctx.renderer.setViewport(0, 0, MAP_PX_W, MAP_PX_H);
+      ctx.renderer.setScissor(0, 0, MAP_PX_W, MAP_PX_H);
+      ctx.renderer.setScissorTest(true);
+      ctx.renderer.clear();
+      ctx.renderer.render(ctx.scene, ctx.camera);
+      ctx.renderer.setScissorTest(false);
+      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
+      // Copy the WebGL-rendered top-down frame into the 2D loupe
+      // source canvas. Crop the reserved top strip off the world
+      // canvas (the scene occupies the bottom MAP_PX_H rows) so (0,0)
+      // of `loupeTopDownCanvas` maps to world (0,0).
+      loupeTopDown.context.clearRect(
+        0,
+        0,
+        loupeTopDown.canvas.width,
+        loupeTopDown.canvas.height,
+      );
+      loupeTopDown.context.drawImage(
+        worldCanvas,
+        0,
+        TOP_MARGIN_MAP_PX,
+        MAP_PX_W,
+        MAP_PX_H,
+        0,
+        0,
+        loupeTopDown.canvas.width,
+        loupeTopDown.canvas.height,
+      );
 
       // Main tilted render — camera + pitch come from the runtime
       // viewport. The 2D overlay stays straight-down (UI layers only).
@@ -441,29 +391,12 @@ export function createRender3d(
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,
     // Loupe samples the top-down composite (see `loupeCompositeSource` +
-    // `loupeTopDownCanvas` comments). The source is always pitch=0, so
-    // world→scene is the plain identity — same as 2D mode. The wrapping
-    // around `handle.update` stashes pointer state the next `drawFrame`
-    // uses to scissor its top-down pre-pass, and to skip it entirely
-    // when the loupe is hidden.
-    createLoupe: (container) => {
-      const handle = createLoupe(
-        container,
-        loupeCompositeSource,
-        (worldX, worldY) => ({
-          x: worldX * OFFSCREEN_SCALE,
-          y: worldY * OFFSCREEN_SCALE,
-        }),
-      );
-      const innerUpdate = handle.update;
-      return {
-        update: (visible, worldX, worldY) => {
-          loupeVisible = visible;
-          loupeFocusWx = worldX;
-          loupeFocusWy = worldY;
-          innerUpdate(visible, worldX, worldY);
-        },
-      };
-    },
+    // `loupeTopDownCanvas` comments). The source is always full-map
+    // pitch=0, so world→scene is the plain identity — same as 2D mode.
+    createLoupe: (container) =>
+      createLoupe(container, loupeCompositeSource, (worldX, worldY) => ({
+        x: worldX * OFFSCREEN_SCALE,
+        y: worldY * OFFSCREEN_SCALE,
+      })),
   };
 }
