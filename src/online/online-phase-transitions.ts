@@ -10,6 +10,7 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
+import { resolveAfterLifeLost } from "../runtime/runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
   ROLE_WATCHER,
@@ -237,9 +238,26 @@ function buildWatcherPhaseCtx(
           eliminated,
           deps.session.earlyLifeLostChoices,
         ),
-      // Watcher doesn't drive its own continue-vs-game-over — the host's
-      // next phase message is authoritative. No-op resolve.
-      resolve: () => {},
+      // The watcher normally waits for the host's next checkpoint
+      // (CANNON_START / the next life-lost outcome), so continue and
+      // reselect stay no-op — the incoming checkpoint is
+      // authoritative. But game-over is terminal: once the watcher
+      // observes round-limit or last-player-standing locally, no
+      // further checkpoint arrives, and `runTransition` parked the
+      // watcher in BANNER at the top of wall-build-done. Without a
+      // local setModeStopped the watcher sits in BANNER forever (the
+      // terminal life-lost-dialog step never calls its onDone, and the
+      // host has stopped ticking). Mirror the host's resolveAfterLifeLost
+      // check for the game-over case only.
+      resolve: () => {
+        resolveAfterLifeLost({
+          state: runtimeState.state,
+          continuing: [],
+          onGameOver: () => setMode(runtimeState, Mode.STOPPED),
+          onReselect: () => {},
+          onContinue: () => {},
+        });
+      },
     },
     notifyLifeLost: (pid) => {
       if (pid === myPlayerId) runtimeState.controllers[pid]?.onLifeLost();
