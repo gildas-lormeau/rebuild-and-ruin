@@ -27,6 +27,7 @@ import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { isWater } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK } from "../elevation.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface WaterWavesManager {
@@ -51,14 +52,10 @@ const WAVE_PHASE_OFFSET = 2.1;
 // Highlight / shadow colors (same channels as 2D); alpha is driven per-pixel.
 const WAVE_HIGHLIGHT_RGB = "140, 200, 255";
 const WAVE_SHADOW_RGB = "20, 60, 120";
-// Lift above the terrain quad (at Y=0). Small enough to stay below
-// any wall / entity mesh but large enough to win the depth test on the
-// ground plane.
-const WAVE_Y_LIFT = 0.1;
 
 export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
   const layer = createMapLayerCanvas(scene, {
-    yLift: WAVE_Y_LIFT,
+    yLift: ELEVATION_STACK.WATER_WAVES,
     transparent: true,
   });
   const { canvas, ctx, texture, mesh } = layer;

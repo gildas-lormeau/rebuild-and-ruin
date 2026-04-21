@@ -22,7 +22,12 @@
 import * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
-import { aimElevationAt } from "../elevation.ts";
+import {
+  aimElevationAt,
+  ELEVATION_STACK,
+  RENDER_ORDER,
+  Z_FIGHT_MARGIN,
+} from "../elevation.ts";
 
 export interface CrosshairsManager {
   /** Per-frame update. Materials + positions/scales always rewrite;
@@ -76,14 +81,6 @@ const BLACK = 0x000000;
 // 2D uses lineWidth 5 for the shadow and lineWidth 2 for the arm.
 const ARM_THICKNESS = 2;
 const SHADOW_THICKNESS = 5;
-// Arm lifted slightly above terrain + above impact discs so it reads as
-// the topmost effect, matching the 2D layer order (crosshairs > impacts).
-const CROSSHAIR_Y_LIFT = 0.8;
-/** Crosshair draws after everything else and with depth-test off so it
- *  never collides with cannons / towers / houses whose authored height
- *  exceeds our elevation lookup's tuned tops. Matches the phantoms'
- *  always-on-top treatment. */
-const CROSSHAIR_RENDER_ORDER = 900;
 
 export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
   const root = new THREE.Group();
@@ -105,7 +102,7 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       depthTest: false,
     });
     const shadowMesh = new THREE.Mesh(geometry, shadowMaterial);
-    shadowMesh.renderOrder = CROSSHAIR_RENDER_ORDER;
+    shadowMesh.renderOrder = RENDER_ORDER.EFFECT;
     const material = new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -114,7 +111,7 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       depthTest: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.renderOrder = CROSSHAIR_RENDER_ORDER + 1;
+    mesh.renderOrder = RENDER_ORDER.EFFECT + 1;
     return { mesh, material, shadowMesh, shadowMaterial };
   }
 
@@ -183,12 +180,20 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
     // PlaneGeometry(1,1) rotated into XZ lies along X by default; rotate
     // around Y so local X aligns with the from→to direction.
     const angle = Math.atan2(deltaZ, deltaX);
-    arm.mesh.position.set(centerX, baseY + CROSSHAIR_Y_LIFT + 0.1, centerZ);
+    arm.mesh.position.set(
+      centerX,
+      baseY + ELEVATION_STACK.CROSSHAIRS + Z_FIGHT_MARGIN,
+      centerZ,
+    );
     arm.mesh.rotation.y = -angle;
     arm.mesh.scale.set(length, 1, ARM_THICKNESS);
     arm.material.opacity = alpha;
     arm.mesh.visible = alpha > 0.001;
-    arm.shadowMesh.position.set(centerX, baseY + CROSSHAIR_Y_LIFT, centerZ);
+    arm.shadowMesh.position.set(
+      centerX,
+      baseY + ELEVATION_STACK.CROSSHAIRS,
+      centerZ,
+    );
     arm.shadowMesh.rotation.y = -angle;
     arm.shadowMesh.scale.set(length, 1, SHADOW_THICKNESS);
     arm.shadowMaterial.opacity = alpha * 0.8;

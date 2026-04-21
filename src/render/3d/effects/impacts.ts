@@ -26,6 +26,7 @@ import type { Impact } from "../../../shared/core/battle-types.ts";
 import { IMPACT_FLASH_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK } from "../elevation.ts";
 
 export interface ImpactsManager {
   /** Per-frame update. Cheap early-out when the impact set (positions)
@@ -76,7 +77,6 @@ const SEED_COL = 17;
 // Small lift keeps the effect above the terrain plane so z-fighting with
 // the ground mesh doesn't produce shimmer. Half a pixel is enough given
 // pixel-snap ortho camera.
-const EFFECT_Y_LIFT = 0.5;
 // Colors
 const CORE_COLOR = 0xffe0a0;
 const RING_COLOR = 0xffcc44;
@@ -112,7 +112,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
     const group = new THREE.Group();
     const centerX = impact.col * TILE_SIZE + TILE_SIZE / 2;
     const centerZ = impact.row * TILE_SIZE + TILE_SIZE / 2;
-    group.position.set(centerX, EFFECT_Y_LIFT, centerZ);
+    group.position.set(centerX, ELEVATION_STACK.IMPACTS, centerZ);
 
     const coreMaterial = new THREE.MeshBasicMaterial({
       color: CORE_COLOR,
@@ -257,7 +257,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
         smokeT * TILE_SIZE * SMOKE_EXPAND_RATIO;
       host.smokeMaterial.opacity = (1 - smokeT) * 0.35;
       // The 2D version offsets the puff upward in screen Y (cy - rise). On
-      // the ground plane we keep the disc at Y=EFFECT_Y_LIFT but shift it
+      // the ground plane we keep the disc at Y=ELEVATION_STACK.IMPACTS but shift it
       // toward the camera (-Z) so it reads as "rising" from the top-down.
       host.smoke.position.set(0, 0, -smokeT * SMOKE_RISE_PX);
       host.smoke.scale.set(smokeR, 1, smokeR);

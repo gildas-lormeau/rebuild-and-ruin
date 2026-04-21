@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { DIRS_8, packTile, unpackTile } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 
 export interface FogManager {
   /** Per-frame update. Rebuilds the fog tile set only when castles'
@@ -51,11 +52,6 @@ const FOG_DRIFT_HZ = 0.6;
 // Seed multipliers from render-effects.ts for per-tile phase jitter.
 const SEED_ROW = 41;
 const SEED_COL = 17;
-// Lift over ground / above other effects. Fog is the visual "top" of the
-// world layer — above impacts but below cannonballs and crosshairs
-// (matches the 2D ordering in render-map.ts where `drawFogOfWar` runs
-// before `drawBattleEffectsAboveFog`).
-const FOG_Y_LIFT = 1.2;
 
 export function createFogManager(scene: THREE.Scene): FogManager {
   const root = new THREE.Group();
@@ -92,7 +88,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     const baseMesh = new THREE.Mesh(tileGeometry, baseMaterial);
     baseMesh.position.set(
       col * TILE_SIZE + TILE_SIZE / 2,
-      FOG_Y_LIFT,
+      ELEVATION_STACK.FOG,
       row * TILE_SIZE + TILE_SIZE / 2,
     );
     root.add(baseMesh);
@@ -106,7 +102,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     const bandMesh = new THREE.Mesh(bandGeometry, bandMaterial);
     bandMesh.position.set(
       col * TILE_SIZE + TILE_SIZE / 2,
-      FOG_Y_LIFT + 0.1,
+      ELEVATION_STACK.FOG + Z_FIGHT_MARGIN,
       row * TILE_SIZE + TILE_SIZE / 2,
     );
     root.add(bandMesh);

@@ -49,6 +49,7 @@ import type {
 } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
+import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
@@ -105,12 +106,6 @@ const PIECE_SATURATION = 2.5;
 const PIECE_BEVEL_HIGHLIGHT_ADD = 80;
 const PIECE_BEVEL_SHADOW_MULT = 0.45;
 const PIECE_BEVEL_W = 2;
-const PIECE_Y_LIFT = 0.5;
-/** Phantom meshes draw after everything else and with depth-test off so
- *  they sit on top of any wall / tower / cannon / house. Placement is
- *  UI-ish (preview of where a click will land), not part of the
- *  simulated world, so occluding 3D geometry is the wrong reading. */
-const PHANTOM_RENDER_ORDER = 1000;
 /** Per-cell texture resolution. TILE_SIZE is 16 world-units per tile
  *  and our target is pixel-perfect parity with the 2D bevel strips
  *  (2 px wide on a 16 px tile), so we bake at 1 canvas-pixel per
@@ -178,7 +173,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
     }
     const mesh = new THREE.Mesh(pieceQuad, materials.material);
     mesh.frustumCulled = false;
-    mesh.renderOrder = PHANTOM_RENDER_ORDER;
+    mesh.renderOrder = RENDER_ORDER.PHANTOM;
     pieceMeshes.push(mesh);
     root.add(mesh);
     pieceMeshCount += 1;
@@ -202,7 +197,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
     const mesh = acquirePieceMesh(materials);
     mesh.position.set(
       (col + 0.5) * TILE_SIZE,
-      PIECE_Y_LIFT,
+      ELEVATION_STACK.PIECE_PHANTOM,
       (row + 0.5) * TILE_SIZE,
     );
     mesh.scale.set(TILE_SIZE, 1, TILE_SIZE);
@@ -266,7 +261,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
       const mesh = new THREE.Mesh(part.geometry, mat);
       mesh.applyMatrix4(part.localMatrix);
       mesh.frustumCulled = false;
-      mesh.renderOrder = PHANTOM_RENDER_ORDER;
+      mesh.renderOrder = RENDER_ORDER.PHANTOM;
       group.add(mesh);
     }
     root.add(group);

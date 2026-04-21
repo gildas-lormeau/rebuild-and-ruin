@@ -57,6 +57,7 @@ import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
+import { ELEVATION_STACK } from "./elevation.ts";
 
 export interface TerrainContext {
   readonly mesh: THREE.Mesh;
@@ -82,13 +83,6 @@ const ICE_COLOR: [number, number, number] = [165, 210, 230];
 // per-tile average since every tile is a single vertex-colored quad.
 const COBBLESTONE_BASE: [number, number, number] = [90, 85, 80];
 const COBBLESTONE_TINT_FACTOR = 0.15;
-// Ground-plane Y lift: terrain bitmap sits at Y=0, terrain mesh at
-// Y=0.01 so its opaque pixels (castle interiors, frozen tiles, owned
-// sinkhole tints) composite over the bitmap. Bonus squares are drawn
-// as flashing discs on top of everything by `effects/bonus-squares.ts`
-// — the terrain mesh deliberately doesn't paint their tile so the
-// checker grass under the disc still reads as grass.
-const TERRAIN_Y_LIFT = 0.01;
 
 export function createTerrain(): TerrainContext {
   const tileCount = GRID_ROWS * GRID_COLS;
@@ -104,7 +98,7 @@ export function createTerrain(): TerrainContext {
 
   // Build static position + index buffers — these never change at runtime.
   // Tile (r, c) occupies world rect [c*T..(c+1)*T] × Z=[r*T..(r+1)*T] at
-  // Y=TERRAIN_Y_LIFT, just above the terrain bitmap plane at Y=0 so opaque
+  // Y=ELEVATION_STACK.TERRAIN_MESH, just above the terrain bitmap plane at Y=0 so opaque
   // interior pixels composite over raw grass/water from the bitmap.
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -116,10 +110,10 @@ export function createTerrain(): TerrainContext {
       const z1 = z0 + TILE_SIZE;
       // Four corners of the tile in world space.
       // Order: NW, NE, SE, SW (so CCW when viewed from +Y).
-      setVertex(positions, vertBase + 0, x0, TERRAIN_Y_LIFT, z0);
-      setVertex(positions, vertBase + 1, x1, TERRAIN_Y_LIFT, z0);
-      setVertex(positions, vertBase + 2, x1, TERRAIN_Y_LIFT, z1);
-      setVertex(positions, vertBase + 3, x0, TERRAIN_Y_LIFT, z1);
+      setVertex(positions, vertBase + 0, x0, ELEVATION_STACK.TERRAIN_MESH, z0);
+      setVertex(positions, vertBase + 1, x1, ELEVATION_STACK.TERRAIN_MESH, z0);
+      setVertex(positions, vertBase + 2, x1, ELEVATION_STACK.TERRAIN_MESH, z1);
+      setVertex(positions, vertBase + 3, x0, ELEVATION_STACK.TERRAIN_MESH, z1);
 
       const idxBase = tileIdx * trisPerTile * 3;
       // Wind CCW seen from above (camera +Y looking -Y; up = -Z), matches

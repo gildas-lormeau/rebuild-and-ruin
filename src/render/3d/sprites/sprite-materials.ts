@@ -88,3 +88,10 @@ export const GROUND_AO: MaterialSpec = {
   color: 0x141008,
   side: "double",
 };
+/** Near-black cap used for cannon bore / vent interiors. Rendered
+ *  double-sided so the ring reads as a deep hole from any angle. */
+export const BORE_DARK: MaterialSpec = {
+  kind: "basic",
+  color: 0x0a0a0a,
+  side: "double",
+};

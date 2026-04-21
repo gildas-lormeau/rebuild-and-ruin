@@ -57,7 +57,10 @@ import {
 } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
-import { disposeGroupSubtree } from "./entity-helpers.ts";
+import {
+  disposeGroupSubtree,
+  TILE_2X2_CENTER_OFFSET,
+} from "./entity-helpers.ts";
 
 export interface BalloonsManager {
   /** Reconcile balloon meshes (grounded bases + in-flight envelopes)
@@ -82,9 +85,6 @@ type FlightOverlay = {
  *  tall (3 tiles in canvas) but the XZ frustum is still ±1, so the
  *  same scale applies — the sprite extends Y-upward by construction. */
 const BALLOON_SCALE = TILE_SIZE;
-/** 2×2 balloon bases anchor at the top-left tile; center sits one tile
- *  inward on both axes (identical to the 2×2 cannon convention). */
-const TILE_2X2_CENTER_OFFSET = TILE_SIZE;
 /** Apex lift for the flight arc — matches the 2D `BALLOON_ARC_HEIGHT`
  *  (40 px) in render-effects.ts. The 2D value is in the same surface-
  *  pixel units as 1 world unit, so we reuse it directly. */

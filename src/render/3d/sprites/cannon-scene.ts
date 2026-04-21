@@ -24,6 +24,7 @@
 import type * as THREE from "three";
 import { FRUSTUM_HALF } from "./sprite-bounds.ts";
 import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import { BORE_DARK } from "./sprite-materials.ts";
 
 /** MaterialSpec + optional procedural texture identifier. Texture maps
  *  are attached post-factory in `makeMaterial` below. */
@@ -192,7 +193,7 @@ export const VARIANTS: CannonVariant[] = [
       },
       bore: {
         radius: 0.17,
-        material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+        material: BORE_DARK,
       },
       // Top band at +2 cells, breech band at −5 cells along barrel local Y.
       bands: {
@@ -283,7 +284,7 @@ export const VARIANTS: CannonVariant[] = [
           dims: { radius: 0.035, segments: 16 },
           attachTo: "barrel",
           pos: [0, cells(-5), 0.321],
-          material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+          material: BORE_DARK,
         },
         {
           name: "cascabelRing",
@@ -363,7 +364,7 @@ export const VARIANTS: CannonVariant[] = [
       },
       bore: {
         radius: 0.17,
-        material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+        material: BORE_DARK,
       },
       bands: {
         positions: [],
@@ -495,7 +496,7 @@ export const VARIANTS: CannonVariant[] = [
           dims: { radius: 0.035, segments: 16 },
           attachTo: "barrel",
           pos: [0, cells(-4), 0.321],
-          material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+          material: BORE_DARK,
         },
         {
           name: "cascabelRing",
@@ -570,7 +571,7 @@ export const VARIANTS: CannonVariant[] = [
       },
       bore: {
         radius: 0.204,
-        material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+        material: BORE_DARK,
       },
       bands: {
         positions: [],
@@ -702,7 +703,7 @@ export const VARIANTS: CannonVariant[] = [
           dims: { radius: 0.045, segments: 16 },
           attachTo: "barrel",
           pos: [0, cells(-4), 0.381],
-          material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+          material: BORE_DARK,
         },
         {
           name: "cascabelRing",
@@ -777,7 +778,7 @@ export const VARIANTS: CannonVariant[] = [
       },
       bore: {
         radius: 0.204,
-        material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+        material: BORE_DARK,
       },
       bands: {
         positions: [-0.25, 0.125],
@@ -909,7 +910,7 @@ export const VARIANTS: CannonVariant[] = [
           dims: { radius: 0.045, segments: 16 },
           attachTo: "barrel",
           pos: [0, cells(-4), 0.381],
-          material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+          material: BORE_DARK,
         },
         {
           name: "cascabelRing",
@@ -984,7 +985,7 @@ export const VARIANTS: CannonVariant[] = [
       },
       bore: {
         radius: 0.17,
-        material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+        material: BORE_DARK,
       },
       bands: {
         positions: [],
@@ -1116,7 +1117,7 @@ export const VARIANTS: CannonVariant[] = [
           dims: { radius: 0.035, segments: 16 },
           attachTo: "barrel",
           pos: [0, cells(-4), 0.341],
-          material: { kind: "basic", color: 0x0a0a0a, side: "double" },
+          material: BORE_DARK,
         },
         {
           name: "cascabelRing",

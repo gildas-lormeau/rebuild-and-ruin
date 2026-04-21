@@ -26,6 +26,7 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 
 export interface ThawingManager {
   /** Per-frame update. Rebuilds the mesh pool only when the thawing tile
@@ -54,7 +55,6 @@ const THAW_CRACK_LEN = 10;
 const SEED_ROW = 41;
 const SEED_COL = 17;
 // Lift above terrain to avoid z-fighting.
-const THAW_Y_LIFT = 0.5;
 // Ice fade colour: rgba(165, 210, 230, …) → 0xa5d2e6
 const ICE_FADE_COLOR = 0xa5d2e6;
 const WHITE = 0xffffff;
@@ -141,7 +141,7 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
     const progress = Math.min(1, Math.max(0, tile.age / THAW_DURATION));
     const centerX = tile.col * TILE_SIZE + TILE_SIZE / 2;
     const centerZ = tile.row * TILE_SIZE + TILE_SIZE / 2;
-    host.group.position.set(centerX, THAW_Y_LIFT, centerZ);
+    host.group.position.set(centerX, ELEVATION_STACK.THAWING, centerZ);
     host.seed = tile.row * SEED_ROW + tile.col * SEED_COL;
 
     // Fading ice tint — radial gradient falloff faked by a solid disc
@@ -169,7 +169,7 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
         const mesh = host.rayMeshes[ray]!;
         const rayX = Math.cos(angle) * (burstLen / 2);
         const rayZ = Math.sin(angle) * (burstLen / 2);
-        mesh.position.set(rayX, 0.1, rayZ);
+        mesh.position.set(rayX, Z_FIGHT_MARGIN, rayZ);
         mesh.rotation.y = -angle;
         mesh.scale.set(burstLen, 1, 1);
         mesh.visible = true;

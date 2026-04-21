@@ -14,6 +14,7 @@
  */
 
 import * as THREE from "three";
+import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
@@ -32,6 +33,13 @@ export interface ExtractedSubPart {
   readonly localMatrix: THREE.Matrix4;
   readonly name: string;
 }
+
+/** Half the 2×2-tile footprint expressed in world pixels — used to
+ *  centre 2×2 cannon / debris / balloon hosts on their top-left
+ *  anchor (col, row). Equivalent to one tile inward on both axes. */
+export const TILE_2X2_CENTER_OFFSET = TILE_SIZE;
+/** Half the 3×3-tile footprint (super-gun cannon / debris). */
+export const TILE_3X3_CENTER_OFFSET = TILE_SIZE * 1.5;
 
 /** Walk a built `THREE.Group`, call `updateMatrixWorld`, and extract
  *  every `THREE.Mesh` as an `ExtractedSubPart`. Used by entity managers

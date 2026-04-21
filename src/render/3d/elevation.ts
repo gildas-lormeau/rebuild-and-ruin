@@ -42,6 +42,32 @@ const GRUNT_TOP_Y = 10;
  *  bonus / frozen tiles (which sit at Y=0.01). 2 world units = 2
  *  game-1× pixels. */
 const CROSSHAIR_MARGIN_Y = 2;
+/** Y-layer stack for ground-plane meshes, from bottom up. The order
+ *  fixes composition (raw grass/water in the bitmap → terrain mesh
+ *  adds interior/frozen/owned-sinkhole tints → sinkhole bank recolour
+ *  → water-wave highlights → bonus pickups → crosshairs → fog). */
+export const ELEVATION_STACK = {
+  TERRAIN_BITMAP: 0,
+  TERRAIN_MESH: 0.01,
+  SINKHOLE_OVERLAY: 0.02,
+  WATER_WAVES: 0.1,
+  BONUS_DISCS: 0.3,
+  PIECE_PHANTOM: 0.5,
+  IMPACTS: 0.5,
+  THAWING: 0.5,
+  CROSSHAIRS: 0.8,
+  FOG: 1.2,
+} as const;
+/** Draw-order ladder for effect meshes. Higher values render later
+ *  (on top). These are intentionally sparse so new layers can be
+ *  inserted without renumbering. */
+export const RENDER_ORDER = {
+  EFFECT: 900, // bonus discs, crosshair (roughly equivalent visibility)
+  PHANTOM: 1000, // placement previews — always on top
+} as const;
+/** Small Y offset added on top of ELEVATION_STACK levels when two
+ *  effect meshes share a nominal Y but one must composite on top. */
+export const Z_FIGHT_MARGIN = 0.1;
 
 /** Top-Y of the tallest thing at `(x, y)` — for the crosshair cursor
  *  to sit on top of its target (wall, tower, cannon, house, grunt).

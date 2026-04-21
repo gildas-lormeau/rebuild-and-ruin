@@ -28,6 +28,7 @@
 import type * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK } from "../elevation.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface TerrainBitmapManager {
@@ -41,17 +42,12 @@ export interface TerrainBitmapManager {
 
 export type GetTerrainBitmap = (map: GameMap, inBattle: boolean) => ImageData;
 
-// Ground plane lift for the bitmap. Terrain mesh sits at Y=0.01 so its
-// opaque (interior / bonus / frozen / owned-sinkhole) pixels win the
-// depth test; its transparent pixels let this bitmap show through.
-const BITMAP_Y_LIFT = 0;
-
 export function createTerrainBitmapManager(
   scene: THREE.Scene,
   getTerrainBitmap: GetTerrainBitmap,
 ): TerrainBitmapManager {
   const layer = createMapLayerCanvas(scene, {
-    yLift: BITMAP_Y_LIFT,
+    yLift: ELEVATION_STACK.TERRAIN_BITMAP,
     transparent: false,
   });
   const { ctx, texture, mesh } = layer;

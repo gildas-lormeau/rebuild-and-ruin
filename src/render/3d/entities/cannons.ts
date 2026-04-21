@@ -76,7 +76,11 @@ import {
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
-import { extractSubParts } from "./entity-helpers.ts";
+import {
+  extractSubParts,
+  TILE_2X2_CENTER_OFFSET,
+  TILE_3X3_CENTER_OFFSET,
+} from "./entity-helpers.ts";
 import {
   type BucketSubPart,
   disposeAllBuckets,
@@ -126,12 +130,6 @@ interface Cannon {
  *  ±1, so the model is 2 world units wide and the 3×3 footprint is
  *  handled by positioning, not by a different scale. */
 const CANNON_SCALE = TILE_SIZE;
-/** 2×2 cannons anchor at the top-left tile; center sits one tile inward
- *  on both axes. */
-const TILE_2X2_CENTER_OFFSET = TILE_SIZE;
-/** 3×3 super-gun cannons anchor at the top-left tile; center sits 1.5
- *  tiles inward. */
-const TILE_3X3_CENTER_OFFSET = TILE_SIZE * 1.5;
 /** Initial InstancedMesh capacity per variant bucket. A peak battle can
  *  field ~20-30 cannons per territory × 2-3 territories = 60-100 total
  *  live cannons, but the total is split across 6 variants (rampart,

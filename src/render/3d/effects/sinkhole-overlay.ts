@@ -20,6 +20,7 @@
 import type * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { ELEVATION_STACK } from "../elevation.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface SinkholeOverlayManager {
@@ -37,19 +38,12 @@ export type GetSinkholeOverlayBitmap = (
   overlay: RenderOverlay | undefined,
 ) => ImageData | undefined;
 
-// Sits above the terrain mesh (Y=0.01). The mesh paints the whole
-// sinkhole water tile opaquely with the owner's interior color; the
-// overlay's pixel-grain bank gradient must draw ON TOP to reproduce
-// the 2D blend. Small enough to stay below walls / entities with
-// real height.
-const OVERLAY_Y_LIFT = 0.02;
-
 export function createSinkholeOverlayManager(
   scene: THREE.Scene,
   getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap,
 ): SinkholeOverlayManager {
   const layer = createMapLayerCanvas(scene, {
-    yLift: OVERLAY_Y_LIFT,
+    yLift: ELEVATION_STACK.SINKHOLE_OVERLAY,
     transparent: true,
   });
   const { canvas, ctx, texture, mesh } = layer;

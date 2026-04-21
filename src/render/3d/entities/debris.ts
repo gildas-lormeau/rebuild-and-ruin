@@ -81,6 +81,8 @@ import {
   cloneAndTintMaterial,
   extractSubParts,
   rgbToHex,
+  TILE_2X2_CENTER_OFFSET,
+  TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
@@ -128,10 +130,6 @@ const DEBRIS_SCALE_2X2 = TILE_SIZE;
 /** 1×1 debris (walls). The scene authors inside the same ±1 frustum but
  *  the pile represents a single tile, so we scale by TILE_SIZE / 2. */
 const DEBRIS_SCALE_1X1 = TILE_SIZE / 2;
-/** Half the 2×2 footprint expressed in world pixels. */
-const TILE_2X2_CENTER_OFFSET = TILE_SIZE;
-/** Half the 3×3 footprint (for dead super cannons). */
-const TILE_3X3_CENTER_OFFSET = TILE_SIZE * 1.5;
 /** Initial InstancedMesh capacity per bucket. Peak mid-battle totals:
  *  ≤6 tower debris, ≤20-30 cannon debris across all modes (each in its
  *  own bucket), ≤120 wall tiles split across 2 wall buckets. 16 covers

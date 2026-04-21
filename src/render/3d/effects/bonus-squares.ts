@@ -23,19 +23,13 @@ import {
   BONUS_CIRCLE_COLOR,
   BONUS_FLASH_MS,
 } from "../../../shared/ui/theme.ts";
+import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
 
 export interface BonusSquaresManager {
   update(overlay: RenderOverlay | undefined, now: number): void;
   dispose(): void;
 }
 
-/** Small lift above the ground plane so z-fighting with the terrain
- *  bitmap / mesh can't shimmer. Same order of magnitude as impacts. */
-const BONUS_Y_LIFT = 0.3;
-/** Draw on top of terrain + entities. The 2D path composites the disc
- *  above grass/walls because it's painted after them; we do the same
- *  here via renderOrder + depthTest=false. */
-const BONUS_RENDER_ORDER = 900;
 /** Segment count for the disc. 32 is plenty for a tile-sized circle
  *  and keeps the vertex count trivial. */
 const BONUS_CIRCLE_SEGMENTS = 32;
@@ -77,14 +71,14 @@ export function createBonusSquaresManager(
       if (!mesh) {
         mesh = new THREE.Mesh(geometry, material);
         mesh.frustumCulled = false;
-        mesh.renderOrder = BONUS_RENDER_ORDER;
+        mesh.renderOrder = RENDER_ORDER.EFFECT;
         mesh.scale.setScalar(TILE_SIZE / 2);
         meshes.push(mesh);
         root.add(mesh);
       }
       mesh.position.set(
         bonus.col * TILE_SIZE + TILE_SIZE / 2,
-        BONUS_Y_LIFT,
+        ELEVATION_STACK.BONUS_DISCS,
         bonus.row * TILE_SIZE + TILE_SIZE / 2,
       );
       mesh.visible = true;
