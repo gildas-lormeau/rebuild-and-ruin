@@ -89,6 +89,25 @@ const BALLOON_SCALE = TILE_SIZE;
  *  (40 px) in render-effects.ts. The 2D value is in the same surface-
  *  pixel units as 1 world unit, so we reuse it directly. */
 const FLIGHT_ARC_MAX = 40;
+/** Envelope "breathing" bob amplitude — ±2% of its authored radius,
+ *  applied uniformly on the envelope group's scale so the load ring
+ *  rides along with the sphere. */
+const ENVELOPE_BOB_AMPLITUDE = 0.02;
+/** Bob period (seconds). Slow enough to read as a lazy drift under
+ *  wind, not a pulsing throb. */
+const ENVELOPE_BOB_PERIOD_SEC = 1.5;
+/** Basket forward-tilt amplitude (radians). 3° ≈ 0.052. The tilt
+ *  happens on the Z axis so the basket leans "forward/back" along the
+ *  flight path's horizontal plane; at 3° the ropes drift by <0.5 px at
+ *  display scale, which stays below the visual-change threshold. */
+const BASKET_TILT_AMPLITUDE = (3 * Math.PI) / 180;
+/** Basket tilt period (seconds). Co-prime with the envelope bob so the
+ *  two animations stay visually out of phase instead of locking into
+ *  a compound wobble. */
+const BASKET_TILT_PERIOD_SEC = 1.2;
+/** Gores rotation speed (radians per second). Slow — one full turn
+ *  every ~20s reads as a subtle "balloon rolls with the current". */
+const GORE_SPIN_RAD_PER_SEC = (2 * Math.PI) / 20;
 
 export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
   const root = new THREE.Group();
@@ -147,7 +166,16 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
     flightOverlays = flights;
   }
 
-  function positionFlights(): void {
+  function positionFlights(nowMs: number): void {
+    const nowSec = nowMs / 1000;
+    const envelopeBob =
+      1 +
+      ENVELOPE_BOB_AMPLITUDE *
+        Math.sin((nowSec / ENVELOPE_BOB_PERIOD_SEC) * 2 * Math.PI);
+    const basketTilt =
+      BASKET_TILT_AMPLITUDE *
+      Math.sin((nowSec / BASKET_TILT_PERIOD_SEC) * 2 * Math.PI);
+    const gorePhase = (nowSec * GORE_SPIN_RAD_PER_SEC) % (2 * Math.PI);
     for (let i = 0; i < flightHosts.length; i++) {
       const host = flightHosts[i]!;
       const overlay = flightOverlays[i];
@@ -162,11 +190,22 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
       const worldZ = overlay.y + (overlay.targetY - overlay.y) * progress;
       const lift = Math.sin(progress * Math.PI) * FLIGHT_ARC_MAX;
       host.position.set(worldX, lift, worldZ);
+      // C2 polish — envelope breathes, basket rocks, gores drift. All
+      // derived from `now` so every in-flight balloon shares phase
+      // (they all feel the same "wind"). `getObjectByName` is a
+      // recursive search over a ~15-node subtree; for the typical 1-2
+      // active flights that's negligible per frame.
+      const envelopeGroup = host.getObjectByName("envelope");
+      if (envelopeGroup) envelopeGroup.scale.setScalar(envelopeBob);
+      const basketGroup = host.getObjectByName("basket");
+      if (basketGroup) basketGroup.rotation.z = basketTilt;
+      const goresGroup = host.getObjectByName("gores");
+      if (goresGroup) goresGroup.rotation.y = gorePhase;
     }
   }
 
   function update(ctx: FrameCtx): void {
-    const { overlay } = ctx;
+    const { overlay, now } = ctx;
     const bases = collectGroundedBalloons(overlay);
     const flights = overlay?.battle?.balloons ?? [];
     const signature = computeSignature(bases, flights);
@@ -176,7 +215,7 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
       if (bases.length === 0 && flights.length === 0) return;
       buildAllBalloons(bases, flights);
     }
-    if (flightHosts.length > 0) positionFlights();
+    if (flightHosts.length > 0) positionFlights(now);
   }
 
   function dispose(): void {

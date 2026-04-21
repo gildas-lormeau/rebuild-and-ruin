@@ -413,6 +413,23 @@ function buildBalloonFlight(
   scene: THREE.Scene | THREE.Group,
   params: BalloonFlightParams,
 ): void {
+  // Sub-groups so the balloons entity manager can animate the envelope
+  // (bob), gores (spin), and basket (tilt) independently during flight
+  // without touching individual meshes each frame. Named so callers
+  // can find them via `host.getObjectByName("envelope" | "gores" |
+  // "basket")`. Ropes stay as direct children of the host because they
+  // bridge basket and envelope — tilting either at small angles keeps
+  // the rope endpoint drift below visual threshold.
+  const envelopeGroup = new three.Group();
+  envelopeGroup.name = "envelope";
+  scene.add(envelopeGroup);
+  const goresGroup = new three.Group();
+  goresGroup.name = "gores";
+  scene.add(goresGroup);
+  const basketGroup = new three.Group();
+  basketGroup.name = "basket";
+  scene.add(basketGroup);
+
   // Envelope — sphere scaled in Y to make a tall ellipsoid.
   const envelope = new three.Mesh(
     new three.SphereGeometry(params.envelope.radius, 32, 24),
@@ -420,7 +437,7 @@ function buildBalloonFlight(
   );
   envelope.scale.set(1, params.envelope.yScale, 1);
   envelope.position.set(0, params.envelope.yCenter, 0);
-  scene.add(envelope);
+  envelopeGroup.add(envelope);
 
   // Gores — 8 vertical meridian seams on the ellipsoid surface.
   // TorusGeometry: a ring in its local XY plane, arc=π gives a
@@ -444,7 +461,7 @@ function buildBalloonFlight(
       const gore = new three.Mesh(goreGeom, goreMat);
       gore.rotation.y = (i / g.count) * Math.PI * 2;
       gore.position.set(0, params.envelope.yCenter, 0);
-      scene.add(gore);
+      goresGroup.add(gore);
     }
   }
 
@@ -461,7 +478,7 @@ function buildBalloonFlight(
     ringGeom.rotateX(Math.PI / 2);
     const ring = new three.Mesh(ringGeom, createMaterial(lr.material));
     ring.position.set(0, params.envelope.yCenter + lr.yRelativeToCenter, 0);
-    scene.add(ring);
+    envelopeGroup.add(ring);
   }
 
   // Basket
@@ -474,7 +491,7 @@ function buildBalloonFlight(
     createMaterial(params.basket.material),
   );
   basket.position.set(0, params.basket.yCenter, 0);
-  scene.add(basket);
+  basketGroup.add(basket);
 
   // Basket rims — thin slabs slightly oversized on XZ at the top AND
   // bottom. The pair bookends the basket silhouette from 3/4 view.
@@ -491,13 +508,13 @@ function buildBalloonFlight(
       rimMat,
     );
     topRim.position.set(0, topY, 0);
-    scene.add(topRim);
+    basketGroup.add(topRim);
     const botRim = new three.Mesh(
       new three.BoxGeometry(rimW, rimH, rimD),
       rimMat,
     );
     botRim.position.set(0, botY, 0);
-    scene.add(botRim);
+    basketGroup.add(botRim);
     // Mid-band: slightly smaller XZ than the rims so the rim still
     // reads as the outermost edge.
     const bandH = 0.03125;
@@ -510,7 +527,7 @@ function buildBalloonFlight(
       rimMat,
     );
     band.position.set(0, params.basket.yCenter, 0);
-    scene.add(band);
+    basketGroup.add(band);
   }
 
   // Ropes — 4 thin cylinders from basket corners to envelope underside.
