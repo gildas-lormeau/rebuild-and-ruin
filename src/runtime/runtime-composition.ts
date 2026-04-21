@@ -879,6 +879,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   return {
     runtimeState,
+    camera,
 
     // Sub-system handles
     selection,

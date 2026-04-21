@@ -225,6 +225,11 @@ Deno.test(
     // The "towers on water" regression (mapVersion resetting to 0)
     // would have tripped the `mapVersion > first` rail below.
     const sc = await createScenario({ seed: 42 });
+    // Simulate mobile — the reported bug ("auto-zoom still on after
+    // quit") only reproduces when mobile auto-zoom was enabled during
+    // the first game. Tests don't go through `setupTouchControls`, so
+    // we enable the capability explicitly.
+    sc.camera.enableMobileZoom();
 
     const snapshot = () => ({
       phase: sc.state.phase,
@@ -245,6 +250,16 @@ Deno.test(
         text: sc.banner().text,
       },
       lobbyActive: sc.lobbyActive(),
+      camera: {
+        cameraZone: sc.camera.getCameraZone(),
+        pitch: sc.camera.getPitch(),
+        pitchState: sc.camera.getPitchState(),
+        // Viewport changes on zone zoom; compare only "is there a
+        // cropped viewport" (truthy) rather than the exact rect,
+        // which legitimately shifts with player positions.
+        hasViewport: sc.camera.getViewport() !== undefined,
+        autoZoomOn: sc.camera.isMobileAutoZoom(),
+      },
     });
 
     const initial = snapshot();

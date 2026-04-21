@@ -576,6 +576,11 @@ export interface GameRuntime {
   phaseTicks: RuntimePhaseTicks;
   music: RuntimeMusic;
   sfx: RuntimeSfx;
+  /** Camera sub-system. Exposed so tests (and any future consumer) can
+   *  observe zoom/pitch state — the underlying camera value is already
+   *  constructed inside `createGameRuntime`, this just surfaces it on
+   *  the public handle. */
+  camera: CameraSystem;
 
   // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;

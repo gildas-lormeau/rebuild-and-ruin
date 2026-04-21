@@ -203,6 +203,25 @@ export interface Scenario extends Disposable {
    *  On-demand debug primitive: cheaper than rendering the whole ASCII
    *  grid and counting characters to assert on a specific tile. */
   tileAt(row: number, col: number): TileInspection;
+  /** Read-only camera handle. Exposes just the observational methods
+   *  tests need (zoom target, pitch, viewport, auto-zoom flag) —
+   *  mutation would break the "tests play the game" contract. Mainly
+   *  useful for reset/quit tests that verify auto-zoom state and for
+   *  multi-phase tests that check zoom lerping.
+   *  Also exposes `enableMobileZoom` so tests can simulate the
+   *  touch-controls-setup path without wiring the full DOM; everything
+   *  else here is read-only. */
+  readonly camera: {
+    getCameraZone: () => number | undefined;
+    getPitch: () => number;
+    getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+    getViewport: () => import("../src/shared/core/geometry-types.ts").Viewport | undefined;
+    isMobileAutoZoom: () => boolean;
+    /** Mobile/touch wiring would normally call this from
+     *  `setupTouchControls`. Tests that want to exercise auto-zoom
+     *  behaviour call it directly after `createScenario`. */
+    enableMobileZoom: () => void;
+  };
   /** Replace the controller at `playerId` with an `AiAssistedHumanController`
    *  — AI drives gameplay but every placement/fire flows through the same
    *  `network.send` pathway humans use, producing wire messages on
@@ -410,6 +429,14 @@ export function wrapHeadless(
     input,
     tileAt: (row, col) =>
       inspectTile(headless.runtime.runtimeState.state, row, col),
+    camera: {
+      getCameraZone: headless.runtime.camera.getCameraZone,
+      getPitch: headless.runtime.camera.getPitch,
+      getPitchState: headless.runtime.camera.getPitchState,
+      getViewport: headless.runtime.camera.getViewport,
+      isMobileAutoZoom: headless.runtime.camera.isMobileAutoZoom,
+      enableMobileZoom: headless.runtime.camera.enableMobileZoom,
+    },
     rematch: async () => {
       await headless.runtime.lifecycle.rematch();
     },
