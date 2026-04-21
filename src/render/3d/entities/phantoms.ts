@@ -4,9 +4,14 @@
  * cell previews rendered during `WALL_BUILD`) and cannon phantoms
  * (the 2×2 / 3×3 footprint preview rendered during `CANNON_PLACE`).
  *
- * Piece phantoms stay as flat, semi-transparent boxes — they're
- * high-churn (every pointer move rebuilds them) and one cell per offset
- * means a box is the cheapest readable marker.
+ * Piece phantoms render as tile-sized blocks in the player's wall
+ * colour — saturated (like the 2D `PHANTOM_SATURATION` pass) and
+ * semi-transparent. Each face gets a different shade so the block
+ * reads with a natural bevel: top brighter, sides mid, bottom darker
+ * (mirrors the 2D bevel of top/left highlight + bottom/right shadow
+ * reduced to the axes a 3D camera actually sees). Invalid placements
+ * blend toward red using the same `face * 0.15 + red-bias` recipe as
+ * the 2D path.
  *
  * Cannon phantoms use the real authored cannon/rampart/balloon-base
  * sprite geometry (same builders as the live-entity path) rendered with
@@ -24,8 +29,9 @@
  * Rampart and balloon variants don't rotate (matches the 2D picker).
  *
  * Rebuild cadence: host groups are pooled per phantom slot and only
- * torn down when a slot's variant OR validity flips. Position / rotation
- * update every frame (positions follow pointer motion).
+ * torn down when a slot's identity (variant/valid or playerId/valid)
+ * flips. Position / rotation update every frame (positions follow
+ * pointer motion).
  */
 
 import * as THREE from "three";
@@ -35,11 +41,14 @@ import {
   isSuperMode,
 } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import type {
   RenderCannonPhantom,
   RenderOverlay,
   RenderPiecePhantom,
 } from "../../../shared/ui/overlay-types.ts";
+import { getPlayerColor } from "../../../shared/ui/player-config.ts";
+import type { RGB } from "../../../shared/ui/theme.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
@@ -76,12 +85,37 @@ interface CannonHost {
   clonedMaterials: THREE.Material[];
 }
 
-// Piece-phantom box styling — unchanged from the original flat-box impl.
-const PIECE_VALID_COLOR = 0x40ff40;
-const PIECE_INVALID_COLOR = 0xff4040;
-const PIECE_OPACITY = 0.4;
+/** Cache key for piece-phantom material sets: one entry per
+ *  (playerId, valid) pair seen this session. */
+type PieceMaterialKey = `${number}:${0 | 1}`;
+
+interface PieceMaterialSet {
+  material: THREE.MeshBasicMaterial;
+  texture: THREE.CanvasTexture;
+}
+
+// Piece-phantom styling — matches the 2D `drawPiecePhantom` feel.
+// `PHANTOM_PIECE_ALPHA` / `PHANTOM_PIECE_INVALID_ALPHA` in the 2D path
+// are 0.85 / 0.55; PHANTOM_SATURATION is 2.5; BEVEL_HIGHLIGHT_ADD is
+// 80; BEVEL_SHADOW_MULT is 0.45. Keep the same numbers so the 3D
+// phantom reads the same.
+const PIECE_VALID_OPACITY = 0.85;
+const PIECE_INVALID_OPACITY = 0.55;
+const PIECE_SATURATION = 2.5;
+const PIECE_BEVEL_HIGHLIGHT_ADD = 80;
+const PIECE_BEVEL_SHADOW_MULT = 0.45;
+const PIECE_BEVEL_W = 2;
 const PIECE_Y_LIFT = 0.5;
-const PIECE_BOX_HEIGHT = 2;
+/** Phantom meshes draw after everything else and with depth-test off so
+ *  they sit on top of any wall / tower / cannon / house. Placement is
+ *  UI-ish (preview of where a click will land), not part of the
+ *  simulated world, so occluding 3D geometry is the wrong reading. */
+const PHANTOM_RENDER_ORDER = 1000;
+/** Per-cell texture resolution. TILE_SIZE is 16 world-units per tile
+ *  and our target is pixel-perfect parity with the 2D bevel strips
+ *  (2 px wide on a 16 px tile), so we bake at 1 canvas-pixel per
+ *  world-unit. NearestFilter keeps the strips crisp at any zoom. */
+const PIECE_TEXTURE_SIZE = TILE_SIZE;
 // Cannon-phantom ghost styling — matches the 2D `PHANTOM_CANNON_ALPHA`
 // (valid) and `PHANTOM_CANNON_INVALID_ALPHA` (invalid). The invalid
 // case is additionally tinted red so the phantom reads as blocked at a
@@ -99,54 +133,61 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   scene.add(root);
 
   // Piece-phantom state ---------------------------------------------------
-  const pieceBox = new THREE.BoxGeometry(1, PIECE_BOX_HEIGHT, 1);
-  const pieceValidMaterial = new THREE.MeshBasicMaterial({
-    color: PIECE_VALID_COLOR,
-    transparent: true,
-    opacity: PIECE_OPACITY,
-    depthWrite: false,
-  });
-  const pieceInvalidMaterial = new THREE.MeshBasicMaterial({
-    color: PIECE_INVALID_COLOR,
-    transparent: true,
-    opacity: PIECE_OPACITY,
-    depthWrite: false,
-  });
-  const pieceValidMeshes: THREE.Mesh[] = [];
-  const pieceInvalidMeshes: THREE.Mesh[] = [];
-  let pieceValidCount = 0;
-  let pieceInvalidCount = 0;
+  // Unit quad rotated into the XZ plane so v=0 (top of canvas) maps to
+  // local −Z (north of tile) — same convention the map-layer canvas uses.
+  const pieceQuad = new THREE.PlaneGeometry(1, 1);
+  pieceQuad.rotateX(-Math.PI / 2);
+  // One material + texture per (playerId, valid); a full session only
+  // mints a handful of entries (≤3 players × 2 validity = 6 sets).
+  const pieceMaterialCache = new Map<PieceMaterialKey, PieceMaterialSet>();
+  const pieceMeshes: THREE.Mesh[] = [];
+  let pieceMeshCount = 0;
 
   // Cannon-phantom state --------------------------------------------------
   const cannonTemplates = new Map<CannonVariantName, CannonTemplate>();
   const cannonHosts: CannonHost[] = [];
 
-  function acquirePieceMesh(valid: boolean): THREE.Mesh {
-    const pool = valid ? pieceValidMeshes : pieceInvalidMeshes;
-    const material = valid ? pieceValidMaterial : pieceInvalidMaterial;
-    const used = valid ? pieceValidCount : pieceInvalidCount;
-    if (used < pool.length) {
-      const mesh = pool[used]!;
+  function ensurePieceMaterial(
+    playerId: ValidPlayerSlot,
+    valid: boolean,
+  ): PieceMaterialSet {
+    const key: PieceMaterialKey = `${playerId}:${valid ? 1 : 0}`;
+    const cached = pieceMaterialCache.get(key);
+    if (cached) return cached;
+    const wall = getPlayerColor(playerId).wall;
+    const texture = buildPieceTexture(wall, valid);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: valid ? PIECE_VALID_OPACITY : PIECE_INVALID_OPACITY,
+      depthWrite: false,
+      depthTest: false,
+    });
+    const set: PieceMaterialSet = { material, texture };
+    pieceMaterialCache.set(key, set);
+    return set;
+  }
+
+  function acquirePieceMesh(materials: PieceMaterialSet): THREE.Mesh {
+    if (pieceMeshCount < pieceMeshes.length) {
+      const mesh = pieceMeshes[pieceMeshCount]!;
+      mesh.material = materials.material;
       mesh.visible = true;
-      if (valid) pieceValidCount += 1;
-      else pieceInvalidCount += 1;
+      pieceMeshCount += 1;
       return mesh;
     }
-    const mesh = new THREE.Mesh(pieceBox, material);
+    const mesh = new THREE.Mesh(pieceQuad, materials.material);
     mesh.frustumCulled = false;
-    pool.push(mesh);
+    mesh.renderOrder = PHANTOM_RENDER_ORDER;
+    pieceMeshes.push(mesh);
     root.add(mesh);
-    if (valid) pieceValidCount += 1;
-    else pieceInvalidCount += 1;
+    pieceMeshCount += 1;
     return mesh;
   }
 
   function hideUnusedPieces(): void {
-    for (let i = pieceValidCount; i < pieceValidMeshes.length; i++) {
-      pieceValidMeshes[i]!.visible = false;
-    }
-    for (let i = pieceInvalidCount; i < pieceInvalidMeshes.length; i++) {
-      pieceInvalidMeshes[i]!.visible = false;
+    for (let i = pieceMeshCount; i < pieceMeshes.length; i++) {
+      pieceMeshes[i]!.visible = false;
     }
   }
 
@@ -157,10 +198,11 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   ): void {
     const col = phantom.col + dc;
     const row = phantom.row + dr;
-    const mesh = acquirePieceMesh(phantom.valid);
+    const materials = ensurePieceMaterial(phantom.playerId, phantom.valid);
+    const mesh = acquirePieceMesh(materials);
     mesh.position.set(
       (col + 0.5) * TILE_SIZE,
-      PIECE_Y_LIFT + PIECE_BOX_HEIGHT / 2,
+      PIECE_Y_LIFT,
       (row + 0.5) * TILE_SIZE,
     );
     mesh.scale.set(TILE_SIZE, 1, TILE_SIZE);
@@ -212,6 +254,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
       mat.transparent = true;
       mat.opacity = valid ? CANNON_VALID_OPACITY : CANNON_INVALID_OPACITY;
       mat.depthWrite = false;
+      mat.depthTest = false;
       if (
         !valid &&
         (mat instanceof THREE.MeshStandardMaterial ||
@@ -223,6 +266,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
       const mesh = new THREE.Mesh(part.geometry, mat);
       mesh.applyMatrix4(part.localMatrix);
       mesh.frustumCulled = false;
+      mesh.renderOrder = PHANTOM_RENDER_ORDER;
       group.add(mesh);
     }
     root.add(group);
@@ -286,8 +330,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   }
 
   function update(overlay: RenderOverlay | undefined): void {
-    pieceValidCount = 0;
-    pieceInvalidCount = 0;
+    pieceMeshCount = 0;
 
     const phantoms = overlay?.phantoms;
     if (phantoms?.piecePhantoms) {
@@ -309,13 +352,14 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
 
   function dispose(): void {
     // Piece pools
-    for (const mesh of pieceValidMeshes) root.remove(mesh);
-    for (const mesh of pieceInvalidMeshes) root.remove(mesh);
-    pieceValidMeshes.length = 0;
-    pieceInvalidMeshes.length = 0;
-    pieceBox.dispose();
-    pieceValidMaterial.dispose();
-    pieceInvalidMaterial.dispose();
+    for (const mesh of pieceMeshes) root.remove(mesh);
+    pieceMeshes.length = 0;
+    pieceQuad.dispose();
+    for (const set of pieceMaterialCache.values()) {
+      set.material.dispose();
+      set.texture.dispose();
+    }
+    pieceMaterialCache.clear();
     // Cannon hosts + templates
     for (const host of cannonHosts) disposeCannonHost(host);
     cannonHosts.length = 0;
@@ -333,4 +377,72 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   }
 
   return { update, dispose };
+}
+
+/** Bake a per-tile texture that mirrors the 2D `drawPiecePhantom` fill
+ *  + bevel strips: saturated base colour, top/left highlight lines,
+ *  bottom/right shadow lines. Invalid placements blend toward red using
+ *  the same `face * 0.15 + red-bias` recipe as the 2D path. */
+function buildPieceTexture(wall: RGB, valid: boolean): THREE.CanvasTexture {
+  const size = PIECE_TEXTURE_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+
+  const face = saturateRgb(wall, PIECE_SATURATION);
+  const base: RGB = valid
+    ? face
+    : [
+        Math.min(255, Math.round(face[0] * 0.3 + 170)),
+        Math.round(face[1] * 0.15),
+        Math.round(face[2] * 0.15),
+      ];
+  const hi = addChannel(base, PIECE_BEVEL_HIGHLIGHT_ADD);
+  const sh = mulChannel(base, PIECE_BEVEL_SHADOW_MULT);
+  const bv = PIECE_BEVEL_W;
+
+  ctx.fillStyle = rgbCss(base);
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = rgbCss(hi);
+  ctx.fillRect(0, 0, size, bv); // top highlight (v=0 → north)
+  ctx.fillRect(0, 0, bv, size); // left highlight (u=0 → west)
+  ctx.fillStyle = rgbCss(sh);
+  ctx.fillRect(0, size - bv, size, bv); // bottom shadow
+  ctx.fillRect(size - bv, 0, bv, size); // right shadow
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function saturateRgb(c: RGB, factor: number): RGB {
+  const avg = (c[0] + c[1] + c[2]) / 3;
+  return [
+    Math.round(Math.min(255, c[0] + (c[0] - avg) * factor)),
+    Math.round(Math.min(255, c[1] + (c[1] - avg) * factor)),
+    Math.round(Math.min(255, c[2] + (c[2] - avg) * factor)),
+  ];
+}
+
+function addChannel(c: RGB, delta: number): RGB {
+  return [
+    Math.min(255, c[0] + delta),
+    Math.min(255, c[1] + delta),
+    Math.min(255, c[2] + delta),
+  ];
+}
+
+function mulChannel(c: RGB, factor: number): RGB {
+  return [
+    Math.round(c[0] * factor),
+    Math.round(c[1] * factor),
+    Math.round(c[2] * factor),
+  ];
+}
+
+function rgbCss(c: RGB): string {
+  return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
 }
