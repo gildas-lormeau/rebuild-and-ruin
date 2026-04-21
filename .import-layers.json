@@ -169,6 +169,7 @@
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
       "src/online/online-send-actions.ts",
+      "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",

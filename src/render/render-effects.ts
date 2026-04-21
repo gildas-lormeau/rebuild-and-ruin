@@ -19,6 +19,7 @@ import {
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../shared/ui/player-config.ts";
 import {
+  BONUS_CIRCLE_COLOR,
   BONUS_FLASH_MS,
   drawShadowText,
   FONT_TIMER,
@@ -51,6 +52,9 @@ const WAVE_COL_FREQ = 0.3;
 const WAVE_COL_LAYER_VAR = 0.15;
 // Column frequency variation per layer
 const WAVE_PHASE_OFFSET = 2.1;
+// Bonus-disc fill in CSS form (the RGB tuple lives in theme.ts so the 3D
+// manager can reuse it).
+const BONUS_CIRCLE_FILL = rgb(BONUS_CIRCLE_COLOR);
 // Phantom rendering
 const DARK_METAL = "#111";
 /** Piece phantom opacity for valid placement (saturated color + 3D bevel). */
@@ -197,7 +201,10 @@ export function drawPhantoms(
   overlayCtx.restore();
 }
 
-/** Draw bonus squares (flashing green diamonds). */
+/** Draw bonus squares as flashing green discs (1 tile diameter, no
+ *  outline). Uses the original `bonus_square` sprite green so the
+ *  pickup hue stays consistent with pre-migration screenshots. Alpha
+ *  pulses on `BONUS_FLASH_MS`. */
 export function drawBonusSquares(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
@@ -207,10 +214,14 @@ export function drawBonusSquares(
   const alphaScale = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
   overlayCtx.save();
   overlayCtx.globalAlpha = alphaScale;
+  overlayCtx.fillStyle = BONUS_CIRCLE_FILL;
+  const radius = TILE_SIZE / 2;
   for (const bonus of overlay.entities.bonusSquares) {
-    const bx = bonus.col * TILE_SIZE;
-    const by = bonus.row * TILE_SIZE;
-    drawSprite(overlayCtx, "bonus_square", bx, by);
+    const centerX = bonus.col * TILE_SIZE + radius;
+    const centerY = bonus.row * TILE_SIZE + radius;
+    overlayCtx.beginPath();
+    overlayCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    overlayCtx.fill();
   }
   overlayCtx.restore();
 }

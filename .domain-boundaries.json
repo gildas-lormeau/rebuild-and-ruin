@@ -164,6 +164,7 @@
       "src/render/3d/entities/pits.ts",
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
+      "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/impacts.ts",

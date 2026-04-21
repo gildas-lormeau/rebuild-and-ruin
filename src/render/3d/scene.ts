@@ -25,6 +25,10 @@
 import * as THREE from "three";
 import { createMapCamera } from "./camera.ts";
 import {
+  type BonusSquaresManager,
+  createBonusSquaresManager,
+} from "./effects/bonus-squares.ts";
+import {
   type CrosshairsManager,
   createCrosshairsManager,
 } from "./effects/crosshairs.ts";
@@ -159,6 +163,10 @@ export interface Render3dContext {
    *  CanvasTexture on a plane above the terrain mesh. Parity with the
    *  2D `drawSinkholeOverlays` bank-fade pass. */
   readonly sinkholeOverlay: SinkholeOverlayManager;
+  /** Flashing gold-disc bonus-square indicators. Rendered as flat
+   *  circles on the ground plane outside of battle; pulse matches the
+   *  2D `drawBonusSquares` alpha timeline. */
+  readonly bonusSquares: BonusSquaresManager;
 }
 
 /** Build the scene graph used by `createRender3d`. */
@@ -198,6 +206,7 @@ export function createRender3dScene(
     scene,
     getSinkholeOverlayBitmap,
   );
+  const bonusSquares = createBonusSquaresManager(scene);
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -236,5 +245,6 @@ export function createRender3dScene(
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
+    bonusSquares,
   };
 }

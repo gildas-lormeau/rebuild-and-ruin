@@ -82,14 +82,12 @@ const ICE_COLOR: [number, number, number] = [165, 210, 230];
 // per-tile average since every tile is a single vertex-colored quad.
 const COBBLESTONE_BASE: [number, number, number] = [90, 85, 80];
 const COBBLESTONE_TINT_FACTOR = 0.15;
-// Bonus square base — matches `bonus_square` sprite fill in generate-sprites.html.
-const BONUS_COLOR: [number, number, number] = [35, 140, 25];
-// Bonus square pulse — matches drawBonusSquares() alphaScale range (0.70–1.00)
-// but we multiply brightness instead of alpha since the mesh is opaque.
-const BONUS_FLASH_MS = 300;
 // Ground-plane Y lift: terrain bitmap sits at Y=0, terrain mesh at
-// Y=0.01 so its opaque pixels (castle interiors, bonus squares,
-// frozen tiles, owned sinkhole tints) composite over the bitmap.
+// Y=0.01 so its opaque pixels (castle interiors, frozen tiles, owned
+// sinkhole tints) composite over the bitmap. Bonus squares are drawn
+// as flashing discs on top of everything by `effects/bonus-squares.ts`
+// — the terrain mesh deliberately doesn't paint their tile so the
+// checker grass under the disc still reads as grass.
 const TERRAIN_Y_LIFT = 0.01;
 
 export function createTerrain(): TerrainContext {
@@ -173,20 +171,11 @@ export function createTerrain(): TerrainContext {
   function update(
     map: GameMap,
     overlay: RenderOverlay | undefined,
-    now: number,
+    _now: number,
   ): void {
     const frozen = overlay?.entities?.frozenTiles;
-    const bonusSquares = overlay?.entities?.bonusSquares;
     const sinkholeTiles = overlay?.entities?.sinkholeTiles;
     const inBattle = !!overlay?.battle?.inBattle;
-
-    const bonusPulse = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
-
-    // Mark bonus tiles for quick lookup. Pit tiles deliberately don't
-    // override the underlying terrain color — the pit sprite is drawn
-    // with transparent edges so the grass / interior / cobble beneath
-    // shows through, matching the 2D renderer's behavior.
-    const bonusKeys = buildTileKeySet(bonusSquares);
 
     // Per-tile owner maps for interiors and sinkhole bank tinting.
     // Mirrors `buildOwnerTables` in render-map.ts: in battle we use
@@ -209,12 +198,7 @@ export function createTerrain(): TerrainContext {
         // alpha=1: opaque, covers the bitmap at this tile.
         let alpha: number;
 
-        if (bonusKeys?.has(key) && !inBattle) {
-          red = BONUS_COLOR[0] * bonusPulse;
-          green = BONUS_COLOR[1] * bonusPulse;
-          blue = BONUS_COLOR[2] * bonusPulse;
-          alpha = 1;
-        } else if (interiorOwner !== undefined && tile !== Tile.Water) {
+        if (interiorOwner !== undefined && tile !== Tile.Water) {
           // Castle interior — checkered per-player tint out of battle,
           // cobblestone-tinted-gray in battle. Matches drawCastleInterior
           // + ownerGrassBase in render-map.ts.
@@ -321,16 +305,6 @@ function sRGBToLinear(value: number): number {
   return value <= 0.04045
     ? value / 12.92
     : Math.pow((value + 0.055) / 1.055, 2.4);
-}
-
-/** Pack `{row, col}` entries into a row*GRID_COLS+col Set for O(1) lookup. */
-function buildTileKeySet(
-  entries: readonly { row: number; col: number }[] | undefined,
-): Set<number> | null {
-  if (!entries || entries.length === 0) return null;
-  const out = new Set<number>();
-  for (const entry of entries) out.add(entry.row * GRID_COLS + entry.col);
-  return out;
 }
 
 /** Build a tile-key → owner map from the overlay's interior sets.

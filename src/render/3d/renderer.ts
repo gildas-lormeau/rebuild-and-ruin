@@ -212,6 +212,10 @@ export function createRender3d(
       // pixel-grain bank gradient wins over the mesh's tile-grain
       // owner tint on sinkhole water tiles.
       ctx.sinkholeOverlay.update(map, overlay);
+      // Bonus-square pickups — flashing gold discs on the ground plane
+      // outside of battle. Terrain mesh leaves bonus tiles transparent
+      // so the grass checker still shows through the disc's edges.
+      ctx.bonusSquares.update(overlay, now);
       // Fine water-wave highlight pass — battle-only, renders above the
       // terrain mesh but below walls / entities / fog.
       ctx.waterWaves.update(map, overlay, now);
