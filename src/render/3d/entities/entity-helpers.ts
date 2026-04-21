@@ -23,7 +23,7 @@ import type { RGB } from "../../../shared/ui/theme.ts";
  *  that scratch group — i.e. its authored placement relative to the
  *  entity's local origin. Consumers typically wrap each sub-part in an
  *  `InstancedMesh` and compose host×local matrices per frame. */
-interface ExtractedSubPart {
+export interface ExtractedSubPart {
   readonly geometry: THREE.BufferGeometry;
   /** Preserves material arrays (multi-group meshes like ExtrudeGeometry
    *  with separate side/cap materials). `InstancedMesh` supports both
