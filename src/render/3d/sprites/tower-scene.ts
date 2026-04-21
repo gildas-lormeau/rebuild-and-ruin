@@ -285,7 +285,7 @@ const STONE_PLAIN: MaterialSpec = {
 };
 const ROOF_SLATE: TexturedSpec = {
   kind: "standard",
-  color: 0x505560,
+  color: 0x9ca6bb,
   roughness: 0.75,
   metalness: 0.1,
   texture: "roof",

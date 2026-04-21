@@ -121,20 +121,20 @@ export interface WindowPlacement {
 
 const STONE_BODY: TexturedSpec = {
   kind: "standard",
-  color: 0x705040,
+  color: 0xdb9c7d,
   roughness: 0.85,
   metalness: 0.1,
 };
 const ROOF_RED: TexturedSpec = {
   kind: "standard",
-  color: 0xb0402a,
+  color: 0xff7d52,
   roughness: 0.65,
   metalness: 0.2,
   texture: "roof_tile",
 };
 const DOOR_DARK: TexturedSpec = {
   kind: "basic",
-  color: 0x4a2a18,
+  color: 0x91522f,
   side: "double",
 };
 // Warm candlelight/hearth glow for windows — reads as an occupied
@@ -142,7 +142,7 @@ const DOOR_DARK: TexturedSpec = {
 // darken under lighting; the emissive-like warmth sells "lit".
 const WINDOW_LIT: TexturedSpec = {
   kind: "basic",
-  color: 0xc88040,
+  color: 0xfffb7d,
   side: "double",
 };
 export const VARIANTS: VariantDescriptor[] = [

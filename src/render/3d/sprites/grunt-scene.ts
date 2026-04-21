@@ -86,25 +86,25 @@ export interface GruntVariantReport {
 
 const HULL_GREEN: MaterialSpec = {
   kind: "standard",
-  color: 0x3a4828,
+  color: 0x718d4e,
   roughness: 0.85,
   metalness: 0.1,
 };
 const TURRET_GREEN: MaterialSpec = {
   kind: "standard",
-  color: 0x2a3818,
+  color: 0x526d2f,
   roughness: 0.85,
   metalness: 0.1,
 };
 const TRACK_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x2a2a2a,
+  color: 0x525252,
   roughness: 0.95,
   metalness: 0.2,
 };
 const TRACK_MID: MaterialSpec = {
   kind: "standard",
-  color: 0x3a3a3a,
+  color: 0x717171,
   roughness: 0.95,
   metalness: 0.2,
 };
@@ -112,7 +112,7 @@ const TRACK_MID: MaterialSpec = {
 // muzzle, not an extension of the green hull.
 const BARREL_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x3a3a3a,
+  color: 0x717171,
   roughness: 0.5,
   metalness: 0.7,
 };

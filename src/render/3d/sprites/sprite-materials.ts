@@ -21,19 +21,19 @@ import type { MaterialSpec } from "./sprite-kit.ts";
 // brick map).
 export const WALL_STONE_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x6a6a65,
+  color: 0xcfcfc5,
   roughness: 0.85,
   metalness: 0.05,
 };
 export const WALL_STONE_MAIN: MaterialSpec = {
   kind: "standard",
-  color: 0x8a8a85,
+  color: 0xffffff,
   roughness: 0.85,
   metalness: 0.05,
 };
 export const WALL_STONE_LIGHT: MaterialSpec = {
   kind: "standard",
-  color: 0xa5a5a0,
+  color: 0xffffff,
   roughness: 0.8,
   metalness: 0.05,
 };
@@ -51,7 +51,7 @@ export const WOOD_DARK: MaterialSpec = {
 // roughness 0.65 (debris spec); rampart previously used 0.60.
 export const BAND_GREEN: MaterialSpec = {
   kind: "standard",
-  color: 0x3a5a28,
+  color: 0x71b04e,
   roughness: 0.65,
   metalness: 0.3,
 };

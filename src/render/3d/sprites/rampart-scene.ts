@@ -94,25 +94,25 @@ export interface RampartVariantReport {
 // cannon-rubble piles) is imported from sprite-materials.ts.
 const CORE_METAL: MaterialSpec = {
   kind: "standard",
-  color: 0x4a4a48,
+  color: 0x91918d,
   roughness: 0.45,
   metalness: 0.85,
 };
 const PILLAR_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x2a2a28,
+  color: 0x52524e,
   roughness: 0.5,
   metalness: 0.8,
 };
 const TOP_LIGHT: MaterialSpec = {
   kind: "standard",
-  color: 0x7a7a78,
+  color: 0xefefeb,
   roughness: 0.4,
   metalness: 0.85,
 };
 const EMBLEM_GREEN: MaterialSpec = {
   kind: "standard",
-  color: 0x3a5a28,
+  color: 0x71b04e,
   roughness: 0.55,
   metalness: 0.4,
 };
@@ -120,7 +120,7 @@ const EMBLEM_GREEN: MaterialSpec = {
 // band/emblem so the palette stays compact.
 const SHIELD_AURA: MaterialSpec = {
   kind: "basic",
-  color: 0x3a5a28,
+  color: 0x71b04e,
   side: "double",
   opacity: 0.32,
 };

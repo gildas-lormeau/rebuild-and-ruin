@@ -107,7 +107,7 @@ interface UVGenerator {
 
 const STONE_MAIN: TexturedSpec = {
   kind: "standard",
-  color: 0x8a8a85,
+  color: 0xdcdcd8,
   roughness: 0.85,
   metalness: 0.05,
   texture: "stone",
@@ -124,7 +124,7 @@ const STONE_LIGHT: TexturedSpec = {
 // floor, not the running-bond brick pattern that shows on the side.
 const WALL_TOP: TexturedSpec = {
   kind: "standard",
-  color: 0x8a8a85,
+  color: 0xdcdcd8,
   roughness: 0.9,
   metalness: 0.05,
   texture: "wall_top",

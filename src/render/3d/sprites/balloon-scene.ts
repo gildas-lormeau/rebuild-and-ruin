@@ -158,61 +158,61 @@ export interface StakeRopeSegment {
 
 const ENVELOPE_RED: MaterialSpec = {
   kind: "standard",
-  color: 0xb03030,
+  color: 0xff5e5e,
   roughness: 0.55,
   metalness: 0.1,
 };
 const ENVELOPE_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x802020,
+  color: 0xfa3e3e,
   roughness: 0.6,
   metalness: 0.1,
 };
 const ENVELOPE_SEAM: MaterialSpec = {
   kind: "standard",
-  color: 0x601818,
+  color: 0xbc2f2f,
   roughness: 0.7,
   metalness: 0.1,
 };
 const DEFLATED_RED: MaterialSpec = {
   kind: "standard",
-  color: 0xa03030,
+  color: 0xfa5e5e,
   roughness: 0.65,
   metalness: 0.1,
 };
 const ROPE_BROWN: MaterialSpec = {
   kind: "standard",
-  color: 0x6a5a3a,
+  color: 0xcfb071,
   roughness: 0.95,
   metalness: 0.0,
 };
 const BASKET_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x8b6914,
+  color: 0xffcd27,
   roughness: 0.9,
   metalness: 0.0,
 };
 const BASKET_RIM: MaterialSpec = {
   kind: "standard",
-  color: 0x6a4a0a,
+  color: 0xcf9113,
   roughness: 0.9,
   metalness: 0.0,
 };
 const STAKE_WOOD: MaterialSpec = {
   kind: "standard",
-  color: 0x4a3a20,
+  color: 0x91713e,
   roughness: 0.95,
   metalness: 0.0,
 };
 const MOORING_LIGHT: MaterialSpec = {
   kind: "standard",
-  color: 0x707070,
+  color: 0xdbdbdb,
   roughness: 0.4,
   metalness: 0.85,
 };
 const MOORING_DARK: MaterialSpec = {
   kind: "standard",
-  color: 0x333333,
+  color: 0x636363,
   roughness: 0.45,
   metalness: 0.85,
 };

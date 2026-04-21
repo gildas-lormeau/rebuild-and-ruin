@@ -166,7 +166,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(0.5),
         material: {
           kind: "standard",
-          color: 0x8a5830,
+          color: 0xffac5e,
           roughness: 0.65,
           metalness: 0.0,
           texture: "wood",
@@ -185,7 +185,7 @@ export const VARIANTS: CannonVariant[] = [
         yPos: cells(6),
         material: {
           kind: "standard",
-          color: 0x707580,
+          color: 0xdbe5fb,
           roughness: 0.2,
           metalness: 0.9,
         },
@@ -201,7 +201,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(2),
         material: {
           kind: "standard",
-          color: 0x806030,
+          color: 0xfbbc5e,
           roughness: 0.4,
           metalness: 0.85,
         },
@@ -219,7 +219,7 @@ export const VARIANTS: CannonVariant[] = [
         bevel: 0.015,
         material: {
           kind: "standard",
-          color: 0x4a2a18,
+          color: 0x91522f,
           roughness: 0.95,
           metalness: 0.0,
           texture: "wood",
@@ -234,7 +234,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [0, -1.625 / 2 - 0.0625, 0],
           material: {
             kind: "standard",
-            color: 0x707580,
+            color: 0xdbe5fb,
             roughness: 0.2,
             metalness: 0.9,
           },
@@ -253,7 +253,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x707580,
+            color: 0xdbe5fb,
             roughness: 0.2,
             metalness: 0.9,
           },
@@ -272,7 +272,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [0, 0, Math.PI / 2],
           material: {
             kind: "standard",
-            color: 0x707580,
+            color: 0xdbe5fb,
             roughness: 0.2,
             metalness: 0.9,
           },
@@ -299,7 +299,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x3a3a38,
+            color: 0x71716d,
             roughness: 0.5,
             metalness: 0.9,
           },
@@ -340,7 +340,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(0.5),
         material: {
           kind: "standard",
-          color: 0x8a8a88,
+          color: 0xffffff,
           roughness: 0.35,
           metalness: 0.8,
           texture: "metal_grip",
@@ -356,7 +356,7 @@ export const VARIANTS: CannonVariant[] = [
         yPos: cells(5),
         material: {
           kind: "standard",
-          color: 0x7a7a78,
+          color: 0xefefeb,
           roughness: 0.35,
           metalness: 0.85,
         },
@@ -371,7 +371,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(2),
         material: {
           kind: "standard",
-          color: 0x3a5a28,
+          color: 0x71b04e,
           roughness: 0.6,
           metalness: 0.3,
         },
@@ -387,7 +387,7 @@ export const VARIANTS: CannonVariant[] = [
             taperTop: 0.85,
             material: {
               kind: "standard",
-              color: 0x3a3a38,
+              color: 0x71716d,
               roughness: 0.55,
               metalness: 0.8,
             },
@@ -398,7 +398,7 @@ export const VARIANTS: CannonVariant[] = [
             height: cells(0.5),
             material: {
               kind: "standard",
-              color: 0x6a6a65,
+              color: 0xcfcfc5,
               roughness: 0.25,
               metalness: 0.9,
             },
@@ -406,7 +406,7 @@ export const VARIANTS: CannonVariant[] = [
         ],
         material: {
           kind: "standard",
-          color: 0x3a3a38,
+          color: 0x71716d,
           roughness: 0.55,
           metalness: 0.8,
         },
@@ -420,7 +420,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [0, -1.25 / 2 - 0.0625, 0],
           material: {
             kind: "standard",
-            color: 0x7a7a78,
+            color: 0xefefeb,
             roughness: 0.35,
             metalness: 0.85,
           },
@@ -439,7 +439,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x7a7a78,
+            color: 0xefefeb,
             roughness: 0.35,
             metalness: 0.85,
           },
@@ -452,7 +452,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(-3.5), 0.561, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x555a62,
+            color: 0xa6b0c0,
             roughness: 0.28,
             metalness: 0.92,
           },
@@ -465,7 +465,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(3.5), 0.561, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x555a62,
+            color: 0xa6b0c0,
             roughness: 0.28,
             metalness: 0.92,
           },
@@ -484,7 +484,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [0, 0, Math.PI / 2],
           material: {
             kind: "standard",
-            color: 0x7a7a78,
+            color: 0xefefeb,
             roughness: 0.35,
             metalness: 0.85,
           },
@@ -511,7 +511,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x3a3a38,
+            color: 0x71716d,
             roughness: 0.55,
             metalness: 0.9,
           },
@@ -547,7 +547,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(0.5),
         material: {
           kind: "standard",
-          color: 0x8a8a88,
+          color: 0xffffff,
           roughness: 0.35,
           metalness: 0.8,
           texture: "metal_grip",
@@ -563,7 +563,7 @@ export const VARIANTS: CannonVariant[] = [
         yPos: cells(5.5),
         material: {
           kind: "standard",
-          color: 0x4a3a30,
+          color: 0x91715e,
           roughness: 0.4,
           metalness: 0.8,
         },
@@ -578,7 +578,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(2),
         material: {
           kind: "standard",
-          color: 0x806030,
+          color: 0xfbbc5e,
           roughness: 0.4,
           metalness: 0.85,
         },
@@ -594,7 +594,7 @@ export const VARIANTS: CannonVariant[] = [
             taperTop: 0.85,
             material: {
               kind: "standard",
-              color: 0x3a2a20,
+              color: 0x71523e,
               roughness: 0.6,
               metalness: 0.8,
             },
@@ -605,7 +605,7 @@ export const VARIANTS: CannonVariant[] = [
             height: cells(0.5),
             material: {
               kind: "standard",
-              color: 0x806030,
+              color: 0xfbbc5e,
               roughness: 0.3,
               metalness: 0.9,
             },
@@ -613,7 +613,7 @@ export const VARIANTS: CannonVariant[] = [
         ],
         material: {
           kind: "standard",
-          color: 0x3a2a20,
+          color: 0x71523e,
           roughness: 0.6,
           metalness: 0.8,
         },
@@ -627,7 +627,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [0, -1.25 / 2 - 0.0625, 0],
           material: {
             kind: "standard",
-            color: 0x806030,
+            color: 0xfbbc5e,
             roughness: 0.4,
             metalness: 0.85,
           },
@@ -646,7 +646,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x806030,
+            color: 0xfbbc5e,
             roughness: 0.4,
             metalness: 0.85,
           },
@@ -659,7 +659,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(-3.5), 0.624, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x4a3a2c,
+            color: 0x917156,
             roughness: 0.35,
             metalness: 0.88,
           },
@@ -672,7 +672,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(3.5), 0.624, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x4a3a2c,
+            color: 0x917156,
             roughness: 0.35,
             metalness: 0.88,
           },
@@ -691,7 +691,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [0, 0, Math.PI / 2],
           material: {
             kind: "standard",
-            color: 0x806030,
+            color: 0xfbbc5e,
             roughness: 0.4,
             metalness: 0.85,
           },
@@ -718,7 +718,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x403018,
+            color: 0x7d5e2f,
             roughness: 0.5,
             metalness: 0.9,
           },
@@ -754,7 +754,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(0.5),
         material: {
           kind: "standard",
-          color: 0x9098a5,
+          color: 0xffffff,
           roughness: 0.25,
           metalness: 0.9,
           texture: "metal_grip",
@@ -770,7 +770,7 @@ export const VARIANTS: CannonVariant[] = [
         yPos: cells(5.5),
         material: {
           kind: "standard",
-          color: 0x8a92a0,
+          color: 0xffffff,
           roughness: 0.2,
           metalness: 0.95,
         },
@@ -785,7 +785,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(1),
         material: {
           kind: "standard",
-          color: 0xb08848,
+          color: 0xffff8d,
           roughness: 0.3,
           metalness: 0.9,
         },
@@ -801,7 +801,7 @@ export const VARIANTS: CannonVariant[] = [
             taperTop: 0.85,
             material: {
               kind: "standard",
-              color: 0x2a323e,
+              color: 0x526279,
               roughness: 0.45,
               metalness: 0.88,
             },
@@ -812,7 +812,7 @@ export const VARIANTS: CannonVariant[] = [
             height: cells(0.5),
             material: {
               kind: "standard",
-              color: 0xb08848,
+              color: 0xffff8d,
               roughness: 0.25,
               metalness: 0.92,
             },
@@ -820,7 +820,7 @@ export const VARIANTS: CannonVariant[] = [
         ],
         material: {
           kind: "standard",
-          color: 0x2a323e,
+          color: 0x526279,
           roughness: 0.45,
           metalness: 0.88,
         },
@@ -834,7 +834,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [0, -1.25 / 2 - 0.0625, 0],
           material: {
             kind: "standard",
-            color: 0xb08848,
+            color: 0xffff8d,
             roughness: 0.3,
             metalness: 0.9,
           },
@@ -853,7 +853,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0xb08848,
+            color: 0xffff8d,
             roughness: 0.3,
             metalness: 0.9,
           },
@@ -866,7 +866,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(-3.5), 0.624, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x6a7280,
+            color: 0xcfdffb,
             roughness: 0.22,
             metalness: 0.95,
           },
@@ -879,7 +879,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(3.5), 0.624, cells(-1)],
           material: {
             kind: "standard",
-            color: 0x6a7280,
+            color: 0xcfdffb,
             roughness: 0.22,
             metalness: 0.95,
           },
@@ -898,7 +898,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [0, 0, Math.PI / 2],
           material: {
             kind: "standard",
-            color: 0xb08848,
+            color: 0xffff8d,
             roughness: 0.3,
             metalness: 0.9,
           },
@@ -925,7 +925,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x403018,
+            color: 0x7d5e2f,
             roughness: 0.5,
             metalness: 0.9,
           },
@@ -961,7 +961,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(0.5),
         material: {
           kind: "standard",
-          color: 0x8a5830,
+          color: 0xffac5e,
           roughness: 0.85,
           metalness: 0.0,
           texture: "wood",
@@ -977,7 +977,7 @@ export const VARIANTS: CannonVariant[] = [
         yPos: 0.991,
         material: {
           kind: "standard",
-          color: 0x404650,
+          color: 0x7d899c,
           roughness: 0.55,
           metalness: 0.75,
         },
@@ -992,7 +992,7 @@ export const VARIANTS: CannonVariant[] = [
         height: cells(2),
         material: {
           kind: "standard",
-          color: 0x3a5a28,
+          color: 0x71b04e,
           roughness: 0.6,
           metalness: 0.3,
         },
@@ -1008,7 +1008,7 @@ export const VARIANTS: CannonVariant[] = [
             taperTop: 0.85,
             material: {
               kind: "standard",
-              color: 0x382a20,
+              color: 0x6d523e,
               roughness: 0.7,
               metalness: 0.7,
             },
@@ -1019,7 +1019,7 @@ export const VARIANTS: CannonVariant[] = [
             height: cells(0.5),
             material: {
               kind: "standard",
-              color: 0x5a4838,
+              color: 0xb08d6d,
               roughness: 0.45,
               metalness: 0.75,
             },
@@ -1027,7 +1027,7 @@ export const VARIANTS: CannonVariant[] = [
         ],
         material: {
           kind: "standard",
-          color: 0x382a20,
+          color: 0x6d523e,
           roughness: 0.7,
           metalness: 0.7,
         },
@@ -1041,7 +1041,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [0, -1.25 / 2 - 0.125, 0],
           material: {
             kind: "standard",
-            color: 0x3a3a38,
+            color: 0x71716d,
             roughness: 0.55,
             metalness: 0.8,
           },
@@ -1060,7 +1060,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x3a3a38,
+            color: 0x71716d,
             roughness: 0.55,
             metalness: 0.8,
           },
@@ -1073,7 +1073,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(-3.5), cells(6), 0],
           material: {
             kind: "standard",
-            color: 0x95683c,
+            color: 0xffcb75,
             roughness: 0.4,
             metalness: 0.7,
           },
@@ -1086,7 +1086,7 @@ export const VARIANTS: CannonVariant[] = [
           pos: [cells(3.5), cells(6), 0],
           material: {
             kind: "standard",
-            color: 0x95683c,
+            color: 0xffcb75,
             roughness: 0.4,
             metalness: 0.7,
           },
@@ -1105,7 +1105,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [0, 0, Math.PI / 2],
           material: {
             kind: "standard",
-            color: 0x3a3a38,
+            color: 0x71716d,
             roughness: 0.55,
             metalness: 0.8,
           },
@@ -1132,7 +1132,7 @@ export const VARIANTS: CannonVariant[] = [
           rot: [Math.PI / 2, 0, 0],
           material: {
             kind: "standard",
-            color: 0x3a2418,
+            color: 0x71462f,
             roughness: 0.7,
             metalness: 0.7,
           },
