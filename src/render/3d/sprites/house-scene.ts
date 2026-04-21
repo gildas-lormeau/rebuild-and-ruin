@@ -333,14 +333,6 @@ export function buildHouse(
     windowMesh.rotation.y = w.rotY;
     scene.add(windowMesh);
   }
-
-  // Console summary so we can verify positions without eyeballing.
-  const fmt = (n: number): string => n.toFixed(3);
-  console.log(
-    `[house] body=${fmt(params.body.width)}×${fmt(params.body.depth)}×${fmt(params.body.height)}  ` +
-      `roof=${fmt(params.roof.width)}×${fmt(params.roof.depth)}  ridge=${roof.ridgeAxis}  ` +
-      `apex=${fmt(roof.apexY)}`,
-  );
 }
 
 /**

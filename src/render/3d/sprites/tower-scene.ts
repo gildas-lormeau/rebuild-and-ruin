@@ -628,12 +628,6 @@ export function getTowerVariant(name: string): Variant | undefined {
   return VARIANTS.find((v) => v.name === name);
 }
 
-export function cornerMerlonPlacements(_turret: TurretParams): unknown[] {
-  // No longer emitted — rounded turrets with merlon parapets use a
-  // square MERLON_DECK under the parapet. Stub kept for API compat.
-  return [];
-}
-
 export function variantReport(variant: Variant): VariantReport {
   const warnings: string[] = [];
   const turrets = variant.params.turrets.map((t) => ({

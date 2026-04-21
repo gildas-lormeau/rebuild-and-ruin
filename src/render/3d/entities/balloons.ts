@@ -48,7 +48,7 @@
  */
 
 import * as THREE from "three";
-import { type Cannon, CannonMode } from "../../../shared/core/battle-types.ts";
+import type { Cannon } from "../../../shared/core/battle-types.ts";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
@@ -200,7 +200,6 @@ function collectGroundedBalloons(overlay: RenderOverlay | undefined): Cannon[] {
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;
       if (!isBalloonCannon(cannon)) continue;
-      if (cannon.mode !== CannonMode.BALLOON) continue;
       out.push(cannon);
     }
   }
