@@ -1,317 +1,258 @@
-# 3D renderer migration plan
-
-Goal: replace the canvas 2D world renderer with a three.js-based live 3D
-renderer, shipped behind a feature flag and flipped to default once parity
-is verified. UI layer stays 2D.
-
-## Strategy: hybrid stacked canvases
-
-Two canvases, same DOM size:
-
-- **`#world-canvas`** (z=0, WebGL) — terrain, walls, cannons, towers,
-  grunts, cannonballs, balloons, pits, debris, battle effects.
-- **`#canvas`** (z=1, 2D, existing) — banners, HUD, dialogs, loupe,
-  upgrade-pick, game-over, life-lost. Unchanged.
-
-Rationale: UI is a polished, working product. Canvas text rendering
-(`fillText`/`measureText`) has no clean three.js equivalent; rewriting
-the UI in Troika/baked textures is 1-2 weeks of work with no visual gain.
-The "3D world" benefit is entirely about tile rendering.
+Phase-by-phase breakdown (agent-ready)
+Each task is self-contained with files, signatures, and acceptance criteria.
 
-## Guardrails
-
-- `rendererKind: '2d' | '3d'` setting, localStorage-persisted, defaults
-  to `'2d'` until Phase 9. Toggle hidden until Phase 9 (dev-only key combo).
-- 2D renderer stays untouched the entire migration.
-- Every phase merges with both renderers shippable. Pre-commit hooks
-  (tsc, layers, tests) must pass at every merge.
-- No changes to `src/game/`, `src/ai/`, `src/controllers/`, `src/shared/`
-  (except settings), `src/online/`, `test/`, or `server/`.
-- Three.js version: stay at `0.160` (matches sprite previews).
-- No shadow maps — pixel-art aesthetic doesn't benefit.
-
-## Architectural seams
-
-Already in place (no changes required):
-
-- `RendererInterface` in `src/render/render-canvas.ts` — abstract
-  `drawFrame(state)` entry point. `createRender3d()` plugs in alongside
-  `createRenderCanvas()`.
-- Headless test runtime already stubs the renderer, so scenario and
-  determinism tests are renderer-agnostic.
-- `Viewport` from `src/runtime/runtime-camera.ts` — renderer-neutral
-  output (zone, pan, zoom). 3D camera consumes it the same way 2D does.
-- `GameState` is the sole source of truth for what's on screen. Cannonball
-  positions, grunt positions, impact timelines, pit state, etc. are all
-  state fields — renderer is stateless beyond transient animation
-  interpolation.
-
-New seams this migration introduces:
-
-- `src/render/3d/sprites/` — scene builders live here already (moved from
-  `tmp/sprites-design/` in the pre-migration refactor). Still `.mjs`;
-  convert to `.ts` file-by-file as each is integrated.
-- `src/render/3d/renderer.ts` — the `createRender3d()` factory.
-- `src/render/3d/entities/` — per-entity-type mesh managers (walls, cannons,
-  grunts, etc.) that read game state and update three.js meshes.
-
----
-
-## Phase 0 — Infrastructure
-
-**Deliverable**: 3D canvas exists behind the 2D canvas, feature-flagged,
-renderer factory scaffolded, game fully playable in 2D mode with no
-regressions; 3D mode shows transparent WebGL canvas with 2D UI over it.
-
-**Files**:
-- `package.json` — add `three@^0.160`.
-- `src/shared/core/settings.ts` — add `rendererKind: '2d' | '3d'` field.
-- `src/shared/core/game-constants.ts` — default `'2d'`.
-- `index.html` — add `<canvas id="world-canvas">` behind existing
-  `<canvas id="canvas">`, absolute-positioned, same dims.
-- new `src/render/3d/renderer.ts` — `createRender3d(): RendererInterface`.
-  `drawFrame` is a no-op that clears the WebGL canvas.
-- new `src/render/3d/scene.ts` — scene root, camera placeholder, lights.
-- `src/runtime/runtime-composition.ts` — pick renderer by setting.
-
-**Gate**: flipping the setting in devtools switches renderers cleanly.
-Game remains playable end-to-end in both modes. Pre-commit hooks pass.
-
----
-
-## Phase 1 — Camera + pixel discipline
-
-**Deliverable**: ortho camera correctly sized to the map, accepting
-`Viewport` updates from `runtime-camera.ts`. Pinch/D-pad zoom works in
-3D mode. Empty colored ground plane visible for debug.
-
-**Files**:
-- new `src/render/3d/camera.ts` — ortho camera sized to map world units
-  (1 world unit = 1 game-1× pixel). `updateCameraFromViewport(camera, vp)`.
-- new `src/render/3d/pixel-snap.ts` — `pixelSnap(vec)` helper.
-- new `src/render/3d/lights.ts` — hemispheric + subtle directional.
-- `src/render/3d/renderer.ts` — integrate camera + lights.
-
-**Gate**: 3D mode shows a placeholder ground plane sized correctly;
-pinch/D-pad/keyboard zoom adjust the camera to match 2D mode.
-
----
-
-## Phase 2 — Terrain
-
-**Deliverable**: terrain renders in 3D for every map (grass, water,
-interior, bonus, frozen water, pit marker placeholder). Water animates.
+Phase A
+A1 — Derive entity top-Y from authored bounds
+Files: src/render/3d/sprites/*.ts (add a bounds helper per scene), src/render/3d/elevation.ts (consume), src/render/3d/sprites/sprite-kit.ts (shared walker).
 
-**Files**:
-- new `src/render/3d/terrain.ts` — builds tile grid as `PlaneGeometry`
-  with per-tile UVs into a small tile atlas, or per-vertex colors.
-  Water is a separate material with UV scroll.
-- `src/render/3d/renderer.ts` — instantiate terrain; rebuild on
-  `mapVersion` change (parity with 2D's `WeakMap` cache).
-
-**Gate**: every `map-example.txt` variant renders with correct tile
-types, matching 2D after quantization. Water animates. Map edits
-(territory flips, wall destruction) rebuild terrain cleanly.
+Shape:
 
----
 
-## Phase 3 — Static entities
+// sprite-kit.ts
+export function measureVariantBoundsY(
+  three: typeof THREE,
+  build: (scratch: THREE.Group) => void,
+): { minY: number; maxY: number };
+Each scene exports boundsYOf(variant) using measureVariantBoundsY against its builder. elevation.ts replaces hand-tuned constants with calls like towerTopY(), cannonTopY(), houseTopY(), gruntTopY() — each cached per variant.
 
-**Deliverable**: walls, towers, houses, dead-cannon debris, tower debris
-all render at correct positions with correct player colors. Convert the
-relevant `*-scene.mjs` files to `.ts` as they integrate (the TS
-conversion item from the pre-migration refactor happens here, file by
-file, as real integration exercises the types).
+Acceptance: crosshair/cannonball tops match current visual (within ±1 world unit); delete TOWER_TOP_Y, CANNON_TOP_Y, HOUSE_TOP_Y, GRUNT_TOP_Y. Scenario tests pass.
 
-**Files**:
-- new `src/render/3d/entities/walls.ts` — `InstancedMesh` for walls
-  (~80-120 per battle). Mask-based variant selection.
-- new `src/render/3d/entities/towers.ts` — home + secondary variants,
-  player-tinted materials.
-- new `src/render/3d/entities/houses.ts`.
-- new `src/render/3d/entities/debris.ts` — cannon/tower/wall debris.
-- Convert `src/render/3d/sprites/wall-scene.mjs` → `.ts`.
-- Convert `src/render/3d/sprites/tower-scene.mjs` → `.ts`.
-- Convert `src/render/3d/sprites/house-scene.mjs` → `.ts`.
-- Convert `src/render/3d/sprites/debris-scene.mjs` → `.ts`.
-- Convert `src/render/3d/sprites/sprite-kit.mjs`,
-  `sprite-materials.mjs`, `sprite-bounds.mjs` → `.ts` (they're
-  dependencies of the above).
+Complexity: medium. ~3h.
 
-**Gate**: a static map snapshot (mid-build) renders with castles, walls,
-houses, and any existing debris in correct positions and player colors.
+A2 — Tag-based mesh metadata
+Files: src/render/3d/sprites/cannon-scene.ts (add tags to DecorationSpec + stamp userData), src/render/3d/sprites/rampart-scene.ts (tag shield plane), src/render/3d/entities/cannons.ts (read tags), src/render/3d/entities/entity-helpers.ts (shared tag accessor).
 
----
+Shape:
 
-## Phase 4 — Dynamic entities
 
-**Deliverable**: cannons (all 5 modes), grunts, cannonballs (3 types),
-pits (3 states), balloons (base/flight) all render and update from game
-state per frame.
+// entity-helpers.ts
+export function subPartHasTag(part: ExtractedSubPart, tag: string): boolean;
 
-**Files**:
-- new `src/render/3d/entities/cannons.ts` — variant by `CannonMode`
-  (default tier_1/2/3, rampart, super_gun, mortar). Rotation by facing.
-- new `src/render/3d/entities/grunts.ts` — facing → variant. `InstancedMesh`.
-- new `src/render/3d/entities/cannonballs.ts` — scale by altitude
-  (parabolic from `remaining/totalDist`). Variant by ball type.
-- new `src/render/3d/entities/pits.ts` — 3 state variants per pit.
-- new `src/render/3d/entities/balloons.ts` — base ↔ flight swap.
-- Convert the corresponding `*-scene.mjs` → `.ts` in `src/render/3d/sprites/`.
+// cannon scene decorations that used named "base" / "groundShadow" / "groundAO":
+{ ..., tags: ["battle-hidden"] }
 
-**Gate**: full battle renders correctly in 3D. Side-by-side with 2D for
-visual comparison.
+// rampart shield plane:
+{ ..., tags: ["render-behind"] }
+extractSubParts carries userData.tags through. cannons.ts replaces the partName === "base" || "groundShadow" || "groundAO" string switch with subPartHasTag(part, "battle-hidden"). The rampart renderOrder = -1 hack in cannons.ts:buildBucket goes away — handled by a tag-scan at wrap time.
 
----
+Acceptance: battle-mode cannon hide behavior unchanged; renaming a mesh no longer silently breaks either behavior.
 
-## Phase 5 — Input coordinate translation
+Complexity: medium. ~3h.
 
-**Deliverable**: clicks, taps, and pinches map to the correct tiles in
-3D mode at every zoom level and camera state.
+A3 — Consolidate makeMaterial + texture pattern
+New file: src/render/3d/sprites/sprite-textures.ts.
+Touches: cannon-scene.ts, tower-scene.ts, wall-scene.ts, house-scene.ts, debris-scene.ts.
 
-**Files**:
-- `src/render/render-layout.ts` (or new `src/input/input-layout.ts`) —
-  add 3D-mode `screenToTile` using ortho camera raycast against the
-  ground plane.
-- `src/input/input-mouse.ts`, `src/input/input-touch-canvas.ts` — route
-  through the new translator when `rendererKind === '3d'`.
+Shape:
 
-**Gate**: castle select, wall placement, cannon placement, firing aim
-all work in 3D mode at every zoom level, identical to 2D.
 
----
+// sprite-textures.ts
+type TextureId = "stone" | "wall_top" | "wood" | "metal_grip" | "roof" | "door" | "roof_tile";
+export function buildTexturedMaterial(
+  three: typeof THREE,
+  spec: MaterialSpec & { texture?: TextureId },
+): THREE.Material;
+Registers per-texture-id lazy builders (all already exist as private getXxxTexture functions in the scenes — move them in). Each scene drops its local makeMaterial wrapper and imports buildTexturedMaterial.
 
-## Phase 6 — Battle effects
+Acceptance: knip reports zero dead exports from the scene files; npm run test:scenario + a manual visual smoke test show no texture regressions.
 
-**Deliverable**: impact flashes, wall-damage transitions, frozen-tile
-visual, fog-of-war (if applicable) all render correctly in 3D.
+Complexity: medium-large. ~4h. Touches 5 files; risk of accidental texture drift.
 
-**Files**:
-- new `src/render/3d/effects.ts` — impact billboards with phase timeline
-  driven by state timestamps (matches 2D behavior).
-- Extend `src/render/3d/terrain.ts` for frozen-tile tint pass.
-- Extend `src/render/3d/renderer.ts` for fog-of-war overlay plane (if
-  the mode is active in the settings in use at battle time).
+A4 — Normalize manager update signatures
+Files: src/render/3d/scene.ts, src/render/3d/renderer.ts, all src/render/3d/entities/*.ts, all src/render/3d/effects/*.ts, src/render/3d/terrain.ts.
 
-**Gate**: battle impacts visually readable; scoring flashes and
-territory changes animate; fog-of-war masks unrevealed zones.
+Shape:
 
----
 
-## Phase 7 — Phase-specific camera tilt
+// new shared type
+export interface FrameCtx {
+  overlay: RenderOverlay | undefined;
+  map: GameMap | undefined;
+  now: number;
+}
 
-**Deliverable**: CASTLE_SELECT (+ RESELECT) and BATTLE phases use a
-tilted 3/4 camera; other phases top-down. Smooth transitions.
+// every manager:
+update(ctx: FrameCtx): void;
+Managers that don't need a field just ignore it. renderer.ts builds const ctx = { overlay, map, now } once and passes it to every manager.
 
-**Files**:
-- `src/render/3d/camera.ts` — add tilt target state + interpolator
-  (~400-600ms tween on phase change).
-- `src/runtime/runtime-render.ts` or similar — emit phase change signal
-  to camera.
+Acceptance: every _map / _overlay param gone; orchestration loop in renderer.ts is one array of update(ctx) calls (data-driven possible but optional).
 
-**Gate**: phase transitions show expected tilt changes. Pinch zoom
-continues to work at any tilt.
+Complexity: medium mechanical. ~2h. Lots of files, trivial changes.
 
----
+Phase B
+B1 — Camera tilt state machine
+Files: src/runtime/runtime-camera.ts, src/runtime/runtime-phase-machine.ts (add wait-for-pitch helper), src/shared/core/game-event-bus.ts (new event), src/shared/core/battle-events.ts (event constant).
 
-## Phase 8 — Perf
-
-**Deliverable**: steady 60fps on desktop and target mobile at peak
-battle load (2-3 zones, 20+ cannons, 30+ grunts, 100+ walls).
-
-**Files**: scattered — `InstancedMesh` adoption across
-`entities/walls.ts`, `entities/grunts.ts`, `entities/debris.ts`.
-- Per-frame diff: only update instance matrices/materials that changed.
-- Profile on mid-tier Android + iOS devices.
-
-**Gate**: 60fps steady at peak battle; frame-time budget documented.
-
----
-
-## Phase 9 — Parity review + expose toggle
-
-**Deliverable**: zero visual regressions vs 2D; toggle surfaced in
-options screen for dogfooding; community playtest approval.
-
-**Files**:
-- `src/render/render-ui-settings.ts` — surface the `rendererKind`
-  toggle in the options screen.
-
-**Review checklist** (manual QA, per map-example, per phase):
-- Fog-of-war reveals at correct timing
-- Balloon animation
-
-**Gate**: playtest approval; ready to flip default.
-
----
-
-## Phase 10 — Flip default, retire 2D
-
-**Deliverable**: 3D is the default; 2D stays opt-in for one release;
-retire 2D afterward.
-
-**Immediate files**:
-- `src/shared/core/game-constants.ts` — default flipped to `'3d'`.
-
-**Follow-up release** (after 2-4 weeks of stability):
-- Delete `src/render/render-map.ts`, `render-sprites.ts`,
-  `render-towers.ts`, `render-effects.ts`, `render-canvas.ts` (2D
-  implementations only — keep `render-ui.ts`, `render-layout.ts`).
-- Delete `tmp/sprites-design/` previews, `assembly-scene.mjs`.
-- Simplify or delete `test/recording-canvas.ts` if unused.
-- Retire sprite atlas PNG if 3D renderer doesn't consume it.
-- Remove `rendererKind` setting.
-
----
-
-## Timeline estimate
-
-| Phase | Est. work | Cumulative |
-|---|---|---|
-| 0 | 0.5 week | 0.5 w |
-| 1 | 0.5 week | 1 w |
-| 2 | 0.5-1 week | 1.5-2 w |
-| 3 | 1-2 weeks | 2.5-4 w |
-| 4 | 1-2 weeks | 3.5-6 w |
-| 5 | 0.5 week | 4-6.5 w |
-| 6 | 0.5-1 week | 4.5-7.5 w |
-| 7 | 0.5 week | 5-8 w |
-| 8 | 1 week | 6-9 w |
-| 9 | 1 week | 7-10 w |
-| 10 | +2-4 weeks stability | — |
-
-**Total core work: ~5-8 weeks**, plus 2-4 weeks of production stability
-before retiring 2D.
-
----
-
-## Files / subsystems not touched
-
-- `src/game/*` — simulation, phase logic, spatial algorithms.
-- `src/ai/*` — AI strategy.
-- `src/controllers/*` — input→intent conversion.
-- `src/shared/*` — types, constants, protocol (except one settings field).
-- `src/online/*` — checkpoint sync is state-level, renderer-independent.
-- `test/*` — `createScenario` already mocks the renderer. E2E ASCII
-  renderer is state-only, no changes needed.
-- `server/` — Deno deploy target, no rendering.
-- `src/render/render-ui.ts`, `render-ui-*.ts`, `render-layout.ts`,
-  `render-loupe.ts` — the 2D UI layer stays.
-
----
-
-## Open follow-ups (track during migration)
-
-- Loupe implementation over 3D world: may need `readPixels` from the
-  WebGL canvas or a separate small 3D render pass at high zoom. Decide
-  when Phase 1 lands.
-- Shadow-less aesthetic: if playtesters feel 3D looks "flat", consider
-  a cheap fake-shadow ground pass (AO discs per entity, already in
-  sprite designs). No true shadow maps.
-- Shader patching for wall textures.
-- Phantoms as full-sprite ghosts: phantoms currently render as plain
-  semi-transparent boxes (green/red tint). Upgrade to the full
-  `buildWall`/`buildCannon` mesh with a transparent material override
-  so the cursor preview visually matches the locked result. Target:
-  before Phase 9 parity review — the plain-box → sprite snap at lock
-  is the most visible remaining rough edge.
+Shape:
+
+
+// new event
+PITCH_SETTLED: { pitch: number }
+
+// runtime-camera.ts
+type PitchState = "flat" | "tilting" | "tilted" | "untilting";
+Replace beginUntilt() + isPitchSettled() + per-frame polling with a state-enum progression. Emit PITCH_SETTLED on each settle. Keep backwards compat: isPitchSettled() stays as a getter.
+
+Acceptance: camera-state determinism test — given a scripted phase transition, pitch state transitions match expected order.
+
+Complexity: medium. ~3h.
+
+B2 — Pitch-settle gate for balloon animation
+Files: src/runtime/runtime-phase-machine.ts:proceedToBattle, src/runtime/runtime-phase-ticks.ts.
+
+Shape: proceedToBattle subscribes to PITCH_SETTLED (or polls) before firing BALLOON_ANIM_START. If no flights, flow unchanged. Safety timeout (1500ms) as a fallback.
+
+Acceptance: watch a battle start at the game — tilt completes, then balloon lifts. No more balloon-before-tilt.
+
+Complexity: small. ~1h. Depends on B1.
+
+B3 — FBO-based capture
+Files: src/render/3d/scene.ts (renderer setup), src/render/3d/renderer.ts:captureScene (read from target), delete preserveDrawingBuffer: true.
+
+Shape:
+
+
+// scene.ts
+const renderTarget = new THREE.WebGLRenderTarget(W, H, { /* no mip, linear */ });
+renderer.setRenderTarget(renderTarget);
+renderer.render(scene, camera);
+renderer.setRenderTarget(null);
+renderer.render(scene, camera); // display blit
+
+// renderer.ts
+function captureScene(): ImageData {
+  const pixels = new Uint8Array(W * H * 4);
+  renderer.readRenderTargetPixels(renderTarget, 0, 0, W, H, pixels);
+  // flip Y, pack into ImageData
+}
+Acceptance: banner capture is byte-identical (compare against a fixture); no willReadFrequently warning; FPS improvement measurable (even 1ms per frame is a win).
+
+Complexity: medium. ~3h.
+
+B4 — Loupe under tilt
+Files: src/render/3d/renderer.ts:loupeSample, src/runtime/camera-projection.ts (new helper).
+
+Shape:
+
+
+// camera-projection.ts
+export function projectWorldRectToScreen(
+  state: CameraState,
+  canvas: { w: number; h: number },
+  worldRect: { x: number; y: number; w: number; h: number },
+): { x: number; y: number; w: number; h: number };
+Loupe math ports to use this helper when state.pitch > 0.
+
+Acceptance: switch to loupe during battle (tilted) — crop aligns with the crosshair's world position, not the flat-camera projection. Compare visually against tilted battle screenshot.
+
+Complexity: medium. ~2h. Requires understanding the existing loupe math.
+
+B5 — Auto-zoom under tilt
+Files: src/runtime/runtime-camera.ts:autoZoom, src/runtime/camera-projection.ts:visibleGroundAABB (already exists — route through it).
+
+Shape: autoZoom computes the target zone's world AABB, calls fitTileBoundsToViewport(rect, ..., pitch), which already exists with a pitch param. Confirm the call site passes currentPitch (not 0) when battle-tilted.
+
+Acceptance: auto-zoom after a kill during battle — crop fits the remaining zone with the current tilt, not the flat projection.
+
+Complexity: small. ~1h. Probably just a missing arg.
+
+Phase C
+C1 — Barrel pitch during flight
+Files: src/render/3d/sprites/cannon-scene.ts (tag barrel sub-part), src/render/3d/entities/cannons.ts (per-instance pitch in fillBucket compose callback).
+
+Shape:
+
+Tag the barrel mesh with tags: ["barrel"] in each cannon variant.
+cannons.ts tracks barrelPitch[playerId × cannonId] eased from 0 to launch-angle when a ball spawns from that cannon, back to 0 after it lands.
+In fillBucket's compose callback, if the current sub-part has the "barrel" tag, apply an extra rotation around the breech pivot (from barrelWorldPoints() in cannon-scene.ts).
+Acceptance: during a shot, the shooting cannon's barrel visibly raises and returns; other cannons unaffected.
+
+Complexity: large. ~5h. Per-instance sub-part matrix twist is new territory. Depends on A2.
+
+C2 — Balloon flight polish
+Files: src/render/3d/entities/balloons.ts:positionFlights.
+
+Shape: during flight, the basket rotates ±3° on its Z axis (forward tilt), envelope bobs ±2% radius on a 1.5s sine, gores rotate slowly. All derived from overlay.balloon.progress + now.
+
+Acceptance: balloon visibly "breathes" during flight — subtle, not distracting.
+
+Complexity: small. ~1h.
+
+C3 — Shader polish for phantoms + walls (defer or skip)
+Files: src/render/3d/entities/phantoms.ts, src/render/3d/sprites/wall-scene.ts.
+
+Shape: custom shader material with bevel computed in fragment shader (phantoms), slight specular response (walls).
+
+Acceptance: phantoms look sharp at all zooms; walls have subtle depth under tilt.
+
+Complexity: large. ~6h. Defer unless other polish is done.
+
+Phase D
+D1 — Perf baseline + bench gate
+Files: scripts/bench-render.ts (new), package.json, test/bench-scenarios.ts (fixtures).
+
+Shape: runs 60s of deterministic game state (known seed, known phase mix), measures frame time via performance.now() deltas, produces JSON with p50/p95/p99 per renderer. Fails the run if 3D p95 > 1.1 × 2D p95.
+
+Acceptance: command runs in CI; numbers are reproducible (±3%).
+
+Complexity: medium-large. ~4h.
+
+D2 — Flip default to 3D
+Files: src/shared/ui/player-config.ts:GameSettings (change default), docs/3d-renderer-migration.md.
+
+Shape: rendererKind: "3d" as default. /set renderer 2d remains available. Changelog entry.
+
+Acceptance: fresh install loads 3D; existing users keep their stored preference.
+
+Complexity: trivial. ~30min.
+
+D3 — Delete 2D renderer
+Files (delete): src/render/render-map.ts, src/render/render-effects.ts, src/render/render-sprites.ts, scripts/generate-sprites.html, all associated tests.
+
+Files (modify): src/render/render-canvas.ts (remove 2D branch), src/render/3d/renderer.ts (inline what used to be in render-canvas), src/runtime/runtime-render.ts (drop renderer-kind branching).
+
+Shape: large pure subtraction. Before deletion, audit that every 2D-unique helper is either reimplemented in 3D or genuinely unused.
+
+Acceptance: npm run build passes; npm run test:scenario passes; ~5k LOC gone. No visual regression.
+
+Complexity: large but low-risk (it's pure deletion). ~4h. Must come after D1/D2 ship and bake.
+
+Phase E
+E1 — Visual regression suite
+Files: test/vr/*.spec.ts (new), test/vr-snapshots/ (new), scripts/update-vr-baseline.ts.
+
+Shape: Playwright + createE2EScenario; take a pixel-perfect screenshot at defined checkpoints (scene-enter, banner-midpoint, battle-firing). Diff with baseline via pixelmatch (0.1% tolerance). Pre-commit gate.
+
+Acceptance: running with no code change shows zero diffs; intentional change needs --update-baseline.
+
+Complexity: large. ~6h. Playwright setup + 6-10 scenarios.
+
+E2 — Scenario suite in 3D mode
+Files: test/scenario.test.ts (parametrize).
+
+Shape: every createScenario({...}) call gets a rendererKind pass, each test runs twice (2D + 3D). Any test that only exercises overlay state auto-passes.
+
+Acceptance: both variants pass; failures reveal real 3D-only bugs.
+
+Complexity: small. ~1h.
+
+E3 — Mobile perf floor
+Files: scripts/bench-render.ts extension, CI config.
+
+Shape: mobile profile (throttled CPU, 375×812 viewport). Asserts ≥50fps median during BATTLE.
+
+Acceptance: CI gate; regressions caught before merge.
+
+Complexity: medium. ~2h. Depends on D1.
+
+Recommended dispatch order
+Agent-parallel-friendly groups (each group = agents that can run concurrently):
+
+Group 1: A4 (signatures) — simple mechanical. Can run while planning later phases.
+Group 2: A1 (bounds) + A2 (tags) — same subsystem, sequential.
+Group 3: A3 (textures) — big diff, run alone.
+Group 4: B1 (state machine) + B3 (FBO) — independent.
+Group 5: B2 (gate) after B1; B4 (loupe) + B5 (autozoom) — camera-projection work, can parallel.
+Group 6: C1 (barrel) — substantial, run alone.
+Group 7: E1 + E2 — testing harness.
+Group 8: D1 → D2 → D3 sequentially, each gated on the prior shipping.

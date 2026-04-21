@@ -187,6 +187,7 @@
       "src/render/3d/sprites/pit-scene.ts",
       "src/render/3d/sprites/procedural-texture.ts",
       "src/render/3d/sprites/rampart-scene.ts",
+      "src/render/3d/sprites/sprite-textures.ts",
       "src/render/3d/sprites/tower-scene.ts",
       "src/render/3d/sprites/wall-scene.ts"
     ],

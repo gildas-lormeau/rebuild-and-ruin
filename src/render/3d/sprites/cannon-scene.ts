@@ -24,23 +24,17 @@
 import * as THREE from "three";
 import {
   cells,
-  createMaterial,
   findVariant,
   type MaterialSpec,
   measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { BORE_DARK } from "./sprite-materials.ts";
-
-/** MaterialSpec + optional procedural texture identifier. Texture maps
- *  are attached post-factory in `makeMaterial` below. */
-export interface TexturedMaterialSpec extends MaterialSpec {
-  texture?: "wood" | "metal_grip";
-}
+import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export interface BaseParams {
   radius: number;
   height: number;
-  material: TexturedMaterialSpec;
+  material: TexturedSpec;
 }
 
 export interface BarrelParams {
@@ -83,7 +77,7 @@ export interface CheeksSupportsParams {
   yPos: number;
   zOffset: number;
   bevel?: number | BevelSpec;
-  material: TexturedMaterialSpec;
+  material: TexturedSpec;
 }
 
 export interface SlabParams {
@@ -181,7 +175,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0xffac5e,
           roughness: 0.65,
           metalness: 0.0,
-          texture: "wood",
+          texture: "cannon_wood",
         },
       },
       // Tapered profile: breech 0.32 → muzzle 0.22. Length 13 cells.
@@ -234,7 +228,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0x91522f,
           roughness: 0.95,
           metalness: 0.0,
-          texture: "wood",
+          texture: "cannon_wood",
         },
       },
       decorations: [
@@ -357,7 +351,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0xffffff,
           roughness: 0.35,
           metalness: 0.8,
-          texture: "metal_grip",
+          texture: "cannon_metal_grip",
         },
       },
       barrel: {
@@ -566,7 +560,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0xffffff,
           roughness: 0.35,
           metalness: 0.8,
-          texture: "metal_grip",
+          texture: "cannon_metal_grip",
         },
       },
       barrel: {
@@ -775,7 +769,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0xffffff,
           roughness: 0.25,
           metalness: 0.9,
-          texture: "metal_grip",
+          texture: "cannon_metal_grip",
         },
       },
       barrel: {
@@ -984,7 +978,7 @@ export const VARIANTS: CannonVariant[] = [
           color: 0xffac5e,
           roughness: 0.85,
           metalness: 0.0,
-          texture: "wood",
+          texture: "cannon_wood",
         },
       },
       barrel: {
@@ -1201,9 +1195,6 @@ export const PALETTE: readonly [number, number, number][] = [
   [0x0a, 0x0a, 0x0a],
 ];
 
-let cachedWoodTexture: THREE.Texture | undefined;
-let cachedMetalGripTexture: THREE.Texture | undefined;
-
 /** Authored Y-bounds of a cannon variant, in authored world units (±1
  *  frustum frame — no internal scale applied). Callers multiply by the
  *  entity-manager's uniform scale (TILE_SIZE) to get world Y. */
@@ -1252,7 +1243,8 @@ export function buildCannon(
   scene: THREE.Scene | THREE.Group,
   params: CannonParams,
 ): void {
-  const mat = (spec: MaterialSpec): THREE.Material => makeMaterial(three, spec);
+  const mat = (spec: MaterialSpec): THREE.Material =>
+    buildTexturedMaterial(three, spec);
 
   // Base — named so the entity manager can hide just the ground disc
   // during battle (the rest of the cannon keeps rendering).
@@ -1396,131 +1388,6 @@ export function buildCannon(
     const parent = dec.attachTo === "barrel" ? barrel : scene;
     parent.add(mesh);
   }
-}
-
-/** Texture-aware wrapper around `createMaterial`. Attaches a procedural
- *  wood/metal-grip map when the spec names one. Only generated in the
- *  browser — Node (verify/measure scripts) falls back to the base colour. */
-function makeMaterial(
-  three: typeof THREE,
-  spec: MaterialSpec | TexturedMaterialSpec,
-): THREE.Material {
-  const mat = createMaterial(spec);
-  if (spec.kind === "basic") return mat;
-  const textured = spec as TexturedMaterialSpec;
-  if (
-    !(
-      mat instanceof
-      (three.MeshStandardMaterial as unknown as typeof THREE.MeshStandardMaterial)
-    )
-  ) {
-    return mat;
-  }
-  if (textured.texture === "wood") {
-    const tex = getWoodTexture(three);
-    if (tex) mat.map = tex;
-  } else if (textured.texture === "metal_grip") {
-    const tex = getMetalGripTexture(three);
-    if (tex) mat.map = tex;
-  }
-  return mat;
-}
-
-function getWoodTexture(three: typeof THREE): THREE.Texture | undefined {
-  if (typeof document === "undefined") return undefined;
-  if (cachedWoodTexture) return cachedWoodTexture;
-  const size = 64;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return undefined;
-  ctx.fillStyle = "#c8c8c8";
-  ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = "rgba(60, 40, 20, 0.55)";
-  ctx.lineWidth = 1;
-  for (let yLine = 1; yLine < size; yLine += 3) {
-    ctx.beginPath();
-    const drift = Math.sin(yLine * 0.15) * 1.2;
-    ctx.moveTo(0, yLine + drift);
-    for (let xStep = 4; xStep <= size; xStep += 4) {
-      const wobble = Math.sin((xStep + yLine) * 0.22) * 1.1;
-      ctx.lineTo(xStep, yLine + drift + wobble);
-    }
-    ctx.stroke();
-  }
-  ctx.fillStyle = "rgba(40, 25, 10, 0.35)";
-  for (const [kx, ky, kr] of [
-    [12, 20, 3],
-    [44, 38, 2.5],
-    [28, 52, 2],
-  ] as const) {
-    ctx.beginPath();
-    ctx.ellipse(kx, ky, kr, kr * 0.7, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const tex = new three.CanvasTexture(canvas);
-  tex.wrapS = three.RepeatWrapping;
-  tex.wrapT = three.RepeatWrapping;
-  cachedWoodTexture = tex;
-  return tex;
-}
-
-function getMetalGripTexture(three: typeof THREE): THREE.Texture | undefined {
-  if (typeof document === "undefined") return undefined;
-  if (cachedMetalGripTexture) return cachedMetalGripTexture;
-  const size = 64;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return undefined;
-  ctx.fillStyle = "#c0c0c0";
-  ctx.fillRect(0, 0, size, size);
-  const step = 4;
-  ctx.fillStyle = "rgba(40, 40, 50, 0.55)";
-  for (let row = 0; row < size / step + 1; row++) {
-    const offset = (row % 2) * (step / 2);
-    for (let column = 0; column < size / step + 1; column++) {
-      const xCenter = column * step + offset;
-      const yCenter = row * step;
-      ctx.beginPath();
-      ctx.ellipse(
-        xCenter + 0.3,
-        yCenter + 0.3,
-        1.2,
-        0.7,
-        Math.PI / 4,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-    }
-  }
-  ctx.fillStyle = "rgba(240, 240, 240, 0.55)";
-  for (let row = 0; row < size / step + 1; row++) {
-    const offset = (row % 2) * (step / 2);
-    for (let column = 0; column < size / step + 1; column++) {
-      const xCenter = column * step + offset;
-      const yCenter = row * step;
-      ctx.beginPath();
-      ctx.ellipse(
-        xCenter - 0.3,
-        yCenter - 0.3,
-        1.05,
-        0.55,
-        Math.PI / 4,
-        0,
-        Math.PI * 2,
-      );
-      ctx.fill();
-    }
-  }
-  const tex = new three.CanvasTexture(canvas);
-  tex.wrapS = three.RepeatWrapping;
-  tex.wrapT = three.RepeatWrapping;
-  cachedMetalGripTexture = tex;
-  return tex;
 }
 
 function createDecorationGeometry(

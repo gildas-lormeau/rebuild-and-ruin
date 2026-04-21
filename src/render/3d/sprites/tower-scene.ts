@@ -27,22 +27,17 @@
  */
 
 import * as THREE from "three";
-import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   applyBoxWallUV,
   CELL,
   cells,
-  createMaterial,
   findVariant,
   type MaterialSpec,
   measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { FLAG_RED, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
-
-export interface TexturedSpec extends MaterialSpec {
-  texture?: "stone" | "door" | "roof";
-}
+import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export type FlagSide = "+x" | "-x" | "+z" | "-z";
 
@@ -274,7 +269,7 @@ const STONE_BODY: TexturedSpec = {
   color: 0xffffff,
   roughness: 0.85,
   metalness: 0.15,
-  texture: "stone",
+  texture: "tower_stone",
 };
 // Same tint/shading as STONE_BODY but WITHOUT the stone texture map.
 // Used on horizontal/top surfaces (turret tops, merlon tops, roof-slab
@@ -292,13 +287,13 @@ const ROOF_SLATE: TexturedSpec = {
   color: 0x9ca6bb,
   roughness: 0.75,
   metalness: 0.1,
-  texture: "roof",
+  texture: "tower_roof",
 };
 const WINDOW_DARK: TexturedSpec = {
   kind: "basic",
   color: 0xffffff,
   side: "double",
-  texture: "door",
+  texture: "tower_door",
 };
 const PLATFORM_STONE: MaterialSpec = {
   kind: "standard",
@@ -624,10 +619,6 @@ export const PALETTE: [number, number, number][] = [
   [0x0a, 0x0a, 0x0a],
 ];
 
-let _stoneTexture: THREE.CanvasTexture | undefined;
-let _doorTexture: THREE.CanvasTexture | undefined;
-let _roofTexture: THREE.CanvasTexture | undefined;
-
 /** Authored Y-bounds of a tower variant, in authored world units. Tower
  *  authoring applies TOWER_Y_SCALE internally via a child group, so the
  *  returned values already include that Y inflation — callers multiply
@@ -719,7 +710,7 @@ export function buildTower(
   params: TowerParams,
 ): void {
   const mat = (spec: TexturedSpec | MaterialSpec): THREE.Material =>
-    makeMaterial(three, spec);
+    buildTexturedMaterial(three, spec);
 
   const group = new three.Group();
   group.scale.set(TOWER_XZ_SCALE, TOWER_Y_SCALE, TOWER_XZ_SCALE);
@@ -828,7 +819,7 @@ export function buildTower(
       const parapetPlainMat = mat(parapet.material);
       const parapetSideMat = mat({
         ...parapet.material,
-        texture: "stone",
+        texture: "tower_stone",
       });
       const parapetMatArray: THREE.Material[] = [
         parapetSideMat,
@@ -918,7 +909,7 @@ export function buildTower(
       const platR = Math.min(plat.width, plat.depth) / 2;
       const platSideSpec: TexturedSpec = {
         ...t.polePlatform.material,
-        texture: "stone",
+        texture: "tower_stone",
       };
       const platSideMat = mat(platSideSpec);
       const platPlainMat = mat(t.polePlatform.material);
@@ -1381,161 +1372,6 @@ function _drawRoundedRect<T extends THREE.Path>(
   p.lineTo(-halfW + r, +halfD);
   p.absarc(-halfW + r, +halfD - r, r, 0.5 * Math.PI, Math.PI, false);
   return p;
-}
-
-function makeMaterial(
-  three: typeof THREE,
-  spec: TexturedSpec | MaterialSpec,
-): THREE.MeshBasicMaterial | THREE.MeshStandardMaterial {
-  const mat = createMaterial(spec);
-  const textured = spec as TexturedSpec;
-  if (textured.texture === "stone") {
-    const tex = getStoneTexture(three);
-    if (tex) mat.map = tex;
-  } else if (textured.texture === "door") {
-    const tex = getDoorTexture(three);
-    if (tex) mat.map = tex;
-  } else if (textured.texture === "roof") {
-    const tex = getRoofTexture(three);
-    if (tex) mat.map = tex;
-  }
-  return mat;
-}
-
-function getStoneTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (_stoneTexture) return _stoneTexture;
-  const tex = createTiledCanvasTexture(three, 64, ({ ctx, size, rand }) => {
-    const brickW = 16;
-    const brickH = 8;
-    for (let row = 0; row * brickH < size; row++) {
-      const offset = (row % 2) * (brickW / 2);
-      for (let col = -1; col * brickW + offset < size; col++) {
-        const x = col * brickW + offset;
-        const y = row * brickH;
-        const base = 200 + Math.floor((rand() - 0.5) * 50);
-        ctx.fillStyle = `rgb(${base},${base},${base})`;
-        ctx.fillRect(x, y, brickW, brickH);
-        const count = 6 + Math.floor(rand() * 5);
-        for (let i = 0; i < count; i++) {
-          const shade = base - 20 - Math.floor(rand() * 30);
-          ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
-          ctx.fillRect(
-            x + Math.floor(rand() * brickW),
-            y + Math.floor(rand() * brickH),
-            1 + Math.floor(rand() * 2),
-            1,
-          );
-        }
-      }
-    }
-    ctx.fillStyle = "rgb(120,115,108)";
-    for (let y = 0; y < size; y += brickH) ctx.fillRect(0, y, size, 1);
-    for (let row = 0; row * brickH < size; row++) {
-      const y = row * brickH;
-      const offset = (row % 2) * (brickW / 2);
-      for (let x = offset; x < size; x += brickW) ctx.fillRect(x, y, 1, brickH);
-    }
-  });
-  if (tex) _stoneTexture = tex;
-  return tex;
-}
-
-function getDoorTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (typeof document === "undefined") return undefined;
-  if (_doorTexture) return _doorTexture;
-  const w = 64;
-  const h = 32;
-  const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext("2d");
-  if (!ctx) return undefined;
-
-  const plankCount = 2;
-  const plankW = w / plankCount;
-  const r = 16;
-  const g = 10;
-  const b = 6;
-  ctx.fillStyle = `rgb(${r},${g},${b})`;
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = `rgb(${r - 4},${g - 2},${b - 1})`;
-  for (let i = 0; i < plankCount; i++) {
-    ctx.fillRect(Math.floor(i * plankW + plankW / 2), 0, 1, h);
-  }
-  ctx.fillStyle = "rgb(2,1,0)";
-  for (let i = 0; i < plankCount; i++) {
-    ctx.fillRect(i * plankW + plankW - 1, 0, 1, h);
-  }
-  ctx.fillStyle = "rgb(14,14,16)";
-  ctx.fillRect(0, 3, w, 2);
-  ctx.fillRect(0, h - 5, w, 2);
-  ctx.fillStyle = "rgb(70,70,74)";
-  for (let i = 0; i < plankCount; i++) {
-    const cx = Math.floor(i * plankW + plankW / 2);
-    ctx.fillRect(cx, 3, 1, 1);
-    ctx.fillRect(cx, h - 5, 1, 1);
-  }
-
-  const tex = new three.CanvasTexture(c);
-  tex.wrapS = three.RepeatWrapping;
-  tex.wrapT = three.RepeatWrapping;
-  _doorTexture = tex;
-  return tex;
-}
-
-function getRoofTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (_roofTexture) return _roofTexture;
-  const tex = createTiledCanvasTexture(three, 32, ({ ctx, size, rand }) => {
-    const w = size;
-    const h = size;
-    ctx.fillStyle = "rgb(230,230,230)";
-    ctx.fillRect(0, 0, w, h);
-    const tileW = 8;
-    const tileH = 8;
-    for (let ty = 0; ty < h / tileH; ty++) {
-      for (let tx = 0; tx < w / tileW; tx++) {
-        const dim = ((tx + ty) % 2) * 12;
-        ctx.fillStyle = `rgb(${230 - dim},${230 - dim},${230 - dim})`;
-        ctx.fillRect(tx * tileW, ty * tileH, tileW, tileH);
-      }
-    }
-    const img = ctx.getImageData(0, 0, w, h);
-    for (let i = 0; i < img.data.length; i += 4) {
-      const n = Math.floor((rand() - 0.5) * 60);
-      img.data[i] = Math.max(0, Math.min(255, img.data[i]! + n));
-      img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1]! + n));
-      img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2]! + n));
-    }
-    ctx.putImageData(img, 0, 0);
-    for (let i = 0; i < 80; i++) {
-      const x = Math.floor(rand() * (w - 1));
-      const y = Math.floor(rand() * (h - 1));
-      const shade = 150 + Math.floor(rand() * 60);
-      ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
-      ctx.fillRect(x, y, 2, 2);
-    }
-    for (let i = 0; i < 120; i++) {
-      const shade = 130 + Math.floor(rand() * 40);
-      ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
-      const wPx = rand() < 0.3 ? 2 : 1;
-      ctx.fillRect(Math.floor(rand() * w), Math.floor(rand() * h), wPx, 1);
-    }
-    ctx.fillStyle = "rgb(180,180,185)";
-    for (let y = tileH - 1; y < h; y += tileH) {
-      for (let x = 0; x < w; x++) {
-        const jy = y + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
-        ctx.fillRect(x, jy, 1, 1);
-      }
-    }
-    for (let x = tileW - 1; x < w; x += tileW) {
-      for (let y = 0; y < h; y++) {
-        const jx = x + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
-        ctx.fillRect(jx, y, 1, 1);
-      }
-    }
-  });
-  if (tex) _roofTexture = tex;
-  return tex;
 }
 
 function applyRoofUVPlane(

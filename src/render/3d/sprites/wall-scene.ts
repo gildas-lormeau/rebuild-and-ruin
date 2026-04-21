@@ -28,13 +28,9 @@
  */
 
 import type * as THREE from "three";
-import { createTiledCanvasTexture } from "./procedural-texture.ts";
-import {
-  applyBoxWallUV,
-  createMaterial,
-  type MaterialSpec,
-} from "./sprite-kit.ts";
+import { applyBoxWallUV } from "./sprite-kit.ts";
 import { MERLON_AO, WALL_STONE_LIGHT } from "./sprite-materials.ts";
+import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export type UVOffset = readonly [number, number];
 
@@ -85,10 +81,6 @@ export type VariantReport =
 // would skew the assembly render toward the near-white buckets (the
 // "walls look white" bug). A fully dark material would collapse the
 // texture variation below the wall-scene palette's step size.
-interface TexturedSpec extends MaterialSpec {
-  texture?: "stone" | "wall_top";
-}
-
 type Dir = "N" | "E" | "S" | "W";
 
 interface UVGenerator {
@@ -114,14 +106,14 @@ const STONE_MAIN: TexturedSpec = {
   color: 0xdcdcd8,
   roughness: 0.85,
   metalness: 0.05,
-  texture: "stone",
+  texture: "wall_stone",
 };
 const STONE_LIGHT: TexturedSpec = {
   kind: "standard",
   color: 0xa5a5a0,
   roughness: 0.8,
   metalness: 0.05,
-  texture: "stone",
+  texture: "wall_stone",
 };
 // Flagstone material for the wall's TOP cap — the walkable allure, which
 // on a real fortification is paved with large flat stones laid as a
@@ -255,15 +247,6 @@ export const PALETTE: [number, number, number][] = [
   [0x2a, 0x2a, 0x28],
 ];
 
-// Procedural stone texture (mirror of tower-scene's `getStoneTexture`).
-let _stoneTexture: THREE.CanvasTexture | undefined;
-// Procedural flagstone texture for the wall-walk. 4×4 grid of
-// roughly-square pavers with thick mortar joints — how the top of a
-// real fortification wall is actually paved. Per-stone value swing is
-// large so neighbouring stones land on distinct palette buckets after
-// quantize (they shouldn't all snap to the same grey).
-let _wallTopTexture: THREE.CanvasTexture | undefined;
-
 export function variantReport(variant: VariantDescriptor): VariantReport {
   const p = variant.params;
   const warnings: string[] = [];
@@ -395,18 +378,18 @@ function buildCell(
 ): THREE.Group {
   const [uOff, vOff] = uvOffset;
   const group = new three.Group();
-  const aoMat = makeMaterial(three, MERLON_AO);
+  const aoMat = buildTexturedMaterial(three, MERLON_AO);
   // Body: vertical sides get the running-bond brick texture (as real
   // fortifications do); the horizontal top cap gets a flagstone map
   // (the "allure" pavement — large square pavers with mortar joints,
   // laid flat as a walkable floor). ExtrudeGeometry groups: 0 = caps,
   // 1 = sides.
-  const stoneSideMat = makeMaterial(three, STONE_MAIN);
-  const wallTopMat = makeMaterial(three, WALL_TOP);
+  const stoneSideMat = buildTexturedMaterial(three, STONE_MAIN);
+  const wallTopMat = buildTexturedMaterial(three, WALL_TOP);
   // Merlons: per-face array so top/bottom stay untextured while the
   // four vertical faces get the textured material.
-  const merlonSideMat = makeMaterial(three, STONE_LIGHT);
-  const merlonCapMat = makeMaterial(three, WALL_STONE_LIGHT);
+  const merlonSideMat = buildTexturedMaterial(three, STONE_LIGHT);
+  const merlonCapMat = buildTexturedMaterial(three, WALL_STONE_LIGHT);
   const merlonMatArray = [
     merlonSideMat,
     merlonSideMat,
@@ -452,25 +435,6 @@ function buildCell(
   return group;
 }
 
-// Texture-aware wrapper: delegates to sprite-kit's createMaterial for
-// the base material, then attaches a procedural map based on
-// `spec.texture`. The procedural generators live below and are scene-
-// specific, so they stay here rather than in sprite-kit.
-function makeMaterial(
-  three: typeof THREE,
-  spec: TexturedSpec,
-): THREE.MeshBasicMaterial | THREE.MeshStandardMaterial {
-  const mat = createMaterial(spec);
-  if (spec.texture === "stone") {
-    const tex = getStoneTexture(three);
-    if (tex) mat.map = tex;
-  } else if (spec.texture === "wall_top") {
-    const tex = getWallTopTexture(three);
-    if (tex) mat.map = tex;
-  }
-  return mat;
-}
-
 // uOff/vOff are added to the final UVs so each cell can be positioned
 // in a shared texture space — used by the maze builder to make the
 // brick pattern flow continuously across adjacent wall cells instead
@@ -514,99 +478,6 @@ function stoneWallUVGenerator(
       ];
     },
   };
-}
-
-function getStoneTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (_stoneTexture) return _stoneTexture;
-  const tex = createTiledCanvasTexture(three, 64, ({ ctx, size, rand }) => {
-    const brickW = 16;
-    const brickH = 8;
-    for (let row = 0; row * brickH < size; row++) {
-      const offset = (row % 2) * (brickW / 2);
-      for (let col = -1; col * brickW + offset < size; col++) {
-        const x = col * brickW + offset;
-        const y = row * brickH;
-        // Mid-dark stone tone with LARGE per-brick swing (±50) so after
-        // the material 0x8a multiply (×0.54) and lighting, neighbouring
-        // bricks land on different palette buckets (0x4a..0x8a in both
-        // wall-scene and assembly palettes). Small variation gets lost
-        // when each brick covers only a handful of sprite pixels.
-        const base = 130 + Math.floor((rand() - 0.5) * 60);
-        ctx.fillStyle = `rgb(${base},${base},${base})`;
-        ctx.fillRect(x, y, brickW, brickH);
-        const count = 6 + Math.floor(rand() * 5);
-        for (let i = 0; i < count; i++) {
-          const shade = Math.max(0, base - 20 - Math.floor(rand() * 30));
-          ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
-          ctx.fillRect(
-            x + Math.floor(rand() * brickW),
-            y + Math.floor(rand() * brickH),
-            1 + Math.floor(rand() * 2),
-            1,
-          );
-        }
-      }
-    }
-    ctx.fillStyle = "rgb(60,57,52)";
-    for (let y = 0; y < size; y += brickH) ctx.fillRect(0, y, size, 1);
-    for (let row = 0; row * brickH < size; row++) {
-      const y = row * brickH;
-      const offset = (row % 2) * (brickW / 2);
-      for (let x = offset; x < size; x += brickW) ctx.fillRect(x, y, 1, brickH);
-    }
-    // Vertical weathering streaks — 2-3 irregular darker columns spanning
-    // most of the texture height. Simulates water stains running down
-    // from the wall-walk. Broken into short segments so the streak looks
-    // organic rather than a perfect line.
-    for (let i = 0; i < 3; i++) {
-      const streakX = Math.floor(rand() * size);
-      const streakShade = 80 + Math.floor(rand() * 20);
-      ctx.fillStyle = `rgb(${streakShade},${streakShade},${streakShade})`;
-      for (let y = 0; y < size; y++) {
-        if (rand() < 0.75) ctx.fillRect(streakX, y, 1, 1);
-      }
-    }
-  });
-  if (tex) _stoneTexture = tex;
-  return tex;
-}
-
-function getWallTopTexture(
-  three: typeof THREE,
-): THREE.CanvasTexture | undefined {
-  if (_wallTopTexture) return _wallTopTexture;
-  const tex = createTiledCanvasTexture(three, 64, ({ ctx, size, rand }) => {
-    const cells = 4;
-    const cellSize = size / cells;
-    for (let r = 0; r < cells; r++) {
-      for (let col = 0; col < cells; col++) {
-        // Base tone ~30 below the brick sides (which sit at 130) so the
-        // allure reads as noticeably darker stone — closer to the 0x4a
-        // palette bucket than the sides' 0x6a/0x8a.
-        const base = 85 + Math.floor((rand() - 0.5) * 60);
-        ctx.fillStyle = `rgb(${base},${base},${base - 3})`;
-        ctx.fillRect(col * cellSize, r * cellSize, cellSize, cellSize);
-        // Per-paver stipple — a few small pits/chips.
-        const chips = 4 + Math.floor(rand() * 4);
-        for (let i = 0; i < chips; i++) {
-          const shade = Math.max(0, base - 25 - Math.floor(rand() * 30));
-          ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
-          ctx.fillRect(
-            col * cellSize + Math.floor(rand() * cellSize),
-            r * cellSize + Math.floor(rand() * cellSize),
-            1 + Math.floor(rand() * 2),
-            1,
-          );
-        }
-      }
-    }
-    // Mortar joints — 2 px wide, darker than the stone courses.
-    ctx.fillStyle = "rgb(60,57,52)";
-    for (let x = 0; x < size; x += cellSize) ctx.fillRect(x, 0, 2, size);
-    for (let y = 0; y < size; y += cellSize) ctx.fillRect(0, y, 2, size);
-  });
-  if (tex) _wallTopTexture = tex;
-  return tex;
 }
 
 /**

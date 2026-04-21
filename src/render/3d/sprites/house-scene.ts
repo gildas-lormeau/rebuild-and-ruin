@@ -24,19 +24,9 @@
  */
 
 import * as THREE from "three";
-import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
-import {
-  cells,
-  createMaterial,
-  findVariant,
-  type MaterialSpec,
-  measureVariantBoundsY,
-} from "./sprite-kit.ts";
-
-export interface TexturedSpec extends MaterialSpec {
-  texture?: "roof_tile";
-}
+import { cells, findVariant, measureVariantBoundsY } from "./sprite-kit.ts";
+import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export type WindowSide = "+x" | "-x" | "+z" | "-z";
 
@@ -136,7 +126,7 @@ const ROOF_RED: TexturedSpec = {
   color: 0xff7d52,
   roughness: 0.65,
   metalness: 0.2,
-  texture: "roof_tile",
+  texture: "house_roof_tile",
 };
 const DOOR_DARK: TexturedSpec = {
   kind: "basic",
@@ -219,12 +209,6 @@ export const PALETTE: [number, number, number][] = [
   [0x0a, 0x0a, 0x0a],
 ];
 
-// Procedural clay-tile roof texture: horizontal courses (shingle rows)
-// with 1-px darker seams and a bit of per-tile shade jitter so rows
-// don't read as ruler lines. Base is white-ish so the material's
-// ROOF_RED color passes through as the tint.
-let _roofTileTexture: THREE.CanvasTexture | undefined;
-
 /** Authored Y-bounds of a house variant, in authored world units (±1
  *  frustum frame — no internal scale applied). Callers multiply by the
  *  entity-manager's uniform scale (TILE_SIZE / 2) to get world Y. */
@@ -299,7 +283,7 @@ export function buildHouse(
       params.body.height,
       params.body.depth,
     ),
-    makeMaterial(three, params.body.material),
+    buildTexturedMaterial(three, params.body.material),
   );
   body.position.set(0, yBase + params.body.height / 2, 0);
   scene.add(body);
@@ -327,8 +311,8 @@ export function buildHouse(
   // Tinting the caps with the body stone material treats them as wall,
   // not roof.
   const roofMesh = new three.Mesh(roofGeom, [
-    makeMaterial(three, params.body.material), // caps → stone gable triangles
-    makeMaterial(three, params.roof.material), // sides → red slopes
+    buildTexturedMaterial(three, params.body.material), // caps → stone gable triangles
+    buildTexturedMaterial(three, params.roof.material), // sides → red slopes
   ]);
   if (roof.ridgeAxis === "x") roofMesh.rotation.y = Math.PI / 2;
   roofMesh.position.set(0, roof.yBase, 0);
@@ -339,7 +323,7 @@ export function buildHouse(
   if (door && params.door) {
     const doorMesh = new three.Mesh(
       new three.BoxGeometry(door.width, door.height, 0.02),
-      makeMaterial(three, params.door.material),
+      buildTexturedMaterial(three, params.door.material),
     );
     doorMesh.position.set(door.pos[0], door.pos[1], door.pos[2]);
     scene.add(doorMesh);
@@ -351,7 +335,7 @@ export function buildHouse(
   for (const w of windowPlacements(params)) {
     const windowMesh = new three.Mesh(
       new three.BoxGeometry(w.width, w.height, 0.02),
-      makeMaterial(three, w.material),
+      buildTexturedMaterial(three, w.material),
     );
     windowMesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
     windowMesh.rotation.y = w.rotY;
@@ -449,52 +433,4 @@ export function windowPlacements(params: HouseParams): WindowPlacement[] {
     });
   }
   return out;
-}
-
-// Texture-aware wrapper: delegates to sprite-kit's createMaterial and
-// attaches the procedural roof-tile map when requested.
-function makeMaterial(
-  three: typeof THREE,
-  spec: TexturedSpec,
-): THREE.MeshBasicMaterial | THREE.MeshStandardMaterial {
-  const mat = createMaterial(spec);
-  if (spec.texture === "roof_tile") {
-    const tex = getRoofTileTexture(three);
-    if (tex) mat.map = tex;
-  }
-  return mat;
-}
-
-function getRoofTileTexture(
-  three: typeof THREE,
-): THREE.CanvasTexture | undefined {
-  if (_roofTileTexture) return _roofTileTexture;
-  const tex = createTiledCanvasTexture(three, 32, ({ ctx, size, rand }) => {
-    // Each course is 4 px tall; staggered tile boundaries every 8 px.
-    const courseH = 4;
-    const tileW = 8;
-    for (let row = 0; row * courseH < size; row++) {
-      const y = row * courseH;
-      const offset = (row % 2) * (tileW / 2);
-      for (let col = -1; col * tileW + offset < size; col++) {
-        const x = col * tileW + offset;
-        const base = 220 + Math.floor((rand() - 0.5) * 40); // 200..239
-        ctx.fillStyle = `rgb(${base},${base},${base})`;
-        ctx.fillRect(x, y, tileW, courseH);
-      }
-    }
-    // Darker seams between courses (horizontal) and between tiles
-    // (vertical within each course, staggered).
-    ctx.fillStyle = "rgb(110,80,70)";
-    for (let y = courseH - 1; y < size; y += courseH)
-      ctx.fillRect(0, y, size, 1);
-    for (let row = 0; row * courseH < size; row++) {
-      const y = row * courseH;
-      const offset = (row % 2) * (tileW / 2);
-      for (let x = offset + tileW - 1; x < size; x += tileW)
-        ctx.fillRect(x, y, 1, courseH);
-    }
-  });
-  if (tex) _roofTileTexture = tex;
-  return tex;
 }
