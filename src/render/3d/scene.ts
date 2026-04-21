@@ -175,6 +175,16 @@ export interface Render3dContext {
    *  swap, so drawImage(worldCanvas) outside rAF sampled a cleared or
    *  stale buffer. */
   readonly captureTarget: THREE.WebGLRenderTarget;
+  /** One-mesh scene containing a fullscreen quad whose material samples
+   *  `captureTarget.texture`. Rendering this scene to the default
+   *  framebuffer copies the FBO contents to the canvas — a single
+   *  fragment-shader pass is cheaper than re-rendering the full scene
+   *  twice per frame. */
+  readonly blitScene: THREE.Scene;
+  /** Ortho camera paired with {@link blitScene}: frustum is exactly
+   *  [-1, 1] × [-1, 1], matching the authored quad's extent so the
+   *  quad fills the whole viewport. */
+  readonly blitCamera: THREE.OrthographicCamera;
 }
 
 /** Build the scene graph used by `createRender3d`. */
@@ -240,11 +250,30 @@ export function createRender3dScene(
     },
   );
 
+  // Blit quad — renders `captureTarget.texture` fullscreen to whichever
+  // framebuffer the renderer is currently pointed at. `transparent: true`
+  // preserves the alpha channel of the FBO so transparent regions of the
+  // scene pass through to the 2D canvas layered beneath. `depthTest:
+  // false` skips the depth compare (not meaningful for a full-screen
+  // blit) and `depthWrite: false` avoids polluting the depth buffer.
+  const blitScene = new THREE.Scene();
+  const blitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const blitMaterial = new THREE.MeshBasicMaterial({
+    map: captureTarget.texture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const blitQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
+  blitScene.add(blitQuad);
+
   return {
     scene,
     camera,
     renderer,
     captureTarget,
+    blitScene,
+    blitCamera,
     terrain,
     walls,
     towers,

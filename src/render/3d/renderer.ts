@@ -196,20 +196,19 @@ export function createRender3d(
       updateCameraFromViewport(ctx.camera, viewport, pitch);
       lastViewport = viewport ?? undefined;
       lastPitch = pitch;
-      // Render twice: once into the capture FBO (readable outside the
-      // rAF tick by `captureScene`), once to the default framebuffer
-      // for display. Cheaper than rebuilding the scene state at capture
-      // time and doesn't require `preserveDrawingBuffer: true` (which
-      // keeps the on-screen backbuffer alive between swaps at a per-
-      // frame perf cost). The scene is small enough that doubling the
-      // render pass is a measurable wash against the preserved-buffer
-      // overhead on mid-range GPUs.
+      // Render the scene once into the capture FBO (readable outside
+      // the rAF tick by `captureScene`), then blit that FBO's texture
+      // to the default framebuffer via a fullscreen quad. The blit is
+      // a single fragment-shader pass — much cheaper than re-rendering
+      // the whole scene. Avoids both `preserveDrawingBuffer: true`
+      // (per-frame backbuffer-preservation overhead) and the prior
+      // double-scene-render approach.
       ctx.renderer.setRenderTarget(ctx.captureTarget);
       ctx.renderer.clear();
       ctx.renderer.render(ctx.scene, ctx.camera);
       ctx.renderer.setRenderTarget(null);
       ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
+      ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
       canvas2d.drawFrame(map, overlay, viewport, now);
     },
     setLayersEnabled: canvas2d.setLayersEnabled,
