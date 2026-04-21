@@ -698,6 +698,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
+    beginBattleTilt: camera.beginBattleTilt,
   });
 
   // -------------------------------------------------------------------------
@@ -912,5 +913,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     warmMapCache: (map) => renderer.warmMapCache(map),
     networkSend: config.network.send,
     getPitchState: camera.getPitchState,
+    beginBattleTilt: camera.beginBattleTilt,
   };
 }

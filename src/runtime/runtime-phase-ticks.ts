@@ -159,6 +159,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  banner snapshot captures a flat scene — wait until `"flat"` (or
    *  fall through on the safety timeout). */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+  /** Start the build→battle tilt. Called from `proceedToBattle` at
+   *  battle-banner end. */
+  beginBattleTilt: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -388,6 +391,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       saveBattleCrosshair: deps.saveBattleCrosshair,
       getPitchState: deps.getPitchState,
+      beginBattleTilt: deps.beginBattleTilt,
       lifeLost: {
         tryShow: deps.lifeLost.tryShow,
         resolve: (continuing) => {

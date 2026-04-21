@@ -260,6 +260,7 @@ function buildWatcherPhaseCtx(
     watcher: buildWatcherHooks(deps),
     incomingMsg: msg,
     getPitchState: runtime.getPitchState,
+    beginBattleTilt: runtime.beginBattleTilt,
   };
 }
 

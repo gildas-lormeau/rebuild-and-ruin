@@ -284,6 +284,11 @@ export interface PhaseTransitionCtx {
    *  only `"tilting"` / `"untilting"` block. Optional so headless
    *  contexts that don't own a camera can skip wiring it. */
   readonly getPitchState?: () => "flat" | "tilting" | "tilted" | "untilting";
+  /** Start the build→battle tilt at battle-banner end. Called inside
+   *  `proceedToBattle`. Optional so headless / watcher-without-camera
+   *  contexts can skip it (2D wiring also skips — the renderer has no
+   *  tilt axis). */
+  readonly beginBattleTilt?: () => void;
   /** Host-only per-frame setup when WALL_BUILD begins: score-delta reset,
    *  cannon facing reset, per-controller startBuildPhase, clear impacts,
    *  accumulator resets. Called from `battle-done` postDisplay, after the
@@ -953,27 +958,38 @@ function proceedToBattle(
   ctx: PhaseTransitionCtx,
   flights: readonly BalloonFlight[],
 ): void {
-  if (flights.length === 0) {
-    ctx.battle.begin();
-    return;
-  }
-  ctx.battle.setFlights(flights.map((flight) => ({ flight, progress: 0 })));
-  ctx.setMode(Mode.BALLOON_ANIM);
+  // Spec: `battle banner → tilt → balloons (skip if none) → ready → zoom`.
+  // Tilt begins here (at battle-banner end) so it plays UNZOOMED, before
+  // anything else. The phase machine has already reached fullMapVp via
+  // `requestUnzoom`, and `handlePhaseChangeZoom` no longer implicitly
+  // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
+  // back to GAME inside `battle.begin`, which also starts the "ready"
+  // countdown, so the zoom lerp and "ready" cue start together.
+  ctx.beginBattleTilt?.();
 
-  const startBalloonAnim = (): void => {
-    emitGameEvent(ctx.state.bus, GAME_EVENT.BALLOON_ANIM_START, {
-      round: ctx.state.round,
-    });
+  const hasFlights = flights.length > 0;
+  if (hasFlights) {
+    ctx.battle.setFlights(flights.map((flight) => ({ flight, progress: 0 })));
+    ctx.setMode(Mode.BALLOON_ANIM);
+  }
+
+  const proceed = (): void => {
+    if (hasFlights) {
+      emitGameEvent(ctx.state.bus, GAME_EVENT.BALLOON_ANIM_START, {
+        round: ctx.state.round,
+      });
+    } else {
+      ctx.battle.begin();
+    }
   };
 
-  // Pitch gate: the build→battle tilt starts when the phase flipped to
-  // BATTLE at `cannon-place-done` mutate-time. Banner sweeps consume
-  // enough time that the tilt is usually settled before `postDisplay`
-  // runs, but a short banner or a paused tab can leave pitch mid-ease.
-  // `flat` / `tilted` are both "settled" (2D mode also reports flat).
+  // Pitch gate: wait for the tilt we just requested (or any prior tilt
+  // still in progress) to settle before we either start balloons or
+  // flip to battle mode. `flat` / `tilted` are both "settled"; only
+  // `tilting` / `untilting` block. 2D mode always reports `flat`.
   const pitchState = ctx.getPitchState?.() ?? "flat";
   if (pitchState === "flat" || pitchState === "tilted") {
-    startBalloonAnim();
+    proceed();
     return;
   }
   const bus = ctx.state.bus;
@@ -983,7 +999,7 @@ function proceedToBattle(
     fired = true;
     bus.off(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
     clearTimeout(timer);
-    startBalloonAnim();
+    proceed();
   };
   const onPitchSettled = (): void => fireOnce();
   bus.on(GAME_EVENT.PITCH_SETTLED, onPitchSettled);

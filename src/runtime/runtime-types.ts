@@ -359,9 +359,14 @@ export interface CameraSystem {
   /** Current camera pitch in radians (animated on phase transitions). 3D mode
    *  only — 2D mode always returns 0. */
   getPitch: () => number;
-  /** Request an immediate pitch=0 ease. Used by the phase-ticks system at
-   *  battle-end so the banner captures a flat scene. Idempotent. */
+  /** Request an immediate pitch=0 ease. Idempotent. Currently subsumed
+   *  by `requestUnzoom` (which flattens as part of its contract) — kept
+   *  for possible "untilt without unzoom" call sites. */
   beginUntilt: () => void;
+  /** Start the build→battle tilt animation. Called explicitly at
+   *  battle-banner end so the tilt plays unzoomed, before balloons /
+   *  "ready" / auto-zoom into the battle zone. 2D mode: no-op. */
+  beginBattleTilt: () => void;
   /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
    *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
    *  ease. 2D mode always returns `"flat"`. Subscribers that want the
@@ -597,6 +602,9 @@ export interface GameRuntime {
    *  ctx (built outside this module) can gate balloon-anim start on
    *  tilt-in. Host ctx reads the same value via its phase-ticks deps. */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+  /** Start the build→battle tilt. Called from `proceedToBattle` so the
+   *  watcher plays the same tilt-before-balloons sequence as the host. */
+  beginBattleTilt: () => void;
 }
 
 /** Consumer registry for `OnlinePhaseTicks` hooks.
