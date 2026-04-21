@@ -72,6 +72,16 @@ const EDGE_RIGHT = 1;
 const EDGE_BOTTOM = 2;
 const EDGE_LEFT = 3;
 
+/** Monotonic version stamp handed out on every `generateMap` call.
+ *  Renderer caches (terrain mesh, terrain bitmap, sinkhole overlay,
+ *  etc.) gate their rebuilds on `map.mapVersion` — if two consecutive
+ *  games both started at `0`, the caches thought the map hadn't
+ *  changed and left stale pixels/geometry on screen, which on touch
+ *  devices manifested as new-map towers sitting on old-map water.
+ *  In-game mutations (sinkhole, low-water, frozen-river) `++` the
+ *  stamp in place; starting a fresh map bumps beyond any of those. */
+let nextMapVersionCounter = 1;
+
 export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
 
@@ -136,7 +146,7 @@ export function generateMap(seed?: number): GameMap {
     const towers = placeTowers(zones, regionSizes, riverDist);
     if (towers.length < TOWERS_PER_ZONE * 3) continue;
 
-    return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
+    return buildMapResult(tiles, towers, zones, junction, exits);
   } while (true);
 
   // Fallback: retry with relaxed ratio (1.35) but still require 12 towers
@@ -157,7 +167,7 @@ export function generateMap(seed?: number): GameMap {
     const towers = placeTowers(zones, regionSizes, riverDist);
     if (towers.length < TOWERS_PER_ZONE * 3) continue;
 
-    return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
+    return buildMapResult(tiles, towers, zones, junction, exits);
   }
 
   throw new Error(
@@ -188,6 +198,33 @@ export function topZonesBySize(
     .sort((a, b) => b[1] - a[1])
     .slice(0, count)
     .map(([zone, count]) => ({ zone, count }));
+}
+
+/** Pack a freshly generated map into a `GameMap`. Extracted so the
+ *  main-path and fallback-path loops share the struct shape without
+ *  duplicating the literal — the dupe tripped jscpd. */
+function buildMapResult(
+  tiles: Tile[][],
+  towers: Tower[],
+  zones: number[][],
+  junction: PixelPos,
+  exits: PixelPos[],
+): GameMap {
+  return {
+    tiles,
+    towers,
+    houses: [],
+    zones,
+    junction,
+    exits,
+    mapVersion: nextMapVersion(),
+  };
+}
+
+function nextMapVersion(): number {
+  const version = nextMapVersionCounter;
+  nextMapVersionCounter += 1 << 16; // leave room for in-game bumps
+  return version;
 }
 
 function hasThreeBalancedZones(
