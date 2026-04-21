@@ -41,6 +41,7 @@ export function createRender3d(
   const ctx: Render3dContext = createRender3dScene(
     worldCanvas,
     canvas2d.getTerrainBitmap,
+    canvas2d.getSinkholeOverlayBitmap,
   );
 
   // Cached viewport from the last `drawFrame`. Used by the loupe composite
@@ -206,6 +207,11 @@ export function createRender3d(
       // ImageData (raw grass + water + SDF bank) as a CanvasTexture.
       // Rebakes on mapVersion or in-battle flips only.
       ctx.terrainBitmap.update(map, overlay);
+      // Owned-sinkhole bank recoloring — parity with 2D
+      // `drawSinkholeOverlays`. Sits above the terrain mesh so its
+      // pixel-grain bank gradient wins over the mesh's tile-grain
+      // owner tint on sinkhole water tiles.
+      ctx.sinkholeOverlay.update(map, overlay);
       // Fine water-wave highlight pass — battle-only, renders above the
       // terrain mesh but below walls / entities / fog.
       ctx.waterWaves.update(map, overlay, now);

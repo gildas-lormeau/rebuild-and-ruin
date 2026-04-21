@@ -114,6 +114,25 @@ interface OffscreenPair {
   ctx: CanvasRenderingContext2D;
 }
 
+/** Cached sinkhole-overlay ImageData for the 3D renderer's upload path.
+ *  The overlay input refs (`sinkholeTiles`, `castles`, `battleTerritory`,
+ *  `battleWalls`) are all reused across frames when nothing mutates, so
+ *  reference equality is enough to skip the rebuild on steady-state frames.
+ *  `hasContent` distinguishes "empty overlay (no owned clusters)" from
+ *  "not yet computed" — both return `undefined` to the 3D caller, but the
+ *  cached empty slot still prevents a rebuild on the next frame. */
+interface SinkholeOverlayCache {
+  map: GameMap;
+  mapVersion: number;
+  inBattle: boolean;
+  sinkholeTiles: ReadonlySet<number>;
+  castles: ReadonlyArray<CastleData> | undefined;
+  battleTerritory: ReadonlyArray<ReadonlySet<number>> | undefined;
+  battleWalls: ReadonlyArray<ReadonlySet<number>> | undefined;
+  image: ImageData;
+  hasContent: boolean;
+}
+
 /** Construction-time deps for `createRenderMap`. Both fields are optional —
  *  production callers (`createCanvasRenderer`) typically pass nothing and get
  *  the browser-default canvas factory. Tests pass a recording canvas factory
@@ -155,6 +174,17 @@ interface RenderMap {
    *  uploads this as a CanvasTexture so water/grass/bank visuals stay
    *  pixel-identical across 2D and 3D. */
   getTerrainBitmap: (map: GameMap, inBattle: boolean) => ImageData;
+  /** Return a MAP_PX_W × MAP_PX_H ImageData containing only the owner-tinted
+   *  sinkhole bank patches (transparent elsewhere), or `undefined` when no
+   *  enclosed sinkhole cluster exists for the current overlay. The 3D
+   *  renderer uploads this as a CanvasTexture on a plane that sits above
+   *  the terrain mesh so the tile-grain mesh tint is overdrawn by the
+   *  pixel-grain bank gradient. Cached on overlay-ref fingerprint so
+   *  steady-state frames skip the rebuild. */
+  getSinkholeOverlayBitmap: (
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+  ) => ImageData | undefined;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current offscreen scene as ImageData (for banner prev-scene).
    *  Returns undefined if the scene canvas hasn't been initialized yet. */
@@ -286,6 +316,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  When the reference changes (new banner / chained banner), the new
    *  ImageData is painted. */
   let bannerScenePainted: ImageData | undefined;
+  /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
+   *  Invalidated on any input ref change; held here so steady-state frames
+   *  skip the per-pixel rebuild and the texture upload that follows. */
+  let sinkholeOverlayCache: SinkholeOverlayCache | undefined;
 
   // Per-layer-group enable flags. Defaults to all-on so the 2D code path is
   // identical to its pre-migration behaviour. The 3D renderer flips
@@ -500,6 +534,38 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       img.width,
       img.height,
     );
+  }
+
+  /** Copy `src` pixels into `dst` at (dx, dy). Used by the sinkhole-overlay
+   *  bitmap builder to accumulate 16×16 tile patches into a MAP_PX_W ×
+   *  MAP_PX_H transparent canvas without routing through a display context.
+   *  `dst` is mutable ImageData; out-of-bounds pixels are skipped. */
+  function blitImageDataIntoImageData(
+    dst: ImageData,
+    src: ImageData,
+    dx: number,
+    dy: number,
+  ): void {
+    const dstWidth = dst.width;
+    const dstHeight = dst.height;
+    const srcWidth = src.width;
+    const srcHeight = src.height;
+    const dstData = dst.data;
+    const srcData = src.data;
+    for (let sy = 0; sy < srcHeight; sy++) {
+      const ty = dy + sy;
+      if (ty < 0 || ty >= dstHeight) continue;
+      for (let sx = 0; sx < srcWidth; sx++) {
+        const tx = dx + sx;
+        if (tx < 0 || tx >= dstWidth) continue;
+        const srcIdx = (sy * srcWidth + sx) * 4;
+        const dstIdx = (ty * dstWidth + tx) * 4;
+        dstData[dstIdx] = srcData[srcIdx]!;
+        dstData[dstIdx + 1] = srcData[srcIdx + 1]!;
+        dstData[dstIdx + 2] = srcData[srcIdx + 2]!;
+        dstData[dstIdx + 3] = srcData[srcIdx + 3]!;
+      }
+    }
   }
 
   function ensureOffscreenSize(width: number, height: number): void {
@@ -860,10 +926,83 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return inBattle ? cache.battle! : cache.normal!;
   }
 
+  function getSinkholeOverlayBitmap(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+  ): ImageData | undefined {
+    const sinkholeTiles = overlay?.entities?.sinkholeTiles;
+    if (!sinkholeTiles || sinkholeTiles.size === 0) {
+      sinkholeOverlayCache = undefined;
+      return undefined;
+    }
+    const inBattle = !!overlay.battle?.inBattle;
+    const castles = inBattle ? undefined : overlay.castles;
+    const battleTerritory = inBattle
+      ? overlay.battle?.battleTerritory
+      : undefined;
+    const battleWalls = inBattle ? overlay.battle?.battleWalls : undefined;
+    if (
+      sinkholeOverlayCache &&
+      sinkholeOverlayCache.map === map &&
+      sinkholeOverlayCache.mapVersion === map.mapVersion &&
+      sinkholeOverlayCache.inBattle === inBattle &&
+      sinkholeOverlayCache.sinkholeTiles === sinkholeTiles &&
+      sinkholeOverlayCache.castles === castles &&
+      sinkholeOverlayCache.battleTerritory === battleTerritory &&
+      sinkholeOverlayCache.battleWalls === battleWalls
+    ) {
+      return sinkholeOverlayCache.hasContent
+        ? sinkholeOverlayCache.image
+        : undefined;
+    }
+    ensureSinkholeClusters(map, sinkholeTiles);
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    const image = new ImageData(MAP_PX_W, MAP_PX_H);
+    let hasContent = false;
+    const blit = (img: ImageData, dx: number, dy: number): void => {
+      blitImageDataIntoImageData(image, img, dx, dy);
+      hasContent = true;
+    };
+    drawSinkholeOverlays(cache, blit, overlay);
+    sinkholeOverlayCache = {
+      map,
+      mapVersion: map.mapVersion,
+      inBattle,
+      sinkholeTiles,
+      castles,
+      battleTerritory,
+      battleWalls,
+      image,
+      hasContent,
+    };
+    return hasContent ? image : undefined;
+  }
+
+  /** Populate `cache.sinkholeClusters` if not already built. `drawTerrain`
+   *  builds them lazily on the first draw, but `getSinkholeOverlayBitmap`
+   *  may be called from the 3D path before the 2D draw has run — so we
+   *  replicate the SDF + cluster build here when the cache is empty. */
+  function ensureSinkholeClusters(
+    map: GameMap,
+    sinkholeTiles: ReadonlySet<number>,
+  ): void {
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    if (cache.sinkholeClusters) return;
+    const sdf = computeSignedDistanceField(MAP_PX_W, MAP_PX_H, map);
+    blurSignedDistanceField(sdf, MAP_PX_W, MAP_PX_H);
+    cache.sinkholeClusters = buildSinkholeClusters(
+      sdf,
+      MAP_PX_W,
+      map,
+      sinkholeTiles,
+    );
+  }
+
   return {
     drawMap,
     precomputeTerrainCache,
     getTerrainBitmap,
+    getSinkholeOverlayBitmap,
     sceneCanvas,
     captureScene,
     setLayersEnabled,

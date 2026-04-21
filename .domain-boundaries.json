@@ -168,6 +168,7 @@
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/layer-canvas.ts",
+      "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/terrain-bitmap.ts",
       "src/render/3d/effects/thawing.ts",
       "src/render/3d/effects/water-waves.ts",

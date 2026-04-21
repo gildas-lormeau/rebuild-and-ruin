@@ -34,6 +34,11 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import {
+  createSinkholeOverlayManager,
+  type GetSinkholeOverlayBitmap,
+  type SinkholeOverlayManager,
+} from "./effects/sinkhole-overlay.ts";
+import {
   createTerrainBitmapManager,
   type GetTerrainBitmap,
   type TerrainBitmapManager,
@@ -149,12 +154,18 @@ export interface Render3dContext {
    *  Sits at ground plane Y=0; the terrain mesh at Y=0.01 composites
    *  overlay tiles (interiors, bonus, frozen, owned sinkholes) on top. */
   readonly terrainBitmap: TerrainBitmapManager;
+  /** Owned-sinkhole bank recoloring overlay — uploads the 2D renderer's
+   *  `getSinkholeOverlayBitmap` per-cluster owner-tinted patches as a
+   *  CanvasTexture on a plane above the terrain mesh. Parity with the
+   *  2D `drawSinkholeOverlays` bank-fade pass. */
+  readonly sinkholeOverlay: SinkholeOverlayManager;
 }
 
 /** Build the scene graph used by `createRender3d`. */
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
   getTerrainBitmap: GetTerrainBitmap,
+  getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap,
 ): Render3dContext {
   const scene = new THREE.Scene();
 
@@ -183,6 +194,10 @@ export function createRender3dScene(
   const thawing = createThawingManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
+  const sinkholeOverlay = createSinkholeOverlayManager(
+    scene,
+    getSinkholeOverlayBitmap,
+  );
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -220,5 +235,6 @@ export function createRender3dScene(
     thawing,
     waterWaves,
     terrainBitmap,
+    sinkholeOverlay,
   };
 }

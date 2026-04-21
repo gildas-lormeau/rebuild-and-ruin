@@ -9,7 +9,10 @@
  */
 
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+import type {
+  RendererInterface,
+  RenderOverlay,
+} from "../shared/ui/overlay-types.ts";
 import { clientToCanvas, computeLetterboxLayout } from "./render-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
@@ -26,6 +29,15 @@ interface CanvasRenderer extends RendererInterface {
    *  renderer uploads this as a CanvasTexture so water/grass visuals
    *  stay pixel-identical across backends. */
   getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData;
+  /** Owner-tinted sinkhole bank overlay ImageData for `(map, overlay)`,
+   *  or `undefined` when no enclosed sinkhole cluster needs recoloring.
+   *  The 3D renderer uploads this as a CanvasTexture on a plane above
+   *  the terrain mesh so pixel-grain bank gradient wins over the
+   *  mesh's tile-grain owner tint. */
+  getSinkholeOverlayBitmap(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+  ): ImageData | undefined;
 }
 
 export function createCanvasRenderer(
@@ -72,5 +84,6 @@ export function createCanvasRenderer(
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
     sceneCanvas: renderMap.sceneCanvas,
     getTerrainBitmap: renderMap.getTerrainBitmap,
+    getSinkholeOverlayBitmap: renderMap.getSinkholeOverlayBitmap,
   };
 }

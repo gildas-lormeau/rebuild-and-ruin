@@ -84,6 +84,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const time = now / 1000;
     const frozen = overlay.entities?.frozenTiles;
+    const sinkholes = overlay.entities?.sinkholeTiles;
     const rows = map.tiles.length;
     const cols = map.tiles[0]?.length ?? 0;
 
@@ -91,6 +92,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
       for (let c = 1; c < cols - 1; c++) {
         if (!isWater(map.tiles, r, c)) continue;
         if (frozen?.has(r * cols + c)) continue;
+        if (sinkholes?.has(r * cols + c)) continue;
         // Skip bank tiles — any non-water cardinal neighbor disqualifies.
         if (
           !isWater(map.tiles, r - 1, c) ||
