@@ -11,7 +11,6 @@
  * renderer only draws UI.
  */
 
-import type { Viewport } from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -73,14 +72,12 @@ export function createRender3d(
   let captureBridgeCtx: CanvasRenderingContext2D | undefined;
 
   // Loupe pointer state — stashed by the wrapped `LoupeHandle.update`
-  // (see `createLoupe` below) every frame the touch UI runs. The
-  // pre-pass is skipped entirely when loupe is hidden or when the
-  // main view is already top-down (pitch === 0 — build / cannon
-  // phases). When the loupe IS visible under tilt, the pre-pass
-  // scissors to a window around `loupeFocus` instead of rendering
-  // the whole map top-down — fragment cost drops to the scissored
-  // area (roughly a LOUPE window + margin = ~11 × ~12 tiles out of
-  // the whole map).
+  // (see `createLoupe` below) every frame the touch UI runs. When the
+  // loupe is hidden the pre-pass is skipped entirely. When it's
+  // visible, the pre-pass scissors to a window around `loupeFocus`
+  // instead of rendering the whole map top-down — vertex work is the
+  // same, but fragment cost drops to the scissored area (roughly a
+  // LOUPE window + margin = ~10 × ~12 tiles out of the whole map).
   let loupeVisible = false;
   let loupeFocusWx = 0;
   let loupeFocusWy = 0;
@@ -89,14 +86,6 @@ export function createRender3d(
   // `update` callback runs AFTER `drawFrame`, so scissor bounds in
   // frame N+1 are positioned against frame N's pointer.
   const LOUPE_SCISSOR_MARGIN_TILES = 3;
-
-  // Last main-render state — used by `loupeCompositeSource` to decide
-  // whether the loupe should sample the pre-pass canvas (tilted main
-  // view) or the main world canvas directly (pitch === 0 — already
-  // top-down, no pre-pass this frame). `lastViewport` then positions
-  // the viewport-cropped world canvas inside the loupe composite.
-  let lastViewport: Viewport | undefined;
-  let lastPitch = 0;
 
   // Loupe TOP-DOWN source — a dedicated 2D canvas that holds the full
   // map rendered at pitch=0, regardless of what the main view is doing.
@@ -137,13 +126,6 @@ export function createRender3d(
   // Loupe composite — merges the top-down world render with the 2D
   // scene canvas (UI + any game layers still on the 2D path). The
   // loupe samples this.
-  //
-  // When `lastPitch === 0` (build / cannon phases), the main
-  // `worldCanvas` is already a top-down render at the runtime
-  // viewport, so we sample IT directly — no pre-pass ran this
-  // frame. When `lastPitch !== 0` (battle), the pre-pass in
-  // `drawFrame` has scissored a top-down update into
-  // `loupeTopDownCanvas` around the pointer; we sample that.
   let loupeCompositeCanvas: HTMLCanvasElement | undefined;
   let loupeCompositeCtx: CanvasRenderingContext2D | undefined;
   function loupeCompositeSource(): HTMLCanvasElement {
@@ -165,34 +147,12 @@ export function createRender3d(
       loupeCompositeCtx.imageSmoothingEnabled = false;
     }
     loupeCompositeCtx.clearRect(0, 0, targetW, targetH);
-    if (lastPitch === 0) {
-      // `worldCanvas` contains the viewport-cropped top-down view
-      // stretched to fill MAP_PX_W × MAP_PX_H; draw it at the
-      // viewport's world-space rect so the loupe's world-coord crop
-      // math lands on the right pixels. Source rect crops off the
-      // reserved top strip (scene renders into the bottom MAP_PX_H
-      // rows only).
-      const viewport = lastViewport;
-      const destX = (viewport?.x ?? 0) * OFFSCREEN_SCALE;
-      const destY = (viewport?.y ?? 0) * OFFSCREEN_SCALE;
-      const destW = (viewport?.w ?? MAP_PX_W) * OFFSCREEN_SCALE;
-      const destH = (viewport?.h ?? MAP_PX_H) * OFFSCREEN_SCALE;
-      loupeCompositeCtx.drawImage(
-        worldCanvas,
-        0,
-        TOP_MARGIN_MAP_PX,
-        MAP_PX_W,
-        MAP_PX_H,
-        destX,
-        destY,
-        destW,
-        destH,
-      );
-    } else {
-      const topDown = loupeTopDownCanvas;
-      if (topDown) {
-        loupeCompositeCtx.drawImage(topDown, 0, 0);
-      }
+    // Top-down canvas is already sized to match the composite, so draw
+    // it at (0,0) full-size — no viewport-dependent dest rect needed
+    // (unlike a sample of the viewport-cropped `worldCanvas`).
+    const topDown = loupeTopDownCanvas;
+    if (topDown) {
+      loupeCompositeCtx.drawImage(topDown, 0, 0);
     }
     loupeCompositeCtx.drawImage(scene2d, 0, 0);
     return loupeCompositeCanvas;
@@ -268,17 +228,15 @@ export function createRender3d(
       // so the browser composites only the final (tilted) frame — the
       // pre-pass is invisible to the user.
       //
-      // Perf gates:
-      //   - Skip when loupe is hidden (desktop, or touch UI hidden).
-      //   - Skip when `pitch === 0` — the main render will produce a
-      //     top-down worldCanvas anyway, and `loupeCompositeSource`
-      //     samples IT directly in that case. This covers build /
-      //     cannon phases (the only phases where the loupe is used
-      //     outside battle) at zero extra GPU cost.
-      //   - When active (loupe visible AND pitch != 0 = battle tilt),
-      //     scissor to just the LOUPE source window + a small margin
-      //     around the pointer so fragment work stays tiny.
-      if (loupeVisible && pitch !== 0) {
+      // Perf: skip entirely when the loupe is hidden. When visible,
+      // scissor the pass to just the LOUPE source window + a small
+      // margin around the pointer so fragment cost stays tiny. Vertex
+      // cost is unchanged (we still process the whole scene graph),
+      // but that's cheap relative to fragment shading on mobile GPUs.
+      // The drawImage copy is likewise restricted to the scissored
+      // area so the rest of `loupeTopDownCanvas` keeps its previous
+      // frame's pixels (outside the loupe window anyway — never sampled).
+      if (loupeVisible) {
         const loupeTopDown = ensureLoupeTopDownCanvas();
         const windowWpx =
           (LOUPE_SOURCE_TILES_W + 2 * LOUPE_SCISSOR_MARGIN_TILES) * TILE_SIZE;
@@ -339,8 +297,6 @@ export function createRender3d(
       // Main tilted render — camera + pitch come from the runtime
       // viewport. The 2D overlay stays straight-down (UI layers only).
       updateCameraFromViewport(ctx.camera, viewport, pitch);
-      lastViewport = viewport ?? undefined;
-      lastPitch = pitch;
       // Render the scene once into the capture FBO (readable outside
       // the rAF tick by `captureScene`), then blit that FBO's texture
       // to the default framebuffer via a fullscreen quad. The blit is
