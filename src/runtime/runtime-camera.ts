@@ -830,6 +830,33 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     zoomActivated = true;
   }
 
+  /** Re-engage the current phase's auto-zoom. Used at life-lost popup
+   *  time: the scores overlay ran unzoomed, and the spec calls for the
+   *  camera to zoom into the pov player's zone before the popup shows
+   *  (`scores → zoom → life lost popup`). `handlePhaseChangeZoom` can't
+   *  trigger it — the phase hasn't changed — so the phase machine calls
+   *  this directly. No-op when auto-zoom is disabled. */
+  function engageAutoZoom(): void {
+    const state = deps.getState();
+    if (!state) return;
+    if (!(mobileZoomEnabled && zoomActivated)) return;
+    autoZoom(state.phase);
+  }
+
+  /** Permanently disable auto-zoom. Spec: after the human player
+   *  abandons a life-lost popup (or is otherwise eliminated), the
+   *  camera stops following the game — no more zooms, no more tilts,
+   *  just a static full-map spectator view until the next rematch.
+   *  Clears every zoom target and prevents future `autoZoom` /
+   *  `handlePhaseChangeZoom` re-engagements by flipping `zoomActivated`.
+   *  `resetCamera` re-arms it on next game start. */
+  function disableAutoZoom(): void {
+    zoomActivated = false;
+    cameraZone = undefined;
+    pinchVp = undefined;
+    castleBuildVp = undefined;
+  }
+
   // --- Touch battle targeting ---
 
   /** Crosshair position from the previous battle (null = first battle). */
@@ -895,6 +922,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setCastleBuildViewport,
     clearCastleBuildViewport,
     enableMobileZoom,
+    engageAutoZoom,
+    disableAutoZoom,
     isMobileAutoZoom: () => mobileZoomEnabled && zoomActivated,
     computeBattleTarget,
     saveBattleCrosshair,

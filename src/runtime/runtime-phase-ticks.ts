@@ -162,6 +162,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginBattleTilt: () => void;
+  /** Re-engage the current phase's auto-zoom. Called from the life-lost
+   *  display step before the popup (spec: scores → zoom → popup). */
+  engageAutoZoom: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -392,6 +395,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       saveBattleCrosshair: deps.saveBattleCrosshair,
       getPitchState: deps.getPitchState,
       beginBattleTilt: deps.beginBattleTilt,
+      engageAutoZoom: deps.engageAutoZoom,
       lifeLost: {
         tryShow: deps.lifeLost.tryShow,
         resolve: (continuing) => {

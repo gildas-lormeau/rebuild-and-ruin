@@ -289,6 +289,10 @@ export interface PhaseTransitionCtx {
    *  contexts can skip it (2D wiring also skips — the renderer has no
    *  tilt axis). */
   readonly beginBattleTilt?: () => void;
+  /** Re-engage the current phase's auto-zoom. Called from the
+   *  life-lost-dialog step right before the popup is shown, so the
+   *  spec'd `scores → zoom → life lost popup` sequence plays. */
+  readonly engageAutoZoom?: () => void;
   /** Host-only per-frame setup when WALL_BUILD begins: score-delta reset,
    *  cannon facing reset, per-controller startBuildPhase, clear impacts,
    *  accumulator resets. Called from `battle-done` postDisplay, after the
@@ -1088,6 +1092,11 @@ function runLifeLostDialogStep(
     ctx.lifeLost?.resolve();
     return;
   }
+  // Spec: `max time of build phase → scores → zoom → life lost popup`.
+  // The score overlay just finished unzoomed (runTransition's
+  // requestUnzoom ran at the top of this transition). Re-engage
+  // auto-zoom so the popup appears over the pov player's zone.
+  ctx.engageAutoZoom?.();
   emitGameEvent(ctx.state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {
     needsReselect,
     eliminated,

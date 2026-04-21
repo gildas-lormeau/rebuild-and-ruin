@@ -261,6 +261,7 @@ function buildWatcherPhaseCtx(
     incomingMsg: msg,
     getPitchState: runtime.getPitchState,
     beginBattleTilt: runtime.beginBattleTilt,
+    engageAutoZoom: runtime.engageAutoZoom,
   };
 }
 

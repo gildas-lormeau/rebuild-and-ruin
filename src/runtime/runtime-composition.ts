@@ -633,6 +633,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       phaseTicks.dispatchGameOver(winner, reason),
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
+    disableAutoZoom: camera.disableAutoZoom,
   });
 
   // -------------------------------------------------------------------------
@@ -699,6 +700,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
     beginBattleTilt: camera.beginBattleTilt,
+    engageAutoZoom: camera.engageAutoZoom,
   });
 
   // -------------------------------------------------------------------------
@@ -914,5 +916,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     networkSend: config.network.send,
     getPitchState: camera.getPitchState,
     beginBattleTilt: camera.beginBattleTilt,
+    engageAutoZoom: camera.engageAutoZoom,
   };
 }

@@ -3,6 +3,7 @@ import {
   LIFE_LOST_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
@@ -42,6 +43,11 @@ interface LifeLostSystemDeps {
   dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
+  /** Permanently disable auto-zoom. Fired when the pov player abandons
+   *  (or is force-eliminated) so the camera stops following the game.
+   *  Spec: `life lost popup → abandon → unzoom → spectator mode
+   *  (no more auto-zoom anymore)`. */
+  disableAutoZoom: () => void;
 }
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
@@ -83,6 +89,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (isLifeLostAllResolved(dialog)) {
       deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
       eliminateAbandoned(dialog, runtimeState.state);
+      disableAutoZoomIfPovEliminated();
       afterLifeLostResolved();
       return false;
     }
@@ -126,6 +133,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     );
 
     eliminateAbandoned(dialog, runtimeState.state);
+    disableAutoZoomIfPovEliminated();
 
     if (runtimeState.frameMeta.hostAtFrameStart) {
       afterLifeLostResolved(continuingPlayers(dialog));
@@ -133,6 +141,18 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       setMode(runtimeState, Mode.GAME);
     }
     runtimeState.dialogs.lifeLost = null;
+  }
+
+  /** Flip the camera permanently to spectator mode if the pov player
+   *  just got eliminated (lives hit 0 — covers abandon and forced
+   *  eliminations alike). Runs right after `eliminateAbandoned` so the
+   *  check sees the post-resolution player state. */
+  function disableAutoZoomIfPovEliminated(): void {
+    const povId = runtimeState.frameMeta.povPlayerId;
+    const povPlayer = runtimeState.state.players[povId];
+    if (povPlayer && isPlayerEliminated(povPlayer)) {
+      deps.disableAutoZoom();
+    }
   }
 
   function afterLifeLostResolved(
