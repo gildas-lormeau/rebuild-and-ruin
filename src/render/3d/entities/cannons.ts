@@ -213,6 +213,8 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
       if (!byVariant.has(variant)) hideSubParts(bucket.subParts);
     }
 
+    const inBattle = !!overlay?.battle?.inBattle;
+
     // Write matrices for each live variant.
     for (const [variant, list] of byVariant) {
       const bucket = ensureBucket(variant, list.length);
@@ -233,6 +235,19 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
         hostQuaternion.setFromAxisAngle(yAxis, -facing);
         matrix.compose(hostTranslation, hostQuaternion, hostScale);
       });
+      // Ground discs (the swivel base + the authored shadow/AO halos)
+      // stay hidden during battle so the cannon reads as planted on the
+      // terrain itself.
+      for (const subPart of bucket.subParts) {
+        const partName = subPart.instanced.name;
+        if (
+          partName === "base" ||
+          partName === "groundShadow" ||
+          partName === "groundAO"
+        ) {
+          subPart.instanced.visible = !inBattle;
+        }
+      }
     }
   }
 
@@ -253,10 +268,11 @@ function selectVariant(cannon: Cannon): VariantName {
 }
 
 /** Composite signature across every live cannon. Rebuilds only when one
- *  of the watched fields changes. */
+ *  of the watched fields changes. `inBattle` is included because the
+ *  base disc hides during battle. */
 function computeSignature(overlay: RenderOverlay | undefined): string {
   if (!overlay?.castles) return "";
-  const parts: string[] = [];
+  const parts: string[] = [overlay.battle?.inBattle ? "b" : "p"];
   for (const castle of overlay.castles) {
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;

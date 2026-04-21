@@ -209,7 +209,7 @@ export function createTerrain(): TerrainContext {
         // alpha=1: opaque, covers the bitmap at this tile.
         let alpha: number;
 
-        if (bonusKeys?.has(key)) {
+        if (bonusKeys?.has(key) && !inBattle) {
           red = BONUS_COLOR[0] * bonusPulse;
           green = BONUS_COLOR[1] * bonusPulse;
           blue = BONUS_COLOR[2] * bonusPulse;

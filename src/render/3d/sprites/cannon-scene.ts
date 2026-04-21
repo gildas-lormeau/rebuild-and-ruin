@@ -1215,7 +1215,8 @@ export function buildCannon(
 ): void {
   const mat = (spec: MaterialSpec): THREE.Material => makeMaterial(three, spec);
 
-  // Base.
+  // Base — named so the entity manager can hide just the ground disc
+  // during battle (the rest of the cannon keeps rendering).
   const base = new three.Mesh(
     new three.CylinderGeometry(
       params.base.radius,
@@ -1225,6 +1226,7 @@ export function buildCannon(
     ),
     mat(params.base.material),
   );
+  base.name = "base";
   base.position.y = params.base.height / 2;
   scene.add(base);
 
@@ -1336,13 +1338,16 @@ export function buildCannon(
     }
   }
 
-  // Decorations.
+  // Decorations. The DecorationSpec's `name` propagates onto the mesh so
+  // the entity manager can find specific parts (e.g. ground-shadow discs)
+  // by name after extractSubParts.
   const decorations = params.decorations ?? [];
   for (const dec of decorations) {
     const mesh = new three.Mesh(
       createDecorationGeometry(three, dec),
       mat(dec.material),
     );
+    if (dec.name) mesh.name = dec.name;
     const pos = dec.pos;
     mesh.position.set(pos[0], pos[1], pos[2]);
     if (dec.rot) mesh.rotation.set(dec.rot[0], dec.rot[1], dec.rot[2]);
