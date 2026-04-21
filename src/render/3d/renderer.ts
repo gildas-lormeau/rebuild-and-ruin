@@ -89,14 +89,6 @@ export function createRender3d(
   // `update` callback runs AFTER `drawFrame`, so scissor bounds in
   // frame N+1 are positioned against frame N's pointer.
   const LOUPE_SCISSOR_MARGIN_TILES = 3;
-  // Pre-pass runs every Nth frame when active. The scene render is
-  // the single most expensive thing `drawFrame` does (scissor only
-  // rejects fragments — vertex shader still runs on every primitive),
-  // so cutting it in half buys back most of the budget at the cost of
-  // a ~16ms staleness on the loupe image between refreshes. Pointer
-  // hit-testing is unaffected; only the visible loupe pixels lag.
-  const LOUPE_PREPASS_THROTTLE = 2;
-  let loupeFrameCounter = 0;
 
   // Last main-render state — used by `loupeCompositeSource` to decide
   // whether the loupe should sample the pre-pass canvas (tilted main
@@ -283,26 +275,10 @@ export function createRender3d(
       //     samples IT directly in that case. This covers build /
       //     cannon phases (the only phases where the loupe is used
       //     outside battle) at zero extra GPU cost.
-      //   - Throttle: run only every Nth frame (N = LOUPE_PREPASS_THROTTLE).
-      //     Scissor cuts fragment work but not vertex work, so a second
-      //     scene render is still expensive on mobile. Halving the rate
-      //     keeps display at 60fps while loupe pixels refresh at ~30fps.
-      //     Skipped frames leave the previous pre-pass's pixels in
-      //     `loupeTopDownCanvas`, which `loupeCompositeSource` continues
-      //     to sample — loupe image lags slightly, not black.
-      //   - When active (loupe visible AND pitch != 0 AND throttle tick),
+      //   - When active (loupe visible AND pitch != 0 = battle tilt),
       //     scissor to just the LOUPE source window + a small margin
       //     around the pointer so fragment work stays tiny.
-      const prepassDue =
-        loupeVisible &&
-        pitch !== 0 &&
-        loupeFrameCounter % LOUPE_PREPASS_THROTTLE === 0;
       if (loupeVisible && pitch !== 0) {
-        loupeFrameCounter = (loupeFrameCounter + 1) % LOUPE_PREPASS_THROTTLE;
-      } else {
-        loupeFrameCounter = 0;
-      }
-      if (prepassDue) {
         const loupeTopDown = ensureLoupeTopDownCanvas();
         const windowWpx =
           (LOUPE_SOURCE_TILES_W + 2 * LOUPE_SCISSOR_MARGIN_TILES) * TILE_SIZE;
