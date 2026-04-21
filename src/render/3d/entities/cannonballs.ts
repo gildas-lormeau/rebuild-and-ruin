@@ -95,6 +95,19 @@ const MIN_APEX = TILE_SIZE * 1.6;
 /** Scale bonus at apex — matches the 2D formula's ~66% radius growth
  *  from launch to apex (3→5 px and 4.5→7.5 px both land at +66%). */
 const SCALE_APEX_BONUS = 2 / 3;
+/** Muzzle-tip offset applied at progress=0 so the ball visibly
+ *  emerges from the barrel tip rather than from the cannon's ground
+ *  center. Fades linearly to zero by progress=1 (impact).
+ *    • forward: tier_1 barrel length ≈ 13 world units (half-length
+ *      ~6.5) plus ~3.5 for barrel zOffset from cannon center → 10.
+ *      Tuned by eye; close enough for every variant since larger
+ *      cannons also have proportionally longer barrels relative to
+ *      their footprints.
+ *    • Y: barrel sits ~12 world units above the ground plane. See
+ *      CANNON_TOP_Y = 14 in elevation.ts — we aim slightly below the
+ *      top so the ball emerges from the bore, not the muzzle swell. */
+const MUZZLE_FORWARD = 10;
+const MUZZLE_Y = 12;
 
 export function createCannonballsManager(
   scene: THREE.Scene,
@@ -153,12 +166,26 @@ export function createCannonballsManager(
       // Apex lift scales with flight distance (a la Rampart's tall
       // arcs). Close shots bottom out at MIN_APEX so they still read
       // as arcs, long shots fly proportionally higher.
-      const flightDist = Math.hypot(
-        ball.targetX - ball.startX,
-        ball.targetY - ball.startY,
-      );
+      const dx = ball.targetX - ball.startX;
+      const dy = ball.targetY - ball.startY;
+      const flightDist = Math.hypot(dx, dy);
       const apex = Math.max(MIN_APEX, flightDist * APEX_RATIO);
-      host.position.set(ball.x, floor + arc * apex, ball.y);
+      // Muzzle-tip offset: at progress=0 the ball sits at the barrel
+      // tip (forward along the firing direction + elevated to barrel
+      // Y), fading linearly to zero by progress=1 so impact still
+      // lands exactly at the target. Without this the ball visually
+      // spawns at cannon-center-on-ground and "teleports" up+forward
+      // on its first frame of flight.
+      const muzzleFade = 1 - ball.progress;
+      const fwdUnit = flightDist > 0 ? 1 / flightDist : 0;
+      const muzzleOffX = dx * fwdUnit * MUZZLE_FORWARD * muzzleFade;
+      const muzzleOffZ = dy * fwdUnit * MUZZLE_FORWARD * muzzleFade;
+      const muzzleOffY = MUZZLE_Y * muzzleFade;
+      host.position.set(
+        ball.x + muzzleOffX,
+        floor + arc * apex + muzzleOffY,
+        ball.y + muzzleOffZ,
+      );
       host.scale.setScalar(CANNONBALL_SCALE * (1 + arc * SCALE_APEX_BONUS));
     }
   }
