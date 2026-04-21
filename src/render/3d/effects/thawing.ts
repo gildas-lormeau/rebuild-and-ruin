@@ -27,6 +27,7 @@ import {
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
+import { createFlatDisc, tileSeed } from "./helpers.ts";
 
 export interface ThawingManager {
   /** Per-frame update. Rebuilds the mesh pool only when the thawing tile
@@ -51,9 +52,6 @@ interface ThawHost {
 // Radial crack burst count + length — mirror render-effects.ts.
 const THAW_CRACK_COUNT = 6;
 const THAW_CRACK_LEN = 10;
-// Seed multipliers for per-tile jitter (same as render-effects.ts).
-const SEED_ROW = 41;
-const SEED_COL = 17;
 // Lift above terrain to avoid z-fighting.
 // Ice fade colour: rgba(165, 210, 230, …) → 0xa5d2e6
 const ICE_FADE_COLOR = 0xa5d2e6;
@@ -64,8 +62,7 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
   root.name = "thawing";
   scene.add(root);
 
-  const discGeometry = new THREE.CircleGeometry(1, 24);
-  discGeometry.rotateX(-Math.PI / 2);
+  const discGeometry = createFlatDisc(24);
   const rayGeometry = new THREE.PlaneGeometry(1, 1);
   rayGeometry.rotateX(-Math.PI / 2);
 
@@ -142,7 +139,7 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
     const centerX = tile.col * TILE_SIZE + TILE_SIZE / 2;
     const centerZ = tile.row * TILE_SIZE + TILE_SIZE / 2;
     host.group.position.set(centerX, ELEVATION_STACK.THAWING, centerZ);
-    host.seed = tile.row * SEED_ROW + tile.col * SEED_COL;
+    host.seed = tileSeed(tile.row, tile.col);
 
     // Fading ice tint — radial gradient falloff faked by a solid disc
     // that shrinks + fades.

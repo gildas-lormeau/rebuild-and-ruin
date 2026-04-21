@@ -24,6 +24,7 @@ import {
   BONUS_FLASH_MS,
 } from "../../../shared/ui/theme.ts";
 import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
+import { createFlatDisc, pulse, tileSignature } from "./helpers.ts";
 
 export interface BonusSquaresManager {
   update(overlay: RenderOverlay | undefined, now: number): void;
@@ -43,8 +44,7 @@ export function createBonusSquaresManager(
 
   // One disc geometry shared across all bonus tiles. Radius 1; each
   // mesh is scaled by TILE_SIZE/2 so it fills a single tile.
-  const geometry = new THREE.CircleGeometry(1, BONUS_CIRCLE_SEGMENTS);
-  geometry.rotateX(-Math.PI / 2);
+  const geometry = createFlatDisc(BONUS_CIRCLE_SEGMENTS);
 
   const material = new THREE.MeshBasicMaterial({
     color: rgbTupleToHex(BONUS_CIRCLE_COLOR),
@@ -61,7 +61,7 @@ export function createBonusSquaresManager(
   function reconcile(
     tiles: readonly { row: number; col: number }[] | undefined,
   ): void {
-    const signature = computeSignature(tiles);
+    const signature = tileSignature(tiles);
     if (signature === lastSignature) return;
     lastSignature = signature;
     activeCount = tiles?.length ?? 0;
@@ -97,7 +97,7 @@ export function createBonusSquaresManager(
       return;
     }
     // Same 0.70–1.00 sin pulse as the 2D path.
-    material.opacity = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
+    material.opacity = pulse(now, BONUS_FLASH_MS, 0.15, 0.85);
   }
 
   function dispose(): void {
@@ -109,15 +109,6 @@ export function createBonusSquaresManager(
   }
 
   return { update, dispose };
-}
-
-function computeSignature(
-  tiles: readonly { row: number; col: number }[] | undefined,
-): string {
-  if (!tiles || tiles.length === 0) return "";
-  const parts: string[] = [];
-  for (const bonus of tiles) parts.push(`${bonus.col}:${bonus.row}`);
-  return parts.join("|");
 }
 
 function rgbTupleToHex(rgb: readonly [number, number, number]): number {

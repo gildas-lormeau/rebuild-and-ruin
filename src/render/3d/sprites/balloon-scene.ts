@@ -27,7 +27,12 @@
 
 import type * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
-import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  cells,
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import { GROUND_AO, GROUND_SHADOW } from "./sprite-materials.ts";
 
 export interface EnvelopeParams {
@@ -345,7 +350,7 @@ export const PALETTE: [number, number, number][] = [
 /** Look up a balloon variant by name. Matches the other scene files'
  *  helper so the entity manager can fetch params by variant string. */
 export function getBalloonVariant(name: string): BalloonVariant | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(variant: BalloonVariant): BalloonVariantReport {

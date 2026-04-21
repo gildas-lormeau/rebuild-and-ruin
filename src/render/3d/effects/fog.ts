@@ -21,6 +21,7 @@ import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { DIRS_8, packTile, unpackTile } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
+import { tileSeed } from "./helpers.ts";
 
 export interface FogManager {
   /** Per-frame update. Rebuilds the fog tile set only when castles'
@@ -49,9 +50,6 @@ const FOG_BASE_COLOR = 0x78808c;
 const FOG_HIGHLIGHT_COLOR = 0xc8d2dc;
 const FOG_HIGHLIGHT_ALPHA = 0.18;
 const FOG_DRIFT_HZ = 0.6;
-// Seed multipliers from render-effects.ts for per-tile phase jitter.
-const SEED_ROW = 41;
-const SEED_COL = 17;
 
 export function createFogManager(scene: THREE.Scene): FogManager {
   const root = new THREE.Group();
@@ -110,7 +108,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     return {
       row,
       col,
-      seed: row * SEED_ROW + col * SEED_COL,
+      seed: tileSeed(row, col),
       baseMesh,
       baseMaterial,
       bandMesh,

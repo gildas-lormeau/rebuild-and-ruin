@@ -81,3 +81,52 @@ export function createMaterial(
   if (spec.flat) stdOpts.flatShading = true;
   return new THREE.MeshStandardMaterial(stdOpts);
 }
+
+/** Look up a variant by its `name` field. Factors out the identical
+ *  `VARIANTS.find((v) => v.name === name)` each scene module used to
+ *  ship. Returns undefined for unknown names. */
+export function findVariant<V extends { name: string }>(
+  variants: readonly V[],
+  name: string,
+): V | undefined {
+  return variants.find((variant) => variant.name === name);
+}
+
+/**
+ * Apply box-side UV scaling so a repeating texture tiles uniformly across
+ * the four vertical faces (+X, -X, +Z, -Z) of a `BoxGeometry`. Top/bottom
+ * faces receive width×depth scaling (they usually carry a plain material
+ * where the UV is ignored). `uvDensity` is texture wraps per world unit;
+ * `uOff` / `vOff` let callers stitch adjacent boxes into a continuous
+ * tiling. Factored out of tower-scene + wall-scene where the two bodies
+ * had drifted only in the presence of those offsets.
+ */
+export function applyBoxWallUV(
+  geom: THREE.BoxGeometry,
+  width: number,
+  height: number,
+  depth: number,
+  uvDensity: number,
+  uOff = 0,
+  vOff = 0,
+): void {
+  const uv = geom.attributes["uv"] as THREE.BufferAttribute;
+  const array = uv.array as Float32Array;
+  const scales: [number, number][] = [
+    [depth, height], // +X
+    [depth, height], // -X
+    [width, depth], // +Y (plain mat — UVs don't render)
+    [width, depth], // -Y
+    [width, height], // +Z
+    [width, height], // -Z
+  ];
+  for (let face = 0; face < 6; face++) {
+    const [su, sv] = scales[face]!;
+    for (let vertex = 0; vertex < 4; vertex++) {
+      const index = (face * 4 + vertex) * 2;
+      array[index] = array[index]! * su * uvDensity + uOff;
+      array[index + 1] = array[index + 1]! * sv * uvDensity + vOff;
+    }
+  }
+  uv.needsUpdate = true;
+}

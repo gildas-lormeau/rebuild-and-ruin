@@ -79,18 +79,17 @@ import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
 import {
   cloneAndTintMaterial,
-  extractSubParts,
   rgbToHex,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
+  buildVariantBucket,
   disposeAllBuckets,
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
-  wrapSubPartAsInstancedMesh,
 } from "./instance-bucket.ts";
 
 export interface DebrisManager {
@@ -407,32 +406,32 @@ function buildBucket(
 ): VariantBucket | undefined {
   const variant = getDebrisVariant(variantName);
   if (!variant) return undefined;
-  const scratch = new THREE.Group();
-  buildDebris(THREE, scratch, variant);
-  const extracted = extractSubParts(scratch);
-  const subParts: BucketSubPart[] = [];
   const flagTint =
     ownerId !== undefined && variantName === "home_tower_debris"
       ? rgbToHex(getPlayerColor(ownerId).interiorLight)
       : undefined;
-  for (const part of extracted) {
+  const subParts = buildVariantBucket({
+    capacity,
+    root,
+    ownedMaterials,
+    scratchBuilder: (scratch) => {
+      buildDebris(THREE, scratch, variant);
+    },
+    namePrefix: `debris-${key}`,
     // Per-owner flag tint: clone the material for the "flag" sub-part so
     // multiple owner buckets don't share state. Only home_tower_debris
     // names a mesh "flag" (see debris-scene.ts), so this is a no-op for
     // every other variant.
-    const tintedPart =
-      flagTint !== undefined && part.name === "flag"
-        ? { ...part, material: cloneAndTintMaterial(part.material, flagTint) }
-        : part;
-    subParts.push(
-      wrapSubPartAsInstancedMesh(
-        tintedPart,
-        capacity,
-        root,
-        ownedMaterials,
-        `debris-${key}`,
-      ),
-    );
-  }
+    transformPart:
+      flagTint !== undefined
+        ? (part) =>
+            part.name === "flag"
+              ? {
+                  ...part,
+                  material: cloneAndTintMaterial(part.material, flagTint),
+                }
+              : part
+        : undefined,
+  });
   return { key, variantName, subParts, capacity };
 }

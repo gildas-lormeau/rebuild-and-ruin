@@ -77,17 +77,16 @@ import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
 import {
-  extractSubParts,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
+  buildVariantBucket,
   disposeAllBuckets,
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
-  wrapSubPartAsInstancedMesh,
 } from "./instance-bucket.ts";
 
 export interface CannonsManager {
@@ -295,35 +294,30 @@ function buildBucket(
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
 ): VariantBucket | undefined {
-  const scratch = new THREE.Group();
+  let scratchBuilder: ((scratch: THREE.Group) => void) | undefined;
   if (variant === "rampart_cannon") {
     const entry = getRampartVariant(variant);
     if (!entry) return undefined;
-    buildRampart(THREE, scratch, entry.params);
+    scratchBuilder = (scratch) => buildRampart(THREE, scratch, entry.params);
   } else {
     const entry = getCannonVariant(variant);
     if (!entry) return undefined;
-    buildCannon(THREE, scratch, entry.params);
+    scratchBuilder = (scratch) => buildCannon(THREE, scratch, entry.params);
   }
-  const extracted = extractSubParts(scratch);
-  const subParts: BucketSubPart[] = [];
-  for (const part of extracted) {
-    const wrapped = wrapSubPartAsInstancedMesh(
-      part,
-      capacity,
-      root,
-      ownedMaterials,
-      `cannon-${variant}`,
-    );
-    // Preserve the shield-aura's draw-before-opaque hint from
-    // rampart-scene: the authored plane sets `renderOrder = -1` so
-    // opaque meshes render over it without z-fight. We replicate the
-    // heuristic by authored ordering — the plane is the first sub-part
-    // because `buildRampart` adds it first.
-    if (variant === "rampart_cannon" && subParts.length === 0) {
-      wrapped.instanced.renderOrder = -1;
-    }
-    subParts.push(wrapped);
+  const subParts = buildVariantBucket({
+    capacity,
+    root,
+    ownedMaterials,
+    scratchBuilder,
+    namePrefix: `cannon-${variant}`,
+  });
+  // Preserve the shield-aura's draw-before-opaque hint from
+  // rampart-scene: the authored plane sets `renderOrder = -1` so
+  // opaque meshes render over it without z-fight. We replicate the
+  // heuristic by authored ordering — the plane is the first sub-part
+  // because `buildRampart` adds it first.
+  if (variant === "rampart_cannon" && subParts.length > 0) {
+    subParts[0]!.instanced.renderOrder = -1;
   }
   return { variant, subParts, capacity };
 }

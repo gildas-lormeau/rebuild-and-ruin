@@ -12,7 +12,7 @@
       "src/online/online-dom.ts",
       "src/online/online-router.ts",
       "src/protocol/routes.ts",
-      "src/render/3d/entities/instance-bucket.ts",
+      "src/render/3d/effects/helpers.ts",
       "src/render/3d/lights.ts",
       "src/render/3d/pixel-snap.ts",
       "src/render/3d/sprites/procedural-texture.ts",
@@ -69,7 +69,6 @@
     "tier": "types",
     "files": [
       "src/render/3d/camera.ts",
-      "src/render/3d/entities/houses.ts",
       "src/render/3d/sprites/balloon-scene.ts",
       "src/render/3d/sprites/cannon-scene.ts",
       "src/render/3d/sprites/debris-scene.ts",
@@ -100,6 +99,8 @@
     "files": [
       "server/game-room.ts",
       "src/online/online-lobby-ui.ts",
+      "src/render/3d/entities/houses.ts",
+      "src/render/3d/entities/instance-bucket.ts",
       "src/shared/core/phantom-types.ts",
       "src/shared/core/player-interior.ts",
       "src/shared/core/player-walls.ts",

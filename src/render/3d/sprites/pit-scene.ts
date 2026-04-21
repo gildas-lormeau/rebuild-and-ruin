@@ -26,6 +26,7 @@ import {
   CELL,
   cells,
   createMaterial,
+  findVariant,
   type MaterialSpec,
 } from "./sprite-kit.ts";
 
@@ -321,7 +322,7 @@ export const PALETTE: [number, number, number][] = [
 
 /** Look up a pit variant by name (pit_fresh / pit_dim / pit_embers). */
 export function getPitVariant(name: string): PitVariant | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(variant: PitVariant): PitVariantReport {

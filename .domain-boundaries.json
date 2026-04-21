@@ -167,6 +167,7 @@
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
       "src/render/3d/effects/fog.ts",
+      "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/layer-canvas.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",

@@ -37,7 +37,11 @@
 
 import type * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
-import { createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import {
   BAND_GREEN,
   FLAG_RED,
@@ -716,7 +720,7 @@ export const PALETTE: [number, number, number][] = [
 
 /** Look up a variant by name — matches the API of other scene files. */
 export function getDebrisVariant(name: string): VariantDescriptor | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 /**

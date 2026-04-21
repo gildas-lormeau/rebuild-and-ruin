@@ -25,7 +25,12 @@
 
 import type * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
-import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  cells,
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 
 export interface BallParams {
   radius: number;
@@ -183,7 +188,7 @@ export const PALETTE: [number, number, number][] = [
 export function getCannonballVariant(
   name: string,
 ): CannonballVariant | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(

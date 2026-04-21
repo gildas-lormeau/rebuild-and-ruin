@@ -23,7 +23,12 @@
 
 import type * as THREE from "three";
 import { FRUSTUM_HALF } from "./sprite-bounds.ts";
-import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  cells,
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import { BORE_DARK } from "./sprite-materials.ts";
 
 /** MaterialSpec + optional procedural texture identifier. Texture maps
@@ -1185,7 +1190,7 @@ let cachedMetalGripTexture: THREE.Texture | undefined;
 
 /** Look up a cannon variant by name. */
 export function getCannonVariant(name: string): CannonVariant | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function barrelWorldPoints(barrel: BarrelParams): {

@@ -59,6 +59,7 @@ import type { Grunt } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildGrunt, getGruntVariant } from "../sprites/grunt-scene.ts";
+import { type BucketSubPart, fillBucket } from "./instance-bucket.ts";
 
 export interface GruntsManager {
   /** Reconcile grunt instance matrices with the overlay. Cheap no-op
@@ -66,15 +67,6 @@ export interface GruntsManager {
   update(overlay: RenderOverlay | undefined): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
-}
-
-/** One extracted sub-part of the authored grunt scene — reused across
- *  every grunt instance via its InstancedMesh. */
-interface SubPart {
-  readonly instanced: THREE.InstancedMesh;
-  /** Local transform of the mesh inside the authored ±1 grunt frustum,
-   *  relative to the root of the builder's output Group. */
-  readonly localMatrix: THREE.Matrix4;
 }
 
 /** Grunt scene is authored in the ±1 frustum spanning a 2-tile (canvasPx
@@ -104,7 +96,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   // neutral) so this list is currently empty, but kept for the
   // dispose path symmetry with other managers.
   const ownedMaterials: THREE.Material[] = [];
-  let subParts: SubPart[] = [];
+  let subParts: BucketSubPart[] = [];
   let capacity = 0;
   let lastSignature: string | undefined;
 
@@ -159,34 +151,25 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
 
     ensureCapacity(count);
 
-    for (let i = 0; i < count; i++) {
-      const grunt = grunts![i]!;
-      hostTranslation.set(
-        grunt.col * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
-        0,
-        grunt.row * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
-      );
-      // facing radians, 0=north, +=CW (game). three.js Y rotations
-      // are CCW viewed from +Y, so quaternion around +Y by `-facing`.
-      hostQuaternion.setFromAxisAngle(yAxis, -(grunt.facing ?? 0));
-      hostMatrix.compose(hostTranslation, hostQuaternion, hostScale);
-
-      for (const part of subParts) {
-        // Final instance = host transform ∘ sub-part's authored local
-        // transform (in the authored ±1 frustum). Multiplying in
-        // world-first order (hostMatrix.multiply(localMatrix))
-        // applies the local first, then scales/rotates/translates
-        // into world space — the same result the previous
-        // `host.add(subMesh)` hierarchy produced.
-        instanceMatrix.multiplyMatrices(hostMatrix, part.localMatrix);
-        part.instanced.setMatrixAt(i, instanceMatrix);
-      }
-    }
-
-    for (const part of subParts) {
-      part.instanced.count = count;
-      part.instanced.instanceMatrix.needsUpdate = true;
-    }
+    // Delegate the host×local compose + setMatrixAt loop to the shared
+    // bucket helper so every bucket-based manager shares one code path.
+    // The per-grunt compose writes translation (tile centre) + Y-yaw
+    // (from `-facing`, game CW vs three.js CCW) + uniform scale.
+    fillBucket(
+      { subParts },
+      grunts!,
+      hostMatrix,
+      instanceMatrix,
+      (grunt, matrix) => {
+        hostTranslation.set(
+          grunt.col * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
+          0,
+          grunt.row * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
+        );
+        hostQuaternion.setFromAxisAngle(yAxis, -(grunt.facing ?? 0));
+        matrix.compose(hostTranslation, hostQuaternion, hostScale);
+      },
+    );
   }
 
   function dispose(): void {
@@ -205,7 +188,7 @@ function buildSubParts(
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
-): SubPart[] {
+): BucketSubPart[] {
   const variant = getGruntVariant(BASE_VARIANT_NAME);
   if (!variant) return [];
   // Strip authored yaw off the base variant — instance rotation is
@@ -216,7 +199,7 @@ function buildSubParts(
   buildGrunt(THREE, scratch, baseParams);
   scratch.updateMatrixWorld(true);
 
-  const parts: SubPart[] = [];
+  const parts: BucketSubPart[] = [];
   // `buildGrunt` wraps everything in an inner Group (for yaw); that
   // Group's children are the actual meshes. Walk the whole subtree
   // so we're resilient to shape changes without needing to touch

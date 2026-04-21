@@ -21,7 +21,12 @@
 
 import type * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
-import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  cells,
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import { BAND_GREEN } from "./sprite-materials.ts";
 
 export interface CoreParams {
@@ -209,7 +214,7 @@ export const PALETTE: readonly [number, number, number][] = [
  *  scene file helpers — lets the entity manager fetch the params
  *  dictionary when variant selection is data-driven. */
 export function getRampartVariant(name: string): RampartVariant | undefined {
-  return VARIANTS.find((variant) => variant.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(variant: RampartVariant): RampartVariantReport {

@@ -27,11 +27,14 @@
  */
 
 import * as THREE from "three";
+import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
+  applyBoxWallUV,
   CELL,
   cells,
   createMaterial,
+  findVariant,
   type MaterialSpec,
 } from "./sprite-kit.ts";
 import { FLAG_RED, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
@@ -625,7 +628,7 @@ let _roofTexture: THREE.CanvasTexture | undefined;
 
 // Find a variant by name. Used by the towers entity manager.
 export function getTowerVariant(name: string): Variant | undefined {
-  return VARIANTS.find((v) => v.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(variant: Variant): VariantReport {
@@ -724,7 +727,13 @@ export function buildTower(
       body = new three.Mesh(geom, [plainMat, sideMat]);
     } else {
       const geom = new three.BoxGeometry(t.width, t.height, t.depth);
-      applyBoxWallUV(geom, t.width, t.height * TOWER_Y_SCALE, t.depth);
+      applyBoxWallUV(
+        geom,
+        t.width,
+        t.height * TOWER_Y_SCALE,
+        t.depth,
+        UV_DENSITY,
+      );
       body = new three.Mesh(geom, [
         sideMat,
         sideMat,
@@ -852,6 +861,7 @@ export function buildTower(
               w.dims.width,
               w.dims.height * TOWER_Y_SCALE,
               w.dims.depth,
+              UV_DENSITY,
             );
             wallMesh = new three.Mesh(geom, parapetMatArray);
             wallMesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
@@ -1292,33 +1302,6 @@ function stoneWallUVGenerator(three: typeof THREE): UVGenerator {
   };
 }
 
-function applyBoxWallUV(
-  geom: THREE.BoxGeometry,
-  w: number,
-  hPost: number,
-  d: number,
-): void {
-  const uv = geom.attributes["uv"] as THREE.BufferAttribute;
-  const a = uv.array as Float32Array;
-  const scales: [number, number][] = [
-    [d, hPost],
-    [d, hPost],
-    [w, d],
-    [w, d],
-    [w, hPost],
-    [w, hPost],
-  ];
-  for (let face = 0; face < 6; face++) {
-    const [su, sv] = scales[face]!;
-    for (let v = 0; v < 4; v++) {
-      const i = (face * 4 + v) * 2;
-      a[i] = a[i]! * su * UV_DENSITY;
-      a[i + 1] = a[i + 1]! * sv * UV_DENSITY;
-    }
-  }
-  uv.needsUpdate = true;
-}
-
 function applyCylinderWallUV(
   geom: THREE.CylinderGeometry,
   radius: number,
@@ -1400,54 +1383,40 @@ function makeMaterial(
 }
 
 function getStoneTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (typeof document === "undefined") return undefined;
   if (_stoneTexture) return _stoneTexture;
-  const size = 64;
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const ctx = c.getContext("2d");
-  if (!ctx) return undefined;
-
-  let s = 1;
-  const rand = (): number => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-
-  const brickW = 16;
-  const brickH = 8;
-  for (let row = 0; row * brickH < size; row++) {
-    const offset = (row % 2) * (brickW / 2);
-    for (let col = -1; col * brickW + offset < size; col++) {
-      const x = col * brickW + offset;
-      const y = row * brickH;
-      const base = 200 + Math.floor((rand() - 0.5) * 50);
-      ctx.fillStyle = `rgb(${base},${base},${base})`;
-      ctx.fillRect(x, y, brickW, brickH);
-      const count = 6 + Math.floor(rand() * 5);
-      for (let i = 0; i < count; i++) {
-        const shade = base - 20 - Math.floor(rand() * 30);
-        ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
-        ctx.fillRect(
-          x + Math.floor(rand() * brickW),
-          y + Math.floor(rand() * brickH),
-          1 + Math.floor(rand() * 2),
-          1,
-        );
+  const tex = createTiledCanvasTexture(three, 64, ({ ctx, size, rand }) => {
+    const brickW = 16;
+    const brickH = 8;
+    for (let row = 0; row * brickH < size; row++) {
+      const offset = (row % 2) * (brickW / 2);
+      for (let col = -1; col * brickW + offset < size; col++) {
+        const x = col * brickW + offset;
+        const y = row * brickH;
+        const base = 200 + Math.floor((rand() - 0.5) * 50);
+        ctx.fillStyle = `rgb(${base},${base},${base})`;
+        ctx.fillRect(x, y, brickW, brickH);
+        const count = 6 + Math.floor(rand() * 5);
+        for (let i = 0; i < count; i++) {
+          const shade = base - 20 - Math.floor(rand() * 30);
+          ctx.fillStyle = `rgb(${shade},${shade},${shade})`;
+          ctx.fillRect(
+            x + Math.floor(rand() * brickW),
+            y + Math.floor(rand() * brickH),
+            1 + Math.floor(rand() * 2),
+            1,
+          );
+        }
       }
     }
-  }
-  ctx.fillStyle = "rgb(120,115,108)";
-  for (let y = 0; y < size; y += brickH) ctx.fillRect(0, y, size, 1);
-  for (let row = 0; row * brickH < size; row++) {
-    const y = row * brickH;
-    const offset = (row % 2) * (brickW / 2);
-    for (let x = offset; x < size; x += brickW) ctx.fillRect(x, y, 1, brickH);
-  }
-  const tex = new three.CanvasTexture(c);
-  tex.wrapS = three.RepeatWrapping;
-  tex.wrapT = three.RepeatWrapping;
-  _stoneTexture = tex;
+    ctx.fillStyle = "rgb(120,115,108)";
+    for (let y = 0; y < size; y += brickH) ctx.fillRect(0, y, size, 1);
+    for (let row = 0; row * brickH < size; row++) {
+      const y = row * brickH;
+      const offset = (row % 2) * (brickW / 2);
+      for (let x = offset; x < size; x += brickW) ctx.fillRect(x, y, 1, brickH);
+    }
+  });
+  if (tex) _stoneTexture = tex;
   return tex;
 }
 
@@ -1495,70 +1464,57 @@ function getDoorTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
 }
 
 function getRoofTexture(three: typeof THREE): THREE.CanvasTexture | undefined {
-  if (typeof document === "undefined") return undefined;
   if (_roofTexture) return _roofTexture;
-  const w = 32;
-  const h = 32;
-  const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext("2d");
-  if (!ctx) return undefined;
-  let s = 1;
-  const rand = (): number => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-
-  ctx.fillStyle = "rgb(230,230,230)";
-  ctx.fillRect(0, 0, w, h);
-  const tileW = 8;
-  const tileH = 8;
-  for (let ty = 0; ty < h / tileH; ty++) {
-    for (let tx = 0; tx < w / tileW; tx++) {
-      const dim = ((tx + ty) % 2) * 12;
-      ctx.fillStyle = `rgb(${230 - dim},${230 - dim},${230 - dim})`;
-      ctx.fillRect(tx * tileW, ty * tileH, tileW, tileH);
+  const tex = createTiledCanvasTexture(three, 32, ({ ctx, size, rand }) => {
+    const w = size;
+    const h = size;
+    ctx.fillStyle = "rgb(230,230,230)";
+    ctx.fillRect(0, 0, w, h);
+    const tileW = 8;
+    const tileH = 8;
+    for (let ty = 0; ty < h / tileH; ty++) {
+      for (let tx = 0; tx < w / tileW; tx++) {
+        const dim = ((tx + ty) % 2) * 12;
+        ctx.fillStyle = `rgb(${230 - dim},${230 - dim},${230 - dim})`;
+        ctx.fillRect(tx * tileW, ty * tileH, tileW, tileH);
+      }
     }
-  }
-  const img = ctx.getImageData(0, 0, w, h);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const n = Math.floor((rand() - 0.5) * 60);
-    img.data[i] = Math.max(0, Math.min(255, img.data[i]! + n));
-    img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1]! + n));
-    img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2]! + n));
-  }
-  ctx.putImageData(img, 0, 0);
-  for (let i = 0; i < 80; i++) {
-    const x = Math.floor(rand() * (w - 1));
-    const y = Math.floor(rand() * (h - 1));
-    const shade = 150 + Math.floor(rand() * 60);
-    ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
-    ctx.fillRect(x, y, 2, 2);
-  }
-  for (let i = 0; i < 120; i++) {
-    const shade = 130 + Math.floor(rand() * 40);
-    ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
-    const wPx = rand() < 0.3 ? 2 : 1;
-    ctx.fillRect(Math.floor(rand() * w), Math.floor(rand() * h), wPx, 1);
-  }
-  ctx.fillStyle = "rgb(180,180,185)";
-  for (let y = tileH - 1; y < h; y += tileH) {
-    for (let x = 0; x < w; x++) {
-      const jy = y + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
-      ctx.fillRect(x, jy, 1, 1);
+    const img = ctx.getImageData(0, 0, w, h);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const n = Math.floor((rand() - 0.5) * 60);
+      img.data[i] = Math.max(0, Math.min(255, img.data[i]! + n));
+      img.data[i + 1] = Math.max(0, Math.min(255, img.data[i + 1]! + n));
+      img.data[i + 2] = Math.max(0, Math.min(255, img.data[i + 2]! + n));
     }
-  }
-  for (let x = tileW - 1; x < w; x += tileW) {
-    for (let y = 0; y < h; y++) {
-      const jx = x + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
-      ctx.fillRect(jx, y, 1, 1);
+    ctx.putImageData(img, 0, 0);
+    for (let i = 0; i < 80; i++) {
+      const x = Math.floor(rand() * (w - 1));
+      const y = Math.floor(rand() * (h - 1));
+      const shade = 150 + Math.floor(rand() * 60);
+      ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
+      ctx.fillRect(x, y, 2, 2);
     }
-  }
-  const tex = new three.CanvasTexture(c);
-  tex.wrapS = three.RepeatWrapping;
-  tex.wrapT = three.RepeatWrapping;
-  _roofTexture = tex;
+    for (let i = 0; i < 120; i++) {
+      const shade = 130 + Math.floor(rand() * 40);
+      ctx.fillStyle = `rgb(${shade},${shade},${shade + 4})`;
+      const wPx = rand() < 0.3 ? 2 : 1;
+      ctx.fillRect(Math.floor(rand() * w), Math.floor(rand() * h), wPx, 1);
+    }
+    ctx.fillStyle = "rgb(180,180,185)";
+    for (let y = tileH - 1; y < h; y += tileH) {
+      for (let x = 0; x < w; x++) {
+        const jy = y + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
+        ctx.fillRect(x, jy, 1, 1);
+      }
+    }
+    for (let x = tileW - 1; x < w; x += tileW) {
+      for (let y = 0; y < h; y++) {
+        const jx = x + (rand() < 0.15 ? (rand() < 0.5 ? -1 : 1) : 0);
+        ctx.fillRect(jx, y, 1, 1);
+      }
+    }
+  });
+  if (tex) _roofTexture = tex;
   return tex;
 }
 

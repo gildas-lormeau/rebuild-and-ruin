@@ -26,7 +26,12 @@
 import type * as THREE from "three";
 import { createTiledCanvasTexture } from "./procedural-texture.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
-import { cells, createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  cells,
+  createMaterial,
+  findVariant,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 
 export interface TexturedSpec extends MaterialSpec {
   texture?: "roof_tile";
@@ -219,7 +224,7 @@ export const PALETTE: [number, number, number][] = [
 let _roofTileTexture: THREE.CanvasTexture | undefined;
 
 export function getHouseVariant(name: string): VariantDescriptor | undefined {
-  return VARIANTS.find((v) => v.name === name);
+  return findVariant(VARIANTS, name);
 }
 
 export function variantReport(variant: VariantDescriptor): VariantReport {

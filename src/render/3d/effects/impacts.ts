@@ -27,6 +27,7 @@ import { IMPACT_FLASH_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import { createFlatDisc, tileSeed, tileSignature } from "./helpers.ts";
 
 export interface ImpactsManager {
   /** Per-frame update. Cheap early-out when the impact set (positions)
@@ -71,9 +72,6 @@ const SPARK_BASE_SPEED_RATIO = 0.8;
 const SPARK_SPEED_PER_PARTICLE = 3;
 const SPARK_DROP_SPEED = 3;
 const SPARK_ALPHA_SCALE = 0.9;
-// Spatial hash multipliers (seed the spark angles per-impact).
-const SEED_ROW = 41;
-const SEED_COL = 17;
 // Small lift keeps the effect above the terrain plane so z-fighting with
 // the ground mesh doesn't produce shimmer. Half a pixel is enough given
 // pixel-snap ortho camera.
@@ -91,9 +89,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
 
   // Geometry shared by every effect disc / ring / spark — the meshes scale
   // per-frame so we only need one instance of each primitive.
-  const discGeometry = new THREE.CircleGeometry(1, 24);
-  // CircleGeometry is oriented in XY; rotate so it faces +Y (camera up).
-  discGeometry.rotateX(-Math.PI / 2);
+  const discGeometry = createFlatDisc(24);
   const ringGeometry = new THREE.RingGeometry(0.9, 1.0, 32);
   ringGeometry.rotateX(-Math.PI / 2);
   const sparkGeometry = new THREE.PlaneGeometry(1, 1);
@@ -172,7 +168,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
       ringMaterial,
       smokeMaterial,
       sparkMaterials,
-      seed: impact.row * SEED_ROW + impact.col * SEED_COL,
+      seed: tileSeed(impact.row, impact.col),
     };
   }
 
@@ -269,7 +265,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
 
   function update(overlay: RenderOverlay | undefined): void {
     const impacts = overlay?.battle?.impacts ?? [];
-    const signature = computeSignature(impacts);
+    const signature = tileSignature(impacts);
     if (signature !== lastSignature) {
       lastSignature = signature;
       rebuild(impacts);
@@ -289,14 +285,4 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
   }
 
   return { update, dispose };
-}
-
-/** Fingerprint the impact set by position — age changes every frame but
- *  positions don't, so we use positions to detect set changes (spawn /
- *  despawn / reorder) and avoid rebuilding every frame. */
-function computeSignature(impacts: readonly Impact[]): string {
-  if (impacts.length === 0) return "";
-  const parts: string[] = [];
-  for (const impact of impacts) parts.push(`${impact.col}:${impact.row}`);
-  return parts.join("|");
 }

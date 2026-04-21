@@ -6,9 +6,9 @@
  * against a fresh entity list.
  *
  * Exported surface:
- *   • `wrapSubPartAsInstancedMesh` — build one `InstancedMesh` from an
- *     extracted sub-part with the common defaults (count=0, no frustum
- *     cull, fallback name, materials tracked for disposal).
+ *   • `buildVariantBucket` — run a scratch builder, extract its sub-parts,
+ *     optionally transform each, and wrap every one as an `InstancedMesh`
+ *     under `root`. Replaces the identical per-manager buildBucket bodies.
  *   • `ensureBucketCapacity` — grow-or-create helper around a bucket map.
  *   • `fillBucket` — per-frame host-matrix composition + count commit.
  *   • `hideSubParts` — zero the live count of a bucket's sub-parts.
@@ -20,6 +20,7 @@
  */
 
 import * as THREE from "three";
+import { type ExtractedSubPart, extractSubParts } from "./entity-helpers.ts";
 
 export interface BucketSubPart {
   readonly instanced: THREE.InstancedMesh;
@@ -29,38 +30,6 @@ export interface BucketSubPart {
 interface CapacityBucket {
   subParts: BucketSubPart[];
   capacity: number;
-}
-
-/** Build one `InstancedMesh` around an extracted sub-part, attach it to
- *  `root`, and register its materials for later disposal. Returns the
- *  wrapped sub-part so callers can assemble a bucket. */
-export function wrapSubPartAsInstancedMesh(
-  part: {
-    readonly geometry: THREE.BufferGeometry;
-    readonly material: THREE.Material | THREE.Material[];
-    readonly localMatrix: THREE.Matrix4;
-    readonly name: string;
-  },
-  capacity: number,
-  root: THREE.Group,
-  ownedMaterials: THREE.Material[],
-  fallbackName: string,
-): BucketSubPart {
-  const instanced = new THREE.InstancedMesh(
-    part.geometry,
-    part.material,
-    capacity,
-  );
-  instanced.count = 0;
-  instanced.frustumCulled = false;
-  instanced.name = part.name || fallbackName;
-  root.add(instanced);
-  if (Array.isArray(part.material)) {
-    for (const mat of part.material) ownedMaterials.push(mat);
-  } else {
-    ownedMaterials.push(part.material);
-  }
-  return { instanced, localMatrix: part.localMatrix };
 }
 
 /** Zero the live count of every sub-part so stale matrices don't render. */
@@ -111,6 +80,44 @@ export function disposeAllBuckets<Bucket extends CapacityBucket>(
   ownedMaterials.length = 0;
 }
 
+/** Build a set of `BucketSubPart`s by running a variant-specific scene
+ *  builder into a scratch group, extracting every sub-mesh, optionally
+ *  applying a per-part transform (e.g. debris' per-owner flag tint), and
+ *  wrapping each as an `InstancedMesh` under `root`. Factors out the
+ *  common "scratch → extract → (transform) → wrap" pipeline shared by
+ *  walls, cannons, and debris. Callers wrap the returned array in their
+ *  own bucket object shape (VariantBucket / MaskBucket / etc.). */
+export function buildVariantBucket(opts: {
+  readonly capacity: number;
+  readonly root: THREE.Group;
+  readonly ownedMaterials: THREE.Material[];
+  readonly scratchBuilder: (scratch: THREE.Group) => void;
+  readonly namePrefix: string;
+  readonly transformPart?: (
+    part: ExtractedSubPart,
+    index: number,
+  ) => ExtractedSubPart;
+}): BucketSubPart[] {
+  const scratch = new THREE.Group();
+  opts.scratchBuilder(scratch);
+  const extracted = extractSubParts(scratch);
+  const subParts: BucketSubPart[] = [];
+  for (let i = 0; i < extracted.length; i++) {
+    const part = extracted[i]!;
+    const transformed = opts.transformPart ? opts.transformPart(part, i) : part;
+    subParts.push(
+      wrapSubPartAsInstancedMesh(
+        transformed,
+        opts.capacity,
+        opts.root,
+        opts.ownedMaterials,
+        opts.namePrefix,
+      ),
+    );
+  }
+  return subParts;
+}
+
 /** Fill a bucket's instance slots by running `composeHost` for each
  *  entry, writing `hostMatrix * subPart.localMatrix` into every
  *  sub-part, then committing `count = entries.length`. `hostMatrix` and
@@ -134,6 +141,35 @@ export function fillBucket<Entry>(
     part.instanced.count = entries.length;
     part.instanced.instanceMatrix.needsUpdate = true;
   }
+}
+
+/** Build one `InstancedMesh` around an extracted sub-part, attach it to
+ *  `root`, and register its materials for later disposal. Returns the
+ *  wrapped sub-part so callers can assemble a bucket. Private — only
+ *  `buildVariantBucket` needs it now that every manager goes through
+ *  the generic pipeline. */
+function wrapSubPartAsInstancedMesh(
+  part: ExtractedSubPart,
+  capacity: number,
+  root: THREE.Group,
+  ownedMaterials: THREE.Material[],
+  fallbackName: string,
+): BucketSubPart {
+  const instanced = new THREE.InstancedMesh(
+    part.geometry,
+    part.material,
+    capacity,
+  );
+  instanced.count = 0;
+  instanced.frustumCulled = false;
+  instanced.name = part.name || fallbackName;
+  root.add(instanced);
+  if (Array.isArray(part.material)) {
+    for (const mat of part.material) ownedMaterials.push(mat);
+  } else {
+    ownedMaterials.push(part.material);
+  }
+  return { instanced, localMatrix: part.localMatrix };
 }
 
 /** Detach and dispose every `InstancedMesh` in `subParts`. The mutable

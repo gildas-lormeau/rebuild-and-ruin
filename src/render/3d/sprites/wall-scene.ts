@@ -29,7 +29,11 @@
 
 import type * as THREE from "three";
 import { createTiledCanvasTexture } from "./procedural-texture.ts";
-import { createMaterial, type MaterialSpec } from "./sprite-kit.ts";
+import {
+  applyBoxWallUV,
+  createMaterial,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import { MERLON_AO, WALL_STONE_LIGHT } from "./sprite-materials.ts";
 
 export type UVOffset = readonly [number, number];
@@ -630,7 +634,7 @@ function placeCornerMerlons(
   for (const k of corners) {
     if ((mask & k.adj) !== 0) continue; // at least one adjacent cardinal is wall → square
     const geom = new three.BoxGeometry(M_S, M_H, M_S);
-    applyBoxWallUV(geom, M_S, M_H, M_S, uOff, vOff);
+    applyBoxWallUV(geom, M_S, M_H, M_S, UV_DENSITY, uOff, vOff);
     const merlon = new three.Mesh(geom, mat);
     merlon.position.set(k.sx * c, yMerlon, k.sz * c);
     group.add(merlon);
@@ -763,7 +767,7 @@ function placeMerlons(
     if (perp - M_S / 2 < perpStart - eps) continue;
     if (perp + M_S / 2 > perpEnd + eps) continue;
     const geom = new three.BoxGeometry(M_S, M_H, M_S);
-    applyBoxWallUV(geom, M_S, M_H, M_S, uOff, vOff);
+    applyBoxWallUV(geom, M_S, M_H, M_S, UV_DENSITY, uOff, vOff);
     const merlon = new three.Mesh(geom, mat);
     const mx = perpAxis === "x" ? perp : openCoord;
     const mz = perpAxis === "x" ? openCoord : perp;
@@ -771,35 +775,6 @@ function placeMerlons(
     group.add(merlon);
     addMerlonAO(three, group, mx, mz, aoMat);
   }
-}
-
-function applyBoxWallUV(
-  geom: THREE.BoxGeometry,
-  w: number,
-  h: number,
-  d: number,
-  uOff = 0,
-  vOff = 0,
-): void {
-  const uv = geom.attributes["uv"] as THREE.BufferAttribute;
-  const a = uv.array as Float32Array;
-  const scales: [number, number][] = [
-    [d, h], // +X
-    [d, h], // -X
-    [w, d], // +Y (plain mat — UVs don't render)
-    [w, d], // -Y
-    [w, h], // +Z
-    [w, h], // -Z
-  ];
-  for (let face = 0; face < 6; face++) {
-    const [su, sv] = scales[face]!;
-    for (let v = 0; v < 4; v++) {
-      const i = (face * 4 + v) * 2;
-      a[i] = a[i]! * su * UV_DENSITY + uOff;
-      a[i + 1] = a[i + 1]! * sv * UV_DENSITY + vOff;
-    }
-  }
-  uv.needsUpdate = true;
 }
 
 /**

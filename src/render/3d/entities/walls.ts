@@ -52,14 +52,13 @@ import * as THREE from "three";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildWall } from "../sprites/wall-scene.ts";
-import { extractSubParts } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
+  buildVariantBucket,
   disposeAllBuckets,
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
-  wrapSubPartAsInstancedMesh,
 } from "./instance-bucket.ts";
 
 export interface WallsManager {
@@ -221,20 +220,14 @@ function buildBucket(
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
 ): MaskBucket {
-  const scratch = new THREE.Group();
-  buildWall(THREE, scratch, { mask, uvOffset: [0, 0] });
-  const extracted = extractSubParts(scratch);
-  const subParts: BucketSubPart[] = [];
-  for (const part of extracted) {
-    subParts.push(
-      wrapSubPartAsInstancedMesh(
-        part,
-        capacity,
-        root,
-        ownedMaterials,
-        `wall-mask-${mask}`,
-      ),
-    );
-  }
+  const subParts = buildVariantBucket({
+    capacity,
+    root,
+    ownedMaterials,
+    scratchBuilder: (scratch) => {
+      buildWall(THREE, scratch, { mask, uvOffset: [0, 0] });
+    },
+    namePrefix: `wall-mask-${mask}`,
+  });
   return { mask, subParts, capacity };
 }

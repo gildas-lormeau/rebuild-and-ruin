@@ -25,6 +25,7 @@ import * as THREE from "three";
 import type { House } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { buildHouse, getHouseVariant } from "../sprites/house-scene.ts";
+import { disposeGroupSubtree } from "./entity-helpers.ts";
 
 export interface HousesManager {
   /** Reconcile house meshes with the current map. Cheap no-op when the
@@ -45,6 +46,11 @@ export function createHousesManager(scene: THREE.Scene): HousesManager {
   root.name = "houses";
   scene.add(root);
 
+  // Owned materials — houses don't tint today so this list is currently
+  // empty, but kept for dispose-path symmetry with the other managers
+  // (mirrors towers.ts) and so future per-house tints can be tracked
+  // here without restructuring the manager.
+  const ownedMaterials: THREE.Material[] = [];
   let lastSignature: string | undefined;
 
   function buildFromHouses(houses: readonly House[]): void {
@@ -69,19 +75,10 @@ export function createHousesManager(scene: THREE.Scene): HousesManager {
   }
 
   function clear(): void {
-    // Dispose per-mesh geometry (materials are shared scene-local
-    // constants — leave them to GC). Walk the whole subtree since
-    // buildHouse creates body + roof + door + windows under the host
-    // group.
-    root.traverse((obj) => {
-      if (obj instanceof THREE.Mesh) {
-        obj.geometry.dispose();
-      }
-    });
-    while (root.children.length > 0) {
-      const child = root.children[0]!;
-      root.remove(child);
-    }
+    // Dispose per-mesh geometry + any owned tint materials. Shared
+    // scene-local material constants owned by house-scene are not
+    // touched — they're cached and re-used across rebuilds.
+    disposeGroupSubtree(root, ownedMaterials);
   }
 
   function update(houses: readonly House[] | undefined): void {
