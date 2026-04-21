@@ -86,8 +86,6 @@ const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 const FRESH_CANNON_TARGET_PROBABILITY = 1 / 3;
 /** How many of the closest candidates to pick randomly from. */
 const TOP_TARGET_PICK_COUNT = 3;
-/** Pixel inset from tile edges to prevent cannonballs spilling into neighbors. */
-const TARGET_TILE_MARGIN = 1;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
 const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
@@ -921,12 +919,15 @@ function jitterWithinTile(
   col: number,
   rand: () => number,
 ): PixelPos {
-  const margin = TARGET_TILE_MARGIN;
-  const low = margin;
-  const high = TILE_SIZE - margin;
+  // Keep shots close to the tile center with at most ±TILE_SIZE/4 of
+  // random offset. Wide jitter (full-tile minus margin) made AI fire
+  // scatter into neighbouring walls and miss their intended target.
+  const jitterRange = TILE_SIZE / 2; // full spread = ±TILE_SIZE/4
+  const centerX = col * TILE_SIZE + TILE_SIZE / 2;
+  const centerY = row * TILE_SIZE + TILE_SIZE / 2;
   return {
-    x: col * TILE_SIZE + low + rand() * (high - low),
-    y: row * TILE_SIZE + low + rand() * (high - low),
+    x: centerX + (rand() - 0.5) * jitterRange,
+    y: centerY + (rand() - 0.5) * jitterRange,
   };
 }
 
