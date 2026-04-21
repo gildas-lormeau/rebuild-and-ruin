@@ -214,22 +214,17 @@ export function createRender3d(
       // (per-frame backbuffer-preservation overhead) and the prior
       // double-scene-render approach.
       //
-      // Scene viewport: confine scene rendering to the BOTTOM MAP_PX_H
-      // rows of the FBO — the top TOP_MARGIN_MAP_PX rows are the
-      // reserved strip and stay at the clear color. WebGL viewport
-      // origin is bottom-left, so `(0, 0, MAP_PX_W, MAP_PX_H)` lights
-      // the bottom rows in WebGL space, which is the TOP-of-game-area
-      // downward in browser coords — i.e. the top strip (canvas rows
-      // 0..TOP_MARGIN_MAP_PX) stays blank. Reset the viewport before
-      // the blit so the fullscreen quad covers the whole canvas.
+      // Scene viewport: render into the FULL FBO (height
+      // MAP_PX_H + TOP_MARGIN_MAP_PX). The reserved top strip is
+      // realized by the frustum extension in `updateCameraFromViewport`
+      // — geometry outside that extended range (above `rect.y -
+      // stripWorld`) is simply out of frustum and leaves the top rows
+      // at the clear color; tall walls at row 0 project *into* the
+      // strip under tilt, which is the whole purpose of the strip.
       ctx.renderer.setRenderTarget(ctx.captureTarget);
-      ctx.renderer.setViewport(0, 0, MAP_PX_W, MAP_PX_H);
-      ctx.renderer.setScissor(0, 0, MAP_PX_W, MAP_PX_H);
-      ctx.renderer.setScissorTest(true);
+      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
       ctx.renderer.clear();
       ctx.renderer.render(ctx.scene, ctx.camera);
-      ctx.renderer.setScissorTest(false);
-      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
       ctx.renderer.setRenderTarget(null);
       ctx.renderer.clear();
       ctx.renderer.render(ctx.blitScene, ctx.blitCamera);

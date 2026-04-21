@@ -29,7 +29,11 @@
 
 import * as THREE from "three";
 import type { Viewport } from "../../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W } from "../../shared/core/grid.ts";
+import {
+  MAP_PX_H,
+  MAP_PX_W,
+  TOP_MARGIN_MAP_PX,
+} from "../../shared/core/grid.ts";
 import { pixelSnap } from "./pixel-snap.ts";
 
 /** Altitude for the camera — far enough above the ground plane that entities
@@ -81,18 +85,25 @@ export function updateCameraFromViewport(
   pitch: number = 0,
 ): void {
   const rect = normalizeViewport(viewport);
-  // Frustum matches the caller's viewport EXACTLY — no top-margin
-  // extension here. The reserved top strip (see TOP_MARGIN_MAP_PX) is
-  // realized by the renderer setting a WebGL sub-viewport when it
-  // renders the scene into the FBO, so the top rows of the FBO stay
-  // blank. Adjusting the frustum instead would shift the world-Y
-  // range the 3D path sees, which the 2D path's viewport-crop blit
-  // does NOT apply — and any zoom would stack that mismatch, making
-  // the 2D overlay (castles, HUD, score deltas) drift out of sync
-  // with the 3D underlay (terrain, entities).
+  // Extend the frustum upward by a zoom-scaled top-strip height so that
+  // tall geometry at map row 0 (walls, towers) can project into the
+  // reserved TOP_MARGIN_MAP_PX strip under battle tilt instead of
+  // clipping at the frustum's top edge.
+  //
+  // The strip is a fixed pixel height on screen (TOP_MARGIN_CANVAS_PX),
+  // so its equivalent world height depends on zoom:
+  //   stripWorld = TOP_MARGIN_MAP_PX * (rect.h / MAP_PX_H)
+  // Substituting that into the extended frustum
+  //   [rect.y - stripWorld, rect.y + rect.h]
+  // and rendering it into the full canvas (MAP_PX_H + TOP_MARGIN_MAP_PX
+  // tall) yields a 3D scale factor of MAP_PX_H / rect.h over the
+  // rect.h portion — identical to the 2D path, so the two layers stay
+  // byte-aligned under any zoom.
+  const stripWorld = TOP_MARGIN_MAP_PX * (rect.h / MAP_PX_H);
+  const extendedH = rect.h + stripWorld;
 
   const halfW = rect.w / 2;
-  const halfH = rect.h / 2;
+  const halfH = extendedH / 2;
   const cosP = Math.cos(pitch);
   const sinP = Math.sin(pitch);
 
@@ -105,7 +116,11 @@ export function updateCameraFromViewport(
   camera.bottom = -halfH * cosP;
 
   const centerX = rect.x + halfW;
-  const centerZ = rect.y + halfH;
+  // Shift the look-at Z up (smaller world-Z = nearer top of screen) by
+  // half the strip height so the extended frustum covers
+  // [rect.y - stripWorld, rect.y + rect.h] rather than
+  // [rect.y, rect.y + rect.h + stripWorld].
+  const centerZ = rect.y + rect.h / 2 - stripWorld / 2;
 
   // Rotate the camera offset (0, CAMERA_ALTITUDE, 0) around the world X-axis
   // through `pitch`, anchored at the ground look-at point. The look-at stays
