@@ -91,6 +91,12 @@ const BASE_VARIANT_NAME = "grunt_n";
  *  4×4 float matrix = 64 bytes per sub-part — ~1 KB per sub-part). */
 const INITIAL_CAPACITY = 64;
 
+/** 3-step gradient texture for `MeshToonMaterial`. Pixel 0 = shadow,
+ *  pixel 1 = mid, pixel 2 = lit. NearestFilter so steps are hard. The
+ *  texture is 1D (3×1 RGBA). Lazy-built and cached at module scope so
+ *  every grunt bucket shares the same one. */
+let cachedToonGradient: THREE.DataTexture | undefined;
+
 export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   const root = new THREE.Group();
   root.name = "grunts";
@@ -231,12 +237,50 @@ function buildSubParts(
 
 /** InstancedMesh takes a single material; pick the first entry if the
  *  source mesh uses a material array (none of the grunt meshes do, but
- *  be defensive). The material is NOT cloned — geometry/material
- *  ownership is handed straight to the InstancedMesh. */
+ *  be defensive). Lit MeshStandardMaterial sources are converted to
+ *  MeshToonMaterial with a 3-step gradient map for a Nintendo-style
+ *  cel-shaded look — hard lit/mid/shadow bands instead of smooth PBR
+ *  gradients. Already-unlit materials (e.g. MeshBasicMaterial for
+ *  TURRET_AO contact shadows) are passed through unchanged. */
 function resolveMaterial(
   source: THREE.Material | THREE.Material[],
 ): THREE.Material {
-  return Array.isArray(source) ? source[0]! : source;
+  const raw = Array.isArray(source) ? source[0]! : source;
+  if (raw instanceof THREE.MeshStandardMaterial) {
+    return new THREE.MeshToonMaterial({
+      color: raw.color,
+      gradientMap: getToonGradient(),
+      transparent: raw.transparent,
+      opacity: raw.opacity,
+      side: raw.side,
+    });
+  }
+  return raw;
+}
+
+function getToonGradient(): THREE.DataTexture {
+  if (cachedToonGradient) return cachedToonGradient;
+  const data = new Uint8Array([
+    80,
+    80,
+    80,
+    255, // shadow band
+    180,
+    180,
+    180,
+    255, // mid band
+    255,
+    255,
+    255,
+    255, // lit band
+  ]);
+  const tex = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  cachedToonGradient = tex;
+  return tex;
 }
 
 /** Composite signature across every grunt. Rebuilds only when one of
