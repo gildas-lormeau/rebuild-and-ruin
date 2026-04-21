@@ -215,6 +215,11 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
       if (bases.length === 0 && flights.length === 0) return;
       buildAllBalloons(bases, flights);
     }
+    // Per-frame: refresh overlay refs so `progress` is current. The
+    // signature intentionally excludes progress (to avoid rebuilds), so
+    // without this rebind `positionFlights` would read the stale array
+    // captured at rebuild time and the balloon would sit at progress=0.
+    flightOverlays = flights;
     if (flightHosts.length > 0) positionFlights(now);
   }
 
