@@ -264,16 +264,6 @@ export function countWallNeighbors(
   return neighbors;
 }
 
-/** Compute the facing angle from origin to target, snapped to 45° increments. */
-export function computeFacing45(
-  ox: number,
-  oy: number,
-  tx: number,
-  ty: number,
-): number {
-  return snapAngle(Math.atan2(tx - ox, -(ty - oy)), FACING_45_STEP);
-}
-
 /** Snap an angle (radians) to the nearest multiple of `step`. */
 export function snapAngle(angle: number, step: number): number {
   return Math.round(angle / step) * step;

@@ -44,7 +44,6 @@ import {
 import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   cannonCenter,
-  computeFacing45,
   hasPitAt,
   inBounds,
   isAtTile,
@@ -226,7 +225,7 @@ export function aimCannons(
   const maxStep = dt > 0 ? CANNON_ROTATE_SPEED * dt : Infinity;
   const aimAt = (cannon: Cannon) => {
     const { x: ox, y: oy } = cannonCenter(cannon);
-    const target = computeFacing45(ox, oy, cx, cy);
+    const target = Math.atan2(cx - ox, -(cy - oy));
     const current = cannon.facing ?? 0;
     cannon.facing =
       maxStep === Infinity ? target : rotateToward(current, target, maxStep);
@@ -857,7 +856,7 @@ function launchCannonball(
     initialTargetX,
     initialTargetY,
   );
-  cannon.facing = computeFacing45(startX, startY, finalTargetX, finalTargetY);
+  cannon.facing = Math.atan2(finalTargetX - startX, -(finalTargetY - startY));
   const isMortar = !!cannon.mortar;
   const speedMult = ballSpeedMult(state.players[playerId]!, isMortar);
   const speed = BALL_SPEED * speedMult;
