@@ -180,7 +180,7 @@ export function createRender3d(
       // (count + variant list) rebuilds meshes on spawn/despawn;
       // positions + scales rewrite every frame to follow sub-tile
       // flight motion.
-      ctx.cannonballs.update(overlay);
+      ctx.cannonballs.update(overlay, map);
       // Phase 4: reconcile burning-pit meshes. Fingerprint is per-pit
       // `col:row:variant`; a round decrement or set change rebuilds.
       ctx.pits.update(overlay);

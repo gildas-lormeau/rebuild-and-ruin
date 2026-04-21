@@ -10,8 +10,8 @@
  *
  * This module keeps the elevation constants + per-(x,y) lookup in one
  * place so both `crosshairs` and `cannonballs` read the same numbers.
- * Only walls are modelled for now — towers/cannons/houses sit on top of
- * their own geometry and aren't common aim targets for projectiles.
+ * Walls, towers, cannons, houses, and grunts are each modelled with a
+ * tuned top-Y; `targetTopAt` picks the tallest one at a given tile.
  */
 
 import type { GameMap } from "../../shared/core/geometry-types.ts";
@@ -55,10 +55,17 @@ export function aimElevationAt(
   overlay: RenderOverlay | undefined,
   map: GameMap | undefined,
 ): number {
-  return aimTopAt(x, y, overlay, map) + CROSSHAIR_MARGIN_Y;
+  return targetTopAt(x, y, overlay, map) + CROSSHAIR_MARGIN_Y;
 }
 
-function aimTopAt(
+/** Top-Y of any targetable entity (wall, tower, cannon, house, grunt)
+ *  at `(x, y)`, or 0 if nothing is there. Used by cannonballs so the
+ *  landing floor matches the top of the thing the ball is aimed at —
+ *  otherwise a ball aimed at a tower or cannon would fly past its top
+ *  and hit the ground. Unlike `aimElevationAt`, no crosshair margin
+ *  is added; the ball should disappear at the exact top of the target
+ *  geometry, not a few units above it. */
+export function targetTopAt(
   x: number,
   y: number,
   overlay: RenderOverlay | undefined,
@@ -119,11 +126,11 @@ function aimTopAt(
   return 0;
 }
 
-/** Elevation of the solid geometry at the given world-pixel position.
- *  Returns `WALL_TOP_Y` when `(x, y)` falls on a wall tile of any
- *  castle in `castles`, otherwise 0 (flat ground). Out-of-bounds
- *  coordinates return 0. Used by cannonballs for their landing floor. */
-export function elevationAt(
+/** Wall-only elevation: returns `WALL_TOP_Y` when `(x, y)` lands on a
+ *  wall tile of any castle in `castles`, otherwise 0. Used as the
+ *  first-priority check inside `targetTopAt` (walls beat other
+ *  overlapping entities for aim purposes). */
+function elevationAt(
   x: number,
   y: number,
   castles: readonly CastleData[] | undefined,

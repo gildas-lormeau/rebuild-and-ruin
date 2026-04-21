@@ -49,9 +49,10 @@
  */
 
 import * as THREE from "three";
+import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
-import { elevationAt } from "../elevation.ts";
+import { targetTopAt } from "../elevation.ts";
 import {
   buildCannonball,
   getCannonballVariant,
@@ -62,7 +63,7 @@ export interface CannonballsManager {
   /** Per-frame update. Cheap when the ball set hasn't changed — only
    *  positions/scales get rewritten. Rebuilds meshes when the ball
    *  set (count or variant list) changes. */
-  update(overlay: RenderOverlay | undefined): void;
+  update(overlay: RenderOverlay | undefined, map: GameMap | undefined): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -127,6 +128,7 @@ export function createCannonballsManager(
   function positionHosts(
     balls: readonly BallOverlay[],
     overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
   ): void {
     // The ball set fingerprint ensures host count matches ball count.
     // Walk in parallel — index i of root.children matches index i of
@@ -139,16 +141,13 @@ export function createCannonballsManager(
       // Parabolic arc: peaks at progress=0.5, zero at 0 and 1.
       const arc = Math.sin(ball.progress * Math.PI);
       // Floor elevation lerps from launch (ground level for now) to the
-      // target's elevation. Sampling only at the endpoints (not the
-      // ball's current position) prevents the ball from "bobbing up"
-      // as it flies over the shooter's own walls — visually the arc
-      // passes cleanly above friendly battlements and lands on the
-      // target wall's top. See src/render/3d/elevation.ts.
-      const targetFloor = elevationAt(
-        ball.targetX,
-        ball.targetY,
-        overlay?.castles,
-      );
+      // target's top. Using `targetTopAt` means balls landing on a
+      // tower / cannon / house / grunt disappear at that entity's top
+      // instead of punching through to the ground plane at Y=0.
+      // Sampling only at the endpoints (not the ball's current
+      // position) prevents the ball from "bobbing up" as it flies over
+      // the shooter's own walls.
+      const targetFloor = targetTopAt(ball.targetX, ball.targetY, overlay, map);
       const floor = targetFloor * ball.progress;
       // Apex lift scales with flight distance (a la Rampart's tall
       // arcs). Close shots bottom out at MIN_APEX so they still read
@@ -163,7 +162,10 @@ export function createCannonballsManager(
     }
   }
 
-  function update(overlay: RenderOverlay | undefined): void {
+  function update(
+    overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
+  ): void {
     const balls = overlay?.battle?.cannonballs ?? [];
     const signature = computeBallSetSignature(balls);
     if (signature !== lastBallSetSignature) {
@@ -172,7 +174,7 @@ export function createCannonballsManager(
       if (balls.length === 0) return;
       buildAllCannonballs(balls);
     }
-    if (balls.length > 0) positionHosts(balls, overlay);
+    if (balls.length > 0) positionHosts(balls, overlay, map);
   }
 
   function dispose(): void {
