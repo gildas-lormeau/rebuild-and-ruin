@@ -85,10 +85,8 @@ type FlightOverlay = {
  *  tall (3 tiles in canvas) but the XZ frustum is still ±1, so the
  *  same scale applies — the sprite extends Y-upward by construction. */
 const BALLOON_SCALE = TILE_SIZE;
-/** Apex lift for the flight arc — matches the 2D `BALLOON_ARC_HEIGHT`
- *  (40 px) in render-effects.ts. The 2D value is in the same surface-
- *  pixel units as 1 world unit, so we reuse it directly. */
-const FLIGHT_ARC_MAX = 40;
+/** Apex lift for the flight arc, in world units. */
+const FLIGHT_ARC_MAX = 100;
 /** Envelope "breathing" bob amplitude — ±2% of its authored radius,
  *  applied uniformly on the envelope group's scale so the load ring
  *  rides along with the sphere. */
