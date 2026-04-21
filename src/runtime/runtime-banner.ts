@@ -99,6 +99,22 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     const banner = runtimeState.banner;
     const state = runtimeState.state;
 
+    // Mode.BANNER is set BEFORE any banner actually activates (see
+    // `runTransition` in runtime-phase-machine): the phase machine
+    // flips to BANNER at transition dispatch to lock input while the
+    // camera unzooms, then the first banner display step in the chain
+    // calls `showBanner` which sets `banner.active = true`. Between
+    // those two moments, mode is BANNER but no banner is live — we
+    // still need render() to fire (so the camera's onRenderedFrame
+    // hook gets to see the viewport converge to fullMapVp), but we
+    // must NOT tick progress or emit banner lifecycle events. Without
+    // this guard, a wait longer than BANNER_DURATION would clamp
+    // progress at 1 and spam fake BANNER_END events every tick.
+    if (!banner.active) {
+      render();
+      return;
+    }
+
     if (pendingStartEvent) {
       pendingStartEvent = false;
       // Last battle in a finite game. Infinity-mode ("to the death")

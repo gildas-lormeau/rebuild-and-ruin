@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8694,
+  "eventCount": 8452,
   "events": [
     {
       "type": "tick",
@@ -3734,6 +3734,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "phaseEnd",
       "payload": {
         "phase": "CASTLE_SELECT",
@@ -3745,12 +3751,6 @@
       "payload": {
         "phase": "CANNON_PLACE",
         "round": 1
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -7099,6 +7099,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "phaseEnd",
       "payload": {
         "phase": "CANNON_PLACE",
@@ -7110,12 +7116,6 @@
       "payload": {
         "phase": "BATTLE",
         "round": 1
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -15093,6 +15093,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "roundEnd",
       "payload": {
         "round": 1
@@ -15116,12 +15122,6 @@
       "payload": {
         "phase": "WALL_BUILD",
         "round": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -25788,179 +25788,75 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -25970,25 +25866,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -25998,229 +25878,93 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26230,25 +25974,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26258,179 +25986,75 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26440,25 +26064,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26468,235 +26076,99 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26706,25 +26178,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26734,173 +26190,69 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26910,25 +26262,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -26938,235 +26274,99 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -27176,25 +26376,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -27204,179 +26388,75 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -27386,25 +26466,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -27414,47 +26478,15 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 2,
-        "text": "Build & Repair"
       }
     },
     {
@@ -30799,6 +29831,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "phaseEnd",
       "payload": {
         "phase": "CANNON_PLACE",
@@ -30810,12 +29848,6 @@
       "payload": {
         "phase": "BATTLE",
         "round": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -39305,6 +38337,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "roundEnd",
       "payload": {
         "round": 2
@@ -39328,12 +38366,6 @@
       "payload": {
         "phase": "WALL_BUILD",
         "round": 3
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -52178,173 +51210,69 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52354,25 +51282,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52382,235 +51294,99 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52620,25 +51396,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52648,179 +51408,75 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52830,25 +51486,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -52858,229 +51498,93 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53090,25 +51594,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53118,179 +51606,75 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53300,25 +51684,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53328,235 +51696,99 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53566,25 +51798,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53594,173 +51810,69 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53770,25 +51882,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53798,25 +51894,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {
@@ -53826,25 +51906,9 @@
       }
     },
     {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "bannerEnd",
-      "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3,
-        "text": "Build & Repair"
       }
     },
     {

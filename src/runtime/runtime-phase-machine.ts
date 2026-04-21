@@ -828,35 +828,38 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   //     controller state.
   //   - Gates player input (isInteractiveMode returns false for BANNER),
   //     so the user can't interact in the NEW phase during the unzoom
-  //     lerp before the banner actually appears — without this the
-  //     Place-Cannons banner showed AFTER the player had started
-  //     placing cannons.
-  // If mutate eventually sets a different mode (e.g. endGame → STOPPED)
-  // that sticks; this just ensures the interval between dispatch and
-  // first display step is locked down.
+  //     lerp before the banner actually appears.
   ctx.setMode(Mode.BANNER);
 
-  // Mutate + postMutate SYNCHRONOUS: the phase change lands immediately,
-  // so subsequent phase guards on the SAME transition id reject
-  // re-dispatches (belt-and-braces alongside the mode gate above).
-  const result = mutateFn(ctx);
-  transition.postMutate?.(ctx, result);
-
-  // Display chain (score overlay, life-lost dialog, upgrade-pick,
-  // banners) waits until the camera has reached fullMapVp. Every step
-  // assumes the full-map framing, and the banner's prev-scene capture
-  // needs a full-map frame on the canvas to avoid the mismatch-at-
-  // sweep-line glitch under auto-zoom / pinch zoom. `requestUnzoom`
-  // clears cameraZone + pinchVp (persisting the pinch into the phase
-  // slot) and fires the callback the first post-render frame where
-  // currentVp has converged to fullMapVp. `handlePhaseChangeZoom`
-  // re-derives cameraZone on the NEW phase once postDisplay completes,
-  // so no explicit restore is needed — and the modifier / upgrade-pick
-  // chains stay unzoomed throughout (no intermediate re-zoom between
-  // chained display steps, since the camera remains at fullMapVp
-  // until postDisplay).
+  // The hard ordering rule (matches the spec):
+  //
+  //   1. Unzoom FIRST. The camera reaches fullMapVp while the pre-mutate
+  //      scene is still live on screen (no house spawn, no modifier
+  //      tiles applied, no wall sweep yet). `requestUnzoom` clears
+  //      cameraZone + pinchVp (persisting the pinch into the phase slot)
+  //      and fires `onReady` the first post-render frame where currentVp
+  //      has converged to fullMapVp.
+  //
+  //   2. Capture the full-map pre-mutate scene. This is the frame the
+  //      first banner's sweep will reveal FROM.
+  //
+  //   3. Mutate + postMutate. Phase flips, houses / bonus squares spawn,
+  //      modifier tiles apply, walls sweep — all happening in the same
+  //      tick as the first banner's `showBanner`, so the next rendered
+  //      frame is already under banner cover. No pop window.
+  //
+  //   4. Run the display chain. The first banner receives the pre-mutate
+  //      scene as its prevScene; each subsequent banner captures fresh
+  //      at show-time (the previous banner's sweep-end frame).
+  //
+  //   5. postDisplay runs after the chain completes (setMode(GAME),
+  //      controller init, balloon-anim / beginBattle). `handlePhaseChangeZoom`
+  //      then re-engages auto-zoom for the new phase.
   ctx.requestUnzoom(() => {
-    runDisplay(transition.display, ctx, result, () => {
+    const preMutateScene = ctx.captureScene();
+    const result = mutateFn(ctx);
+    transition.postMutate?.(ctx, result);
+    runDisplay(transition.display, ctx, result, preMutateScene, () => {
       const postDisplay =
         ctx.role === ROLE_HOST
           ? transition.postDisplay?.host
@@ -893,11 +896,21 @@ function assertLifeLostStepIsTerminal(): void {
 }
 
 /** Walk the display steps in order, calling `onDone` after the last step
- *  completes. Each step registers `onDone` with its subsystem callback. */
+ *  completes. Each step registers `onDone` with its subsystem callback.
+ *
+ *  `initialPrevScene` is the pre-mutate full-map snapshot captured at the
+ *  top of the transition (see `runTransition`). The FIRST banner-like
+ *  step (banner or upgrade-pick) consumes it as its prev-scene so the
+ *  sweep reveals from pre-mutate to post-mutate. Subsequent steps receive
+ *  `undefined` and fall back to `ctx.captureScene()` at show-time (which
+ *  reads the previous banner's sweep-end frame). Non-banner steps
+ *  (score-overlay, life-lost-dialog) ignore it and pass it along to the
+ *  next step so the first banner in the chain still gets it. */
 function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  initialPrevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (steps.length === 0) {
@@ -905,7 +918,13 @@ function runDisplay(
     return;
   }
   const [first, ...rest] = steps;
-  runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
+  const consumesBanner =
+    first!.kind === STEP_BANNER || first!.kind === STEP_UPGRADE_PICK;
+  const passToFirst = consumesBanner ? initialPrevScene : undefined;
+  const passToRest = consumesBanner ? undefined : initialPrevScene;
+  runStep(first!, ctx, result, passToFirst, () =>
+    runDisplay(rest, ctx, result, passToRest, onDone),
+  );
 }
 
 /** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
@@ -975,11 +994,12 @@ function runStep(
   step: DisplayStep,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   switch (step.kind) {
     case STEP_BANNER:
-      runBannerStep(step, ctx, result, onDone);
+      runBannerStep(step, ctx, result, prevScene, onDone);
       return;
     case STEP_SCORE_OVERLAY:
       ctx.scoreDelta.show(onDone);
@@ -992,7 +1012,7 @@ function runStep(
       runLifeLostDialogStep(ctx, result);
       return;
     case STEP_UPGRADE_PICK:
-      runUpgradePickStep(step, ctx, result, onDone);
+      runUpgradePickStep(step, ctx, result, prevScene, onDone);
       return;
   }
 }
@@ -1001,6 +1021,7 @@ function runBannerStep(
   step: Extract<DisplayStep, { kind: "banner" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1009,20 +1030,18 @@ function runBannerStep(
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
   const modifierId = step.modifierId?.(result);
-  // Capture the prev-scene right at `showBanner`-time. The last
-  // `drawFrame` call still reflects whatever the user was looking at
-  // the instant before this banner started — pre-mutation for the
-  // first banner in a transition (mutate ran this tick, drawFrame
-  // hasn't run again yet), post-previous-banner for every chained
-  // banner (the previous banner's sweep rendered its own end frame
-  // before this callback fired). One rule, no stashing, no fences
-  // for the call site to manage.
+  // First banner in the chain: `prevScene` is the pre-mutate full-map
+  // capture taken inside `runTransition`'s unzoom-ready callback — the
+  // sweep reveals post-mutate (house spawn, modifier tiles, wall
+  // sweep) FROM that frame. Subsequent banners: `prevScene` is
+  // undefined, so we capture the previous banner's sweep-end frame via
+  // `ctx.captureScene()`.
   ctx.showBanner({
     text,
     onDone,
     subtitle: step.subtitle,
     modifierId,
-    prevScene: ctx.captureScene(),
+    prevScene: prevScene ?? ctx.captureScene(),
   });
 }
 
@@ -1076,6 +1095,7 @@ function runUpgradePickStep(
   step: Extract<DisplayStep, { kind: "upgrade-pick" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1093,7 +1113,7 @@ function runUpgradePickStep(
   ctx.showBanner({
     text: BANNER_UPGRADE_PICK,
     subtitle: BANNER_UPGRADE_PICK_SUB,
-    prevScene: ctx.captureScene(),
+    prevScene: prevScene ?? ctx.captureScene(),
     onDone: () => {
       // All players have resolved their picks (or auto-skipped). Apply
       // the picks + recompute territory; the NEXT banner in the chain
