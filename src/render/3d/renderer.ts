@@ -264,6 +264,16 @@ export function createRender3d(
         fboH,
         captureFboPixels,
       );
+      // Three.js's default WebGL context is `premultipliedAlpha: true`,
+      // so the FBO stores RGB already multiplied by alpha. Canvas 2D's
+      // `putImageData` treats its input as straight (non-premultiplied)
+      // RGBA and re-applies alpha on the next compositing step — handing
+      // premultiplied pixels to it double-darkens any semi-transparent
+      // region (visible as the banner sweep's prev-scene layer going
+      // too dark). Unpremultiply here so the downstream composite path
+      // sees the same straight-alpha pixels the old `drawImage(world
+      // Canvas)` path produced.
+      unpremultiplyAlpha(captureFboPixels);
       if (!captureFboCanvas || !captureFboCtx) {
         captureFboCanvas = document.createElement("canvas");
         captureFboCtx = captureFboCanvas.getContext("2d", {
@@ -351,4 +361,21 @@ export function createRender3d(
         };
       }),
   };
+}
+
+/** Convert an RGBA8 buffer from premultiplied alpha (the WebGL FBO's
+ *  storage format under the default three.js renderer context) to
+ *  straight alpha (what Canvas 2D's `putImageData` expects). Edits in
+ *  place. Fully transparent (a=0) and fully opaque (a=255) pixels are
+ *  untouched. Intermediate alphas divide the RGB by (a/255) and clamp
+ *  to 255 so downstream composition multiplies by alpha exactly once. */
+function unpremultiplyAlpha(pixels: Uint8ClampedArray): void {
+  for (let i = 0; i < pixels.length; i += 4) {
+    const a = pixels[i + 3]!;
+    if (a === 0 || a === 255) continue;
+    const inv = 255 / a;
+    pixels[i] = Math.min(255, pixels[i]! * inv);
+    pixels[i + 1] = Math.min(255, pixels[i + 1]! * inv);
+    pixels[i + 2] = Math.min(255, pixels[i + 2]! * inv);
+  }
 }

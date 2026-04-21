@@ -251,11 +251,17 @@ export function createRender3dScene(
   );
 
   // Blit quad — renders `captureTarget.texture` fullscreen to whichever
-  // framebuffer the renderer is currently pointed at. `transparent: true`
-  // preserves the alpha channel of the FBO so transparent regions of the
-  // scene pass through to the 2D canvas layered beneath. `depthTest:
-  // false` skips the depth compare (not meaningful for a full-screen
-  // blit) and `depthWrite: false` avoids polluting the depth buffer.
+  // framebuffer the renderer is currently pointed at. Three.js runs the
+  // WebGL context with `premultipliedAlpha: true` by default, so the
+  // FBO's RGB is already multiplied by its alpha. Standard NormalBlending
+  // (srcAlpha, 1-srcAlpha) would multiply by alpha a second time — the
+  // classic "semi-transparent layers go darker" symptom. `CustomBlending`
+  // with src=One / dst=OneMinusSrcAlpha is the canonical premultiplied-
+  // alpha blend and produces output that the default premultiplied-alpha
+  // backbuffer (and the browser compositor reading it) expects.
+  // `depthTest/Write: false` skips depth work irrelevant to a fullscreen
+  // blit. `transparent: true` is still required so three.js treats the
+  // material as non-opaque and respects the blending factors.
   const blitScene = new THREE.Scene();
   const blitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const blitMaterial = new THREE.MeshBasicMaterial({
@@ -263,6 +269,12 @@ export function createRender3dScene(
     transparent: true,
     depthTest: false,
     depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+    blendEquation: THREE.AddEquation,
   });
   const blitQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blitMaterial);
   blitScene.add(blitQuad);
