@@ -11,6 +11,7 @@
  * renderer only draws UI.
  */
 
+import type { Viewport } from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -57,6 +58,14 @@ export function createRender3d(
     canvas2d.getSinkholeOverlayBitmap,
   );
 
+  // Cached viewport + pitch from the last `drawFrame`. Used by the
+  // loupe composite (draws the WebGL world canvas at the correct
+  // world-space rect) and by the loupe's `worldToScene` mapper (folds
+  // the X-axis tilt into the world→scene projection so the source
+  // rect stays centered on the cursor even when the scene is tilted).
+  let lastViewport: Viewport | undefined;
+  let lastPitch = 0;
+
   // Banner prev-scene snapshot scratch canvases. Lazily created on first
   // capture; reused across phase transitions. The composite canvas matches
   // the display canvas dimensions (CANVAS_W × CANVAS_H) so the returned
@@ -66,45 +75,12 @@ export function createRender3d(
   let captureBridgeCanvas: HTMLCanvasElement | undefined;
   let captureBridgeCtx: CanvasRenderingContext2D | undefined;
 
-  // Loupe TOP-DOWN source — a dedicated 2D canvas that holds the full
-  // map rendered at pitch=0, regardless of what the main view is doing.
-  // `drawFrame` does a pre-pass into the WebGL canvas at full-map
-  // pitch=0 and immediately copies the pixels here; the main tilted
-  // render then runs and overwrites the WebGL canvas for display.
-  // Result: the user sees the tilted 3/4 view, the loupe samples a
-  // true top-down view (spec: "the loupe is always top-down").
-  // Sized to the 2D scene canvas so the existing world→scene math in
-  // render-loupe.ts still applies (loupe expects `worldX * OFFSCREEN_SCALE`
-  // coordinates).
-  let loupeTopDownCanvas: HTMLCanvasElement | undefined;
-  let loupeTopDownCtx: CanvasRenderingContext2D | undefined;
-  function ensureLoupeTopDownCanvas(): {
-    canvas: HTMLCanvasElement;
-    context: CanvasRenderingContext2D;
-  } {
-    const scene2d = canvas2d.sceneCanvas();
-    const targetW = scene2d.width;
-    const targetH = scene2d.height;
-    if (!loupeTopDownCanvas || !loupeTopDownCtx) {
-      loupeTopDownCanvas = document.createElement("canvas");
-      loupeTopDownCtx = loupeTopDownCanvas.getContext("2d", {
-        willReadFrequently: false,
-      })!;
-    }
-    if (
-      loupeTopDownCanvas.width !== targetW ||
-      loupeTopDownCanvas.height !== targetH
-    ) {
-      loupeTopDownCanvas.width = targetW;
-      loupeTopDownCanvas.height = targetH;
-      loupeTopDownCtx.imageSmoothingEnabled = false;
-    }
-    return { canvas: loupeTopDownCanvas, context: loupeTopDownCtx };
-  }
-
-  // Loupe composite — merges the top-down world render with the 2D
-  // scene canvas (UI + any game layers still on the 2D path). The
-  // loupe samples this.
+  // Loupe source canvas — a WebGL+2D composite. The loupe samples this
+  // each frame to magnify "what the user sees", which in 3D mode is the
+  // world canvas (terrain + entities) overlaid with whatever the 2D
+  // renderer still draws (castles, UI). Lazily created on first access;
+  // sized to the 2D scene canvas so the magnification math in
+  // `render-loupe.ts` stays unchanged.
   let loupeCompositeCanvas: HTMLCanvasElement | undefined;
   let loupeCompositeCtx: CanvasRenderingContext2D | undefined;
   function loupeCompositeSource(): HTMLCanvasElement {
@@ -126,13 +102,34 @@ export function createRender3d(
       loupeCompositeCtx.imageSmoothingEnabled = false;
     }
     loupeCompositeCtx.clearRect(0, 0, targetW, targetH);
-    // Top-down canvas is already sized to match the composite, so draw
-    // it at (0,0) full-size — no viewport-dependent dest rect needed
-    // (unlike a sample of the viewport-cropped `worldCanvas`).
-    const topDown = loupeTopDownCanvas;
-    if (topDown) {
-      loupeCompositeCtx.drawImage(topDown, 0, 0);
-    }
+    // `worldCanvas` contains the viewport-cropped view stretched to
+    // fill MAP_PX_W × MAP_PX_H, so it must be drawn into the composite
+    // at the viewport's world-space rect — NOT at (0,0)-fullmap. Source
+    // = full worldCanvas; dest = `lastViewport` × OFFSCREEN_SCALE. When
+    // no viewport crop is active (`lastViewport === undefined`) the
+    // viewport is the whole map, and dest collapses to the full
+    // composite. The 2D scene canvas is already at full-map coords, so
+    // it draws at (0,0).
+    const viewport = lastViewport;
+    const destX = (viewport?.x ?? 0) * OFFSCREEN_SCALE;
+    const destY = (viewport?.y ?? 0) * OFFSCREEN_SCALE;
+    const destW = (viewport?.w ?? MAP_PX_W) * OFFSCREEN_SCALE;
+    const destH = (viewport?.h ?? MAP_PX_H) * OFFSCREEN_SCALE;
+    // Loupe samples the GAME AREA only. Crop the top strip off
+    // `worldCanvas` (it's empty anyway — scene renders into the bottom
+    // MAP_PX_H rows) so the composite's coordinate system matches the
+    // 2D scene canvas at (0,0) = top-left of game area.
+    loupeCompositeCtx.drawImage(
+      worldCanvas,
+      0,
+      TOP_MARGIN_MAP_PX,
+      MAP_PX_W,
+      MAP_PX_H,
+      destX,
+      destY,
+      destW,
+      destH,
+    );
     loupeCompositeCtx.drawImage(scene2d, 0, 0);
     return loupeCompositeCanvas;
   }
@@ -200,53 +197,15 @@ export function createRender3d(
       ctx.sinkholeOverlay.update(frame);
       ctx.bonusSquares.update(frame);
       ctx.waterWaves.update(frame);
-      // Loupe top-down pre-pass. Rendered BEFORE the main tilted pass
-      // so we can snapshot the pitch=0 full-map frame into
-      // `loupeTopDownCanvas` via a 2D drawImage before the main render
-      // overwrites the WebGL backbuffer. Both renders happen inside
-      // the same rAF callback, so the browser composites only the
-      // final (tilted) frame to the display — the top-down pre-pass
-      // is invisible to the user.
-      //
-      // Cost: one extra scene render per frame. Cheap readback-free
-      // pixel copy (drawImage from WebGL canvas → 2D canvas) instead
-      // of `readRenderTargetPixels`, which would stall the GPU
-      // pipeline.
-      const loupeTopDown = ensureLoupeTopDownCanvas();
-      updateCameraFromViewport(ctx.camera, undefined, 0);
-      ctx.renderer.setRenderTarget(null);
-      ctx.renderer.setViewport(0, 0, MAP_PX_W, MAP_PX_H);
-      ctx.renderer.setScissor(0, 0, MAP_PX_W, MAP_PX_H);
-      ctx.renderer.setScissorTest(true);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
-      ctx.renderer.setScissorTest(false);
-      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
-      // Copy the WebGL-rendered top-down frame into the 2D loupe
-      // source canvas. Crop the reserved top strip off the world
-      // canvas (the scene occupies the bottom MAP_PX_H rows) so (0,0)
-      // of `loupeTopDownCanvas` maps to world (0,0).
-      loupeTopDown.context.clearRect(
-        0,
-        0,
-        loupeTopDown.canvas.width,
-        loupeTopDown.canvas.height,
-      );
-      loupeTopDown.context.drawImage(
-        worldCanvas,
-        0,
-        TOP_MARGIN_MAP_PX,
-        MAP_PX_W,
-        MAP_PX_H,
-        0,
-        0,
-        loupeTopDown.canvas.width,
-        loupeTopDown.canvas.height,
-      );
-
-      // Main tilted render — camera + pitch come from the runtime
-      // viewport. The 2D overlay stays straight-down (UI layers only).
+      // Camera: ortho view driven by the runtime viewport, tilted by
+      // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
+      // toward a phase-specific target so battle renders with a
+      // classic Rampart 3/4 view. The 2D overlay is still drawn
+      // straight-down — it only carries UI + still-2D layers that
+      // are unaffected by tilt.
       updateCameraFromViewport(ctx.camera, viewport, pitch);
+      lastViewport = viewport ?? undefined;
+      lastPitch = pitch;
       // Render the scene once into the capture FBO (readable outside
       // the rAF tick by `captureScene`), then blit that FBO's texture
       // to the default framebuffer via a fullscreen quad. The blit is
@@ -390,13 +349,22 @@ export function createRender3d(
     },
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,
-    // Loupe samples the top-down composite (see `loupeCompositeSource` +
-    // `loupeTopDownCanvas` comments). The source is always full-map
-    // pitch=0, so world→scene is the plain identity — same as 2D mode.
+    // Loupe samples a WebGL+2D composite (not the 2D scene alone,
+    // which in 3D mode is missing terrain + entities). Under tilt the
+    // scene canvas Y of a world point is not `worldY * OFFSCREEN_SCALE`
+    // anymore — the WebGL render has foreshortened Y by `cos(pitch)`
+    // around the viewport's center, and the composite stretch preserves
+    // that. Reproduce the same transform here so the loupe's source
+    // rect centers on the cursor's true scene position.
     createLoupe: (container) =>
-      createLoupe(container, loupeCompositeSource, (worldX, worldY) => ({
-        x: worldX * OFFSCREEN_SCALE,
-        y: worldY * OFFSCREEN_SCALE,
-      })),
+      createLoupe(container, loupeCompositeSource, (worldX, worldY) => {
+        const viewport = lastViewport;
+        const centerY = (viewport?.y ?? 0) + (viewport?.h ?? MAP_PX_H) / 2;
+        const cosPitch = Math.cos(lastPitch);
+        return {
+          x: worldX * OFFSCREEN_SCALE,
+          y: (centerY + cosPitch * (worldY - centerY)) * OFFSCREEN_SCALE,
+        };
+      }),
   };
 }
