@@ -1318,13 +1318,6 @@ export function buildCannon(
   );
   barrelGroup.position.set(0, params.barrel.yPos, params.barrel.zOffset);
   scene.add(barrelGroup);
-  // Tag every mesh in the barrel sub-tree (barrel + bore + bands) so the
-  // cannons entity manager can layer a per-instance recoil rotation around
-  // the breech pivot on top of the authored elevation. Descendants inherit
-  // identical tagging because they all rotate together with the barrel.
-  barrelGroup.traverse((obj) => {
-    if (obj instanceof three.Mesh) obj.userData.tags = ["barrel"];
-  });
 
   // Support(s) underneath the barrel.
   const supportMat = mat(params.supports.material);
@@ -1395,6 +1388,25 @@ export function buildCannon(
     const parent = dec.attachTo === "barrel" ? barrel : scene;
     parent.add(mesh);
   }
+
+  // Tag every mesh in the barrel sub-tree (barrel body + bore + bands +
+  // all decorations attached to the barrel — muzzleSwell, cascabel,
+  // trunnions, vents, reinforce-rings) so the cannons entity manager's
+  // per-instance recoil rotation (see `entities/cannons.ts`) applies to
+  // them. Runs AFTER the decorations loop so late-added descendants are
+  // included, and appends to any existing `userData.tags` (e.g. some
+  // decorations already carry "battle-hidden") instead of overwriting.
+  // `extractSubParts` flattens the scene tree into independent
+  // InstancedMesh buckets, so the "barrel" tag is the ONLY runtime link
+  // between a sub-part and the barrel's recoil — untagged decorations
+  // stay at their authored pose while the barrel body swings up.
+  barrelGroup.traverse((obj) => {
+    if (!(obj instanceof three.Mesh)) return;
+    const existing = obj.userData.tags;
+    const tags: string[] = Array.isArray(existing) ? [...existing] : [];
+    if (!tags.includes("barrel")) tags.push("barrel");
+    obj.userData.tags = tags;
+  });
 }
 
 function createDecorationGeometry(
