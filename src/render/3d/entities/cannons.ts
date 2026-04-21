@@ -70,13 +70,12 @@ import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
-  isRampartCannon,
-  isSuperCannon,
 } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
 import {
+  cannonKind,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
 } from "./entity-helpers.ts";
@@ -256,12 +255,23 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   return { update, dispose };
 }
 
-/** Pick a bucket key for the cannon. Mirrors the 2D path's switch. */
+/** Pick a bucket key for the cannon. Mirrors the 2D path's switch. The
+ *  caller guarantees non-balloon cannons (balloons are filtered out
+ *  before this is reached), so the "balloon" kind is unreachable. */
 function selectVariant(cannon: Cannon): VariantName {
-  if (isRampartCannon(cannon)) return "rampart_cannon";
-  if (isSuperCannon(cannon)) return "super_gun";
-  if (cannon.mortar) return "mortar";
-  return "tier_1";
+  const kind = cannonKind(cannon);
+  switch (kind) {
+    case "rampart":
+      return "rampart_cannon";
+    case "super":
+      return "super_gun";
+    case "mortar":
+      return "mortar";
+    case "tier_1":
+      return "tier_1";
+    case "balloon":
+      throw new Error("selectVariant: balloon cannons are filtered upstream");
+  }
 }
 
 /** Composite signature across every live cannon. Rebuilds only when one

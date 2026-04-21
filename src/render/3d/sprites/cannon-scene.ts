@@ -22,7 +22,6 @@
  */
 
 import type * as THREE from "three";
-import { FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   cells,
   createMaterial,
@@ -1581,7 +1580,3 @@ function createBeveledBox(
   }
   return geom;
 }
-
-// Suppress FRUSTUM_HALF unused-import lint if no runtime callsite needs it;
-// we keep the symbol re-exported for callers that validate bounds.
-void FRUSTUM_HALF;

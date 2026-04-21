@@ -67,21 +67,19 @@
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
-import {
-  isCannonAlive,
-  isRampartCannon,
-  isSuperCannon,
-} from "../../../shared/core/spatial.ts";
+import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import { buildDebris, getDebrisVariant } from "../sprites/debris-scene.ts";
 import {
+  cannonKind,
   cloneAndTintMaterial,
   rgbToHex,
   TILE_2X2_CENTER_OFFSET,
   TILE_3X3_CENTER_OFFSET,
+  unpackTileKey,
 } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
@@ -185,8 +183,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
         if (!origWalls) continue;
         for (const key of origWalls) {
           if (castle.walls.has(key)) continue;
-          const row = Math.floor(key / GRID_COLS);
-          const col = key - row * GRID_COLS;
+          const { row, col } = unpackTileKey(key);
           const variantName = wallDebrisVariantName(col, row);
           entries.push({
             key: variantName,
@@ -385,10 +382,22 @@ function cannonDebrisVariantName(cannon: {
   mode: CannonMode;
   mortar?: boolean;
 }): string {
-  if (isRampartCannon(cannon)) return "rampart_debris";
-  if (isSuperCannon(cannon)) return "super_gun_debris";
-  if (cannon.mortar) return "mortar_debris";
-  return "tier_1_debris";
+  const kind = cannonKind(cannon);
+  switch (kind) {
+    case "rampart":
+      return "rampart_debris";
+    case "super":
+      return "super_gun_debris";
+    case "mortar":
+      return "mortar_debris";
+    // Balloons aren't filtered upstream here, so their wrecked state
+    // falls through to the generic barrel-debris pile. Matches the
+    // pre-refactor behaviour where neither isRampart/isSuper nor the
+    // mortar flag matched a balloon cannon.
+    case "balloon":
+    case "tier_1":
+      return "tier_1_debris";
+  }
 }
 
 /** Build a bucket for one key: run `buildDebris` once into a scratch

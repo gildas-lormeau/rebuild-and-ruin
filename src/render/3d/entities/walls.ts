@@ -52,6 +52,7 @@ import * as THREE from "three";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildWall } from "../sprites/wall-scene.ts";
+import { unpackTileKey } from "./entity-helpers.ts";
 import {
   type BucketSubPart,
   buildVariantBucket,
@@ -155,8 +156,7 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     // requirements up front.
     const byMask = new Map<number, Array<{ col: number; row: number }>>();
     for (const key of wallSet) {
-      const row = Math.floor(key / GRID_COLS);
-      const col = key - row * GRID_COLS;
+      const { row, col } = unpackTileKey(key);
       const mask = computeMask(wallSet, col, row);
       let list = byMask.get(mask);
       if (!list) {

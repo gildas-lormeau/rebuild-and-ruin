@@ -35,11 +35,6 @@
  */
 
 import * as THREE from "three";
-import {
-  isBalloonMode,
-  isRampartMode,
-  isSuperMode,
-} from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import type {
@@ -53,7 +48,11 @@ import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
-import { type ExtractedSubPart, extractSubParts } from "./entity-helpers.ts";
+import {
+  cannonKind,
+  type ExtractedSubPart,
+  extractSubParts,
+} from "./entity-helpers.ts";
 
 export interface PhantomsManager {
   /** Rebuild phantom meshes from the current overlay's `phantoms`
@@ -276,10 +275,23 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   function selectCannonVariant(
     phantom: RenderCannonPhantom,
   ): CannonVariantName {
-    if (isBalloonMode(phantom.mode)) return "balloon_base";
-    if (isRampartMode(phantom.mode)) return "rampart_cannon";
-    if (isSuperMode(phantom.mode)) return "super_gun";
-    return "tier_1";
+    // Phantoms carry only `mode` — no mortar flag — so the "mortar"
+    // kind is never produced for a phantom; we still list the case in
+    // the switch so adding a new CannonMode fails the exhaustiveness
+    // check. Mortar phantoms fall through to the tier_1 base, matching
+    // the pre-refactor default.
+    const kind = cannonKind({ mode: phantom.mode });
+    switch (kind) {
+      case "balloon":
+        return "balloon_base";
+      case "rampart":
+        return "rampart_cannon";
+      case "super":
+        return "super_gun";
+      case "mortar":
+      case "tier_1":
+        return "tier_1";
+    }
   }
 
   function placeCannon(

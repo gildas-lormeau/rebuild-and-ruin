@@ -59,7 +59,11 @@ import type { Grunt } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { buildGrunt, getGruntVariant } from "../sprites/grunt-scene.ts";
-import { type BucketSubPart, fillBucket } from "./instance-bucket.ts";
+import {
+  type BucketSubPart,
+  fillBucket,
+  nextPowerOfTwo,
+} from "./instance-bucket.ts";
 
 export interface GruntsManager {
   /** Reconcile grunt instance matrices with the overlay. Cheap no-op
@@ -243,10 +247,4 @@ function computeSignature(grunts: readonly Grunt[] | undefined): string {
     parts.push(`${grunt.col}:${grunt.row}:${grunt.facing ?? 0}`);
   }
   return parts.join("|");
-}
-
-function nextPowerOfTwo(value: number): number {
-  let power = 1;
-  while (power < value) power <<= 1;
-  return power;
 }

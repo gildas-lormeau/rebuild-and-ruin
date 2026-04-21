@@ -356,7 +356,7 @@ const yCells = (n: number): number => (n * CELL) / TOWER_Y_SCALE;
 const TOWER_XZ_SCALE = 1.0;
 const UV_DENSITY = 2.0;
 const ROOF_TILES_PER_WORLD = 16;
-const _roofWrapsPerWorld = ROOF_TILES_PER_WORLD / 4;
+const roofWrapsPerWorld = ROOF_TILES_PER_WORLD / 4;
 export const VARIANTS: Variant[] = [
   {
     // Secondary tower — same layout as home tower minus the gate.
@@ -1525,8 +1525,8 @@ function applyRoofUVPlane(
 ): void {
   const uv = geom.attributes["uv"] as THREE.BufferAttribute;
   const a = uv.array as Float32Array;
-  const uMul = w * _roofWrapsPerWorld;
-  const vMul = d * _roofWrapsPerWorld;
+  const uMul = w * roofWrapsPerWorld;
+  const vMul = d * roofWrapsPerWorld;
   for (let i = 0; i < a.length; i += 2) {
     a[i] = a[i]! * uMul;
     a[i + 1] = a[i + 1]! * vMul;
@@ -1538,8 +1538,8 @@ function applyRoofUVShape(geom: THREE.ShapeGeometry): void {
   const uv = geom.attributes["uv"] as THREE.BufferAttribute;
   const a = uv.array as Float32Array;
   for (let i = 0; i < a.length; i += 2) {
-    a[i] = a[i]! * _roofWrapsPerWorld;
-    a[i + 1] = a[i + 1]! * _roofWrapsPerWorld;
+    a[i] = a[i]! * roofWrapsPerWorld;
+    a[i + 1] = a[i + 1]! * roofWrapsPerWorld;
   }
   uv.needsUpdate = true;
 }

@@ -14,8 +14,14 @@
  */
 
 import * as THREE from "three";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { CannonMode } from "../../../shared/core/battle-types.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import {
+  isBalloonCannon,
+  isRampartCannon,
+  isSuperCannon,
+} from "../../../shared/core/spatial.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
 
@@ -34,12 +40,38 @@ export interface ExtractedSubPart {
   readonly name: string;
 }
 
+type CannonKind = "balloon" | "rampart" | "super" | "mortar" | "tier_1";
+
 /** Half the 2×2-tile footprint expressed in world pixels — used to
  *  centre 2×2 cannon / debris / balloon hosts on their top-left
  *  anchor (col, row). Equivalent to one tile inward on both axes. */
 export const TILE_2X2_CENTER_OFFSET = TILE_SIZE;
 /** Half the 3×3-tile footprint (super-gun cannon / debris). */
 export const TILE_3X3_CENTER_OFFSET = TILE_SIZE * 1.5;
+
+/** Unpack a `row * GRID_COLS + col` tile key into (row, col). Inverse of
+ *  the packing both `walls.ts` and `debris.ts` use for battleWalls /
+ *  interior sets. */
+export function unpackTileKey(key: number): { row: number; col: number } {
+  const row = Math.floor(key / GRID_COLS);
+  return { row, col: key - row * GRID_COLS };
+}
+
+/** Classify a live/dead cannon by its mode + mortar flag. Centralizes
+ *  the branching every manager had drifted separately (cannons live,
+ *  debris dead, phantoms preview); adding a new CannonMode now fails
+ *  the exhaustiveness check here instead of silently missing a
+ *  consumer. */
+export function cannonKind(cannon: {
+  mode: CannonMode;
+  mortar?: boolean;
+}): CannonKind {
+  if (isBalloonCannon(cannon)) return "balloon";
+  if (isRampartCannon(cannon)) return "rampart";
+  if (isSuperCannon(cannon)) return "super";
+  if (cannon.mortar) return "mortar";
+  return "tier_1";
+}
 
 /** Walk a built `THREE.Group`, call `updateMatrixWorld`, and extract
  *  every `THREE.Mesh` as an `ExtractedSubPart`. Used by entity managers

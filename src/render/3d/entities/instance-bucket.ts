@@ -143,6 +143,14 @@ export function fillBucket<Entry>(
   }
 }
 
+/** Smallest power of two >= value. Grows InstancedMesh capacity so
+ *  buckets don't thrash when an entity set gains a few members. */
+export function nextPowerOfTwo(value: number): number {
+  let power = 1;
+  while (power < value) power <<= 1;
+  return power;
+}
+
 /** Build one `InstancedMesh` around an extracted sub-part, attach it to
  *  `root`, and register its materials for later disposal. Returns the
  *  wrapped sub-part so callers can assemble a bucket. Private — only
@@ -182,12 +190,4 @@ function disposeSubParts(subParts: BucketSubPart[]): void {
     part.instanced.dispose();
   }
   subParts.length = 0;
-}
-
-/** Smallest power of two >= value. Grows InstancedMesh capacity so
- *  buckets don't thrash when an entity set gains a few members. */
-function nextPowerOfTwo(value: number): number {
-  let power = 1;
-  while (power < value) power <<= 1;
-  return power;
 }
