@@ -744,6 +744,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     selectionZoom.applied = false;
     selectionZoom.pendingVp = undefined;
     cachedZoneBounds.clear();
+    // Re-arm auto-zoom for the next match. `zoomActivated` is toggled
+    // off by `disableAutoZoom` (pov elimination / returnToLobby); the
+    // next game bootstrap runs through here and should start with
+    // auto-zoom on if the device supports it.
+    zoomActivated = mobileZoomEnabled;
     // Snap viewport to full map so there's no lerp animation on game start
     currentVp.x = fullMapVp.x;
     currentVp.y = fullMapVp.y;
@@ -843,18 +848,28 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     autoZoom(state.phase);
   }
 
-  /** Permanently disable auto-zoom. Spec: after the human player
-   *  abandons a life-lost popup (or is otherwise eliminated), the
-   *  camera stops following the game — no more zooms, no more tilts,
-   *  just a static full-map spectator view until the next rematch.
-   *  Clears every zoom target and prevents future `autoZoom` /
-   *  `handlePhaseChangeZoom` re-engagements by flipping `zoomActivated`.
-   *  `resetCamera` re-arms it on next game start. */
+  /** Disable auto-zoom until the next `resetCamera` (rematch / new
+   *  game bootstrap). Used for:
+   *    - Pov player abandons a life-lost popup, or is otherwise
+   *      eliminated mid-match — the camera stops following the game
+   *      and sits as a static full-map spectator view.
+   *    - `returnToLobby` — the lobby's background demo game plays
+   *      with AIs only; we don't want leftover per-phase pinch memory
+   *      or an active `zoomActivated` flag dragging the camera
+   *      through zone zooms during the demo.
+   *  Clears every zoom target (cameraZone / pinchVp / castleBuildVp)
+   *  and the per-phase pinch memory (so a saved pinch from the
+   *  previous session doesn't pop back on the next game). Flipping
+   *  `zoomActivated` to false stops `autoZoom` and
+   *  `handlePhaseChangeZoom` from re-engaging. `resetCamera` re-arms
+   *  the flag from `mobileZoomEnabled`. */
   function disableAutoZoom(): void {
     zoomActivated = false;
     cameraZone = undefined;
     pinchVp = undefined;
     castleBuildVp = undefined;
+    phasePinch.build = undefined;
+    phasePinch.battle = undefined;
   }
 
   // --- Touch battle targeting ---

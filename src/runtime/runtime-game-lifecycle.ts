@@ -56,6 +56,7 @@ interface GameLifecycleDeps {
   readonly resetScoreDeltas: () => void;
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
+  readonly disableAutoZoom: () => void;
   readonly resetInputForLobby: () => void;
 
   // Demo timer (all-AI auto-return to lobby)
@@ -100,7 +101,10 @@ interface LifecycleWiringDeps {
   readonly banner: { reset: () => void };
   readonly camera: Pick<
     CameraSystem,
-    "clearAllZoomState" | "resetBattleCrosshair" | "resetCamera"
+    | "clearAllZoomState"
+    | "resetBattleCrosshair"
+    | "resetCamera"
+    | "disableAutoZoom"
   >;
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
@@ -168,7 +172,14 @@ export function createGameLifecycle(
   function returnToLobby(): void {
     deps.clearDemoTimer();
     deps.resetScoreDeltas();
-    deps.clearAllZoomState();
+    // Disable auto-zoom for the lobby's background demo: no human plays
+    // during the demo, and any lingering per-phase pinch memory from
+    // the game we just quit would otherwise spring the camera back to
+    // the previous human's favourite zoom the moment the demo reaches
+    // that phase. `resetCamera` (called on next game bootstrap) re-arms
+    // auto-zoom from `mobileZoomEnabled`, so new games after a lobby
+    // return get the normal auto-zoom behaviour.
+    deps.disableAutoZoom();
     deps.clearGameOver();
     deps.resetInputForLobby();
     deps.showLobby();
@@ -248,6 +259,7 @@ export function buildLifecycleDeps(
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
+    disableAutoZoom: wiringDeps.camera.disableAutoZoom,
     resetInputForLobby: () =>
       wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
 
