@@ -133,21 +133,30 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.state.modern?.masterBuilderLockout ?? 0,
     });
 
-    // Status bar (rendered inside canvas). Hidden in 3D mode: it makes
-    // the 2D canvas taller than the WebGL canvas, breaking letterbox
-    // alignment between the two stacked layers and causing banner
-    // prev-scene composites to appear shifted. Debug-only UI anyway —
-    // slated for removal.
+    // Status bar (rendered inside canvas). Hidden in 3D mode today
+    // because drawStatusBar paints BELOW the game area — that would
+    // asymmetrically grow only the 2D canvas, breaking letterbox
+    // alignment with the symmetric WebGL canvas. The 3D equivalent
+    // (reserveTopStrip, below) reserves a strip ABOVE the game area
+    // and grows BOTH canvases, so they stay aspect-matched; a future
+    // status bar would render into that top strip instead.
     if (runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.statusBar =
-        runtimeState.settings.rendererKind === "3d"
-          ? undefined
-          : deps.createStatusBar(
-              runtimeState.state,
-              PLAYER_COLORS,
-              runtimeState.frameMeta.povPlayerId,
-              runtimeState.frameMeta.hasPointerPlayer,
-            );
+      const is3d = runtimeState.settings.rendererKind === "3d";
+      runtimeState.overlay.ui.statusBar = is3d
+        ? undefined
+        : deps.createStatusBar(
+            runtimeState.state,
+            PLAYER_COLORS,
+            runtimeState.frameMeta.povPlayerId,
+            runtimeState.frameMeta.hasPointerPlayer,
+          );
+      // Always reserve the top strip in 3D. Even phases that don't
+      // currently paint a status bar need the headroom so tilted walls
+      // at row 0 have a tile of margin at the top of the canvas. Also
+      // means banner transitions render into a consistent frame rect
+      // across every phase — no sudden shift when entering/leaving
+      // battle.
+      runtimeState.overlay.ui.reserveTopStrip = is3d;
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

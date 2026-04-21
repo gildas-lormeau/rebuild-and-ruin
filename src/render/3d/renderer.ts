@@ -18,6 +18,8 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   OFFSCREEN_SCALE,
+  TOP_MARGIN_CANVAS_PX,
+  TOP_MARGIN_MAP_PX,
 } from "../../shared/core/grid.ts";
 import type { RendererInterface } from "../../shared/ui/overlay-types.ts";
 import { createCanvasRenderer } from "../render-canvas.ts";
@@ -33,11 +35,16 @@ export function createRender3d(
   // Delegate 2D work (including UI) to the existing canvas renderer.
   const canvas2d = createCanvasRenderer(uiCanvas);
 
-  // Match the world canvas's internal resolution to the 2D canvas so Phase 1
-  // can pin the camera to the same pixel grid. CSS `object-fit: contain`
-  // handles external letterboxing identically to the 2D canvas.
+  // Match the world canvas's internal resolution to the 2D canvas so the
+  // two stack 1:1 under CSS `object-fit: contain`. The extra
+  // TOP_MARGIN_MAP_PX rows at the top host the reserved strip
+  // (`overlay.ui.reserveTopStrip` — see runtime-render.ts); scene
+  // rendering shifts down so the map occupies the bottom MAP_PX_H rows
+  // and world-Y=0 aligns with the top of the game area on the 2D
+  // canvas. Canvas dims stay constant across phases so CSS layout and
+  // banner transitions don't jitter.
   worldCanvas.width = MAP_PX_W;
-  worldCanvas.height = MAP_PX_H;
+  worldCanvas.height = MAP_PX_H + TOP_MARGIN_MAP_PX;
 
   const ctx: Render3dContext = createRender3dScene(
     worldCanvas,
@@ -102,12 +109,16 @@ export function createRender3d(
     const destY = (viewport?.y ?? 0) * OFFSCREEN_SCALE;
     const destW = (viewport?.w ?? MAP_PX_W) * OFFSCREEN_SCALE;
     const destH = (viewport?.h ?? MAP_PX_H) * OFFSCREEN_SCALE;
+    // Loupe samples the GAME AREA only. Crop the top strip off
+    // `worldCanvas` (it's empty anyway — scene renders into the bottom
+    // MAP_PX_H rows) so the composite's coordinate system matches the
+    // 2D scene canvas at (0,0) = top-left of game area.
     loupeCompositeCtx.drawImage(
       worldCanvas,
       0,
-      0,
-      worldCanvas.width,
-      worldCanvas.height,
+      TOP_MARGIN_MAP_PX,
+      MAP_PX_W,
+      MAP_PX_H,
       destX,
       destY,
       destW,
@@ -205,11 +216,28 @@ export function createRender3d(
       canvas2d.drawFrame(map, overlay, viewport, now);
     },
     setLayersEnabled: canvas2d.setLayersEnabled,
-    // Top-down ortho — the UI canvas has the same aspect ratio as the
-    // world canvas (status bar is hidden in 3D mode), so the 2D
-    // projection is correct as-is.
-    clientToSurface: canvas2d.clientToSurface,
-    screenToContainerCSS: canvas2d.screenToContainerCSS,
+    // 2D `clientToSurface` returns raw backing-store canvas pixels.
+    // In 3D mode the display canvas is TOP_MARGIN_CANVAS_PX taller
+    // than the game area (reserved strip above row 0 — see
+    // runtime-render.ts `reserveTopStrip`). Subtract the strip offset
+    // so (0, 0) reported by `clientToSurface` is the top-left of the
+    // GAME AREA — same contract as in 2D mode, so downstream consumers
+    // (mouse handlers, touch, hit-tests) don't branch on renderer
+    // kind. A click inside the top strip returns a negative y, which
+    // game-world hit-tests reject as off-map.
+    clientToSurface: (clientX, clientY) => {
+      const raw = canvas2d.clientToSurface(clientX, clientY);
+      return { x: raw.x, y: raw.y - TOP_MARGIN_CANVAS_PX };
+    },
+    // `screenToContainerCSS` is the inverse coupling of `clientToSurface`:
+    // callers feed it screen-pixel coords from `worldToScreen`, which
+    // projects against a CANVAS_H-sized canvas (the game area), so sy=0
+    // means "top of the game area". The actual display canvas in 3D is
+    // TOP_MARGIN_CANVAS_PX taller, so add the strip offset before
+    // delegating to the 2D impl — otherwise floating UI (dpad, confirm
+    // buttons) renders one-tile too high.
+    screenToContainerCSS: (sx, sy) =>
+      canvas2d.screenToContainerCSS(sx, sy + TOP_MARGIN_CANVAS_PX),
     // Banner prev-scene snapshot in 3D mode: composite the live WebGL
     // world canvas (already viewport-cropped + tilted from the last
     // `drawFrame`) with the 2D display canvas (castles, UI, anything not
@@ -245,7 +273,22 @@ export function createRender3d(
         captureCompositeCtx.imageSmoothingEnabled = false;
       }
       captureCompositeCtx.clearRect(0, 0, targetW, targetH);
-      captureCompositeCtx.drawImage(worldCanvas, 0, 0, targetW, targetH);
+      // Crop off the reserved top strip from the world canvas: the
+      // captured snapshot represents the GAME AREA only, so banner
+      // prev-scene composition aligns with the 2D path's snapshot
+      // (which is also game-area-only — see render-map.ts captureScene).
+      // Source rect: worldCanvas rows [TOP_MARGIN_MAP_PX, height).
+      captureCompositeCtx.drawImage(
+        worldCanvas,
+        0,
+        TOP_MARGIN_MAP_PX,
+        MAP_PX_W,
+        MAP_PX_H,
+        0,
+        0,
+        targetW,
+        targetH,
+      );
       // 2. Paint the 2D display canvas on top. The 2D path returns a
       //    CANVAS_W × CANVAS_H ImageData of the display's game region —
       //    putImageData ignores context transforms, so bridge through an

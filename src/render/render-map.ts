@@ -21,6 +21,7 @@ import {
   OFFSCREEN_SCALE,
   SCALE,
   TILE_SIZE,
+  TOP_MARGIN_CANVAS_PX,
 } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
@@ -312,6 +313,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
         canvasCtx: CanvasRenderingContext2D;
       }
     | undefined;
+  /** Pixel offset from the top of the display canvas to the top of the
+   *  game area. Equal to `TOP_MARGIN_CANVAS_PX` in 3D mode (via the
+   *  `reserveTopStrip` overlay flag); 0 otherwise. Updated each frame
+   *  by `drawMap`; read by `captureScene` so banner snapshots cover
+   *  the game area only, not the reserved strip above it. */
+  let topStripH = 0;
   /** Tracks which ImageData has been painted onto the banner temp canvas.
    *  When the reference changes (new banner / chained banner), the new
    *  ImageData is painted. */
@@ -677,9 +684,19 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const H = MAP_PX_H;
 
     const STATUS_BAR_H = overlay?.ui?.statusBar ? STATUSBAR_HEIGHT : 0;
+    // Top strip: reserved empty space ABOVE the game area. In 3D mode
+    // the runtime sets this flag unconditionally so tall wall meshes at
+    // row 0 have a tile of headroom under battle tilt. In 2D mode the
+    // flag is never set. Grows the canvas at the top; game-area
+    // drawing shifts down by TOP_STRIP_H via `ctx.translate` below so
+    // all existing map-coord draw code keeps working without per-call
+    // offsets. The 2D status bar (when present) still paints at the
+    // bottom — it's an independent strip; never both at once today.
+    const TOP_STRIP_H = overlay?.ui?.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
+    topStripH = TOP_STRIP_H;
     const cw = CANVAS_W;
     const gameH = CANVAS_H;
-    const ch = gameH + STATUS_BAR_H;
+    const ch = TOP_STRIP_H + gameH + STATUS_BAR_H;
     if (canvas.width !== cw || canvas.height !== ch) {
       canvas.width = cw;
       canvas.height = ch;
@@ -803,8 +820,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawOptionsScreen(overlayCtx, W, H, overlay, now);
     drawControlsScreen(overlayCtx, W, H, overlay, now);
 
-    // Scale up to display canvas (with optional zoom viewport)
+    // Scale up to display canvas (with optional zoom viewport). Every
+    // display-space draw below operates under an optional top-strip
+    // translate so map-coord drawing stays unchanged: (0, 0) in the
+    // translated frame is the top-left of the GAME AREA, never the
+    // canvas. The status-bar draw below the restore uses raw canvas
+    // coords because its anchor is the bottom of the canvas.
     canvasCtx.imageSmoothingEnabled = false;
+    canvasCtx.save();
+    if (TOP_STRIP_H > 0) canvasCtx.translate(0, TOP_STRIP_H);
     const offscreenCanvas = getScene().canvas;
     if (viewport) {
       canvasCtx.drawImage(
@@ -836,8 +860,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawComboFloats(canvasCtx, W, H, overlay);
     drawAnnouncement(canvasCtx, W, H, overlay);
     canvasCtx.restore();
+    canvasCtx.restore(); // unwind the TOP_STRIP_H translate
 
-    // Status bar drawn at display resolution below the game scene
+    // Status bar drawn at display resolution below the game scene.
+    // Anchored to the bottom of the FULL canvas (ch), so no translate
+    // needed — the top strip and status bar are independent regions.
     if (STATUS_BAR_H > 0) {
       drawStatusBar(canvasCtx, cw, ch, overlay);
     }
@@ -923,18 +950,21 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getScene().canvas;
   }
 
-  /** Grab the current DISPLAY-canvas pixels (CANVAS_W × CANVAS_H, the game
-   *  region — status bar excluded). Called once before a phase transition
-   *  mutates state — the returned ImageData becomes the banner's "old scene"
-   *  below the sweep line, and is painted back onto the display at 1:1 so a
-   *  tilted / viewport-cropped capture replays exactly what was on screen.
+  /** Grab the current DISPLAY-canvas pixels for the GAME AREA only
+   *  (CANVAS_W × CANVAS_H — top strip + status bar excluded). Called
+   *  once before a phase transition mutates state — the returned
+   *  ImageData becomes the banner's "old scene" below the sweep line,
+   *  and is painted back onto the display at 1:1 so a tilted /
+   *  viewport-cropped capture replays exactly what was on screen.
    *  Returns undefined if `drawFrame` hasn't run yet (no cached display
    *  canvas) or the canvas is smaller than the expected game region. */
   function captureScene(): ImageData | undefined {
     if (!mainCtxCache) return undefined;
     const { canvas, canvasCtx } = mainCtxCache;
-    if (canvas.width < CANVAS_W || canvas.height < CANVAS_H) return undefined;
-    return canvasCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+    if (canvas.height < topStripH + CANVAS_H || canvas.width < CANVAS_W) {
+      return undefined;
+    }
+    return canvasCtx.getImageData(0, topStripH, CANVAS_W, CANVAS_H);
   }
 
   function getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData {
