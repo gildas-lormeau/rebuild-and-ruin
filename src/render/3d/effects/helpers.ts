@@ -11,18 +11,6 @@ import * as THREE from "three";
 const TILE_SEED_ROW_MULT = 41;
 const TILE_SEED_COL_MULT = 17;
 
-/** Sinusoidal pulse — `sin(now / freqMs) * amp + base`. Animation
- *  primitive for alpha pulses (bonus squares, impact rings), color
- *  oscillations, and wave-offset phases. */
-export function pulse(
-  now: number,
-  freqMs: number,
-  amp: number,
-  base: number,
-): number {
-  return Math.sin(now / freqMs) * amp + base;
-}
-
 /** Stable per-tile seed used by effects that want deterministic
  *  randomness across (row, col) — e.g. per-tile phase offsets, per-tile
  *  sprite picks. Combines row and col via two co-prime multipliers. */
