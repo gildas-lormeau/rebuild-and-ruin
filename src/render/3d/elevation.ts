@@ -51,6 +51,12 @@ const GRUNT_TOP_Y = deriveTopY(gruntBoundsYOf("grunt_n"), TILE_SIZE / 2, 10);
  *  bonus / frozen tiles (which sit at Y=0.01). 2 world units = 2
  *  game-1× pixels. */
 const CROSSHAIR_MARGIN_Y = 2;
+/** Minimum Y the crosshair is allowed to sit at, in world units. Set
+ *  to half a tile so the crosshair never clips into a flat tile when
+ *  the camera tilts — it still floats visibly above the ground when
+ *  pointing at empty grass, water, or pits. Taller targets push
+ *  through this floor naturally. */
+const CROSSHAIR_MIN_Y = TILE_SIZE / 2;
 /** Y-layer stack for ground-plane meshes, from bottom up. The order
  *  fixes composition (raw grass/water in the bitmap → terrain mesh
  *  adds interior/frozen/owned-sinkhole tints → sinkhole bank recolour
@@ -91,14 +97,18 @@ export const Z_FIGHT_MARGIN = 0.1;
  *  Unlike `elevationAt`, this considers entity geometry (not just
  *  walls) and falls back to the flat ground plane when nothing is
  *  there. Dead towers resolve to ground (their debris piles are
- *  flat-ish). */
+ *  flat-ish). Capped at `CROSSHAIR_MIN_Y` so the crosshair stays
+ *  readable above empty ground under tilt. */
 export function aimElevationAt(
   x: number,
   y: number,
   overlay: RenderOverlay | undefined,
   map: GameMap | undefined,
 ): number {
-  return targetTopAt(x, y, overlay, map) + CROSSHAIR_MARGIN_Y;
+  return Math.max(
+    CROSSHAIR_MIN_Y,
+    targetTopAt(x, y, overlay, map) + CROSSHAIR_MARGIN_Y,
+  );
 }
 
 /** Top-Y of any targetable entity (wall, tower, cannon, house, grunt)
