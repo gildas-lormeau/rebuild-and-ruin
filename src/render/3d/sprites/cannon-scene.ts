@@ -1318,6 +1318,13 @@ export function buildCannon(
   );
   barrelGroup.position.set(0, params.barrel.yPos, params.barrel.zOffset);
   scene.add(barrelGroup);
+  // Tag every mesh in the barrel sub-tree (barrel + bore + bands) so the
+  // cannons entity manager can layer a per-instance recoil rotation around
+  // the breech pivot on top of the authored elevation. Descendants inherit
+  // identical tagging because they all rotate together with the barrel.
+  barrelGroup.traverse((obj) => {
+    if (obj instanceof three.Mesh) obj.userData.tags = ["barrel"];
+  });
 
   // Support(s) underneath the barrel.
   const supportMat = mat(params.supports.material);

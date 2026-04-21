@@ -137,18 +137,33 @@ export function buildVariantBucket(opts: {
  *  entry, writing `hostMatrix * subPart.localMatrix` into every
  *  sub-part, then committing `count = entries.length`. `hostMatrix` and
  *  `scratch` are reusable Matrix4s owned by the caller so the hot loop
- *  allocates nothing. */
+ *  allocates nothing.
+ *
+ *  `adjustLocal`, when provided, is called for every (entry, sub-part)
+ *  pair. Returning a `Matrix4` replaces `subPart.localMatrix` for that
+ *  pair — the caller owns the returned matrix (typically a scratch
+ *  pre-mul) and may mutate it across calls. Returning `undefined` (or
+ *  omitting the hook entirely) keeps the authored local matrix. Used
+ *  by managers that need per-instance sub-part transforms — the cannon
+ *  barrel pitch animation rotates barrel-tagged sub-parts around the
+ *  breech pivot while leaving the base, cheeks, and decorations static. */
 export function fillBucket<Entry>(
   bucket: { readonly subParts: readonly BucketSubPart[] },
   entries: readonly Entry[],
   hostMatrix: THREE.Matrix4,
   scratch: THREE.Matrix4,
   composeHost: (entry: Entry, hostMatrix: THREE.Matrix4) => void,
+  adjustLocal?: (
+    entry: Entry,
+    subPart: BucketSubPart,
+  ) => THREE.Matrix4 | undefined,
 ): void {
   for (let i = 0; i < entries.length; i++) {
-    composeHost(entries[i]!, hostMatrix);
+    const entry = entries[i]!;
+    composeHost(entry, hostMatrix);
     for (const part of bucket.subParts) {
-      scratch.multiplyMatrices(hostMatrix, part.localMatrix);
+      const local = adjustLocal?.(entry, part) ?? part.localMatrix;
+      scratch.multiplyMatrices(hostMatrix, local);
       part.instanced.setMatrixAt(i, scratch);
     }
   }

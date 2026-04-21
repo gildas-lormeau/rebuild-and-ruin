@@ -67,12 +67,17 @@ import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
+  cannonSize,
   isBalloonCannon,
   isCannonAlive,
 } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
-import { buildCannon, getCannonVariant } from "../sprites/cannon-scene.ts";
+import {
+  barrelWorldPoints,
+  buildCannon,
+  getCannonVariant,
+} from "../sprites/cannon-scene.ts";
 import { buildRampart, getRampartVariant } from "../sprites/rampart-scene.ts";
 import {
   cannonKind,
@@ -103,6 +108,13 @@ interface VariantBucket {
    *  constant for the bucket's lifetime; capacity grows by replacement. */
   subParts: BucketSubPart[];
   capacity: number;
+  /** Trunnion pivot in cannon-authored local space — the same point the
+   *  scene builder uses as `barrelGroup.position` when applying the
+   *  authored elevation. Set only for variants whose barrel recoils
+   *  (every cannon except rampart). `undefined` signals "no barrel" to
+   *  the per-instance adjustLocal hook, which skips the transform
+   *  computation entirely. */
+  readonly barrelPivot: THREE.Vector3 | undefined;
 }
 
 type VariantName =
@@ -123,6 +135,11 @@ interface Cannon {
   readonly shielded?: boolean;
 }
 
+interface BarrelState {
+  currentPitch: number;
+  targetPitch: number;
+}
+
 /** Cannon scenes are authored in a ±1 frustum covering a 2-tile span, so
  *  scaling by TILE_SIZE makes 1 authored unit = 1 game tile. Super-gun
  *  uses the same scale — its canvasPx is bigger but the frustum is still
@@ -136,6 +153,21 @@ const CANNON_SCALE = TILE_SIZE;
  *  today) — so 16 per bucket covers the common case with headroom.
  *  Grows power-of-two via `ensureBucket`. */
 const INITIAL_CAPACITY = 16;
+/** Recoil pitch (radians) that the barrel rotates up to while a shot is
+ *  in flight from that cannon. 22.5° reads as a visible kick without
+ *  scraping the authored elevation angle. Kept fixed across variants so
+ *  every cannon has the same firing "language" — the visual differentiation
+ *  comes from the authored elevations + muzzle positions, not the recoil. */
+const BARREL_RECOIL_PITCH = Math.PI / 8;
+/** Ease rate per second for the barrel snap-up (ball spawns). Faster than
+ *  the settle so the kick reads as a punch, the return reads as a drift. */
+const BARREL_EASE_UP_PER_SEC = 12;
+/** Ease rate per second for the return to rest (ball lands / despawns). */
+const BARREL_EASE_DOWN_PER_SEC = 4;
+/** Below this magnitude (radians) a resting barrel is considered "at 0"
+ *  and its state entry is pruned from the map. Prevents infinite
+ *  asymptotic easing from keeping the map populated forever. */
+const BARREL_REST_EPSILON = 1e-4;
 
 export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   const root = new THREE.Group();
@@ -148,6 +180,13 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   const buckets = new Map<VariantName, VariantBucket>();
   const ownedMaterials: THREE.Material[] = [];
   let lastSignature: string | undefined;
+  /** Per-cannon barrel pitch state, keyed by `${col}:${row}` (cannons
+   *  never overlap, so no playerId needed in the key). Entries are
+   *  created on the first frame a ball spawns from the cannon and
+   *  pruned when the pitch has decayed back to ~0. Map is live across
+   *  frames so the ease progresses continuously. */
+  const barrelStates = new Map<string, BarrelState>();
+  let lastBarrelFrameTime: number | undefined;
 
   // Scratch objects reused inside `update`.
   const hostMatrix = new THREE.Matrix4();
@@ -156,6 +195,12 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   const hostScale = new THREE.Vector3(CANNON_SCALE, CANNON_SCALE, CANNON_SCALE);
   const hostQuaternion = new THREE.Quaternion();
   const yAxis = new THREE.Vector3(0, 1, 0);
+  /** Scratch matrices for the per-instance barrel adjustment. Composed
+   *  as `T(pivot) · R_x(recoil) · T(-pivot) · localMatrix`, then the
+   *  outer `hostMatrix · adjusted` multiply writes the instance slot. */
+  const barrelAdjust = new THREE.Matrix4();
+  const barrelRotation = new THREE.Matrix4();
+  const negPivot = new THREE.Vector3();
 
   function ensureBucket(
     variant: VariantName,
@@ -174,9 +219,22 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   }
 
   function update(ctx: FrameCtx): void {
-    const { overlay } = ctx;
+    const { overlay, now } = ctx;
+    // Ease barrel states first so `hasAnimatingBarrels` below reflects
+    // the updated state. `ctx.now` is the frame's wall-clock timestamp —
+    // we derive a real dt from it so the ease rate is independent of
+    // the sim tick cadence (the ease is pure presentation, not gameplay).
+    const easeDt =
+      lastBarrelFrameTime === undefined
+        ? 0
+        : Math.max(0, Math.min(0.1, (now - lastBarrelFrameTime) / 1000));
+    lastBarrelFrameTime = now;
+    applyFiringTargets(overlay);
+    easeBarrelStates(easeDt);
+
     const signature = computeSignature(overlay);
-    if (signature === lastSignature) return;
+    const hasAnimatingBarrels = barrelStates.size > 0;
+    if (signature === lastSignature && !hasAnimatingBarrels) return;
     lastSignature = signature;
 
     if (!overlay?.castles || signature === "") {
@@ -217,19 +275,50 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
       const isSuper = variant === "super_gun";
       const isRampart = variant === "rampart_cannon";
       const offset = isSuper ? TILE_3X3_CENTER_OFFSET : TILE_2X2_CENTER_OFFSET;
-      fillBucket(bucket, list, hostMatrix, instanceMatrix, (cannon, matrix) => {
-        hostTranslation.set(
-          cannon.col * TILE_SIZE + offset,
-          0,
-          cannon.row * TILE_SIZE + offset,
-        );
-        // Rampart has no barrel and never rotates; every other variant
-        // rotates by `-facing` on Y (game's CW convention vs three.js's
-        // CCW-from-+Y).
-        const facing = isRampart ? 0 : (cannon.facing ?? 0);
-        hostQuaternion.setFromAxisAngle(yAxis, -facing);
-        matrix.compose(hostTranslation, hostQuaternion, hostScale);
-      });
+      const pivot = bucket.barrelPivot;
+      fillBucket(
+        bucket,
+        list,
+        hostMatrix,
+        instanceMatrix,
+        (cannon, matrix) => {
+          hostTranslation.set(
+            cannon.col * TILE_SIZE + offset,
+            0,
+            cannon.row * TILE_SIZE + offset,
+          );
+          // Rampart has no barrel and never rotates; every other variant
+          // rotates by `-facing` on Y (game's CW convention vs three.js's
+          // CCW-from-+Y).
+          const facing = isRampart ? 0 : (cannon.facing ?? 0);
+          hostQuaternion.setFromAxisAngle(yAxis, -facing);
+          matrix.compose(hostTranslation, hostQuaternion, hostScale);
+        },
+        // Per-instance local-matrix override: barrel sub-parts of a
+        // recoiling cannon get a pivoted R_x(recoil) pre-multiplied onto
+        // their authored local matrix. Static parts (base, cheeks,
+        // decorations) return undefined and keep their authored local.
+        pivot === undefined
+          ? undefined
+          : (cannon, part) => {
+              if (!subPartHasTag(part, "barrel")) return undefined;
+              const pitch = getBarrelPitch(cannon);
+              if (pitch === 0) return undefined;
+              // T(pivot) · R_x(pitch) · T(-pivot) · localMatrix
+              barrelAdjust.makeTranslation(pivot.x, pivot.y, pivot.z);
+              barrelRotation.makeRotationX(pitch);
+              barrelAdjust.multiply(barrelRotation);
+              negPivot.set(-pivot.x, -pivot.y, -pivot.z);
+              barrelRotation.makeTranslation(
+                negPivot.x,
+                negPivot.y,
+                negPivot.z,
+              );
+              barrelAdjust.multiply(barrelRotation);
+              barrelAdjust.multiply(part.localMatrix);
+              return barrelAdjust;
+            },
+      );
       // Ground discs (the swivel base + the authored shadow/AO halos)
       // stay hidden during battle so the cannon reads as planted on the
       // terrain itself. Authored-side tag drives the hide — no name
@@ -240,6 +329,63 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
         }
       }
     }
+  }
+
+  /** Set `targetPitch = BARREL_RECOIL_PITCH` for every cannon that
+   *  currently has a ball in flight; clear the target on all others.
+   *  Matching is positional — `ball.startX/startY` equals the cannon
+   *  center by construction (see `cannonCenter` in spatial.ts), so we
+   *  key on the cannon's (col, row) derived from the ball start. */
+  function applyFiringTargets(overlay: RenderOverlay | undefined): void {
+    // Default every existing state back to 0; balls in flight below
+    // will override this to the recoil angle.
+    for (const state of barrelStates.values()) state.targetPitch = 0;
+    const balls = overlay?.battle?.cannonballs;
+    if (!balls || balls.length === 0) return;
+    for (const ball of balls) {
+      if (ball.progress >= 1) continue;
+      // `startX = (col + size/2) * TILE_SIZE`. We don't know `size`
+      // here without searching the castles, but the key just needs to
+      // be stable per-cannon across frames. Using the raw startX /
+      // startY pair as the key — two cannons cannot share a center
+      // (footprints don't overlap) so the identity holds.
+      const key = cannonKeyFromCenter(ball.startX, ball.startY);
+      let state = barrelStates.get(key);
+      if (!state) {
+        state = { currentPitch: 0, targetPitch: 0 };
+        barrelStates.set(key, state);
+      }
+      state.targetPitch = BARREL_RECOIL_PITCH;
+    }
+  }
+
+  /** Linear ease toward target with direction-dependent rate; drop
+   *  entries that have settled at ~0. */
+  function easeBarrelStates(dt: number): void {
+    if (dt === 0) {
+      // Still prune settled entries so the map doesn't grow unbounded
+      // on the very first frame after initialization.
+      for (const [key, state] of barrelStates) {
+        if (isSettledAtZero(state)) barrelStates.delete(key);
+      }
+      return;
+    }
+    for (const [key, state] of barrelStates) {
+      const rising = state.targetPitch > state.currentPitch;
+      const rate = rising ? BARREL_EASE_UP_PER_SEC : BARREL_EASE_DOWN_PER_SEC;
+      const step = Math.min(1, rate * dt);
+      state.currentPitch += (state.targetPitch - state.currentPitch) * step;
+      if (isSettledAtZero(state)) barrelStates.delete(key);
+    }
+  }
+
+  function getBarrelPitch(cannon: Cannon): number {
+    const half = cannonSize(cannon.mode) / 2;
+    const centerX = (cannon.col + half) * TILE_SIZE;
+    const centerY = (cannon.row + half) * TILE_SIZE;
+    return (
+      barrelStates.get(cannonKeyFromCenter(centerX, centerY))?.currentPitch ?? 0
+    );
   }
 
   function dispose(): void {
@@ -300,6 +446,7 @@ function buildBucket(
   ownedMaterials: THREE.Material[],
 ): VariantBucket | undefined {
   let scratchBuilder: ((scratch: THREE.Group) => void) | undefined;
+  let barrelPivot: THREE.Vector3 | undefined;
   if (variant === "rampart_cannon") {
     const entry = getRampartVariant(variant);
     if (!entry) return undefined;
@@ -308,6 +455,12 @@ function buildBucket(
     const entry = getCannonVariant(variant);
     if (!entry) return undefined;
     scratchBuilder = (scratch) => buildCannon(THREE, scratch, entry.params);
+    // Trunnion pivot in cannon-local (authored) space. Matches the
+    // `barrelGroup.position` buildCannon uses when applying the authored
+    // elevation — recoil rotation pivots around this same point at
+    // render time so the recoil composes on top of the authored tilt.
+    const pivot = barrelWorldPoints(entry.params.barrel).center;
+    barrelPivot = new THREE.Vector3(pivot[0], pivot[1], pivot[2]);
   }
   const subParts = buildVariantBucket({
     capacity,
@@ -319,5 +472,23 @@ function buildBucket(
   // Shield-aura render-behind hint now comes from the authored
   // `render-behind` tag (see rampart-scene.ts); `buildVariantBucket`
   // applies it generically.
-  return { variant, subParts, capacity };
+  return { variant, subParts, capacity, barrelPivot };
+}
+
+/** Stable per-cannon key derived from its world-pixel center. Cannons
+ *  never share a footprint, so distinct cannons produce distinct keys.
+ *  Rounded to integer pixels so float precision doesn't drift the key
+ *  across frames when `ball.startX/Y` vs a freshly recomputed cannon
+ *  center may differ in the last bit. */
+function cannonKeyFromCenter(centerX: number, centerY: number): string {
+  return `${Math.round(centerX)}:${Math.round(centerY)}`;
+}
+
+/** True when the barrel state has eased back to rest and its target is 0
+ *  — the entry can be removed from the map. */
+function isSettledAtZero(state: BarrelState): boolean {
+  return (
+    state.targetPitch === 0 &&
+    Math.abs(state.currentPitch) < BARREL_REST_EPSILON
+  );
 }
