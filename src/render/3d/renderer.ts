@@ -200,7 +200,7 @@ export function createRender3d(
       // age). The matching 2D layer flags were flipped off above so
       // the 2D renderer leaves those pixels transparent.
       ctx.impacts.update(overlay);
-      ctx.crosshairs.update(overlay, now);
+      ctx.crosshairs.update(overlay, map, now);
       ctx.fog.update(overlay, now);
       ctx.thawing.update(overlay);
       // Terrain bitmap overlay — uploads the 2D `getTerrainBitmap`

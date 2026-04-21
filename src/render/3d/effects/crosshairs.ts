@@ -20,13 +20,18 @@
  */
 
 import * as THREE from "three";
+import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
-import { elevationAt } from "../elevation.ts";
+import { aimElevationAt } from "../elevation.ts";
 
 export interface CrosshairsManager {
   /** Per-frame update. Materials + positions/scales always rewrite;
    *  mesh pool only rebuilds when crosshair count changes. */
-  update(overlay: RenderOverlay | undefined, now: number): void;
+  update(
+    overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
+    now: number,
+  ): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -181,7 +186,11 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
     arm.shadowMesh.visible = arm.mesh.visible;
   }
 
-  function update(overlay: RenderOverlay | undefined, now: number): void {
+  function update(
+    overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
+    now: number,
+  ): void {
     const crosshairs = overlay?.battle?.crosshairs ?? [];
     const colors = crosshairs.map(
       (ch) => CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!,
@@ -198,10 +207,10 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       const geom = crosshairGeometry(ch.cannonReady === true, time);
       const { alpha, arm, diag, gap } = geom;
       // Lift the crosshair onto the top of whatever geometry sits at
-      // the aim point. Players target wall tops — without this the
-      // crosshair draws on the ground plane and visually passes
-      // through the wall.
-      const baseY = elevationAt(centerX, centerZ, overlay?.castles);
+      // the aim point (wall / tower / cannon / house / grunt) —
+      // otherwise the glow draws on the ground plane and visually
+      // passes through the target.
+      const baseY = aimElevationAt(centerX, centerZ, overlay, map);
 
       // Diagonals (colored): NW, NE, SW, SE.
       positionArm(
