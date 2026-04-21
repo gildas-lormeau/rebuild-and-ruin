@@ -187,6 +187,15 @@ Acceptance: phantoms look sharp at all zooms; walls have subtle depth under tilt
 
 Complexity: large. ~6h. Defer unless other polish is done.
 
+C4 — Banner prev-scene overlay fade-in / fade-out
+Files: render-canvas.ts banner draw path (`drawBanner` or equivalent), or wherever the prev-scene snapshot is composited onto the display canvas during the sweep animation.
+
+Shape: the banner transition currently pops the semi-transparent prev-scene overlay on in a single frame — the first sweep frame is already at full intended alpha. Ramp alpha from 0 → target over the first ~80ms of the sweep, and back to 0 over the last ~80ms. Target alpha stays the same in the middle. Just a multiplier on `ctx.globalAlpha` (or the prev-scene layer's source alpha) keyed off banner progress.
+
+Acceptance: starting a banner no longer feels like a flash; the prev-scene layer ghosts in, stays for the sweep, and ghosts out. Verify visually — no pop.
+
+Complexity: small. ~1h.
+
 Phase D
 D1 — Perf baseline + bench gate
 Files: scripts/bench-render.ts (new), package.json, test/bench-scenarios.ts (fixtures).
