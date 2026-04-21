@@ -45,6 +45,12 @@ interface RenderSystemDeps {
     viewport: Viewport | null | undefined,
     now: number,
   ) => void;
+  /** Post-drawFrame hook — invoked once per tick after the scene has
+   *  been blitted to the display canvas. Used by the camera to fire
+   *  any pending `requestUnzoom` callback on the frame where the
+   *  viewport converged to fullMapVp, guaranteeing that a subsequent
+   *  `captureScene` inside that callback sees the full-map pixels. */
+  readonly onRenderedFrame: () => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
   readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerSlot>;
@@ -169,6 +175,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       deps.updateViewport(),
       deps.timing.now(),
     );
+    deps.onRenderedFrame();
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
     const touch = deps.getTouch();

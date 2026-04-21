@@ -235,6 +235,10 @@ export interface PhaseTransitionCtx {
    *  `showBanner({ prevScene })`. Returns `undefined` in headless tests
    *  (no canvas) — `showBanner` accepts that as "no fade, just sweep". */
   readonly captureScene: () => SceneCapture | undefined;
+  /** Pre-transition unzoom with post-convergence callback. Called once
+   *  at the top of `runTransition` so every mutate + display step runs
+   *  against a full-map viewport. See `CameraSystem.requestUnzoom`. */
+  readonly requestUnzoom: (onReady: () => void) => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -812,15 +816,53 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
       `runTransition: transition "${id}" has no ${ctx.role} mutate (host-only transition dispatched from watcher ctx)`,
     );
   }
+
+  // Lock interaction the instant we start a transition. Setting
+  // Mode.BANNER before mutate runs:
+  //   - Blocks the per-mode tick dispatcher: `ticks[mode]` becomes
+  //     `tickBanner` (a no-op while `banner.active` is false) instead
+  //     of the gameplay tick that just dispatched us. That stops the
+  //     immediate caller (tickCannonPhase → startBattle → runTransition)
+  //     from re-firing the same transition on the next sub-step, which
+  //     would otherwise double-run `finalizeCannonPhase` and corrupt
+  //     controller state.
+  //   - Gates player input (isInteractiveMode returns false for BANNER),
+  //     so the user can't interact in the NEW phase during the unzoom
+  //     lerp before the banner actually appears — without this the
+  //     Place-Cannons banner showed AFTER the player had started
+  //     placing cannons.
+  // If mutate eventually sets a different mode (e.g. endGame → STOPPED)
+  // that sticks; this just ensures the interval between dispatch and
+  // first display step is locked down.
+  ctx.setMode(Mode.BANNER);
+
+  // Mutate + postMutate SYNCHRONOUS: the phase change lands immediately,
+  // so subsequent phase guards on the SAME transition id reject
+  // re-dispatches (belt-and-braces alongside the mode gate above).
   const result = mutateFn(ctx);
   transition.postMutate?.(ctx, result);
 
-  runDisplay(transition.display, ctx, result, () => {
-    const postDisplay =
-      ctx.role === ROLE_HOST
-        ? transition.postDisplay?.host
-        : transition.postDisplay?.watcher;
-    postDisplay?.(ctx, result);
+  // Display chain (score overlay, life-lost dialog, upgrade-pick,
+  // banners) waits until the camera has reached fullMapVp. Every step
+  // assumes the full-map framing, and the banner's prev-scene capture
+  // needs a full-map frame on the canvas to avoid the mismatch-at-
+  // sweep-line glitch under auto-zoom / pinch zoom. `requestUnzoom`
+  // clears cameraZone + pinchVp (persisting the pinch into the phase
+  // slot) and fires the callback the first post-render frame where
+  // currentVp has converged to fullMapVp. `handlePhaseChangeZoom`
+  // re-derives cameraZone on the NEW phase once postDisplay completes,
+  // so no explicit restore is needed — and the modifier / upgrade-pick
+  // chains stay unzoomed throughout (no intermediate re-zoom between
+  // chained display steps, since the camera remains at fullMapVp
+  // until postDisplay).
+  ctx.requestUnzoom(() => {
+    runDisplay(transition.display, ctx, result, () => {
+      const postDisplay =
+        ctx.role === ROLE_HOST
+          ? transition.postDisplay?.host
+          : transition.postDisplay?.watcher;
+      postDisplay?.(ctx, result);
+    });
   });
 }
 

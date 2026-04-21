@@ -393,6 +393,16 @@ export interface CameraSystem {
   // Lifecycle commands
   /** Phase unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
   clearPhaseZoom: () => void;
+  /** Pre-transition unzoom with a post-convergence callback. Saves the
+   *  current pinch into the phase slot, clears zoom targets so
+   *  currentVp lerps to fullMapVp, and fires `onReady` on the first
+   *  frame whose drawFrame ran at fullMapVp. `captureScene()` called
+   *  inside the callback therefore reads full-map pixels. */
+  requestUnzoom: (onReady: () => void) => void;
+  /** Post-render hook — called by the render loop after drawFrame.
+   *  Fires any pending `requestUnzoom` callback when the viewport has
+   *  converged to fullMapVp. */
+  onRenderedFrame: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
   clearAllZoomState: () => void;
   /** Full reset for rematch. */
@@ -568,6 +578,11 @@ export interface GameRuntime {
    *  tick stamp used by the render path to fence out stale snapshots.
    *  Returns `undefined` before the first frame / in headless mode. */
   captureScene: () => SceneCapture | undefined;
+  /** Pre-transition unzoom with post-convergence callback. See
+   *  `CameraSystem.requestUnzoom`. Exposed so the watcher's
+   *  PhaseTransitionCtx (built outside this module) can gate its own
+   *  runTransition on fullMapVp convergence. */
+  requestUnzoom: (onReady: () => void) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

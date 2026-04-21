@@ -112,6 +112,10 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  machine's `runBannerStep` calls this right before `showBanner`
    *  and passes the result in via `prevScene`. */
   captureScene: () => SceneCapture | undefined;
+  /** Pre-transition unzoom — threaded through to `PhaseTransitionCtx`
+   *  so `runTransition` can gate every mutate + display step on the
+   *  camera reaching fullMapVp. See `CameraSystem.requestUnzoom`. */
+  requestUnzoom: (onReady: () => void) => void;
   /** Show a full-screen banner. `onDone` fires once when the sweep
    *  completes. Chain banners by nesting `showBanner` calls inside
    *  `onDone` — each chained call should capture its own prev-scene
@@ -337,6 +341,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       role: ROLE_HOST,
       showBanner: deps.showBanner,
       captureScene: deps.captureScene,
+      requestUnzoom: deps.requestUnzoom,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

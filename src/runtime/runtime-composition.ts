@@ -465,7 +465,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const scoreDelta = createScoreDeltaSystem({
     runtimeState,
-    clearPhaseZoom: camera.clearPhaseZoom,
   });
 
   // -------------------------------------------------------------------------
@@ -489,7 +488,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     capture: captureSceneForBanner,
   } = createBannerSystem({
     runtimeState,
-    clearPhaseZoom: camera.clearPhaseZoom,
     log: config.log,
     render: () => render(),
     nextBannerTick,
@@ -551,6 +549,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createStatusBar,
     drawFrame: (map, overlay, viewport, now) =>
       renderer.drawFrame(map, overlay, viewport, now, camera.getPitch()),
+    onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
@@ -679,6 +678,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     online: config.onlinePhaseTicks,
     render,
     captureScene,
+    requestUnzoom: camera.requestUnzoom,
     showBanner,
     lifeLost,
     scoreDelta,
@@ -906,6 +906,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     showBanner,
     captureScene,
+    requestUnzoom: camera.requestUnzoom,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),

@@ -33,7 +33,6 @@ import {
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
-  readonly clearPhaseZoom: () => void;
   readonly log: (msg: string) => void;
   readonly render: () => void;
   /** Allocate the next monotonic tick from the shared banner clock. The
@@ -60,7 +59,7 @@ interface BannerSystem {
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
-  const { runtimeState, clearPhaseZoom, log, render, nextBannerTick } = deps;
+  const { runtimeState, log, render, nextBannerTick } = deps;
   // True between showBanner() and the first tick. Defers `bannerStart` so
   // consecutive showBanner calls in the same tick collapse into a single
   // event for the final content.
@@ -68,8 +67,11 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
-    // Unzoom before banner so the full map is visible during transition
-    clearPhaseZoom();
+    // No unzoom here — `runTransition` gates every mutate + display
+    // step on camera convergence to fullMapVp via `camera.requestUnzoom`,
+    // so by the time any `showBanner` call reaches us, the viewport is
+    // already at fullMapVp and the preceding drawFrame captured a
+    // full-map pre-mutation frame (the snapshot in `opts.prevScene`).
     // Re-entry isn't a bug on its own: watchers replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep
     // (retransmits, host-migration recovery). Log so we notice unexpected

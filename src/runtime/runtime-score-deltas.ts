@@ -23,7 +23,6 @@ import type { RuntimeState } from "./runtime-state.ts";
 
 interface ScoreDeltaDeps {
   readonly runtimeState: RuntimeState;
-  readonly clearPhaseZoom: () => void;
 }
 
 interface ScoreDeltaSystem {
@@ -75,7 +74,9 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     });
 
     if (scoreDisplay.deltas.length > 0) {
-      deps.clearPhaseZoom();
+      // No clearPhaseZoom here — the score overlay is always reached
+      // via `runTransition`, which has already gated its display chain
+      // on camera convergence to fullMapVp (see runtime-phase-machine).
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
       scoreDisplay.deltaOnDone = onDone;
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {

@@ -146,6 +146,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | undefined;
 
+  // Pre-transition unzoom choreography. The phase machine calls
+  // `requestUnzoom` at transition dispatch; it clears cameraZone and
+  // pinchVp (saving pinchVp into the phase-keyed `phasePinch` slot
+  // first, so autoZoom on the NEW phase can restore it) and parks
+  // `onReady` for the first frame whose drawFrame finished with the
+  // viewport at fullMapVp. That's the critical ordering: callback
+  // fires AFTER the full-map frame is rendered, so any `captureScene`
+  // inside the callback reads those full-map pixels rather than a
+  // mid-lerp frame. On the target phase, `handlePhaseChangeZoom`
+  // re-derives cameraZone via `autoZoom` — no explicit restore step.
+  let pendingUnzoomReady: (() => void) | undefined;
+
   // Pitch animation — targetPitch is re-set on phase-enter (see
   // handlePhaseChangeZoom); currentPitch eases toward target each tick
   // in tickCamera. Gated on rendererKind=3d — 2D mode has no place to
@@ -670,6 +682,40 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     cachedZoneBounds.clear();
   }
 
+  /** Initiate a pre-transition unzoom. Persists the current pinch zoom
+   *  into the phase-keyed slot (so autoZoom on the NEW phase can
+   *  restore it), clears cameraZone + pinchVp so updateViewport lerps
+   *  currentVp toward fullMapVp, and parks `onReady` to fire the first
+   *  frame whose drawFrame ran at fullMapVp. Callers (the phase
+   *  machine's `runTransition`) wait for that callback before running
+   *  mutate + display, which guarantees the banner's prev-scene
+   *  capture reads a full-map-rendered pre-mutation frame.
+   *
+   *  Idempotent replace: a second `requestUnzoom` before the first
+   *  fires simply swaps the callback. The first call already cleared
+   *  pinchVp, so the pinch-persistence side-effect is already done. */
+  function requestUnzoom(onReady: () => void): void {
+    const state = deps.getState();
+    if (state) savePinchForCurrentPhase(state.phase === Phase.BATTLE);
+    cameraZone = undefined;
+    pinchVp = undefined;
+    pendingUnzoomReady = onReady;
+  }
+
+  /** Post-render hook. Called by the render loop AFTER drawFrame so the
+   *  parked `onReady` fires on the frame whose pixels reflect the
+   *  full-map view — any `captureScene` inside the callback reads those
+   *  pixels, not a mid-lerp one. Checks `lastVp === undefined` because
+   *  updateViewport sets that exactly when currentVp has converged
+   *  to fullMapVp. */
+  function onRenderedFrame(): void {
+    if (pendingUnzoomReady !== undefined && lastVp === undefined) {
+      const ready = pendingUnzoomReady;
+      pendingUnzoomReady = undefined;
+      ready();
+    }
+  }
+
   /** Clear all zoom state including per-phase pinch memory.
    *  Use for full resets (rematch, return to lobby). */
   function clearAllZoomState(): void {
@@ -819,6 +865,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getEnemyZones,
     computeZoneBounds,
     clearPhaseZoom,
+    requestUnzoom,
+    onRenderedFrame,
     getCameraZone: () => cameraZone,
     setCameraZone,
     clearAllZoomState,
