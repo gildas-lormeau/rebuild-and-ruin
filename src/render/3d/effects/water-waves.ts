@@ -22,11 +22,12 @@
  *     terrain quad (Y=0) but below walls / entities that have real height.
  */
 
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, TILE_SIZE } from "../../../shared/core/grid.ts";
+import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { isWater } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface WaterWavesManager {
   /** Per-frame update. No-op outside battle; otherwise redraws the fine
@@ -56,39 +57,12 @@ const WAVE_SHADOW_RGB = "20, 60, 120";
 const WAVE_Y_LIFT = 0.1;
 
 export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
-  const canvas = document.createElement("canvas");
-  canvas.width = MAP_PX_W;
-  canvas.height = MAP_PX_H;
-  const ctx = canvas.getContext("2d", { willReadFrequently: false })!;
-  ctx.imageSmoothingEnabled = false;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.generateMipmaps = false;
-  // Keep THREE's default flipY=true: after `rotateX(-π/2)` the plane's
-  // v=1 corner sits at world Z=0 (north edge), which with the flipped
-  // upload reads from canvas row 0 (top) — i.e. row r painted at y =
-  // r * TILE_SIZE on the canvas lands at world Z = r * TILE_SIZE. Any
-  // other combination produces a Z-axis mirror.
-
-  const geometry = new THREE.PlaneGeometry(MAP_PX_W, MAP_PX_H);
-  // Rotate to lie flat on the XZ plane facing +Y (same trick as fog.ts).
-  geometry.rotateX(-Math.PI / 2);
-  // After rotateX, the plane's local +Y maps to +Z world. The default
-  // UVs keep v increasing along that axis — which with `flipY = false`
-  // above lines up with our canvas's row-major layout.
-
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
+  const layer = createMapLayerCanvas(scene, {
+    yLift: WAVE_Y_LIFT,
     transparent: true,
-    depthWrite: false,
   });
-
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(MAP_PX_W / 2, WAVE_Y_LIFT, MAP_PX_H / 2);
+  const { canvas, ctx, texture, mesh } = layer;
   mesh.visible = false;
-  scene.add(mesh);
 
   let lastDrawWasEmpty = true;
 
@@ -135,10 +109,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
   }
 
   function dispose(): void {
-    scene.remove(mesh);
-    geometry.dispose();
-    material.dispose();
-    texture.dispose();
+    disposeMapLayerCanvas(scene, layer);
   }
 
   return { update, dispose };

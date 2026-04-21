@@ -34,6 +34,11 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import {
+  createTerrainBitmapManager,
+  type GetTerrainBitmap,
+  type TerrainBitmapManager,
+} from "./effects/terrain-bitmap.ts";
+import {
   createThawingManager,
   type ThawingManager,
 } from "./effects/thawing.ts";
@@ -138,11 +143,18 @@ export interface Render3dContext {
    *  pattern onto a shared canvas each frame and composites it over the
    *  terrain. Only active during battle. */
   readonly waterWaves: WaterWavesManager;
+  /** Terrain bitmap overlay — uploads the 2D renderer's baked terrain
+   *  ImageData (grass + water + SDF bank) as a CanvasTexture so water /
+   *  grass / shoreline visuals stay pixel-identical across backends.
+   *  Sits at ground plane Y=0; the terrain mesh at Y=0.01 composites
+   *  overlay tiles (interiors, bonus, frozen, owned sinkholes) on top. */
+  readonly terrainBitmap: TerrainBitmapManager;
 }
 
 /** Build the scene graph used by `createRender3d`. */
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
+  getTerrainBitmap: GetTerrainBitmap,
 ): Render3dContext {
   const scene = new THREE.Scene();
 
@@ -170,6 +182,7 @@ export function createRender3dScene(
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
   const waterWaves = createWaterWavesManager(scene);
+  const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -206,5 +219,6 @@ export function createRender3dScene(
     fog,
     thawing,
     waterWaves,
+    terrainBitmap,
   };
 }

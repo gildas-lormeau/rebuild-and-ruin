@@ -8,6 +8,7 @@
  * `observer` to capture terrain-draw intents. Production callers omit it.
  */
 
+import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { clientToCanvas, computeLetterboxLayout } from "./render-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
@@ -21,6 +22,10 @@ import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 interface CanvasRenderer extends RendererInterface {
   /** Internal offscreen scene canvas — the 2D-drawn pre-blit buffer. */
   sceneCanvas(): HTMLCanvasElement;
+  /** Baked terrain bitmap (grass + water + bank) for `map`. The 3D
+   *  renderer uploads this as a CanvasTexture so water/grass visuals
+   *  stay pixel-identical across backends. */
+  getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData;
 }
 
 export function createCanvasRenderer(
@@ -66,5 +71,6 @@ export function createCanvasRenderer(
     container,
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
     sceneCanvas: renderMap.sceneCanvas,
+    getTerrainBitmap: renderMap.getTerrainBitmap,
   };
 }

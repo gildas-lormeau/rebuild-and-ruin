@@ -38,7 +38,10 @@ export function createRender3d(
   worldCanvas.width = MAP_PX_W;
   worldCanvas.height = MAP_PX_H;
 
-  const ctx: Render3dContext = createRender3dScene(worldCanvas);
+  const ctx: Render3dContext = createRender3dScene(
+    worldCanvas,
+    canvas2d.getTerrainBitmap,
+  );
 
   // Cached viewport from the last `drawFrame`. Used by the loupe composite
   // to draw the WebGL world canvas at the correct world-space rect.
@@ -199,6 +202,10 @@ export function createRender3d(
       ctx.crosshairs.update(overlay, now);
       ctx.fog.update(overlay, now);
       ctx.thawing.update(overlay);
+      // Terrain bitmap overlay — uploads the 2D `getTerrainBitmap`
+      // ImageData (raw grass + water + SDF bank) as a CanvasTexture.
+      // Rebakes on mapVersion or in-battle flips only.
+      ctx.terrainBitmap.update(map, overlay);
       // Fine water-wave highlight pass — battle-only, renders above the
       // terrain mesh but below walls / entities / fog.
       ctx.waterWaves.update(map, overlay, now);

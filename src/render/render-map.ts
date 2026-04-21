@@ -149,6 +149,12 @@ interface RenderMap {
    *  Per-renderer-instance: each `createRenderMap` owns its own cache, so
    *  warming a map for one renderer doesn't affect another. */
   precomputeTerrainCache: (map: GameMap) => void;
+  /** Return the baked terrain bitmap (grass + water + bank + checkerboard
+   *  noise) for `map` in either peacetime or battle palette. Populates the
+   *  cache on first call via `precomputeTerrainCache`. The 3D renderer
+   *  uploads this as a CanvasTexture so water/grass/bank visuals stay
+   *  pixel-identical across 2D and 3D. */
+  getTerrainBitmap: (map: GameMap, inBattle: boolean) => ImageData;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current offscreen scene as ImageData (for banner prev-scene).
    *  Returns undefined if the scene canvas hasn't been initialized yet. */
@@ -848,9 +854,16 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return canvasCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
   }
 
+  function getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData {
+    precomputeTerrainCache(map);
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    return inBattle ? cache.battle! : cache.normal!;
+  }
+
   return {
     drawMap,
     precomputeTerrainCache,
+    getTerrainBitmap,
     sceneCanvas,
     captureScene,
     setLayersEnabled,

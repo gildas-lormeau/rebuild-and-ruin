@@ -1,11 +1,14 @@
 /**
- * 3D terrain mesh for the world renderer.
+ * 3D terrain overlay mesh for the world renderer.
  *
  * Phase 2 of the 3D renderer migration (see docs/3d-renderer-migration.md).
- * Renders the base map terrain — grass, water (animated), frozen water, bonus
- * squares, and burning-pit placeholders — as a single `BufferGeometry` of
- * `GRID_ROWS * GRID_COLS` quads with per-tile vertex colors. Castle walls,
- * interiors, and other entities stay on the 2D renderer until Phase 3.
+ * Renders only the per-tile OVERLAY visuals — castle interiors, bonus
+ * squares, frozen tiles, owned sinkhole tints — as a single
+ * `BufferGeometry` of `GRID_ROWS * GRID_COLS` RGBA-vertex-colored quads.
+ * Raw grass / water / bank pixels come from the 2D `getTerrainBitmap`
+ * texture uploaded by `effects/terrain-bitmap.ts` and sitting at Y=0;
+ * this mesh sits at Y=0.01 and outputs alpha=0 on raw grass/water tiles
+ * so the bitmap shows through, alpha=1 on overlay tiles so it covers.
  *
  * Design:
  *   - One quad per tile (4 verts), placed in the XZ plane at Y=0 (camera looks
@@ -67,17 +70,10 @@ export interface TerrainContext {
   dispose(): void;
 }
 
-// Per-tile base colors — keep in sync with `src/render/render-map.ts`.
-const GRASS_DARK: [number, number, number] = [45, 140, 45];
-const GRASS_LIGHT: [number, number, number] = [51, 153, 51];
-// Battle-phase grass — darkened 85% of GRASS_LIGHT so the map reads as
-// a cobbled street during battle. Mirrors GRASS_BATTLE in render-map.ts.
-const GRASS_BATTLE: [number, number, number] = [
-  Math.floor(51 * 0.85),
-  Math.floor(153 * 0.85),
-  Math.floor(51 * 0.85),
-];
-const WATER_COLOR: [number, number, number] = [40, 104, 176];
+// Per-tile base colors — raw grass/water/bank now come from the 2D
+// `getTerrainBitmap` texture uploaded in `effects/terrain-bitmap.ts`;
+// the mesh only owns overlay tile colors (interiors, bonus, frozen,
+// owned sinkhole tints) which must stay in sync with `render-map.ts`.
 const ICE_COLOR: [number, number, number] = [165, 210, 230];
 // Cobblestone base color for battle-mode interiors. Matches
 // COBBLESTONE_BASE + interiorLight * COBBLESTONE_TINT_FACTOR in
@@ -91,6 +87,10 @@ const BONUS_COLOR: [number, number, number] = [35, 140, 25];
 // Bonus square pulse — matches drawBonusSquares() alphaScale range (0.70–1.00)
 // but we multiply brightness instead of alpha since the mesh is opaque.
 const BONUS_FLASH_MS = 300;
+// Ground-plane Y lift: terrain bitmap sits at Y=0, terrain mesh at
+// Y=0.01 so its opaque pixels (castle interiors, bonus squares,
+// frozen tiles, owned sinkhole tints) composite over the bitmap.
+const TERRAIN_Y_LIFT = 0.01;
 
 export function createTerrain(): TerrainContext {
   const tileCount = GRID_ROWS * GRID_COLS;
@@ -99,10 +99,15 @@ export function createTerrain(): TerrainContext {
 
   const positions = new Float32Array(tileCount * vertsPerTile * 3);
   const indices = new Uint32Array(tileCount * trisPerTile * 3);
-  const colors = new Float32Array(tileCount * vertsPerTile * 3);
+  // RGBA vertex colors: raw grass/water pixels get alpha=0 so the
+  // terrain-bitmap plane below shows through; castle interiors, bonus
+  // squares, frozen tiles, and owned sinkhole tiles get alpha=1.
+  const colors = new Float32Array(tileCount * vertsPerTile * 4);
 
   // Build static position + index buffers — these never change at runtime.
-  // Tile (r, c) occupies world rect [c*T..(c+1)*T] × Z=[r*T..(r+1)*T] at Y=0.
+  // Tile (r, c) occupies world rect [c*T..(c+1)*T] × Z=[r*T..(r+1)*T] at
+  // Y=TERRAIN_Y_LIFT, just above the terrain bitmap plane at Y=0 so opaque
+  // interior pixels composite over raw grass/water from the bitmap.
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const tileIdx = r * GRID_COLS + c;
@@ -111,12 +116,12 @@ export function createTerrain(): TerrainContext {
       const x1 = x0 + TILE_SIZE;
       const z0 = r * TILE_SIZE;
       const z1 = z0 + TILE_SIZE;
-      // Four corners of the tile in world space (Y=0 ground plane).
+      // Four corners of the tile in world space.
       // Order: NW, NE, SE, SW (so CCW when viewed from +Y).
-      setVertex(positions, vertBase + 0, x0, 0, z0);
-      setVertex(positions, vertBase + 1, x1, 0, z0);
-      setVertex(positions, vertBase + 2, x1, 0, z1);
-      setVertex(positions, vertBase + 3, x0, 0, z1);
+      setVertex(positions, vertBase + 0, x0, TERRAIN_Y_LIFT, z0);
+      setVertex(positions, vertBase + 1, x1, TERRAIN_Y_LIFT, z0);
+      setVertex(positions, vertBase + 2, x1, TERRAIN_Y_LIFT, z1);
+      setVertex(positions, vertBase + 3, x0, TERRAIN_Y_LIFT, z1);
 
       const idxBase = tileIdx * trisPerTile * 3;
       // Wind CCW seen from above (camera +Y looking -Y; up = -Z), matches
@@ -132,7 +137,7 @@ export function createTerrain(): TerrainContext {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 4));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   // Single upward normal for every vertex — no lighting on tilt here, but the
   // hemisphere light still tints correctly.
@@ -143,10 +148,16 @@ export function createTerrain(): TerrainContext {
   const material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     side: THREE.FrontSide,
+    // Raw grass / water tiles output alpha=0 so the terrain-bitmap
+    // plane at Y=0 shows through. Castle interiors and other opaque
+    // tile kinds output alpha=1 and cover the bitmap.
+    transparent: true,
+    depthWrite: true,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
-  // Render underneath everything else in the scene (walls, entities on top).
+  // Render above the terrain bitmap (Y=0) so opaque interior / bonus
+  // / frozen pixels composite over raw grass/water from the bitmap.
   mesh.renderOrder = 0;
 
   let builtForVersion: number | undefined;
@@ -193,11 +204,16 @@ export function createTerrain(): TerrainContext {
         let red: number;
         let green: number;
         let blue: number;
+        // alpha=0: transparent, lets the underlying terrain-bitmap
+        // plane (raw grass / water / bank pixels) show through.
+        // alpha=1: opaque, covers the bitmap at this tile.
+        let alpha: number;
 
         if (bonusKeys?.has(key)) {
           red = BONUS_COLOR[0] * bonusPulse;
           green = BONUS_COLOR[1] * bonusPulse;
           blue = BONUS_COLOR[2] * bonusPulse;
+          alpha = 1;
         } else if (interiorOwner !== undefined && tile !== Tile.Water) {
           // Castle interior — checkered per-player tint out of battle,
           // cobblestone-tinted-gray in battle. Matches drawCastleInterior
@@ -206,9 +222,11 @@ export function createTerrain(): TerrainContext {
           red = baseColor[0];
           green = baseColor[1];
           blue = baseColor[2];
+          alpha = 1;
         } else if (tile === Tile.Water) {
           if (frozen?.has(key)) {
             [red, green, blue] = ICE_COLOR;
+            alpha = 1;
           } else {
             // Owned sinkhole tiles — tint with the owning player's
             // interior-grass color so enclosed lakes read as part of the
@@ -223,22 +241,23 @@ export function createTerrain(): TerrainContext {
               red = tint[0];
               green = tint[1];
               blue = tint[2];
+              alpha = 1;
             } else {
-              [red, green, blue] = WATER_COLOR;
+              // Raw water — let the terrain bitmap paint this tile
+              // (including the SDF bank band at any grass/water edge).
+              red = 0;
+              green = 0;
+              blue = 0;
+              alpha = 0;
             }
           }
         } else {
-          // Grass: in battle the palette swaps to the darkened
-          // GRASS_BATTLE (cobbled-street look); otherwise the peacetime
-          // checkerboard by (r+c) parity.
-          const base = inBattle
-            ? GRASS_BATTLE
-            : (r + c) % 2 === 0
-              ? GRASS_DARK
-              : GRASS_LIGHT;
-          red = base[0];
-          green = base[1];
-          blue = base[2];
+          // Raw grass — let the terrain bitmap paint this tile
+          // (including the checkerboard noise baked in 2D).
+          red = 0;
+          green = 0;
+          blue = 0;
+          alpha = 0;
         }
 
         const vertBase = tileIdx * 4;
@@ -252,6 +271,7 @@ export function createTerrain(): TerrainContext {
           sRGBToLinear(red / 255),
           sRGBToLinear(green / 255),
           sRGBToLinear(blue / 255),
+          alpha,
         );
       }
     }
@@ -286,12 +306,14 @@ function writeTileColor(
   red: number,
   green: number,
   blue: number,
+  alpha: number,
 ): void {
   for (let i = 0; i < 4; i++) {
-    const offset = (vertBase + i) * 3;
+    const offset = (vertBase + i) * 4;
     target[offset] = red;
     target[offset + 1] = green;
     target[offset + 2] = blue;
+    target[offset + 3] = alpha;
   }
 }
 
