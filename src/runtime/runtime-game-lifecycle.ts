@@ -57,6 +57,7 @@ interface GameLifecycleDeps {
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
   readonly disableAutoZoom: () => void;
+  readonly clearLobbyMap: () => void;
   readonly resetInputForLobby: () => void;
 
   // Demo timer (all-AI auto-return to lobby)
@@ -180,6 +181,15 @@ export function createGameLifecycle(
     // auto-zoom from `mobileZoomEnabled`, so new games after a lobby
     // return get the normal auto-zoom behaviour.
     deps.disableAutoZoom();
+    // Drop the cached lobby map so the next `bootstrapGame` regenerates
+    // from scratch instead of reusing the just-quit game's mutated map
+    // (houses spawned during play, tiles mutated by modifiers, etc.).
+    // Production's `main.ts::showLobby` also nulls this out, but doing
+    // it here guarantees the contract regardless of which `showLobby`
+    // implementation the runtime was configured with — the headless
+    // test stub is a no-op, and we shouldn't require every caller to
+    // remember this step.
+    deps.clearLobbyMap();
     deps.clearGameOver();
     deps.resetInputForLobby();
     deps.showLobby();
@@ -260,6 +270,9 @@ export function buildLifecycleDeps(
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     disableAutoZoom: wiringDeps.camera.disableAutoZoom,
+    clearLobbyMap: () => {
+      runtimeState.lobby.map = null;
+    },
     resetInputForLobby: () =>
       wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
 

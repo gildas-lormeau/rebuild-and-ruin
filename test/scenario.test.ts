@@ -1,4 +1,4 @@
-import { assert, assertGreater } from "@std/assert";
+import { assert, assertEquals, assertGreater } from "@std/assert";
 import {
   createScenario,
   waitForModifier,
@@ -207,6 +207,107 @@ Deno.test(
       assistedPlacements.length,
       0,
       "assisted slot should produce per-intent placement messages with real coords",
+    );
+  },
+);
+
+Deno.test(
+  "scenario: ESC + rematch returns all transient state to initial",
+  async () => {
+    // Generic reset-contract test. Snapshot every piece of per-game
+    // transient state observable from the Scenario API at game start,
+    // drive real gameplay that DOES mutate those fields, quit via ESC,
+    // start a fresh game, snapshot again, assert equal.
+    //
+    // Any field that leaks across match boundaries — banner, dialogs,
+    // score deltas, phase/round counters, eliminated flags, map version
+    // sanity — will fail this test without needing a per-field check.
+    // The "towers on water" regression (mapVersion resetting to 0)
+    // would have tripped the `mapVersion > first` rail below.
+    const sc = await createScenario({ seed: 42 });
+
+    const snapshot = () => ({
+      phase: sc.state.phase,
+      round: sc.state.round,
+      timer: Math.round(sc.state.timer * 100) / 100,
+      playerLives: sc.state.players.map((player) => player.lives),
+      playerScores: sc.state.players.map((player) => player.score),
+      playerEliminated: sc.state.players.map((player) => player.eliminated),
+      playerCannonCounts: sc.state.players.map((player) =>
+        player.cannons.length,
+      ),
+      playerWallCounts: sc.state.players.map((player) => player.walls.size),
+      towerAlive: [...sc.state.towerAlive],
+      houseCount: sc.state.map.houses.length,
+      banner: {
+        active: sc.banner().active,
+        progress: sc.banner().progress,
+        text: sc.banner().text,
+      },
+      lobbyActive: sc.lobbyActive(),
+    });
+
+    const initial = snapshot();
+
+    // Sanity: game is at its earliest observable point.
+    assert(
+      initial.round === 1,
+      `initial round expected 1, got ${initial.round}`,
+    );
+    assert(
+      initial.phase === Phase.CASTLE_SELECT,
+      `initial phase expected CASTLE_SELECT, got ${initial.phase}`,
+    );
+
+    // Drive far enough to mutate many fields the reset path must wipe —
+    // banners fired, cannons placed, a battle entered, scores moved.
+    waitForPhase(sc, Phase.BATTLE);
+
+    const mid = snapshot();
+    // Cheap self-check that the snapshot actually changed so we're not
+    // comparing two identical pre-play states by accident.
+    assert(
+      JSON.stringify(mid) !== JSON.stringify(initial),
+      "precondition: snapshot should differ after reaching BATTLE",
+    );
+
+    // The regression bug this test directly protects against: the map's
+    // cache-invalidation stamp must bump when a new game starts, so the
+    // renderer's terrain cache rebuilds. Without it, the new game's
+    // towers sit on the previous game's water — "towers on water".
+    const mapVersionBeforeQuit = sc.state.map.mapVersion;
+    assertGreater(
+      mapVersionBeforeQuit,
+      0,
+      "map should carry a non-zero version by the time we reach BATTLE",
+    );
+
+    // Quit via real input path (ESC) — `dispatchQuit` → `showLobby` →
+    // `lifecycle.returnToLobby`. No human controllers in headless means
+    // dispatchQuit takes the immediate-quit branch (no "press again"
+    // warning), same as the production touch ✕ button path.
+    sc.input.pressKey("Escape");
+    // The keyboard handler is async (it awaits `handleKeyF1` before
+    // reaching the ESC branch), so the synchronous `pressKey` returns
+    // before `returnToLobby` fires. Drain the microtask queue so the
+    // ESC-triggered lifecycle work completes before we move on.
+    await Promise.resolve();
+
+    // Bootstrap a fresh game, equivalent to joining a slot in the lobby.
+    await sc.rematch();
+
+    const afterReset = snapshot();
+    assertEquals(
+      afterReset,
+      initial,
+      "snapshot must match the initial pre-play state after quit + rematch",
+    );
+
+    // Map-version specific rail: identity has changed AND version bumped.
+    assertGreater(
+      sc.state.map.mapVersion,
+      mapVersionBeforeQuit,
+      `mapVersion must advance past ${mapVersionBeforeQuit} on rematch (got ${sc.state.map.mapVersion})`,
     );
   },
 );
