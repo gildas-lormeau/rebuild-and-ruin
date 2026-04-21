@@ -54,7 +54,15 @@ const CROSSHAIR_MARGIN_Y = 2;
 /** Y-layer stack for ground-plane meshes, from bottom up. The order
  *  fixes composition (raw grass/water in the bitmap → terrain mesh
  *  adds interior/frozen/owned-sinkhole tints → sinkhole bank recolour
- *  → water-wave highlights → bonus pickups → crosshairs → fog). */
+ *  → water-wave highlights → bonus pickups → crosshairs → fog).
+ *
+ *  FOG is an exception: it must render ABOVE the tallest standing
+ *  geometry so fogged castles actually look fogged — towers peak at
+ *  ~56 world units, walls at ~26, cannons / houses / grunts under
+ *  20. 80 gives ~24 units of headroom over towers while staying well
+ *  inside the camera's ortho depth (CAMERA_DEPTH = 2000). Hardcoded
+ *  on purpose — derived-from-geometry is fragile when new entity
+ *  variants land with different heights. */
 export const ELEVATION_STACK = {
   TERRAIN_BITMAP: 0,
   TERRAIN_MESH: 0.01,
@@ -65,7 +73,7 @@ export const ELEVATION_STACK = {
   IMPACTS: 0.5,
   THAWING: 0.5,
   CROSSHAIRS: 0.8,
-  FOG: 1.2,
+  FOG: 80,
 } as const;
 /** Draw-order ladder for effect meshes. Higher values render later
  *  (on top). These are intentionally sparse so new layers can be
