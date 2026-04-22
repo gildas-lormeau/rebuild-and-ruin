@@ -223,27 +223,19 @@ export function createRender3d(
       // stripWorld`) is simply out of frustum and leaves the top rows
       // at the clear color; tall walls at row 0 project *into* the
       // strip under tilt, which is the whole purpose of the strip.
-      // Banner-active optimization: once a banner is active
-      // (`overlay.ui.banner` is set only while `banner.active === true`),
-      // the camera + viewport are settled — camera-pitch and unzoom
-      // animations finish BEFORE the strip starts sweeping — and no
-      // game ticks run, so the 3D scene is visually static. Re-render
-      // every frame would produce identical pixels. Skip the scene
-      // render; the already-captured FBO is still valid and just needs
-      // to be re-blitted so the live area above the strip stays
-      // correct. When the banner's top edge is also above the screen
-      // (strip covers or exceeds the top), skip the blit too and clear
-      // — everything visible then comes from the 2D path.
+      // Banner-sweep optimization: when a banner strip covers the top
+      // of the screen AND its prev-scene snapshot is available, the
+      // visible pixels come entirely from the 2D path (banner strip +
+      // snapshot below). Rendering the 3D scene would just produce
+      // pixels that get overdrawn. Skip both the scene render and the
+      // blit; clear the world canvas so stale contents don't peek
+      // through on the brief frames where the banner recedes.
       const banner = overlay?.ui?.banner;
       const bannerCoversLiveArea =
         banner && overlay?.ui?.bannerPrevScene && banner.top <= 0;
       if (bannerCoversLiveArea) {
         ctx.renderer.setRenderTarget(null);
         ctx.renderer.clear();
-      } else if (banner) {
-        ctx.renderer.setRenderTarget(null);
-        ctx.renderer.clear();
-        ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
       } else {
         ctx.renderer.setRenderTarget(ctx.captureTarget);
         ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
