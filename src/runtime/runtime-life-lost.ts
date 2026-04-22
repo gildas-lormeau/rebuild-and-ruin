@@ -158,8 +158,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     // Watcher: flip to GAME — the server's next checkpoint drives what
     // follows. Host: leave the mode alone; the runner's next step
     // (another banner via `showBanner`, or the terminal postDisplay)
-    // sets the appropriate mode. `transitionInFlight` keeps input /
-    // ticker gating honest until postDisplay completes.
+    // sets the appropriate mode.
     if (!runtimeState.frameMeta.hostAtFrameStart) {
       setMode(runtimeState, Mode.GAME);
     }

@@ -139,7 +139,8 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function hideBanner(): void {
     const banner = runtimeState.banner;
-    if (banner.status !== "hidden") {
+    const wasVisible = banner.status !== "hidden";
+    if (wasVisible) {
       const state = runtimeState.state;
       emitGameEvent(state.bus, GAME_EVENT.BANNER_HIDDEN, {
         bannerKind: banner.kind,
@@ -151,6 +152,14 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     }
     clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
+    // Banner left the screen mid-transition. Flip back to Mode.TRANSITION
+    // so the gap between display steps is honestly "transition, no banner"
+    // rather than lying about a prior gameplay mode. Only do this if the
+    // mode is currently BANNER — lifecycle teardown / mode-replacement
+    // callers (life-lost close, upgrade-pick close) set their own mode.
+    if (wasVisible && runtimeState.mode === Mode.BANNER) {
+      setMode(runtimeState, Mode.TRANSITION);
+    }
   }
 
   function tickBanner(dt: number) {

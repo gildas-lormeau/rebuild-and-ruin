@@ -373,7 +373,6 @@ export function createOnlineOverlay(
   const {
     previousSelection,
     view,
-    banner,
     battleAnim,
     frame,
     bannerUi,
@@ -427,7 +426,7 @@ export function createOnlineOverlay(
     phantoms: frame.phantoms,
     ui: {
       timer:
-        !inBattle && banner.status === "hidden" && view.timer > 0
+        !inBattle && bannerUi === undefined && view.timer > 0
           ? view.timer
           : undefined,
       banner: bannerUi,

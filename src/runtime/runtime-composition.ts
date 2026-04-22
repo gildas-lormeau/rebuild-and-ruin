@@ -364,6 +364,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     [Mode.OPTIONS]: () => options.renderOptions(),
     [Mode.CONTROLS]: () => options.renderControls(),
     [Mode.SELECTION]: (dt: number) => selection.tick(dt),
+    [Mode.TRANSITION]: (dt: number) => tickBanner(dt),
     [Mode.BANNER]: (dt: number) => tickBanner(dt),
     [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
     [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),

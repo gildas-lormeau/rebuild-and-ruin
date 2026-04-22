@@ -130,7 +130,6 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
       view,
-      banner: runtimeState.banner,
       battleAnim: runtimeState.battleAnim,
       frame: runtimeState.frame,
       bannerUi,

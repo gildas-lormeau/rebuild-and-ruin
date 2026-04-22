@@ -139,7 +139,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       hostAtFrameStart: deps.amHost(),
       remotePlayerSlots: deps.remotePlayerSlots(),
       mobileAutoZoom: deps.isMobileAutoZoom(),
-      transitionInFlight: deps.runtimeState.transitionInFlight,
     });
 
     deps.tickCamera();

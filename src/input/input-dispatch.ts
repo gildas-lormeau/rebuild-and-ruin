@@ -128,9 +128,8 @@ export function isTouchSuppressed(): boolean {
 export function shouldHandleGameInput(
   mode: Mode,
   state: GameState | undefined,
-  transitionInFlight: boolean,
 ): state is GameState {
-  return !!state && !transitionInFlight && isInteractiveMode(mode);
+  return !!state && isInteractiveMode(mode);
 }
 
 /** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */

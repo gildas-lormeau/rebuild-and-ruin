@@ -105,6 +105,7 @@ function clearAnimationState(mode: Mode): string | null {
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
       return "Cleared life-lost dialog → game mode";
+    case Mode.TRANSITION:
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
       return "Skipped phase transition/animation → game mode";

@@ -885,35 +885,11 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // `transitionInFlight` is the re-entrancy + input fence. It blocks
-  // gameplay tickers from re-firing the same transition on their next
-  // sub-step (tickCannonPhase → startBattle → runTransition) and blocks
-  // player input during the pre-banner unzoom window. The mode stays on
-  // its prior gameplay value until the first banner sets Mode.BANNER.
-  ctx.runtimeState.transitionInFlight = true;
+  // Mode.TRANSITION: transition is in flight, no banner on screen yet.
+  // Flips to Mode.BANNER inside `showBanner`, back here on `hideBanner`,
+  // and to the terminal mode inside postDisplay.
+  ctx.setMode(Mode.TRANSITION);
 
-  // The hard ordering rule (matches the spec):
-  //
-  //   1. Unzoom FIRST. The camera reaches fullMapVp while the pre-mutate
-  //      scene is still live on screen (no house spawn, no modifier
-  //      tiles applied, no wall sweep yet). `requestUnzoom` clears
-  //      cameraZone + pinchVp (persisting the pinch into the phase slot)
-  //      and fires `onReady` the first post-render frame where currentVp
-  //      has converged to fullMapVp.
-  //
-  //   2. Mutate + postMutate. Phase flips, houses / bonus squares spawn,
-  //      modifier tiles apply, walls sweep — all happening in the same
-  //      tick as the first banner's `showBanner`, so the next rendered
-  //      frame is already under banner cover. No pop window.
-  //
-  //   3. Run the display steps. The first banner step captures its
-  //      prev-scene before post-mutate renders run, so the snapshot is
-  //      the pre-mutate frame the user was last shown.
-  //
-  //   4. postDisplay runs after every display step completes
-  //      (setMode(GAME), controller init, balloon-anim / beginBattle).
-  //      `handlePhaseChangeZoom` then re-engages auto-zoom for the new
-  //      phase.
   ctx.requestUnzoom(() => {
     const result = mutateFn(ctx);
     transition.postMutate?.(ctx, result);
@@ -923,7 +899,6 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
           ? transition.postDisplay?.host
           : transition.postDisplay?.watcher;
       postDisplay?.(ctx, result);
-      ctx.runtimeState.transitionInFlight = false;
     });
   });
 }
@@ -1064,8 +1039,7 @@ function runStep(
   // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
   // on their terminal value when firing their completion callback; the
   // next display step's `showBanner` flips to Mode.BANNER, and the
-  // chain's postDisplay sets the terminal mode. `transitionInFlight`
-  // keeps input/ticker gating honest throughout.
+  // chain's postDisplay sets the terminal mode.
   switch (step.kind) {
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);

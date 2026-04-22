@@ -67,7 +67,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
       e.preventDefault();
       return;
     }
-    if (shouldHandleGameInput(mode, state, deps.getTransitionInFlight())) {
+    if (shouldHandleGameInput(mode, state)) {
       handleKeyGame(e, state, deps);
       return;
     }

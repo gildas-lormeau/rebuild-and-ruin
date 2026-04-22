@@ -206,7 +206,6 @@ export type CreateOnlineOverlayFn = (
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   view: RenderView;
-  banner: Pick<BannerState, "status">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -468,11 +467,6 @@ export interface RegisterOnlineInputDeps {
   >;
   getState: () => GameState | undefined;
   getMode: () => Mode;
-  /** True while a phase transition is running (from dispatch through
-   *  postDisplay). Input layers AND it with `isInteractiveMode(mode)` via
-   *  `shouldHandleGameInput` to block game input during the pre-banner
-   *  unzoom window, where mode is still its prior gameplay value. */
-  getTransitionInFlight: () => boolean;
   setMode: (mode: Mode) => void;
   isOnline?: boolean;
   settings: {
