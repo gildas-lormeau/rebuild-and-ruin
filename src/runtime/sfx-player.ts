@@ -74,6 +74,11 @@ interface SfxSubsystemDeps {
   readonly getAssets: () => MusicAssets | undefined;
   readonly assetsReady?: Promise<void>;
   readonly observer?: SfxObserver;
+  /** Live accessor for the current GameState — the final-battle handler
+   *  needs `phase` / `round` / `maxRounds` at BANNER_START time to decide
+   *  whether to layer the "final" stinger. Kept out of the banner event
+   *  payload so game-lifecycle semantics don't leak into banner events. */
+  readonly getState: () => GameState | undefined;
   /** Called once per player per build/select phase, scheduled to fire right
    *  as the enclosure stinger (elechit1) finishes — the composition root
    *  wires this to the music subsystem's fanfare playback. */
@@ -200,8 +205,11 @@ const SFX_EVENT_MAP: SfxEventMap = {
   //     on the first enclosure per player per phase.
   //   - gameEnd: plays welldone, then chains the winner's color stinger
   //     (redend / bluend / orgend).
-  //   - bannerStart (isFinalBattle branch): layers `final` on top of the
-  //     whoosh2 sweep mapped via this event map.
+  //   - bannerStart (final-battle branch): layers `final` on top of the
+  //     whoosh2 sweep mapped via this event map. Predicate reads the
+  //     current `state.phase / round / maxRounds` via deps.getState()
+  //     instead of the event payload so game-lifecycle semantics
+  //     ("final battle") don't leak into the banner event contract.
   //   - cannonballDescending: picks a fwwhist variant by payload index
   //     (CANNONBALL_WHISTLE_SAMPLES above).
   //
@@ -435,10 +443,18 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // bannerStart already maps to whoosh2 via SFX_EVENT_MAP; this is the
     // second, conditional play for the same event. Only fires on the
     // plain "Prepare for Battle" sweep (bannerKind="battle"), not on
-    // the modifier-reveal banner that precedes it in modern mode.
+    // the modifier-reveal banner that precedes it in modern mode. The
+    // "this is the final battle" predicate reads live game state instead
+    // of being carried on the banner event — banner is a presentation
+    // subsystem, `maxRounds` is game-lifecycle data.
     const finalBattleHandler: GameEventHandler<"bannerStart"> = (event) => {
-      if (!event.isFinalBattle) return;
       if (event.bannerKind !== "battle") return;
+      const state = deps.getState();
+      if (!state) return;
+      // Infinity-mode ("to the death") carries maxRounds=Infinity, so
+      // this predicate is always false there.
+      if (state.maxRounds === Infinity) return;
+      if (state.round !== state.maxRounds) return;
       void playSample("final");
     };
     bus.on(GAME_EVENT.BANNER_START, finalBattleHandler);

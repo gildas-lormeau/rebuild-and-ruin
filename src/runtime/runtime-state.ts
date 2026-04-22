@@ -33,11 +33,7 @@ import {
   loadSettings,
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
-import {
-  isGameplayMode,
-  isTransitionMode,
-  Mode,
-} from "../shared/ui/ui-mode.ts";
+import { isBannerMode, isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
 import { type BannerState, createBannerState } from "./runtime-contracts.ts";
 import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
 
@@ -130,6 +126,13 @@ export interface RuntimeState {
 
   // UI / mode
   mode: Mode;
+  /** True from the moment `runTransition` is dispatched until its
+   *  postDisplay completes. Blocks gameplay tickers from re-firing the
+   *  same transition on their next sub-step (the old role of
+   *  Mode.BANNER) and blocks player input during the pre-banner
+   *  unzoom window. Orthogonal to `mode`: `mode` still reflects what's
+   *  on screen, this flag reflects whether a transition is running. */
+  transitionInFlight: boolean;
   paused: boolean;
   quit: QuitState;
   optionsUI: OptionsUIState;
@@ -179,6 +182,7 @@ interface FrameContextInputs {
   hostAtFrameStart: boolean;
   remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   mobileAutoZoom: boolean;
+  transitionInFlight: boolean;
 }
 
 /** Default frame delta time (assumes 60fps). */
@@ -265,6 +269,7 @@ export function createRuntimeState(): RuntimeState {
     },
 
     mode: Mode.STOPPED,
+    transitionInFlight: false,
     paused: false,
     quit: { pending: false, timer: 0, message: "" },
     optionsUI: { returnMode: null, cursor: 0 },
@@ -382,7 +387,10 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const inBattle = phase === Phase.BATTLE;
   const shouldUnzoom = uiBlocking || phaseEnding;
-  const isTransition = isTransitionMode(mode);
+  // Include the pre-banner unzoom window: mode is still its prior
+  // gameplay value but `transitionInFlight` is set, so camera / input
+  // should treat the frame as a transition frame.
+  const isTransition = isBannerMode(mode) || inputs.transitionInFlight;
 
   // Online: myPlayerId. Local: pointer player slot. Demo: 0.
   const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)

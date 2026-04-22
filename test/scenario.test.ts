@@ -35,8 +35,13 @@ Deno.test("scenario: bus emits banner lifecycle events", async () => {
   sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
     starts.push({ text: ev.text, phase: ev.phase });
   });
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+  // BANNER_HIDDEN + BANNER_REPLACED together cover every way a banner
+  // leaves the screen (explicit hide vs overwrite by next banner).
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     ends.push({ text: ev.text, phase: ev.phase });
+  });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    ends.push({ text: ev.prevText, phase: ev.phase });
   });
 
   // Drive to first battle so multiple banners play out.

@@ -65,7 +65,8 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!shouldHandleGameInput(mode, state)) return;
+    if (!shouldHandleGameInput(mode, state, deps.getTransitionInFlight()))
+      return;
 
     if (isSelectionPhase(state.phase)) {
       const worldCoords = coords.screenToWorld(x, y);
@@ -88,7 +89,8 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     e.preventDefault();
     if (isTouchSuppressed()) return;
     const state = getState();
-    if (!shouldHandleGameInput(getMode(), state)) return;
+    if (!shouldHandleGameInput(getMode(), state, deps.getTransitionInFlight()))
+      return;
     deps.withPointerPlayer((human) => {
       dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
     });

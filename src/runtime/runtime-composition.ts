@@ -263,6 +263,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getAssets: () => musicAssets,
     assetsReady: musicAssetsReady,
     observer: config.observers?.sfx,
+    getState: () => safeState(runtimeState),
     // First tower enclosure of a phase → player-specific fanfare sub-song.
     // SFX has already played elechit1 and delayed the callback by the
     // stinger's duration, so the fanfare lands cleanly after it.
@@ -363,7 +364,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     [Mode.OPTIONS]: () => options.renderOptions(),
     [Mode.CONTROLS]: () => options.renderControls(),
     [Mode.SELECTION]: (dt: number) => selection.tick(dt),
-    [Mode.TRANSITION]: (dt: number) => tickBanner(dt),
+    [Mode.BANNER]: (dt: number) => tickBanner(dt),
     [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
     [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
     [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),

@@ -41,7 +41,7 @@ Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
 
 Deno.test("full_state recovery clears stale transition mode into game mode", () => {
   const target = {
-    mode: Mode.TRANSITION,
+    mode: Mode.BANNER,
     castleBuilds: [1],
     announcement: "Battle!" as string | undefined,
     battleFlights: [{ flight: { startX: 0, startY: 0, endX: 10, endY: 10 }, progress: 0.5 }],

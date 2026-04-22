@@ -155,12 +155,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const continuing = continuingPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
 
-    // Host: restore TRANSITION so the runner drives postDisplay. Watcher:
-    // flip to GAME — the server's next checkpoint drives what follows.
-    setMode(
-      runtimeState,
-      runtimeState.frameMeta.hostAtFrameStart ? Mode.TRANSITION : Mode.GAME,
-    );
+    // Watcher: flip to GAME — the server's next checkpoint drives what
+    // follows. Host: leave the mode alone; the runner's next step
+    // (another banner via `showBanner`, or the terminal postDisplay)
+    // sets the appropriate mode. `transitionInFlight` keeps input /
+    // ticker gating honest until postDisplay completes.
+    if (!runtimeState.frameMeta.hostAtFrameStart) {
+      setMode(runtimeState, Mode.GAME);
+    }
 
     pendingOnDone.fire(continuing);
   }

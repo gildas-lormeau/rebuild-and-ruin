@@ -38,7 +38,8 @@ async function main(): Promise<void> {
     await sc.captureOn(GAME_EVENT.PHASE_START);
     await sc.captureOn(GAME_EVENT.PHASE_END);
     await sc.captureOn(GAME_EVENT.BANNER_START);
-    await sc.captureOn(GAME_EVENT.BANNER_END);
+    await sc.captureOn(GAME_EVENT.BANNER_HIDDEN);
+    await sc.captureOn(GAME_EVENT.BANNER_REPLACED);
     await sc.captureOn(GAME_EVENT.SCORE_OVERLAY_START);
     await sc.captureOn(GAME_EVENT.SCORE_OVERLAY_END);
 

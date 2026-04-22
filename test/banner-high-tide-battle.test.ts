@@ -41,7 +41,10 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
       modifierBannerText = ev.text;
     }
   });
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+  // Modifier banner ends when the chained Battle banner overwrites it
+  // (BANNER_REPLACED); a direct hideBanner path would emit BANNER_HIDDEN
+  // instead, so watch both to stay robust to tuning changes.
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     if (
       modifierBannerText !== null &&
       !modifierBannerEnded &&
@@ -50,14 +53,32 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
       modifierBannerEnded = true;
     }
   });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    if (
+      modifierBannerText !== null &&
+      !modifierBannerEnded &&
+      ev.prevText === modifierBannerText
+    ) {
+      modifierBannerEnded = true;
+    }
+  });
 
   let battleBannerEnded = false;
 
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     if (
       modifierBannerEnded &&
       !battleBannerEnded &&
       ev.text.includes("Battle")
+    ) {
+      battleBannerEnded = true;
+    }
+  });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    if (
+      modifierBannerEnded &&
+      !battleBannerEnded &&
+      ev.prevText.includes("Battle")
     ) {
       battleBannerEnded = true;
     }

@@ -18,23 +18,26 @@
  *     banner still on screen). Fires synchronously; the banner's
  *     `onDone` callback runs either on the same tick (no hold) or
  *     after the `holdMs` timer expires.
- *   - BANNER_END on `* → hidden` (banner removed from screen, either by
- *     `hideBanner` or by a subsequent `showBanner` overwriting it). A
- *     replaced banner with a pending hold has its BANNER_END fire
- *     without the corresponding callback invocation — consumers detect
- *     a dropped hold by observing BANNER_END before the expected
- *     post-hold effect.
+ *   - BANNER_HIDDEN on `hideBanner()` when status was non-hidden. The
+ *     banner left the screen on its own schedule — not because another
+ *     banner clobbered it. Carries `holdCompleted`: false only if a
+ *     pending `holdMs` callback was dropped by the hide.
+ *   - BANNER_REPLACED when `showBanner` overwrites an active banner.
+ *     Carries `prev*` + `new*` identity + `holdCompleted`. The two
+ *     events together cover every way a banner leaves the screen, so
+ *     consumers that want the unified "banner went away" beat subscribe
+ *     to both.
  *
  * Hold: when `holdMs` is set on a banner, the `swept → onDone` edge is
  * deferred by that many sim-ms. The banner sits in `swept` state until
  * the hold expires. A new `showBanner` or `hideBanner` during the hold
- * cancels the pending timer (and emits BANNER_END for the clobbered
- * banner so the drop is observable).
+ * cancels the pending timer (and the emitted BANNER_REPLACED / BANNER_HIDDEN
+ * carries `holdCompleted=false` so the drop is observable).
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   type BannerShowOpts,
   type BannerState,
@@ -43,8 +46,8 @@ import {
 } from "./runtime-contracts.ts";
 import {
   assertStateReady,
-  isStateReady,
   type RuntimeState,
+  setMode,
 } from "./runtime-state.ts";
 
 interface BannerSystemDeps {
@@ -88,14 +91,23 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // Overwrite on re-entry. Watchers legitimately replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep
     // (retransmits, host-migration recovery). Log so unusual cases surface,
-    // then emit BANNER_END for the banner being replaced so consumers that
-    // key on the user-visible-end beat observe it (including dropped holds).
+    // then emit BANNER_REPLACED with both identities so consumers that
+    // care about the chain can trace it.
     const banner = runtimeState.banner;
     if (banner.status !== "hidden") {
       log(
         `showBanner "${opts.text}" while banner "${banner.text}" status=${banner.status}`,
       );
-      emitBannerEnd(banner.text, banner.kind);
+      const state = runtimeState.state;
+      emitGameEvent(state.bus, GAME_EVENT.BANNER_REPLACED, {
+        prevKind: banner.kind,
+        prevText: banner.text,
+        newKind: opts.kind,
+        newText: opts.text,
+        phase: state.phase,
+        round: state.round,
+        holdCompleted: banner.holdTimerId === undefined,
+      });
     }
     clearHoldTimer(banner);
     banner.status = "sweeping";
@@ -108,20 +120,18 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     banner.prevScene = prevScene;
     banner.holdMs = opts.holdMs ?? 0;
 
+    // Banner-on-screen ⇔ Mode.BANNER. Subsystem dialogs (life-lost,
+    // upgrade-pick) set their own mode; when their callback chains back
+    // into a new banner step, this call flips the mode back.
+    setMode(runtimeState, Mode.BANNER);
+
     const state = runtimeState.state;
-    // Last battle in a finite game. Infinity-mode ("to the death")
-    // carries maxRounds=Infinity, so this predicate is always false.
-    const isFinalBattle =
-      state.phase === Phase.BATTLE &&
-      state.maxRounds !== Infinity &&
-      state.round === state.maxRounds;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
       bannerKind: banner.kind,
       text: banner.text,
       subtitle: banner.subtitle,
       phase: state.phase,
       round: state.round,
-      isFinalBattle,
       modifierId: banner.modifierDiff?.id,
       changedTiles: banner.modifierDiff?.changedTiles,
     });
@@ -129,12 +139,17 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function hideBanner(): void {
     const banner = runtimeState.banner;
-    clearHoldTimer(banner);
-    // Gate the emit on state-ready so lifecycle teardown (returnToLobby,
-    // rematch) can call hideBanner before a fresh GameState exists.
-    if (banner.status !== "hidden" && isStateReady(runtimeState)) {
-      emitBannerEnd(banner.text, banner.kind);
+    if (banner.status !== "hidden") {
+      const state = runtimeState.state;
+      emitGameEvent(state.bus, GAME_EVENT.BANNER_HIDDEN, {
+        bannerKind: banner.kind,
+        text: banner.text,
+        phase: state.phase,
+        round: state.round,
+        holdCompleted: banner.holdTimerId === undefined,
+      });
     }
+    clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
   }
 
@@ -167,16 +182,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       }
     }
     render();
-  }
-
-  function emitBannerEnd(text: string, kind: BannerState["kind"]): void {
-    const state = runtimeState.state;
-    emitGameEvent(state.bus, GAME_EVENT.BANNER_END, {
-      bannerKind: kind,
-      text,
-      phase: state.phase,
-      round: state.round,
-    });
   }
 
   return { showBanner, hideBanner, tickBanner };

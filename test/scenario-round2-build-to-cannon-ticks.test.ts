@@ -42,9 +42,15 @@ Deno.test("ascii: per-tick maps SCORE_OVERLAY_START → PHASE_END CANNON_PLACE (
       ascii: ascii.snapshot("walls"),
     });
   });
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     snapshots.push({
-      label: `BANNER_END "${ev.text}" (round ${ev.round})`,
+      label: `BANNER_HIDDEN "${ev.text}" (round ${ev.round})`,
+      ascii: ascii.snapshot("walls"),
+    });
+  });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    snapshots.push({
+      label: `BANNER_REPLACED "${ev.prevText}" → "${ev.newText}" (round ${ev.round})`,
       ascii: ascii.snapshot("walls"),
     });
   });

@@ -28,8 +28,10 @@ Deno.test("build banner after upgrade fires with active banner state", async () 
   let buildChecked = false;
   let bannerWasActive = false;
 
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
-    if (ev.text === "Choose Upgrade" && !upgradeEnded) {
+  // The "Choose Upgrade" banner is cleared when the "Build & Repair"
+  // banner overwrites it → fires BANNER_REPLACED, not BANNER_HIDDEN.
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    if (ev.prevText === "Choose Upgrade" && !upgradeEnded) {
       upgradeEnded = true;
     }
   });

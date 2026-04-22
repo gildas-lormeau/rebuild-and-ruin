@@ -15,10 +15,10 @@ import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 /** Identity of the banner being shown — carried on every BANNER_START /
- *  BANNER_SWEEP_END / BANNER_END event. Consumers discriminate on this
- *  field instead of reading `phase` (which lies during the upgrade-pick
- *  flow — the dialog banner and the following build banner both carry
- *  phase=WALL_BUILD) or matching banner text. */
+ *  BANNER_SWEEP_END / BANNER_HIDDEN / BANNER_REPLACED event. Consumers
+ *  discriminate on this field instead of reading `phase` (which lies
+ *  during the upgrade-pick flow — the dialog banner and the following
+ *  build banner both carry phase=WALL_BUILD) or matching banner text. */
 export type BannerKind =
   | "modifier-reveal"
   | "battle"
@@ -64,10 +64,6 @@ export type LifecycleEvent =
       /** Tile keys changed by the modifier — consumed by the progressive
        *  reveal animation. Undefined when the banner has no modifier. */
       changedTiles?: readonly number[];
-      /** True only for the BATTLE banner of the last round in a finite
-       *  game (ignored in "to the death" / infinity mode, where
-       *  `maxRounds` is Infinity). Drives the "final" voice-line SFX. */
-      isFinalBattle?: boolean;
     }
   /** Phase-transition banner's sweep animation completed (progress reached
    *  1). Emitted from inside `tickBanner` on the `sweeping → swept`
@@ -85,18 +81,39 @@ export type LifecycleEvent =
       phase: Phase;
       round: number;
     }
-  /** Phase-transition banner was removed from screen. Fires synchronously
-   *  from `hideBanner()` or from `showBanner` when a new banner
-   *  overwrites a previous one. Use this when you need the user-visible
-   *  end of a banner — e.g. a test asserting that "banner X is no longer
-   *  on screen" or a subsystem that reacts to the moment the underlying
-   *  scene is uncovered. */
+  /** Phase-transition banner was removed from screen by an explicit
+   *  `hideBanner()` call — lifecycle teardown between non-banner display
+   *  steps (dialogs, score overlays) or the end of a banner chain. Most
+   *  banner-end consumers want this one; use it when you need "this
+   *  banner went away on its own schedule" (not because another banner
+   *  clobbered it). `holdCompleted` is false only if a pending `holdMs`
+   *  timer was still active when the hide happened — i.e. the post-sweep
+   *  `onDone` callback never got a chance to run. */
   | {
-      type: "bannerEnd";
+      type: "bannerHidden";
       bannerKind: BannerKind;
       text: string;
       phase: Phase;
       round: number;
+      holdCompleted: boolean;
+    }
+  /** One banner was overwritten by another via a subsequent `showBanner`
+   *  call. Fires synchronously before the new banner's BANNER_START.
+   *  Carries both the outgoing and incoming banner identity so consumers
+   *  that need the "chain of banners" beat can trace it without keeping
+   *  their own history. Watchers legitimately replay banners on
+   *  checkpoint retransmit — those show up here too. `holdCompleted`
+   *  matches BANNER_HIDDEN semantics (false if a holdMs callback was
+   *  dropped). */
+  | {
+      type: "bannerReplaced";
+      prevKind: BannerKind;
+      prevText: string;
+      newKind: BannerKind;
+      newText: string;
+      phase: Phase;
+      round: number;
+      holdCompleted: boolean;
     }
   /** Between-rounds score-delta overlay started. Fires when
    *  `scoreDelta.show` arms the delta timer at end of WALL_BUILD; pairs
@@ -307,7 +324,8 @@ const LIFECYCLE_EVENT = {
   LIFE_LOST_DIALOG_SHOW: "lifeLostDialogShow",
   BANNER_START: "bannerStart",
   BANNER_SWEEP_END: "bannerSweepEnd",
-  BANNER_END: "bannerEnd",
+  BANNER_HIDDEN: "bannerHidden",
+  BANNER_REPLACED: "bannerReplaced",
   SCORE_OVERLAY_START: "scoreOverlayStart",
   SCORE_OVERLAY_END: "scoreOverlayEnd",
   TICK: "tick",

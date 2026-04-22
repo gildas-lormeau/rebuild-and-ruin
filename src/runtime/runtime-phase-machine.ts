@@ -885,22 +885,12 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // Mode.TRANSITION means "no gameplay tick, no player input" — set it
-  // before mutate so:
-  //   - The per-mode tick dispatcher stops running gameplay logic. The
-  //     immediate caller (e.g. tickCannonPhase → startBattle →
-  //     runTransition) cannot re-fire the same transition on its next
-  //     sub-step, which would otherwise double-run finalize* and
-  //     corrupt controller state.
-  //   - `isInteractiveMode` returns false, so the user can't interact
-  //     with the new phase during the unzoom lerp before the banner
-  //     appears.
-  // The TRANSITION-mode ticker (in runtime-composition.ts) routes to
-  // `tickBanner`, which advances the sweep when a banner is live and
-  // otherwise just renders. Any subsystem that takes over the mode
-  // (life-lost, upgrade-pick, balloon-anim) restores it to TRANSITION
-  // before firing its onDone so the runner keeps driving the chain.
-  ctx.setMode(Mode.TRANSITION);
+  // `transitionInFlight` is the re-entrancy + input fence. It blocks
+  // gameplay tickers from re-firing the same transition on their next
+  // sub-step (tickCannonPhase → startBattle → runTransition) and blocks
+  // player input during the pre-banner unzoom window. The mode stays on
+  // its prior gameplay value until the first banner sets Mode.BANNER.
+  ctx.runtimeState.transitionInFlight = true;
 
   // The hard ordering rule (matches the spec):
   //
@@ -933,6 +923,7 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
           ? transition.postDisplay?.host
           : transition.postDisplay?.watcher;
       postDisplay?.(ctx, result);
+      ctx.runtimeState.transitionInFlight = false;
     });
   });
 }
@@ -1070,9 +1061,11 @@ function runStep(
   if (step.kind !== STEP_BANNER) {
     ctx.hideBanner();
   }
-  // Subsystems that own a Mode (life-lost, upgrade-pick) are responsible
-  // for restoring Mode.TRANSITION before firing their completion callback
-  // — the runner doesn't re-assert it here.
+  // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
+  // on their terminal value when firing their completion callback; the
+  // next display step's `showBanner` flips to Mode.BANNER, and the
+  // chain's postDisplay sets the terminal mode. `transitionInFlight`
+  // keeps input/ticker gating honest throughout.
   switch (step.kind) {
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);

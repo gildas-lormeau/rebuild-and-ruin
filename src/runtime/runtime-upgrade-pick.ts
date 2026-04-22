@@ -168,9 +168,6 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    // Restore the transition mode so the phase-machine runner can keep
-    // driving display steps / postDisplay against a clean mode.
-    //
     // NOTE: dialog is intentionally NOT cleared here. The next phase's
     // banner (build banner) needs the dialog state in place during its
     // sweep so `drawUpgradePick` can clip it progressively against
@@ -178,7 +175,9 @@ export function createUpgradePickSystem(
     // transitions in `runtime-phase-machine.ts` call
     // `clearUpgradePickDialog` from their postDisplay, after the build
     // banner finishes sweeping.
-    setMode(runtimeState, Mode.TRANSITION);
+    //
+    // Mode stays on UPGRADE_PICK here; the runner's next step is the
+    // build banner, whose `showBanner` flips to Mode.BANNER.
     pendingOnDone.fire();
   }
 

@@ -4027,7 +4027,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "cannon-place",
-        "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 1,
         "subtitle": "Position inside fort walls",
@@ -5106,9 +5105,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "cannon-place",
+        "holdCompleted": true,
         "phase": "CANNON_PLACE",
         "round": 1,
         "text": "Place Cannons"
@@ -7343,7 +7343,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "battle",
-        "isFinalBattle": false,
         "phase": "BATTLE",
         "round": 1,
         "subtitle": "Shoot at enemy walls",
@@ -8422,9 +8421,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "battle",
+        "holdCompleted": true,
         "phase": "BATTLE",
         "round": 1,
         "text": "Prepare for Battle"
@@ -15929,7 +15929,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "build",
-        "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 2,
         "subtitle": "Surround castles, repair walls",
@@ -17014,9 +17013,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "build",
+        "holdCompleted": true,
         "phase": "WALL_BUILD",
         "round": 2,
         "text": "Build & Repair"
@@ -27297,7 +27297,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "cannon-place",
-        "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 2,
         "subtitle": "Position inside fort walls",
@@ -28382,9 +28381,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "cannon-place",
+        "holdCompleted": true,
         "phase": "CANNON_PLACE",
         "round": 2,
         "text": "Place Cannons"
@@ -31288,7 +31288,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "battle",
-        "isFinalBattle": true,
         "phase": "BATTLE",
         "round": 2,
         "subtitle": "Shoot at enemy walls",
@@ -32373,9 +32372,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "battle",
+        "holdCompleted": true,
         "phase": "BATTLE",
         "round": 2,
         "text": "Prepare for Battle"
@@ -40085,7 +40085,6 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "build",
-        "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 3,
         "subtitle": "Surround castles, repair walls",
@@ -41164,9 +41163,10 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "bannerHidden",
       "payload": {
         "bannerKind": "build",
+        "holdCompleted": true,
         "phase": "WALL_BUILD",
         "round": 3,
         "text": "Build & Repair"

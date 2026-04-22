@@ -22,8 +22,13 @@ Deno.test("ascii: game-start → round-2 battle timeline", async () => {
   sc.bus.on(GAME_EVENT.BANNER_START, (ev) => {
     push(`BANNER_START "${ev.text}" (round ${ev.round})`);
   });
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
-    push(`BANNER_END "${ev.text}" (round ${ev.round})`);
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
+    push(`BANNER_HIDDEN "${ev.text}" (round ${ev.round})`);
+  });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    push(
+      `BANNER_REPLACED "${ev.prevText}" → "${ev.newText}" (round ${ev.round})`,
+    );
   });
 
   sc.bus.on(GAME_EVENT.SCORE_OVERLAY_START, (ev) => {

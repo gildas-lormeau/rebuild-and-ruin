@@ -143,7 +143,7 @@ function handleTouchStart(
   // skip cursor movement so the tap can confirm placement at touchend.
   if (
     isPlacementPhase(state.phase) &&
-    shouldHandleGameInput(getMode(), state)
+    shouldHandleGameInput(getMode(), state, deps.getTransitionInFlight())
   ) {
     const tile = coords.pixelToTile(x, y);
     let hit = false;
@@ -160,7 +160,7 @@ function handleTouchStart(
   // Update cursor/crosshair position on touch down (skip during transitions —
   // the viewport may still be lerping from a different zone, so screen-to-tile
   // conversion would place the cursor at wrong coordinates).
-  if (shouldHandleGameInput(getMode(), state)) {
+  if (shouldHandleGameInput(getMode(), state, deps.getTransitionInFlight())) {
     dispatchPointerMove(x, y, state, deps);
   }
 }
@@ -202,7 +202,10 @@ function handleTouchMove(
 
   // Skip during transitions — viewport may still be lerping from a different
   // zone (e.g. enemy zone after battle), causing wrong cursor placement.
-  if (!shouldHandleGameInput(deps.getMode(), state)) return;
+  if (
+    !shouldHandleGameInput(deps.getMode(), state, deps.getTransitionInFlight())
+  )
+    return;
 
   dispatchPointerMove(x, y, state, deps);
 }
@@ -225,7 +228,9 @@ function handleTouchEnd(
       // Two-finger tap without movement → rotate
       if (wasTap) {
         const state = getState();
-        if (shouldHandleGameInput(getMode(), state)) {
+        if (
+          shouldHandleGameInput(getMode(), state, deps.getTransitionInFlight())
+        ) {
           deps.withPointerPlayer((human) => {
             dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
           });
@@ -251,7 +256,7 @@ function handleTouchEnd(
   // Non-game modes: tap acts as click
   if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
-  if (!shouldHandleGameInput(mode, state)) return;
+  if (!shouldHandleGameInput(mode, state, deps.getTransitionInFlight())) return;
 
   // Selection: first tap highlights, second tap on same tower confirms
   if (tap && isSelectionPhase(state.phase)) {

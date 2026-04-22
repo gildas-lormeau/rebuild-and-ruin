@@ -890,6 +890,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  so a single assertion covers cannon, battle, build, and balloon ticks. */
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
+    // Re-entrancy fence: during the pre-banner unzoom window Mode is
+    // still GAME, so this ticker would otherwise re-dispatch the same
+    // transition on its next sub-step (tickCannonPhase → startBattle →
+    // runTransition). Render still happens so the camera's unzoom lerp
+    // advances toward `onReady`.
+    if (runtimeState.transitionInFlight) {
+      deps.render();
+      online?.tickMigrationAnnouncement?.(dt);
+      return;
+    }
     if (runtimeState.frameMeta.hostAtFrameStart) {
       // Age and filter impact flashes regardless of phase
       ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);

@@ -1,10 +1,11 @@
 /**
  * E2E port of test/scenario-round2-build-to-cannon-ticks.test.ts.
  *
- * Captures screenshots from BANNER_END "Build & Repair" (round 2) through
- * BANNER_END "Place Cannons" (round 2) — the full WALL_BUILD phase
- * (where the AI places pieces), the score overlay, and the cannons
- * banner. Per-tick sampling at 1-in-5 stride to keep the output bounded.
+ * Captures screenshots from the round-2 "Build & Repair" banner leaving
+ * the screen through the round-2 "Place Cannons" banner leaving — the
+ * full WALL_BUILD phase (where the AI places pieces), the score overlay,
+ * and the cannons banner. Per-tick sampling at 1-in-5 stride to keep
+ * the output bounded.
  *
  * Run: npm run dev  (in another shell)
  *      deno run -A test/e2e-round2-build-to-cannon.ts [--visible]
@@ -39,7 +40,8 @@ async function main(): Promise<void> {
     await sc.captureOn(GAME_EVENT.PHASE_START);
     await sc.captureOn(GAME_EVENT.PHASE_END);
     await sc.captureOn(GAME_EVENT.BANNER_START);
-    await sc.captureOn(GAME_EVENT.BANNER_END);
+    await sc.captureOn(GAME_EVENT.BANNER_HIDDEN);
+    await sc.captureOn(GAME_EVENT.BANNER_REPLACED);
     await sc.captureOn(GAME_EVENT.SCORE_OVERLAY_START);
     await sc.captureOn(GAME_EVENT.SCORE_OVERLAY_END);
 
@@ -91,25 +93,32 @@ async function main(): Promise<void> {
   test.done();
 }
 
-/** Returns the busLog slice from the round-2 "Build & Repair" BANNER_END
- *  (exclusive) through the round-2 "Place Cannons" BANNER_END (inclusive),
- *  or null if the window could not be located. */
+/** Returns the busLog slice from the round-2 "Build & Repair" banner
+ *  leaving the screen (exclusive) through the round-2 "Place Cannons"
+ *  banner leaving (inclusive), or null if the window could not be
+ *  located. "Leaving" = either BANNER_HIDDEN (explicit hide) or
+ *  BANNER_REPLACED (next banner overwrites — `prevText` identifies the
+ *  outgoing banner). */
 function sliceWindow<
-  T extends { type: string; round?: number; text?: string },
+  T extends {
+    type: string;
+    round?: number;
+    text?: string;
+    prevText?: string;
+  },
 >(events: readonly T[]): readonly T[] | null {
-  const startIdx = events.findIndex(
-    (ev) =>
-      ev.type === "bannerEnd" &&
-      ev.round === 2 &&
-      ev.text === "Build & Repair",
+  const isBannerLeaving = (ev: T, targetText: string): boolean => {
+    if (ev.round !== 2) return false;
+    if (ev.type === "bannerHidden" && ev.text === targetText) return true;
+    if (ev.type === "bannerReplaced" && ev.prevText === targetText) return true;
+    return false;
+  };
+  const startIdx = events.findIndex((ev) =>
+    isBannerLeaving(ev, "Build & Repair"),
   );
   if (startIdx < 0) return null;
   const endIdx = events.findIndex(
-    (ev, idx) =>
-      idx > startIdx &&
-      ev.type === "bannerEnd" &&
-      ev.round === 2 &&
-      ev.text === "Place Cannons",
+    (ev, idx) => idx > startIdx && isBannerLeaving(ev, "Place Cannons"),
   );
   if (endIdx < 0) return null;
   return events.slice(startIdx + 1, endIdx + 1);

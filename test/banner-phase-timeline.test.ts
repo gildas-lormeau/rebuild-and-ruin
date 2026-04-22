@@ -10,9 +10,10 @@
  * animate.
  *
  * This test records wall-clock timestamps (sim-ms) for PHASE_START,
- * BANNER_START, BANNER_END around the CASTLE_SELECT → WALL_BUILD and
- * CANNON_PLACE → BATTLE boundaries, then prints the timeline so we can
- * read off the gap between phase mutation and banner end.
+ * BANNER_START, banner-end (BANNER_HIDDEN / BANNER_REPLACED) around
+ * the CASTLE_SELECT → WALL_BUILD and CANNON_PLACE → BATTLE boundaries,
+ * then prints the timeline so we can read off the gap between phase
+ * mutation and banner end.
  *
  * It's a diagnostic, not a behavioural assertion — just makes the timing
  * visible without having to instrument the browser.
@@ -25,7 +26,12 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 
 interface TimelineEntry {
   t: number;
-  kind: "PHASE_START" | "PHASE_END" | "BANNER_START" | "BANNER_END";
+  kind:
+    | "PHASE_START"
+    | "PHASE_END"
+    | "BANNER_START"
+    | "BANNER_HIDDEN"
+    | "BANNER_REPLACED";
   phase: Phase;
   detail?: string;
 }
@@ -48,12 +54,20 @@ Deno.test("timeline: phase transitions vs banner lifecycle (diagnostic)", async 
       detail: ev.text,
     });
   });
-  sc.bus.on(GAME_EVENT.BANNER_END, (ev) => {
+  sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     timeline.push({
       t: sc.now(),
-      kind: "BANNER_END",
+      kind: "BANNER_HIDDEN",
       phase: ev.phase,
       detail: ev.text,
+    });
+  });
+  sc.bus.on(GAME_EVENT.BANNER_REPLACED, (ev) => {
+    timeline.push({
+      t: sc.now(),
+      kind: "BANNER_REPLACED",
+      phase: ev.phase,
+      detail: `${ev.prevText} → ${ev.newText}`,
     });
   });
 
@@ -61,7 +75,11 @@ Deno.test("timeline: phase transitions vs banner lifecycle (diagnostic)", async 
   // cannons → battle, and battle → build (next round's build banner).
   waitForPhase(sc, Phase.WALL_BUILD);
   sc.runUntil(
-    () => timeline.filter((e) => e.kind === "BANNER_END").length >= 5,
+    () =>
+      timeline.filter(
+        (entry) =>
+          entry.kind === "BANNER_HIDDEN" || entry.kind === "BANNER_REPLACED",
+      ).length >= 5,
     { timeoutMs: 120_000 },
   );
 
@@ -81,12 +99,12 @@ Deno.test("timeline: phase transitions vs banner lifecycle (diagnostic)", async 
   for (let idx = 0; idx < timeline.length; idx++) {
     const entry = timeline[idx]!;
     if (entry.kind !== "PHASE_START") continue;
-    // Find the next BANNER_END after this phase start.
+    // Find the next banner-end (HIDDEN or REPLACED) after this phase start.
     for (let jdx = idx + 1; jdx < timeline.length; jdx++) {
       const next = timeline[jdx]!;
-      if (next.kind === "BANNER_END") {
+      if (next.kind === "BANNER_HIDDEN" || next.kind === "BANNER_REPLACED") {
         console.log(
-          `  PHASE_START ${entry.phase} → BANNER_END ${next.detail}: ${next.t - entry.t}ms`,
+          `  PHASE_START ${entry.phase} → ${next.kind} ${next.detail}: ${next.t - entry.t}ms`,
         );
         break;
       }

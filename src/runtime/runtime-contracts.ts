@@ -260,7 +260,8 @@ export interface BannerState {
   /** Fired once the sweep reaches 1 (or after the optional `holdMs`
    *  expires). Nulled out as it fires, or when a subsequent
    *  `showBanner` / `hideBanner` replaces this banner — the replaced
-   *  banner's BANNER_END event is how consumers detect a dropped hold. */
+   *  banner's BANNER_REPLACED / BANNER_HIDDEN carries `holdCompleted=false`
+   *  so consumers can detect a dropped hold. */
   callback: (() => void) | null;
   /** Pixel snapshot of the scene composited below the sweep line during
    *  animation. Captured at `showBanner`-time. */
@@ -467,6 +468,11 @@ export interface RegisterOnlineInputDeps {
   >;
   getState: () => GameState | undefined;
   getMode: () => Mode;
+  /** True while a phase transition is running (from dispatch through
+   *  postDisplay). Input layers AND it with `isInteractiveMode(mode)` via
+   *  `shouldHandleGameInput` to block game input during the pre-banner
+   *  unzoom window, where mode is still its prior gameplay value. */
+  getTransitionInFlight: () => boolean;
   setMode: (mode: Mode) => void;
   isOnline?: boolean;
   settings: {

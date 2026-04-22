@@ -313,6 +313,7 @@ function buildInputDeps(
     keyboardEventSource,
     getState: () => safeState(runtimeState),
     getMode: () => runtimeState.mode,
+    getTransitionInFlight: () => runtimeState.transitionInFlight,
     setMode: (mode) => {
       setMode(runtimeState, mode);
     },
