@@ -589,6 +589,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function pixelToTile(x: number, y: number): { row: number; col: number } {
+    // Pointer may land on letterbox or outside the zoomed viewport's
+    // back-projected rect; snap to the nearest edge tile so phantom/hit
+    // tests keep working at the map boundary.
     const { wx, wy } = screenToWorld(x, y);
     return {
       col: Math.max(0, Math.min(GRID_COLS - 1, pxToTile(wx))),
