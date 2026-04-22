@@ -11,6 +11,7 @@ import {
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
   abandonedPlayers,
   applyLifeLostChoice,
@@ -67,9 +68,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /** Set when a dialog is shown; cleared once resolution fires. The
    *  tick loop reads it to invoke the caller's onResolved callback.
-   *  Closure-scoped (not on runtimeState) because tick is gated on
-   *  Mode.LIFE_LOST — see docs/dialog-completion-patterns.md. */
-  let pendingOnResolved: OnLifeLostResolved | undefined;
+   *  Shared `FireOnceSlot` shape — same storage pattern as score-delta
+   *  and upgrade-pick. Tick is gated on Mode.LIFE_LOST (the only axis
+   *  that actually differs). See docs/dialog-completion-patterns.md. */
+  const pendingOnDone = createFireOnceSlot<[readonly ValidPlayerSlot[]]>();
 
   /** Drive the life-lost flow to completion. Either resolves
    *  immediately (nothing to show) and calls `onResolved([])`, or
@@ -107,7 +109,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       return false;
     }
     runtimeState.dialogs.lifeLost = dialog;
-    pendingOnResolved = onResolved;
+    pendingOnDone.set(onResolved);
     setMode(runtimeState, Mode.LIFE_LOST);
     return true;
   }
@@ -151,8 +153,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     disableAutoZoomIfPovEliminated();
 
     const continuing = continuingPlayers(dialog);
-    const onResolved = pendingOnResolved;
-    pendingOnResolved = undefined;
     runtimeState.dialogs.lifeLost = null;
 
     // Non-host: flip back to Mode.GAME so the server's next checkpoint
@@ -163,7 +163,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       setMode(runtimeState, Mode.GAME);
     }
 
-    onResolved?.(continuing);
+    pendingOnDone.fire(continuing);
   }
 
   /** Flip the camera permanently to spectator mode if the pov player
@@ -214,7 +214,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
-      if (dialog === null) pendingOnResolved = undefined;
+      if (dialog === null) pendingOnDone.clear();
     },
     show,
     tick: tickLifeLostDialogSystem,

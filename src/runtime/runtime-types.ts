@@ -464,22 +464,23 @@ export interface RuntimeSelection {
 }
 
 /**
- * Dialog/animation completion callback patterns — three distinct approaches by design:
+ * Dialog/animation completion callback — all three dialog sub-systems
+ * (ScoreDelta / LifeLost / UpgradePick) share one shape: a closure-scoped
+ * `FireOnceSlot` (see fire-once-slot.ts). The axis that genuinely differs
+ * is **tick scope**:
  *
- * | System       | Storage            | Invocation       | Reason                             |
- * |--------------|--------------------|------------------|------------------------------------|
- * | ScoreDelta   | runtimeState field | fireOnce()       | Ticks mode-independently (banner)  |
- * | LifeLost     | method on system   | onResolved()     | Multi-path (game-over/reselect/go) |
- * | UpgradePick  | local closure      | tryShow(onDone)  | Single-path (resume build banner)  |
+ * | System       | Tick scope                                     |
+ * |--------------|------------------------------------------------|
+ * | ScoreDelta   | Mode-independent (runs during banner animations) |
+ * | LifeLost     | Gated on Mode.LIFE_LOST                        |
+ * | UpgradePick  | Gated on Mode.UPGRADE_PICK                     |
  *
- * For new dialogs: use the UpgradePick closure pattern (simplest) unless the dialog
- * has multiple resolution paths (use LifeLost method) or must tick during banners
- * (use ScoreDelta runtimeState pattern).
+ * See docs/dialog-completion-patterns.md for details.
  */
 export interface RuntimeScoreDelta {
   /** Show animated score deltas after build phase. `onDone` is invoked exactly once
    *  when the animation finishes (or immediately if there are no deltas to show).
-   *  Stored on runtimeState — timer ticks mode-independently (during banner/castle-build). */
+   *  Timer ticks mode-independently (during banner/castle-build). */
   show: (onDone: () => void) => void;
   /** Set pre-scores directly (online watcher receives them from host). */
   setPreScores: (scores: readonly number[]) => void;

@@ -2,16 +2,12 @@
  * Score delta display sub-system — owns the lifecycle of showing
  * animated score deltas after the build phase.
  *
- * Completion callback pattern: `onDone` is stored on runtimeState
- * (not a local closure) because the timer ticks mode-independently
- * — it counts down even during banner/castle-build animations.
- * Invoked via fireOnce to guarantee single invocation.
- * See docs/dialog-completion-patterns.md for the decision table
- * contrasting this with life-lost and upgrade-pick.
- *
- * Previously scattered across runtime-selection.ts (show),
- * runtime-composition.ts (tick), and runtime-phase-ticks.ts (guard + capture).
- * Colocated here for clarity.
+ * The real axis that distinguishes this sub-system from life-lost /
+ * upgrade-pick is **tick scope**: the timer ticks mode-independently
+ * — driven unconditionally from the main loop, counting down during
+ * banner/castle-build animations. The completion callback itself is
+ * stored in the same shared `FireOnceSlot` shape as the other two
+ * sub-systems. See docs/dialog-completion-patterns.md.
  */
 
 import { computeScoreDeltas } from "../game/index.ts";
@@ -19,7 +15,7 @@ import { SCORE_DELTA_DISPLAY_TIME } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
-import { fireOnce } from "../shared/platform/utils.ts";
+import { createFireOnceSlot } from "./fire-once-slot.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface ScoreDeltaDeps {
@@ -46,6 +42,12 @@ interface ScoreDeltaSystem {
 
 export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
   const { runtimeState } = deps;
+
+  /** Fires when the delta animation finishes. Closure-scoped like
+   *  life-lost and upgrade-pick — the tick scope axis (mode-independent
+   *  vs mode-gated) is what differs between the three sub-systems, not
+   *  callback storage. See docs/dialog-completion-patterns.md. */
+  const pendingOnDone = createFireOnceSlot();
 
   function capturePreScores(): void {
     runtimeState.scoreDisplay.preScores = runtimeState.state.players.map(
@@ -79,7 +81,7 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
       // via `runTransition`, which has already gated its display chain
       // on camera convergence to fullMapVp (see runtime-phase-machine).
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      scoreDisplay.deltaOnDone = onDone;
+      pendingOnDone.set(onDone);
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {
         round: runtimeState.state.round,
       });
@@ -103,8 +105,7 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_END, {
         round: runtimeState.state.round,
       });
-      // fireOnce: invokes scoreDisplay.deltaOnDone at most once, then clears it
-      fireOnce(scoreDisplay, "deltaOnDone");
+      pendingOnDone.fire();
     }
   }
 
@@ -121,7 +122,7 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
   function reset(): void {
     runtimeState.scoreDisplay.deltas = [];
     runtimeState.scoreDisplay.deltaTimer = 0;
-    runtimeState.scoreDisplay.deltaOnDone = null;
+    pendingOnDone.clear();
     runtimeState.scoreDisplay.preScores = [];
   }
 

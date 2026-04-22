@@ -261,6 +261,7 @@
       "src/runtime/runtime-contracts.ts",
       "src/runtime/runtime-tick-context.ts",
       "src/runtime/dialog-tick.ts",
+      "src/runtime/fire-once-slot.ts",
       "src/runtime/runtime-sound.ts",
       "src/runtime/runtime-sound-midi.ts",
       "src/runtime/runtime-sound-opl.ts",

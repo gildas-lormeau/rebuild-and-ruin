@@ -50,7 +50,6 @@ export interface ScoreDisplayState {
     cy: number;
   }[];
   deltaTimer: number;
-  deltaOnDone: (() => void) | null;
   preScores: readonly number[];
   gameStats: PlayerStats[];
 }
@@ -276,7 +275,6 @@ export function createRuntimeState(): RuntimeState {
     scoreDisplay: {
       deltas: [],
       deltaTimer: 0,
-      deltaOnDone: null,
       preScores: [],
       gameStats: [],
     },

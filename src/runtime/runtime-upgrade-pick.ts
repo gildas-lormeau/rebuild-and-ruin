@@ -2,16 +2,15 @@
  * Upgrade pick dialog sub-system factory.
  *
  * Follows the modal dialog lifecycle contract (get/set/tryShow/tick) defined
- * in runtime-types.ts. Dialog completion patterns across the three dialogs
- * (ScoreDelta / LifeLost / UpgradePick) are compared side-by-side in the
- * decision table above RuntimeScoreDelta in runtime-types.ts (~line 428) —
- * read that before adding a fourth dialog.
+ * in runtime-types.ts. Dialog completion callback is stored in the shared
+ * `FireOnceSlot` shape — same as score-delta and life-lost. The axis that
+ * actually differs between these three sub-systems is **tick scope**:
+ * upgrade-pick gates its tick on `Mode.UPGRADE_PICK`, score-delta ticks
+ * mode-independently. See docs/dialog-completion-patterns.md.
  *
- * Upgrade-pick picks the "local closure" pattern (`tryShow(onDone)`) because
- * it has a single resolution path (always resume the build-phase banner).
- * Also diverges from life-lost in having a `prepare()` pre-create step for
- * progressive reveal during the banner sweep, before tryShow() activates
- * Mode.UPGRADE_PICK.
+ * Diverges from the other two sub-systems in having a `prepare()`
+ * pre-create step for progressive reveal during the banner sweep, before
+ * tryShow() activates Mode.UPGRADE_PICK.
  *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
  * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
@@ -30,6 +29,7 @@ import type {
   UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -82,10 +82,11 @@ export function createUpgradePickSystem(
 ): UpgradePickSystem {
   const { runtimeState } = deps;
 
-  /** Callback to invoke when all picks are resolved. Closure-scoped
-   *  (not on runtimeState) because tick is gated on Mode.UPGRADE_PICK
-   *  — see docs/dialog-completion-patterns.md. */
-  let resolveCallback: (() => void) | undefined;
+  /** Callback to invoke when all picks are resolved. Shared
+   *  `FireOnceSlot` shape — same storage pattern as score-delta and
+   *  life-lost. Tick is gated on Mode.UPGRADE_PICK (the only axis that
+   *  actually differs). See docs/dialog-completion-patterns.md. */
+  const pendingOnDone = createFireOnceSlot();
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
@@ -120,7 +121,7 @@ export function createUpgradePickSystem(
     if (!dialog) return false;
 
     setMode(runtimeState, Mode.UPGRADE_PICK);
-    resolveCallback = onDone;
+    pendingOnDone.set(onDone);
     deps.log(
       `upgrade pick: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
     );
@@ -178,9 +179,7 @@ export function createUpgradePickSystem(
     // transitions in `runtime-phase-machine.ts` call
     // `clearUpgradePickDialog` from their postDisplay, after the build
     // banner finishes sweeping.
-    const callback = resolveCallback;
-    resolveCallback = undefined;
-    callback?.();
+    pendingOnDone.fire();
   }
 
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {

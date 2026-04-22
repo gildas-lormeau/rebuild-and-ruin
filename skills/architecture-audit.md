@@ -691,13 +691,14 @@ sufficient for LLM agents to follow correctly.
     that the orchestrator executes. Do not copy the intent shape into
     tryPlaceCannon without also rewriting placeCannon.
 
-112. **Dialog completion patterns are compared in a decision table** —
-    runtime/runtime-types.ts above RuntimeScoreDelta has a side-by-side table
-    of the three intentional patterns (ScoreDelta stored-on-state + fireOnce,
-    LifeLost method on system, UpgradePick local closure). runtime-banner.ts,
-    runtime-life-lost.ts, and runtime-upgrade-pick.ts all cross-reference
-    this table from their module headers. Read the table before adding a
-    fourth dialog.
+112. **Dialog completion callbacks share one shape; tick scope differs** —
+    ScoreDelta / LifeLost / UpgradePick all use a closure-scoped
+    `FireOnceSlot` (src/runtime/fire-once-slot.ts) for the completion
+    callback. The axis that actually differs is **tick scope**:
+    mode-independent (score-delta) vs mode-gated (life-lost, upgrade-pick).
+    runtime-types.ts above `RuntimeScoreDelta` and
+    docs/dialog-completion-patterns.md document the split. Read them before
+    adding a fourth dialog.
 
 113. **`AiController` structurally satisfies SelectionHost & BuildHost &
     CannonHost & BattleHost — enforced at the class site** —
