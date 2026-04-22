@@ -82,6 +82,7 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
+import { selectRenderView } from "../shared/core/render-view.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import type {
   RendererInterface,
@@ -628,7 +629,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
     log: config.log,
     render,
-    panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
+    panelPos: (pid) =>
+      lifeLostPanelPos(selectRenderView(runtimeState.state), pid),
     disableAutoZoom: camera.disableAutoZoom,
   });
 
@@ -820,7 +822,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lifeLostDialogClick: (screenX, screenY) => {
         if (!runtimeState.dialogs.lifeLost) return null;
         return handleLifeLostDialogClick({
-          state: runtimeState.state,
+          view: selectRenderView(runtimeState.state),
           lifeLostDialog: runtimeState.dialogs.lifeLost,
           screenX,
           screenY,

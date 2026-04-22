@@ -22,11 +22,7 @@ import {
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
-import {
-  type ComboEvent,
-  type GameState,
-  type SelectionState,
-} from "../shared/core/types.ts";
+import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
 import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import {
@@ -241,14 +237,14 @@ export function updateSelectionOverlay(
 }
 
 export function handleLifeLostDialogClick(params: {
-  state: GameState;
+  view: RenderView;
   lifeLostDialog: LifeLostDialogState;
   /** Canvas-pixel X coordinate (divided by SCALE internally for game-space hit testing). */
   screenX: number;
   /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
 }): { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null {
-  const { state, lifeLostDialog, screenX, screenY } = params;
+  const { view, lifeLostDialog, screenX, screenY } = params;
 
   const gameX = screenX / SCALE;
   const gameY = screenY / SCALE;
@@ -256,7 +252,7 @@ export function handleLifeLostDialogClick(params: {
   for (const entry of lifeLostDialog.entries) {
     if (entry.choice !== LifeLostChoice.PENDING) continue;
 
-    const { px, py } = lifeLostPanelPos(state, entry.playerId);
+    const { px, py } = lifeLostPanelPos(view, entry.playerId);
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
 
     if (
@@ -338,11 +334,11 @@ export function handleUpgradePickClick(params: {
  *  Falls back to the map center if no zone towers exist.
  *  Result is clamped to keep the panel 2px inside the tile-space edges. */
 export function lifeLostPanelPos(
-  state: GameState,
+  view: RenderView,
   playerId: ValidPlayerSlot,
 ): { px: number; py: number } {
-  const zone = state.playerZones[playerId] ?? 0;
-  const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
+  const zone = view.playerZones[playerId] ?? 0;
+  const zoneTowers = view.map.towers.filter((tower) => tower.zone === zone);
   // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
   const cx =
     zoneTowers.length > 0
