@@ -26,6 +26,7 @@ import { createCanvasRenderer } from "../render-canvas.ts";
 import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
+import { isPerfHudEnabled, updatePerfHud } from "./perf-hud.ts";
 import { createRender3dScene, type Render3dContext } from "./scene.ts";
 
 export function createRender3d(
@@ -230,6 +231,19 @@ export function createRender3d(
       ctx.renderer.clear();
       ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
       canvas2d.drawFrame(map, overlay, viewport, now);
+      if (isPerfHudEnabled()) {
+        const info = ctx.renderer.info;
+        updatePerfHud(
+          {
+            drawCalls: info.render.calls,
+            triangles: info.render.triangles,
+            geometries: info.memory.geometries,
+            textures: info.memory.textures,
+            programs: info.programs?.length ?? 0,
+          },
+          now,
+        );
+      }
     },
     setLayersEnabled: canvas2d.setLayersEnabled,
     // 2D `clientToSurface` returns raw backing-store canvas pixels.

@@ -1,3 +1,4 @@
+import { isPerfHudEnabled, setPerfHudEnabled } from "../render/3d/perf-hud.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
@@ -29,6 +30,7 @@ interface DevConsole {
   fixedStep: (ms?: number | false) => void;
   pause: () => void;
   step: () => void;
+  perfHud: (on?: boolean) => boolean;
 }
 
 const PLAYER_CSS = [
@@ -162,6 +164,13 @@ export function exposeDevConsole(
         runtimeState.paused = true;
       });
     },
+
+    perfHud(on?: boolean): boolean {
+      const next = on ?? !isPerfHudEnabled();
+      setPerfHudEnabled(next);
+      console.log(`Perf HUD ${next ? "on" : "off"} (3D renderer only)`);
+      return next;
+    },
   };
 
   win.__dev = dev;
@@ -209,11 +218,18 @@ function printHelp(): void {
   __dev.pause()            Toggle pause
   __dev.step()             Advance one frame (while paused)
 
+%cPerf HUD%c
+  __dev.perfHud()          Toggle fixed-corner FPS + draw-call HUD
+  __dev.perfHud(true)      Show  __dev.perfHud(false)  Hide
+  3D renderer only. Reads three.js renderer.info counters per frame.
+
 %cSymbols%c
   · grass  ~ water  ░ territory  # wall  T tower  t dead tower
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
+    RESET_CSS,
+    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,
