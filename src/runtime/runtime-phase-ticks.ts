@@ -209,6 +209,11 @@ const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
  *  math is paused (tab-hidden, etc.) and pitch never settles, fire the
  *  banner anyway — a one-frame pop is preferable to a stuck phase. */
 const UNTILT_WAIT_TIMEOUT_MS = 1000;
+/** Time to let cannons ease back to `defaultFacing` after the last ball
+ *  lands, before the camera starts untilting. The renderer eases the
+ *  displayed facing toward `cannon.facing` (reset here) at a matching
+ *  rate, so by the time untilt begins the cannons are at rest. */
+const ROTATION_RESET_WAIT_MS = 400;
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -217,6 +222,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Timestamp captured the first tick we decide the battle is ready to end
   // but the camera is still tilted. Cleared once the transition fires.
   let untiltWaitStartMs: number | undefined;
+  // Timestamp captured the first tick after the last ball lands, so we can
+  // hold for `ROTATION_RESET_WAIT_MS` while cannons rotate back to rest
+  // before the untilt begins. Cleared once the transition fires.
+  let rotationResetStartMs: number | undefined;
 
   // -------------------------------------------------------------------------
   // Bus → stats accumulator (observation subscriber)
@@ -484,7 +493,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.state.phase === Phase.WALL_BUILD,
       "startBuildPhase called outside WALL_BUILD",
     );
-    resetCannonFacings(runtimeState.state);
     for (const ctrl of runtimeState.controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))
@@ -643,6 +651,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
     emitBattleCeaseIfTimerCrossed(state, prevTimer);
 
+    // Weapons are locked once the timer has expired AND the last ball has
+    // landed — no more aiming, firing, or crosshair motion. Controllers
+    // therefore skip their battleTick, which would otherwise overwrite
+    // `cannon.facing` via `aimCannons` every frame and fight the
+    // battle-end facing reset below.
+    const weaponsActive = state.timer > 0 || state.cannonballs.length > 0;
+
     // Event collection order (LOAD-BEARING — do not reorder):
     //   1. Tick controllers → fire events (new cannonballs from battleTick)
     //   2. tickBattleCombat → tower kills + cannonball impacts
@@ -653,13 +668,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // (including AssistedHuman) send their own CANNON_FIRED via the human
     // action path, so duplicating here would double-spawn on the receiver.
     const fireEvents: CannonFiredMessage[] = [];
-    for (const ctrl of local) {
-      if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-      const ballsBefore = state.cannonballs.length;
-      ctrl.battleTick(state, dt);
-      if (!isHuman(ctrl)) {
-        for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
-          fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
+    if (weaponsActive) {
+      for (const ctrl of local) {
+        if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
+        const ballsBefore = state.cannonballs.length;
+        ctrl.battleTick(state, dt);
+        if (!isHuman(ctrl)) {
+          for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
+            fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
+          }
         }
       }
     }
@@ -692,7 +709,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Haptics and stats are handled by bus subscribers (onAny above / haptics subsystem).
 
-    syncCrosshairs(/* weaponsActive */ true, dt);
+    syncCrosshairs(weaponsActive, dt);
     deps.render();
 
     if (state.timer > 0 || state.cannonballs.length > 0) return false;
@@ -701,6 +718,19 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // mid-animation explosion/thaw visuals bake into the prev-scene image.
     if (battleAnim.impacts.length > 0 || battleAnim.thawing.length > 0)
       return false;
+
+    // Rotate cannons back to rest while the camera is still tilted. The
+    // facing reset happens once here (not in startBuildPhase) so the
+    // renderer sees `cannon.facing` change at this exact moment and eases
+    // the displayed rotation toward it. We hold the phase for
+    // ROTATION_RESET_WAIT_MS so the ease completes before `beginUntilt`.
+    if (rotationResetStartMs === undefined) {
+      resetCannonFacings(state);
+      rotationResetStartMs = deps.timing.now();
+    }
+    if (deps.timing.now() - rotationResetStartMs < ROTATION_RESET_WAIT_MS) {
+      return false;
+    }
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
     // it to settle BEFORE the battle-done transition runs. Otherwise the
@@ -718,6 +748,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
     untiltWaitStartMs = undefined;
+    rotationResetStartMs = undefined;
 
     // Battle ended — delegate to the battle-done transition.
     runTransition("battle-done", buildHostPhaseCtx());
