@@ -423,7 +423,7 @@ export function createOnlineOverlay(
       timer:
         !inBattle && !banner.active && view.timer > 0 ? view.timer : undefined,
       banner: bannerUi,
-      bannerPrevScene: banner.active ? banner.prevScene : undefined,
+      bannerPrevScene: banner.prevScene,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

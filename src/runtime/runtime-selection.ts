@@ -97,9 +97,6 @@ interface SelectionSystemDeps {
   enterCannonAfterCastleReselect: (
     reselectionPids: readonly ValidPlayerSlot[],
   ) => void;
-  /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
-  clearBannerSnapshots: () => void;
-
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
    * if the runtime is currently stopped (e.g. online mode starting from DOM lobby).
@@ -114,14 +111,15 @@ export function createSelectionSystem(
 
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map,
-   *  reselectionPids, overlay selection display, and any stale banner
-   *  prev-scene snapshot (invalid once a player's zone is reset after
-   *  losing a life). */
+   *  reselectionPids, and overlay selection display. Banner prev-scene
+   *  snapshots no longer need explicit clearing here: they live on
+   *  `runtimeState.banner` which is reset to a fresh struct when the banner
+   *  ends (`runtime-banner.ts`), so by the time a selection reset runs the
+   *  prevScene field is already undefined. */
   function resetSelectionState(): void {
     runtimeState.selection.states.clear();
     runtimeState.selection.reselectionPids = [];
     resetOverlaySelection();
-    deps.clearBannerSnapshots();
   }
 
   // -------------------------------------------------------------------------

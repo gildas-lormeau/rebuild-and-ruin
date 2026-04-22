@@ -484,7 +484,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const {
     showBanner,
     tickBanner,
-    clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
     capture: captureSceneForBanner,
   } = createBannerSystem({
@@ -531,7 +530,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       phaseTicks.enterCannonAfterCastleSelect(),
     enterCannonAfterCastleReselect: (pids) =>
       phaseTicks.enterCannonAfterCastleReselect(pids),
-    clearBannerSnapshots,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },

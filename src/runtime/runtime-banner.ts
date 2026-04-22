@@ -45,9 +45,6 @@ interface BannerSystemDeps {
 interface BannerSystem {
   showBanner: (opts: BannerShowOpts) => void;
   tickBanner: (dt: number) => void;
-  /** Drop any stashed prev-scene (e.g. on selection reset after life
-   *  lost — the zone mutation would have invalidated the pixels). */
-  clearSnapshots: () => void;
   reset: () => void;
   /** Capture the current scene into a `SceneCapture` stamped with the
    *  next banner-clock tick. Callers pass the result to `showBanner`
@@ -138,18 +135,18 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
     if (banner.progress < 1) return;
 
-    const endedText = banner.text;
-    banner.active = false;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_END, {
-      text: endedText,
+      text: banner.text,
       phase: state.phase,
       round: state.round,
     });
+    // Reset the struct to its created-from-createBannerState() shape so
+    // `active === false` doesn't leave stale text / subtitle / modifierId /
+    // prevScene / startTick lying around for the next renderer to read.
+    // Reassign BEFORE firing the callback so any re-entrant showBanner()
+    // from inside the callback writes into the fresh struct.
+    runtimeState.banner = createBannerState();
     fireOnce(banner, "callback", "banner.callback");
-  }
-
-  function clearSnapshots(): void {
-    runtimeState.banner.prevScene = undefined;
   }
 
   function reset(): void {
@@ -164,5 +161,5 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     return { image, capturedAtTick: nextBannerTick() };
   }
 
-  return { showBanner, tickBanner, clearSnapshots, reset, capture };
+  return { showBanner, tickBanner, reset, capture };
 }
