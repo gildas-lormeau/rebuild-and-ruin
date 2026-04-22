@@ -658,15 +658,15 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xda11,
       rocks: {
-        count: 260,
-        // Footprint widened to 1.96 so rocks reach the tile edges
-        // (halfW 0.98 + 0.707·minSize 0.10 = 1.05 at max rotation, but
-        // typical rocks sit inside ±1). Paired with a smaller max size
-        // than before (0.20 vs 0.24) so corner rocks don't poke as far
-        // beyond the ±1 frustum.
-        footprint: { width: 1.96, depth: 1.96 },
-        sizeRange: [0.1, 0.2],
-        maxHeight: 0.25,
+        // In-game a 1×1 tile is only ~16 world pixels wide, so rocks
+        // must be several world pixels across (sizeRange authored * 8
+        // = world pixels) to read as individual pieces rather than
+        // dithered noise. Paired with the full-tile base plate below,
+        // a modest count of larger rocks reads as chunky rubble.
+        count: 55,
+        footprint: { width: 1.8, depth: 1.8 },
+        sizeRange: [0.22, 0.42],
+        maxHeight: 0.5,
         flatness: [0.45, 0.95],
         materials: WALL_MATERIALS,
       },
@@ -680,10 +680,10 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xda12,
       rocks: {
-        count: 310,
-        footprint: { width: 1.96, depth: 1.96 },
-        sizeRange: [0.1, 0.2],
-        maxHeight: 0.25,
+        count: 70,
+        footprint: { width: 1.8, depth: 1.8 },
+        sizeRange: [0.22, 0.42],
+        maxHeight: 0.5,
         flatness: [0.45, 0.95],
         materials: WALL_MATERIALS,
       },
