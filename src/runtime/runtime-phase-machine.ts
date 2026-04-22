@@ -139,6 +139,16 @@ type DisplayStep =
   | {
       readonly kind: "upgrade-pick";
       readonly when?: (state: GameState, r: TransitionResult) => boolean;
+    }
+  | {
+      /** Pauses the display-step sequence for `ms` milliseconds before
+       *  advancing. Lets listeners time SFX / visual effects between
+       *  banners (e.g. the beat between the modifier banner and the
+       *  battle banner). No UI side-effects — just a delay on the
+       *  shared `ctx.timing.setTimeout`. */
+      readonly kind: "delay";
+      readonly ms: number;
+      readonly when?: (state: GameState, r: TransitionResult) => boolean;
     };
 
 /** Per-role mutation: host mutates by running game logic, watcher mutates
@@ -409,69 +419,7 @@ const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
 const STEP_UPGRADE_PICK = "upgrade-pick" as const;
-/** `cannon-place-done` — CANNON_PLACE → BATTLE.
- *
- *  Host: `enterBattlePhase` computes the modifier, balloon flights, and the
- *  post-modifier territory/wall snapshots; the host broadcasts BATTLE_START.
- *
- *  Watcher: `applyBattleStart` is the symmetric counterpart — it
- *  deserializes the checkpoint, applies modifier tiles, recomputes
- *  territory, and sets Phase.BATTLE (so PHASE_END/PHASE_START fire).
- *  Both paths leave state in the same post-modifier, post-setPhase shape;
- *  `postMutate: syncBattleAnim` rebuilds battleAnim from that state.
- *
- *  Display: conditional modifier-reveal banner (when modifier rolled) →
- *  "Prepare for Battle" banner. Each banner captures its own prev-scene
- *  at `showBanner` time (see `runBannerStep`) — the modifier banner
- *  captures the pre-modifier scene before its sweep starts; by the time
- *  the battle banner's `showBanner` fires, the modifier's tile changes
- *  have finished rendering and the capture naturally reflects them.
- *
- *  postDisplay: flights > 0 → BALLOON_ANIM mode; else begin battle. */
-const CANNON_PLACE_DONE: Transition = {
-  id: "cannon-place-done",
-  from: Phase.CANNON_PLACE,
-  mutate: {
-    host: (ctx) => {
-      ctx.log(`startBattle (round=${ctx.state.round})`);
-      ctx.scoreDelta.reset();
-      const entry = enterBattlePhase(ctx.state);
-      ctx.broadcast?.battleStart?.(
-        ctx.state,
-        entry.flights,
-        entry.modifierDiff,
-      );
-      return { modifierDiff: entry.modifierDiff, flights: entry.flights };
-    },
-    watcher: (ctx) => {
-      const msg = ctx.incomingMsg as BattleStartData;
-      ctx.checkpoint?.applyBattleStart?.(msg);
-      setPhase(ctx.state, Phase.BATTLE);
-      return {
-        modifierDiff: msg.modifierDiff ?? null,
-        flights: msg.flights ?? [],
-      };
-    },
-  },
-  postMutate: syncBattleAnim,
-  display: [
-    {
-      kind: STEP_BANNER,
-      text: (r) => modifierDef(r.modifierDiff!.id).label,
-      modifierId: (r) => r.modifierDiff?.id,
-      when: (_, r) => !!r.modifierDiff,
-    },
-    {
-      kind: STEP_BANNER,
-      text: BANNER_BATTLE,
-      subtitle: BANNER_BATTLE_SUB,
-    },
-  ],
-  postDisplay: {
-    host: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
-    watcher: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
-  },
-};
+const STEP_DELAY = "delay" as const;
 /** `wall-build-done` — end of WALL_BUILD.
  *
  *  Host: finalizes local controllers' bag state, then runs the engine's
@@ -787,6 +735,89 @@ const LAST_PLAYER_STANDING: Transition = {
   mutate: ROUND_LIMIT_REACHED.mutate,
   display: [],
 };
+/** Safety fallback if the PITCH_SETTLED bus event never fires (tab
+ *  hidden, paused timing, etc.). Far longer than PITCH_DURATION (0.6s)
+ *  so a normal tilt-in never hits the timeout — it only trips on a
+ *  stalled camera. Balloon anim still fires, just under the
+ *  not-quite-settled view. */
+const BALLOON_ANIM_TILT_TIMEOUT_MS = 1500;
+/** Pause between the modifier-reveal banner and the battle banner so
+ *  SFX / tile-change animations have a beat to play. 2 seconds is long
+ *  enough to land a bespoke effect cue but short enough that it doesn't
+ *  feel like a stall. Only applied when a modifier was actually rolled. */
+const MODIFIER_POST_BANNER_DELAY_MS = 2000;
+/** `cannon-place-done` — CANNON_PLACE → BATTLE.
+ *
+ *  Host: `enterBattlePhase` computes the modifier, balloon flights, and the
+ *  post-modifier territory/wall snapshots; the host broadcasts BATTLE_START.
+ *
+ *  Watcher: `applyBattleStart` is the symmetric counterpart — it
+ *  deserializes the checkpoint, applies modifier tiles, recomputes
+ *  territory, and sets Phase.BATTLE (so PHASE_END/PHASE_START fire).
+ *  Both paths leave state in the same post-modifier, post-setPhase shape;
+ *  `postMutate: syncBattleAnim` rebuilds battleAnim from that state.
+ *
+ *  Display: conditional modifier-reveal banner (when modifier rolled) →
+ *  "Prepare for Battle" banner. Each banner captures its own prev-scene
+ *  at `showBanner` time (see `runBannerStep`) — the modifier banner
+ *  captures the pre-modifier scene before its sweep starts; by the time
+ *  the battle banner's `showBanner` fires, the modifier's tile changes
+ *  have finished rendering and the capture naturally reflects them.
+ *
+ *  postDisplay: flights > 0 → BALLOON_ANIM mode; else begin battle. */
+const CANNON_PLACE_DONE: Transition = {
+  id: "cannon-place-done",
+  from: Phase.CANNON_PLACE,
+  mutate: {
+    host: (ctx) => {
+      ctx.log(`startBattle (round=${ctx.state.round})`);
+      ctx.scoreDelta.reset();
+      const entry = enterBattlePhase(ctx.state);
+      ctx.broadcast?.battleStart?.(
+        ctx.state,
+        entry.flights,
+        entry.modifierDiff,
+      );
+      return { modifierDiff: entry.modifierDiff, flights: entry.flights };
+    },
+    watcher: (ctx) => {
+      const msg = ctx.incomingMsg as BattleStartData;
+      ctx.checkpoint?.applyBattleStart?.(msg);
+      setPhase(ctx.state, Phase.BATTLE);
+      return {
+        modifierDiff: msg.modifierDiff ?? null,
+        flights: msg.flights ?? [],
+      };
+    },
+  },
+  postMutate: syncBattleAnim,
+  display: [
+    {
+      kind: STEP_BANNER,
+      text: (r) => modifierDef(r.modifierDiff!.id).label,
+      modifierId: (r) => r.modifierDiff?.id,
+      when: (_, r) => !!r.modifierDiff,
+    },
+    // 2s beat after the modifier banner so SFX / visual listeners can
+    // play their effect before the battle banner kicks in. Skipped
+    // entirely in rounds with no modifier — those go straight from
+    // cannon-place to the battle banner.
+    {
+      kind: STEP_DELAY,
+      ms: MODIFIER_POST_BANNER_DELAY_MS,
+      when: (_, r) => !!r.modifierDiff,
+    },
+    {
+      kind: STEP_BANNER,
+      text: BANNER_BATTLE,
+      subtitle: BANNER_BATTLE_SUB,
+    },
+  ],
+  postDisplay: {
+    host: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
+    watcher: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
+  },
+};
 const TRANSITIONS: readonly Transition[] = [
   CANNON_PLACE_DONE,
   WALL_BUILD_DONE,
@@ -802,12 +833,6 @@ const TRANSITIONS: readonly Transition[] = [
 const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
   TRANSITIONS.map((transition) => [transition.id, transition] as const),
 );
-/** Safety fallback if the PITCH_SETTLED bus event never fires (tab
- *  hidden, paused timing, etc.). Far longer than PITCH_DURATION (0.6s)
- *  so a normal tilt-in never hits the timeout — it only trips on a
- *  stalled camera. Balloon anim still fires, just under the
- *  not-quite-settled view. */
-const BALLOON_ANIM_TILT_TIMEOUT_MS = 1500;
 export const ROLE_HOST = "host" as const;
 export const ROLE_WATCHER = "watcher" as const;
 
@@ -1060,6 +1085,13 @@ function runStep(
       return;
     case STEP_UPGRADE_PICK:
       runUpgradePickStep(step, ctx, result, prevScene, onDone);
+      return;
+    case STEP_DELAY:
+      if (step.when && !step.when(ctx.state, result)) {
+        onDone();
+        return;
+      }
+      ctx.timing.setTimeout(onDone, step.ms);
       return;
   }
 }
