@@ -56,7 +56,7 @@ import {
 } from "../src/online/online-watcher-tick.ts";
 import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
+import type { OnlinePhaseTicks, TimingApi } from "../src/runtime/runtime-types.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import {
   createHeadlessRuntime,
@@ -157,14 +157,23 @@ async function buildWatcherRuntime(
   // the `onlinePhaseTicks` we pass in.
   const client = buildWatcherClient(allRemote);
   const headlessHolder: { current?: HeadlessRuntime } = {};
+  const requireHeadless = (): HeadlessRuntime => {
+    const headless = headlessHolder.current;
+    if (!headless) throw new Error("watcher runtime not yet constructed");
+    return headless;
+  };
+  const lazyTiming: TimingApi = {
+    now: () => requireHeadless().timing.now(),
+    setTimeout: (callback, ms) =>
+      requireHeadless().timing.setTimeout(callback, ms),
+    clearTimeout: (handle) => requireHeadless().timing.clearTimeout(handle),
+    requestFrame: (callback) => requireHeadless().timing.requestFrame(callback),
+  };
   const watcherDeps: WatcherDeps = {
-    getRuntime: () => {
-      const h = headlessHolder.current;
-      if (!h) throw new Error("watcher runtime not yet constructed");
-      return h.runtime;
-    },
+    getRuntime: () => requireHeadless().runtime,
     session: client.ctx.session,
     watcher: client.ctx.watcher,
+    timing: lazyTiming,
   };
   const tickCtx: WatcherTickContext = {
     getState: () => headlessHolder.current!.runtime.runtimeState.state,

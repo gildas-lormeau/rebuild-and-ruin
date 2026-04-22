@@ -125,6 +125,11 @@ export interface RunOpts {
 
 export interface HeadlessRuntime {
   readonly runtime: GameRuntime;
+  /** Mock-clock TimingApi. Exposed so network-test setup can thread the
+   *  same deterministic timing into watcher-side transition deps (the
+   *  watcher runtime is constructed lazily, so deps need a stable handle
+   *  before the runtime exists). */
+  readonly timing: TimingApi;
   /** Current mock clock (ms). */
   now(): number;
   /** Drive the simulation until `predicate` returns true. Throws
@@ -464,6 +469,7 @@ export async function createHeadlessRuntime(
 
   return {
     runtime,
+    timing,
     now: () => clock,
     runUntil,
     tick: tickFrames,

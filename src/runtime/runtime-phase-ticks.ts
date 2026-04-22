@@ -374,6 +374,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       state: runtimeState.state,
       runtimeState,
       role: ROLE_HOST,
+      timing: deps.timing,
       showBanner: deps.showBanner,
       captureScene: deps.captureScene,
       requestUnzoom: deps.requestUnzoom,

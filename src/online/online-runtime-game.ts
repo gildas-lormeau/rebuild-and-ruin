@@ -95,6 +95,7 @@ const watcherDeps: WatcherDeps = {
   getRuntime: () => runtime,
   session: ctx.session,
   watcher: ctx.watcher,
+  timing,
 };
 // ── Send-on-success action wrappers ────────────────────────────────
 // `send` and `getState` are bound once here so individual call sites

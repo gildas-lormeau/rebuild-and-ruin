@@ -17,7 +17,7 @@ import {
   type TransitionId,
 } from "../runtime/runtime-phase-machine.ts";
 import { type RuntimeState, setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime } from "../runtime/runtime-types.ts";
+import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
 import {
   type BalloonFlight,
   clearImpacts,
@@ -70,6 +70,11 @@ export interface WatcherDeps {
     | "watcherOrbitParams"
     | "watcherOrbitAngles"
   >;
+  /** Injected timing primitives — threaded into the watcher-role
+   *  `PhaseTransitionCtx` so display steps (e.g. `proceedToBattle`'s
+   *  pitch-settle watchdog) schedule through the same mock clock that
+   *  drives headless tests. */
+  readonly timing: TimingApi;
 }
 
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build
@@ -213,6 +218,7 @@ function buildWatcherPhaseCtx(
     state: runtimeState.state,
     runtimeState,
     role: ROLE_WATCHER,
+    timing: deps.timing,
     showBanner: runtime.showBanner,
     captureScene: runtime.captureScene,
     requestUnzoom: runtime.requestUnzoom,

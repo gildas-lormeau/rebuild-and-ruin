@@ -89,7 +89,7 @@ import {
   resolveAfterLifeLost,
 } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { BuildEndSummary } from "./runtime-types.ts";
+import type { BuildEndSummary, TimingApi } from "./runtime-types.ts";
 
 export type TransitionId =
   | "castle-select-done"
@@ -237,6 +237,11 @@ export interface PhaseTransitionCtx {
   readonly state: GameState;
   readonly runtimeState: RuntimeState;
   readonly role: "host" | "watcher";
+  /** Injected timing primitives. Transition display steps that schedule
+   *  fallback timers (e.g. `proceedToBattle`'s pitch-settle watchdog) MUST
+   *  route through here so headless tests on the mock clock observe the
+   *  same timing as production. */
+  readonly timing: TimingApi;
 
   readonly showBanner: BannerShow;
   /** Capture the current scene for a banner's prev-scene. Stamped with
@@ -1030,12 +1035,12 @@ function proceedToBattle(
     if (fired) return;
     fired = true;
     bus.off(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
-    clearTimeout(timer);
+    ctx.timing.clearTimeout(timer);
     proceed();
   };
   const onPitchSettled = (): void => fireOnce();
   bus.on(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
-  const timer = setTimeout(fireOnce, BALLOON_ANIM_TILT_TIMEOUT_MS);
+  const timer = ctx.timing.setTimeout(fireOnce, BALLOON_ANIM_TILT_TIMEOUT_MS);
 }
 
 function runStep(
