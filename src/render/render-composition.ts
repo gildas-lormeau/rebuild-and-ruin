@@ -21,6 +21,7 @@ import {
 } from "../shared/core/grid.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { RenderView } from "../shared/core/render-view.ts";
 import {
   type ComboEvent,
   type GameState,
@@ -166,20 +167,20 @@ export function createBannerUi(
 }
 
 export function createStatusBar(
-  state: GameState,
+  view: RenderView,
   playerColors: readonly { interiorLight: RGB }[],
   povPlayerId?: number,
   hasPointerPlayer?: boolean,
 ) {
   // Modifier label (modern mode only)
-  const modifier = state.modern?.activeModifier
-    ? modifierDef(state.modern.activeModifier).label
+  const modifier = view.modern?.activeModifier
+    ? modifierDef(view.modern.activeModifier).label
     : undefined;
 
   // POV player's active upgrade labels (skip when no human is playing)
   let upgrades: string[] | undefined;
   if (hasPointerPlayer && povPlayerId !== undefined && povPlayerId >= 0) {
-    const player = state.players[povPlayerId];
+    const player = view.players[povPlayerId];
     if (player && player.upgrades.size > 0) {
       upgrades = [];
       for (const [id, count] of player.upgrades) {
@@ -192,21 +193,21 @@ export function createStatusBar(
 
   return {
     round:
-      state.maxRounds === Infinity
-        ? `R${state.round}`
-        : `R${state.round}/${state.maxRounds}`,
-    phase: PHASE_LABELS.get(state.phase) ?? "",
+      view.maxRounds === Infinity
+        ? `R${view.round}`
+        : `R${view.round}/${view.maxRounds}`,
+    phase: PHASE_LABELS.get(view.phase) ?? "",
     // Display lags the real timer by TIMER_DISPLAY_LAG_SEC so "0s"
     // shows during the last second of the phase instead of blipping
-    // past. Pure visual — the real countdown (state.timer) still hits
+    // past. Pure visual — the real countdown (view.timer) still hits
     // 0 at the actual phase end.
     timer:
-      state.timer > 0
-        ? `${Math.max(0, Math.ceil(state.timer - TIMER_DISPLAY_LAG_SEC))}s`
+      view.timer > 0
+        ? `${Math.max(0, Math.ceil(view.timer - TIMER_DISPLAY_LAG_SEC))}s`
         : "",
     modifier,
     upgrades,
-    players: state.players.map((player, i) => ({
+    players: view.players.map((player, i) => ({
       score: player.score,
       cannons: player.cannons.filter((c) => c.hp > 0).length,
       lives: player.lives,
@@ -375,7 +376,7 @@ export function createOnlineOverlay(
 ): RenderOverlay {
   const {
     previousSelection,
-    state,
+    view,
     banner,
     battleAnim,
     frame,
@@ -392,43 +393,41 @@ export function createOnlineOverlay(
     masterBuilderLockout,
   } = params;
 
-  const homeTowers = buildHomeTowersByIndex(state);
+  const homeTowers = buildHomeTowersByIndex(view);
   const battleTerritory = inBattle ? battleAnim.territory : undefined;
   const battleWalls = inBattle ? battleAnim.walls : undefined;
 
   return {
-    phase: state.phase,
+    phase: view.phase,
     selection: previousSelection,
-    castles: buildCastleOverlay(state),
+    castles: buildCastleOverlay(view),
     entities: {
-      houses: state.map.houses,
-      grunts: state.grunts,
-      towerAlive: state.towerAlive,
-      burningPits: state.burningPits,
-      bonusSquares: state.bonusSquares,
+      houses: view.map.houses,
+      grunts: view.grunts,
+      towerAlive: view.towerAlive,
+      burningPits: view.burningPits,
+      bonusSquares: view.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
-      frozenTiles: state.modern?.frozenTiles ?? undefined,
+      frozenTiles: view.modern?.frozenTiles ?? undefined,
       thawingTiles:
         battleAnim.thawing.length > 0 ? battleAnim.thawing : undefined,
-      sinkholeTiles: state.modern?.sinkholeTiles ?? undefined,
+      sinkholeTiles: view.modern?.sinkholeTiles ?? undefined,
     },
     battle: {
       inBattle: !!battleTerritory,
       battleTerritory,
       battleWalls,
-      cannonballs: buildBattleCannonballsPayload(inBattle, state.cannonballs),
+      cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
       impacts: inBattle ? battleAnim.impacts : undefined,
       crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
       fogOfWar:
-        inBattle && state.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
+        inBattle && view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
     },
     phantoms: frame.phantoms,
     ui: {
       timer:
-        !inBattle && !banner.active && state.timer > 0
-          ? state.timer
-          : undefined,
+        !inBattle && !banner.active && view.timer > 0 ? view.timer : undefined,
       banner: bannerUi,
       bannerPrevScene: banner.active ? banner.prevScene : undefined,
       announcement: frame.announcement,
@@ -441,7 +440,7 @@ export function createOnlineOverlay(
         getLifeLostPanelPos,
       ),
       comboFloats: hasPointerPlayer
-        ? formatComboFloats(state.modern?.comboTracker?.events, povPlayerId)
+        ? formatComboFloats(view.modern?.comboTracker?.events, povPlayerId)
         : undefined,
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
@@ -612,8 +611,8 @@ function upgradePickEntryH(): number {
   return UPGRADE_NAME_H + UPGRADE_CARD_H + UPGRADE_ROW_GAP;
 }
 
-function buildCastleOverlay(state: GameState): CastleData[] {
-  return state.players
+function buildCastleOverlay(view: RenderView): CastleData[] {
+  return view.players
     .filter((player) => player.castle)
     .map((player) => ({
       walls: player.walls,
@@ -625,9 +624,9 @@ function buildCastleOverlay(state: GameState): CastleData[] {
     }));
 }
 
-function buildHomeTowersByIndex(state: GameState): Map<number, number> {
+function buildHomeTowersByIndex(view: RenderView): Map<number, number> {
   const homeTowers = new Map<number, number>();
-  for (const player of state.players) {
+  for (const player of view.players) {
     if (player.homeTower) {
       homeTowers.set(player.homeTower.index, player.id);
     }

@@ -22,6 +22,7 @@
       "src/shared/core/system-interfaces.ts",
       "src/shared/core/types.ts",
       "src/shared/core/phantom-types.ts",
+      "src/shared/core/render-view.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/platform/ail-to-wopl.ts",
       "src/shared/platform/jsfxr.d.ts",

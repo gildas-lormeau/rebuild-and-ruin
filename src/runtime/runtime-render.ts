@@ -8,6 +8,7 @@
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { selectRenderView } from "../shared/core/render-view.ts";
 import type {
   InputReceiver,
   PlayerController,
@@ -119,9 +120,14 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.banner.subtitle,
     );
 
+    // Project full GameState onto the phase-discriminated render view
+    // once per frame; pass to overlay builders instead of GameState so
+    // they see only what the render layer needs.
+    const view = selectRenderView(runtimeState.state);
+
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
-      state: runtimeState.state,
+      view,
       banner: runtimeState.banner,
       battleAnim: runtimeState.battleAnim,
       frame: runtimeState.frame,
@@ -153,7 +159,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.statusBar = is3d
         ? undefined
         : deps.createStatusBar(
-            runtimeState.state,
+            view,
             PLAYER_COLORS,
             runtimeState.frameMeta.povPlayerId,
             runtimeState.frameMeta.hasPointerPlayer,

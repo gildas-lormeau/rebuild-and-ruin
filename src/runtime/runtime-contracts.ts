@@ -8,6 +8,7 @@ import type { ModifierId } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { RenderView } from "../shared/core/render-view.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -149,7 +150,7 @@ export interface RenderSummaryParams {
 }
 
 export type CreateStatusBarFn = (
-  state: GameState,
+  view: RenderView,
   playerColors: readonly { interiorLight: RGB }[],
   povPlayerId?: number,
   hasPointerPlayer?: boolean,
@@ -200,7 +201,7 @@ export type CreateOnlineOverlayFn = (
 /** Parameter object for createOnlineOverlay — extracted so consumers can import the type. */
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
-  state: GameState;
+  view: RenderView;
   banner: Pick<BannerState, "active" | "prevScene" | "startTick">;
   battleAnim: {
     territory: Set<number>[];

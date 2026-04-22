@@ -125,6 +125,7 @@
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/shared/core/occupancy-queries.ts",
+      "src/shared/core/render-view.ts",
       "src/shared/core/system-interfaces.ts",
       "src/shared/ui/overlay-types.ts"
     ]

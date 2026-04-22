@@ -145,10 +145,10 @@ export interface SelectionOverlay {
 /** Map entities — present in all phases. */
 export interface EntityOverlay {
   houses?: House[];
-  grunts?: Grunt[];
-  towerAlive?: boolean[];
-  burningPits?: BurningPit[];
-  bonusSquares?: TilePos[];
+  grunts?: readonly Grunt[];
+  towerAlive?: readonly boolean[];
+  burningPits?: readonly BurningPit[];
+  bonusSquares?: readonly TilePos[];
   /** Tower index → owner player id for home towers. */
   homeTowers?: Map<number, number>;
   /** Frozen river tiles for rendering ice overlay. */
