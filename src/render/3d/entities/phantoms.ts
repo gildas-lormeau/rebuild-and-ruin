@@ -35,6 +35,7 @@
  */
 
 import * as THREE from "three";
+import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import type {
@@ -321,7 +322,9 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
       0,
       phantom.row * TILE_SIZE + offset,
     );
-    host.group.scale.setScalar(TILE_SIZE);
+    host.group.scale.setScalar(
+      (template.footprint * TILE_SIZE) / NORMAL_CANNON_SIZE,
+    );
     const facing = template.rotatable
       ? (facings?.get(phantom.playerId) ?? 0)
       : 0;
