@@ -63,6 +63,13 @@
   <span class="hint" id="viewLabel">top-down</span>
   &nbsp; palette:
   <span class="hint" id="paletteOut"></span>
+  &nbsp; player:
+  <select id="playerSelect">
+    <option value="">neutral</option>
+    <option value="0">Red (P1)</option>
+    <option value="1">Blue (P2)</option>
+    <option value="2">Gold (P3)</option>
+  </select>
 </div>
 
 <div class="panes">
@@ -71,7 +78,44 @@
 
 <script type="module">
 import * as THREE from "three";
+import { PLAYER_COLORS } from "/src/shared/ui/player-config.ts";
 import { createSpritePage } from "./sprites-pipeline.mjs";
+
+// Preview-only helper: walk the freshly-built tower scene and swap
+// tagged meshes for tinted clones so the preview matches what the
+// `towers.ts` entity manager does in-game for home towers.
+// - "flag"           → vivid `interiorLight` team color.
+// - "body"/"parapet" → muted stone-friendly `wall` color.
+// Roofs stay on their neutral pale palette.
+function applyTowerTint(scene, playerIdx, variantName) {
+  if (variantName !== "home_tower") return;
+  const vivid = rgbTriToHex(PLAYER_COLORS[playerIdx].interiorLight);
+  const muted = rgbTriToHex(PLAYER_COLORS[playerIdx].wall);
+  scene.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    let hex;
+    if (obj.name === "flag") hex = vivid;
+    else if (
+      obj.name === "body" ||
+      obj.name === "parapet" ||
+      obj.name === "pole_base"
+    ) hex = muted;
+    else return;
+    const src = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+    const tinted = src.clone();
+    if (
+      tinted instanceof THREE.MeshStandardMaterial ||
+      tinted instanceof THREE.MeshBasicMaterial
+    ) {
+      tinted.color.setHex(hex);
+    }
+    obj.material = tinted;
+  });
+}
+
+function rgbTriToHex([r, g, b]) {
+  return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+}
 
 // `(three, scene, params)` is the common signature across most scenes;
 // `debris` and `balloon` take the full variant instead. Adapter map
@@ -116,7 +160,9 @@ const BUILD_FN_NAMES = {
 };
 
 let currentPage = null;
+let playerIdx = null; // null = neutral (no per-player tint)
 const select = document.getElementById("sceneSelect");
+const playerSelect = document.getElementById("playerSelect");
 
 async function loadScene(key) {
   if (currentPage) currentPage.dispose();
@@ -126,11 +172,18 @@ async function loadScene(key) {
   if (typeof buildFn !== "function") {
     throw new Error(`scene ${key}: missing ${BUILD_FN_NAMES[key]}`);
   }
+  const baseBuild = BUILD_SCENE_ADAPTERS[key](buildFn);
+  const buildScene = (scene, variant) => {
+    baseBuild(scene, variant);
+    if (key === "tower" && playerIdx !== null) {
+      applyTowerTint(scene, playerIdx, variant.name);
+    }
+  };
   currentPage = createSpritePage({
     THREE,
     variants: mod.VARIANTS,
     palette: mod.PALETTE,
-    buildScene: BUILD_SCENE_ADAPTERS[key](buildFn),
+    buildScene,
   });
 }
 
@@ -139,6 +192,11 @@ select.addEventListener("change", () => {
     console.error(err);
     alert(`Failed to load ${select.value}: ${err.message}`);
   });
+});
+
+playerSelect.addEventListener("change", () => {
+  playerIdx = playerSelect.value === "" ? null : Number(playerSelect.value);
+  loadScene(select.value).catch(console.error);
 });
 
 // Initial scene from URL hash (e.g., #cannon) or default to tower.

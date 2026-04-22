@@ -55,11 +55,13 @@ export const BAND_GREEN: MaterialSpec = {
   roughness: 0.65,
   metalness: 0.3,
 };
-// Pennant / flag red. Used on tower flagpoles (as a thin two-sided
-// plane) and on the flag fragment sampled into tower-rubble piles.
+// Pennant / flag base material (default red). Used on tower flagpoles
+// (as a thin two-sided plane) and on the flag fragment sampled into
+// tower-rubble piles. For home towers the entity manager clones and
+// tints this material per-player; secondary towers render it as-is.
 // side:'double' is harmless on the rubble (the 3D debris chunk renders
 // both sides anyway) and required by the tower pennant plane.
-export const FLAG_RED: MaterialSpec = {
+export const FLAG_BASE: MaterialSpec = {
   kind: "standard",
   color: 0xb02a2a,
   roughness: 0.65,

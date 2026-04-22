@@ -36,7 +36,7 @@ import {
   type MaterialSpec,
   measureVariantBoundsY,
 } from "./sprite-kit.ts";
-import { FLAG_RED, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
+import { FLAG_BASE, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export type FlagSide = "+x" | "-x" | "+z" | "-z";
@@ -284,20 +284,55 @@ const STONE_PLAIN: MaterialSpec = {
 };
 const ROOF_SLATE: TexturedSpec = {
   kind: "standard",
-  color: 0x9ca6bb,
+  color: 0xcbd0dc,
   roughness: 0.75,
   metalness: 0.1,
   texture: "tower_roof",
 };
+// Secondary-tower-only variants. Cool blue-grey slate + white stone read
+// as the "royal" home colour scheme; the secondary tower gets a warmer
+// sandstone body, terracotta roof, and a pale banner instead of the
+// red pennant (which would only matter on home towers anyway, since
+// those get per-player tinted — secondary towers are neutral).
+const STONE_BODY_SECONDARY: TexturedSpec = {
+  kind: "standard",
+  color: 0xe8dcc8,
+  roughness: 0.85,
+  metalness: 0.15,
+  texture: "tower_stone",
+};
+const ROOF_SLATE_SECONDARY: TexturedSpec = {
+  kind: "standard",
+  color: 0xe0bfa8,
+  roughness: 0.75,
+  metalness: 0.1,
+  texture: "tower_roof",
+};
+const FLAG_NEUTRAL: MaterialSpec = {
+  kind: "standard",
+  color: 0xe8d890,
+  roughness: 0.65,
+  metalness: 0.0,
+  side: "double",
+};
+// Thin near-black frame drawn behind every pennant so the flag pops
+// against bright sky / pale stonework. Rendered as a slightly larger
+// quad just behind the flag plane; `kind: "basic"` keeps it unlit so
+// lighting doesn't soften the silhouette.
+const FLAG_OUTLINE: MaterialSpec = {
+  kind: "basic",
+  color: 0x1a1510,
+  side: "double",
+};
 const WINDOW_DARK: TexturedSpec = {
   kind: "basic",
-  color: 0xffffff,
+  color: 0x606060,
   side: "double",
   texture: "tower_door",
 };
 const PLATFORM_STONE: MaterialSpec = {
   kind: "standard",
-  color: 0x5a5a58,
+  color: 0xdac5a2,
   roughness: 0.85,
   metalness: 0.15,
 };
@@ -366,16 +401,23 @@ export const VARIANTS: Variant[] = [
           name: "rear_main",
           x: col(7),
           z: row(3),
-          width: cells(11),
+          width: cells(9),
           depth: cells(7),
           height: 0.15,
           yBase: 0,
-          material: STONE_BODY,
+          material: STONE_BODY_SECONDARY,
           roof: {
             thickness: 0,
             eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: { ...MERLON_PARAPET, skipSides: ["S"] },
+            material: ROOF_SLATE_SECONDARY,
+            parapet: {
+              ...MERLON_PARAPET,
+              skipSides: ["S"],
+              clip: {
+                W: { exclude: [{ lo: row(3.5), hi: row(6.5) }] },
+                E: { exclude: [{ lo: row(3.5), hi: row(6.5) }] },
+              },
+            },
           },
           polePlatform: {
             offset: [0, cells(2.5)],
@@ -392,7 +434,7 @@ export const VARIANTS: Variant[] = [
                 height: 0.0625,
                 yOffset: -0.03125,
                 side: "+x",
-                material: FLAG_RED,
+                material: FLAG_NEUTRAL,
               },
             },
           },
@@ -401,50 +443,57 @@ export const VARIANTS: Variant[] = [
           name: "front_main",
           x: col(7),
           z: row(9),
-          width: cells(13),
+          width: cells(11),
           depth: cells(5),
           height: 0.15,
           yBase: 0,
-          material: STONE_BODY,
+          material: STONE_BODY_SECONDARY,
           roof: {
             thickness: 0,
             eaveScale: 1.0,
-            material: ROOF_SLATE,
-            parapet: { ...MERLON_PARAPET, skipSides: ["N"] },
+            material: ROOF_SLATE_SECONDARY,
+            parapet: {
+              ...MERLON_PARAPET,
+              skipSides: ["N"],
+              clip: {
+                W: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
+                E: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
+              },
+            },
           },
           window: { width: cells(2), height: cells(1), material: WINDOW_DARK },
         },
         {
           name: "rear_left",
-          x: col(1.5),
+          x: col(2.5),
           z: row(5.5),
           width: cells(4),
           depth: cells(4),
           height: 0.25,
           yBase: 0,
           cornerR: CORNER_R,
-          material: STONE_BODY,
+          material: STONE_BODY_SECONDARY,
           roof: {
             thickness: 0,
             eaveScale: 1.0,
-            material: ROOF_SLATE,
+            material: ROOF_SLATE_SECONDARY,
             parapet: PARAPET,
           },
         },
         {
           name: "rear_right",
-          x: col(12.5),
+          x: col(11.5),
           z: row(5.5),
           width: cells(4),
           depth: cells(4),
           height: 0.25,
           yBase: 0,
           cornerR: CORNER_R,
-          material: STONE_BODY,
+          material: STONE_BODY_SECONDARY,
           roof: {
             thickness: 0,
             eaveScale: 1.0,
-            material: ROOF_SLATE,
+            material: ROOF_SLATE_SECONDARY,
             parapet: PARAPET,
           },
         },
@@ -471,7 +520,14 @@ export const VARIANTS: Variant[] = [
             thickness: 0,
             eaveScale: 1.0,
             material: ROOF_SLATE,
-            parapet: { ...MERLON_PARAPET, skipSides: ["S"] },
+            parapet: {
+              ...MERLON_PARAPET,
+              skipSides: ["S"],
+              clip: {
+                W: { exclude: [{ lo: row(1.5), hi: row(6.5) }] },
+                E: { exclude: [{ lo: row(1.5), hi: row(6.5) }] },
+              },
+            },
           },
           polePlatform: {
             offset: [0, cells(2.5)],
@@ -481,14 +537,14 @@ export const VARIANTS: Variant[] = [
             material: PLATFORM_STONE,
             pole: {
               radius: 0.02,
-              height: yCells(8),
+              height: yCells(16),
               material: WOOD_DARK,
               flag: {
-                width: cells(2),
-                height: yCells(2),
-                yOffset: -yCells(1),
+                width: cells(3),
+                height: yCells(3),
+                yOffset: -yCells(1.5),
                 side: "+x",
-                material: FLAG_RED,
+                material: FLAG_BASE,
               },
             },
           },
@@ -510,7 +566,9 @@ export const VARIANTS: Variant[] = [
               ...MERLON_PARAPET,
               skipSides: ["N"],
               clip: {
-                S: { exclude: [{ lo: col(4.5), hi: col(9.5) }] },
+                S: { exclude: [{ lo: col(2.5), hi: col(11.5) }] },
+                W: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
+                E: { exclude: [{ lo: row(6.5), hi: row(7.5) }] },
               },
             },
           },
@@ -518,9 +576,9 @@ export const VARIANTS: Variant[] = [
         {
           name: "rear_left",
           x: col(1.5),
-          z: row(5.5),
+          z: row(4.5),
           width: cells(4),
-          depth: cells(4),
+          depth: cells(6),
           height: 0.35,
           yBase: 0,
           cornerR: CORNER_R,
@@ -535,9 +593,9 @@ export const VARIANTS: Variant[] = [
         {
           name: "rear_right",
           x: col(12.5),
-          z: row(5.5),
+          z: row(4.5),
           width: cells(4),
-          depth: cells(4),
+          depth: cells(6),
           height: 0.35,
           yBase: 0,
           cornerR: CORNER_R,
@@ -553,7 +611,7 @@ export const VARIANTS: Variant[] = [
           name: "gate",
           x: col(7),
           z: row(13),
-          width: cells(5),
+          width: cells(9),
           depth: cells(5),
           height: 0.3,
           yBase: 0,
@@ -571,14 +629,14 @@ export const VARIANTS: Variant[] = [
               corner: "SW",
               pole: {
                 radius: 0.0156,
-                height: yCells(3),
+                height: yCells(11.5),
                 material: WOOD_DARK,
                 flag: {
-                  width: cells(2),
-                  height: yCells(2),
-                  yOffset: -yCells(1),
+                  width: cells(3),
+                  height: yCells(3),
+                  yOffset: -yCells(1.5),
                   side: "+x",
-                  material: FLAG_RED,
+                  material: FLAG_BASE,
                 },
               },
             },
@@ -586,14 +644,14 @@ export const VARIANTS: Variant[] = [
               corner: "SE",
               pole: {
                 radius: 0.0156,
-                height: yCells(3),
+                height: yCells(11.5),
                 material: WOOD_DARK,
                 flag: {
-                  width: cells(2),
-                  height: yCells(2),
-                  yOffset: -yCells(1),
+                  width: cells(3),
+                  height: yCells(3),
+                  yOffset: -yCells(1.5),
                   side: "+x",
-                  material: FLAG_RED,
+                  material: FLAG_BASE,
                 },
               },
             },
@@ -717,6 +775,7 @@ export function buildTower(
   scene.add(group);
 
   const plainMat = mat(STONE_PLAIN);
+  const flagOutlineMat = mat(FLAG_OUTLINE);
 
   for (const t of params.turrets) {
     const yBase = t.yBase ?? 0;
@@ -755,6 +814,7 @@ export function buildTower(
       ]);
     }
     body.position.set(t.x, yBase + t.height / 2, t.z);
+    body.name = "body";
     group.add(body);
 
     // Roof.
@@ -801,6 +861,7 @@ export function buildTower(
       );
       roofMesh.position.set(t.x, roof.yCenter, t.z);
     }
+    roofMesh.name = "roof";
     group.add(roofMesh);
 
     const hasDeck = rounded && !!t.roof.parapet && !!t.roof.parapet.merlons;
@@ -811,6 +872,7 @@ export function buildTower(
         plainMat,
       );
       deckMesh.position.set(t.x, roofTopY + MERLON_DECK_HEIGHT / 2, t.z);
+      deckMesh.name = "body";
       group.add(deckMesh);
     }
 
@@ -849,6 +911,7 @@ export function buildTower(
         geom.rotateX(-Math.PI / 2);
         const ring = new three.Mesh(geom, [parapetPlainMat, parapetSideMat]);
         ring.position.set(t.x, wallTopY(t), t.z);
+        ring.name = "parapet";
         group.add(ring);
       } else {
         const aoMat = parapet.merlons ? mat(MERLON_AO) : null;
@@ -877,6 +940,7 @@ export function buildTower(
             wallMesh = new three.Mesh(geom, parapetMatArray);
             wallMesh.position.set(w.pos[0], w.pos[1], w.pos[2]);
           }
+          wallMesh.name = "parapet";
           group.add(wallMesh);
           if (aoMat && !flat) {
             const halo = CELL * 0.5;
@@ -926,6 +990,7 @@ export function buildTower(
         platPlainMat,
       ]);
       platMesh.position.set(plat.pos[0], plat.pos[1], plat.pos[2]);
+      platMesh.name = "pole_base";
       group.add(platMesh);
 
       const lipThickness = CELL / 2;
@@ -948,6 +1013,7 @@ export function buildTower(
         plat.pos[1] + plat.height / 2,
         plat.pos[2],
       );
+      lipMesh.name = "pole_base";
       group.add(lipMesh);
 
       if (pp.pole && t.polePlatform.pole) {
@@ -962,14 +1028,13 @@ export function buildTower(
 
       if (pp.flag && t.polePlatform.pole?.flag) {
         const f = pp.flag;
-        const flagMesh = new three.Mesh(
-          new three.BoxGeometry(f.width, f.height, 0.02),
+        addFlagWithOutline(
+          three,
+          group,
+          f,
           mat(t.polePlatform.pole.flag.material),
+          flagOutlineMat,
         );
-        flagMesh.position.set(f.pos[0], f.pos[1], f.pos[2]);
-        flagMesh.rotation.y = f.yaw;
-        flagMesh.name = "flag";
-        group.add(flagMesh);
       }
     }
 
@@ -996,18 +1061,13 @@ export function buildTower(
       group.add(poleMesh);
 
       if (place.flag && spec.pole.flag) {
-        const flagMesh = new three.Mesh(
-          new three.BoxGeometry(place.flag.width, place.flag.height, 0.02),
+        addFlagWithOutline(
+          three,
+          group,
+          place.flag,
           mat(spec.pole.flag.material),
+          flagOutlineMat,
         );
-        flagMesh.position.set(
-          place.flag.pos[0],
-          place.flag.pos[1],
-          place.flag.pos[2],
-        );
-        flagMesh.rotation.y = place.flag.yaw;
-        flagMesh.name = "flag";
-        group.add(flagMesh);
       }
     }
   }
@@ -1237,6 +1297,46 @@ export function roofPlacement(turret: TurretParams): RoofPlacement {
 /** Y of the top of the wall (where the roof slab rests). */
 export function wallTopY(turret: TurretParams): number {
   return (turret.yBase ?? 0) + turret.height;
+}
+
+function addFlagWithOutline(
+  three: typeof THREE,
+  group: THREE.Group,
+  flag: {
+    width: number;
+    height: number;
+    pos: [number, number, number];
+    yaw: number;
+  },
+  flagMaterial: THREE.Material,
+  outlineMaterial: THREE.Material,
+): void {
+  // Outline sits just behind the flag plane — slightly wider and taller
+  // so it pokes out ~0.5 cells on each edge, and slightly thinner on
+  // the normal axis so the flag's front/back faces render in front of
+  // the outline without z-fighting.
+  const borderXZ = CELL / 2;
+  const borderY = borderXZ / TOWER_Y_SCALE;
+  const outlineMesh = new three.Mesh(
+    new three.BoxGeometry(
+      flag.width + borderXZ * 2,
+      flag.height + borderY * 2,
+      0.015,
+    ),
+    outlineMaterial,
+  );
+  outlineMesh.position.set(flag.pos[0], flag.pos[1], flag.pos[2]);
+  outlineMesh.rotation.y = flag.yaw;
+  group.add(outlineMesh);
+
+  const flagMesh = new three.Mesh(
+    new three.BoxGeometry(flag.width, flag.height, 0.02),
+    flagMaterial,
+  );
+  flagMesh.position.set(flag.pos[0], flag.pos[1], flag.pos[2]);
+  flagMesh.rotation.y = flag.yaw;
+  flagMesh.name = "flag";
+  group.add(flagMesh);
 }
 
 function _makePoleFlag(

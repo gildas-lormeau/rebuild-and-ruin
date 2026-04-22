@@ -382,7 +382,8 @@ export function createOnlineOverlay(
     getLifeLostPanelPos,
   } = params;
 
-  const homeTowers = buildHomeTowersByIndex(view);
+  const ownedTowers = buildOwnedTowersByIndex(view);
+  const homeTowerIndices = buildHomeTowerIndices(view);
   const masterBuilderLockout = view.modern?.masterBuilderLockout ?? 0;
   const battleTerritory = inBattle ? battleAnim.territory : undefined;
   const battleWalls = inBattle ? battleAnim.walls : undefined;
@@ -397,7 +398,9 @@ export function createOnlineOverlay(
       towerAlive: view.towerAlive,
       burningPits: view.burningPits,
       bonusSquares: view.bonusSquares,
-      homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
+      ownedTowers: ownedTowers.size > 0 ? ownedTowers : undefined,
+      homeTowerIndices:
+        homeTowerIndices.size > 0 ? homeTowerIndices : undefined,
       frozenTiles: view.modern?.frozenTiles ?? undefined,
       thawingTiles:
         battleAnim.thawing.length > 0 ? battleAnim.thawing : undefined,
@@ -612,14 +615,22 @@ function buildCastleOverlay(view: RenderView): CastleData[] {
     }));
 }
 
-function buildHomeTowersByIndex(view: RenderView): Map<number, number> {
-  const homeTowers = new Map<number, number>();
+function buildOwnedTowersByIndex(view: RenderView): Map<number, number> {
+  const ownedTowers = new Map<number, number>();
   for (const player of view.players) {
-    if (player.homeTower) {
-      homeTowers.set(player.homeTower.index, player.id);
+    for (const tower of player.ownedTowers) {
+      ownedTowers.set(tower.index, player.id);
     }
   }
-  return homeTowers;
+  return ownedTowers;
+}
+
+function buildHomeTowerIndices(view: RenderView): Set<number> {
+  const indices = new Set<number>();
+  for (const player of view.players) {
+    if (player.homeTower) indices.add(player.homeTower.index);
+  }
+  return indices;
 }
 
 function buildLifeLostDialogUi(

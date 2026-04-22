@@ -37,7 +37,7 @@ export function drawTowers(
     const tower = map.towers[i]!;
     const { x: cx, y: cy } = towerCenterPx(tower);
 
-    const ownerId = overlay?.entities?.homeTowers?.get(i);
+    const ownerId = overlay?.entities?.ownedTowers?.get(i);
     const inBattle = !!overlay?.battle?.inBattle;
     const suffix = inBattle ? "_battle" : "";
 

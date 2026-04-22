@@ -149,8 +149,13 @@ export interface EntityOverlay {
   towerAlive?: readonly boolean[];
   burningPits?: readonly BurningPit[];
   bonusSquares?: readonly TilePos[];
-  /** Tower index → owner player id for home towers. */
-  homeTowers?: Map<number, number>;
+  /** Tower index → owner player id. Covers both a player's original home
+   *  tower and any secondary towers they've enclosed. */
+  ownedTowers?: Map<number, number>;
+  /** Indices of the towers that are a player's *original* home tower.
+   *  Used to pick the `home_tower` vs `secondary_tower` geometry; the
+   *  ownership tint comes from `ownedTowers`. */
+  homeTowerIndices?: ReadonlySet<number>;
   /** Frozen river tiles for rendering ice overlay. */
   frozenTiles?: ReadonlySet<number>;
   /** Recently thawed tiles — drives the crack-and-fade break animation. */

@@ -135,15 +135,19 @@ export function disposeGroupSubtree(
 }
 
 /** Walk `host`, find every mesh named `meshName`, and swap its material
- *  for a tinted clone in the player's color. Tracks clones in
+ *  for a tinted clone in the player's color. `colorVariant` selects
+ *  which of the player's color channels to use — `"interiorLight"`
+ *  (default) is the vivid team hue used on flags, `"wall"` is the muted
+ *  stone-friendly tone used on structural surfaces. Tracks clones in
  *  `ownedMaterials` so the manager's dispose path can free them. */
 export function tintNamedMeshes(
   host: THREE.Group,
   meshName: string,
   ownerId: ValidPlayerSlot,
   ownedMaterials: THREE.Material[],
+  colorVariant: "interiorLight" | "wall" = "interiorLight",
 ): void {
-  const color = rgbToHex(getPlayerColor(ownerId).interiorLight);
+  const color = rgbToHex(getPlayerColor(ownerId)[colorVariant]);
   host.traverse((obj) => {
     if (obj instanceof THREE.Mesh && obj.name === meshName) {
       const tinted = cloneAndTintMaterial(obj.material, color);

@@ -44,7 +44,7 @@ import {
 } from "./sprite-kit.ts";
 import {
   BAND_GREEN,
-  FLAG_RED,
+  FLAG_BASE,
   WALL_STONE_DARK,
   WALL_STONE_LIGHT,
   WALL_STONE_MAIN,
@@ -219,7 +219,7 @@ const TOWER_MATERIALS: ReadonlyArray<readonly [MaterialSpec, number]> = [
   [STONE_LIGHT, 4],
   [WOOD_DARK, 1],
   [ROOF_BLUE, 2],
-  [FLAG_RED, 1],
+  [FLAG_BASE, 1],
 ];
 // Wall rubble uses only stone tones — walls are pure masonry, no wood
 // or roof tile. Weights bias toward the lit main shade.
@@ -588,7 +588,7 @@ export const VARIANTS: VariantDescriptor[] = [
           [STONE_LIGHT, 4],
           [WOOD_DARK, 1],
           [ROOF_BLUE, 2],
-          [FLAG_RED, 1],
+          [FLAG_BASE, 1],
         ],
       },
       chunks: [
@@ -642,7 +642,7 @@ export const VARIANTS: VariantDescriptor[] = [
           dims: { width: 0.3125, height: 0.03125, depth: 0.1875 },
           pos: [-0.3, 0.02, 0.3],
           rot: [0.05, 0.65, -0.12],
-          material: FLAG_RED,
+          material: FLAG_BASE,
         },
       ],
     },
@@ -777,8 +777,8 @@ export function buildDebris(
     );
     // Name the signature flag chunk so the entity manager can tint it
     // per-owner without walking material references. Matches the
-    // `home_tower_debris` chunk that carries FLAG_RED.
-    if (piece.material === FLAG_RED) mesh.name = "flag";
+    // `home_tower_debris` chunk that carries FLAG_BASE.
+    if (piece.material === FLAG_BASE) mesh.name = "flag";
     mesh.position.set(piece.pos[0], piece.pos[1], piece.pos[2]);
     if (piece.rot) mesh.rotation.set(piece.rot[0], piece.rot[1], piece.rot[2]);
     if (piece.scale)

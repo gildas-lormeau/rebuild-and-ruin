@@ -50,7 +50,7 @@
  *
  * Player-color tinting (home tower flag): only the `home_tower_debris`
  * variant carries a chunk named "flag" (tagged inside debris-scene.ts
- * when its material === FLAG_RED). We fork that one variant into per-
+ * when its material === FLAG_BASE). We fork that one variant into per-
  * ownerId buckets (`home_tower_debris:<ownerId>`): when building such a
  * bucket we clone+tint the flag sub-part's material to the owner's
  * interior-light color. At most 4 home-tower-debris buckets (one per
@@ -220,12 +220,12 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     // Tower debris: dead towers. Home towers fork by ownerId so the
     // flag chunk carries the right color.
     const aliveMask = overlay.entities?.towerAlive;
-    const homeTowers = overlay.entities?.homeTowers;
+    const ownedTowers = overlay.entities?.ownedTowers;
     if (aliveMask && towers) {
       for (let i = 0; i < towers.length; i++) {
         if (aliveMask[i] !== false) continue;
         const tower = towers[i]!;
-        const ownerId = homeTowers?.get(i) as ValidPlayerSlot | undefined;
+        const ownerId = ownedTowers?.get(i) as ValidPlayerSlot | undefined;
         const variantName =
           ownerId !== undefined
             ? "home_tower_debris"
@@ -328,11 +328,11 @@ function computeSignature(
   // (home vs secondary changes the variant, and the owner forks the
   // home_tower_debris bucket for flag tinting).
   const aliveMask = overlay.entities?.towerAlive;
-  const homeTowers = overlay.entities?.homeTowers;
+  const ownedTowers = overlay.entities?.ownedTowers;
   if (aliveMask && towers) {
     for (let i = 0; i < towers.length; i++) {
       if (aliveMask[i] !== false) continue;
-      const ownerId = homeTowers?.get(i);
+      const ownerId = ownedTowers?.get(i);
       parts.push(`t:${i}:${ownerId ?? "-"}`);
     }
   }

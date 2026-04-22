@@ -4,21 +4,28 @@
  * Towers live on the `GameMap` (stable list, one entry per selectable
  * keep) and the overlay attaches per-frame ownership data:
  *
- *   • `overlay.entities.homeTowers` — Map<towerIdx, playerId> for keeps
- *     a player has claimed. The presence of a key selects the
- *     `home_tower` variant and enables per-player flag tinting.
+ *   • `overlay.entities.ownedTowers` — Map<towerIdx, playerId> for every
+ *     tower a player has claimed (their original home tower + any
+ *     secondary towers they've enclosed). Drives per-player tinting of
+ *     flag, roof, body, and parapets.
+ *   • `overlay.entities.homeTowerIndices` — set of tower indices that are
+ *     a player's *original* home tower. Selects `home_tower` geometry
+ *     (gate, corner flags, taller main flag); other towers use the
+ *     `secondary_tower` geometry even when claimed.
  *   • `overlay.entities.towerAlive` — boolean[] indexed by towerIdx.
  *     Dead towers (false) are skipped here — the 3D `debris` entity
  *     manager (see `./debris.ts`) renders their rubble piles under a
  *     separate layer flag.
  *
  * The 2D renderer draws towers inside `drawTowers` (render-towers.ts),
- * picking one of three per-player baked sprites per tower. Since we
- * don't have per-player tower geometry yet, this manager builds the
- * same tower model and tints only the pennant-flag meshes (named
- * "flag" by tower-scene.ts) to the owning player's wall colour.
- * Stone body / roof / pole stay neutral for now — full body tinting
- * is deferred.
+ * picking one of three per-player baked sprites per tower. This
+ * manager builds a shared tower model and recolours named meshes per
+ * owner: "flag" uses the vivid `interiorLight` team tint, "body" and
+ * "parapet" use the muted `wall` stone tint. Roofs stay on their
+ * neutral pale palette (cool slate on home, warm terracotta on
+ * secondary) so the team identity reads via the flag and wall tone
+ * without a saturated roof. Captured secondary towers keep the
+ * sandstone geometry and pick up the tint on body + flag.
  *
  * Update cadence: the set of towers only changes across castle-
  * selection phases (ownership) and battle deaths. A small fingerprint
@@ -68,7 +75,8 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
 
   function buildAllTowers(
     towers: readonly Tower[],
-    homeTowers: ReadonlyMap<number, number> | undefined,
+    ownedTowers: ReadonlyMap<number, number> | undefined,
+    homeTowerIndices: ReadonlySet<number> | undefined,
     aliveMask: readonly boolean[] | undefined,
   ): void {
     for (let i = 0; i < towers.length; i++) {
@@ -78,9 +86,9 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       // `towerAlive === undefined` (no battle state yet) means "all alive".
       if (aliveMask && aliveMask[i] === false) continue;
 
-      const ownerId = homeTowers?.get(i);
-      const variantName =
-        ownerId !== undefined ? "home_tower" : "secondary_tower";
+      const ownerId = ownedTowers?.get(i);
+      const isHome = homeTowerIndices?.has(i) ?? false;
+      const variantName = isHome ? "home_tower" : "secondary_tower";
       const variant = getTowerVariant(variantName);
       if (!variant) continue;
 
@@ -95,15 +103,38 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       );
       host.scale.setScalar(TOWER_SCALE);
 
-      // Per-player flag tinting. Swap every flag mesh's shared FLAG_RED
-      // material for a clone coloured with the owner's wall tint. Body,
-      // roof, and pole stay neutral — full tower tinting is deferred.
+      // Per-player tinting for home towers. Flags and roofs use the
+      // vivid `interiorLight` tint for instant team readability at the
+      // gameplay camera; stone body + parapets use the muted `wall`
+      // tint so the whole silhouette feels player-coloured without
+      // washing out the stonework.
       if (ownerId !== undefined) {
         tintNamedMeshes(
           host,
           "flag",
           ownerId as ValidPlayerSlot,
           ownedMaterials,
+        );
+        tintNamedMeshes(
+          host,
+          "body",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
+        );
+        tintNamedMeshes(
+          host,
+          "parapet",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
+        );
+        tintNamedMeshes(
+          host,
+          "pole_base",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
         );
       }
 
@@ -128,7 +159,8 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       }
       return;
     }
-    const homeTowers = overlay?.entities?.homeTowers;
+    const ownedTowers = overlay?.entities?.ownedTowers;
+    const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const aliveMask = overlay?.entities?.towerAlive;
 
     // Signature: tower index + variant + ownerId + alive bit. Rebuilds
@@ -136,15 +168,16 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
     const parts: string[] = [];
     for (let i = 0; i < towers.length; i++) {
       const alive = aliveMask ? aliveMask[i] !== false : true;
-      const ownerId = homeTowers?.get(i);
-      parts.push(`${i}:${ownerId ?? "-"}:${alive ? 1 : 0}`);
+      const ownerId = ownedTowers?.get(i);
+      const home = homeTowerIndices?.has(i) ? 1 : 0;
+      parts.push(`${i}:${ownerId ?? "-"}:${home}:${alive ? 1 : 0}`);
     }
     const signature = parts.join(",");
     if (signature === lastSignature) return;
     lastSignature = signature;
 
     clear();
-    buildAllTowers(towers, homeTowers, aliveMask);
+    buildAllTowers(towers, ownedTowers, homeTowerIndices, aliveMask);
   }
 
   function dispose(): void {
