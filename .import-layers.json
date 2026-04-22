@@ -50,6 +50,7 @@
       "src/online/online-full-state-recovery.ts",
       "src/protocol/checkpoint-data.ts",
       "src/render/3d/effects/layer-canvas.ts",
+      "src/render/3d/sprites/balloon-scene.ts",
       "src/render/3d/sprites/cannonball-scene.ts",
       "src/render/3d/sprites/grunt-scene.ts",
       "src/render/3d/sprites/pit-scene.ts",
@@ -71,7 +72,6 @@
     "tier": "types",
     "files": [
       "src/render/3d/camera.ts",
-      "src/render/3d/sprites/balloon-scene.ts",
       "src/render/3d/sprites/cannon-scene.ts",
       "src/render/3d/sprites/debris-scene.ts",
       "src/render/3d/sprites/house-scene.ts",
@@ -220,6 +220,7 @@
       "src/render/3d/entities/houses.ts",
       "src/render/3d/entities/phantoms.ts",
       "src/render/3d/entities/pits.ts",
+      "src/render/3d/entities/tower-labels.ts",
       "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
       "src/render/3d/terrain.ts",

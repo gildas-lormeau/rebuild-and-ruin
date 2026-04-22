@@ -181,6 +181,7 @@ export function createRender3d(
       ctx.terrain.update(frame);
       ctx.walls.update(frame);
       ctx.towers.update(frame);
+      ctx.towerLabels.update(frame);
       ctx.houses.update(frame);
       ctx.debris.update(frame);
       ctx.cannons.update(frame);

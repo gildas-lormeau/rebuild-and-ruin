@@ -20,6 +20,7 @@
  */
 
 import * as THREE from "three";
+import type { StakesParams } from "./balloon-scene.ts";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
   cells,
@@ -35,13 +36,6 @@ export interface CoreParams {
   depth: number;
   height: number;
   yBase: number;
-  material: MaterialSpec;
-}
-
-export interface CornersParams {
-  radius: number;
-  height: number;
-  footprintHalf: number;
   material: MaterialSpec;
 }
 
@@ -74,7 +68,7 @@ export interface EmblemParams {
 
 export interface RampartParams {
   core: CoreParams;
-  corners: CornersParams;
+  corners: StakesParams;
   top: TopParams;
   band?: BandParams;
   shield?: ShieldParams;

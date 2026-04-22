@@ -75,6 +75,10 @@ import {
   type PhantomsManager,
 } from "./entities/phantoms.ts";
 import { createPitsManager, type PitsManager } from "./entities/pits.ts";
+import {
+  createTowerLabelsManager,
+  type TowerLabelsManager,
+} from "./entities/tower-labels.ts";
 import { createTowersManager, type TowersManager } from "./entities/towers.ts";
 import { createWallsManager, type WallsManager } from "./entities/walls.ts";
 import { createWorldLights } from "./lights.ts";
@@ -93,6 +97,10 @@ export interface Render3dContext {
   /** Tower mesh manager — Phase 3. Reconciles 2×2 tower meshes with the
    *  map's tower list + overlay ownership. */
   readonly towers: TowersManager;
+  /** Per-player name labels floating above owned home towers during
+   *  battle. Mirrors the 2D `drawTowers` label pass that's skipped in
+   *  3D (towers layer off). */
+  readonly towerLabels: TowerLabelsManager;
   /** House mesh manager — Phase 3. Reconciles 1×1 house meshes with the
    *  map's house list (filters out destroyed houses). */
   readonly houses: HousesManager;
@@ -206,6 +214,7 @@ export function createRender3dScene(
 
   const walls = createWallsManager(scene);
   const towers = createTowersManager(scene);
+  const towerLabels = createTowerLabelsManager(scene);
   const houses = createHousesManager(scene);
   const debris = createDebrisManager(scene);
   const cannons = createCannonsManager(scene);
@@ -289,6 +298,7 @@ export function createRender3dScene(
     terrain,
     walls,
     towers,
+    towerLabels,
     houses,
     debris,
     cannons,

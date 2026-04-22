@@ -27,6 +27,7 @@
  */
 
 import * as THREE from "three";
+import type { BoltParams } from "./balloon-scene.ts";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   applyBoxWallUV,
@@ -109,12 +110,6 @@ export interface RoofParams {
   parapet?: ParapetParams;
 }
 
-export interface WindowParams {
-  width: number;
-  height: number;
-  material: MaterialSpec;
-}
-
 export interface TurretParams {
   name?: string;
   /** World-X center of the turret. */
@@ -136,7 +131,7 @@ export interface TurretParams {
   /** Flat roof slab on top of the walls. */
   roof: RoofParams;
   /** Optional door/window on +Z face. */
-  window?: WindowParams;
+  window?: BoltParams;
   /** Pole platform on roof (centered, or offset via polePlatform.offset). */
   polePlatform?: PolePlatformParams;
   /** Optional per-corner flagpoles rooted at the walltop. */
