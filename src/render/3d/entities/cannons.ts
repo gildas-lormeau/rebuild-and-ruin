@@ -65,6 +65,7 @@
 
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
+import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   cannonSize,
@@ -152,12 +153,13 @@ interface FacingState {
   target: number;
 }
 
-/** Cannon scenes are authored in a ±1 frustum covering a 2-tile span, so
- *  scaling by TILE_SIZE makes 1 authored unit = 1 game tile. Super-gun
- *  uses the same scale — its canvasPx is bigger but the frustum is still
- *  ±1, so the model is 2 world units wide and the 3×3 footprint is
- *  handled by positioning, not by a different scale. */
-const CANNON_SCALE = TILE_SIZE;
+/** Cannon scenes are authored in a ±1 frustum covering a NORMAL_CANNON_SIZE
+ *  tile span, so to make 1 authored unit = 1 game tile a 2×2 cannon uses
+ *  scale = TILE_SIZE. Larger footprints (super_gun = 3×3) scale
+ *  proportionally so the rendered model fills its actual tile footprint
+ *  instead of sitting inside a 2×2 subset of it. */
+const cannonScaleForSize = (size: number): number =>
+  (size * TILE_SIZE) / NORMAL_CANNON_SIZE;
 /** Initial InstancedMesh capacity per variant bucket. A peak battle can
  *  field ~20-30 cannons per territory × 2-3 territories = 60-100 total
  *  live cannons, but the total is split across 6 variants (rampart,
@@ -220,7 +222,7 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
   const hostMatrix = new THREE.Matrix4();
   const instanceMatrix = new THREE.Matrix4();
   const hostTranslation = new THREE.Vector3();
-  const hostScale = new THREE.Vector3(CANNON_SCALE, CANNON_SCALE, CANNON_SCALE);
+  const hostScale = new THREE.Vector3();
   const hostQuaternion = new THREE.Quaternion();
   const yAxis = new THREE.Vector3(0, 1, 0);
   /** Scratch matrices for the per-instance barrel adjustment. Composed
@@ -311,6 +313,9 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
       const isSuper = variant === "super_gun";
       const isRampart = variant === "rampart_cannon";
       const offset = isSuper ? TILE_3X3_CENTER_OFFSET : TILE_2X2_CENTER_OFFSET;
+      const size = cannonSize(list[0]!.mode);
+      const scale = cannonScaleForSize(size);
+      hostScale.set(scale, scale, scale);
       const pivot = bucket.barrelPivot;
       fillBucket(
         bucket,
