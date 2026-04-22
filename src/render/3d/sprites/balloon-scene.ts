@@ -33,7 +33,6 @@ import {
   findVariant,
   type MaterialSpec,
 } from "./sprite-kit.ts";
-import { GROUND_AO, GROUND_SHADOW } from "./sprite-materials.ts";
 
 export interface EnvelopeParams {
   radius: number;
@@ -314,12 +313,6 @@ export const VARIANTS: BalloonVariant[] = [
         ySquash: 0.3,
         material: DEFLATED_RED,
       },
-      // Broad ground shadow filling the 2×2 tile, plus a tighter AO
-      // disc just past the stake footprint to anchor the base on the
-      // tile. `yPos` values are tiny z-fight offsets above the ground
-      // plane (off-grid by design).
-      groundShadow: { radius: cells(8), yPos: 0.002, material: GROUND_SHADOW },
-      groundAO: { radius: cells(7.5), yPos: 0.005, material: GROUND_AO },
     },
   },
 ];
