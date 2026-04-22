@@ -1,5 +1,12 @@
 /** Top-level UI mode — controls which screen/phase main loop renders.
  *
+ * Mode.TRANSITION means "no gameplay tick, no player input" — used by
+ * the phase-transition machine as a re-entrancy fence (so the caller
+ * that dispatched us can't redispatch on its next sub-step) and an
+ * input gate (so the user can't interact with the new phase during
+ * the unzoom lerp before the banner appears). Its ticker advances the
+ * banner sweep when one is live and otherwise just renders.
+ *
  * Classification table:
  * | Mode          | Gameplay | Interactive | Transition |
  * |---------------|----------|-------------|------------|

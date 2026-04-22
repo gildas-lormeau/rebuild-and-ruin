@@ -114,10 +114,12 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
 
     const bannerUi = deps.createBannerUi(
       runtimeState.banner.status !== "hidden",
+      runtimeState.banner.kind,
       runtimeState.banner.text,
       runtimeState.banner.progress,
       runtimeState.banner.subtitle,
       runtimeState.banner.modifierDiff,
+      runtimeState.banner.prevScene,
     );
 
     // Project full GameState onto the phase-discriminated render view

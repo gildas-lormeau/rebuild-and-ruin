@@ -483,43 +483,22 @@ export function drawUpgradePick(
   const pick = overlay.ui.upgradePick;
   if (pick.entries.length === 0) return;
 
-  // Progressive clip against the banner sweep line. Direction depends on
-  // whether the dialog is being REVEALED (upgrade-pick banner) or HIDDEN
-  // (build banner that follows once all picks are resolved):
-  //
-  //   - Reveal (entries unresolved): the dialog belongs to the NEW scene
-  //     above the sweep line. Clip to `(0, 0, W, sweepLineY)` so the dialog
-  //     paints in the top-of-screen region that's already been swept.
-  //
-  //   - Hide (entries all resolved): the dialog belongs to the OLD scene
-  //     below the sweep line — that's where the user saw it last frame
-  //     before the build banner started. Clip to `(0, sweepLineY, W, …)`
-  //     so the dialog paints in the bottom region that hasn't been swept
-  //     yet, and gets covered up as the sweep moves down.
-  //
-  // The dialog always renders live from its resolved state; the snapshot
-  // (if any) is composited independently by `drawBannerPrevScene`. The
-  // small cost is that in the hide direction the snapshot may contain a
-  // residual dim layer behind the live dialog — two 50%-ish backdrops
-  // read as slightly darker than one for the brief span the two overlap.
-  // That's an acceptable tradeoff for never losing the dialog when a
-  // snapshot is missing.
+  // Progressive clip keyed on which banner is sweeping past the dialog:
+  //   - "upgrade-pick": reveal — dialog paints ABOVE the strip (the swept
+  //     region where new content belongs).
+  //   - "build": hide — dialog paints BELOW the strip (the unswept region
+  //     where the old content still reads); shrinks as the sweep moves down.
+  //   - other / no banner: dialog paints fullscreen.
   const banner = overlay.ui?.banner;
   const duringBanner = !!banner;
-  if (banner) {
-    // The banner strip occupies `[banner.top, banner.bottom]` vertically.
-    // The reveal direction clips to ABOVE the strip; the hide direction
-    // clips to BELOW the strip — not from the *top* of the strip
-    // downward, otherwise the dialog backdrop overlaps the strip itself.
-    const allResolved = pick.entries.every((entry) => entry.resolved);
+  const clipped = banner?.kind === "upgrade-pick" || banner?.kind === "build";
+  if (clipped) {
     overlayCtx.save();
     overlayCtx.beginPath();
-    if (allResolved) {
-      // Hide direction: clip to the unswept region BELOW the banner strip.
-      overlayCtx.rect(0, banner.bottom, W, H - banner.bottom);
-    } else {
-      // Reveal direction: clip to the swept region ABOVE the banner strip.
+    if (banner.kind === "upgrade-pick") {
       overlayCtx.rect(0, 0, W, banner.top);
+    } else {
+      overlayCtx.rect(0, banner.bottom, W, H - banner.bottom);
     }
     overlayCtx.clip();
   }
@@ -601,7 +580,7 @@ export function drawUpgradePick(
     );
   }
 
-  if (duringBanner) {
+  if (clipped) {
     overlayCtx.restore();
   }
 }

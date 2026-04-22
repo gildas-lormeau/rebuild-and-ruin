@@ -126,10 +126,12 @@ export type ControlsHit =
 
 export type CreateBannerUiFn = (
   active: boolean,
+  kind: BannerKind,
   text: string,
   progress: number,
   subtitle?: string,
   modifierDiff?: ModifierDiff,
+  prevScene?: SceneCapture,
 ) => BannerUi | undefined;
 
 export type CreateRenderSummaryMessageFn = (
@@ -204,7 +206,7 @@ export type CreateOnlineOverlayFn = (
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   view: RenderView;
-  banner: Pick<BannerState, "status" | "prevScene">;
+  banner: Pick<BannerState, "status">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -255,18 +257,28 @@ export interface BannerState {
    *  consumers can discriminate without reading `phase` (which lies
    *  during the upgrade-pick flow) or matching text. */
   kind: BannerKind;
+  /** Fired once the sweep reaches 1 (or after the optional `holdMs`
+   *  expires). Nulled out as it fires, or when a subsequent
+   *  `showBanner` / `hideBanner` replaces this banner — the replaced
+   *  banner's BANNER_END event is how consumers detect a dropped hold. */
   callback: (() => void) | null;
-  /** Pixel snapshot of the scene, captured by the banner system at
-   *  `showBanner`-time (its first operation, before any banner state is
-   *  written). Composited below the sweep line during animation. No
-   *  caller plumbing, no stale-snapshot fence: "capture happened-before
-   *  show" is true by call order. */
+  /** Pixel snapshot of the scene composited below the sweep line during
+   *  animation. Captured at `showBanner`-time. */
   prevScene?: SceneCapture;
   /** Set when the active banner is a modifier-reveal (modern mode).
    *  Carries the full diff — `id` drives the banner palette + bannerStart
    *  event, `changedTiles` drives the progressive tile-highlight animation
    *  in `drawModifierRevealHighlight`. Cleared between banners. */
   modifierDiff?: ModifierDiff;
+  /** Post-sweep hold duration (sim-ms). When > 0, `callback` is deferred
+   *  by this many milliseconds after the sweep completes so SFX / visual
+   *  effects can play during the `swept` state. Consumed once on sweep-
+   *  end (reset to 0 when the timer fires or the banner is replaced). */
+  holdMs: number;
+  /** Active hold-timer handle, or `undefined` when no hold is pending.
+   *  Cleared on `hideBanner`, on `showBanner` overwrite, and when the
+   *  timer fires. */
+  holdTimerId?: number;
 }
 
 export interface SeedField {
@@ -640,12 +652,7 @@ export interface TouchControlsDeps {
   containerHeight: number;
 }
 
-/** Callback signature for showing phase-transition banners.
- *
- *  The banner system owns scene capture: `showBanner` calls the
- *  renderer's capture as its first operation, before writing any banner
- *  state, so "capture happened-before show" is true by call order. No
- *  `prevScene` parameter, no tick fence. */
+/** Callback signature for showing phase-transition banners. */
 export type BannerShow = (opts: BannerShowOpts) => void;
 
 export interface BannerShowOpts {
@@ -702,5 +709,6 @@ export function createBannerState(): BannerState {
     text: "",
     kind: "build",
     callback: null,
+    holdMs: 0,
   };
 }

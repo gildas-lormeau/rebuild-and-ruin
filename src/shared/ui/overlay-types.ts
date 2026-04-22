@@ -8,6 +8,7 @@ import type {
   WallBurn,
 } from "../core/battle-types.ts";
 import type { ModifierDiff } from "../core/game-constants.ts";
+import type { BannerKind } from "../core/game-event-bus.ts";
 import type { Phase } from "../core/game-phase.ts";
 import type {
   GameMap,
@@ -27,10 +28,7 @@ import type { RGB } from "./theme.ts";
 export type { RenderCannonPhantom, RenderPiecePhantom };
 
 /** A renderer-produced scene snapshot used for the banner prev-scene
- *  cross-fade. Wraps the raw pixels only — the banner system captures
- *  internally at `showBanner` time (its first operation, before any
- *  banner state is written), so "capture happened-before show" is
- *  trivially true by call order. No tick stamp, no fence. */
+ *  cross-fade. Wraps the raw pixels only. */
 export interface SceneCapture {
   readonly image: ImageData;
 }
@@ -217,6 +215,7 @@ export interface BattleOverlay {
 /** Banner sweep UI — shared shape returned by `createBannerUi` and
  *  used verbatim as `UIOverlay.banner`. */
 export interface BannerUi {
+  kind: BannerKind;
   text: string;
   subtitle?: string;
   /** Top edge of the banner strip (map-pixel coords, integer-rounded
@@ -231,6 +230,9 @@ export interface BannerUi {
    *  Drives the recolored chrome (`render-ui.ts` palette) and the
    *  progressive tile-highlight animation in `drawModifierRevealHighlight`. */
   modifierDiff?: ModifierDiff;
+  /** Pixel snapshot of the scene composited below the sweep line
+   *  during the banner animation. */
+  prevScene?: SceneCapture;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */
@@ -240,9 +242,6 @@ export interface UIOverlay {
    *  Set when the POV player is locked out; undefined/0 when inactive. */
   masterBuilderLockout?: number;
   banner?: BannerUi;
-  /** Pixel snapshot of the scene canvas captured before phase mutations.
-   *  Composited below the banner sweep line during the animation. */
-  bannerPrevScene?: SceneCapture;
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {

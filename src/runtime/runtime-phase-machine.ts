@@ -849,10 +849,7 @@ export const ROLE_WATCHER = "watcher" as const;
  *   2. **postMutate** — shared post-mutation sync (battleAnim rebuilds,
  *      impact clears). Runs once, before any display step.
  *
- *   3. **Display** — walks `display` steps in order. Each banner step
- *      calls `showBanner`, which itself captures the current scene as
- *      its first operation. No external capture plumbing, no tick fence
- *      — "capture happened-before show" is true by call order.
+ *   3. **Display** — walks `display` steps in order.
  *
  *   4. **postDisplay** — side-effects after all display steps (setMode,
  *      startBuildPhase, beginBattle, etc.).
@@ -888,18 +885,21 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // Lock interaction the instant we start a transition. Setting
-  // Mode.TRANSITION before mutate runs:
-  //   - Blocks the per-mode tick dispatcher: `ticks[mode]` becomes
-  //     `tickBanner` (render-only while no banner is live) instead
-  //     of the gameplay tick that just dispatched us. That stops the
-  //     immediate caller (tickCannonPhase → startBattle → runTransition)
-  //     from re-firing the same transition on the next sub-step, which
-  //     would otherwise double-run `finalizeCannonPhase` and corrupt
-  //     controller state.
-  //   - Gates player input (isInteractiveMode returns false for
-  //     TRANSITION), so the user can't interact in the NEW phase during
-  //     the unzoom lerp before the banner actually appears.
+  // Mode.TRANSITION means "no gameplay tick, no player input" — set it
+  // before mutate so:
+  //   - The per-mode tick dispatcher stops running gameplay logic. The
+  //     immediate caller (e.g. tickCannonPhase → startBattle →
+  //     runTransition) cannot re-fire the same transition on its next
+  //     sub-step, which would otherwise double-run finalize* and
+  //     corrupt controller state.
+  //   - `isInteractiveMode` returns false, so the user can't interact
+  //     with the new phase during the unzoom lerp before the banner
+  //     appears.
+  // The TRANSITION-mode ticker (in runtime-composition.ts) routes to
+  // `tickBanner`, which advances the sweep when a banner is live and
+  // otherwise just renders. Any subsystem that takes over the mode
+  // (life-lost, upgrade-pick, balloon-anim) restores it to TRANSITION
+  // before firing its onDone so the runner keeps driving the chain.
   ctx.setMode(Mode.TRANSITION);
 
   // The hard ordering rule (matches the spec):
@@ -916,12 +916,9 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   //      tick as the first banner's `showBanner`, so the next rendered
   //      frame is already under banner cover. No pop window.
   //
-  //   3. Run the display steps. Every banner step calls `showBanner`,
-  //      which captures the current scene as its first operation. For
-  //      the first banner that capture happens BEFORE any post-mutate
-  //      render (no render runs between this synchronous block and
-  //      showBanner), so the snapshot is the pre-mutate frame the user
-  //      was last shown.
+  //   3. Run the display steps. The first banner step captures its
+  //      prev-scene before post-mutate renders run, so the snapshot is
+  //      the pre-mutate frame the user was last shown.
   //
   //   4. postDisplay runs after every display step completes
   //      (setMode(GAME), controller init, balloon-anim / beginBattle).
@@ -1104,9 +1101,6 @@ function runBannerStep(
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
   const modifierDiff = step.modifierDiff?.(result);
-  // Banner system owns scene capture (as its first operation inside
-  // showBanner) and owns the post-sweep hold timer. The display runner
-  // just hands over the opts.
   ctx.showBanner({
     text,
     kind: step.bannerKind,

@@ -11,6 +11,7 @@ import {
   TIMER_DISPLAY_LAG_SEC,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
+import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   GRID_COLS,
@@ -44,6 +45,7 @@ import {
   type OverlayCannonball,
   type PlayerStats,
   type RenderOverlay,
+  type SceneCapture,
   type UpgradePickOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, PLAYER_NAMES } from "../shared/ui/player-config.ts";
@@ -131,10 +133,12 @@ export function createRenderSummaryMessage(
 
 export function createBannerUi(
   active: boolean,
+  kind: BannerKind,
   text: string,
   progress: number,
   subtitle?: string,
   modifierDiff?: ModifierDiff,
+  prevScene?: SceneCapture,
 ): BannerUi | undefined {
   if (!active) return undefined;
   const h = MAP_PX_H;
@@ -148,11 +152,13 @@ export function createBannerUi(
   const bannerHInt = Math.round(h * BANNER_HEIGHT_RATIO);
   const top = Math.round(y - bannerHInt / 2);
   return {
+    kind,
     text,
     subtitle,
     top,
     bottom: top + bannerHInt,
     modifierDiff,
+    prevScene,
   };
 }
 
@@ -425,7 +431,6 @@ export function createOnlineOverlay(
           ? view.timer
           : undefined,
       banner: bannerUi,
-      bannerPrevScene: banner.prevScene,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

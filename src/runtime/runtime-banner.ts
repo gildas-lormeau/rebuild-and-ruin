@@ -6,11 +6,6 @@
  *   showBanner({ text, kind, onDone, subtitle?, modifierDiff?, holdMs? })
  *   hideBanner()
  *
- * The banner system owns scene capture: `showBanner` calls the
- * renderer's `captureScene` as its FIRST operation, before writing any
- * banner state. "Capture happened-before show" is true by call order —
- * no tick fence, no caller plumbing.
- *
  * State machine (see `BannerStatus` in runtime-contracts.ts):
  *
  *   hidden ─showBanner→ sweeping ─progress=1→ swept ─hideBanner→ hidden
@@ -24,13 +19,17 @@
  *     `onDone` callback runs either on the same tick (no hold) or
  *     after the `holdMs` timer expires.
  *   - BANNER_END on `* → hidden` (banner removed from screen, either by
- *     `hideBanner` or by a subsequent `showBanner` overwriting it).
+ *     `hideBanner` or by a subsequent `showBanner` overwriting it). A
+ *     replaced banner with a pending hold has its BANNER_END fire
+ *     without the corresponding callback invocation — consumers detect
+ *     a dropped hold by observing BANNER_END before the expected
+ *     post-hold effect.
  *
  * Hold: when `holdMs` is set on a banner, the `swept → onDone` edge is
- * deferred by that many sim-ms. The banner sits in `swept` state
- * (accurate — the sweep is done but the banner is still visible) until
+ * deferred by that many sim-ms. The banner sits in `swept` state until
  * the hold expires. A new `showBanner` or `hideBanner` during the hold
- * cancels the pending timer.
+ * cancels the pending timer (and emits BANNER_END for the clobbered
+ * banner so the drop is observable).
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
@@ -58,7 +57,8 @@ interface BannerSystemDeps {
   readonly timing: TimingApi;
   /** Renderer scene capture — returns the current display pixels or
    *  `undefined` in headless / pre-first-frame. Called internally from
-   *  `showBanner`. */
+   *  `showBanner` as its first operation so the captured frame is the
+   *  one the user was last shown. */
   readonly rendererCaptureScene: () => ImageData | undefined;
 }
 
@@ -71,26 +71,17 @@ interface BannerSystem {
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const { runtimeState, log, render, timing, rendererCaptureScene } = deps;
 
-  // Pending hold timer id. Set when the banner enters `swept` with a
-  // non-zero `holdMs`; cleared on fire, on `hideBanner`, or when a new
-  // `showBanner` overwrites the banner mid-hold.
-  let pendingHoldTimer: number | undefined;
-  // Per-banner pending holdMs, consumed on sweep-end. Module-local
-  // because the banner state is serialized across network boundaries
-  // and the hold semantics are local-presentation only.
-  let pendingHoldMs = 0;
-
-  function clearHoldTimer(): void {
-    if (pendingHoldTimer !== undefined) {
-      timing.clearTimeout(pendingHoldTimer);
-      pendingHoldTimer = undefined;
+  function clearHoldTimer(banner: BannerState): void {
+    if (banner.holdTimerId !== undefined) {
+      timing.clearTimeout(banner.holdTimerId);
+      banner.holdTimerId = undefined;
     }
   }
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
-    // Capture FIRST, before touching banner state. Guarantees the
-    // prev-scene reflects whatever the user was last shown.
+    // Capture FIRST, before touching banner state — the snapshot is
+    // whatever the user was last shown.
     const image = rendererCaptureScene();
     const prevScene = image ? { image } : undefined;
 
@@ -98,7 +89,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // checkpoint messages that can arrive during an earlier banner's sweep
     // (retransmits, host-migration recovery). Log so unusual cases surface,
     // then emit BANNER_END for the banner being replaced so consumers that
-    // key on the user-visible-end beat observe it.
+    // key on the user-visible-end beat observe it (including dropped holds).
     const banner = runtimeState.banner;
     if (banner.status !== "hidden") {
       log(
@@ -106,7 +97,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       );
       emitBannerEnd(banner.text, banner.kind);
     }
-    clearHoldTimer();
+    clearHoldTimer(banner);
     banner.status = "sweeping";
     banner.progress = 0;
     banner.text = opts.text;
@@ -115,9 +106,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     banner.modifierDiff = opts.modifierDiff;
     banner.callback = opts.onDone;
     banner.prevScene = prevScene;
-    // Stash holdMs inline on the banner state; read back in tickBanner
-    // when the sweep completes.
-    pendingHoldMs = opts.holdMs ?? 0;
+    banner.holdMs = opts.holdMs ?? 0;
 
     const state = runtimeState.state;
     // Last battle in a finite game. Infinity-mode ("to the death")
@@ -140,7 +129,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function hideBanner(): void {
     const banner = runtimeState.banner;
-    clearHoldTimer();
+    clearHoldTimer(banner);
     // Gate the emit on state-ready so lifecycle teardown (returnToLobby,
     // rematch) can call hideBanner before a fresh GameState exists.
     if (banner.status !== "hidden" && isStateReady(runtimeState)) {
@@ -163,12 +152,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         });
         const callback = banner.callback;
         banner.callback = null;
-        const holdMs = pendingHoldMs;
-        pendingHoldMs = 0;
+        const holdMs = banner.holdMs;
+        banner.holdMs = 0;
         if (callback) {
           if (holdMs > 0) {
-            pendingHoldTimer = timing.setTimeout(() => {
-              pendingHoldTimer = undefined;
+            banner.holdTimerId = timing.setTimeout(() => {
+              banner.holdTimerId = undefined;
               callback();
             }, holdMs);
           } else {

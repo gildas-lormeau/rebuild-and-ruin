@@ -400,7 +400,7 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Overlay ---
   ref.overlay.hasBannerPrevScene =
-    runtimeState.overlay.ui?.bannerPrevScene !== undefined;
+    runtimeState.overlay.ui?.banner?.prevScene !== undefined;
   ref.overlay.banner = snapshotBanner(runtimeState);
   ref.overlay.battle = snapshotBattle(runtimeState);
   ref.overlay.ui = snapshotUI(runtimeState);

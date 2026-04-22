@@ -600,27 +600,24 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
-  // Banner prev-scene is a display-resolution snapshot captured by the
-  // banner system as its first operation inside `showBanner` (see
-  // runtime-banner.ts). It paints onto the DISPLAY canvas at 1:1 —
-  // never through the offscreen-scene → display blit — because a tilted
-  // or viewport-cropped camera has no "full-map" rect to re-crop from.
-  // The banner strip itself is drawn in the offscreen at map coords and
-  // carried to the display by the normal blit, so we clip the snapshot
-  // to the region BELOW the banner strip to keep the strip visible on
-  // top. "Capture happened-before show" is true by call order — no tick
-  // fence, no stale-snapshot check.
+  // Banner prev-scene is a display-resolution snapshot. It paints onto
+  // the DISPLAY canvas at 1:1 — never through the offscreen-scene →
+  // display blit — because a tilted or viewport-cropped camera has no
+  // "full-map" rect to re-crop from. The banner strip itself is drawn
+  // in the offscreen at map coords and carried to the display by the
+  // normal blit, so we clip the snapshot to the region BELOW the
+  // banner strip to keep the strip visible on top.
   function drawBannerPrevScene(
     displayCtx: CanvasRenderingContext2D,
     displayW: number,
     displayH: number,
     overlay: RenderOverlay | undefined,
   ): void {
-    if (!overlay?.ui?.banner || !overlay.ui.bannerPrevScene) {
+    if (!overlay?.ui?.banner?.prevScene) {
       bannerScenePainted = undefined;
       return;
     }
-    const prev = overlay.ui.bannerPrevScene;
+    const prev = overlay.ui.banner.prevScene;
 
     // Banner strip bounds are map-pixel coords. During a banner the
     // viewport is always cleared to the full map (see

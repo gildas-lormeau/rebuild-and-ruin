@@ -471,10 +471,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner sub-system (delegated to runtime-banner.ts)
   // -------------------------------------------------------------------------
 
-  // The banner system owns scene capture: `showBanner` calls the
-  // renderer's capture as its first operation, so "capture
-  // happened-before show" is true by call order. No external tick
-  // counter, no fence.
   const { showBanner, hideBanner, tickBanner } = createBannerSystem({
     runtimeState,
     log: config.log,
