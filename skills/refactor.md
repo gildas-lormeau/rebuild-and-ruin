@@ -147,7 +147,13 @@ Best for: cleaning up after `move-export` operations that create separate type a
 
 ## Post-rename textual report
 
-After `rename-symbol`, `rename-prop`, and `rename-in-file`, the tool runs a word-boundary ripgrep for the **old** name across `src/`, `server/`, `test/`, and `docs/` and prints any remaining hits. These are always in comments, string literals, or markdown — the AST rename wouldn't have missed a real identifier. Treat the report as a checklist: review each hit and update it manually if it still refers to the renamed symbol. The report is skipped under `--dry-run`.
+After `rename-symbol`, `rename-prop`, and `rename-in-file`, the tool runs ripgrep for the **old** name across `src/`, `server/`, `test/`, and `docs/` and prints any remaining hits — both as a word-bounded match (catches comments/strings/same-name locals) and, for camelCase names, as a bare substring of the PascalCase variant (catches compound identifiers like `buildHomeTowersByIndex` after renaming `homeTowers`). Results are deduped by `file:line`. Treat the report as a checklist. Skipped under `--dry-run`.
+
+### `--cascade`
+
+Add `--cascade` to `rename-symbol`, `rename-prop`, or `rename-in-file` to also rename **coincident locals** — variable declarations of the form `const <oldName> = <expr>.<newName>` that still carry the old name after the AST rename already rewrote the RHS. Other same-name locals (function parameters, unrelated variables) are left alone because there's no clear data-flow signal they refer to the renamed symbol.
+
+When the cascade resolves everything, the tool prints `✅ Cascade clean: no textual references to "<old>" remain` — a reliable signal that no manual sweep is needed.
 
 ## Tips
 

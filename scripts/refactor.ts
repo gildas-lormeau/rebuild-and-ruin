@@ -33,6 +33,7 @@ import process from "node:process";
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const allFlag = args.includes("--all");
+const cascadeFlag = args.includes("--cascade");
 
 // Parse --key value pairs into a map, collect bare positional args separately.
 // Repeated flags (e.g. --symbol A --symbol B) are collected into flagMulti.
@@ -41,7 +42,7 @@ const flagMulti = new Map<string, string[]>();
 const positionalArgs: string[] = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i]!;
-  if (a === "--dry-run" || a === "--all" || a === "--type") continue;
+  if (a === "--dry-run" || a === "--all" || a === "--type" || a === "--cascade") continue;
   if (a.startsWith("--") && i + 1 < args.length) {
     const key = a.slice(2);
     const val = args[++i]!;
@@ -122,9 +123,17 @@ function renameSymbol(file: string, name: string, newName: string): void {
   // so we need `{ runtimeState: rs }`.
   fixBrokenShorthands(project, name, newName);
 
+  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, name, newName) : 0;
+
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed across ${changedFiles} file(s)`);
-  reportTextualReferences(name);
+  if (cascadeFlag && localsRenamed > 0) {
+    console.log(`  Cascade: renamed ${localsRenamed} coincident local(s)`);
+  }
+  const remaining = reportTextualReferences(name);
+  if (cascadeFlag && remaining === 0) {
+    console.log(`✅ Cascade clean: no textual references to "${name}" remain`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,9 +268,17 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
     process.exit(1);
   }
 
+  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, prop, newProp) : 0;
+
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed property across ${changedFiles} file(s)`);
-  reportTextualReferences(prop);
+  if (cascadeFlag && localsRenamed > 0) {
+    console.log(`  Cascade: renamed ${localsRenamed} coincident local(s)`);
+  }
+  const remaining = reportTextualReferences(prop);
+  if (cascadeFlag && remaining === 0) {
+    console.log(`✅ Cascade clean: no textual references to "${prop}" remain`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -618,47 +635,123 @@ function cleanSelfImport(file: SourceFile, symbolName: string): void {
 
 /**
  * After an AST rename, ripgrep for the old name across the project and print
- * any remaining matches. These are always in comments, strings, or docs —
- * the AST rename wouldn't have missed a real identifier. Surfacing them turns
- * "I need to manually search" into a visible checklist the caller can act on.
+ * any remaining matches. These are either comment/string/doc references (which
+ * the AST rename cannot touch) or companion identifiers that embed the old
+ * name as a subword (e.g. `buildHomeTowersByIndex` after renaming `homeTowers`).
+ * Surfacing them turns "I need to manually search" into a visible checklist.
+ *
+ * Runs two scans: the exact name with word boundaries, plus the PascalCase
+ * variant (if the name starts lowercase) as a bare substring to catch
+ * compound identifiers. Hits are deduped by `file:line`.
+ *
+ * Returns the number of remaining hits so callers can emit a "clean" signal
+ * when cascade mode fully resolved the rename.
  */
-function reportTextualReferences(oldName: string): void {
-  if (dryRun) return;
+function reportTextualReferences(oldName: string): number {
+  if (dryRun) return 0;
   const searchRoots = ["src", "server", "test", "docs"].filter((root) => existsSync(root));
-  if (searchRoots.length === 0) return;
+  if (searchRoots.length === 0) return 0;
 
-  const result = spawnSync(
-    "rg",
-    [
-      "--fixed-strings",
-      "--word-regexp",
-      "--line-number",
-      "--no-heading",
-      "--with-filename",
-      "--color",
-      "never",
-      oldName,
-      ...searchRoots,
-    ],
-    { encoding: "utf8" },
-  );
+  const exact = runRipgrep(["--fixed-strings", "--word-regexp", oldName, ...searchRoots]);
+  if (exact === null) return 0;
 
-  if (result.status === 1) return;
-  if (result.status !== 0) {
-    console.warn(`  ⚠️  Post-rename textual check skipped: ${result.stderr?.trim() || "rg unavailable"}`);
-    return;
+  const pascal = pascalVariant(oldName);
+  const compound = pascal && pascal !== oldName
+    ? runRipgrep(["--fixed-strings", pascal, ...searchRoots]) ?? []
+    : [];
+
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const line of [...exact, ...compound]) {
+    const key = line.split(":").slice(0, 2).join(":");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(line);
   }
 
-  const lines = result.stdout.split("\n").filter((line) => line.length > 0);
-  if (lines.length === 0) return;
+  if (merged.length === 0) return 0;
 
+  const label = pascal && pascal !== oldName
+    ? `"${oldName}" or "${pascal}"`
+    : `"${oldName}"`;
   console.log(
-    `\n⚠️  ${lines.length} textual reference(s) to "${oldName}" remain (comments, strings, or docs — not touched by AST rename):`,
+    `\n⚠️  ${merged.length} textual reference(s) to ${label} remain (comments, strings, docs, or compound identifiers — not touched by AST rename):`,
   );
-  for (const line of lines) {
+  for (const line of merged) {
     console.log(`  ${line}`);
   }
   console.log(`  Review and update manually if they still refer to the renamed symbol.`);
+  return merged.length;
+}
+
+function runRipgrep(rgArgs: readonly string[]): string[] | null {
+  const result = spawnSync(
+    "rg",
+    ["--line-number", "--no-heading", "--with-filename", "--color", "never", ...rgArgs],
+    { encoding: "utf8" },
+  );
+  if (result.status === 1) return [];
+  if (result.status !== 0) {
+    console.warn(`  ⚠️  Post-rename textual check skipped: ${result.stderr?.trim() || "rg unavailable"}`);
+    return null;
+  }
+  return result.stdout.split("\n").filter((line) => line.length > 0);
+}
+
+function pascalVariant(name: string): string | null {
+  const first = name.charAt(0);
+  if (first < "a" || first > "z") return null;
+  return first.toUpperCase() + name.slice(1);
+}
+
+/**
+ * After a prop/symbol rename, find locals that still carry the old name but
+ * whose initializer now reads the new property (because the AST rename already
+ * rewrote the RHS). Pattern:
+ *
+ *     const homeTowers = overlay.entities?.ownedTowers;
+ *        // ^^^^^^^^^^ local kept old name           ^^^^^^^^^^^ already renamed
+ *
+ * Renames each such local to the new name. Other same-name locals (parameters,
+ * unrelated variables) are left alone — too risky to rename without a clear
+ * data-flow signal that they refer to the renamed symbol.
+ */
+function renameCoincidentLocals(project: Project, oldName: string, newName: string): number {
+  let count = 0;
+  for (const sf of project.getSourceFiles()) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+        const nameNode = decl.getNameNode();
+        if (!nameNode.isKind(SyntaxKind.Identifier)) continue;
+        if (nameNode.getText() !== oldName) continue;
+
+        const init = decl.getInitializer();
+        if (!init) continue;
+        const finalName = getTrailingAccessName(init);
+        if (finalName !== newName) continue;
+
+        nameNode.rename(newName);
+        count++;
+        changed = true;
+        console.log(
+          `  Renamed coincident local ${oldName} → ${newName} in ${path.relative(process.cwd(), sf.getFilePath())}`,
+        );
+        break;
+      }
+    }
+  }
+  return count;
+}
+
+function getTrailingAccessName(node: import("ts-morph").Node): string | null {
+  if (node.isKind(SyntaxKind.PropertyAccessExpression)) return node.getName();
+  if (node.isKind(SyntaxKind.ElementAccessExpression)) {
+    const arg = node.getArgumentExpression();
+    if (arg?.isKind(SyntaxKind.StringLiteral)) return arg.getLiteralText();
+  }
+  return null;
 }
 
 function saveChanges(project: Project): number {
@@ -732,9 +825,17 @@ function renameInFile(name: string, newName: string, files: string[]): void {
   // Collapse those back to shorthand `{ newName }`.
   collapseRedundantPropertyAssignments(project, newName);
 
+  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, name, newName) : 0;
+
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed ${totalDecls} declaration(s) across ${changedFiles} file(s)`);
-  reportTextualReferences(name);
+  if (cascadeFlag && localsRenamed > 0) {
+    console.log(`  Cascade: renamed ${localsRenamed} coincident local(s)`);
+  }
+  const remaining = reportTextualReferences(name);
+  if (cascadeFlag && remaining === 0) {
+    console.log(`✅ Cascade clean: no textual references to "${name}" remain`);
+  }
 }
 
 /**
@@ -2094,6 +2195,8 @@ Commands:
 
 Options:
   --dry-run    Show what would change without writing
+  --cascade    (rename-symbol/prop/in-file) also rename coincident locals
+               (const <old> = <expr>.<new>) and confirm no textual remnants
   --type       (add-reexport) emit an 'export type { ... }' re-export instead of a value re-export
 
 Examples:
