@@ -238,7 +238,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a1,
       rocks: {
-        count: 44,
+        count: 88,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.1, 0.22],
         maxHeight: 0.3125,
@@ -283,7 +283,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a2,
       rocks: {
-        count: 56,
+        count: 112,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.12, 0.28],
         maxHeight: 0.375,
@@ -329,7 +329,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a3,
       rocks: {
-        count: 64,
+        count: 128,
         footprint: { width: 1.5, depth: 1.5 },
         sizeRange: [0.13, 0.3],
         maxHeight: 0.4375,
@@ -373,7 +373,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a4,
       rocks: {
-        count: 100,
+        count: 200,
         footprint: { width: 1.5, depth: 1.5 },
         sizeRange: [0.13, 0.32],
         maxHeight: 0.5,
@@ -430,7 +430,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a5,
       rocks: {
-        count: 52,
+        count: 104,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.12, 0.26],
         maxHeight: 0.4375,
@@ -475,7 +475,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 44,
+        count: 88,
         footprint: { width: 1.5, depth: 1.375 },
         sizeRange: [0.1, 0.22],
         maxHeight: 0.3125,
@@ -529,7 +529,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 72,
+        count: 144,
         footprint: { width: 1.625, depth: 1.5 },
         sizeRange: [0.1, 0.24],
         maxHeight: 0.375,
@@ -577,7 +577,7 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a7,
       rocks: {
-        count: 112,
+        count: 224,
         footprint: { width: 1.625, depth: 1.625 },
         sizeRange: [0.1, 0.26],
         maxHeight: 0.4375,
@@ -658,12 +658,14 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xda11,
       rocks: {
-        count: 84,
-        // 14×14 cell footprint — matches pit/house-wall extent on a
-        // 1×1 tile sprite. halfW 0.875 + 0.707·maxSize 0.16 = 0.988,
-        // keeps all rotated rocks inside the ±1 frustum.
-        footprint: { width: 1.75, depth: 1.75 },
-        sizeRange: [0.12, 0.24],
+        count: 260,
+        // Footprint widened to 1.96 so rocks reach the tile edges
+        // (halfW 0.98 + 0.707·minSize 0.10 = 1.05 at max rotation, but
+        // typical rocks sit inside ±1). Paired with a smaller max size
+        // than before (0.20 vs 0.24) so corner rocks don't poke as far
+        // beyond the ±1 frustum.
+        footprint: { width: 1.96, depth: 1.96 },
+        sizeRange: [0.1, 0.2],
         maxHeight: 0.25,
         flatness: [0.45, 0.95],
         materials: WALL_MATERIALS,
@@ -678,9 +680,9 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xda12,
       rocks: {
-        count: 96,
-        footprint: { width: 1.75, depth: 1.75 },
-        sizeRange: [0.12, 0.24],
+        count: 310,
+        footprint: { width: 1.96, depth: 1.96 },
+        sizeRange: [0.1, 0.2],
         maxHeight: 0.25,
         flatness: [0.45, 0.95],
         materials: WALL_MATERIALS,
@@ -768,6 +770,19 @@ export function buildDebris(
   variant: VariantDescriptor,
 ): void {
   const mat = (spec: MaterialSpec): THREE.Material => createMaterial(spec);
+
+  // Wall rubble: add an opaque full-tile base plate under the rocks so
+  // grass doesn't show through the gaps between pieces. Uses the
+  // brightest wall stone tone and sits just above the terrain plane (y
+  // slightly > 0) so rock bottoms at y=0 don't z-fight with it.
+  if (variant.source === "wall") {
+    const plate = new three.Mesh(
+      new three.BoxGeometry(2, 0.02, 2),
+      mat(WALL_STONE_LIGHT),
+    );
+    plate.position.set(0, 0.01, 0);
+    scene.add(plate);
+  }
 
   const pieces = debrisLayout(variant);
   for (const piece of pieces) {

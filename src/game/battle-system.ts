@@ -371,13 +371,13 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
   }
 }
 
-/** Snapshot per-player territory (interior + walls) for battle rendering. */
+/** Snapshot per-player interior territory for battle rendering. Walls are
+ *  NOT included — they're drawn separately via `battleWalls`, and
+ *  including them here would paint cobblestone under destroyed walls
+ *  once the wall sprite/mesh is removed. With walls out of the set, a
+ *  destroyed-wall tile falls back to plain grass (its real terrain). */
 export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
-  return players.map((player) => {
-    const combined = new Set(getInterior(player));
-    for (const key of player.walls) combined.add(key);
-    return combined;
-  });
+  return players.map((player) => new Set(getInterior(player)));
 }
 
 /**
