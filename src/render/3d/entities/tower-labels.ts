@@ -103,15 +103,20 @@ export function createTowerLabelsManager(
     const { overlay, map } = ctx;
     const towers = map?.towers;
     const ownedTowers = overlay?.entities?.ownedTowers;
+    const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const inBattle = !!overlay?.battle?.inBattle;
 
-    if (!inBattle || !towers || !ownedTowers) {
+    if (!inBattle || !towers || !ownedTowers || !homeTowerIndices) {
       for (const sprite of sprites.values()) sprite.visible = false;
       return;
     }
 
     const seen = new Set<number>();
     for (let i = 0; i < towers.length; i++) {
+      // Labels only float above a player's ORIGINAL home tower —
+      // captured secondary towers stay unlabelled so the home tower
+      // remains the unambiguous "this is you" beacon during battle.
+      if (!homeTowerIndices.has(i)) continue;
       const ownerId = ownedTowers.get(i);
       if (ownerId === undefined) continue;
       const tower = towers[i]!;

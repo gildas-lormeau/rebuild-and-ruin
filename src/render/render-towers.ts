@@ -59,8 +59,12 @@ export function drawTowers(
             ? `tower_home_p${ownerId}${suffix}`
             : `tower_home_p0${suffix}`;
         drawSpriteCentered(overlayCtx, homeName, cx, cy);
-        // Player name label above home tower (battle phase only, semi-transparent)
-        if (ownerId !== undefined && inBattle) {
+        // Player name label above home tower (battle phase only,
+        // semi-transparent). Only a player's ORIGINAL home tower is
+        // labelled — captured secondary towers stay unlabelled.
+        const isHomeTower =
+          overlay?.entities?.homeTowerIndices?.has(i) ?? false;
+        if (ownerId !== undefined && inBattle && isHomeTower) {
           const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
           const c = getPlayerColor(ownerId as ValidPlayerSlot).interiorLight;
           overlayCtx.save();
