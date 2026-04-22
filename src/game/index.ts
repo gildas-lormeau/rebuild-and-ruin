@@ -51,6 +51,8 @@ export {
   isSelectionComplete,
   tickBuildPhase,
 } from "./game-engine.ts";
+export type { GameOverReason } from "./game-over.ts";
+export { computeGameOutcome } from "./game-over.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";

@@ -39,6 +39,7 @@
  * emitted from inside the mutate / display handlers.
  */
 
+import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
   enterBattlePhase,
@@ -84,10 +85,7 @@ import {
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
 import type { BannerShow } from "./runtime-contracts.ts";
-import {
-  type GameOverReason,
-  resolveAfterLifeLost,
-} from "./runtime-life-lost-core.ts";
+import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { BuildEndSummary, TimingApi } from "./runtime-types.ts";
 

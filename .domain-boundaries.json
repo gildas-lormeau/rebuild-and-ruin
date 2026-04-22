@@ -50,6 +50,7 @@
       "src/game/build-system.ts",
       "src/game/castle-generation.ts",
       "src/game/game-actions.ts",
+      "src/game/game-over.ts",
       "src/game/map-generation.ts",
       "src/game/phase-setup.ts",
       "src/game/combo-system.ts",

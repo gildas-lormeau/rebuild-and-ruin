@@ -1,3 +1,4 @@
+import type { GameOverReason } from "../game/index.ts";
 import {
   advanceBattleCountdown,
   canBuildThisFrame,
@@ -54,7 +55,6 @@ import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats, SceneCapture } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { BannerShow } from "./runtime-contracts.ts";
-import type { GameOverReason } from "./runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
   ROLE_HOST,

@@ -1,6 +1,7 @@
+import { computeGameOutcome, type GameOverReason } from "../game/index.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { eliminatePlayer, isPlayerAlive } from "../shared/core/player-types.ts";
+import { eliminatePlayer } from "../shared/core/player-types.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
   type AutoResolveDeps,
@@ -19,10 +20,6 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   eliminated: readonly ValidPlayerSlot[];
   state: GameState;
 }
-
-/** Reason a game-over fires — threaded into the machine's transition id
- *  so each path stays distinct in telemetry / tests / future divergence. */
-export type GameOverReason = "last-player-standing" | "round-limit-reached";
 
 interface ResolveAfterLifeLostDeps {
   state: GameState;
@@ -159,45 +156,23 @@ export function applyLifeLostChoice(
   entry.choice = choice;
 }
 
-/** Determine the game outcome after the life-lost dialog resolves.
- *  Checks win conditions (last player standing, round limit) and
- *  dispatches to the appropriate callback. */
+/** Route the post-life-lost outcome to the phase machine's handlers.
+ *
+ *  Thin wrapper over `computeGameOutcome` from `game/game-over.ts` — game
+ *  rules (win-check + GAME_END emit) live in the game domain; this file
+ *  owns the dispatch from pure outcome → runtime callbacks. */
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
   const { state, continuing, onGameOver, onReselect, onContinue } = deps;
-
-  const alive = state.players.filter(isPlayerAlive);
-  if (alive.length <= 1) {
-    const winner =
-      alive[0] ??
-      state.players.reduce((best, player) =>
-        player.score > best.score ? player : best,
-      );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
-      round: state.round,
-      winner: winner.id,
-    });
-    onGameOver(winner, "last-player-standing");
-    return true;
+  const outcome = computeGameOutcome(state, continuing);
+  switch (outcome.kind) {
+    case "game-over":
+      onGameOver(outcome.winner, outcome.reason);
+      return true;
+    case "reselect":
+      onReselect(outcome.continuing);
+      return true;
+    case "continue":
+      onContinue();
+      return true;
   }
-
-  if (state.round > state.maxRounds) {
-    const winner = alive.reduce(
-      (best, player) => (player.score > best.score ? player : best),
-      alive[0]!,
-    );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
-      round: state.round,
-      winner: winner.id,
-    });
-    onGameOver(winner, "round-limit-reached");
-    return true;
-  }
-
-  if (continuing.length > 0) {
-    onReselect(continuing);
-    return true;
-  }
-
-  onContinue();
-  return true;
 }
