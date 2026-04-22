@@ -3,7 +3,7 @@ import type {
   OnlineOverlayParams,
   RenderSummaryParams,
 } from "../runtime/runtime-contracts.ts";
-import type { BalloonFlight } from "../shared/core/battle-types.ts";
+import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
@@ -39,6 +39,8 @@ import {
   type CastleData,
   type GameOverOverlay,
   type LifeLostDialogOverlay,
+  type OverlayBalloon,
+  type OverlayCannonball,
   type PlayerStats,
   type RenderOverlay,
   type UpgradePickOverlay,
@@ -442,7 +444,7 @@ export function createOnlineOverlay(
   };
 }
 
-/** Build the game-over overlay from game state + per-player stats. */
+/** Build the game-over overlay from the winner, per-player snapshots, and stats. */
 export function buildGameOverOverlay(
   winnerId: number,
   players: readonly {
@@ -703,29 +705,8 @@ function buildUpgradePickUi(
 
 function buildBattleCannonballsPayload(
   inBattle: boolean,
-  cannonballs: ReadonlyArray<{
-    x: number;
-    y: number;
-    startX: number;
-    startY: number;
-    targetX: number;
-    targetY: number;
-    incendiary?: boolean;
-    mortar?: boolean;
-  }>,
-):
-  | Array<{
-      x: number;
-      y: number;
-      startX: number;
-      startY: number;
-      targetX: number;
-      targetY: number;
-      progress: number;
-      incendiary?: boolean;
-      mortar?: boolean;
-    }>
-  | undefined {
+  cannonballs: readonly Cannonball[],
+): OverlayCannonball[] | undefined {
   if (!inBattle) return undefined;
 
   return cannonballs.map((b) => {
@@ -748,15 +729,7 @@ function buildBattleCannonballsPayload(
 
 function buildBattleBalloonsPayload(
   flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>,
-):
-  | Array<{
-      x: number;
-      y: number;
-      targetX: number;
-      targetY: number;
-      progress: number;
-    }>
-  | undefined {
+): OverlayBalloon[] | undefined {
   if (flights.length === 0) return undefined;
 
   return flights.map((b) => ({

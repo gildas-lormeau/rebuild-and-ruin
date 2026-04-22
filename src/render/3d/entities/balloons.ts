@@ -54,7 +54,10 @@ import {
   isBalloonCannon,
   isCannonAlive,
 } from "../../../shared/core/spatial.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type {
+  OverlayBalloon,
+  RenderOverlay,
+} from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildBalloon, getBalloonVariant } from "../sprites/balloon-scene.ts";
 import {
@@ -70,14 +73,6 @@ export interface BalloonsManager {
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
-
-type FlightOverlay = {
-  x: number;
-  y: number;
-  targetX: number;
-  targetY: number;
-  progress: number;
-};
 
 /** Balloon scenes are authored in a ±1 frustum covering a 2-tile span
  *  (same authoring convention as the cannon scenes), so scaling by
@@ -132,7 +127,7 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
    *  per-frame position pass can walk them without filtering by name. */
   let flightHosts: THREE.Group[] = [];
   /** Flight overlays aligned 1:1 with `flightHosts`. */
-  let flightOverlays: readonly FlightOverlay[] = [];
+  let flightOverlays: readonly OverlayBalloon[] = [];
 
   function clear(): void {
     disposeGroupSubtree(root, ownedMaterials);
@@ -142,7 +137,7 @@ export function createBalloonsManager(scene: THREE.Scene): BalloonsManager {
 
   function buildAllBalloons(
     bases: readonly Cannon[],
-    flights: readonly FlightOverlay[],
+    flights: readonly OverlayBalloon[],
   ): void {
     const baseVariant = getBalloonVariant("balloon_base");
     if (baseVariant) {
@@ -270,7 +265,7 @@ function collectGroundedBalloons(overlay: RenderOverlay | undefined): Cannon[] {
  *  position rewrites without a full rebuild). */
 function computeSignature(
   bases: readonly Cannon[],
-  flights: readonly FlightOverlay[],
+  flights: readonly OverlayBalloon[],
 ): string {
   const parts: string[] = [];
   for (const cannon of bases) {

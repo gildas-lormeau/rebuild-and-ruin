@@ -51,7 +51,10 @@
 import * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
+import type {
+  OverlayCannonball,
+  RenderOverlay,
+} from "../../../shared/ui/overlay-types.ts";
 import { targetTopAt } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import {
@@ -68,18 +71,6 @@ export interface CannonballsManager {
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
-
-type BallOverlay = {
-  x: number;
-  y: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  progress: number;
-  incendiary?: boolean;
-  mortar?: boolean;
-};
 
 /** Cannonball scenes are authored in a ±1 frustum covering a 1-tile
  *  span, so scaling by TILE_SIZE / 2 makes 1 authored unit = half a
@@ -128,7 +119,7 @@ export function createCannonballsManager(
     lastBallSetSignature = undefined;
   }
 
-  function buildAllCannonballs(balls: readonly BallOverlay[]): void {
+  function buildAllCannonballs(balls: readonly OverlayCannonball[]): void {
     for (const ball of balls) {
       const variantName = selectVariantName(ball);
       const variant = getCannonballVariant(variantName);
@@ -140,7 +131,7 @@ export function createCannonballsManager(
   }
 
   function positionHosts(
-    balls: readonly BallOverlay[],
+    balls: readonly OverlayCannonball[],
     overlay: RenderOverlay | undefined,
     map: GameMap | undefined,
   ): void {
@@ -215,7 +206,7 @@ export function createCannonballsManager(
  *  list. Rebuilds meshes only when this changes; positions/scales are
  *  rewritten every frame regardless (so sub-tile motion during flight
  *  always updates without a rebuild). */
-function computeBallSetSignature(balls: readonly BallOverlay[]): string {
+function computeBallSetSignature(balls: readonly OverlayCannonball[]): string {
   if (balls.length === 0) return "";
   const parts: string[] = [];
   for (const ball of balls) parts.push(selectVariantName(ball));
@@ -224,7 +215,7 @@ function computeBallSetSignature(balls: readonly BallOverlay[]): string {
 
 /** Pick a cannonball-scene variant name by overlay flags. Mirrors the
  *  2D `drawCannonballs` color switch (mortar > incendiary > default). */
-function selectVariantName(ball: BallOverlay): string {
+function selectVariantName(ball: OverlayCannonball): string {
   if (ball.mortar) return "cannonball_mortar";
   if (ball.incendiary) return "cannonball_fire";
   return "cannonball_iron";

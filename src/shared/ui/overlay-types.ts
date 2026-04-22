@@ -165,10 +165,37 @@ export interface EntityOverlay {
  *  true = placement is legal (rendered at normal color/alpha).
  *  false = illegal placement (rendered dark gray at reduced alpha). */
 export interface PhantomOverlay {
-  piecePhantoms?: RenderPiecePhantom[];
-  cannonPhantoms?: RenderCannonPhantom[];
+  piecePhantoms?: readonly RenderPiecePhantom[];
+  cannonPhantoms?: readonly RenderCannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
   defaultFacings?: ReadonlyMap<number, number>;
+}
+
+/** Cannonball in flight — overlay payload with animation progress. */
+export interface OverlayCannonball {
+  x: number;
+  y: number;
+  /** Launch point (world-pixel coords). Lets the 3D renderer size
+   *  the arc apex proportionally to total flight distance. */
+  startX: number;
+  startY: number;
+  /** Target tile center (world-pixel coords). Lets the 3D renderer
+   *  compute target elevation so balls can arc onto wall tops
+   *  instead of passing through the wall to the ground plane. */
+  targetX: number;
+  targetY: number;
+  progress: number;
+  incendiary?: boolean;
+  mortar?: boolean;
+}
+
+/** Propaganda balloon flight — overlay payload with animation progress. */
+export interface OverlayBalloon {
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  progress: number;
 }
 
 /** Battle phase — projectiles, effects, territory state. */
@@ -176,33 +203,12 @@ export interface BattleOverlay {
   /** True when battle visuals should render (battle phase or banner with battle snapshot).
    *  Use this instead of duck-typing `!!battleTerritory`. */
   inBattle?: boolean;
-  cannonballs?: {
-    x: number;
-    y: number;
-    /** Launch point (world-pixel coords). Lets the 3D renderer size
-     *  the arc apex proportionally to total flight distance. */
-    startX: number;
-    startY: number;
-    /** Target tile center (world-pixel coords). Lets the 3D renderer
-     *  compute target elevation so balls can arc onto wall tops
-     *  instead of passing through the wall to the ground plane. */
-    targetX: number;
-    targetY: number;
-    progress: number;
-    incendiary?: boolean;
-    mortar?: boolean;
-  }[];
-  crosshairs?: Crosshair[];
-  impacts?: Impact[];
-  balloons?: {
-    x: number;
-    y: number;
-    targetX: number;
-    targetY: number;
-    progress: number;
-  }[];
-  battleTerritory?: Set<number>[];
-  battleWalls?: Set<number>[];
+  cannonballs?: readonly OverlayCannonball[];
+  crosshairs?: readonly Crosshair[];
+  impacts?: readonly Impact[];
+  balloons?: readonly OverlayBalloon[];
+  battleTerritory?: readonly Set<number>[];
+  battleWalls?: readonly Set<number>[];
   /** True when Fog of War is active — renderer blankets each castle's
    *  walls + interior with an animated fog layer so players must aim
    *  from memory. */
