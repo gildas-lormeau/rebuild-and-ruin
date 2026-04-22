@@ -52,33 +52,37 @@ export function drawTowers(
       continue;
     }
 
-    if (!liveEnabled) continue;
-
-    if (overlay?.selection?.selected === i || ownerId !== undefined) {
-      const homeName =
-        ownerId !== undefined
-          ? `tower_home_p${ownerId}${suffix}`
-          : `tower_home_p0${suffix}`;
-      drawSpriteCentered(overlayCtx, homeName, cx, cy);
-      // Player name label above home tower (battle phase only, semi-transparent)
-      if (ownerId !== undefined && inBattle) {
-        const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
-        const c = getPlayerColor(ownerId as ValidPlayerSlot).interiorLight;
-        overlayCtx.save();
-        overlayCtx.globalAlpha = 0.7;
-        overlayCtx.font = FONT_FLOAT_LG;
-        overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-        overlayCtx.textBaseline = "bottom";
-        overlayCtx.fillStyle = SHADOW_COLOR_DENSE;
-        overlayCtx.fillText(name, cx, cy - 20);
-        overlayCtx.fillStyle = rgb(c);
-        overlayCtx.fillText(name, cx - 0.5, cy - 20.5);
-        overlayCtx.restore();
+    if (liveEnabled) {
+      if (overlay?.selection?.selected === i || ownerId !== undefined) {
+        const homeName =
+          ownerId !== undefined
+            ? `tower_home_p${ownerId}${suffix}`
+            : `tower_home_p0${suffix}`;
+        drawSpriteCentered(overlayCtx, homeName, cx, cy);
+        // Player name label above home tower (battle phase only, semi-transparent)
+        if (ownerId !== undefined && inBattle) {
+          const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
+          const c = getPlayerColor(ownerId as ValidPlayerSlot).interiorLight;
+          overlayCtx.save();
+          overlayCtx.globalAlpha = 0.7;
+          overlayCtx.font = FONT_FLOAT_LG;
+          overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+          overlayCtx.textBaseline = "bottom";
+          overlayCtx.fillStyle = SHADOW_COLOR_DENSE;
+          overlayCtx.fillText(name, cx, cy - 20);
+          overlayCtx.fillStyle = rgb(c);
+          overlayCtx.fillText(name, cx - 0.5, cy - 20.5);
+          overlayCtx.restore();
+        }
+      } else {
+        drawSpriteCentered(overlayCtx, `tower_neutral${suffix}`, cx, cy);
       }
-    } else {
-      drawSpriteCentered(overlayCtx, `tower_neutral${suffix}`, cx, cy);
     }
 
+    // Selection highlights render on the 2D overlay regardless of
+    // whether the 3D renderer is drawing live tower sprites — castle
+    // selection is a top-down phase, so the 2D bracket cursor aligns
+    // perfectly on top of the 3D tower meshes.
     if (overlay?.selection?.highlighted === i) {
       drawTowerHighlight(overlayCtx, cx, cy, undefined, now);
     }
