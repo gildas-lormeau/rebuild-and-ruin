@@ -52,6 +52,10 @@ import {
   type ThawingManager,
 } from "./effects/thawing.ts";
 import {
+  createWallBurnsManager,
+  type WallBurnsManager,
+} from "./effects/wall-burns.ts";
+import {
   createWaterWavesManager,
   type WaterWavesManager,
 } from "./effects/water-waves.ts";
@@ -144,6 +148,13 @@ export interface Render3dContext {
    *  on the ground plane; material opacity + scale drive the 2D-parity
    *  phase timeline per frame. */
   readonly impacts: ImpactsManager;
+  /** Wall-burn manager — fire / smoke / sparks burst when a wall is
+   *  destroyed. Reconciles `overlay.battle.wallBurns` into per-tile
+   *  hosts of flame cones + smoke sprites + spark sprites + a brief
+   *  flash. Per-frame animation reads the burn's `age` field for envelope
+   *  + crackle math; deterministic per-tile variation derives from
+   *  `tileSeed`. */
+  readonly wallBurns: WallBurnsManager;
   /** Crosshair manager — Phase 6. Eight-arm flat meshes per crosshair
    *  anchored at `overlay.battle.crosshairs[].x/y` (pixel units). Arm
    *  length / alpha pulse with the 2D-parity `cannonReady` timeline. */
@@ -224,6 +235,7 @@ export function createRender3dScene(
   const balloons = createBalloonsManager(scene);
   const phantoms = createPhantomsManager(scene);
   const impacts = createImpactsManager(scene);
+  const wallBurns = createWallBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
@@ -308,6 +320,7 @@ export function createRender3dScene(
     balloons,
     phantoms,
     impacts,
+    wallBurns,
     crosshairs,
     fog,
     thawing,

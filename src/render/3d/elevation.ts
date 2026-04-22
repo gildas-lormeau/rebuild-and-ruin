@@ -78,6 +78,7 @@ export const ELEVATION_STACK = {
   PIECE_PHANTOM: 0.5,
   IMPACTS: 0.5,
   THAWING: 0.5,
+  WALL_BURNS: 0.5,
   CROSSHAIRS: 0.8,
   FOG: 80,
 } as const;

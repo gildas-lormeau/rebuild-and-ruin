@@ -3,6 +3,7 @@ import type {
   Crosshair,
   Impact,
   ThawingTile,
+  WallBurn,
 } from "../shared/core/battle-types.ts";
 import type { ModifierId } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -209,6 +210,7 @@ export interface OnlineOverlayParams {
     flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>;
     impacts: Impact[];
     thawing: ThawingTile[];
+    wallBurns: WallBurn[];
   };
   frame: {
     crosshairs: Crosshair[];

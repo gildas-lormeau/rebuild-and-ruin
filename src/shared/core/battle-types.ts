@@ -145,6 +145,14 @@ export interface ThawingTile extends TilePos {
   age: number;
 }
 
+/** A tile where a wall was recently destroyed — drives the fire/smoke
+ *  burst animation. Pure visual state; renderer derives all per-flame
+ *  variation from `(row, col)` via tileSeed. */
+export interface WallBurn extends TilePos {
+  /** Seconds since the wall was destroyed. */
+  age: number;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
@@ -152,10 +160,15 @@ export interface BattleAnimState {
   flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
   thawing: ThawingTile[];
+  wallBurns: WallBurn[];
 }
 
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
+/** Duration of the destroyed-wall fire/smoke burst (seconds). Matches
+ *  the demo TTL — long enough to read as a real burst, short enough to
+ *  not delay the post-battle banner. */
+export const WALL_BURN_DURATION = 0.7;
 
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
@@ -173,21 +186,34 @@ export function isRampartMode(mode: CannonMode): mode is CannonMode.RAMPART {
 }
 
 export function createBattleAnimState(): BattleAnimState {
-  return { territory: [], walls: [], flights: [], impacts: [], thawing: [] };
+  return {
+    territory: [],
+    walls: [],
+    flights: [],
+    impacts: [],
+    thawing: [],
+    wallBurns: [],
+  };
 }
 
-/** Clear all impact flashes (e.g. on phase transition to build). */
+/** Clear all transient battle effect animations (e.g. on phase transition to build). */
 export function clearImpacts(battleAnim: {
   impacts: Impact[];
   thawing: ThawingTile[];
+  wallBurns: WallBurn[];
 }): void {
   battleAnim.impacts = [];
   battleAnim.thawing = [];
+  battleAnim.wallBurns = [];
 }
 
-/** Age impact flashes and thaw animations by `dt` seconds and remove expired ones. */
+/** Age transient battle effect animations by `dt` seconds and remove expired ones. */
 export function ageImpacts(
-  battleAnim: { impacts: Impact[]; thawing: ThawingTile[] },
+  battleAnim: {
+    impacts: Impact[];
+    thawing: ThawingTile[];
+    wallBurns: WallBurn[];
+  },
   dt: number,
   flashDuration: number,
 ): void {
@@ -198,5 +224,9 @@ export function ageImpacts(
   for (const th of battleAnim.thawing) th.age += dt;
   battleAnim.thawing = battleAnim.thawing.filter(
     (th) => th.age < THAW_DURATION,
+  );
+  for (const burn of battleAnim.wallBurns) burn.age += dt;
+  battleAnim.wallBurns = battleAnim.wallBurns.filter(
+    (burn) => burn.age < WALL_BURN_DURATION,
   );
 }

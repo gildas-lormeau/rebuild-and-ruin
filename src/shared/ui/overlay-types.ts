@@ -5,6 +5,7 @@ import type {
   Grunt,
   Impact,
   ThawingTile,
+  WallBurn,
 } from "../core/battle-types.ts";
 import type { ModifierDiff } from "../core/game-constants.ts";
 import type { Phase } from "../core/game-phase.ts";
@@ -211,6 +212,7 @@ export interface BattleOverlay {
   cannonballs?: readonly OverlayCannonball[];
   crosshairs?: readonly Crosshair[];
   impacts?: readonly Impact[];
+  wallBurns?: readonly WallBurn[];
   balloons?: readonly OverlayBalloon[];
   battleTerritory?: readonly Set<number>[];
   battleWalls?: readonly Set<number>[];

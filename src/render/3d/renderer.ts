@@ -192,6 +192,7 @@ export function createRender3d(
       ctx.balloons.update(frame);
       ctx.phantoms.update(frame);
       ctx.impacts.update(frame);
+      ctx.wallBurns.update(frame);
       ctx.crosshairs.update(frame);
       ctx.fog.update(frame);
       ctx.thawing.update(frame);

@@ -412,6 +412,7 @@ export function createOnlineOverlay(
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
       impacts: inBattle ? battleAnim.impacts : undefined,
+      wallBurns: inBattle ? battleAnim.wallBurns : undefined,
       crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
       fogOfWar:
