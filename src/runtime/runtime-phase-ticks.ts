@@ -121,7 +121,17 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  `onDone` — each chained call should capture its own prev-scene
    *  at the moment of the call, not stash one from earlier. */
   showBanner: BannerShow;
-  lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
+  lifeLost: Pick<RuntimeLifeLost, "run">;
+  /** Handlers called after the life-lost dialog resolves. `onGameOver`
+   *  dispatches the game-over transition; `onReselect` seeds the
+   *  reselect queue and enters the castle-reselect flow; `onContinue`
+   *  dispatches `advance-to-cannon`. Host-only — watcher path builds
+   *  its own route bundle in `online-phase-transitions.ts`. */
+  lifeLostRoute: {
+    onGameOver: (winner: { id: number }, reason: GameOverReason) => void;
+    onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+    onContinue: () => void;
+  };
   scoreDelta: {
     capturePreScores: () => void;
     show: (onDone: () => void) => void;
@@ -416,11 +426,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       beginBattleTilt: deps.beginBattleTilt,
       engageAutoZoom: deps.engageAutoZoom,
       lifeLost: {
-        tryShow: deps.lifeLost.tryShow,
-        resolve: (continuing) => {
-          deps.lifeLost.onResolved(continuing);
-        },
+        run: deps.lifeLost.run,
       },
+      lifeLostRoute: deps.lifeLostRoute,
       notifyLifeLost: (pid) => {
         if (!isRemotePlayer(pid, remotePlayerSlots)) {
           runtimeState.controllers[pid]!.onLifeLost();

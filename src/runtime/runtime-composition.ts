@@ -629,10 +629,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     render,
     panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
-    dispatchGameOver: (winner, reason) =>
-      phaseTicks.dispatchGameOver(winner, reason),
-    startReselection: selection.startReselection,
-    advanceToCannonPhase: selection.advanceToCannonPhase,
     disableAutoZoom: camera.disableAutoZoom,
   });
 
@@ -682,6 +678,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     requestUnzoom: camera.requestUnzoom,
     showBanner,
     lifeLost,
+    // Host-side routing for the life-lost resolution, threaded through
+    // to the phase machine via `PhaseTransitionCtx.lifeLostRoute`. The
+    // subsystem no longer owns the dispatchers — it just drives the
+    // dialog and reports the `continuing` list back.
+    lifeLostRoute: {
+      onGameOver: (winner, reason) =>
+        phaseTicks.dispatchGameOver(winner, reason),
+      onReselect: (continuing) => {
+        runtimeState.selection.reselectQueue = [...continuing];
+        selection.startReselection();
+      },
+      onContinue: selection.advanceToCannonPhase,
+    },
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {

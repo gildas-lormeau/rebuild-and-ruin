@@ -84,6 +84,10 @@ import {
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
 import type { BannerShow } from "./runtime-contracts.ts";
+import {
+  type GameOverReason,
+  resolveAfterLifeLost,
+} from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { BuildEndSummary } from "./runtime-types.ts";
 
@@ -106,6 +110,11 @@ interface TransitionResult {
   readonly needsReselect?: readonly ValidPlayerSlot[];
   readonly eliminated?: readonly ValidPlayerSlot[];
   readonly preScores?: readonly number[];
+  /** Populated by the `life-lost-dialog` display step once the dialog
+   *  resolves (or immediately, for the all-pre-resolved path). Read by
+   *  `WALL_BUILD_DONE`'s postDisplay to route via `resolveAfterLifeLost`.
+   *  Mutable because it's written AFTER the mutate fn returns. */
+  continuing?: readonly ValidPlayerSlot[];
 }
 
 type DisplayStep =
@@ -252,17 +261,34 @@ export interface PhaseTransitionCtx {
 
   /** Life-lost dialog hooks. Only required for transitions whose `display`
    *  array contains a `life-lost-dialog` step (wall-build-done). Other
-   *  transitions may omit. */
+   *  transitions may omit.
+   *
+   *  `run` drives the dialog to completion. It either resolves
+   *  immediately (no entries needed input) or shows the modal and
+   *  ticks it to resolution. Either way, `onResolved(continuing)` fires
+   *  once with the list of players who chose CONTINUE. The step sets
+   *  `result.continuing` from this list; `WALL_BUILD_DONE`'s postDisplay
+   *  reads it and routes via `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
   readonly lifeLost?: {
-    readonly tryShow: (
+    readonly run: (
       needsReselect: readonly ValidPlayerSlot[],
       eliminated: readonly ValidPlayerSlot[],
+      onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
     ) => boolean;
-    /** Resolve the life-lost flow (either via user dialog action or by
-     *  immediate advance when no dialog was needed). Passing an empty
-     *  `continuing` list signals "nobody to reselect" and routes to the
-     *  continue / game-over branch. */
-    readonly resolve: (continuing?: readonly ValidPlayerSlot[]) => void;
+  };
+  /** Post-life-lost dispatch bundle. `WALL_BUILD_DONE`'s postDisplay
+   *  runs `resolveAfterLifeLost` with these three handlers; host and
+   *  watcher supply different implementations (host dispatches the
+   *  next transition, watcher only sets Mode.STOPPED on game-over
+   *  since the server drives continue/reselect). Optional so
+   *  transitions that don't include a life-lost-dialog step can omit. */
+  readonly lifeLostRoute?: {
+    readonly onGameOver: (
+      winner: { id: number },
+      reason: GameOverReason,
+    ) => void;
+    readonly onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+    readonly onContinue: () => void;
   };
   /** Notify a local controller that its player lost a life. Called per
    *  affected player after the score overlay, before the dialog shows. */
@@ -449,16 +475,19 @@ const CANNON_PLACE_DONE: Transition = {
  *  `finalizeBuildPhase` (wall sweep + territory finalize + life penalties
  *  + grunt sweep). Broadcasts the BUILD_END checkpoint so watchers replay.
  *
- *  Display: score-overlay animation first, then life-lost-dialog step
- *  (which either shows the modal dialog for affected players or calls
- *  `lifeLost.resolve()` to advance directly).
+ *  Display: score-overlay animation → life-lost-dialog step. The dialog
+ *  step writes `result.continuing` once resolved (or immediately, for
+ *  the all-pre-resolved path) and hands control to postDisplay.
+ *
+ *  postDisplay: runs `resolveAfterLifeLost` with `ctx.lifeLostRoute`'s
+ *  three handlers. Host dispatches the next transition (game-over /
+ *  reselect / continue); watcher's handlers set Mode.STOPPED on
+ *  game-over and no-op otherwise (server checkpoint drives the rest).
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
- *  does NOT call `setPhase`: the continuation (reselect vs continue vs
- *  game-over) is driven by the life-lost resolve chain, which fires the
- *  next transition (castle-reselect-done / advance-to-cannon /
- *  round-limit-reached / last-player-standing) once the user resolves
- *  the dialog. */
+ *  does NOT call `setPhase`: the next transition (castle-reselect-done
+ *  / advance-to-cannon / round-limit-reached / last-player-standing)
+ *  flips it. */
 const WALL_BUILD_DONE: Transition = {
   id: "wall-build-done",
   from: Phase.WALL_BUILD,
@@ -496,6 +525,10 @@ const WALL_BUILD_DONE: Transition = {
     },
   },
   display: [{ kind: STEP_SCORE_OVERLAY }, { kind: STEP_LIFE_LOST_DIALOG }],
+  postDisplay: {
+    host: routeLifeLostResolution,
+    watcher: routeLifeLostResolution,
+  },
 };
 /** Shared display list for every transition that enters WALL_BUILD and
  *  shows the "Build & Repair" banner (optionally preceded by the
@@ -878,30 +911,25 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   });
 }
 
-assertLifeLostStepIsTerminal();
-
-/** A `life-lost-dialog` step is terminal — the resolve chain dispatches the
- *  next transition externally, so the runner does not invoke `onDone` after
- *  it. Enforce at module load that any transition containing this step has
- *  it as the LAST display entry and declares no `postDisplay` (which would
- *  silently never run). Called once at module init next to `BY_ID`. */
-function assertLifeLostStepIsTerminal(): void {
-  for (const transition of TRANSITIONS) {
-    const lastIdx = transition.display.length - 1;
-    for (let idx = 0; idx < transition.display.length; idx++) {
-      if (transition.display[idx]!.kind !== STEP_LIFE_LOST_DIALOG) continue;
-      if (idx !== lastIdx) {
-        throw new Error(
-          `Transition "${transition.id}": life-lost-dialog must be the last display step (it is terminal)`,
-        );
-      }
-      if (transition.postDisplay) {
-        throw new Error(
-          `Transition "${transition.id}": cannot define postDisplay — life-lost-dialog is terminal and the runner never reaches postDisplay`,
-        );
-      }
-    }
-  }
+/** Shared post-life-lost routing. Runs the win-condition check
+ *  (`resolveAfterLifeLost`) against the continuing-player list written
+ *  by the life-lost step, then dispatches one of three branches via
+ *  `ctx.lifeLostRoute`. Host-role supplies handlers that fire the next
+ *  transition; watcher-role supplies handlers that only flip
+ *  Mode.STOPPED on game-over (the server drives reselect / continue). */
+function routeLifeLostResolution(
+  ctx: PhaseTransitionCtx,
+  result: TransitionResult,
+): void {
+  const route = ctx.lifeLostRoute;
+  if (!route) return;
+  resolveAfterLifeLost({
+    state: ctx.state,
+    continuing: result.continuing ?? [],
+    onGameOver: route.onGameOver,
+    onReselect: route.onReselect,
+    onContinue: route.onContinue,
+  });
 }
 
 /** Walk the display steps in order, calling `onDone` after the last step
@@ -1025,11 +1053,7 @@ function runStep(
       ctx.scoreDelta.show(onDone);
       return;
     case STEP_LIFE_LOST_DIALOG:
-      // Terminal step: the life-lost resolve chain dispatches the next
-      // transition externally (castle-reselect-done / advance-to-cannon /
-      // game-over). Do NOT call onDone — postDisplay would either no-op or
-      // race the modal. `assertLifeLostStepIsTerminal` enforces this at load.
-      runLifeLostDialogStep(ctx, result);
+      runLifeLostDialogStep(ctx, result, onDone);
       return;
     case STEP_UPGRADE_PICK:
       runUpgradePickStep(step, ctx, result, prevScene, onDone);
@@ -1065,31 +1089,33 @@ function runBannerStep(
   });
 }
 
-/** Life-lost dialog step — TERMINAL:
- *
- *   1. Notify each affected player's controller (per-player side-effect).
- *   2. If nobody lost a life, call `lifeLost.resolve()` to advance the game
- *      directly (no dialog needed).
- *   3. Else play the life-lost sound and invoke `lifeLost.tryShow(...)` —
- *      the dialog is modal; its own resolution chain drives the subsequent
- *      transition (reselect / continue / game-over) OUTSIDE the machine.
- *
- *  In BOTH branches the next transition is dispatched externally by the
- *  life-lost resolve chain, NOT by the machine. The runner therefore
- *  treats this step as terminal: it does not call `onDone`, so any
- *  `postDisplay` on the enclosing transition would never run. The
- *  module-load assert below enforces that constraint. */
+/** Life-lost dialog step — notifies affected controllers, then hands
+ *  the dialog off to `ctx.lifeLost.run` which either resolves
+ *  immediately (only eliminations) or shows the modal and waits for
+ *  the tick loop to resolve every entry. When `onResolved(continuing)`
+ *  fires, we stash the list onto `result.continuing` and call the
+ *  runner's `onDone` — postDisplay then routes via `resolveAfterLifeLost`
+ *  + `ctx.lifeLostRoute`. */
 function runLifeLostDialogStep(
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  onDone: () => void,
 ): void {
   const needsReselect = result.needsReselect ?? [];
   const eliminated = result.eliminated ?? [];
   for (const pid of [...needsReselect, ...eliminated]) {
     ctx.notifyLifeLost?.(pid);
   }
+  const finish = (continuing: readonly ValidPlayerSlot[]): void => {
+    result.continuing = continuing;
+    onDone();
+  };
+  if (!ctx.lifeLost) {
+    finish([]);
+    return;
+  }
   if (needsReselect.length === 0 && eliminated.length === 0) {
-    ctx.lifeLost?.resolve();
+    ctx.lifeLost.run([], [], finish);
     return;
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.
@@ -1102,7 +1128,7 @@ function runLifeLostDialogStep(
     eliminated,
     round: ctx.state.round,
   });
-  ctx.lifeLost?.tryShow(needsReselect, eliminated);
+  ctx.lifeLost.run(needsReselect, eliminated, finish);
 }
 
 /** Upgrade-pick display step — composes the three-part chain:

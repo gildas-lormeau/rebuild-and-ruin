@@ -16,9 +16,7 @@ import {
   continuingPlayers,
   createLifeLostDialogState,
   eliminateAbandoned,
-  type GameOverReason,
   isLifeLostAllResolved,
-  resolveAfterLifeLost,
   tickLifeLostDialog,
   toggleLifeLostFocus,
 } from "./runtime-life-lost-core.ts";
@@ -36,19 +34,18 @@ interface LifeLostSystemDeps {
 
   render: () => void;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
-  /** Dispatch the game-over transition (`last-player-standing` or
-   *  `round-limit-reached`). The transition's mutate calls `endGame` on
-   *  the lifecycle subsystem; everything else (sound, frame, mode) is
-   *  driven from there. */
-  dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
-  startReselection: () => void;
-  advanceToCannonPhase: () => void;
   /** Permanently disable auto-zoom. Fired when the pov player abandons
    *  (or is force-eliminated) so the camera stops following the game.
    *  Spec: `life lost popup → abandon → unzoom → spectator mode
    *  (no more auto-zoom anymore)`. */
   disableAutoZoom: () => void;
 }
+
+/** Callback signature used by every resolution path (immediate skip,
+ *  dialog-tick on host, dialog-tick on watcher). Receives the list of
+ *  players who chose CONTINUE; the caller (phase machine) routes the
+ *  next transition based on it. */
+type OnLifeLostResolved = (continuing: readonly ValidPlayerSlot[]) => void;
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
@@ -67,13 +64,26 @@ export type LifeLostSystem = RuntimeLifeLost & {
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { runtimeState } = deps;
 
-  function tryShow(
+  /** Set when a dialog is shown; cleared once resolution fires. The
+   *  tick loop reads it to invoke the caller's onResolved callback. */
+  let pendingOnResolved: OnLifeLostResolved | undefined;
+
+  /** Drive the life-lost flow to completion. Either resolves
+   *  immediately (nothing to show) and calls `onResolved([])`, or
+   *  shows the modal dialog and calls `onResolved(continuing)` once
+   *  the dialog's tick loop resolves every entry.
+   *
+   *  Returns true when a dialog was actually shown (so watcher-side
+   *  wiring can apply any early-arrived choices before the first
+   *  tick). */
+  function run(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
+    onResolved: OnLifeLostResolved,
   ): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(
-      `tryShow lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
+      `run lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
     const dialog = createLifeLostDialogState({
       needsReselect,
@@ -85,26 +95,28 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsLocalInput: (playerId) =>
         !runtimeState.controllers[playerId]!.autoResolvesLifeLost(),
     });
-    // Skip dialog if all entries are already resolved (e.g. only eliminations)
+    // Skip dialog if all entries are already resolved (e.g. only eliminations).
     if (isLifeLostAllResolved(dialog)) {
-      deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
+      deps.log("run lifeLost: all pre-resolved, skipping dialog");
       eliminateAbandoned(dialog, runtimeState.state);
       disableAutoZoomIfPovEliminated();
-      afterLifeLostResolved();
+      onResolved(continuingPlayers(dialog));
       return false;
     }
     runtimeState.dialogs.lifeLost = dialog;
+    pendingOnResolved = onResolved;
     setMode(runtimeState, Mode.LIFE_LOST);
     return true;
   }
 
   /**
-   * Tick life-lost dialog — resolution follows one of two paths:
-   *
-   * - **Host**: eliminates abandoned players, then afterLifeLostResolved
-   *   decides: end game, start reselection, or advance to cannon phase.
-   * - **Non-host**: eliminates abandoned players locally and returns to
-   *   Mode.GAME, waiting for the server to drive the next phase.
+   * Tick the life-lost dialog; when every entry is resolved, eliminate
+   * abandoned players, disable PoV auto-zoom if needed, and fire the
+   * caller's onResolved callback with the continuing list. On the
+   * watcher-role, the callback's implementation is usually a no-op for
+   * the continue / reselect paths (server drives the next phase); the
+   * machine's postDisplay still runs the same resolve-branch logic so
+   * local game-over can flip Mode.STOPPED.
    */
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
@@ -135,12 +147,20 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     eliminateAbandoned(dialog, runtimeState.state);
     disableAutoZoomIfPovEliminated();
 
-    if (runtimeState.frameMeta.hostAtFrameStart) {
-      afterLifeLostResolved(continuingPlayers(dialog));
-    } else {
+    const continuing = continuingPlayers(dialog);
+    const onResolved = pendingOnResolved;
+    pendingOnResolved = undefined;
+    runtimeState.dialogs.lifeLost = null;
+
+    // Non-host: flip back to Mode.GAME so the server's next checkpoint
+    // takes over. The machine's postDisplay still runs the shared
+    // resolve-branch logic but its watcher-role handlers are no-ops
+    // except for the game-over branch (Mode.STOPPED).
+    if (!runtimeState.frameMeta.hostAtFrameStart) {
       setMode(runtimeState, Mode.GAME);
     }
-    runtimeState.dialogs.lifeLost = null;
+
+    onResolved?.(continuing);
   }
 
   /** Flip the camera permanently to spectator mode if the pov player
@@ -153,21 +173,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (povPlayer && isPlayerEliminated(povPlayer)) {
       deps.disableAutoZoom();
     }
-  }
-
-  function afterLifeLostResolved(
-    continuing: readonly ValidPlayerSlot[] = [],
-  ): boolean {
-    return resolveAfterLifeLost({
-      state: runtimeState.state,
-      continuing,
-      onGameOver: deps.dispatchGameOver,
-      onReselect: (players) => {
-        runtimeState.selection.reselectQueue = [...players];
-        deps.startReselection();
-      },
-      onContinue: deps.advanceToCannonPhase,
-    });
   }
 
   function findPendingEntry(playerId: ValidPlayerSlot) {
@@ -206,10 +211,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
+      if (dialog === null) pendingOnResolved = undefined;
     },
-    tryShow,
+    run,
     tick: tickLifeLostDialogSystem,
-    onResolved: afterLifeLostResolved,
     panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice: deps.sendLifeLostChoice,

@@ -10,7 +10,6 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
-import { resolveAfterLifeLost } from "../runtime/runtime-life-lost-core.ts";
 import {
   type PhaseTransitionCtx,
   ROLE_WATCHER,
@@ -231,33 +230,25 @@ function buildWatcherPhaseCtx(
       setPreScores: (scores) => runtime.scoreDelta.setPreScores([...scores]),
     },
     lifeLost: {
-      tryShow: (needsReselect, eliminated) =>
+      run: (needsReselect, eliminated, onResolved) =>
         showLifeLostDialogWithEarlyChoices(
           runtime,
           needsReselect,
           eliminated,
           deps.session.earlyLifeLostChoices,
+          onResolved,
         ),
-      // The watcher normally waits for the host's next checkpoint
-      // (CANNON_START / the next life-lost outcome), so continue and
-      // reselect stay no-op — the incoming checkpoint is
-      // authoritative. But game-over is terminal: once the watcher
-      // observes round-limit or last-player-standing locally, no
-      // further checkpoint arrives, and `runTransition` parked the
-      // watcher in BANNER at the top of wall-build-done. Without a
-      // local setModeStopped the watcher sits in BANNER forever (the
-      // terminal life-lost-dialog step never calls its onDone, and the
-      // host has stopped ticking). Mirror the host's resolveAfterLifeLost
-      // check for the game-over case only.
-      resolve: () => {
-        resolveAfterLifeLost({
-          state: runtimeState.state,
-          continuing: [],
-          onGameOver: () => setMode(runtimeState, Mode.STOPPED),
-          onReselect: () => {},
-          onContinue: () => {},
-        });
-      },
+    },
+    // Watcher route: the host's next checkpoint (CANNON_START / the
+    // next life-lost outcome) drives continue / reselect, so both
+    // stay no-op. Game-over is terminal — once the watcher observes
+    // round-limit or last-player-standing locally, no further
+    // checkpoint arrives, so we flip Mode.STOPPED here instead of
+    // sitting in BANNER forever.
+    lifeLostRoute: {
+      onGameOver: () => setMode(runtimeState, Mode.STOPPED),
+      onReselect: () => {},
+      onContinue: () => {},
     },
     notifyLifeLost: (pid) => {
       if (pid === myPlayerId) runtimeState.controllers[pid]?.onLifeLost();
@@ -393,8 +384,9 @@ function showLifeLostDialogWithEarlyChoices(
   needsReselect: readonly ValidPlayerSlot[],
   eliminated: readonly ValidPlayerSlot[],
   earlyChoices: Map<number, LifeLostChoice>,
+  onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
 ): boolean {
-  const shown = runtime.lifeLost.tryShow(needsReselect, eliminated);
+  const shown = runtime.lifeLost.run(needsReselect, eliminated, onResolved);
   const dialog = runtime.lifeLost.get();
   if (dialog) {
     for (const [playerId, choice] of earlyChoices) {

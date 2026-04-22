@@ -488,18 +488,28 @@ export interface RuntimeScoreDelta {
 export interface RuntimeLifeLost {
   /** Read current dialog state. Used by watcher-mode to sync overlay display. */
   get: () => LifeLostDialogState | null;
-  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
+  /** Replace dialog state. Used by watcher-mode to apply host-broadcast state.
+   *  Passing `null` also clears any pending `onResolved` callback so a
+   *  force-clear (rematch, host-promote) can't fire it later. */
   set: (d: LifeLostDialogState | null) => void;
-  /** Show life-lost dialog. Returns false if all entries were pre-resolved (dialog skipped). */
-  tryShow: (
+  /** Drive the life-lost flow to completion: create the dialog, either
+   *  resolve immediately (all pre-resolved — only eliminations) or
+   *  show the modal and wait for `tick` to resolve every entry. The
+   *  `onResolved(continuing)` callback fires exactly once, with the
+   *  list of players who chose CONTINUE. Elimination + PoV auto-zoom
+   *  side effects happen inside this flow; routing the next phase
+   *  (game-over / reselect / continue) is the CALLER's responsibility
+   *  (see the WALL_BUILD_DONE postDisplay in the phase machine).
+   *
+   *  Returns true when a dialog was actually shown (so callers can
+   *  apply early-arrived choices before the first tick — e.g. the
+   *  online watcher's `earlyLifeLostChoices`). */
+  run: (
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
+    onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
   ) => boolean;
   tick: (dt: number) => void;
-  /** Resolve life-lost outcome (life-lost only — multi-path).
-   *  May end game, start reselection, or advance to cannon phase.
-   *  No callback param — resolution logic is internal to the system. */
-  onResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 }
 
