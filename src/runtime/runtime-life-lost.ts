@@ -65,7 +65,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { runtimeState } = deps;
 
   /** Set when a dialog is shown; cleared once resolution fires. The
-   *  tick loop reads it to invoke the caller's onResolved callback. */
+   *  tick loop reads it to invoke the caller's onResolved callback.
+   *  Closure-scoped (not on runtimeState) because tick is gated on
+   *  Mode.LIFE_LOST — see docs/dialog-completion-patterns.md. */
   let pendingOnResolved: OnLifeLostResolved | undefined;
 
   /** Drive the life-lost flow to completion. Either resolves

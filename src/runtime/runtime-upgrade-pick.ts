@@ -82,7 +82,9 @@ export function createUpgradePickSystem(
 ): UpgradePickSystem {
   const { runtimeState } = deps;
 
-  /** Callback to invoke when all picks are resolved. */
+  /** Callback to invoke when all picks are resolved. Closure-scoped
+   *  (not on runtimeState) because tick is gated on Mode.UPGRADE_PICK
+   *  — see docs/dialog-completion-patterns.md. */
   let resolveCallback: (() => void) | undefined;
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
