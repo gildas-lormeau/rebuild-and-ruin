@@ -209,33 +209,38 @@ export interface BattleOverlay {
   fogOfWar?: boolean;
 }
 
+/** Banner sweep UI — shared shape returned by `createBannerUi` and
+ *  embedded (with an optional modifierDiff) in `UIOverlay.banner`. */
+export interface BannerUi {
+  text: string;
+  subtitle?: string;
+  /** Center Y of the banner strip, in map-pixel coords. Legacy field —
+   *  prefer `top` / `bottom` for strip-bounds math so the sweep
+   *  geometry stays single-sourced in `createBannerUi`. */
+  y: number;
+  /** Top edge of the banner strip (map-pixel coords, integer-rounded
+   *  by `createBannerUi`). Consumers that need to clip above the
+   *  sweep line use this — they don't re-derive from `y` and
+   *  `BANNER_HEIGHT_RATIO`. */
+  top: number;
+  /** Bottom edge of the banner strip (map-pixel coords, integer-rounded
+   *  by `createBannerUi`). Consumers that need to clip below the
+   *  sweep line use this — ditto. */
+  bottom: number;
+  /** Monotonic tick stamped when the banner started. Pairs with
+   *  `bannerPrevScene.capturedAtTick` to fence against stale snapshots —
+   *  a snapshot captured at-or-after this tick is rejected by the
+   *  banner render (no fade that frame) rather than popping. */
+  startTick: number;
+}
+
 /** UI overlays — banners, announcements, game over, player select. */
 export interface UIOverlay {
   announcement?: string;
   /** Master Builder lockout countdown (seconds remaining) shown center-screen.
    *  Set when the POV player is locked out; undefined/0 when inactive. */
   masterBuilderLockout?: number;
-  banner?: {
-    text: string;
-    subtitle?: string;
-    /** Center Y of the banner strip, in map-pixel coords. Legacy field —
-     *  prefer `top` / `bottom` for strip-bounds math so the sweep
-     *  geometry stays single-sourced in `createBannerUi`. */
-    y: number;
-    /** Top edge of the banner strip (map-pixel coords, integer-rounded
-     *  by `createBannerUi`). Consumers that need to clip above the
-     *  sweep line use this — they don't re-derive from `y` and
-     *  `BANNER_HEIGHT_RATIO`. */
-    top: number;
-    /** Bottom edge of the banner strip (map-pixel coords, integer-rounded
-     *  by `createBannerUi`). Consumers that need to clip below the
-     *  sweep line use this — ditto. */
-    bottom: number;
-    /** Monotonic tick stamped when the banner started. Pairs with
-     *  `bannerPrevScene.capturedAtTick` to fence against stale snapshots —
-     *  a snapshot captured at-or-after this tick is rejected by the
-     *  banner render (no fade that frame) rather than popping. */
-    startTick: number;
+  banner?: BannerUi & {
     /** Modifier reveal diff — when set, the banner is a modifier reveal and
      *  the renderer should progressively highlight changed tiles. */
     modifierDiff?: ModifierDiff;

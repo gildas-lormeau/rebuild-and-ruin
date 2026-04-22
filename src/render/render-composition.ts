@@ -35,6 +35,7 @@ import {
   type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import {
+  type BannerUi,
   type CastleData,
   type GameOverOverlay,
   type LifeLostDialogOverlay,
@@ -131,16 +132,7 @@ export function createBannerUi(
   progress: number,
   startTick: number,
   subtitle?: string,
-):
-  | {
-      text: string;
-      subtitle?: string;
-      y: number;
-      top: number;
-      bottom: number;
-      startTick: number;
-    }
-  | undefined {
+): BannerUi | undefined {
   if (!active) return undefined;
   const h = MAP_PX_H;
   const bannerH = h * BANNER_HEIGHT_RATIO;

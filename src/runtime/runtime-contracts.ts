@@ -29,6 +29,7 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
+  BannerUi,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
@@ -119,16 +120,7 @@ export type CreateBannerUiFn = (
   progress: number,
   startTick: number,
   subtitle?: string,
-) =>
-  | {
-      text: string;
-      subtitle?: string;
-      y: number;
-      top: number;
-      bottom: number;
-      startTick: number;
-    }
-  | undefined;
+) => BannerUi | undefined;
 
 export type CreateRenderSummaryMessageFn = (
   params: RenderSummaryParams,
@@ -216,14 +208,7 @@ export interface OnlineOverlayParams {
     announcement?: string;
     gameOver?: GameOverOverlay;
   };
-  bannerUi?: {
-    text: string;
-    subtitle?: string;
-    y: number;
-    top: number;
-    bottom: number;
-    startTick: number;
-  };
+  bannerUi?: BannerUi;
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
   inBattle: boolean;
