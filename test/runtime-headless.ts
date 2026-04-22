@@ -520,6 +520,7 @@ function createStubRenderer(): RendererInterface {
       debris?: boolean;
     }) => {},
     captureScene: () => undefined,
+    isCannonRotationEasing: () => false,
     clientToSurface: (clientX: number, clientY: number) => ({
       x: clientX,
       y: clientY,

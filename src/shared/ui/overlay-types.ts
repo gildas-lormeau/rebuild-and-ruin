@@ -438,6 +438,12 @@ export interface RendererInterface {
   /** Capture the current offscreen scene as ImageData for banner prev-scene.
    *  Returns undefined when the scene canvas hasn't been initialized. */
   captureScene(): ImageData | undefined;
+  /** True when the renderer is currently animating a cannon-facing ease
+   *  (e.g. the post-battle rotation back to `defaultFacing`). The runtime
+   *  polls this to gate the battle-end transition on the ease completing
+   *  — frame-synced with render, unlike a wall-clock timer. Renderers
+   *  that don't ease facings (2D, headless stubs) return `false`. */
+  isCannonRotationEasing(): boolean;
   /** The element that receives pointer/touch events and cursor-style changes. */
   eventTarget: HTMLElement;
   /** Container element — parent of the surface, holds touch panels and overlays. */
