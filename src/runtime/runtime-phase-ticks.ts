@@ -152,9 +152,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   getUpgradePickDialog?: () => UpgradePickDialogState | null;
   /** Tear down the upgrade-pick dialog. Called from the build banner's
    *  onDone (after the sweep) so `drawUpgradePick` can keep clipping the
-   *  dialog against `banner.y` for the entire animation. The watcher path
-   *  has its own counterpart at the `clearUpgradePickDialog` hook in
-   *  `online-phase-transitions.ts`. */
+   *  dialog against `banner.top` / `banner.bottom` for the entire
+   *  animation. The watcher path has its own counterpart at the
+   *  `clearUpgradePickDialog` hook in `online-phase-transitions.ts`. */
   clearUpgradePickDialog?: () => void;
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from

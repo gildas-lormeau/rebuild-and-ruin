@@ -172,9 +172,10 @@ export function createUpgradePickSystem(
     // NOTE: dialog is intentionally NOT cleared here. The next phase's
     // banner (build banner) needs the dialog state in place during its
     // sweep so `drawUpgradePick` can clip it progressively against
-    // `banner.y`. The `battle-done` and `ceasefire` transitions in
-    // `runtime-phase-machine.ts` call `clearUpgradePickDialog` from
-    // their postDisplay, after the build banner finishes sweeping.
+    // `banner.top` / `banner.bottom`. The `battle-done` and `ceasefire`
+    // transitions in `runtime-phase-machine.ts` call
+    // `clearUpgradePickDialog` from their postDisplay, after the build
+    // banner finishes sweeping.
     const callback = resolveCallback;
     resolveCallback = undefined;
     callback?.();

@@ -139,6 +139,8 @@ export function createBannerUi(
       text: string;
       subtitle?: string;
       y: number;
+      top: number;
+      bottom: number;
       startTick: number;
     }
   | undefined {
@@ -147,10 +149,18 @@ export function createBannerUi(
   const bannerH = h * BANNER_HEIGHT_RATIO;
   const startY = -bannerH / 2;
   const endY = h + bannerH / 2;
+  const y = startY + progress * (endY - startY);
+  // Pre-round the strip bounds so every consumer reads the exact same
+  // integer edges (rounding drift across sites would cause 1-pixel
+  // seams between the strip and the clipped region next to it).
+  const bannerHInt = Math.round(h * BANNER_HEIGHT_RATIO);
+  const top = Math.round(y - bannerHInt / 2);
   return {
     text,
     subtitle,
-    y: startY + progress * (endY - startY),
+    y,
+    top,
+    bottom: top + bannerHInt,
     startTick,
   };
 }

@@ -123,6 +123,8 @@ export type CreateBannerUiFn = (
       text: string;
       subtitle?: string;
       y: number;
+      top: number;
+      bottom: number;
       startTick: number;
     }
   | undefined;
@@ -213,7 +215,14 @@ export interface OnlineOverlayParams {
     announcement?: string;
     gameOver?: GameOverOverlay;
   };
-  bannerUi?: { text: string; subtitle?: string; y: number; startTick: number };
+  bannerUi?: {
+    text: string;
+    subtitle?: string;
+    y: number;
+    top: number;
+    bottom: number;
+    startTick: number;
+  };
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
   inBattle: boolean;

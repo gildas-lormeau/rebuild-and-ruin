@@ -41,12 +41,7 @@ import type {
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../shared/ui/player-config.ts";
-import {
-  BANNER_HEIGHT_RATIO,
-  type RGB,
-  rgb,
-  STATUSBAR_HEIGHT,
-} from "../shared/ui/theme.ts";
+import { type RGB, rgb, STATUSBAR_HEIGHT } from "../shared/ui/theme.ts";
 import {
   drawBattleEffectsAboveFog,
   drawBattleEffectsBelowFog,
@@ -641,12 +636,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       return;
     }
 
-    // Banner Y is map-pixel coords. During a banner the viewport is always
-    // cleared to the full map (see runtime-banner.ts `clearPhaseZoom`), so
-    // map→display is a uniform SCALE multiply.
-    const bannerHMap = Math.round(MAP_PX_H * BANNER_HEIGHT_RATIO);
-    const bannerTopMap = Math.round(overlay.ui.banner.y - bannerHMap / 2);
-    const bannerBottomMap = bannerTopMap + bannerHMap;
+    // Banner strip bounds are map-pixel coords. During a banner the
+    // viewport is always cleared to the full map (see
+    // runtime-banner.ts `clearPhaseZoom`), so map→display is a uniform
+    // SCALE multiply.
+    const bannerTopMap = overlay.ui.banner.top;
+    const bannerBottomMap = overlay.ui.banner.bottom;
+    const bannerHMap = bannerBottomMap - bannerTopMap;
     const clipY = bannerBottomMap * SCALE;
     if (clipY >= displayH) return;
 

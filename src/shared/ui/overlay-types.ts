@@ -218,7 +218,19 @@ export interface UIOverlay {
   banner?: {
     text: string;
     subtitle?: string;
+    /** Center Y of the banner strip, in map-pixel coords. Legacy field —
+     *  prefer `top` / `bottom` for strip-bounds math so the sweep
+     *  geometry stays single-sourced in `createBannerUi`. */
     y: number;
+    /** Top edge of the banner strip (map-pixel coords, integer-rounded
+     *  by `createBannerUi`). Consumers that need to clip above the
+     *  sweep line use this — they don't re-derive from `y` and
+     *  `BANNER_HEIGHT_RATIO`. */
+    top: number;
+    /** Bottom edge of the banner strip (map-pixel coords, integer-rounded
+     *  by `createBannerUi`). Consumers that need to clip below the
+     *  sweep line use this — ditto. */
+    bottom: number;
     /** Monotonic tick stamped when the banner started. Pairs with
      *  `bannerPrevScene.capturedAtTick` to fence against stale snapshots —
      *  a snapshot captured at-or-after this tick is rejected by the
@@ -482,7 +494,8 @@ export interface RenderObserver {
     /** Y coordinate of the top edge of the OLD-scene clip region. Tiles
      *  whose full extent is below this line render from the banner canvas
      *  (snapshot map); tiles above it render from the main canvas (live
-     *  map). Derived from `banner.y - bannerH/2` inside the renderer. */
+     *  map). Equals `banner.top` — the sweep-strip top edge is the
+     *  clip boundary. */
     readonly clipY: number;
     /** Map pixel height (H) used by the renderer. Combine with `clipY` to
      *  compute which rows fall in the old vs new region. */

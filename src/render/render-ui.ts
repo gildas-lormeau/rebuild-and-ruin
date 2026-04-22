@@ -18,7 +18,6 @@ import {
   type UpgradePickCard,
 } from "../shared/ui/overlay-types.ts";
 import {
-  BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
   BUTTON_FLASH_MS,
@@ -186,12 +185,12 @@ export function drawAnnouncement(
 export function drawBanner(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
-  H: number,
+  _H: number,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.banner) return;
-  const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-  const by = Math.round(overlay.ui.banner.y - bannerH / 2);
+  const { top: by, bottom } = overlay.ui.banner;
+  const bannerH = bottom - by;
   const modifierId = overlay.ui.banner.modifierDiff?.id;
   const palette = modifierId ? MODIFIER_COLORS[modifierId] : undefined;
   const borderColor = palette?.border ?? GOLD;
@@ -232,17 +231,15 @@ export function drawBanner(
  *  Tiles are revealed progressively as the banner sweeps past them. */
 export function drawModifierRevealHighlight(
   overlayCtx: CanvasRenderingContext2D,
-  H: number,
+  _H: number,
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
   const diff = overlay?.ui?.banner?.modifierDiff;
   if (!diff || diff.changedTiles.length === 0) return;
 
-  const bannerY = overlay!.ui!.banner!.y;
-  const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-  // Tiles above the banner top edge are fully revealed
-  const revealY = bannerY - bannerH / 2;
+  // Tiles above the banner top edge are fully revealed.
+  const revealY = overlay!.ui!.banner!.top;
 
   // Pulse alpha: 0.25–0.55 over 400ms
   const pulse =
@@ -509,23 +506,20 @@ export function drawUpgradePick(
   // snapshot is missing.
   const banner = overlay.ui?.banner;
   const duringBanner = !!banner;
-  if (duringBanner) {
-    const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-    // The banner strip occupies `[bannerTop, bannerBottom]` vertically.
+  if (banner) {
+    // The banner strip occupies `[banner.top, banner.bottom]` vertically.
     // The reveal direction clips to ABOVE the strip; the hide direction
     // clips to BELOW the strip — not from the *top* of the strip
     // downward, otherwise the dialog backdrop overlaps the strip itself.
-    const bannerTop = Math.round(banner.y - bannerH / 2);
-    const bannerBottom = Math.round(banner.y + bannerH / 2);
     const allResolved = pick.entries.every((entry) => entry.resolved);
     overlayCtx.save();
     overlayCtx.beginPath();
     if (allResolved) {
       // Hide direction: clip to the unswept region BELOW the banner strip.
-      overlayCtx.rect(0, bannerBottom, W, H - bannerBottom);
+      overlayCtx.rect(0, banner.bottom, W, H - banner.bottom);
     } else {
       // Reveal direction: clip to the swept region ABOVE the banner strip.
-      overlayCtx.rect(0, 0, W, bannerTop);
+      overlayCtx.rect(0, 0, W, banner.top);
     }
     overlayCtx.clip();
   }
