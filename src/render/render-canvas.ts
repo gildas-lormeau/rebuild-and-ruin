@@ -79,6 +79,9 @@ export function createCanvasRenderer(
       };
     },
     captureScene: () => renderMap.captureScene(),
+    // 2D path snaps cannon facings to the nearest 45° bucket — no ease
+    // runs here, so the predicate is always false.
+    isCannonRotationEasing: () => false,
     eventTarget: canvas,
     container,
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),

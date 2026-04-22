@@ -342,6 +342,11 @@ export function createRender3d(
       );
       return captureCompositeCtx.getImageData(0, 0, targetW, targetH);
     },
+    // Runtime polls this between battle-end and camera untilt so the
+    // transition waits for the cannons' rotation-back-to-rest ease to
+    // complete — frame-synced instead of wall-clock timed. 2D path
+    // doesn't ease facings, so only the 3D manager contributes.
+    isCannonRotationEasing: () => ctx.cannons.isEasing(),
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,
     // Loupe samples a WebGL+2D composite (not the 2D scene alone,

@@ -98,6 +98,13 @@ export interface CannonsManager {
   /** Reconcile live cannon meshes across every castle. Cheap no-op when
    *  the composite fingerprint hasn't changed since the last call. */
   update(ctx: FrameCtx): void;
+  /** True when any cannon's displayed facing hasn't yet caught up to its
+   *  target — i.e. the facing ease is in progress. The runtime's
+   *  battle-end transition polls this (via `RendererInterface`) so it
+   *  can wait until the post-battle `resetCannonFacings` rotation has
+   *  settled before starting the camera untilt, instead of relying on
+   *  a wall-clock duration that a paused tab would skip past. */
+  isEasing(): boolean;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
@@ -174,9 +181,10 @@ const BARREL_EASE_DOWN_PER_SEC = 4;
  *  asymptotic easing from keeping the map populated forever. */
 const BARREL_REST_EPSILON = 1e-4;
 /** Ease rate per second for the yaw/facing animation. Tuned so a 180°
- *  flip settles in ~300 ms — matches the `ROTATION_RESET_WAIT_MS` window
- *  in `runtime-phase-ticks.ts` where the runtime holds the phase after
- *  the last ball lands to give cannons time to rotate back to rest. */
+ *  flip settles in ~300 ms. The battle-end transition in
+ *  `runtime-phase-ticks.ts` polls `CannonsManager.isEasing()` (via
+ *  `RendererInterface.isCannonRotationEasing`) and waits frame-by-frame
+ *  for this ease to finish before starting the camera untilt. */
 const FACING_EASE_PER_SEC = 12;
 /** Below this absolute delta (radians) between displayed and target the
  *  facing is considered settled; the state entry is pruned. Matches the
@@ -486,7 +494,7 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     scene.remove(root);
   }
 
-  return { update, dispose };
+  return { update, isEasing: anyFacingEasing, dispose };
 }
 
 /** Pick a bucket key for the cannon. Mirrors the 2D path's switch. The

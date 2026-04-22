@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8495,
+  "eventCount": 8447,
   "events": [
     {
       "type": "tick",
@@ -15087,150 +15087,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "roundEnd",
       "payload": {
         "round": 1
@@ -15270,12 +15126,6 @@
         "round": 2,
         "subtitle": "Surround castles, repair walls",
         "text": "Build & Repair"
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -17197,6 +17047,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
@@ -17259,12 +17115,6 @@
       "payload": {
         "playerId": 1,
         "towerIndex": 4
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -17870,18 +17720,18 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
         "tileKeys": [
           67
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -18719,6 +18569,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
@@ -18862,12 +18718,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -18875,6 +18725,12 @@
           866,
           867
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -20212,12 +20068,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -20738,6 +20588,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -20746,12 +20602,6 @@
           1046,
           1003
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -20950,6 +20800,12 @@
         "col": 32,
         "row": 15,
         "victimPlayerId": 1
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -21771,12 +21627,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -21784,6 +21634,12 @@
           1215,
           1216
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -22195,18 +22051,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
         "tileKeys": [
           1217
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -22667,12 +22523,6 @@
         "tileKeys": [
           1218
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -23327,6 +23177,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
@@ -23335,12 +23191,6 @@
           96,
           139
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -24018,6 +23868,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
@@ -24074,12 +23930,6 @@
           1223,
           1224
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -24573,6 +24423,12 @@
           346,
           347
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -25454,12 +25310,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -25507,6 +25357,12 @@
           123,
           167
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -26654,12 +26510,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
         "isFinalBattle": false,
@@ -26667,6 +26517,12 @@
         "round": 2,
         "subtitle": "Position inside fort walls",
         "text": "Place Cannons"
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -28520,18 +28376,18 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonPlaced",
       "payload": {
         "cannonIdx": 3,
         "col": 5,
         "playerId": 2,
         "row": 12
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -31055,12 +30911,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerEnd",
       "payload": {
         "phase": "BATTLE",
@@ -31072,6 +30922,12 @@
       "type": "battleReady",
       "payload": {
         "round": 2
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -32845,15 +32701,15 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "battleFire",
       "payload": {
         "round": 2
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -33499,12 +33355,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 3,
@@ -33613,15 +33463,15 @@
       }
     },
     {
-      "type": "cannonballDescending",
-      "payload": {
-        "variant": 1
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "cannonballDescending",
+      "payload": {
+        "variant": 1
       }
     },
     {
@@ -33967,6 +33817,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 5,
@@ -34078,12 +33934,6 @@
         "playerId": 1,
         "row": 4,
         "shooterId": 0
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -34384,6 +34234,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 5,
@@ -34567,12 +34423,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 3,
@@ -34603,6 +34453,12 @@
         "playerId": 1,
         "row": 5,
         "shooterId": 2
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -34870,12 +34726,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 5,
@@ -34930,6 +34780,12 @@
       "type": "cannonballDescending",
       "payload": {
         "variant": 1
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -35203,12 +35059,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 5,
@@ -35250,6 +35100,12 @@
         "cannonIdx": 3,
         "newShieldHp": 5,
         "playerId": 2
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -35409,12 +35265,6 @@
       "type": "cannonballDescending",
       "payload": {
         "variant": 0
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -35736,6 +35586,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 3,
@@ -35760,12 +35616,6 @@
         "newHp": 2,
         "playerId": 1,
         "shooterId": 0
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -36111,6 +35961,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 3,
@@ -36171,12 +36027,6 @@
         "newHp": 0,
         "playerId": 1,
         "shooterId": 0
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -36420,6 +36270,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 0,
@@ -36429,12 +36285,6 @@
         "startY": 96,
         "targetX": 536,
         "targetY": 184
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -36768,6 +36618,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 4,
@@ -36777,12 +36633,6 @@
         "startY": 96,
         "targetX": 88,
         "targetY": 200
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -37149,6 +36999,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonFired",
       "payload": {
         "cannonIdx": 1,
@@ -37158,12 +37014,6 @@
         "startY": 96,
         "targetX": 536,
         "targetY": 408
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -37452,6 +37302,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonballDescending",
       "payload": {
         "variant": 1
@@ -37575,12 +37431,6 @@
         "playerId": 1,
         "row": 11,
         "shooterId": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -38346,144 +38196,6 @@
         "playerId": 0,
         "row": 25,
         "shooterId": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -44674,12 +44386,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -44998,6 +44704,12 @@
           817,
           818
         ]
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {
@@ -46914,12 +46626,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -46956,6 +46662,12 @@
         "col": 9,
         "row": 15,
         "victimPlayerId": 2
+      }
+    },
+    {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
       }
     },
     {

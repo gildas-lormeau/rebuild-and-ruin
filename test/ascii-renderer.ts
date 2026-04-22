@@ -92,6 +92,7 @@ export function createAsciiRenderer(): AsciiRendererInternal {
       debris?: boolean;
     }) {},
     captureScene: () => undefined,
+    isCannonRotationEasing: () => false,
     clientToSurface: (clientX: number, clientY: number) => ({
       x: clientX,
       y: clientY,

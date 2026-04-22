@@ -159,6 +159,11 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  banner snapshot captures a flat scene — wait until `"flat"` (or
    *  fall through on the safety timeout). */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
+  /** True while the renderer is still easing cannon facings toward
+   *  their targets. Gates battle-end so the post-battle
+   *  `resetCannonFacings` rotation completes before the camera
+   *  untilt begins — frame-synced instead of wall-clock timed. */
+  isCannonRotationEasing: () => boolean;
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginBattleTilt: () => void;
@@ -209,11 +214,12 @@ const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
  *  math is paused (tab-hidden, etc.) and pitch never settles, fire the
  *  banner anyway — a one-frame pop is preferable to a stuck phase. */
 const UNTILT_WAIT_TIMEOUT_MS = 1000;
-/** Time to let cannons ease back to `defaultFacing` after the last ball
- *  lands, before the camera starts untilting. The renderer eases the
- *  displayed facing toward `cannon.facing` (reset here) at a matching
- *  rate, so by the time untilt begins the cannons are at rest. */
-const ROTATION_RESET_WAIT_MS = 400;
+/** Safety cap for the cannon-facing ease at battle end. The renderer
+ *  reports `isCannonRotationEasing()` so we normally wait for the
+ *  animation to finish frame-by-frame; this cap only fires if the
+ *  renderer never settles (e.g. paused tab, stalled frame loop), in
+ *  which case a one-frame snap is preferable to a stuck phase. */
+const ROTATION_SETTLE_TIMEOUT_MS = 1000;
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -222,10 +228,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Timestamp captured the first tick we decide the battle is ready to end
   // but the camera is still tilted. Cleared once the transition fires.
   let untiltWaitStartMs: number | undefined;
-  // Timestamp captured the first tick after the last ball lands, so we can
-  // hold for `ROTATION_RESET_WAIT_MS` while cannons rotate back to rest
-  // before the untilt begins. Cleared once the transition fires.
-  let rotationResetStartMs: number | undefined;
+  // True once the battle-end `resetCannonFacings` call has been made for
+  // this round. Prevents re-resetting on every tick while we wait for
+  // the renderer to finish easing. Cleared once the transition fires.
+  let rotationResetDone = false;
+  // Timestamp captured the first tick we decide cannons are ready to
+  // rotate home but the renderer is still easing. Enforces the safety
+  // cap if the frame loop stalls. Cleared once the transition fires.
+  let rotationSettleStartMs: number | undefined;
 
   // -------------------------------------------------------------------------
   // Bus → stats accumulator (observation subscriber)
@@ -721,15 +731,25 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Rotate cannons back to rest while the camera is still tilted. The
     // facing reset happens once here (not in startBuildPhase) so the
-    // renderer sees `cannon.facing` change at this exact moment and eases
-    // the displayed rotation toward it. We hold the phase for
-    // ROTATION_RESET_WAIT_MS so the ease completes before `beginUntilt`.
-    if (rotationResetStartMs === undefined) {
+    // renderer sees `cannon.facing` change at this exact moment and
+    // eases the displayed rotation toward it. We hold the phase until
+    // the renderer reports the ease has settled — frame-synced, so a
+    // paused tab can't skip the animation. A safety cap fires if the
+    // frame loop stalls.
+    if (!rotationResetDone) {
       resetCannonFacings(state);
-      rotationResetStartMs = deps.timing.now();
+      rotationResetDone = true;
     }
-    if (deps.timing.now() - rotationResetStartMs < ROTATION_RESET_WAIT_MS) {
-      return false;
+    if (deps.isCannonRotationEasing()) {
+      if (rotationSettleStartMs === undefined) {
+        rotationSettleStartMs = deps.timing.now();
+      }
+      if (
+        deps.timing.now() - rotationSettleStartMs <
+        ROTATION_SETTLE_TIMEOUT_MS
+      ) {
+        return false;
+      }
     }
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
@@ -748,7 +768,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
     untiltWaitStartMs = undefined;
-    rotationResetStartMs = undefined;
+    rotationSettleStartMs = undefined;
+    rotationResetDone = false;
 
     // Battle ended — delegate to the battle-done transition.
     runTransition("battle-done", buildHostPhaseCtx());

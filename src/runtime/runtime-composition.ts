@@ -699,6 +699,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
+    isCannonRotationEasing: () => renderer.isCannonRotationEasing(),
     beginBattleTilt: camera.beginBattleTilt,
     engageAutoZoom: camera.engageAutoZoom,
   });
