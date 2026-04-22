@@ -483,7 +483,7 @@ const WALL_BUILD_DONE: Transition = {
 };
 /** Shared display list for every transition that enters WALL_BUILD and
  *  shows the "Build & Repair" banner (optionally preceded by the
- *  upgrade-pick chain when modern-mode offers are pending). Used by
+ *  upgrade-pick step when modern-mode offers are pending). Used by
  *  `battle-done` and `ceasefire`. */
 const BUILD_ENTRY_DISPLAY: readonly DisplayStep[] = [
   {
@@ -513,7 +513,7 @@ const buildEntryHostPostDisplay = (ctx: PhaseTransitionCtx): void => {
  *  (sets phase to WALL_BUILD + engine-level build state), broadcasts
  *  BUILD_START so watchers can apply.
  *
- *  Display: optional "Choose Upgrade" chain (modern mode, when there are
+ *  Display: optional "Choose Upgrade" step (modern mode, when there are
  *  pending upgrade offers) → "Build & Repair" banner.
  *
  *  postDisplay (host): clear the upgrade-pick dialog if it was shown,
@@ -686,7 +686,7 @@ const CASTLE_RESELECT_DONE: Transition = {
  *  `wall-build-done` transition, so state is already post-sweep. The
  *  mutate just flips the phase (via `enterCannonPhase`) and broadcasts.
  *
- *  Triggered from the life-lost resolve chain's `onContinue` callback. */
+ *  Triggered from `routeLifeLostResolution`'s `onContinue` callback. */
 const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
@@ -848,10 +848,9 @@ export const ROLE_WATCHER = "watcher" as const;
  *
  *   3. **Display** — walks `display` steps in order. Each banner step
  *      captures its own `prevScene` at `showBanner`-time (see
- *      `runBannerStep`), so the snapshot reflects whatever the user
- *      was last shown — pre-mutation for the first banner in a chain,
- *      post-previous-banner for each subsequent one. No mutation-site
- *      capture, no `recaptureAfter` — one rule, everywhere.
+ *      `runBannerStep`), so the snapshot always reflects whatever the
+ *      user was last shown. No mutation-site capture, no
+ *      `recaptureAfter` — one rule, everywhere.
  *
  *   4. **postDisplay** — side-effects after all display steps (setMode,
  *      startBuildPhase, beginBattle, etc.).
@@ -910,26 +909,26 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   //      and fires `onReady` the first post-render frame where currentVp
   //      has converged to fullMapVp.
   //
-  //   2. Capture the full-map pre-mutate scene. This is the frame the
-  //      first banner's sweep will reveal FROM.
-  //
-  //   3. Mutate + postMutate. Phase flips, houses / bonus squares spawn,
+  //   2. Mutate + postMutate. Phase flips, houses / bonus squares spawn,
   //      modifier tiles apply, walls sweep — all happening in the same
   //      tick as the first banner's `showBanner`, so the next rendered
   //      frame is already under banner cover. No pop window.
   //
-  //   4. Run the display chain. The first banner receives the pre-mutate
-  //      scene as its prevScene; each subsequent banner captures fresh
-  //      at show-time (the previous banner's sweep-end frame).
+  //   3. Run the display steps. Every banner step captures its own
+  //      `prevScene` at `showBanner`-time via `ctx.captureScene()`. For
+  //      the first banner that capture happens BEFORE any post-mutate
+  //      render (no render runs between this synchronous block and
+  //      showBanner), so the snapshot is the pre-mutate frame the user
+  //      was last shown.
   //
-  //   5. postDisplay runs after the chain completes (setMode(GAME),
-  //      controller init, balloon-anim / beginBattle). `handlePhaseChangeZoom`
-  //      then re-engages auto-zoom for the new phase.
+  //   4. postDisplay runs after every display step completes
+  //      (setMode(GAME), controller init, balloon-anim / beginBattle).
+  //      `handlePhaseChangeZoom` then re-engages auto-zoom for the new
+  //      phase.
   ctx.requestUnzoom(() => {
-    const preMutateScene = ctx.captureScene();
     const result = mutateFn(ctx);
     transition.postMutate?.(ctx, result);
-    runDisplay(transition.display, ctx, result, preMutateScene, () => {
+    runDisplay(transition.display, ctx, result, () => {
       const postDisplay =
         ctx.role === ROLE_HOST
           ? transition.postDisplay?.host
@@ -962,20 +961,12 @@ function routeLifeLostResolution(
 
 /** Walk the display steps in order, calling `onDone` after the last step
  *  completes. Each step registers `onDone` with its subsystem callback.
- *
- *  `initialPrevScene` is the pre-mutate full-map snapshot captured at the
- *  top of the transition (see `runTransition`). The FIRST banner-like
- *  step (banner or upgrade-pick) consumes it as its prev-scene so the
- *  sweep reveals from pre-mutate to post-mutate. Subsequent steps receive
- *  `undefined` and fall back to `ctx.captureScene()` at show-time (which
- *  reads the previous banner's sweep-end frame). Non-banner steps
- *  (score-overlay, life-lost-dialog) ignore it and pass it along to the
- *  next step so the first banner in the chain still gets it. */
+ *  Banner / upgrade-pick steps capture their own prev-scene at
+ *  `showBanner`-time via `ctx.captureScene()`. */
 function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
-  initialPrevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (steps.length === 0) {
@@ -983,13 +974,7 @@ function runDisplay(
     return;
   }
   const [first, ...rest] = steps;
-  const consumesBanner =
-    first!.kind === STEP_BANNER || first!.kind === STEP_UPGRADE_PICK;
-  const passToFirst = consumesBanner ? initialPrevScene : undefined;
-  const passToRest = consumesBanner ? undefined : initialPrevScene;
-  runStep(first!, ctx, result, passToFirst, () =>
-    runDisplay(rest, ctx, result, passToRest, onDone),
-  );
+  runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
 }
 
 /** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
@@ -1070,12 +1055,11 @@ function runStep(
   step: DisplayStep,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
-  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   switch (step.kind) {
     case STEP_BANNER:
-      runBannerStep(step, ctx, result, prevScene, onDone);
+      runBannerStep(step, ctx, result, onDone);
       return;
     case STEP_SCORE_OVERLAY:
       ctx.scoreDelta.show(onDone);
@@ -1084,7 +1068,7 @@ function runStep(
       runLifeLostDialogStep(ctx, result, onDone);
       return;
     case STEP_UPGRADE_PICK:
-      runUpgradePickStep(step, ctx, result, prevScene, onDone);
+      runUpgradePickStep(step, ctx, result, onDone);
       return;
     case STEP_DELAY:
       if (step.when && !step.when(ctx.state, result)) {
@@ -1100,7 +1084,6 @@ function runBannerStep(
   step: Extract<DisplayStep, { kind: "banner" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
-  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1109,18 +1092,17 @@ function runBannerStep(
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
   const modifierId = step.modifierId?.(result);
-  // First banner in the chain: `prevScene` is the pre-mutate full-map
-  // capture taken inside `runTransition`'s unzoom-ready callback — the
-  // sweep reveals post-mutate (house spawn, modifier tiles, wall
-  // sweep) FROM that frame. Subsequent banners: `prevScene` is
-  // undefined, so we capture the previous banner's sweep-end frame via
-  // `ctx.captureScene()`.
+  // Capture the prev-scene at show-time. For the first banner of a
+  // transition this lands BEFORE any post-mutate render runs (the
+  // unzoom callback mutates state then calls showBanner synchronously),
+  // so the snapshot is the pre-mutate frame. For later banners the
+  // snapshot is whatever the last drawn frame held.
   ctx.showBanner({
     text,
     onDone,
     subtitle: step.subtitle,
     modifierId,
-    prevScene: prevScene ?? ctx.captureScene(),
+    prevScene: ctx.captureScene(),
   });
 }
 
@@ -1166,7 +1148,7 @@ function runLifeLostDialogStep(
   ctx.lifeLost.show(needsReselect, eliminated, finish);
 }
 
-/** Upgrade-pick display step — composes the three-part chain:
+/** Upgrade-pick display step — composes three sequential parts:
  *
  *   1. `prepare()` — builds the offers (synchronous).
  *   2. "Choose Upgrade" banner — sweeps while the dialog fades in beneath
@@ -1181,7 +1163,6 @@ function runUpgradePickStep(
   step: Extract<DisplayStep, { kind: "upgrade-pick" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
-  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1199,11 +1180,11 @@ function runUpgradePickStep(
   ctx.showBanner({
     text: BANNER_UPGRADE_PICK,
     subtitle: BANNER_UPGRADE_PICK_SUB,
-    prevScene: prevScene ?? ctx.captureScene(),
+    prevScene: ctx.captureScene(),
     onDone: () => {
       // All players have resolved their picks (or auto-skipped). Apply
-      // the picks + recompute territory; the NEXT banner in the chain
-      // (the build-phase banner inserted by `BUILD_ENTRY_DISPLAY`) will
+      // the picks + recompute territory; the next display step (the
+      // build-phase banner inserted by `BUILD_ENTRY_DISPLAY`) will
       // capture its own prev-scene at its `showBanner` time — which, by
       // the time it fires, reflects the post-pick frame the user just
       // saw. No manual snapshotting here.

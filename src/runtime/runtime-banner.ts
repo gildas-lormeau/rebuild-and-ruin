@@ -8,7 +8,7 @@
  * Callers hand in a pre-captured `prevScene` (or nothing). The banner
  * never captures on its own — that used to be three different implicit
  * behaviours across the mutate fns / recaptureAfter / upgrade-pick
- * chain, and every renderer change had a different way to regress it.
+ * step, and every renderer change had a different way to regress it.
  *
  * The `startTick` stamped on `BannerState` comes from the shared
  * monotonic `bannerClock` counter (also stamped on `SceneCapture` at
@@ -102,8 +102,8 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // Mode.BANNER is set BEFORE any banner actually activates (see
     // `runTransition` in runtime-phase-machine): the phase machine
     // flips to BANNER at transition dispatch to lock input while the
-    // camera unzooms, then the first banner display step in the chain
-    // calls `showBanner` which sets `banner.active = true`. Between
+    // camera unzooms, then the first banner display step calls
+    // `showBanner` which sets `banner.active = true`. Between
     // those two moments, mode is BANNER but no banner is live — we
     // still need render() to fire (so the camera's onRenderedFrame
     // hook gets to see the viewport converge to fullMapVp), but we
