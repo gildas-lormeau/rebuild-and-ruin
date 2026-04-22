@@ -144,7 +144,7 @@ export interface SelectionOverlay {
 
 /** Map entities — present in all phases. */
 export interface EntityOverlay {
-  houses?: House[];
+  houses?: readonly House[];
   grunts?: readonly Grunt[];
   towerAlive?: readonly boolean[];
   burningPits?: readonly BurningPit[];
