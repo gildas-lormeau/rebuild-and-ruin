@@ -14,6 +14,18 @@ import type { Phase } from "./game-phase.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
+/** Identity of the banner being shown — carried on every BANNER_START /
+ *  BANNER_SWEEP_END / BANNER_END event. Consumers discriminate on this
+ *  field instead of reading `phase` (which lies during the upgrade-pick
+ *  flow — the dialog banner and the following build banner both carry
+ *  phase=WALL_BUILD) or matching banner text. */
+export type BannerKind =
+  | "modifier-reveal"
+  | "battle"
+  | "build"
+  | "cannon-place"
+  | "upgrade-pick";
+
 export type LifecycleEvent =
   | { type: "phaseStart"; phase: Phase; round: number }
   | { type: "phaseEnd"; phase: Phase; round: number }
@@ -36,11 +48,13 @@ export type LifecycleEvent =
       eliminated: readonly ValidPlayerSlot[];
       round: number;
     }
-  /** Phase-transition banner started. Emitted on the first tick AFTER all
-   *  banner content has settled, so mid-frame mutations (e.g. the modifier
-   *  reveal replacing the battle banner) are captured with final content. */
+  /** Phase-transition banner started. Emitted synchronously from
+   *  `showBanner` (sweep not yet drawn — the next frame paints it with
+   *  progress=0). Consumers identify the banner via `bannerKind`, not
+   *  `text` or `phase`. */
   | {
       type: "bannerStart";
+      bannerKind: BannerKind;
       text: string;
       subtitle?: string;
       phase: Phase;
@@ -55,10 +69,31 @@ export type LifecycleEvent =
        *  `maxRounds` is Infinity). Drives the "final" voice-line SFX. */
       isFinalBattle?: boolean;
     }
-  /** Phase-transition banner finished (progress reached 1). Emitted before
-   *  the banner's completion callback fires. */
+  /** Phase-transition banner's sweep animation completed (progress reached
+   *  1). Emitted from inside `tickBanner` on the `sweeping → swept`
+   *  transition. The banner is still on screen at this point — held in
+   *  its `swept` state (optionally through a `holdMs` delay) until
+   *  `hideBanner()` or the next `showBanner` replaces it. Fires
+   *  immediately; the banner's `onDone` callback runs either on the same
+   *  tick (no hold) or after the hold timer expires. Consumers that want
+   *  the "sweep just finished" beat (music cues, in-banner SFX timing)
+   *  bind here. */
+  | {
+      type: "bannerSweepEnd";
+      bannerKind: BannerKind;
+      text: string;
+      phase: Phase;
+      round: number;
+    }
+  /** Phase-transition banner was removed from screen. Fires synchronously
+   *  from `hideBanner()` or from `showBanner` when a new banner
+   *  overwrites a previous one. Use this when you need the user-visible
+   *  end of a banner — e.g. a test asserting that "banner X is no longer
+   *  on screen" or a subsystem that reacts to the moment the underlying
+   *  scene is uncovered. */
   | {
       type: "bannerEnd";
+      bannerKind: BannerKind;
       text: string;
       phase: Phase;
       round: number;
@@ -94,8 +129,8 @@ export type LifecycleEvent =
    *  per-player card dialog). Lets subsystems (music) suppress cues
    *  tied to the underlying WALL_BUILD phase transition — by the time
    *  this fires, `state.phase` is already WALL_BUILD, so the upgrade
-   *  banner's bannerEnd would otherwise be indistinguishable from the
-   *  subsequent "Build & Repair" banner's bannerEnd. */
+   *  banner's bannerSweepEnd would otherwise be indistinguishable from
+   *  the subsequent "Build & Repair" banner's bannerSweepEnd. */
   | { type: "upgradePickShow"; round: number }
   /** Upgrade-pick dialog resolved — every player has picked or
    *  auto-skipped. Pairs with `upgradePickShow` to bookend the
@@ -271,6 +306,7 @@ const LIFECYCLE_EVENT = {
   LIFE_LOST: "lifeLost",
   LIFE_LOST_DIALOG_SHOW: "lifeLostDialogShow",
   BANNER_START: "bannerStart",
+  BANNER_SWEEP_END: "bannerSweepEnd",
   BANNER_END: "bannerEnd",
   SCORE_OVERLAY_START: "scoreOverlayStart",
   SCORE_OVERLAY_END: "scoreOverlayEnd",

@@ -20,6 +20,7 @@ import type {
   PlayerStats,
 } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import {
   createEmptyGameStats,
   type RuntimeState,
@@ -32,7 +33,6 @@ import type {
   RuntimeLifeLost,
   RuntimeSelection,
   RuntimeUpgradePick,
-  TimingApi,
 } from "./runtime-types.ts";
 
 interface GameLifecycleDeps {
@@ -99,7 +99,7 @@ interface LifecycleWiringDeps {
 
   // Subsystems needed for reset/cleanup
   readonly selection: Pick<RuntimeSelection, "reset">;
-  readonly banner: { reset: () => void };
+  readonly banner: { hide: () => void };
   readonly camera: Pick<
     CameraSystem,
     | "clearAllZoomState"
@@ -257,7 +257,7 @@ export function buildLifecycleDeps(
 
     resetAll: () => {
       wiringDeps.selection.reset();
-      wiringDeps.banner.reset();
+      wiringDeps.banner.hide();
       resetTransientState(runtimeState);
       wiringDeps.getLifeLost().set(null);
       wiringDeps.getUpgradePick().set(null);

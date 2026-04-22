@@ -155,13 +155,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const continuing = continuingPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
 
-    // Non-host: flip back to Mode.GAME so the server's next checkpoint
-    // takes over. The machine's postDisplay still runs the shared
-    // resolve-branch logic but its watcher-role handlers are no-ops
-    // except for the game-over branch (Mode.STOPPED).
-    if (!runtimeState.frameMeta.hostAtFrameStart) {
-      setMode(runtimeState, Mode.GAME);
-    }
+    // Host: restore TRANSITION so the runner drives postDisplay. Watcher:
+    // flip to GAME — the server's next checkpoint drives what follows.
+    setMode(
+      runtimeState,
+      runtimeState.frameMeta.hostAtFrameStart ? Mode.TRANSITION : Mode.GAME,
+    );
 
     pendingOnDone.fire(continuing);
   }

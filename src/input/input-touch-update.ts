@@ -57,7 +57,7 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     zoom: INTERACTIVE,
     quit: true,
   },
-  [Mode.BANNER]: {
+  [Mode.TRANSITION]: {
     dpad: false,
     confirm: false,
     rotate: false,

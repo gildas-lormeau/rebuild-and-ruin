@@ -36,7 +36,11 @@ import type { RuntimeConfig } from "./runtime-types.ts";
 
 export interface E2EBannerSnapshot {
   text: string;
-  y: number;
+  /** Top edge of the banner strip in map-pixel coords (integer-rounded).
+   *  Rises from negative values during the sweep-in and falls past
+   *  MAP_PX_H during the sweep-out, so tests can gate on "banner is
+   *  on-screen" without re-deriving the geometry. */
+  top: number;
   modifierDiff: {
     id: string;
     changedTiles: readonly number[];
@@ -467,7 +471,7 @@ function snapshotBanner(runtimeState: RuntimeState): E2EBannerSnapshot | null {
   if (!banner) return null;
   return {
     text: banner.text,
-    y: banner.y,
+    top: banner.top,
     modifierDiff: banner.modifierDiff
       ? {
           id: banner.modifierDiff.id,

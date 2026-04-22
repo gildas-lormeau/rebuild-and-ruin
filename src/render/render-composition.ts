@@ -7,6 +7,7 @@ import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
+  type ModifierDiff,
   TIMER_DISPLAY_LAG_SEC,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
@@ -132,8 +133,8 @@ export function createBannerUi(
   active: boolean,
   text: string,
   progress: number,
-  startTick: number,
   subtitle?: string,
+  modifierDiff?: ModifierDiff,
 ): BannerUi | undefined {
   if (!active) return undefined;
   const h = MAP_PX_H;
@@ -149,10 +150,9 @@ export function createBannerUi(
   return {
     text,
     subtitle,
-    y,
     top,
     bottom: top + bannerHInt,
-    startTick,
+    modifierDiff,
   };
 }
 
@@ -421,7 +421,9 @@ export function createOnlineOverlay(
     phantoms: frame.phantoms,
     ui: {
       timer:
-        !inBattle && !banner.active && view.timer > 0 ? view.timer : undefined,
+        !inBattle && banner.status === "hidden" && view.timer > 0
+          ? view.timer
+          : undefined,
       banner: bannerUi,
       bannerPrevScene: banner.prevScene,
       announcement: frame.announcement,

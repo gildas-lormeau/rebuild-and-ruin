@@ -35,6 +35,7 @@ import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./runtime-castle-build.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import {
   type RuntimeState,
   resetFrameTiming,
@@ -46,11 +47,7 @@ import {
   type MutableAccums,
   resetAccum,
 } from "./runtime-tick-context.ts";
-import type {
-  CameraSystem,
-  RuntimeSelection,
-  TimingApi,
-} from "./runtime-types.ts";
+import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;

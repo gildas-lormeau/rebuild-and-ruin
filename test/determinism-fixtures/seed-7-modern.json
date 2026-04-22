@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8471,
+  "eventCount": 8478,
   "events": [
     {
       "type": "tick",
@@ -3754,14 +3754,9 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "cannon-place",
         "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 1,
@@ -4832,8 +4827,24 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "cannon-place",
+        "phase": "CANNON_PLACE",
+        "round": 1,
+        "text": "Place Cannons"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "cannon-place",
         "phase": "CANNON_PLACE",
         "round": 1,
         "text": "Place Cannons"
@@ -7119,14 +7130,9 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "battle",
         "isFinalBattle": false,
         "phase": "BATTLE",
         "round": 1,
@@ -8197,8 +8203,24 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "battle",
+        "phase": "BATTLE",
+        "round": 1,
+        "text": "Prepare for Battle"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "battle",
         "phase": "BATTLE",
         "round": 1,
         "text": "Prepare for Battle"
@@ -15113,14 +15135,9 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "build",
         "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 2,
@@ -16185,8 +16202,24 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "build",
+        "phase": "WALL_BUILD",
+        "round": 2,
+        "text": "Build & Repair"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "build",
         "phase": "WALL_BUILD",
         "round": 2,
         "text": "Build & Repair"
@@ -26512,6 +26545,7 @@
     {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "cannon-place",
         "isFinalBattle": false,
         "phase": "CANNON_PLACE",
         "round": 2,
@@ -27582,8 +27616,18 @@
       }
     },
     {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "cannon-place",
+        "phase": "CANNON_PLACE",
+        "round": 2,
+        "text": "Place Cannons"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "cannon-place",
         "phase": "CANNON_PLACE",
         "round": 2,
         "text": "Place Cannons"
@@ -29839,14 +29883,9 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "battle",
         "isFinalBattle": true,
         "phase": "BATTLE",
         "round": 2,
@@ -30911,8 +30950,24 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "battle",
+        "phase": "BATTLE",
+        "round": 2,
+        "text": "Prepare for Battle"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "battle",
         "phase": "BATTLE",
         "round": 2,
         "text": "Prepare for Battle"
@@ -38483,14 +38538,9 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "upgrade-pick",
         "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 3,
@@ -39561,8 +39611,15 @@
       }
     },
     {
-      "type": "bannerEnd",
+      "type": "tick",
       "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "upgrade-pick",
         "phase": "WALL_BUILD",
         "round": 3,
         "text": "Choose Upgrade"
@@ -40640,14 +40697,18 @@
       }
     },
     {
-      "type": "tick",
+      "type": "bannerEnd",
       "payload": {
-        "dt": 0.016666666666666666
+        "bannerKind": "upgrade-pick",
+        "phase": "WALL_BUILD",
+        "round": 3,
+        "text": "Choose Upgrade"
       }
     },
     {
       "type": "bannerStart",
       "payload": {
+        "bannerKind": "build",
         "isFinalBattle": false,
         "phase": "WALL_BUILD",
         "round": 3,
@@ -41718,8 +41779,24 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "bannerSweepEnd",
+      "payload": {
+        "bannerKind": "build",
+        "phase": "WALL_BUILD",
+        "round": 3,
+        "text": "Build & Repair"
+      }
+    },
+    {
       "type": "bannerEnd",
       "payload": {
+        "bannerKind": "build",
         "phase": "WALL_BUILD",
         "round": 3,
         "text": "Build & Repair"

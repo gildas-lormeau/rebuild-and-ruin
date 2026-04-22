@@ -17,13 +17,14 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import { createEmptyFrameData } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import {
   computeFrameContext,
   isStateReady,
   type RuntimeState,
   tickMainLoop,
 } from "./runtime-state.ts";
-import type { RuntimeConfig, TimingApi } from "./runtime-types.ts";
+import type { RuntimeConfig } from "./runtime-types.ts";
 
 /** Action surface consumed by the input dispatcher.
  *

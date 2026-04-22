@@ -5,7 +5,8 @@ import type {
   ThawingTile,
   WallBurn,
 } from "../shared/core/battle-types.ts";
-import type { ModifierId } from "../shared/core/game-constants.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -127,8 +128,8 @@ export type CreateBannerUiFn = (
   active: boolean,
   text: string,
   progress: number,
-  startTick: number,
   subtitle?: string,
+  modifierDiff?: ModifierDiff,
 ) => BannerUi | undefined;
 
 export type CreateRenderSummaryMessageFn = (
@@ -203,7 +204,7 @@ export type CreateOnlineOverlayFn = (
 export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   view: RenderView;
-  banner: Pick<BannerState, "active" | "prevScene" | "startTick">;
+  banner: Pick<BannerState, "status" | "prevScene">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -233,30 +234,39 @@ export interface OnlineOverlayParams {
   };
 }
 
+/** Banner lifecycle state:
+ *  - `hidden`: no banner is on screen (and none scheduled).
+ *  - `sweeping`: progress animates 0 → 1; banner strip is painted over
+ *    prevScene.
+ *  - `swept`: progress has reached 1 and the sweep-end callback has
+ *    fired. The banner remains visually on screen (its text/subtitle
+ *    are still readable) until a caller explicitly hides it or a new
+ *    `showBanner` overwrites it. This is the state used by the
+ *    "hold" between banners (e.g. the 2s beat after a modifier reveal).
+ */
+export type BannerStatus = "hidden" | "sweeping" | "swept";
+
 export interface BannerState {
-  active: boolean;
+  status: BannerStatus;
   progress: number;
   text: string;
   subtitle?: string;
+  /** Identity of this banner. Banner events carry this field so
+   *  consumers can discriminate without reading `phase` (which lies
+   *  during the upgrade-pick flow) or matching text. */
+  kind: BannerKind;
   callback: (() => void) | null;
-  /** Pixel snapshot of the scene, captured by the caller of
-   *  `showBanner` and passed in explicitly. Composited below the sweep
-   *  line during animation. The banner never captures on its own — that
-   *  used to be a load-bearing implicit behaviour with four divergent
-   *  code paths (pre-mutation capture, post-previous-banner recapture,
-   *  per-renderer compositing, per-consumer fallback). Now there is one
-   *  shape: `prevScene` is whatever the caller decided, stamped with
-   *  the capture tick. */
+  /** Pixel snapshot of the scene, captured by the banner system at
+   *  `showBanner`-time (its first operation, before any banner state is
+   *  written). Composited below the sweep line during animation. No
+   *  caller plumbing, no stale-snapshot fence: "capture happened-before
+   *  show" is true by call order. */
   prevScene?: SceneCapture;
-  /** Monotonic tick (from the runtime's single banner-clock counter)
-   *  stamped at `showBanner` time. Pairs with `prevScene.capturedAtTick`
-   *  to fence out stale snapshots — the render path refuses to paint a
-   *  prev-scene whose tick is not strictly less than this one, which
-   *  encodes the invariant "capture must have happened-before show". */
-  startTick: number;
   /** Set when the active banner is a modifier-reveal (modern mode).
-   *  Cleared between banners. Forwarded to the bannerStart event. */
-  modifierId?: ModifierId;
+   *  Carries the full diff — `id` drives the banner palette + bannerStart
+   *  event, `changedTiles` drives the progressive tile-highlight animation
+   *  in `drawModifierRevealHighlight`. Cleared between banners. */
+  modifierDiff?: ModifierDiff;
 }
 
 export interface SeedField {
@@ -632,43 +642,65 @@ export interface TouchControlsDeps {
 
 /** Callback signature for showing phase-transition banners.
  *
- *  All parameters are passed by name on a single opts object — the API
- *  used to be positional with creeping optionals, which made new fields
- *  (the prev-scene snapshot, the modifier id) easy to drop silently.
- *
- *  Ownership model: the CALLER decides what the banner's prev-scene is.
- *  Practically, the phase machine captures the current scene right
- *  before it calls `showBanner` (so the capture reflects the frame the
- *  user was last shown) and hands the result in via `prevScene`. The
- *  banner never captures internally — if no `prevScene` is passed, the
- *  banner sweeps without a fade. No silent fallback, no hidden state. */
+ *  The banner system owns scene capture: `showBanner` calls the
+ *  renderer's capture as its first operation, before writing any banner
+ *  state, so "capture happened-before show" is true by call order. No
+ *  `prevScene` parameter, no tick fence. */
 export type BannerShow = (opts: BannerShowOpts) => void;
 
 export interface BannerShowOpts {
   readonly text: string;
   readonly onDone: () => void;
+  /** Banner identity — threaded onto every BANNER_* event so consumers
+   *  (music, SFX, tests) can discriminate without reading `phase` (which
+   *  lies during the upgrade-pick flow) or matching text. */
+  readonly kind: BannerKind;
   readonly subtitle?: string;
   /** Set when the banner being shown is a modifier-reveal (the
    *  mid-frame banner that replaces the normal battle banner in modern
-   *  mode). Forwarded through to the `bannerStart` event so consumers
-   *  can distinguish the modifier banner from the battle banner
-   *  without string-matching the text field. */
-  readonly modifierId?: ModifierId;
-  /** Pre-captured scene snapshot — whatever the user was looking at
-   *  right before this banner started. The banner will sweep over it
-   *  (snapshot below the sweep line, live scene above). `undefined` is
-   *  legal: the banner sweeps without a fade. Callers capture via
-   *  `runtime.captureScene()` which stamps the monotonic tick required
-   *  by the fence in `drawBannerPrevScene`. */
-  readonly prevScene?: SceneCapture;
+   *  mode). The full diff drives (a) the `bannerStart` event payload —
+   *  so consumers can distinguish the modifier banner from the battle
+   *  banner without string-matching the text field — and (b) the
+   *  progressive tile-highlight animation in the renderer. */
+  readonly modifierDiff?: ModifierDiff;
+  /** Optional post-sweep hold. When set, after the sweep completes the
+   *  banner sits in its `swept` state (still visible on screen) for
+   *  `holdMs` milliseconds before `onDone` fires. Lets listeners time
+   *  SFX / visual effects between banners — e.g. the 2s beat between
+   *  the modifier reveal and the battle banner. The banner system owns
+   *  the timer (not the caller): `hideBanner()` or a subsequent
+   *  `showBanner` during the hold cancels it. */
+  readonly holdMs?: number;
+}
+
+/** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
+ *  bind to `performance.now`, `setTimeout`, `clearTimeout`, `requestAnimationFrame`.
+ *  Tests pass deterministic stubs or Deno's natives. Following the project's
+ *  "DOM/global helpers as deps" rule — no runtime sub-system should reach for
+ *  these globals directly. */
+export interface TimingApi {
+  /** Monotonic timestamp source — produces frame timestamps used by render
+   *  animations, dedup channels, and lobby/banner timers. Must be monotonic
+   *  within a single runtime instance. */
+  readonly now: () => number;
+  /** Schedule a one-shot callback after `ms` milliseconds. Returns a handle
+   *  that can be passed to `clearTimeout`. */
+  readonly setTimeout: (callback: () => void, ms: number) => number;
+  /** Cancel a previously scheduled timeout. */
+  readonly clearTimeout: (handle: number) => void;
+  /** Schedule a callback to run before the next browser paint. Same signature
+   *  as `window.requestAnimationFrame` — the `now` argument is a high-resolution
+   *  timestamp. Tests pass a synchronous trampoline or no-op (since headless
+   *  tests drive the main loop manually). */
+  readonly requestFrame: (callback: (now: number) => void) => void;
 }
 
 export function createBannerState(): BannerState {
   return {
-    active: false,
+    status: "hidden",
     progress: 0,
     text: "",
+    kind: "build",
     callback: null,
-    startTick: 0,
   };
 }

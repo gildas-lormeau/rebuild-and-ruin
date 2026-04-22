@@ -11,8 +11,8 @@ import {
   type Rect,
   zoneBounds,
 } from "./dev-console-grid.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
-import type { TimingApi } from "./runtime-types.ts";
 
 interface MapTextOptions {
   layer?: MapLayer;

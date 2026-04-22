@@ -29,8 +29,8 @@ import {
   CANNON_HP_OPTIONS,
   ROUNDS_OPTIONS,
 } from "../shared/ui/settings-defs.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { TimingApi } from "./runtime-types.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;

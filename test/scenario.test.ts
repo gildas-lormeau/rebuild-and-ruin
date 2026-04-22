@@ -245,7 +245,7 @@ Deno.test(
       towerAlive: [...sc.state.towerAlive],
       houseCount: sc.state.map.houses.length,
       banner: {
-        active: sc.banner().active,
+        status: sc.banner().status,
         progress: sc.banner().progress,
         text: sc.banner().text,
       },

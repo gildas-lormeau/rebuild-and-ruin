@@ -233,15 +233,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   // Previous-tick phase for leave-WALL_BUILD edge detection.
   let buildBgLastPhase: Phase | undefined;
 
-  // True from upgradePickShow to upgradePickEnd. The upgrade-pick step runs
-  // after state.phase has been flipped to WALL_BUILD, so the "Choose Upgrade"
-  // banner's bannerEnd event carries phase=WALL_BUILD too — indistinguishable
-  // from the later "Build & Repair" bannerEnd. This flag lets the bannerEnd
-  // handler skip the upgrade-banner cue.
-  let upgradePickInProgress = false;
   // Set true when the upgrade flow started cannon-bg music (to cover the
   // banner + dialog + next banner sweep); stays true until the Build banner's
-  // bannerStart stops cannon-bg so build-bg can take over at bannerEnd.
+  // bannerStart stops cannon-bg so build-bg can take over at bannerSweepEnd.
+  // Banner identity is discriminated via `bannerKind` on the event —
+  // `phase` is ambiguous during the upgrade-pick flow because the
+  // "Choose Upgrade" and "Build & Repair" banners both run under
+  // phase=WALL_BUILD.
   let cannonBgFromUpgrade = false;
 
   // Bus binding tracker — one array instead of per-event locals so unbind
@@ -448,7 +446,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
     boundBus = undefined;
     boundHandlers.length = 0;
-    upgradePickInProgress = false;
     cannonBgFromUpgrade = false;
     buildBgFadeTriggered = false;
     buildBgLastPhase = undefined;
@@ -481,31 +478,30 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
 
     // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
     // sweeping and stops when the BATTLE banner takes over. If the upgrade
-    // flow started cannon-bg early (upgradePickShow), the Build banner's
-    // sweep-start stops it — giving us silence during the actual banner
-    // sweep before build-bg picks up at bannerEnd.
+    // flow started cannon-bg early (upgrade-pick banner), the Build
+    // banner's sweep-start stops it — giving us silence during the
+    // actual banner sweep before build-bg picks up at bannerSweepEnd.
     bind(GAME_EVENT.BANNER_START, (event) => {
-      if (event.phase === Phase.CANNON_PLACE) {
+      if (event.bannerKind === "cannon-place") {
         void playBg(BG_TRACK_CANNON);
-      } else if (event.phase === Phase.BATTLE) {
-        void stopBg(STOP_REASON_PHASE);
       } else if (
-        event.phase === Phase.WALL_BUILD &&
-        !upgradePickInProgress &&
-        cannonBgFromUpgrade
+        event.bannerKind === "battle" ||
+        event.bannerKind === "modifier-reveal"
       ) {
+        void stopBg(STOP_REASON_PHASE);
+      } else if (event.bannerKind === "build" && cannonBgFromUpgrade) {
         cannonBgFromUpgrade = false;
         void stopBg(STOP_REASON_PHASE);
       }
     });
 
-    // Build-phase bg music starts AFTER the WALL_BUILD banner finishes
-    // sweeping — bannerEnd gives us that post-sweep edge. Fade-out is
-    // state-derived, see tickPresentation. Skip while the upgrade-pick
-    // dialog is active: its own banner's bannerEnd also reports
-    // phase=WALL_BUILD but is not the build-phase cue.
-    bind(GAME_EVENT.BANNER_END, (event) => {
-      if (event.phase === Phase.WALL_BUILD && !upgradePickInProgress) {
+    // Build-phase bg music starts AFTER the "Build & Repair" banner
+    // finishes sweeping. The "Choose Upgrade" banner also runs under
+    // phase=WALL_BUILD but carries bannerKind="upgrade-pick", so
+    // discriminating on kind keeps the cue exclusive to the actual
+    // build banner. Fade-out is state-derived, see tickPresentation.
+    bind(GAME_EVENT.BANNER_SWEEP_END, (event) => {
+      if (event.bannerKind === "build") {
         void playBg(BG_TRACK_BUILD);
       }
     });
@@ -538,18 +534,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       void stopBg(STOP_REASON_PHASE);
     });
 
-    // Upgrade-pick dialog: play cannon-bg through the whole screen — starts
-    // at the "Choose Upgrade" banner sweep and keeps playing across the
-    // dialog and the following "Build & Repair" banner sweep. The
-    // bannerStart(WALL_BUILD) handler stops it; bannerEnd(WALL_BUILD) starts
-    // build-bg.
+    // Upgrade-pick dialog: play cannon-bg through the whole screen —
+    // starts at UPGRADE_PICK_SHOW, keeps playing across the dialog and
+    // the following "Build & Repair" banner sweep. The bannerStart
+    // handler (kind === "build") stops it; bannerSweepEnd
+    // (kind === "build") starts build-bg.
     bind(GAME_EVENT.UPGRADE_PICK_SHOW, () => {
-      upgradePickInProgress = true;
       cannonBgFromUpgrade = true;
       void playBg(BG_TRACK_CANNON);
-    });
-    bind(GAME_EVENT.UPGRADE_PICK_END, () => {
-      upgradePickInProgress = false;
     });
   }
 

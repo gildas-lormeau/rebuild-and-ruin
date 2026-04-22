@@ -23,11 +23,11 @@ import type {
   Dpad,
   FloatingActions,
   QuitButton,
+  TimingApi,
   TouchControlsDeps,
   ZoomButton,
 } from "./runtime-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
-import type { TimingApi } from "./runtime-types.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -113,11 +113,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     }
 
     const bannerUi = deps.createBannerUi(
-      runtimeState.banner.active,
+      runtimeState.banner.status !== "hidden",
       runtimeState.banner.text,
       runtimeState.banner.progress,
-      runtimeState.banner.startTick,
       runtimeState.banner.subtitle,
+      runtimeState.banner.modifierDiff,
     );
 
     // Project full GameState onto the phase-discriminated render view

@@ -56,7 +56,7 @@ import {
 } from "../src/online/online-watcher-tick.ts";
 import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import type { OnlinePhaseTicks, TimingApi } from "../src/runtime/runtime-types.ts";
+import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
 import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import {
   createHeadlessRuntime,
@@ -68,6 +68,7 @@ import {
   type ScenarioOptions,
   wrapHeadless,
 } from "./scenario.ts";
+import type { TimingApi } from "../src/runtime/runtime-contracts.ts";
 
 export interface NetworkedPair {
   /** Host runtime — real game, real broadcasts. */

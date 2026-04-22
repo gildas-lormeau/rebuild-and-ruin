@@ -4,8 +4,9 @@ import {
   bootstrapGame,
   initWaitingRoom,
 } from "../runtime/runtime-bootstrap.ts";
+import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
+import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";

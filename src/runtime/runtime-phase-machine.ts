@@ -62,17 +62,17 @@ import type {
 import type { BuildEndMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import type {
-  ModifierDiff,
-  ModifierId,
-} from "../shared/core/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import {
+  type BannerKind,
+  emitGameEvent,
+  GAME_EVENT,
+} from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import type { SceneCapture } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   BANNER_BATTLE,
@@ -84,10 +84,10 @@ import {
   BANNER_UPGRADE_PICK,
   BANNER_UPGRADE_PICK_SUB,
 } from "./banner-messages.ts";
-import type { BannerShow } from "./runtime-contracts.ts";
+import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { BuildEndSummary, TimingApi } from "./runtime-types.ts";
+import type { BuildEndSummary } from "./runtime-types.ts";
 
 export type TransitionId =
   | "castle-select-done"
@@ -118,6 +118,10 @@ interface TransitionResult {
 type DisplayStep =
   | {
       readonly kind: "banner";
+      /** Banner identity — forwarded through `showBanner` onto every
+       *  BANNER_* event so consumers discriminate on this, not
+       *  `phase`/`text`. */
+      readonly bannerKind: BannerKind;
       /** Static text, or a function of the mutation result (used by the
        *  modifier-reveal banner which reads the modifier label from the
        *  result). */
@@ -126,28 +130,26 @@ type DisplayStep =
       /** Set on the modifier-reveal banner step. Resolved at dispatch
        *  time and forwarded to the banner system so the bannerStart
        *  event can distinguish modifier reveals from plain phase
-       *  banners. Function form reads the id out of the transition
+       *  banners, and the renderer can progressively highlight changed
+       *  tiles. Function form reads the diff out of the transition
        *  result (the rolled modifier lives there). */
-      readonly modifierId?: (r: TransitionResult) => ModifierId | undefined;
+      readonly modifierDiff?: (r: TransitionResult) => ModifierDiff | undefined;
       /** Optional predicate: skip when false. Used for modifier-reveal
        *  (only when a modifier was rolled) and upgrade-pick (only when
        *  offers are pending). */
       readonly when?: (state: GameState, r: TransitionResult) => boolean;
+      /** Optional post-sweep hold — passed through to the banner
+       *  system which owns the hold timer. When set, after the sweep
+       *  completes the banner sits in `swept` for `holdMs`
+       *  milliseconds before firing its `onDone`. Lets listeners time
+       *  SFX / visual effects between banners — e.g. the 2s beat
+       *  between the modifier reveal and the battle banner. */
+      readonly holdMs?: number;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" }
   | {
       readonly kind: "upgrade-pick";
-      readonly when?: (state: GameState, r: TransitionResult) => boolean;
-    }
-  | {
-      /** Pauses the display-step sequence for `ms` milliseconds before
-       *  advancing. Lets listeners time SFX / visual effects between
-       *  banners (e.g. the beat between the modifier banner and the
-       *  battle banner). No UI side-effects — just a delay on the
-       *  shared `ctx.timing.setTimeout`. */
-      readonly kind: "delay";
-      readonly ms: number;
       readonly when?: (state: GameState, r: TransitionResult) => boolean;
     };
 
@@ -252,11 +254,12 @@ export interface PhaseTransitionCtx {
   readonly timing: TimingApi;
 
   readonly showBanner: BannerShow;
-  /** Capture the current scene for a banner's prev-scene. Stamped with
-   *  the monotonic banner-clock tick. Callers pass the result into
-   *  `showBanner({ prevScene })`. Returns `undefined` in headless tests
-   *  (no canvas) — `showBanner` accepts that as "no fade, just sweep". */
-  readonly captureScene: () => SceneCapture | undefined;
+  /** Hide whatever banner is currently on screen. The display runner
+   *  calls this between non-banner steps (so a held `swept` banner
+   *  doesn't sit over a dialog) and at the end of the chain (so
+   *  postDisplay hooks run against a clean screen). Banner steps never
+   *  need this — `showBanner` overwrites cleanly. */
+  readonly hideBanner: () => void;
   /** Pre-transition unzoom with post-convergence callback. Called once
    *  at the top of `runTransition` so every mutate + display step runs
    *  against a full-map viewport. See `CameraSystem.requestUnzoom`. */
@@ -419,7 +422,6 @@ const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
 const STEP_UPGRADE_PICK = "upgrade-pick" as const;
-const STEP_DELAY = "delay" as const;
 /** `wall-build-done` — end of WALL_BUILD.
  *
  *  Host: finalizes local controllers' bag state, then runs the engine's
@@ -492,6 +494,7 @@ const BUILD_ENTRY_DISPLAY: readonly DisplayStep[] = [
   },
   {
     kind: STEP_BANNER,
+    bannerKind: "build",
     text: BANNER_BUILD,
     subtitle: BANNER_BUILD_SUB,
   },
@@ -638,6 +641,7 @@ const CASTLE_SELECT_DONE: Transition = {
   display: [
     {
       kind: STEP_BANNER,
+      bannerKind: "cannon-place",
       text: BANNER_PLACE_CANNONS,
       subtitle: BANNER_PLACE_CANNONS_SUB,
     },
@@ -758,11 +762,11 @@ const MODIFIER_POST_BANNER_DELAY_MS = 2000;
  *  `postMutate: syncBattleAnim` rebuilds battleAnim from that state.
  *
  *  Display: conditional modifier-reveal banner (when modifier rolled) →
- *  "Prepare for Battle" banner. Each banner captures its own prev-scene
- *  at `showBanner` time (see `runBannerStep`) — the modifier banner
- *  captures the pre-modifier scene before its sweep starts; by the time
- *  the battle banner's `showBanner` fires, the modifier's tile changes
- *  have finished rendering and the capture naturally reflects them.
+ *  "Prepare for Battle" banner. The banner system captures the current
+ *  scene at the start of each `showBanner` — the modifier banner
+ *  captures the pre-modifier scene; by the time the battle banner
+ *  shows, the modifier's tile changes have rendered and the capture
+ *  reflects them.
  *
  *  postDisplay: flights > 0 → BALLOON_ANIM mode; else begin battle. */
 const CANNON_PLACE_DONE: Transition = {
@@ -792,23 +796,22 @@ const CANNON_PLACE_DONE: Transition = {
   },
   postMutate: syncBattleAnim,
   display: [
+    // 2s post-sweep hold on the modifier banner so SFX / visual
+    // listeners can play their effect before the battle banner kicks
+    // in. The banner sits in its `swept` state during the hold (still
+    // visible on screen). Skipped entirely in rounds with no modifier
+    // — those go straight from cannon-place to the battle banner.
     {
       kind: STEP_BANNER,
+      bannerKind: "modifier-reveal",
       text: (r) => modifierDef(r.modifierDiff!.id).label,
-      modifierId: (r) => r.modifierDiff?.id,
+      modifierDiff: (r) => r.modifierDiff ?? undefined,
       when: (_, r) => !!r.modifierDiff,
-    },
-    // 2s beat after the modifier banner so SFX / visual listeners can
-    // play their effect before the battle banner kicks in. Skipped
-    // entirely in rounds with no modifier — those go straight from
-    // cannon-place to the battle banner.
-    {
-      kind: STEP_DELAY,
-      ms: MODIFIER_POST_BANNER_DELAY_MS,
-      when: (_, r) => !!r.modifierDiff,
+      holdMs: MODIFIER_POST_BANNER_DELAY_MS,
     },
     {
       kind: STEP_BANNER,
+      bannerKind: "battle",
       text: BANNER_BATTLE,
       subtitle: BANNER_BATTLE_SUB,
     },
@@ -847,10 +850,9 @@ export const ROLE_WATCHER = "watcher" as const;
  *      impact clears). Runs once, before any display step.
  *
  *   3. **Display** — walks `display` steps in order. Each banner step
- *      captures its own `prevScene` at `showBanner`-time (see
- *      `runBannerStep`), so the snapshot always reflects whatever the
- *      user was last shown. No mutation-site capture, no
- *      `recaptureAfter` — one rule, everywhere.
+ *      calls `showBanner`, which itself captures the current scene as
+ *      its first operation. No external capture plumbing, no tick fence
+ *      — "capture happened-before show" is true by call order.
  *
  *   4. **postDisplay** — side-effects after all display steps (setMode,
  *      startBuildPhase, beginBattle, etc.).
@@ -887,18 +889,18 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   }
 
   // Lock interaction the instant we start a transition. Setting
-  // Mode.BANNER before mutate runs:
+  // Mode.TRANSITION before mutate runs:
   //   - Blocks the per-mode tick dispatcher: `ticks[mode]` becomes
-  //     `tickBanner` (a no-op while `banner.active` is false) instead
+  //     `tickBanner` (render-only while no banner is live) instead
   //     of the gameplay tick that just dispatched us. That stops the
   //     immediate caller (tickCannonPhase → startBattle → runTransition)
   //     from re-firing the same transition on the next sub-step, which
   //     would otherwise double-run `finalizeCannonPhase` and corrupt
   //     controller state.
-  //   - Gates player input (isInteractiveMode returns false for BANNER),
-  //     so the user can't interact in the NEW phase during the unzoom
-  //     lerp before the banner actually appears.
-  ctx.setMode(Mode.BANNER);
+  //   - Gates player input (isInteractiveMode returns false for
+  //     TRANSITION), so the user can't interact in the NEW phase during
+  //     the unzoom lerp before the banner actually appears.
+  ctx.setMode(Mode.TRANSITION);
 
   // The hard ordering rule (matches the spec):
   //
@@ -914,8 +916,8 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   //      tick as the first banner's `showBanner`, so the next rendered
   //      frame is already under banner cover. No pop window.
   //
-  //   3. Run the display steps. Every banner step captures its own
-  //      `prevScene` at `showBanner`-time via `ctx.captureScene()`. For
+  //   3. Run the display steps. Every banner step calls `showBanner`,
+  //      which captures the current scene as its first operation. For
   //      the first banner that capture happens BEFORE any post-mutate
   //      render (no render runs between this synchronous block and
   //      showBanner), so the snapshot is the pre-mutate frame the user
@@ -961,8 +963,14 @@ function routeLifeLostResolution(
 
 /** Walk the display steps in order, calling `onDone` after the last step
  *  completes. Each step registers `onDone` with its subsystem callback.
- *  Banner / upgrade-pick steps capture their own prev-scene at
- *  `showBanner`-time via `ctx.captureScene()`. */
+ *  Banner / upgrade-pick steps hand the capture decision to the banner
+ *  system — it captures the current scene inside `showBanner`.
+ *
+ *  Banner-visibility rule: when all steps complete, the banner is
+ *  hidden before `onDone` runs. postDisplay hooks (setMode(GAME),
+ *  beginBattle, balloon anim) expect a clean screen — no `swept`
+ *  banner lingering over gameplay. `runStep` handles the mid-chain
+ *  hiding between non-banner steps. */
 function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
@@ -970,6 +978,7 @@ function runDisplay(
   onDone: () => void,
 ): void {
   if (steps.length === 0) {
+    ctx.hideBanner();
     onDone();
     return;
   }
@@ -1057,6 +1066,16 @@ function runStep(
   result: TransitionResult,
   onDone: () => void,
 ): void {
+  // Hide a lingering banner before a non-banner step so a `swept`
+  // banner (with or without a hold) doesn't sit over a dialog / score
+  // overlay. Banner steps overwrite via `showBanner` cleanly, so the
+  // guard only fires for non-banner steps.
+  if (step.kind !== STEP_BANNER) {
+    ctx.hideBanner();
+  }
+  // Subsystems that own a Mode (life-lost, upgrade-pick) are responsible
+  // for restoring Mode.TRANSITION before firing their completion callback
+  // — the runner doesn't re-assert it here.
   switch (step.kind) {
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);
@@ -1069,13 +1088,6 @@ function runStep(
       return;
     case STEP_UPGRADE_PICK:
       runUpgradePickStep(step, ctx, result, onDone);
-      return;
-    case STEP_DELAY:
-      if (step.when && !step.when(ctx.state, result)) {
-        onDone();
-        return;
-      }
-      ctx.timing.setTimeout(onDone, step.ms);
       return;
   }
 }
@@ -1091,18 +1103,17 @@ function runBannerStep(
     return;
   }
   const text = typeof step.text === "function" ? step.text(result) : step.text;
-  const modifierId = step.modifierId?.(result);
-  // Capture the prev-scene at show-time. For the first banner of a
-  // transition this lands BEFORE any post-mutate render runs (the
-  // unzoom callback mutates state then calls showBanner synchronously),
-  // so the snapshot is the pre-mutate frame. For later banners the
-  // snapshot is whatever the last drawn frame held.
+  const modifierDiff = step.modifierDiff?.(result);
+  // Banner system owns scene capture (as its first operation inside
+  // showBanner) and owns the post-sweep hold timer. The display runner
+  // just hands over the opts.
   ctx.showBanner({
     text,
+    kind: step.bannerKind,
     onDone,
     subtitle: step.subtitle,
-    modifierId,
-    prevScene: ctx.captureScene(),
+    modifierDiff,
+    holdMs: step.holdMs,
   });
 }
 
@@ -1179,8 +1190,8 @@ function runUpgradePickStep(
   });
   ctx.showBanner({
     text: BANNER_UPGRADE_PICK,
+    kind: "upgrade-pick",
     subtitle: BANNER_UPGRADE_PICK_SUB,
-    prevScene: ctx.captureScene(),
     onDone: () => {
       // All players have resolved their picks (or auto-skipped). Apply
       // the picks + recompute territory; the next display step (the

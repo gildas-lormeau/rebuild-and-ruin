@@ -229,6 +229,7 @@
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
+      "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-state.ts"
     ]
@@ -250,9 +251,12 @@
       "src/online/online-watcher-battle.ts",
       "src/render/3d/scene.ts",
       "src/render/render-ui.ts",
+      "src/runtime/dev-console.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
+      "src/runtime/runtime-options.ts",
+      "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick.ts"
@@ -267,16 +271,12 @@
       "src/online/online-watcher-tick.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
-      "src/runtime/dev-console.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
-      "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts"
     ]
   },

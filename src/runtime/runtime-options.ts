@@ -28,6 +28,7 @@ import type {
   CreateOptionsOverlayFn,
   OptionsScreenHitTestFn,
   SeedField,
+  TimingApi,
   UIContext,
   VisibleOptionsFn,
 } from "./runtime-contracts.ts";
@@ -36,7 +37,6 @@ import {
   resetFrameTiming,
   safeState,
 } from "./runtime-state.ts";
-import type { TimingApi } from "./runtime-types.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;

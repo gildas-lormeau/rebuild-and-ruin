@@ -27,20 +27,12 @@ import type { RGB } from "./theme.ts";
 export type { RenderCannonPhantom, RenderPiecePhantom };
 
 /** A renderer-produced scene snapshot used for the banner prev-scene
- *  cross-fade. Carries the raw pixels AND the monotonic tick at which
- *  capture happened, so the banner can fence against stale snapshots:
- *  every capture is stamped from the same counter that stamps the
- *  banner's `startTick`, so `capturedAtTick < startTick` iff the capture
- *  happened-before the banner's `show()` in call order. If that
- *  invariant doesn't hold, the banner refuses to paint the prev-scene
- *  (degrades to a sweep without fade) rather than popping a
- *  post-mutation image.
- *
- *  The counter is opaque to the renderer — it's supplied by the runtime
- *  at capture time. The renderer's job is just pixels. */
+ *  cross-fade. Wraps the raw pixels only — the banner system captures
+ *  internally at `showBanner` time (its first operation, before any
+ *  banner state is written), so "capture happened-before show" is
+ *  trivially true by call order. No tick stamp, no fence. */
 export interface SceneCapture {
   readonly image: ImageData;
-  readonly capturedAtTick: number;
 }
 
 /** A single row in the options screen. */
@@ -223,28 +215,22 @@ export interface BattleOverlay {
 }
 
 /** Banner sweep UI — shared shape returned by `createBannerUi` and
- *  embedded (with an optional modifierDiff) in `UIOverlay.banner`. */
+ *  used verbatim as `UIOverlay.banner`. */
 export interface BannerUi {
   text: string;
   subtitle?: string;
-  /** Center Y of the banner strip, in map-pixel coords. Legacy field —
-   *  prefer `top` / `bottom` for strip-bounds math so the sweep
-   *  geometry stays single-sourced in `createBannerUi`. */
-  y: number;
   /** Top edge of the banner strip (map-pixel coords, integer-rounded
    *  by `createBannerUi`). Consumers that need to clip above the
-   *  sweep line use this — they don't re-derive from `y` and
-   *  `BANNER_HEIGHT_RATIO`. */
+   *  sweep line use this. */
   top: number;
   /** Bottom edge of the banner strip (map-pixel coords, integer-rounded
    *  by `createBannerUi`). Consumers that need to clip below the
-   *  sweep line use this — ditto. */
+   *  sweep line use this. */
   bottom: number;
-  /** Monotonic tick stamped when the banner started. Pairs with
-   *  `bannerPrevScene.capturedAtTick` to fence against stale snapshots —
-   *  a snapshot captured at-or-after this tick is rejected by the
-   *  banner render (no fade that frame) rather than popping. */
-  startTick: number;
+  /** Modifier-reveal diff — when set, the banner is a modifier reveal.
+   *  Drives the recolored chrome (`render-ui.ts` palette) and the
+   *  progressive tile-highlight animation in `drawModifierRevealHighlight`. */
+  modifierDiff?: ModifierDiff;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */
@@ -253,11 +239,7 @@ export interface UIOverlay {
   /** Master Builder lockout countdown (seconds remaining) shown center-screen.
    *  Set when the POV player is locked out; undefined/0 when inactive. */
   masterBuilderLockout?: number;
-  banner?: BannerUi & {
-    /** Modifier reveal diff — when set, the banner is a modifier reveal and
-     *  the renderer should progressively highlight changed tiles. */
-    modifierDiff?: ModifierDiff;
-  };
+  banner?: BannerUi;
   /** Pixel snapshot of the scene canvas captured before phase mutations.
    *  Composited below the banner sweep line during the animation. */
   bannerPrevScene?: SceneCapture;

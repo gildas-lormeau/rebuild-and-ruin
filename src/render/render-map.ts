@@ -600,25 +600,16 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
-  // Banner prev-scene is a display-resolution snapshot captured before a phase
-  // mutation (see `captureScene` below). It paints onto the DISPLAY canvas at
-  // 1:1 — never through the offscreen-scene → display blit — because a tilted
-  // or viewport-cropped camera has no "full-map" rect to re-crop from. The
-  // banner strip itself is drawn in the offscreen at map coords and carried
-  // to the display by the normal blit, so we clip the snapshot to the region
-  // BELOW the banner strip to keep the strip visible on top.
-  //
-  // Tick fence: the snapshot carries the monotonic tick from when it was
-  // captured; the banner overlay carries the monotonic tick from when
-  // `showBanner` ran. Both ticks come from the SAME counter in the
-  // runtime, incremented on every capture and every show. So the only
-  // legal ordering is `capturedAtTick < startTick`: capture happened
-  // before show in call order. Any snapshot with a tick >= startTick
-  // either came from a later capture call (stashed state from a future
-  // banner) or was never refreshed across a re-entry — either way,
-  // painting it would show a post-mutation image below the sweep, which
-  // reads as a "pop". We refuse to paint in that case and the banner
-  // sweeps without a fade (graceful degrade, never a pop).
+  // Banner prev-scene is a display-resolution snapshot captured by the
+  // banner system as its first operation inside `showBanner` (see
+  // runtime-banner.ts). It paints onto the DISPLAY canvas at 1:1 —
+  // never through the offscreen-scene → display blit — because a tilted
+  // or viewport-cropped camera has no "full-map" rect to re-crop from.
+  // The banner strip itself is drawn in the offscreen at map coords and
+  // carried to the display by the normal blit, so we clip the snapshot
+  // to the region BELOW the banner strip to keep the strip visible on
+  // top. "Capture happened-before show" is true by call order — no tick
+  // fence, no stale-snapshot check.
   function drawBannerPrevScene(
     displayCtx: CanvasRenderingContext2D,
     displayW: number,
@@ -630,11 +621,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       return;
     }
     const prev = overlay.ui.bannerPrevScene;
-    if (prev.capturedAtTick >= overlay.ui.banner.startTick) {
-      // Stale or future-stamped — structurally rejected. No pop.
-      bannerScenePainted = undefined;
-      return;
-    }
 
     // Banner strip bounds are map-pixel coords. During a banner the
     // viewport is always cleared to the full map (see

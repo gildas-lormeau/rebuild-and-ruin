@@ -52,9 +52,9 @@ import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import type { PlayerStats, SceneCapture } from "../shared/ui/overlay-types.ts";
+import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import type { BannerShow } from "./runtime-contracts.ts";
+import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
   ROLE_HOST,
@@ -80,7 +80,6 @@ import type {
   OnlinePhaseTicks,
   RuntimeConfig,
   RuntimeLifeLost,
-  TimingApi,
 } from "./runtime-types.ts";
 
 interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
@@ -106,12 +105,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  /** Capture the current scene as a `SceneCapture` for the next
-   *  banner's prev-scene. Stamped with the monotonic banner-clock tick
-   *  so the render-side fence can reject stale snapshots. The phase
-   *  machine's `runBannerStep` calls this right before `showBanner`
-   *  and passes the result in via `prevScene`. */
-  captureScene: () => SceneCapture | undefined;
   /** Pre-transition unzoom — threaded through to `PhaseTransitionCtx`
    *  so `runTransition` can gate every mutate + display step on the
    *  camera reaching fullMapVp. See `CameraSystem.requestUnzoom`. */
@@ -121,6 +114,11 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  `onDone` — each chained call should capture its own prev-scene
    *  at the moment of the call, not stash one from earlier. */
   showBanner: BannerShow;
+  /** Hide the current banner. The phase machine's display runner
+   *  threads this through to non-banner steps and to end-of-chain
+   *  cleanup. Banner steps overwrite via `showBanner` and never need
+   *  to hide explicitly. */
+  hideBanner: () => void;
   lifeLost: Pick<RuntimeLifeLost, "show">;
   /** Handlers called after the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
@@ -383,7 +381,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       role: ROLE_HOST,
       timing: deps.timing,
       showBanner: deps.showBanner,
-      captureScene: deps.captureScene,
+      hideBanner: deps.hideBanner,
       requestUnzoom: deps.requestUnzoom,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,

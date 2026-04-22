@@ -104,7 +104,7 @@ import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
-import type { UIContext } from "./runtime-contracts.ts";
+import type { TimingApi, UIContext } from "./runtime-contracts.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
@@ -136,7 +136,6 @@ import type {
   GameRuntime,
   NetworkApi,
   RuntimeConfig,
-  TimingApi,
 } from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
@@ -364,7 +363,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     [Mode.OPTIONS]: () => options.renderOptions(),
     [Mode.CONTROLS]: () => options.renderControls(),
     [Mode.SELECTION]: (dt: number) => selection.tick(dt),
-    [Mode.BANNER]: (dt: number) => tickBanner(dt),
+    [Mode.TRANSITION]: (dt: number) => tickBanner(dt),
     [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
     [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
     [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
@@ -472,34 +471,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner sub-system (delegated to runtime-banner.ts)
   // -------------------------------------------------------------------------
 
-  // Monotonic banner-clock counter, shared by `capture()` (stamps
-  // SceneCapture.capturedAtTick) and `showBanner` (stamps
-  // BannerState.startTick). Because both increments flow through this
-  // single closure, "capture happened-before show" reduces to
-  // `capturedAtTick < startTick` — no frame-order or drawFrame-tick
-  // dependency. The render path uses this exact fence.
-  let bannerClock = 0;
-  const nextBannerTick = (): number => ++bannerClock;
-
-  const {
-    showBanner,
-    tickBanner,
-    reset: resetBanner,
-    capture: captureSceneForBanner,
-  } = createBannerSystem({
+  // The banner system owns scene capture: `showBanner` calls the
+  // renderer's capture as its first operation, so "capture
+  // happened-before show" is true by call order. No external tick
+  // counter, no fence.
+  const { showBanner, hideBanner, tickBanner } = createBannerSystem({
     runtimeState,
     log: config.log,
     render: () => render(),
-    nextBannerTick,
+    timing,
+    rendererCaptureScene: () => renderer.captureScene(),
   });
-
-  /** Capture the current scene for the next banner's prev-scene.
-   *  Returns a tick-stamped `SceneCapture` that callers feed into
-   *  `showBanner` as `prevScene`. `undefined` when there's no canvas
-   *  (headless, pre-first-frame). Never writes to banner state — the
-   *  caller owns ordering. */
-  const captureScene = () =>
-    captureSceneForBanner(() => renderer.captureScene());
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)
@@ -593,7 +575,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           config.getUrlModeOverride,
         ),
       selection,
-      banner: { reset: resetBanner },
+      banner: { hide: hideBanner },
       camera,
       getLifeLost: () => lifeLost,
       getUpgradePick: () => upgradePick,
@@ -674,9 +656,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    captureScene,
     requestUnzoom: camera.requestUnzoom,
     showBanner,
+    hideBanner,
     lifeLost,
     // Host-side routing for the life-lost resolution, threaded through
     // to the phase machine via `PhaseTransitionCtx.lifeLostRoute`. The
@@ -919,7 +901,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    captureScene,
+    hideBanner,
     requestUnzoom: camera.requestUnzoom,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,

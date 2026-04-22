@@ -39,9 +39,9 @@ Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
   assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
 });
 
-Deno.test("full_state recovery clears stale banner mode into game mode", () => {
+Deno.test("full_state recovery clears stale transition mode into game mode", () => {
   const target = {
-    mode: Mode.BANNER,
+    mode: Mode.TRANSITION,
     castleBuilds: [1],
     announcement: "Battle!" as string | undefined,
     battleFlights: [{ flight: { startX: 0, startY: 0, endX: 10, endY: 10 }, progress: 0.5 }],

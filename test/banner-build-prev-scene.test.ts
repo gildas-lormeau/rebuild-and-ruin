@@ -42,7 +42,7 @@ Deno.test("build banner after upgrade fires with active banner state", async () 
       ev.text.includes("Build")
     ) {
       const banner = sc.banner();
-      bannerWasActive = banner.active;
+      bannerWasActive = banner.status !== "hidden";
       buildChecked = true;
     }
   });

@@ -1,165 +1,194 @@
 /**
- * Banner sub-system — phase transition banners (show + tick).
+ * Banner sub-system — phase transition banners (show + tick + hold).
  *
- * Contract (the only one, kept deliberately small):
+ * Contract:
  *
- *   showBanner({ text, onDone, prevScene?, subtitle?, modifierId? })
+ *   showBanner({ text, kind, onDone, subtitle?, modifierDiff?, holdMs? })
+ *   hideBanner()
  *
- * Callers hand in a pre-captured `prevScene` (or nothing). The banner
- * never captures on its own — that used to be three different implicit
- * behaviours across the mutate fns / recaptureAfter / upgrade-pick
- * step, and every renderer change had a different way to regress it.
+ * The banner system owns scene capture: `showBanner` calls the
+ * renderer's `captureScene` as its FIRST operation, before writing any
+ * banner state. "Capture happened-before show" is true by call order —
+ * no tick fence, no caller plumbing.
  *
- * The `startTick` stamped on `BannerState` comes from the shared
- * monotonic `bannerClock` counter (also stamped on `SceneCapture` at
- * capture time). The render path enforces `prevScene.capturedAtTick <
- * startTick`, which is a hard fence: snapshots captured AFTER show()
- * simply aren't painted. No pop. The worst case is "no fade this
- * frame," which is graceful.
+ * State machine (see `BannerStatus` in runtime-contracts.ts):
+ *
+ *   hidden ─showBanner→ sweeping ─progress=1→ swept ─hideBanner→ hidden
+ *                         │                       │
+ *                         └─showBanner (overwrite)┘
+ *
+ * Events:
+ *   - BANNER_START on `showBanner` (synchronous).
+ *   - BANNER_SWEEP_END on `sweeping → swept` (sweep animation done,
+ *     banner still on screen). Fires synchronously; the banner's
+ *     `onDone` callback runs either on the same tick (no hold) or
+ *     after the `holdMs` timer expires.
+ *   - BANNER_END on `* → hidden` (banner removed from screen, either by
+ *     `hideBanner` or by a subsequent `showBanner` overwriting it).
+ *
+ * Hold: when `holdMs` is set on a banner, the `swept → onDone` edge is
+ * deferred by that many sim-ms. The banner sits in `swept` state
+ * (accurate — the sweep is done but the banner is still visible) until
+ * the hold expires. A new `showBanner` or `hideBanner` during the hold
+ * cancels the pending timer.
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { fireOnce } from "../shared/platform/utils.ts";
-import type { SceneCapture } from "../shared/ui/overlay-types.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
-import { type BannerShowOpts, createBannerState } from "./runtime-contracts.ts";
+import {
+  type BannerShowOpts,
+  type BannerState,
+  createBannerState,
+  type TimingApi,
+} from "./runtime-contracts.ts";
 import {
   assertStateReady,
+  isStateReady,
   type RuntimeState,
-  setMode,
 } from "./runtime-state.ts";
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly render: () => void;
-  /** Allocate the next monotonic tick from the shared banner clock. The
-   *  same counter stamps `SceneCapture.capturedAtTick` inside
-   *  `runtime.captureScene()`, so the fence "capture happened-before
-   *  show" reduces to a straight integer compare. */
-  readonly nextBannerTick: () => number;
+  /** Injected timing — used to schedule the post-sweep `holdMs` timer so
+   *  headless tests on the mock clock observe the same timing as
+   *  production. */
+  readonly timing: TimingApi;
+  /** Renderer scene capture — returns the current display pixels or
+   *  `undefined` in headless / pre-first-frame. Called internally from
+   *  `showBanner`. */
+  readonly rendererCaptureScene: () => ImageData | undefined;
 }
 
 interface BannerSystem {
   showBanner: (opts: BannerShowOpts) => void;
+  hideBanner: () => void;
   tickBanner: (dt: number) => void;
-  reset: () => void;
-  /** Capture the current scene into a `SceneCapture` stamped with the
-   *  next banner-clock tick. Callers pass the result to `showBanner`
-   *  as `prevScene`. Returns `undefined` in headless mode / before the
-   *  first frame (no canvas to read from). */
-  capture: (
-    rendererCaptureScene: () => ImageData | undefined,
-  ) => SceneCapture | undefined;
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
-  const { runtimeState, log, render, nextBannerTick } = deps;
-  // True between showBanner() and the first tick. Defers `bannerStart` so
-  // consecutive showBanner calls in the same tick collapse into a single
-  // event for the final content.
-  let pendingStartEvent = false;
+  const { runtimeState, log, render, timing, rendererCaptureScene } = deps;
+
+  // Pending hold timer id. Set when the banner enters `swept` with a
+  // non-zero `holdMs`; cleared on fire, on `hideBanner`, or when a new
+  // `showBanner` overwrites the banner mid-hold.
+  let pendingHoldTimer: number | undefined;
+  // Per-banner pending holdMs, consumed on sweep-end. Module-local
+  // because the banner state is serialized across network boundaries
+  // and the hold semantics are local-presentation only.
+  let pendingHoldMs = 0;
+
+  function clearHoldTimer(): void {
+    if (pendingHoldTimer !== undefined) {
+      timing.clearTimeout(pendingHoldTimer);
+      pendingHoldTimer = undefined;
+    }
+  }
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
-    // No unzoom here — `runTransition` gates every mutate + display
-    // step on camera convergence to fullMapVp via `camera.requestUnzoom`,
-    // so by the time any `showBanner` call reaches us, the viewport is
-    // already at fullMapVp and the preceding drawFrame captured a
-    // full-map pre-mutation frame (the snapshot in `opts.prevScene`).
-    // Re-entry isn't a bug on its own: watchers replay banners from
+    // Capture FIRST, before touching banner state. Guarantees the
+    // prev-scene reflects whatever the user was last shown.
+    const image = rendererCaptureScene();
+    const prevScene = image ? { image } : undefined;
+
+    // Overwrite on re-entry. Watchers legitimately replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep
-    // (retransmits, host-migration recovery). Log so we notice unexpected
-    // cases, then overwrite — `runTransition` owns ordering for host-driven
-    // banners, and watchers take the latest host intent.
-    if (runtimeState.banner.active) {
-      log(
-        `showBanner "${opts.text}" while banner "${runtimeState.banner.text}" is still active`,
-      );
-    }
+    // (retransmits, host-migration recovery). Log so unusual cases surface,
+    // then emit BANNER_END for the banner being replaced so consumers that
+    // key on the user-visible-end beat observe it.
     const banner = runtimeState.banner;
-    banner.active = true;
+    if (banner.status !== "hidden") {
+      log(
+        `showBanner "${opts.text}" while banner "${banner.text}" status=${banner.status}`,
+      );
+      emitBannerEnd(banner.text, banner.kind);
+    }
+    clearHoldTimer();
+    banner.status = "sweeping";
     banner.progress = 0;
     banner.text = opts.text;
     banner.subtitle = opts.subtitle;
-    banner.modifierId = opts.modifierId;
+    banner.kind = opts.kind;
+    banner.modifierDiff = opts.modifierDiff;
     banner.callback = opts.onDone;
-    banner.prevScene = opts.prevScene;
-    banner.startTick = nextBannerTick();
-    setMode(runtimeState, Mode.BANNER);
-    pendingStartEvent = true;
+    banner.prevScene = prevScene;
+    // Stash holdMs inline on the banner state; read back in tickBanner
+    // when the sweep completes.
+    pendingHoldMs = opts.holdMs ?? 0;
+
+    const state = runtimeState.state;
+    // Last battle in a finite game. Infinity-mode ("to the death")
+    // carries maxRounds=Infinity, so this predicate is always false.
+    const isFinalBattle =
+      state.phase === Phase.BATTLE &&
+      state.maxRounds !== Infinity &&
+      state.round === state.maxRounds;
+    emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
+      bannerKind: banner.kind,
+      text: banner.text,
+      subtitle: banner.subtitle,
+      phase: state.phase,
+      round: state.round,
+      isFinalBattle,
+      modifierId: banner.modifierDiff?.id,
+      changedTiles: banner.modifierDiff?.changedTiles,
+    });
+  }
+
+  function hideBanner(): void {
+    const banner = runtimeState.banner;
+    clearHoldTimer();
+    // Gate the emit on state-ready so lifecycle teardown (returnToLobby,
+    // rematch) can call hideBanner before a fresh GameState exists.
+    if (banner.status !== "hidden" && isStateReady(runtimeState)) {
+      emitBannerEnd(banner.text, banner.kind);
+    }
+    runtimeState.banner = createBannerState();
   }
 
   function tickBanner(dt: number) {
     const banner = runtimeState.banner;
-    const state = runtimeState.state;
-
-    // Mode.BANNER is set BEFORE any banner actually activates (see
-    // `runTransition` in runtime-phase-machine): the phase machine
-    // flips to BANNER at transition dispatch to lock input while the
-    // camera unzooms, then the first banner display step calls
-    // `showBanner` which sets `banner.active = true`. Between
-    // those two moments, mode is BANNER but no banner is live — we
-    // still need render() to fire (so the camera's onRenderedFrame
-    // hook gets to see the viewport converge to fullMapVp), but we
-    // must NOT tick progress or emit banner lifecycle events. Without
-    // this guard, a wait longer than BANNER_DURATION would clamp
-    // progress at 1 and spam fake BANNER_END events every tick.
-    if (!banner.active) {
-      render();
-      return;
+    if (banner.status === "sweeping") {
+      banner.progress = Math.min(1, banner.progress + dt / BANNER_DURATION);
+      if (banner.progress >= 1) {
+        banner.status = "swept";
+        emitGameEvent(runtimeState.state.bus, GAME_EVENT.BANNER_SWEEP_END, {
+          bannerKind: banner.kind,
+          text: banner.text,
+          phase: runtimeState.state.phase,
+          round: runtimeState.state.round,
+        });
+        const callback = banner.callback;
+        banner.callback = null;
+        const holdMs = pendingHoldMs;
+        pendingHoldMs = 0;
+        if (callback) {
+          if (holdMs > 0) {
+            pendingHoldTimer = timing.setTimeout(() => {
+              pendingHoldTimer = undefined;
+              callback();
+            }, holdMs);
+          } else {
+            callback();
+          }
+        }
+      }
     }
-
-    if (pendingStartEvent) {
-      pendingStartEvent = false;
-      // Last battle in a finite game. Infinity-mode ("to the death")
-      // carries maxRounds=Infinity, so this predicate is always false.
-      const isFinalBattle =
-        state.phase === Phase.BATTLE &&
-        state.maxRounds !== Infinity &&
-        state.round === state.maxRounds;
-      emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
-        text: banner.text,
-        subtitle: banner.subtitle,
-        phase: state.phase,
-        round: state.round,
-        isFinalBattle,
-        modifierId: banner.modifierId,
-      });
-    }
-
-    banner.progress = Math.min(1, banner.progress + dt / BANNER_DURATION);
     render();
+  }
 
-    if (banner.progress < 1) return;
-
+  function emitBannerEnd(text: string, kind: BannerState["kind"]): void {
+    const state = runtimeState.state;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_END, {
-      text: banner.text,
+      bannerKind: kind,
+      text,
       phase: state.phase,
       round: state.round,
     });
-    // Reset the struct to its created-from-createBannerState() shape so
-    // `active === false` doesn't leave stale text / subtitle / modifierId /
-    // prevScene / startTick lying around for the next renderer to read.
-    // Reassign BEFORE firing the callback so any re-entrant showBanner()
-    // from inside the callback writes into the fresh struct.
-    runtimeState.banner = createBannerState();
-    fireOnce(banner, "callback", "banner.callback");
   }
 
-  function reset(): void {
-    runtimeState.banner = createBannerState();
-  }
-
-  function capture(
-    rendererCaptureScene: () => ImageData | undefined,
-  ): SceneCapture | undefined {
-    const image = rendererCaptureScene();
-    if (!image) return undefined;
-    return { image, capturedAtTick: nextBannerTick() };
-  }
-
-  return { showBanner, tickBanner, reset, capture };
+  return { showBanner, hideBanner, tickBanner };
 }

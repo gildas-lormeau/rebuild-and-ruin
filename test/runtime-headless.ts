@@ -40,9 +40,9 @@ import { setMode } from "../src/runtime/runtime-state.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type {
   GameRuntime,
-  OnlinePhaseTicks,
-  TimingApi,
+  OnlinePhaseTicks
 } from "../src/runtime/runtime-types.ts";
+import type { TimingApi } from "../src/runtime/runtime-contracts.ts";
 
 /** Test observer for the headless `network.send` seam. Receives every
  *  outbound message the runtime would broadcast through the production

@@ -10,6 +10,7 @@ import type {
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
+import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
   ROLE_WATCHER,
@@ -17,7 +18,7 @@ import {
   type TransitionId,
 } from "../runtime/runtime-phase-machine.ts";
 import { type RuntimeState, setMode } from "../runtime/runtime-state.ts";
-import type { GameRuntime, TimingApi } from "../runtime/runtime-types.ts";
+import type { GameRuntime } from "../runtime/runtime-types.ts";
 import {
   type BalloonFlight,
   clearImpacts,
@@ -220,7 +221,7 @@ function buildWatcherPhaseCtx(
     role: ROLE_WATCHER,
     timing: deps.timing,
     showBanner: runtime.showBanner,
-    captureScene: runtime.captureScene,
+    hideBanner: runtime.hideBanner,
     requestUnzoom: runtime.requestUnzoom,
     setMode: (mode) => setMode(runtimeState, mode),
     log: (text) => {

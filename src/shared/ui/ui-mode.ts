@@ -7,7 +7,7 @@
  * | OPTIONS       |          |             |            |
  * | CONTROLS      |          |             |            |
  * | SELECTION     | x        | x           |            |
- * | BANNER        | x        |             | x          |
+ * | TRANSITION    | x        |             | x          |
  * | BALLOON_ANIM  | x        |             | x          |
  * | CASTLE_BUILD  | x        |             | x          |
  * | LIFE_LOST     | x        |             |            |
@@ -21,7 +21,7 @@ export enum Mode {
   OPTIONS,
   CONTROLS,
   SELECTION,
-  BANNER,
+  TRANSITION,
   BALLOON_ANIM,
   CASTLE_BUILD,
   LIFE_LOST,
@@ -47,10 +47,11 @@ export function isInteractiveMode(mode: Mode): boolean {
   return mode === Mode.GAME || mode === Mode.SELECTION;
 }
 
-/** True if the mode is a non-interactive transition (banner, balloon anim, castle build, upgrade pick). */
+/** True if the mode is a non-interactive transition (phase-transition banner,
+ *  balloon anim, castle build, upgrade pick). */
 export function isTransitionMode(mode: Mode): boolean {
   return (
-    mode === Mode.BANNER ||
+    mode === Mode.TRANSITION ||
     mode === Mode.BALLOON_ANIM ||
     mode === Mode.CASTLE_BUILD ||
     mode === Mode.UPGRADE_PICK

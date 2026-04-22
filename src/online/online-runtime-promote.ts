@@ -105,9 +105,9 @@ function clearAnimationState(mode: Mode): string | null {
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
       return "Cleared life-lost dialog → game mode";
-    case Mode.BANNER:
+    case Mode.TRANSITION:
     case Mode.BALLOON_ANIM:
-      return "Skipped banner/animation → game mode";
+      return "Skipped phase transition/animation → game mode";
     case Mode.UPGRADE_PICK:
       // Match the phase-transition + lifecycle paths — go through the
       // upgrade-pick subsystem boundary instead of mutating dialog state

@@ -92,11 +92,8 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
-import type {
-  RendererInterface,
-  SceneCapture,
-} from "../shared/ui/overlay-types.ts";
-import type { BannerShow } from "./runtime-contracts.ts";
+import type { RendererInterface } from "../shared/ui/overlay-types.ts";
+import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/core/types.ts";
@@ -269,28 +266,6 @@ export interface NetworkApi {
   /** Slots controlled by other machines (need network sync). Empty set
    *  for local play. */
   readonly remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
-}
-
-/** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
- *  bind to `performance.now`, `setTimeout`, `clearTimeout`, `requestAnimationFrame`.
- *  Tests pass deterministic stubs or Deno's natives. Following the project's
- *  "DOM/global helpers as deps" rule — no runtime sub-system should reach for
- *  these globals directly. */
-export interface TimingApi {
-  /** Monotonic timestamp source — produces frame timestamps used by render
-   *  animations, dedup channels, and lobby/banner timers. Must be monotonic
-   *  within a single runtime instance. */
-  readonly now: () => number;
-  /** Schedule a one-shot callback after `ms` milliseconds. Returns a handle
-   *  that can be passed to `clearTimeout`. */
-  readonly setTimeout: (callback: () => void, ms: number) => number;
-  /** Cancel a previously scheduled timeout. */
-  readonly clearTimeout: (handle: number) => void;
-  /** Schedule a callback to run before the next browser paint. Same signature
-   *  as `window.requestAnimationFrame` — the `now` argument is a high-resolution
-   *  timestamp. Tests pass a synchronous trampoline or no-op (since headless
-   *  tests drive the main loop manually). */
-  readonly requestFrame: (callback: (now: number) => void) => void;
 }
 
 export interface RuntimeConfig {
@@ -598,16 +573,16 @@ export interface GameRuntime {
   clearFrameData: () => void;
   render: () => void;
 
-  /** Show a full-screen banner. `onDone` is invoked exactly once when
-   *  the banner finishes. Callers pass `prevScene` for the cross-fade
-   *  (capture via `captureScene`); `undefined` means "sweep without
-   *  fade." See `BannerShow` in runtime-contracts for the full opts. */
+  /** Show a full-screen banner. The banner system owns scene capture
+   *  (called as the first operation of `showBanner` itself), so
+   *  callers don't thread a prev-scene. `onDone` is invoked exactly
+   *  once when the sweep (and optional hold) completes. See
+   *  `BannerShow` in runtime-contracts for the full opts. */
   showBanner: BannerShow;
-  /** Capture the current scene for the next banner's prev-scene. The
-   *  returned `SceneCapture` carries the raw pixels plus a monotonic
-   *  tick stamp used by the render path to fence out stale snapshots.
-   *  Returns `undefined` before the first frame / in headless mode. */
-  captureScene: () => SceneCapture | undefined;
+  /** Hide the current banner. The banner no longer auto-dismisses on
+   *  sweep completion — it sits in its `swept` state until a caller
+   *  hides it or a new `showBanner` overwrites it. */
+  hideBanner: () => void;
   /** Pre-transition unzoom with post-convergence callback. See
    *  `CameraSystem.requestUnzoom`. Exposed so the watcher's
    *  PhaseTransitionCtx (built outside this module) can gate its own

@@ -168,9 +168,8 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    // The machine's `runUpgradePickStep` owns the mutation sequence:
-    // snapshot-for-banner → applyUpgradePicks → recheckTerritory. This
-    // system just signals "all resolved" so that chain can run.
+    // Restore the transition mode so the phase-machine runner can keep
+    // driving display steps / postDisplay against a clean mode.
     //
     // NOTE: dialog is intentionally NOT cleared here. The next phase's
     // banner (build banner) needs the dialog state in place during its
@@ -179,6 +178,7 @@ export function createUpgradePickSystem(
     // transitions in `runtime-phase-machine.ts` call
     // `clearUpgradePickDialog` from their postDisplay, after the build
     // banner finishes sweeping.
+    setMode(runtimeState, Mode.TRANSITION);
     pendingOnDone.fire();
   }
 
