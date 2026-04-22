@@ -12,6 +12,7 @@ import {
   type ResolvedChoice,
   shouldAutoResolve,
 } from "../shared/ui/interaction-types.ts";
+import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   needsReselect: readonly ValidPlayerSlot[];
@@ -47,29 +48,26 @@ type ControllerLifeLostTick = (entry: LifeLostEntry) => void;
  *  @param dt — Delta time in seconds (not ms).
  *  @param maxTimer — Global force-resolve deadline in seconds.
  *  @param tickEntry — Per-entry tick (closed over state + dt + autoDelay). */
-// Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
+// Shares the auto-resolve + force-resolve loop with tickUpgradePickDialog via tickDialogWithFallback.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,
   dt: number,
   maxTimer: number,
   tickEntry: ControllerLifeLostTick,
 ): boolean {
-  dialog.timer += dt;
-
-  for (const entry of dialog.entries) {
-    if (entry.choice !== LifeLostChoice.PENDING) continue;
-    if (!entry.autoResolve) continue;
-    tickEntry(entry);
-  }
-
-  if (dialog.timer >= maxTimer) {
-    for (const entry of dialog.entries) {
-      if (entry.choice === LifeLostChoice.PENDING)
-        entry.choice = LifeLostChoice.ABANDON;
-    }
-  }
-
-  return isLifeLostAllResolved(dialog);
+  return tickDialogWithFallback<LifeLostEntry>({
+    dialog,
+    dt,
+    maxTimer,
+    isPending: (entry) => entry.choice === LifeLostChoice.PENDING,
+    isAutoResolving: (entry) => entry.autoResolve,
+    tickEntry: (entry) => {
+      tickEntry(entry);
+    },
+    forceResolve: (entry) => {
+      entry.choice = LifeLostChoice.ABANDON;
+    },
+  });
 }
 
 /** True when every entry has been resolved (no PENDING choices remain). */

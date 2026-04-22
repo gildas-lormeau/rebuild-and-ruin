@@ -19,6 +19,7 @@ import {
   type UpgradePickDialogState,
   type UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
+import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
@@ -79,7 +80,7 @@ export function createUpgradePickDialog(
  *  @param maxTimer — Global force-resolve deadline in seconds.
  *  @param tickEntry — Per-entry tick (closed over state + autoDelay).
  *  @param forcePick — Max-timer force-pick (closed over state). */
-// Parallel structure with tickLifeLostDialog (runtime-life-lost-core.ts) — both loop entries for auto-resolve + force-resolve.
+// Shares the auto-resolve + force-resolve loop with tickLifeLostDialog via tickDialogWithFallback.
 export function tickUpgradePickDialog(
   dialog: UpgradePickDialogState,
   dt: number,
@@ -87,27 +88,22 @@ export function tickUpgradePickDialog(
   tickEntry: ControllerUpgradePickTick,
   forcePick: ControllerForceUpgradePick,
 ): boolean {
-  dialog.timer += dt;
-
-  for (let entryIdx = 0; entryIdx < dialog.entries.length; entryIdx++) {
-    const entry = dialog.entries[entryIdx]!;
-    if (entry.choice !== null) continue;
-    if (!entry.autoResolve) continue;
-    tickEntry(entry, entryIdx);
-  }
-
-  if (dialog.timer >= maxTimer) {
-    for (const entry of dialog.entries) {
-      if (entry.choice === null) {
-        const pick = forcePick(entry);
-        entry.choice = pick;
-        entry.focusedCard = entry.offers.indexOf(pick);
-        entry.pickedAtTimer = dialog.timer;
-      }
-    }
-  }
-
-  return dialog.entries.every((entry) => entry.choice !== null);
+  return tickDialogWithFallback<UpgradePickEntry>({
+    dialog,
+    dt,
+    maxTimer,
+    isPending: (entry) => entry.choice === null,
+    isAutoResolving: (entry) => entry.autoResolve,
+    tickEntry: (entry, entryIdx) => {
+      tickEntry(entry, entryIdx);
+    },
+    forceResolve: (entry) => {
+      const pick = forcePick(entry);
+      entry.choice = pick;
+      entry.focusedCard = entry.offers.indexOf(pick);
+      entry.pickedAtTimer = dialog.timer;
+    },
+  });
 }
 
 /** Navigate focus left/right within a pending entry's offers. */

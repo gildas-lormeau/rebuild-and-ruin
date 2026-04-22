@@ -20,6 +20,7 @@
       "src/render/3d/sprites/sprite-kit.ts",
       "src/render/render-layout.ts",
       "src/runtime/banner-messages.ts",
+      "src/runtime/dialog-tick.ts",
       "src/runtime/music-assets.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/game-constants.ts",

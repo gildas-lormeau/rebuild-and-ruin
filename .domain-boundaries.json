@@ -259,6 +259,7 @@
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/runtime/runtime-contracts.ts",
       "src/runtime/runtime-tick-context.ts",
+      "src/runtime/dialog-tick.ts",
       "src/runtime/runtime-sound.ts",
       "src/runtime/runtime-sound-midi.ts",
       "src/runtime/runtime-sound-opl.ts",
