@@ -141,8 +141,6 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
-      masterBuilderLockout:
-        runtimeState.state.modern?.masterBuilderLockout ?? 0,
     });
 
     // Status bar (rendered inside canvas). Hidden in 3D mode today

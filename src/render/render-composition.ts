@@ -390,10 +390,10 @@ export function createOnlineOverlay(
     playerNames,
     playerColors,
     getLifeLostPanelPos,
-    masterBuilderLockout,
   } = params;
 
   const homeTowers = buildHomeTowersByIndex(view);
+  const masterBuilderLockout = view.modern?.masterBuilderLockout ?? 0;
   const battleTerritory = inBattle ? battleAnim.territory : undefined;
   const battleWalls = inBattle ? battleAnim.walls : undefined;
 
@@ -449,9 +449,7 @@ export function createOnlineOverlay(
         playerColors,
       ),
       masterBuilderLockout:
-        masterBuilderLockout != null && masterBuilderLockout > 0
-          ? masterBuilderLockout
-          : undefined,
+        masterBuilderLockout > 0 ? masterBuilderLockout : undefined,
     },
   };
 }
