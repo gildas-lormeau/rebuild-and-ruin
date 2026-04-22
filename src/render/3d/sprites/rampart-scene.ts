@@ -116,14 +116,6 @@ const EMBLEM_GREEN: MaterialSpec = {
   roughness: 0.55,
   metalness: 0.4,
 };
-// Translucent "shield" field projected on the ground. Green echoes the
-// band/emblem so the palette stays compact.
-const SHIELD_AURA: MaterialSpec = {
-  kind: "basic",
-  color: 0x71b04e,
-  side: "double",
-  opacity: 0.32,
-};
 const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 // ---------- variant registry ------------------------------------------
 export const VARIANTS: RampartVariant[] = [
@@ -166,19 +158,6 @@ export const VARIANTS: RampartVariant[] = [
         thickness: cells(0.5),
         flare: cells(0.5),
         material: BAND_GREEN,
-      },
-      // Shield field on the ground: 5×5-tile square (Chebyshev radius
-      // 2 from rampart center, matching RAMPART_SHIELD_RADIUS in
-      // game-constants.ts). 1 tile = 1 sprite unit (2×2 sprite covers
-      // ±1), so half-side = 2.5 sprite units = 20 cells. Extends far
-      // outside the native ±1 frustum — visible in assembly, clipped
-      // in the standalone build-rampart-3d preview.
-      shield: {
-        halfSide: cells(20),
-        // Off-grid by design: a tiny lift (~0.016 cells) above the
-        // ground plane to prevent z-fighting with the terrain.
-        yPos: 0.002,
-        material: SHIELD_AURA,
       },
       // Simple cross emblem sitting flush on the top cap. Two thin
       // bars: length 6 cells (cap.width − 2 cells of margin), thickness
