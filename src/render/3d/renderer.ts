@@ -223,13 +223,35 @@ export function createRender3d(
       // stripWorld`) is simply out of frustum and leaves the top rows
       // at the clear color; tall walls at row 0 project *into* the
       // strip under tilt, which is the whole purpose of the strip.
-      ctx.renderer.setRenderTarget(ctx.captureTarget);
-      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
-      ctx.renderer.setRenderTarget(null);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
+      // Banner-active optimization: while a banner is active the
+      // camera + viewport are settled and game ticks are paused, so
+      // the 3D scene is visually static. Re-rendering it every frame
+      // produces identical pixels.
+      //   - banner.top <= 0 (strip covers the top of the display):
+      //     the visible pixels come entirely from the 2D path (banner
+      //     strip + snapshot below). Skip both the scene render AND
+      //     the blit; clear so stale contents don't peek through.
+      //   - banner active, strip inside the screen: re-blit the
+      //     already-captured FBO instead of re-rendering.
+      const banner = overlay?.ui?.banner;
+      const bannerCoversLiveArea =
+        !!banner && !!overlay?.ui?.bannerPrevScene && banner.top <= 0;
+      if (bannerCoversLiveArea) {
+        ctx.renderer.setRenderTarget(null);
+        ctx.renderer.clear();
+      } else if (banner) {
+        ctx.renderer.setRenderTarget(null);
+        ctx.renderer.clear();
+        ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
+      } else {
+        ctx.renderer.setRenderTarget(ctx.captureTarget);
+        ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
+        ctx.renderer.clear();
+        ctx.renderer.render(ctx.scene, ctx.camera);
+        ctx.renderer.setRenderTarget(null);
+        ctx.renderer.clear();
+        ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
+      }
       canvas2d.drawFrame(map, overlay, viewport, now);
       if (isPerfHudEnabled()) {
         const info = ctx.renderer.info;
