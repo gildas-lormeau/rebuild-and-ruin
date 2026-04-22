@@ -230,7 +230,7 @@ function buildWatcherPhaseCtx(
       setPreScores: (scores) => runtime.scoreDelta.setPreScores([...scores]),
     },
     lifeLost: {
-      run: (needsReselect, eliminated, onResolved) =>
+      show: (needsReselect, eliminated, onResolved) =>
         showLifeLostDialogWithEarlyChoices(
           runtime,
           needsReselect,
@@ -386,7 +386,7 @@ function showLifeLostDialogWithEarlyChoices(
   earlyChoices: Map<number, LifeLostChoice>,
   onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
 ): boolean {
-  const shown = runtime.lifeLost.run(needsReselect, eliminated, onResolved);
+  const shown = runtime.lifeLost.show(needsReselect, eliminated, onResolved);
   const dialog = runtime.lifeLost.get();
   if (dialog) {
     for (const [playerId, choice] of earlyChoices) {

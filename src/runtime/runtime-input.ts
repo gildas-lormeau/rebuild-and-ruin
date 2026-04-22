@@ -34,6 +34,7 @@ import type {
   RegisterMouseHandlersFn,
   RegisterOnlineInputDeps,
   RegisterTouchHandlersFn,
+  WithPointerPlayer,
 } from "./runtime-contracts.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
@@ -188,11 +189,7 @@ interface InputSystemDeps {
 
   // Sibling callbacks
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
-  /** Run `action` with the pointer (local human) controller. Returns `true`
-   *  if it actually ran, `false` when there is no human to receive the input. */
-  readonly withPointerPlayer: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => boolean;
+  readonly withPointerPlayer: WithPointerPlayer;
 }
 
 type PlacePieceFn = (

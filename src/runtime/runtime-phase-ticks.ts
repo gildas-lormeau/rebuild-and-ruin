@@ -121,7 +121,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  `onDone` — each chained call should capture its own prev-scene
    *  at the moment of the call, not stash one from earlier. */
   showBanner: BannerShow;
-  lifeLost: Pick<RuntimeLifeLost, "run">;
+  lifeLost: Pick<RuntimeLifeLost, "show">;
   /** Handlers called after the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
    *  reselect queue and enters the castle-reselect flow; `onContinue`
@@ -426,7 +426,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       beginBattleTilt: deps.beginBattleTilt,
       engageAutoZoom: deps.engageAutoZoom,
       lifeLost: {
-        run: deps.lifeLost.run,
+        show: deps.lifeLost.show,
       },
       lifeLostRoute: deps.lifeLostRoute,
       notifyLifeLost: (pid) => {

@@ -76,14 +76,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  Returns true when a dialog was actually shown (so watcher-side
    *  wiring can apply any early-arrived choices before the first
    *  tick). */
-  function run(
+  function show(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
     onResolved: OnLifeLostResolved,
   ): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(
-      `run lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
+      `show lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
     const dialog = createLifeLostDialogState({
       needsReselect,
@@ -97,7 +97,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations).
     if (isLifeLostAllResolved(dialog)) {
-      deps.log("run lifeLost: all pre-resolved, skipping dialog");
+      deps.log("show lifeLost: all pre-resolved, skipping dialog");
       eliminateAbandoned(dialog, runtimeState.state);
       disableAutoZoomIfPovEliminated();
       onResolved(continuingPlayers(dialog));
@@ -213,7 +213,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       runtimeState.dialogs.lifeLost = dialog;
       if (dialog === null) pendingOnResolved = undefined;
     },
-    run,
+    show,
     tick: tickLifeLostDialogSystem,
     panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals

@@ -263,14 +263,14 @@ export interface PhaseTransitionCtx {
    *  array contains a `life-lost-dialog` step (wall-build-done). Other
    *  transitions may omit.
    *
-   *  `run` drives the dialog to completion. It either resolves
+   *  `show` drives the dialog to completion. It either resolves
    *  immediately (no entries needed input) or shows the modal and
    *  ticks it to resolution. Either way, `onResolved(continuing)` fires
    *  once with the list of players who chose CONTINUE. The step sets
    *  `result.continuing` from this list; `WALL_BUILD_DONE`'s postDisplay
    *  reads it and routes via `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
   readonly lifeLost?: {
-    readonly run: (
+    readonly show: (
       needsReselect: readonly ValidPlayerSlot[],
       eliminated: readonly ValidPlayerSlot[],
       onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
@@ -1090,7 +1090,7 @@ function runBannerStep(
 }
 
 /** Life-lost dialog step — notifies affected controllers, then hands
- *  the dialog off to `ctx.lifeLost.run` which either resolves
+ *  the dialog off to `ctx.lifeLost.show` which either resolves
  *  immediately (only eliminations) or shows the modal and waits for
  *  the tick loop to resolve every entry. When `onResolved(continuing)`
  *  fires, we stash the list onto `result.continuing` and call the
@@ -1115,7 +1115,7 @@ function runLifeLostDialogStep(
     return;
   }
   if (needsReselect.length === 0 && eliminated.length === 0) {
-    ctx.lifeLost.run([], [], finish);
+    ctx.lifeLost.show([], [], finish);
     return;
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.
@@ -1128,7 +1128,7 @@ function runLifeLostDialogStep(
     eliminated,
     round: ctx.state.round,
   });
-  ctx.lifeLost.run(needsReselect, eliminated, finish);
+  ctx.lifeLost.show(needsReselect, eliminated, finish);
 }
 
 /** Upgrade-pick display step — composes the three-part chain:

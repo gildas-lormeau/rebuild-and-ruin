@@ -504,7 +504,7 @@ export interface RuntimeLifeLost {
    *  Returns true when a dialog was actually shown (so callers can
    *  apply early-arrived choices before the first tick — e.g. the
    *  online watcher's `earlyLifeLostChoices`). */
-  run: (
+  show: (
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
     onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
