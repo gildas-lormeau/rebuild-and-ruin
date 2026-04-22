@@ -1,7 +1,5 @@
 import { computeGameOutcome, type GameOverReason } from "../game/index.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { eliminatePlayer } from "../shared/core/player-types.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
   type AutoResolveDeps,
@@ -109,23 +107,13 @@ export function createLifeLostDialogState(
   return { entries, timer: 0 };
 }
 
-/** Eliminate all players who chose ABANDON in a resolved life-lost dialog.
- *  Game rule: iterates entries, marks each ABANDON player as eliminated. */
-export function eliminateAbandoned(
+/** Extract the player IDs that chose ABANDON from a resolved dialog. */
+export function abandonedPlayers(
   dialog: LifeLostDialogState,
-  state: GameState,
-): void {
-  for (const entry of dialog.entries) {
-    if (entry.choice !== LifeLostChoice.ABANDON) continue;
-    const player = state.players[entry.playerId];
-    if (player) {
-      eliminatePlayer(player);
-      emitGameEvent(state.bus, GAME_EVENT.PLAYER_ELIMINATED, {
-        playerId: player.id,
-        round: state.round,
-      });
-    }
-  }
+): ValidPlayerSlot[] {
+  return dialog.entries
+    .filter((e) => e.choice === LifeLostChoice.ABANDON)
+    .map((e) => e.playerId);
 }
 
 /** Toggle the focused button between CONTINUE and ABANDON. */

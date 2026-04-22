@@ -124,6 +124,7 @@
       "src/online/online-session.ts",
       "src/render/3d/entities/entity-helpers.ts",
       "src/runtime/dev-console-grid.ts",
+      "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/shared/core/occupancy-queries.ts",
       "src/shared/core/render-view.ts",
@@ -180,7 +181,6 @@
       "src/runtime/music-player.ts",
       "src/runtime/runtime-contracts.ts",
       "src/runtime/runtime-haptics.ts",
-      "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-tick-context.ts",
       "src/runtime/sfx-player.ts",
       "src/shared/core/board-occupancy.ts"

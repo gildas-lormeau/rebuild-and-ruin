@@ -1,6 +1,6 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { isPlayerAlive } from "../shared/core/player-types.ts";
+import { eliminatePlayer, isPlayerAlive } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 
 /** Reason a game-over fires — threaded into the phase machine's transition
@@ -64,4 +64,23 @@ export function computeGameOutcome(
   }
 
   return { kind: "continue" };
+}
+
+/** Eliminate the listed players and emit `PLAYER_ELIMINATED` for each.
+ *  Skips missing/null player slots so callers can pass raw IDs from UI
+ *  state without pre-filtering. Game rule — the runtime merely picks
+ *  which players to eliminate (e.g. life-lost ABANDON choice). */
+export function eliminatePlayers(
+  state: GameState,
+  playerIds: readonly ValidPlayerSlot[],
+): void {
+  for (const playerId of playerIds) {
+    const player = state.players[playerId];
+    if (!player) continue;
+    eliminatePlayer(player);
+    emitGameEvent(state.bus, GAME_EVENT.PLAYER_ELIMINATED, {
+      playerId: player.id,
+      round: state.round,
+    });
+  }
 }

@@ -1,3 +1,4 @@
+import { eliminatePlayers } from "../game/index.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
@@ -11,11 +12,11 @@ import {
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
+  abandonedPlayers,
   applyLifeLostChoice,
   confirmLifeLostFocusedChoice,
   continuingPlayers,
   createLifeLostDialogState,
-  eliminateAbandoned,
   isLifeLostAllResolved,
   tickLifeLostDialog,
   toggleLifeLostFocus,
@@ -100,7 +101,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     // Skip dialog if all entries are already resolved (e.g. only eliminations).
     if (isLifeLostAllResolved(dialog)) {
       deps.log("show lifeLost: all pre-resolved, skipping dialog");
-      eliminateAbandoned(dialog, runtimeState.state);
+      eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
       disableAutoZoomIfPovEliminated();
       onResolved(continuingPlayers(dialog));
       return false;
@@ -146,7 +147,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
-    eliminateAbandoned(dialog, runtimeState.state);
+    eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
     disableAutoZoomIfPovEliminated();
 
     const continuing = continuingPlayers(dialog);
@@ -167,7 +168,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /** Flip the camera permanently to spectator mode if the pov player
    *  just got eliminated (lives hit 0 — covers abandon and forced
-   *  eliminations alike). Runs right after `eliminateAbandoned` so the
+   *  eliminations alike). Runs right after `eliminatePlayers` so the
    *  check sees the post-resolution player state. */
   function disableAutoZoomIfPovEliminated(): void {
     const povId = runtimeState.frameMeta.povPlayerId;
