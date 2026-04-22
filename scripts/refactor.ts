@@ -21,6 +21,7 @@ import {
   type SourceFile,
   SyntaxKind,
 } from "ts-morph";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -123,6 +124,7 @@ function renameSymbol(file: string, name: string, newName: string): void {
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed across ${changedFiles} file(s)`);
+  reportTextualReferences(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +261,7 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed property across ${changedFiles} file(s)`);
+  reportTextualReferences(prop);
 }
 
 // ---------------------------------------------------------------------------
@@ -613,6 +616,51 @@ function cleanSelfImport(file: SourceFile, symbolName: string): void {
   }
 }
 
+/**
+ * After an AST rename, ripgrep for the old name across the project and print
+ * any remaining matches. These are always in comments, strings, or docs —
+ * the AST rename wouldn't have missed a real identifier. Surfacing them turns
+ * "I need to manually search" into a visible checklist the caller can act on.
+ */
+function reportTextualReferences(oldName: string): void {
+  if (dryRun) return;
+  const searchRoots = ["src", "server", "test", "docs"].filter((root) => existsSync(root));
+  if (searchRoots.length === 0) return;
+
+  const result = spawnSync(
+    "rg",
+    [
+      "--fixed-strings",
+      "--word-regexp",
+      "--line-number",
+      "--no-heading",
+      "--with-filename",
+      "--color",
+      "never",
+      oldName,
+      ...searchRoots,
+    ],
+    { encoding: "utf8" },
+  );
+
+  if (result.status === 1) return;
+  if (result.status !== 0) {
+    console.warn(`  ⚠️  Post-rename textual check skipped: ${result.stderr?.trim() || "rg unavailable"}`);
+    return;
+  }
+
+  const lines = result.stdout.split("\n").filter((line) => line.length > 0);
+  if (lines.length === 0) return;
+
+  console.log(
+    `\n⚠️  ${lines.length} textual reference(s) to "${oldName}" remain (comments, strings, or docs — not touched by AST rename):`,
+  );
+  for (const line of lines) {
+    console.log(`  ${line}`);
+  }
+  console.log(`  Review and update manually if they still refer to the renamed symbol.`);
+}
+
 function saveChanges(project: Project): number {
   let changed = 0;
   for (const sf of project.getSourceFiles()) {
@@ -686,6 +734,7 @@ function renameInFile(name: string, newName: string, files: string[]): void {
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed ${totalDecls} declaration(s) across ${changedFiles} file(s)`);
+  reportTextualReferences(name);
 }
 
 /**

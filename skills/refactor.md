@@ -145,6 +145,10 @@ Merge rules:
 
 Best for: cleaning up after `move-export` operations that create separate type and value imports from the same module. Run `merge-imports --all` after large refactors.
 
+## Post-rename textual report
+
+After `rename-symbol`, `rename-prop`, and `rename-in-file`, the tool runs a word-boundary ripgrep for the **old** name across `src/`, `server/`, `test/`, and `docs/` and prints any remaining hits. These are always in comments, string literals, or markdown — the AST rename wouldn't have missed a real identifier. Treat the report as a checklist: review each hit and update it manually if it still refers to the renamed symbol. The report is skipped under `--dry-run`.
+
 ## Tips
 
 - Use `find-symbol` + `list-exports` + `list-references` to plan before refactoring
