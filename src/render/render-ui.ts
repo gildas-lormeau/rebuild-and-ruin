@@ -483,23 +483,13 @@ export function drawUpgradePick(
   const pick = overlay.ui.upgradePick;
   if (pick.entries.length === 0) return;
 
-  // Progressive clip keyed on which banner is sweeping past the dialog:
-  //   - "upgrade-pick": reveal — dialog paints ABOVE the strip (the swept
-  //     region where new content belongs).
-  //   - "build": hide — dialog paints BELOW the strip (the unswept region
-  //     where the old content still reads); shrinks as the sweep moves down.
-  //   - other / no banner: dialog paints fullscreen.
-  const banner = overlay.ui?.banner;
-  const duringBanner = !!banner;
-  const clipped = banner?.kind === "upgrade-pick" || banner?.kind === "build";
-  if (clipped) {
+  // Progressive-reveal clip is pre-computed by the overlay builder; the
+  // renderer is pure geometry here.
+  const mask = pick.fadeMask;
+  if (mask) {
     overlayCtx.save();
     overlayCtx.beginPath();
-    if (banner.kind === "upgrade-pick") {
-      overlayCtx.rect(0, 0, W, banner.top);
-    } else {
-      overlayCtx.rect(0, banner.bottom, W, H - banner.bottom);
-    }
+    overlayCtx.rect(0, mask.rectTop, W, mask.rectBottom - mask.rectTop);
     overlayCtx.clip();
   }
 
@@ -556,7 +546,7 @@ export function drawUpgradePick(
   }
 
   // Timer bar — only show when interactive (not during banner preview)
-  if (!duringBanner) {
+  if (!mask) {
     const barW = rowW;
     const barH = 4;
     const barX = (W - rowW) / 2;
@@ -569,7 +559,7 @@ export function drawUpgradePick(
   }
 
   // Hint — only when interactive (not during banner preview)
-  if (!duringBanner && pick.entries.some((entry) => entry.interactive)) {
+  if (!mask && pick.entries.some((entry) => entry.interactive)) {
     overlayCtx.font = FONT_HINT;
     overlayCtx.fillStyle = TEXT_DIM;
     overlayCtx.textAlign = TEXT_ALIGN_CENTER;
@@ -580,7 +570,7 @@ export function drawUpgradePick(
     );
   }
 
-  if (clipped) {
+  if (mask) {
     overlayCtx.restore();
   }
 }

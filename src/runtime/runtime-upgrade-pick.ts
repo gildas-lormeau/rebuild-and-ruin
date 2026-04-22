@@ -168,16 +168,13 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    // NOTE: dialog is intentionally NOT cleared here. The next phase's
-    // banner (build banner) needs the dialog state in place during its
-    // sweep so `drawUpgradePick` can clip it progressively against
-    // `banner.top` / `banner.bottom`. The `battle-done` and `ceasefire`
-    // transitions in `runtime-phase-machine.ts` call
-    // `clearUpgradePickDialog` from their postDisplay, after the build
-    // banner finishes sweeping.
-    //
-    // Mode stays on UPGRADE_PICK here; the runner's next step is the
-    // build banner, whose `showBanner` flips to Mode.BANNER.
+    // Dialog state persists through the following build banner's sweep
+    // so the overlay builder can derive the progressive-reveal clip
+    // (`UpgradePickOverlay.fadeMask`) from `banner.top` / `banner.bottom`.
+    // `clearUpgradePickDialog` runs from the `battle-done` / `ceasefire`
+    // postDisplay in `runtime-phase-machine.ts`, after the sweep ends.
+    // Mode stays on UPGRADE_PICK; the next step is the build banner,
+    // whose `showBanner` flips to Mode.BANNER.
     pendingOnDone.fire();
   }
 

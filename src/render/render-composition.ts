@@ -447,6 +447,7 @@ export function createOnlineOverlay(
         upgradePickInteractiveSlots,
         playerNames,
         playerColors,
+        bannerUi,
       ),
       masterBuilderLockout:
         masterBuilderLockout > 0 ? masterBuilderLockout : undefined,
@@ -673,8 +674,10 @@ function buildUpgradePickUi(
   interactiveSlots: ReadonlySet<ValidPlayerSlot>,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
+  bannerUi: BannerUi | undefined,
 ): UpgradePickOverlay | undefined {
   if (!dialog) return undefined;
+  const fadeMask = computeUpgradePickFadeMask(bannerUi);
 
   const entries = dialog.entries.map((entry) => {
     const isInteractive = interactiveSlots.has(entry.playerId);
@@ -718,7 +721,21 @@ function buildUpgradePickUi(
     entries,
     timer: dialog.timer,
     maxTimer: UPGRADE_PICK_MAX_TIMER,
+    ...(fadeMask ? { fadeMask } : {}),
   };
+}
+
+function computeUpgradePickFadeMask(
+  bannerUi: BannerUi | undefined,
+): { rectTop: number; rectBottom: number } | undefined {
+  if (!bannerUi) return undefined;
+  if (bannerUi.kind === "upgrade-pick") {
+    return { rectTop: 0, rectBottom: bannerUi.top };
+  }
+  if (bannerUi.kind === "build") {
+    return { rectTop: bannerUi.bottom, rectBottom: MAP_PX_H };
+  }
+  return undefined;
 }
 
 function buildBattleCannonballsPayload(

@@ -101,6 +101,14 @@ export interface UpgradePickOverlay {
   entries: UpgradePickPlayerEntry[];
   timer: number;
   maxTimer: number;
+  /** Progressive-reveal clip rect, set by the overlay builder when a banner
+   *  is sweeping past the dialog. When present, the renderer clips to
+   *  `(0, rectTop, W, rectBottom - rectTop)` and suppresses interactive UI
+   *  (timer bar + keyboard hint). When absent, the dialog paints fullscreen
+   *  with interactive UI shown. The semantic mapping from banner kind to
+   *  reveal direction (upgrade-pick banner reveals above the strip, build
+   *  banner hides below) lives in the builder, not the renderer. */
+  fadeMask?: { rectTop: number; rectBottom: number };
 }
 
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */

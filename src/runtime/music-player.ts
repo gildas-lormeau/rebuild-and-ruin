@@ -233,15 +233,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   // Previous-tick phase for leave-WALL_BUILD edge detection.
   let buildBgLastPhase: Phase | undefined;
 
-  // Set true when the upgrade flow started cannon-bg music (to cover the
-  // banner + dialog + next banner sweep); stays true until the Build banner's
-  // bannerStart stops cannon-bg so build-bg can take over at bannerSweepEnd.
-  // Banner identity is discriminated via `bannerKind` on the event —
-  // `phase` is ambiguous during the upgrade-pick flow because the
-  // "Choose Upgrade" and "Build & Repair" banners both run under
-  // phase=WALL_BUILD.
-  let cannonBgFromUpgrade = false;
-
   // Bus binding tracker — one array instead of per-event locals so unbind
   // is a one-liner (matches sfx-player's pattern).
   let boundBus: GameEventBus | undefined;
@@ -446,7 +437,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
     boundBus = undefined;
     boundHandlers.length = 0;
-    cannonBgFromUpgrade = false;
     buildBgFadeTriggered = false;
     buildBgLastPhase = undefined;
   }
@@ -489,8 +479,12 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         event.bannerKind === "modifier-reveal"
       ) {
         void stopBg(STOP_REASON_PHASE);
-      } else if (event.bannerKind === "build" && cannonBgFromUpgrade) {
-        cannonBgFromUpgrade = false;
+      } else if (
+        event.bannerKind === "build" &&
+        bgPlaying === BG_TRACK_CANNON
+      ) {
+        // Upgrade-pick flow started cannon-bg early to cover the dialog;
+        // stop it here so build-bg can take over at bannerSweepEnd.
         void stopBg(STOP_REASON_PHASE);
       }
     });
@@ -540,7 +534,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // handler (kind === "build") stops it; bannerSweepEnd
     // (kind === "build") starts build-bg.
     bind(GAME_EVENT.UPGRADE_PICK_SHOW, () => {
-      cannonBgFromUpgrade = true;
       void playBg(BG_TRACK_CANNON);
     });
   }
