@@ -245,10 +245,8 @@ export interface OnlineOverlayParams {
  *    `showBanner` overwrites it. This is the state used by the
  *    "hold" between banners (e.g. the 2s beat after a modifier reveal).
  */
-export type BannerStatus = "hidden" | "sweeping" | "swept";
-
-export interface BannerState {
-  status: BannerStatus;
+export interface ActiveBannerState {
+  status: "sweeping" | "swept";
   progress: number;
   text: string;
   subtitle?: string;
@@ -258,9 +256,7 @@ export interface BannerState {
   kind: BannerKind;
   /** Fired once the sweep reaches 1 (or after the optional `holdMs`
    *  expires). Nulled out as it fires, or when a subsequent
-   *  `showBanner` / `hideBanner` replaces this banner — the replaced
-   *  banner's BANNER_REPLACED / BANNER_HIDDEN carries `holdCompleted=false`
-   *  so consumers can detect a dropped hold. */
+   *  `showBanner` / `hideBanner` replaces this banner. */
   callback: (() => void) | null;
   /** Pixel snapshot of the scene composited below the sweep line during
    *  animation. Captured at `showBanner`-time. */
@@ -280,6 +276,12 @@ export interface BannerState {
    *  timer fires. */
   holdTimerId?: number;
 }
+
+/** Banner state is a discriminated union: `hidden` carries no fields
+ *  (no fictional defaults), while the `sweeping` / `swept` variants
+ *  share `ActiveBannerState`. Consumers narrow on `status === "hidden"`
+ *  before reading identity / progress fields. */
+export type BannerState = { readonly status: "hidden" } | ActiveBannerState;
 
 export interface SeedField {
   focus: (currentValue: string) => void;
@@ -703,12 +705,5 @@ export interface TimingApi {
 }
 
 export function createBannerState(): BannerState {
-  return {
-    status: "hidden",
-    progress: 0,
-    text: "",
-    kind: "build",
-    callback: null,
-    holdMs: 0,
-  };
+  return { status: "hidden" };
 }

@@ -249,11 +249,12 @@ Deno.test(
       playerWallCounts: sc.state.players.map((player) => player.walls.size),
       towerAlive: [...sc.state.towerAlive],
       houseCount: sc.state.map.houses.length,
-      banner: {
-        status: sc.banner().status,
-        progress: sc.banner().progress,
-        text: sc.banner().text,
-      },
+      banner: (() => {
+        const banner = sc.banner();
+        return banner.status === "hidden"
+          ? { status: "hidden" as const, progress: 0, text: "" }
+          : { status: banner.status, progress: banner.progress, text: banner.text };
+      })(),
       lobbyActive: sc.lobbyActive(),
       camera: {
         cameraZone: sc.camera.getCameraZone(),

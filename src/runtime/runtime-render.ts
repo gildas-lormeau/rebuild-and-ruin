@@ -112,15 +112,19 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
     }
 
-    const bannerUi = deps.createBannerUi(
-      runtimeState.banner.status !== "hidden",
-      runtimeState.banner.kind,
-      runtimeState.banner.text,
-      runtimeState.banner.progress,
-      runtimeState.banner.subtitle,
-      runtimeState.banner.modifierDiff,
-      runtimeState.banner.prevScene,
-    );
+    const banner = runtimeState.banner;
+    const bannerUi =
+      banner.status === "hidden"
+        ? undefined
+        : deps.createBannerUi(
+            true,
+            banner.kind,
+            banner.text,
+            banner.progress,
+            banner.subtitle,
+            banner.modifierDiff,
+            banner.prevScene,
+          );
 
     // Project full GameState onto the phase-discriminated render view
     // once per frame; pass to overlay builders instead of GameState so

@@ -5108,7 +5108,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "cannon-place",
-        "holdCompleted": true,
         "phase": "CANNON_PLACE",
         "round": 1,
         "text": "Place Cannons"
@@ -8424,7 +8423,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "battle",
-        "holdCompleted": true,
         "phase": "BATTLE",
         "round": 1,
         "text": "Prepare for Battle"
@@ -17016,7 +17014,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "build",
-        "holdCompleted": true,
         "phase": "WALL_BUILD",
         "round": 2,
         "text": "Build & Repair"
@@ -28384,7 +28381,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "cannon-place",
-        "holdCompleted": true,
         "phase": "CANNON_PLACE",
         "round": 2,
         "text": "Place Cannons"
@@ -32375,7 +32371,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "battle",
-        "holdCompleted": true,
         "phase": "BATTLE",
         "round": 2,
         "text": "Prepare for Battle"
@@ -41166,7 +41161,6 @@
       "type": "bannerHidden",
       "payload": {
         "bannerKind": "build",
-        "holdCompleted": true,
         "phase": "WALL_BUILD",
         "round": 3,
         "text": "Build & Repair"

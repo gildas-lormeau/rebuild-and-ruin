@@ -929,11 +929,9 @@ function routeLifeLostResolution(
  *  Banner / upgrade-pick steps hand the capture decision to the banner
  *  system — it captures the current scene inside `showBanner`.
  *
- *  Banner-visibility rule: when all steps complete, the banner is
- *  hidden before `onDone` runs. postDisplay hooks (setMode(GAME),
- *  beginBattle, balloon anim) expect a clean screen — no `swept`
- *  banner lingering over gameplay. `runStep` handles the mid-chain
- *  hiding between non-banner steps. */
+ *  End-of-chain hide: a `swept` banner sits on screen until explicitly
+ *  hidden, so we hide before handing control to postDisplay. Also emits
+ *  the BANNER_HIDDEN beat that closes every banner chain. */
 function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
@@ -1029,13 +1027,6 @@ function runStep(
   result: TransitionResult,
   onDone: () => void,
 ): void {
-  // Hide a lingering banner before a non-banner step so a `swept`
-  // banner (with or without a hold) doesn't sit over a dialog / score
-  // overlay. Banner steps overwrite via `showBanner` cleanly, so the
-  // guard only fires for non-banner steps.
-  if (step.kind !== STEP_BANNER) {
-    ctx.hideBanner();
-  }
   // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
   // on their terminal value when firing their completion callback; the
   // next display step's `showBanner` flips to Mode.BANNER, and the

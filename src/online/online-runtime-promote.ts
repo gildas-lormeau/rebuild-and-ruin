@@ -108,6 +108,11 @@ function clearAnimationState(mode: Mode): string | null {
     case Mode.TRANSITION:
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
+      // Tear down banner state (status + callback + prevScene + any armed
+      // holdMs timer). Without this, a pending hold timer from the old
+      // host's phase chain would fire after promotion and invoke a stale
+      // callback against freshly-rebuilt controllers.
+      _runtime.hideBanner();
       return "Skipped phase transition/animation → game mode";
     case Mode.UPGRADE_PICK:
       // Match the phase-transition + lifecycle paths — go through the

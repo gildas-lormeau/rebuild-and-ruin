@@ -86,25 +86,20 @@ export type LifecycleEvent =
    *  steps (dialogs, score overlays) or the end of a banner chain. Most
    *  banner-end consumers want this one; use it when you need "this
    *  banner went away on its own schedule" (not because another banner
-   *  clobbered it). `holdCompleted` is false only if a pending `holdMs`
-   *  timer was still active when the hide happened — i.e. the post-sweep
-   *  `onDone` callback never got a chance to run. */
+   *  clobbered it). */
   | {
       type: "bannerHidden";
       bannerKind: BannerKind;
       text: string;
       phase: Phase;
       round: number;
-      holdCompleted: boolean;
     }
   /** One banner was overwritten by another via a subsequent `showBanner`
    *  call. Fires synchronously before the new banner's BANNER_START.
    *  Carries both the outgoing and incoming banner identity so consumers
    *  that need the "chain of banners" beat can trace it without keeping
    *  their own history. Watchers legitimately replay banners on
-   *  checkpoint retransmit — those show up here too. `holdCompleted`
-   *  matches BANNER_HIDDEN semantics (false if a holdMs callback was
-   *  dropped). */
+   *  checkpoint retransmit — those show up here too. */
   | {
       type: "bannerReplaced";
       prevKind: BannerKind;
@@ -113,7 +108,6 @@ export type LifecycleEvent =
       newText: string;
       phase: Phase;
       round: number;
-      holdCompleted: boolean;
     }
   /** Between-rounds score-delta overlay started. Fires when
    *  `scoreDelta.show` arms the delta timer at end of WALL_BUILD; pairs

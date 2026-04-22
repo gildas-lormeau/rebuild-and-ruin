@@ -20,27 +20,24 @@
  *     after the `holdMs` timer expires.
  *   - BANNER_HIDDEN on `hideBanner()` when status was non-hidden. The
  *     banner left the screen on its own schedule — not because another
- *     banner clobbered it. Carries `holdCompleted`: false only if a
- *     pending `holdMs` callback was dropped by the hide.
+ *     banner clobbered it.
  *   - BANNER_REPLACED when `showBanner` overwrites an active banner.
- *     Carries `prev*` + `new*` identity + `holdCompleted`. The two
- *     events together cover every way a banner leaves the screen, so
- *     consumers that want the unified "banner went away" beat subscribe
- *     to both.
+ *     Carries `prev*` + `new*` identity. The two events together cover
+ *     every way a banner leaves the screen, so consumers that want the
+ *     unified "banner went away" beat subscribe to both.
  *
  * Hold: when `holdMs` is set on a banner, the `swept → onDone` edge is
  * deferred by that many sim-ms. The banner sits in `swept` state until
  * the hold expires. A new `showBanner` or `hideBanner` during the hold
- * cancels the pending timer (and the emitted BANNER_REPLACED / BANNER_HIDDEN
- * carries `holdCompleted=false` so the drop is observable).
+ * cancels the pending timer.
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
+  type ActiveBannerState,
   type BannerShowOpts,
-  type BannerState,
   createBannerState,
   type TimingApi,
 } from "./runtime-contracts.ts";
@@ -68,13 +65,19 @@ interface BannerSystemDeps {
 interface BannerSystem {
   showBanner: (opts: BannerShowOpts) => void;
   hideBanner: () => void;
+  /** Clear banner pixels + pending hold timer without touching the UI
+   *  mode. For lifecycle teardown paths (rematch, quit-to-lobby) where
+   *  the caller already owns the terminal mode (STOPPED / LOBBY) and
+   *  doesn't want `hideBanner`'s Mode.TRANSITION flip. Does NOT emit
+   *  BANNER_HIDDEN — teardown is not a narrative banner-end beat. */
+  resetBannerState: () => void;
   tickBanner: (dt: number) => void;
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const { runtimeState, log, render, timing, rendererCaptureScene } = deps;
 
-  function clearHoldTimer(banner: BannerState): void {
+  function clearHoldTimer(banner: ActiveBannerState): void {
     if (banner.holdTimerId !== undefined) {
       timing.clearTimeout(banner.holdTimerId);
       banner.holdTimerId = undefined;
@@ -93,32 +96,34 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // (retransmits, host-migration recovery). Log so unusual cases surface,
     // then emit BANNER_REPLACED with both identities so consumers that
     // care about the chain can trace it.
-    const banner = runtimeState.banner;
-    if (banner.status !== "hidden") {
+    const prev = runtimeState.banner;
+    if (prev.status !== "hidden") {
       log(
-        `showBanner "${opts.text}" while banner "${banner.text}" status=${banner.status}`,
+        `showBanner "${opts.text}" while banner "${prev.text}" status=${prev.status}`,
       );
       const state = runtimeState.state;
       emitGameEvent(state.bus, GAME_EVENT.BANNER_REPLACED, {
-        prevKind: banner.kind,
-        prevText: banner.text,
+        prevKind: prev.kind,
+        prevText: prev.text,
         newKind: opts.kind,
         newText: opts.text,
         phase: state.phase,
         round: state.round,
-        holdCompleted: banner.holdTimerId === undefined,
       });
+      clearHoldTimer(prev);
     }
-    clearHoldTimer(banner);
-    banner.status = "sweeping";
-    banner.progress = 0;
-    banner.text = opts.text;
-    banner.subtitle = opts.subtitle;
-    banner.kind = opts.kind;
-    banner.modifierDiff = opts.modifierDiff;
-    banner.callback = opts.onDone;
-    banner.prevScene = prevScene;
-    banner.holdMs = opts.holdMs ?? 0;
+    const next: ActiveBannerState = {
+      status: "sweeping",
+      progress: 0,
+      text: opts.text,
+      subtitle: opts.subtitle,
+      kind: opts.kind,
+      modifierDiff: opts.modifierDiff,
+      callback: opts.onDone,
+      prevScene,
+      holdMs: opts.holdMs ?? 0,
+    };
+    runtimeState.banner = next;
 
     // Banner-on-screen ⇔ Mode.BANNER. Subsystem dialogs (life-lost,
     // upgrade-pick) set their own mode; when their callback chains back
@@ -127,39 +132,38 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
     const state = runtimeState.state;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
-      bannerKind: banner.kind,
-      text: banner.text,
-      subtitle: banner.subtitle,
+      bannerKind: next.kind,
+      text: next.text,
+      subtitle: next.subtitle,
       phase: state.phase,
       round: state.round,
-      modifierId: banner.modifierDiff?.id,
-      changedTiles: banner.modifierDiff?.changedTiles,
+      modifierId: next.modifierDiff?.id,
+      changedTiles: next.modifierDiff?.changedTiles,
     });
   }
 
   function hideBanner(): void {
     const banner = runtimeState.banner;
-    const wasVisible = banner.status !== "hidden";
-    if (wasVisible) {
-      const state = runtimeState.state;
-      emitGameEvent(state.bus, GAME_EVENT.BANNER_HIDDEN, {
-        bannerKind: banner.kind,
-        text: banner.text,
-        phase: state.phase,
-        round: state.round,
-        holdCompleted: banner.holdTimerId === undefined,
-      });
-    }
+    if (banner.status === "hidden") return;
+    const state = runtimeState.state;
+    emitGameEvent(state.bus, GAME_EVENT.BANNER_HIDDEN, {
+      bannerKind: banner.kind,
+      text: banner.text,
+      phase: state.phase,
+      round: state.round,
+    });
     clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
-    // Banner left the screen mid-transition. Flip back to Mode.TRANSITION
-    // so the gap between display steps is honestly "transition, no banner"
-    // rather than lying about a prior gameplay mode. Only do this if the
-    // mode is currently BANNER — lifecycle teardown / mode-replacement
-    // callers (life-lost close, upgrade-pick close) set their own mode.
-    if (wasVisible && runtimeState.mode === Mode.BANNER) {
-      setMode(runtimeState, Mode.TRANSITION);
-    }
+    // Hiding a banner IS a mode transition from Mode.BANNER to
+    // Mode.TRANSITION. Callers that want to clear banner pixels without
+    // touching mode (lifecycle teardown) use `resetBannerState` instead.
+    setMode(runtimeState, Mode.TRANSITION);
+  }
+
+  function resetBannerState(): void {
+    const banner = runtimeState.banner;
+    if (banner.status !== "hidden") clearHoldTimer(banner);
+    runtimeState.banner = createBannerState();
   }
 
   function tickBanner(dt: number) {
@@ -193,5 +197,5 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     render();
   }
 
-  return { showBanner, hideBanner, tickBanner };
+  return { showBanner, hideBanner, resetBannerState, tickBanner };
 }
