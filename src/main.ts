@@ -14,6 +14,7 @@ import {
   createBrowserRuntimeBindings,
   createGameRuntime,
   createLocalNetworkApi,
+  noopNetworkSend,
 } from "./runtime/runtime-composition.ts";
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
@@ -33,7 +34,9 @@ const runtime = createGameRuntime({
   renderer,
   timing,
   keyboardEventSource,
-  network: createLocalNetworkApi(),
+  // Pure-local play has no peers to notify — pass the explicit named
+  // no-op so the absence of a real sender is intentional and visible.
+  network: createLocalNetworkApi({ send: noopNetworkSend }),
   log: IS_DEV ? (msg: string) => console.log(`[local] ${msg}`) : () => {},
   logThrottled: IS_DEV
     ? (() => {

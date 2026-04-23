@@ -375,11 +375,11 @@ export interface FloatingActionsDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
   withPointerPlayer: WithPointerPlayer;
-  tryPlacePieceAndSend: (
+  tryPlacePiece: (
     human: PlayerController & InputReceiver,
     state: BuildViewState,
   ) => boolean;
-  tryPlaceCannonAndSend: (
+  tryPlaceCannon: (
     human: PlayerController & InputReceiver,
     state: CannonViewState,
     max: number,
@@ -582,11 +582,11 @@ export interface GameActionDeps {
     isReselect?: boolean,
   ) => boolean;
   isSelectionReady?: () => boolean;
-  tryPlacePieceAndSend: (
+  tryPlacePiece: (
     ctrl: PlayerController & InputReceiver,
     state: BuildViewState,
   ) => boolean;
-  tryPlaceCannonAndSend: (
+  tryPlaceCannon: (
     ctrl: PlayerController & InputReceiver,
     state: CannonViewState,
     max: number,
@@ -595,7 +595,7 @@ export interface GameActionDeps {
   onPiecePlaced?: () => void;
   onPieceFailed?: () => void;
   onCannonPlaced?: () => void;
-  fireAndSend: (ctrl: PlayerController, state: BattleViewState) => void;
+  fire: (ctrl: PlayerController, state: BattleViewState) => void;
 }
 
 export interface PointerMoveDeps {

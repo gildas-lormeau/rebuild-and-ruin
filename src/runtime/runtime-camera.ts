@@ -3,11 +3,6 @@
  *
  * Owns all viewport state (zone bounds, pinch zoom, auto-zoom, lerp)
  * and exposes a pure API for the runtime to call.
- *
- * NOTE: Uses the all-getters deps pattern (not destructured runtimeState) because
- * camera state can change during host migration — every field must be re-read via
- * getter to avoid stale references. See CameraDeps interface below and the
- * convention note in runtime-types.ts.
  */
 
 import {
@@ -87,8 +82,6 @@ const TILT_BATTLE_PITCH = Math.PI / 6;
 /** Pitch animation duration (seconds). CSS `transition: Xms ease-out` equivalent. */
 const PITCH_DURATION = 0.6;
 
-// Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
-// State is accessed via deps.getState(), deps.getCtx(), etc. throughout.
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
   //
@@ -148,16 +141,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | undefined;
 
-  // Pre-transition unzoom choreography. The phase machine calls
-  // `requestUnzoom` at transition dispatch; it clears cameraZone and
-  // pinchVp (saving pinchVp into the phase-keyed `phasePinch` slot
-  // first, so autoZoom on the NEW phase can restore it) and parks
-  // `onReady` for the first frame whose drawFrame finished with the
-  // viewport at fullMapVp. That's the critical ordering: callback
-  // fires AFTER the full-map frame is rendered, so any `captureScene`
-  // inside the callback reads those full-map pixels rather than a
-  // mid-lerp frame. On the target phase, `handlePhaseChangeZoom`
-  // re-derives cameraZone via `autoZoom` — no explicit restore step.
+  // Pre-transition unzoom choreography — parked callback fired by the
+  // post-render hook once drawFrame has rendered a full-map flat frame.
+  // See `requestUnzoom` for the full contract (what it clears, ordering
+  // guarantees, and idempotent-replace semantics).
   let pendingUnzoomReady: (() => void) | undefined;
 
   // Pitch animation — targetPitch is re-set on phase-enter (see
@@ -699,7 +686,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  ran at fullMapVp AND pitch has settled at 0. Callers (the phase
    *  machine's `runTransition`) wait for that callback before running
    *  mutate + display, which guarantees the banner's prev-scene capture
-   *  reads a full-map-rendered, flat pre-mutation frame.
+   *  reads a full-map-rendered, flat pre-mutation frame. On the target
+   *  phase, `handlePhaseChangeZoom` re-derives cameraZone via `autoZoom`
+   *  — no explicit restore step.
    *
    *  Idempotent replace: a second `requestUnzoom` before the first
    *  fires simply swaps the callback. The first call already cleared

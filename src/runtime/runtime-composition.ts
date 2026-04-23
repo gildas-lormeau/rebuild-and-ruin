@@ -82,6 +82,7 @@ import {
 } from "../shared/core/player-slot.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
+import { assertNever } from "../shared/platform/utils.ts";
 import type {
   RendererInterface,
   RenderOverlay,
@@ -147,6 +148,10 @@ import { createSoundModal } from "./sound-modal.ts";
  *  seam, which is `ReadonlySet<ValidPlayerSlot>`, so the shared instance is
  *  immutable from every caller's perspective. */
 const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerSlot> = new Set();
+/** Explicit no-op sender for pure-local play (no peers to notify).
+ *  Named so call sites communicate intent rather than silently swallow
+ *  messages via a default. */
+export const noopNetworkSend: (msg: GameMessage) => void = () => {};
 
 /**
  * Browser-side bindings for `RuntimeConfig`.
@@ -183,25 +188,25 @@ export function createBrowserRuntimeBindings(
  * play (src/main.ts) and the headless test runtime (test/runtime-headless.ts).
  *
  * The base shape is: `amHost=true`, `myPlayerId=SPECTATOR_SLOT`, empty
- * remotes, no-op `send`, no-op `onMessage`. Callers can override `send`
- * (e.g. headless test observers), `onMessage` (e.g. headless in-memory
- * loopback), and `remotePlayerSlots` (e.g. headless simulating a peer
- * machine). Online play (src/online/online-runtime-game.ts) does NOT use
- * this factory — it builds its own `NetworkApi` backed by the WebSocket
- * client session.
+ * remotes, no-op `onMessage`. `send` is REQUIRED — callers must pass an
+ * explicit sender (or the named `noopNetworkSend` for pure-local play)
+ * so a test that forgets to wire the network seam fails loudly instead
+ * of silently dropping every message. Callers can override `onMessage`
+ * (e.g. headless in-memory loopback) and `remotePlayerSlots` (e.g.
+ * headless simulating a peer machine). Online play
+ * (src/online/online-runtime-game.ts) does NOT use this factory — it
+ * builds its own `NetworkApi` backed by the WebSocket client session.
  */
-export function createLocalNetworkApi(
-  opts: {
-    send?: (msg: GameMessage) => void;
-    onMessage?: (
-      handler: (msg: ServerMessage) => void | Promise<void>,
-    ) => () => void;
-    remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
-  } = {},
-): NetworkApi {
+export function createLocalNetworkApi(opts: {
+  send: (msg: GameMessage) => void;
+  onMessage?: (
+    handler: (msg: ServerMessage) => void | Promise<void>,
+  ) => () => void;
+  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
+}): NetworkApi {
   const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;
   return {
-    send: opts.send ?? (() => {}),
+    send: opts.send,
     onMessage: opts.onMessage ?? (() => () => {}),
     amHost: () => true,
     myPlayerId: () => SPECTATOR_SLOT,
@@ -341,25 +346,48 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Main loop
   // -------------------------------------------------------------------------
 
-  // TickDispatch (runtime-state.ts) is Record<TickableMode, ...> where
-  // TickableMode = Exclude<Mode, Mode.STOPPED>. Adding a new Mode without
-  // a corresponding ticker entry here is a compile error.
-  // Hoisted outside mainLoop — closures are stable, avoids per-frame allocation.
-  const modeTickers = {
-    [Mode.LOBBY]: (dt: number) => {
-      lobby.tickLobby(dt);
-      lobby.renderLobby();
-    },
-    [Mode.OPTIONS]: () => options.renderOptions(),
-    [Mode.CONTROLS]: () => options.renderControls(),
-    [Mode.SELECTION]: (dt: number) => selection.tick(dt),
-    [Mode.TRANSITION]: (dt: number) => tickBanner(dt),
-    [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
-    [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
-    [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
-    [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
-    [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
-  } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
+  // Single-switch dispatch for the per-frame mode tick. Centralizes the
+  // mapping from Mode → tick handler with an exhaustive `default` branch
+  // so an unhandled Mode is a loud failure rather than a silent no-op.
+  // Adding a new Mode is a compile error here (assertNever) AND at the
+  // call site (TickableMode-typed parameter in tickMainLoop).
+  function tickMode(mode: Exclude<Mode, Mode.STOPPED>, dt: number): void {
+    switch (mode) {
+      case Mode.LOBBY:
+        lobby.tickLobby(dt);
+        lobby.renderLobby();
+        return;
+      case Mode.OPTIONS:
+        options.renderOptions();
+        return;
+      case Mode.CONTROLS:
+        options.renderControls();
+        return;
+      case Mode.SELECTION:
+        selection.tick(dt);
+        return;
+      case Mode.TRANSITION:
+        tickBanner(dt);
+        return;
+      case Mode.BALLOON_ANIM:
+        phaseTicks.tickBalloonAnim(dt);
+        return;
+      case Mode.CASTLE_BUILD:
+        selection.tickCastleBuild(dt);
+        return;
+      case Mode.LIFE_LOST:
+        lifeLost.tick(dt);
+        return;
+      case Mode.UPGRADE_PICK:
+        upgradePick.tick(dt);
+        return;
+      case Mode.GAME:
+        phaseTicks.tickGame(dt);
+        return;
+      default:
+        assertNever(mode);
+    }
+  }
   const { clearFrameData, mainLoop } = createRuntimeLoop({
     runtimeState,
     timing,
@@ -373,7 +401,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickCamera: () => tickCamera(),
     tickScoreDelta: (dt: number) => scoreDelta.tick(dt),
     render: () => render(),
-    ticks: modeTickers,
+    tickMode,
     onAfterFrame: () => {
       // Per-frame tick event — emitted in BOTH headless and E2E so tests
       // can subscribe consistently across runtimes. Gated on state-ready
@@ -391,7 +419,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         music.tickPresentation(runtimeState.state);
       }
       if (IS_DEV) {
-        exposeE2EBridge({ runtimeState, config, camera, renderer });
+        exposeE2EBridge({
+          runtimeState,
+          config,
+          camera,
+          renderer,
+          // `eventTarget` is the UI canvas (see render-canvas.ts /
+          // render/3d/renderer.ts); narrowed here because the bridge's
+          // `captureOn` PNG capture needs the HTMLCanvasElement surface.
+          canvas: renderer.eventTarget as HTMLCanvasElement,
+        });
         exposeDevConsole(runtimeState, timing);
       }
     },

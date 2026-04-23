@@ -82,19 +82,16 @@ interface InputSystemDeps {
   // this is named `actions` rather than `network`.
   readonly actions: {
     readonly maybeSendAimUpdate?: (x: number, y: number) => void;
-    readonly tryPlaceCannonAndSend?: (
+    readonly tryPlaceCannon?: (
       ctrl: PlayerController & InputReceiver,
       gameState: CannonViewState,
       max: number,
     ) => boolean;
-    readonly tryPlacePieceAndSend: (
+    readonly tryPlacePiece: (
       ctrl: PlayerController & InputReceiver,
       gameState: BuildViewState,
     ) => boolean;
-    readonly fireAndSend: (
-      ctrl: PlayerController,
-      gameState: BattleViewState,
-    ) => void;
+    readonly fire: (ctrl: PlayerController, gameState: BattleViewState) => void;
   };
 
   // Sub-systems (inline signatures to avoid cross-sub-system imports)
@@ -228,13 +225,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
   // ── Placement handlers (raw — placed-piece feedback via dispatch) ──
   const placeCannon =
-    deps.actions.tryPlaceCannonAndSend ??
+    deps.actions.tryPlaceCannon ??
     ((
       ctrl: PlayerController & InputReceiver,
       gameState: CannonViewState,
       max: number,
     ) => ctrl.tryPlaceCannon(gameState, max));
-  const placePieceRaw = deps.actions.tryPlacePieceAndSend;
+  const placePieceRaw = deps.actions.tryPlacePiece;
 
   const coordsDeps: RegisterOnlineInputDeps["coords"] = {
     pixelToTile: camera.pixelToTile,
@@ -254,7 +251,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     selection,
     placeCannon,
     placePieceRaw,
-    deps.actions.fireAndSend,
+    deps.actions.fire,
   );
 
   // ── Combined input deps: assembles all subsystem deps ──
@@ -511,16 +508,16 @@ function buildGameActionDeps(
   selection: InputSystemDeps["selection"],
   placeCannon: PlaceCannonFn,
   placePiece: PlacePieceFn,
-  fireAndSend: InputSystemDeps["actions"]["fireAndSend"],
+  fire: InputSystemDeps["actions"]["fire"],
 ) {
   return {
     getSelectionStates: () => runtimeState.selection.states,
     highlightTowerForPlayer: selection.highlight,
     confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
     isSelectionReady: selection.isReady,
-    tryPlaceCannonAndSend: placeCannon,
-    tryPlacePieceAndSend: placePiece,
-    fireAndSend,
+    tryPlaceCannon: placeCannon,
+    tryPlacePiece: placePiece,
+    fire,
   };
 }
 
@@ -675,10 +672,8 @@ function setupFloatingActions(
   deps: InputSystemDeps,
 ): void {
   const { runtimeState, renderer, withPointerPlayer } = deps;
-  const {
-    tryPlacePieceAndSend: placePieceAction,
-    tryPlaceCannonAndSend: placeCannonAction,
-  } = inputDeps.gameAction;
+  const { tryPlacePiece: placePieceAction, tryPlaceCannon: placeCannonAction } =
+    inputDeps.gameAction;
 
   const floatingEl = deps.floatingActionsEl;
   if (floatingEl) {
@@ -688,8 +683,8 @@ function setupFloatingActions(
         getMode: () => runtimeState.mode,
         withPointerPlayer,
         emitUiTap: deps.emitUiTap,
-        tryPlacePieceAndSend: placePieceAction,
-        tryPlaceCannonAndSend: placeCannonAction,
+        tryPlacePiece: placePieceAction,
+        tryPlaceCannon: placeCannonAction,
         onDrag: (clientX, clientY) => {
           const state = safeState(runtimeState);
           if (!state) return;

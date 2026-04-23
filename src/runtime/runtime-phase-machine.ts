@@ -419,6 +419,15 @@ export interface PhaseTransitionCtx {
   readonly watcher?: WatcherHooks;
 }
 
+/** Bundles a paired `mutate` + `postDisplay` so the type system enforces
+ *  the link between the two halves of a transition step that share state /
+ *  invariants. Without the bundle, the pairing is naming-convention only
+ *  and signature drift on one half goes unnoticed until runtime. */
+interface TransitionStep {
+  readonly mutate: (ctx: PhaseTransitionCtx) => TransitionResult;
+  readonly postDisplay: (ctx: PhaseTransitionCtx) => void;
+}
+
 /** Default "no battle-entry data" result. Every transition whose mutate
  *  doesn't produce a modifier roll or balloon flights returns this (or
  *  spreads it). Keeps `TransitionResult.modifierDiff` / `flights` strictly
@@ -603,26 +612,25 @@ const CEASEFIRE: Transition = {
   display: BUILD_ENTRY_DISPLAY,
   postDisplay: { host: buildEntryHostPostDisplay },
 };
-/** Shared watcher mutate for every transition that enters CANNON_PLACE
- *  (`castle-select-done`, `castle-reselect-done`, `advance-to-cannon`).
- *  The watcher dispatches one id regardless of host-side source, so all
- *  three transitions point their `mutate.watcher` at this fn.
+/** Shared watcher mutate + postDisplay for every transition that enters
+ *  CANNON_PLACE (`castle-select-done`, `castle-reselect-done`,
+ *  `advance-to-cannon`). The watcher dispatches one id regardless of
+ *  host-side source, so all three transitions reuse this bundle.
  *  `applyCannonStart` restores `state.timer` from the checkpoint payload —
  *  no separate override needed since the host serializes it right after
  *  `enterCannonPhase` (which set it to `cannonPlaceTimer`). */
-const CANNON_ENTRY_WATCHER_MUTATE = (
-  ctx: PhaseTransitionCtx,
-): TransitionResult => {
-  const msg = ctx.incomingMsg as CannonStartData;
-  ctx.checkpoint?.applyCannonStart?.(msg);
-  setPhase(ctx.state, Phase.CANNON_PLACE);
-  return EMPTY_TRANSITION_RESULT;
-};
-/** Shared watcher postDisplay paired with `CANNON_ENTRY_WATCHER_MUTATE`. */
-const CANNON_ENTRY_WATCHER_POSTDISPLAY = (ctx: PhaseTransitionCtx): void => {
-  ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
-  ctx.setMode(Mode.GAME);
-  ctx.watcher?.initLocalCannonControllerIfActive();
+const CANNON_ENTRY_WATCHER_STEP: TransitionStep = {
+  mutate: (ctx) => {
+    const msg = ctx.incomingMsg as CannonStartData;
+    ctx.checkpoint?.applyCannonStart?.(msg);
+    setPhase(ctx.state, Phase.CANNON_PLACE);
+    return EMPTY_TRANSITION_RESULT;
+  },
+  postDisplay: (ctx) => {
+    ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
+    ctx.setMode(Mode.GAME);
+    ctx.watcher?.initLocalCannonControllerIfActive();
+  },
 };
 /** `castle-select-done` — CASTLE_SELECT → CANNON_PLACE (round 1 / initial).
  *
@@ -646,7 +654,7 @@ const CASTLE_SELECT_DONE: Transition = {
       ctx.broadcast?.cannonStart?.(ctx.state);
       return EMPTY_TRANSITION_RESULT;
     },
-    watcher: CANNON_ENTRY_WATCHER_MUTATE,
+    watcher: CANNON_ENTRY_WATCHER_STEP.mutate,
   },
   postMutate: clearBattleAnim,
   display: [
@@ -662,7 +670,7 @@ const CASTLE_SELECT_DONE: Transition = {
       ctx.initLocalCannonControllers?.();
       ctx.setMode(Mode.GAME);
     },
-    watcher: CANNON_ENTRY_WATCHER_POSTDISPLAY,
+    watcher: CANNON_ENTRY_WATCHER_STEP.postDisplay,
   },
 };
 /** `castle-reselect-done` — CASTLE_RESELECT → CANNON_PLACE (after a
@@ -687,7 +695,7 @@ const CASTLE_RESELECT_DONE: Transition = {
       ctx.broadcast?.cannonStart?.(ctx.state);
       return EMPTY_TRANSITION_RESULT;
     },
-    watcher: CANNON_ENTRY_WATCHER_MUTATE,
+    watcher: CANNON_ENTRY_WATCHER_STEP.mutate,
   },
   postMutate: clearBattleAnim,
   display: CASTLE_SELECT_DONE.display,
@@ -714,7 +722,7 @@ const ADVANCE_TO_CANNON: Transition = {
       ctx.broadcast?.cannonStart?.(ctx.state);
       return EMPTY_TRANSITION_RESULT;
     },
-    watcher: CANNON_ENTRY_WATCHER_MUTATE,
+    watcher: CANNON_ENTRY_WATCHER_STEP.mutate,
   },
   postMutate: clearBattleAnim,
   display: CASTLE_SELECT_DONE.display,
@@ -1086,12 +1094,12 @@ function runLifeLostDialogStep(
     result.continuing = continuing;
     onDone();
   };
-  if (!ctx.lifeLost) {
-    finish([]);
-    return;
-  }
-  if (needsReselect.length === 0 && eliminated.length === 0) {
-    ctx.lifeLost.show([], [], finish);
+  if (
+    !ctx.lifeLost ||
+    (needsReselect.length === 0 && eliminated.length === 0)
+  ) {
+    if (ctx.lifeLost) ctx.lifeLost.show([], [], finish);
+    else finish([]);
     return;
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.

@@ -176,9 +176,12 @@ export interface RuntimeState {
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
 type TickableMode = Exclude<Mode, Mode.STOPPED>;
 
-/** Tick dispatch table — mapped type forces every tickable Mode to have
- *  a handler.  Adding a new Mode without a handler is a compile error. */
-type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
+/** Single per-frame tick dispatcher. The composition root implements this
+ *  as a `switch (mode)` with an `assertNever` default so an unhandled
+ *  Mode is a loud runtime failure rather than a silent no-op. The
+ *  `TickableMode`-typed parameter also forces a compile error if a new
+ *  Mode is added without a corresponding case. */
+type TickDispatch = (mode: TickableMode, dt: number) => void;
 
 interface FrameContextInputs {
   mode: Mode;
@@ -354,9 +357,9 @@ export function tickMainLoop(params: {
   readonly setQuitPending: (quitPending: boolean) => void;
   readonly setQuitTimer: (quitTimer: number) => void;
   readonly render: () => void;
-  readonly ticks: TickDispatch;
+  readonly tickMode: TickDispatch;
 }): boolean {
-  const { dt, mode, frame, ticks } = params;
+  const { dt, mode, frame, tickMode } = params;
 
   // Tick ESC-to-quit countdown
   if (params.quitPending) {
@@ -378,7 +381,7 @@ export function tickMainLoop(params: {
 
   if (mode === Mode.STOPPED) return false;
 
-  ticks[mode](dt);
+  tickMode(mode, dt);
 
   return true;
 }

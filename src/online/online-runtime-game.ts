@@ -227,9 +227,9 @@ const runtime: GameRuntime = createGameRuntime({
   },
   onlineActions: {
     maybeSendAimUpdate,
-    tryPlaceCannonAndSend: sendActions.tryPlaceCannonAndSend,
-    tryPlacePieceAndSend: sendActions.tryPlacePieceAndSend,
-    fireAndSend: sendActions.fireAndSend,
+    tryPlaceCannon: sendActions.tryPlaceCannon,
+    tryPlacePiece: sendActions.tryPlacePiece,
+    fire: sendActions.fire,
   },
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);

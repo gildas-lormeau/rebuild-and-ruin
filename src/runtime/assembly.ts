@@ -30,26 +30,25 @@ import type { RuntimeConfig } from "./runtime-types.ts";
 /** Action surface consumed by the input dispatcher.
  *
  *  This is NOT NetworkApi (the runtime/ ↔ peers seam). It's the bag of
- *  network-aware game-action wrappers (`tryPlacePieceAndSend` etc.) with
- *  local fallbacks installed when offline. The "AndSend" suffix on each
- *  method is a misnomer in local mode — there the function just executes
- *  the action and skips the network step.
+ *  game-action wrappers (`tryPlacePiece` etc.) that execute the action
+ *  locally and, when online, also broadcast it — local fallbacks are
+ *  installed when offline so the surface stays uniform.
  *
  *  Named `actions` (not `network`) to avoid confusion with
  *  `RuntimeConfig.network: NetworkApi`. */
 interface RuntimeInputAdapters {
   actions: {
     maybeSendAimUpdate?: (x: number, y: number) => void;
-    tryPlaceCannonAndSend?: (
+    tryPlaceCannon?: (
       ctrl: PlayerController & InputReceiver,
       gameState: CannonViewState,
       max: number,
     ) => boolean;
-    tryPlacePieceAndSend: (
+    tryPlacePiece: (
       ctrl: PlayerController & InputReceiver,
       gameState: BuildViewState,
     ) => boolean;
-    fireAndSend: (ctrl: PlayerController, gameState: BattleViewState) => void;
+    fire: (ctrl: PlayerController, gameState: BattleViewState) => void;
   };
 }
 
@@ -68,7 +67,10 @@ interface RuntimeLoopDeps {
   tickCamera: () => void;
   tickScoreDelta: (dt: number) => void;
   render: () => void;
-  ticks: Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
+  /** Single dispatcher invoked once per sim sub-step. Implemented as a
+   *  switch + assertNever in the composition root so an unknown mode is
+   *  a loud failure rather than a silent no-op. */
+  tickMode: (mode: Exclude<Mode, Mode.STOPPED>, dt: number) => void;
   onAfterFrame?: () => void;
 }
 
@@ -160,7 +162,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
         deps.runtimeState.quit.timer = quitTimer;
       },
       render: deps.render,
-      ticks: deps.ticks,
+      tickMode: deps.tickMode,
     });
   }
 
@@ -202,12 +204,12 @@ export function createRuntimeInputAdapters(params: {
   return {
     actions: {
       maybeSendAimUpdate: config.onlineActions?.maybeSendAimUpdate,
-      tryPlaceCannonAndSend: config.onlineActions?.tryPlaceCannonAndSend,
-      tryPlacePieceAndSend:
-        config.onlineActions?.tryPlacePieceAndSend ??
+      tryPlaceCannon: config.onlineActions?.tryPlaceCannon,
+      tryPlacePiece:
+        config.onlineActions?.tryPlacePiece ??
         ((ctrl, gameState) => params.localPlacePiece(ctrl, gameState)),
-      fireAndSend:
-        config.onlineActions?.fireAndSend ??
+      fire:
+        config.onlineActions?.fire ??
         ((ctrl, gameState) => params.localFire(ctrl, gameState)),
     },
   };

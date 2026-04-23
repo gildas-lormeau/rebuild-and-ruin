@@ -239,8 +239,8 @@ export function dispatchPlacement(
     ) => void;
     gameAction: Pick<
       GameActionDeps,
-      | "tryPlacePieceAndSend"
-      | "tryPlaceCannonAndSend"
+      | "tryPlacePiece"
+      | "tryPlaceCannon"
       | "onPiecePlaced"
       | "onPieceFailed"
       | "onCannonPlaced"
@@ -262,14 +262,14 @@ export function dispatchBattleFire(
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
     coords: { screenToWorld: (x: number, y: number) => WorldPos };
-    gameAction: Pick<GameActionDeps, "fireAndSend">;
+    gameAction: Pick<GameActionDeps, "fire">;
   },
 ): void {
   if (state.phase !== Phase.BATTLE) return;
   deps.withPointerPlayer((human) => {
     const w = deps.coords.screenToWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
-    deps.gameAction.fireAndSend(human, state);
+    deps.gameAction.fire(human, state);
   });
 }
 
@@ -376,7 +376,7 @@ export function dispatchGameAction(
       return true;
     }
     if (action === Action.CONFIRM) {
-      deps.fireAndSend(ctrl, state);
+      deps.fire(ctrl, state);
       return true;
     }
     return false;
@@ -434,8 +434,8 @@ function dispatchPlacementAction(
   state: GameState,
   deps: Pick<
     GameActionDeps,
-    | "tryPlacePieceAndSend"
-    | "tryPlaceCannonAndSend"
+    | "tryPlacePiece"
+    | "tryPlaceCannon"
     | "onPieceRotated"
     | "onPiecePlaced"
     | "onPieceFailed"
@@ -469,8 +469,8 @@ export function dispatchPlacementConfirm(
   state: GameState,
   deps: Pick<
     GameActionDeps,
-    | "tryPlacePieceAndSend"
-    | "tryPlaceCannonAndSend"
+    | "tryPlacePiece"
+    | "tryPlaceCannon"
     | "onPiecePlaced"
     | "onPieceFailed"
     | "onCannonPlaced"
@@ -478,12 +478,12 @@ export function dispatchPlacementConfirm(
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
     if (!canBuildThisFrame(state, ctrl.playerId)) return;
-    const placed = deps.tryPlacePieceAndSend(ctrl, state);
+    const placed = deps.tryPlacePiece(ctrl, state);
     if (placed) deps.onPiecePlaced?.();
     else deps.onPieceFailed?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    const placed = deps.tryPlaceCannonAndSend(ctrl, state, max);
+    const placed = deps.tryPlaceCannon(ctrl, state, max);
     if (placed) deps.onCannonPlaced?.();
   }
 }

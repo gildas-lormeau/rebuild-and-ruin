@@ -26,7 +26,7 @@ interface OnlineSendActionsDeps {
 export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
   const { send, getState } = deps;
 
-  function tryPlacePieceAndSend(
+  function tryPlacePiece(
     ctrl: ControllerIdentity & BuildController & InputReceiver,
     gameState: BuildViewState,
   ): boolean {
@@ -45,7 +45,7 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     return placed;
   }
 
-  function tryPlaceCannonAndSend(
+  function tryPlaceCannon(
     ctrl: ControllerIdentity & CannonController & InputReceiver,
     gameState: CannonViewState,
     max: number,
@@ -66,15 +66,12 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     return placed;
   }
 
-  function fireAndSend(
-    ctrl: BattleController,
-    gameState: BattleViewState,
-  ): void {
+  function fire(ctrl: BattleController, gameState: BattleViewState): void {
     const intent = ctrl.fire(gameState);
     if (!intent) return;
     const ball = executeCannonFire(getState(), intent, ctrl);
     if (ball) send(createCannonFiredMsg(ball));
   }
 
-  return { tryPlacePieceAndSend, tryPlaceCannonAndSend, fireAndSend };
+  return { tryPlacePiece, tryPlaceCannon, fire };
 }

@@ -198,18 +198,18 @@ export interface OnlineActions {
   /** Send aim_update for the local pointer's crosshair (deduped). */
   maybeSendAimUpdate: (x: number, y: number) => void;
   /** Try to place a cannon; on success, broadcast OPPONENT_CANNON_PLACED. */
-  tryPlaceCannonAndSend: (
+  tryPlaceCannon: (
     ctrl: ControllerIdentity & CannonController & InputReceiver,
     gameState: CannonViewState,
     max: number,
   ) => boolean;
   /** Try to place a piece; on success, broadcast OPPONENT_PIECE_PLACED. */
-  tryPlacePieceAndSend: (
+  tryPlacePiece: (
     ctrl: ControllerIdentity & BuildController & InputReceiver,
     gameState: BuildViewState,
   ) => boolean;
   /** Fire a cannon; on success, broadcast CANNON_FIRED. */
-  fireAndSend: (ctrl: BattleController, gameState: BattleViewState) => void;
+  fire: (ctrl: BattleController, gameState: BattleViewState) => void;
 }
 
 /** Network seam for a single runtime instance ("machine"). NetworkApi is

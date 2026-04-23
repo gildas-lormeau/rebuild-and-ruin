@@ -101,7 +101,7 @@ If you hold those three in mind, the file structure makes sense.
   HOST_MIGRATION, INIT, etc.). Mutates session slot state atomically
   (clearLobbySlot / occupyLobbySlot).
 - **`online-send-actions.ts`** — `createOnlineSendActions()` —
-  `tryPlacePieceAndSend`, `tryPlaceCannonAndSend`, `fireAndSend` —
+  `tryPlacePiece`, `tryPlaceCannon`, `fire` —
   action wrappers that apply locally THEN broadcast the event. Used
   by the local controller path.
 - **`online-host-crosshairs.ts`** — Host-side crosshair networking.

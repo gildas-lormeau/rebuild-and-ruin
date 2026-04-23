@@ -1,9 +1,10 @@
 /**
  * E2E test bridge — exposes game internals on `window.__e2e` each frame.
  *
- * Dev-only (guarded by IS_DEV at call site). Provides structured access to
- * game state, render overlay, camera, controllers, and network for Playwright
- * tests. Replaces the old runtime-test-globals.ts.
+ * Dev-only (guarded by IS_DEV at call site AND inside `exposeE2EBridge`,
+ * defence-in-depth so the bridge never ships to production). Provides
+ * structured access to game state, render overlay, camera, controllers,
+ * and network for Playwright tests. Replaces the old runtime-test-globals.ts.
  */
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
@@ -21,6 +22,7 @@ import {
   isHuman,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { IS_DEV } from "../shared/platform/platform.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   buildGrid,
@@ -234,6 +236,12 @@ interface E2EBridgeDeps {
   renderer: {
     eventTarget: HTMLElement;
   };
+  /** The UI canvas used for E2E `captureOn` PNG snapshots. May be null
+   *  if the bridge fires before the canvas mounts; capture entries are
+   *  simply omitted in that window. Sourced from the call site rather
+   *  than `document.getElementById("canvas")` so renames of the DOM id
+   *  surface as a type error instead of a silent null. */
+  canvas: HTMLCanvasElement | null;
 }
 
 interface CaptureFilter {
@@ -263,6 +271,11 @@ let subscribedBus: GameEventBus | undefined;
  *  Called once per frame from the main loop (dev-only). */
 export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   if (typeof window === "undefined") return;
+  // Defence in depth — the call site (runtime-composition.ts) already
+  // gates this on IS_DEV, but a second guard ensures the bridge never
+  // ships its internal-state capture surface to production even if
+  // tree-shaking fails or the call site is later edited carelessly.
+  if (!IS_DEV) return;
 
   const win = globalThis as unknown as Record<string, unknown>;
 
@@ -313,11 +326,19 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       enableMobileZoom: () => deps.camera.enableMobileZoom(),
       busLog: [],
       captureOn: (type, predicateSrc) => {
-        const predicate: (ev: unknown) => boolean = predicateSrc
-          ? (new Function("ev", `return (${predicateSrc})(ev);`) as (
+        let predicate: (ev: unknown) => boolean = () => true;
+        if (predicateSrc) {
+          try {
+            predicate = new Function("ev", `return (${predicateSrc})(ev);`) as (
               ev: unknown,
-            ) => boolean)
-          : () => true;
+            ) => boolean;
+          } catch (err) {
+            console.warn(
+              `[e2e-bridge] captureOn(${JSON.stringify(type)}): failed to compile predicate, falling back to match-all. Source: ${predicateSrc}`,
+              err,
+            );
+          }
+        }
         captureFilters.push({ type, predicate });
       },
     };
@@ -353,14 +374,15 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
   subscribedBus = bus;
 
   // Capture a PNG synchronously — runs inside the bus handler BEFORE
-  // any chained callback can re-render the canvas.
+  // any chained callback can re-render the canvas. The canvas is sourced
+  // from `deps.canvas` (plumbed through from the composition root) so any
+  // future rename of the DOM id surfaces as a type error rather than a
+  // silent null. Null-tolerant: the bridge can fire before the canvas
+  // mounts, in which case the matching busLog entry simply has no
+  // `capture` field.
   const captureCanvas = (): string | null => {
-    const canvas =
-      typeof document !== "undefined"
-        ? (document.getElementById("canvas") as HTMLCanvasElement | null)
-        : null;
-    if (!canvas) return null;
-    return canvas.toDataURL("image/png");
+    if (!deps.canvas) return null;
+    return deps.canvas.toDataURL("image/png");
   };
 
   // Record every bus event into busLog. When an event matches a filter
