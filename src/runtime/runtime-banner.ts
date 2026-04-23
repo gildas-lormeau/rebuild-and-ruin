@@ -57,9 +57,15 @@ interface BannerSystemDeps {
   readonly timing: TimingApi;
   /** Renderer scene capture — returns the current display pixels or
    *  `undefined` in headless / pre-first-frame. Called internally from
-   *  `showBanner` as its first operation so the captured frame is the
-   *  one the user was last shown. */
+   *  `showBanner` twice: once before `forceRender` to capture the old
+   *  scene (A), once after to capture the new scene (B). */
   readonly rendererCaptureScene: () => ImageData | undefined;
+  /** Force one synchronous `render()`. Called inside `showBanner`
+   *  between the A and B captures so B reflects any post-mutation state
+   *  queued by callers (the phase machine) before showBanner ran. In
+   *  practice this is the same closure as `render`, but named
+   *  separately so the intent at the call site is explicit. */
+  readonly forceRender: () => void;
 }
 
 interface BannerSystem {
@@ -74,7 +80,14 @@ interface BannerSystem {
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
-  const { runtimeState, log, render, timing, rendererCaptureScene } = deps;
+  const {
+    runtimeState,
+    log,
+    render,
+    timing,
+    rendererCaptureScene,
+    forceRender,
+  } = deps;
 
   function clearHoldTimer(banner: ActiveBannerState): void {
     if (banner.holdTimerId !== undefined) {
@@ -85,21 +98,26 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
-    // Two-snapshot model:
-    //   - `prevScene` (A) = old scene, supplied by the phase machine.
-    //     Captured once per transition inside `runTransition`'s
-    //     `requestUnzoom` callback, BEFORE `mutate` runs. Undefined for
-    //     callers outside the phase machine (no old scene to pair).
-    //   - `newScene` (B) = new scene, captured here. The phase machine
-    //     forces one synchronous `render()` after `mutate` + `postMutate`
-    //     before dispatching display steps, so these pixels reflect the
-    //     post-mutation world.
+    // Two-snapshot model — captured entirely inside `showBanner` so each
+    // banner owns its own pair of snapshots:
+    //   - `prevScene` (A) = current display pixels at the moment
+    //     `showBanner` was called. For the first banner in a transition
+    //     this is the pre-mutation scene (the phase machine has not yet
+    //     flushed post-mutation pixels). For subsequent banners in the
+    //     same transition it is whatever the previous banner's `B`
+    //     painted to screen.
+    //   - `newScene` (B) = post-`forceRender` scene. Callers may have
+    //     mutated state between `showBanner` calls without rendering;
+    //     the forced render here flushes any pending mutation so B
+    //     reflects it.
     // Both snapshots are frozen for the duration of the sweep — the
     // renderer paints them on either side of the sweep line and does
     // not repaint world contents.
-    const image = rendererCaptureScene();
-    const newScene = image ? { image } : undefined;
-    const prevScene = opts.prevScene;
+    const prevImage = rendererCaptureScene();
+    const prevScene = prevImage ? { image: prevImage } : undefined;
+    forceRender();
+    const newImage = rendererCaptureScene();
+    const newScene = newImage ? { image: newImage } : undefined;
 
     // Overwrite on re-entry. Watchers legitimately replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep

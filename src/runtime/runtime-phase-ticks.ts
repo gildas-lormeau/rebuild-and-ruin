@@ -109,10 +109,6 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  /** Renderer scene capture — threaded into `PhaseTransitionCtx` so
-   *  `runTransition` can snapshot the old scene before mutation, and
-   *  the banner system can snapshot the new scene after. */
-  rendererCaptureScene: () => ImageData | undefined;
   /** Pre-transition unzoom — threaded through to `PhaseTransitionCtx`
    *  so `runTransition` can gate every mutate + display step on the
    *  camera reaching fullMapVp. See `CameraSystem.requestUnzoom`. */
@@ -383,8 +379,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
       requestUnzoom: deps.requestUnzoom,
-      rendererCaptureScene: deps.rendererCaptureScene,
-      forceRender: deps.render,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

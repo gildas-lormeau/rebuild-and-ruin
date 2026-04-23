@@ -505,6 +505,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       render: () => render(),
       timing,
       rendererCaptureScene: () => renderer.captureScene(),
+      forceRender: () => render(),
     });
 
   // -------------------------------------------------------------------------
@@ -686,7 +687,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
     online: config.onlinePhaseTicks,
     render,
-    rendererCaptureScene: () => renderer.captureScene(),
     requestUnzoom: camera.requestUnzoom,
     showBanner,
     hideBanner,

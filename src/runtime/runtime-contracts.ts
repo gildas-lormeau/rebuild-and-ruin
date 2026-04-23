@@ -669,14 +669,6 @@ export interface BannerShowOpts {
    *  the timer (not the caller): `hideBanner()` or a subsequent
    *  `showBanner` during the hold cancels it. */
   readonly holdMs?: number;
-  /** Pixel snapshot of the old scene, captured before the phase mutation
-   *  that this banner announces. Threaded in by the phase machine
-   *  (`runTransition` captures once inside the `requestUnzoom` callback,
-   *  before `mutate`). `showBanner` captures the matching newScene itself
-   *  after a forced post-mutate render, so callers outside the phase
-   *  machine can omit this field — the banner will simply reveal a
-   *  post-mutation scene over an empty (undefined) prev scene. */
-  readonly prevScene?: SceneCapture;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)
