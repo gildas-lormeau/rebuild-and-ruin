@@ -858,6 +858,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
       } else if (phase === Phase.WALL_BUILD) {
         tickBuildPhase(dt);
+      } else if (
+        phase === Phase.MODIFIER_REVEAL ||
+        phase === Phase.UPGRADE_PICK
+      ) {
+        // Transient display phases — the phase machine's postDisplay
+        // drives the next transition (enter-battle / enter-wall-build)
+        // once the banner / picker finishes. tickGame only runs in
+        // Mode.GAME; while these phases are active the runtime sits in
+        // Mode.TRANSITION (banner) or Mode.UPGRADE_PICK (picker), so in
+        // practice this branch is unreachable. Kept as an explicit
+        // no-op for exhaustiveness.
       }
     } else {
       ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);

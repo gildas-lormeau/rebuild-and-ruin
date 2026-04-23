@@ -51,6 +51,14 @@ export interface BattleRenderView extends RenderViewShared {
   readonly phase: Phase.BATTLE;
 }
 
+export interface ModifierRevealRenderView extends RenderViewShared {
+  readonly phase: Phase.MODIFIER_REVEAL;
+}
+
+export interface UpgradePickRenderView extends RenderViewShared {
+  readonly phase: Phase.UPGRADE_PICK;
+}
+
 /** Discriminated-union view of GameState for the render layer.
  *  Produced once per frame by `selectRenderView`; passed to overlay
  *  builders (`createOnlineOverlay`, `createStatusBar`) instead of the
@@ -60,7 +68,9 @@ export type RenderView =
   | SelectionRenderView
   | BuildRenderView
   | CannonRenderView
-  | BattleRenderView;
+  | BattleRenderView
+  | ModifierRevealRenderView
+  | UpgradePickRenderView;
 
 /** Project GameState onto the phase-discriminated RenderView.
  *  Constant-time: the cast is sound because GameState structurally
@@ -77,5 +87,9 @@ export function selectRenderView(state: GameState): RenderView {
       return state as CannonRenderView;
     case Phase.BATTLE:
       return state as BattleRenderView;
+    case Phase.MODIFIER_REVEAL:
+      return state as ModifierRevealRenderView;
+    case Phase.UPGRADE_PICK:
+      return state as UpgradePickRenderView;
   }
 }
