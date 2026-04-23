@@ -143,69 +143,87 @@ export function createRender3d(
       // in colors each frame.
       ctx.terrain.ensureBuilt(map);
     },
-    drawFrame: (map, overlay, viewport, now, pitch = 0) => {
+    drawFrame: (
+      map,
+      overlay,
+      viewport,
+      now,
+      pitch = 0,
+      skip3DScene = false,
+    ) => {
       // Phase 2: render the WebGL scene (terrain mesh, driven by the runtime
       // viewport) behind the 2D canvas. The 2D renderer still handles
       // castles, entities, and UI; Phase 3+ progressively moves them off
       // the 2D path.
-      ctx.terrain.ensureBuilt(map);
-      // Build the per-frame context once and hand the same object to
-      // every manager — each one unpacks only the fields it needs. The
-      // lifecycle call `terrain.ensureBuilt(map)` stays outside this
-      // contract because it's not a per-frame update.
-      const frame: FrameCtx = { overlay, map, now };
-      ctx.terrain.update(frame);
-      ctx.walls.update(frame);
-      ctx.towers.update(frame);
-      ctx.towerLabels.update(frame);
-      ctx.houses.update(frame);
-      ctx.debris.update(frame);
-      ctx.cannons.update(frame);
-      ctx.grunts.update(frame);
-      ctx.cannonballs.update(frame);
-      ctx.pits.update(frame);
-      ctx.balloons.update(frame);
-      ctx.phantoms.update(frame);
-      ctx.impacts.update(frame);
-      ctx.wallBurns.update(frame);
-      ctx.crosshairs.update(frame);
-      ctx.fog.update(frame);
-      ctx.thawing.update(frame);
-      ctx.terrainBitmap.update(frame);
-      ctx.sinkholeOverlay.update(frame);
-      ctx.bonusSquares.update(frame);
-      ctx.waterWaves.update(frame);
-      // Camera: ortho view driven by the runtime viewport, tilted by
-      // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
-      // toward a phase-specific target so battle renders with a
-      // classic Rampart 3/4 view. The 2D overlay is still drawn
-      // straight-down — it only carries UI + still-2D layers that
-      // are unaffected by tilt.
-      updateCameraFromViewport(ctx.camera, viewport, pitch);
-      lastViewport = viewport ?? undefined;
-      lastPitch = pitch;
-      // Render the scene once into the capture FBO (readable outside
-      // the rAF tick by `captureScene`), then blit that FBO's texture
-      // to the default framebuffer via a fullscreen quad. The blit is
-      // a single fragment-shader pass — much cheaper than re-rendering
-      // the whole scene. Avoids both `preserveDrawingBuffer: true`
-      // (per-frame backbuffer-preservation overhead) and the prior
-      // double-scene-render approach.
       //
-      // Scene viewport: render into the FULL FBO (height
-      // MAP_PX_H + TOP_MARGIN_MAP_PX). The reserved top strip is
-      // realized by the frustum extension in `updateCameraFromViewport`
-      // — geometry outside that extended range (above `rect.y -
-      // stripWorld`) is simply out of frustum and leaves the top rows
-      // at the clear color; tall walls at row 0 project *into* the
-      // strip under tilt, which is the whole purpose of the strip.
-      ctx.renderer.setRenderTarget(ctx.captureTarget);
-      ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.scene, ctx.camera);
-      ctx.renderer.setRenderTarget(null);
-      ctx.renderer.clear();
-      ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
+      // `skip3DScene` short-circuits the whole 3D pipeline: during
+      // banners, the 2D canvas composites a pre-captured scene snapshot
+      // over everything below the banner strip, so re-rendering the
+      // live 3D scene is pure waste (fully occluded). We keep the
+      // WebGL framebuffer at its last-rendered contents; the snapshot
+      // image is what the player sees underneath the banner art. The
+      // 2D `canvas2d.drawFrame` call below MUST still run to draw the
+      // banner sweep animation.
+      if (!skip3DScene) {
+        ctx.terrain.ensureBuilt(map);
+        // Build the per-frame context once and hand the same object to
+        // every manager — each one unpacks only the fields it needs. The
+        // lifecycle call `terrain.ensureBuilt(map)` stays outside this
+        // contract because it's not a per-frame update.
+        const frame: FrameCtx = { overlay, map, now };
+        ctx.terrain.update(frame);
+        ctx.walls.update(frame);
+        ctx.towers.update(frame);
+        ctx.towerLabels.update(frame);
+        ctx.houses.update(frame);
+        ctx.debris.update(frame);
+        ctx.cannons.update(frame);
+        ctx.grunts.update(frame);
+        ctx.cannonballs.update(frame);
+        ctx.pits.update(frame);
+        ctx.balloons.update(frame);
+        ctx.phantoms.update(frame);
+        ctx.impacts.update(frame);
+        ctx.wallBurns.update(frame);
+        ctx.crosshairs.update(frame);
+        ctx.fog.update(frame);
+        ctx.thawing.update(frame);
+        ctx.terrainBitmap.update(frame);
+        ctx.sinkholeOverlay.update(frame);
+        ctx.bonusSquares.update(frame);
+        ctx.waterWaves.update(frame);
+        // Camera: ortho view driven by the runtime viewport, tilted by
+        // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
+        // toward a phase-specific target so battle renders with a
+        // classic Rampart 3/4 view. The 2D overlay is still drawn
+        // straight-down — it only carries UI + still-2D layers that
+        // are unaffected by tilt.
+        updateCameraFromViewport(ctx.camera, viewport, pitch);
+        lastViewport = viewport ?? undefined;
+        lastPitch = pitch;
+        // Render the scene once into the capture FBO (readable outside
+        // the rAF tick by `captureScene`), then blit that FBO's texture
+        // to the default framebuffer via a fullscreen quad. The blit is
+        // a single fragment-shader pass — much cheaper than re-rendering
+        // the whole scene. Avoids both `preserveDrawingBuffer: true`
+        // (per-frame backbuffer-preservation overhead) and the prior
+        // double-scene-render approach.
+        //
+        // Scene viewport: render into the FULL FBO (height
+        // MAP_PX_H + TOP_MARGIN_MAP_PX). The reserved top strip is
+        // realized by the frustum extension in `updateCameraFromViewport`
+        // — geometry outside that extended range (above `rect.y -
+        // stripWorld`) is simply out of frustum and leaves the top rows
+        // at the clear color; tall walls at row 0 project *into* the
+        // strip under tilt, which is the whole purpose of the strip.
+        ctx.renderer.setRenderTarget(ctx.captureTarget);
+        ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
+        ctx.renderer.clear();
+        ctx.renderer.render(ctx.scene, ctx.camera);
+        ctx.renderer.setRenderTarget(null);
+        ctx.renderer.clear();
+        ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
+      }
       canvas2d.drawFrame(map, overlay, viewport, now);
       if (isPerfHudEnabled()) {
         const info = ctx.renderer.info;

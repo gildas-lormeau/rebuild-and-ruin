@@ -340,6 +340,13 @@ export interface RendererInterface {
     viewport: Viewport | null | undefined,
     now: number,
     pitch?: number,
+    /** When true, skip the 3D scene pipeline (entity updates + WebGL
+     *  render) and only draw the 2D canvas. Set during banners — the
+     *  2D canvas composites a pre-captured scene snapshot over
+     *  everything below the banner strip, so a live 3D re-render
+     *  would be fully occluded anyway. The 2D-only renderer ignores
+     *  this flag (nothing to skip). */
+    skip3DScene?: boolean,
   ): void;
   /** Pre-compute terrain image caches so the first render of a new map
    *  doesn't stall the frame. Call after generating/receiving a map. */

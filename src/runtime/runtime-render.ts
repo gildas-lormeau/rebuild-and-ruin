@@ -43,6 +43,13 @@ interface RenderSystemDeps {
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,
+    /** When true, the 3D pipeline skips all entity updates + WebGL
+     *  scene render. The 2D canvas (which composites the banner
+     *  overlay + pre-captured scene snapshot) still runs. Set during
+     *  banners so we don't pay for rebuilding+rendering a 3D scene
+     *  that will be entirely covered by the snapshot + banner art.
+     *  The 2D renderer ignores this flag (it has no 3D to skip). */
+    skip3DScene?: boolean,
   ) => void;
   /** Post-drawFrame hook — invoked once per tick after the scene has
    *  been blitted to the display canvas. Used by the camera to fire
@@ -160,6 +167,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay,
       deps.updateViewport(),
       deps.timing.now(),
+      banner.status !== "hidden",
     );
     deps.onRenderedFrame();
 

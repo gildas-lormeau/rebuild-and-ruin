@@ -551,8 +551,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createBannerUi,
     createOnlineOverlay,
     createRenderSummaryMessage,
-    drawFrame: (map, overlay, viewport, now) =>
-      renderer.drawFrame(map, overlay, viewport, now, camera.getPitch()),
+    drawFrame: (map, overlay, viewport, now, skip3DScene) =>
+      renderer.drawFrame(
+        map,
+        overlay,
+        viewport,
+        now,
+        camera.getPitch(),
+        skip3DScene,
+      ),
     onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
