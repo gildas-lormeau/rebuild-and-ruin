@@ -194,6 +194,19 @@ export function handleGameOverTransition(
   setMode(runtime.runtimeState, Mode.STOPPED);
 }
 
+/** Dispatch a watcher-role transition from a LOCAL trigger (no incoming
+ *  server message). Used by phase ticks that expire deterministically
+ *  on both sides — e.g. `tickWatcher` detecting `MODIFIER_REVEAL` timer
+ *  expiry and dispatching `enter-battle`. The ctx is built with no
+ *  `incomingMsg`; transitions that read one must not be dispatched via
+ *  this helper. */
+export function dispatchWatcherLocal(
+  id: TransitionId,
+  deps: WatcherDeps,
+): void {
+  runTransition(id, buildWatcherPhaseCtx(undefined, deps));
+}
+
 function dispatchWatcher(
   id: TransitionId,
   msg: ServerMessage,
@@ -209,7 +222,7 @@ function dispatchWatcher(
  *  wall-build-done) is populated. Host-only hooks (broadcast, endGame,
  *  initLocalCannonControllers w/ entry, etc.) are omitted. */
 function buildWatcherPhaseCtx(
-  msg: ServerMessage,
+  msg: ServerMessage | undefined,
   deps: WatcherDeps,
 ): PhaseTransitionCtx {
   const runtime = deps.getRuntime();

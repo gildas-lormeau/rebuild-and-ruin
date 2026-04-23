@@ -25,7 +25,10 @@ import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
-import type { WatcherDeps } from "./online-phase-transitions.ts";
+import {
+  dispatchWatcherLocal,
+  type WatcherDeps,
+} from "./online-phase-transitions.ts";
 import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
@@ -130,6 +133,8 @@ const watcherTickCtx: WatcherTickContext = {
       cannonPhantoms: phantoms,
     };
   },
+  onModifierRevealExpired: () =>
+    dispatchWatcherLocal("enter-battle", watcherDeps),
 };
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({

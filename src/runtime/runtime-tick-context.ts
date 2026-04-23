@@ -72,6 +72,7 @@ export interface TimerAccums {
   readonly selectAnnouncement: number;
   readonly build: number;
   readonly grunt: number;
+  readonly modifierReveal: number;
 }
 
 /** Mutable view of TimerAccums — use ONLY inside blessed mutation sites:
@@ -103,6 +104,8 @@ export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
 export const ACCUM_GRUNT = "grunt" satisfies keyof TimerAccums;
 export const ACCUM_BUILD = "build" satisfies keyof TimerAccums;
 export const ACCUM_SELECT = "select" satisfies keyof TimerAccums;
+export const ACCUM_MODIFIER_REVEAL =
+  "modifierReveal" satisfies keyof TimerAccums;
 
 /** True if this client is the host. Defaults to true when net is omitted (local play).
  *  VOLATILE: result can change between frames (host promotion). Never cache. */
@@ -176,6 +179,7 @@ export function createTimerAccums(): TimerAccums {
     selectAnnouncement: 0,
     build: 0,
     grunt: 0,
+    modifierReveal: 0,
   };
 }
 

@@ -68,12 +68,10 @@ export type LifecycleEvent =
   /** Phase-transition banner's sweep animation completed (progress reached
    *  1). Emitted from inside `tickBanner` on the `sweeping → swept`
    *  transition. The banner is still on screen at this point — held in
-   *  its `swept` state (optionally through a `holdMs` delay) until
-   *  `hideBanner()` or the next `showBanner` replaces it. Fires
-   *  immediately; the banner's `onDone` callback runs either on the same
-   *  tick (no hold) or after the hold timer expires. Consumers that want
-   *  the "sweep just finished" beat (music cues, in-banner SFX timing)
-   *  bind here. */
+   *  its `swept` state until `hideBanner()` or the next `showBanner`
+   *  replaces it. Fires immediately; the banner's `onDone` callback
+   *  runs on the same tick. Consumers that want the "sweep just
+   *  finished" beat (music cues, in-banner SFX timing) bind here. */
   | {
       type: "bannerSweepEnd";
       bannerKind: BannerKind;

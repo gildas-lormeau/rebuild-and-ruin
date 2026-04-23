@@ -62,7 +62,10 @@ import type {
 import type { BuildEndMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
+import {
+  MODIFIER_REVEAL_TIMER,
+  type ModifierDiff,
+} from "../shared/core/game-constants.ts";
 import {
   type BannerKind,
   emitGameEvent,
@@ -142,13 +145,6 @@ type DisplayStep =
        *  modifier lives there). Only set on the `enter-modifier-reveal`
        *  transition's banner step — other banners don't carry a diff. */
       readonly modifierDiff?: (r: TransitionResult) => ModifierDiff | undefined;
-      /** Optional post-sweep hold — passed through to the banner
-       *  system which owns the hold timer. When set, after the sweep
-       *  completes the banner sits in `swept` for `holdMs`
-       *  milliseconds before firing its `onDone`. Lets listeners time
-       *  SFX / visual effects between banners — e.g. the 2s beat
-       *  between the modifier reveal and the battle banner. */
-      readonly holdMs?: number;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" };
@@ -828,11 +824,6 @@ const LAST_PLAYER_STANDING: Transition = {
   mutate: ROUND_LIMIT_REACHED.mutate,
   display: [],
 };
-/** Pause between the modifier-reveal banner and the battle banner so
- *  SFX / tile-change animations have a beat to play. 2 seconds is long
- *  enough to land a bespoke effect cue but short enough that it doesn't
- *  feel like a stall. Only applied when a modifier was actually rolled. */
-const MODIFIER_POST_BANNER_DELAY_MS = 2000;
 /** `cannon-place-done` — CANNON_PLACE prep transition. Runs engine
  *  battle entry (`enterBattlePhase`: modifier roll, balloon resolution,
  *  post-modifier territory/wall snapshots) and broadcasts BATTLE_START.
@@ -870,10 +861,15 @@ const CANNON_PLACE_DONE: Transition = {
     watcher: routeCannonPlaceDone,
   },
 };
-/** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Flips the phase
- *  and shows the modifier-reveal banner with a 2s post-sweep hold so
- *  SFX / tile-change animations have a beat to play. postDisplay
- *  dispatches `enter-battle`.
+/** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Flips the phase,
+ *  primes `state.timer` with `MODIFIER_REVEAL_TIMER` so the phase
+ *  behaves like every other timed phase, and shows the modifier-reveal
+ *  banner. The tick system (`tickModifierRevealPhase` host-side,
+ *  `tickWatcher` watcher-side) counts `state.timer` down and dispatches
+ *  `enter-battle` when it reaches 0 — the same pattern as
+ *  `tickCannonPhase` → `cannon-place-done`. The banner keeps sweeping
+ *  and remains on screen (status = `swept`) until `enter-battle`'s own
+ *  banner replaces it.
  *
  *  Only dispatched when `cannon-place-done`'s result carries a
  *  `modifierDiff` (modern mode, modifier actually rolled this round).
@@ -886,10 +882,12 @@ const ENTER_MODIFIER_REVEAL: Transition = {
   mutate: {
     host: (ctx) => {
       setPhase(ctx.state, Phase.MODIFIER_REVEAL);
+      ctx.state.timer = MODIFIER_REVEAL_TIMER;
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: (ctx) => {
       setPhase(ctx.state, Phase.MODIFIER_REVEAL);
+      ctx.state.timer = MODIFIER_REVEAL_TIMER;
       return EMPTY_TRANSITION_RESULT;
     },
   },
@@ -899,14 +897,24 @@ const ENTER_MODIFIER_REVEAL: Transition = {
       bannerKind: "modifier-reveal",
       text: (r) => modifierDef(r.modifierDiff!.id).label,
       modifierDiff: (r) => r.modifierDiff ?? undefined,
-      holdMs: MODIFIER_POST_BANNER_DELAY_MS,
     },
   ],
   postDisplay: {
-    host: (ctx, result) =>
-      runTransitionInline("enter-battle", ctx, { flights: result.flights }),
-    watcher: (ctx, result) =>
-      runTransitionInline("enter-battle", ctx, { flights: result.flights }),
+    // Host: flip to Mode.GAME so `tickModifierRevealPhase` runs and
+    // dispatches `enter-battle` when `state.timer` hits 0. Do NOT
+    // dispatch `enter-battle` here — that's what the timer drives.
+    host: (ctx) => {
+      ctx.setMode(Mode.GAME);
+    },
+    // Watcher: same, plus anchor the watcher's wall-clock timer to
+    // the current `state.timer` (2s) so `tickWatcherTimers`
+    // decrements it from the banner-end instant. The watcher detects
+    // timer expiry in its own tick loop and dispatches enter-battle
+    // locally — no network message is exchanged for this edge.
+    watcher: (ctx) => {
+      ctx.watcher?.setPhaseTimerAtBannerEnd(ctx.state.timer);
+      ctx.setMode(Mode.GAME);
+    },
   },
 };
 /** `enter-battle` — BATTLE entry. Flips the phase and shows the
@@ -1320,7 +1328,6 @@ function runBannerStep(
     onDone,
     subtitle: step.subtitle,
     modifierDiff,
-    holdMs: step.holdMs,
   });
 }
 

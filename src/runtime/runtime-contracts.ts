@@ -235,9 +235,8 @@ export interface ActiveBannerState {
    *  consumers can discriminate without reading `phase` (which lies
    *  during the upgrade-pick flow) or matching text. */
   kind: BannerKind;
-  /** Fired once the sweep reaches 1 (or after the optional `holdMs`
-   *  expires). Nulled out as it fires, or when a subsequent
-   *  `showBanner` / `hideBanner` replaces this banner. */
+  /** Fired once the sweep reaches 1. Nulled out as it fires, or when
+   *  a subsequent `showBanner` / `hideBanner` replaces this banner. */
   callback: (() => void) | null;
   /** Pixel snapshot of the scene composited below the sweep line during
    *  animation — the old scene, captured before the phase mutation that
@@ -255,15 +254,6 @@ export interface ActiveBannerState {
    *  event, `changedTiles` drives the progressive tile-highlight animation
    *  in `drawModifierRevealHighlight`. Cleared between banners. */
   modifierDiff?: ModifierDiff;
-  /** Post-sweep hold duration (sim-ms). When > 0, `callback` is deferred
-   *  by this many milliseconds after the sweep completes so SFX / visual
-   *  effects can play during the `swept` state. Consumed once on sweep-
-   *  end (reset to 0 when the timer fires or the banner is replaced). */
-  holdMs: number;
-  /** Active hold-timer handle, or `undefined` when no hold is pending.
-   *  Cleared on `hideBanner`, on `showBanner` overwrite, and when the
-   *  timer fires. */
-  holdTimerId?: number;
 }
 
 /** Banner state is a discriminated union: `hidden` carries no fields
@@ -666,14 +656,6 @@ export interface BannerShowOpts {
    *  banner without string-matching the text field — and (b) the
    *  progressive tile-highlight animation in the renderer. */
   readonly modifierDiff?: ModifierDiff;
-  /** Optional post-sweep hold. When set, after the sweep completes the
-   *  banner sits in its `swept` state (still visible on screen) for
-   *  `holdMs` milliseconds before `onDone` fires. Lets listeners time
-   *  SFX / visual effects between banners — e.g. the 2s beat between
-   *  the modifier reveal and the battle banner. The banner system owns
-   *  the timer (not the caller): `hideBanner()` or a subsequent
-   *  `showBanner` during the hold cancels it. */
-  readonly holdMs?: number;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

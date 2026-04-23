@@ -107,10 +107,9 @@ function clearAnimationState(mode: Mode): string | null {
       return "Cleared life-lost dialog → game mode";
     case Mode.TRANSITION:
     case Mode.BALLOON_ANIM:
-      // Tear down banner state (status + callback + prevScene + any armed
-      // holdMs timer). Without this, a pending hold timer from the old
-      // host's phase chain would fire after promotion and invoke a stale
-      // callback against freshly-rebuilt controllers.
+      // Tear down banner state (status + callback + prevScene). Without
+      // this, the old host's banner callback would fire after promotion
+      // and invoke a stale closure against freshly-rebuilt controllers.
       _runtime.hideBanner();
       return "Skipped phase transition/animation → game mode";
     case Mode.UPGRADE_PICK:

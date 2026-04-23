@@ -503,7 +503,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       runtimeState,
       log: config.log,
       render: () => render(),
-      timing,
       rendererCaptureScene: () => renderer.captureScene(),
       captureSceneOffscreen: () => captureSceneOffscreen(),
     });

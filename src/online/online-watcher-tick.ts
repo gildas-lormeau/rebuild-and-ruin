@@ -72,6 +72,13 @@ export interface WatcherTickContext {
    *  Forwarded into `tickWatcherCannonPhantomsPhase` so render + touch
    *  read remote cannon phantoms from the runtime slot. */
   setRemoteCannonPhantoms: (phantoms: readonly CannonPhantom[]) => void;
+  /** Fires when the watcher-side `MODIFIER_REVEAL` phase timer expires.
+   *  The caller binds this to `enter-battle` dispatch — `tickWatcher`
+   *  stays phase-agnostic and doesn't import phase-machine types (that
+   *  would be an upward layer reach from systems into assembly). Host
+   *  and watcher both run their own timer and dispatch independently,
+   *  so no network message is exchanged for this edge. */
+  onModifierRevealExpired: () => void;
 }
 
 export function createWatcherState(): WatcherState {
@@ -166,64 +173,91 @@ export function tickWatcher(
     myPlayerId,
   );
 
-  if (state.phase === Phase.BATTLE) {
-    tickWatcherBattlePhase({
-      state,
-      frame,
-      battleAnim: transitionCtx.getBattleAnim(),
-      dt,
-      myPlayerId,
-      localController,
-      remoteCrosshairs: watcherState.remoteCrosshairs,
-      watcherCrosshairPos: watcherState.watcherCrosshairPos,
-      watcherOrbitAngles: watcherState.watcherOrbitAngles,
-      watcherOrbitParams: watcherState.watcherOrbitParams,
-      logThrottled: transitionCtx.logThrottled,
-      interpolateToward,
-      nextReadyCombined,
-      maybeSendAimUpdate: transitionCtx.maybeSendAimUpdate,
-      aimCannons,
-    });
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    tickWatcherCannonPhantomsPhase({
-      state,
-      dt,
-      myPlayerId,
-      localController,
-      remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
-      lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
-      sendOpponentCannonPhantom: (msg) => {
-        transitionCtx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
-      },
-      setRemoteCannonPhantoms: transitionCtx.setRemoteCannonPhantoms,
-    });
-  } else if (state.phase === Phase.WALL_BUILD) {
-    // Decrement Master Builder lockout (mirrors host-phase-ticks.ts)
-    if (
-      hasFeature(state, FID.UPGRADES) &&
-      state.modern!.masterBuilderLockout > 0
-    ) {
-      state.modern!.masterBuilderLockout = Math.max(
-        0,
-        state.modern!.masterBuilderLockout - dt,
-      );
+  switch (state.phase) {
+    case Phase.BATTLE:
+      tickWatcherBattlePhase({
+        state,
+        frame,
+        battleAnim: transitionCtx.getBattleAnim(),
+        dt,
+        myPlayerId,
+        localController,
+        remoteCrosshairs: watcherState.remoteCrosshairs,
+        watcherCrosshairPos: watcherState.watcherCrosshairPos,
+        watcherOrbitAngles: watcherState.watcherOrbitAngles,
+        watcherOrbitParams: watcherState.watcherOrbitParams,
+        logThrottled: transitionCtx.logThrottled,
+        interpolateToward,
+        nextReadyCombined,
+        maybeSendAimUpdate: transitionCtx.maybeSendAimUpdate,
+        aimCannons,
+      });
+      break;
+    case Phase.MODIFIER_REVEAL:
+      // MODIFIER_REVEAL is a deterministic-duration timed phase. Both
+      // sides decrement `state.timer` independently (host via
+      // `tickModifierRevealPhase`, watcher via `tickWatcherTimers`
+      // synthesizing from wall clock). When it expires, the watcher
+      // dispatches `enter-battle` locally — no network message is
+      // exchanged, the transition runs against the state already
+      // mirrored here.
+      if (state.timer <= 0) {
+        transitionCtx.onModifierRevealExpired();
+      }
+      break;
+    case Phase.CANNON_PLACE:
+      tickWatcherCannonPhantomsPhase({
+        state,
+        dt,
+        myPlayerId,
+        localController,
+        remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
+        lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
+        sendOpponentCannonPhantom: (msg) => {
+          transitionCtx.send({
+            type: MESSAGE.OPPONENT_CANNON_PHANTOM,
+            ...msg,
+          });
+        },
+        setRemoteCannonPhantoms: transitionCtx.setRemoteCannonPhantoms,
+      });
+      break;
+    case Phase.WALL_BUILD: {
+      // Decrement Master Builder lockout (mirrors host-phase-ticks.ts)
+      if (
+        hasFeature(state, FID.UPGRADES) &&
+        state.modern!.masterBuilderLockout > 0
+      ) {
+        state.modern!.masterBuilderLockout = Math.max(
+          0,
+          state.modern!.masterBuilderLockout - dt,
+        );
+      }
+      // Gate local controller during lockout — pass null so buildTick is skipped
+      const effectiveLocal =
+        localController && !canBuildThisFrame(state, localController.playerId)
+          ? null
+          : localController;
+      tickWatcherBuildPhantomsPhase({
+        state,
+        dt,
+        localController: effectiveLocal,
+        remotePiecePhantoms: watcherState.remotePiecePhantoms,
+        lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
+        sendOpponentPiecePhantom: (msg) => {
+          transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
+        },
+        setRemotePiecePhantoms: transitionCtx.setRemotePiecePhantoms,
+      });
+      break;
     }
-    // Gate local controller during lockout — pass null so buildTick is skipped
-    const effectiveLocal =
-      localController && !canBuildThisFrame(state, localController.playerId)
-        ? null
-        : localController;
-    tickWatcherBuildPhantomsPhase({
-      state,
-      dt,
-      localController: effectiveLocal,
-      remotePiecePhantoms: watcherState.remotePiecePhantoms,
-      lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
-      sendOpponentPiecePhantom: (msg) => {
-        transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
-      },
-      setRemotePiecePhantoms: transitionCtx.setRemotePiecePhantoms,
-    });
+    case Phase.CASTLE_SELECT:
+    case Phase.CASTLE_RESELECT:
+    case Phase.UPGRADE_PICK:
+      // Watcher sits in a non-GAME mode for these phases (selection /
+      // upgrade-pick dialog); tickWatcher's phase-specific handlers
+      // don't run during them. Explicit no-ops for exhaustiveness.
+      break;
   }
 
   // Grunt movement during build phase (deterministic — runs locally)

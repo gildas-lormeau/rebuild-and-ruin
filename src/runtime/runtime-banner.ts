@@ -1,9 +1,9 @@
 /**
- * Banner sub-system — phase transition banners (show + tick + hold).
+ * Banner sub-system — phase transition banners (show + tick).
  *
  * Contract:
  *
- *   showBanner({ text, kind, onDone, subtitle?, modifierDiff?, holdMs? })
+ *   showBanner({ text, kind, onDone, subtitle?, modifierDiff? })
  *   hideBanner()
  *
  * State machine (see `BannerStatus` in runtime-contracts.ts):
@@ -15,9 +15,8 @@
  * Events:
  *   - BANNER_START on `showBanner` (synchronous).
  *   - BANNER_SWEEP_END on `sweeping → swept` (sweep animation done,
- *     banner still on screen). Fires synchronously; the banner's
- *     `onDone` callback runs either on the same tick (no hold) or
- *     after the `holdMs` timer expires.
+ *     banner still on screen). Fires synchronously; `onDone` runs on
+ *     the same tick.
  *   - BANNER_HIDDEN on `hideBanner()` when status was non-hidden. The
  *     banner left the screen on its own schedule — not because another
  *     banner clobbered it.
@@ -26,10 +25,12 @@
  *     every way a banner leaves the screen, so consumers that want the
  *     unified "banner went away" beat subscribe to both.
  *
- * Hold: when `holdMs` is set on a banner, the `swept → onDone` edge is
- * deferred by that many sim-ms. The banner sits in `swept` state until
- * the hold expires. A new `showBanner` or `hideBanner` during the hold
- * cancels the pending timer.
+ * Post-sweep dwell: callers that need the banner to sit on screen for a
+ * beat before advancing (e.g. the modifier-reveal → battle flow) do not
+ * delay `onDone` inside the banner system. Instead, `onDone` flips the
+ * runtime to `Mode.GAME` and the destination phase runs its own timed
+ * tick (see `tickModifierRevealPhase`), replacing the banner when the
+ * timer expires. Keeps the banner system a pure sweep animator.
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
@@ -39,7 +40,6 @@ import {
   type ActiveBannerState,
   type BannerShowOpts,
   createBannerState,
-  type TimingApi,
 } from "./runtime-contracts.ts";
 import {
   assertStateReady,
@@ -51,10 +51,6 @@ interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly render: () => void;
-  /** Injected timing — used to schedule the post-sweep `holdMs` timer so
-   *  headless tests on the mock clock observe the same timing as
-   *  production. */
-  readonly timing: TimingApi;
   /** Renderer A-snapshot — copies the current display's game area into a
    *  banner-owned bridge canvas and returns that canvas, or `undefined` in
    *  headless / pre-first-frame. Called inside `showBanner` once before
@@ -87,17 +83,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     runtimeState,
     log,
     render,
-    timing,
     rendererCaptureScene,
     captureSceneOffscreen,
   } = deps;
-
-  function clearHoldTimer(banner: ActiveBannerState): void {
-    if (banner.holdTimerId !== undefined) {
-      timing.clearTimeout(banner.holdTimerId);
-      banner.holdTimerId = undefined;
-    }
-  }
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
@@ -144,7 +132,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         phase: state.phase,
         round: state.round,
       });
-      clearHoldTimer(prev);
     }
     const next: ActiveBannerState = {
       status: "sweeping",
@@ -156,7 +143,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       callback: opts.onDone,
       prevScene,
       newScene,
-      holdMs: opts.holdMs ?? 0,
     };
     runtimeState.banner = next;
 
@@ -187,13 +173,10 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       phase: state.phase,
       round: state.round,
     });
-    clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
   }
 
   function resetBannerState(): void {
-    const banner = runtimeState.banner;
-    if (banner.status !== "hidden") clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
   }
 
@@ -211,18 +194,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         });
         const callback = banner.callback;
         banner.callback = null;
-        const holdMs = banner.holdMs;
-        banner.holdMs = 0;
-        if (callback) {
-          if (holdMs > 0) {
-            banner.holdTimerId = timing.setTimeout(() => {
-              banner.holdTimerId = undefined;
-              callback();
-            }, holdMs);
-          } else {
-            callback();
-          }
-        }
+        if (callback) callback();
       }
     }
     render();

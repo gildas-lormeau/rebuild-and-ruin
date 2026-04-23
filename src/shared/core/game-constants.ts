@@ -103,6 +103,12 @@ export const BUILD_TIMER = 25;
 export const CANNON_PLACE_TIMER = 15;
 /** Duration of the castle selection phase in seconds. */
 export const SELECT_TIMER = 16;
+/** Duration of the MODIFIER_REVEAL phase in seconds — the beat between
+ *  the modifier-reveal banner's sweep-end and the battle banner, long
+ *  enough to land a bespoke effect cue but short enough that it doesn't
+ *  feel like a stall. Drives `state.timer` as a phase duration, the
+ *  same pattern as CANNON_PLACE_TIMER / BUILD_TIMER / BATTLE_TIMER. */
+export const MODIFIER_REVEAL_TIMER = 2;
 export const SELECT_ANNOUNCEMENT_DURATION = 1;
 /** Duration of the pre-battle countdown in seconds (Ready 3s + Aim 2s + Fire! 1s). */
 export const BATTLE_COUNTDOWN = 6;

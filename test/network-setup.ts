@@ -206,6 +206,12 @@ async function buildWatcherRuntime(
         cannonPhantoms: phantoms,
       };
     },
+    onModifierRevealExpired: () => {
+      // Test harness doesn't need the watcher's local enter-battle
+      // dispatch — no existing test drives the MODIFIER_REVEAL timer
+      // expiry through this fake. If one starts to, wire through the
+      // real `dispatchWatcherLocal` here.
+    },
     now: () => headlessHolder.current!.now(),
   };
 

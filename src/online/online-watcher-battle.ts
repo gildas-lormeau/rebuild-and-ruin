@@ -122,7 +122,12 @@ export function tickWatcherTimers(
   timing: WatcherTimingState,
   now: () => number,
 ): void {
-  if (isPlacementPhase(state.phase)) {
+  // MODIFIER_REVEAL is also a phase-timer-driven phase on the watcher
+  // side (same wall-clock synthesis pattern as placement phases) —
+  // `enter-modifier-reveal.postDisplay.watcher` anchors the timer via
+  // `setPhaseTimerAtBannerEnd`, and `tickWatcher` detects expiry and
+  // dispatches `enter-battle` locally.
+  if (isPlacementPhase(state.phase) || state.phase === Phase.MODIFIER_REVEAL) {
     const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
     state.timer = Math.max(0, timing.phaseDuration - elapsed);
     return;

@@ -30,6 +30,7 @@ import {
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
+  MODIFIER_REVEAL_TIMER,
 } from "../shared/core/game-constants.ts";
 import {
   emitGameEvent,
@@ -74,6 +75,7 @@ import {
   ACCUM_BUILD,
   ACCUM_CANNON,
   ACCUM_GRUNT,
+  ACCUM_MODIFIER_REVEAL,
   advancePhaseTimer,
   isRemotePlayer,
   localControllers,
@@ -630,6 +632,30 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return true;
   }
 
+  /** MODIFIER_REVEAL phase tick (host). The phase has no game-mechanics
+   *  content — it exists purely to hold the modifier-reveal banner on
+   *  screen for a beat before battle begins. `enter-modifier-reveal`'s
+   *  mutate set `state.timer = MODIFIER_REVEAL_TIMER`; we decrement it
+   *  here and dispatch `enter-battle` when it expires. Watcher-side,
+   *  `tickWatcher` does the equivalent via `tickWatcherTimers` +
+   *  a local enter-battle dispatch — neither side exchanges a network
+   *  message for this edge, it's driven by the deterministic phase
+   *  duration on both sides. */
+  function tickModifierRevealPhase(dt: number): boolean {
+    advancePhaseTimer(
+      runtimeState.accum,
+      ACCUM_MODIFIER_REVEAL,
+      runtimeState.state,
+      dt,
+      MODIFIER_REVEAL_TIMER,
+    );
+    deps.render();
+    if (runtimeState.state.timer > 0) return false;
+    resetAccum(runtimeState.accum, ACCUM_MODIFIER_REVEAL);
+    runTransition("enter-battle", buildHostPhaseCtx());
+    return true;
+  }
+
   function tickBattleCountdown(dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     runtimeState.frame.announcement = advanceBattleCountdown(
@@ -839,28 +865,37 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       // Age and filter impact flashes regardless of phase
       ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
 
-      const { phase } = runtimeState.state;
-      if (phase === Phase.CANNON_PLACE) {
-        tickCannonPhase(dt);
-      } else if (phase === Phase.BATTLE) {
-        if (runtimeState.state.battleCountdown > 0) {
-          tickBattleCountdown(dt);
-        } else {
-          tickBattlePhase(dt);
-        }
-      } else if (phase === Phase.WALL_BUILD) {
-        tickBuildPhase(dt);
-      } else if (
-        phase === Phase.MODIFIER_REVEAL ||
-        phase === Phase.UPGRADE_PICK
-      ) {
-        // Transient display phases — the phase machine's postDisplay
-        // drives the next transition (enter-battle / enter-wall-build)
-        // once the banner / picker finishes. tickGame only runs in
-        // Mode.GAME; while these phases are active the runtime sits in
-        // Mode.TRANSITION (banner) or Mode.UPGRADE_PICK (picker), so in
-        // practice this branch is unreachable. Kept as an explicit
-        // no-op for exhaustiveness.
+      switch (runtimeState.state.phase) {
+        case Phase.CANNON_PLACE:
+          tickCannonPhase(dt);
+          break;
+        case Phase.BATTLE:
+          if (runtimeState.state.battleCountdown > 0) {
+            tickBattleCountdown(dt);
+          } else {
+            tickBattlePhase(dt);
+          }
+          break;
+        case Phase.WALL_BUILD:
+          tickBuildPhase(dt);
+          break;
+        case Phase.MODIFIER_REVEAL:
+          // Real timed phase — its banner's sweep-end flips mode to
+          // GAME (see `enter-modifier-reveal.postDisplay`), then this
+          // branch decrements `state.timer` and dispatches
+          // `enter-battle` when it expires. Before the phase-timer
+          // refactor this was an unreachable no-op because the banner
+          // owned the delay via a `holdMs` setTimeout.
+          tickModifierRevealPhase(dt);
+          break;
+        case Phase.UPGRADE_PICK:
+        case Phase.CASTLE_SELECT:
+        case Phase.CASTLE_RESELECT:
+          // UPGRADE_PICK runs in Mode.UPGRADE_PICK (not Mode.GAME);
+          // castle-select phases run in Mode.SELECTION / CASTLE_BUILD.
+          // tickGame never reaches these branches while those phases
+          // are active. Explicit no-ops for exhaustiveness.
+          break;
       }
     } else {
       ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
