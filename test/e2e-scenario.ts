@@ -13,7 +13,7 @@
  *   await sc.close();
  */
 
-import { chromium, type Page } from "playwright";
+import { chromium, type CDPSession, type Page } from "playwright";
 import { installFastMode } from "./e2e-fast-mode.ts";
 import { waitForPageFn } from "./e2e-helpers.ts";
 import type {
@@ -81,6 +81,12 @@ export interface E2EScenarioOptions {
    *  exercise mobile-only code paths (touch loupe, auto-zoom, ✕ quit
    *  button). Defaults to false. */
   mobile?: boolean;
+  /** Replace `requestAnimationFrame` with a 100×-speed fake-clock
+   *  loop (see `installFastMode`). Defaults to true so normal E2E
+   *  tests run in seconds. Disable for perf tests — fake-clock
+   *  timings are meaningless to DevTools, and the whole point of a
+   *  CPU profile / Chrome trace is real wall-clock frame cost. */
+  fastMode?: boolean;
 }
 
 /** Event type — GAME_EVENT constants (string literal keys of GameEventMap). */
@@ -240,8 +246,84 @@ export interface E2EScenario extends AsyncDisposable {
   };
   /** Room code (only available when `online: "host"`). */
   roomCode(): Promise<string>;
+  /** Chrome DevTools performance reporting. Each artifact is written
+   *  straight to disk in a DevTools-compatible format, so tests can
+   *  drop the file into Chrome DevTools (or chrome://tracing /
+   *  Perfetto for traces) and get the native flame graph, bottom-up,
+   *  event table, etc.
+   *
+   *  - `startTrace` / `stopTrace` — Chrome trace (Performance panel)
+   *  - `startCpuProfile` / `stopCpuProfile` — V8 sampled profile
+   *  - `heapSnapshot` — Memory panel snapshot
+   *  - `metrics` — raw CDP `Performance.getMetrics` counters
+   *
+   *  The CDP session attaches lazily on first use — tests that never
+   *  touch `perf` pay nothing. `close()` detaches automatically. */
+  perf: E2EPerf;
   /** Close the browser. */
   close(): Promise<void>;
+}
+
+/** Chrome-driven perf reporting surface. See `E2EScenario.perf`. */
+export interface E2EPerf {
+  /** Start a Chrome trace. Categories default to the DevTools
+   *  Performance-panel preset (timeline, v8, blink, devtools.timeline,
+   *  screenshots if enabled). The resulting file opens in Chrome
+   *  DevTools (Performance panel → Load profile), chrome://tracing,
+   *  or Perfetto. Calling `startTrace` while one is already running
+   *  throws. */
+  startTrace(opts?: {
+    /** Trace categories. Defaults to the DevTools preset — a good
+     *  baseline for frame-level attribution (includes v8 sampling,
+     *  paint, layout, GC, compositor). Pass your own array to scope
+     *  the trace (e.g. just `["v8"]` for JS-only, or add
+     *  `"disabled-by-default-cpu_profiler"` for per-function samples). */
+    categories?: readonly string[];
+    /** Include screenshots in the trace (handy for correlating jank
+     *  with rendered frames in DevTools). Defaults to false because
+     *  screenshots bloat the trace file 10-100x. */
+    screenshots?: boolean;
+  }): Promise<void>;
+  /** Stop the trace and write it to `path` as a DevTools-compatible
+   *  JSON file. `path` is resolved via Deno's CWD. */
+  stopTrace(path: string): Promise<void>;
+  /** Start a V8 CPU profile. Higher sample rates catch more short
+   *  frames but grow the file. Default 1000us (1kHz) matches DevTools. */
+  startCpuProfile(opts?: { samplingIntervalUs?: number }): Promise<void>;
+  /** Stop the CPU profile and write it to `path` as a `.cpuprofile`
+   *  file (DevTools Performance panel → Load profile). */
+  stopCpuProfile(path: string): Promise<void>;
+  /** Take a heap snapshot and write it to `path` as a
+   *  `.heapsnapshot` file (DevTools Memory panel → Load). Blocks the
+   *  page while capturing. */
+  heapSnapshot(path: string): Promise<void>;
+  /** Raw CDP performance counters — JS heap size, documents, nodes,
+   *  layout count, recalc-style count, task duration, etc. Cheap to
+   *  call; use between phases to catch runaway growth. */
+  metrics(): Promise<PerfMetrics>;
+}
+
+/** Parsed form of `Performance.getMetrics`. Only the most useful
+ *  counters are spelled out; the rest are in `raw`. Values are the
+ *  raw CDP numbers (no unit conversion) — timings are seconds,
+ *  memory is bytes, counts are counts. */
+export interface PerfMetrics {
+  /** `performance.now()` — monotonic clock in the renderer. */
+  timestamp: number;
+  /** Used JS heap in bytes (`JSHeapUsedSize`). */
+  jsHeapUsedBytes: number;
+  /** Total JS heap in bytes (`JSHeapTotalSize`). */
+  jsHeapTotalBytes: number;
+  /** Live DOM node count. */
+  nodes: number;
+  /** Layouts triggered since page load. */
+  layoutCount: number;
+  /** Style recalcs triggered since page load. */
+  recalcStyleCount: number;
+  /** Total task duration (s) — wall-clock time the renderer was busy. */
+  taskDuration: number;
+  /** All counters, keyed by name, exactly as CDP returned them. */
+  raw: Record<string, number>;
 }
 
 const BASE_URL = "http://localhost:5173";
@@ -253,6 +335,29 @@ const POLL_MS = 50;
 const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
 /** Timeout for online lobby page readiness + transition off after create/join. */
 const ONLINE_PAGE_TIMEOUT_MS = 10_000;
+/** DevTools Performance-panel tracing preset. Mirrors the categories
+ *  Chrome's own Recording button enables, so the resulting trace has
+ *  everything the flame-graph / main-thread / GC-pressure views need.
+ *  Overridable via `startTrace({ categories })` for scoped captures. */
+const DEVTOOLS_TRACE_CATEGORIES: readonly string[] = [
+  "-*",
+  "devtools.timeline",
+  "disabled-by-default-devtools.timeline",
+  "disabled-by-default-devtools.timeline.frame",
+  "disabled-by-default-devtools.timeline.stack",
+  "disabled-by-default-v8.cpu_profiler",
+  "v8",
+  "v8.execute",
+  "blink.user_timing",
+  "blink.console",
+  "loading",
+  "latencyInfo",
+  "toplevel",
+  "disabled-by-default-lighthouse",
+];
+/** Screenshot category added on top of the preset when
+ *  `startTrace({ screenshots: true })`. */
+const DEVTOOLS_SCREENSHOT_CATEGORY = "disabled-by-default-devtools.screenshot";
 
 /** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate / target
  *  state doesn't materialize within the budget. Carries `elapsedMs` so tests
@@ -279,6 +384,7 @@ export async function createE2EScenario(
     online,
     roomCode: joinCode,
     mobile = false,
+    fastMode = true,
   } = opts;
 
   const browser = await chromium.launch({ headless });
@@ -357,7 +463,7 @@ export async function createE2EScenario(
     await page.waitForSelector("#game-container.active", { timeout: 5000 });
   }
 
-  await installFastMode(page);
+  if (fastMode) await installFastMode(page);
 
   // Join human slots (local only — online lobby handles slots differently).
   // Skipped when autoStartGame is false so tests can drive the lobby UI
@@ -537,6 +643,151 @@ export async function createE2EScenario(
         changedPoints: changedClient,
       },
     );
+  }
+
+  // --- CDP perf session (lazy) ---
+  // A single CDP session is shared by all `sc.perf.*` calls. Attached
+  // on first use so tests that never touch perf pay nothing, and
+  // detached by `close()` / async-dispose so we don't leak across
+  // browser shutdown.
+  let cdp: CDPSession | null = null;
+  let traceBuffer: {
+    events: unknown[];
+    onData: (ev: { value: unknown[] }) => void;
+  } | null = null;
+  let cpuProfiling = false;
+
+  async function getCdp(): Promise<CDPSession> {
+    if (cdp) return cdp;
+    cdp = await ctx.newCDPSession(page);
+    await cdp.send("Performance.enable");
+    return cdp;
+  }
+
+  const perf: E2EPerf = {
+    startTrace: async (traceOpts = {}) => {
+      if (traceBuffer) {
+        throw new Error("perf.startTrace: trace already running");
+      }
+      const session = await getCdp();
+      const cats = [...(traceOpts.categories ?? DEVTOOLS_TRACE_CATEGORIES)];
+      if (traceOpts.screenshots) cats.push(DEVTOOLS_SCREENSHOT_CATEGORY);
+      // Attach the dataCollected listener BEFORE `Tracing.start`:
+      // Chrome flushes the trace buffer mid-recording once it fills,
+      // not only on `Tracing.end`, so late-attaching would silently
+      // drop events on long traces.
+      const events: unknown[] = [];
+      const onData = (ev: { value: unknown[] }) => {
+        for (const entry of ev.value) events.push(entry);
+      };
+      session.on("Tracing.dataCollected", onData);
+      await session.send("Tracing.start", {
+        transferMode: "ReportEvents",
+        categories: cats.join(","),
+      });
+      traceBuffer = { events, onData };
+    },
+
+    stopTrace: async (path) => {
+      if (!traceBuffer) throw new Error("perf.stopTrace: no trace running");
+      const session = cdp!;
+      const buffer = traceBuffer;
+      const done = new Promise<void>((resolve) => {
+        session.once("Tracing.tracingComplete", () => resolve());
+      });
+      await session.send("Tracing.end");
+      await done;
+      session.off("Tracing.dataCollected", buffer.onData);
+      traceBuffer = null;
+      // Chrome's trace format is `{ "traceEvents": [...] }` — the
+      // object form DevTools' Performance panel loads. The bare-array
+      // form also works for chrome://tracing but is less portable.
+      await Deno.writeTextFile(
+        path,
+        JSON.stringify({ traceEvents: buffer.events }),
+      );
+    },
+
+    startCpuProfile: async (cpuOpts = {}) => {
+      if (cpuProfiling) {
+        throw new Error("perf.startCpuProfile: profile already running");
+      }
+      const session = await getCdp();
+      await session.send("Profiler.enable");
+      if (cpuOpts.samplingIntervalUs !== undefined) {
+        await session.send("Profiler.setSamplingInterval", {
+          interval: cpuOpts.samplingIntervalUs,
+        });
+      }
+      await session.send("Profiler.start");
+      cpuProfiling = true;
+    },
+
+    stopCpuProfile: async (path) => {
+      if (!cpuProfiling) {
+        throw new Error("perf.stopCpuProfile: no profile running");
+      }
+      const session = cdp!;
+      const result = await session.send("Profiler.stop");
+      cpuProfiling = false;
+      // `result.profile` is already in `.cpuprofile` shape — nodes,
+      // samples, timeDeltas — exactly what DevTools expects.
+      await Deno.writeTextFile(path, JSON.stringify(result.profile));
+    },
+
+    heapSnapshot: async (path) => {
+      const session = await getCdp();
+      const chunks: string[] = [];
+      const onChunk = (ev: { chunk: string }) => {
+        chunks.push(ev.chunk);
+      };
+      session.on("HeapProfiler.addHeapSnapshotChunk", onChunk);
+      try {
+        await session.send("HeapProfiler.takeHeapSnapshot", {
+          reportProgress: false,
+          captureNumericValue: false,
+        });
+      } finally {
+        session.off("HeapProfiler.addHeapSnapshotChunk", onChunk);
+      }
+      // Chunks are pre-serialized JSON fragments — concat, don't JSON.stringify.
+      await Deno.writeTextFile(path, chunks.join(""));
+    },
+
+    metrics: async () => {
+      const session = await getCdp();
+      const result = await session.send("Performance.getMetrics");
+      const raw: Record<string, number> = {};
+      for (const { name, value } of result.metrics) raw[name] = value;
+      return {
+        timestamp: raw.Timestamp ?? 0,
+        jsHeapUsedBytes: raw.JSHeapUsedSize ?? 0,
+        jsHeapTotalBytes: raw.JSHeapTotalSize ?? 0,
+        nodes: raw.Nodes ?? 0,
+        layoutCount: raw.LayoutCount ?? 0,
+        recalcStyleCount: raw.RecalcStyleCount ?? 0,
+        taskDuration: raw.TaskDuration ?? 0,
+        raw,
+      };
+    },
+  };
+
+  async function teardown(): Promise<void> {
+    if (cdp) {
+      if (traceBuffer) {
+        await cdp.send("Tracing.end").catch(() => {});
+        cdp.off("Tracing.dataCollected", traceBuffer.onData);
+        traceBuffer = null;
+      }
+      if (cpuProfiling) {
+        await cdp.send("Profiler.stop").catch(() => {});
+        cpuProfiling = false;
+      }
+      await cdp.detach().catch(() => {});
+      cdp = null;
+    }
+    await page.close().catch(() => {});
+    await browser.close().catch(() => {});
   }
 
   // --- Build scenario object ---
@@ -798,14 +1049,10 @@ export async function createE2EScenario(
       return Promise.resolve(extractedRoomCode);
     },
 
-    close: async () => {
-      await page.close().catch(() => {});
-      await browser.close().catch(() => {});
-    },
-    [Symbol.asyncDispose]: async () => {
-      await page.close().catch(() => {});
-      await browser.close().catch(() => {});
-    },
+    perf,
+
+    close: teardown,
+    [Symbol.asyncDispose]: teardown,
   };
 
   return scenario;
