@@ -27,15 +27,9 @@ import {
 } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 
-/** Action surface consumed by the input dispatcher.
- *
- *  This is NOT NetworkApi (the runtime/ ↔ peers seam). It's the bag of
- *  game-action wrappers (`tryPlacePiece` etc.) that execute the action
- *  locally and, when online, also broadcast it — local fallbacks are
- *  installed when offline so the surface stays uniform.
- *
- *  Named `actions` (not `network`) to avoid confusion with
- *  `RuntimeConfig.network: NetworkApi`. */
+/** Action adapters executed locally; online callers wrap them to also
+ *  broadcast. Named `actions` (not `network`) because offline games use
+ *  the same surface — adapters collapse to local-only fallbacks. */
 interface RuntimeInputAdapters {
   actions: {
     maybeSendAimUpdate?: (x: number, y: number) => void;
@@ -83,12 +77,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.clearHumanCache();
   }
 
-  /** Compute clamped frame delta time. Always returns the *real* elapsed
-   *  delta — speed-up is achieved by sub-stepping inside `mainLoop`, NOT
-   *  by inflating dt. Multiplying dt would let grunts and cannonballs skip
-   *  past collision boundaries (a single tick would advance them across
-   *  multiple tiles), drift the RNG consumption order, and cause phase
-   *  timers to skip event boundaries. */
+  /** Returns real elapsed dt, capped at MAX_FRAME_DT — tab-hide / long
+   *  pauses produce huge deltas and would let entities skip collision
+   *  boundaries in a single tick. Speed-up happens via sub-stepping in
+   *  `mainLoop`, never by inflating dt. */
   function clampedFrameDt(now: number): number {
     const fixed = deps.runtimeState.fixedStepMs;
     if (fixed !== undefined) {

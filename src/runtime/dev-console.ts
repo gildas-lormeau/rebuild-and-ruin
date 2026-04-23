@@ -137,8 +137,29 @@ export function exposeDevConsole(
         runtimeState.fixedStepMs = undefined;
         console.log("Fixed step: off (variable rAF timing)");
       } else if (ms !== undefined) {
-        runtimeState.fixedStepMs = ms;
-        console.log(`Fixed step: ${ms}ms per frame`);
+        // Clamp to integer in [1, 1000]. Non-finite values (NaN/Infinity)
+        // are rejected outright — they would corrupt the tick-budget math
+        // in `clampedFrameDt`. Use __dev.fixedStep(false) to disable
+        // (ms === 0 is treated as "disabled" for ergonomics).
+        if (!Number.isFinite(ms)) {
+          console.log(
+            `Fixed step: invalid value ${ms} — expected a finite number or false.`,
+          );
+          return;
+        }
+        if (ms === 0) {
+          runtimeState.fixedStepMs = undefined;
+          console.log("Fixed step: off (variable rAF timing)");
+          return;
+        }
+        const clamped = Math.min(1000, Math.max(1, Math.floor(ms)));
+        if (clamped !== ms) {
+          console.log(
+            `Fixed step clamped to ${clamped}ms (range: 1..1000, integer).`,
+          );
+        }
+        runtimeState.fixedStepMs = clamped;
+        console.log(`Fixed step: ${clamped}ms per frame`);
       } else {
         const current = runtimeState.fixedStepMs;
         console.log(

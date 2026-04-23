@@ -500,10 +500,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
     deps.scoreDelta.capturePreScores();
-    console.assert(
-      runtimeState.state.phase === Phase.WALL_BUILD,
-      "startBuildPhase called outside WALL_BUILD",
-    );
+    if (runtimeState.state.phase !== Phase.WALL_BUILD) {
+      throw new Error("startBuildPhase called outside WALL_BUILD");
+    }
     for (const ctrl of runtimeState.controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId]))

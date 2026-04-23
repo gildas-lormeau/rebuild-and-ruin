@@ -137,6 +137,10 @@ const FANFARE_PHASES: ReadonlySet<Phase> = new Set([
  *  tension build-up. Mirrors the build-bg decrescendo in music-player.ts
  *  so the two signals cross-fade on the same 1 s window. */
 const SNARE_CRESCENDO_SEC = 1;
+/** Delay from towerEnclosed SFX (elechit1) to the fanfare callback. Scheduled
+ *  via Web Audio's own clock by stopping the BufferSource at this offset so
+ *  the `ended` event fires exactly there — no setTimeout, no wall-clock math. */
+const FANFARE_AFTER_SEC = 0.4;
 /** Winner color-end stinger chained after `welldone` at gameEnd. Indexed
  *  by player slot: 0 = Red, 1 = Blue, 2 = Gold (the DOS sample names
  *  abbreviate gold as "org"). A hypothetical 4th slot reuses Red's. */
@@ -386,7 +390,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     // this phase schedule the fanfare via Web Audio's own clock: stop the
     // BufferSource at +FANFARE_AFTER_SEC so the `ended` event fires
     // exactly there. No setTimeout, no wall-clock math.
-    const FANFARE_AFTER_SEC = 0.4;
     const enclosedHandler: GameEventHandler<"towerEnclosed"> = (event) => {
       const isFirst = !fanfarePlayedThisPhase.has(event.playerId);
       const playerId = event.playerId;
