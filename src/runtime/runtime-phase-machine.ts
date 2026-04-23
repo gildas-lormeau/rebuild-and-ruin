@@ -739,12 +739,6 @@ const LAST_PLAYER_STANDING: Transition = {
   mutate: ROUND_LIMIT_REACHED.mutate,
   display: [],
 };
-/** Safety fallback if the PITCH_SETTLED bus event never fires (tab
- *  hidden, paused timing, etc.). Far longer than PITCH_DURATION (0.6s)
- *  so a normal tilt-in never hits the timeout — it only trips on a
- *  stalled camera. Balloon anim still fires, just under the
- *  not-quite-settled view. */
-const BALLOON_ANIM_TILT_TIMEOUT_MS = 1500;
 /** Pause between the modifier-reveal banner and the battle banner so
  *  SFX / tile-change animations have a beat to play. 2 seconds is long
  *  enough to land a bespoke effect cue but short enough that it doesn't
@@ -1008,17 +1002,11 @@ function proceedToBattle(
     return;
   }
   const bus = ctx.state.bus;
-  let fired = false;
-  const fireOnce = (): void => {
-    if (fired) return;
-    fired = true;
+  const onPitchSettled = (): void => {
     bus.off(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
-    ctx.timing.clearTimeout(timer);
     proceed();
   };
-  const onPitchSettled = (): void => fireOnce();
   bus.on(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
-  const timer = ctx.timing.setTimeout(fireOnce, BALLOON_ANIM_TILT_TIMEOUT_MS);
 }
 
 function runStep(

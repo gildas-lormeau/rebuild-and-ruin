@@ -214,29 +214,10 @@ export interface PhaseTicksSystem {
   subscribeBusObservers: () => void;
 }
 
-interface PollTimeout {
-  /** Pass the already-evaluated condition. Returns true while the caller
-   *  should still wait (condition is true AND timeout hasn't elapsed).
-   *  Returns false once the condition clears OR the timeout fires; in
-   *  either case the internal start-time is reset, so the next waiting
-   *  cycle starts fresh. */
-  waiting(shouldWait: boolean): boolean;
-}
-
 /** Set of all battle event type strings — used to filter bus events. */
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
 );
-/** Wall-clock safety cap for the battle-end untilt wait. If the camera
- *  math is paused (tab-hidden, etc.) and pitch never settles, fire the
- *  banner anyway — a one-frame pop is preferable to a stuck phase. */
-const UNTILT_WAIT_TIMEOUT_MS = 1000;
-/** Safety cap for the cannon-facing ease at battle end. The renderer
- *  reports `isCannonRotationEasing()` so we normally wait for the
- *  animation to finish frame-by-frame; this cap only fires if the
- *  renderer never settles (e.g. paused tab, stalled frame loop), in
- *  which case a one-frame snap is preferable to a stuck phase. */
-const ROTATION_SETTLE_TIMEOUT_MS = 1000;
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -246,11 +227,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // this round. Prevents re-resetting on every tick while we wait for
   // the renderer to finish easing. Cleared once the transition fires.
   let rotationResetDone = false;
-  const rotationSettleWait = createPollTimeout(
-    ROTATION_SETTLE_TIMEOUT_MS,
-    deps.timing.now,
-  );
-  const untiltWait = createPollTimeout(UNTILT_WAIT_TIMEOUT_MS, deps.timing.now);
 
   // -------------------------------------------------------------------------
   // Bus → stats accumulator (observation subscriber)
@@ -760,26 +736,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // renderer sees `cannon.facing` change at this exact moment and
     // eases the displayed rotation toward it. We hold the phase until
     // the renderer reports the ease has settled — frame-synced, so a
-    // paused tab can't skip the animation. A safety cap fires if the
-    // frame loop stalls.
+    // paused tab can't skip the animation.
     if (!rotationResetDone) {
       resetCannonFacings(state);
       rotationResetDone = true;
     }
-    if (rotationSettleWait.waiting(deps.isCannonRotationEasing())) {
-      return false;
-    }
+    if (deps.isCannonRotationEasing()) return false;
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
     // it to settle BEFORE the battle-done transition runs. Otherwise the
     // banner's prev-scene snapshot bakes in the tilted view and the
     // untilt then plays under the banner (visible flat-flash then
-    // re-tilt on next-phase enter). Safety-bounded so a paused camera
-    // (tab-hidden, etc.) can't stall the phase indefinitely.
+    // re-tilt on next-phase enter).
     deps.beginUntilt();
-    if (untiltWait.waiting(deps.getPitchState() !== "flat")) {
-      return false;
-    }
+    if (deps.getPitchState() !== "flat") return false;
     rotationResetDone = false;
 
     // Battle ended — delegate to the battle-done transition.
@@ -944,23 +914,5 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickGame,
     syncCrosshairs,
     subscribeBusObservers,
-  };
-}
-
-function createPollTimeout(timeoutMs: number, now: () => number): PollTimeout {
-  let startMs: number | undefined;
-  return {
-    waiting(shouldWait) {
-      if (!shouldWait) {
-        startMs = undefined;
-        return false;
-      }
-      if (startMs === undefined) startMs = now();
-      if (now() - startMs >= timeoutMs) {
-        startMs = undefined;
-        return false;
-      }
-      return true;
-    },
   };
 }
