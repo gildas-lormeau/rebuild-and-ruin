@@ -301,6 +301,29 @@ export interface E2EPerf {
    *  layout count, recalc-style count, task duration, etc. Cheap to
    *  call; use between phases to catch runaway growth. */
   metrics(): Promise<PerfMetrics>;
+  /** Dump recorded game-bus events to NDJSON so a perf spike (CPU
+   *  peak at t=42s) can be correlated with a game moment (e.g.
+   *  `towerEnclosed` fired at t=42.03s). One JSON object per line;
+   *  the first line is a meta object carrying the origin timestamp
+   *  and the event-type histogram. Subsequent lines carry one event
+   *  each, including a `tMs` field (ms since the first recorded
+   *  event) for easy filtering.
+   *
+   *  The file is written synchronously from the current busLog — call
+   *  after `runGame` to capture the whole run. */
+  writeEventLog(path: string, opts?: EventLogOpts): Promise<void>;
+}
+
+/** Options for `sc.perf.writeEventLog`. */
+export interface EventLogOpts {
+  /** Whitelist of event types to keep. Pass a list of `GAME_EVENT.*`
+   *  string values (e.g. `["phaseStart", "modifierApplied"]`) to emit
+   *  only those. Mutually exclusive with `exclude`; if both are
+   *  given, `include` wins. */
+  include?: readonly string[];
+  /** Event types to drop. Defaults to high-volume per-frame events
+   *  (`tick`) so the file stays readable. Pass `[]` to keep everything. */
+  exclude?: readonly string[];
 }
 
 /** Parsed form of `Performance.getMetrics`. Only the most useful
@@ -358,6 +381,10 @@ const DEVTOOLS_TRACE_CATEGORIES: readonly string[] = [
 /** Screenshot category added on top of the preset when
  *  `startTrace({ screenshots: true })`. */
 const DEVTOOLS_SCREENSHOT_CATEGORY = "disabled-by-default-devtools.screenshot";
+/** Default `writeEventLog` exclude list. `tick` fires every sim
+ *  sub-step so it drowns out everything else in the NDJSON; other
+ *  high-volume events can be added here if they become noisy. */
+const DEFAULT_EVENT_LOG_EXCLUDE: readonly string[] = ["tick"];
 
 /** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate / target
  *  state doesn't materialize within the budget. Carries `elapsedMs` so tests
@@ -769,6 +796,70 @@ export async function createE2EScenario(
         taskDuration: raw.TaskDuration ?? 0,
         raw,
       };
+    },
+
+    writeEventLog: async (path, eventOpts = {}) => {
+      // Pull the raw busLog (minus PNG captures, which would bloat
+      // the file and aren't useful for timing correlation).
+      const entries: E2EBusEntry[] = await page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { busLog?: E2EBusEntry[] } | undefined;
+        const log = e2e?.busLog ?? [];
+        return log.map((entry) => {
+          if (!entry.capture) return entry;
+          const { capture: _c, ...rest } = entry;
+          return rest as typeof entry;
+        });
+      });
+
+      const includeSet = eventOpts.include
+        ? new Set(eventOpts.include)
+        : null;
+      const excludeSet = new Set(
+        eventOpts.exclude ?? DEFAULT_EVENT_LOG_EXCLUDE,
+      );
+      const kept = entries.filter((entry) => {
+        if (includeSet) return includeSet.has(entry.type);
+        return !excludeSet.has(entry.type);
+      });
+
+      const originMs = kept.length > 0 ? kept[0]._tMs : 0;
+      const typeCounts: Record<string, number> = {};
+      for (const entry of kept) {
+        typeCounts[entry.type] = (typeCounts[entry.type] ?? 0) + 1;
+      }
+
+      // NDJSON: one JSON object per line. The first line is a meta
+      // record carrying the origin timestamp so downstream analyzers
+      // can reconstruct absolute `performance.now()` values if
+      // needed. Event lines carry `tMs = entry._tMs - originMs`
+      // (relative to first event) as the primary timestamp, alongside
+      // `tAbsMs` (absolute performance.now()) for cross-file alignment.
+      const lines: string[] = [];
+      lines.push(
+        JSON.stringify({
+          _meta: true,
+          originMs,
+          totalEvents: entries.length,
+          keptEvents: kept.length,
+          droppedTypes: [...excludeSet].filter(
+            (type) => !includeSet || !includeSet.has(type),
+          ),
+          typeCounts,
+        }),
+      );
+      for (const entry of kept) {
+        const { _tMs, _seq, capture: _c, ...payload } = entry;
+        lines.push(
+          JSON.stringify({
+            tMs: +(entry._tMs - originMs).toFixed(3),
+            tAbsMs: entry._tMs,
+            seq: _seq,
+            ...payload,
+          }),
+        );
+      }
+      await Deno.writeTextFile(path, lines.join("\n") + "\n");
     },
   };
 

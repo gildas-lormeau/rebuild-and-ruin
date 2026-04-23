@@ -166,10 +166,16 @@ interface E2EBridge extends E2EBridgeSnapshot {
 }
 
 /** Bridge metadata attached to every recorded bus entry. `_seq` is a
- *  monotonic index across all event types; `capture` is populated for
- *  entries matching a `captureOn` filter. */
+ *  monotonic index across all event types; `_tMs` is the emit time in
+ *  `performance.now()` ms (browser monotonic clock); `capture` is
+ *  populated for entries matching a `captureOn` filter. */
 export interface E2EEntryMeta {
   _seq: number;
+  /** Emit time on the browser's monotonic clock (`performance.now()`).
+   *  Used by `sc.perf.writeEventLog()` to correlate game events with
+   *  Chrome DevTools perf artifacts (trace / CPU profile) captured in
+   *  the same session — both share Chromium's monotonic timebase. */
+  _tMs: number;
   /** Canvas PNG data-URL, attached when the entry matches a `captureOn`
    *  filter registered via `bridge.captureOn`. */
   capture?: string | null;
@@ -395,6 +401,7 @@ function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
       ...(event as Record<string, unknown>),
       type,
       _seq: ref.busLog.length,
+      _tMs: performance.now(),
     } as E2EBusEntry;
 
     for (const filter of captureFilters) {

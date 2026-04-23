@@ -45,6 +45,7 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   await sc.perf.stopCpuProfile(`${OUT_DIR}/cpu.cpuprofile`);
   await sc.perf.stopTrace(`${OUT_DIR}/trace.json`);
   await sc.perf.heapSnapshot(`${OUT_DIR}/heap.heapsnapshot`);
+  await sc.perf.writeEventLog(`${OUT_DIR}/events.ndjson`);
 
   const after = await sc.perf.metrics();
 
@@ -79,9 +80,22 @@ Deno.test("e2e perf: single round produces DevTools artifacts", async () => {
   const heapStat = await Deno.stat(`${OUT_DIR}/heap.heapsnapshot`);
   assert(heapStat.size > 0, "heap snapshot is non-empty");
 
+  // Event log: first line is a meta record, rest are events. Parse
+  // the meta to confirm events were captured.
+  const eventLines = (await Deno.readTextFile(`${OUT_DIR}/events.ndjson`))
+    .trim()
+    .split("\n");
+  const eventMeta = JSON.parse(eventLines[0]) as {
+    _meta: true;
+    keptEvents: number;
+  };
+  assert(eventMeta._meta === true, "events.ndjson starts with meta record");
+  assertGreater(eventMeta.keptEvents, 0, "some game events were captured");
+
   console.log(
     `[perf] trace=${trace.traceEvents.length} events, ` +
       `cpu=${cpu.nodes.length} nodes, ` +
+      `gameEvents=${eventMeta.keptEvents}, ` +
       `heapDelta=${(after.jsHeapUsedBytes - before.jsHeapUsedBytes).toLocaleString()} bytes, ` +
       `taskDuration=${(after.taskDuration - before.taskDuration).toFixed(2)}s`,
   );
