@@ -267,6 +267,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
 
   let scene: OffscreenPair | undefined;
   let bannerScene: OffscreenPair | undefined;
+  let bannerNewScene: OffscreenPair | undefined;
   // Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile.
   let mainCtxCache:
     | {
@@ -285,6 +286,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  When the reference changes (new banner, or the next banner in a
    *  display sequence), the new ImageData is painted. */
   let bannerScenePainted: ImageData | undefined;
+  /** Same idea as `bannerScenePainted`, but for the new-scene snapshot
+   *  (revealed above the sweep line). Tracked separately so both temp
+   *  canvases can cache their last painted ImageData independently —
+   *  both are painted in the same frame during an active banner. */
+  let bannerNewScenePainted: ImageData | undefined;
   /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
    *  Invalidated on any input ref change; held here so steady-state frames
    *  skip the per-pixel rebuild and the texture upload that follows. */
@@ -379,6 +385,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       bannerScene = { canvas, ctx };
     }
     return bannerScene;
+  }
+
+  function getBannerNewScene(): OffscreenPair {
+    if (!bannerNewScene) {
+      const canvas = createOffscreenCanvas();
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      bannerNewScene = { canvas, ctx };
+    }
+    return bannerNewScene;
   }
 
   /** Copy `src` pixels into `dst` at (dx, dy). Used by the sinkhole-overlay
@@ -495,6 +510,52 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     });
   }
 
+  // Companion to `drawBannerPrevScene`: paints the NEW scene (post-mutation
+  // snapshot) into the region ABOVE the banner strip. Together, the two
+  // snapshots form a progressive reveal of the new scene over the old
+  // scene — both frozen for the duration of the sweep, so the live
+  // renderer never repaints world contents during a banner.
+  function drawBannerNewScene(
+    displayCtx: CanvasRenderingContext2D,
+    displayW: number,
+    displayH: number,
+    overlay: RenderOverlay | undefined,
+  ): void {
+    if (!overlay?.ui?.banner?.newScene) {
+      bannerNewScenePainted = undefined;
+      return;
+    }
+    const next = overlay.ui.banner.newScene;
+
+    // Banner strip bounds in display pixels. Above the top edge is the
+    // region we reveal to — clip to [0, topPx).
+    const bannerTopMap = overlay.ui.banner.top;
+    const topPx = bannerTopMap * SCALE;
+    if (topPx <= 0) return;
+
+    const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerNewScene();
+    if (
+      tmpCanvas.width !== next.image.width ||
+      tmpCanvas.height !== next.image.height
+    ) {
+      tmpCanvas.width = next.image.width;
+      tmpCanvas.height = next.image.height;
+      tmpCtx.imageSmoothingEnabled = false;
+      bannerNewScenePainted = undefined;
+    }
+    if (bannerNewScenePainted !== next.image) {
+      tmpCtx.putImageData(next.image, 0, 0);
+      bannerNewScenePainted = next.image;
+    }
+
+    displayCtx.save();
+    displayCtx.beginPath();
+    displayCtx.rect(0, 0, displayW, topPx);
+    displayCtx.clip();
+    displayCtx.drawImage(tmpCanvas, 0, 0, displayW, displayH);
+    displayCtx.restore();
+  }
+
   function drawMap(
     map: GameMap,
     canvas: HTMLCanvasElement,
@@ -548,7 +609,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     //   7. Towers               — 2×2 tower sprites (alive/dead/pending)
     //   8. Burning pits         — ember glow + sprites
     //   9. Grunts               — directional tank sprites
-    //  10. Banner prev-scene    — composited old scene below banner line (phase transitions)
+    //  10. Banner scenes        — new scene above / old scene below the sweep line (phase transitions)
     //  11. Phantoms             — piece/cannon placement previews
     //  12. Battle effects       — impacts, cannonballs, balloons, crosshairs, timer
     //  13. Score deltas         — floating score change numbers
@@ -608,12 +669,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       canvasCtx.drawImage(offscreenCanvas, 0, 0, cw, gameH);
     }
 
-    // Banner prev-scene snapshot, painted on the DISPLAY canvas at 1:1 after
-    // the offscreen blit. The snapshot is captured at display resolution so
-    // tilted/viewport-cropped frames can be replayed exactly as they were on
-    // screen. The banner strip (drawn into the offscreen above) is already on
-    // the display surface from the blit — the snapshot is clipped below the
-    // banner bottom so the strip stays visible on top.
+    // Banner scene snapshots, painted on the DISPLAY canvas at 1:1 after
+    // the offscreen blit. Both are captured at display resolution so
+    // tilted/viewport-cropped frames replay exactly as they were on screen.
+    // Clips are disjoint — new scene above the banner top, old scene below
+    // the banner bottom — so paint order doesn't matter. New-above-prev
+    // mirrors the top-to-bottom reading order of the sweep.
+    drawBannerNewScene(canvasCtx, cw, gameH, overlay);
     drawBannerPrevScene(canvasCtx, cw, gameH, overlay);
 
     // HUD text drawn at display resolution (screen-relative, not affected by zoom)
