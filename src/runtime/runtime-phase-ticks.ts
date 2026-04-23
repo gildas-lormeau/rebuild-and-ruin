@@ -214,6 +214,15 @@ export interface PhaseTicksSystem {
   subscribeBusObservers: () => void;
 }
 
+interface PollTimeout {
+  /** Pass the already-evaluated condition. Returns true while the caller
+   *  should still wait (condition is true AND timeout hasn't elapsed).
+   *  Returns false once the condition clears OR the timeout fires; in
+   *  either case the internal start-time is reset, so the next waiting
+   *  cycle starts fresh. */
+  waiting(shouldWait: boolean): boolean;
+}
+
 /** Set of all battle event type strings — used to filter bus events. */
 const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
   Object.values(BATTLE_MESSAGE),
@@ -233,17 +242,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
   const online = deps.online;
 
-  // Timestamp captured the first tick we decide the battle is ready to end
-  // but the camera is still tilted. Cleared once the transition fires.
-  let untiltWaitStartMs: number | undefined;
   // True once the battle-end `resetCannonFacings` call has been made for
   // this round. Prevents re-resetting on every tick while we wait for
   // the renderer to finish easing. Cleared once the transition fires.
   let rotationResetDone = false;
-  // Timestamp captured the first tick we decide cannons are ready to
-  // rotate home but the renderer is still easing. Enforces the safety
-  // cap if the frame loop stalls. Cleared once the transition fires.
-  let rotationSettleStartMs: number | undefined;
+  const rotationSettleWait = createPollTimeout(
+    ROTATION_SETTLE_TIMEOUT_MS,
+    deps.timing.now,
+  );
+  const untiltWait = createPollTimeout(UNTILT_WAIT_TIMEOUT_MS, deps.timing.now);
 
   // -------------------------------------------------------------------------
   // Bus → stats accumulator (observation subscriber)
@@ -759,16 +766,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       resetCannonFacings(state);
       rotationResetDone = true;
     }
-    if (deps.isCannonRotationEasing()) {
-      if (rotationSettleStartMs === undefined) {
-        rotationSettleStartMs = deps.timing.now();
-      }
-      if (
-        deps.timing.now() - rotationSettleStartMs <
-        ROTATION_SETTLE_TIMEOUT_MS
-      ) {
-        return false;
-      }
+    if (rotationSettleWait.waiting(deps.isCannonRotationEasing())) {
+      return false;
     }
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
@@ -778,16 +777,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // re-tilt on next-phase enter). Safety-bounded so a paused camera
     // (tab-hidden, etc.) can't stall the phase indefinitely.
     deps.beginUntilt();
-    if (deps.getPitchState() !== "flat") {
-      if (untiltWaitStartMs === undefined) {
-        untiltWaitStartMs = deps.timing.now();
-      }
-      if (deps.timing.now() - untiltWaitStartMs < UNTILT_WAIT_TIMEOUT_MS) {
-        return false;
-      }
+    if (untiltWait.waiting(deps.getPitchState() !== "flat")) {
+      return false;
     }
-    untiltWaitStartMs = undefined;
-    rotationSettleStartMs = undefined;
     rotationResetDone = false;
 
     // Battle ended — delegate to the battle-done transition.
@@ -952,5 +944,23 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickGame,
     syncCrosshairs,
     subscribeBusObservers,
+  };
+}
+
+function createPollTimeout(timeoutMs: number, now: () => number): PollTimeout {
+  let startMs: number | undefined;
+  return {
+    waiting(shouldWait) {
+      if (!shouldWait) {
+        startMs = undefined;
+        return false;
+      }
+      if (startMs === undefined) startMs = now();
+      if (now() - startMs >= timeoutMs) {
+        startMs = undefined;
+        return false;
+      }
+      return true;
+    },
   };
 }
