@@ -148,7 +148,10 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
-  setPhase(state, Phase.BATTLE);
+  // Phase flip is owned by the phase machine (`cannon-place-done` /
+  // `enter-battle` / ceasefire-flow mutates). Engine-level setup runs
+  // here but state.phase stays on CANNON_PLACE until the machine's
+  // mutate runs `setPhase(state, Phase.BATTLE)`.
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
@@ -206,7 +209,10 @@ export function enterBuildFromBattle(state: GameState): void {
   }
 
   replenishBonusSquares(state);
-  setPhase(state, Phase.WALL_BUILD);
+  // Phase flip is owned by the phase machine (`battle-done` /
+  // `ceasefire` / `enter-wall-build` mutates). Engine-level setup runs
+  // here but state.phase stays on BATTLE until the machine's mutate
+  // runs `setPhase(state, Phase.WALL_BUILD)`.
 
   // Upgrade-effect setup for the new build phase (Master Builder owners +
   // lockout, plus any future hooks wired into onBuildPhaseStart).

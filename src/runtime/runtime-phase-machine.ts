@@ -555,6 +555,11 @@ const BATTLE_DONE: Transition = {
         ctx.runtimeState.battleAnim.territory,
         ctx.runtimeState.battleAnim.walls,
       );
+      // Machine owns the phase flip now (the engine's
+      // `enterBuildFromBattle` no longer calls setPhase). Set BEFORE
+      // broadcast so the broadcast payload reflects WALL_BUILD and
+      // PHASE_END/PHASE_START fire in the same order as before.
+      setPhase(ctx.state, Phase.WALL_BUILD);
       ctx.broadcast?.buildStart?.(ctx.state);
       return EMPTY_TRANSITION_RESULT;
     },
@@ -601,6 +606,11 @@ const CEASEFIRE: Transition = {
       ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset?.();
       ctx.ceasefireSkipBattle?.();
+      // Machine owns the phase flip. `ceasefireSkipBattle` runs
+      // `enterBuildSkippingBattle` → `enterBuildFromBattle`, which no
+      // longer calls setPhase. Set BEFORE broadcast so the payload
+      // reflects WALL_BUILD.
+      setPhase(ctx.state, Phase.WALL_BUILD);
       ctx.broadcast?.buildStart?.(ctx.state);
       return EMPTY_TRANSITION_RESULT;
     },
@@ -790,6 +800,12 @@ const CANNON_PLACE_DONE: Transition = {
       ctx.log(`startBattle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset();
       const entry = enterBattlePhase(ctx.state);
+      // Machine owns the phase flip now (the engine's
+      // `enterBattleFromCannon` no longer calls setPhase). Set
+      // BEFORE broadcast so the broadcast payload reflects the new
+      // phase and PHASE_END/PHASE_START fire in the same order as
+      // the previous engine-driven sequence.
+      setPhase(ctx.state, Phase.BATTLE);
       ctx.broadcast?.battleStart?.(
         ctx.state,
         entry.flights,
