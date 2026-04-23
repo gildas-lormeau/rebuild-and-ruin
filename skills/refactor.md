@@ -54,6 +54,40 @@ npm run refactor list-references --file <file> --symbol <name>
 
 Best for: assessing blast radius before renaming or moving a symbol.
 
+### `list-callsites` — Every reference to a symbol (imports + local calls)
+
+Complements `list-references` (which only walks cross-file imports) by also surfacing local call sites inside the declaring file and annotating each reference with its kind (`call`, `import`, `re-export`, `type-ref`, `assign`, `read`) and enclosing function.
+
+```bash
+npm run refactor list-callsites <file> <symbol>
+```
+
+Best for: answering "if I delete this, who still calls it?" before running `remove-export`. Output is grouped by file with line numbers.
+
+## Dead-code commands
+
+### `remove-export` — Delete an export + all import sites
+
+Removes a declaration and every `import { name }` specifier for it across the project. Errors out (listing referrers) if any non-import reference remains, so it's safe to run without a blast-radius survey first — the error is the survey.
+
+```bash
+npm run refactor remove-export <file> <name> [--dry-run]
+```
+
+Will not remove re-exports silently; points to the canonical source file if the target is itself a re-export. Use `list-callsites` first to see what references exist.
+
+### `fold-constant` — Fold dead branches gated by a known-constant symbol
+
+Given an assertion that `<name>` is invariantly `true` or `false`, folds every `if` / `?:` / `&&` / `||` expression whose truthiness is thereby determined. Handles `!`, nested `&&`/`||`, and negation wrappers. The symbol declaration is NOT removed — it may still be assigned elsewhere. Use `remove-export` as the follow-up once all reads are folded.
+
+```bash
+npm run refactor fold-constant <file> <name> <true|false> [--dry-run]
+```
+
+References that can't be fully determined (e.g. `flag || someCall()`) are left in place and reported so the user can inspect them. The value assertion is *forced* — the tool does not verify the declaration actually holds that value; it collapses the dead branches on the user's word.
+
+Best for: ripping out code gated by a feature-flag / layer-enabled boolean that has become invariantly `false` (or `true`) after a design decision. Run once per flag, then `remove-export` each flag whose references all folded, then `biome check --write` to tidy formatting.
+
 ## Refactoring commands
 
 ### `rename-symbol` — Rename a single exported/declared symbol

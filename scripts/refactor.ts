@@ -12,6 +12,10 @@
  * Usage: deno run -A scripts/refactor.ts <command> [...args] [--dry-run]
  */
 
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import path from "node:path";
+import process from "node:process";
 import {
   type ExportedDeclarations,
   type Identifier,
@@ -21,39 +25,81 @@ import {
   type SourceFile,
   SyntaxKind,
 } from "ts-morph";
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import path from "node:path";
-import process from "node:process";
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
+interface ImportInfo {
+  moduleSpecifier: string;
+  namedImports: string[];
+  isTypeOnly: boolean;
+}
+
+interface BarrelEntry {
+  sourceRelPath: string; // project-relative path (for display / grouping)
+  moduleSpecifier: string; // relative specifier from outFile to sourceFile
+  valueSymbols: Set<string>;
+  typeSymbols: Set<string>;
+}
+
+/**
+ * Resolution of one named import going *through* a re-export-only barrel.
+ * `underlyingPath` is the absolute path of the file that truly defines
+ * (or further re-exports) the symbol, and `originalName` is the name used
+ * at that definition site (stripping any `as` alias the barrel applied).
+ */
+interface BarrelResolution {
+  underlyingPath: string;
+  originalName: string;
+}
+
+interface BarrelReexportMap {
+  /** alias-seen-by-importer → underlying source + original symbol name */
+  named: Map<string, BarrelResolution>;
+  /**
+   * Absolute paths of files targeted by `export * from "..."`. We can't
+   * resolve a specific symbol through these without scanning each target's
+   * exported declarations, so we fall back to a warning for unknown symbols.
+   */
+  namespaceTargets: string[];
+}
+
+interface BulkRedirectEntry {
+  symbol: string;
+  from: string;
+  to: string;
+}
+
+interface CrossDomainRecord {
+  importer: string;
+  imported: string;
+  symbols: string[];
+  kind: "value" | "type";
+}
+
+interface PublicSurfaceRecord {
+  symbol: string;
+  source: string;
+  consumers: number;
+  consumerFiles: string[];
+}
+
+type BoolEval = "true" | "false" | "unknown";
+
+interface FoldResult {
+  folded: boolean;
+  outcome: BoolEval;
+  action: string;
+}
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const allFlag = args.includes("--all");
 const cascadeFlag = args.includes("--cascade");
-
-// Parse --key value pairs into a map, collect bare positional args separately.
-// Repeated flags (e.g. --symbol A --symbol B) are collected into flagMulti.
-const flagMap = new Map<string, string>();
-const flagMulti = new Map<string, string[]>();
-const positionalArgs: string[] = [];
-for (let i = 0; i < args.length; i++) {
-  const a = args[i]!;
-  if (a === "--dry-run" || a === "--all" || a === "--type" || a === "--cascade") continue;
-  if (a.startsWith("--") && i + 1 < args.length) {
-    const key = a.slice(2);
-    const val = args[++i]!;
-    flagMap.set(key, val);
-    const arr = flagMulti.get(key);
-    if (arr) arr.push(val);
-    else flagMulti.set(key, [val]);
-  } else if (!a.startsWith("--")) {
-    positionalArgs.push(a);
-  }
-}
+// Parsed once so top-level state doesn't rely on a top-level for-loop —
+// reorder-file.ts hoists `const` declarations above loose imperative code,
+// which would otherwise destructure from an empty array.
+const parsed = parseArgv(args);
+const flagMap = parsed.flagMap;
+const flagMulti = parsed.flagMulti;
+const positionalArgs = parsed.positionalArgs;
 const [command, ...commandArgs] = positionalArgs;
 
 if (!command) {
@@ -61,44 +107,932 @@ if (!command) {
   process.exit(1);
 }
 
-// ---------------------------------------------------------------------------
-// Project setup
-// ---------------------------------------------------------------------------
+switch (command) {
+  case "rename-symbol": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const name =
+      flagMap.get("name") ??
+      flagMap.get("symbol") ??
+      flagMap.get("old") ??
+      commandArgs[1];
+    const newName =
+      flagMap.get("new-name") ??
+      flagMap.get("newName") ??
+      flagMap.get("new") ??
+      commandArgs[2];
+    if (!file || !name || !newName) {
+      console.error("Usage: rename-symbol <file> <name> <newName>");
+      process.exit(1);
+    }
+    renameSymbol(file, name, newName);
+    break;
+  }
+  case "move-export": {
+    let from = flagMap.get("from") ?? commandArgs[0];
+    let to = flagMap.get("to") ?? commandArgs[1];
+    // Support multiple symbols: --symbol A --symbol B, or single positional
+    let symbols =
+      flagMulti.get("symbol") ??
+      flagMulti.get("name") ??
+      (commandArgs[2] ? [commandArgs[2]] : []);
 
-function createProject(): Project {
-  return new Project({
-    tsConfigFilePath: path.resolve("tsconfig.json"),
-    skipAddingFilesFromTsConfig: true,
+    // Smart reorder: if 'from' doesn't look like a file path, assume user passed <name> <from> <to>
+    if (
+      from &&
+      !from.includes("/") &&
+      !from.endsWith(".ts") &&
+      commandArgs.length >= 3
+    ) {
+      const reorderedFrom = commandArgs[1]!;
+      const reorderedTo = commandArgs[2]!;
+      const reorderedSymbol = commandArgs[0]!;
+      // Only reorder if the swapped values look like paths
+      if (reorderedFrom.includes("/") || reorderedFrom.endsWith(".ts")) {
+        from = reorderedFrom;
+        to = reorderedTo;
+        symbols = [reorderedSymbol];
+      }
+    }
+
+    if (!from || !to || symbols.length === 0) {
+      console.error(
+        "Usage: move-export <from> <to> <name> OR --from <from> --to <to> --symbol <name> [--symbol <name2>]",
+      );
+      process.exit(1);
+    }
+    for (const name of symbols) {
+      moveExport(from, to, name);
+    }
+    break;
+  }
+  case "rename-prop": {
+    let typeName =
+      flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
+    let prop = flagMap.get("prop") ?? flagMap.get("old") ?? commandArgs[1];
+    let newProp =
+      flagMap.get("new-prop") ??
+      flagMap.get("newProp") ??
+      flagMap.get("new") ??
+      commandArgs[2];
+
+    // Smart reorder: if first arg looks like a file path, assume user passed <file> <type> <prop> <newProp>
+    if (
+      typeName &&
+      (typeName.includes("/") || typeName.endsWith(".ts")) &&
+      commandArgs.length >= 4
+    ) {
+      typeName = commandArgs[1];
+      prop = commandArgs[2];
+      newProp = commandArgs[3];
+    }
+
+    if (!typeName || !prop || !newProp) {
+      console.error("Usage: rename-prop <typeName> <prop> <newProp>");
+      process.exit(1);
+    }
+    renameProp(typeName, prop, newProp);
+    break;
+  }
+  case "rename-in-file": {
+    let name =
+      flagMap.get("name") ??
+      flagMap.get("symbol") ??
+      flagMap.get("old") ??
+      commandArgs[0];
+    let newName =
+      flagMap.get("new-name") ??
+      flagMap.get("newName") ??
+      flagMap.get("new") ??
+      commandArgs[1];
+    let files = flagMap.has("files")
+      ? flagMap.get("files")!.split(",")
+      : commandArgs.slice(2);
+
+    // Smart reorder: if first arg looks like a file path, assume user passed <file...> <name> <newName>
+    if (
+      name &&
+      (name.includes("/") || name.endsWith(".ts")) &&
+      !flagMap.has("name") &&
+      !flagMap.has("symbol") &&
+      !flagMap.has("old")
+    ) {
+      // Find where file paths end and identifiers begin
+      const firstNonFile = commandArgs.findIndex(
+        (a) => !a.includes("/") && !a.endsWith(".ts"),
+      );
+      if (firstNonFile >= 0 && firstNonFile + 1 < commandArgs.length) {
+        files = commandArgs.slice(0, firstNonFile);
+        name = commandArgs[firstNonFile];
+        newName = commandArgs[firstNonFile + 1];
+      }
+    }
+
+    if (!name || !newName || files.length === 0) {
+      console.error("Usage: rename-in-file <name> <newName> <file...>");
+      process.exit(1);
+    }
+    console.log(
+      `Renaming all "${name}" → "${newName}" in ${files.length} file(s)`,
+    );
+    renameInFile(name, newName, files);
+    break;
+  }
+  case "rename-file": {
+    const oldFile = flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[0];
+    const newFile = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[1];
+    if (!oldFile || !newFile) {
+      console.error("Usage: rename-file <oldPath> <newPath>");
+      process.exit(1);
+    }
+    renameFile(oldFile, newFile);
+    break;
+  }
+  case "merge-imports": {
+    const files = allFlag ? [] : commandArgs;
+    if (!allFlag && files.length === 0) {
+      console.error("Usage: merge-imports <file...> | --all [--dry-run]");
+      process.exit(1);
+    }
+    mergeImports(files);
+    break;
+  }
+  case "find-symbol": {
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[0];
+    if (!name) {
+      console.error("Usage: find-symbol <name>");
+      process.exit(1);
+    }
+    findSymbol(name);
+    break;
+  }
+  case "list-exports": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    if (!file) {
+      console.error("Usage: list-exports <file>");
+      process.exit(1);
+    }
+    listExports(file);
+    break;
+  }
+  case "list-references": {
+    const file = flagMap.get("file") ?? flagMap.get("from") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    if (!file || !name) {
+      console.error("Usage: list-references <file> <name>");
+      process.exit(1);
+    }
+    listReferences(file, name);
+    break;
+  }
+  case "generate-barrel": {
+    const sourceDir =
+      flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
+    const outFile =
+      flagMap.get("out") ?? flagMap.get("output") ?? commandArgs[1];
+    if (!sourceDir || !outFile) {
+      console.error("Usage: generate-barrel <sourceDir> <outFile> [--dry-run]");
+      process.exit(1);
+    }
+    generateBarrel(sourceDir, outFile);
+    break;
+  }
+  case "redirect-import": {
+    const symbol =
+      flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[0];
+    const oldSource =
+      flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[1];
+    const newSource = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[2];
+    if (!symbol || !oldSource || !newSource) {
+      console.error(
+        "Usage: redirect-import <symbol> <oldSource> <newSource> [--dry-run]",
+      );
+      process.exit(1);
+    }
+    redirectImport(symbol, oldSource, newSource);
+    break;
+  }
+  case "bulk-redirect": {
+    const manifest =
+      flagMap.get("manifest") ?? flagMap.get("file") ?? commandArgs[0];
+    if (!manifest) {
+      console.error("Usage: bulk-redirect <manifestFile> [--dry-run]");
+      process.exit(1);
+    }
+    bulkRedirect(manifest);
+    break;
+  }
+  case "list-cross-domain-imports": {
+    const projectRoot = flagMap.get("root") ?? commandArgs[0] ?? "src";
+    listCrossDomainImports(projectRoot);
+    break;
+  }
+  case "compute-public-surface": {
+    const sourceDir =
+      flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
+    if (!sourceDir) {
+      console.error("Usage: compute-public-surface <sourceDir>");
+      process.exit(1);
+    }
+    computePublicSurface(sourceDir);
+    break;
+  }
+  case "add-reexport": {
+    const barrelFile = flagMap.get("barrel") ?? commandArgs[0];
+    const sourceFile =
+      flagMap.get("source") ?? flagMap.get("from") ?? commandArgs[1];
+    const symbol =
+      flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[2];
+    const typeOnly = args.includes("--type");
+    if (!barrelFile || !sourceFile || !symbol) {
+      console.error(
+        "Usage: add-reexport <barrelFile> <sourceFile> <symbol> [--type] [--dry-run]",
+      );
+      process.exit(1);
+    }
+    addReexport(barrelFile, sourceFile, symbol, typeOnly);
+    break;
+  }
+  case "list-callsites": {
+    const file = flagMap.get("file") ?? flagMap.get("from") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    if (!file || !name) {
+      console.error("Usage: list-callsites <file> <symbol>");
+      process.exit(1);
+    }
+    listCallsites(file, name);
+    break;
+  }
+  case "remove-export": {
+    const file = flagMap.get("file") ?? flagMap.get("from") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    if (!file || !name) {
+      console.error("Usage: remove-export <file> <name> [--dry-run]");
+      process.exit(1);
+    }
+    removeExport(file, name);
+    break;
+  }
+  case "fold-constant": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    const value = flagMap.get("value") ?? commandArgs[2];
+    if (!file || !name || !value) {
+      console.error(
+        "Usage: fold-constant <file> <name> <true|false> [--dry-run]",
+      );
+      process.exit(1);
+    }
+    foldConstant(file, name, value);
+    break;
+  }
+  default:
+    console.error(`Unknown command: ${command}`);
+    printUsage();
+    process.exit(1);
+}
+
+function listCallsites(filePath: string, symbolName: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+  const declId = findDeclarationIdentifier(sf, symbolName);
+  if (!declId) {
+    console.error(`❌ Symbol "${symbolName}" not found in ${filePath}`);
+    process.exit(1);
+  }
+
+  const declPath = sf.getFilePath();
+  const declLine = declId.getStartLineNumber();
+
+  interface Site {
+    file: string;
+    line: number;
+    kind: string;
+    context: string;
+  }
+  const sites: Site[] = [];
+
+  for (const ref of declId.findReferencesAsNodes()) {
+    const refSf = ref.getSourceFile();
+    const refFile = refSf.getFilePath();
+    const line = ref.getStartLineNumber();
+
+    // Skip the declaration site itself
+    if (refFile === declPath && line === declLine) continue;
+
+    const kind = classifyReferenceKind(ref);
+    const context = enclosingContext(ref);
+
+    sites.push({
+      file: path.relative(process.cwd(), refFile),
+      line,
+      kind,
+      context,
+    });
+  }
+
+  if (sites.length === 0) {
+    console.log(`No call sites for "${symbolName}" from ${filePath}`);
+    return;
+  }
+
+  sites.sort((aa, bb) => aa.file.localeCompare(bb.file) || aa.line - bb.line);
+
+  let currentFile = "";
+  for (const s of sites) {
+    if (s.file !== currentFile) {
+      console.log(`\n${s.file}`);
+      currentFile = s.file;
+    }
+    console.log(`  :${s.line}  [${s.kind}]  ${s.context}`);
+  }
+  console.log(
+    `\n${sites.length} call site(s) across ${new Set(sites.map((s) => s.file)).size} file(s)`,
+  );
+}
+
+/** Return the nearest named function/method/class containing this node, or
+ *  the closest statement kind if none exists. Helps the reader see *which*
+ *  code path holds a given reference without having to open the file. */
+function enclosingContext(node: import("ts-morph").Node): string {
+  let cursor: import("ts-morph").Node | undefined = node.getParent();
+  while (cursor) {
+    if (cursor.isKind(SyntaxKind.FunctionDeclaration)) {
+      return (
+        cursor.asKindOrThrow(SyntaxKind.FunctionDeclaration).getName() ??
+        "<anon fn>"
+      );
+    }
+    if (cursor.isKind(SyntaxKind.MethodDeclaration)) {
+      const method = cursor.asKindOrThrow(SyntaxKind.MethodDeclaration);
+      const cls = method.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
+      const clsName = cls?.getName() ?? "?";
+      return `${clsName}.${method.getName()}`;
+    }
+    if (
+      cursor.isKind(SyntaxKind.ArrowFunction) ||
+      cursor.isKind(SyntaxKind.FunctionExpression)
+    ) {
+      // Walk up to a named parent if any (variable decl, property assignment)
+      const parent = cursor.getParent();
+      if (parent?.isKind(SyntaxKind.VariableDeclaration)) {
+        return parent.asKindOrThrow(SyntaxKind.VariableDeclaration).getName();
+      }
+      if (parent?.isKind(SyntaxKind.PropertyAssignment)) {
+        return parent.asKindOrThrow(SyntaxKind.PropertyAssignment).getName();
+      }
+      return "<arrow>";
+    }
+    if (cursor.isKind(SyntaxKind.ClassDeclaration)) {
+      return (
+        cursor.asKindOrThrow(SyntaxKind.ClassDeclaration).getName() ??
+        "<anon class>"
+      );
+    }
+    if (cursor.isKind(SyntaxKind.SourceFile)) return "<top-level>";
+    cursor = cursor.getParent();
+  }
+  return "<unknown>";
+}
+
+function removeExport(filePath: string, symbolName: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+  const declarations = sf.getExportedDeclarations().get(symbolName);
+  if (!declarations || declarations.length === 0) {
+    console.error(`❌ Export "${symbolName}" not found in ${filePath}`);
+    process.exit(1);
+  }
+
+  const decl = declarations[0]!;
+
+  // Re-export? Point user at the canonical source.
+  const declSf = decl.getSourceFile();
+  if (declSf.getFilePath() !== sf.getFilePath()) {
+    const canonicalPath = path.relative(process.cwd(), declSf.getFilePath());
+    console.error(
+      `❌ "${symbolName}" in ${filePath} is a re-export from ${canonicalPath}`,
+    );
+    console.error(`   Remove it from the canonical source instead.`);
+    process.exit(1);
+  }
+
+  // Find the declaration's own name identifier so we can enumerate references
+  // without including the declaration site itself.
+  const declId = findDeclarationIdentifier(sf, symbolName);
+  if (!declId) {
+    console.error(
+      `❌ Could not resolve declaration identifier for "${symbolName}"`,
+    );
+    process.exit(1);
+  }
+  const declPath = sf.getFilePath();
+  const declLine = declId.getStartLineNumber();
+
+  // Collect references. Split into:
+  //   - import specifiers (safe to remove)
+  //   - non-import references (block the delete)
+  interface Blocker {
+    file: string;
+    line: number;
+    kind: string;
+  }
+  const blockers: Blocker[] = [];
+  const importSpecs: ImportSpecifier[] = [];
+
+  for (const ref of declId.findReferencesAsNodes()) {
+    const refSf = ref.getSourceFile();
+    const refPath = refSf.getFilePath();
+    const line = ref.getStartLineNumber();
+    if (refPath === declPath && line === declLine) continue; // declaration itself
+
+    const parent = ref.getParent();
+    if (parent?.isKind(SyntaxKind.ImportSpecifier)) {
+      importSpecs.push(parent.asKindOrThrow(SyntaxKind.ImportSpecifier));
+      continue;
+    }
+    if (parent?.isKind(SyntaxKind.ExportSpecifier)) {
+      // Re-export: treat as a blocker — removing a re-export silently could
+      // break downstream barrels. User should delete the re-export first.
+      blockers.push({
+        file: path.relative(process.cwd(), refPath),
+        line,
+        kind: "re-export",
+      });
+      continue;
+    }
+
+    blockers.push({
+      file: path.relative(process.cwd(), refPath),
+      line,
+      kind: classifyReferenceKind(ref),
+    });
+  }
+
+  if (blockers.length > 0) {
+    console.error(
+      `❌ "${symbolName}" has ${blockers.length} non-import reference(s) — remove them first:`,
+    );
+    blockers.sort(
+      (aa, bb) => aa.file.localeCompare(bb.file) || aa.line - bb.line,
+    );
+    for (const b of blockers) {
+      console.error(`   ${b.file}:${b.line}  [${b.kind}]`);
+    }
+    process.exit(1);
+  }
+
+  console.log(
+    `Removing export "${symbolName}" from ${filePath} (${importSpecs.length} import site(s))`,
+  );
+
+  // Remove import specifiers. Clean up now-empty import declarations.
+  const touchedImportDecls = new Set<ImportDeclaration>();
+  for (const spec of importSpecs) {
+    const imp = spec.getFirstAncestorByKind(SyntaxKind.ImportDeclaration);
+    if (imp) touchedImportDecls.add(imp);
+    spec.remove();
+  }
+  for (const imp of touchedImportDecls) {
+    if (imp.wasForgotten()) continue;
+    if (
+      imp.getNamedImports().length === 0 &&
+      !imp.getDefaultImport() &&
+      !imp.getNamespaceImport()
+    ) {
+      imp.remove();
+    }
+  }
+
+  // Remove the declaration.
+  removeDeclaration(decl);
+
+  const changedFiles = saveChanges(project);
+  console.log(`✅ Removed "${symbolName}" — ${changedFiles} file(s) changed`);
+}
+
+/** Classify what a reference identifier is doing at its use site. */
+function classifyReferenceKind(ref: import("ts-morph").Node): string {
+  const parent = ref.getParent();
+  if (!parent) return "ref";
+
+  // Import specifier: `import { foo } from '...'`
+  if (parent.isKind(SyntaxKind.ImportSpecifier)) return "import";
+  if (parent.isKind(SyntaxKind.ImportClause)) return "import-default";
+  if (parent.isKind(SyntaxKind.NamespaceImport)) return "import-ns";
+
+  // Export specifier: `export { foo }` or `export { foo } from '...'`
+  if (parent.isKind(SyntaxKind.ExportSpecifier)) return "re-export";
+
+  // Call: `foo(...)` — ref is the expression of a CallExpression
+  if (parent.isKind(SyntaxKind.CallExpression)) {
+    const call = parent.asKindOrThrow(SyntaxKind.CallExpression);
+    if (call.getExpression() === ref) return "call";
+  }
+
+  // Property access: `obj.foo` or `foo.bar`
+  if (parent.isKind(SyntaxKind.PropertyAccessExpression)) {
+    const pa = parent.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+    if (pa.getExpression() === ref) return "receiver";
+    return "property";
+  }
+
+  // Type reference: `x: Foo`
+  if (parent.isKind(SyntaxKind.TypeReference)) return "type-ref";
+
+  // Assignment target
+  if (parent.isKind(SyntaxKind.BinaryExpression)) {
+    const be = parent.asKindOrThrow(SyntaxKind.BinaryExpression);
+    if (
+      be.getLeft() === ref &&
+      be.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    )
+      return "assign";
+  }
+
+  return "read";
+}
+
+function foldConstant(
+  filePath: string,
+  symbolName: string,
+  rawValue: string,
+): void {
+  if (rawValue !== "true" && rawValue !== "false") {
+    console.error(
+      `❌ fold-constant currently supports boolean literals only (got "${rawValue}")`,
+    );
+    process.exit(1);
+  }
+  const value = rawValue === "true";
+
+  const project = createProject();
+  addAllSources(project);
+
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+  const declId = findDeclarationIdentifier(sf, symbolName);
+  if (!declId) {
+    console.error(`❌ Symbol "${symbolName}" not found in ${filePath}`);
+    process.exit(1);
+  }
+
+  const declPath = sf.getFilePath();
+  const declLine = declId.getStartLineNumber();
+
+  // Group references by source file so we can process each file in a stable
+  // pass. Collect blocked references (cross-file ones we can reach) and
+  // in-file property-access references separately — property accesses like
+  // `this.flag` don't show up via findReferencesAsNodes on the declaration
+  // identifier of a plain variable, but if the symbol is a class field they
+  // will. We fold them the same way.
+  const refNodes = declId.findReferencesAsNodes().filter((ref) => {
+    const refSf = ref.getSourceFile();
+    return !(
+      refSf.getFilePath() === declPath && ref.getStartLineNumber() === declLine
+    );
   });
+
+  if (refNodes.length === 0) {
+    console.log(`No references to "${symbolName}" from ${filePath}`);
+    return;
+  }
+
+  console.log(
+    `Folding "${symbolName}" = ${value} across ${refNodes.length} reference(s)`,
+  );
+
+  interface FoldRecord {
+    file: string;
+    line: number;
+    outcome: BoolEval;
+    action: string;
+  }
+  const folded: FoldRecord[] = [];
+  const unfoldable: FoldRecord[] = [];
+
+  // Walk refs in reverse document order per file to avoid position shifts
+  // invalidating earlier nodes after a replaceWithText on a later one.
+  const byFile = new Map<string, import("ts-morph").Node[]>();
+  for (const ref of refNodes) {
+    const key = ref.getSourceFile().getFilePath();
+    const arr = byFile.get(key) ?? [];
+    arr.push(ref);
+    byFile.set(key, arr);
+  }
+  for (const arr of byFile.values()) {
+    arr.sort((aa, bb) => bb.getStart() - aa.getStart());
+  }
+
+  for (const [, refs] of byFile) {
+    for (const ref of refs) {
+      if (ref.wasForgotten()) continue;
+      // Capture location up front — replaceWithText mutates the AST and may
+      // forget the ref node, after which getSourceFile/getStartLineNumber fail.
+      const refFile = path.relative(
+        process.cwd(),
+        ref.getSourceFile().getFilePath(),
+      );
+      const line = ref.getStartLineNumber();
+      const result = tryFoldAtReference(ref, symbolName, value);
+      const record: FoldRecord = {
+        file: refFile,
+        line,
+        outcome: result.outcome,
+        action: result.action,
+      };
+      if (result.folded) folded.push(record);
+      else unfoldable.push(record);
+    }
+  }
+
+  if (folded.length > 0) {
+    console.log(`\nFolded ${folded.length} site(s):`);
+    for (const f of folded.slice(0, 50)) {
+      console.log(`  ${f.file}:${f.line}  [${f.outcome}] ${f.action}`);
+    }
+    if (folded.length > 50) console.log(`  ... (${folded.length - 50} more)`);
+  }
+
+  if (unfoldable.length > 0) {
+    console.log(
+      `\n${unfoldable.length} reference(s) left untouched (not in a foldable condition context):`,
+    );
+    for (const u of unfoldable.slice(0, 50)) {
+      console.log(`  ${u.file}:${u.line}  ${u.action}`);
+    }
+    if (unfoldable.length > 50)
+      console.log(`  ... (${unfoldable.length - 50} more)`);
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(`\n✅ Fold complete — ${changedFiles} file(s) changed`);
+  if (unfoldable.length === 0) {
+    console.log(
+      `   All references folded. Consider: remove-export ${filePath} ${symbolName}`,
+    );
+  }
 }
 
-function addAllSources(project: Project): void {
-  project.addSourceFilesAtPaths(["src/**/*.ts", "server/**/*.ts", "test/**/*.ts"]);
+/** Starting from a reference identifier, walk up through `!`, `&&`, `||`,
+ *  and parenthesized wrappers to the outermost "boolean host" — the enclosing
+ *  IfStatement condition or ConditionalExpression condition. Evaluate that
+ *  host with the symbol substituted; if determined, rewrite. */
+function tryFoldAtReference(
+  ref: import("ts-morph").Node,
+  symbolName: string,
+  value: boolean,
+): FoldResult {
+  // Climb to the outermost expression whose truthiness is used as a condition.
+  let expr: import("ts-morph").Node = ref;
+  let parent = expr.getParent();
+  while (parent) {
+    if (parent.isKind(SyntaxKind.ParenthesizedExpression)) {
+      expr = parent;
+      parent = parent.getParent();
+      continue;
+    }
+    if (parent.isKind(SyntaxKind.PrefixUnaryExpression)) {
+      const pu = parent.asKindOrThrow(SyntaxKind.PrefixUnaryExpression);
+      if (pu.getOperatorToken() === SyntaxKind.ExclamationToken) {
+        expr = parent;
+        parent = parent.getParent();
+        continue;
+      }
+    }
+    if (parent.isKind(SyntaxKind.BinaryExpression)) {
+      const be = parent.asKindOrThrow(SyntaxKind.BinaryExpression);
+      const opKind = be.getOperatorToken().getKind();
+      if (
+        opKind === SyntaxKind.AmpersandAmpersandToken ||
+        opKind === SyntaxKind.BarBarToken
+      ) {
+        expr = parent;
+        parent = parent.getParent();
+        continue;
+      }
+    }
+    break;
+  }
+
+  // `expr` is now the outermost boolean-composable expression. Its parent
+  // should be an IfStatement, ConditionalExpression, or (for `&&` / `||`
+  // used as a statement) an ExpressionStatement.
+  const hostParent = expr.getParent();
+  if (!hostParent)
+    return { folded: false, outcome: "unknown", action: "no parent" };
+
+  // Evaluate the expression with the symbol substituted.
+  const outcome = evalBool(expr, symbolName, value);
+
+  if (hostParent.isKind(SyntaxKind.IfStatement)) {
+    const ifStmt = hostParent.asKindOrThrow(SyntaxKind.IfStatement);
+    if (ifStmt.getExpression() !== expr) {
+      return { folded: false, outcome, action: `in if-body, not condition` };
+    }
+    if (outcome === "unknown")
+      return {
+        folded: false,
+        outcome,
+        action: `if condition not fully determined`,
+      };
+    return foldIfStatement(ifStmt, outcome === "true");
+  }
+
+  if (hostParent.isKind(SyntaxKind.ConditionalExpression)) {
+    const cond = hostParent.asKindOrThrow(SyntaxKind.ConditionalExpression);
+    if (cond.getCondition() !== expr) {
+      return {
+        folded: false,
+        outcome,
+        action: `in ternary branch, not condition`,
+      };
+    }
+    if (outcome === "unknown")
+      return {
+        folded: false,
+        outcome,
+        action: `ternary condition not fully determined`,
+      };
+    const taken = outcome === "true" ? cond.getWhenTrue() : cond.getWhenFalse();
+    const text = taken.getText();
+    cond.replaceWithText(text);
+    return { folded: true, outcome, action: `ternary → ${truncate(text, 40)}` };
+  }
+
+  // `flag && doX()` / `flag || doX()` used as a statement.
+  if (
+    hostParent.isKind(SyntaxKind.ExpressionStatement) &&
+    expr.isKind(SyntaxKind.BinaryExpression)
+  ) {
+    const be = expr.asKindOrThrow(SyntaxKind.BinaryExpression);
+    const opKind = be.getOperatorToken().getKind();
+    if (outcome === "unknown") {
+      return {
+        folded: false,
+        outcome,
+        action: `short-circuit statement not determined`,
+      };
+    }
+    const stmt = hostParent.asKindOrThrow(SyntaxKind.ExpressionStatement);
+    if (opKind === SyntaxKind.AmpersandAmpersandToken) {
+      if (outcome === "false") {
+        stmt.remove();
+        return { folded: true, outcome, action: `&& statement removed` };
+      }
+      // outcome "true": replace with right operand as a statement.
+      const rightText = be.getRight().getText();
+      stmt.replaceWithText(`${rightText};`);
+      return { folded: true, outcome, action: `&& statement → right operand` };
+    }
+    if (opKind === SyntaxKind.BarBarToken) {
+      if (outcome === "true") {
+        stmt.remove();
+        return { folded: true, outcome, action: `|| statement removed` };
+      }
+      const rightText = be.getRight().getText();
+      stmt.replaceWithText(`${rightText};`);
+      return { folded: true, outcome, action: `|| statement → right operand` };
+    }
+  }
+
+  return {
+    folded: false,
+    outcome,
+    action: `parent kind ${hostParent.getKindName()}`,
+  };
 }
 
-function resolve(filePath: string): string {
-  return path.resolve(filePath);
+/** Recursive boolean evaluator. Substitutes `symbolName` with `value`;
+ *  returns "unknown" for anything else. */
+function evalBool(
+  node: import("ts-morph").Node,
+  symbolName: string,
+  value: boolean,
+): BoolEval {
+  if (node.isKind(SyntaxKind.Identifier) && node.getText() === symbolName) {
+    return value ? "true" : "false";
+  }
+  if (node.isKind(SyntaxKind.TrueKeyword)) return "true";
+  if (node.isKind(SyntaxKind.FalseKeyword)) return "false";
+  if (node.isKind(SyntaxKind.ParenthesizedExpression)) {
+    return evalBool(
+      node.asKindOrThrow(SyntaxKind.ParenthesizedExpression).getExpression(),
+      symbolName,
+      value,
+    );
+  }
+  if (node.isKind(SyntaxKind.PrefixUnaryExpression)) {
+    const pu = node.asKindOrThrow(SyntaxKind.PrefixUnaryExpression);
+    if (pu.getOperatorToken() === SyntaxKind.ExclamationToken) {
+      const inner = evalBool(pu.getOperand(), symbolName, value);
+      if (inner === "true") return "false";
+      if (inner === "false") return "true";
+    }
+    return "unknown";
+  }
+  if (node.isKind(SyntaxKind.BinaryExpression)) {
+    const be = node.asKindOrThrow(SyntaxKind.BinaryExpression);
+    const opKind = be.getOperatorToken().getKind();
+    if (opKind === SyntaxKind.AmpersandAmpersandToken) {
+      const l = evalBool(be.getLeft(), symbolName, value);
+      if (l === "false") return "false";
+      const r = evalBool(be.getRight(), symbolName, value);
+      if (r === "false") return "false";
+      if (l === "true" && r === "true") return "true";
+      return "unknown";
+    }
+    if (opKind === SyntaxKind.BarBarToken) {
+      const l = evalBool(be.getLeft(), symbolName, value);
+      if (l === "true") return "true";
+      const r = evalBool(be.getRight(), symbolName, value);
+      if (r === "true") return "true";
+      if (l === "false" && r === "false") return "false";
+      return "unknown";
+    }
+  }
+  return "unknown";
 }
 
-/** Get an existing source file or create it if it doesn't exist / has no
- *  statements (empty OR comment-only). Works around ts-morph's addStatements
- *  bug on files without any statements by seeding a dummy `export {};` via
- *  raw text insertion (preserves any leading comments) — the dummy is removed
- *  later by `removeDummyExport` after real content is added. */
-function getOrCreateSourceFile(project: Project, filePath: string): SourceFile {
-  const existing = project.getSourceFile(filePath);
-  if (existing && existing.getStatements().length > 0) return existing;
+/** Replace an IfStatement with its taken branch (then or else). Unwraps
+ *  single-layer Block statements when the replacement sits inside another
+ *  Block — produces cleaner output than leaving bare block scopes behind. */
+function foldIfStatement(
+  ifStmt: import("ts-morph").IfStatement,
+  takeTrue: boolean,
+): FoldResult {
+  const outcome: BoolEval = takeTrue ? "true" : "false";
+  const branch = takeTrue
+    ? ifStmt.getThenStatement()
+    : ifStmt.getElseStatement();
 
-  const sf = existing ?? project.createSourceFile(filePath, "", { overwrite: true });
-  const text = sf.getFullText();
-  const prefix = text.length === 0 || text.endsWith("\n") ? "" : "\n";
-  sf.insertText(text.length, `${prefix}export {};\n`);
-  return sf;
+  if (!branch) {
+    // false-branch absent: e.g. `if (flag) { ... }` with flag=false → remove stmt.
+    ifStmt.remove();
+    return { folded: true, outcome, action: `if-statement removed` };
+  }
+
+  const parentBlock = ifStmt.getParent();
+  const replacementText = branch.isKind(SyntaxKind.Block)
+    ? stripOuterBraces(branch.getText())
+    : branch.getText();
+
+  // If parent is a Block/SourceFile/ModuleBlock, we can splice multiple
+  // statements in. Otherwise (e.g. nested in another IfStatement's else
+  // without braces), keep the block form to stay syntactically valid.
+  const canSplice =
+    parentBlock?.isKind(SyntaxKind.Block) ||
+    parentBlock?.isKind(SyntaxKind.SourceFile) ||
+    parentBlock?.isKind(SyntaxKind.ModuleBlock) ||
+    parentBlock?.isKind(SyntaxKind.CaseClause) ||
+    parentBlock?.isKind(SyntaxKind.DefaultClause);
+
+  if (canSplice && branch.isKind(SyntaxKind.Block)) {
+    ifStmt.replaceWithText(
+      replacementText.trim().length === 0 ? "" : replacementText,
+    );
+  } else {
+    ifStmt.replaceWithText(branch.getText());
+  }
+  return {
+    folded: true,
+    outcome,
+    action: `if-statement → ${takeTrue ? "then" : "else"}-branch`,
+  };
 }
 
-// ---------------------------------------------------------------------------
-// rename-symbol: rename an exported symbol across all files
-// ---------------------------------------------------------------------------
+/** Strip `{` / `}` from a Block's text and dedent one level so the result
+ *  can be spliced into the parent without trailing whitespace-only lines or
+ *  an extra indent level. Empty blocks collapse to an empty string. */
+function stripOuterBraces(blockText: string): string {
+  const trimmed = blockText.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return blockText;
+  const inner = trimmed.slice(1, -1);
+  const lines = inner.split("\n");
+  // Drop purely-blank leading and trailing lines.
+  while (lines.length > 0 && lines[0]!.trim() === "") lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1]!.trim() === "")
+    lines.pop();
+  if (lines.length === 0) return "";
+  // Dedent by the smallest non-empty-line indent.
+  let minIndent = Number.POSITIVE_INFINITY;
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    const indent = line.length - line.trimStart().length;
+    if (indent < minIndent) minIndent = indent;
+  }
+  const dedent = Number.isFinite(minIndent) ? minIndent : 0;
+  return lines
+    .map((line) => line.slice(Math.min(dedent, line.length)))
+    .join("\n");
+}
+
+function truncate(s: string, n: number): string {
+  const oneLine = s.replace(/\s+/g, " ");
+  return oneLine.length > n ? oneLine.slice(0, n - 1) + "…" : oneLine;
+}
 
 function renameSymbol(file: string, name: string, newName: string): void {
   const project = createProject();
@@ -123,7 +1057,9 @@ function renameSymbol(file: string, name: string, newName: string): void {
   // so we need `{ runtimeState: rs }`.
   fixBrokenShorthands(project, name, newName);
 
-  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, name, newName) : 0;
+  const localsRenamed = cascadeFlag
+    ? renameCoincidentLocals(project, name, newName)
+    : 0;
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed across ${changedFiles} file(s)`);
@@ -135,10 +1071,6 @@ function renameSymbol(file: string, name: string, newName: string): void {
     console.log(`✅ Cascade clean: no textual references to "${name}" remain`);
   }
 }
-
-// ---------------------------------------------------------------------------
-// move-export: move a declaration from one file to another
-// ---------------------------------------------------------------------------
 
 function moveExport(fromPath: string, toPath: string, name: string): void {
   const project = createProject();
@@ -170,8 +1102,13 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   // Detect re-exports: the actual declaration lives in a different file
   const declSourceFile = decl.getSourceFile();
   if (declSourceFile.getFilePath() !== fromFile.getFilePath()) {
-    const canonicalPath = path.relative(process.cwd(), declSourceFile.getFilePath());
-    console.error(`❌ "${name}" in ${fromPath} is a re-export from ${canonicalPath}`);
+    const canonicalPath = path.relative(
+      process.cwd(),
+      declSourceFile.getFilePath(),
+    );
+    console.error(
+      `❌ "${name}" in ${fromPath} is a re-export from ${canonicalPath}`,
+    );
     console.error(
       `   Move it from the canonical source instead: move-export --from ${canonicalPath} --to ${toPath} --symbol ${name}`,
     );
@@ -211,9 +1148,22 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   console.log(`✅ Moved "${name}" — ${changedFiles} file(s) changed`);
 }
 
-// ---------------------------------------------------------------------------
-// rename-prop: rename an interface/type property across all files
-// ---------------------------------------------------------------------------
+/** Get an existing source file or create it if it doesn't exist / has no
+ *  statements (empty OR comment-only). Works around ts-morph's addStatements
+ *  bug on files without any statements by seeding a dummy `export {};` via
+ *  raw text insertion (preserves any leading comments) — the dummy is removed
+ *  later by `removeDummyExport` after real content is added. */
+function getOrCreateSourceFile(project: Project, filePath: string): SourceFile {
+  const existing = project.getSourceFile(filePath);
+  if (existing && existing.getStatements().length > 0) return existing;
+
+  const sf =
+    existing ?? project.createSourceFile(filePath, "", { overwrite: true });
+  const text = sf.getFullText();
+  const prefix = text.length === 0 || text.endsWith("\n") ? "" : "\n";
+  sf.insertText(text.length, `${prefix}export {};\n`);
+  return sf;
+}
 
 function renameProp(typeName: string, prop: string, newProp: string): void {
   const project = createProject();
@@ -227,7 +1177,9 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
       if (iface.getName() === typeName) {
         const member = iface.getProperty(prop);
         if (member) {
-          console.log(`Renaming ${typeName}.${prop} → ${newProp} (defined in ${sf.getFilePath()})`);
+          console.log(
+            `Renaming ${typeName}.${prop} → ${newProp} (defined in ${sf.getFilePath()})`,
+          );
           member.rename(newProp);
           found = true;
         }
@@ -254,7 +1206,9 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
         for (const lit of literals) {
           const member = lit.getProperty(prop);
           if (member) {
-            console.log(`Renaming ${typeName}.${prop} → ${newProp} (defined in ${sf.getFilePath()})`);
+            console.log(
+              `Renaming ${typeName}.${prop} → ${newProp} (defined in ${sf.getFilePath()})`,
+            );
             member.rename(newProp);
             found = true;
           }
@@ -268,7 +1222,9 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
     process.exit(1);
   }
 
-  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, prop, newProp) : 0;
+  const localsRenamed = cascadeFlag
+    ? renameCoincidentLocals(project, prop, newProp)
+    : 0;
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Renamed property across ${changedFiles} file(s)`);
@@ -281,22 +1237,24 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shorthand property fixups
-// ---------------------------------------------------------------------------
-
 /**
  * After a rename, scan all modified files for shorthand properties that now
  * reference a non-existent local variable (`{ newName }` where only `oldName`
  * exists in scope). Converts them to `{ newName: oldName }`.
  */
-function fixBrokenShorthands(project: Project, oldName: string, newName: string): void {
+function fixBrokenShorthands(
+  project: Project,
+  oldName: string,
+  newName: string,
+): void {
   for (const sf of project.getSourceFiles()) {
     if (sf.isSaved()) continue; // unchanged file
 
     let madeChanges = false;
     // Iterate shorthand property assignments that match the new name
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment)) {
+    for (const node of sf.getDescendantsOfKind(
+      SyntaxKind.ShorthandPropertyAssignment,
+    )) {
       if (node.getName() !== newName) continue;
 
       // Check if `newName` resolves to a local variable in this scope.
@@ -322,7 +1280,10 @@ function fixBrokenShorthands(project: Project, oldName: string, newName: string)
         const end = node.getEnd();
         const trailingComma = sf.getFullText()[end] === "," ? "," : "";
 
-        sf.replaceText([start, end + (trailingComma ? 1 : 0)], `${newName}: ${oldName}${trailingComma}`);
+        sf.replaceText(
+          [start, end + (trailingComma ? 1 : 0)],
+          `${newName}: ${oldName}${trailingComma}`,
+        );
         madeChanges = true;
 
         console.log(
@@ -343,44 +1304,15 @@ function fixBrokenShorthands(project: Project, oldName: string, newName: string)
   }
 }
 
-/**
- * Collapse `{ name: name }` → `{ name }` (shorthand) when both sides are the
- * same identifier. This happens when rename-in-file renames both a property
- * and its local variable to the same new name.
- */
-function collapseRedundantPropertyAssignments(project: Project, name: string): void {
-  for (const sf of project.getSourceFiles()) {
-    let madeChanges = false;
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-      if (node.getName() !== name) continue;
-      const init = node.getInitializer();
-      if (init?.isKind(SyntaxKind.Identifier) && init.getText() === name) {
-        const start = node.getStart();
-        const end = node.getEnd();
-        const trailingComma = sf.getFullText()[end] === "," ? "," : "";
-        sf.replaceText([start, end + (trailingComma ? 1 : 0)], `${name}${trailingComma}`);
-        madeChanges = true;
-        console.log(`  Collapsed ${name}: ${name} → ${name} in ${path.relative(process.cwd(), sf.getFilePath())}`);
-        break;
-      }
-    }
-    if (madeChanges) {
-      collapseRedundantPropertyAssignments(project, name);
-      return;
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 /** Remove the `export {};` dummy statement seeded by getOrCreateSourceFile. */
 function removeDummyExport(sf: SourceFile): void {
   for (const stmt of sf.getStatements()) {
     if (stmt.isKind(SyntaxKind.ExportDeclaration)) {
       const exportDecl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
-      if (!exportDecl.getModuleSpecifier() && exportDecl.getNamedExports().length === 0) {
+      if (
+        !exportDecl.getModuleSpecifier() &&
+        exportDecl.getNamedExports().length === 0
+      ) {
         stmt.remove();
         return;
       }
@@ -388,14 +1320,19 @@ function removeDummyExport(sf: SourceFile): void {
   }
 }
 
-function findDeclarationIdentifier(sf: SourceFile, name: string): Identifier | undefined {
+function findDeclarationIdentifier(
+  sf: SourceFile,
+  name: string,
+): Identifier | undefined {
   // Search exported declarations first
   const exported = sf.getExportedDeclarations().get(name);
   if (exported && exported.length > 0) {
     const node = exported[0]!;
     // Get the name identifier from the declaration
     if ("getName" in node && typeof node.getName === "function") {
-      const nameNode = (node as { getNameNode?: () => Identifier }).getNameNode?.();
+      const nameNode = (
+        node as { getNameNode?: () => Identifier }
+      ).getNameNode?.();
       if (nameNode) return nameNode;
     }
   }
@@ -421,13 +1358,10 @@ function getDeclarationFullText(decl: ExportedDeclarations): string {
   return node.getFullText().trim();
 }
 
-interface ImportInfo {
-  moduleSpecifier: string;
-  namedImports: string[];
-  isTypeOnly: boolean;
-}
-
-function collectDeclImports(decl: ExportedDeclarations, sourceFile: SourceFile): ImportInfo[] {
+function collectDeclImports(
+  decl: ExportedDeclarations,
+  sourceFile: SourceFile,
+): ImportInfo[] {
   // Find all identifiers used in the declaration
   const usedNames = new Set<string>();
   for (const id of decl.getDescendantsOfKind(SyntaxKind.Identifier)) {
@@ -449,21 +1383,34 @@ function collectDeclImports(decl: ExportedDeclarations, sourceFile: SourceFile):
     }
 
     if (matchingImports.length > 0) {
-      result.push({ moduleSpecifier: moduleSpec, namedImports: matchingImports, isTypeOnly });
+      result.push({
+        moduleSpecifier: moduleSpec,
+        namedImports: matchingImports,
+        isTypeOnly,
+      });
     }
   }
 
   return result;
 }
 
-function addImportsToFile(targetFile: SourceFile, imports: ImportInfo[], _fromFile: SourceFile): void {
+function addImportsToFile(
+  targetFile: SourceFile,
+  imports: ImportInfo[],
+  _fromFile: SourceFile,
+): void {
   const targetPath = targetFile.getFilePath();
   for (const imp of imports) {
     // Skip self-imports: if the module resolves to the target file itself,
     // the symbols are already local — no import needed.
-    const resolved = targetFile.getProject().getSourceFile(
-      path.resolve(path.dirname(targetFile.getFilePath()), imp.moduleSpecifier.replace(/\.ts$/, "") + ".ts"),
-    );
+    const resolved = targetFile
+      .getProject()
+      .getSourceFile(
+        path.resolve(
+          path.dirname(targetFile.getFilePath()),
+          imp.moduleSpecifier.replace(/\.ts$/, "") + ".ts",
+        ),
+      );
     if (resolved?.getFilePath() === targetPath) continue;
 
     // Check if target already has an import from this module
@@ -473,7 +1420,9 @@ function addImportsToFile(targetFile: SourceFile, imports: ImportInfo[], _fromFi
 
     if (existing) {
       // Add missing named imports
-      const existingNames = new Set(existing.getNamedImports().map((n) => n.getText()));
+      const existingNames = new Set(
+        existing.getNamedImports().map((n) => n.getText()),
+      );
       for (const name of imp.namedImports) {
         if (!existingNames.has(name)) {
           existing.addNamedImport(name);
@@ -493,7 +1442,9 @@ function removeDeclaration(decl: ExportedDeclarations): void {
   // For variable declarations, remove the whole statement
   const varDecl = decl.asKind(SyntaxKind.VariableDeclaration);
   if (varDecl) {
-    const statement = varDecl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+    const statement = varDecl.getFirstAncestorByKind(
+      SyntaxKind.VariableStatement,
+    );
     if (statement) {
       const varDeclList = statement.getDeclarationList();
       if (varDeclList.getDeclarations().length === 1) {
@@ -537,7 +1488,11 @@ function rewriteImports(
       namedImport.remove();
 
       // Clean up empty import declarations
-      if (imp.getNamedImports().length === 0 && !imp.getDefaultImport() && !imp.getNamespaceImport()) {
+      if (
+        imp.getNamedImports().length === 0 &&
+        !imp.getDefaultImport() &&
+        !imp.getNamespaceImport()
+      ) {
         imp.remove();
       }
 
@@ -547,7 +1502,11 @@ function rewriteImports(
       const newModuleSpec = rawSpec.endsWith(".ts") ? rawSpec : rawSpec + ".ts";
       const existingToImport = sf
         .getImportDeclarations()
-        .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === toFile.getFilePath());
+        .find(
+          (d) =>
+            d.getModuleSpecifierSourceFile()?.getFilePath() ===
+            toFile.getFilePath(),
+        );
 
       if (existingToImport) {
         const alreadyImported = existingToImport
@@ -566,14 +1525,18 @@ function rewriteImports(
           } else {
             // Strip redundant `type ` prefix when adding to an `import type` declaration
             // (the declaration-level `type` already covers it).
-            const cleanText = existingIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+            const cleanText = existingIsTypeOnly
+              ? importText.replace(/^type\s+/, "")
+              : importText;
             existingToImport.addNamedImport(cleanText);
           }
         }
       } else {
         // Strip redundant `type ` prefix from named import text when the new
         // declaration itself is `import type` (otherwise TS2206).
-        const cleanText = isTypeImport ? importText.replace(/^type\s+/, "") : importText;
+        const cleanText = isTypeImport
+          ? importText.replace(/^type\s+/, "")
+          : importText;
         sf.addImportDeclaration({
           moduleSpecifier: newModuleSpec,
           namedImports: [cleanText],
@@ -584,13 +1547,13 @@ function rewriteImports(
   }
 }
 
-function findNamedImport(imp: ImportDeclaration, name: string): ImportSpecifier | undefined {
-  return imp.getNamedImports().find((n) => n.getName() === name);
-}
-
 /** If fromFile still references `symbolName` after removing its declaration,
  *  add an import from toFile so the source file compiles. */
-function addBackImportIfStillUsed(fromFile: SourceFile, toFile: SourceFile, symbolName: string): void {
+function addBackImportIfStillUsed(
+  fromFile: SourceFile,
+  toFile: SourceFile,
+  symbolName: string,
+): void {
   const stillUsed = fromFile
     .getDescendantsOfKind(SyntaxKind.Identifier)
     .some((id) => {
@@ -608,9 +1571,15 @@ function addBackImportIfStillUsed(fromFile: SourceFile, toFile: SourceFile, symb
   // Merge into existing import from toFile if present
   const existing = fromFile
     .getImportDeclarations()
-    .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === toFile.getFilePath());
+    .find(
+      (d) =>
+        d.getModuleSpecifierSourceFile()?.getFilePath() ===
+        toFile.getFilePath(),
+    );
   if (existing) {
-    const alreadyImported = existing.getNamedImports().some((n) => n.getName() === symbolName);
+    const alreadyImported = existing
+      .getNamedImports()
+      .some((n) => n.getName() === symbolName);
     if (!alreadyImported) existing.addNamedImport(symbolName);
   } else {
     fromFile.addImportDeclaration({
@@ -626,9 +1595,105 @@ function cleanSelfImport(file: SourceFile, symbolName: string): void {
     if (resolvedModule?.getFilePath() === file.getFilePath()) {
       const named = findNamedImport(imp, symbolName);
       if (named) named.remove();
-      if (imp.getNamedImports().length === 0 && !imp.getDefaultImport() && !imp.getNamespaceImport()) {
+      if (
+        imp.getNamedImports().length === 0 &&
+        !imp.getDefaultImport() &&
+        !imp.getNamespaceImport()
+      ) {
         imp.remove();
       }
+    }
+  }
+}
+
+function renameInFile(name: string, newName: string, files: string[]): void {
+  const project = createProject();
+  addAllSources(project);
+
+  let totalDecls = 0;
+
+  for (const file of files) {
+    const sf = project.getSourceFileOrThrow(resolve(file));
+    let declCount = 0;
+
+    // Iteratively find and rename each declaration of `name` in this file.
+    // After each rename, identifiers shift, so we re-scan from scratch.
+    while (true) {
+      const id = findNextDeclarationIdentifier(sf, name);
+      if (!id) break;
+      id.rename(newName);
+      declCount++;
+    }
+
+    if (declCount > 0) {
+      console.log(`  ${file}: renamed ${declCount} declaration(s)`);
+      totalDecls += declCount;
+    } else {
+      console.warn(`  ${file}: no declarations of "${name}" found`);
+    }
+  }
+
+  if (totalDecls === 0) {
+    console.error(
+      `❌ No declarations of "${name}" found in any of the specified files`,
+    );
+    process.exit(1);
+  }
+
+  // ts-morph handles shorthand expansion during individual renames. When both
+  // property and local are renamed, the result is `{ newName: newName }`.
+  // Collapse those back to shorthand `{ newName }`.
+  collapseRedundantPropertyAssignments(project, newName);
+
+  const localsRenamed = cascadeFlag
+    ? renameCoincidentLocals(project, name, newName)
+    : 0;
+
+  const changedFiles = saveChanges(project);
+  console.log(
+    `✅ Renamed ${totalDecls} declaration(s) across ${changedFiles} file(s)`,
+  );
+  if (cascadeFlag && localsRenamed > 0) {
+    console.log(`  Cascade: renamed ${localsRenamed} coincident local(s)`);
+  }
+  const remaining = reportTextualReferences(name);
+  if (cascadeFlag && remaining === 0) {
+    console.log(`✅ Cascade clean: no textual references to "${name}" remain`);
+  }
+}
+
+/**
+ * Collapse `{ name: name }` → `{ name }` (shorthand) when both sides are the
+ * same identifier. This happens when rename-in-file renames both a property
+ * and its local variable to the same new name.
+ */
+function collapseRedundantPropertyAssignments(
+  project: Project,
+  name: string,
+): void {
+  for (const sf of project.getSourceFiles()) {
+    let madeChanges = false;
+    for (const node of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+      if (node.getName() !== name) continue;
+      const init = node.getInitializer();
+      if (init?.isKind(SyntaxKind.Identifier) && init.getText() === name) {
+        const start = node.getStart();
+        const end = node.getEnd();
+        const trailingComma = sf.getFullText()[end] === "," ? "," : "";
+        sf.replaceText(
+          [start, end + (trailingComma ? 1 : 0)],
+          `${name}${trailingComma}`,
+        );
+        madeChanges = true;
+        console.log(
+          `  Collapsed ${name}: ${name} → ${name} in ${path.relative(process.cwd(), sf.getFilePath())}`,
+        );
+        break;
+      }
+    }
+    if (madeChanges) {
+      collapseRedundantPropertyAssignments(project, name);
+      return;
     }
   }
 }
@@ -649,16 +1714,24 @@ function cleanSelfImport(file: SourceFile, symbolName: string): void {
  */
 function reportTextualReferences(oldName: string): number {
   if (dryRun) return 0;
-  const searchRoots = ["src", "server", "test", "docs"].filter((root) => existsSync(root));
+  const searchRoots = ["src", "server", "test", "docs"].filter((root) =>
+    existsSync(root),
+  );
   if (searchRoots.length === 0) return 0;
 
-  const exact = runRipgrep(["--fixed-strings", "--word-regexp", oldName, ...searchRoots]);
+  const exact = runRipgrep([
+    "--fixed-strings",
+    "--word-regexp",
+    oldName,
+    ...searchRoots,
+  ]);
   if (exact === null) return 0;
 
   const pascal = pascalVariant(oldName);
-  const compound = pascal && pascal !== oldName
-    ? runRipgrep(["--fixed-strings", pascal, ...searchRoots]) ?? []
-    : [];
+  const compound =
+    pascal && pascal !== oldName
+      ? (runRipgrep(["--fixed-strings", pascal, ...searchRoots]) ?? [])
+      : [];
 
   const seen = new Set<string>();
   const merged: string[] = [];
@@ -671,28 +1744,40 @@ function reportTextualReferences(oldName: string): number {
 
   if (merged.length === 0) return 0;
 
-  const label = pascal && pascal !== oldName
-    ? `"${oldName}" or "${pascal}"`
-    : `"${oldName}"`;
+  const label =
+    pascal && pascal !== oldName
+      ? `"${oldName}" or "${pascal}"`
+      : `"${oldName}"`;
   console.log(
     `\n⚠️  ${merged.length} textual reference(s) to ${label} remain (comments, strings, docs, or compound identifiers — not touched by AST rename):`,
   );
   for (const line of merged) {
     console.log(`  ${line}`);
   }
-  console.log(`  Review and update manually if they still refer to the renamed symbol.`);
+  console.log(
+    `  Review and update manually if they still refer to the renamed symbol.`,
+  );
   return merged.length;
 }
 
 function runRipgrep(rgArgs: readonly string[]): string[] | null {
   const result = spawnSync(
     "rg",
-    ["--line-number", "--no-heading", "--with-filename", "--color", "never", ...rgArgs],
+    [
+      "--line-number",
+      "--no-heading",
+      "--with-filename",
+      "--color",
+      "never",
+      ...rgArgs,
+    ],
     { encoding: "utf8" },
   );
   if (result.status === 1) return [];
   if (result.status !== 0) {
-    console.warn(`  ⚠️  Post-rename textual check skipped: ${result.stderr?.trim() || "rg unavailable"}`);
+    console.warn(
+      `  ⚠️  Post-rename textual check skipped: ${result.stderr?.trim() || "rg unavailable"}`,
+    );
     return null;
   }
   return result.stdout.split("\n").filter((line) => line.length > 0);
@@ -716,13 +1801,19 @@ function pascalVariant(name: string): string | null {
  * unrelated variables) are left alone — too risky to rename without a clear
  * data-flow signal that they refer to the renamed symbol.
  */
-function renameCoincidentLocals(project: Project, oldName: string, newName: string): number {
+function renameCoincidentLocals(
+  project: Project,
+  oldName: string,
+  newName: string,
+): number {
   let count = 0;
   for (const sf of project.getSourceFiles()) {
     let changed = true;
     while (changed) {
       changed = false;
-      for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+      for (const decl of sf.getDescendantsOfKind(
+        SyntaxKind.VariableDeclaration,
+      )) {
         const nameNode = decl.getNameNode();
         if (!nameNode.isKind(SyntaxKind.Identifier)) continue;
         if (nameNode.getText() !== oldName) continue;
@@ -754,95 +1845,14 @@ function getTrailingAccessName(node: import("ts-morph").Node): string | null {
   return null;
 }
 
-function saveChanges(project: Project): number {
-  let changed = 0;
-  for (const sf of project.getSourceFiles()) {
-    if (sf.getFullText() !== sf.getPreEmitDiagnostics.toString()) {
-      // Check if actually modified
-    }
-  }
-
-  if (dryRun) {
-    for (const sf of project.getSourceFiles()) {
-      if (!sf.isSaved()) {
-        const filePath = path.relative(process.cwd(), sf.getFilePath());
-        console.log(`  [dry-run] Would modify: ${filePath}`);
-        changed++;
-      }
-    }
-  } else {
-    for (const sf of project.getSourceFiles()) {
-      if (!sf.isSaved()) {
-        sf.saveSync();
-        const filePath = path.relative(process.cwd(), sf.getFilePath());
-        console.log(`  Modified: ${filePath}`);
-        changed++;
-      }
-    }
-  }
-
-  return changed;
-}
-
-// ---------------------------------------------------------------------------
-// rename-in-file: rename ALL declarations of a name within specific files
-// ---------------------------------------------------------------------------
-
-function renameInFile(name: string, newName: string, files: string[]): void {
-  const project = createProject();
-  addAllSources(project);
-
-  let totalDecls = 0;
-
-  for (const file of files) {
-    const sf = project.getSourceFileOrThrow(resolve(file));
-    let declCount = 0;
-
-    // Iteratively find and rename each declaration of `name` in this file.
-    // After each rename, identifiers shift, so we re-scan from scratch.
-    while (true) {
-      const id = findNextDeclarationIdentifier(sf, name);
-      if (!id) break;
-      id.rename(newName);
-      declCount++;
-    }
-
-    if (declCount > 0) {
-      console.log(`  ${file}: renamed ${declCount} declaration(s)`);
-      totalDecls += declCount;
-    } else {
-      console.warn(`  ${file}: no declarations of "${name}" found`);
-    }
-  }
-
-  if (totalDecls === 0) {
-    console.error(`❌ No declarations of "${name}" found in any of the specified files`);
-    process.exit(1);
-  }
-
-  // ts-morph handles shorthand expansion during individual renames. When both
-  // property and local are renamed, the result is `{ newName: newName }`.
-  // Collapse those back to shorthand `{ newName }`.
-  collapseRedundantPropertyAssignments(project, newName);
-
-  const localsRenamed = cascadeFlag ? renameCoincidentLocals(project, name, newName) : 0;
-
-  const changedFiles = saveChanges(project);
-  console.log(`✅ Renamed ${totalDecls} declaration(s) across ${changedFiles} file(s)`);
-  if (cascadeFlag && localsRenamed > 0) {
-    console.log(`  Cascade: renamed ${localsRenamed} coincident local(s)`);
-  }
-  const remaining = reportTextualReferences(name);
-  if (cascadeFlag && remaining === 0) {
-    console.log(`✅ Cascade clean: no textual references to "${name}" remain`);
-  }
-}
-
 /**
  * Find the next identifier named `name` that is a declaration (parameter,
  * variable, property signature, binding element) in the given source file.
  */
-function findNextDeclarationIdentifier(sf: SourceFile, name: string): Identifier | undefined {
+function findNextDeclarationIdentifier(
+  sf: SourceFile,
+  name: string,
+): Identifier | undefined {
   for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
     if (id.getText() !== name) continue;
 
@@ -862,7 +1872,11 @@ function findNextDeclarationIdentifier(sf: SourceFile, name: string): Identifier
       parentKind === SyntaxKind.PropertyAssignment
     ) {
       // Verify this identifier is the "name" of the parent, not a type ref or initializer
-      if ("getName" in parent && typeof parent.getName === "function" && parent.getName() === name) {
+      if (
+        "getName" in parent &&
+        typeof parent.getName === "function" &&
+        parent.getName() === name
+      ) {
         return id;
       }
     }
@@ -870,15 +1884,16 @@ function findNextDeclarationIdentifier(sf: SourceFile, name: string): Identifier
   return undefined;
 }
 
-// ---------------------------------------------------------------------------
-// find-symbol: locate where a symbol is declared across the project
-// ---------------------------------------------------------------------------
-
 function findSymbol(name: string): void {
   const project = createProject();
   addAllSources(project);
 
-  const results: { file: string; line: number; kind: string; exported: boolean }[] = [];
+  const results: {
+    file: string;
+    line: number;
+    kind: string;
+    exported: boolean;
+  }[] = [];
 
   for (const sf of project.getSourceFiles()) {
     const relPath = path.relative(process.cwd(), sf.getFilePath());
@@ -899,30 +1914,55 @@ function findSymbol(name: string): void {
     // Check non-exported top-level declarations (functions, variables, interfaces, types, enums)
     for (const fn of sf.getFunctions()) {
       if (fn.getName() === name && !fn.isExported()) {
-        results.push({ file: relPath, line: fn.getStartLineNumber(), kind: "FunctionDeclaration", exported: false });
+        results.push({
+          file: relPath,
+          line: fn.getStartLineNumber(),
+          kind: "FunctionDeclaration",
+          exported: false,
+        });
       }
     }
     for (const vs of sf.getVariableStatements()) {
       if (vs.isExported()) continue;
       for (const vd of vs.getDeclarations()) {
         if (vd.getName() === name) {
-          results.push({ file: relPath, line: vd.getStartLineNumber(), kind: "VariableDeclaration", exported: false });
+          results.push({
+            file: relPath,
+            line: vd.getStartLineNumber(),
+            kind: "VariableDeclaration",
+            exported: false,
+          });
         }
       }
     }
     for (const iface of sf.getInterfaces()) {
       if (iface.getName() === name && !iface.isExported()) {
-        results.push({ file: relPath, line: iface.getStartLineNumber(), kind: "InterfaceDeclaration", exported: false });
+        results.push({
+          file: relPath,
+          line: iface.getStartLineNumber(),
+          kind: "InterfaceDeclaration",
+          exported: false,
+        });
       }
     }
     for (const alias of sf.getTypeAliases()) {
       if (alias.getName() === name && !alias.isExported()) {
-        results.push({ file: relPath, line: alias.getStartLineNumber(), kind: "TypeAliasDeclaration", exported: false });
+        results.push({
+          file: relPath,
+          line: alias.getStartLineNumber(),
+          kind: "TypeAliasDeclaration",
+          exported: false,
+        });
       }
     }
     for (const en of sf.getEnums()) {
       if (en.getName() === name && !en.isExported()) {
-        results.push({ file: relPath, line: en.getStartLineNumber(), kind: "EnumDeclaration", exported: false });
+        results.push({
+          file: relPath,
+          line: en.getStartLineNumber(),
+          kind: "EnumDeclaration",
+          exported: false,
+        });
       }
     }
 
@@ -1000,10 +2040,6 @@ function findSymbol(name: string): void {
   console.log(`\nFound ${unique.length} declaration(s) of "${name}"`);
 }
 
-// ---------------------------------------------------------------------------
-// list-exports: list all exported symbols from a file
-// ---------------------------------------------------------------------------
-
 function listExports(filePath: string): void {
   const project = createProject();
   addAllSources(project);
@@ -1049,10 +2085,6 @@ function simplifyKind(kind: string): string {
   return map[kind] ?? kind;
 }
 
-// ---------------------------------------------------------------------------
-// list-references: show all files that import a symbol from a file
-// ---------------------------------------------------------------------------
-
 function listReferences(filePath: string, symbolName: string): void {
   const project = createProject();
   addAllSources(project);
@@ -1091,12 +2123,10 @@ function listReferences(filePath: string, symbolName: string): void {
     const tag = r.typeOnly ? " (type-only)" : "";
     console.log(`  ${r.file}:${r.line}${tag}`);
   }
-  console.log(`\n${importers.length} file(s) import "${symbolName}" from ${filePath}`);
+  console.log(
+    `\n${importers.length} file(s) import "${symbolName}" from ${filePath}`,
+  );
 }
-
-// ---------------------------------------------------------------------------
-// rename-file: rename/move a file and update all imports across the project
-// ---------------------------------------------------------------------------
 
 function renameFile(oldPath: string, newPath: string): void {
   const project = createProject();
@@ -1105,9 +2135,10 @@ function renameFile(oldPath: string, newPath: string): void {
   const absOld = resolve(oldPath);
   // If newPath is a bare filename (no directory separators), resolve relative
   // to the source file's directory — not CWD.
-  const absNew = newPath.includes("/") || path.isAbsolute(newPath)
-    ? resolve(newPath)
-    : path.resolve(path.dirname(absOld), newPath);
+  const absNew =
+    newPath.includes("/") || path.isAbsolute(newPath)
+      ? resolve(newPath)
+      : path.resolve(path.dirname(absOld), newPath);
 
   const sourceFile = project.getSourceFile(absOld);
   if (!sourceFile) {
@@ -1155,10 +2186,6 @@ function renameFile(oldPath: string, newPath: string): void {
   console.log(`✅ Renamed file — ${changedFiles} file(s) changed`);
 }
 
-// ---------------------------------------------------------------------------
-// merge-imports: merge duplicate imports from the same module specifier
-// ---------------------------------------------------------------------------
-
 function mergeImports(files: string[]): void {
   const project = createProject();
   if (files.length === 0) {
@@ -1170,9 +2197,10 @@ function mergeImports(files: string[]): void {
   }
 
   let totalMerged = 0;
-  const filesToProcess = files.length > 0
-    ? files.map((file) => project.getSourceFileOrThrow(resolve(file)))
-    : project.getSourceFiles();
+  const filesToProcess =
+    files.length > 0
+      ? files.map((file) => project.getSourceFileOrThrow(resolve(file)))
+      : project.getSourceFiles();
 
   for (const sf of filesToProcess) {
     totalMerged += mergeImportsInFile(sf);
@@ -1184,7 +2212,9 @@ function mergeImports(files: string[]): void {
   }
 
   const changedFiles = saveChanges(project);
-  console.log(`✅ Merged ${totalMerged} duplicate import(s) across ${changedFiles} file(s)`);
+  console.log(
+    `✅ Merged ${totalMerged} duplicate import(s) across ${changedFiles} file(s)`,
+  );
 }
 
 /**
@@ -1218,7 +2248,11 @@ function mergeImportsInFile(sf: SourceFile): number {
     const hasValueImport = decls.some((imp) => !imp.isTypeOnly());
 
     // Collect all named import specifiers with their type information
-    const specifiers: { name: string; alias: string | undefined; isType: boolean }[] = [];
+    const specifiers: {
+      name: string;
+      alias: string | undefined;
+      isType: boolean;
+    }[] = [];
     const seen = new Set<string>();
 
     for (const imp of decls) {
@@ -1277,210 +2311,6 @@ function mergeImportsInFile(sf: SourceFile): number {
   }
 
   return merged;
-}
-
-// ---------------------------------------------------------------------------
-// Barrel / cross-domain helpers
-// ---------------------------------------------------------------------------
-
-/** Normalize a file path to an absolute path without trailing slash. */
-function absDir(dir: string): string {
-  return path.resolve(dir).replace(/[\\/]+$/, "");
-}
-
-/** True if `filePath` lives inside `dir` (or is `dir` itself). */
-function isInsideDir(filePath: string, dir: string): boolean {
-  const absFile = path.resolve(filePath);
-  const absRoot = absDir(dir);
-  if (absFile === absRoot) return true;
-  return absFile.startsWith(absRoot + path.sep);
-}
-
-/** Build a relative module specifier from `fromFile` to `toFile`, always ending in .ts. */
-function toModuleSpecifier(fromFile: SourceFile, toFile: SourceFile): string {
-  const raw = fromFile.getRelativePathAsModuleSpecifierTo(toFile);
-  return raw.endsWith(".ts") ? raw : raw + ".ts";
-}
-
-/**
- * Scan every file inside `absSource` (excluding `excludePath`) for an exported
- * declaration named `name`. Returns the unique match, "ambiguous" if multiple
- * files export it, or undefined if none do. Used by `generateBarrel` to
- * resolve symbols that the existing barrel doesn't yet re-export — so adding
- * a brand-new export to a sourceDir file followed by a regenerate Just Works
- * without a manual edit to the barrel.
- */
-function findExportInDir(
-  project: Project,
-  absSource: string,
-  excludePath: string,
-  name: string,
-): { sf: SourceFile; path: string } | "ambiguous" | undefined {
-  let found: { sf: SourceFile; path: string } | undefined;
-  for (const candidate of project.getSourceFiles()) {
-    const candidatePath = candidate.getFilePath();
-    if (candidatePath === excludePath) continue;
-    if (!isInsideDir(candidatePath, absSource)) continue;
-    if (!candidate.getExportedDeclarations().has(name)) continue;
-    if (found) return "ambiguous";
-    found = { sf: candidate, path: candidatePath };
-  }
-  return found;
-}
-
-/** The "domain" for an import-graph file is the first path segment under src/. */
-function domainOf(absPath: string): string | undefined {
-  const srcRoot = absDir("src");
-  if (!isInsideDir(absPath, srcRoot)) return undefined;
-  const rel = path.relative(srcRoot, absPath);
-  const [head] = rel.split(path.sep);
-  return head || undefined;
-}
-
-// ---------------------------------------------------------------------------
-// generate-barrel: emit a barrel re-exporting every symbol used by files
-// outside `sourceDir`. Groups by source file, sorted alphabetically.
-// ---------------------------------------------------------------------------
-
-interface BarrelEntry {
-  sourceRelPath: string; // project-relative path (for display / grouping)
-  moduleSpecifier: string; // relative specifier from outFile to sourceFile
-  valueSymbols: Set<string>;
-  typeSymbols: Set<string>;
-}
-
-/**
- * Resolution of one named import going *through* a re-export-only barrel.
- * `underlyingPath` is the absolute path of the file that truly defines
- * (or further re-exports) the symbol, and `originalName` is the name used
- * at that definition site (stripping any `as` alias the barrel applied).
- */
-interface BarrelResolution {
-  underlyingPath: string;
-  originalName: string;
-}
-
-interface BarrelReexportMap {
-  /** alias-seen-by-importer → underlying source + original symbol name */
-  named: Map<string, BarrelResolution>;
-  /**
-   * Absolute paths of files targeted by `export * from "..."`. We can't
-   * resolve a specific symbol through these without scanning each target's
-   * exported declarations, so we fall back to a warning for unknown symbols.
-   */
-  namespaceTargets: string[];
-}
-
-/**
- * Heuristic: is this source file a pure re-export barrel?
- * A file qualifies if it has at least one statement and EVERY statement is
- * an `export ... from "..."` form (named or namespace). Comments and blank
- * lines are fine — `getStatements()` ignores them.
- *
- * A file with basename `index.ts` is also treated as a barrel candidate so
- * that callers don't have to care about whether the file currently holds
- * content or not (e.g. an empty post-migration barrel still counts).
- */
-function isReexportOnlyBarrel(sf: SourceFile): boolean {
-  const stmts = sf.getStatements();
-  if (stmts.length === 0) {
-    // Empty file — only treat as a barrel if its basename is index.ts, and
-    // even then there's nothing to follow, so callers must handle that case.
-    return path.basename(sf.getFilePath()) === "index.ts";
-  }
-  for (const stmt of stmts) {
-    if (!stmt.isKind(SyntaxKind.ExportDeclaration)) return false;
-    const decl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
-    if (!decl.getModuleSpecifier()) return false;
-  }
-  return true;
-}
-
-/**
- * Walk an `export ... from "..."` barrel and produce a map from
- * alias-seen-by-importer to the underlying source file and original symbol
- * name. If a re-export target is itself a barrel, recurse up to `maxDepth`
- * levels so chains like `index → submodule/index → submodule/foo` resolve.
- *
- * `cache` is keyed by absolute barrel path so multi-barrel scans don't
- * rebuild the same map twice.
- */
-function buildBarrelReexportMap(
-  barrelSf: SourceFile,
-  cache: Map<string, BarrelReexportMap>,
-  maxDepth = 5,
-): BarrelReexportMap {
-  const barrelPath = barrelSf.getFilePath();
-  const cached = cache.get(barrelPath);
-  if (cached) return cached;
-
-  const result: BarrelReexportMap = {
-    named: new Map(),
-    namespaceTargets: [],
-  };
-  // Insert placeholder BEFORE recursing to break cycles (barrel A → B → A).
-  cache.set(barrelPath, result);
-
-  if (maxDepth <= 0) {
-    console.warn(
-      `⚠️  buildBarrelReexportMap: depth limit reached at ${path.relative(process.cwd(), barrelPath)}`,
-    );
-    return result;
-  }
-
-  for (const decl of barrelSf.getExportDeclarations()) {
-    const target = decl.getModuleSpecifierSourceFile();
-    if (!target) continue; // `export {}` or unresolved specifier — skip
-    const targetPath = target.getFilePath();
-
-    if (decl.isNamespaceExport()) {
-      result.namespaceTargets.push(targetPath);
-      continue;
-    }
-
-    // Named re-exports. If the target is itself a re-export-only barrel,
-    // recurse to find the real underlying source for each symbol.
-    const targetIsBarrel = isReexportOnlyBarrel(target);
-    const targetMap = targetIsBarrel
-      ? buildBarrelReexportMap(target, cache, maxDepth - 1)
-      : undefined;
-
-    for (const named of decl.getNamedExports()) {
-      // On export specifiers:
-      //   `export { foo }`          → getName() = "foo", alias undefined
-      //   `export { foo as bar }`   → getName() = "foo", alias = "bar"
-      // The name exposed to importers is the alias if present, else getName().
-      const originalInTarget = named.getName();
-      const exposedName = named.getAliasNode()?.getText() ?? originalInTarget;
-
-      if (targetMap) {
-        // Follow the chain: the symbol `originalInTarget` is the name *as
-        // seen by the target barrel*, so look it up in the target's map to
-        // get the real underlying source.
-        const downstream = targetMap.named.get(originalInTarget);
-        if (downstream) {
-          result.named.set(exposedName, downstream);
-        } else {
-          // Target is a barrel but doesn't expose this symbol via a named
-          // re-export we can follow. It might flow through `export * from`.
-          // Record it as pointing at the target barrel itself so the caller
-          // at least gets a real file path; the warning will surface later
-          // if the symbol ends up unresolvable.
-          result.named.set(exposedName, {
-            underlyingPath: targetPath,
-            originalName: originalInTarget,
-          });
-        }
-      } else {
-        result.named.set(exposedName, {
-          underlyingPath: targetPath,
-          originalName: originalInTarget,
-        });
-      }
-    }
-  }
-
-  return result;
 }
 
 function generateBarrel(sourceDir: string, outFile: string): void {
@@ -1574,7 +2404,12 @@ function generateBarrel(sourceDir: string, outFile: string): void {
               );
               continue;
             }
-            recordSymbol(resolution.underlyingPath, realSf, resolution.originalName, isType);
+            recordSymbol(
+              resolution.underlyingPath,
+              realSf,
+              resolution.originalName,
+              isType,
+            );
             continue;
           }
 
@@ -1582,7 +2417,12 @@ function generateBarrel(sourceDir: string, outFile: string): void {
           // source dir for a file that exports it. This makes regenerate-after-
           // adding-a-new-symbol work without a manual edit to the barrel, and
           // also covers symbols flowing through `export * from "..."`.
-          const found = findExportInDir(project, absSource, absOut, exportedName);
+          const found = findExportInDir(
+            project,
+            absSource,
+            absOut,
+            exportedName,
+          );
           if (found === "ambiguous") {
             console.warn(
               `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel; multiple files in ${sourceDir} export this name. Cannot disambiguate; skipping.`,
@@ -1590,9 +2430,10 @@ function generateBarrel(sourceDir: string, outFile: string): void {
           } else if (found) {
             recordSymbol(found.path, found.sf, exportedName, isType);
           } else {
-            const namespaceNote = outReexportMap && outReexportMap.namespaceTargets.length > 0
-              ? ` (may flow via "export *" from one of [${outReexportMap.namespaceTargets.map((pp) => path.relative(process.cwd(), pp)).join(", ")}])`
-              : "";
+            const namespaceNote =
+              outReexportMap && outReexportMap.namespaceTargets.length > 0
+                ? ` (may flow via "export *" from one of [${outReexportMap.namespaceTargets.map((pp) => path.relative(process.cwd(), pp)).join(", ")}])`
+                : "";
             console.warn(
               `⚠️  ${path.relative(process.cwd(), importerPath)} imports "${exportedName}" from the barrel, but no file in ${sourceDir} exports it${namespaceNote}. Skipping.`,
             );
@@ -1623,17 +2464,25 @@ function generateBarrel(sourceDir: string, outFile: string): void {
   );
 
   const lines: string[] = [];
-  lines.push("// Auto-generated by refactor generate-barrel. Do not edit by hand.");
+  lines.push(
+    "// Auto-generated by refactor generate-barrel. Do not edit by hand.",
+  );
   lines.push("");
 
   for (const entry of sortedEntries) {
-    const values = [...entry.valueSymbols].sort((aa, bb) => aa.localeCompare(bb));
+    const values = [...entry.valueSymbols].sort((aa, bb) =>
+      aa.localeCompare(bb),
+    );
     const types = [...entry.typeSymbols].sort((aa, bb) => aa.localeCompare(bb));
     if (values.length > 0) {
-      lines.push(`export { ${values.join(", ")} } from "${entry.moduleSpecifier}";`);
+      lines.push(
+        `export { ${values.join(", ")} } from "${entry.moduleSpecifier}";`,
+      );
     }
     if (types.length > 0) {
-      lines.push(`export type { ${types.join(", ")} } from "${entry.moduleSpecifier}";`);
+      lines.push(
+        `export type { ${types.join(", ")} } from "${entry.moduleSpecifier}";`,
+      );
     }
   }
 
@@ -1655,22 +2504,51 @@ function generateBarrel(sourceDir: string, outFile: string): void {
 
   if (dryRun) {
     console.log(`[dry-run] Would write ${relOut}`);
-    console.log(`  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`);
+    console.log(
+      `  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`,
+    );
     return;
   }
 
   outSourceFile.replaceWithText(body);
   outSourceFile.saveSync();
   console.log(`✅ Wrote ${relOut}`);
-  console.log(`  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`);
+  console.log(
+    `  ${sortedEntries.length} source file(s), ${valueCount} value export(s), ${typeCount} type export(s)`,
+  );
 }
 
-// ---------------------------------------------------------------------------
-// redirect-import: rewrite imports of a symbol from oldSource → newSource
-// without touching the declaration itself.
-// ---------------------------------------------------------------------------
+/**
+ * Scan every file inside `absSource` (excluding `excludePath`) for an exported
+ * declaration named `name`. Returns the unique match, "ambiguous" if multiple
+ * files export it, or undefined if none do. Used by `generateBarrel` to
+ * resolve symbols that the existing barrel doesn't yet re-export — so adding
+ * a brand-new export to a sourceDir file followed by a regenerate Just Works
+ * without a manual edit to the barrel.
+ */
+function findExportInDir(
+  project: Project,
+  absSource: string,
+  excludePath: string,
+  name: string,
+): { sf: SourceFile; path: string } | "ambiguous" | undefined {
+  let found: { sf: SourceFile; path: string } | undefined;
+  for (const candidate of project.getSourceFiles()) {
+    const candidatePath = candidate.getFilePath();
+    if (candidatePath === excludePath) continue;
+    if (!isInsideDir(candidatePath, absSource)) continue;
+    if (!candidate.getExportedDeclarations().has(name)) continue;
+    if (found) return "ambiguous";
+    found = { sf: candidate, path: candidatePath };
+  }
+  return found;
+}
 
-function redirectImport(symbol: string, oldSource: string, newSource: string): void {
+function redirectImport(
+  symbol: string,
+  oldSource: string,
+  newSource: string,
+): void {
   const project = createProject();
   addAllSources(project);
 
@@ -1697,6 +2575,118 @@ function redirectImport(symbol: string, oldSource: string, newSource: string): v
 
   const changedFiles = saveChanges(project);
   console.log(`✅ Redirected "${symbol}" in ${changedFiles} file(s)`);
+}
+
+function bulkRedirect(manifestFile: string): void {
+  const manifestPath = resolve(manifestFile);
+  if (!existsSync(manifestPath)) {
+    console.error(`❌ Manifest not found: ${manifestFile}`);
+    process.exit(1);
+  }
+
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  } catch (err) {
+    console.error(`❌ Failed to parse manifest: ${(err as Error).message}`);
+    process.exit(1);
+  }
+
+  if (!Array.isArray(manifest)) {
+    console.error("❌ Manifest must be a JSON array of { symbol, from, to }");
+    process.exit(1);
+  }
+
+  const entries: BulkRedirectEntry[] = [];
+  for (const raw of manifest) {
+    if (
+      typeof raw !== "object" ||
+      raw === null ||
+      typeof (raw as { symbol?: unknown }).symbol !== "string" ||
+      typeof (raw as { from?: unknown }).from !== "string" ||
+      typeof (raw as { to?: unknown }).to !== "string"
+    ) {
+      console.error(
+        "❌ Each manifest entry must have string fields: symbol, from, to",
+      );
+      process.exit(1);
+    }
+    entries.push(raw as BulkRedirectEntry);
+  }
+
+  const project = createProject();
+  addAllSources(project);
+
+  let totalModified = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    const absFrom = resolve(entry.from);
+    const absTo = resolve(entry.to);
+    const fromFile = project.getSourceFile(absFrom);
+    const toFile = project.getSourceFile(absTo);
+    if (!fromFile) {
+      console.warn(
+        `  Skipping "${entry.symbol}": from-file not found: ${entry.from}`,
+      );
+      skipped++;
+      continue;
+    }
+    if (!toFile) {
+      console.warn(
+        `  Skipping "${entry.symbol}": to-file not found: ${entry.to}`,
+      );
+      skipped++;
+      continue;
+    }
+    const modified = redirectOneSymbol(project, entry.symbol, fromFile, toFile);
+    if (modified > 0) {
+      console.log(`  ${entry.symbol}: ${modified} importer(s) redirected`);
+    }
+    totalModified += modified;
+  }
+
+  if (totalModified === 0) {
+    console.log(
+      `No importers redirected (${entries.length - skipped} entries processed, ${skipped} skipped)`,
+    );
+    return;
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(
+    `✅ Bulk redirect: ${totalModified} importer(s) across ${changedFiles} file(s) (${entries.length} manifest entries, ${skipped} skipped)`,
+  );
+}
+
+function saveChanges(project: Project): number {
+  let changed = 0;
+  for (const sf of project.getSourceFiles()) {
+    if (sf.getFullText() !== sf.getPreEmitDiagnostics.toString()) {
+      // Check if actually modified
+    }
+  }
+
+  if (dryRun) {
+    for (const sf of project.getSourceFiles()) {
+      if (!sf.isSaved()) {
+        const filePath = path.relative(process.cwd(), sf.getFilePath());
+        console.log(`  [dry-run] Would modify: ${filePath}`);
+        changed++;
+      }
+    }
+  } else {
+    for (const sf of project.getSourceFiles()) {
+      if (!sf.isSaved()) {
+        sf.saveSync();
+        const filePath = path.relative(process.cwd(), sf.getFilePath());
+        console.log(`  Modified: ${filePath}`);
+        changed++;
+      }
+    }
+  }
+
+  return changed;
 }
 
 /**
@@ -1750,7 +2740,11 @@ function redirectOneSymbol(
       const newSpec = toModuleSpecifier(sf, newFile);
       const existingNewImport = sf
         .getImportDeclarations()
-        .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === newFile.getFilePath());
+        .find(
+          (d) =>
+            d.getModuleSpecifierSourceFile()?.getFilePath() ===
+            newFile.getFilePath(),
+        );
 
       if (existingNewImport) {
         const alreadyImported = existingNewImport
@@ -1766,12 +2760,16 @@ function redirectOneSymbol(
               isTypeOnly: false,
             });
           } else {
-            const cleanText = existingIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+            const cleanText = existingIsTypeOnly
+              ? importText.replace(/^type\s+/, "")
+              : importText;
             existingNewImport.addNamedImport(cleanText);
           }
         }
       } else {
-        const cleanText = specIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+        const cleanText = specIsTypeOnly
+          ? importText.replace(/^type\s+/, "")
+          : importText;
         sf.addImportDeclaration({
           moduleSpecifier: newSpec,
           namedImports: [cleanText],
@@ -1786,98 +2784,11 @@ function redirectOneSymbol(
   return modified;
 }
 
-// ---------------------------------------------------------------------------
-// bulk-redirect: apply many redirects in a single AST pass
-// ---------------------------------------------------------------------------
-
-interface BulkRedirectEntry {
-  symbol: string;
-  from: string;
-  to: string;
-}
-
-function bulkRedirect(manifestFile: string): void {
-  const manifestPath = resolve(manifestFile);
-  if (!existsSync(manifestPath)) {
-    console.error(`❌ Manifest not found: ${manifestFile}`);
-    process.exit(1);
-  }
-
-  let manifest: unknown;
-  try {
-    manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  } catch (err) {
-    console.error(`❌ Failed to parse manifest: ${(err as Error).message}`);
-    process.exit(1);
-  }
-
-  if (!Array.isArray(manifest)) {
-    console.error("❌ Manifest must be a JSON array of { symbol, from, to }");
-    process.exit(1);
-  }
-
-  const entries: BulkRedirectEntry[] = [];
-  for (const raw of manifest) {
-    if (
-      typeof raw !== "object" || raw === null ||
-      typeof (raw as { symbol?: unknown }).symbol !== "string" ||
-      typeof (raw as { from?: unknown }).from !== "string" ||
-      typeof (raw as { to?: unknown }).to !== "string"
-    ) {
-      console.error("❌ Each manifest entry must have string fields: symbol, from, to");
-      process.exit(1);
-    }
-    entries.push(raw as BulkRedirectEntry);
-  }
-
-  const project = createProject();
-  addAllSources(project);
-
-  let totalModified = 0;
-  let skipped = 0;
-
-  for (const entry of entries) {
-    const absFrom = resolve(entry.from);
-    const absTo = resolve(entry.to);
-    const fromFile = project.getSourceFile(absFrom);
-    const toFile = project.getSourceFile(absTo);
-    if (!fromFile) {
-      console.warn(`  Skipping "${entry.symbol}": from-file not found: ${entry.from}`);
-      skipped++;
-      continue;
-    }
-    if (!toFile) {
-      console.warn(`  Skipping "${entry.symbol}": to-file not found: ${entry.to}`);
-      skipped++;
-      continue;
-    }
-    const modified = redirectOneSymbol(project, entry.symbol, fromFile, toFile);
-    if (modified > 0) {
-      console.log(`  ${entry.symbol}: ${modified} importer(s) redirected`);
-    }
-    totalModified += modified;
-  }
-
-  if (totalModified === 0) {
-    console.log(`No importers redirected (${entries.length - skipped} entries processed, ${skipped} skipped)`);
-    return;
-  }
-
-  const changedFiles = saveChanges(project);
-  console.log(
-    `✅ Bulk redirect: ${totalModified} importer(s) across ${changedFiles} file(s) (${entries.length} manifest entries, ${skipped} skipped)`,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// list-cross-domain-imports: emit every cross-domain import as JSON
-// ---------------------------------------------------------------------------
-
-interface CrossDomainRecord {
-  importer: string;
-  imported: string;
-  symbols: string[];
-  kind: "value" | "type";
+function findNamedImport(
+  imp: ImportDeclaration,
+  name: string,
+): ImportSpecifier | undefined {
+  return imp.getNamedImports().find((n) => n.getName() === name);
 }
 
 function listCrossDomainImports(projectRoot: string): void {
@@ -1950,15 +2861,13 @@ function listCrossDomainImports(projectRoot: string): void {
   console.log(JSON.stringify(records, null, 2));
 }
 
-// ---------------------------------------------------------------------------
-// compute-public-surface: symbols exported from sourceDir with outside consumers
-// ---------------------------------------------------------------------------
-
-interface PublicSurfaceRecord {
-  symbol: string;
-  source: string;
-  consumers: number;
-  consumerFiles: string[];
+/** The "domain" for an import-graph file is the first path segment under src/. */
+function domainOf(absPath: string): string | undefined {
+  const srcRoot = absDir("src");
+  if (!isInsideDir(absPath, srcRoot)) return undefined;
+  const rel = path.relative(srcRoot, absPath);
+  const [head] = rel.split(path.sep);
+  return head || undefined;
 }
 
 function computePublicSurface(sourceDir: string): void {
@@ -1968,7 +2877,15 @@ function computePublicSurface(sourceDir: string): void {
   const absSource = absDir(sourceDir);
 
   // Map key: `${absSourcePath}::${symbolName}` → record
-  const map = new Map<string, { symbol: string; source: string; absSource: string; consumerFiles: Set<string> }>();
+  const map = new Map<
+    string,
+    {
+      symbol: string;
+      source: string;
+      absSource: string;
+      consumerFiles: Set<string>;
+    }
+  >();
 
   // Cache of barrel re-export maps, keyed by absolute barrel path. Built
   // lazily as we encounter imports that resolve to a re-export-only file.
@@ -1989,7 +2906,10 @@ function computePublicSurface(sourceDir: string): void {
   ): BarrelResolution | null => {
     // Non-barrel: the target *is* the underlying source.
     if (!isReexportOnlyBarrel(targetSf)) {
-      return { underlyingPath: targetSf.getFilePath(), originalName: exposedName };
+      return {
+        underlyingPath: targetSf.getFilePath(),
+        originalName: exposedName,
+      };
     }
     const reexportMap = buildBarrelReexportMap(targetSf, barrelCache);
     const hit = reexportMap.named.get(exposedName);
@@ -2046,7 +2966,9 @@ function computePublicSurface(sourceDir: string): void {
     symbol: entry.symbol,
     source: entry.source,
     consumers: entry.consumerFiles.size,
-    consumerFiles: [...entry.consumerFiles].sort((aa, bb) => aa.localeCompare(bb)),
+    consumerFiles: [...entry.consumerFiles].sort((aa, bb) =>
+      aa.localeCompare(bb),
+    ),
   }));
 
   // Sort by consumer count descending, tiebreak by symbol then source.
@@ -2060,11 +2982,137 @@ function computePublicSurface(sourceDir: string): void {
   console.log(JSON.stringify(records, null, 2));
 }
 
-// ---------------------------------------------------------------------------
-// add-reexport: append (or confirm) a re-export line in a barrel file
-// ---------------------------------------------------------------------------
+/** True if `filePath` lives inside `dir` (or is `dir` itself). */
+function isInsideDir(filePath: string, dir: string): boolean {
+  const absFile = path.resolve(filePath);
+  const absRoot = absDir(dir);
+  if (absFile === absRoot) return true;
+  return absFile.startsWith(absRoot + path.sep);
+}
 
-function addReexport(barrelFile: string, sourceFile: string, symbol: string, typeOnly: boolean): void {
+/** Normalize a file path to an absolute path without trailing slash. */
+function absDir(dir: string): string {
+  return path.resolve(dir).replace(/[\\/]+$/, "");
+}
+
+/**
+ * Walk an `export ... from "..."` barrel and produce a map from
+ * alias-seen-by-importer to the underlying source file and original symbol
+ * name. If a re-export target is itself a barrel, recurse up to `maxDepth`
+ * levels so chains like `index → submodule/index → submodule/foo` resolve.
+ *
+ * `cache` is keyed by absolute barrel path so multi-barrel scans don't
+ * rebuild the same map twice.
+ */
+function buildBarrelReexportMap(
+  barrelSf: SourceFile,
+  cache: Map<string, BarrelReexportMap>,
+  maxDepth = 5,
+): BarrelReexportMap {
+  const barrelPath = barrelSf.getFilePath();
+  const cached = cache.get(barrelPath);
+  if (cached) return cached;
+
+  const result: BarrelReexportMap = {
+    named: new Map(),
+    namespaceTargets: [],
+  };
+  // Insert placeholder BEFORE recursing to break cycles (barrel A → B → A).
+  cache.set(barrelPath, result);
+
+  if (maxDepth <= 0) {
+    console.warn(
+      `⚠️  buildBarrelReexportMap: depth limit reached at ${path.relative(process.cwd(), barrelPath)}`,
+    );
+    return result;
+  }
+
+  for (const decl of barrelSf.getExportDeclarations()) {
+    const target = decl.getModuleSpecifierSourceFile();
+    if (!target) continue; // `export {}` or unresolved specifier — skip
+    const targetPath = target.getFilePath();
+
+    if (decl.isNamespaceExport()) {
+      result.namespaceTargets.push(targetPath);
+      continue;
+    }
+
+    // Named re-exports. If the target is itself a re-export-only barrel,
+    // recurse to find the real underlying source for each symbol.
+    const targetIsBarrel = isReexportOnlyBarrel(target);
+    const targetMap = targetIsBarrel
+      ? buildBarrelReexportMap(target, cache, maxDepth - 1)
+      : undefined;
+
+    for (const named of decl.getNamedExports()) {
+      // On export specifiers:
+      //   `export { foo }`          → getName() = "foo", alias undefined
+      //   `export { foo as bar }`   → getName() = "foo", alias = "bar"
+      // The name exposed to importers is the alias if present, else getName().
+      const originalInTarget = named.getName();
+      const exposedName = named.getAliasNode()?.getText() ?? originalInTarget;
+
+      if (targetMap) {
+        // Follow the chain: the symbol `originalInTarget` is the name *as
+        // seen by the target barrel*, so look it up in the target's map to
+        // get the real underlying source.
+        const downstream = targetMap.named.get(originalInTarget);
+        if (downstream) {
+          result.named.set(exposedName, downstream);
+        } else {
+          // Target is a barrel but doesn't expose this symbol via a named
+          // re-export we can follow. It might flow through `export * from`.
+          // Record it as pointing at the target barrel itself so the caller
+          // at least gets a real file path; the warning will surface later
+          // if the symbol ends up unresolvable.
+          result.named.set(exposedName, {
+            underlyingPath: targetPath,
+            originalName: originalInTarget,
+          });
+        }
+      } else {
+        result.named.set(exposedName, {
+          underlyingPath: targetPath,
+          originalName: originalInTarget,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Heuristic: is this source file a pure re-export barrel?
+ * A file qualifies if it has at least one statement and EVERY statement is
+ * an `export ... from "..."` form (named or namespace). Comments and blank
+ * lines are fine — `getStatements()` ignores them.
+ *
+ * A file with basename `index.ts` is also treated as a barrel candidate so
+ * that callers don't have to care about whether the file currently holds
+ * content or not (e.g. an empty post-migration barrel still counts).
+ */
+function isReexportOnlyBarrel(sf: SourceFile): boolean {
+  const stmts = sf.getStatements();
+  if (stmts.length === 0) {
+    // Empty file — only treat as a barrel if its basename is index.ts, and
+    // even then there's nothing to follow, so callers must handle that case.
+    return path.basename(sf.getFilePath()) === "index.ts";
+  }
+  for (const stmt of stmts) {
+    if (!stmt.isKind(SyntaxKind.ExportDeclaration)) return false;
+    const decl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
+    if (!decl.getModuleSpecifier()) return false;
+  }
+  return true;
+}
+
+function addReexport(
+  barrelFile: string,
+  sourceFile: string,
+  symbol: string,
+  typeOnly: boolean,
+): void {
   const project = createProject();
   addAllSources(project);
 
@@ -2111,7 +3159,9 @@ function addReexport(barrelFile: string, sourceFile: string, symbol: string, typ
   }
 
   if (alreadyPresent) {
-    console.log(`Re-export of "${symbol}" from ${moduleSpecifier} already present — no-op`);
+    console.log(
+      `Re-export of "${symbol}" from ${moduleSpecifier} already present — no-op`,
+    );
     return;
   }
 
@@ -2127,14 +3177,43 @@ function addReexport(barrelFile: string, sourceFile: string, symbol: string, typ
 
   const relBarrel = path.relative(process.cwd(), absBarrel);
   if (dryRun) {
-    console.log(`[dry-run] Would add ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`);
+    console.log(
+      `[dry-run] Would add ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`,
+    );
     console.log(`[dry-run] Would modify: ${relBarrel}`);
     return;
   }
 
   barrelSf.saveSync();
-  console.log(`✅ Added ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`);
+  console.log(
+    `✅ Added ${typeOnly ? "type " : ""}re-export: ${symbol} from ${moduleSpecifier}`,
+  );
   console.log(`  Modified: ${relBarrel}`);
+}
+
+function createProject(): Project {
+  return new Project({
+    tsConfigFilePath: path.resolve("tsconfig.json"),
+    skipAddingFilesFromTsConfig: true,
+  });
+}
+
+function addAllSources(project: Project): void {
+  project.addSourceFilesAtPaths([
+    "src/**/*.ts",
+    "server/**/*.ts",
+    "test/**/*.ts",
+  ]);
+}
+
+function resolve(filePath: string): string {
+  return path.resolve(filePath);
+}
+
+/** Build a relative module specifier from `fromFile` to `toFile`, always ending in .ts. */
+function toModuleSpecifier(fromFile: SourceFile, toFile: SourceFile): string {
+  const raw = fromFile.getRelativePathAsModuleSpecifierTo(toFile);
+  return raw.endsWith(".ts") ? raw : raw + ".ts";
 }
 
 /**
@@ -2169,9 +3248,39 @@ function sortBarrelExports(sf: SourceFile): void {
   sf.addStatements(reexports.map((r) => r.text).join("\n"));
 }
 
-// ---------------------------------------------------------------------------
-// CLI dispatch
-// ---------------------------------------------------------------------------
+/** Parse argv into named flags, repeatable flag arrays, and bare positionals.
+ *  Defined as a function (not top-level code) so reorder-file.ts doesn't
+ *  hoist its output consts above the loop that populates them. */
+function parseArgv(argv: string[]): {
+  flagMap: Map<string, string>;
+  flagMulti: Map<string, string[]>;
+  positionalArgs: string[];
+} {
+  const flagMap = new Map<string, string>();
+  const flagMulti = new Map<string, string[]>();
+  const positionalArgs: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (
+      a === "--dry-run" ||
+      a === "--all" ||
+      a === "--type" ||
+      a === "--cascade"
+    )
+      continue;
+    if (a.startsWith("--") && i + 1 < argv.length) {
+      const key = a.slice(2);
+      const val = argv[++i]!;
+      flagMap.set(key, val);
+      const arr = flagMulti.get(key);
+      if (arr) arr.push(val);
+      else flagMulti.set(key, [val]);
+    } else if (!a.startsWith("--")) {
+      positionalArgs.push(a);
+    }
+  }
+  return { flagMap, flagMulti, positionalArgs };
+}
 
 function printUsage(): void {
   console.log(`AST-based refactoring CLI
@@ -2192,6 +3301,9 @@ Commands:
   list-cross-domain-imports [<projectRoot>]    Print every cross-domain import in the project as JSON
   compute-public-surface <sourceDir>           Print symbols exported from sourceDir that have outside consumers (JSON)
   add-reexport   <barrelFile> <sourceFile> <symbol>  Append (idempotent) a re-export to a barrel file
+  list-callsites <file> <symbol>               Every reference to <symbol> (imports + local calls), grouped by file
+  remove-export  <file> <name>                 Delete an exported declaration + every import of it (errors if still referenced)
+  fold-constant  <file> <name> <true|false>    Fold if/ternary/&&/|| branches whose truthiness is determined by <name>
 
 Options:
   --dry-run    Show what would change without writing
@@ -2216,197 +3328,8 @@ Examples:
   deno run -A scripts/refactor.ts bulk-redirect /tmp/redirects.json --dry-run
   deno run -A scripts/refactor.ts list-cross-domain-imports src
   deno run -A scripts/refactor.ts compute-public-surface src/game
-  deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece`);
-}
-
-switch (command) {
-  case "rename-symbol": {
-    const file = flagMap.get("file") ?? commandArgs[0];
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[1];
-    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[2];
-    if (!file || !name || !newName) {
-      console.error("Usage: rename-symbol <file> <name> <newName>");
-      process.exit(1);
-    }
-    renameSymbol(file, name, newName);
-    break;
-  }
-  case "move-export": {
-    let from = flagMap.get("from") ?? commandArgs[0];
-    let to = flagMap.get("to") ?? commandArgs[1];
-    // Support multiple symbols: --symbol A --symbol B, or single positional
-    let symbols = flagMulti.get("symbol") ?? flagMulti.get("name") ?? (commandArgs[2] ? [commandArgs[2]] : []);
-
-    // Smart reorder: if 'from' doesn't look like a file path, assume user passed <name> <from> <to>
-    if (from && !from.includes("/") && !from.endsWith(".ts") && commandArgs.length >= 3) {
-      const reorderedFrom = commandArgs[1]!;
-      const reorderedTo = commandArgs[2]!;
-      const reorderedSymbol = commandArgs[0]!;
-      // Only reorder if the swapped values look like paths
-      if (reorderedFrom.includes("/") || reorderedFrom.endsWith(".ts")) {
-        from = reorderedFrom;
-        to = reorderedTo;
-        symbols = [reorderedSymbol];
-      }
-    }
-
-    if (!from || !to || symbols.length === 0) {
-      console.error("Usage: move-export <from> <to> <name> OR --from <from> --to <to> --symbol <name> [--symbol <name2>]");
-      process.exit(1);
-    }
-    for (const name of symbols) {
-      moveExport(from, to, name);
-    }
-    break;
-  }
-  case "rename-prop": {
-    let typeName = flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
-    let prop = flagMap.get("prop") ?? flagMap.get("old") ?? commandArgs[1];
-    let newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? flagMap.get("new") ?? commandArgs[2];
-
-    // Smart reorder: if first arg looks like a file path, assume user passed <file> <type> <prop> <newProp>
-    if (typeName && (typeName.includes("/") || typeName.endsWith(".ts")) && commandArgs.length >= 4) {
-      typeName = commandArgs[1];
-      prop = commandArgs[2];
-      newProp = commandArgs[3];
-    }
-
-    if (!typeName || !prop || !newProp) {
-      console.error("Usage: rename-prop <typeName> <prop> <newProp>");
-      process.exit(1);
-    }
-    renameProp(typeName, prop, newProp);
-    break;
-  }
-  case "rename-in-file": {
-    let name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[0];
-    let newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[1];
-    let files = flagMap.has("files") ? flagMap.get("files")!.split(",") : commandArgs.slice(2);
-
-    // Smart reorder: if first arg looks like a file path, assume user passed <file...> <name> <newName>
-    if (name && (name.includes("/") || name.endsWith(".ts")) && !flagMap.has("name") && !flagMap.has("symbol") && !flagMap.has("old")) {
-      // Find where file paths end and identifiers begin
-      const firstNonFile = commandArgs.findIndex((a) => !a.includes("/") && !a.endsWith(".ts"));
-      if (firstNonFile >= 0 && firstNonFile + 1 < commandArgs.length) {
-        files = commandArgs.slice(0, firstNonFile);
-        name = commandArgs[firstNonFile];
-        newName = commandArgs[firstNonFile + 1];
-      }
-    }
-
-    if (!name || !newName || files.length === 0) {
-      console.error("Usage: rename-in-file <name> <newName> <file...>");
-      process.exit(1);
-    }
-    console.log(`Renaming all "${name}" → "${newName}" in ${files.length} file(s)`);
-    renameInFile(name, newName, files);
-    break;
-  }
-  case "rename-file": {
-    const oldFile = flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[0];
-    const newFile = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[1];
-    if (!oldFile || !newFile) {
-      console.error("Usage: rename-file <oldPath> <newPath>");
-      process.exit(1);
-    }
-    renameFile(oldFile, newFile);
-    break;
-  }
-  case "merge-imports": {
-    const files = allFlag ? [] : commandArgs;
-    if (!allFlag && files.length === 0) {
-      console.error("Usage: merge-imports <file...> | --all [--dry-run]");
-      process.exit(1);
-    }
-    mergeImports(files);
-    break;
-  }
-  case "find-symbol": {
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[0];
-    if (!name) {
-      console.error("Usage: find-symbol <name>");
-      process.exit(1);
-    }
-    findSymbol(name);
-    break;
-  }
-  case "list-exports": {
-    const file = flagMap.get("file") ?? commandArgs[0];
-    if (!file) {
-      console.error("Usage: list-exports <file>");
-      process.exit(1);
-    }
-    listExports(file);
-    break;
-  }
-  case "list-references": {
-    const file = flagMap.get("file") ?? flagMap.get("from") ?? commandArgs[0];
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
-    if (!file || !name) {
-      console.error("Usage: list-references <file> <name>");
-      process.exit(1);
-    }
-    listReferences(file, name);
-    break;
-  }
-  case "generate-barrel": {
-    const sourceDir = flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
-    const outFile = flagMap.get("out") ?? flagMap.get("output") ?? commandArgs[1];
-    if (!sourceDir || !outFile) {
-      console.error("Usage: generate-barrel <sourceDir> <outFile> [--dry-run]");
-      process.exit(1);
-    }
-    generateBarrel(sourceDir, outFile);
-    break;
-  }
-  case "redirect-import": {
-    const symbol = flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[0];
-    const oldSource = flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[1];
-    const newSource = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[2];
-    if (!symbol || !oldSource || !newSource) {
-      console.error("Usage: redirect-import <symbol> <oldSource> <newSource> [--dry-run]");
-      process.exit(1);
-    }
-    redirectImport(symbol, oldSource, newSource);
-    break;
-  }
-  case "bulk-redirect": {
-    const manifest = flagMap.get("manifest") ?? flagMap.get("file") ?? commandArgs[0];
-    if (!manifest) {
-      console.error("Usage: bulk-redirect <manifestFile> [--dry-run]");
-      process.exit(1);
-    }
-    bulkRedirect(manifest);
-    break;
-  }
-  case "list-cross-domain-imports": {
-    const projectRoot = flagMap.get("root") ?? commandArgs[0] ?? "src";
-    listCrossDomainImports(projectRoot);
-    break;
-  }
-  case "compute-public-surface": {
-    const sourceDir = flagMap.get("source") ?? flagMap.get("dir") ?? commandArgs[0];
-    if (!sourceDir) {
-      console.error("Usage: compute-public-surface <sourceDir>");
-      process.exit(1);
-    }
-    computePublicSurface(sourceDir);
-    break;
-  }
-  case "add-reexport": {
-    const barrelFile = flagMap.get("barrel") ?? commandArgs[0];
-    const sourceFile = flagMap.get("source") ?? flagMap.get("from") ?? commandArgs[1];
-    const symbol = flagMap.get("symbol") ?? flagMap.get("name") ?? commandArgs[2];
-    const typeOnly = args.includes("--type");
-    if (!barrelFile || !sourceFile || !symbol) {
-      console.error("Usage: add-reexport <barrelFile> <sourceFile> <symbol> [--type] [--dry-run]");
-      process.exit(1);
-    }
-    addReexport(barrelFile, sourceFile, symbol, typeOnly);
-    break;
-  }
-  default:
-    console.error(`Unknown command: ${command}`);
-    printUsage();
-    process.exit(1);
+  deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece
+  deno run -A scripts/refactor.ts list-callsites src/render/render-map.ts drawTerrain
+  deno run -A scripts/refactor.ts remove-export src/render/render-map.ts drawTerrain --dry-run
+  deno run -A scripts/refactor.ts fold-constant src/render/renderer.ts terrainLayerEnabled false --dry-run`);
 }
