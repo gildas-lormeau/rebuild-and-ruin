@@ -268,6 +268,18 @@ export function createRender3dScene(
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       generateMipmaps: false,
+      // sRGB-encoded FBO so `readRenderTargetPixels` returns display-ready
+      // sRGB bytes (for the banner B-snapshot capture). Three.js's default
+      // `renderer.outputColorSpace = SRGBColorSpace` only converts
+      // linear→sRGB when writing to the default framebuffer, so a plain
+      // FBO holds LINEAR values; reading those straight into ImageData
+      // produced a visibly darker B than A (which goes via the blit to
+      // the default framebuffer and therefore gets the sRGB conversion).
+      // Declaring the target sRGB makes three.js convert on write; the
+      // blit shader's sampler then converts sRGB→linear on read and the
+      // default-framebuffer output converts linear→sRGB — net identity
+      // for the visible path, but the direct readback now matches.
+      colorSpace: THREE.SRGBColorSpace,
     },
   );
 
