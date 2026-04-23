@@ -77,13 +77,14 @@ export interface TerrainContext {
 // the mesh only owns overlay tile colors (interiors, bonus, frozen,
 // owned sinkhole tints) which must stay in sync with `render-map.ts`.
 const ICE_COLOR: [number, number, number] = [165, 210, 230];
-// Cobblestone base color for battle-mode interiors. Matches
-// COBBLESTONE_BASE + interiorLight * COBBLESTONE_TINT_FACTOR in
-// `render-map.ts` → `cobblestoneBaseColor`. The 2D cobblestone sprite
-// layers textured stone detail on top of this base; 3D just paints the
-// per-tile average since every tile is a single vertex-colored quad.
-const COBBLESTONE_BASE: [number, number, number] = [90, 85, 80];
-const COBBLESTONE_TINT_FACTOR = 0.15;
+// Cobblestone base color for battle-mode interiors. Intentionally
+// lighter than the 2D sprite's `COBBLESTONE_BASE = [90, 85, 80]` in
+// `render-map.ts` → `cobblestoneBaseColor`: at 3D's tile resolution the
+// uniform dark base swallowed tower silhouettes, so we fade it toward a
+// light stone gray to boost contrast with castle geometry. The 2D sprite
+// still layers textured stone detail on top of its own darker base.
+const COBBLESTONE_BASE: [number, number, number] = [125, 120, 115];
+const COBBLESTONE_TINT_FACTOR = 0.13;
 
 export function createTerrain(): TerrainContext {
   const tileCount = GRID_ROWS * GRID_COLS;
