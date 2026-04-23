@@ -88,6 +88,11 @@ export const ELEVATION_STACK = {
 export const RENDER_ORDER = {
   EFFECT: 900, // bonus discs, crosshair (roughly equivalent visibility)
   PHANTOM: 1000, // placement previews — always on top
+  // Fog instances share one bounding sphere at the geometry origin, so
+  // three's transparent-distance sort can't differentiate them against
+  // other transparent meshes under tilt. Pin the draw order explicitly
+  // so fog always composes on top of the terrain mesh + effect layers.
+  FOG: 1100,
 } as const;
 /** Small Y offset added on top of ELEVATION_STACK levels when two
  *  effect meshes share a nominal Y but one must composite on top. */
