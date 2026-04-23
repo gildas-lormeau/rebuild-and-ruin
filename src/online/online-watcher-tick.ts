@@ -61,10 +61,9 @@ export interface WatcherTickContext {
   maybeSendAimUpdate: (x: number, y: number) => void;
   render: () => void;
   now: () => number;
-  /** Dual-write sink for the runtime's `remotePhantoms.piecePhantoms`
-   *  slot (phase 2b). Forwarded into `tickWatcherBuildPhantomsPhase` so
-   *  render + touch can read remote piece phantoms from the runtime slot
-   *  instead of `frame.phantoms`. */
+  /** Sink for the runtime's `remotePhantoms.piecePhantoms` slot.
+   *  Forwarded into `tickWatcherBuildPhantomsPhase` so render + touch
+   *  read remote piece phantoms from the runtime slot. */
   setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
 
@@ -209,7 +208,6 @@ export function tickWatcher(
         : localController;
     tickWatcherBuildPhantomsPhase({
       state,
-      frame,
       dt,
       localController: effectiveLocal,
       remotePiecePhantoms: watcherState.remotePiecePhantoms,

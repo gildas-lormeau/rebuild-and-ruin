@@ -143,11 +143,10 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // they see only what the render layer needs.
     const view = selectRenderView(runtimeState.state);
 
-    // Phase 2b: assemble the overlay's piece-phantom payload from the
+    // Assemble the overlay's piece-phantom payload from the
     // controller-owned `currentBuildPhantoms` arrays + the runtime
-    // remote slot. `frame.phantoms.piecePhantoms` is still written by
-    // `tickBuildPhase` / `tickWatcherBuildPhantomsPhase` (cleanup in
-    // phase 2c) but the render path no longer reads it.
+    // remote slot. `frame.phantoms` no longer carries piece phantoms —
+    // controllers + `runtimeState.remotePhantoms` are the sole sources.
     const overlayFrame = {
       crosshairs: runtimeState.frame.crosshairs,
       phantoms: {

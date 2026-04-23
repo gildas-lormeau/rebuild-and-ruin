@@ -85,7 +85,6 @@ interface WatcherBattleDeps {
 interface WatcherPhantomFrame {
   phantoms: {
     cannonPhantoms?: CannonPhantom[];
-    piecePhantoms?: PiecePhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };
 }
@@ -103,18 +102,15 @@ interface TickWatcherCannonPhantomsDeps {
 
 interface TickWatcherBuildPhantomsDeps {
   state: GameState;
-  frame: WatcherPhantomFrame;
   dt: number;
   localController: PlayerController | null;
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
   sendOpponentPiecePhantom: (msg: PiecePhantom) => void;
-  /** Dual-write sink for the runtime's `remotePhantoms.piecePhantoms`
-   *  slot (phase 2b). Receives the same alive-filtered remote array the
-   *  watcher writes into `frame.phantoms.piecePhantoms`, so render +
-   *  touch readers can source remote previews from the runtime slot
-   *  while local previews come from each controller's
-   *  `currentBuildPhantoms`. Phase 2c removes the frame write. */
+  /** Sink for the runtime's `remotePhantoms.piecePhantoms` slot.
+   *  Receives the alive-filtered remote array so render + touch readers
+   *  can source remote previews from the runtime slot; local previews
+   *  come from each controller's `currentBuildPhantoms`. */
   setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
 
@@ -298,7 +294,6 @@ export function tickWatcherBuildPhantomsPhase(
 ): void {
   const {
     state,
-    frame,
     dt,
     localController,
     remotePiecePhantoms,
@@ -308,27 +303,15 @@ export function tickWatcherBuildPhantomsPhase(
   } = deps;
 
   const aliveRemote = filterAlivePhantoms(remotePiecePhantoms, state.players);
-  frame.phantoms = {
-    piecePhantoms: aliveRemote,
-  };
-  // Dual-write to the runtime slot so render + touch can consume remote
-  // phantoms without reading `frame.phantoms` (phase 2b). The local
-  // controller's phantoms are owned by `ctrl.currentBuildPhantoms` —
-  // only the remote-sourced array belongs in this slot.
+  // Remote phantoms flow through the runtime slot; render + touch read
+  // from there so the watcher never writes to `frame.phantoms`. The local
+  // controller's phantoms are owned by `ctrl.currentBuildPhantoms`.
   setRemotePiecePhantoms(aliveRemote);
 
   if (!localController) return;
 
   const phantoms = localController.buildTick(state, dt);
   for (const phantom of phantoms) {
-    frame.phantoms.piecePhantoms!.push({
-      offsets: phantom.offsets,
-      row: phantom.row,
-      col: phantom.col,
-      valid: phantom.valid,
-      playerId: phantom.playerId,
-    });
-
     if (
       !lastSentPiecePhantom.shouldSend(
         phantom.playerId,

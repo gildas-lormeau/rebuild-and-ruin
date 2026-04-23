@@ -67,7 +67,6 @@ export interface GameOverOverlay {
 export interface FrameData {
   crosshairs: Crosshair[];
   phantoms: {
-    piecePhantoms?: RenderPiecePhantom[];
     cannonPhantoms?: RenderCannonPhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };

@@ -755,7 +755,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    const { state, accum, frame } = runtimeState;
+    const { state, accum } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
     // --- Engine tick (advances upgrade-effect timers, returns timer max) ---
@@ -766,7 +766,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     });
 
     // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
-    frame.phantoms = { piecePhantoms: [] };
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       if (!canBuildThisFrame(state, ctrl.playerId)) continue;
@@ -790,15 +789,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
       }
 
-      // Collect phantoms + dedup for network
+      // Broadcast phantoms (dedup for network)
       for (const phantom of phantoms) {
-        frame.phantoms.piecePhantoms!.push({
-          offsets: phantom.offsets,
-          row: phantom.row,
-          col: phantom.col,
-          playerId: phantom.playerId,
-          valid: phantom.valid,
-        });
         if (
           isHost &&
           (online?.shouldSendPiecePhantom?.(
@@ -818,18 +810,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
 
-    // Merge remote phantoms
+    // Remote phantoms are consumed from `runtimeState.remotePhantoms`
+    // by the render + touch layers; controllers own local previews in
+    // `currentBuildPhantoms`.
     const remotePiecePhantoms = filterAlivePhantoms(
       online?.remotePiecePhantoms?.() ?? [],
       state.players,
     );
-    if (remotePiecePhantoms.length > 0) {
-      frame.phantoms.piecePhantoms!.push(...remotePiecePhantoms);
-    }
-    // Dual-write remote-only phantoms to the runtime slot (phase 2b).
-    // Controllers now own the local-player previews in `currentBuildPhantoms`;
-    // the runtime slot carries the remote-sourced remainder so render +
-    // touch can consume the union without reading `frame.phantoms`.
     runtimeState.remotePhantoms = { piecePhantoms: remotePiecePhantoms };
 
     deps.render();
