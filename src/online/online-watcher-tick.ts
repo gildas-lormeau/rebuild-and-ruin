@@ -14,6 +14,7 @@ import type { BattleAnimState } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
+import type { PiecePhantom } from "../shared/core/phantom-types.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -60,6 +61,11 @@ export interface WatcherTickContext {
   maybeSendAimUpdate: (x: number, y: number) => void;
   render: () => void;
   now: () => number;
+  /** Dual-write sink for the runtime's `remotePhantoms.piecePhantoms`
+   *  slot (phase 2b). Forwarded into `tickWatcherBuildPhantomsPhase` so
+   *  render + touch can read remote piece phantoms from the runtime slot
+   *  instead of `frame.phantoms`. */
+  setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
 
 export function createWatcherState(): WatcherState {
@@ -211,6 +217,7 @@ export function tickWatcher(
       sendOpponentPiecePhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
       },
+      setRemotePiecePhantoms: transitionCtx.setRemotePiecePhantoms,
     });
   }
 

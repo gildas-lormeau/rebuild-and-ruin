@@ -174,21 +174,23 @@ interface RenderMap {
     overlay: RenderOverlay | undefined,
   ) => ImageData | undefined;
   sceneCanvas: () => HTMLCanvasElement;
-  /** Capture the current offscreen scene as ImageData (for banner prev-scene).
-   *  Returns undefined if the scene canvas hasn't been initialized yet. */
-  captureScene: () => ImageData | undefined;
+  /** Capture the current display's game area into a banner-owned bridge
+   *  canvas and return it (banner prev-scene A-snapshot). Returns
+   *  undefined if the scene canvas hasn't been initialized yet. */
+  captureScene: () => HTMLCanvasElement | undefined;
   /** Flash-free post-mutation capture for banner B-snapshot. Runs the full
    *  2D draw pipeline into a hidden offscreen display-sized canvas (never the
-   *  visible one) and returns the resulting game-area ImageData. The visible
-   *  canvas is untouched — the user never sees the new scene before the
-   *  banner's progressive reveal reaches it. Returns undefined if the scene
-   *  hasn't been initialized yet (pre-first-frame). */
+   *  visible one), copies the game area into a banner-owned bridge canvas,
+   *  and returns it. The visible canvas is untouched — the user never sees
+   *  the new scene before the banner's progressive reveal reaches it.
+   *  Returns undefined if the scene hasn't been initialized yet
+   *  (pre-first-frame). */
   captureSceneOffscreen: (
     map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,
-  ) => ImageData | undefined;
+  ) => HTMLCanvasElement | undefined;
 }
 
 // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
@@ -278,8 +280,17 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     deps.canvasFactory ?? (() => document.createElement("canvas"));
 
   let scene: OffscreenPair | undefined;
-  let bannerScene: OffscreenPair | undefined;
-  let bannerNewScene: OffscreenPair | undefined;
+  // Dedicated bridge canvases for banner snapshots. Sized to the game area
+  // (CANVAS_W × CANVAS_H). `captureScene` copies from the visible canvas into
+  // `bannerACapture`; `captureSceneOffscreen` copies from `offscreenDisplay`
+  // into `bannerBCapture`. Each capture populates a canvas and returns it —
+  // the banner state holds the reference for the duration of the sweep, so
+  // the canvas must not be stomped on mid-banner. Each is reused across
+  // banners (a new showBanner replaces the current state before re-capturing),
+  // and captureScene + captureSceneOffscreen write to different canvases so
+  // they can't collide within a single showBanner call.
+  let bannerACapture: OffscreenPair | undefined;
+  let bannerBCapture: OffscreenPair | undefined;
   // Offscreen display-sized canvas for flash-free banner B-snapshot capture.
   // `drawFrame` paints into this instead of the visible canvas when the banner
   // system wants a post-mutation snapshot — the visible canvas stays
@@ -311,15 +322,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  construction-time flag and referenced by `captureScene` so banner
    *  snapshots cover the game area only, not the reserved strip. */
   const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
-  /** Tracks which ImageData has been painted onto the banner temp canvas.
-   *  When the reference changes (new banner, or the next banner in a
-   *  display sequence), the new ImageData is painted. */
-  let bannerScenePainted: ImageData | undefined;
-  /** Same idea as `bannerScenePainted`, but for the new-scene snapshot
-   *  (revealed above the sweep line). Tracked separately so both temp
-   *  canvases can cache their last painted ImageData independently —
-   *  both are painted in the same frame during an active banner. */
-  let bannerNewScenePainted: ImageData | undefined;
   /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
    *  Invalidated on any input ref change; held here so steady-state frames
    *  skip the per-pixel rebuild and the texture upload that follows. */
@@ -431,22 +433,28 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return scene;
   }
 
-  function getBannerScene(): OffscreenPair {
-    if (!bannerScene) {
+  function getBannerACapture(): OffscreenPair {
+    if (!bannerACapture) {
       const canvas = createOffscreenCanvas();
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
       const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      bannerScene = { canvas, ctx };
+      ctx.imageSmoothingEnabled = false;
+      bannerACapture = { canvas, ctx };
     }
-    return bannerScene;
+    return bannerACapture;
   }
 
-  function getBannerNewScene(): OffscreenPair {
-    if (!bannerNewScene) {
+  function getBannerBCapture(): OffscreenPair {
+    if (!bannerBCapture) {
       const canvas = createOffscreenCanvas();
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
       const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      bannerNewScene = { canvas, ctx };
+      ctx.imageSmoothingEnabled = false;
+      bannerBCapture = { canvas, ctx };
     }
-    return bannerNewScene;
+    return bannerBCapture;
   }
 
   /** Copy `src` pixels into `dst` at (dx, dy). Used by the sinkhole-overlay
@@ -491,14 +499,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       sceneCtx.setTransform(OFFSCREEN_SCALE, 0, 0, OFFSCREEN_SCALE, 0, 0);
       sceneCtx.imageSmoothingEnabled = false;
     }
-    const { canvas: bannerCanvas, ctx: bannerCtx } = getBannerScene();
-    if (bannerCanvas.width !== physW || bannerCanvas.height !== physH) {
-      bannerCanvas.width = physW;
-      bannerCanvas.height = physH;
-      bannerCtx.setTransform(OFFSCREEN_SCALE, 0, 0, OFFSCREEN_SCALE, 0, 0);
-      bannerCtx.imageSmoothingEnabled = false;
-      bannerScenePainted = undefined;
-    }
   }
 
   // Banner prev-scene is a display-resolution snapshot. It paints onto
@@ -514,10 +514,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     displayH: number,
     overlay: RenderOverlay | undefined,
   ): void {
-    if (!overlay?.ui?.banner?.prevScene) {
-      bannerScenePainted = undefined;
-      return;
-    }
+    if (!overlay?.ui?.banner?.prevScene) return;
     const prev = overlay.ui.banner.prevScene;
 
     // Banner strip bounds are map-pixel coords. During a banner the
@@ -530,30 +527,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const clipY = bannerBottomMap * SCALE;
     if (clipY >= displayH) return;
 
-    // Paint ImageData to temp canvas when it changes (new banner, or the
-    // next banner in a display sequence).
-    // The snapshot is display-sized; size the banner-temp canvas to match so
-    // a 1:1 drawImage reproduces exactly the captured pixels.
-    const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerScene();
-    if (
-      tmpCanvas.width !== prev.image.width ||
-      tmpCanvas.height !== prev.image.height
-    ) {
-      tmpCanvas.width = prev.image.width;
-      tmpCanvas.height = prev.image.height;
-      tmpCtx.imageSmoothingEnabled = false;
-      bannerScenePainted = undefined;
-    }
-    if (bannerScenePainted !== prev.image) {
-      tmpCtx.putImageData(prev.image, 0, 0);
-      bannerScenePainted = prev.image;
-    }
-
     displayCtx.save();
     displayCtx.beginPath();
     displayCtx.rect(0, clipY, displayW, displayH - clipY);
     displayCtx.clip();
-    displayCtx.drawImage(tmpCanvas, 0, 0, displayW, displayH);
+    displayCtx.drawImage(prev.canvas, 0, 0, displayW, displayH);
     displayCtx.restore();
     observer?.bannerComposited?.({
       clipY,
@@ -574,10 +552,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     displayH: number,
     overlay: RenderOverlay | undefined,
   ): void {
-    if (!overlay?.ui?.banner?.newScene) {
-      bannerNewScenePainted = undefined;
-      return;
-    }
+    if (!overlay?.ui?.banner?.newScene) return;
     const next = overlay.ui.banner.newScene;
 
     // Banner strip bounds in display pixels. Above the top edge is the
@@ -586,26 +561,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const topPx = bannerTopMap * SCALE;
     if (topPx <= 0) return;
 
-    const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerNewScene();
-    if (
-      tmpCanvas.width !== next.image.width ||
-      tmpCanvas.height !== next.image.height
-    ) {
-      tmpCanvas.width = next.image.width;
-      tmpCanvas.height = next.image.height;
-      tmpCtx.imageSmoothingEnabled = false;
-      bannerNewScenePainted = undefined;
-    }
-    if (bannerNewScenePainted !== next.image) {
-      tmpCtx.putImageData(next.image, 0, 0);
-      bannerNewScenePainted = next.image;
-    }
-
     displayCtx.save();
     displayCtx.beginPath();
     displayCtx.rect(0, 0, displayW, topPx);
     displayCtx.clip();
-    displayCtx.drawImage(tmpCanvas, 0, 0, displayW, displayH);
+    displayCtx.drawImage(next.canvas, 0, 0, displayW, displayH);
     displayCtx.restore();
   }
 
@@ -751,21 +711,33 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return getScene().canvas;
   }
 
-  /** Grab the current DISPLAY-canvas pixels for the GAME AREA only
-   *  (CANVAS_W × CANVAS_H — top strip + status bar excluded). Called
-   *  once before a phase transition mutates state — the returned
-   *  ImageData becomes the banner's "old scene" below the sweep line,
-   *  and is painted back onto the display at 1:1 so a tilted /
-   *  viewport-cropped capture replays exactly what was on screen.
-   *  Returns undefined if `drawFrame` hasn't run yet (no cached display
-   *  canvas) or the canvas is smaller than the expected game region. */
-  function captureScene(): ImageData | undefined {
+  /** Copy the current DISPLAY-canvas GAME AREA (CANVAS_W × CANVAS_H — top
+   *  strip + status bar excluded) into the banner-A bridge canvas and
+   *  return it. The bridge canvas is banner-owned scratch: the banner
+   *  system holds the reference for the duration of the sweep, and the
+   *  next `showBanner` (which fully replaces the current banner) is the
+   *  only thing that rewrites it. Returns undefined if `drawFrame`
+   *  hasn't run yet or the display canvas is undersized. */
+  function captureScene(): HTMLCanvasElement | undefined {
     if (!visibleCtxCache) return undefined;
-    const { canvas, canvasCtx } = visibleCtxCache;
+    const { canvas } = visibleCtxCache;
     if (canvas.height < topStripH + CANVAS_H || canvas.width < CANVAS_W) {
       return undefined;
     }
-    return canvasCtx.getImageData(0, topStripH, CANVAS_W, CANVAS_H);
+    const { canvas: bridge, ctx: bridgeCtx } = getBannerACapture();
+    bridgeCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    bridgeCtx.drawImage(
+      canvas,
+      0,
+      topStripH,
+      CANVAS_W,
+      CANVAS_H,
+      0,
+      0,
+      CANVAS_W,
+      CANVAS_H,
+    );
+    return bridge;
   }
 
   function captureSceneOffscreen(
@@ -773,13 +745,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,
-  ): ImageData | undefined {
+  ): HTMLCanvasElement | undefined {
     // Bail out if the visible canvas hasn't rendered yet — before the
     // first frame the scene/terrain caches aren't warm and the banner
     // system has nothing to composite against anyway. Matches the
     // `captureScene` contract (undefined = "no scene yet").
     if (!visibleCtxCache) return undefined;
-    const { canvas: offCanvas, ctx: offCtx } = getOffscreenDisplay();
+    const { canvas: offCanvas } = getOffscreenDisplay();
     // Draw the full 2D frame into the hidden canvas. `drawMap` sizes its
     // target canvas on first use (cw × ch) so the hidden canvas picks up
     // the correct dimensions here — same as the visible canvas.
@@ -787,7 +759,20 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (offCanvas.height < topStripH + CANVAS_H || offCanvas.width < CANVAS_W) {
       return undefined;
     }
-    return offCtx.getImageData(0, topStripH, CANVAS_W, CANVAS_H);
+    const { canvas: bridge, ctx: bridgeCtx } = getBannerBCapture();
+    bridgeCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    bridgeCtx.drawImage(
+      offCanvas,
+      0,
+      topStripH,
+      CANVAS_W,
+      CANVAS_H,
+      0,
+      0,
+      CANVAS_W,
+      CANVAS_H,
+    );
+    return bridge;
   }
 
   function getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData {

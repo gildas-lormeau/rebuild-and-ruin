@@ -190,6 +190,11 @@ async function buildWatcherRuntime(
     logThrottled: () => {},
     maybeSendAimUpdate: () => {},
     render: () => headlessHolder.current!.runtime.render(),
+    setRemotePiecePhantoms: (phantoms) => {
+      headlessHolder.current!.runtime.runtimeState.remotePhantoms = {
+        piecePhantoms: phantoms,
+      };
+    },
     now: () => headlessHolder.current!.now(),
   };
 

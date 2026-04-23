@@ -624,9 +624,14 @@ export interface PointerMoveDeps {
 export interface TouchControlsDeps {
   mode: Mode;
   state: GameState;
+  /** Piece + cannon phantoms the touch layer inspects for confirm-button
+   *  validity + loupe positioning. Readonly because the source is now
+   *  `runtimeState.overlay.phantoms` (assembled from the union of each
+   *  controller's `currentBuildPhantoms` + the runtime's remote slot) —
+   *  never the tick-mutable `frame.phantoms`. */
   phantoms: {
-    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
-    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+    piecePhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
+    cannonPhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
   };
   directTouchActive: boolean;
   clearDirectTouch: () => void;

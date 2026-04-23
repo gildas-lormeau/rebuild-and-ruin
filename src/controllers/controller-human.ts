@@ -182,12 +182,20 @@ export class HumanController extends BaseController implements InputReceiver {
     super.setBuildCursor(state, row, col);
   }
 
-  // startBuildPhase: uses base class template (initBuildPhase + onStartBuildPhase)
-  // No onStartBuildPhase override needed — human has no AI targeting setup.
+  // startBuildPhase: uses base class template (initBuildPhase + onStartBuildPhase).
+  // Override onStartBuildPhase to seed currentBuildPhantoms so banner B-snapshots
+  // show the preview even before the first tick runs. buildTick is pure
+  // (no dt-dependent state), so reusing it at dt=0 is safe.
+  protected override onStartBuildPhase(state: BuildViewState): void {
+    this.currentBuildPhantoms = this.buildTick(state, 0);
+  }
 
   buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
     const piece = state.players[this.playerId]?.currentPiece;
-    if (!piece) return [];
+    if (!piece) {
+      this.currentBuildPhantoms = [];
+      return [];
+    }
     const valid = canPlacePiece(
       state,
       this.playerId,
@@ -195,7 +203,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.buildCursor.row,
       this.buildCursor.col,
     );
-    return [
+    const result: PiecePlacementPreview[] = [
       {
         offsets: piece.offsets,
         row: this.buildCursor.row,
@@ -204,6 +212,8 @@ export class HumanController extends BaseController implements InputReceiver {
         playerId: this.playerId,
       },
     ];
+    this.currentBuildPhantoms = result;
+    return result;
   }
 
   battleTick(state: BattleViewState, dt: number): void {

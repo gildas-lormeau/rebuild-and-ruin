@@ -76,8 +76,6 @@ export function createRender3d(
   // ImageData reflects exactly what was on screen at capture time.
   let captureCompositeCanvas: HTMLCanvasElement | undefined;
   let captureCompositeCtx: CanvasRenderingContext2D | undefined;
-  let captureBridgeCanvas: HTMLCanvasElement | undefined;
-  let captureBridgeCtx: CanvasRenderingContext2D | undefined;
 
   // Loupe source canvas — a WebGL+2D composite. The loupe samples this
   // each frame to magnify "what the user sees", which in 3D mode is the
@@ -153,42 +151,18 @@ export function createRender3d(
   let offscreenCompositeCanvas: HTMLCanvasElement | undefined;
   let offscreenCompositeCtx: CanvasRenderingContext2D | undefined;
 
-  // Composite a 2D UI snapshot (ImageData) on top of a composite canvas
-  // scaled to fill (targetW × targetH). Bridges through the shared
-  // `captureBridgeCanvas` because `putImageData` ignores the context
-  // transform — the bridge lets us subsequently `drawImage` at any scale.
-  // Shared by the visible-canvas capture path (`captureScene`) and the
-  // offscreen-capture path (`captureSceneOffscreen`) so both composite
-  // the 2D UI identically.
+  // Composite a 2D UI snapshot (canvas) on top of a composite canvas
+  // scaled to fill (targetW × targetH). Shared by the visible-canvas
+  // capture path (`captureScene`) and the offscreen-capture path
+  // (`captureSceneOffscreen`) so both composite the 2D UI identically.
   function compositeUiSnapshot(
     destCtx: CanvasRenderingContext2D,
-    uiSnapshot: ImageData,
+    uiSnapshot: HTMLCanvasElement,
     targetW: number,
     targetH: number,
   ): void {
-    if (!captureBridgeCanvas || !captureBridgeCtx) {
-      captureBridgeCanvas = document.createElement("canvas");
-      captureBridgeCtx = captureBridgeCanvas.getContext("2d", {
-        willReadFrequently: true,
-      })!;
-    }
-    if (
-      captureBridgeCanvas.width < uiSnapshot.width ||
-      captureBridgeCanvas.height < uiSnapshot.height
-    ) {
-      captureBridgeCanvas.width = Math.max(
-        captureBridgeCanvas.width,
-        uiSnapshot.width,
-      );
-      captureBridgeCanvas.height = Math.max(
-        captureBridgeCanvas.height,
-        uiSnapshot.height,
-      );
-      captureBridgeCtx.imageSmoothingEnabled = false;
-    }
-    captureBridgeCtx.putImageData(uiSnapshot, 0, 0);
     destCtx.drawImage(
-      captureBridgeCanvas,
+      uiSnapshot,
       0,
       0,
       uiSnapshot.width,
@@ -385,7 +359,7 @@ export function createRender3d(
       );
       // 2. Paint the 2D display canvas on top.
       compositeUiSnapshot(captureCompositeCtx, uiSnapshot, targetW, targetH);
-      return captureCompositeCtx.getImageData(0, 0, targetW, targetH);
+      return captureCompositeCanvas;
     },
     // Flash-free B-snapshot capture for banners. Runs the full render
     // pipeline (entity updates + WebGL scene render + 2D UI draw) against
@@ -522,7 +496,7 @@ export function createRender3d(
       // `captureScene`, then B via `captureSceneOffscreen`), so sharing is
       // safe.
       compositeUiSnapshot(offscreenCompositeCtx, uiSnapshot, targetW, targetH);
-      return offscreenCompositeCtx.getImageData(0, 0, targetW, targetH);
+      return offscreenCompositeCanvas;
     },
     // Runtime polls this between battle-end and camera untilt so the
     // transition waits for the cannons' rotation-back-to-rest ease to

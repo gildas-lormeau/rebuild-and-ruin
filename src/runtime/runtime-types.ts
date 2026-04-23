@@ -580,7 +580,7 @@ export interface GameRuntime {
   /** Renderer scene capture — exposed so the watcher's PhaseTransitionCtx
    *  (built outside this module) can snapshot the old scene before a
    *  mutation. The banner system owns the matching new-scene capture. */
-  rendererCaptureScene: () => ImageData | undefined;
+  rendererCaptureScene: () => HTMLCanvasElement | undefined;
 
   /** Show a full-screen banner. The banner system owns scene capture
    *  (called as the first operation of `showBanner` itself), so

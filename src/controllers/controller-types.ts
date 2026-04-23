@@ -6,6 +6,10 @@ import {
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { clearPlayerBag, initPlayerBag } from "../shared/core/player-types.ts";
@@ -35,6 +39,10 @@ import type { KeyBindings } from "../shared/ui/player-config.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
+/** Shared-empty snapshot so every controller constructed with no build
+ *  phantoms points at the same zero-length array (avoids per-instance
+ *  allocation and gives readers a stable identity). */
+const EMPTY_PIECE_PHANTOMS: readonly PiecePhantom[] = Object.freeze([]);
 
 /** Abstract base class implementing shared controller logic.
  *
@@ -64,6 +72,11 @@ export abstract class BaseController implements PlayerController {
   abstract readonly kind: "human" | "ai";
   buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
+  /** Controller-owned phantom snapshots read by render + broadcast.
+   *  Default empty; populated by each phase's start + tick methods.
+   *  See BuildController / CannonController in system-interfaces.ts. */
+  currentBuildPhantoms: readonly PiecePhantom[] = EMPTY_PIECE_PHANTOMS;
+  currentCannonPhantom: CannonPhantom | undefined = undefined;
   crosshair = {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
@@ -134,11 +147,16 @@ export abstract class BaseController implements PlayerController {
   ): PiecePlacementPreview[];
 
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
-   *  Calls the hook then clears bag/piece. */
+   *  Calls the hook, clears bag/piece, and drops any lingering build-phantom
+   *  snapshot so the render path doesn't keep drawing the last preview into
+   *  the cannon/battle phases. (When `frame.phantoms` owned phantom state,
+   *  the per-tick re-init cleared stale previews implicitly; with
+   *  controller-owned state the clear is explicit.) */
   finalizeBuildPhase(state: BuildViewState): void {
     this.onFinalizeBuildPhase(state);
     const player = state.players[this.playerId];
     if (player) clearPlayerBag(player);
+    this.currentBuildPhantoms = EMPTY_PIECE_PHANTOMS;
   }
 
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */

@@ -237,8 +237,8 @@ function pointerPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,
   phantoms: {
-    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
-    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+    piecePhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
+    cannonPhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
   },
 ): boolean | undefined {
   if (!human) return undefined;

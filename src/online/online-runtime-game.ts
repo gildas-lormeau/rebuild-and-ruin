@@ -118,6 +118,9 @@ const watcherTickCtx: WatcherTickContext = {
   maybeSendAimUpdate,
   render: () => runtime.render(),
   now: () => performance.now(),
+  setRemotePiecePhantoms: (phantoms) => {
+    runtime.runtimeState.remotePhantoms = { piecePhantoms: phantoms };
+  },
 };
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({

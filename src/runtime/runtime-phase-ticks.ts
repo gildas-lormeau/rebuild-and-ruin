@@ -826,6 +826,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (remotePiecePhantoms.length > 0) {
       frame.phantoms.piecePhantoms!.push(...remotePiecePhantoms);
     }
+    // Dual-write remote-only phantoms to the runtime slot (phase 2b).
+    // Controllers now own the local-player previews in `currentBuildPhantoms`;
+    // the runtime slot carries the remote-sourced remainder so render +
+    // touch can consume the union without reading `frame.phantoms`.
+    runtimeState.remotePhantoms = { piecePhantoms: remotePiecePhantoms };
 
     deps.render();
     if (state.timer > 0) return false;

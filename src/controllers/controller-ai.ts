@@ -216,12 +216,19 @@ export class AiController extends BaseController implements AiAnimatable {
 
   protected override onStartBuildPhase(state: GameState): void {
     initBuild(this, this._buildPhase, state);
+    // Leave currentBuildPhantoms at the base-class empty default here.
+    // tickBuild() decrements timers, advances rotation frames, steps the
+    // cursor, and draws from strategy.rng — calling it with dt=0 would
+    // mutate AI state before the first real frame. The first buildTick()
+    // call will populate currentBuildPhantoms.
   }
 
   buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
     const executePlace = (intent: PlacePieceIntent): boolean =>
       executePlacePiece(state, intent, this);
-    return tickBuild(this, this._buildPhase, state, executePlace);
+    const result = tickBuild(this, this._buildPhase, state, executePlace);
+    this.currentBuildPhantoms = result;
+    return result;
   }
 
   protected override onFinalizeBuildPhase(state: GameState): void {

@@ -94,7 +94,9 @@ export class AiAssistedHumanController
       }
       return placed;
     };
-    return tickBuild(this, this._buildPhase, state, executePlace);
+    const result = tickBuild(this, this._buildPhase, state, executePlace);
+    this.currentBuildPhantoms = result;
+    return result;
   }
 
   // ── Cannon phase: AI ticks; placements broadcast via senders.sendCannonPlaced ──

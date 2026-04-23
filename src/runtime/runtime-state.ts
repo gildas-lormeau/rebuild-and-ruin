@@ -4,6 +4,7 @@ import {
 } from "../shared/core/battle-types.ts";
 import { PHASE_ENDING_THRESHOLD } from "../shared/core/game-constants.ts";
 import { isTimedPhase, Phase } from "../shared/core/game-phase.ts";
+import type { PiecePhantom } from "../shared/core/phantom-types.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -129,6 +130,15 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
+  /** Piece phantoms from remote players (online mode only). Written by
+   *  `runtime-phase-ticks` (host) / `online-watcher-battle` (watcher) after
+   *  merging the incoming wire stream. Read by render overlay assembly
+   *  alongside each controller's `currentBuildPhantoms` — together they
+   *  form the full set of previews to draw. Local-only mode leaves this
+   *  as the empty array. */
+  remotePhantoms: {
+    piecePhantoms: readonly PiecePhantom[];
+  };
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
@@ -274,6 +284,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
+    remotePhantoms: { piecePhantoms: [] },
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateReady` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

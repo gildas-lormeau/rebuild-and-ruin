@@ -55,18 +55,20 @@ interface BannerSystemDeps {
    *  headless tests on the mock clock observe the same timing as
    *  production. */
   readonly timing: TimingApi;
-  /** Renderer A-snapshot — returns the current display pixels (the
-   *  pre-mutation scene) or `undefined` in headless / pre-first-frame.
-   *  Called inside `showBanner` once before the state mutation is
-   *  observed, so the A-snapshot reflects what's on screen. */
-  readonly rendererCaptureScene: () => ImageData | undefined;
+  /** Renderer A-snapshot — copies the current display's game area into a
+   *  banner-owned bridge canvas and returns that canvas, or `undefined` in
+   *  headless / pre-first-frame. Called inside `showBanner` once before
+   *  the state mutation is observed, so the A-snapshot reflects what's on
+   *  screen. */
+  readonly rendererCaptureScene: () => HTMLCanvasElement | undefined;
   /** Flash-free B-snapshot — rebuilds the overlay from post-mutation
    *  state and renders the full pipeline into offscreen-only targets
-   *  (FBO readback in 3D, hidden sibling canvas in 2D). The visible
-   *  canvas is NEVER written, so the user never sees the new scene
-   *  before the banner's progressive reveal reaches it. Returns
+   *  (FBO readback in 3D, hidden sibling canvas in 2D), then copies the
+   *  composite into a banner-owned bridge canvas and returns it. The
+   *  visible canvas is NEVER written, so the user never sees the new
+   *  scene before the banner's progressive reveal reaches it. Returns
    *  `undefined` in headless / pre-first-frame. */
-  readonly captureSceneOffscreen: () => ImageData | undefined;
+  readonly captureSceneOffscreen: () => HTMLCanvasElement | undefined;
 }
 
 interface BannerSystem {
@@ -118,10 +120,10 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // Both snapshots are frozen for the duration of the sweep — the
     // renderer paints them on either side of the sweep line and does
     // not repaint world contents.
-    const prevImage = rendererCaptureScene();
-    const prevScene = prevImage ? { image: prevImage } : undefined;
-    const newImage = captureSceneOffscreen();
-    const newScene = newImage ? { image: newImage } : undefined;
+    const prevCanvas = rendererCaptureScene();
+    const prevScene = prevCanvas ? { canvas: prevCanvas } : undefined;
+    const newCanvas = captureSceneOffscreen();
+    const newScene = newCanvas ? { canvas: newCanvas } : undefined;
 
     // Overwrite on re-entry. Watchers legitimately replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep

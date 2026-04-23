@@ -27,10 +27,12 @@ import type { RGB } from "./theme.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
 
-/** A renderer-produced scene snapshot used for the banner prev-scene
- *  cross-fade. Wraps the raw pixels only. */
+/** A renderer-produced scene snapshot used for the banner prev/new-scene
+ *  sweep. Wraps a dedicated offscreen canvas owned by the renderer — not
+ *  raw pixels — so the banner sweep can drawImage from it directly at
+ *  display resolution without a getImageData/putImageData round-trip. */
 export interface SceneCapture {
-  readonly image: ImageData;
+  readonly canvas: HTMLCanvasElement;
 }
 
 /** A single row in the options screen. */
@@ -367,9 +369,10 @@ export interface RendererInterface {
    * Used to position floating action buttons over the rendered surface.
    */
   screenToContainerCSS(sx: number, sy: number): { x: number; y: number };
-  /** Capture the current offscreen scene as ImageData for banner prev-scene.
-   *  Returns undefined when the scene canvas hasn't been initialized. */
-  captureScene(): ImageData | undefined;
+  /** Capture the current display's game area into a banner-owned bridge
+   *  canvas and return it (banner prev-scene A-snapshot). Returns
+   *  undefined when the scene canvas hasn't been initialized. */
+  captureScene(): HTMLCanvasElement | undefined;
   /** Flash-free post-mutation capture for the banner's new-scene (B) snapshot.
    *  Runs the full render pipeline against offscreen targets only — the
    *  visible canvas is NEVER written, so the user never sees the
@@ -377,6 +380,7 @@ export interface RendererInterface {
    *  3D mode renders the WebGL scene into an FBO and reads it back via
    *  `readRenderTargetPixels` (skipping the fullscreen-quad blit to the
    *  default framebuffer); 2D mode draws into a hidden sibling canvas.
+   *  Result is copied into a banner-owned bridge canvas and returned.
    *  Returns undefined when no scene has been rendered yet (pre-first-frame
    *  or in headless stubs). */
   captureSceneOffscreen(
@@ -385,7 +389,7 @@ export interface RendererInterface {
     viewport: Viewport | null | undefined,
     now: number,
     pitch?: number,
-  ): ImageData | undefined;
+  ): HTMLCanvasElement | undefined;
   /** True when the renderer is currently animating a cannon-facing ease
    *  (e.g. the post-battle rotation back to `defaultFacing`). The runtime
    *  polls this to gate the battle-end transition on the ease completing

@@ -109,6 +109,13 @@ interface TickWatcherBuildPhantomsDeps {
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
   sendOpponentPiecePhantom: (msg: PiecePhantom) => void;
+  /** Dual-write sink for the runtime's `remotePhantoms.piecePhantoms`
+   *  slot (phase 2b). Receives the same alive-filtered remote array the
+   *  watcher writes into `frame.phantoms.piecePhantoms`, so render +
+   *  touch readers can source remote previews from the runtime slot
+   *  while local previews come from each controller's
+   *  `currentBuildPhantoms`. Phase 2c removes the frame write. */
+  setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
 
 /** Orbital idle wobble frequency on X axis (rad/s — coprime with Y to avoid repetition). */
@@ -297,11 +304,18 @@ export function tickWatcherBuildPhantomsPhase(
     remotePiecePhantoms,
     lastSentPiecePhantom,
     sendOpponentPiecePhantom,
+    setRemotePiecePhantoms,
   } = deps;
 
+  const aliveRemote = filterAlivePhantoms(remotePiecePhantoms, state.players);
   frame.phantoms = {
-    piecePhantoms: filterAlivePhantoms(remotePiecePhantoms, state.players),
+    piecePhantoms: aliveRemote,
   };
+  // Dual-write to the runtime slot so render + touch can consume remote
+  // phantoms without reading `frame.phantoms` (phase 2b). The local
+  // controller's phantoms are owned by `ctrl.currentBuildPhantoms` —
+  // only the remote-sourced array belongs in this slot.
+  setRemotePiecePhantoms(aliveRemote);
 
   if (!localController) return;
 
