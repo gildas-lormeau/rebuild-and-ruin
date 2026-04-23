@@ -89,6 +89,19 @@ interface FoldResult {
   action: string;
 }
 
+interface FoldRecord {
+  file: string;
+  line: number;
+  outcome: BoolEval;
+  action: string;
+}
+
+type FunctionLike =
+  | import("ts-morph").FunctionDeclaration
+  | import("ts-morph").MethodDeclaration
+  | import("ts-morph").ArrowFunction
+  | import("ts-morph").FunctionExpression;
+
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const allFlag = args.includes("--all");
@@ -383,6 +396,22 @@ switch (command) {
       process.exit(1);
     }
     foldConstant(file, name, value);
+    break;
+  }
+  case "inline-param": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const fn = flagMap.get("fn") ?? flagMap.get("function") ?? commandArgs[1];
+    const param =
+      flagMap.get("param") ?? flagMap.get("parameter") ?? commandArgs[2];
+    const value = flagMap.get("value") ?? commandArgs[3];
+    const dropParam = args.includes("--drop-param");
+    if (!file || !fn || !param || !value) {
+      console.error(
+        "Usage: inline-param <file> <fn> <param> <true|false> [--drop-param] [--dry-run]",
+      );
+      process.exit(1);
+    }
+    inlineParam(file, fn, param, value, dropParam);
     break;
   }
   default:
@@ -704,17 +733,177 @@ function foldConstant(
     `Folding "${symbolName}" = ${value} across ${refNodes.length} reference(s)`,
   );
 
-  interface FoldRecord {
-    file: string;
-    line: number;
-    outcome: BoolEval;
-    action: string;
+  const { folded, unfoldable } = foldReferences(refNodes, value);
+  reportFoldResults(folded, unfoldable);
+
+  const changedFiles = saveChanges(project);
+  console.log(`\n✅ Fold complete — ${changedFiles} file(s) changed`);
+  if (unfoldable.length === 0) {
+    console.log(
+      `   All references folded. Consider: remove-export ${filePath} ${symbolName}`,
+    );
   }
+}
+
+function inlineParam(
+  filePath: string,
+  fnName: string,
+  paramName: string,
+  rawValue: string,
+  dropParam: boolean,
+): void {
+  if (rawValue !== "true" && rawValue !== "false") {
+    console.error(
+      `❌ inline-param currently supports boolean literals only (got "${rawValue}")`,
+    );
+    process.exit(1);
+  }
+  const value = rawValue === "true";
+
+  const project = createProject();
+  addAllSources(project);
+
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+  const fn = findFunctionLikeByName(sf, fnName);
+  if (!fn) {
+    console.error(`❌ Function "${fnName}" not found in ${filePath}`);
+    process.exit(1);
+  }
+
+  const parameters = fn.getParameters();
+  const paramIndex = parameters.findIndex((p) => p.getName() === paramName);
+  if (paramIndex === -1) {
+    console.error(
+      `❌ Parameter "${paramName}" not found on "${fnName}" in ${filePath}`,
+    );
+    process.exit(1);
+  }
+  const paramNode = parameters[paramIndex]!;
+  if (paramNode.isRestParameter()) {
+    console.error(`❌ Cannot inline a rest parameter (${paramName})`);
+    process.exit(1);
+  }
+
+  const body = fn.isKind(SyntaxKind.ArrowFunction)
+    ? fn.asKindOrThrow(SyntaxKind.ArrowFunction).getBody()
+    : (
+        fn as
+          | import("ts-morph").FunctionDeclaration
+          | import("ts-morph").MethodDeclaration
+          | import("ts-morph").FunctionExpression
+      ).getBody();
+  if (!body) {
+    console.error(`❌ "${fnName}" has no body (overload or abstract)`);
+    process.exit(1);
+  }
+  const bodyStart = body.getStart();
+  const bodyEnd = body.getEnd();
+
+  // Parameter name identifier — find references, keep only those that live
+  // inside the function body (default-value expressions would also match).
+  const nameNode = paramNode.getNameNode();
+  if (!nameNode.isKind(SyntaxKind.Identifier)) {
+    console.error(
+      `❌ Cannot inline a destructured parameter — give the parameter a plain name first`,
+    );
+    process.exit(1);
+  }
+  const nameId = nameNode.asKindOrThrow(SyntaxKind.Identifier);
+  const refsInBody = nameId.findReferencesAsNodes().filter((ref) => {
+    if (ref === nameId) return false;
+    if (ref.getSourceFile() !== sf) return false;
+    const pos = ref.getStart();
+    return pos >= bodyStart && pos <= bodyEnd;
+  });
+
+  console.log(
+    `Inlining ${fnName}(${paramName}) = ${value} across ${refsInBody.length} body reference(s)`,
+  );
+
+  const { folded, unfoldable } = foldReferences(refsInBody, value);
+  reportFoldResults(folded, unfoldable);
+
+  // Drop the param + matching argument at every call site.
+  let droppedCalls = 0;
+  let skippedCalls = 0;
+  if (dropParam) {
+    const fnId = getFunctionLikeNameId(fn);
+    if (!fnId) {
+      console.error(
+        `⚠️  --drop-param: can't resolve name identifier for ${fnName}; signature + call sites left untouched`,
+      );
+    } else {
+      const callRefs = fnId.findReferencesAsNodes().filter((r) => r !== fnId);
+      interface CallSite {
+        call: import("ts-morph").CallExpression;
+        file: string;
+        line: number;
+      }
+      const callSites: CallSite[] = [];
+      for (const ref of callRefs) {
+        const call = findEnclosingCall(ref);
+        if (!call) continue;
+        callSites.push({
+          call,
+          file: path.relative(process.cwd(), ref.getSourceFile().getFilePath()),
+          line: ref.getStartLineNumber(),
+        });
+      }
+
+      // Sort descending by position within each file so earlier mutations
+      // don't invalidate later call nodes.
+      callSites.sort((aa, bb) => {
+        const fileCmp = aa.file.localeCompare(bb.file);
+        if (fileCmp !== 0) return fileCmp;
+        return bb.call.getStart() - aa.call.getStart();
+      });
+
+      for (const { call, file, line } of callSites) {
+        const args = call.getArguments();
+        if (args.length <= paramIndex) {
+          // Caller already omits this argument (optional/default) — nothing to do.
+          continue;
+        }
+        const arg = args[paramIndex]!;
+        const argText = arg.getText();
+        // Warn (but still remove) if the caller passes a non-literal — user
+        // asserted the parameter is invariantly `value`, so any other arg is
+        // already dead, but we surface it so they can double-check.
+        if (argText !== rawValue) {
+          console.log(
+            `  ⚠️  ${file}:${line}  call passes "${truncate(argText, 30)}" (not ${rawValue}) — removing anyway`,
+          );
+          skippedCalls++;
+        }
+        call.removeArgument(paramIndex);
+        droppedCalls++;
+      }
+
+      paramNode.remove();
+      console.log(
+        `\nDropped param "${paramName}" from signature + ${droppedCalls} call site(s)${
+          skippedCalls > 0
+            ? ` (${skippedCalls} passed a non-${rawValue} argument)`
+            : ""
+        }`,
+      );
+    }
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(`\n✅ Inline complete — ${changedFiles} file(s) changed`);
+}
+
+/** Run tryFoldAtReference on every node in `refNodes`, grouped per file in
+ *  reverse document order (so a later fold doesn't invalidate an earlier
+ *  ref's position). Shared by fold-constant and inline-param. */
+function foldReferences(
+  refNodes: import("ts-morph").Node[],
+  value: boolean,
+): { folded: FoldRecord[]; unfoldable: FoldRecord[] } {
   const folded: FoldRecord[] = [];
   const unfoldable: FoldRecord[] = [];
 
-  // Walk refs in reverse document order per file to avoid position shifts
-  // invalidating earlier nodes after a replaceWithText on a later one.
   const byFile = new Map<string, import("ts-morph").Node[]>();
   for (const ref of refNodes) {
     const key = ref.getSourceFile().getFilePath();
@@ -729,14 +918,12 @@ function foldConstant(
   for (const [, refs] of byFile) {
     for (const ref of refs) {
       if (ref.wasForgotten()) continue;
-      // Capture location up front — replaceWithText mutates the AST and may
-      // forget the ref node, after which getSourceFile/getStartLineNumber fail.
       const refFile = path.relative(
         process.cwd(),
         ref.getSourceFile().getFilePath(),
       );
       const line = ref.getStartLineNumber();
-      const result = tryFoldAtReference(ref, symbolName, value);
+      const result = tryFoldAtReference(ref, "", value);
       const record: FoldRecord = {
         file: refFile,
         line,
@@ -748,6 +935,13 @@ function foldConstant(
     }
   }
 
+  return { folded, unfoldable };
+}
+
+function reportFoldResults(
+  folded: FoldRecord[],
+  unfoldable: FoldRecord[],
+): void {
   if (folded.length > 0) {
     console.log(`\nFolded ${folded.length} site(s):`);
     for (const f of folded.slice(0, 50)) {
@@ -766,14 +960,86 @@ function foldConstant(
     if (unfoldable.length > 50)
       console.log(`  ... (${unfoldable.length - 50} more)`);
   }
+}
 
-  const changedFiles = saveChanges(project);
-  console.log(`\n✅ Fold complete — ${changedFiles} file(s) changed`);
-  if (unfoldable.length === 0) {
-    console.log(
-      `   All references folded. Consider: remove-export ${filePath} ${symbolName}`,
-    );
+/** Resolve a name to a function-like declaration in a source file. Handles
+ *  `function foo()`, `const foo = () => {}`, `const foo = function () {}`,
+ *  and `class X { foo() {} }`. Returns the first match (overload-agnostic). */
+function findFunctionLikeByName(
+  sf: SourceFile,
+  name: string,
+): FunctionLike | undefined {
+  for (const fn of sf.getFunctions()) {
+    if (fn.getName() === name) return fn;
   }
+  for (const cls of sf.getClasses()) {
+    for (const method of cls.getMethods()) {
+      if (method.getName() === name) return method;
+    }
+  }
+  for (const vs of sf.getVariableStatements()) {
+    for (const vd of vs.getDeclarations()) {
+      if (vd.getName() !== name) continue;
+      const init = vd.getInitializer();
+      if (!init) continue;
+      if (init.isKind(SyntaxKind.ArrowFunction)) {
+        return init.asKindOrThrow(SyntaxKind.ArrowFunction);
+      }
+      if (init.isKind(SyntaxKind.FunctionExpression)) {
+        return init.asKindOrThrow(SyntaxKind.FunctionExpression);
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Return the name identifier of a function-like node, so its references can
+ *  be enumerated. Arrow / function-expression initializers sit inside a
+ *  VariableDeclaration whose nameNode is the identifier we want. */
+function getFunctionLikeNameId(fn: FunctionLike): Identifier | undefined {
+  if (fn.isKind(SyntaxKind.FunctionDeclaration)) {
+    return fn.asKindOrThrow(SyntaxKind.FunctionDeclaration).getNameNode();
+  }
+  if (fn.isKind(SyntaxKind.MethodDeclaration)) {
+    const nameNode = fn
+      .asKindOrThrow(SyntaxKind.MethodDeclaration)
+      .getNameNode();
+    return nameNode.isKind(SyntaxKind.Identifier)
+      ? nameNode.asKindOrThrow(SyntaxKind.Identifier)
+      : undefined;
+  }
+  // Arrow / FunctionExpression: walk up to the VariableDeclaration whose
+  // name identifier is the external handle callers use.
+  const parent = fn.getParent();
+  if (parent?.isKind(SyntaxKind.VariableDeclaration)) {
+    const nameNode = parent
+      .asKindOrThrow(SyntaxKind.VariableDeclaration)
+      .getNameNode();
+    return nameNode.isKind(SyntaxKind.Identifier)
+      ? nameNode.asKindOrThrow(SyntaxKind.Identifier)
+      : undefined;
+  }
+  return undefined;
+}
+
+/** Walk up from a function-name reference to the enclosing CallExpression
+ *  where it sits in the callee position (`fn(...)` or `obj.fn(...)`). */
+function findEnclosingCall(
+  ref: import("ts-morph").Node,
+): import("ts-morph").CallExpression | undefined {
+  let cursor: import("ts-morph").Node | undefined = ref;
+  // Skip one level of PropertyAccess for `obj.method(...)` — the ref is the
+  // name token, not the method-access expression itself.
+  const paParent = cursor.getParent();
+  if (paParent?.isKind(SyntaxKind.PropertyAccessExpression)) {
+    const pa = paParent.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+    if (pa.getNameNode() === cursor) cursor = paParent;
+  }
+  const callParent = cursor.getParent();
+  if (!callParent?.isKind(SyntaxKind.CallExpression)) return undefined;
+  const call = callParent.asKindOrThrow(SyntaxKind.CallExpression);
+  if (call.getExpression() !== cursor) return undefined;
+  return call;
 }
 
 /** Starting from a reference identifier, walk up through `!`, `&&`, `||`,
@@ -782,12 +1048,27 @@ function foldConstant(
  *  host with the symbol substituted; if determined, rewrite. */
 function tryFoldAtReference(
   ref: import("ts-morph").Node,
-  symbolName: string,
+  _symbolName: string,
   value: boolean,
 ): FoldResult {
   // Climb to the outermost expression whose truthiness is used as a condition.
   let expr: import("ts-morph").Node = ref;
   let parent = expr.getParent();
+  // Step through a PropertyAccessExpression when the ref is its name (e.g.
+  // `this.flag` or `obj.flag`) — findReferencesAsNodes has already narrowed
+  // us to the right declaration, so the PropertyAccess is semantically the
+  // same symbol reference as a bare identifier.
+  if (parent?.isKind(SyntaxKind.PropertyAccessExpression)) {
+    const pa = parent.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+    if (pa.getNameNode() === ref) {
+      expr = parent;
+      parent = parent.getParent();
+    }
+  }
+  // Capture the exact text of this reference (bare identifier OR wrapping
+  // property-access). evalBool will substitute occurrences that match this
+  // text, so `this.flag` won't incorrectly fold an unrelated `other.flag`.
+  const matchText = expr.getText();
   while (parent) {
     if (parent.isKind(SyntaxKind.ParenthesizedExpression)) {
       expr = parent;
@@ -825,7 +1106,7 @@ function tryFoldAtReference(
     return { folded: false, outcome: "unknown", action: "no parent" };
 
   // Evaluate the expression with the symbol substituted.
-  const outcome = evalBool(expr, symbolName, value);
+  const outcome = evalBool(expr, matchText, value);
 
   if (hostParent.isKind(SyntaxKind.IfStatement)) {
     const ifStmt = hostParent.asKindOrThrow(SyntaxKind.IfStatement);
@@ -905,29 +1186,37 @@ function tryFoldAtReference(
   };
 }
 
-/** Recursive boolean evaluator. Substitutes `symbolName` with `value`;
- *  returns "unknown" for anything else. */
+/** Recursive boolean evaluator. Substitutes nodes whose exact text equals
+ *  `matchText` with `value`; returns "unknown" for anything else. The text
+ *  is whatever the caller captured from the reference (`flag`, `this.flag`,
+ *  `obj.flag`, etc.) so unrelated same-named fields on other objects
+ *  (`other.flag`) stay "unknown". */
 function evalBool(
   node: import("ts-morph").Node,
-  symbolName: string,
+  matchText: string,
   value: boolean,
 ): BoolEval {
-  if (node.isKind(SyntaxKind.Identifier) && node.getText() === symbolName) {
-    return value ? "true" : "false";
+  if (node.getText() === matchText) {
+    if (
+      node.isKind(SyntaxKind.Identifier) ||
+      node.isKind(SyntaxKind.PropertyAccessExpression)
+    ) {
+      return value ? "true" : "false";
+    }
   }
   if (node.isKind(SyntaxKind.TrueKeyword)) return "true";
   if (node.isKind(SyntaxKind.FalseKeyword)) return "false";
   if (node.isKind(SyntaxKind.ParenthesizedExpression)) {
     return evalBool(
       node.asKindOrThrow(SyntaxKind.ParenthesizedExpression).getExpression(),
-      symbolName,
+      matchText,
       value,
     );
   }
   if (node.isKind(SyntaxKind.PrefixUnaryExpression)) {
     const pu = node.asKindOrThrow(SyntaxKind.PrefixUnaryExpression);
     if (pu.getOperatorToken() === SyntaxKind.ExclamationToken) {
-      const inner = evalBool(pu.getOperand(), symbolName, value);
+      const inner = evalBool(pu.getOperand(), matchText, value);
       if (inner === "true") return "false";
       if (inner === "false") return "true";
     }
@@ -937,17 +1226,17 @@ function evalBool(
     const be = node.asKindOrThrow(SyntaxKind.BinaryExpression);
     const opKind = be.getOperatorToken().getKind();
     if (opKind === SyntaxKind.AmpersandAmpersandToken) {
-      const l = evalBool(be.getLeft(), symbolName, value);
+      const l = evalBool(be.getLeft(), matchText, value);
       if (l === "false") return "false";
-      const r = evalBool(be.getRight(), symbolName, value);
+      const r = evalBool(be.getRight(), matchText, value);
       if (r === "false") return "false";
       if (l === "true" && r === "true") return "true";
       return "unknown";
     }
     if (opKind === SyntaxKind.BarBarToken) {
-      const l = evalBool(be.getLeft(), symbolName, value);
+      const l = evalBool(be.getLeft(), matchText, value);
       if (l === "true") return "true";
-      const r = evalBool(be.getRight(), symbolName, value);
+      const r = evalBool(be.getRight(), matchText, value);
       if (r === "true") return "true";
       if (l === "false" && r === "false") return "false";
       return "unknown";
@@ -3265,7 +3554,8 @@ function parseArgv(argv: string[]): {
       a === "--dry-run" ||
       a === "--all" ||
       a === "--type" ||
-      a === "--cascade"
+      a === "--cascade" ||
+      a === "--drop-param"
     )
       continue;
     if (a.startsWith("--") && i + 1 < argv.length) {
@@ -3303,13 +3593,15 @@ Commands:
   add-reexport   <barrelFile> <sourceFile> <symbol>  Append (idempotent) a re-export to a barrel file
   list-callsites <file> <symbol>               Every reference to <symbol> (imports + local calls), grouped by file
   remove-export  <file> <name>                 Delete an exported declaration + every import of it (errors if still referenced)
-  fold-constant  <file> <name> <true|false>    Fold if/ternary/&&/|| branches whose truthiness is determined by <name>
+  fold-constant  <file> <name> <true|false>    Fold if/ternary/&&/|| branches whose truthiness is determined by <name> (handles bare name, this.<name>, obj.<name>)
+  inline-param   <file> <fn> <param> <true|false>  Inline a fn parameter as a constant, fold dead body branches; --drop-param also removes it from signature + call sites
 
 Options:
   --dry-run    Show what would change without writing
   --cascade    (rename-symbol/prop/in-file) also rename coincident locals
                (const <old> = <expr>.<new>) and confirm no textual remnants
   --type       (add-reexport) emit an 'export type { ... }' re-export instead of a value re-export
+  --drop-param (inline-param) also remove the parameter from the signature and the matching argument from every call site
 
 Examples:
   deno run -A scripts/refactor.ts rename-symbol src/types.ts Phase GamePhase
@@ -3331,5 +3623,6 @@ Examples:
   deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece
   deno run -A scripts/refactor.ts list-callsites src/render/render-map.ts drawTerrain
   deno run -A scripts/refactor.ts remove-export src/render/render-map.ts drawTerrain --dry-run
-  deno run -A scripts/refactor.ts fold-constant src/render/renderer.ts terrainLayerEnabled false --dry-run`);
+  deno run -A scripts/refactor.ts fold-constant src/render/renderer.ts terrainLayerEnabled false --dry-run
+  deno run -A scripts/refactor.ts inline-param src/render/render-map.ts drawCastles drawWalls false --drop-param --dry-run`);
 }

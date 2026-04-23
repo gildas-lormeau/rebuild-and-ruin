@@ -78,7 +78,7 @@ Will not remove re-exports silently; points to the canonical source file if the 
 
 ### `fold-constant` — Fold dead branches gated by a known-constant symbol
 
-Given an assertion that `<name>` is invariantly `true` or `false`, folds every `if` / `?:` / `&&` / `||` expression whose truthiness is thereby determined. Handles `!`, nested `&&`/`||`, and negation wrappers. The symbol declaration is NOT removed — it may still be assigned elsewhere. Use `remove-export` as the follow-up once all reads are folded.
+Given an assertion that `<name>` is invariantly `true` or `false`, folds every `if` / `?:` / `&&` / `||` expression whose truthiness is thereby determined. Handles `!`, nested `&&`/`||`, and negation wrappers. Recognizes bare identifiers as well as property-access forms: if `<name>` is a class field, occurrences of `this.<name>` and `obj.<name>` are also folded. The symbol declaration is NOT removed — it may still be assigned elsewhere. Use `remove-export` as the follow-up once all reads are folded.
 
 ```bash
 npm run refactor fold-constant <file> <name> <true|false> [--dry-run]
@@ -87,6 +87,20 @@ npm run refactor fold-constant <file> <name> <true|false> [--dry-run]
 References that can't be fully determined (e.g. `flag || someCall()`) are left in place and reported so the user can inspect them. The value assertion is *forced* — the tool does not verify the declaration actually holds that value; it collapses the dead branches on the user's word.
 
 Best for: ripping out code gated by a feature-flag / layer-enabled boolean that has become invariantly `false` (or `true`) after a design decision. Run once per flag, then `remove-export` each flag whose references all folded, then `biome check --write` to tidy formatting.
+
+### `inline-param` — Fold a function parameter as a known constant
+
+Given a parameter that's invariantly passed as a boolean literal at every call site, fold every branch in the function body that's gated by it. With `--drop-param`, also remove the parameter from the signature and the matching argument from every call site across the project.
+
+```bash
+npm run refactor inline-param <file> <fn> <param> <true|false> [--drop-param] [--dry-run]
+```
+
+Resolves `<fn>` as a function declaration, a method on a class, or a `const fn = () => ...` / `const fn = function () {}` declaration. Method call sites (`obj.fn(...)`) are handled too.
+
+Without `--drop-param`: body gets folded, signature + call sites untouched (useful when you want to review the fold before committing to a signature change). With `--drop-param`: signature and every call's positional argument at that index are removed. Non-literal arguments at the call site are flagged with a warning and removed anyway (the user's assertion is that the parameter is invariantly `value`, so any other caller was already passing dead data).
+
+Best for: callees that take multiple `boolean` knobs where the only live combination is all-false (or all-true) — e.g. a layered renderer's `drawCastles(map, walls, debris, cannons, ...)` after the renderer is replaced. Run once per knob; follow up with `remove-export` on any helpers that become unused.
 
 ## Refactoring commands
 
