@@ -136,7 +136,8 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
             banner.text,
             banner.progress,
             banner.subtitle,
-            banner.modifierDiff,
+            banner.paletteKey,
+            banner.revealTiles,
             banner.prevScene,
             banner.newScene,
           );

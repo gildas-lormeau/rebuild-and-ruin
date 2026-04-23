@@ -259,8 +259,10 @@ export function drawBanner(
   if (!overlay?.ui?.banner) return;
   const { top: by, bottom } = overlay.ui.banner;
   const bannerH = bottom - by;
-  const modifierId = overlay.ui.banner.modifierDiff?.id;
-  const palette = modifierId ? MODIFIER_COLORS[modifierId] : undefined;
+  const paletteKey = overlay.ui.banner.paletteKey;
+  const palette = paletteKey
+    ? MODIFIER_COLORS[paletteKey as keyof typeof MODIFIER_COLORS]
+    : undefined;
   const borderColor = palette?.border ?? GOLD;
   const titleColor = palette?.title ?? GOLD_LIGHT;
   const subtitleColor = palette?.title ?? GOLD_SUBTITLE;
@@ -303,11 +305,18 @@ export function drawModifierRevealHighlight(
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
-  const diff = overlay?.ui?.banner?.modifierDiff;
-  if (!diff || diff.changedTiles.length === 0) return;
+  const banner = overlay?.ui?.banner;
+  const tiles = banner?.revealTiles;
+  const paletteKey = banner?.paletteKey;
+  if (!tiles || tiles.length === 0 || !paletteKey) return;
+  // Contract: any banner that sets a `paletteKey` passes one that
+  // resolves into `MODIFIER_COLORS` — currently only the
+  // modifier-reveal banner, keyed by `ModifierId`. If a future caller
+  // introduces a new palette space, this lookup needs to grow.
+  const palette = MODIFIER_COLORS[paletteKey as keyof typeof MODIFIER_COLORS];
 
   // Tiles above the banner top edge are fully revealed.
-  const revealY = overlay!.ui!.banner!.top;
+  const revealY = banner.top;
 
   // Pulse alpha: 0.25–0.55 over 400ms
   const pulse =
@@ -317,8 +326,8 @@ export function drawModifierRevealHighlight(
 
   overlayCtx.save();
   overlayCtx.globalAlpha = pulse;
-  overlayCtx.fillStyle = MODIFIER_COLORS[diff.id].pulseColor;
-  for (const key of diff.changedTiles) {
+  overlayCtx.fillStyle = palette.pulseColor;
+  for (const key of tiles) {
     const row = Math.floor(key / GRID_COLS);
     const col = key % GRID_COLS;
     const py = row * TILE_SIZE;

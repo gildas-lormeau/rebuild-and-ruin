@@ -7,7 +7,6 @@ import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
-  type ModifierDiff,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
@@ -127,7 +126,8 @@ export function createBannerUi(
   text: string,
   progress: number,
   subtitle?: string,
-  modifierDiff?: ModifierDiff,
+  paletteKey?: string,
+  revealTiles?: readonly number[],
   prevScene?: SceneCapture,
   newScene?: SceneCapture,
 ): BannerUi | undefined {
@@ -148,7 +148,8 @@ export function createBannerUi(
     subtitle,
     top,
     bottom: top + bannerHInt,
-    modifierDiff,
+    paletteKey,
+    revealTiles,
     prevScene,
     newScene,
   };

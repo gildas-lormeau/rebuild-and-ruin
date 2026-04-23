@@ -43,11 +43,13 @@ export interface E2EBannerSnapshot {
    *  MAP_PX_H during the sweep-out, so tests can gate on "banner is
    *  on-screen" without re-deriving the geometry. */
   top: number;
-  modifierDiff: {
-    id: string;
-    changedTiles: readonly number[];
-    gruntsSpawned: number;
-  } | null;
+  /** Opaque palette accent key (modifier id for modifier-reveal banners;
+   *  undefined otherwise). Exposed so tests can assert which visual
+   *  accent is active without poking into the renderer. */
+  paletteKey: string | null;
+  /** Tile keys being progressively highlighted by the sweep, or null
+   *  when the banner has no highlight overlay. */
+  revealTiles: readonly number[] | null;
 }
 
 export interface E2EBattleSnapshot {
@@ -505,13 +507,8 @@ function snapshotBanner(runtimeState: RuntimeState): E2EBannerSnapshot | null {
   return {
     text: banner.text,
     top: banner.top,
-    modifierDiff: banner.modifierDiff
-      ? {
-          id: banner.modifierDiff.id,
-          changedTiles: banner.modifierDiff.changedTiles,
-          gruntsSpawned: banner.modifierDiff.gruntsSpawned,
-        }
-      : null,
+    paletteKey: banner.paletteKey ?? null,
+    revealTiles: banner.revealTiles ?? null,
   };
 }
 

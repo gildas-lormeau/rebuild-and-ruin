@@ -3,7 +3,7 @@
  *
  * Contract:
  *
- *   showBanner({ text, kind, onDone, subtitle?, modifierDiff? })
+ *   showBanner({ text, kind, onDone, subtitle?, paletteKey?, revealTiles? })
  *   hideBanner()
  *
  * State machine (see `BannerStatus` in runtime-contracts.ts):
@@ -139,7 +139,8 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       text: opts.text,
       subtitle: opts.subtitle,
       kind: opts.kind,
-      modifierDiff: opts.modifierDiff,
+      paletteKey: opts.paletteKey,
+      revealTiles: opts.revealTiles,
       callback: opts.onDone,
       prevScene,
       newScene,
@@ -158,8 +159,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       subtitle: next.subtitle,
       phase: state.phase,
       round: state.round,
-      modifierId: next.modifierDiff?.id,
-      changedTiles: next.modifierDiff?.changedTiles,
     });
   }
 

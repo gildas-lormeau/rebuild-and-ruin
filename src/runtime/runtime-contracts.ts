@@ -5,7 +5,6 @@ import type {
   ThawingTile,
   WallBurn,
 } from "../shared/core/battle-types.ts";
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
@@ -130,7 +129,8 @@ export type CreateBannerUiFn = (
   text: string,
   progress: number,
   subtitle?: string,
-  modifierDiff?: ModifierDiff,
+  paletteKey?: string,
+  revealTiles?: readonly number[],
   prevScene?: SceneCapture,
   newScene?: SceneCapture,
 ) => BannerUi | undefined;
@@ -249,11 +249,19 @@ export interface ActiveBannerState {
    *  snapshots are frozen for the duration of the sweep; the live
    *  renderer does not repaint world contents during a banner. */
   newScene?: SceneCapture;
-  /** Set when the active banner is a modifier-reveal (modern mode).
-   *  Carries the full diff — `id` drives the banner palette + bannerStart
-   *  event, `changedTiles` drives the progressive tile-highlight animation
-   *  in `drawModifierRevealHighlight`. Cleared between banners. */
-  modifierDiff?: ModifierDiff;
+  /** Opaque accent-palette key for the banner chrome. Indexed by the
+   *  renderer into its own palette table. `undefined` = default palette.
+   *  Banner-system-agnostic: the value happens to coincide with a
+   *  `ModifierId` for the modifier-reveal banner today, but the banner
+   *  system doesn't know that — callers just pass a string key that
+   *  the renderer recognizes. */
+  paletteKey?: string;
+  /** Tile keys (row * GRID_COLS + col) to highlight progressively as
+   *  the sweep passes over them. Used by the modifier-reveal banner to
+   *  announce the newly-frozen / newly-burning / newly-crumbling tiles.
+   *  Empty or undefined = no highlight overlay; other banner kinds
+   *  always pass undefined. */
+  revealTiles?: readonly number[];
 }
 
 /** Banner state is a discriminated union: `hidden` carries no fields
@@ -649,13 +657,14 @@ export interface BannerShowOpts {
    *  lies during the upgrade-pick flow) or matching text. */
   readonly kind: BannerKind;
   readonly subtitle?: string;
-  /** Set when the banner being shown is a modifier-reveal (the
-   *  mid-frame banner that replaces the normal battle banner in modern
-   *  mode). The full diff drives (a) the `bannerStart` event payload —
-   *  so consumers can distinguish the modifier banner from the battle
-   *  banner without string-matching the text field — and (b) the
-   *  progressive tile-highlight animation in the renderer. */
-  readonly modifierDiff?: ModifierDiff;
+  /** Opaque accent-palette key for the banner chrome (title + border +
+   *  highlight pulse colors). The renderer indexes this into its own
+   *  palette table — the banner system treats it as a string. */
+  readonly paletteKey?: string;
+  /** Tile keys to highlight progressively as the sweep passes. Drives
+   *  the modifier-reveal animation today, but the banner system is
+   *  feature-agnostic — it just draws the tiles it's told to draw. */
+  readonly revealTiles?: readonly number[];
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

@@ -59,11 +59,6 @@ export type LifecycleEvent =
       subtitle?: string;
       phase: Phase;
       round: number;
-      /** Set when the banner is showing a modifier reveal. */
-      modifierId?: ModifierId;
-      /** Tile keys changed by the modifier — consumed by the progressive
-       *  reveal animation. Undefined when the banner has no modifier. */
-      changedTiles?: readonly number[];
     }
   /** Phase-transition banner's sweep animation completed (progress reached
    *  1). Emitted from inside `tickBanner` on the `sweeping → swept`

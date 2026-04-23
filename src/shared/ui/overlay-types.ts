@@ -7,7 +7,6 @@ import type {
   ThawingTile,
   WallBurn,
 } from "../core/battle-types.ts";
-import type { ModifierDiff } from "../core/game-constants.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
 import type { Phase } from "../core/game-phase.ts";
 import type {
@@ -231,10 +230,15 @@ export interface BannerUi {
    *  by `createBannerUi`). Consumers that need to clip below the
    *  sweep line use this. */
   bottom: number;
-  /** Modifier-reveal diff — when set, the banner is a modifier reveal.
-   *  Drives the recolored chrome (`render-ui.ts` palette) and the
-   *  progressive tile-highlight animation in `drawModifierRevealHighlight`. */
-  modifierDiff?: ModifierDiff;
+  /** Opaque accent-palette key. The renderer indexes this into its
+   *  palette table to recolor the banner chrome (border / title /
+   *  pulse). Undefined = default palette. The banner system treats
+   *  this as an uninterpreted string. */
+  paletteKey?: string;
+  /** Tile keys (row * GRID_COLS + col) to highlight progressively as
+   *  the sweep passes. Used by the modifier-reveal banner; every other
+   *  banner kind leaves this undefined. */
+  revealTiles?: readonly number[];
   /** Pixel snapshot of the scene composited below the sweep line
    *  during the banner animation (the old scene, captured before the
    *  phase mutation that the banner is announcing). */

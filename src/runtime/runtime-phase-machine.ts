@@ -137,14 +137,19 @@ type DisplayStep =
        *  result). */
       readonly text: string | ((r: TransitionResult) => string);
       readonly subtitle?: string;
-      /** Set on the modifier-reveal banner step. Resolved at dispatch
-       *  time and forwarded to the banner system so the bannerStart
-       *  event can distinguish modifier reveals from plain phase
-       *  banners, and the renderer can progressively highlight changed
-       *  tiles. Reads the diff out of the transition result (the rolled
-       *  modifier lives there). Only set on the `enter-modifier-reveal`
-       *  transition's banner step — other banners don't carry a diff. */
-      readonly modifierDiff?: (r: TransitionResult) => ModifierDiff | undefined;
+      /** Opaque accent-palette key extractor. Used by the
+       *  modifier-reveal banner to recolor its chrome (and match the
+       *  `revealTiles` highlight pulse). The banner system treats the
+       *  result as a string the renderer indexes into its palette
+       *  table. Only set where a non-default palette is wanted. */
+      readonly paletteKey?: (r: TransitionResult) => string | undefined;
+      /** Tile keys to highlight progressively as the sweep passes.
+       *  Used by the modifier-reveal banner to announce the
+       *  newly-changed tiles. Only set on banners that want a
+       *  highlight overlay — other banner steps leave this undefined. */
+      readonly revealTiles?: (
+        r: TransitionResult,
+      ) => readonly number[] | undefined;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" };
@@ -896,7 +901,12 @@ const ENTER_MODIFIER_REVEAL: Transition = {
       kind: STEP_BANNER,
       bannerKind: "modifier-reveal",
       text: (r) => modifierDef(r.modifierDiff!.id).label,
-      modifierDiff: (r) => r.modifierDiff ?? undefined,
+      // Decompose the (modifier-domain) diff into banner-agnostic bits:
+      // the id becomes an opaque palette key the renderer looks up, and
+      // the changed-tile set becomes a generic highlight overlay. The
+      // banner system never sees `ModifierDiff` directly.
+      paletteKey: (r) => r.modifierDiff?.id,
+      revealTiles: (r) => r.modifierDiff?.changedTiles,
     },
   ],
   postDisplay: {
@@ -1321,13 +1331,13 @@ function runBannerStep(
   onDone: () => void,
 ): void {
   const text = typeof step.text === "function" ? step.text(result) : step.text;
-  const modifierDiff = step.modifierDiff?.(result);
   ctx.showBanner({
     text,
     kind: step.bannerKind,
     onDone,
     subtitle: step.subtitle,
-    modifierDiff,
+    paletteKey: step.paletteKey?.(result),
+    revealTiles: step.revealTiles?.(result),
   });
 }
 
