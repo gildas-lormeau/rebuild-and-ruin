@@ -9,7 +9,6 @@
     "test:scenario": "timeout 30 deno test --no-check test/scenario.test.ts",
     "test:determinism": "timeout 30 deno test --no-check --allow-read test/determinism.test.ts",
     "test:speed": "timeout 30 deno test --no-check test/dev-speed.test.ts",
-    "test:banner": "timeout 30 deno test --no-check test/banner-build-prev-scene.test.ts",
     "test:banner:high-tide": "timeout 30 deno test --no-check test/banner-high-tide-battle.test.ts",
     "test:low-water": "timeout 60 deno test --no-check test/low-water-debug.test.ts",
     "test:upgrades": "timeout 60 deno test --no-check test/upgrades.test.ts",
