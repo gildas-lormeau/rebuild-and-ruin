@@ -97,6 +97,7 @@ export interface E2EBridgeSnapshot {
   timer: number;
   overlay: {
     hasBannerPrevScene: boolean;
+    hasBannerNewScene: boolean;
     banner: E2EBannerSnapshot | null;
     battle: E2EBattleSnapshot | null;
     ui: E2EUISnapshot;
@@ -295,6 +296,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       timer: 0,
       overlay: {
         hasBannerPrevScene: false,
+        hasBannerNewScene: false,
         banner: null,
         battle: null,
         ui: {
@@ -430,6 +432,8 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
   // --- Overlay ---
   ref.overlay.hasBannerPrevScene =
     runtimeState.overlay.ui?.banner?.prevScene !== undefined;
+  ref.overlay.hasBannerNewScene =
+    runtimeState.overlay.ui?.banner?.newScene !== undefined;
   ref.overlay.banner = snapshotBanner(runtimeState);
   ref.overlay.battle = snapshotBattle(runtimeState);
   ref.overlay.ui = snapshotUI(runtimeState);
