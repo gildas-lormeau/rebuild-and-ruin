@@ -640,7 +640,9 @@ function removeExport(filePath: string, symbolName: string): void {
   removeDeclaration(decl);
 
   const changedFiles = saveChanges(project);
-  console.log(`✅ Removed "${symbolName}" — ${changedFiles} file(s) changed`);
+  console.log(
+    `✅ Removed "${symbolName}" — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
+  );
 }
 
 /** Classify what a reference identifier is doing at its use site. */
@@ -737,7 +739,9 @@ function foldConstant(
   reportFoldResults(folded, unfoldable);
 
   const changedFiles = saveChanges(project);
-  console.log(`\n✅ Fold complete — ${changedFiles} file(s) changed`);
+  console.log(
+    `\n✅ Fold complete — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
+  );
   if (unfoldable.length === 0) {
     console.log(
       `   All references folded. Consider: remove-export ${filePath} ${symbolName}`,
@@ -880,8 +884,9 @@ function inlineParam(
       }
 
       paramNode.remove();
+      const verb = dryRun ? "Would drop" : "Dropped";
       console.log(
-        `\nDropped param "${paramName}" from signature + ${droppedCalls} call site(s)${
+        `\n${verb} param "${paramName}" from signature + ${droppedCalls} call site(s)${
           skippedCalls > 0
             ? ` (${skippedCalls} passed a non-${rawValue} argument)`
             : ""
@@ -891,7 +896,9 @@ function inlineParam(
   }
 
   const changedFiles = saveChanges(project);
-  console.log(`\n✅ Inline complete — ${changedFiles} file(s) changed`);
+  console.log(
+    `\n✅ Inline complete — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
+  );
 }
 
 /** Run tryFoldAtReference on every node in `refNodes`, grouped per file in
@@ -2950,32 +2957,56 @@ function bulkRedirect(manifestFile: string): void {
 
 function saveChanges(project: Project): number {
   let changed = 0;
-  for (const sf of project.getSourceFiles()) {
-    if (sf.getFullText() !== sf.getPreEmitDiagnostics.toString()) {
-      // Check if actually modified
-    }
-  }
 
   if (dryRun) {
     for (const sf of project.getSourceFiles()) {
-      if (!sf.isSaved()) {
-        const filePath = path.relative(process.cwd(), sf.getFilePath());
-        console.log(`  [dry-run] Would modify: ${filePath}`);
-        changed++;
-      }
+      if (sf.isSaved()) continue;
+      const filePath = path.relative(process.cwd(), sf.getFilePath());
+      console.log(`\n  [dry-run] Would modify: ${filePath}`);
+      printDryRunDiff(sf);
+      changed++;
     }
   } else {
     for (const sf of project.getSourceFiles()) {
-      if (!sf.isSaved()) {
-        sf.saveSync();
-        const filePath = path.relative(process.cwd(), sf.getFilePath());
-        console.log(`  Modified: ${filePath}`);
-        changed++;
-      }
+      if (sf.isSaved()) continue;
+      sf.saveSync();
+      const filePath = path.relative(process.cwd(), sf.getFilePath());
+      console.log(`  Modified: ${filePath}`);
+      changed++;
     }
   }
 
   return changed;
+}
+
+/** Under --dry-run, show a unified diff between the on-disk text and the
+ *  in-memory (post-mutation) text. Shelling out to `diff -u` keeps us free
+ *  of a diff-library dependency and matches what users expect to read. */
+function printDryRunDiff(sf: SourceFile): void {
+  const diskPath = sf.getFilePath();
+  let diskText = "";
+  try {
+    diskText = existsSync(diskPath) ? readFileSync(diskPath, "utf8") : "";
+  } catch {
+    // File couldn't be read; skip diff, the "Would modify" line already
+    // signals the change.
+    return;
+  }
+  const newText = sf.getFullText();
+  if (diskText === newText) return;
+  const result = spawnSync("diff", ["-u", diskPath, "-"], {
+    input: newText,
+    encoding: "utf8",
+  });
+  // `diff` exits with 1 when there are differences — that's our expected path.
+  if (result.stdout) {
+    // Indent each line so the diff visually nests under "Would modify".
+    const indented = result.stdout
+      .split("\n")
+      .map((line) => (line.length > 0 ? `    ${line}` : line))
+      .join("\n");
+    console.log(indented.trimEnd());
+  }
 }
 
 /**
