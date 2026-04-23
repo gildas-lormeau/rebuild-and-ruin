@@ -66,10 +66,6 @@ export interface GameOverOverlay {
 /** Per-frame data written by tick functions, read by render(). */
 export interface FrameData {
   crosshairs: Crosshair[];
-  phantoms: {
-    cannonPhantoms?: RenderCannonPhantom[];
-    defaultFacings?: ReadonlyMap<number, number>;
-  };
   announcement?: string;
   gameOver?: GameOverOverlay;
 }
@@ -478,7 +474,6 @@ export interface PlayerStats {
 export function createEmptyFrameData(prev?: FrameData): FrameData {
   return {
     crosshairs: [],
-    phantoms: {},
     ...(prev?.gameOver !== undefined ? { gameOver: prev.gameOver } : {}),
   };
 }

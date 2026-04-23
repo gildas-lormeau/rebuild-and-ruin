@@ -119,7 +119,16 @@ const watcherTickCtx: WatcherTickContext = {
   render: () => runtime.render(),
   now: () => performance.now(),
   setRemotePiecePhantoms: (phantoms) => {
-    runtime.runtimeState.remotePhantoms = { piecePhantoms: phantoms };
+    runtime.runtimeState.remotePhantoms = {
+      piecePhantoms: phantoms,
+      cannonPhantoms: runtime.runtimeState.remotePhantoms.cannonPhantoms,
+    };
+  },
+  setRemoteCannonPhantoms: (phantoms) => {
+    runtime.runtimeState.remotePhantoms = {
+      piecePhantoms: runtime.runtimeState.remotePhantoms.piecePhantoms,
+      cannonPhantoms: phantoms,
+    };
   },
 };
 // ── Runtime creation ────────────────────────────────────────────────

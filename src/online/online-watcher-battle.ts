@@ -82,22 +82,19 @@ interface WatcherBattleDeps {
   ) => void;
 }
 
-interface WatcherPhantomFrame {
-  phantoms: {
-    cannonPhantoms?: CannonPhantom[];
-    defaultFacings?: ReadonlyMap<number, number>;
-  };
-}
-
 interface TickWatcherCannonPhantomsDeps {
   state: GameState;
-  frame: WatcherPhantomFrame;
   dt: number;
   myPlayerId: PlayerSlotId;
   localController: PlayerController | null;
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPhantom: (msg: CannonPhantom) => void;
+  /** Sink for the runtime's `remotePhantoms.cannonPhantoms` slot.
+   *  Receives the alive-filtered remote array so render + touch readers
+   *  can source remote previews from the runtime slot; local previews
+   *  come from the controller's `currentCannonPhantom`. */
+  setRemoteCannonPhantoms: (phantoms: readonly CannonPhantom[]) => void;
 }
 
 interface TickWatcherBuildPhantomsDeps {
@@ -249,7 +246,6 @@ export function tickWatcherCannonPhantomsPhase(
 ): void {
   const {
     state,
-    frame,
     dt,
     myPlayerId,
     localController,
@@ -258,21 +254,17 @@ export function tickWatcherCannonPhantomsPhase(
     sendOpponentCannonPhantom,
   } = deps;
 
-  const defaultFacings = new Map<number, number>();
-  for (const player of state.players) {
-    defaultFacings.set(player.id, player.defaultFacing);
-  }
-  frame.phantoms = {
-    cannonPhantoms: filterAlivePhantoms(remoteCannonPhantoms, state.players),
-    defaultFacings,
-  };
+  const aliveRemote = filterAlivePhantoms(remoteCannonPhantoms, state.players);
+  // Remote phantoms flow through the runtime slot; render + touch read
+  // from there so the watcher never writes to `frame.phantoms`. The local
+  // controller's phantom is owned by `ctrl.currentCannonPhantom`.
+  deps.setRemoteCannonPhantoms(aliveRemote);
 
   if (!localController) return;
 
   const phantom = localController.cannonTick(state, dt);
   if (!phantom) return;
 
-  frame.phantoms.cannonPhantoms!.push(phantom);
   if (
     !lastSentCannonPhantom.shouldSend(
       myPlayerId as ValidPlayerSlot,

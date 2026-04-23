@@ -536,7 +536,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickCannonPhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    const { state, frame } = runtimeState;
+    const { state } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
     advancePhaseTimer(
@@ -547,14 +547,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       state.cannonPlaceTimer,
     );
 
-    // Collect default facings for phantom rendering
-    const defaultFacings = new Map<number, number>();
-    for (const player of state.players) {
-      defaultFacings.set(player.id, player.defaultFacing);
-    }
-    frame.phantoms = { cannonPhantoms: [], defaultFacings };
-
-    // PASS 1: tick local controllers, collect placements + phantoms
+    // PASS 1: tick local controllers, broadcast placements + phantoms.
+    // Local phantoms live on `ctrl.currentCannonPhantom`; render reads
+    // them directly from the controller union in `refreshOverlay`.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
@@ -581,7 +576,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
 
       if (!phantom) continue;
-      frame.phantoms.cannonPhantoms!.push(phantom);
 
       if (
         isHost &&
@@ -601,14 +595,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
 
-    // Merge remote phantoms
+    // Remote phantoms are consumed from `runtimeState.remotePhantoms`
+    // by the render + touch layers; controllers own local previews in
+    // `currentCannonPhantom`.
     const remoteCannonPhantoms = filterAlivePhantoms(
       online?.remoteCannonPhantoms?.() ?? [],
       state.players,
     );
-    if (remoteCannonPhantoms.length > 0) {
-      frame.phantoms.cannonPhantoms!.push(...remoteCannonPhantoms);
-    }
+    runtimeState.remotePhantoms = {
+      piecePhantoms: runtimeState.remotePhantoms.piecePhantoms,
+      cannonPhantoms: remoteCannonPhantoms,
+    };
 
     deps.render();
 
@@ -817,7 +814,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       online?.remotePiecePhantoms?.() ?? [],
       state.players,
     );
-    runtimeState.remotePhantoms = { piecePhantoms: remotePiecePhantoms };
+    runtimeState.remotePhantoms = {
+      piecePhantoms: remotePiecePhantoms,
+      cannonPhantoms: runtimeState.remotePhantoms.cannonPhantoms,
+    };
 
     deps.render();
     if (state.timer > 0) return false;

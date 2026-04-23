@@ -14,7 +14,10 @@ import type { BattleAnimState } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type { PiecePhantom } from "../shared/core/phantom-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -65,6 +68,10 @@ export interface WatcherTickContext {
    *  Forwarded into `tickWatcherBuildPhantomsPhase` so render + touch
    *  read remote piece phantoms from the runtime slot. */
   setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
+  /** Sink for the runtime's `remotePhantoms.cannonPhantoms` slot.
+   *  Forwarded into `tickWatcherCannonPhantomsPhase` so render + touch
+   *  read remote cannon phantoms from the runtime slot. */
+  setRemoteCannonPhantoms: (phantoms: readonly CannonPhantom[]) => void;
 }
 
 export function createWatcherState(): WatcherState {
@@ -180,7 +187,6 @@ export function tickWatcher(
   } else if (state.phase === Phase.CANNON_PLACE) {
     tickWatcherCannonPhantomsPhase({
       state,
-      frame,
       dt,
       myPlayerId,
       localController,
@@ -189,6 +195,7 @@ export function tickWatcher(
       sendOpponentCannonPhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
       },
+      setRemoteCannonPhantoms: transitionCtx.setRemoteCannonPhantoms,
     });
   } else if (state.phase === Phase.WALL_BUILD) {
     // Decrement Master Builder lockout (mirrors host-phase-ticks.ts)

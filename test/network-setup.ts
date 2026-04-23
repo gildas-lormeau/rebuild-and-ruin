@@ -193,6 +193,17 @@ async function buildWatcherRuntime(
     setRemotePiecePhantoms: (phantoms) => {
       headlessHolder.current!.runtime.runtimeState.remotePhantoms = {
         piecePhantoms: phantoms,
+        cannonPhantoms:
+          headlessHolder.current!.runtime.runtimeState.remotePhantoms
+            .cannonPhantoms,
+      };
+    },
+    setRemoteCannonPhantoms: (phantoms) => {
+      headlessHolder.current!.runtime.runtimeState.remotePhantoms = {
+        piecePhantoms:
+          headlessHolder.current!.runtime.runtimeState.remotePhantoms
+            .piecePhantoms,
+        cannonPhantoms: phantoms,
       };
     },
     now: () => headlessHolder.current!.now(),

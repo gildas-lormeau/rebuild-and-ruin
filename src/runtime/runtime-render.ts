@@ -7,7 +7,10 @@
 
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
-import type { PiecePhantom } from "../shared/core/phantom-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import type {
@@ -143,16 +146,28 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // they see only what the render layer needs.
     const view = selectRenderView(runtimeState.state);
 
-    // Assemble the overlay's piece-phantom payload from the
-    // controller-owned `currentBuildPhantoms` arrays + the runtime
-    // remote slot. `frame.phantoms` no longer carries piece phantoms —
-    // controllers + `runtimeState.remotePhantoms` are the sole sources.
+    // Assemble the overlay's phantom payload from the controller-owned
+    // `currentBuildPhantoms` / `currentCannonPhantom` + the runtime
+    // remote slot. `frame.phantoms` is not read here — controllers
+    // + `runtimeState.remotePhantoms` are the sole sources.
+    //
+    // `defaultFacings` is derived live from `state.players[i].defaultFacing`
+    // (rather than read from a tick-populated cache) for the same reason
+    // as `inBattle` below: `refreshOverlay` runs inside the banner
+    // B-snapshot capture mid-tick, AFTER the transition has mutated
+    // player state. A cached map computed at tick start would be stale
+    // — live derivation guarantees the capture sees the post-mutation
+    // facings that the renderer is about to draw against.
+    const defaultFacings = new Map<number, number>();
+    for (const player of runtimeState.state.players) {
+      defaultFacings.set(player.id, player.defaultFacing);
+    }
     const overlayFrame = {
       crosshairs: runtimeState.frame.crosshairs,
       phantoms: {
         piecePhantoms: buildPiecePhantomsUnion(runtimeState),
-        cannonPhantoms: runtimeState.frame.phantoms?.cannonPhantoms,
-        defaultFacings: runtimeState.frame.phantoms?.defaultFacings,
+        cannonPhantoms: buildCannonPhantomsUnion(runtimeState),
+        defaultFacings,
       },
       announcement: runtimeState.frame.announcement,
       gameOver: runtimeState.frame.gameOver,
@@ -201,13 +216,15 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
     const chList = runtimeState.frame.crosshairs;
     const selH = runtimeState.overlay.selection?.highlights;
-    // Phase 2b: piece phantoms are owned by each controller
-    // (`currentBuildPhantoms`) + the runtime remote slot. Read both for the
-    // summary count so the log reflects the same union the render/touch
-    // paths consume. Cannon phantoms still live on frame until phase 3.
+    // Phase 2b + 3: both phantom kinds are owned by each controller
+    // (`currentBuildPhantoms` / `currentCannonPhantom`) + the runtime
+    // remote slot. Read both for the summary counts so the log reflects
+    // the same union the render/touch paths consume.
     let piecePhantomsCount = runtimeState.remotePhantoms.piecePhantoms.length;
+    let cannonPhantomsCount = runtimeState.remotePhantoms.cannonPhantoms.length;
     for (const ctrl of runtimeState.controllers) {
       piecePhantomsCount += ctrl.currentBuildPhantoms.length;
+      if (ctrl.currentCannonPhantom) cannonPhantomsCount++;
     }
     deps.logThrottled(
       "render-summary",
@@ -216,8 +233,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
         timer: runtimeState.state.timer,
         crosshairs: chList,
         piecePhantomsCount,
-        cannonPhantomsCount:
-          runtimeState.frame.phantoms?.cannonPhantoms?.length ?? 0,
+        cannonPhantomsCount,
         impactsCount: runtimeState.battleAnim.impacts.length,
         cannonballsCount: runtimeState.state.cannonballs.length,
         selectionHighlights: selH,
@@ -241,10 +257,9 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     deps.onRenderedFrame();
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions).
-    // Phase 2b: touch reads the phantom union from `runtimeState.overlay`
-    // (just rebuilt by `refreshOverlay`) so it sees the same controllers
-    // + remote-slot combination the renderer consumed. `frame.phantoms`
-    // is still written by the host/watcher ticks but no longer read.
+    // Touch reads the phantom union from `runtimeState.overlay` (just
+    // rebuilt by `refreshOverlay`) so it sees the same controllers +
+    // remote-slot combination the renderer consumed.
     const touch = deps.getTouch();
     deps.updateTouchControls({
       mode: runtimeState.mode,
@@ -301,6 +316,28 @@ function buildPiecePhantomsUnion(runtimeState: {
   const out: PiecePhantom[] = [];
   for (const ctrl of runtimeState.controllers) {
     for (const phantom of ctrl.currentBuildPhantoms) out.push(phantom);
+  }
+  for (const phantom of remote) out.push(phantom);
+  return out.length > 0 ? out : undefined;
+}
+
+/** Assemble the full cannon-phantom set for the current frame: each
+ *  controller's `currentCannonPhantom` (local preview, at most one each)
+ *  followed by the runtime's `remotePhantoms.cannonPhantoms` slot
+ *  (remote previews). Returns undefined when no phantoms exist —
+ *  keeps `overlay.phantoms.cannonPhantoms` undefined in the same cases
+ *  as the previous frame-based path (avoids forcing the 3D renderer
+ *  into its cannonPhantoms loop during non-cannon phases). */
+function buildCannonPhantomsUnion(runtimeState: {
+  controllers: ReadonlyArray<{
+    currentCannonPhantom: CannonPhantom | undefined;
+  }>;
+  remotePhantoms: { cannonPhantoms: readonly CannonPhantom[] };
+}): readonly CannonPhantom[] | undefined {
+  const remote = runtimeState.remotePhantoms.cannonPhantoms;
+  const out: CannonPhantom[] = [];
+  for (const ctrl of runtimeState.controllers) {
+    if (ctrl.currentCannonPhantom) out.push(ctrl.currentCannonPhantom);
   }
   for (const phantom of remote) out.push(phantom);
   return out.length > 0 ? out : undefined;

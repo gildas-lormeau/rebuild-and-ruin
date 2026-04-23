@@ -247,10 +247,19 @@ export class AiController extends BaseController implements AiAnimatable {
     return isCannonDone(this._cannonPhase);
   }
 
-  cannonTick(state: GameState, _dt: number): CannonPlacementPreview | null {
+  cannonTick(
+    state: GameState,
+    _dt: number,
+  ): CannonPlacementPreview | undefined {
     const executePlace = (intent: PlaceCannonIntent): boolean =>
       executePlaceCannon(state, intent, this._cannonPhase.maxSlots);
-    return tickCannon(this, this._cannonPhase, state, executePlace);
+    const result = tickCannon(this, this._cannonPhase, state, executePlace);
+    // Leave currentCannonPhantom populated by the startCannonPhase hook
+    // empty on init (see note there): AI's tickCannon decrements timers
+    // and draws from strategy.rng, so seeding at dt=0 would mutate state
+    // before the first real frame. Assign from tick result here.
+    this.currentCannonPhantom = result ?? undefined;
+    return result ?? undefined;
   }
 
   flushCannons(state: GameState, maxSlots: number): void {

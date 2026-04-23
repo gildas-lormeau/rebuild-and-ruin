@@ -235,7 +235,6 @@ export function buildLifecycleDeps(
     bootstrapNewGame: wiringDeps.bootstrapNewGame,
 
     setGameOverFrame: (winner) => {
-      runtimeState.frame.phantoms = {};
       runtimeState.frame.gameOver = wiringDeps.buildGameOverOverlay(
         winner.id,
         runtimeState.state.players,

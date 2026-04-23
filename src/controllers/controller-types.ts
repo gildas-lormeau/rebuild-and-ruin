@@ -116,7 +116,7 @@ export abstract class BaseController implements PlayerController {
   abstract cannonTick(
     state: CannonViewState,
     dt: number,
-  ): CannonPlacementPreview | null;
+  ): CannonPlacementPreview | undefined;
   /** Shared build-phase init: bag + cursor on home tower.
    *  Private — only called as an internal step of the startBuildPhase() template method.
    *  Contrast with initCannons() which is public for remote-controller use. */
@@ -149,9 +149,8 @@ export abstract class BaseController implements PlayerController {
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
    *  Calls the hook, clears bag/piece, and drops any lingering build-phantom
    *  snapshot so the render path doesn't keep drawing the last preview into
-   *  the cannon/battle phases. (When `frame.phantoms` owned phantom state,
-   *  the per-tick re-init cleared stale previews implicitly; with
-   *  controller-owned state the clear is explicit.) */
+   *  the cannon/battle phases. (Controller-owned state requires the clear to
+   *  be explicit; symmetric to finalizeCannonPhase.) */
   finalizeBuildPhase(state: BuildViewState): void {
     this.onFinalizeBuildPhase(state);
     const player = state.players[this.playerId];
@@ -187,10 +186,14 @@ export abstract class BaseController implements PlayerController {
 
   /** End-of-cannon-phase finalization: flush remaining placements, then auto-place
    *  round-1 cannons if none were placed. Guarantees correct flush→init ordering.
+   *  Drops any lingering cannon-phantom snapshot so the render path doesn't keep
+   *  drawing the last preview into the battle phase. (Symmetric to
+   *  `finalizeBuildPhase` clearing `currentBuildPhantoms`.)
    *  Call this for LOCAL controllers; remote controllers only need initCannons(). */
   finalizeCannonPhase(state: CannonViewState, maxSlots: number): void {
     this.flushCannons(state, maxSlots);
     this.initCannons(state, maxSlots);
+    this.currentCannonPhantom = undefined;
   }
 
   /** Round-1 safety net: auto-place cannons if none were manually placed.

@@ -177,7 +177,7 @@ export interface BuildController {
    *  right now". Populated by `startBuildPhase` (so the WALL_BUILD banner's
    *  B-snapshot captures previews even though no tick has run yet) and
    *  refreshed after every `buildTick`. Render and network-broadcast paths
-   *  read from here; `frame.phantoms` is not involved. Empty array when
+   *  read from here. Empty array when
    *  the player is eliminated, not ready to place, or has no active
    *  preview. */
   currentBuildPhantoms: readonly PiecePhantom[];
@@ -235,13 +235,16 @@ export interface CannonController {
   isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean;
 
   /** Called each frame during cannon phase. Returns a placement preview for rendering,
-   *  or null if no preview should be shown (player eliminated, no slots remaining).
-   *  Implementations must also assign the returned value to
-   *  `this.currentCannonPhantom` so the render path reads the same
-   *  snapshot between ticks.
-   *  NOTE: Returns null (not empty array) because at most one cannon preview exists at a time.
+   *  or undefined if no preview should be shown (player eliminated, no slots remaining).
+   *  Implementations must also assign the returned value (coerced to
+   *  `undefined` if absent) to `this.currentCannonPhantom` so the render
+   *  path reads the same snapshot between ticks.
+   *  NOTE: Returns `undefined` (not empty array) because at most one cannon preview exists at a time.
    *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
-  cannonTick(state: CannonViewState, dt: number): CannonPlacementPreview | null;
+  cannonTick(
+    state: CannonViewState,
+    dt: number,
+  ): CannonPlacementPreview | undefined;
 
   /** Move cannon cursor one tile in a direction (keyboard). */
   moveCannonCursor(direction: Action): void;

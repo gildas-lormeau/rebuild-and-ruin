@@ -81,22 +81,38 @@ export class HumanController extends BaseController implements InputReceiver {
   cannonTick(
     state: CannonViewState,
     _dt: number,
-  ): CannonPlacementPreview | null {
+  ): CannonPlacementPreview | undefined {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
-    if (remaining <= 0) return null;
-    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state))
-      return null;
+    if (remaining <= 0) {
+      this.currentCannonPhantom = undefined;
+      return undefined;
+    }
+    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state)) {
+      this.currentCannonPhantom = undefined;
+      return undefined;
+    }
 
     const valid = this.resolveCannonPlacement(remaining, player, state);
-    return {
+    const result: CannonPlacementPreview = {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
       valid,
       mode: this.cannonPlaceMode,
       playerId: this.playerId,
     };
+    this.currentCannonPhantom = result;
+    return result;
+  }
+
+  // Human's cannonTick is pure (no RNG/timer advancement), so calling it at
+  // dt=0 from startCannonPhase seeds currentCannonPhantom before the first
+  // real tick runs — ensuring the CANNON_PLACE banner's B-snapshot captures
+  // the preview. Mirrors onStartBuildPhase below.
+  override startCannonPhase(state: CannonViewState): void {
+    super.startCannonPhase(state);
+    this.currentCannonPhantom = this.cannonTick(state, 0) ?? undefined;
   }
 
   // --- Cannon cursor state fixups ---

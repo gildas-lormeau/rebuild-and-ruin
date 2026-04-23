@@ -104,7 +104,7 @@ export class AiAssistedHumanController
   override cannonTick(
     state: GameState,
     _dt: number,
-  ): CannonPlacementPreview | null {
+  ): CannonPlacementPreview | undefined {
     const executePlace = (intent: PlaceCannonIntent): boolean => {
       const placed = executePlaceCannon(
         state,
@@ -114,7 +114,9 @@ export class AiAssistedHumanController
       if (placed) this.senders.sendCannonPlaced(intent);
       return placed;
     };
-    return tickCannon(this, this._cannonPhase, state, executePlace);
+    const result = tickCannon(this, this._cannonPhase, state, executePlace);
+    this.currentCannonPhantom = result ?? undefined;
+    return result ?? undefined;
   }
 
   override flushCannons(state: GameState, maxSlots: number): void {
