@@ -530,23 +530,33 @@ function removeExport(filePath: string, symbolName: string): void {
   addAllSources(project);
 
   const sf = project.getSourceFileOrThrow(resolve(filePath));
-  const declarations = sf.getExportedDeclarations().get(symbolName);
-  if (!declarations || declarations.length === 0) {
-    console.error(`❌ Export "${symbolName}" not found in ${filePath}`);
-    process.exit(1);
-  }
 
-  const decl = declarations[0]!;
-
-  // Re-export? Point user at the canonical source.
-  const declSf = decl.getSourceFile();
-  if (declSf.getFilePath() !== sf.getFilePath()) {
-    const canonicalPath = path.relative(process.cwd(), declSf.getFilePath());
-    console.error(
-      `❌ "${symbolName}" in ${filePath} is a re-export from ${canonicalPath}`,
-    );
-    console.error(`   Remove it from the canonical source instead.`);
-    process.exit(1);
+  // Try exported declarations first so we can detect re-exports and point at
+  // the canonical source. Fall back to a top-level scan for local (non-
+  // exported) declarations — after `fold-constant`, helpers often become
+  // unreferenced locals rather than unreferenced exports.
+  const exported = sf.getExportedDeclarations().get(symbolName);
+  let decl: import("ts-morph").Node | undefined;
+  let isExported = false;
+  if (exported && exported.length > 0) {
+    const first = exported[0]!;
+    const declSf = first.getSourceFile();
+    if (declSf.getFilePath() !== sf.getFilePath()) {
+      const canonicalPath = path.relative(process.cwd(), declSf.getFilePath());
+      console.error(
+        `❌ "${symbolName}" in ${filePath} is a re-export from ${canonicalPath}`,
+      );
+      console.error(`   Remove it from the canonical source instead.`);
+      process.exit(1);
+    }
+    decl = first;
+    isExported = true;
+  } else {
+    decl = findTopLevelDeclaration(sf, symbolName);
+    if (!decl) {
+      console.error(`❌ "${symbolName}" not found in ${filePath}`);
+      process.exit(1);
+    }
   }
 
   // Find the declaration's own name identifier so we can enumerate references
@@ -615,7 +625,7 @@ function removeExport(filePath: string, symbolName: string): void {
   }
 
   console.log(
-    `Removing export "${symbolName}" from ${filePath} (${importSpecs.length} import site(s))`,
+    `Removing ${isExported ? "export" : "local"} "${symbolName}" from ${filePath} (${importSpecs.length} import site(s))`,
   );
 
   // Remove import specifiers. Clean up now-empty import declarations.
@@ -1616,6 +1626,37 @@ function removeDummyExport(sf: SourceFile): void {
   }
 }
 
+/** Find a top-level declaration (function, const/let/var, interface, type,
+ *  enum, class) by name in a source file — regardless of export status.
+ *  Used by remove-export to also delete local helpers that have become
+ *  unreferenced after a fold pass. */
+function findTopLevelDeclaration(
+  sf: SourceFile,
+  name: string,
+): import("ts-morph").Node | undefined {
+  for (const fn of sf.getFunctions()) {
+    if (fn.getName() === name) return fn;
+  }
+  for (const vs of sf.getVariableStatements()) {
+    for (const vd of vs.getDeclarations()) {
+      if (vd.getName() === name) return vd;
+    }
+  }
+  for (const iface of sf.getInterfaces()) {
+    if (iface.getName() === name) return iface;
+  }
+  for (const alias of sf.getTypeAliases()) {
+    if (alias.getName() === name) return alias;
+  }
+  for (const en of sf.getEnums()) {
+    if (en.getName() === name) return en;
+  }
+  for (const cls of sf.getClasses()) {
+    if (cls.getName() === name) return cls;
+  }
+  return undefined;
+}
+
 function findDeclarationIdentifier(
   sf: SourceFile,
   name: string,
@@ -1734,7 +1775,7 @@ function addImportsToFile(
   }
 }
 
-function removeDeclaration(decl: ExportedDeclarations): void {
+function removeDeclaration(decl: import("ts-morph").Node): void {
   // For variable declarations, remove the whole statement
   const varDecl = decl.asKind(SyntaxKind.VariableDeclaration);
   if (varDecl) {

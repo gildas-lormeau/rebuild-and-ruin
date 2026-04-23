@@ -66,15 +66,15 @@ Best for: answering "if I delete this, who still calls it?" before running `remo
 
 ## Dead-code commands
 
-### `remove-export` — Delete an export + all import sites
+### `remove-export` — Delete a declaration + all import sites
 
-Removes a declaration and every `import { name }` specifier for it across the project. Errors out (listing referrers) if any non-import reference remains, so it's safe to run without a blast-radius survey first — the error is the survey.
+Removes a top-level declaration (function, const, type, interface, enum, class) — **exported or local** — and every `import { name }` specifier for it across the project. Errors out (listing referrers) if any non-import reference remains, so it's safe to run without a blast-radius survey first — the error is the survey.
 
 ```bash
 npm run refactor remove-export <file> <name> [--dry-run]
 ```
 
-Will not remove re-exports silently; points to the canonical source file if the target is itself a re-export. Use `list-callsites` first to see what references exist.
+Named `remove-export` for historical reasons; the command also cleans up local helpers that become unreferenced after `fold-constant` (a common follow-up pattern). Will not remove re-exports silently; points to the canonical source file if the target is itself a re-export. Use `list-callsites` first to see what references exist.
 
 ### `fold-constant` — Fold dead branches gated by a known-constant symbol
 
