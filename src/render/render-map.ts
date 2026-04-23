@@ -282,8 +282,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  snapshots cover the game area only, not the reserved strip. */
   const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
   /** Tracks which ImageData has been painted onto the banner temp canvas.
-   *  When the reference changes (new banner / chained banner), the new
-   *  ImageData is painted. */
+   *  When the reference changes (new banner, or the next banner in a
+   *  display sequence), the new ImageData is painted. */
   let bannerScenePainted: ImageData | undefined;
   /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
    *  Invalidated on any input ref change; held here so steady-state frames
@@ -462,7 +462,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const clipY = bannerBottomMap * SCALE;
     if (clipY >= displayH) return;
 
-    // Paint ImageData to temp canvas when it changes (new or chained banner).
+    // Paint ImageData to temp canvas when it changes (new banner, or the
+    // next banner in a display sequence).
     // The snapshot is display-sized; size the banner-temp canvas to match so
     // a 1:1 drawImage reproduces exactly the captured pixels.
     const { canvas: tmpCanvas, ctx: tmpCtx } = getBannerScene();

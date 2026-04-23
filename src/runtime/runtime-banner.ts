@@ -94,7 +94,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // checkpoint messages that can arrive during an earlier banner's sweep
     // (retransmits, host-migration recovery). Log so unusual cases surface,
     // then emit BANNER_REPLACED with both identities so consumers that
-    // care about the chain can trace it.
+    // care about the transition can trace it.
     const prev = runtimeState.banner;
     if (prev.status !== "hidden") {
       log(
@@ -126,7 +126,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
     // Restore Mode.TRANSITION so the banner tick runs — subsystem dialogs
     // (life-lost, upgrade-pick) leave mode on their terminal value when
-    // chaining into a banner. Banner visibility is tracked via `banner.status`.
+    // handing off to a banner. Banner visibility is tracked via `banner.status`.
     setMode(runtimeState, Mode.TRANSITION);
 
     const state = runtimeState.state;

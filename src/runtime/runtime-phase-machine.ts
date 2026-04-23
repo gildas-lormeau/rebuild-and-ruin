@@ -258,9 +258,9 @@ export interface PhaseTransitionCtx {
   readonly showBanner: BannerShow;
   /** Hide whatever banner is currently on screen. The display runner
    *  calls this between non-banner steps (so a held `swept` banner
-   *  doesn't sit over a dialog) and at the end of the chain (so
-   *  postDisplay hooks run against a clean screen). Banner steps never
-   *  need this — `showBanner` overwrites cleanly. */
+   *  doesn't sit over a dialog) and at the end of the display sequence
+   *  (so postDisplay hooks run against a clean screen). Banner steps
+   *  never need this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
   /** Pre-transition unzoom with post-convergence callback. Called once
    *  at the top of `runTransition` so every mutate + display step runs
@@ -898,7 +898,7 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // Mode.TRANSITION held for the entire chain; postDisplay flips to the terminal mode.
+  // Mode.TRANSITION held for the entire transition; postDisplay flips to the terminal mode.
   ctx.setMode(Mode.TRANSITION);
 
   ctx.requestUnzoom(() => {
@@ -940,9 +940,9 @@ function routeLifeLostResolution(
  *  Banner / upgrade-pick steps hand the capture decision to the banner
  *  system — it captures the current scene inside `showBanner`.
  *
- *  End-of-chain hide: a `swept` banner sits on screen until explicitly
+ *  End-of-sequence hide: a `swept` banner sits on screen until explicitly
  *  hidden, so we hide before handing control to postDisplay. Also emits
- *  the BANNER_HIDDEN beat that closes every banner chain. */
+ *  the BANNER_HIDDEN beat that closes every banner display sequence. */
 function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
@@ -1034,7 +1034,7 @@ function runStep(
 ): void {
   // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
   // on their terminal value when firing their completion callback; the
-  // chain's postDisplay sets the terminal mode after all steps finish.
+  // transition's postDisplay sets the terminal mode after all steps finish.
   switch (step.kind) {
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);
