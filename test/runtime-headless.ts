@@ -326,6 +326,9 @@ export async function createHeadlessRuntime(
     onlinePhaseTicks:
       onlinePhaseTicksOverride ?? (hostMode ? noopHostPhaseTicks() : undefined),
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
+    // Headless has no place to apply tilt — keeping it off also keeps
+    // `PITCH_SETTLED` bus events out of the determinism event log.
+    cameraTiltEnabled: false,
   });
   runtimeHolder.current = runtime;
 
@@ -342,10 +345,6 @@ export async function createHeadlessRuntime(
   runtime.runtimeState.settings.seed = String(seed);
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
   runtime.runtimeState.settings.gameMode = gameMode;
-  // Headless renders through the stub renderer; pin rendererKind to "2d" so
-  // the production default (now "3d") doesn't pull camera-pitch animations
-  // and PITCH_SETTLED bus events into the determinism event log.
-  runtime.runtimeState.settings.rendererKind = "2d";
   runtime.runtimeState.lobby.seed = seed;
   runtime.runtimeState.lobby.map = generateMap(seed);
 
@@ -522,13 +521,6 @@ function createStubRenderer(): RendererInterface {
       _now: number,
     ) => {},
     warmMapCache: (_map: GameMap) => {},
-    setLayersEnabled: (_layers: {
-      terrain?: boolean;
-      walls?: boolean;
-      towers?: boolean;
-      houses?: boolean;
-      debris?: boolean;
-    }) => {},
     captureScene: () => undefined,
     isCannonRotationEasing: () => false,
     clientToSurface: (clientX: number, clientY: number) => ({

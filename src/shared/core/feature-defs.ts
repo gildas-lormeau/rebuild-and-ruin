@@ -111,7 +111,7 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:lockoutOverlay": "src/runtime/runtime-render.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
     "checkpoint:buildStart": "src/online/online-checkpoints.ts",
-    "render:lockoutTimer": "src/render/render-effects.ts",
+    "render:lockoutTimer": "src/runtime/runtime-render.ts",
   },
   combos: {
     "gate:isCombosEnabled": "src/game/combo-system.ts",

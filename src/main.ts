@@ -3,14 +3,13 @@
  *
  * All game logic lives in runtime-composition.ts (shared with online-client.ts).
  * This file only provides the local-specific config: no networking, canvas
- * lobby with direct slot joining, and the loadAtlas entry point.
+ * lobby with direct slot joining.
  */
 
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
 } from "./online/online-router.ts";
-import { loadAtlas } from "./render/render-sprites.ts";
 import {
   createBrowserRuntimeBindings,
   createGameRuntime,
@@ -30,9 +29,6 @@ const { renderer, timing, keyboardEventSource } = createBrowserRuntimeBindings(
   canvas,
   worldCanvas,
 );
-const atlasReady = loadAtlas().catch((e) => {
-  console.warn("[local] sprite atlas failed to load:", e);
-});
 const runtime = createGameRuntime({
   renderer,
   timing,
@@ -75,13 +71,13 @@ const runtime = createGameRuntime({
   },
 });
 
-/** Enter the local lobby. Waits for sprite atlas on first call. */
+/** Enter the local lobby. */
 export function enterLocalLobby(): void {
   renderer.container.classList.add(GAME_CONTAINER_ACTIVE);
   // Fire-and-forget: music is optional and should never block the lobby
   // render. If assets aren't loaded or the synth fails, we play silently.
   void runtime.music.startTitle();
-  void atlasReady.then(() => showLobby());
+  showLobby();
 }
 
 /** Pre-warm both audio sub-systems (music WASM + SFX AudioContext). Must be

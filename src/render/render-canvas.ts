@@ -56,7 +56,6 @@ export function createCanvasRenderer(
   const renderMap = createRenderMap(deps);
   return {
     warmMapCache: renderMap.precomputeTerrainCache,
-    setLayersEnabled: renderMap.setLayersEnabled,
     drawFrame: (map, overlay, viewport, now) =>
       renderMap.drawMap(map, canvas, overlay, viewport, now),
     clientToSurface: (cx, cy) => clientToCanvas(cx, cy, canvas),

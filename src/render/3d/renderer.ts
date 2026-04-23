@@ -135,31 +135,6 @@ export function createRender3d(
     return loupeCompositeCanvas;
   }
 
-  // Phase 2: tell the 2D renderer to stop drawing the terrain layer. The 3D
-  // path renders terrain into `worldCanvas` beneath the UI canvas, and the
-  // UI canvas remains transparent in those regions (via the CSS rule that
-  // clears the UI canvas' background to transparent in 3D mode). Every other
-  // 2D layer (castles, entities, banners, UI) still renders normally — later
-  // phases flip more layers off.
-  canvas2d.setLayersEnabled({
-    terrain: false,
-    walls: false,
-    interiors: false,
-    towers: false,
-    houses: false,
-    debris: false,
-    cannons: false,
-    grunts: false,
-    cannonballs: false,
-    pits: false,
-    balloons: false,
-    impacts: false,
-    crosshairs: false,
-    fog: false,
-    thawingTiles: false,
-    phantoms: false,
-  });
-
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
@@ -246,7 +221,6 @@ export function createRender3d(
         );
       }
     },
-    setLayersEnabled: canvas2d.setLayersEnabled,
     // 2D `clientToSurface` returns raw backing-store canvas pixels.
     // In 3D mode the display canvas is TOP_MARGIN_CANVAS_PX taller
     // than the game area (reserved strip above row 0 — see

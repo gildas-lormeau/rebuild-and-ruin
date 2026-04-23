@@ -213,7 +213,7 @@ export const MODIFIER_CONSUMERS = {
   },
   fog_of_war: {
     impl: "src/game/modifiers/fog-of-war.ts",
-    render: "src/render/render-effects.ts",
+    render: "src/render/3d/effects/fog.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

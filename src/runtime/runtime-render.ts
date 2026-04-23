@@ -148,26 +148,14 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
     });
 
-    // Status bar (rendered inside canvas). Hidden in 3D mode today
-    // because drawStatusBar paints BELOW the game area — that would
-    // asymmetrically grow only the 2D canvas, breaking letterbox
-    // alignment with the symmetric WebGL canvas. The 3D equivalent is
-    // the top strip reserved at construction time by the 3D renderer
-    // (see `createCanvasRenderer({ reserveTopStrip: true })` in
-    // `src/render/3d/renderer.ts`) — ABOVE the game area, grows BOTH
-    // canvases symmetrically, applies to every overlay (lobby,
-    // options, controls, game) without per-frame plumbing.
-    if (runtimeState.overlay.ui) {
-      const is3d = runtimeState.settings.rendererKind === "3d";
-      runtimeState.overlay.ui.statusBar = is3d
-        ? undefined
-        : deps.createStatusBar(
-            view,
-            PLAYER_COLORS,
-            runtimeState.frameMeta.povPlayerId,
-            runtimeState.frameMeta.hasPointerPlayer,
-          );
-    }
+    // Status bar: disabled for now (display-layout issues under the 3D
+    // canvas). The `createStatusBar` dep + pipeline stay wired so this is
+    // a one-line re-enable once the layout is fixed:
+    //   runtimeState.overlay.ui.statusBar = deps.createStatusBar(
+    //     view, PLAYER_COLORS,
+    //     runtimeState.frameMeta.povPlayerId,
+    //     runtimeState.frameMeta.hasPointerPlayer,
+    //   );
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
     if (

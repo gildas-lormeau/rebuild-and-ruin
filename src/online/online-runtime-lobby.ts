@@ -5,7 +5,6 @@
  * `lobbyReady` — the single public API consumed by entry.ts.
  */
 
-import { loadAtlas } from "../render/render-sprites.ts";
 import {
   btnCreateConfirm,
   btnJoinConfirm,
@@ -51,9 +50,7 @@ const initDomLobby = () =>
     },
     isVisible: () => !pageOnline.hidden,
   });
-export const lobbyReady = loadAtlas()
-  .then(initDomLobby, initDomLobby)
-  .then((lobby) => {
-    pageOnline.setAttribute("data-ready", "1");
-    return lobby;
-  });
+export const lobbyReady = Promise.resolve(initDomLobby()).then((lobby) => {
+  pageOnline.setAttribute("data-ready", "1");
+  return lobby;
+});

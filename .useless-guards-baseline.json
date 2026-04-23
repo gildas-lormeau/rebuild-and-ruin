@@ -4,6 +4,5 @@
   "src/online/online-runtime-deps.ts:92:!expr",
   "src/online/online-runtime-promote.ts:55:!expr",
   "src/online/online-runtime-ws.ts:58:!expr",
-  "src/render/render-sprites.ts:611:??",
   "src/shared/platform/platform.ts:31:?."
 ]

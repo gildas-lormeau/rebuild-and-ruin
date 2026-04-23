@@ -84,13 +84,6 @@ export function createAsciiRenderer(): AsciiRendererInternal {
       frames.push(renderState());
     },
     warmMapCache(_map: GameMap) {},
-    setLayersEnabled(_layers: {
-      terrain?: boolean;
-      walls?: boolean;
-      towers?: boolean;
-      houses?: boolean;
-      debris?: boolean;
-    }) {},
     captureScene: () => undefined,
     isCannonRotationEasing: () => false,
     clientToSurface: (clientX: number, clientY: number) => ({

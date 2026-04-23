@@ -48,7 +48,6 @@ import {
   type ServerMessage,
 } from "../protocol/protocol.ts";
 import { createRender3d } from "../render/3d/renderer.ts";
-import { createCanvasRenderer } from "../render/render-canvas.ts";
 import {
   buildGameOverOverlay,
   computeLobbyLayout,
@@ -90,7 +89,6 @@ import type {
 } from "../shared/ui/overlay-types.ts";
 import {
   computeGameSeed,
-  loadSettings,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/ui/player-config.ts";
@@ -162,12 +160,8 @@ const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerSlot> = new Set();
  * via `test/runtime-headless.ts` and never call this.
  *
  * Lives in the composition root because it value-imports
- * `createCanvasRenderer` / `createRender3d` from `render/`, which
- * are type-only for other runtime files.
- *
- * `rendererKind` from persisted settings picks between the canvas 2D
- * renderer (default) and the three.js world renderer (Phase 0+ of the
- * 3D migration). See docs/3d-renderer-migration.md.
+ * `createRender3d` from `render/`, which is type-only for other
+ * runtime files.
  */
 export function createBrowserRuntimeBindings(
   uiCanvas: HTMLCanvasElement,
@@ -177,13 +171,8 @@ export function createBrowserRuntimeBindings(
   timing: TimingApi;
   keyboardEventSource: Document;
 } {
-  const settings = loadSettings();
-  const renderer =
-    settings.rendererKind === "3d"
-      ? createRender3d(worldCanvas, uiCanvas)
-      : createCanvasRenderer(uiCanvas);
   return {
-    renderer,
+    renderer: createRender3d(worldCanvas, uiCanvas),
     timing: createBrowserTimingApi(),
     keyboardEventSource: document,
   };
@@ -446,7 +435,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getState: () => safeState(runtimeState),
     getCtx: () => runtimeState.frameMeta,
     getFrameDt: () => runtimeState.frameDt,
-    getRendererKind: () => runtimeState.settings.rendererKind,
+    cameraTiltEnabled: config.cameraTiltEnabled ?? true,
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },

@@ -27,8 +27,6 @@ import type { PixelPos, TileBounds, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { isPlayerEliminated } from "./player-types.ts";
 
-/** 45° angle step (π/4 radians) — used for 8-direction snapping. */
-const FACING_45_STEP = Math.PI / 4;
 /** 90° angle step (π/2 radians) — used for 4-direction snapping. */
 export const FACING_90_STEP = Math.PI / 2;
 /** Cardinal directions: up, down, left, right. */
@@ -286,23 +284,6 @@ export function rotateToward(
         : raw;
   if (Math.abs(diff) <= maxStep) return target;
   return current + Math.sign(diff) * maxStep;
-}
-
-/** Map a facing angle (radians, 0=up) to the nearest 8-direction name. */
-export function facingToDir8(angle: number): string {
-  const a = toPositiveAngle(angle);
-  const DIRS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
-  const idx = Math.round(a / FACING_45_STEP) % 8;
-  return DIRS[idx]!;
-}
-
-/** Map a facing angle (radians, 0=up) to the nearest cardinal direction name. */
-export function facingToCardinal(angle: number): string {
-  const a = toPositiveAngle(angle);
-  if (a < FACING_45_STEP || a >= 7 * FACING_45_STEP) return "n";
-  if (a < 3 * FACING_45_STEP) return "e";
-  if (a < 5 * FACING_45_STEP) return "s";
-  return "w";
 }
 
 /** Find tower nearest to a world coordinate (tile-pixel space). */
@@ -695,11 +676,6 @@ export function packTile(r: number, c: number): number {
 /** True if tile is on the outer map border. */
 function isBoundaryTile(r: number, c: number): boolean {
   return r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1;
-}
-
-/** Normalize an angle (radians) to the range [0, 2π). */
-function toPositiveAngle(angle: number): number {
-  return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 }
 
 function nearestItemIndex<T extends TilePos>(

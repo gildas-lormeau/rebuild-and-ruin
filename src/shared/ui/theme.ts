@@ -44,13 +44,6 @@ export const FONT_FLOAT_XS = "bold 7px sans-serif";
 export const BANNER_HEIGHT_RATIO = 0.15;
 export const STATUSBAR_HEIGHT = 32;
 // In-world effect timings
-export const BONUS_FLASH_MS = 300;
-/** Fill colour for the flashing bonus-square disc (2D + 3D paths).
- *  Matches the original `bonus_square` sprite fill from
- *  generate-sprites.html — a dark saturated green. Alpha pulses on
- *  `BONUS_FLASH_MS` so it breathes against the checker grass. */
-export const BONUS_CIRCLE_COLOR: RGB = [35, 140, 25];
-export const TOWER_FLASH_MS = 120;
 // UI button/cursor flash
 export const BUTTON_FLASH_MS = 400;
 export const CURSOR_BLINK_MS = 500;

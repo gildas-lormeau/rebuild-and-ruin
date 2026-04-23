@@ -32,13 +32,6 @@ interface PlayerColor {
 
 export type SeedMode = "random" | "custom";
 
-/** World renderer backend. `"2d"` = the canvas 2D implementation that has
- *  shipped since day one; `"3d"` = the three.js implementation being rolled
- *  out in the 3D renderer migration (see docs/3d-renderer-migration.md).
- *  Default stays `"2d"` until Phase 9 — until then the toggle is dev-only
- *  and not exposed in the options screen. */
-export type RendererKind = "2d" | "3d";
-
 export interface GameSettings {
   difficulty: number;
   /** Index into ROUNDS_OPTIONS — not the round-count value itself. */
@@ -51,9 +44,6 @@ export interface GameSettings {
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
   gameMode: GameMode;
-  /** World renderer backend (see `RendererKind`). Persisted; dev-only
-   *  toggle via devtools until Phase 9 surfaces it in the options UI. */
-  rendererKind: RendererKind;
 }
 
 /** Index into ROUNDS_OPTIONS — index 2 is the 8-rounds option. */
@@ -142,7 +132,6 @@ const DEFAULT_SETTINGS: GameSettings = {
   keyBindings: [],
   leftHanded: false,
   gameMode: GAME_MODE_MODERN,
-  rendererKind: "3d",
 };
 export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
@@ -181,7 +170,6 @@ export function loadSettings(): GameSettings {
           saved.gameMode === GAME_MODE_CLASSIC
             ? GAME_MODE_CLASSIC
             : GAME_MODE_MODERN,
-        rendererKind: saved.rendererKind === "2d" ? "2d" : "3d",
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS

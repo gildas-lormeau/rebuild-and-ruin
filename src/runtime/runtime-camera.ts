@@ -45,7 +45,6 @@ import {
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import { type GameState } from "../shared/core/types.ts";
-import type { RendererKind } from "../shared/ui/player-config.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   cameraStateFromViewport,
@@ -62,7 +61,10 @@ interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;
   getFrameDt: () => number;
-  getRendererKind: () => RendererKind;
+  /** Whether camera pitch animations run. `false` in headless (no renderer
+   *  to apply tilt, and `PITCH_SETTLED` events would pollute determinism
+   *  fixtures); `true` in the browser, where the 3D renderer renders tilt. */
+  cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
 }
@@ -160,8 +162,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // Pitch animation — targetPitch is re-set on phase-enter (see
   // handlePhaseChangeZoom); currentPitch eases toward target each tick
-  // in tickCamera. Gated on rendererKind=3d — 2D mode has no place to
-  // apply tilt, so we keep both values at 0 there.
+  // in tickCamera. Gated on `cameraTiltEnabled` — headless has no place
+  // to apply tilt, so we keep both values at 0 there.
   // TODO(step-6): loupe (render-loupe.ts) and auto-zoom fit
   // (fitTileBoundsToViewport) are pitch-agnostic; under tilt the loupe
   // crop and zone fit are slightly off. Cosmetic at 30°; fix in step 6.
@@ -367,11 +369,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     tickPitch();
   }
 
-  /** Ease currentPitch toward targetPitch each frame. Hard-zero in 2D mode so
-   *  stale state from a previous 3D session can't leak into a 2D screen↔world
-   *  conversion. Emits `PITCH_SETTLED` on the frame the animation completes. */
+  /** Ease currentPitch toward targetPitch each frame. Hard-zero when tilt is
+   *  disabled (headless) so PITCH_SETTLED events don't pollute the determinism
+   *  event log. Emits `PITCH_SETTLED` on the frame the animation completes. */
   function tickPitch(): void {
-    if (deps.getRendererKind() !== "3d") {
+    if (!deps.cameraTiltEnabled) {
       currentPitch = 0;
       targetPitch = 0;
       pitchAnimFrom = 0;
@@ -782,12 +784,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setPitchTarget(TILT_BATTLE_PITCH);
   }
 
-  /** Current pitch state machine value. In 2D mode always `"flat"`
-   *  (pitch is hard-zeroed by `tickPitch`). Subscribers that need the
-   *  settle edge should listen for `GAME_EVENT.PITCH_SETTLED` instead
-   *  — this getter is for call sites that already poll per tick. */
+  /** Current pitch state machine value. When tilt is disabled (headless)
+   *  always `"flat"` — pitch is hard-zeroed by `tickPitch`. Subscribers
+   *  that need the settle edge should listen for `GAME_EVENT.PITCH_SETTLED`
+   *  instead — this getter is for call sites that already poll per tick. */
   function getPitchState(): PitchState {
-    if (deps.getRendererKind() !== "3d") return "flat";
+    if (!deps.cameraTiltEnabled) return "flat";
     return pitchState;
   }
 

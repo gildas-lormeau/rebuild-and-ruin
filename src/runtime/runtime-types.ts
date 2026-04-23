@@ -322,6 +322,11 @@ export interface RuntimeConfig {
     music?: MusicObserver;
     sfx?: SfxObserver;
   };
+
+  /** Enables the camera pitch animation for battle tilt. Defaults to `true`
+   *  in the browser; headless tests pass `false` so `PITCH_SETTLED` events
+   *  stay out of the determinism event log. */
+  cameraTiltEnabled?: boolean;
 }
 
 export interface CameraSystem {
