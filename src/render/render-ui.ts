@@ -5,6 +5,7 @@ import {
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import {
   FOCUS_MENU,
@@ -18,6 +19,7 @@ import {
   type RenderOverlay,
   type UpgradePickCard,
 } from "../shared/ui/overlay-types.ts";
+import { getPlayerColor } from "../shared/ui/player-config.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
@@ -61,6 +63,7 @@ import {
   TEXT_ALIGN_RIGHT,
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
+  TOWER_FLASH_MS,
 } from "../shared/ui/theme.ts";
 import {
   computeLobbyLayout,
@@ -186,6 +189,38 @@ export function drawPhaseTimer(
     drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
   }
   overlayCtx.restore();
+}
+
+/** Draw the corner-bracket selection cursor(s) around towers during
+ *  CASTLE_SELECT / CASTLE_RESELECT. Rendered on the 2D overlay regardless
+ *  of whether the 3D renderer is drawing live tower meshes — castle
+ *  selection is a top-down phase, so the 2D bracket aligns perfectly on
+ *  top of the 3D towers. */
+export function drawSelectionCursor(
+  overlayCtx: CanvasRenderingContext2D,
+  map: GameMap,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  if (!overlay?.selection) return;
+  const highlighted = overlay.selection.highlighted;
+  const highlights = overlay.selection.highlights;
+  if (highlighted == null && (!highlights || highlights.length === 0)) return;
+  for (let i = 0; i < map.towers.length; i++) {
+    const tower = map.towers[i]!;
+    const { x: cx, y: cy } = towerCenterPx(tower);
+    if (highlighted === i) {
+      drawTowerHighlight(overlayCtx, cx, cy, undefined, now);
+    }
+    if (highlights) {
+      for (const highlight of highlights) {
+        if (highlight.towerIdx === i) {
+          const c = getPlayerColor(highlight.playerId).interiorLight;
+          drawTowerHighlight(overlayCtx, cx, cy, rgb(c), now);
+        }
+      }
+    }
+  }
 }
 
 export function drawAnnouncement(
@@ -713,6 +748,50 @@ export function drawPlayerSelect(
   overlayCtx.font = FONT_HINT;
   overlayCtx.fillStyle = TEXT_DIM;
   overlayCtx.fillText("F1", W - 30, 18);
+}
+
+/** Draw a corner-bracket selector around a tower position. */
+function drawTowerHighlight(
+  overlayCtx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  color: string | undefined,
+  now: number,
+): void {
+  const margin = 4 + TILE_SIZE / 2;
+  const bx = cx - 15 - margin;
+  const by = cy - 16 - margin;
+  const w = 30 + margin * 2;
+  const h = 32 + margin * 2;
+  const corner = 10;
+  const thickness = 4;
+  const flash = 0.7 + 0.3 * Math.sin(now / TOWER_FLASH_MS);
+  overlayCtx.save();
+  overlayCtx.globalAlpha = flash;
+  overlayCtx.fillStyle = color ?? "#ffcc00";
+  // Top-left
+  overlayCtx.fillRect(bx, by, corner, thickness);
+  overlayCtx.fillRect(bx, by + thickness, thickness, corner - thickness);
+  // Top-right
+  overlayCtx.fillRect(bx + w - corner, by, corner, thickness);
+  overlayCtx.fillRect(
+    bx + w - thickness,
+    by + thickness,
+    thickness,
+    corner - thickness,
+  );
+  // Bottom-left
+  overlayCtx.fillRect(bx, by + h - thickness, corner, thickness);
+  overlayCtx.fillRect(bx, by + h - corner, thickness, corner - thickness);
+  // Bottom-right
+  overlayCtx.fillRect(bx + w - corner, by + h - thickness, corner, thickness);
+  overlayCtx.fillRect(
+    bx + w - thickness,
+    by + h - corner,
+    thickness,
+    corner - thickness,
+  );
+  overlayCtx.restore();
 }
 
 /** Draw the game-over panel background, winner heading and separator line. */

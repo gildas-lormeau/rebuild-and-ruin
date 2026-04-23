@@ -47,6 +47,7 @@ import {
   drawPhaseTimer,
   drawPlayerSelect,
   drawScoreDeltas,
+  drawSelectionCursor,
   drawStatusBar,
   drawUpgradePick,
 } from "./render-ui.ts";
@@ -567,6 +568,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // these and this flag is flipped off so the 2D canvas leaves those
     // regions transparent; castles/entities/UI still render on 2D.
     drawPhaseTimer(overlayCtx, map, overlay, now);
+    drawSelectionCursor(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
     drawModifierRevealHighlight(overlayCtx, H, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);

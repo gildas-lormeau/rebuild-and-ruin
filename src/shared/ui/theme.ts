@@ -48,6 +48,8 @@ export const STATUSBAR_HEIGHT = 32;
 export const BUTTON_FLASH_MS = 400;
 export const CURSOR_BLINK_MS = 500;
 export const REBIND_FLASH_MS = 350;
+// Tower selection-bracket flash cycle (ms per half-cycle of sin pulse).
+export const TOWER_FLASH_MS = 120;
 // Life-lost dialog panel (used by both drawing and hit-testing)
 export const LIFE_LOST_PANEL_W = IS_TOUCH_DEVICE ? 170 : 130;
 export const LIFE_LOST_PANEL_H = IS_TOUCH_DEVICE ? 110 : 90;
