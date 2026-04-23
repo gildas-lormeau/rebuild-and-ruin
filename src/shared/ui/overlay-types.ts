@@ -370,6 +370,22 @@ export interface RendererInterface {
   /** Capture the current offscreen scene as ImageData for banner prev-scene.
    *  Returns undefined when the scene canvas hasn't been initialized. */
   captureScene(): ImageData | undefined;
+  /** Flash-free post-mutation capture for the banner's new-scene (B) snapshot.
+   *  Runs the full render pipeline against offscreen targets only — the
+   *  visible canvas is NEVER written, so the user never sees the
+   *  post-mutation scene before the banner's progressive reveal reaches it.
+   *  3D mode renders the WebGL scene into an FBO and reads it back via
+   *  `readRenderTargetPixels` (skipping the fullscreen-quad blit to the
+   *  default framebuffer); 2D mode draws into a hidden sibling canvas.
+   *  Returns undefined when no scene has been rendered yet (pre-first-frame
+   *  or in headless stubs). */
+  captureSceneOffscreen(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+    pitch?: number,
+  ): ImageData | undefined;
   /** True when the renderer is currently animating a cannon-facing ease
    *  (e.g. the post-battle rotation back to `defaultFacing`). The runtime
    *  polls this to gate the battle-end transition on the ease completing

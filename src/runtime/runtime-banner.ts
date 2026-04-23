@@ -55,17 +55,18 @@ interface BannerSystemDeps {
    *  headless tests on the mock clock observe the same timing as
    *  production. */
   readonly timing: TimingApi;
-  /** Renderer scene capture — returns the current display pixels or
-   *  `undefined` in headless / pre-first-frame. Called internally from
-   *  `showBanner` twice: once before `forceRender` to capture the old
-   *  scene (A), once after to capture the new scene (B). */
+  /** Renderer A-snapshot — returns the current display pixels (the
+   *  pre-mutation scene) or `undefined` in headless / pre-first-frame.
+   *  Called inside `showBanner` once before the state mutation is
+   *  observed, so the A-snapshot reflects what's on screen. */
   readonly rendererCaptureScene: () => ImageData | undefined;
-  /** Force one synchronous `render()`. Called inside `showBanner`
-   *  between the A and B captures so B reflects any post-mutation state
-   *  queued by callers (the phase machine) before showBanner ran. In
-   *  practice this is the same closure as `render`, but named
-   *  separately so the intent at the call site is explicit. */
-  readonly forceRender: () => void;
+  /** Flash-free B-snapshot — rebuilds the overlay from post-mutation
+   *  state and renders the full pipeline into offscreen-only targets
+   *  (FBO readback in 3D, hidden sibling canvas in 2D). The visible
+   *  canvas is NEVER written, so the user never sees the new scene
+   *  before the banner's progressive reveal reaches it. Returns
+   *  `undefined` in headless / pre-first-frame. */
+  readonly captureSceneOffscreen: () => ImageData | undefined;
 }
 
 interface BannerSystem {
@@ -86,7 +87,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     render,
     timing,
     rendererCaptureScene,
-    forceRender,
+    captureSceneOffscreen,
   } = deps;
 
   function clearHoldTimer(banner: ActiveBannerState): void {
@@ -106,17 +107,20 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     //     flushed post-mutation pixels). For subsequent banners in the
     //     same transition it is whatever the previous banner's `B`
     //     painted to screen.
-    //   - `newScene` (B) = post-`forceRender` scene. Callers may have
-    //     mutated state between `showBanner` calls without rendering;
-    //     the forced render here flushes any pending mutation so B
-    //     reflects it.
+    //   - `newScene` (B) = post-mutation scene, rendered offscreen.
+    //     Callers may have mutated state between `showBanner` calls
+    //     without rendering; `captureSceneOffscreen` rebuilds the
+    //     overlay from current state and renders the full pipeline into
+    //     offscreen-only targets so B reflects the mutation WITHOUT
+    //     painting the visible canvas. This avoids a visible flash of
+    //     the post-mutation scene before the banner's progressive
+    //     reveal begins.
     // Both snapshots are frozen for the duration of the sweep — the
     // renderer paints them on either side of the sweep line and does
     // not repaint world contents.
     const prevImage = rendererCaptureScene();
     const prevScene = prevImage ? { image: prevImage } : undefined;
-    forceRender();
-    const newImage = rendererCaptureScene();
+    const newImage = captureSceneOffscreen();
     const newScene = newImage ? { image: newImage } : undefined;
 
     // Overwrite on re-entry. Watchers legitimately replay banners from

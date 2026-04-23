@@ -51,6 +51,19 @@ interface RenderSystemDeps {
      *  The 2D renderer ignores this flag (it has no 3D to skip). */
     skip3DScene?: boolean,
   ) => void;
+  /** Flash-free alternative to `drawFrame` used by the banner system to
+   *  capture the post-mutation scene for the B-snapshot. Runs the full
+   *  render pipeline against offscreen targets only (FBO readback in 3D,
+   *  hidden sibling canvas in 2D) and returns the resulting game-area
+   *  ImageData. The visible canvas is NEVER written. Returns undefined
+   *  when no scene has been rendered yet (pre-first-frame or headless
+   *  stub). */
+  readonly captureSceneOffscreen: (
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+  ) => ImageData | undefined;
   /** Post-drawFrame hook — invoked once per tick after the scene has
    *  been blitted to the display canvas. Used by the camera to fire
    *  any pending `requestUnzoom` callback on the frame where the
@@ -87,36 +100,28 @@ interface RenderSystemDeps {
   readonly updateTouchControls: (deps: TouchControlsDeps) => void;
 }
 
-export function createRenderSystem(deps: RenderSystemDeps): () => void {
+interface RenderSystem {
+  /** Standard per-tick render: build overlay, draw to visible canvas, update touch controls. */
+  render: () => void;
+  /** Flash-free offscreen capture for banner B-snapshot. Rebuilds the overlay
+   *  against the current post-mutation state and renders into offscreen-only
+   *  targets (the visible canvas is never written). Returns undefined when
+   *  no scene has been rendered yet. Does NOT invoke touch-controls updates
+   *  or the `onRenderedFrame` hook — those belong to the live frame loop,
+   *  not to a capture. */
+  captureSceneOffscreen: () => ImageData | undefined;
+}
+
+export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   const { runtimeState } = deps;
 
-  return function render() {
-    if (!isStateReady(runtimeState)) return;
-
-    // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
-    const chList = runtimeState.frame.crosshairs;
-    const selH = runtimeState.overlay.selection?.highlights;
-    deps.logThrottled(
-      "render-summary",
-      deps.createRenderSummaryMessage({
-        phaseName: Phase[runtimeState.state.phase],
-        timer: runtimeState.state.timer,
-        crosshairs: chList,
-        piecePhantomsCount:
-          runtimeState.frame.phantoms?.piecePhantoms?.length ?? 0,
-        cannonPhantomsCount:
-          runtimeState.frame.phantoms?.cannonPhantoms?.length ?? 0,
-        impactsCount: runtimeState.battleAnim.impacts.length,
-        cannonballsCount: runtimeState.state.cannonballs.length,
-        selectionHighlights: selH,
-      }),
-    );
-
-    // Refresh crosshairs from controller state when paused
-    if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
-      deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0, 0);
-    }
-
+  // Rebuilds `runtimeState.overlay` from current state. Shared by the live
+  // `render` path and the banner-capture path so both see the same projection
+  // of post-mutation state — the banner system mutates state then calls
+  // `captureSceneOffscreen` to freeze the result as a snapshot, so the
+  // overlay rebuild MUST run there too (otherwise the capture would render
+  // against the previous tick's stale overlay).
+  function refreshOverlay(): void {
     const banner = runtimeState.banner;
     const bannerUi =
       banner.status === "hidden"
@@ -162,13 +167,43 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDisplay.deltas;
       runtimeState.overlay.ui.scoreDeltaProgress = deps.scoreDeltaProgress();
     }
+  }
+
+  function render(): void {
+    if (!isStateReady(runtimeState)) return;
+
+    // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
+    const chList = runtimeState.frame.crosshairs;
+    const selH = runtimeState.overlay.selection?.highlights;
+    deps.logThrottled(
+      "render-summary",
+      deps.createRenderSummaryMessage({
+        phaseName: Phase[runtimeState.state.phase],
+        timer: runtimeState.state.timer,
+        crosshairs: chList,
+        piecePhantomsCount:
+          runtimeState.frame.phantoms?.piecePhantoms?.length ?? 0,
+        cannonPhantomsCount:
+          runtimeState.frame.phantoms?.cannonPhantoms?.length ?? 0,
+        impactsCount: runtimeState.battleAnim.impacts.length,
+        cannonballsCount: runtimeState.state.cannonballs.length,
+        selectionHighlights: selH,
+      }),
+    );
+
+    // Refresh crosshairs from controller state when paused
+    if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
+      deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0, 0);
+    }
+
+    refreshOverlay();
 
     deps.drawFrame(
       runtimeState.state.map,
       runtimeState.overlay,
       deps.updateViewport(),
       deps.timing.now(),
-      banner.status !== "hidden",
+      runtimeState.banner.status !== "hidden",
     );
     deps.onRenderedFrame();
 
@@ -194,5 +229,21 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       screenToContainerCSS: deps.screenToContainerCSS,
       containerHeight: deps.getContainerHeight(),
     });
-  };
+  }
+
+  function captureSceneOffscreen(): ImageData | undefined {
+    if (!isStateReady(runtimeState)) return undefined;
+    // Rebuild overlay so the capture reflects the post-mutation state —
+    // callers (banner system) typically mutate state between the A and B
+    // captures without running a live `render()` in between.
+    refreshOverlay();
+    return deps.captureSceneOffscreen(
+      runtimeState.state.map,
+      runtimeState.overlay,
+      deps.updateViewport(),
+      deps.timing.now(),
+    );
+  }
+
+  return { render, captureSceneOffscreen };
 }

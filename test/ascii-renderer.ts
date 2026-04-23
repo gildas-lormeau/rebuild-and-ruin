@@ -85,6 +85,7 @@ export function createAsciiRenderer(): AsciiRendererInternal {
     },
     warmMapCache(_map: GameMap) {},
     captureScene: () => undefined,
+    captureSceneOffscreen: () => undefined,
     isCannonRotationEasing: () => false,
     clientToSurface: (clientX: number, clientY: number) => ({
       x: clientX,

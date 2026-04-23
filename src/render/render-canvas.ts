@@ -78,6 +78,8 @@ export function createCanvasRenderer(
       };
     },
     captureScene: () => renderMap.captureScene(),
+    captureSceneOffscreen: (map, overlay, viewport, now) =>
+      renderMap.captureSceneOffscreen(map, overlay, viewport, now),
     // 2D path snaps cannon facings to the nearest 45° bucket — no ease
     // runs here, so the predicate is always false.
     isCannonRotationEasing: () => false,

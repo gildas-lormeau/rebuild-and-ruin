@@ -505,7 +505,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       render: () => render(),
       timing,
       rendererCaptureScene: () => renderer.captureScene(),
-      forceRender: () => render(),
+      captureSceneOffscreen: () => captureSceneOffscreen(),
     });
 
   // -------------------------------------------------------------------------
@@ -546,7 +546,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Render sub-system (delegated to runtime-render.ts)
   // -------------------------------------------------------------------------
 
-  const render = createRenderSystem({
+  const { render, captureSceneOffscreen } = createRenderSystem({
     runtimeState,
     timing,
     createBannerUi,
@@ -560,6 +560,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         now,
         camera.getPitch(),
         skip3DScene,
+      ),
+    captureSceneOffscreen: (map, overlay, viewport, now) =>
+      renderer.captureSceneOffscreen(
+        map,
+        overlay,
+        viewport,
+        now,
+        camera.getPitch(),
       ),
     onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,

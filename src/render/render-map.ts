@@ -177,6 +177,18 @@ interface RenderMap {
   /** Capture the current offscreen scene as ImageData (for banner prev-scene).
    *  Returns undefined if the scene canvas hasn't been initialized yet. */
   captureScene: () => ImageData | undefined;
+  /** Flash-free post-mutation capture for banner B-snapshot. Runs the full
+   *  2D draw pipeline into a hidden offscreen display-sized canvas (never the
+   *  visible one) and returns the resulting game-area ImageData. The visible
+   *  canvas is untouched — the user never sees the new scene before the
+   *  banner's progressive reveal reaches it. Returns undefined if the scene
+   *  hasn't been initialized yet (pre-first-frame). */
+  captureSceneOffscreen: (
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+  ) => ImageData | undefined;
 }
 
 // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
@@ -268,8 +280,25 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   let scene: OffscreenPair | undefined;
   let bannerScene: OffscreenPair | undefined;
   let bannerNewScene: OffscreenPair | undefined;
-  // Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile.
-  let mainCtxCache:
+  // Offscreen display-sized canvas for flash-free banner B-snapshot capture.
+  // `drawFrame` paints into this instead of the visible canvas when the banner
+  // system wants a post-mutation snapshot — the visible canvas stays
+  // untouched so the user never sees the new scene before the banner's
+  // progressive reveal reaches it. Sized on demand to match the visible
+  // canvas dimensions (CANVAS_W × TOP_STRIP_H + CANVAS_H + STATUS_BAR_H).
+  let offscreenDisplay: OffscreenPair | undefined;
+  // Cached context for the visible canvas — avoids per-frame getContext
+  // overhead on Chrome mobile, and captureScene reads pixels back from it.
+  let visibleCtxCache:
+    | {
+        canvas: HTMLCanvasElement;
+        canvasCtx: CanvasRenderingContext2D;
+      }
+    | undefined;
+  // Cached context for the offscreen display canvas. Kept separate from
+  // `visibleCtxCache` so the two don't thrash each other when banner capture
+  // interleaves with the live render loop.
+  let offscreenCtxCache:
     | {
         canvas: HTMLCanvasElement;
         canvasCtx: CanvasRenderingContext2D;
@@ -359,14 +388,38 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-    if (mainCtxCache?.canvas === canvas) return mainCtxCache.canvasCtx;
+    // The offscreen-display canvas has its own cache slot so capture-path
+    // draws don't evict the visible canvas's cached context (and vice-versa).
+    if (offscreenCtxCache?.canvas === canvas)
+      return offscreenCtxCache.canvasCtx;
+    if (visibleCtxCache?.canvas === canvas) return visibleCtxCache.canvasCtx;
     // `alpha: true` (the default) so in 3D mode the regions where we skip
     // the terrain layer remain transparent, letting the WebGL canvas below
     // show through. 2D mode is unaffected because the terrain layer paints
     // every pixel each frame, so no background shows through.
     const canvasCtx = canvas.getContext("2d")!;
-    mainCtxCache = { canvas, canvasCtx };
+    if (offscreenDisplay?.canvas === canvas) {
+      offscreenCtxCache = { canvas, canvasCtx };
+    } else {
+      visibleCtxCache = { canvas, canvasCtx };
+    }
     return canvasCtx;
+  }
+
+  function getOffscreenDisplay(): OffscreenPair {
+    if (!offscreenDisplay) {
+      const canvas = createOffscreenCanvas();
+      // `willReadFrequently: true` because the capture path immediately
+      // calls `getImageData` on this context after each draw. Matches the
+      // default 2D `captureScene` path that reads back from the visible
+      // canvas.
+      const canvasCtx = canvas.getContext("2d", {
+        willReadFrequently: true,
+      })!;
+      offscreenDisplay = { canvas, ctx: canvasCtx };
+      offscreenCtxCache = { canvas, canvasCtx };
+    }
+    return offscreenDisplay;
   }
 
   function getScene(): OffscreenPair {
@@ -707,12 +760,34 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  Returns undefined if `drawFrame` hasn't run yet (no cached display
    *  canvas) or the canvas is smaller than the expected game region. */
   function captureScene(): ImageData | undefined {
-    if (!mainCtxCache) return undefined;
-    const { canvas, canvasCtx } = mainCtxCache;
+    if (!visibleCtxCache) return undefined;
+    const { canvas, canvasCtx } = visibleCtxCache;
     if (canvas.height < topStripH + CANVAS_H || canvas.width < CANVAS_W) {
       return undefined;
     }
     return canvasCtx.getImageData(0, topStripH, CANVAS_W, CANVAS_H);
+  }
+
+  function captureSceneOffscreen(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+  ): ImageData | undefined {
+    // Bail out if the visible canvas hasn't rendered yet — before the
+    // first frame the scene/terrain caches aren't warm and the banner
+    // system has nothing to composite against anyway. Matches the
+    // `captureScene` contract (undefined = "no scene yet").
+    if (!visibleCtxCache) return undefined;
+    const { canvas: offCanvas, ctx: offCtx } = getOffscreenDisplay();
+    // Draw the full 2D frame into the hidden canvas. `drawMap` sizes its
+    // target canvas on first use (cw × ch) so the hidden canvas picks up
+    // the correct dimensions here — same as the visible canvas.
+    drawMap(map, offCanvas, overlay, viewport, now);
+    if (offCanvas.height < topStripH + CANVAS_H || offCanvas.width < CANVAS_W) {
+      return undefined;
+    }
+    return offCtx.getImageData(0, topStripH, CANVAS_W, CANVAS_H);
   }
 
   function getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData {
@@ -800,6 +875,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     getSinkholeOverlayBitmap,
     sceneCanvas,
     captureScene,
+    captureSceneOffscreen,
   };
 }
 

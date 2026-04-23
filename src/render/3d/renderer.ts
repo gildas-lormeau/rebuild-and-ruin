@@ -11,7 +11,7 @@
  * renderer only draws UI.
  */
 
-import type { Viewport } from "../../shared/core/geometry-types.ts";
+import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -21,7 +21,10 @@ import {
   TOP_MARGIN_CANVAS_PX,
   TOP_MARGIN_MAP_PX,
 } from "../../shared/core/grid.ts";
-import type { RendererInterface } from "../../shared/ui/overlay-types.ts";
+import type {
+  RendererInterface,
+  RenderOverlay,
+} from "../../shared/ui/overlay-types.ts";
 import { createCanvasRenderer } from "../render-canvas.ts";
 import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
@@ -135,6 +138,114 @@ export function createRender3d(
     return loupeCompositeCanvas;
   }
 
+  // Scratch buffer + canvas for the 3D offscreen-capture path. Reused
+  // across banner transitions. The buffer is sized to the FBO's backing-
+  // store resolution (world canvas width × height); the bridge canvas
+  // hosts the buffer as ImageData so it can be drawn into the compositor.
+  let captureWorldPixels: Uint8Array | undefined;
+  let captureWorldImageData: ImageData | undefined;
+  let captureWorldBridgeCanvas: HTMLCanvasElement | undefined;
+  let captureWorldBridgeCtx: CanvasRenderingContext2D | undefined;
+
+  // Separate composite scratch canvas for the offscreen path so it doesn't
+  // share state with the visible-canvas `captureScene` path (which may run
+  // on the same tick for the A-snapshot).
+  let offscreenCompositeCanvas: HTMLCanvasElement | undefined;
+  let offscreenCompositeCtx: CanvasRenderingContext2D | undefined;
+
+  // Composite a 2D UI snapshot (ImageData) on top of a composite canvas
+  // scaled to fill (targetW × targetH). Bridges through the shared
+  // `captureBridgeCanvas` because `putImageData` ignores the context
+  // transform — the bridge lets us subsequently `drawImage` at any scale.
+  // Shared by the visible-canvas capture path (`captureScene`) and the
+  // offscreen-capture path (`captureSceneOffscreen`) so both composite
+  // the 2D UI identically.
+  function compositeUiSnapshot(
+    destCtx: CanvasRenderingContext2D,
+    uiSnapshot: ImageData,
+    targetW: number,
+    targetH: number,
+  ): void {
+    if (!captureBridgeCanvas || !captureBridgeCtx) {
+      captureBridgeCanvas = document.createElement("canvas");
+      captureBridgeCtx = captureBridgeCanvas.getContext("2d", {
+        willReadFrequently: true,
+      })!;
+    }
+    if (
+      captureBridgeCanvas.width < uiSnapshot.width ||
+      captureBridgeCanvas.height < uiSnapshot.height
+    ) {
+      captureBridgeCanvas.width = Math.max(
+        captureBridgeCanvas.width,
+        uiSnapshot.width,
+      );
+      captureBridgeCanvas.height = Math.max(
+        captureBridgeCanvas.height,
+        uiSnapshot.height,
+      );
+      captureBridgeCtx.imageSmoothingEnabled = false;
+    }
+    captureBridgeCtx.putImageData(uiSnapshot, 0, 0);
+    destCtx.drawImage(
+      captureBridgeCanvas,
+      0,
+      0,
+      uiSnapshot.width,
+      uiSnapshot.height,
+      0,
+      0,
+      targetW,
+      targetH,
+    );
+  }
+
+  // Runs the per-frame scene-graph updates + camera setup and renders into
+  // the capture FBO. Shared by `drawFrame` (paired with a blit to the
+  // default framebuffer so the user sees the result) and `captureSceneOffscreen`
+  // (paired with a readback so the pixels go straight to CPU without
+  // touching the visible canvas). The function never writes to the
+  // default framebuffer itself — callers do that (or deliberately skip it).
+  function renderSceneToFBO(
+    map: GameMap,
+    overlay: RenderOverlay | undefined,
+    viewport: Viewport | null | undefined,
+    now: number,
+    pitch: number,
+  ): void {
+    ctx.terrain.ensureBuilt(map);
+    const frame: FrameCtx = { overlay, map, now };
+    ctx.terrain.update(frame);
+    ctx.walls.update(frame);
+    ctx.towers.update(frame);
+    ctx.towerLabels.update(frame);
+    ctx.houses.update(frame);
+    ctx.debris.update(frame);
+    ctx.cannons.update(frame);
+    ctx.grunts.update(frame);
+    ctx.cannonballs.update(frame);
+    ctx.pits.update(frame);
+    ctx.balloons.update(frame);
+    ctx.phantoms.update(frame);
+    ctx.impacts.update(frame);
+    ctx.wallBurns.update(frame);
+    ctx.crosshairs.update(frame);
+    ctx.fog.update(frame);
+    ctx.thawing.update(frame);
+    ctx.terrainBitmap.update(frame);
+    ctx.sinkholeOverlay.update(frame);
+    ctx.bonusSquares.update(frame);
+    ctx.waterWaves.update(frame);
+    updateCameraFromViewport(ctx.camera, viewport, pitch);
+    lastViewport = viewport ?? undefined;
+    lastPitch = pitch;
+    ctx.renderer.setRenderTarget(ctx.captureTarget);
+    ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
+    ctx.renderer.clear();
+    ctx.renderer.render(ctx.scene, ctx.camera);
+    ctx.renderer.setRenderTarget(null);
+  }
+
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
@@ -165,42 +276,6 @@ export function createRender3d(
       // 2D `canvas2d.drawFrame` call below MUST still run to draw the
       // banner sweep animation.
       if (!skip3DScene) {
-        ctx.terrain.ensureBuilt(map);
-        // Build the per-frame context once and hand the same object to
-        // every manager — each one unpacks only the fields it needs. The
-        // lifecycle call `terrain.ensureBuilt(map)` stays outside this
-        // contract because it's not a per-frame update.
-        const frame: FrameCtx = { overlay, map, now };
-        ctx.terrain.update(frame);
-        ctx.walls.update(frame);
-        ctx.towers.update(frame);
-        ctx.towerLabels.update(frame);
-        ctx.houses.update(frame);
-        ctx.debris.update(frame);
-        ctx.cannons.update(frame);
-        ctx.grunts.update(frame);
-        ctx.cannonballs.update(frame);
-        ctx.pits.update(frame);
-        ctx.balloons.update(frame);
-        ctx.phantoms.update(frame);
-        ctx.impacts.update(frame);
-        ctx.wallBurns.update(frame);
-        ctx.crosshairs.update(frame);
-        ctx.fog.update(frame);
-        ctx.thawing.update(frame);
-        ctx.terrainBitmap.update(frame);
-        ctx.sinkholeOverlay.update(frame);
-        ctx.bonusSquares.update(frame);
-        ctx.waterWaves.update(frame);
-        // Camera: ortho view driven by the runtime viewport, tilted by
-        // `pitch` (radians, X-axis tilt). Runtime-camera animates pitch
-        // toward a phase-specific target so battle renders with a
-        // classic Rampart 3/4 view. The 2D overlay is still drawn
-        // straight-down — it only carries UI + still-2D layers that
-        // are unaffected by tilt.
-        updateCameraFromViewport(ctx.camera, viewport, pitch);
-        lastViewport = viewport ?? undefined;
-        lastPitch = pitch;
         // Render the scene once into the capture FBO (readable outside
         // the rAF tick by `captureScene`), then blit that FBO's texture
         // to the default framebuffer via a fullscreen quad. The blit is
@@ -216,11 +291,7 @@ export function createRender3d(
         // stripWorld`) is simply out of frustum and leaves the top rows
         // at the clear color; tall walls at row 0 project *into* the
         // strip under tilt, which is the whole purpose of the strip.
-        ctx.renderer.setRenderTarget(ctx.captureTarget);
-        ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
-        ctx.renderer.clear();
-        ctx.renderer.render(ctx.scene, ctx.camera);
-        ctx.renderer.setRenderTarget(null);
+        renderSceneToFBO(map, overlay, viewport, now, pitch);
         ctx.renderer.clear();
         ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
       }
@@ -312,43 +383,146 @@ export function createRender3d(
         targetW,
         targetH,
       );
-      // 2. Paint the 2D display canvas on top. The 2D path returns a
-      //    CANVAS_W × CANVAS_H ImageData of the display's game region —
-      //    putImageData ignores context transforms, so bridge through an
-      //    intermediate canvas.
-      if (!captureBridgeCanvas || !captureBridgeCtx) {
-        captureBridgeCanvas = document.createElement("canvas");
-        captureBridgeCtx = captureBridgeCanvas.getContext("2d", {
+      // 2. Paint the 2D display canvas on top.
+      compositeUiSnapshot(captureCompositeCtx, uiSnapshot, targetW, targetH);
+      return captureCompositeCtx.getImageData(0, 0, targetW, targetH);
+    },
+    // Flash-free B-snapshot capture for banners. Runs the full render
+    // pipeline (entity updates + WebGL scene render + 2D UI draw) against
+    // offscreen-only targets: the WebGL scene renders into the capture
+    // FBO and is read back via `readRenderTargetPixels` (we skip the
+    // fullscreen-quad blit that would otherwise paint the visible canvas),
+    // and the 2D UI paints into a hidden sibling canvas via the 2D
+    // renderer's `captureSceneOffscreen`. Both are composited into a
+    // display-sized ImageData and returned. The visible WebGL canvas and
+    // the visible 2D canvas are both untouched — the user never sees the
+    // post-mutation scene before the banner's progressive reveal reaches
+    // it. Returns undefined when the 2D path hasn't rendered a frame yet
+    // (matches the `captureScene` contract).
+    captureSceneOffscreen: (map, overlay, viewport, now, pitch = 0) => {
+      const uiSnapshot = canvas2d.captureSceneOffscreen(
+        map,
+        overlay,
+        viewport,
+        now,
+      );
+      if (!uiSnapshot) return undefined;
+      // Render the 3D scene into the capture FBO — same setup as
+      // `drawFrame`'s 3D branch, but without the subsequent blit to the
+      // default framebuffer. The FBO holds premultiplied-alpha pixels;
+      // `readRenderTargetPixels` delivers them unchanged, and we paint
+      // them through an ImageData bridge below (browsers interpret
+      // ImageData as straight alpha, so premultiplication must be
+      // undone — see the per-pixel unpremultiply loop).
+      renderSceneToFBO(map, overlay, viewport, now, pitch);
+      const fboW = worldCanvas.width;
+      const fboH = worldCanvas.height;
+      const byteLen = fboW * fboH * 4;
+      if (!captureWorldPixels || captureWorldPixels.length !== byteLen) {
+        captureWorldPixels = new Uint8Array(byteLen);
+      }
+      ctx.renderer.readRenderTargetPixels(
+        ctx.captureTarget,
+        0,
+        0,
+        fboW,
+        fboH,
+        captureWorldPixels,
+      );
+      if (
+        !captureWorldImageData ||
+        captureWorldImageData.width !== fboW ||
+        captureWorldImageData.height !== fboH
+      ) {
+        captureWorldImageData = new ImageData(fboW, fboH);
+      }
+      // Flip Y and unpremultiply alpha in one pass.
+      //   Flip Y: `readRenderTargetPixels` returns pixels in GL order
+      //   (bottom-up), but ImageData is top-down — row 0 of the FBO maps
+      //   to row (fboH-1) of the ImageData.
+      //   Unpremultiply: the FBO stores RGB pre-multiplied by alpha. An
+      //   ImageData with straight alpha would render darker than the
+      //   blit path (which uses a custom blend matching the premultiplied
+      //   backbuffer). Scale RGB back up by 255/alpha when alpha > 0.
+      const src = captureWorldPixels;
+      const dst = captureWorldImageData.data;
+      for (let y = 0; y < fboH; y++) {
+        const srcRow = (fboH - 1 - y) * fboW * 4;
+        const dstRow = y * fboW * 4;
+        for (let x = 0; x < fboW; x++) {
+          const srcIdx = srcRow + x * 4;
+          const dstIdx = dstRow + x * 4;
+          const red = src[srcIdx]!;
+          const green = src[srcIdx + 1]!;
+          const blue = src[srcIdx + 2]!;
+          const alpha = src[srcIdx + 3]!;
+          if (alpha === 0 || alpha === 255) {
+            dst[dstIdx] = red;
+            dst[dstIdx + 1] = green;
+            dst[dstIdx + 2] = blue;
+          } else {
+            const scale = 255 / alpha;
+            dst[dstIdx] = Math.min(255, Math.round(red * scale));
+            dst[dstIdx + 1] = Math.min(255, Math.round(green * scale));
+            dst[dstIdx + 2] = Math.min(255, Math.round(blue * scale));
+          }
+          dst[dstIdx + 3] = alpha;
+        }
+      }
+      // Paint the world ImageData onto a bridge canvas so it can be drawn
+      // into the composite at the correct game-area rect (game area =
+      // FBO rows [TOP_MARGIN_MAP_PX, fboH) scaled up to CANVAS_H).
+      if (!captureWorldBridgeCanvas || !captureWorldBridgeCtx) {
+        captureWorldBridgeCanvas = document.createElement("canvas");
+        captureWorldBridgeCtx = captureWorldBridgeCanvas.getContext("2d", {
           willReadFrequently: true,
         })!;
       }
       if (
-        captureBridgeCanvas.width < uiSnapshot.width ||
-        captureBridgeCanvas.height < uiSnapshot.height
+        captureWorldBridgeCanvas.width !== fboW ||
+        captureWorldBridgeCanvas.height !== fboH
       ) {
-        captureBridgeCanvas.width = Math.max(
-          captureBridgeCanvas.width,
-          uiSnapshot.width,
-        );
-        captureBridgeCanvas.height = Math.max(
-          captureBridgeCanvas.height,
-          uiSnapshot.height,
-        );
-        captureBridgeCtx.imageSmoothingEnabled = false;
+        captureWorldBridgeCanvas.width = fboW;
+        captureWorldBridgeCanvas.height = fboH;
+        captureWorldBridgeCtx.imageSmoothingEnabled = false;
       }
-      captureBridgeCtx.putImageData(uiSnapshot, 0, 0);
-      captureCompositeCtx.drawImage(
-        captureBridgeCanvas,
+      captureWorldBridgeCtx.putImageData(captureWorldImageData, 0, 0);
+
+      const targetW = CANVAS_W;
+      const targetH = CANVAS_H;
+      if (!offscreenCompositeCanvas || !offscreenCompositeCtx) {
+        offscreenCompositeCanvas = document.createElement("canvas");
+        offscreenCompositeCtx = offscreenCompositeCanvas.getContext("2d", {
+          willReadFrequently: true,
+        })!;
+      }
+      if (
+        offscreenCompositeCanvas.width !== targetW ||
+        offscreenCompositeCanvas.height !== targetH
+      ) {
+        offscreenCompositeCanvas.width = targetW;
+        offscreenCompositeCanvas.height = targetH;
+        offscreenCompositeCtx.imageSmoothingEnabled = false;
+      }
+      offscreenCompositeCtx.clearRect(0, 0, targetW, targetH);
+      offscreenCompositeCtx.drawImage(
+        captureWorldBridgeCanvas,
         0,
-        0,
-        uiSnapshot.width,
-        uiSnapshot.height,
+        TOP_MARGIN_MAP_PX,
+        MAP_PX_W,
+        MAP_PX_H,
         0,
         0,
         targetW,
         targetH,
       );
-      return captureCompositeCtx.getImageData(0, 0, targetW, targetH);
+      // Layer the 2D UI snapshot on top. Reuses the shared bridge canvas
+      // with the visible-scene capture path — the two paths never
+      // interleave within one synchronous call sequence (A via
+      // `captureScene`, then B via `captureSceneOffscreen`), so sharing is
+      // safe.
+      compositeUiSnapshot(offscreenCompositeCtx, uiSnapshot, targetW, targetH);
+      return offscreenCompositeCtx.getImageData(0, 0, targetW, targetH);
     },
     // Runtime polls this between battle-end and camera untilt so the
     // transition waits for the cannons' rotation-back-to-rest ease to
