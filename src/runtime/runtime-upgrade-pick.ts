@@ -173,8 +173,7 @@ export function createUpgradePickSystem(
     // (`UpgradePickOverlay.fadeMask`) from `banner.top` / `banner.bottom`.
     // `clearUpgradePickDialog` runs from the `battle-done` / `ceasefire`
     // postDisplay in `runtime-phase-machine.ts`, after the sweep ends.
-    // Mode stays on UPGRADE_PICK; the next step is the build banner,
-    // whose `showBanner` flips to Mode.BANNER.
+    // Mode stays on UPGRADE_PICK; the chain's postDisplay flips to the terminal mode.
     pendingOnDone.fire();
   }
 

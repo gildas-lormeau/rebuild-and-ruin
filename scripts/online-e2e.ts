@@ -1243,7 +1243,7 @@ async function simulateHumanPlayLoop(
     }
 
     if (
-      mode === "BANNER" ||
+      mode === "TRANSITION" ||
       mode === "BALLOON_ANIM" ||
       mode === "CASTLE_BUILD"
     ) {

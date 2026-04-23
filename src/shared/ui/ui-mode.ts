@@ -1,14 +1,9 @@
 /** Top-level UI mode — controls which screen/phase main loop renders.
  *
- * `Mode.TRANSITION` means "a phase transition is in flight but no banner
- * is currently visible on screen" — set at `runTransition` entry during
- * the pre-banner unzoom, and held in the gaps between display steps
- * (e.g. after `hideBanner` before the next `showBanner`).
- *
- * `Mode.BANNER` means "a phase-transition banner is actively on screen".
- *
- * Together, TRANSITION + BANNER form the truth about what is shown during
- * a transition — no separate boolean flag needed.
+ * `Mode.TRANSITION` means "a phase transition is in flight" — set at
+ * `runTransition` entry during the pre-banner unzoom and held through
+ * every banner/display step until postDisplay flips to the terminal mode.
+ * Banner visibility is tracked separately via `banner.status` (authoritative).
  *
  * Classification table:
  * | Mode          | Gameplay | Interactive |
@@ -18,7 +13,6 @@
  * | CONTROLS      |          |             |
  * | SELECTION     | x        | x           |
  * | TRANSITION    | x        |             |
- * | BANNER        | x        |             |
  * | BALLOON_ANIM  | x        |             |
  * | CASTLE_BUILD  | x        |             |
  * | LIFE_LOST     | x        |             |
@@ -33,7 +27,6 @@ export enum Mode {
   CONTROLS,
   SELECTION,
   TRANSITION,
-  BANNER,
   BALLOON_ANIM,
   CASTLE_BUILD,
   LIFE_LOST,
@@ -55,19 +48,18 @@ export function isGameplayMode(mode: Mode): boolean {
 
 /** Mode allows direct gameplay interaction (active game or tower selection).
  *  Use this instead of `mode === Mode.GAME || mode === Mode.SELECTION`.
- *  TRANSITION / BANNER are NOT interactive — the mode itself reflects that
+ *  TRANSITION is NOT interactive — the mode itself reflects that
  *  a transition is in flight, no external boolean needed. */
 export function isInteractiveMode(mode: Mode): boolean {
   return mode === Mode.GAME || mode === Mode.SELECTION;
 }
 
-/** True when a phase transition is in flight (unzoom window or banner visible)
+/** True when a phase transition is in flight (unzoom window + banner chain)
  *  or a subsystem dialog / balloon-anim overlay is on screen. Drives
  *  `FrameContext.isTransition` for camera / HUD gating. */
 export function isTransitionMode(mode: Mode): boolean {
   return (
     mode === Mode.TRANSITION ||
-    mode === Mode.BANNER ||
     mode === Mode.BALLOON_ANIM ||
     mode === Mode.CASTLE_BUILD ||
     mode === Mode.UPGRADE_PICK

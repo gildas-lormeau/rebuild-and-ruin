@@ -106,7 +106,6 @@ function clearAnimationState(mode: Mode): string | null {
       _runtime.lifeLost.set(null);
       return "Cleared life-lost dialog → game mode";
     case Mode.TRANSITION:
-    case Mode.BANNER:
     case Mode.BALLOON_ANIM:
       // Tear down banner state (status + callback + prevScene + any armed
       // holdMs timer). Without this, a pending hold timer from the old

@@ -65,14 +65,6 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     zoom: INTERACTIVE,
     quit: true,
   },
-  [Mode.BANNER]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    zoom: INTERACTIVE,
-    quit: true,
-  },
   [Mode.BALLOON_ANIM]: {
     dpad: false,
     confirm: false,

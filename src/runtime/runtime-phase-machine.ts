@@ -879,9 +879,7 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
     );
   }
 
-  // Mode.TRANSITION: transition is in flight, no banner on screen yet.
-  // Flips to Mode.BANNER inside `showBanner`, back here on `hideBanner`,
-  // and to the terminal mode inside postDisplay.
+  // Mode.TRANSITION held for the entire chain; postDisplay flips to the terminal mode.
   ctx.setMode(Mode.TRANSITION);
 
   ctx.requestUnzoom(() => {
@@ -1017,8 +1015,7 @@ function runStep(
 ): void {
   // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
   // on their terminal value when firing their completion callback; the
-  // next display step's `showBanner` flips to Mode.BANNER, and the
-  // chain's postDisplay sets the terminal mode.
+  // chain's postDisplay sets the terminal mode after all steps finish.
   switch (step.kind) {
     case STEP_BANNER:
       runBannerStep(step, ctx, result, onDone);

@@ -65,11 +65,10 @@ interface BannerSystemDeps {
 interface BannerSystem {
   showBanner: (opts: BannerShowOpts) => void;
   hideBanner: () => void;
-  /** Clear banner pixels + pending hold timer without touching the UI
-   *  mode. For lifecycle teardown paths (rematch, quit-to-lobby) where
-   *  the caller already owns the terminal mode (STOPPED / LOBBY) and
-   *  doesn't want `hideBanner`'s Mode.TRANSITION flip. Does NOT emit
-   *  BANNER_HIDDEN — teardown is not a narrative banner-end beat. */
+  /** Clear banner pixels + pending hold timer without emitting events.
+   *  For lifecycle teardown paths (rematch, quit-to-lobby) where the
+   *  caller already owns the terminal mode (STOPPED / LOBBY). Does NOT
+   *  emit BANNER_HIDDEN — teardown is not a narrative banner-end beat. */
   resetBannerState: () => void;
   tickBanner: (dt: number) => void;
 }
@@ -125,10 +124,10 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     };
     runtimeState.banner = next;
 
-    // Banner-on-screen ⇔ Mode.BANNER. Subsystem dialogs (life-lost,
-    // upgrade-pick) set their own mode; when their callback chains back
-    // into a new banner step, this call flips the mode back.
-    setMode(runtimeState, Mode.BANNER);
+    // Restore Mode.TRANSITION so the banner tick runs — subsystem dialogs
+    // (life-lost, upgrade-pick) leave mode on their terminal value when
+    // chaining into a banner. Banner visibility is tracked via `banner.status`.
+    setMode(runtimeState, Mode.TRANSITION);
 
     const state = runtimeState.state;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_START, {
@@ -154,10 +153,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     });
     clearHoldTimer(banner);
     runtimeState.banner = createBannerState();
-    // Hiding a banner IS a mode transition from Mode.BANNER to
-    // Mode.TRANSITION. Callers that want to clear banner pixels without
-    // touching mode (lifecycle teardown) use `resetBannerState` instead.
-    setMode(runtimeState, Mode.TRANSITION);
   }
 
   function resetBannerState(): void {

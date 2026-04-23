@@ -251,7 +251,7 @@ function buildWatcherPhaseCtx(
     // stay no-op. Game-over is terminal — once the watcher observes
     // round-limit or last-player-standing locally, no further
     // checkpoint arrives, so we flip Mode.STOPPED here instead of
-    // sitting in BANNER forever.
+    // sitting in TRANSITION forever.
     lifeLostRoute: {
       onGameOver: () => setMode(runtimeState, Mode.STOPPED),
       onReselect: () => {},

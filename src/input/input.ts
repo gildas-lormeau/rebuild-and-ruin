@@ -7,7 +7,7 @@
  * ### Mode vs Phase (glossary)
  *
  * **Mode** (`getMode()` / `setMode()`) — UI state set at the app level (`Mode` enum).
- * Values: STOPPED, LOBBY, OPTIONS, GAME, SELECTION, BANNER, etc.
+ * Values: STOPPED, LOBBY, OPTIONS, GAME, SELECTION, TRANSITION, etc.
  * Controls which input handlers are active and which screen is drawn.
  * Use `isInteractiveMode(mode)` to check if gameplay interaction is allowed.
  *
