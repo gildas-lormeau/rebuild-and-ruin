@@ -28,7 +28,11 @@
  */
 
 import type * as THREE from "three";
-import { applyBoxWallUV } from "./sprite-kit.ts";
+import {
+  applyBoxWallUV,
+  createMaterial,
+  type MaterialSpec,
+} from "./sprite-kit.ts";
 import { MERLON_AO, WALL_STONE_LIGHT } from "./sprite-materials.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
@@ -37,6 +41,12 @@ export type UVOffset = readonly [number, number];
 export interface WallCellParams {
   mask: number;
   uvOffset?: UVOffset;
+  /** When true, one merlon is replaced by a broken stump + rubble pile to
+   *  signal a reinforced-wall hit. Pick is seeded from `mask` so every
+   *  damaged wall of the same neighbour configuration shares geometry —
+   *  required because the entity manager instances one geometry per
+   *  (mask, damaged) bucket. */
+  damaged?: boolean;
 }
 
 export interface WallMazeParams {
@@ -195,6 +205,41 @@ export const VARIANTS: VariantDescriptor[] = [
     params: { mask: maskFromDirs(["N", "E", "S", "W"]) },
   },
 
+  // ─── damaged (reinforced-walls absorbed-hit state) ────────────────────
+  // One merlon is replaced by a broken stump + rubble pile. Mask drives
+  // which merlon is picked, so each archetype shows a distinct damage
+  // spot.
+  {
+    name: "wall_isolated_damaged",
+    label: "isolated · damaged",
+    canvasPx: 64,
+    params: { mask: 0, damaged: true },
+  },
+  {
+    name: "wall_straight_damaged",
+    label: "straight · damaged",
+    canvasPx: 64,
+    params: { mask: maskFromDirs(["W", "E"]), damaged: true },
+  },
+  {
+    name: "wall_corner_damaged",
+    label: "L-corner · damaged",
+    canvasPx: 64,
+    params: { mask: maskFromDirs(["N", "E"]), damaged: true },
+  },
+  {
+    name: "wall_t_damaged",
+    label: "T-junction · damaged",
+    canvasPx: 64,
+    params: { mask: maskFromDirs(["N", "E", "S"]), damaged: true },
+  },
+  {
+    name: "wall_cross_damaged",
+    label: "cross · damaged",
+    canvasPx: 64,
+    params: { mask: maskFromDirs(["N", "E", "S", "W"]), damaged: true },
+  },
+
   // ─── maze tests (validate tiling + corners on real configurations) ───
   // 6×6 grid → canvasPx 192 keeps each tile at the standard game-2× size
   // of 32 px (1/3 unit per tile in the ±1 frustum).
@@ -292,7 +337,12 @@ export function buildWall(
     buildMaze(three, scene, parseGrid(params.grid));
     return;
   }
-  const cellGroup = buildCell(three, params.mask, params.uvOffset);
+  const cellGroup = buildCell(
+    three,
+    params.mask,
+    params.uvOffset,
+    params.damaged ?? false,
+  );
   scene.add(cellGroup);
 }
 
@@ -375,6 +425,7 @@ function buildCell(
   three: typeof THREE,
   mask: number,
   uvOffset: UVOffset = [0, 0],
+  damaged = false,
 ): THREE.Group {
   const [uOff, vOff] = uvOffset;
   const group = new three.Group();
@@ -432,7 +483,222 @@ function buildCell(
   // Fills the ±0.75 lattice slots that get clipped by the rounding.
   placeCornerMerlons(three, group, mask, merlonMatArray, uOff, vOff, aoMat);
 
+  if (damaged) {
+    applyWallDamage(three, group, mask, merlonSideMat);
+  }
+
   return group;
+}
+
+/**
+ * Apply reinforced-wall absorbed-hit damage. Always targets the same 3
+ * classes of damage simultaneously so the effect reads at game-view
+ * distance without any painted textures:
+ *   - up to 3 merlons destroyed (stump + rubble pile each)
+ *   - up to 3 surviving merlons tilted / sunk as blast-shake
+ *   - up to 3 dark "scar" blocks pressed against the outer wall face,
+ *     one directly below each destroyed merlon
+ *
+ * Selections are seeded from `mask` so every wall cell sharing the same
+ * neighbour configuration gets identical damage geometry — required
+ * because the entity manager instances one (mask, damaged) pair of
+ * geometry across every damaged wall on the board.
+ *
+ * At least 1 merlon is always kept intact so the silhouette still reads
+ * as "damaged wall" rather than "rubble platform." Small masks with
+ * fewer than 4 merlons get proportionally less destruction.
+ */
+function applyWallDamage(
+  three: typeof THREE,
+  group: THREE.Group,
+  mask: number,
+  stoneMat: THREE.Material,
+): void {
+  const merlons: THREE.Mesh[] = [];
+  for (const child of group.children) {
+    if (child instanceof three.Mesh && child.userData.merlon === true) {
+      merlons.push(child);
+    }
+  }
+  if (merlons.length === 0) return;
+
+  // Seeded shuffle: pair each merlon with a per-mask random key, sort.
+  // Deterministic because `damageRand(mask, salt)` is a pure hash. The
+  // first entries become destruction targets, the next entries become
+  // shake targets — order within each group is stable across builds.
+  const shuffled = merlons
+    .map((merlon, idx) => ({ merlon, key: damageRand(mask, idx * 7 + 5) }))
+    .sort((a, b) => a.key - b.key)
+    .map((entry) => entry.merlon);
+
+  // Keep ≥ 1 merlon standing so the cell still reads as a wall.
+  const destroyCount = Math.min(3, Math.max(0, shuffled.length - 1));
+  const destroyed = shuffled.slice(0, destroyCount);
+  const surviving = shuffled.slice(destroyCount);
+
+  // Blast-shake: tilt + slightly sink up to 3 surviving merlons. Not
+  // distance-gated — we want at least 3 visibly affected regardless of
+  // where the destroyed merlons cluster.
+  const shakeCount = Math.min(3, surviving.length);
+  for (let i = 0; i < shakeCount; i++) {
+    const merlon = surviving[i]!;
+    merlon.rotation.x = (damageRand(mask, 150 + i) - 0.5) * 0.24;
+    merlon.rotation.z = (damageRand(mask, 160 + i) - 0.5) * 0.24;
+    merlon.position.y -= 0.02 + damageRand(mask, 170 + i) * 0.04;
+  }
+
+  // Scar material: medium-gray matte, no texture. Darker than the wall
+  // stone so the scars read as bruises/pockmarks under lit stone, but
+  // not near-black (which made them look like holes punched through).
+  // Shared across all 9 scars in the cell; tracked for disposal via
+  // `buildVariantBucket` → extractSubParts.
+  const scarMat = createMaterial({
+    kind: "standard",
+    color: 0x6a6763,
+    roughness: 1.0,
+    metalness: 0.0,
+  } satisfies MaterialSpec);
+
+  for (let i = 0; i < destroyed.length; i++) {
+    const victim = destroyed[i]!;
+    const cx = victim.position.x;
+    const cz = victim.position.z;
+    group.remove(victim);
+
+    addStumpAndRubble(three, group, mask, cx, cz, stoneMat, i);
+    addWallScar(three, group, mask, cx, cz, scarMat, i);
+  }
+
+  // Extra scars — seeded to positions along open edges that are NOT tied
+  // to destroyed merlons, so the outer faces of the wall read as shelled
+  // rather than clean-except-at-merlon-stumps. 15 extras + 3 destroyed-
+  // merlon scars = 18 total when there's enough open-face perimeter.
+  const openDirs: number[] = [];
+  for (const dir of CARDINALS) if (!(mask & dir)) openDirs.push(dir);
+  if (openDirs.length > 0) {
+    const extraCount = 15;
+    for (let i = 0; i < extraCount; i++) {
+      const dir =
+        openDirs[Math.floor(damageRand(mask, 300 + i) * openDirs.length)]!;
+      const perp = (damageRand(mask, 310 + i) - 0.5) * 1.4;
+      let sx: number;
+      let sz: number;
+      if (dir === N) {
+        sx = perp;
+        sz = -0.85;
+      } else if (dir === S) {
+        sx = perp;
+        sz = +0.85;
+      } else if (dir === E) {
+        sx = +0.85;
+        sz = perp;
+      } else {
+        sx = -0.85;
+        sz = perp;
+      }
+      addWallScar(three, group, mask, sx, sz, scarMat, 3 + i);
+    }
+  }
+}
+
+function addStumpAndRubble(
+  three: typeof THREE,
+  group: THREE.Group,
+  mask: number,
+  cx: number,
+  cz: number,
+  stoneMat: THREE.Material,
+  slot: number,
+): void {
+  // Stump: keep the merlon's footprint, slice to ~¼ height with slight
+  // tilt so the break reads as fractured, not a clean cut.
+  const stumpH = M_H * (0.22 + damageRand(mask, 3 + slot) * 0.18);
+  const stumpGeom = new three.BoxGeometry(M_S, stumpH, M_S);
+  applyBoxWallUV(stumpGeom, M_S, stumpH, M_S, UV_DENSITY, 0, 0);
+  const stump = new three.Mesh(stumpGeom, stoneMat);
+  stump.position.set(cx, H + stumpH / 2, cz);
+  stump.rotation.z = (damageRand(mask, 10 + slot) - 0.5) * 0.24;
+  stump.rotation.x = (damageRand(mask, 11 + slot) - 0.5) * 0.24;
+  group.add(stump);
+
+  // Rubble chunks: 3 small boxes scattered on the walkway around the
+  // stump. Sizes + offsets seeded so each destroyed site has its own
+  // distinct pile.
+  const chunkCount = 3;
+  const saltBase = 20 + slot * 10;
+  for (let i = 0; i < chunkCount; i++) {
+    const angle =
+      (i / chunkCount) * Math.PI * 2 + damageRand(mask, saltBase + i) * 1.3;
+    const distFromStump = 0.08 + damageRand(mask, saltBase + i + 5) * 0.1;
+    const width = 0.07 + damageRand(mask, saltBase + i + 10) * 0.05;
+    const depth = 0.06 + damageRand(mask, saltBase + i + 15) * 0.05;
+    const height = 0.04 + damageRand(mask, saltBase + i + 20) * 0.06;
+    const geom = new three.BoxGeometry(width, height, depth);
+    applyBoxWallUV(geom, width, height, depth, UV_DENSITY, 0, 0);
+    const chunk = new three.Mesh(geom, stoneMat);
+    chunk.position.set(
+      cx + Math.cos(angle) * distFromStump,
+      H + height / 2,
+      cz + Math.sin(angle) * distFromStump,
+    );
+    chunk.rotation.y = damageRand(mask, saltBase + i + 25) * Math.PI * 2;
+    chunk.rotation.x = (damageRand(mask, saltBase + i + 30) - 0.5) * 0.8;
+    chunk.rotation.z = (damageRand(mask, saltBase + i + 35) - 0.5) * 0.8;
+    group.add(chunk);
+  }
+}
+
+function addWallScar(
+  three: typeof THREE,
+  group: THREE.Group,
+  mask: number,
+  merlonX: number,
+  merlonZ: number,
+  scarMat: THREE.Material,
+  slot: number,
+): void {
+  // Project the (destroyed) merlon XZ outward to the wall face and push
+  // a touch further so the dark scar block sits unambiguously outside
+  // the wall sides (and wins any z-fight with the brick texture).
+  const { nx, nz } = outwardDirection(merlonX, merlonZ);
+  const pushOut = 0.22;
+  const scarW = 0.34 + damageRand(mask, 200 + slot) * 0.18;
+  const scarH = 0.26 + damageRand(mask, 210 + slot) * 0.18;
+  const scarD = 0.08;
+  // Middle of the wall height, jittered so scars on neighbouring cells
+  // don't line up in a neat row.
+  const scarY = H * (0.32 + damageRand(mask, 220 + slot) * 0.4);
+  const scarGeom = new three.BoxGeometry(scarW, scarH, scarD);
+  const scar = new three.Mesh(scarGeom, scarMat);
+  scar.position.set(merlonX + nx * pushOut, scarY, merlonZ + nz * pushOut);
+  // Rotate around Y so the box's depth axis aligns with the outward
+  // normal — scarD becomes the protrusion, scarW becomes the tangent.
+  scar.rotation.y = Math.atan2(-nx, nz);
+  scar.rotation.z = (damageRand(mask, 230 + slot) - 0.5) * 0.35;
+  scar.rotation.x = (damageRand(mask, 240 + slot) - 0.5) * 0.2;
+  group.add(scar);
+}
+
+/** Outward-normal direction for a merlon at (x, z) in cell-local coords.
+ *  Edge merlons (|dominant axis| ≈ 0.81) project straight out along that
+ *  axis; corner merlons (both axes ≈ 0.7) project diagonally. */
+function outwardDirection(x: number, z: number): { nx: number; nz: number } {
+  const ax = Math.abs(x);
+  const az = Math.abs(z);
+  if (ax > 0.65 && az > 0.65) {
+    const len = Math.hypot(x, z) || 1;
+    return { nx: x / len, nz: z / len };
+  }
+  if (az >= ax) return { nx: 0, nz: Math.sign(z) || 1 };
+  return { nx: Math.sign(x) || 1, nz: 0 };
+}
+
+/** Deterministic [0, 1) from (mask, salt). Same shape as wall-burns'
+ *  pseudoRandom — a sin-based hash that gives stable per-mask variety
+ *  without any allocation. */
+function damageRand(seed: number, salt: number): number {
+  const mixed = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+  return mixed - Math.floor(mixed);
 }
 
 // uOff/vOff are added to the final UVs so each cell can be positioned
@@ -508,6 +774,7 @@ function placeCornerMerlons(
     applyBoxWallUV(geom, M_S, M_H, M_S, UV_DENSITY, uOff, vOff);
     const merlon = new three.Mesh(geom, mat);
     merlon.position.set(k.sx * c, yMerlon, k.sz * c);
+    merlon.userData.merlon = true;
     group.add(merlon);
     addMerlonAO(three, group, k.sx * c, k.sz * c, aoMat);
   }
@@ -643,6 +910,7 @@ function placeMerlons(
     const mx = perpAxis === "x" ? perp : openCoord;
     const mz = perpAxis === "x" ? openCoord : perp;
     merlon.position.set(mx, yMerlon, mz);
+    merlon.userData.merlon = true;
     group.add(merlon);
     addMerlonAO(three, group, mx, mz, aoMat);
   }

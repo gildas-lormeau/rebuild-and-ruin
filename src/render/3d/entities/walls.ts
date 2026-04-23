@@ -72,12 +72,18 @@ export interface WallsManager {
 
 interface MaskBucket {
   readonly mask: number;
+  readonly damaged: boolean;
   /** One InstancedMesh per sub-part of the authored wall cell. Shape is
    *  constant for the bucket's lifetime; capacity grows by replacement. */
   subParts: BucketSubPart[];
   capacity: number;
 }
 
+/** Pack (mask, damaged) into a single 5-bit key — 4 bits for the mask
+ *  (0-15) plus one bit for the reinforced-wall absorbed-hit state. Used
+ *  as the bucket map key so damaged walls get their own geometry (the
+ *  scene builder needs to know up front whether to remove a merlon). */
+const DAMAGED_BIT = 1 << 4;
 /** Wall-scene authors each cell in a ±1 frustum (2 world units wide).
  *  We want 1 cell = 1 game tile, so we scale by TILE_SIZE / 2. */
 const WALL_SCALE = TILE_SIZE / 2;
@@ -112,17 +118,19 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
   const hostScale = new THREE.Vector3(WALL_SCALE, WALL_SCALE, WALL_SCALE);
   const identityQuat = new THREE.Quaternion();
 
-  function ensureBucket(mask: number, required: number): MaskBucket {
+  function ensureBucket(bucketKey: number, required: number): MaskBucket {
     // Grow or create: `ensureBucketCapacity` tears down any existing
     // InstancedMeshes (InstancedMesh.count is fixed at construction) and
     // rebuilds at the new capacity. We preserve the extracted geometry
     // via fresh `buildWall` calls — cheap compared to per-wall rebuilds.
+    const mask = bucketKey & 0x0f;
+    const damaged = (bucketKey & DAMAGED_BIT) !== 0;
     const built = ensureBucketCapacity(
       buckets,
-      mask,
+      bucketKey,
       required,
       INITIAL_CAPACITY,
-      (capacity) => buildBucket(mask, capacity, root, ownedMaterials),
+      (capacity) => buildBucket(mask, damaged, capacity, root, ownedMaterials),
     );
     // walls always build (no variant lookup can fail), so the narrower
     // return type here is always defined.
@@ -131,15 +139,22 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
-    // Union all players' wall sets and compute a signature.
+    // Union all players' wall sets and compute a signature. Damaged
+    // tiles get a distinct suffix in the signature so rebuilds fire when
+    // a wall transitions intact → damaged mid-battle.
     const keys: number[] = [];
+    const damagedKeys = new Set<number>();
     if (overlay?.castles) {
       for (const castle of overlay.castles) {
         for (const key of castle.walls) keys.push(key);
+        if (castle.damagedWalls) {
+          for (const key of castle.damagedWalls) damagedKeys.add(key);
+        }
       }
     }
     keys.sort((a, b) => a - b);
-    const signature = keys.join(",");
+    const damagedList = [...damagedKeys].sort((a, b) => a - b);
+    const signature = `${keys.join(",")}|${damagedList.join(",")}`;
 
     if (signature === lastSignature) return;
     lastSignature = signature;
@@ -153,29 +168,30 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
 
     // Collapse to Set for O(1) neighbour lookup when computing masks.
     const wallSet = new Set<number>(keys);
-    // Pre-bucket walls by their 4-cardinal mask so we know capacity
+    // Pre-bucket walls by (mask, damaged) so we know capacity
     // requirements up front.
-    const byMask = new Map<number, Array<{ col: number; row: number }>>();
+    const byBucket = new Map<number, Array<{ col: number; row: number }>>();
     for (const key of wallSet) {
       const { row, col } = unpackTileKey(key);
       const mask = computeMask(wallSet, col, row);
-      let list = byMask.get(mask);
+      const bucketKey = mask | (damagedKeys.has(key) ? DAMAGED_BIT : 0);
+      let list = byBucket.get(bucketKey);
       if (!list) {
         list = [];
-        byMask.set(mask, list);
+        byBucket.set(bucketKey, list);
       }
       list.push({ col, row });
     }
 
-    // Masks that have a bucket but no live tiles this frame — zero
-    // their count so stale instances don't ghost-render.
-    for (const [mask, bucket] of buckets) {
-      if (!byMask.has(mask)) hideSubParts(bucket.subParts);
+    // Buckets with no live tiles this frame — zero their count so stale
+    // instances don't ghost-render.
+    for (const [bucketKey, bucket] of buckets) {
+      if (!byBucket.has(bucketKey)) hideSubParts(bucket.subParts);
     }
 
-    // Write matrices for each live mask.
-    for (const [mask, list] of byMask) {
-      const bucket = ensureBucket(mask, list.length);
+    // Write matrices for each live bucket.
+    for (const [bucketKey, list] of byBucket) {
+      const bucket = ensureBucket(bucketKey, list.length);
       fillBucket(bucket, list, hostMatrix, instanceMatrix, (tile, matrix) => {
         hostTranslation.set(
           (tile.col + 0.5) * TILE_SIZE,
@@ -212,11 +228,13 @@ function computeMask(
   return mask;
 }
 
-/** Build a bucket for one mask value: run `buildWall` once into a
- *  scratch group with `uvOffset=[0,0]`, extract every sub-mesh, and
- *  wrap each as an `InstancedMesh` under `root`. */
+/** Build a bucket for one (mask, damaged) pair: run `buildWall` once into
+ *  a scratch group with `uvOffset=[0,0]`, extract every sub-mesh, and
+ *  wrap each as an `InstancedMesh` under `root`. Damaged buckets request
+ *  the merlon-removed + rubble variant of the same mask. */
 function buildBucket(
   mask: number,
+  damaged: boolean,
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
@@ -226,9 +244,9 @@ function buildBucket(
     root,
     ownedMaterials,
     scratchBuilder: (scratch) => {
-      buildWall(THREE, scratch, { mask, uvOffset: [0, 0] });
+      buildWall(THREE, scratch, { mask, uvOffset: [0, 0], damaged });
     },
-    namePrefix: `wall-mask-${mask}`,
+    namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
   });
-  return { mask, subParts, capacity };
+  return { mask, damaged, subParts, capacity };
 }
