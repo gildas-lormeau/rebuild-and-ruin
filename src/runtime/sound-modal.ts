@@ -35,32 +35,24 @@ interface SoundModal {
 const MUSIC_URL_STORAGE_KEY = "castles99_music_url";
 
 export function createSoundModal(): SoundModal {
-  const modal = document.getElementById("sound-modal") as HTMLDivElement;
-  const backdrop = modal.querySelector(
-    ".sound-modal-backdrop",
-  ) as HTMLDivElement;
-  const urlInput = document.getElementById("music-url") as HTMLInputElement;
-  const loadUrlButton = document.getElementById(
-    "btn-music-load-url",
-  ) as HTMLButtonElement;
-  const pickZipButton = document.getElementById(
-    "btn-music-pick-zip",
-  ) as HTMLButtonElement;
-  const pickFilesButton = document.getElementById(
-    "btn-music-pick-files",
-  ) as HTMLButtonElement;
-  const zipPicker = document.getElementById(
-    "music-zip-picker",
-  ) as HTMLInputElement;
-  const filesPicker = document.getElementById(
-    "music-files-picker",
-  ) as HTMLInputElement;
-  const statusOutput = document.getElementById(
-    "music-status",
-  ) as HTMLOutputElement;
-  const closeButton = document.getElementById(
-    "btn-sound-close",
-  ) as HTMLButtonElement;
+  const modal = requireElement<HTMLDivElement>("#sound-modal");
+  const backdrop = requireElement<HTMLDivElement>(
+    "#sound-modal .sound-modal-backdrop",
+  );
+  const urlInput = requireElement<HTMLInputElement>("#music-url");
+  const loadUrlButton = requireElement<HTMLButtonElement>(
+    "#btn-music-load-url",
+  );
+  const pickZipButton = requireElement<HTMLButtonElement>(
+    "#btn-music-pick-zip",
+  );
+  const pickFilesButton = requireElement<HTMLButtonElement>(
+    "#btn-music-pick-files",
+  );
+  const zipPicker = requireElement<HTMLInputElement>("#music-zip-picker");
+  const filesPicker = requireElement<HTMLInputElement>("#music-files-picker");
+  const statusOutput = requireElement<HTMLOutputElement>("#music-status");
+  const closeButton = requireElement<HTMLButtonElement>("#btn-sound-close");
 
   let onClose: (assets: MusicAssets | undefined) => void = () => {};
 
@@ -163,4 +155,10 @@ export function createSoundModal(): SoundModal {
       onClose = callback;
     },
   };
+}
+
+function requireElement<T extends HTMLElement>(selector: string): T {
+  const element = document.querySelector<T>(selector);
+  if (!element) throw new Error(`sound-modal: missing element ${selector}`);
+  return element;
 }

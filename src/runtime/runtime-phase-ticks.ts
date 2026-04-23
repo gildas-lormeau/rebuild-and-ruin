@@ -1,4 +1,4 @@
-import type { GameOverReason } from "../game/index.ts";
+import type { BattleCombatResult, GameOverReason } from "../game/index.ts";
 import {
   advanceBattleCountdown,
   canBuildThisFrame,
@@ -49,7 +49,11 @@ import {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { isHuman } from "../shared/core/system-interfaces.ts";
+import {
+  type CannonController,
+  isHuman,
+  type PlayerController,
+} from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
@@ -207,7 +211,7 @@ export interface PhaseTicksSystem {
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
-  syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
+  syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
   /** Subscribe the stats accumulator to the current `state.bus`. Idempotent
    *  per-bus; safe (and required) to call after every new-game setState so
    *  rematches rebind to the fresh bus. */
@@ -264,7 +268,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Crosshairs
   // -------------------------------------------------------------------------
 
-  function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
+  function syncCrosshairs(weaponsActive: boolean, dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, controllers } = runtimeState;
@@ -603,22 +607,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     if (state.timer > 0 && !allDone) return false;
 
-    // PASS 2: finalize controllers for phase transition
+    // PASS 2: finalize controllers for phase transition.
+    // Local vs remote use different finalize entry points — the helpers
+    // below encode the split so the two paths cannot be merged.
     const remote = runtimeState.controllers.filter((ctrl) =>
       isRemotePlayer(ctrl.playerId, remotePlayerSlots),
     );
-    // LOAD-BEARING SPLIT (do not merge local/remote):
-    //   Remote humans: call initCannons() only (their cannons were flushed client-side).
-    //   Local controllers: call finalizeCannonPhase() which flushes then inits.
-    //   Using the wrong method corrupts cannon state.
-    for (const ctrl of remote) {
-      const max = state.cannonLimits[ctrl.playerId] ?? 0;
-      ctrl.initCannons(state, max);
-    }
-    for (const ctrl of local) {
-      const max = state.cannonLimits[ctrl.playerId] ?? 0;
-      ctrl.finalizeCannonPhase(state, max);
-    }
+    for (const ctrl of remote) finalizeRemoteCannonController(ctrl, state);
+    for (const ctrl of local) finalizeLocalCannonController(ctrl, state);
     startBattle();
     return true;
   }
@@ -665,36 +661,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // battle-end facing reset below.
     const weaponsActive = state.timer > 0 || state.cannonballs.length > 0;
 
-    // Event collection order (LOAD-BEARING — do not reorder):
-    //   1. Tick controllers → fire events (new cannonballs from battleTick)
-    //   2. tickBattleCombat → tower kills + cannonball impacts
-    // Step 2 depends on state produced by step 1.
-
-    // Step 1: tick controllers → fire events
-    // Broadcast only AI-originated balls — human-driven controllers
-    // (including AssistedHuman) send their own CANNON_FIRED via the human
-    // action path, so duplicating here would double-spawn on the receiver.
-    const fireEvents: CannonFiredMessage[] = [];
-    if (weaponsActive) {
-      for (const ctrl of local) {
-        if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-        const ballsBefore = state.cannonballs.length;
-        ctrl.battleTick(state, dt);
-        if (!isHuman(ctrl)) {
-          for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
-            fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
-          }
-        }
-      }
-    }
-
-    // Step 2: tower kills + cannonball impacts (load-bearing internal order)
-    const { towerEvents, impactEvents, newImpacts } = engineTickBattlePhase(
-      state,
-      dt,
-    );
-
-    const result = { fireEvents, towerEvents, impactEvents, newImpacts };
+    // Controller ticks (pass 1) must precede engine combat (pass 2): new
+    // cannonballs spawned during `battleTick` need to exist before the
+    // engine advances them and resolves hits on the same frame. The ordering
+    // is enforced by data flow — `fireEvents` is produced by pass 1 and
+    // threaded as a required parameter into `resolveBattleCombatStep`.
+    const fireEvents = weaponsActive
+      ? tickLocalBattleControllers(local, state, dt)
+      : [];
+    const result = resolveBattleCombatStep(fireEvents, state, dt);
 
     // Broadcast events to network
     if (broadcast) {
@@ -915,4 +890,76 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     syncCrosshairs,
     subscribeBusObservers,
   };
+}
+
+/** Finalize a LOCAL controller at the end of cannon phase.
+ *  Local controllers own an auto-placement queue that must be flushed before
+ *  `initCannons` runs the round-1 safety net, so this routes through
+ *  `finalizeCannonPhase` which guarantees flush → init order. Calling
+ *  `initCannons` directly on a local controller would skip the flush and
+ *  corrupt cannon state. */
+function finalizeLocalCannonController(
+  ctrl: CannonController & { readonly playerId: number },
+  state: GameState,
+): void {
+  const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;
+  ctrl.finalizeCannonPhase(state, maxSlots);
+}
+
+/** Finalize a REMOTE controller at the end of cannon phase.
+ *  Remote controllers' cannons were already flushed client-side before the
+ *  wire placements arrived, so only the round-1 safety-net init is needed
+ *  here. Calling `finalizeCannonPhase` would re-run the flush against an
+ *  empty local queue — a no-op today, but it couples the remote path to
+ *  local-only queue semantics and is explicitly not the contract. */
+function finalizeRemoteCannonController(
+  ctrl: CannonController & { readonly playerId: number },
+  state: GameState,
+): void {
+  const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;
+  ctrl.initCannons(state, maxSlots);
+}
+
+/** Pass 1 of the battle-phase tick: tick every local controller and collect
+ *  fire events for the cannonballs they spawned this frame. AI-origin fires
+ *  only — human-driven controllers (including AssistedHuman) emit their own
+ *  CANNON_FIRED via the human action path, so re-emitting here would
+ *  double-spawn on the receiver. Must run BEFORE `resolveBattleCombatStep`
+ *  so the engine advances the newly-spawned balls the same frame; the data
+ *  flow (return → parameter) is what enforces that order. */
+function tickLocalBattleControllers(
+  local: readonly PlayerController[],
+  state: GameState,
+  dt: number,
+): CannonFiredMessage[] {
+  const fireEvents: CannonFiredMessage[] = [];
+  for (const ctrl of local) {
+    if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
+    const ballsBefore = state.cannonballs.length;
+    ctrl.battleTick(state, dt);
+    if (!isHuman(ctrl)) {
+      for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
+        fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
+      }
+    }
+  }
+  return fireEvents;
+}
+
+/** Pass 2 of the battle-phase tick: resolve engine combat (tower kills,
+ *  cannonball impacts) against the state produced by pass 1. Takes
+ *  `fireEvents` as a required parameter — not because the engine uses them,
+ *  but because requiring them forces the caller to run
+ *  `tickLocalBattleControllers` first. The returned bundle merges both
+ *  passes into a single result for broadcast + animation. */
+function resolveBattleCombatStep(
+  fireEvents: readonly CannonFiredMessage[],
+  state: GameState,
+  dt: number,
+): BattleCombatResult & { fireEvents: readonly CannonFiredMessage[] } {
+  const { towerEvents, impactEvents, newImpacts } = engineTickBattlePhase(
+    state,
+    dt,
+  );
+  return { fireEvents, towerEvents, impactEvents, newImpacts };
 }

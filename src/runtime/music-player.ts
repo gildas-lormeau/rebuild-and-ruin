@@ -105,6 +105,8 @@ interface MusicSubsystemDeps {
   readonly observer?: MusicObserver;
 }
 
+type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
+
 /** Descriptor for a track that plays on the shared `bgSynth`. `id` is the
  *  opaque label surfaced to the test observer — disambiguates same-file
  *  different-sub-song tracks (build-bg vs life-lost both live in TETRIS.xmi). */
@@ -116,34 +118,41 @@ interface BgTrack {
   readonly volume: number;
 }
 
-// Global +25 % boost applied on top of each track's base gain. MIDI
-// output from libADLMIDI sat noticeably below the PCM SFX layer; lifting
-// every synth uniformly keeps the relative mix intact while raising the
-// overall music level.
-const MIDI_VOLUME_BOOST = 1.25;
+// Centralized per-track mix levels. Numbers are pre-computed products of the
+// old per-track base gain × the old global +25 % MIDI boost (libADLMIDI output
+// sat noticeably below the PCM SFX layer). Cannon bg is ~4.5× hotter than the
+// other tracks because RXMI_CANNON is mixed noticeably quieter in the original
+// assets; jaws is 2× hotter so the one-shot cuts through the battle-anim mix.
+// Edit these to retune the music layer's perceived volume.
+const TRACK_VOLUMES: Record<BgTrackId, number> = {
+  title: 1.25,
+  cannon: 5.625,
+  build: 1.25,
+  score: 1.25,
+  lifeLost: 1.25,
+  jaws: 2.5,
+};
+const FANFARE_VOLUME = 1.25;
 const BG_TRACK_TITLE: BgTrack = {
   id: "RXMI_TITLE.xmi",
   file: "RXMI_TITLE.xmi",
   songIndex: 0,
   loop: true,
-  volume: MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.title,
 };
-// RXMI_CANNON is mixed noticeably quieter than RXMI_TETRIS / RXMI_TITLE in
-// the original assets. Boost the per-synth gain so cannon-phase bg matches
-// the perceived loudness of fanfares and title music.
 const BG_TRACK_CANNON: BgTrack = {
   id: "RXMI_CANNON.xmi",
   file: "RXMI_CANNON.xmi",
   songIndex: 0,
   loop: true,
-  volume: 4.5 * MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.cannon,
 };
 const BG_TRACK_BUILD: BgTrack = {
   id: "RXMI_TETRIS.xmi",
   file: "RXMI_TETRIS.xmi",
   songIndex: 0,
   loop: true,
-  volume: MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.build,
 };
 // Score-overlay bg music — 0-indexed sub-song 4 of RXMI_SCORE.xmi
 // (mapping.txt lists it 1-indexed as "5 -> bg music score"). Loops for
@@ -153,7 +162,7 @@ const BG_TRACK_SCORE: BgTrack = {
   file: "RXMI_SCORE.xmi",
   songIndex: 4,
   loop: true,
-  volume: MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.score,
 };
 // Life-lost popup one-shot — 0-indexed sub-song 1 of RXMI_TETRIS.xmi
 // (mapping.txt "2 -> life lost music"). No loop: plays once as the
@@ -165,28 +174,25 @@ const BG_TRACK_LIFE_LOST: BgTrack = {
   file: "RXMI_TETRIS.xmi",
   songIndex: 1,
   loop: false,
-  volume: MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.lifeLost,
 };
 // Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
 // (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
 // ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION is set
 // to 5.5 s so balloonAnimEnd cuts the track's tail — an intentional
-// trim to keep the animation beat tight. Boosted 2× over the nominal
-// mix — the jaws theme needs to cut through over the battle-anim visuals
-// and sets the tension beat.
+// trim to keep the animation beat tight.
 const BG_TRACK_JAWS: BgTrack = {
   id: "RXMI_BATTLE.xmi",
   file: "RXMI_BATTLE.xmi",
   songIndex: 6,
   loop: false,
-  volume: 2 * MIDI_VOLUME_BOOST,
+  volume: TRACK_VOLUMES.jaws,
 };
 const FANFARE_TRACK: XmiFileKey = "RXMI_TETRIS.xmi";
 // Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
 const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
-const FANFARE_VOLUME = MIDI_VOLUME_BOOST;
 // Build bg decrescendo runs on the same 1 s window as the snare's
 // crescendo in sfx-player.ts (SNARE_CRESCENDO_SEC): fade STARTS at
 // timer = 6.72 s (same instant the snare loop kicks in at 0 gain) and
@@ -266,7 +272,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     return smf;
   }
 
+  // Permanent-fail latch: a failed synth init (dynamic import error, WASM load
+  // failure, loadSynth throw) is deterministic within a session — the asset
+  // bundle and browser caps don't change. Without the latch, every subsequent
+  // playBg/activate would re-run the same guaranteed-failing init.
+  let bgSynthLoadFailed = false;
+
   function ensureBgSynth(): Promise<SynthHandle | undefined> {
+    if (bgSynthLoadFailed) return Promise.resolve(undefined);
     if (bgSynth) return bgSynth;
     bgSynth = (async () => {
       const assets = deps.getAssets();
@@ -275,6 +288,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       return loader.loadSynth(assets);
     })().catch((error) => {
       console.error("[music] synth init failed:", error);
+      bgSynthLoadFailed = true;
       bgSynth = undefined;
       deps.observer?.onInitError?.(error);
       return undefined;

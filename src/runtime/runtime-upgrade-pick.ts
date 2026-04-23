@@ -178,8 +178,7 @@ export function createUpgradePickSystem(
   }
 
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
-    const entry = findPendingEntry(playerId);
-    if (entry) moveUpgradePickFocus(entry, dir);
+    withPendingEntry(playerId, (entry) => moveUpgradePickFocus(entry, dir));
   }
 
   function resolveAndSend(entry: UpgradePickEntry, cardIdx: number): void {
@@ -190,21 +189,34 @@ export function createUpgradePickSystem(
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
-    const entry = findPendingEntry(playerId);
-    if (entry) resolveAndSend(entry, entry.focusedCard);
+    withPendingEntry(playerId, (entry) =>
+      resolveAndSend(entry, entry.focusedCard),
+    );
   }
 
   /** Pick a specific card directly (e.g. from a click on a card). */
   function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
-    const entry = findPendingEntry(playerId);
-    if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
-    resolveAndSend(entry, cardIdx);
+    withPendingEntry(playerId, (entry) => {
+      if (cardIdx < 0 || cardIdx >= entry.offers.length) return;
+      resolveAndSend(entry, cardIdx);
+    });
   }
 
-  function findPendingEntry(playerId: ValidPlayerSlot) {
+  function findPendingEntry(
+    playerId: ValidPlayerSlot,
+  ): UpgradePickEntry | undefined {
     return runtimeState.dialogs.upgradePick?.entries.find(
       (entry) => entry.playerId === playerId && entry.choice === null,
     );
+  }
+
+  function withPendingEntry(
+    playerId: ValidPlayerSlot,
+    action: (entry: UpgradePickEntry) => void,
+  ): void {
+    const entry = findPendingEntry(playerId);
+    if (!entry) return;
+    action(entry);
   }
 
   /** Slots whose entries accept input from this machine. An entry is locally

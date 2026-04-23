@@ -54,7 +54,6 @@ import {
   createBannerUi,
   createOnlineOverlay,
   createRenderSummaryMessage,
-  createStatusBar,
   gameOverButtonHitTest,
   handleLifeLostDialogClick,
   handleUpgradePickClick,
@@ -126,6 +125,7 @@ import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   createRuntimeState,
+  isPaused,
   isStateReady,
   safeState,
   setMode,
@@ -281,18 +281,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
   // keeps looping on Web Audio — not acceptable for a single ~30s title track
-  // playing for hours on a stale tab. Paired with the in-tab pause state so
-  // reopening a manually-paused game stays paused. Initial call also covers
-  // the dev hot-reload case of starting in a hidden tab.
-  let pausedByVisibility = false;
+  // playing for hours on a stale tab. The `pausedBy` discriminant on
+  // runtimeState ensures reopening a manually-paused game stays paused:
+  // we only claim the pause when nothing else holds it, and on return we
+  // only release it if the current reason is still "visibility" (never
+  // overriding a user pause). Initial call also covers the dev hot-reload
+  // case of starting in a hidden tab.
   function applyVisibility(): void {
     const hidden = typeof document !== "undefined" && document.hidden;
-    if (hidden && !runtimeState.paused) {
-      runtimeState.paused = true;
-      pausedByVisibility = true;
-    } else if (!hidden && pausedByVisibility) {
-      runtimeState.paused = false;
-      pausedByVisibility = false;
+    if (hidden && runtimeState.pausedBy === "none") {
+      runtimeState.pausedBy = "visibility";
+    } else if (!hidden && runtimeState.pausedBy === "visibility") {
+      runtimeState.pausedBy = "none";
     }
     void music.setPaused(hidden);
     void sfx.setPaused(hidden);
@@ -514,14 +514,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createBannerUi,
     createOnlineOverlay,
     createRenderSummaryMessage,
-    createStatusBar,
     drawFrame: (map, overlay, viewport, now) =>
       renderer.drawFrame(map, overlay, viewport, now, camera.getPitch()),
     onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,
     scoreDeltaProgress: () => scoreDelta.progress(),
     upgradePickInteractiveSlots: () => upgradePick.interactiveSlots(),
-    syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
+    syncCrosshairs: (expired, dt) => phaseTicks.syncCrosshairs(expired, dt),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
     pointerPlayer,
@@ -694,9 +693,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setMode: (mode) => {
       setMode(runtimeState, mode);
     },
-    getPaused: () => runtimeState.paused,
+    getPaused: () => isPaused(runtimeState),
     setPaused: (paused) => {
-      runtimeState.paused = paused;
+      // `setPaused` is called from the user-facing pause toggle
+      // (options menu / pause key). Clearing the pause leaves any
+      // visibility-driven pause in place — but in practice the
+      // tab has to be visible for a user to hit the toggle at all.
+      runtimeState.pausedBy = paused ? "user" : "none";
     },
     optionsCursor: {
       get value() {

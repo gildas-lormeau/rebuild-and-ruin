@@ -41,6 +41,9 @@ import {
 import { type BannerState, createBannerState } from "./runtime-contracts.ts";
 import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
 
+/** Discriminant for pause source. See `RuntimeState.pausedBy`. */
+export type PauseReason = "none" | "user" | "visibility";
+
 export interface ScoreDisplayState {
   deltas: {
     playerId: ValidPlayerSlot;
@@ -96,16 +99,21 @@ export interface SelectionRuntimeState {
 
 /** Mutable runtime state bag for the game loop.
  *
- *  SENTINEL GUARD: `state` and `frameCtx` are initialized via Proxy sentinels
- *  that throw on ANY property access before startGame() runs. This means:
- *    - Always check `isStateReady(runtimeState)` before accessing `.state` or `.frameCtx`
- *    - Use `safeState(runtimeState)` in code paths that may run before init (render, input)
- *    - Both fields are initialized together — if one is ready, both are ready
+ *  READINESS GUARD: `state` and `frameMeta` are typed as their real types but
+ *  hold placeholder values until `startGame()` / the first mainLoop tick runs.
+ *  Access them only after checking `isStateReady(runtimeState)` (or via
+ *  `safeState`/`assertStateReady`). Both become safe together — once state is
+ *  assigned, the next tick populates `frameMeta`. Tick-path code that runs
+ *  only after `startGame()` can read them directly.
  *  All other fields are safe to access immediately after createRuntimeState(). */
 export interface RuntimeState {
   // Core game
-  /** Guarded by sentinel — throws on access before startGame(). See RuntimeState docs. */
+  /** Guarded by `stateReady` — only read after `isStateReady(runtimeState)`. */
   state: GameState;
+  /** True once `state` has been assigned a real GameState (startGame or online
+   *  init). Flipped once, never reset: `returnToLobby` leaves the prior
+   *  GameState in place until the next bootstrap overwrites it. */
+  stateReady: boolean;
   overlay: RenderOverlay;
   controllers: PlayerController[];
 
@@ -121,16 +129,24 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
-  /** Per-frame context (dt, mode, etc.). IMPORTANT: guarded by an uninitialized
-   *  sentinel before the first mainLoop tick. Same rules as `state` — check
-   *  `isStateReady(runtimeState)` before accessing. */
+  /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
+   *  on every mainLoop tick. Holds a placeholder until the first tick — same
+   *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
   frameMeta: FrameContext;
   frame: FrameData;
   lobby: LobbyState;
 
   // UI / mode
   mode: Mode;
-  paused: boolean;
+  /** Reason the game loop is paused — single source of truth.
+   *  - `"none"` — running.
+   *  - `"user"` — pause initiated by the player (options menu toggle, dev
+   *    console). Persists across tab hide/show so a manually-paused game
+   *    stays paused on return.
+   *  - `"visibility"` — tab was backgrounded. Auto-clears on tab return,
+   *    but only when the current reason is `"visibility"` (never overrides
+   *    a user pause). */
+  pausedBy: PauseReason;
   quit: QuitState;
   optionsUI: OptionsUIState;
 
@@ -183,13 +199,6 @@ interface FrameContextInputs {
 
 /** Default frame delta time (assumes 60fps). */
 const DEFAULT_FRAME_DT = 1 / 60;
-/**
- * Create a typed sentinel that throws a descriptive error on any property
- * access.  Replaces `null! as T` — same zero-cost for valid code paths,
- * but produces a clear "not yet initialized" error instead of a cryptic
- * "Cannot read properties of null" when accessed before assignment.
- */
-const SENTINEL = Symbol("uninitialized");
 
 /** Create zeroed per-player game stats array for a new match. */
 export function createEmptyGameStats(): PlayerStats[] {
@@ -203,6 +212,11 @@ export function createEmptyGameStats(): PlayerStats[] {
  * Single mutation point makes the state machine traceable and validatable. */
 export function setMode(runtimeState: RuntimeState, mode: Mode): void {
   runtimeState.mode = mode;
+}
+
+/** Derived pause flag — true when any reason holds the loop paused. */
+export function isPaused(runtimeState: RuntimeState): boolean {
+  return runtimeState.pausedBy !== "none";
 }
 
 /** Reset frame timing to avoid a large dt spike on the next tick.
@@ -221,7 +235,7 @@ export function resetFrameTiming(
 export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.battleAnim = createBattleAnimState();
   runtimeState.accum = createTimerAccums();
-  runtimeState.paused = false;
+  runtimeState.pausedBy = "none";
   runtimeState.speedMultiplier = 1;
   runtimeState.quit.pending = false;
   runtimeState.quit.timer = 0;
@@ -230,12 +244,15 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.inputTracking.directTouchActive = false;
 }
 
-/** Create initial runtime state. `state` and `ctx` are sentinel-guarded:
- * they throw on any property access until startGame() assigns real values.
- * All other fields are safe to access immediately. */
+/** Create initial runtime state. `state` and `frameMeta` are not yet valid:
+ *  read them only when `isStateReady(runtimeState)` returns true.
+ *  All other fields are safe to access immediately. */
 export function createRuntimeState(): RuntimeState {
   return {
-    state: uninitializedSentinel<GameState>("state"),
+    // Placeholder until startGame() assigns a real GameState (see
+    // `setRuntimeGameState`). Guarded by `stateReady`.
+    state: null as unknown as GameState,
+    stateReady: false,
     overlay: { selection: { highlighted: null, selected: null } },
     controllers: [],
 
@@ -254,7 +271,9 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
-    frameMeta: uninitializedSentinel<FrameContext>("ctx"),
+    // Placeholder until the first mainLoop tick populates frame context.
+    // Guarded by `stateReady` (same lifecycle as `state`).
+    frameMeta: null as unknown as FrameContext,
     frame: { crosshairs: [], phantoms: {} },
     lobby: {
       joined: new Array(MAX_PLAYERS).fill(false),
@@ -265,7 +284,7 @@ export function createRuntimeState(): RuntimeState {
     },
 
     mode: Mode.STOPPED,
-    paused: false,
+    pausedBy: "none",
     quit: { pending: false, timer: 0, message: "" },
     optionsUI: { returnMode: null, cursor: 0 },
 
@@ -305,11 +324,21 @@ export function assertStateReady(runtimeState: RuntimeState): GameState {
 }
 
 /** Returns true when `runtimeState.state` has been assigned a real GameState.
- *  Note: `runtimeState.ctx` is also sentinel-guarded and initialized at the same time
- *  (first mainLoop tick after startGame). Both are safe to access when this
- *  returns true. */
+ *  `frameMeta` is populated on the first mainLoop tick after the assignment,
+ *  so tick-path code that runs under this guard can also safely read it. */
 export function isStateReady(runtimeState: RuntimeState): boolean {
-  return !(runtimeState.state as unknown as Record<symbol, unknown>)[SENTINEL];
+  return runtimeState.stateReady;
+}
+
+/** Install the live GameState on the runtime. Single mutation point for the
+ *  `state` field — keeps the readiness flag in sync. Call from `startGame`
+ *  (local bootstrap) and the online InitMessage handler. */
+export function setRuntimeGameState(
+  runtimeState: RuntimeState,
+  state: GameState,
+): void {
+  runtimeState.state = state;
+  runtimeState.stateReady = true;
 }
 
 /** Run the main loop tick: quit countdown, pause check, mode dispatch.
@@ -408,16 +437,4 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     shouldUnzoom,
     isTransition,
   };
-}
-
-function uninitializedSentinel<T extends object>(name: string): T {
-  const proxy = new Proxy<T>(Object.create(null), {
-    get(_, prop) {
-      if (prop === SENTINEL) return true;
-      throw new Error(
-        `runtimeState.${name} accessed before initialization (property: ${String(prop)})`,
-      );
-    },
-  });
-  return proxy;
 }

@@ -8,11 +8,9 @@ import {
   LIFE_LOST_MAX_TIMER,
   MODIFIER_ID,
   type ModifierDiff,
-  TIMER_DISPLAY_LAG_SEC,
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -21,7 +19,6 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
@@ -73,13 +70,6 @@ interface GameOverLayout {
   menuX: number;
 }
 
-const PHASE_LABELS = new Map<Phase, string>([
-  [Phase.CASTLE_SELECT, "Select"],
-  [Phase.CASTLE_RESELECT, "Select"],
-  [Phase.WALL_BUILD, "Build"],
-  [Phase.CANNON_PLACE, "Cannons"],
-  [Phase.BATTLE, "Battle"],
-]);
 const GAMEOVER_PANEL_W_RATIO = 0.65;
 const SETTINGS_GEAR_X = MAP_PX_W - 32;
 const SETTINGS_GEAR_Y = 4;
@@ -159,57 +149,6 @@ export function createBannerUi(
     bottom: top + bannerHInt,
     modifierDiff,
     prevScene,
-  };
-}
-
-export function createStatusBar(
-  view: RenderView,
-  playerColors: readonly { interiorLight: RGB }[],
-  povPlayerId?: number,
-  hasPointerPlayer?: boolean,
-) {
-  // Modifier label (modern mode only)
-  const modifier = view.modern?.activeModifier
-    ? modifierDef(view.modern.activeModifier).label
-    : undefined;
-
-  // POV player's active upgrade labels (skip when no human is playing)
-  let upgrades: string[] | undefined;
-  if (hasPointerPlayer && povPlayerId !== undefined && povPlayerId >= 0) {
-    const player = view.players[povPlayerId];
-    if (player && player.upgrades.size > 0) {
-      upgrades = [];
-      for (const [id, count] of player.upgrades) {
-        const def = UPGRADE_POOL.find((upgrade) => upgrade.id === id);
-        const label = def?.label ?? id;
-        upgrades.push(count > 1 ? `${label} x${count}` : label);
-      }
-    }
-  }
-
-  return {
-    round:
-      view.maxRounds === Infinity
-        ? `R${view.round}`
-        : `R${view.round}/${view.maxRounds}`,
-    phase: PHASE_LABELS.get(view.phase) ?? "",
-    // Display lags the real timer by TIMER_DISPLAY_LAG_SEC so "0s"
-    // shows during the last second of the phase instead of blipping
-    // past. Pure visual — the real countdown (view.timer) still hits
-    // 0 at the actual phase end.
-    timer:
-      view.timer > 0
-        ? `${Math.max(0, Math.ceil(view.timer - TIMER_DISPLAY_LAG_SEC))}s`
-        : "",
-    modifier,
-    upgrades,
-    players: view.players.map((player, i) => ({
-      score: player.score,
-      cannons: player.cannons.filter((c) => c.hp > 0).length,
-      lives: player.lives,
-      color: playerColors[i % playerColors.length]!.interiorLight,
-      eliminated: player.eliminated,
-    })),
   };
 }
 

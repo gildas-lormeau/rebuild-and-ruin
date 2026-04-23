@@ -113,15 +113,14 @@ export function createBattleStartMessage(
     })),
     burningPits: serializeBurningPits(state),
     towerAlive: [...state.towerAlive],
-    flights:
-      flights && flights.length > 0
-        ? flights.map((flight) => ({
-            startX: flight.startX,
-            startY: flight.startY,
-            endX: flight.endX,
-            endY: flight.endY,
-          }))
-        : null,
+    flights: flights
+      ? flights.map((flight) => ({
+          startX: flight.startX,
+          startY: flight.startY,
+          endX: flight.endX,
+          endY: flight.endY,
+        }))
+      : [],
     ...serializeModifierTileSets(state),
     modifierDiff: modifierDiff
       ? {

@@ -69,6 +69,26 @@ export interface TileInspection {
   zone: number | null;
 }
 
+/** Explicit layer priority for cell stacking. Higher number wins.
+ *  Decoupled from enum order so reordering `CellKind` can't silently change
+ *  which entity renders on top. `Record<CellKind, number>` forces every
+ *  kind to have an assigned priority — adding a new kind without a priority
+ *  is a compile error. */
+const CELL_LAYER_PRIORITY: Record<CellKind, number> = {
+  [CellKind.Grass]: 0,
+  [CellKind.Water]: 1,
+  [CellKind.FrozenWater]: 2,
+  [CellKind.Interior]: 3,
+  [CellKind.BonusSquare]: 4,
+  [CellKind.Wall]: 5,
+  [CellKind.BurningPit]: 6,
+  [CellKind.House]: 7,
+  [CellKind.Cannon]: 8,
+  [CellKind.Grunt]: 9,
+  [CellKind.TowerDead]: 10,
+  [CellKind.TowerAlive]: 11,
+  [CellKind.Cannonball]: 12,
+};
 /** Number of lines the legend produced by `buildLegend` occupies. Used by
  *  `extractGridLines` to strip legend without pattern-matching it. */
 const LEGEND_LINE_COUNT = 4;
@@ -443,7 +463,7 @@ function setCell(
 ): void {
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
   const existing = grid[row]![col]!;
-  if (kind >= existing.kind) {
+  if (CELL_LAYER_PRIORITY[kind] >= CELL_LAYER_PRIORITY[existing.kind]) {
     grid[row]![col] = extra
       ? { kind, char, playerId, extra }
       : { kind, char, playerId };

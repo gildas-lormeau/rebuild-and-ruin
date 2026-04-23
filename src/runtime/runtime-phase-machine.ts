@@ -101,10 +101,12 @@ export type TransitionId =
   | "last-player-standing";
 
 /** Opaque result produced by a transition's mutate fn, threaded through the
- *  display steps. */
+ *  display steps. `modifierDiff` and `flights` are always present — use
+ *  `EMPTY_TRANSITION_RESULT` or spread it for transitions that don't touch
+ *  the battle-entry fields. */
 interface TransitionResult {
-  readonly modifierDiff?: ModifierDiff | null;
-  readonly flights?: readonly BalloonFlight[];
+  readonly modifierDiff: ModifierDiff | null;
+  readonly flights: readonly BalloonFlight[];
   readonly needsReselect?: readonly ValidPlayerSlot[];
   readonly eliminated?: readonly ValidPlayerSlot[];
   readonly preScores?: readonly number[];
@@ -417,6 +419,14 @@ export interface PhaseTransitionCtx {
   readonly watcher?: WatcherHooks;
 }
 
+/** Default "no battle-entry data" result. Every transition whose mutate
+ *  doesn't produce a modifier roll or balloon flights returns this (or
+ *  spreads it). Keeps `TransitionResult.modifierDiff` / `flights` strictly
+ *  required at the type level — consumers no longer defensively coalesce. */
+const EMPTY_TRANSITION_RESULT: TransitionResult = {
+  modifierDiff: null,
+  flights: [],
+};
 /** Discriminator values for `DisplayStep.kind` / `PhaseTransitionCtx.role`. */
 const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
@@ -457,7 +467,7 @@ const WALL_BUILD_DONE: Transition = {
         eliminated,
         scores: ctx.state.players.map((player) => player.score),
       });
-      return { needsReselect, eliminated };
+      return { ...EMPTY_TRANSITION_RESULT, needsReselect, eliminated };
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BuildEndMessage;
@@ -471,6 +481,7 @@ const WALL_BUILD_DONE: Transition = {
       // written the new scores into state).
       ctx.scoreDelta.setPreScores?.(preScores);
       return {
+        ...EMPTY_TRANSITION_RESULT,
         needsReselect: msg.needsReselect,
         eliminated: msg.eliminated,
         preScores,
@@ -536,13 +547,13 @@ const BATTLE_DONE: Transition = {
         ctx.runtimeState.battleAnim.walls,
       );
       ctx.broadcast?.buildStart?.(ctx.state);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BuildStartData;
       ctx.checkpoint?.applyBuildStart?.(msg);
       setPhase(ctx.state, Phase.WALL_BUILD);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
   },
   postMutate: clearBattleAnim,
@@ -582,7 +593,7 @@ const CEASEFIRE: Transition = {
       ctx.scoreDelta.reset?.();
       ctx.ceasefireSkipBattle?.();
       ctx.broadcast?.buildStart?.(ctx.state);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
     // No watcher mutate: host broadcasts BUILD_START and the watcher routes
     // through `battle-done`. Accidental dispatch from a watcher ctx throws
@@ -605,7 +616,7 @@ const CANNON_ENTRY_WATCHER_MUTATE = (
   const msg = ctx.incomingMsg as CannonStartData;
   ctx.checkpoint?.applyCannonStart?.(msg);
   setPhase(ctx.state, Phase.CANNON_PLACE);
-  return {};
+  return EMPTY_TRANSITION_RESULT;
 };
 /** Shared watcher postDisplay paired with `CANNON_ENTRY_WATCHER_MUTATE`. */
 const CANNON_ENTRY_WATCHER_POSTDISPLAY = (ctx: PhaseTransitionCtx): void => {
@@ -633,7 +644,7 @@ const CASTLE_SELECT_DONE: Transition = {
       ctx.clearCastleBuildViewport?.();
       enterCannonPhase(ctx.state);
       ctx.broadcast?.cannonStart?.(ctx.state);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
@@ -674,7 +685,7 @@ const CASTLE_RESELECT_DONE: Transition = {
       ctx.clearCastleBuildViewport?.();
       enterCannonPhase(ctx.state);
       ctx.broadcast?.cannonStart?.(ctx.state);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
@@ -701,7 +712,7 @@ const ADVANCE_TO_CANNON: Transition = {
       finalizeBuildVisuals(ctx.state);
       enterCannonPhase(ctx.state);
       ctx.broadcast?.cannonStart?.(ctx.state);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_MUTATE,
   },
@@ -724,7 +735,7 @@ const ROUND_LIMIT_REACHED: Transition = {
         );
       }
       ctx.endGame?.(ctx.winner);
-      return {};
+      return EMPTY_TRANSITION_RESULT;
     },
   },
   display: [],
@@ -783,8 +794,8 @@ const CANNON_PLACE_DONE: Transition = {
       ctx.checkpoint?.applyBattleStart?.(msg);
       setPhase(ctx.state, Phase.BATTLE);
       return {
-        modifierDiff: msg.modifierDiff ?? null,
-        flights: msg.flights ?? [],
+        modifierDiff: msg.modifierDiff,
+        flights: msg.flights,
       };
     },
   },
@@ -811,8 +822,8 @@ const CANNON_PLACE_DONE: Transition = {
     },
   ],
   postDisplay: {
-    host: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
-    watcher: (ctx, result) => proceedToBattle(ctx, result.flights ?? []),
+    host: (ctx, result) => proceedToBattle(ctx, result.flights),
+    watcher: (ctx, result) => proceedToBattle(ctx, result.flights),
   },
 };
 const TRANSITIONS: readonly Transition[] = [

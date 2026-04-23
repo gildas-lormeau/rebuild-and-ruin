@@ -30,7 +30,7 @@ import {
   ROUNDS_OPTIONS,
 } from "../shared/ui/settings-defs.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setRuntimeGameState } from "./runtime-state.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
@@ -168,7 +168,7 @@ export async function bootstrapNewGameFromSettings(
     log,
     clearFrameData: deps.clearFrameData,
     setState: (state) => {
-      runtimeState.state = state;
+      setRuntimeGameState(runtimeState, state);
     },
     setControllers: (controllers) => {
       runtimeState.controllers = [...controllers];

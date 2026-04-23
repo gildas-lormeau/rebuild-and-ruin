@@ -19,7 +19,6 @@ import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
   CreateRenderSummaryMessageFn,
-  CreateStatusBarFn,
   Dpad,
   FloatingActions,
   QuitButton,
@@ -27,7 +26,7 @@ import type {
   TouchControlsDeps,
   ZoomButton,
 } from "./runtime-contracts.ts";
-import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -38,7 +37,6 @@ interface RenderSystemDeps {
   readonly createBannerUi: CreateBannerUiFn;
   readonly createOnlineOverlay: CreateOnlineOverlayFn;
   readonly createRenderSummaryMessage: CreateRenderSummaryMessageFn;
-  readonly createStatusBar: CreateStatusBarFn;
 
   readonly drawFrame: (
     map: GameMap,
@@ -55,7 +53,7 @@ interface RenderSystemDeps {
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
   readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerSlot>;
-  readonly syncCrosshairs: (weaponsActive: boolean) => void;
+  readonly syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
   readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
     px: number;
     py: number;
@@ -108,8 +106,8 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     );
 
     // Refresh crosshairs from controller state when paused
-    if (runtimeState.frameMeta.inBattle && runtimeState.paused) {
-      deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
+    if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
+      deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0, 0);
     }
 
     const banner = runtimeState.banner;
@@ -147,15 +145,6 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
     });
-
-    // Status bar: disabled for now (display-layout issues under the 3D
-    // canvas). The `createStatusBar` dep + pipeline stay wired so this is
-    // a one-line re-enable once the layout is fixed:
-    //   runtimeState.overlay.ui.statusBar = deps.createStatusBar(
-    //     view, PLAYER_COLORS,
-    //     runtimeState.frameMeta.povPlayerId,
-    //     runtimeState.frameMeta.hasPointerPlayer,
-    //   );
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
     if (

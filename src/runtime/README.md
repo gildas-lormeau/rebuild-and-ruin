@@ -85,8 +85,25 @@ deps object and returns a handle with methods. They are wired by
 | `runtime-render.ts` | Render | Per-frame overlay build + drawFrame + touch controls update |
 | `runtime-score-deltas.ts` | ScoreDelta | Animated score delta display after build phase |
 | `runtime-selection.ts` | Selection | Castle selection phase (initial + reselect) |
-| `runtime-sound.ts` | Sound | jsfxr + Web Audio SFX — gated by sound setting, write-only test observer |
 | `runtime-upgrade-pick.ts` | UpgradePick | Upgrade-pick dialog lifecycle (show/tick/resolve) |
+
+### Audio cluster (primitives + two sub-system factories)
+The audio files form a cohesive primitive cluster rather than independent
+sub-systems — they share asset storage, a synth loader, and a modal, so
+they import from each other. The "sub-systems MUST NOT import from each
+other" rule applies to the top-level `createXSystem(deps)` sub-systems
+listed above; internal cluster imports (music-player → music-assets +
+music-synth-loader; sfx-player → music-assets) are expected. Only
+`createMusicSubsystem` and `createSfxSubsystem` are wired through the
+composition root's deps object.
+
+| File | Purpose |
+|---|---|
+| `music-player.ts` | XMI MIDI playback, bg tracks, fanfares |
+| `sfx-player.ts` | VOC sample playback, event-map dispatcher, snare crescendo |
+| `music-assets.ts` | IndexedDB asset storage + RSC/XMI extraction |
+| `music-synth-loader.ts` | WOPL synth worklet loader + gain envelope |
+| `sound-modal.ts` | HTML modal for asset import (DOM UI) — standalone factory, not a sub-system; exposed to the options screen via a `showSoundModal` callback rather than the deps bag |
 
 ### Primitives / helpers (NOT sub-systems)
 These are pure functions or small factories consumed by the sub-systems
@@ -216,14 +233,15 @@ and call it from `runtime-phase-ticks.ts`.
   will reject it. Cross-sub-system wiring goes through
   `runtime-composition.ts` via the deps bag.
 
-- **`runtimeState.state` can be a sentinel before the game starts.**
+- **`runtimeState.state` holds a placeholder before the game starts.**
   Use `safeState(runtimeState)` (returns `GameState | undefined`) or
   `isStateReady(runtimeState)` (boolean guard) for code that runs
-  before `startGame()` — notably render, input, lobby.
+  before `startGame()` — notably render, input, lobby. Writers assign
+  via `setRuntimeGameState` so the readiness flag stays in sync.
 
 - **`runtimeState.frameMeta` is populated by `computeFrameContext` inside
   `mainLoop`.** Code that runs before the first main-loop tick will see
-  the sentinel. The composition root hydrates it via a warm-up tick
+  a placeholder. The composition root hydrates it via a warm-up tick
   before `startGame()` in headless mode.
 
 - **The `roots` tier exemption is load-bearing for

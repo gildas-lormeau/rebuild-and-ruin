@@ -8,6 +8,7 @@ import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
+  type LifeLostEntry,
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -178,22 +179,15 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     }
   }
 
-  function findPendingEntry(playerId: ValidPlayerSlot) {
-    return runtimeState.dialogs.lifeLost?.entries.find(
-      (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
-    );
-  }
-
   function toggleFocus(playerId: ValidPlayerSlot): void {
-    const entry = findPendingEntry(playerId);
-    if (entry) toggleLifeLostFocus(entry);
+    withPendingEntry(playerId, (entry) => toggleLifeLostFocus(entry));
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
-    const entry = findPendingEntry(playerId);
-    if (!entry) return;
-    const choice = confirmLifeLostFocusedChoice(entry);
-    deps.sendLifeLostChoice(choice, entry.playerId);
+    withPendingEntry(playerId, (entry) => {
+      const choice = confirmLifeLostFocusedChoice(entry);
+      deps.sendLifeLostChoice(choice, entry.playerId);
+    });
   }
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
@@ -202,10 +196,28 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     playerId: ValidPlayerSlot,
     choice: ResolvedChoice,
   ): void {
+    withPendingEntry(playerId, (entry) => {
+      applyLifeLostChoice(entry, choice);
+      deps.sendLifeLostChoice(choice, playerId);
+    });
+  }
+
+  function findPendingEntry(
+    playerId: ValidPlayerSlot,
+  ): LifeLostEntry | undefined {
+    return runtimeState.dialogs.lifeLost?.entries.find(
+      (entry) =>
+        entry.playerId === playerId && entry.choice === LifeLostChoice.PENDING,
+    );
+  }
+
+  function withPendingEntry(
+    playerId: ValidPlayerSlot,
+    action: (entry: LifeLostEntry) => void,
+  ): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    applyLifeLostChoice(entry, choice);
-    deps.sendLifeLostChoice(choice, playerId);
+    action(entry);
   }
 
   return {

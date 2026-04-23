@@ -20,6 +20,7 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
 import {
   computeFrameContext,
+  isPaused,
   isStateReady,
   type RuntimeState,
   tickMainLoop,
@@ -126,7 +127,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       timer: isStateReady(deps.runtimeState)
         ? deps.runtimeState.state.timer
         : 0,
-      paused: deps.runtimeState.paused,
+      paused: isPaused(deps.runtimeState),
       quitPending: deps.runtimeState.quit.pending,
       hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
       isSelectionReady: deps.isSelectionReady(),
@@ -147,7 +148,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     return tickMainLoop({
       dt,
       mode: deps.runtimeState.mode,
-      paused: deps.runtimeState.paused,
+      paused: isPaused(deps.runtimeState),
       quitPending: deps.runtimeState.quit.pending,
       quitTimer: deps.runtimeState.quit.timer,
       quitMessage: deps.runtimeState.quit.message,

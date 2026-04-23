@@ -5,7 +5,7 @@ import {
   initWaitingRoom,
 } from "../runtime/runtime-bootstrap.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
-import { setMode } from "../runtime/runtime-state.ts";
+import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
@@ -117,7 +117,7 @@ export function createOnlineRuntimeSessionHelpers(
       log: deps.log,
       clearFrameData: () => runtime.clearFrameData(),
       setState: (state) => {
-        runtime.runtimeState.state = state;
+        setRuntimeGameState(runtime.runtimeState, state);
       },
       setControllers: (controllers) => {
         runtime.runtimeState.controllers = [...controllers];

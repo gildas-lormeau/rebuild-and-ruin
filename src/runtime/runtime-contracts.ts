@@ -153,26 +153,6 @@ export interface RenderSummaryParams {
   }>;
 }
 
-export type CreateStatusBarFn = (
-  view: RenderView,
-  playerColors: readonly { interiorLight: RGB }[],
-  povPlayerId?: number,
-  hasPointerPlayer?: boolean,
-) => {
-  round: string;
-  phase: string;
-  timer: string;
-  modifier: string | undefined;
-  upgrades: string[] | undefined;
-  players: {
-    score: number;
-    cannons: number;
-    lives: number;
-    color: RGB;
-    eliminated: boolean;
-  }[];
-};
-
 export type ComputeLobbyLayoutFn = (
   W: number,
   H: number,

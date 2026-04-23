@@ -42,16 +42,16 @@
  * When adding a new UI modal, use the TRANSIENT pattern. Only game-phase overlays
  * that need to persist across ticks should use PERSISTENT.
  *
- * ### Sentinel state guard (all runtime-*.ts sub-systems)
+ * ### Readiness state guard (all runtime-*.ts sub-systems)
  *
- * `runtimeState.state` and `runtimeState.frameCtx` start as SENTINEL Proxy
- * objects that throw on ANY property access (see runtime-state.ts).
- * They are replaced with real values only after `startGame()`.
+ * `runtimeState.state` and `runtimeState.frameMeta` hold placeholder values
+ * until `startGame()` runs (see runtime-state.ts). They are typed as their
+ * real types but must not be read before the readiness flag flips via
+ * `setRuntimeGameState`.
  *
  * Sub-system methods run exclusively from game-loop code after startGame(),
- * so they safely access runtimeState.state/frameCtx without null checks.
- * Do NOT call sub-system methods before startGame() completes — the sentinel
- * will throw "runtimeState.state accessed before initialization".
+ * so they safely access runtimeState.state/frameMeta without null checks.
+ * Do NOT call sub-system methods before startGame() completes.
  *
  * For code that MAY run before init (render, input), use:
  *   - `safeState(runtimeState)` → GameState | undefined

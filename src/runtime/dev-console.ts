@@ -12,7 +12,7 @@ import {
   zoneBounds,
 } from "./dev-console-grid.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
-import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
 
 interface MapTextOptions {
   layer?: MapLayer;
@@ -150,22 +150,24 @@ export function exposeDevConsole(
     },
 
     pause() {
-      runtimeState.paused = !runtimeState.paused;
-      console.log(runtimeState.paused ? "Paused" : "Resumed");
+      runtimeState.pausedBy = isPaused(runtimeState) ? "none" : "user";
+      console.log(isPaused(runtimeState) ? "Paused" : "Resumed");
     },
 
     step() {
-      if (!runtimeState.paused) {
+      if (!isPaused(runtimeState)) {
         console.log("Not paused — use __dev.pause() first.");
         return;
       }
-      runtimeState.paused = false;
+      runtimeState.pausedBy = "none";
       timing.requestFrame(() => {
-        runtimeState.paused = true;
+        runtimeState.pausedBy = "user";
       });
     },
 
     perfHud(on?: boolean): boolean {
+      // Cross-domain call into render/ is allowed here: dev-only, attached
+      // via window.__dev, never invoked on any production code path.
       const next = on ?? !isPerfHudEnabled();
       setPerfHudEnabled(next);
       console.log(`Perf HUD ${next ? "on" : "off"} (3D renderer only)`);

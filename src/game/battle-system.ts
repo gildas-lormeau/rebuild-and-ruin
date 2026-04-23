@@ -89,7 +89,7 @@ interface CannonballUpdateResult {
 
 /** Combined per-frame battle tick result: grunt tower kills, cannonball impact
  *  events, and visual impact positions. Returned by `tickBattleCombat`. */
-interface BattleCombatResult {
+export interface BattleCombatResult {
   towerEvents: TowerKilledMessage[];
   impactEvents: ImpactEvent[];
   newImpacts: TilePos[];
