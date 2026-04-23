@@ -342,6 +342,10 @@ export async function createHeadlessRuntime(
   runtime.runtimeState.settings.seed = String(seed);
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
   runtime.runtimeState.settings.gameMode = gameMode;
+  // Headless renders through the stub renderer; pin rendererKind to "2d" so
+  // the production default (now "3d") doesn't pull camera-pitch animations
+  // and PITCH_SETTLED bus events into the determinism event log.
+  runtime.runtimeState.settings.rendererKind = "2d";
   runtime.runtimeState.lobby.seed = seed;
   runtime.runtimeState.lobby.map = generateMap(seed);
 

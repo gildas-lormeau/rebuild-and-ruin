@@ -142,7 +142,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   keyBindings: [],
   leftHanded: false,
   gameMode: GAME_MODE_MODERN,
-  rendererKind: "2d",
+  rendererKind: "3d",
 };
 export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
@@ -181,7 +181,7 @@ export function loadSettings(): GameSettings {
           saved.gameMode === GAME_MODE_CLASSIC
             ? GAME_MODE_CLASSIC
             : GAME_MODE_MODERN,
-        rendererKind: saved.rendererKind === "3d" ? "3d" : "2d",
+        rendererKind: saved.rendererKind === "2d" ? "2d" : "3d",
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS
