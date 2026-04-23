@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8478,
+  "eventCount": 8480,
   "events": [
     {
       "type": "tick",
@@ -38522,13 +38522,7 @@
     {
       "type": "phaseStart",
       "payload": {
-        "phase": "WALL_BUILD",
-        "round": 3
-      }
-    },
-    {
-      "type": "upgradePickShow",
-      "payload": {
+        "phase": "UPGRADE_PICK",
         "round": 3
       }
     },
@@ -38536,7 +38530,7 @@
       "type": "bannerStart",
       "payload": {
         "bannerKind": "upgrade-pick",
-        "phase": "WALL_BUILD",
+        "phase": "UPGRADE_PICK",
         "round": 3,
         "subtitle": "Pick one upgrade per player",
         "text": "Choose Upgrade"
@@ -39614,9 +39608,24 @@
       "type": "bannerSweepEnd",
       "payload": {
         "bannerKind": "upgrade-pick",
-        "phase": "WALL_BUILD",
+        "phase": "UPGRADE_PICK",
         "round": 3,
         "text": "Choose Upgrade"
+      }
+    },
+    {
+      "type": "bannerHidden",
+      "payload": {
+        "bannerKind": "upgrade-pick",
+        "phase": "UPGRADE_PICK",
+        "round": 3,
+        "text": "Choose Upgrade"
+      }
+    },
+    {
+      "type": "upgradePickShow",
+      "payload": {
+        "round": 3
       }
     },
     {
@@ -40691,13 +40700,16 @@
       }
     },
     {
-      "type": "bannerReplaced",
+      "type": "phaseEnd",
       "payload": {
-        "newKind": "build",
-        "newText": "Build & Repair",
+        "phase": "UPGRADE_PICK",
+        "round": 3
+      }
+    },
+    {
+      "type": "phaseStart",
+      "payload": {
         "phase": "WALL_BUILD",
-        "prevKind": "upgrade-pick",
-        "prevText": "Choose Upgrade",
         "round": 3
       }
     },

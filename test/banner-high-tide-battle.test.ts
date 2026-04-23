@@ -1,13 +1,14 @@
 /**
  * High-tide battle banner: verify the banner fires after the modifier.
  *
- * With the ImageData-based banner system, the "old scene" is captured as
- * pixels before modifier tile mutations. The chained "Prepare for Battle"
- * banner inherits the same ImageData (captured before the modifier applied),
- * so it naturally shows pre-mutation terrain below the sweep line.
+ * With the ImageData-based banner system, each banner captures its own
+ * prev-scene at `showBanner` time. The "Prepare for Battle" banner that
+ * follows the modifier-reveal banner captures post-modifier pixels as
+ * its A snapshot, then forces a render and captures its B — reflecting
+ * the post-mutation terrain on both sides of its sweep.
  *
- * This test verifies the sequencing: high_tide modifier banner fires first,
- * then the battle banner chains in, and both complete successfully.
+ * This test verifies the sequencing: high_tide modifier banner fires
+ * first, then the battle banner runs next, and both complete successfully.
  */
 
 import { assert } from "@std/assert";
@@ -19,7 +20,7 @@ import { loadSeed } from "./scenario.ts";
  *  seed registry's entry, and we need another battle cycle after it. */
 const MAX_TIMEOUT_MS = 1_200_000;
 
-Deno.test("battle banner chains after high_tide modifier banner", async () => {
+Deno.test("battle banner follows high_tide modifier banner", async () => {
   const recorder = createCanvasRecorder({ discardCalls: true });
 
   using sc = await loadSeed("modifier:high_tide", {
@@ -41,9 +42,9 @@ Deno.test("battle banner chains after high_tide modifier banner", async () => {
       modifierBannerText = ev.text;
     }
   });
-  // Modifier banner ends when the chained Battle banner overwrites it
-  // (BANNER_REPLACED); a direct hideBanner path would emit BANNER_HIDDEN
-  // instead, so watch both to stay robust to tuning changes.
+  // Modifier banner ends either when the next Battle banner overwrites
+  // it (BANNER_REPLACED) or via BANNER_HIDDEN on a direct hideBanner
+  // path. Watch both to stay robust to tuning changes.
   sc.bus.on(GAME_EVENT.BANNER_HIDDEN, (ev) => {
     if (
       modifierBannerText !== null &&
