@@ -2,6 +2,7 @@ import {
   type ModifierId,
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
+import type { GameMap } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -107,6 +108,9 @@ import {
 
 type ScoreEntry = GameOverOverlay["scores"][number];
 
+// Lockout timer pulse color (Master Builder upgrade) and cycle length.
+const LOCKOUT_AMBER = "rgba(255,180,50,1)";
+const LOCKOUT_PULSE_MS = 300;
 // Modifier banner pulse timing (ms per full cycle)
 const MODIFIER_PULSE_MS = 400;
 // Modifier banner pulse: base alpha and amplitude
@@ -155,6 +159,35 @@ const MODIFIER_COLORS: Record<
 };
 
 /** Draw announcement text centered on screen. */
+/** Countdown timer shown at the map junction during non-battle phases.
+ *  Pulses amber when Master Builder lockout is active. */
+export function drawPhaseTimer(
+  overlayCtx: CanvasRenderingContext2D,
+  map: GameMap,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  if (overlay?.ui?.timer == null || overlay.ui.timer < 0) return;
+  const secs = Math.max(0, Math.ceil(overlay.ui.timer) - 1);
+  const text = `${secs}`;
+  const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
+  const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
+  const lockout = overlay.ui.masterBuilderLockout ?? 0;
+  overlayCtx.save();
+  overlayCtx.font = FONT_TIMER;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  if (lockout > 0) {
+    const pulse = 1.0 + 0.15 * Math.abs(Math.sin(now / LOCKOUT_PULSE_MS));
+    overlayCtx.translate(jx, jy);
+    overlayCtx.scale(pulse, pulse);
+    drawShadowText(overlayCtx, text, 0, 0, SHADOW_COLOR, LOCKOUT_AMBER);
+  } else {
+    drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+  }
+  overlayCtx.restore();
+}
+
 export function drawAnnouncement(
   overlayCtx: CanvasRenderingContext2D,
   W: number,

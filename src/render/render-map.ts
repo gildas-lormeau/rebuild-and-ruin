@@ -44,6 +44,7 @@ import {
   drawGameOver,
   drawLifeLostDialog,
   drawModifierRevealHighlight,
+  drawPhaseTimer,
   drawPlayerSelect,
   drawScoreDeltas,
   drawStatusBar,
@@ -493,7 +494,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   function drawMap(
-    _map: GameMap,
+    map: GameMap,
     canvas: HTMLCanvasElement,
     overlay?: RenderOverlay,
     viewport?: Viewport | null,
@@ -565,6 +566,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // grouped under the `terrain` flag. In 3D mode the WebGL canvas renders
     // these and this flag is flipped off so the 2D canvas leaves those
     // regions transparent; castles/entities/UI still render on 2D.
+    drawPhaseTimer(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
     drawModifierRevealHighlight(overlayCtx, H, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);
