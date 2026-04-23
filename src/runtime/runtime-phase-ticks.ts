@@ -109,17 +109,22 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
+  /** Renderer scene capture — threaded into `PhaseTransitionCtx` so
+   *  `runTransition` can snapshot the old scene before mutation, and
+   *  the banner system can snapshot the new scene after. */
+  rendererCaptureScene: () => ImageData | undefined;
   /** Pre-transition unzoom — threaded through to `PhaseTransitionCtx`
    *  so `runTransition` can gate every mutate + display step on the
    *  camera reaching fullMapVp. See `CameraSystem.requestUnzoom`. */
   requestUnzoom: (onReady: () => void) => void;
   /** Show a full-screen banner. `onDone` fires once when the sweep
-   *  completes. Chain banners by nesting `showBanner` calls inside
-   *  `onDone` — each chained call should capture its own prev-scene
-   *  at the moment of the call, not stash one from earlier. */
+   *  completes. Sequencing banners is the phase machine's job — each
+   *  display step invokes its own `showBanner` in the display sequence;
+   *  the prev-scene snapshot is threaded in from `runTransition`, and
+   *  `showBanner` captures the matching new-scene snapshot itself. */
   showBanner: BannerShow;
   /** Hide the current banner. The phase machine's display runner
-   *  threads this through to non-banner steps and to end-of-chain
+   *  threads this through to non-banner steps and to end-of-sequence
    *  cleanup. Banner steps overwrite via `showBanner` and never need
    *  to hide explicitly. */
   hideBanner: () => void;
@@ -378,6 +383,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
       requestUnzoom: deps.requestUnzoom,
+      rendererCaptureScene: deps.rendererCaptureScene,
+      forceRender: deps.render,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

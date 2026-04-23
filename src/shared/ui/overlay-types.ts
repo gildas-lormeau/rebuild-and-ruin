@@ -239,8 +239,14 @@ export interface BannerUi {
    *  progressive tile-highlight animation in `drawModifierRevealHighlight`. */
   modifierDiff?: ModifierDiff;
   /** Pixel snapshot of the scene composited below the sweep line
-   *  during the banner animation. */
+   *  during the banner animation (the old scene, captured before the
+   *  phase mutation that the banner is announcing). */
   prevScene?: SceneCapture;
+  /** Pixel snapshot of the scene revealed above the sweep line during
+   *  the banner animation (the new scene, captured after the phase
+   *  mutation). Both snapshots are frozen for the duration of the
+   *  sweep — the live renderer does not repaint world contents. */
+  newScene?: SceneCapture;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */

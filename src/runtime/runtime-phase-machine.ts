@@ -73,6 +73,7 @@ import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
+import type { SceneCapture } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   BANNER_BATTLE,
@@ -266,6 +267,17 @@ export interface PhaseTransitionCtx {
    *  at the top of `runTransition` so every mutate + display step runs
    *  against a full-map viewport. See `CameraSystem.requestUnzoom`. */
   readonly requestUnzoom: (onReady: () => void) => void;
+  /** Renderer scene capture — returns display pixels for the most
+   *  recent frame, or `undefined` in headless / pre-first-frame.
+   *  `runTransition` calls this inside the `requestUnzoom` callback
+   *  before `mutate` to capture the old (pre-mutation) scene, then
+   *  threads the result through the display steps so banner steps can
+   *  pair it with their own post-mutation capture. */
+  readonly rendererCaptureScene: () => ImageData | undefined;
+  /** Force one synchronous `render()`. `runTransition` calls this once
+   *  after `mutate` + `postMutate` so the next `rendererCaptureScene`
+   *  reads post-mutation pixels (the banner's new-scene snapshot). */
+  readonly forceRender: () => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -902,9 +914,27 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   ctx.setMode(Mode.TRANSITION);
 
   ctx.requestUnzoom(() => {
+    // Capture the OLD scene once per transition, before any mutation.
+    // The post-unzoom + pre-mutate frame is what the user was last
+    // shown; every banner step in this transition's display sequence
+    // reveals the new scene over this same prev scene.
+    const prevImage = ctx.rendererCaptureScene();
+    const prevScene: SceneCapture | undefined = prevImage
+      ? { image: prevImage }
+      : undefined;
+
     const result = mutateFn(ctx);
     transition.postMutate?.(ctx, result);
-    runDisplay(transition.display, ctx, result, () => {
+
+    // Force one synchronous render so the next `rendererCaptureScene`
+    // (inside `showBanner`) sees post-mutation pixels. Done once here
+    // at the transition level — individual banner steps within a
+    // display sequence don't each need to re-render, because the
+    // state visible between banner steps doesn't change (no further
+    // mutate runs between steps).
+    ctx.forceRender();
+
+    runDisplay(transition.display, ctx, result, prevScene, () => {
       const postDisplay =
         ctx.role === ROLE_HOST
           ? transition.postDisplay?.host
@@ -947,6 +977,7 @@ function runDisplay(
   steps: readonly DisplayStep[],
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (steps.length === 0) {
@@ -955,7 +986,9 @@ function runDisplay(
     return;
   }
   const [first, ...rest] = steps;
-  runStep(first!, ctx, result, () => runDisplay(rest, ctx, result, onDone));
+  runStep(first!, ctx, result, prevScene, () =>
+    runDisplay(rest, ctx, result, prevScene, onDone),
+  );
 }
 
 /** Shared post-mutation sync for battle ENTRY (cannon-place-done): clear
@@ -1030,6 +1063,7 @@ function runStep(
   step: DisplayStep,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   // Subsystems that own a Mode (life-lost, upgrade-pick) leave the mode
@@ -1037,7 +1071,7 @@ function runStep(
   // transition's postDisplay sets the terminal mode after all steps finish.
   switch (step.kind) {
     case STEP_BANNER:
-      runBannerStep(step, ctx, result, onDone);
+      runBannerStep(step, ctx, result, prevScene, onDone);
       return;
     case STEP_SCORE_OVERLAY:
       ctx.scoreDelta.show(onDone);
@@ -1046,7 +1080,7 @@ function runStep(
       runLifeLostDialogStep(ctx, result, onDone);
       return;
     case STEP_UPGRADE_PICK:
-      runUpgradePickStep(step, ctx, result, onDone);
+      runUpgradePickStep(step, ctx, result, prevScene, onDone);
       return;
   }
 }
@@ -1055,6 +1089,7 @@ function runBannerStep(
   step: Extract<DisplayStep, { kind: "banner" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1070,6 +1105,7 @@ function runBannerStep(
     subtitle: step.subtitle,
     modifierDiff,
     holdMs: step.holdMs,
+    prevScene,
   });
 }
 
@@ -1130,6 +1166,7 @@ function runUpgradePickStep(
   step: Extract<DisplayStep, { kind: "upgrade-pick" }>,
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
+  prevScene: SceneCapture | undefined,
   onDone: () => void,
 ): void {
   if (step.when && !step.when(ctx.state, result)) {
@@ -1148,6 +1185,7 @@ function runUpgradePickStep(
     text: BANNER_UPGRADE_PICK,
     kind: "upgrade-pick",
     subtitle: BANNER_UPGRADE_PICK_SUB,
+    prevScene,
     onDone: () => {
       // All players have resolved their picks (or auto-skipped). Apply
       // the picks + recompute territory; the next display step (the

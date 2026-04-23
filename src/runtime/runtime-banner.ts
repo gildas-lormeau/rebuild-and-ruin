@@ -85,10 +85,21 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
-    // Capture FIRST, before touching banner state — the snapshot is
-    // whatever the user was last shown.
+    // Two-snapshot model:
+    //   - `prevScene` (A) = old scene, supplied by the phase machine.
+    //     Captured once per transition inside `runTransition`'s
+    //     `requestUnzoom` callback, BEFORE `mutate` runs. Undefined for
+    //     callers outside the phase machine (no old scene to pair).
+    //   - `newScene` (B) = new scene, captured here. The phase machine
+    //     forces one synchronous `render()` after `mutate` + `postMutate`
+    //     before dispatching display steps, so these pixels reflect the
+    //     post-mutation world.
+    // Both snapshots are frozen for the duration of the sweep — the
+    // renderer paints them on either side of the sweep line and does
+    // not repaint world contents.
     const image = rendererCaptureScene();
-    const prevScene = image ? { image } : undefined;
+    const newScene = image ? { image } : undefined;
+    const prevScene = opts.prevScene;
 
     // Overwrite on re-entry. Watchers legitimately replay banners from
     // checkpoint messages that can arrive during an earlier banner's sweep
@@ -120,6 +131,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       modifierDiff: opts.modifierDiff,
       callback: opts.onDone,
       prevScene,
+      newScene,
       holdMs: opts.holdMs ?? 0,
     };
     runtimeState.banner = next;

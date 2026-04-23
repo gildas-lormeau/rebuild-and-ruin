@@ -223,6 +223,8 @@ function buildWatcherPhaseCtx(
     showBanner: runtime.showBanner,
     hideBanner: runtime.hideBanner,
     requestUnzoom: runtime.requestUnzoom,
+    rendererCaptureScene: runtime.rendererCaptureScene,
+    forceRender: runtime.render,
     setMode: (mode) => setMode(runtimeState, mode),
     log: (text) => {
       // Watcher logs go through the shared runtime log (not client.devLog);

@@ -132,6 +132,7 @@ export type CreateBannerUiFn = (
   subtitle?: string,
   modifierDiff?: ModifierDiff,
   prevScene?: SceneCapture,
+  newScene?: SceneCapture,
 ) => BannerUi | undefined;
 
 export type CreateRenderSummaryMessageFn = (
@@ -239,8 +240,16 @@ export interface ActiveBannerState {
    *  `showBanner` / `hideBanner` replaces this banner. */
   callback: (() => void) | null;
   /** Pixel snapshot of the scene composited below the sweep line during
-   *  animation. Captured at `showBanner`-time. */
+   *  animation — the old scene, captured before the phase mutation that
+   *  the banner is announcing. Supplied by the caller (`showBanner` opts)
+   *  because the mutation has not yet run at banner-show time. */
   prevScene?: SceneCapture;
+  /** Pixel snapshot of the scene revealed above the sweep line during
+   *  animation — the new scene, captured by `showBanner` itself after
+   *  the phase mutation + `postMutate` + one forced `render()`. Both
+   *  snapshots are frozen for the duration of the sweep; the live
+   *  renderer does not repaint world contents during a banner. */
+  newScene?: SceneCapture;
   /** Set when the active banner is a modifier-reveal (modern mode).
    *  Carries the full diff — `id` drives the banner palette + bannerStart
    *  event, `changedTiles` drives the progressive tile-highlight animation
@@ -660,6 +669,14 @@ export interface BannerShowOpts {
    *  the timer (not the caller): `hideBanner()` or a subsequent
    *  `showBanner` during the hold cancels it. */
   readonly holdMs?: number;
+  /** Pixel snapshot of the old scene, captured before the phase mutation
+   *  that this banner announces. Threaded in by the phase machine
+   *  (`runTransition` captures once inside the `requestUnzoom` callback,
+   *  before `mutate`). `showBanner` captures the matching newScene itself
+   *  after a forced post-mutate render, so callers outside the phase
+   *  machine can omit this field — the banner will simply reveal a
+   *  post-mutation scene over an empty (undefined) prev scene. */
+  readonly prevScene?: SceneCapture;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

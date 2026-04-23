@@ -129,6 +129,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
             banner.subtitle,
             banner.modifierDiff,
             banner.prevScene,
+            banner.newScene,
           );
 
     // Project full GameState onto the phase-discriminated render view

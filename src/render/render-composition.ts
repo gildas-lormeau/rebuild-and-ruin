@@ -129,6 +129,7 @@ export function createBannerUi(
   subtitle?: string,
   modifierDiff?: ModifierDiff,
   prevScene?: SceneCapture,
+  newScene?: SceneCapture,
 ): BannerUi | undefined {
   if (!active) return undefined;
   const h = MAP_PX_H;
@@ -149,6 +150,7 @@ export function createBannerUi(
     bottom: top + bannerHInt,
     modifierDiff,
     prevScene,
+    newScene,
   };
 }
 
