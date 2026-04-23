@@ -144,20 +144,26 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  /** Try to show upgrade pick overlay. Returns true if shown (caller should
-   *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
-  tryShowUpgradePick?: (onDone: () => void) => boolean;
-  /** Pre-create the upgrade pick dialog for progressive reveal during banner. */
-  prepareUpgradePick?: () => boolean;
-  /** Read the live upgrade-pick dialog state — used by the machine to pass
-   *  resolved picks into `applyUpgradePicks`. */
-  getUpgradePickDialog?: () => UpgradePickDialogState | null;
-  /** Tear down the upgrade-pick dialog. Called from the build banner's
-   *  onDone (after the sweep) so `drawUpgradePick` can keep clipping the
-   *  dialog against `banner.top` / `banner.bottom` for the entire
-   *  animation. The watcher path has its own counterpart at the
-   *  `clearUpgradePickDialog` hook in `online-phase-transitions.ts`. */
-  clearUpgradePickDialog?: () => void;
+  /** Upgrade-pick hook bag — all four functions are wired together or not
+   *  at all. Grouping them into a single optional field encodes that
+   *  invariant at the type level, so the `upgradePick` ctx object can be
+   *  assembled without non-null assertions.
+   *  - `tryShow`: show upgrade pick overlay. Returns true if shown (caller
+   *    should defer Mode.GAME). `onDone` fires when all picks are resolved.
+   *  - `prepare`: pre-create the dialog for progressive reveal during banner.
+   *  - `getDialog`: read the live dialog state — the machine passes resolved
+   *    picks into `applyUpgradePicks`.
+   *  - `clear`: tear down the dialog. Called from the build banner's onDone
+   *    (after the sweep) so `drawUpgradePick` can keep clipping the dialog
+   *    against `banner.top` / `banner.bottom` for the entire animation. The
+   *    watcher path has its own counterpart at the `clearUpgradePickDialog`
+   *    hook in `online-phase-transitions.ts`. */
+  upgradePick?: {
+    tryShow: (onDone: () => void) => boolean;
+    prepare: () => boolean;
+    getDialog: () => UpgradePickDialogState | null;
+    clear: () => void;
+  };
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
    *  composition. The machine's `round-limit-reached` /
@@ -229,7 +235,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   // True once the battle-end `resetCannonFacings` call has been made for
   // this round. Prevents re-resetting on every tick while we wait for
-  // the renderer to finish easing. Cleared once the transition fires.
+  // the renderer to finish easing. Cleared at the start of the next
+  // `beginBattle` so it resets even when the battle-done transition is
+  // bypassed (e.g. a game-over short-circuit).
   let rotationResetDone = false;
 
   // -------------------------------------------------------------------------
@@ -400,15 +408,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           ctrl.startCannonPhase(runtimeState.state);
         }
       },
-      upgradePick: deps.tryShowUpgradePick
+      upgradePick: deps.upgradePick
         ? {
-            prepare: () => deps.prepareUpgradePick!(),
-            tryShow: (onDone) => deps.tryShowUpgradePick!(onDone),
-            getDialog: () => deps.getUpgradePickDialog?.() ?? null,
-            clear: deps.clearUpgradePickDialog,
+            prepare: deps.upgradePick.prepare,
+            tryShow: deps.upgradePick.tryShow,
+            getDialog: deps.upgradePick.getDialog,
+            clear: deps.upgradePick.clear,
           }
         : undefined,
-      clearUpgradePickDialog: deps.clearUpgradePickDialog,
+      clearUpgradePickDialog: deps.upgradePick?.clear,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
       startBuildPhaseLocal: startBuildPhase,
       endBattleLocalControllers: () => {
@@ -471,6 +479,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function beginBattle() {
+    // Reset the battle-end rotation-latch here, at the START of every new
+    // battle, so the flag is always clean on entry regardless of whether
+    // the previous battle's tick ran to the battle-done transition or
+    // was short-circuited (e.g. by a game-over path that skipped the
+    // end-of-tick clear).
+    rotationResetDone = false;
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     for (const ctrl of localControllers(
       runtimeState.controllers,
@@ -724,9 +738,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // re-tilt on next-phase enter).
     deps.beginUntilt();
     if (deps.getPitchState() !== "flat") return false;
-    rotationResetDone = false;
 
-    // Battle ended — delegate to the battle-done transition.
+    // Battle ended — delegate to the battle-done transition. The
+    // `rotationResetDone` latch is cleared at the START of the next
+    // `beginBattle`, not here, so any path that skips this transition
+    // (e.g. game-over short-circuits) still gets a clean flag next round.
     runTransition("battle-done", buildHostPhaseCtx());
     return true;
   }
