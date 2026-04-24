@@ -22,6 +22,7 @@
 import * as THREE from "three";
 import {
   aimElevationAt,
+  aimZShift,
   ELEVATION_STACK,
   RENDER_ORDER,
   Z_FIGHT_MARGIN,
@@ -196,7 +197,7 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
   }
 
   function update(ctx: FrameCtx): void {
-    const { overlay, map, now } = ctx;
+    const { overlay, map, now, pitch } = ctx;
     const crosshairs = overlay?.battle?.crosshairs ?? [];
     const colors = crosshairs.map(
       (ch) => CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!,
@@ -209,14 +210,18 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
       const ch = crosshairs[i]!;
       const host = hosts[i]!;
       const centerX = ch.x;
-      const centerZ = ch.y;
+      // Shift Z forward by `tanP · (aimElev − targetTop)` so the pitched
+      // projection of the elevated mesh lands exactly on the tap position
+      // instead of `tanP · CROSSHAIR_MARGIN_Y` pixels above it. Pure
+      // rendering adjustment — game-state `ch.y` (fire target) is untouched.
+      const centerZ = ch.y + aimZShift(ch.x, ch.y, pitch, overlay, map);
       const geom = crosshairGeometry(ch.cannonReady === true, time);
       const { alpha, arm, diag, gap } = geom;
       // Lift the crosshair onto the top of whatever geometry sits at
       // the aim point (wall / tower / cannon / house / grunt) —
       // otherwise the glow draws on the ground plane and visually
       // passes through the target.
-      const baseY = aimElevationAt(centerX, centerZ, overlay, map);
+      const baseY = aimElevationAt(ch.x, ch.y, overlay, map);
 
       // Diagonals (colored): NW, NE, SW, SE.
       positionArm(

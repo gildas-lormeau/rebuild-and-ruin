@@ -188,7 +188,7 @@ export function createRender3d(
     pitch: number,
   ): void {
     ctx.terrain.ensureBuilt(map);
-    const frame: FrameCtx = { overlay, map, now };
+    const frame: FrameCtx = { overlay, map, now, pitch };
     ctx.terrain.update(frame);
     ctx.walls.update(frame);
     ctx.towers.update(frame);

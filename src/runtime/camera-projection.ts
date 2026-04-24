@@ -29,29 +29,26 @@
  *     the row axis of the map is world Y.
  *   - Pitch rotates the camera around the world X-axis. Pitch = 0 means
  *     the camera looks straight down onto the ground (original behaviour).
- *     Pitch > 0 means the camera "leans back" so the viewer is looking
- *     slightly forward: far-map rows (small worldY) compress toward the
- *     top of the screen while near-map rows (large worldY) spread out
- *     toward the bottom. Orientation at pitch=0 is preserved — small-Y
- *     world points stay at the top of the screen.
- *   - Projection is orthographic (no perspective divide), placed so the
- *     ortho "camera centre" sits on the ground plane at
- *     `(center.x, center.y, 0)`. Under X-only tilt this keeps
- *     `(center.x, center.y)` as the ground point that maps to the canvas
- *     centre, so all fit/inverse math stays a linear rescale:
+ *     Pitch > 0 means the camera "leans back" so the viewer looks slightly
+ *     forward. Orientation at pitch=0 is preserved — small-Y world points
+ *     stay at the top of the screen.
+ *   - Projection is orthographic (no perspective divide). The 3D renderer
+ *     compensates its ortho frustum under tilt (`camera.top = halfH·cosP`)
+ *     so the visible ground-Y rect stays `rect.h` regardless of pitch.
+ *     Screen↔world Y is therefore pitch-independent here:
  *
  *         sx = canvas.w/2 + zoom * (worldX - center.x)
- *         sy = canvas.h/2 + zoom * cos(pitch) * (worldY - center.y)
+ *         sy = canvas.h/2 + zoom * (worldY - center.y)
  *
- *     i.e. the Y axis foreshortens by `cos(pitch)`. Because the tilt is
- *     around X only (no roll, no yaw), the visible ground is still an
- *     axis-aligned rectangle — no trapezoid. Perspective trapezoids only
- *     appear under a perspective projection, which this module does not
- *     use.
- *   - Upper bound: pitch must satisfy |pitch| < MAX_PITCH. As pitch → π/2
- *     the Y foreshortening factor collapses to 0 and the ground plane
- *     becomes edge-on. MAX_PITCH = π/3 leaves plenty of headroom and is
- *     well short of that singularity.
+ *     The visible ground stays an axis-aligned rectangle — no trapezoid.
+ *     What tilt *does* change visually is entity elevation (walls/towers
+ *     project up on screen by `sin(pitch)·height`), but that's applied by
+ *     the 3D renderer when positioning elevated geometry — it is not the
+ *     ground-plane ↔ screen mapping implemented here.
+ *   - Upper bound: pitch must satisfy |pitch| < MAX_PITCH. Currently unused
+ *     by the ground-plane math but still enforced so callers can't drift
+ *     into the edge-on regime where the 3D renderer's frustum shrink
+ *     collapses.
  *
  * Nothing in the runtime constructs a pitched CameraState today; the
  * pitched branches exist so a later wiring step can turn tilt on without
@@ -98,30 +95,25 @@ export function screenToWorld(
   screenY: number,
 ): { x: number; y: number } {
   assertPitchInRange(state.pitch);
-  const cosPitch = Math.cos(state.pitch);
   return {
     x: state.center.x + (screenX - canvas.w / 2) / state.zoom,
-    y: state.center.y + (screenY - canvas.h / 2) / (state.zoom * cosPitch),
+    y: state.center.y + (screenY - canvas.h / 2) / state.zoom,
   };
 }
 
 /** Fit a world rect into the canvas, preserving canvas aspect ratio.
  *  The resulting camera's visible area fully contains `rect` and is centered
  *  on the rect's center. Letterboxing is along whichever axis has slack.
- *
- *  Under tilt, the rect's screen-space Y extent is `rect.h * cos(pitch)`,
- *  so the Y axis needs *less* zoom headroom to fit. Closed-form — no
- *  iteration required, because ortho + X-only tilt is a pure diagonal
- *  rescale (X and Y independent). */
+ *  Pitch-independent because the 3D renderer's frustum compensation keeps
+ *  the visible ground-Y extent equal to `rect.h` across pitch. */
 export function fitWorldRect(
   state: CameraState,
   rect: Viewport,
   canvas: CanvasSize,
 ): CameraState {
   assertPitchInRange(state.pitch);
-  const cosPitch = Math.cos(state.pitch);
   const zoomX = canvas.w / rect.w;
-  const zoomY = canvas.h / (rect.h * cosPitch);
+  const zoomY = canvas.h / rect.h;
   const zoom = Math.min(zoomX, zoomY);
   return {
     center: { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
@@ -137,24 +129,23 @@ export function worldToScreen(
   worldY: number,
 ): { sx: number; sy: number } {
   assertPitchInRange(state.pitch);
-  const cosPitch = Math.cos(state.pitch);
   return {
     sx: canvas.w / 2 + state.zoom * (worldX - state.center.x),
-    sy: canvas.h / 2 + state.zoom * cosPitch * (worldY - state.center.y),
+    sy: canvas.h / 2 + state.zoom * (worldY - state.center.y),
   };
 }
 
-/** Axis-aligned bound of the visible ground. Under X-axis tilt the visible
- *  ground is still an axis-aligned rectangle (no trapezoid — that would
- *  require perspective), stretched vertically by 1/cos(pitch). */
+/** Axis-aligned bound of the visible ground. Pitch-independent: the 3D
+ *  renderer shrinks its frustum under tilt so the ground Y extent stays
+ *  `canvas.h / zoom` regardless of pitch. Still an axis-aligned rectangle
+ *  under X-only tilt — no trapezoid (that requires perspective). */
 export function visibleGroundAABB(
   state: CameraState,
   canvas: CanvasSize,
 ): Viewport {
   assertPitchInRange(state.pitch);
-  const cosPitch = Math.cos(state.pitch);
   const visibleW = canvas.w / state.zoom;
-  const visibleH = canvas.h / (state.zoom * cosPitch);
+  const visibleH = canvas.h / state.zoom;
   return {
     x: state.center.x - visibleW / 2,
     y: state.center.y - visibleH / 2,

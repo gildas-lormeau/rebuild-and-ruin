@@ -542,10 +542,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     } else if (pinchVp) {
       target = pinchVp;
     } else if (cameraZone !== undefined) {
-      target = compressViewportForPitch(
-        computeZoneBounds(cameraZone),
-        currentPitch,
-      );
+      target = computeZoneBounds(cameraZone);
     } else {
       target = fullMapVp;
     }
@@ -975,25 +972,4 @@ function wallSetHash(walls: ReadonlySet<number> | undefined): number {
   let sum = 0;
   for (const key of walls) sum = (sum + key) | 0;
   return (walls.size << 20) ^ sum;
-}
-
-/** Shrink a viewport by `cos(pitch)` around its center, maintaining its
- *  aspect ratio. The runtime viewport drives a single-scalar zoom via
- *  `cameraStateFromViewport`: `zoom = canvas.w / viewport.w`, and under
- *  tilt the visible Y extent picks up a `1/cos(pitch)` stretch
- *  (`visibleH = canvas.h / (zoom · cos(pitch))`). A viewport that
- *  tightly fit the target zone at pitch=0 therefore over-covers the
- *  zone under tilt — the zone occupies less of the screen than the
- *  user expects. Scaling the viewport uniformly by `cos(pitch)` gets
- *  the Y extent back to the intended bounds (X crops proportionally).
- *  The zone's content tends to be vertically distributed, so the
- *  trade reads as "zone fills the screen" rather than "sides cut off". */
-function compressViewportForPitch(viewport: Viewport, pitch: number): Viewport {
-  if (pitch === 0) return viewport;
-  const scale = Math.cos(pitch);
-  const cx = viewport.x + viewport.w / 2;
-  const cy = viewport.y + viewport.h / 2;
-  const w = viewport.w * scale;
-  const h = viewport.h * scale;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
 }

@@ -25,4 +25,5 @@ export interface FrameCtx {
   readonly overlay: RenderOverlay | undefined;
   readonly map: GameMap | undefined;
   readonly now: number;
+  readonly pitch: number;
 }

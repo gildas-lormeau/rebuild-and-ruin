@@ -51,6 +51,10 @@ const GRUNT_TOP_Y = deriveTopY(gruntBoundsYOf("grunt_n"), TILE_SIZE / 2, 10);
  *  bonus / frozen tiles (which sit at Y=0.01). 2 world units = 2
  *  game-1× pixels. */
 const CROSSHAIR_MARGIN_Y = 2;
+// Note: tap-to-crosshair alignment is independent of this value — the
+// `aimZShift` below cancels the pitched-projection lift from any positive
+// margin. This is now a purely cosmetic "how high above the target top
+// the crosshair mesh floats in 3D" knob.
 /** Minimum Y the crosshair is allowed to sit at, in world units. Set
  *  to half a tile so the crosshair never clips into a flat tile when
  *  the camera tilts — it still floats visibly above the ground when
@@ -115,6 +119,27 @@ export function aimElevationAt(
     CROSSHAIR_MIN_Y,
     targetTopAt(x, y, overlay, map) + CROSSHAIR_MARGIN_Y,
   );
+}
+
+/** Row-axis shift (in world units) to apply to a crosshair mesh's Z so its
+ *  pitched screen projection lands on the tap position instead of `tanP`
+ *  pixels above it. The crosshair sits at world-Y = `aimElevationAt`, but
+ *  `pickHitWorld` promoted the game-state Z by only `tanP · targetTop`.
+ *  The extra lift (`aimElev − targetTop`, which is `CROSSHAIR_MARGIN_Y`
+ *  on targets and `CROSSHAIR_MIN_Y` on empty ground) projects up on
+ *  screen by `tanP · delta`. Shifting the mesh's Z forward by the same
+ *  `tanP · delta` world units cancels it exactly. */
+export function aimZShift(
+  x: number,
+  y: number,
+  pitch: number,
+  overlay: RenderOverlay | undefined,
+  map: GameMap | undefined,
+): number {
+  if (pitch <= 0) return 0;
+  const targetTop = targetTopAt(x, y, overlay, map);
+  const aimElev = Math.max(CROSSHAIR_MIN_Y, targetTop + CROSSHAIR_MARGIN_Y);
+  return Math.tan(pitch) * (aimElev - targetTop);
 }
 
 /** Ray-pick the tile a screen tap actually hits under battle tilt.
