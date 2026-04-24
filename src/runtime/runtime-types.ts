@@ -518,6 +518,12 @@ export interface RuntimeLifecycle {
    *  the "finish game 1, start game 2 on the same runtime" path. */
   rematch: () => void | Promise<void>;
   resetUIState: () => void;
+  /** Per-session reset matrix shared by `endGame` and `returnToLobby`.
+   *  Exposed so the online watcher's game-over handler can run the same
+   *  cleanup before flipping Mode.STOPPED — without it, watchers see
+   *  lingering score deltas, life-lost dialogs, and stale camera zoom
+   *  on the game-over screen. */
+  teardownSession: () => void;
 }
 
 export interface RuntimePhaseTicks {

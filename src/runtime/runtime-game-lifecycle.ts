@@ -85,6 +85,7 @@ interface GameLifecycleSystem {
   rematch: () => void | Promise<void>;
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
+  teardownSession: () => void;
 }
 
 interface LifecycleWiringDeps {
@@ -221,6 +222,7 @@ export function createGameLifecycle(
     rematch,
     returnToLobby,
     gameOverClick,
+    teardownSession,
   };
 }
 

@@ -182,6 +182,7 @@ export function handleGameOverTransition(
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
   const runtime = deps.getRuntime();
+  runtime.lifecycle.teardownSession();
   runtime.runtimeState.frame.gameOver = {
     winner: msg.winner,
     scores: msg.scores.map((score, idx) => ({
