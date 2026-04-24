@@ -2,7 +2,8 @@
  * 3D wall-burn effect — fire / smoke / sparks burst when a wall is
  * destroyed. Reconciles `overlay.battle.wallBurns: WallBurn[]` into per-tile
  * fire-burst hosts (see `fire-burst.ts` for the shared primitive bundle
- * + animation kernel).
+ * + animation kernel, and `createTileBurstManager` for the 1×1 manager
+ * shape shared with grunt-burns and house-burns).
  *
  * Effect lifetime is `WALL_BURN_DURATION` (~0.7 s). Aging happens in
  * `ageImpacts` on the runtime side; expired entries drop out of
@@ -13,23 +14,15 @@
  * state lives on `WallBurn` itself.
  */
 
-import * as THREE from "three";
-import {
-  WALL_BURN_DURATION,
-  type WallBurn,
-} from "../../../shared/core/battle-types.ts";
+import type * as THREE from "three";
+import { WALL_BURN_DURATION } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import { ELEVATION_STACK } from "../elevation.ts";
 import {
-  animateFireBurst,
-  createFireBurstHost,
-  disposeFireBurstHost,
+  createTileBurstManager,
   type EffectManager,
   type FireBurstConfig,
-  type FireBurstHost,
   makeFlameLayers,
 } from "./fire-burst.ts";
-import { tileSeed, tileSignature } from "./helpers.ts";
 
 export type WallBurnsManager = EffectManager;
 
@@ -66,50 +59,10 @@ const WALL_BURST_CONFIG: FireBurstConfig = {
 };
 
 export function createWallBurnsManager(scene: THREE.Scene): WallBurnsManager {
-  const root = new THREE.Group();
-  root.name = "wall-burns";
-  scene.add(root);
-
-  const hosts: FireBurstHost[] = [];
-  let lastSignature: string | undefined;
-
-  function rebuild(burns: readonly WallBurn[]): void {
-    for (const host of hosts) disposeFireBurstHost(root, host);
-    hosts.length = 0;
-    for (const burn of burns) {
-      hosts.push(
-        createFireBurstHost(
-          root,
-          burn.col * TILE_SIZE + TILE_SIZE / 2,
-          ELEVATION_STACK.WALL_BURNS,
-          burn.row * TILE_SIZE + TILE_SIZE / 2,
-          tileSeed(burn.row, burn.col),
-          WALL_BURST_CONFIG,
-        ),
-      );
-    }
-  }
-
-  return {
-    update(ctx) {
-      const burns = ctx.overlay?.battle?.wallBurns ?? [];
-      const signature = tileSignature(burns);
-      if (signature !== lastSignature) {
-        lastSignature = signature;
-        rebuild(burns);
-      }
-      if (burns.length === 0) return;
-      for (let i = 0; i < burns.length; i++) {
-        const host = hosts[i];
-        const burn = burns[i];
-        if (!host || !burn) continue;
-        animateFireBurst(host, burn.age, WALL_BURN_DURATION);
-      }
-    },
-    dispose() {
-      for (const host of hosts) disposeFireBurstHost(root, host);
-      hosts.length = 0;
-      scene.remove(root);
-    },
-  };
+  return createTileBurstManager(scene, {
+    name: "wall-burns",
+    config: WALL_BURST_CONFIG,
+    duration: WALL_BURN_DURATION,
+    selectEntries: (ctx) => ctx.overlay?.battle?.wallBurns,
+  });
 }

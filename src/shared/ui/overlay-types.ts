@@ -4,6 +4,8 @@ import type {
   CannonDestroy,
   Crosshair,
   Grunt,
+  GruntKill,
+  HouseDestroy,
   Impact,
   ThawingTile,
   WallBurn,
@@ -209,6 +211,8 @@ export interface BattleOverlay {
   impacts?: readonly Impact[];
   wallBurns?: readonly WallBurn[];
   cannonDestroys?: readonly CannonDestroy[];
+  gruntKills?: readonly GruntKill[];
+  houseDestroys?: readonly HouseDestroy[];
   balloons?: readonly OverlayBalloon[];
   battleTerritory?: readonly Set<number>[];
   battleWalls?: readonly Set<number>[];

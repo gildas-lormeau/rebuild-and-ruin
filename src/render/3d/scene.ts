@@ -38,6 +38,14 @@ import {
 } from "./effects/crosshairs.ts";
 import { createFogManager, type FogManager } from "./effects/fog.ts";
 import {
+  createGruntBurnsManager,
+  type GruntBurnsManager,
+} from "./effects/grunt-burns.ts";
+import {
+  createHouseBurnsManager,
+  type HouseBurnsManager,
+} from "./effects/house-burns.ts";
+import {
   createImpactsManager,
   type ImpactsManager,
 } from "./effects/impacts.ts";
@@ -164,6 +172,14 @@ export interface Render3dContext {
    *  into per-cannon hosts sized to the 2×2 / 3×3 footprint with ~1.5×
    *  the flames / sparks / smoke of a wall burst. */
   readonly cannonBurns: CannonBurnsManager;
+  /** Grunt-kill burst manager — 1×1 cousin of `wallBurns`, fired when a
+   *  grunt (tank) is killed. Slightly heavier emissive / spark profile
+   *  than a wall burn to read as "tank brewed up". */
+  readonly gruntBurns: GruntBurnsManager;
+  /** House-destroy burst manager — 1×1 cousin of `wallBurns`, fired
+   *  when a house is destroyed. Longer life + taller flame + extra
+   *  smoke puffs to read as a wooden building collapsing. */
+  readonly houseBurns: HouseBurnsManager;
   /** Crosshair manager — Phase 6. Eight-arm flat meshes per crosshair
    *  anchored at `overlay.battle.crosshairs[].x/y` (pixel units). Arm
    *  length / alpha pulse with the 2D-parity `cannonReady` timeline. */
@@ -246,6 +262,8 @@ export function createRender3dScene(
   const impacts = createImpactsManager(scene);
   const wallBurns = createWallBurnsManager(scene);
   const cannonBurns = createCannonBurnsManager(scene);
+  const gruntBurns = createGruntBurnsManager(scene);
+  const houseBurns = createHouseBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
@@ -344,6 +362,8 @@ export function createRender3dScene(
     impacts,
     wallBurns,
     cannonBurns,
+    gruntBurns,
+    houseBurns,
     crosshairs,
     fog,
     thawing,

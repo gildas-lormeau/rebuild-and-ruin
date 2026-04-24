@@ -54,6 +54,8 @@ export interface E2EBattleSnapshot {
   impacts: number;
   wallBurns: number;
   cannonDestroys: number;
+  gruntKills: number;
+  houseDestroys: number;
   crosshairs: { x: number; y: number; playerId: number }[];
 }
 
@@ -517,6 +519,8 @@ function snapshotBattle(runtimeState: RuntimeState): E2EBattleSnapshot | null {
     impacts: battle.impacts?.length ?? 0,
     wallBurns: battle.wallBurns?.length ?? 0,
     cannonDestroys: battle.cannonDestroys?.length ?? 0,
+    gruntKills: battle.gruntKills?.length ?? 0,
+    houseDestroys: battle.houseDestroys?.length ?? 0,
     crosshairs: (battle.crosshairs ?? []).map((ch) => ({
       x: ch.x,
       y: ch.y,

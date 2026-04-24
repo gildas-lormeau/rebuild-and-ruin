@@ -2,6 +2,8 @@ import type {
   BalloonFlight,
   CannonDestroy,
   Crosshair,
+  GruntKill,
+  HouseDestroy,
   Impact,
   ThawingTile,
   WallBurn,
@@ -195,6 +197,8 @@ export interface OnlineOverlayParams {
     thawing: ThawingTile[];
     wallBurns: WallBurn[];
     cannonDestroys: CannonDestroy[];
+    gruntKills: GruntKill[];
+    houseDestroys: HouseDestroy[];
   };
   frame: {
     crosshairs: Crosshair[];

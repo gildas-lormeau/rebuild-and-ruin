@@ -285,6 +285,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         age: 0,
       });
     });
+    bus.on(BATTLE_MESSAGE.GRUNT_KILLED, (event) => {
+      runtimeState.battleAnim.gruntKills.push({
+        row: event.row,
+        col: event.col,
+        age: 0,
+      });
+    });
+    bus.on(BATTLE_MESSAGE.HOUSE_DESTROYED, (event) => {
+      runtimeState.battleAnim.houseDestroys.push({
+        row: event.row,
+        col: event.col,
+        age: 0,
+      });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -751,7 +765,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
       battleAnim.wallBurns.length > 0 ||
-      battleAnim.cannonDestroys.length > 0
+      battleAnim.cannonDestroys.length > 0 ||
+      battleAnim.gruntKills.length > 0 ||
+      battleAnim.houseDestroys.length > 0
     )
       return false;
 

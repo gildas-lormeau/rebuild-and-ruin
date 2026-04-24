@@ -204,6 +204,8 @@ export function createRender3d(
     ctx.impacts.update(frame);
     ctx.wallBurns.update(frame);
     ctx.cannonBurns.update(frame);
+    ctx.gruntBurns.update(frame);
+    ctx.houseBurns.update(frame);
     ctx.crosshairs.update(frame);
     ctx.fog.update(frame);
     ctx.thawing.update(frame);

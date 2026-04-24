@@ -163,6 +163,20 @@ export interface CannonDestroy extends TilePos {
   age: number;
 }
 
+/** A tile where a grunt (tank) was just killed — drives a small
+ *  fire/smoke/spark burst scaled to a 1×1 tile. Pure visual state. */
+export interface GruntKill extends TilePos {
+  /** Seconds since the grunt was killed. */
+  age: number;
+}
+
+/** A tile where a house was just destroyed — drives a 1×1 collapse
+ *  burst (fire + smoke + debris sparks). Pure visual state. */
+export interface HouseDestroy extends TilePos {
+  /** Seconds since the house was destroyed. */
+  age: number;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
@@ -172,6 +186,8 @@ export interface BattleAnimState {
   thawing: ThawingTile[];
   wallBurns: WallBurn[];
   cannonDestroys: CannonDestroy[];
+  gruntKills: GruntKill[];
+  houseDestroys: HouseDestroy[];
 }
 
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
@@ -183,6 +199,13 @@ export const WALL_BURN_DURATION = 0.7;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
 export const CANNON_DESTROY_DURATION = 0.9;
+/** Duration of the killed-grunt (tank) burst (seconds). Short and
+ *  punchy — grunts are 1×1 and the battle keeps moving. */
+export const GRUNT_KILL_DURATION = 0.55;
+/** Duration of the destroyed-house burst (seconds). Between wall and
+ *  cannon — a small building collapse reads longer than a single wall
+ *  tile exploding. */
+export const HOUSE_DESTROY_DURATION = 0.75;
 
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
@@ -208,6 +231,8 @@ export function createBattleAnimState(): BattleAnimState {
     thawing: [],
     wallBurns: [],
     cannonDestroys: [],
+    gruntKills: [],
+    houseDestroys: [],
   };
 }
 
@@ -217,11 +242,15 @@ export function clearImpacts(battleAnim: {
   thawing: ThawingTile[];
   wallBurns: WallBurn[];
   cannonDestroys: CannonDestroy[];
+  gruntKills: GruntKill[];
+  houseDestroys: HouseDestroy[];
 }): void {
   battleAnim.impacts = [];
   battleAnim.thawing = [];
   battleAnim.wallBurns = [];
   battleAnim.cannonDestroys = [];
+  battleAnim.gruntKills = [];
+  battleAnim.houseDestroys = [];
 }
 
 /** Age transient battle effect animations by `dt` seconds and remove expired ones. */
@@ -231,6 +260,8 @@ export function ageImpacts(
     thawing: ThawingTile[];
     wallBurns: WallBurn[];
     cannonDestroys: CannonDestroy[];
+    gruntKills: GruntKill[];
+    houseDestroys: HouseDestroy[];
   },
   dt: number,
   flashDuration: number,
@@ -250,5 +281,13 @@ export function ageImpacts(
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
   battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(
     (destroy) => destroy.age < CANNON_DESTROY_DURATION,
+  );
+  for (const kill of battleAnim.gruntKills) kill.age += dt;
+  battleAnim.gruntKills = battleAnim.gruntKills.filter(
+    (kill) => kill.age < GRUNT_KILL_DURATION,
+  );
+  for (const destroy of battleAnim.houseDestroys) destroy.age += dt;
+  battleAnim.houseDestroys = battleAnim.houseDestroys.filter(
+    (destroy) => destroy.age < HOUSE_DESTROY_DURATION,
   );
 }

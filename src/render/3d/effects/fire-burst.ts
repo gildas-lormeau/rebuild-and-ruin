@@ -23,8 +23,11 @@
  */
 
 import * as THREE from "three";
+import type { TilePos } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { ELEVATION_STACK } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
+import { tileSeed, tileSignature } from "./helpers.ts";
 
 /** Common shape every per-frame effect manager exposes — used by
  *  wall-burns, cannon-burns, and friends. */
@@ -182,6 +185,69 @@ const DEFAULT_FLAME_LAYERS: readonly FlameLayer[] = [
 let sharedFlameGeometry: THREE.LatheGeometry | undefined;
 let sharedSmokeTexture: THREE.CanvasTexture | undefined;
 let sharedFlashGeometry: THREE.CircleGeometry | undefined;
+
+/** Factory for the 1×1 burst manager pattern. Reconciles the selected
+ *  entries into per-tile fire-burst hosts, ages them via each entry's
+ *  `.age` field, and disposes via `disposeFireBurstHost`. Per-burst
+ *  variation derives deterministically from `tileSeed(row, col)`. */
+export function createTileBurstManager<T extends TilePos & { age: number }>(
+  scene: THREE.Scene,
+  params: {
+    name: string;
+    config: FireBurstConfig;
+    duration: number;
+    /** Pull the current entries from the frame context's overlay.
+     *  Returns `undefined` when battle isn't live — treated as empty. */
+    selectEntries: (ctx: FrameCtx) => readonly T[] | undefined;
+  },
+): EffectManager {
+  const root = new THREE.Group();
+  root.name = params.name;
+  scene.add(root);
+
+  const hosts: FireBurstHost[] = [];
+  let lastSignature: string | undefined;
+
+  function rebuild(entries: readonly T[]): void {
+    for (const host of hosts) disposeFireBurstHost(root, host);
+    hosts.length = 0;
+    for (const entry of entries) {
+      hosts.push(
+        createFireBurstHost(
+          root,
+          entry.col * TILE_SIZE + TILE_SIZE / 2,
+          ELEVATION_STACK.WALL_BURNS,
+          entry.row * TILE_SIZE + TILE_SIZE / 2,
+          tileSeed(entry.row, entry.col),
+          params.config,
+        ),
+      );
+    }
+  }
+
+  return {
+    update(ctx) {
+      const entries = params.selectEntries(ctx) ?? [];
+      const signature = tileSignature(entries);
+      if (signature !== lastSignature) {
+        lastSignature = signature;
+        rebuild(entries);
+      }
+      if (entries.length === 0) return;
+      for (let i = 0; i < entries.length; i++) {
+        const host = hosts[i];
+        const entry = entries[i];
+        if (!host || !entry) continue;
+        animateFireBurst(host, entry.age, params.duration);
+      }
+    },
+    dispose() {
+      for (const host of hosts) disposeFireBurstHost(root, host);
+      hosts.length = 0;
+      scene.remove(root);
+    },
+  };
+}
 
 /** Produce a flame-layer palette that scales the default emissive
  *  intensities by a single multiplier. Cannon-burn wants ~1.15× the
