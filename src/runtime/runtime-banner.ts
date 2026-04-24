@@ -3,7 +3,7 @@
  *
  * Contract:
  *
- *   showBanner({ text, kind, onDone, subtitle?, paletteKey?, revealTiles? })
+ *   showBanner({ text, kind, onDone, subtitle?, paletteKey? })
  *   hideBanner()
  *
  * State machine (see `BannerStatus` in runtime-contracts.ts):
@@ -140,7 +140,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       subtitle: opts.subtitle,
       kind: opts.kind,
       paletteKey: opts.paletteKey,
-      revealTiles: opts.revealTiles,
       callback: opts.onDone,
       prevScene,
       newScene,

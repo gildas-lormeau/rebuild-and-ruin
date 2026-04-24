@@ -127,7 +127,6 @@ export function createBannerUi(
   progress: number,
   subtitle?: string,
   paletteKey?: string,
-  revealTiles?: readonly number[],
   prevScene?: SceneCapture,
   newScene?: SceneCapture,
 ): BannerUi | undefined {
@@ -149,7 +148,6 @@ export function createBannerUi(
     top,
     bottom: top + bannerHInt,
     paletteKey,
-    revealTiles,
     prevScene,
     newScene,
   };

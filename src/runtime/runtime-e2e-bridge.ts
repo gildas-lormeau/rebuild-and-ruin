@@ -47,9 +47,6 @@ export interface E2EBannerSnapshot {
    *  undefined otherwise). Exposed so tests can assert which visual
    *  accent is active without poking into the renderer. */
   paletteKey: string | null;
-  /** Tile keys being progressively highlighted by the sweep, or null
-   *  when the banner has no highlight overlay. */
-  revealTiles: readonly number[] | null;
 }
 
 export interface E2EBattleSnapshot {
@@ -508,7 +505,6 @@ function snapshotBanner(runtimeState: RuntimeState): E2EBannerSnapshot | null {
     text: banner.text,
     top: banner.top,
     paletteKey: banner.paletteKey ?? null,
-    revealTiles: banner.revealTiles ?? null,
   };
 }
 

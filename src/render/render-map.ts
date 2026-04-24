@@ -43,7 +43,6 @@ import {
   drawComboFloats,
   drawGameOver,
   drawLifeLostDialog,
-  drawModifierRevealHighlight,
   drawPhaseTimer,
   drawPlayerSelect,
   drawScoreDeltas,
@@ -645,7 +644,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawPhaseTimer(overlayCtx, map, overlay, now);
     drawSelectionCursor(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
-    drawModifierRevealHighlight(overlayCtx, H, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);
     drawGameOver(overlayCtx, W, H, overlay);
     drawLifeLostDialog(overlayCtx, W, H, overlay, now);

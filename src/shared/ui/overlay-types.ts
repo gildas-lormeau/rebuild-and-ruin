@@ -231,14 +231,10 @@ export interface BannerUi {
    *  sweep line use this. */
   bottom: number;
   /** Opaque accent-palette key. The renderer indexes this into its
-   *  palette table to recolor the banner chrome (border / title /
-   *  pulse). Undefined = default palette. The banner system treats
-   *  this as an uninterpreted string. */
+   *  palette table to recolor the banner chrome (border + title).
+   *  Undefined = default palette. The banner system treats this as an
+   *  uninterpreted string. */
   paletteKey?: string;
-  /** Tile keys (row * GRID_COLS + col) to highlight progressively as
-   *  the sweep passes. Used by the modifier-reveal banner; every other
-   *  banner kind leaves this undefined. */
-  revealTiles?: readonly number[];
   /** Pixel snapshot of the scene composited below the sweep line
    *  during the banner animation (the old scene, captured before the
    *  phase mutation that the banner is announcing). */

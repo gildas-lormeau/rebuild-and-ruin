@@ -138,18 +138,11 @@ type DisplayStep =
       readonly text: string | ((r: TransitionResult) => string);
       readonly subtitle?: string;
       /** Opaque accent-palette key extractor. Used by the
-       *  modifier-reveal banner to recolor its chrome (and match the
-       *  `revealTiles` highlight pulse). The banner system treats the
-       *  result as a string the renderer indexes into its palette
-       *  table. Only set where a non-default palette is wanted. */
+       *  modifier-reveal banner to recolor its chrome (title + border).
+       *  The banner system treats the result as a string the renderer
+       *  indexes into its palette table. Only set where a non-default
+       *  palette is wanted. */
       readonly paletteKey?: (r: TransitionResult) => string | undefined;
-      /** Tile keys to highlight progressively as the sweep passes.
-       *  Used by the modifier-reveal banner to announce the
-       *  newly-changed tiles. Only set on banners that want a
-       *  highlight overlay — other banner steps leave this undefined. */
-      readonly revealTiles?: (
-        r: TransitionResult,
-      ) => readonly number[] | undefined;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" };
@@ -901,12 +894,9 @@ const ENTER_MODIFIER_REVEAL: Transition = {
       kind: STEP_BANNER,
       bannerKind: "modifier-reveal",
       text: (r) => modifierDef(r.modifierDiff!.id).label,
-      // Decompose the (modifier-domain) diff into banner-agnostic bits:
-      // the id becomes an opaque palette key the renderer looks up, and
-      // the changed-tile set becomes a generic highlight overlay. The
-      // banner system never sees `ModifierDiff` directly.
+      // The modifier id becomes an opaque palette key the renderer
+      // looks up — the banner system itself never sees `ModifierDiff`.
       paletteKey: (r) => r.modifierDiff?.id,
-      revealTiles: (r) => r.modifierDiff?.changedTiles,
     },
   ],
   postDisplay: {
@@ -1337,7 +1327,6 @@ function runBannerStep(
     onDone,
     subtitle: step.subtitle,
     paletteKey: step.paletteKey?.(result),
-    revealTiles: step.revealTiles?.(result),
   });
 }
 

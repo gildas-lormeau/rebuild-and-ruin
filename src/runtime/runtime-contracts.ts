@@ -130,7 +130,6 @@ export type CreateBannerUiFn = (
   progress: number,
   subtitle?: string,
   paletteKey?: string,
-  revealTiles?: readonly number[],
   prevScene?: SceneCapture,
   newScene?: SceneCapture,
 ) => BannerUi | undefined;
@@ -256,12 +255,6 @@ export interface ActiveBannerState {
    *  system doesn't know that — callers just pass a string key that
    *  the renderer recognizes. */
   paletteKey?: string;
-  /** Tile keys (row * GRID_COLS + col) to highlight progressively as
-   *  the sweep passes over them. Used by the modifier-reveal banner to
-   *  announce the newly-frozen / newly-burning / newly-crumbling tiles.
-   *  Empty or undefined = no highlight overlay; other banner kinds
-   *  always pass undefined. */
-  revealTiles?: readonly number[];
 }
 
 /** Banner state is a discriminated union: `hidden` carries no fields
@@ -657,14 +650,10 @@ export interface BannerShowOpts {
    *  lies during the upgrade-pick flow) or matching text. */
   readonly kind: BannerKind;
   readonly subtitle?: string;
-  /** Opaque accent-palette key for the banner chrome (title + border +
-   *  highlight pulse colors). The renderer indexes this into its own
-   *  palette table — the banner system treats it as a string. */
+  /** Opaque accent-palette key for the banner chrome (title + border
+   *  colors). The renderer indexes this into its own palette table —
+   *  the banner system treats it as a string. */
   readonly paletteKey?: string;
-  /** Tile keys to highlight progressively as the sweep passes. Drives
-   *  the modifier-reveal animation today, but the banner system is
-   *  feature-agnostic — it just draws the tiles it's told to draw. */
-  readonly revealTiles?: readonly number[];
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

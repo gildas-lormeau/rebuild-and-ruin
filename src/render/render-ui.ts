@@ -3,7 +3,7 @@ import {
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
+import { TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -114,51 +114,22 @@ type ScoreEntry = GameOverOverlay["scores"][number];
 // Lockout timer pulse color (Master Builder upgrade) and cycle length.
 const LOCKOUT_AMBER = "rgba(255,180,50,1)";
 const LOCKOUT_PULSE_MS = 300;
-// Modifier banner pulse timing (ms per full cycle)
-const MODIFIER_PULSE_MS = 400;
-// Modifier banner pulse: base alpha and amplitude
-const MODIFIER_PULSE_BASE = 0.25;
-const MODIFIER_PULSE_AMP = 0.3;
-/** Per-modifier color palette for the reveal banner (chrome + tile pulse).
- *  `title` lights the banner headline, `border` the top/bottom rules, and
- *  `pulseColor` fills the pulsing tile overlay (alpha applied via
- *  globalAlpha). Colors are tuned so phase banners (gold) are clearly
- *  distinct from a modifier reveal at a glance. */
-const MODIFIER_COLORS: Record<
-  ModifierId,
-  { title: string; border: string; pulseColor: string }
-> = {
-  wildfire: { title: "#ff8040", border: "#ff5010", pulseColor: "#ff6414" },
-  crumbling_walls: {
-    title: "#d0a060",
-    border: "#a07030",
-    pulseColor: "#b48c50",
-  },
-  grunt_surge: { title: "#ff6060", border: "#c02020", pulseColor: "#dc3232" },
-  frozen_river: {
-    title: "#80d0ff",
-    border: "#4090d0",
-    pulseColor: "#64c8ff",
-  },
-  sinkhole: { title: "#d0a070", border: "#704020", pulseColor: "#a05a28" },
-  high_tide: { title: "#60b0ff", border: "#2060c0", pulseColor: "#3c8cf0" },
-  dust_storm: { title: "#e0c070", border: "#a07020", pulseColor: "#dcb450" },
-  rubble_clearing: {
-    title: "#90d080",
-    border: "#408030",
-    pulseColor: "#8cc878",
-  },
-  low_water: { title: "#a0d8b0", border: "#508060", pulseColor: "#78c890" },
-  dry_lightning: {
-    title: "#ffe080",
-    border: "#c0a030",
-    pulseColor: "#f0d060",
-  },
-  fog_of_war: {
-    title: "#c8d0d8",
-    border: "#6c7480",
-    pulseColor: "#a0a8b4",
-  },
+/** Per-modifier chrome palette for the reveal banner.
+ *  `title` lights the banner headline, `border` the top/bottom rules.
+ *  Colors are tuned so phase banners (gold) are clearly distinct from
+ *  a modifier reveal at a glance. */
+const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
+  wildfire: { title: "#ff8040", border: "#ff5010" },
+  crumbling_walls: { title: "#d0a060", border: "#a07030" },
+  grunt_surge: { title: "#ff6060", border: "#c02020" },
+  frozen_river: { title: "#80d0ff", border: "#4090d0" },
+  sinkhole: { title: "#d0a070", border: "#704020" },
+  high_tide: { title: "#60b0ff", border: "#2060c0" },
+  dust_storm: { title: "#e0c070", border: "#a07020" },
+  rubble_clearing: { title: "#90d080", border: "#408030" },
+  low_water: { title: "#a0d8b0", border: "#508060" },
+  dry_lightning: { title: "#ffe080", border: "#c0a030" },
+  fog_of_war: { title: "#c8d0d8", border: "#6c7480" },
 };
 
 /** Draw announcement text centered on screen. */
@@ -293,47 +264,6 @@ export function drawBanner(
       W / 2,
       by + bannerH * 0.72,
     );
-  }
-  overlayCtx.restore();
-}
-
-/** Highlight tiles affected by a modifier during the reveal banner.
- *  Tiles are revealed progressively as the banner sweeps past them. */
-export function drawModifierRevealHighlight(
-  overlayCtx: CanvasRenderingContext2D,
-  _H: number,
-  overlay: RenderOverlay | undefined,
-  now: number,
-): void {
-  const banner = overlay?.ui?.banner;
-  const tiles = banner?.revealTiles;
-  const paletteKey = banner?.paletteKey;
-  if (!tiles || tiles.length === 0 || !paletteKey) return;
-  // Contract: any banner that sets a `paletteKey` passes one that
-  // resolves into `MODIFIER_COLORS` — currently only the
-  // modifier-reveal banner, keyed by `ModifierId`. If a future caller
-  // introduces a new palette space, this lookup needs to grow.
-  const palette = MODIFIER_COLORS[paletteKey as keyof typeof MODIFIER_COLORS];
-
-  // Tiles above the banner top edge are fully revealed.
-  const revealY = banner.top;
-
-  // Pulse alpha: 0.25–0.55 over 400ms
-  const pulse =
-    MODIFIER_PULSE_BASE +
-    MODIFIER_PULSE_AMP *
-      (0.5 + 0.5 * Math.sin((now / MODIFIER_PULSE_MS) * Math.PI * 2));
-
-  overlayCtx.save();
-  overlayCtx.globalAlpha = pulse;
-  overlayCtx.fillStyle = palette.pulseColor;
-  for (const key of tiles) {
-    const row = Math.floor(key / GRID_COLS);
-    const col = key % GRID_COLS;
-    const py = row * TILE_SIZE;
-    // Only highlight tiles that the banner has already swept past
-    if (py + TILE_SIZE > revealY) continue;
-    overlayCtx.fillRect(col * TILE_SIZE, py, TILE_SIZE, TILE_SIZE);
   }
   overlayCtx.restore();
 }
