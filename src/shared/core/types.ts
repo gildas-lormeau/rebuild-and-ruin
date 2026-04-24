@@ -127,6 +127,13 @@ export interface ComboEvent {
 export interface ModernState {
   /** Active modifier for the current round. null = none this round. */
   activeModifier: ModifierId | null;
+  /** Tile keys changed by `activeModifier` (scarred / frozen / crumbled
+   *  tiles depending on the modifier). Populated when the modifier
+   *  applies; drives the `MODIFIER_REVEAL` dwell-phase tile pulse in
+   *  the render path. Parallel lifecycle to `activeModifier` — cleared
+   *  alongside it. Empty array = no changed tiles (or no active
+   *  modifier). */
+  activeModifierChangedTiles: readonly number[];
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
   /** Master Builder lockout countdown (seconds remaining). 0 = no lockout.
@@ -246,6 +253,7 @@ export function hasFeature(state: GameState, feature: FeatureId): boolean {
 function createModernState(): ModernState {
   return {
     activeModifier: null,
+    activeModifierChangedTiles: [],
     lastModifierId: null,
     masterBuilderLockout: 0,
     masterBuilderOwners: null,

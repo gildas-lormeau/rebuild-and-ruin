@@ -211,6 +211,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     cannonballs: [],
     gameMode: "classic",
     activeModifier: null,
+    activeModifierChangedTiles: [],
     lastModifierId: null,
     frozenTiles: null,
   };

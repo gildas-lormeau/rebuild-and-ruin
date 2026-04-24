@@ -208,6 +208,24 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDisplay.deltas;
       runtimeState.overlay.ui.scoreDeltaProgress = deps.scoreDeltaProgress();
     }
+
+    // Expose modifier-reveal dwell data when the phase is active. The
+    // renderer (`drawModifierRevealDwell`) reads from overlay.ui and
+    // never touches game state directly. Tiles + palette are persisted
+    // on `state.modern` at modifier-apply time by
+    // `applyBattleStartModifiers` (host) / `applyBattleStartCheckpoint`
+    // (watcher), so both roles produce identical overlay data.
+    const modifier = runtimeState.state.modern?.activeModifier;
+    if (
+      runtimeState.state.phase === Phase.MODIFIER_REVEAL &&
+      modifier &&
+      runtimeState.overlay.ui
+    ) {
+      runtimeState.overlay.ui.modifierReveal = {
+        paletteKey: modifier,
+        tiles: runtimeState.state.modern!.activeModifierChangedTiles,
+      };
+    }
   }
 
   function render(): void {

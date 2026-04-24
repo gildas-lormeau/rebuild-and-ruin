@@ -3,7 +3,7 @@ import {
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../shared/core/grid.ts";
+import { GRID_COLS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -114,22 +114,39 @@ type ScoreEntry = GameOverOverlay["scores"][number];
 // Lockout timer pulse color (Master Builder upgrade) and cycle length.
 const LOCKOUT_AMBER = "rgba(255,180,50,1)";
 const LOCKOUT_PULSE_MS = 300;
-/** Per-modifier chrome palette for the reveal banner.
- *  `title` lights the banner headline, `border` the top/bottom rules.
- *  Colors are tuned so phase banners (gold) are clearly distinct from
- *  a modifier reveal at a glance. */
-const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
-  wildfire: { title: "#ff8040", border: "#ff5010" },
-  crumbling_walls: { title: "#d0a060", border: "#a07030" },
-  grunt_surge: { title: "#ff6060", border: "#c02020" },
-  frozen_river: { title: "#80d0ff", border: "#4090d0" },
-  sinkhole: { title: "#d0a070", border: "#704020" },
-  high_tide: { title: "#60b0ff", border: "#2060c0" },
-  dust_storm: { title: "#e0c070", border: "#a07020" },
-  rubble_clearing: { title: "#90d080", border: "#408030" },
-  low_water: { title: "#a0d8b0", border: "#508060" },
-  dry_lightning: { title: "#ffe080", border: "#c0a030" },
-  fog_of_war: { title: "#c8d0d8", border: "#6c7480" },
+// Modifier-reveal dwell-phase tile pulse timing (ms per full cycle).
+const MODIFIER_PULSE_MS = 400;
+// Pulse alpha: base + amplitude * sin.
+const MODIFIER_PULSE_BASE = 0.25;
+const MODIFIER_PULSE_AMP = 0.3;
+/** Per-modifier color palette.
+ *  `title` lights the banner headline, `border` the top/bottom rules,
+ *  and `pulseColor` fills the tile overlay during the MODIFIER_REVEAL
+ *  dwell phase (alpha via globalAlpha). Colors are tuned so phase
+ *  banners (gold) are clearly distinct from a modifier reveal. */
+const MODIFIER_COLORS: Record<
+  ModifierId,
+  { title: string; border: string; pulseColor: string }
+> = {
+  wildfire: { title: "#ff8040", border: "#ff5010", pulseColor: "#ff6414" },
+  crumbling_walls: {
+    title: "#d0a060",
+    border: "#a07030",
+    pulseColor: "#b48c50",
+  },
+  grunt_surge: { title: "#ff6060", border: "#c02020", pulseColor: "#dc3232" },
+  frozen_river: { title: "#80d0ff", border: "#4090d0", pulseColor: "#64c8ff" },
+  sinkhole: { title: "#d0a070", border: "#704020", pulseColor: "#a05a28" },
+  high_tide: { title: "#60b0ff", border: "#2060c0", pulseColor: "#3c8cf0" },
+  dust_storm: { title: "#e0c070", border: "#a07020", pulseColor: "#dcb450" },
+  rubble_clearing: {
+    title: "#90d080",
+    border: "#408030",
+    pulseColor: "#8cc878",
+  },
+  low_water: { title: "#a0d8b0", border: "#508060", pulseColor: "#78c890" },
+  dry_lightning: { title: "#ffe080", border: "#c0a030", pulseColor: "#f0d060" },
+  fog_of_war: { title: "#c8d0d8", border: "#6c7480", pulseColor: "#a0a8b4" },
 };
 
 /** Draw announcement text centered on screen. */
@@ -264,6 +281,43 @@ export function drawBanner(
       W / 2,
       by + bannerH * 0.72,
     );
+  }
+  overlayCtx.restore();
+}
+
+/** Pulse the tiles changed by the active modifier during the
+ *  `MODIFIER_REVEAL` dwell phase. Overlay on top of the (static
+ *  B-snapshot) scene — the banner system never knows about this
+ *  effect; it's driven entirely by `overlay.ui.modifierReveal`, which
+ *  `refreshOverlay` populates from `state.modern` when the phase is
+ *  active. Alpha pulses on wall-clock time; tile set is frozen for the
+ *  duration of the phase. */
+export function drawModifierRevealDwell(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  const reveal = overlay?.ui?.modifierReveal;
+  if (!reveal || reveal.tiles.length === 0) return;
+  // Contract: `paletteKey` always resolves into `MODIFIER_COLORS` —
+  // callers only populate `overlay.ui.modifierReveal` when a real
+  // modifier is active, and every `ModifierId` has an entry.
+  const palette =
+    MODIFIER_COLORS[reveal.paletteKey as keyof typeof MODIFIER_COLORS];
+
+  // Alpha pulses between base and base+amp on a 400ms cycle.
+  const pulse =
+    MODIFIER_PULSE_BASE +
+    MODIFIER_PULSE_AMP *
+      (0.5 + 0.5 * Math.sin((now / MODIFIER_PULSE_MS) * Math.PI * 2));
+
+  overlayCtx.save();
+  overlayCtx.globalAlpha = pulse;
+  overlayCtx.fillStyle = palette.pulseColor;
+  for (const key of reveal.tiles) {
+    const row = Math.floor(key / GRID_COLS);
+    const col = key % GRID_COLS;
+    overlayCtx.fillRect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   overlayCtx.restore();
 }

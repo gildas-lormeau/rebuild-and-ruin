@@ -99,6 +99,18 @@ export function applyBattleStartCheckpoint(
 
   applyCheckpointModifierTiles(deps.state, data);
 
+  // Mirror host's `applyBattleStartModifiers`: sync `activeModifier` +
+  // `activeModifierChangedTiles` onto the watcher's state from the
+  // BATTLE_START message so the MODIFIER_REVEAL dwell-phase render has
+  // the same data on both sides. `activeModifier` on the watcher used
+  // to drift (never synced except via full-state sync) — this closes
+  // that gap for modifiers feature.
+  if (hasFeature(deps.state, FID.MODIFIERS)) {
+    deps.state.modern!.activeModifier = data.modifierDiff?.id ?? null;
+    deps.state.modern!.activeModifierChangedTiles =
+      data.modifierDiff?.changedTiles ?? [];
+  }
+
   // State-level projectile clear (mirrors host's enterBattleFromCannon).
   deps.state.cannonballs = [];
   deps.state.timer = BATTLE_TIMER;

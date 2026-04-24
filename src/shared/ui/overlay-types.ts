@@ -253,6 +253,16 @@ export interface UIOverlay {
    *  Set when the POV player is locked out; undefined/0 when inactive. */
   masterBuilderLockout?: number;
   banner?: BannerUi;
+  /** Active modifier's reveal data — drives the pulsing tile overlay
+   *  during the `MODIFIER_REVEAL` dwell phase. Populated by
+   *  `refreshOverlay` from `state.modern` when the phase is active;
+   *  undefined otherwise. */
+  modifierReveal?: {
+    /** Opaque key for `MODIFIER_COLORS` palette lookup in render-ui. */
+    paletteKey: string;
+    /** Tile keys (row * GRID_COLS + col) the modifier touched. */
+    tiles: readonly number[];
+  };
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {

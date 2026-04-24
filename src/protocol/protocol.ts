@@ -192,6 +192,9 @@ export interface FullStateMessage {
   playerZones: number[];
   gameMode: string;
   activeModifier: string | null;
+  /** Tile keys changed by the active modifier. Empty array when no
+   *  modifier is active or the modifier touched nothing. */
+  activeModifierChangedTiles: number[];
   lastModifierId: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
   masterBuilderLockout?: number;

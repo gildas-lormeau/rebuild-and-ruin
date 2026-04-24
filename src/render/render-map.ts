@@ -43,6 +43,7 @@ import {
   drawComboFloats,
   drawGameOver,
   drawLifeLostDialog,
+  drawModifierRevealDwell,
   drawPhaseTimer,
   drawPlayerSelect,
   drawScoreDeltas,
@@ -644,6 +645,11 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawPhaseTimer(overlayCtx, map, overlay, now);
     drawSelectionCursor(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
+    // Modifier-reveal dwell-phase tile pulse. Gated at the data layer:
+    // `refreshOverlay` populates `overlay.ui.modifierReveal` only when
+    // `state.phase === MODIFIER_REVEAL`, so this is a no-op every other
+    // frame. Drawn before the banner so the banner chrome stays on top.
+    drawModifierRevealDwell(overlayCtx, overlay, now);
     drawBanner(overlayCtx, W, H, overlay);
     drawGameOver(overlayCtx, W, H, overlay);
     drawLifeLostDialog(overlayCtx, W, H, overlay, now);

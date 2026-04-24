@@ -489,6 +489,10 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   if (!impl) return null;
   const result = impl.apply(state);
   if (!impl.skipsRecheck) recheckTerritory(state);
+  // Persist the changed-tile set on state alongside `activeModifier` so
+  // the `MODIFIER_REVEAL` dwell-phase render can draw a tile pulse
+  // without needing to re-derive what the modifier touched.
+  state.modern!.activeModifierChangedTiles = result.changedTiles;
   return {
     id: mod,
     changedTiles: result.changedTiles,

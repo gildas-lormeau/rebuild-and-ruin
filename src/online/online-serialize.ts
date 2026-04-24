@@ -167,6 +167,9 @@ export function createFullStateMessage(
     playerZones: [...state.playerZones],
     gameMode: state.gameMode,
     activeModifier: state.modern?.activeModifier ?? null,
+    activeModifierChangedTiles: [
+      ...(state.modern?.activeModifierChangedTiles ?? []),
+    ],
     lastModifierId: state.modern?.lastModifierId ?? null,
     ...serializeModernFields(state),
     towerPendingRevive: [...state.towerPendingRevive],
@@ -229,6 +232,8 @@ export function restoreFullStateSnapshot(
       (msg.activeModifier as NonNullable<
         GameState["modern"]
       >["activeModifier"]) ?? null;
+    state.modern!.activeModifierChangedTiles =
+      (msg.activeModifierChangedTiles as readonly number[] | undefined) ?? [];
     state.modern!.lastModifierId =
       (msg.lastModifierId as NonNullable<
         GameState["modern"]
