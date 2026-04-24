@@ -212,6 +212,8 @@ interface FrameContextInputs {
   hostAtFrameStart: boolean;
   remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   mobileAutoZoom: boolean;
+  humanCannonsComplete: boolean;
+  humanCastleConfirmed: boolean;
 }
 
 /** Default frame delta time (assumes 60fps). */
@@ -417,6 +419,8 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hostAtFrameStart,
     remotePlayerSlots,
     mobileAutoZoom,
+    humanCannonsComplete,
+    humanCastleConfirmed,
   } = inputs;
 
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
@@ -428,7 +432,10 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     isTimedPhase(phase);
 
   const inBattle = phase === Phase.BATTLE;
-  const shouldUnzoom = uiBlocking || phaseEnding;
+  const shouldUnzoom =
+    uiBlocking ||
+    phaseEnding ||
+    (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
   const isTransition = isTransitionMode(mode);
 
   // Online: myPlayerId. Local: pointer player slot. Demo: 0.

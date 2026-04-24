@@ -1,12 +1,14 @@
+import { cannonSlotsUsed } from "../game/index.ts";
 import {
   MAX_FRAME_DT,
   SIM_TICK_DT,
   SimTickAccumulator,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
@@ -112,6 +114,13 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     clearFrameData();
 
     const pointer = deps.getPointerPlayer();
+    const myId = deps.myPlayerId();
+    const humanId: ValidPlayerSlot | null = isActivePlayer(myId)
+      ? myId
+      : (pointer?.playerId ?? null);
+    const humanIsReselecting =
+      pointer !== null &&
+      deps.runtimeState.selection.reselectionPids.includes(pointer.playerId);
 
     deps.runtimeState.frameMeta = computeFrameContext({
       mode: deps.runtimeState.mode,
@@ -125,15 +134,22 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       quitPending: deps.runtimeState.quit.pending,
       hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
       isSelectionReady: deps.isSelectionReady(),
-      humanIsReselecting:
-        pointer !== null &&
-        deps.runtimeState.selection.reselectionPids.includes(pointer.playerId),
+      humanIsReselecting,
       hasPointerPlayer: pointer !== null,
       pointerPlayerId: pointer?.playerId ?? null,
-      myPlayerId: deps.myPlayerId(),
+      myPlayerId: myId,
       hostAtFrameStart: deps.amHost(),
       remotePlayerSlots: deps.remotePlayerSlots(),
       mobileAutoZoom: deps.isMobileAutoZoom(),
+      humanCannonsComplete: computeHumanCannonsComplete(
+        deps.runtimeState,
+        humanId,
+      ),
+      humanCastleConfirmed: computeHumanCastleConfirmed(
+        deps.runtimeState,
+        humanId,
+        humanIsReselecting,
+      ),
     });
 
     deps.tickCamera();
@@ -205,4 +221,41 @@ export function createRuntimeInputAdapters(params: {
         ((ctrl, gameState) => params.localFire(ctrl, gameState)),
     },
   };
+}
+
+/** True when this client's human has confirmed a castle. Used to trigger a
+ *  local unzoom on mobile the moment the player has picked, without waiting
+ *  for the global phase dispatch (which waits for all players + animations). */
+function computeHumanCastleConfirmed(
+  runtimeState: RuntimeState,
+  humanId: ValidPlayerSlot | null,
+  humanIsReselecting: boolean,
+): boolean {
+  if (humanId === null) return false;
+  if (!isStateReady(runtimeState)) return false;
+  const state = runtimeState.state;
+  if (state.phase === Phase.CASTLE_RESELECT) {
+    if (!humanIsReselecting) return false;
+  } else if (state.phase !== Phase.CASTLE_SELECT) {
+    return false;
+  }
+  const player = state.players[humanId];
+  return player != null && player.castle !== null;
+}
+
+/** True when this client's human has filled their cannon-slot quota. Used to
+ *  trigger a local unzoom on mobile the moment the player is done placing,
+ *  without waiting for the global phase dispatch. */
+function computeHumanCannonsComplete(
+  runtimeState: RuntimeState,
+  humanId: ValidPlayerSlot | null,
+): boolean {
+  if (humanId === null) return false;
+  if (!isStateReady(runtimeState)) return false;
+  const state = runtimeState.state;
+  if (state.phase !== Phase.CANNON_PLACE) return false;
+  const player = state.players[humanId];
+  const maxSlots = state.cannonLimits[humanId] ?? 0;
+  if (!player || maxSlots <= 0) return false;
+  return cannonSlotsUsed(player) >= maxSlots;
 }
