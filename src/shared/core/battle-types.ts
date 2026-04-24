@@ -51,17 +51,52 @@ export interface Cannon extends TilePos {
 export interface Cannonball {
   /** Which cannon fired this ball (index into player.cannons). */
   cannonIdx: number;
-  /** Start position in pixels. */
+  /** Start position in pixels (cannon center). Kept for renderer-side
+   *  debug / back-compat; physics uses `launchX` / `launchY`. */
   startX: number;
   startY: number;
-  /** Current position in pixels (sub-tile precision). */
+  /** Current position in pixels (sub-tile precision). Derived each
+   *  tick from the parametric trajectory — never the primary source of
+   *  truth, but exposed here so overlays/checkpoints can read it
+   *  without recomputing. */
   x: number;
   y: number;
-  /** Target position in pixels. */
+  /** Aim point in pixels. This is where the shooter was pointing; the
+   *  pinned impact (`impactX` / `impactY`) may differ if the ball
+   *  clipped an obstacle along the way. */
   targetX: number;
   targetY: number;
-  /** Speed in pixels per second. */
+  /** Horizontal speed in pixels per second. */
   speed: number;
+  /** Launch point (muzzle tip) in pixels. Anchors the parametric
+   *  horizontal interpolation. */
+  launchX: number;
+  launchY: number;
+  /** Launch altitude in world units. Top of the muzzle at fire time. */
+  launchAltitude: number;
+  /** Pinned impact point in pixels — where the ball actually lands.
+   *  Chosen at fire time by host surface sampling; frozen thereafter
+   *  and shipped on `CannonFiredMessage` so the watcher reaches the
+   *  same endpoint deterministically. */
+  impactX: number;
+  impactY: number;
+  /** Impact tile coords — derived from `impactX`/`impactY` at fire
+   *  time and pinned so the damage resolver reads the same cell on
+   *  both sides (mortars splash around this center). */
+  impactRow: number;
+  impactCol: number;
+  /** Pinned target altitude at the impact point. */
+  impactAltitude: number;
+  /** Initial vertical velocity (world-units/sec). Solved at fire time
+   *  so altitude(flightTime) = impactAltitude. */
+  vy0: number;
+  /** Total seconds from launch to impact. */
+  flightTime: number;
+  /** Seconds elapsed since launch. Advanced by dt every tick. */
+  elapsed: number;
+  /** Current altitude in world units. Recomputed each tick from the
+   *  parametric trajectory (cache — renderer reads it directly). */
+  altitude: number;
   /** Owner player id — the player whose cannon fired this ball.
    *  Used for in-flight tracking (index into this player's cannons array).
    *  NOT necessarily who gets scoring credit — see scoringPlayerId. */

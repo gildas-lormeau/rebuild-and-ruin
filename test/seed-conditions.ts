@@ -52,9 +52,9 @@ export interface SeedCondition {
 /** Typed name of a registered condition. */
 export type SeedConditionName = keyof typeof SEED_CONDITIONS;
 
-/** Default round budget. Most modern-mode conditions fire within 10 rounds; bump
+/** Default round budget. Most modern-mode conditions fire within 15 rounds; bump
  *  per-entry if a specific condition needs more headroom. */
-const DEFAULT_ROUNDS = 10;
+const DEFAULT_ROUNDS = 15;
 /** Every implemented upgrade/modifier is auto-registered as a seed condition
  *  by reading `IMPLEMENTED_UPGRADES` / `IMPLEMENTED_MODIFIERS` from the pool
  *  registries. Flipping `implemented: true` on a pool entry is the only step —

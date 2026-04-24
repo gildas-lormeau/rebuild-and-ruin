@@ -6,7 +6,10 @@
 
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
-/** A cannon was fired (own or opponent). Client creates local cannonball. */
+/** A cannon was fired (own or opponent). Client creates local cannonball.
+ *  Carries the host-pinned ballistic trajectory so the watcher spawns an
+ *  identical parametric flight and lands on the same tile — no state
+ *  reads happen on the watcher side for physics. */
 export interface CannonFiredMessage {
   type: "cannonFired";
   playerId: ValidPlayerSlot;
@@ -16,6 +19,16 @@ export interface CannonFiredMessage {
   targetX: number;
   targetY: number;
   speed: number;
+  launchX: number;
+  launchY: number;
+  launchAltitude: number;
+  impactX: number;
+  impactY: number;
+  impactRow: number;
+  impactCol: number;
+  impactAltitude: number;
+  vy0: number;
+  flightTime: number;
   incendiary?: true;
   mortar?: true;
 }
@@ -119,6 +132,17 @@ export type ImpactEvent =
  *  Discriminated on `type` (BATTLE_MESSAGE.* string literal). */
 export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
 
+/** Launch payload — every CannonFiredMessage field except `type`.
+ *  Accepts `boolean` for the optional flags (the wire message narrows
+ *  them to `true` via the builder below). */
+type CannonFiredPayload = Omit<
+  CannonFiredMessage,
+  "type" | "incendiary" | "mortar"
+> & {
+  incendiary?: boolean;
+  mortar?: boolean;
+};
+
 export const BATTLE_MESSAGE = {
   CANNON_FIRED: "cannonFired",
   WALL_DESTROYED: "wallDestroyed",
@@ -209,27 +233,15 @@ export const BATTLE_EVENT_CONSUMERS = {
   Readonly<Record<string, string>>
 >;
 
-/** Create a CANNON_FIRED message from a cannonball's launch data. */
-export function createCannonFiredMsg(ball: {
-  playerId: ValidPlayerSlot;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: boolean;
-  mortar?: boolean;
-}): CannonFiredMessage {
+/** Create a CANNON_FIRED message from a cannonball's launch data.
+ *  Carries the pinned ballistic trajectory so the watcher can replay
+ *  the flight deterministically — no state lookups on receive. */
+export function createCannonFiredMsg(
+  ball: CannonFiredPayload,
+): CannonFiredMessage {
   return {
+    ...ball,
     type: BATTLE_MESSAGE.CANNON_FIRED,
-    playerId: ball.playerId,
-    cannonIdx: ball.cannonIdx,
-    startX: ball.startX,
-    startY: ball.startY,
-    targetX: ball.targetX,
-    targetY: ball.targetY,
-    speed: ball.speed,
     incendiary: ball.incendiary ? true : undefined,
     mortar: ball.mortar ? true : undefined,
   };

@@ -696,17 +696,16 @@ function buildBattleCannonballsPayload(
   if (!inBattle) return undefined;
 
   return cannonballs.map((b) => {
-    const totalDist = Math.hypot(b.targetX - b.startX, b.targetY - b.startY);
-    const remaining = Math.hypot(b.targetX - b.x, b.targetY - b.y);
-    const progress = totalDist > 0 ? 1 - remaining / totalDist : 1;
+    const progress = b.flightTime > 0 ? b.elapsed / b.flightTime : 1;
     return {
       x: b.x,
       y: b.y,
       startX: b.startX,
       startY: b.startY,
-      targetX: b.targetX,
-      targetY: b.targetY,
+      targetX: b.impactX,
+      targetY: b.impactY,
       progress,
+      altitude: b.altitude,
       incendiary: b.incendiary,
       mortar: b.mortar,
     };

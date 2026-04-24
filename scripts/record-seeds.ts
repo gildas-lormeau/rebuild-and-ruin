@@ -113,10 +113,10 @@ async function runMain(config: CliConfig): Promise<void> {
 function parseArgs(): CliConfig {
   const args = Deno.args;
   let max = 100;
-  // Budget per seed. A 10-round modern match naturally ends in ~750 sim-s
-  // (measured via scripts/measure-match-duration.ts). 960_000ms gives ~20%
-  // margin so legitimate late-firing conditions aren't truncated.
-  let timeoutMsPerSeed = 960_000;
+  // Budget per seed. A 20-round modern match naturally ends in ~1500 sim-s
+  // (rounds × ~72 s/round). 1_800_000ms gives ~20% margin so legitimate
+  // late-firing conditions aren't truncated.
+  let timeoutMsPerSeed = 1_800_000;
   let parallel = 1;
   let worker: CliConfig["worker"] = null;
   for (let idx = 0; idx < args.length; idx++) {

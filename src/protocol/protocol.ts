@@ -220,6 +220,18 @@ export interface FullStateMessage {
     playerId: ValidPlayerSlot;
     scoringPlayerId?: ValidPlayerSlot;
     incendiary?: boolean;
+    launchX: number;
+    launchY: number;
+    launchAltitude: number;
+    impactX: number;
+    impactY: number;
+    impactRow: number;
+    impactCol: number;
+    impactAltitude: number;
+    vy0: number;
+    flightTime: number;
+    elapsed: number;
+    altitude: number;
   }[];
   /** In-flight balloon animations (present only during BALLOON_ANIM mode). */
   balloonFlights?: {

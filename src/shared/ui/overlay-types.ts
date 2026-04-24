@@ -191,6 +191,10 @@ export interface OverlayCannonball {
   targetX: number;
   targetY: number;
   progress: number;
+  /** Altitude (world units) on the ballistic arc. The sim writes this
+   *  directly each tick from the pinned trajectory — the renderer reads
+   *  it rather than faking a sin-based arc. */
+  altitude: number;
   incendiary?: boolean;
   mortar?: boolean;
 }

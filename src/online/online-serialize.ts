@@ -607,7 +607,10 @@ function restoreCannonballs(state: GameState, msg: FullStateMessage): void {
   }));
 }
 
-/** Copy the positional/kinematic fields shared by all cannonball representations. */
+/** Copy the positional/kinematic fields shared by all cannonball
+ *  representations — includes the full pinned ballistic trajectory so
+ *  full-state checkpoints restore in-flight balls with identical
+ *  arc + impact on host and watcher. */
 function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
   return {
     cannonIdx: b.cannonIdx,
@@ -620,5 +623,17 @@ function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
     speed: b.speed,
     playerId: b.playerId,
     scoringPlayerId: b.scoringPlayerId,
+    launchX: b.launchX,
+    launchY: b.launchY,
+    launchAltitude: b.launchAltitude,
+    impactX: b.impactX,
+    impactY: b.impactY,
+    impactRow: b.impactRow,
+    impactCol: b.impactCol,
+    impactAltitude: b.impactAltitude,
+    vy0: b.vy0,
+    flightTime: b.flightTime,
+    elapsed: b.elapsed,
+    altitude: b.altitude,
   };
 }

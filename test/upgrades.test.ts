@@ -63,13 +63,16 @@ const UPGRADE_IDS: readonly UpgradeId[] = [
   "demolition",
   "clear_the_field",
 ];
-/** 10-round modern games routinely need >2min of sim time to surface
- *  every upgrade draft, especially rare ones. Matches the seed registry
- *  scanner's budget (`scripts/record-seeds.ts`). */
-const MAX_TIMEOUT_MS = 1_200_000;
+/** 20-round modern games can run ~24 min of sim time end-to-end
+ *  (castle-select + build + cannon + battle phases average ~72 s /
+ *  round). Matches the seed registry scanner's budget
+ *  (`scripts/record-seeds.ts`) with a safety margin. */
+const MAX_TIMEOUT_MS = 1_800_000;
 /** Rounds per scenario run. Enough rounds so every targeted upgrade has
- *  multiple chances to be picked and fire its effect. */
-const ROUNDS = 10;
+ *  multiple chances to be picked and fire its effect. Matches
+ *  `DEFAULT_ROUNDS` in seed-conditions.ts so seeds reproduce the same
+ *  draft schedule the scanner observed. */
+const ROUNDS = 15;
 /** Effect probes for the 9 easy-tier upgrades. See file header for the
  *  design rationale. Missing entries fall back to pick-only assertions.
  *
