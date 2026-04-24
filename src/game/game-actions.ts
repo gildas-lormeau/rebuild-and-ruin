@@ -21,7 +21,8 @@ import { placePiece } from "./build-system.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 
 /** Execute a piece placement intent against game state.
- *  On success, advances the player's piece bag and clamps the cursor. */
+ *  On success, advances the player's piece bag and clamps the cursor against
+ *  the newly drawn piece so no tile of the proposal falls offscreen. */
 export function executePlacePiece(
   state: GameState,
   intent: PlacePieceIntent,
@@ -37,7 +38,7 @@ export function executePlacePiece(
   if (placed) {
     const player = state.players[intent.playerId];
     if (player) advancePlayerBag(player, true);
-    ctrl.clampBuildCursor(intent.piece);
+    ctrl.clampBuildCursor(player?.currentPiece);
   }
   return placed;
 }
