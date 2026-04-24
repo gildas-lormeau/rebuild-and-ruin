@@ -60,11 +60,9 @@
       "src/runtime/music-synth-loader.ts",
       "src/runtime/sound-modal.ts",
       "src/shared/core/battle-events.ts",
-      "src/shared/core/elevation-constants.ts",
       "src/shared/core/geometry-types.ts",
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/pieces.ts",
-      "src/shared/core/trajectory.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/theme.ts"
     ]
@@ -92,7 +90,6 @@
     "tier": "types",
     "files": [
       "src/protocol/protocol.ts",
-      "src/shared/core/cannon-launch.ts",
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/player-types.ts",
       "src/shared/ui/settings-ui.ts"
@@ -124,7 +121,6 @@
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/modifier-types.ts",
       "src/game/selection.ts",
-      "src/game/surface-elevation.ts",
       "src/game/upgrades/upgrade-types.ts",
       "src/online/online-session.ts",
       "src/render/3d/entities/entity-helpers.ts",

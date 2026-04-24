@@ -124,7 +124,7 @@ export function aimElevationAt(
  *  and hit the ground. Unlike `aimElevationAt`, no crosshair margin
  *  is added; the ball should disappear at the exact top of the target
  *  geometry, not a few units above it. */
-function targetTopAt(
+export function targetTopAt(
   x: number,
   y: number,
   overlay: RenderOverlay | undefined,

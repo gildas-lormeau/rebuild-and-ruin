@@ -136,16 +136,8 @@ export const INTERBATTLE_GRUNT_SPAWN_ATTEMPTS = 2;
 export const FIRST_GRUNT_SPAWN_ROUND = 2;
 /** Number of lives each player starts with. */
 export const STARTING_LIVES = 3;
-/** Cannonball travel speed in pixels per second (horizontal component). */
+/** Cannonball travel speed in pixels per second. */
 export const BALL_SPEED = 150;
-/** Gravitational acceleration applied to cannonballs in flight, in
- *  worldUnits / sec². Tuned so a typical mid-range shot (~30 tiles at
- *  BALL_SPEED) reaches an apex similar to the legacy renderer's
- *  `0.48 × flightDist` formula. With a fixed g, short shots arc lower
- *  (more realistic for close range) and long shots arc higher (more
- *  dramatic). Apex grows quadratically with flight time, not linearly
- *  with distance. */
-export const GRAVITY = 180;
 /** Interval between grunt movement ticks during build phase (seconds). */
 export const GRUNT_TICK_INTERVAL = 1.0;
 /** Scoring weight for super guns in balloon threat evaluation. */

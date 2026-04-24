@@ -51,50 +51,16 @@ export interface Cannon extends TilePos {
 export interface Cannonball {
   /** Which cannon fired this ball (index into player.cannons). */
   cannonIdx: number;
-  /** Cannon center position in pixels. Used by the renderer's barrel-recoil
-   *  keying (matches the cannon center exactly, regardless of muzzle offset).
-   *  NOT the trajectory's actual launch point — see x/y at t=0 for that. */
+  /** Start position in pixels. */
   startX: number;
   startY: number;
-  /** Current 2D position in pixels (sub-tile precision). At elapsed=0 this
-   *  equals (launchX, launchY) — the muzzle tip in the xz plane. The
-   *  trajectory's horizontal motion is linear from launch toward the
-   *  target; past `flightTime` the ball continues past the target along
-   *  the same heading until impact. */
+  /** Current position in pixels (sub-tile precision). */
   x: number;
   y: number;
-  /** Initial xz position at fire time — cannon center + muzzleForward
-   *  toward the target. The horizontal velocity is
-   *  ((targetX - launchX) / flightTime, (targetY - launchY) / flightTime),
-   *  applied for as long as the ball is in flight (including past T). */
-  launchX: number;
-  launchY: number;
-  /** Elapsed seconds since fire. Drives the closed-form parametric
-   *  trajectory: x = launchX + vx·t, y = launchY + vy·t,
-   *  altitude = launchAltitude + vy0·t − ½·g·t². */
-  elapsed: number;
-  /** Current altitude (height) in world units. At elapsed=0 this is the
-   *  muzzle Y (per-variant launch geometry); past elapsed=flightTime the
-   *  altitude continues to drop along the parabola until intersecting a
-   *  surface. Updated each tick from `elapsed` via closed-form lookup;
-   *  renderer reads directly. */
-  altitude: number;
   /** Target position in pixels. */
   targetX: number;
   targetY: number;
-  /** Altitude (world Y) the ball is aimed to land at — set at fire time
-   *  from `surfaceAltitudeAt` so the trajectory terminates exactly on top
-   *  of whatever entity sits at the target tile (wall, cannon, ground). */
-  targetAltitude: number;
-  /** Initial vertical velocity (world units / sec) at t=0. Solved at fire
-   *  time so the parabolic trajectory lands on `targetAltitude` exactly at
-   *  `flightTime`. Stored on the ball so per-tick altitude updates are
-   *  pure closed-form lookups (no FP drift from integration). */
-  vy0: number;
-  /** Total horizontal flight duration in seconds (= horizDist / speed at
-   *  fire). Used as the time-axis for the parabolic altitude curve. */
-  flightTime: number;
-  /** Speed in pixels per second (horizontal component). */
+  /** Speed in pixels per second. */
   speed: number;
   /** Owner player id — the player whose cannon fired this ball.
    *  Used for in-flight tracking (index into this player's cannons array).
@@ -128,13 +94,6 @@ export interface Cannonball {
    *  physics lookup runs. Undefined on balls whose total trajectory is
    *  too short for any variant (skip the whistle entirely). */
   whistleVariant?: number;
-  /** Set when the ball has arrived at its target tile and impact has been
-   *  applied. The ball lives one extra tick in this state so the renderer
-   *  draws it at the exact impact position before it disappears — fixes
-   *  the "ball vanishes mid-arc" visual where today the sim removes the
-   *  ball before the renderer ever sees progress=1. Cleared (= removed
-   *  from state) on the next tick. */
-  spent?: true;
 }
 
 export interface CapturedCannon {

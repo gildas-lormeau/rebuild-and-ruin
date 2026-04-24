@@ -9,19 +9,17 @@ import {
   type ImpactEvent,
   type TowerKilledMessage,
 } from "../shared/core/battle-events.ts";
-import {
-  type BalloonFlight,
-  type Cannon,
-  type Cannonball,
-  CannonMode,
-  type CapturedCannon,
-  type CombinedCannonResult,
+import type {
+  BalloonFlight,
+  Cannon,
+  Cannonball,
+  CapturedCannon,
+  CombinedCannonResult,
 } from "../shared/core/battle-types.ts";
 import {
   filterActiveEnemies,
   zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
-import { launchGeometryFor } from "../shared/core/cannon-launch.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -29,7 +27,6 @@ import {
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
-  GRAVITY,
   HOUSE_GRUNT_SPAWN_CHANCE,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
@@ -62,10 +59,6 @@ import {
   TILE_CENTER_OFFSET,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
-import {
-  altitudeAt,
-  computeTrajectoryParams,
-} from "../shared/core/trajectory.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   filterActiveFiringCannons,
@@ -80,7 +73,6 @@ import {
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifier-system.ts";
-import { surfaceAltitudeAt } from "./surface-elevation.ts";
 import {
   ballSpeedMult,
   onCannonKilled,
@@ -450,28 +442,24 @@ export function nextReadyCombined(
 }
 
 /** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events.
- *  Host path: `launchCannonball` pushes a ball and emits via `createCannonFiredMsg`.
- *  Trajectory params must be derived identically to the host (same inputs,
- *  same `surfaceAltitudeAt` snapshot, same launch geometry) so the watcher's
- *  ball state is byte-identical to the host's. */
+ *  Host path: `launchCannonball` pushes a ball and emits via `createCannonFiredMsg`. */
 export function spawnCannonballFromMessage(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
-  state.cannonballs.push(
-    buildCannonball({
-      state,
-      cannonIdx: msg.cannonIdx,
-      startX: msg.startX,
-      startY: msg.startY,
-      targetX: msg.targetX,
-      targetY: msg.targetY,
-      speed: msg.speed,
-      playerId: msg.playerId,
-      incendiary: msg.incendiary,
-      mortar: msg.mortar,
-    }),
-  );
+  state.cannonballs.push({
+    cannonIdx: msg.cannonIdx,
+    startX: msg.startX,
+    startY: msg.startY,
+    x: msg.startX,
+    y: msg.startY,
+    targetX: msg.targetX,
+    targetY: msg.targetY,
+    speed: msg.speed,
+    playerId: msg.playerId,
+    incendiary: msg.incendiary,
+    mortar: msg.mortar,
+  });
 }
 
 /** Network-replay primitive for `BATTLE_MESSAGE.TOWER_KILLED` events.
@@ -504,12 +492,8 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   const remaining: Cannonball[] = [];
 
   for (const ball of state.cannonballs) {
-    // Spent balls were kept one extra tick after impact so the renderer
-    // could draw them at their exact landing point. That frame has now
-    // been emitted — drop them this tick and skip all in-flight logic.
-    if (ball.spent) continue;
     maybeEmitDescendingWhistle(state, ball);
-    const hit = advanceCannonball(ball, state, dt);
+    const hit = advanceCannonball(ball, dt);
     if (hit) {
       // Ball has arrived — compute and apply impact
       const shooterId = getCannonballScorer(ball);
@@ -588,12 +572,6 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
         );
       }
       impacts.push(hit);
-      // Keep the ball in state for one extra tick at its landing point so
-      // the renderer's next frame draws it there before it disappears.
-      // Marked spent so the next tickCannonballs pass drops it without
-      // re-running impact / whistle / advance logic.
-      ball.spent = true;
-      remaining.push(ball);
     } else {
       remaining.push(ball);
     }
@@ -605,55 +583,28 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
 }
 
 /**
- * Advance a cannonball by one tick (`dt` seconds). Mutates the ball's
- * `elapsed`, `x`, `y`, `altitude` from the closed-form parametric
- * trajectory established at fire time. Detects impact by sampling the
- * surface beneath the ball each tick and returning the impact tile
- * when altitude crosses below it.
- *
- * Surface-following impact replaces the old "arrives at target tile"
- * rule: if the original target is destroyed mid-flight, the trajectory
- * continues past the now-empty space until it hits whatever is next
- * (another wall, the ground, etc.). The shooter's own walls and cannons
- * are filtered out during flight, so balls arc cleanly over their own
- * ramparts — except at the explicit target tile, where filtering is
- * disabled so the player can deliberately destroy their own pieces by
- * aiming at them.
- *
- * On impact the ball is left at the exact intersection point: (x, y)
- * is the parametric position at this tick, altitude is snapped to the
- * surface there. The spent-ball pass in `tickCannonballs` keeps it one
- * extra tick so the renderer draws this final frame before removal.
+ * Advance a cannonball by one tick (`dt` seconds). Mutates `ball.x`/`ball.y`.
+ * Returns the impact tile position if the ball arrived, or null if still in flight.
  *
  * Shared between host (tickCannonballs) and watcher (tickWatcherBattlePhase)
- * to eliminate drift in flight / arrival logic.
+ * to eliminate drift in speed/arrival logic.
  */
 export function advanceCannonball(
-  ball: Cannonball,
-  state: GameState,
+  ball: Pick<Cannonball, "x" | "y" | "targetX" | "targetY" | "speed">,
   dt: number,
 ): TilePos | null {
-  ball.elapsed += dt;
-  const T = ball.flightTime;
-  // Linear horizontal motion at the same velocity past T as during 0..T —
-  // the ball overshoots its original aim point if it doesn't hit anything
-  // at the target tile.
-  const tNorm = T > 0 ? ball.elapsed / T : 1;
-  ball.x = ball.launchX + (ball.targetX - ball.launchX) * tNorm;
-  ball.y = ball.launchY + (ball.targetY - ball.launchY) * tNorm;
-  ball.altitude = altitudeFromTrajectory(ball);
-
-  const surface = surfaceAltitudeAt(state, ball.x, ball.y, {
-    shooterId: ball.playerId,
-    target: { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) },
-  });
-  if (ball.altitude <= surface) {
-    // Snap altitude to the surface so the spent-ball render frame sits
-    // exactly on top of whatever was hit (no half-tile clipping into a
-    // wall or cannon).
-    ball.altitude = surface;
-    return { row: pxToTile(ball.y), col: pxToTile(ball.x) };
+  const dx = ball.targetX - ball.x;
+  const dy = ball.targetY - ball.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) {
+    return { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) };
   }
+  const move = ball.speed * dt;
+  if (dist <= move) {
+    return { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) };
+  }
+  ball.x += (dx / dist) * move;
+  ball.y += (dy / dist) * move;
   return null;
 }
 
@@ -767,24 +718,6 @@ export function applyImpactEvent(
       break;
     }
   }
-}
-
-/** Sample the parabolic altitude curve at the ball's current `elapsed`
- *  time. Pulls the launch altitude implicitly via
- *  `targetAltitude - vy0·T + ½·g·T²` so we don't need to store it on
- *  every ball — the trajectory was solved to terminate exactly at
- *  `targetAltitude` at t=T, so the inverse equation reconstructs the
- *  launch point. Allows progress > 1: surface-following impact lets the
- *  parabola continue past the original target until it intersects a
- *  surface. */
-function altitudeFromTrajectory(
-  ball: Pick<Cannonball, "vy0" | "flightTime" | "targetAltitude" | "elapsed">,
-): number {
-  const T = ball.flightTime;
-  const launchAltitude =
-    ball.targetAltitude - ball.vy0 * T + 0.5 * GRAVITY * T * T;
-  const progress = T > 0 ? ball.elapsed / T : 1;
-  return altitudeAt(launchAltitude, ball.vy0, T, progress);
 }
 
 /** Map battleCountdown to the corresponding announcement step (text +
@@ -932,94 +865,21 @@ function launchCannonball(
   const totalTravelSec =
     Math.sqrt(totalDx * totalDx + totalDy * totalDy) / speed;
   const whistleVariant = selectWhistleVariant(state, totalTravelSec);
-  state.cannonballs.push(
-    buildCannonball({
-      state,
-      cannonIdx,
-      startX,
-      startY,
-      targetX: finalTargetX,
-      targetY: finalTargetY,
-      speed,
-      playerId,
-      scoringPlayerId,
-      incendiary: isSuperCannon(cannon) ? true : undefined,
-      mortar: isMortar || undefined,
-      whistleVariant,
-    }),
-  );
-}
-
-/** Construct a Cannonball with trajectory params resolved. Shared between
- *  the host launch path (`launchCannonball`) and the watcher replay path
- *  (`spawnCannonballFromMessage`) so both produce byte-identical ball
- *  state from identical inputs. */
-function buildCannonball(args: {
-  state: GameState;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  playerId: ValidPlayerSlot;
-  scoringPlayerId?: ValidPlayerSlot;
-  incendiary?: boolean;
-  mortar?: boolean;
-  whistleVariant?: number;
-}): Cannonball {
-  const launch = launchGeometryFor({
-    mode: args.incendiary ? CannonMode.SUPER : CannonMode.NORMAL,
-    mortar: args.mortar,
+  state.cannonballs.push({
+    cannonIdx,
+    startX,
+    startY,
+    x: startX,
+    y: startY,
+    targetX: finalTargetX,
+    targetY: finalTargetY,
+    speed,
+    playerId,
+    scoringPlayerId,
+    incendiary: isSuperCannon(cannon) ? true : undefined,
+    mortar: isMortar || undefined,
+    whistleVariant,
   });
-  // Translate from cannon center to muzzle tip in the xz plane: forward
-  // along the firing direction by `muzzleForward`. Vertical launch height
-  // is the muzzle's authored Y. Trajectory's horizontal motion is from
-  // this muzzle point to the target; gravity carries the ball through
-  // the parabola to land on `targetAltitude`.
-  const dx = args.targetX - args.startX;
-  const dy = args.targetY - args.startY;
-  const horizDist = Math.sqrt(dx * dx + dy * dy);
-  const fwdUnit = horizDist > 0 ? 1 / horizDist : 0;
-  const launchX = args.startX + launch.muzzleForward * dx * fwdUnit;
-  const launchY = args.startY + launch.muzzleForward * dy * fwdUnit;
-  const launchAltitude = launch.muzzleY;
-  const targetAltitude = surfaceAltitudeAt(
-    args.state,
-    args.targetX,
-    args.targetY,
-  );
-  const { vy0, flightTime } = computeTrajectoryParams(
-    launchX,
-    launchY,
-    launchAltitude,
-    args.targetX,
-    args.targetY,
-    targetAltitude,
-    args.speed,
-  );
-  return {
-    cannonIdx: args.cannonIdx,
-    startX: args.startX,
-    startY: args.startY,
-    launchX,
-    launchY,
-    elapsed: 0,
-    x: launchX,
-    y: launchY,
-    altitude: launchAltitude,
-    targetX: args.targetX,
-    targetY: args.targetY,
-    targetAltitude,
-    vy0,
-    flightTime,
-    speed: args.speed,
-    playerId: args.playerId,
-    scoringPlayerId: args.scoringPlayerId,
-    incendiary: args.incendiary,
-    mortar: args.mortar,
-    whistleVariant: args.whistleVariant,
-  };
 }
 
 /** Pick a random whistle variant whose duration fits in the ball's total

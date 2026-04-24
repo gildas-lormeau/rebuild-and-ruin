@@ -179,11 +179,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   const remaining: Cannonball[] = [];
   for (const ball of state.cannonballs) {
-    // Spent balls were kept one extra tick for the renderer's clean
-    // landing frame — drop them now (mirrors the host-side sweep in
-    // tickCannonballs).
-    if (ball.spent) continue;
-    const hit = advanceCannonball(ball, state, dt);
+    const hit = advanceCannonball(ball, dt);
     if (hit) {
       battleAnim.impacts.push({ ...hit, age: 0 });
       // Record thaw animation if this hit landed on frozen water
@@ -191,10 +187,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       if (frozenSet?.has(packTile(hit.row, hit.col))) {
         battleAnim.thawing.push({ row: hit.row, col: hit.col, age: 0 });
       }
-      // Keep the ball one extra tick at its landing point — same
-      // mechanic as host so watcher and host render identically.
-      ball.spent = true;
-      remaining.push(ball);
     } else {
       remaining.push(ball);
     }

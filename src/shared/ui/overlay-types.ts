@@ -177,32 +177,22 @@ export interface PhantomOverlay {
   cannonTiers?: ReadonlyMap<number, 1 | 2 | 3>;
 }
 
-/** Cannonball in flight — overlay payload mirroring sim ball state. */
+/** Cannonball in flight — overlay payload with animation progress. */
 export interface OverlayCannonball {
-  /** Current 2D position in world-pixel coords (xz plane). At t=0 this
-   *  is the muzzle tip, not the cannon center — the trajectory's
-   *  horizontal motion is from this initial value to (targetX, targetY). */
   x: number;
   y: number;
-  /** Cannon center in world-pixel coords. Used by the renderer's
-   *  barrel-recoil keying so the recoil ties back to the firing cannon
-   *  regardless of the muzzle offset. NOT the trajectory's actual
-   *  launch point. */
+  /** Launch point (world-pixel coords). Lets the 3D renderer size
+   *  the arc apex proportionally to total flight distance. */
   startX: number;
   startY: number;
-  /** Current altitude (height) in world units. Pre-computed by the sim
-   *  via closed-form ballistic trajectory; the renderer reads this
-   *  directly and does not fake any apex math. */
-  altitude: number;
-  /** Target tile center in world-pixel coords. */
+  /** Target tile center (world-pixel coords). Lets the 3D renderer
+   *  compute target elevation so balls can arc onto wall tops
+   *  instead of passing through the wall to the ground plane. */
   targetX: number;
   targetY: number;
+  progress: number;
   incendiary?: boolean;
   mortar?: boolean;
-  /** True for the ball's final post-impact frame — see Cannonball.spent.
-   *  The renderer draws this ball at its exact landing position; the
-   *  recoil pass skips it so the firing cannon's barrel can ease back. */
-  spent?: true;
 }
 
 /** Propaganda balloon flight — overlay payload with animation progress. */
