@@ -854,9 +854,10 @@ const CANNON_PLACE_DONE: Transition = {
  *  banner. The tick system (`tickModifierRevealPhase` host-side,
  *  `tickWatcher` watcher-side) counts `state.timer` down and dispatches
  *  `enter-battle` when it reaches 0 — the same pattern as
- *  `tickCannonPhase` → `cannon-place-done`. The banner keeps sweeping
- *  and remains on screen (status = `swept`) until `enter-battle`'s own
- *  banner replaces it.
+ *  `tickCannonPhase` → `cannon-place-done`. The banner is hidden by
+ *  `runDisplay`'s end-of-sequence `hideBanner()` before `postDisplay`
+ *  runs; the 2s MODIFIER_REVEAL dwell that follows shows the modifier
+ *  tile pulse over the static post-reveal scene (no banner).
  *
  *  Only dispatched when `cannon-place-done`'s result carries a
  *  `modifierDiff` (modern mode, modifier actually rolled this round).

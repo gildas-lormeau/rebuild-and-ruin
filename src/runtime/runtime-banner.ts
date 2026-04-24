@@ -25,12 +25,14 @@
  *     every way a banner leaves the screen, so consumers that want the
  *     unified "banner went away" beat subscribe to both.
  *
- * Post-sweep dwell: callers that need the banner to sit on screen for a
- * beat before advancing (e.g. the modifier-reveal → battle flow) do not
- * delay `onDone` inside the banner system. Instead, `onDone` flips the
- * runtime to `Mode.GAME` and the destination phase runs its own timed
- * tick (see `tickModifierRevealPhase`), replacing the banner when the
- * timer expires. Keeps the banner system a pure sweep animator.
+ * Post-sweep dwell: callers that need a beat between a banner and the
+ * next phase (e.g. the modifier-reveal → battle flow) do not delay
+ * `onDone` inside the banner system. Instead, the banner is hidden at
+ * the end of the display sequence, `onDone` flips the runtime to
+ * `Mode.GAME`, and the destination phase runs its own timed tick
+ * (see `tickModifierRevealPhase`) over a banner-free screen until
+ * the next transition shows its own banner. Keeps the banner system a
+ * pure sweep animator.
  */
 
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";

@@ -222,8 +222,10 @@ export interface OnlineOverlayParams {
  *  - `swept`: progress has reached 1 and the sweep-end callback has
  *    fired. The banner remains visually on screen (its text/subtitle
  *    are still readable) until a caller explicitly hides it or a new
- *    `showBanner` overwrites it. This is the state used by the
- *    "hold" between banners (e.g. the 2s beat after a modifier reveal).
+ *    `showBanner` overwrites it. In practice `runDisplay` calls
+ *    `hideBanner()` at the end of every display sequence, so `swept`
+ *    is only visible for the tick window between sweep-end and that
+ *    terminal hide.
  */
 export interface ActiveBannerState {
   status: "sweeping" | "swept";

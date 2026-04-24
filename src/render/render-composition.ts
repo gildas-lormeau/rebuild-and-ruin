@@ -10,6 +10,7 @@ import {
   UPGRADE_PICK_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -366,7 +367,10 @@ export function createOnlineOverlay(
     phantoms: frame.phantoms,
     ui: {
       timer:
-        !inBattle && bannerUi === undefined && view.timer > 0
+        !inBattle &&
+        view.phase !== Phase.MODIFIER_REVEAL &&
+        bannerUi === undefined &&
+        view.timer > 0
           ? view.timer
           : undefined,
       banner: bannerUi,
