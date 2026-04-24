@@ -238,11 +238,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a1,
       rocks: {
-        count: 88,
+        count: 28,
         footprint: { width: 1.5, depth: 1.375 },
-        sizeRange: [0.1, 0.22],
+        sizeRange: [0.16, 0.32],
         maxHeight: 0.3125,
-        flatness: [0.4, 0.9],
+        flatness: [0.3, 0.8],
         materials: CANNON_MATERIALS,
       },
       chunks: [
@@ -259,6 +259,73 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [0, 0.45, Math.PI / 2 + 0.18],
           material: BARREL_MID,
         },
+        // Second barrel fragment — shorter, tilted the opposite way.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.18,
+            radiusBottom: 0.18,
+            height: 0.3,
+            segments: 16,
+          },
+          pos: [0.35, 0.15, 0.3],
+          rot: [0, -0.6, Math.PI / 2 - 0.35],
+          material: BARREL_DARK,
+        },
+        // Broken wheel — short wide wooden cylinder lying on its side.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.32,
+            radiusBottom: 0.32,
+            height: 0.1,
+            segments: 18,
+          },
+          pos: [-0.35, 0.1, -0.3],
+          rot: [Math.PI / 2 - 0.25, 0.2, 0.1],
+          material: WOOD_MID,
+        },
+        // Axle stub — dark metal cylinder emerging through the wheel.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.05,
+            radiusBottom: 0.05,
+            height: 0.22,
+            segments: 10,
+          },
+          pos: [-0.35, 0.12, -0.3],
+          rot: [Math.PI / 2 - 0.25, 0.2, 0.1],
+          material: BARREL_DARK,
+        },
+        // Splintered carriage plank — elongated wooden box.
+        {
+          shape: "box",
+          dims: { width: 0.5, height: 0.08, depth: 0.14 },
+          pos: [-0.1, 0.05, 0.35],
+          rot: [0.1, 0.7, 0.05],
+          material: WOOD_DARK,
+        },
+        // Cascabel — small dark sphere, remnant of the breech end.
+        {
+          shape: "sphere",
+          dims: { radius: 0.11, widthSegments: 12, heightSegments: 8 },
+          pos: [-0.4, 0.12, 0.05],
+          material: BARREL_DARK,
+        },
+        // Trunnion stub — short perpendicular cylinder near the barrel.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.06,
+            radiusBottom: 0.06,
+            height: 0.18,
+            segments: 10,
+          },
+          pos: [0.22, 0.08, -0.3],
+          rot: [0, 0, Math.PI / 2 + 0.15],
+          material: BARREL_MID,
+        },
         // Single reinforcement band, snapped off and tilted.
         {
           shape: "cylinder",
@@ -268,7 +335,7 @@ export const VARIANTS: VariantDescriptor[] = [
             height: 0.0625,
             segments: 20,
           },
-          pos: [-0.3, 0.08, 0.3],
+          pos: [-0.15, 0.04, -0.1],
           rot: [Math.PI / 2 + 0.15, 0.1, 0.2],
           material: BAND_GREEN,
         },
@@ -373,11 +440,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a4,
       rocks: {
-        count: 200,
+        count: 40,
         footprint: { width: 1.5, depth: 1.5 },
-        sizeRange: [0.13, 0.32],
+        sizeRange: [0.2, 0.4],
         maxHeight: 0.5,
-        flatness: [0.4, 0.95],
+        flatness: [0.3, 0.85],
         materials: [
           [BARREL_MID, 4],
           [BARREL_LIGHT, 4],
@@ -388,6 +455,7 @@ export const VARIANTS: VariantDescriptor[] = [
         ],
       },
       chunks: [
+        // Massive broken breech block — the core of the gun.
         {
           shape: "box",
           dims: { width: 0.6875, height: 0.4375, depth: 0.5625 },
@@ -395,18 +463,87 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [-0.08, 0.2, 0.1],
           material: BARREL_MID,
         },
+        // Main barrel section — long heavy cylinder lying at an angle.
         {
           shape: "cylinder",
           dims: {
             radiusTop: 0.24,
             radiusBottom: 0.24,
-            height: 0.5625,
+            height: 0.65,
             segments: 16,
           },
           pos: [-0.35, 0.22, -0.25],
           rot: [0, 0.55, Math.PI / 2 - 0.2],
           material: BARREL_LIGHT,
         },
+        // Second barrel shard — shorter, split further.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.2,
+            radiusBottom: 0.2,
+            height: 0.42,
+            segments: 16,
+          },
+          pos: [0.4, 0.18, 0.35],
+          rot: [0, -0.4, Math.PI / 2 + 0.35],
+          material: BARREL_DARK,
+        },
+        // Large broken wheel — cannon carriage, lying on side.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.4,
+            radiusBottom: 0.4,
+            height: 0.12,
+            segments: 20,
+          },
+          pos: [-0.4, 0.13, 0.4],
+          rot: [Math.PI / 2 - 0.3, 0.3, 0.08],
+          material: WOOD_MID,
+        },
+        // Axle stub through the wheel.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.07,
+            radiusBottom: 0.07,
+            height: 0.3,
+            segments: 10,
+          },
+          pos: [-0.4, 0.15, 0.4],
+          rot: [Math.PI / 2 - 0.3, 0.3, 0.08],
+          material: BARREL_DARK,
+        },
+        // Splintered carriage beam.
+        {
+          shape: "box",
+          dims: { width: 0.55, height: 0.09, depth: 0.16 },
+          pos: [0.1, 0.06, -0.4],
+          rot: [0.08, -0.5, 0.12],
+          material: WOOD_DARK,
+        },
+        // Heavy trunnion stub — fatter than regular cannon.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.09,
+            radiusBottom: 0.09,
+            height: 0.24,
+            segments: 12,
+          },
+          pos: [0.3, 0.1, -0.05],
+          rot: [0, 0, Math.PI / 2 + 0.2],
+          material: BARREL_MID,
+        },
+        // Cascabel ball — large dark sphere, breech remnant.
+        {
+          shape: "sphere",
+          dims: { radius: 0.15, widthSegments: 14, heightSegments: 10 },
+          pos: [-0.15, 0.15, -0.4],
+          material: BARREL_DARK,
+        },
+        // Detached reinforcement band — green accent.
         {
           shape: "cylinder",
           dims: {
@@ -415,7 +552,7 @@ export const VARIANTS: VariantDescriptor[] = [
             height: 0.0625,
             segments: 20,
           },
-          pos: [0.35, 0.06, -0.4],
+          pos: [0.3, 0.04, -0.2],
           rot: [Math.PI / 2 + 0.1, 0.1, -0.15],
           material: BAND_GREEN,
         },
@@ -430,11 +567,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a5,
       rocks: {
-        count: 104,
+        count: 32,
         footprint: { width: 1.5, depth: 1.375 },
-        sizeRange: [0.12, 0.26],
+        sizeRange: [0.18, 0.34],
         maxHeight: 0.4375,
-        flatness: [0.4, 0.95],
+        flatness: [0.3, 0.85],
         materials: [
           [BARREL_MID, 4],
           [BARREL_LIGHT, 3],
@@ -451,18 +588,59 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [0.05, 0.2, -0.04],
           material: BARREL_MID,
         },
-        // Stub of the short fat barrel, lying on its side.
+        // Stub of the short fat barrel — vertical, snapped.
         {
           shape: "cylinder",
           dims: {
-            radiusTop: 0.2,
-            radiusBottom: 0.2,
-            height: 0.3125,
+            radiusTop: 0.26,
+            radiusBottom: 0.28,
+            height: 0.28,
+            segments: 18,
+          },
+          pos: [-0.28, 0.14, 0.25],
+          rot: [0.15, 0, 0.22],
+          material: BARREL_LIGHT,
+        },
+        // Second fat barrel fragment — wider, tipped over.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.22,
+            radiusBottom: 0.22,
+            height: 0.26,
             segments: 16,
           },
-          pos: [-0.2, 0.2, 0.3],
-          rot: [Math.PI / 2 + 0.2, 0, 0.1],
-          material: BARREL_LIGHT,
+          pos: [0.35, 0.16, -0.3],
+          rot: [Math.PI / 2 - 0.2, 0.3, 0.0],
+          material: BARREL_DARK,
+        },
+        // Broken square base plate — chunk of the mortar bed.
+        {
+          shape: "box",
+          dims: { width: 0.38, height: 0.08, depth: 0.3 },
+          pos: [0.25, 0.04, 0.35],
+          rot: [0.05, 0.4, -0.08],
+          material: STONE_MID,
+        },
+        // Corner trunnion peg — stubby cylinder.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.07,
+            radiusBottom: 0.07,
+            height: 0.2,
+            segments: 10,
+          },
+          pos: [-0.4, 0.1, -0.35],
+          rot: [0.2, 0, Math.PI / 2 - 0.1],
+          material: BARREL_MID,
+        },
+        // Heavy cascabel / fuse plug sphere.
+        {
+          shape: "sphere",
+          dims: { radius: 0.12, widthSegments: 12, heightSegments: 8 },
+          pos: [0.15, 0.12, -0.4],
+          material: BARREL_DARK,
         },
       ],
     },
@@ -475,11 +653,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 88,
+        count: 26,
         footprint: { width: 1.5, depth: 1.375 },
-        sizeRange: [0.1, 0.22],
+        sizeRange: [0.16, 0.32],
         maxHeight: 0.3125,
-        flatness: [0.4, 0.9],
+        flatness: [0.3, 0.8],
         materials: RAMPART_MATERIALS,
       },
       chunks: [
@@ -504,6 +682,42 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [Math.PI / 2 - 0.4, 0.15, 0.2],
           material: RAMPART_METAL_DARK,
         },
+        // Second corner pillar fragment — shorter, leaning opposite.
+        {
+          shape: "cylinder",
+          dims: {
+            radiusTop: 0.1,
+            radiusBottom: 0.1,
+            height: 0.24,
+            segments: 12,
+          },
+          pos: [0.38, 0.14, -0.3],
+          rot: [Math.PI / 2 - 0.3, -0.2, -0.25],
+          material: RAMPART_METAL_DARK,
+        },
+        // Twisted metal plate — thin bent sheet.
+        {
+          shape: "box",
+          dims: { width: 0.42, height: 0.05, depth: 0.28 },
+          pos: [-0.1, 0.05, 0.4],
+          rot: [0.08, 0.6, -0.14],
+          material: RAMPART_METAL_LIGHT,
+        },
+        // Second plate fragment — angular shard.
+        {
+          shape: "box",
+          dims: { width: 0.28, height: 0.04, depth: 0.2 },
+          pos: [0.3, 0.04, 0.25],
+          rot: [0.25, -0.4, 0.2],
+          material: RAMPART_METAL_MID,
+        },
+        // Rivet head sphere — small metal ball.
+        {
+          shape: "sphere",
+          dims: { radius: 0.08, widthSegments: 10, heightSegments: 6 },
+          pos: [-0.35, 0.1, -0.2],
+          material: RAMPART_METAL_LIGHT,
+        },
         // Detached emblem band — green accent tilted on the pile.
         {
           shape: "cylinder",
@@ -513,7 +727,7 @@ export const VARIANTS: VariantDescriptor[] = [
             height: 0.07,
             segments: 20,
           },
-          pos: [0.3, 0.08, 0.3],
+          pos: [0.18, 0.04, -0.15],
           rot: [Math.PI / 2 + 0.2, 0.1, 0.25],
           material: BAND_GREEN,
         },
