@@ -72,6 +72,25 @@ export interface CannonballsManager {
   dispose(): void;
 }
 
+/** Per-variant launch geometry — muzzle offset + arc scaling.
+ *
+ *  • muzzleY   — vertical offset of the barrel tip above ground (world units).
+ *  • muzzleForward — how far the ball emerges from the cannon center along
+ *    the firing direction at progress=0 (world units). Fades to zero by impact.
+ *  • apexMultiplier — scales the parabolic arc height so mortars visibly lob
+ *    while tier cannons keep their existing flatter arc.
+ *
+ *  Values chosen to preserve the prior look for tier/super/rampart (previous
+ *  hardcoded MUZZLE_Y=12, MUZZLE_FORWARD=10 for all variants) while giving
+ *  the mortar round a noticeably taller, shorter-reach lob — it fires from
+ *  a raised tube (authored sprite has a much taller barrel) and should
+ *  arc dramatically. */
+interface LaunchGeometry {
+  readonly muzzleY: number;
+  readonly muzzleForward: number;
+  readonly apexMultiplier: number;
+}
+
 /** Cannonball scenes are authored in a ±1 frustum covering a 1-tile
  *  span, so scaling by TILE_SIZE / 2 makes 1 authored unit = half a
  *  tile (the full ±1 sprite fits inside a 1×1 tile). Matches the
@@ -86,19 +105,21 @@ const MIN_APEX = TILE_SIZE * 1.6;
 /** Scale bonus at apex — matches the 2D formula's ~66% radius growth
  *  from launch to apex (3→5 px and 4.5→7.5 px both land at +66%). */
 const SCALE_APEX_BONUS = 2 / 3;
-/** Muzzle-tip offset applied at progress=0 so the ball visibly
- *  emerges from the barrel tip rather than from the cannon's ground
- *  center. Fades linearly to zero by progress=1 (impact).
- *    • forward: tier_1 barrel length ≈ 13 world units (half-length
- *      ~6.5) plus ~3.5 for barrel zOffset from cannon center → 10.
- *      Tuned by eye; close enough for every variant since larger
- *      cannons also have proportionally longer barrels relative to
- *      their footprints.
- *    • Y: barrel sits ~12 world units above the ground plane. See
- *      CANNON_TOP_Y = 14 in elevation.ts — we aim slightly below the
- *      top so the ball emerges from the bore, not the muzzle swell. */
-const MUZZLE_FORWARD = 10;
-const MUZZLE_Y = 12;
+const LAUNCH_GEOMETRY_DEFAULT: LaunchGeometry = {
+  muzzleY: 12,
+  muzzleForward: 10,
+  apexMultiplier: 1,
+};
+const LAUNCH_GEOMETRY_MORTAR: LaunchGeometry = {
+  muzzleY: 22,
+  muzzleForward: 3,
+  apexMultiplier: 1.8,
+};
+const LAUNCH_GEOMETRY_SUPER: LaunchGeometry = {
+  muzzleY: 14,
+  muzzleForward: 12,
+  apexMultiplier: 1.05,
+};
 
 export function createCannonballsManager(
   scene: THREE.Scene,
@@ -156,11 +177,15 @@ export function createCannonballsManager(
       const floor = targetFloor * ball.progress;
       // Apex lift scales with flight distance (a la Rampart's tall
       // arcs). Close shots bottom out at MIN_APEX so they still read
-      // as arcs, long shots fly proportionally higher.
+      // as arcs, long shots fly proportionally higher. Per-variant
+      // apexMultiplier lets the mortar arc dramatically higher than
+      // tier/super cannons for the same flight distance.
       const dx = ball.targetX - ball.startX;
       const dy = ball.targetY - ball.startY;
       const flightDist = Math.hypot(dx, dy);
-      const apex = Math.max(MIN_APEX, flightDist * APEX_RATIO);
+      const geom = launchGeometryFor(ball);
+      const apex =
+        Math.max(MIN_APEX, flightDist * APEX_RATIO) * geom.apexMultiplier;
       // Muzzle-tip offset: at progress=0 the ball sits at the barrel
       // tip (forward along the firing direction + elevated to barrel
       // Y), fading linearly to zero by progress=1 so impact still
@@ -169,9 +194,9 @@ export function createCannonballsManager(
       // on its first frame of flight.
       const muzzleFade = 1 - ball.progress;
       const fwdUnit = flightDist > 0 ? 1 / flightDist : 0;
-      const muzzleOffX = dx * fwdUnit * MUZZLE_FORWARD * muzzleFade;
-      const muzzleOffZ = dy * fwdUnit * MUZZLE_FORWARD * muzzleFade;
-      const muzzleOffY = MUZZLE_Y * muzzleFade;
+      const muzzleOffX = dx * fwdUnit * geom.muzzleForward * muzzleFade;
+      const muzzleOffZ = dy * fwdUnit * geom.muzzleForward * muzzleFade;
+      const muzzleOffY = geom.muzzleY * muzzleFade;
       host.position.set(
         ball.x + muzzleOffX,
         floor + arc * apex + muzzleOffY,
@@ -200,6 +225,12 @@ export function createCannonballsManager(
   }
 
   return { update, dispose };
+}
+
+function launchGeometryFor(ball: OverlayCannonball): LaunchGeometry {
+  if (ball.mortar) return LAUNCH_GEOMETRY_MORTAR;
+  if (ball.incendiary) return LAUNCH_GEOMETRY_SUPER;
+  return LAUNCH_GEOMETRY_DEFAULT;
 }
 
 /** Fingerprint of the current ball set — count + ordered variant
