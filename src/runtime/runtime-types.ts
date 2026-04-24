@@ -380,8 +380,6 @@ export interface CameraSystem {
   setCameraZone: (zone: number | undefined) => void;
 
   // Lifecycle commands
-  /** Phase unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
-  clearPhaseZoom: () => void;
   /** Pre-transition unzoom with a post-convergence callback. Saves the
    *  current pinch into the phase slot, clears zoom targets so
    *  currentVp lerps to fullMapVp, and fires `onReady` on the first

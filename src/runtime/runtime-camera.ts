@@ -704,17 +704,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Lifecycle commands ---
 
-  /** Clear current zoom but preserve per-phase pinch memory (battle↔build).
-   *  Use for phase transitions where the player may return to the same zoom.
-   *  Resets lastAutoZoomPhase so handlePhaseChangeZoom re-fires autoZoom
-   *  when the next interactive mode begins (fixes upgrade-pick → banner → build). */
-  function clearPhaseZoom(): void {
-    cameraZone = undefined;
-    pinchVp = undefined;
-    lastAutoZoomPhase = undefined;
-    cachedZoneBounds.clear();
-  }
-
   /** Initiate a pre-transition unzoom + untilt. Persists the current
    *  pinch zoom into the phase-keyed slot (so autoZoom on the NEW phase
    *  can restore it), clears cameraZone + pinchVp so updateViewport
@@ -960,7 +949,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     computeZoneBounds,
-    clearPhaseZoom,
     requestUnzoom,
     onRenderedFrame,
     getCameraZone: () => cameraZone,

@@ -77,9 +77,8 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     });
 
     if (scoreDisplay.deltas.length > 0) {
-      // No clearPhaseZoom here — the score overlay is always reached
-      // via `runTransition`, which has already gated its display chain
-      // on camera convergence to fullMapVp (see runtime-phase-machine).
+      // Camera is already at fullMapVp — the score overlay is reached via
+      // `runTransition`, whose display chain was gated on camera convergence.
       scoreDisplay.deltaTimer = SCORE_DELTA_DISPLAY_TIME;
       pendingOnDone.set(onDone);
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.SCORE_OVERLAY_START, {
