@@ -36,7 +36,7 @@ import type {
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../shared/ui/player-config.ts";
-import { type RGB, STATUSBAR_HEIGHT } from "../shared/ui/theme.ts";
+import type { RGB } from "../shared/ui/theme.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -580,19 +580,18 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const W = MAP_PX_W;
     const H = MAP_PX_H;
 
-    const STATUS_BAR_H = overlay?.ui?.statusBar ? STATUSBAR_HEIGHT : 0;
     // Top strip: reserved empty space ABOVE the game area. In 3D mode
     // the runtime sets this flag unconditionally so tall wall meshes at
     // row 0 have a tile of headroom under battle tilt. In 2D mode the
     // flag is never set. Grows the canvas at the top; game-area
     // drawing shifts down by TOP_STRIP_H via `ctx.translate` below so
     // all existing map-coord draw code keeps working without per-call
-    // offsets. The 2D status bar (when present) still paints at the
-    // bottom — it's an independent strip; never both at once today.
+    // offsets. The status bar (when populated) paints into this same
+    // strip — same height by construction (TOP_MARGIN_CANVAS_PX === STATUSBAR_HEIGHT).
     const TOP_STRIP_H = topStripH;
     const cw = CANVAS_W;
     const gameH = CANVAS_H;
-    const ch = TOP_STRIP_H + gameH + STATUS_BAR_H;
+    const ch = TOP_STRIP_H + gameH;
     if (canvas.width !== cw || canvas.height !== ch) {
       canvas.width = cw;
       canvas.height = ch;
@@ -633,7 +632,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     //
     // HUD layers (drawn at display resolution, NOT affected by zoom):
     //  18. Combo floats + announcement text (scaled by SCALE)
-    //  19. Status bar (below game scene)
+    //  19. Status bar (in reserved top safe margin, hidden in CASTLE_SELECT/BATTLE)
 
     // Draw the new (target) scene — layers that change between phases.
     //
@@ -665,7 +664,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // translate so map-coord drawing stays unchanged: (0, 0) in the
     // translated frame is the top-left of the GAME AREA, never the
     // canvas. The status-bar draw below the restore uses raw canvas
-    // coords because its anchor is the bottom of the canvas.
+    // coords (top-anchored, painting into the reserved top strip).
     canvasCtx.imageSmoothingEnabled = false;
     canvasCtx.save();
     if (TOP_STRIP_H > 0) canvasCtx.translate(0, TOP_STRIP_H);
@@ -703,10 +702,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     canvasCtx.restore();
     canvasCtx.restore(); // unwind the TOP_STRIP_H translate
 
-    // Status bar drawn at display resolution below the game scene.
-    // Anchored to the bottom of the FULL canvas (ch), so no translate
-    // needed — the top strip and status bar are independent regions.
-    if (STATUS_BAR_H > 0) {
+    // Status bar drawn at display resolution into the reserved top strip
+    // (y=0..STATUSBAR_HEIGHT). Skipped when the strip isn't reserved (2D
+    // mode) — without the headroom the bar would overlap row 0 of the map.
+    if (TOP_STRIP_H > 0) {
       drawStatusBar(canvasCtx, cw, ch, overlay);
     }
   }

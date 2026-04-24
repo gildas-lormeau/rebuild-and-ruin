@@ -361,22 +361,22 @@ export function drawScoreDeltas(
   overlayCtx.restore();
 }
 
-/** Draw status bar at the bottom of the canvas. */
+/** Draw status bar in the reserved top safe margin of the canvas. */
 export function drawStatusBar(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
-  H: number,
+  _H: number,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.statusBar) return;
   const statusBar = overlay.ui.statusBar;
   const barH = STATUSBAR_HEIGHT;
-  const by = H - barH;
+  const by = 0;
 
   overlayCtx.fillStyle = PANEL_BG(BG_OVERLAY);
   overlayCtx.fillRect(0, by, W, barH);
   overlayCtx.fillStyle = GOLD_BG(OP_ACCENT);
-  overlayCtx.fillRect(0, by, W, 1);
+  overlayCtx.fillRect(0, by + barH - 1, W, 1);
 
   overlayCtx.save();
   overlayCtx.font = FONT_STATUS;

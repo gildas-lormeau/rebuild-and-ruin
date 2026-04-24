@@ -19,6 +19,7 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
+import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
@@ -44,6 +45,7 @@ import {
   type PlayerStats,
   type RenderOverlay,
   type SceneCapture,
+  type UIOverlay,
   type UpgradePickOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, PLAYER_NAMES } from "../shared/ui/player-config.ts";
@@ -80,6 +82,15 @@ const COMBO_LABELS: Record<ComboEvent["kind"], string> = {
   wall: "Wall Streak",
   cannon: "Cannon Kill",
   grunt: "Grunt Sniper",
+};
+const PHASE_STATUS_LABELS: Record<Phase, string> = {
+  [Phase.CASTLE_SELECT]: "Castle",
+  [Phase.CASTLE_RESELECT]: "Reselect",
+  [Phase.WALL_BUILD]: "Build",
+  [Phase.CANNON_PLACE]: "Cannons",
+  [Phase.MODIFIER_REVEAL]: "Reveal",
+  [Phase.BATTLE]: "Battle",
+  [Phase.UPGRADE_PICK]: "Upgrade",
 };
 export const UPGRADE_NAME_H = 18;
 export const UPGRADE_ROW_GAP = 8;
@@ -399,6 +410,7 @@ export function createOnlineOverlay(
       ),
       masterBuilderLockout:
         masterBuilderLockout > 0 ? masterBuilderLockout : undefined,
+      statusBar: buildStatusBar(view, povPlayerId, playerColors),
     },
   };
 }
@@ -570,6 +582,39 @@ function buildCastleOverlay(view: RenderView): CastleData[] {
         player.damagedWalls.size > 0 ? player.damagedWalls : undefined,
       cannonTier: cannonTier(player),
     }));
+}
+
+function buildStatusBar(
+  view: RenderView,
+  povPlayerId: ValidPlayerSlot,
+  playerColors: ReadonlyArray<{ wall: RGB }>,
+): UIOverlay["statusBar"] {
+  if (view.phase === Phase.CASTLE_SELECT || view.phase === Phase.BATTLE) {
+    return undefined;
+  }
+  const povPlayer = view.players.find((player) => player.id === povPlayerId);
+  const upgradeLabels = povPlayer
+    ? Array.from(povPlayer.upgrades.keys(), (id) => {
+        const def = UPGRADE_POOL.find((upgrade) => upgrade.id === id);
+        return def?.label ?? id;
+      })
+    : [];
+  const modifierId = view.modern?.activeModifier ?? null;
+  const secs = Math.max(0, Math.ceil(view.timer) - 1);
+  return {
+    round: `R${view.round}/${view.maxRounds}`,
+    phase: PHASE_STATUS_LABELS[view.phase],
+    timer: view.timer > 0 ? `${secs}s` : "",
+    modifier: modifierId ? modifierDef(modifierId).label : undefined,
+    upgrades: upgradeLabels.length > 0 ? upgradeLabels : undefined,
+    players: view.players.map((player) => ({
+      score: player.score,
+      cannons: player.cannons.length,
+      lives: player.lives,
+      color: playerColors[player.id % playerColors.length]!.wall,
+      eliminated: player.eliminated,
+    })),
+  };
 }
 
 function buildOwnedTowersByIndex(view: RenderView): Map<number, number> {
