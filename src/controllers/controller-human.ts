@@ -150,22 +150,21 @@ export class HumanController extends BaseController implements InputReceiver {
    *  on the pointer. */
   override setCannonCursor(worldX: number, worldY: number): void {
     const sz = cannonSize(this.cannonPlaceMode);
-    const szPx = sz * TILE_SIZE;
+    const halfPx = (sz * TILE_SIZE) / 2;
 
-    // If the mouse is still inside the current phantom footprint, don't move
-    const left = this.cannonCursor.col * TILE_SIZE;
-    const top = this.cannonCursor.row * TILE_SIZE;
+    // Hysteresis: hold position while the pointer stays within half a tile
+    // of the phantom's visual center. A footprint-wide dead zone exceeded
+    // the snap stride for odd sizes (3×3), making half the anchor positions
+    // unreachable.
+    const centerX = this.cannonCursor.col * TILE_SIZE + halfPx;
+    const centerY = this.cannonCursor.row * TILE_SIZE + halfPx;
     if (
-      worldX >= left &&
-      worldX < left + szPx &&
-      worldY >= top &&
-      worldY < top + szPx
+      Math.abs(worldX - centerX) < TILE_SIZE / 2 &&
+      Math.abs(worldY - centerY) < TILE_SIZE / 2
     ) {
       return;
     }
 
-    // Mouse exited — recompute anchor centered on the mouse
-    const halfPx = szPx / 2;
     this.cannonCursor.row = Math.max(
       0,
       Math.min(GRID_ROWS - sz, Math.round((worldY - halfPx) / TILE_SIZE)),
