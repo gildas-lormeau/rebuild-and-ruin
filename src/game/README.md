@@ -23,7 +23,7 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
 
 2. **[phase-setup.ts](./phase-setup.ts)** — Phase transition recipes.
    The multi-step sequences that run when entering/leaving a phase
-   (e.g., `enterBattleFromCannon` rolls modifiers, initializes
+   (e.g., `prepareBattleState` rolls modifiers, initializes
    combos, snapshots castles, and emits events). This is where you
    look when a bug happens "between phases."
 
@@ -48,7 +48,7 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
   empty entity overlay, and the modern-state slot. When you need to
   see "what fields does GameState have?", this is the authoritative
   answer alongside `src/shared/core/types.ts`.
-- **`phase-setup.ts`** — `enterBattleFromCannon`,
+- **`phase-setup.ts`** — `prepareBattleState`,
   `enterBuildFromBattle`, `enterCannonFromBuild`, etc. — one per
   transition. Also owns `applyBattleStartModifiers()`,
   `awardComboBonuses()`, `resetZoneState()`.
@@ -85,7 +85,7 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
 
 ### Cross-phase / global
 - **`combo-system.ts`** — Combo scoring streaks during battle. Init
-  in `enterBattleFromCannon`, scoring in `scoreImpactCombo`, final
+  in `prepareBattleState`, scoring in `scoreImpactCombo`, final
   awards in `awardComboBonuses`. Gated by `hasFeature(state, "combos")`.
 - **`modifier-system.ts`** — Environmental modifiers (wildfire,
   crumbling walls, grunt surge, frozen river, sinkhole, high tide,
@@ -129,7 +129,7 @@ reference library — see `master-builder.ts`, `rapid-fire.ts`, and
 
 ### Add a new phase transition step
 Look at `phase-setup.ts`. Existing transitions like
-`enterBattleFromCannon` document the standard ordering:
+`prepareBattleState` document the standard ordering:
 event emission → state mutation → RNG → checkpoint emission → banner snapshot.
 If your new step needs to run at a specific point, read the existing
 steps for the correct insertion position.

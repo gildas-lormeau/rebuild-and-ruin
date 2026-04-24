@@ -11,7 +11,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  * Phase-entry vs start-phase contract — canonical source (applies to every
  * phase defined here, e.g. enterCannonPlacePhase, enterBuildFromBattle,
- * enterBattleFromCannon, enterBuildSkippingBattle):
+ * prepareBattleState, enterBuildSkippingBattle):
  *
  *   enterXPhase(state)           — mutates state.phase + timer. Called by
  *                                  nextPhase() (local) or as the
@@ -124,7 +124,14 @@ export function finalizeCastleConstruction(state: GameState): void {
   replenishBonusSquares(state);
 }
 
-export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
+/** Prepare battle state at the end of CANNON_PLACE, before the BATTLE_START
+ *  checkpoint is broadcast. Runs post-cannon-place cleanup (pit decay, wall
+ *  sweep, territory recheck), rolls the round's modifier, applies battle-start
+ *  modifier effects, and primes battle fields (timer, cannonballs, combo
+ *  tracker). Does NOT flip `state.phase` — that's owned by the phase machine
+ *  (`enter-modifier-reveal` or `enter-battle`). `lastModifierId` was already
+ *  saved in `enterBuildFromBattle` (before the checkpoint). */
+export function prepareBattleState(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
   // Pre-modifier recheck: reconcile interior + grunts/houses against the
@@ -135,8 +142,6 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearActiveModifiers(state);
-  // Roll modifier at battle start so it isn't spoiled in the status bar during build.
-  // lastModifierId was already saved in enterBuildFromBattle (before the checkpoint).
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
     if (state.modern!.activeModifier !== null) {
@@ -148,10 +153,9 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
-  // Phase flip is owned by the phase machine (`cannon-place-done` /
-  // `enter-battle` / ceasefire-flow mutates). Engine-level setup runs
-  // here but state.phase stays on CANNON_PLACE until the machine's
-  // mutate runs `setPhase(state, Phase.BATTLE)`.
+  // Phase flip is owned by the phase machine: `enter-modifier-reveal`
+  // (when a modifier was rolled) or `enter-battle` runs `setPhase`.
+  // state.phase stays on CANNON_PLACE until then.
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
@@ -169,7 +173,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
 }
 
 /** Ceasefire: skip battle entirely — do pre-battle housekeeping then go straight to build.
- *  Performs the same cleanup as enterBattleFromCannon (decay pits, sweep walls)
+ *  Performs the same cleanup as prepareBattleState (decay pits, sweep walls)
  *  but skips modifiers, grunt attacks, and battle setup. */
 export function enterBuildSkippingBattle(state: GameState): void {
   decayBurningPits(state);
@@ -191,7 +195,7 @@ export function enterBuildFromBattle(state: GameState): void {
   for (const player of state.players) player.freshCastle = false;
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
-  // Must happen here (not in enterBattleFromCannon) so watchers see the same
+  // Must happen here (not in prepareBattleState) so watchers see the same
   // lastModifierId when rollModifier runs at battle start.
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.lastModifierId = state.modern!.activeModifier;

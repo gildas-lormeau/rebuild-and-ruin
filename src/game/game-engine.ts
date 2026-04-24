@@ -47,8 +47,8 @@ import {
 } from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import {
-  enterBattleFromCannon,
   enterBuildFromBattle,
+  prepareBattleState,
   setPhase,
 } from "./phase-setup.ts";
 import {
@@ -145,11 +145,11 @@ export function enterCastleReselectPhase(state: GameState): void {
  *  the load-bearing order (modifier roll → balloon resolution → snapshots)
  *  and returns the data the caller needs to react.
  *
- *  Replaces the runtime's manual sequence of `enterBattleFromCannon` +
+ *  Replaces the runtime's manual sequence of `prepareBattleState` +
  *  `resolveBalloons` + `snapshotTerritory` + `snapshotAllWalls`. The engine
  *  owns the order; the runtime is just a consumer. */
 export function enterBattlePhase(state: GameState): BattlePhaseEntry {
-  const modifierDiff = enterBattleFromCannon(state);
+  const modifierDiff = prepareBattleState(state);
   const flights = resolveBalloons(state);
   return { modifierDiff, flights };
 }

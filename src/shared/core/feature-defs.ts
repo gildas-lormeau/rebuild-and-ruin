@@ -83,7 +83,7 @@ export const FEATURE_CONSUMERS = {
   modifiers: {
     "gate:rollModifier": "src/game/modifier-system.ts",
     "gate:clearFrozenRiver": "src/game/modifiers/frozen-river.ts",
-    "gate:enterBattleFromCannon": "src/game/phase-setup.ts",
+    "gate:prepareBattleState": "src/game/phase-setup.ts",
     "stateAccess:applyBattleStartModifiers": "src/game/phase-setup.ts",
     "stateAccess:frozenTiles": "src/game/grunt-movement.ts",
     "stateAccess:detectIceThaw": "src/game/battle-system.ts",
@@ -115,7 +115,7 @@ export const FEATURE_CONSUMERS = {
   },
   combos: {
     "gate:isCombosEnabled": "src/game/combo-system.ts",
-    "gate:enterBattleFromCannon": "src/game/phase-setup.ts",
+    "gate:prepareBattleState": "src/game/phase-setup.ts",
     "stateAccess:scoreImpactCombo": "src/game/combo-system.ts",
     "stateAccess:tickComboTracking": "src/game/combo-system.ts",
     "stateAccess:awardComboBonuses": "src/game/phase-setup.ts",

@@ -111,7 +111,7 @@ export function applyBattleStartCheckpoint(
       data.modifierDiff?.changedTiles ?? [];
   }
 
-  // State-level projectile clear (mirrors host's enterBattleFromCannon).
+  // State-level projectile clear (mirrors host's prepareBattleState).
   deps.state.cannonballs = [];
   deps.state.timer = BATTLE_TIMER;
   rehydrateComboTracker(deps.state);

@@ -132,17 +132,18 @@ type DisplayStep =
        *  BANNER_* event so consumers discriminate on this, not
        *  `phase`/`text`. */
       readonly bannerKind: BannerKind;
-      /** Static text, or a function of the mutation result (used by the
-       *  modifier-reveal banner which reads the modifier label from the
-       *  result). */
-      readonly text: string | ((r: TransitionResult) => string);
+      /** Static text, or a function of the current GameState (used by
+       *  the modifier-reveal banner which reads the modifier label from
+       *  `state.modern.activeModifier`). State is already fully populated
+       *  by the preceding mutate step on both host and watcher. */
+      readonly text: string | ((state: GameState) => string);
       readonly subtitle?: string;
       /** Opaque accent-palette key extractor. Used by the
        *  modifier-reveal banner to recolor its chrome (title + border).
        *  The banner system treats the result as a string the renderer
        *  indexes into its palette table. Only set where a non-default
        *  palette is wanted. */
-      readonly paletteKey?: (r: TransitionResult) => string | undefined;
+      readonly paletteKey?: (state: GameState) => string | undefined;
     }
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" };
@@ -893,10 +894,14 @@ const ENTER_MODIFIER_REVEAL: Transition = {
     {
       kind: STEP_BANNER,
       bannerKind: "modifier-reveal",
-      text: (r) => modifierDef(r.modifierDiff!.id).label,
+      // `activeModifier` is set by `prepareBattleState` (host) or
+      // `applyBattleStartCheckpoint` (watcher) during the prior
+      // `cannon-place-done` mutate, so it's populated identically on
+      // both sides by the time this banner displays.
+      text: (state) => modifierDef(state.modern!.activeModifier!).label,
       // The modifier id becomes an opaque palette key the renderer
       // looks up — the banner system itself never sees `ModifierDiff`.
-      paletteKey: (r) => r.modifierDiff?.id,
+      paletteKey: (state) => state.modern?.activeModifier ?? undefined,
     },
   ],
   postDisplay: {
@@ -1317,16 +1322,17 @@ function runStep(
 function runBannerStep(
   step: Extract<DisplayStep, { kind: "banner" }>,
   ctx: PhaseTransitionCtx,
-  result: TransitionResult,
+  _result: TransitionResult,
   onDone: () => void,
 ): void {
-  const text = typeof step.text === "function" ? step.text(result) : step.text;
+  const text =
+    typeof step.text === "function" ? step.text(ctx.state) : step.text;
   ctx.showBanner({
     text,
     kind: step.bannerKind,
     onDone,
     subtitle: step.subtitle,
-    paletteKey: step.paletteKey?.(result),
+    paletteKey: step.paletteKey?.(ctx.state),
   });
 }
 
