@@ -67,13 +67,7 @@ interface SelectionSystemDeps {
   sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
 
-  camera: Pick<
-    CameraSystem,
-    | "clearPhaseZoom"
-    | "clearCastleBuildViewport"
-    | "setCastleBuildViewport"
-    | "setSelectionViewport"
-  >;
+  camera: Pick<CameraSystem, "setCastleBuildViewport" | "setSelectionViewport">;
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
     overlay: RenderOverlay,
@@ -401,8 +395,6 @@ export function createSelectionSystem(
    *  this frame (caller is responsible for territory recheck). */
   function tickAllCastleBuilds(dt: number): boolean {
     let anyPlaced = false;
-    const humanPid = deps.pointerPlayer()?.playerId ?? -1;
-    let humanBuildDone = false;
     for (let i = runtimeState.selection.castleBuilds.length - 1; i >= 0; i--) {
       const build = runtimeState.selection.castleBuilds[i]!;
       const result = tickCastleBuildAnimation({
@@ -415,17 +407,10 @@ export function createSelectionSystem(
         },
       });
       if (!result.next) {
-        if (build.wallPlans.some((plan) => plan.playerId === humanPid))
-          humanBuildDone = true;
         runtimeState.selection.castleBuilds.splice(i, 1);
       } else {
         runtimeState.selection.castleBuilds[i] = result.next;
       }
-    }
-    // Unzoom once human player's castle build animation finishes
-    if (humanBuildDone) {
-      deps.camera.clearCastleBuildViewport();
-      deps.camera.clearPhaseZoom();
     }
     return anyPlaced;
   }
