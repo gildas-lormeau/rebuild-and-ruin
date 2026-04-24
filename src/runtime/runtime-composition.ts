@@ -47,6 +47,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../protocol/protocol.ts";
+import { pickHitWorld as pickElevatedHit } from "../render/3d/elevation.ts";
 import { createRender3d } from "../render/3d/renderer.ts";
 import {
   buildGameOverOverlay,
@@ -482,6 +483,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const ch = h.getCrosshair();
       return { x: ch.x, y: ch.y };
     },
+    getOverlay: () => runtimeState.overlay,
+    pickElevatedHit,
   });
 
   const { tickCamera, updateViewport } = camera;

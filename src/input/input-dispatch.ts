@@ -261,13 +261,13 @@ export function dispatchBattleFire(
     withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    coords: { screenToWorld: (x: number, y: number) => WorldPos };
+    coords: { pickHitWorld: (x: number, y: number) => WorldPos };
     gameAction: Pick<GameActionDeps, "fire">;
   },
 ): void {
   if (state.phase !== Phase.BATTLE) return;
   deps.withPointerPlayer((human) => {
-    const w = deps.coords.screenToWorld(x, y);
+    const w = deps.coords.pickHitWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
     deps.gameAction.fire(human, state);
   });
@@ -420,7 +420,7 @@ export function dispatchPointerMove(
       const w = coords.screenToWorld(x, y);
       human.setCannonCursor(w.wx, w.wy);
     } else if (state.phase === Phase.BATTLE) {
-      const w = coords.screenToWorld(x, y);
+      const w = coords.pickHitWorld(x, y);
       human.setCrosshair(w.wx, w.wy);
       maybeSendAimUpdate(w.wx, w.wy);
     }

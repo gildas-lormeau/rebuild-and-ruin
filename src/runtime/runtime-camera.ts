@@ -17,6 +17,7 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
 import type {
+  GameMap,
   TilePos,
   Viewport,
   WorldPos,
@@ -40,6 +41,7 @@ import {
   zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import { type GameState } from "../shared/core/types.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
   cameraStateFromViewport,
@@ -62,6 +64,22 @@ interface CameraDeps {
   cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
+  /** Latest rendered overlay — source of elevated-geometry heights for the
+   *  battle ray pick. Optional for headless runs (no tilt → pickHitWorld
+   *  short-circuits before reading it). */
+  getOverlay?: () => RenderOverlay | undefined;
+  /** Renderer-supplied elevation ray-pick: given a ground-plane hit and
+   *  the current pitch, returns the world position of the first elevated
+   *  tile the camera ray actually meets. Composition root injects this
+   *  from `render/3d/elevation.ts` so the camera module doesn't import
+   *  render code. Omitted in headless (no tilt → no correction needed). */
+  pickElevatedHit?: (
+    groundX: number,
+    groundY: number,
+    pitch: number,
+    overlay: RenderOverlay | undefined,
+    map: GameMap | undefined,
+  ) => { wx: number; wy: number };
 }
 
 /** Camera pitch state machine.
@@ -588,6 +606,27 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     };
   }
 
+  /** Like `screenToWorld` but ray-picks elevated geometry under battle tilt.
+   *  At pitch=0 this is `screenToWorld`; under tilt, a tap visually on the
+   *  top of a wall/tower/etc resolves to that tile instead of the ground
+   *  row visually underneath it. Used for battle aim/fire so the crosshair
+   *  lands on the object the user sees. */
+  function pickHitWorld(x: number, y: number): WorldPos {
+    const ground = screenToWorld(x, y);
+    if (currentPitch <= 0 || !deps.pickElevatedHit) return ground;
+    const state = deps.getState();
+    if (!state) return ground;
+    const overlay = deps.getOverlay?.();
+    const hit = deps.pickElevatedHit(
+      ground.wx,
+      ground.wy,
+      currentPitch,
+      overlay,
+      state.map,
+    );
+    return { wx: hit.wx, wy: hit.wy };
+  }
+
   // --- Pinch-to-zoom ---
 
   function onPinchStart(midX: number, midY: number): void {
@@ -910,6 +949,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     beginBattleTilt,
     getPitchState,
     screenToWorld,
+    pickHitWorld,
     worldToScreen,
     pixelToTile,
     onPinchStart,

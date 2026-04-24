@@ -117,6 +117,61 @@ export function aimElevationAt(
   );
 }
 
+/** Ray-pick the tile a screen tap actually hits under battle tilt.
+ *
+ *  `groundX/Y` is the ground-plane intersection from `camera.screenToWorld`.
+ *  Under tilt, elevated geometry (walls/towers/cannons/houses/grunts) at
+ *  tile R is drawn on screen *above* its footprint — its top face overlaps
+ *  the screen region where tile R-k's ground would be for some k ≥ 1 that
+ *  depends on `tan(pitch)` and the object's height. A ground-plane
+ *  unprojection therefore reports tile R-k for a tap that visually
+ *  landed on the top of the object at tile R.
+ *
+ *  This walks the ray backward from the ground hit in integer-tile steps
+ *  (same column — pitch is X-only, no lateral shift) and returns the
+ *  first tile whose elevated top surface the ray crosses. If nothing in
+ *  range is elevated, returns the ground hit unchanged.
+ *
+ *  The returned `wy = groundY + h * tan(pitch)` keeps sub-tile precision
+ *  within the elevated tile so `pxToTile` resolves to the correct row and
+ *  the crosshair renders at a consistent point inside the tile.
+ */
+export function pickHitWorld(
+  groundX: number,
+  groundY: number,
+  pitch: number,
+  overlay: RenderOverlay | undefined,
+  map: GameMap | undefined,
+): { wx: number; wy: number } {
+  if (pitch <= 0) return { wx: groundX, wy: groundY };
+  const col = Math.floor(groundX / TILE_SIZE);
+  if (col < 0 || col >= GRID_COLS) return { wx: groundX, wy: groundY };
+  const groundRow = Math.floor(groundY / TILE_SIZE);
+  const tanP = Math.tan(pitch);
+  // Tallest modelled elevation is TOWER_TOP_Y; at π/6 that projects roughly
+  // 2 tiles toward the camera. 4 gives safety margin for pitch overshoot
+  // without walking the whole column.
+  const maxLookback = 4;
+  const rMax = Math.min(GRID_ROWS - 1, groundRow + maxLookback);
+  for (let r = rMax; r > groundRow; r--) {
+    if (r < 0) continue;
+    const h = targetTopAt(
+      col * TILE_SIZE + TILE_SIZE / 2,
+      r * TILE_SIZE + TILE_SIZE / 2,
+      overlay,
+      map,
+    );
+    if (h <= 0) continue;
+    // Ray enters tile r's volume from the back (Y at Z=(r+1)*TS) and exits
+    // via the top face iff the ray's Y at the tile's front edge is ≤ h.
+    // Equivalent to: r * TILE_SIZE ≤ groundY + h * tan(pitch).
+    if (r * TILE_SIZE <= groundY + h * tanP) {
+      return { wx: groundX, wy: groundY + h * tanP };
+    }
+  }
+  return { wx: groundX, wy: groundY };
+}
+
 /** Top-Y of any targetable entity (wall, tower, cannon, house, grunt)
  *  at `(x, y)`, or 0 if nothing is there. Used by cannonballs so the
  *  landing floor matches the top of the thing the ball is aimed at —

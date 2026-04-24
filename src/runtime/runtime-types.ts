@@ -354,6 +354,10 @@ export interface CameraSystem {
    *  `GAME_EVENT.PITCH_SETTLED` instead. */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
   screenToWorld: (x: number, y: number) => WorldPos;
+  /** Like `screenToWorld` but returns the world position of the first
+   *  elevated-geometry hit under battle tilt (walls/towers/etc). At
+   *  pitch=0 this is identical to `screenToWorld`. */
+  pickHitWorld: (x: number, y: number) => WorldPos;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };
 

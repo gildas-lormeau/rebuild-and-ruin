@@ -478,6 +478,8 @@ export interface RegisterOnlineInputDeps {
   coords: {
     pixelToTile: (x: number, y: number) => { row: number; col: number };
     screenToWorld: (x: number, y: number) => WorldPos;
+    /** Elevation-aware variant of `screenToWorld` used for battle aim. */
+    pickHitWorld: (x: number, y: number) => WorldPos;
     onPinchStart?: (midX: number, midY: number) => void;
     onPinchUpdate?: (midX: number, midY: number, scale: number) => void;
     onPinchEnd?: () => void;
@@ -610,6 +612,7 @@ export interface PointerMoveDeps {
   withPointerPlayer: WithPointerPlayer;
   coords: {
     screenToWorld: (x: number, y: number) => WorldPos;
+    pickHitWorld: (x: number, y: number) => WorldPos;
     pixelToTile: (x: number, y: number) => { row: number; col: number };
   };
   gameAction: Pick<
