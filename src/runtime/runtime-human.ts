@@ -31,7 +31,9 @@ export function createPointerPlayerLookup(
 
   function pointerPlayer(): (PlayerController & InputReceiver) | null {
     if (cached !== undefined) return cached;
-    if (!isStateReady(runtimeState)) return (cached = null);
+    if (!isStateReady(runtimeState) || runtimeState.lobby.active) {
+      return (cached = null);
+    }
     // Prefer the player who joined via mouse/trackpad
     if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(
@@ -41,15 +43,17 @@ export function createPointerPlayerLookup(
         ctrl &&
         isHuman(ctrl) &&
         isPlayerAlive(runtimeState.state.players[ctrl.playerId])
-      )
+      ) {
         return (cached = ctrl);
+      }
     }
     for (const ctrl of runtimeState.controllers) {
       if (
         isHuman(ctrl) &&
         isPlayerAlive(runtimeState.state.players[ctrl.playerId])
-      )
+      ) {
         return (cached = ctrl);
+      }
     }
     return (cached = null);
   }

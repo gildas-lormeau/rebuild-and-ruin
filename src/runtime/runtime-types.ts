@@ -409,11 +409,6 @@ export interface CameraSystem {
    *  time (spec: `scores → zoom → life lost popup`). No-op when
    *  auto-zoom is disabled. */
   engageAutoZoom: () => void;
-  /** Permanently disable auto-zoom for the rest of the match. Called
-   *  when the pov player abandons or is eliminated — the camera then
-   *  sits at fullMapVp as a static spectator view. `resetCamera`
-   *  re-arms it. */
-  disableAutoZoom: () => void;
   isMobileAutoZoom: () => boolean;
 
   // Touch battle targeting

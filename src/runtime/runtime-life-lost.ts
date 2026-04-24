@@ -4,7 +4,6 @@ import {
   LIFE_LOST_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
@@ -37,11 +36,6 @@ interface LifeLostSystemDeps {
 
   render: () => void;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
-  /** Permanently disable auto-zoom. Fired when the pov player abandons
-   *  (or is force-eliminated) so the camera stops following the game.
-   *  Spec: `life lost popup → abandon → unzoom → spectator mode
-   *  (no more auto-zoom anymore)`. */
-  disableAutoZoom: () => void;
 }
 
 /** Callback signature used by every resolution path (immediate skip,
@@ -105,7 +99,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (isLifeLostAllResolved(dialog)) {
       deps.log("show lifeLost: all pre-resolved, skipping dialog");
       eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
-      disableAutoZoomIfPovEliminated();
       onResolved(continuingPlayers(dialog));
       return false;
     }
@@ -117,12 +110,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /**
    * Tick the life-lost dialog; when every entry is resolved, eliminate
-   * abandoned players, disable PoV auto-zoom if needed, and fire the
-   * caller's onResolved callback with the continuing list. On the
-   * watcher-role, the callback's implementation is usually a no-op for
-   * the continue / reselect paths (server drives the next phase); the
-   * machine's postDisplay still runs the same resolve-branch logic so
-   * local game-over can flip Mode.STOPPED.
+   * abandoned players and fire the caller's onResolved callback with
+   * the continuing list. On the watcher-role, the callback's
+   * implementation is usually a no-op for the continue / reselect
+   * paths (server drives the next phase); the machine's postDisplay
+   * still runs the same resolve-branch logic so local game-over can
+   * flip Mode.STOPPED.
    */
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
@@ -151,7 +144,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     );
 
     eliminatePlayers(runtimeState.state, abandonedPlayers(dialog));
-    disableAutoZoomIfPovEliminated();
 
     const continuing = continuingPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
@@ -165,18 +157,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     }
 
     pendingOnDone.fire(continuing);
-  }
-
-  /** Flip the camera permanently to spectator mode if the pov player
-   *  just got eliminated (lives hit 0 — covers abandon and forced
-   *  eliminations alike). Runs right after `eliminatePlayers` so the
-   *  check sees the post-resolution player state. */
-  function disableAutoZoomIfPovEliminated(): void {
-    const povId = runtimeState.frameMeta.povPlayerId;
-    const povPlayer = runtimeState.state.players[povId];
-    if (povPlayer && isPlayerEliminated(povPlayer)) {
-      deps.disableAutoZoom();
-    }
   }
 
   function toggleFocus(playerId: ValidPlayerSlot): void {

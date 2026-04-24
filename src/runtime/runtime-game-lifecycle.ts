@@ -56,7 +56,6 @@ interface GameLifecycleDeps {
   readonly resetScoreDeltas: () => void;
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
-  readonly disableAutoZoom: () => void;
   readonly clearLobbyMap: () => void;
   readonly resetInputForLobby: () => void;
 
@@ -102,10 +101,7 @@ interface LifecycleWiringDeps {
   readonly banner: { reset: () => void };
   readonly camera: Pick<
     CameraSystem,
-    | "clearAllZoomState"
-    | "resetBattleCrosshair"
-    | "resetCamera"
-    | "disableAutoZoom"
+    "clearAllZoomState" | "resetBattleCrosshair" | "resetCamera"
   >;
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
@@ -173,14 +169,12 @@ export function createGameLifecycle(
   function returnToLobby(): void {
     deps.clearDemoTimer();
     deps.resetScoreDeltas();
-    // Disable auto-zoom for the lobby's background demo: no human plays
-    // during the demo, and any lingering per-phase pinch memory from
-    // the game we just quit would otherwise spring the camera back to
-    // the previous human's favourite zoom the moment the demo reaches
-    // that phase. `resetCamera` (called on next game bootstrap) re-arms
-    // auto-zoom from `mobileZoomEnabled`, so new games after a lobby
-    // return get the normal auto-zoom behaviour.
-    deps.disableAutoZoom();
+    // Clear stale per-phase pinch memory + viewport targets from the
+    // game we just quit so the lobby's background demo doesn't snap to
+    // the previous human's favourite zoom when it reaches that phase.
+    // We don't flip `zoomActivated` — the demo has no pointer player,
+    // so `autoZoom`'s `!hasPointerPlayer` guard already keeps it idle.
+    deps.clearAllZoomState();
     // Drop the cached lobby map so the next `bootstrapGame` regenerates
     // from scratch instead of reusing the just-quit game's mutated map
     // (houses spawned during play, tiles mutated by modifiers, etc.).
@@ -268,7 +262,6 @@ export function buildLifecycleDeps(
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
-    disableAutoZoom: wiringDeps.camera.disableAutoZoom,
     clearLobbyMap: () => {
       runtimeState.lobby.map = null;
     },

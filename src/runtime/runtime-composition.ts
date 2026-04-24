@@ -652,7 +652,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     panelPos: (pid) =>
       lifeLostPanelPos(selectRenderView(runtimeState.state), pid),
-    disableAutoZoom: camera.disableAutoZoom,
   });
 
   // -------------------------------------------------------------------------
