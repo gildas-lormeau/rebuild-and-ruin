@@ -668,12 +668,14 @@ function buildUpgradePickUi(
 function computeUpgradePickFadeMask(
   bannerUi: BannerUi | undefined,
 ): { rectTop: number; rectBottom: number } | undefined {
-  if (!bannerUi) return undefined;
-  if (bannerUi.kind === "upgrade-pick") {
+  // The only banner that shares frames with a live upgrade-pick dialog
+  // is the UPGRADE_PICK entry banner — the dialog is pre-created in
+  // `enter-upgrade-pick.mutate` and reveals above the sweeping banner
+  // strip. By the time the WALL_BUILD banner sweeps, the dialog has
+  // already been torn down in `upgrade-pick-done.mutate`, so no other
+  // banner kind needs a clip rect.
+  if (bannerUi?.kind === "upgrade-pick") {
     return { rectTop: 0, rectBottom: bannerUi.top };
-  }
-  if (bannerUi.kind === "build") {
-    return { rectTop: bannerUi.bottom, rectBottom: MAP_PX_H };
   }
   return undefined;
 }

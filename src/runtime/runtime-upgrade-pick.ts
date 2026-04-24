@@ -168,12 +168,13 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade picks resolved: ${dialog.entries.map((entry) => `P${entry.playerId}=${entry.choice}`).join(", ")}`,
     );
-    // Dialog state persists through the following build banner's sweep
-    // so the overlay builder can derive the progressive-reveal clip
-    // (`UpgradePickOverlay.fadeMask`) from `banner.top` / `banner.bottom`.
-    // `clearUpgradePickDialog` runs from the `battle-done` / `ceasefire`
-    // postDisplay in `runtime-phase-machine.ts`, after the sweep ends.
-    // Mode stays on UPGRADE_PICK; the chain's postDisplay flips to the terminal mode.
+    // Hand off to the phase machine. `upgrade-pick-done.mutate` applies
+    // the picks and tears the dialog down — runtime dialog state never
+    // coexists with a non-UPGRADE_PICK phase. The build banner's
+    // A-snapshot freezes the last-painted picker-modal frame, so the
+    // visual cross-fade to the build scene doesn't depend on dialog
+    // state surviving past this point. Mode stays on UPGRADE_PICK; the
+    // chain's postDisplay flips to the terminal mode.
     pendingOnDone.fire();
   }
 

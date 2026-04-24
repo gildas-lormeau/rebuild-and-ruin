@@ -273,7 +273,6 @@ function buildWatcherPhaseCtx(
     notifyLifeLost: (pid) => {
       if (pid === myPlayerId) runtimeState.controllers[pid]?.onLifeLost();
     },
-    clearUpgradePickDialog: () => runtime.upgradePick.set(null),
     upgradePick: {
       prepare: () => runtime.upgradePick.prepare(),
       tryShow: (onDone) =>
@@ -283,6 +282,7 @@ function buildWatcherPhaseCtx(
           deps.session.earlyUpgradePickChoices,
         ),
       getDialog: () => runtime.upgradePick.get(),
+      clear: () => runtime.upgradePick.set(null),
     },
     battle: buildWatcherBattleHooks(runtime),
     checkpoint: buildWatcherCheckpointHooks(deps),

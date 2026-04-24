@@ -156,11 +156,10 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  - `prepare`: pre-create the dialog for progressive reveal during banner.
    *  - `getDialog`: read the live dialog state — the machine passes resolved
    *    picks into `applyUpgradePicks`.
-   *  - `clear`: tear down the dialog. Called from the build banner's onDone
-   *    (after the sweep) so `drawUpgradePick` can keep clipping the dialog
-   *    against `banner.top` / `banner.bottom` for the entire animation. The
-   *    watcher path has its own counterpart at the `clearUpgradePickDialog`
-   *    hook in `online-phase-transitions.ts`. */
+   *  - `clear`: tear down the dialog. Called from `upgrade-pick-done.mutate`
+   *    right after the picks are applied, keeping dialog lifetime scoped to
+   *    the UPGRADE_PICK phase. Watcher wiring in `online-phase-transitions.ts`
+   *    routes to `runtime.upgradePick.set(null)`. */
   upgradePick?: {
     tryShow: (onDone: () => void) => boolean;
     prepare: () => boolean;
@@ -419,7 +418,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             clear: deps.upgradePick.clear,
           }
         : undefined,
-      clearUpgradePickDialog: deps.upgradePick?.clear,
       ceasefireSkipBattle: () => enterBuildSkippingBattle(runtimeState.state),
       startBuildPhaseLocal: startBuildPhase,
       endBattleLocalControllers: () => {

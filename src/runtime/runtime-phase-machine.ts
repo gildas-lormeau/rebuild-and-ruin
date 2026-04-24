@@ -345,11 +345,6 @@ export interface PhaseTransitionCtx {
    *  pits, sweeps walls, rechecks territory, and clears active modifiers
    *  (things the real battle-end flow already handled). */
   readonly ceasefireSkipBattle?: () => void;
-  /** Tear down the upgrade-pick dialog when the BUILD banner completes.
-   *  Wired to modern-mode only — the dialog sits on top of the BUILD
-   *  banner via an inverted clip rect. */
-  readonly clearUpgradePickDialog?: () => void;
-
   readonly upgradePick?: {
     readonly prepare: () => boolean;
     readonly tryShow: (onDone: () => void) => boolean;
@@ -617,25 +612,20 @@ const UPGRADE_PICK_DONE: Transition = {
     watcher: (ctx) => runTransitionInline("enter-wall-build", ctx),
   },
 };
-/** `enter-wall-build` — WALL_BUILD entry. Flips the phase, tears down
- *  any upgrade-pick dialog, seeds the local build controllers, and
- *  shows the "Build & Repair" banner. Dispatched from `battle-done` /
- *  `ceasefire` prep (when no upgrade offers), or from
- *  `upgrade-pick-done` after all players have resolved their picks.
+/** `enter-wall-build` — WALL_BUILD entry. Flips the phase, seeds the
+ *  local build controllers, and shows the "Build & Repair" banner.
+ *  Dispatched from `battle-done` / `ceasefire` prep (when no upgrade
+ *  offers), or from `upgrade-pick-done` after all players have resolved
+ *  their picks (the picks-dispatch path already tore down the dialog
+ *  inside `upgrade-pick-done.mutate` before reaching this transition).
  *
- *  The dialog teardown runs in `mutate` (not `postDisplay`) so the
- *  banner's B-snapshot renders the clean build scene. If the teardown
- *  were deferred to `postDisplay`, the banner would capture the
- *  picker modal on both sides of the sweep and the map would "pop in"
- *  when the banner ends.
- *
- *  `startBuildPhaseLocal` / `initLocalBuildControllerIfActive` also run
- *  in `mutate` for the same reason: they populate each controller's
- *  `currentBuildPhantoms` (via `startBuildPhase`), which the render
- *  path now reads directly. The B-snapshot is captured between `mutate`
- *  and the banner's display step, so the controllers must be seeded
- *  before that capture — otherwise the "new scene" slice of the banner
- *  sweep shows no piece previews and they pop in at banner end.
+ *  `startBuildPhaseLocal` / `initLocalBuildControllerIfActive` run in
+ *  `mutate` so they populate each controller's `currentBuildPhantoms`
+ *  (via `startBuildPhase`) before the B-snapshot is captured. The
+ *  snapshot is taken between `mutate` and the banner's display step, so
+ *  the controllers must be seeded first — otherwise the "new scene"
+ *  slice of the banner sweep shows no piece previews and they pop in
+ *  at banner end.
  *
  *  postDisplay (host): flips to Mode.GAME (behavioral gate for
  *  input/tick dispatch — not visible state, so not needed before the
@@ -648,13 +638,11 @@ const ENTER_WALL_BUILD: Transition = {
   mutate: {
     host: (ctx) => {
       setPhase(ctx.state, Phase.WALL_BUILD);
-      ctx.clearUpgradePickDialog?.();
       ctx.startBuildPhaseLocal?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: (ctx) => {
       setPhase(ctx.state, Phase.WALL_BUILD);
-      ctx.clearUpgradePickDialog?.();
       ctx.watcher?.initLocalBuildControllerIfActive();
       return EMPTY_TRANSITION_RESULT;
     },
@@ -1159,6 +1147,12 @@ function applyUpgradePicksFromDialog(
     applyUpgradePicks(ctx.state, dialog);
     recheckTerritory(ctx.state);
   }
+  // Dialog life is scoped to UPGRADE_PICK — clear here (phase still
+  // UPGRADE_PICK) rather than in `enter-wall-build.mutate` so runtime
+  // dialog state never coexists with phase != UPGRADE_PICK. The build
+  // banner's A-snapshot is the last-painted picker-modal frame, so the
+  // visual cross-fade is unaffected by when the state clears.
+  picker?.clear?.();
   emitGameEvent(ctx.state.bus, GAME_EVENT.UPGRADE_PICK_END, {
     round: ctx.state.round,
   });
