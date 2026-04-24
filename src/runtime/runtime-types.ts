@@ -524,6 +524,14 @@ export interface RuntimeLifecycle {
    *  lingering score deltas, life-lost dialogs, and stale camera zoom
    *  on the game-over screen. */
   teardownSession: () => void;
+  /** Shared game-over terminal sequence: caller-supplied frame paint →
+   *  teardown → render → Mode.STOPPED. Frame paint runs first so it
+   *  captures live `gameStats` before teardown zeros them. Used by the
+   *  host's `endGame`, the watcher's MESSAGE.GAME_OVER handler (paints
+   *  from authoritative scores), and the watcher's local last-player-
+   *  standing detection (paints nothing — the message will overwrite
+   *  when it arrives). Idempotent. */
+  finalizeGameOver: (setFrame: () => void) => void;
 }
 
 export interface RuntimePhaseTicks {

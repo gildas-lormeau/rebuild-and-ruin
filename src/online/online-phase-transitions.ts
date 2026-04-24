@@ -173,8 +173,9 @@ export function handleBuildEndTransition(
   dispatchWatcher("wall-build-done", msg, deps);
 }
 
-/** Watcher-only: builds the final game-over frame and switches to STOPPED.
- *  Not machine-driven — game-over isn't a phase transition, it's a
+/** Watcher-only: builds the final game-over frame from the host's
+ *  authoritative scores and runs the shared terminal sequence. Not
+ *  machine-driven — game-over isn't a phase transition, it's a
  *  terminal state. */
 export function handleGameOverTransition(
   msg: ServerMessage,
@@ -182,17 +183,16 @@ export function handleGameOverTransition(
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
   const runtime = deps.getRuntime();
-  runtime.lifecycle.teardownSession();
-  runtime.runtimeState.frame.gameOver = {
-    winner: msg.winner,
-    scores: msg.scores.map((score, idx) => ({
-      ...score,
-      color: PLAYER_COLORS[idx % PLAYER_COLORS.length]!.wall,
-    })),
-    focused: FOCUS_REMATCH,
-  };
-  runtime.render();
-  setMode(runtime.runtimeState, Mode.STOPPED);
+  runtime.lifecycle.finalizeGameOver(() => {
+    runtime.runtimeState.frame.gameOver = {
+      winner: msg.winner,
+      scores: msg.scores.map((score, idx) => ({
+        ...score,
+        color: PLAYER_COLORS[idx % PLAYER_COLORS.length]!.wall,
+      })),
+      focused: FOCUS_REMATCH,
+    };
+  });
 }
 
 /** Dispatch a watcher-role transition from a LOCAL trigger (no incoming
@@ -262,12 +262,14 @@ function buildWatcherPhaseCtx(
     },
     // Watcher route: the host's next checkpoint (CANNON_START / the
     // next life-lost outcome) drives continue / reselect, so both
-    // stay no-op. Game-over is terminal — once the watcher observes
-    // round-limit or last-player-standing locally, no further
-    // checkpoint arrives, so we flip Mode.STOPPED here instead of
-    // sitting in TRANSITION forever.
+    // stay no-op. Game-over is terminal — when the watcher observes
+    // round-limit or last-player-standing locally (which can race
+    // ahead of the host's MESSAGE.GAME_OVER), we run the shared
+    // terminal sequence with a no-op frame painter; the authoritative
+    // frame arrives via `handleGameOverTransition` when the message
+    // lands, and re-running teardown there is idempotent.
     lifeLostRoute: {
-      onGameOver: () => setMode(runtimeState, Mode.STOPPED),
+      onGameOver: () => runtime.lifecycle.finalizeGameOver(() => {}),
       onReselect: () => {},
       onContinue: () => {},
     },

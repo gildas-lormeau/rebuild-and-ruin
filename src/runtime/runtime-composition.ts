@@ -928,6 +928,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       rematch: lifecycle.rematch,
       resetUIState: lifecycle.resetUIState,
       teardownSession: lifecycle.teardownSession,
+      finalizeGameOver: lifecycle.finalizeGameOver,
     },
     phaseTicks: {
       startCannonPhase: phaseTicks.startCannonPhase,

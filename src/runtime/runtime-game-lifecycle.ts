@@ -86,6 +86,7 @@ interface GameLifecycleSystem {
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
   teardownSession: () => void;
+  finalizeGameOver: (setFrame: () => void) => void;
 }
 
 interface LifecycleWiringDeps {
@@ -150,12 +151,23 @@ export function createGameLifecycle(
     deps.resetGameStats();
   }
 
-  function endGame(winner: { id: number }): void {
+  /** Shared terminal sequence for game-over: snapshot the game-over frame
+   *  (host builds from live state, watcher copies authoritative scores from
+   *  MESSAGE.GAME_OVER, watcher's local detection passes a no-op and waits
+   *  for the message), then clean up display caches, then render + stop the
+   *  loop. The frame is built first so it captures live `gameStats` before
+   *  `teardownSession` zeros them. Idempotent — safe to call twice if the
+   *  watcher's local path fires before MESSAGE.GAME_OVER arrives. */
+  function finalizeGameOver(setFrame: () => void): void {
+    setFrame();
     teardownSession();
-    deps.onEndGame?.(winner);
-    deps.setGameOverFrame(winner);
     deps.render();
     deps.setModeStopped();
+  }
+
+  function endGame(winner: { id: number }): void {
+    finalizeGameOver(() => deps.setGameOverFrame(winner));
+    deps.onEndGame?.(winner);
 
     if (deps.isAllAi()) {
       deps.setDemoTimer(() => {
@@ -223,6 +235,7 @@ export function createGameLifecycle(
     returnToLobby,
     gameOverClick,
     teardownSession,
+    finalizeGameOver,
   };
 }
 
