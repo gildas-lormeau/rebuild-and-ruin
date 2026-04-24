@@ -54,6 +54,7 @@ interface GameLifecycleDeps {
   // Subsystem resets
   readonly resetAll: () => void;
   readonly resetScoreDeltas: () => void;
+  readonly resetGameStats: () => void;
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
   readonly clearLobbyMap: () => void;
@@ -144,11 +145,12 @@ export function createGameLifecycle(
     deps.clearDemoTimer();
     deps.resetScoreDeltas();
     deps.clearAllZoomState();
+    deps.resetLifeLostDialog();
+    deps.resetGameStats();
   }
 
   function endGame(winner: { id: number }): void {
     teardownSession();
-    deps.resetLifeLostDialog();
     deps.onEndGame?.(winner);
     deps.setGameOverFrame(winner);
     deps.render();
@@ -262,6 +264,9 @@ export function buildLifecycleDeps(
       wiringDeps.camera.resetCamera();
     },
     resetScoreDeltas: wiringDeps.scoreDelta.reset,
+    resetGameStats: () => {
+      runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
+    },
     resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     clearLobbyMap: () => {
