@@ -518,7 +518,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const prev = overlay.ui.banner.prevScene;
 
     // Banner strip bounds are map-pixel coords. During a banner the
-    // viewport is always at fullMapVp (requestUnzoom gates the banner
+    // viewport is always at fullMapVp (onCameraReady gates the banner
     // display chain on convergence), so map→display is a uniform SCALE
     // multiply.
     const bannerTopMap = overlay.ui.banner.top;

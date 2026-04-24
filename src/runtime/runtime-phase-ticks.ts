@@ -112,10 +112,11 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  /** Pre-transition unzoom — threaded through to `PhaseTransitionCtx`
-   *  so `runTransition` can gate every mutate + display step on the
-   *  camera reaching fullMapVp. See `CameraSystem.requestUnzoom`. */
-  requestUnzoom: (onReady: () => void) => void;
+  /** Park a post-convergence callback — threaded through to
+   *  `PhaseTransitionCtx` so `runTransition` can gate every mutate +
+   *  display step on the camera reaching fullMapVp. See
+   *  `CameraSystem.onCameraReady`. */
+  onCameraReady: (onReady: () => void) => void;
   /** Show a full-screen banner. `onDone` fires once when the sweep
    *  completes. Sequencing banners is the phase machine's job — each
    *  display step invokes its own `showBanner` in the display sequence;
@@ -406,7 +407,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       timing: deps.timing,
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
-      requestUnzoom: deps.requestUnzoom,
+      onCameraReady: deps.onCameraReady,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,

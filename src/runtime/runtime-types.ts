@@ -339,9 +339,9 @@ export interface CameraSystem {
   /** Current camera pitch in radians (animated on phase transitions). 3D mode
    *  only — 2D mode always returns 0. */
   getPitch: () => number;
-  /** Request an immediate pitch=0 ease. Idempotent. Currently subsumed
-   *  by `requestUnzoom` (which flattens as part of its contract) — kept
-   *  for possible "untilt without unzoom" call sites. */
+  /** Request an immediate pitch=0 ease. Idempotent. Used for "untilt
+   *  without unzoom" (pitch only). The transition path already flattens
+   *  pitch via `unzoomForOverlays` on `shouldUnzoom`. */
   beginUntilt: () => void;
   /** Start the build→battle tilt animation. Called explicitly at
    *  battle-banner end so the tilt plays unzoomed, before balloons /
@@ -380,15 +380,16 @@ export interface CameraSystem {
   setCameraZone: (zone: number | undefined) => void;
 
   // Lifecycle commands
-  /** Pre-transition unzoom with a post-convergence callback. Saves the
-   *  current pinch into the phase slot, clears zoom targets so
-   *  currentVp lerps to fullMapVp, and fires `onReady` on the first
-   *  frame whose drawFrame ran at fullMapVp. `captureScene()` called
-   *  inside the callback therefore reads full-map pixels. */
-  requestUnzoom: (onReady: () => void) => void;
+  /** Park a callback to fire on the first frame where the viewport has
+   *  converged to fullMapVp AND pitch settled at 0. Does NOT trigger the
+   *  unzoom itself — `unzoomForOverlays` (driven by `shouldUnzoom`,
+   *  which includes `isTransition`) owns the flatten. Pair with
+   *  `setMode(Mode.TRANSITION)` before the call. `captureScene()` called
+   *  inside the callback reads full-map flat pixels. */
+  onCameraReady: (onReady: () => void) => void;
   /** Post-render hook — called by the render loop after drawFrame.
-   *  Fires any pending `requestUnzoom` callback when the viewport has
-   *  converged to fullMapVp. */
+   *  Fires any pending `onCameraReady` callback when the viewport has
+   *  converged to fullMapVp and pitch is settled. */
   onRenderedFrame: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
   clearAllZoomState: () => void;
@@ -594,11 +595,11 @@ export interface GameRuntime {
    *  sweep completion — it sits in its `swept` state until a caller
    *  hides it or a new `showBanner` overwrites it. */
   hideBanner: () => void;
-  /** Pre-transition unzoom with post-convergence callback. See
-   *  `CameraSystem.requestUnzoom`. Exposed so the watcher's
-   *  PhaseTransitionCtx (built outside this module) can gate its own
-   *  runTransition on fullMapVp convergence. */
-  requestUnzoom: (onReady: () => void) => void;
+  /** Park a callback to fire when the camera has converged to fullMapVp
+   *  with pitch flat. See `CameraSystem.onCameraReady`. Exposed so the
+   *  watcher's PhaseTransitionCtx (built outside this module) can gate
+   *  its own runTransition on convergence. */
+  onCameraReady: (onReady: () => void) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

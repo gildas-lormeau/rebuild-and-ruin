@@ -71,7 +71,7 @@ interface RenderSystemDeps {
   ) => HTMLCanvasElement | undefined;
   /** Post-drawFrame hook — invoked once per tick after the scene has
    *  been blitted to the display canvas. Used by the camera to fire
-   *  any pending `requestUnzoom` callback on the frame where the
+   *  any pending `onCameraReady` callback on the frame where the
    *  viewport converged to fullMapVp, guaranteeing that a subsequent
    *  `captureScene` inside that callback sees the full-map pixels. */
   readonly onRenderedFrame: () => void;

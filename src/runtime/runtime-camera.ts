@@ -161,8 +161,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // Pre-transition unzoom choreography — parked callback fired by the
   // post-render hook once drawFrame has rendered a full-map flat frame.
-  // See `requestUnzoom` for the full contract (what it clears, ordering
-  // guarantees, and idempotent-replace semantics).
+  // Parked via `onCameraReady`; the flatten itself runs in
+  // `unzoomForOverlays` whenever `frameCtx.shouldUnzoom` is set.
   let pendingUnzoomReady: (() => void) | undefined;
 
   // Pitch animation — targetPitch is re-set on phase-enter (see
@@ -407,7 +407,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
   }
 
-  /** Clear zoom when UI overlays or phase-end unzoom is active. */
+  /** Clear zoom targets whenever `frameCtx.shouldUnzoom` is set.
+   *  Triggers: UI overlays (paused / quit / life-lost), mobile human-done
+   *  predicates, phase-ending on desktop, and phase transitions.
+   *
+   *  Does NOT touch pitch — that's `onCameraReady`'s job. Pitch flatten
+   *  is coupled to "a display chain is about to run" (banner capture
+   *  needs a flat scene), not to every transition frame, so flattening
+   *  here would fight `beginBattleTilt` (which runs in BALLOON_ANIM /
+   *  BANNER postDisplay, where isTransition is still true). */
   function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
     if (
       !frameCtx.shouldUnzoom ||
@@ -492,10 +500,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     // Pitch is no longer set here. Tilt-in is driven explicitly by
     // `beginBattleTilt` (called from the phase machine at battle-banner
     // end, so the tilt plays unzoomed BEFORE balloons / ready). Untilt
-    // is driven by `requestUnzoom` (which flattens the pitch target so
-    // the end-of-battle banner captures + sweeps a flat scene). Letting
-    // phase-change drive pitch would re-fire those animations at the
-    // wrong moments.
+    // is driven by `onCameraReady` (which flattens pitch as part of
+    // requesting convergence — so the end-of-battle banner captures +
+    // sweeps a flat scene). Letting phase-change drive pitch would
+    // re-fire those animations at the wrong moments.
     lastAutoZoomPhase = state.phase;
   }
 
@@ -704,28 +712,22 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Lifecycle commands ---
 
-  /** Initiate a pre-transition unzoom + untilt. Persists the current
-   *  pinch zoom into the phase-keyed slot (so autoZoom on the NEW phase
-   *  can restore it), clears cameraZone + pinchVp so updateViewport
-   *  lerps currentVp toward fullMapVp, flattens the pitch target (needed
-   *  for battle→build — the banner must capture a flat scene, not a
-   *  tilted one; all other transitions are already flat so this is a
-   *  no-op), and parks `onReady` to fire the first frame whose drawFrame
-   *  ran at fullMapVp AND pitch has settled at 0. Callers (the phase
-   *  machine's `runTransition`) wait for that callback before running
-   *  mutate + display, which guarantees the banner's prev-scene capture
-   *  reads a full-map-rendered, flat pre-mutation frame. On the target
-   *  phase, `handlePhaseChangeZoom` re-derives cameraZone via `autoZoom`
-   *  — no explicit restore step.
+  /** Park `onReady` to fire the first frame whose drawFrame ran at
+   *  fullMapVp AND pitch settled at 0. Callers (the phase machine's
+   *  `runTransition`) wait for that callback before running mutate +
+   *  display, which guarantees the banner's prev-scene capture reads a
+   *  full-map-rendered, flat pre-mutation frame.
    *
-   *  Idempotent replace: a second `requestUnzoom` before the first
-   *  fires simply swaps the callback. The first call already cleared
-   *  pinchVp, so the pinch-persistence side-effect is already done. */
-  function requestUnzoom(onReady: () => void): void {
-    const state = deps.getState();
-    if (state) savePinchForCurrentPhase(state.phase === Phase.BATTLE);
-    cameraZone = undefined;
-    pinchVp = undefined;
+   *  Flattens the pitch target as part of the request — battle→build
+   *  transitions need the banner to capture a flat scene, and this is
+   *  the one point where we know "a display chain is about to run"
+   *  (after postDisplay, `beginBattleTilt` may re-tilt and we must not
+   *  undo that from the overlay-unzoom path).
+   *
+   *  Viewport flatten is separate, driven by `unzoomForOverlays` on
+   *  `frameCtx.shouldUnzoom` (which includes `isTransition`, so
+   *  `setMode(Mode.TRANSITION)` before this call drives convergence). */
+  function onCameraReady(onReady: () => void): void {
     setPitchTarget(0);
     pendingUnzoomReady = onReady;
   }
@@ -783,10 +785,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pitchState = "flat";
   }
 
-  /** Request an immediate untilt. Idempotent. Currently unused as a
-   *  standalone API — `requestUnzoom` does the same thing as part of
-   *  its flat-pitch contract. Kept for possible future "untilt without
-   *  unzoom" call sites. */
+  /** Request an immediate untilt. Idempotent. Standalone path for the
+   *  rare "flatten pitch but keep zoom" case; the transition path goes
+   *  through `unzoomForOverlays` (flattens pitch + clears viewport). */
   function beginUntilt(): void {
     setPitchTarget(0);
   }
@@ -949,7 +950,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     computeZoneBounds,
-    requestUnzoom,
+    onCameraReady,
     onRenderedFrame,
     getCameraZone: () => cameraZone,
     setCameraZone,

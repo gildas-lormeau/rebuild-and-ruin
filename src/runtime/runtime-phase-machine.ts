@@ -259,10 +259,12 @@ export interface PhaseTransitionCtx {
    *  (so postDisplay hooks run against a clean screen). Banner steps
    *  never need this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
-  /** Pre-transition unzoom with post-convergence callback. Called once
-   *  at the top of `runTransition` so every mutate + display step runs
-   *  against a full-map viewport. See `CameraSystem.requestUnzoom`. */
-  readonly requestUnzoom: (onReady: () => void) => void;
+  /** Park a post-convergence callback. `runTransition` sets
+   *  `Mode.TRANSITION` (which drives `shouldUnzoom` true) then calls
+   *  this; the callback fires on the first fullMapVp + flat-pitch frame
+   *  so every mutate + display step runs against a full-map viewport.
+   *  See `CameraSystem.onCameraReady`. */
+  readonly onCameraReady: (onReady: () => void) => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -989,10 +991,12 @@ export const ROLE_WATCHER = "watcher" as const;
 export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
   const transition = resolveTransition(id, ctx);
 
-  // Mode.TRANSITION held for the entire transition; postDisplay flips to the terminal mode.
+  // Mode.TRANSITION held for the entire transition; postDisplay flips to
+  // the terminal mode. isTransition → shouldUnzoom drives the flatten;
+  // onCameraReady parks the callback until the camera has converged.
   ctx.setMode(Mode.TRANSITION);
 
-  ctx.requestUnzoom(() => {
+  ctx.onCameraReady(() => {
     executeTransition(transition, ctx);
   });
 }
@@ -1003,9 +1007,9 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
  *  `result.modifierDiff` from its own mutate; the watcher reads from
  *  the incoming BATTLE_START message (also threaded via result).
  *
- *  Uses `runTransitionInline`: the outer prep transition already ran
- *  its requestUnzoom; the inner entry transition doesn't need to wait
- *  another frame for the camera to settle.
+ *  Uses `runTransitionInline`: the outer prep transition already
+ *  awaited camera convergence; the inner entry transition doesn't need
+ *  to wait another frame for the camera to settle.
  */
 function routeCannonPlaceDone(
   ctx: PhaseTransitionCtx,
@@ -1094,7 +1098,7 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // Spec: `battle banner → tilt → balloons (skip if none) → ready → zoom`.
   // Tilt begins here (at battle-banner end) so it plays UNZOOMED, before
   // anything else. The phase machine has already reached fullMapVp via
-  // `requestUnzoom`, and `handlePhaseChangeZoom` no longer implicitly
+  // `onCameraReady`, and `handlePhaseChangeZoom` no longer implicitly
   // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
   // back to GAME inside `battle.begin`, which also starts the "ready"
   // countdown, so the zoom lerp and "ready" cue start together.
@@ -1181,7 +1185,7 @@ function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   if (!picker.tryShow(afterPicks)) afterPicks();
 }
 
-/** Run a transition synchronously, bypassing the `requestUnzoom` wait.
+/** Run a transition synchronously, bypassing the `onCameraReady` wait.
  *  Used ONLY when dispatched from inside another transition's
  *  `postDisplay`: the outer transition already unzoomed the camera and
  *  the unzoom state hasn't changed between then and now. Parks the
@@ -1362,8 +1366,8 @@ function runLifeLostDialogStep(
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.
   // The score overlay just finished unzoomed (runTransition's
-  // requestUnzoom ran at the top of this transition). Re-engage
-  // auto-zoom so the popup appears over the pov player's zone.
+  // setMode(TRANSITION) + onCameraReady gated display on fullMapVp).
+  // Re-engage auto-zoom so the popup appears over the pov player's zone.
   ctx.engageAutoZoom?.();
   emitGameEvent(ctx.state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {
     needsReselect,

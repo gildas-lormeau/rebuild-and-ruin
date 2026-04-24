@@ -432,11 +432,12 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     isTimedPhase(phase);
 
   const inBattle = phase === Phase.BATTLE;
+  const isTransition = isTransitionMode(mode);
   const shouldUnzoom =
     uiBlocking ||
     phaseEnding ||
+    isTransition ||
     (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
-  const isTransition = isTransitionMode(mode);
 
   // Online: myPlayerId. Local: pointer player slot. Demo: 0.
   const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
