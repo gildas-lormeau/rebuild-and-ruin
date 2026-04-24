@@ -743,11 +743,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a6,
       rocks: {
-        count: 144,
+        count: 102,
         footprint: { width: 1.625, depth: 1.5 },
-        sizeRange: [0.1, 0.24],
+        sizeRange: [0.16, 0.32],
         maxHeight: 0.375,
-        flatness: [0.45, 1.0],
+        flatness: [0.35, 0.9],
         materials: TOWER_MATERIALS,
       },
       chunks: [
@@ -759,6 +759,30 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [-0.1, 0.2, 0.18],
           material: STONE_LIGHT,
         },
+        // Second keep-wall fragment — shorter, tilted opposite.
+        {
+          shape: "box",
+          dims: { width: 0.4, height: 0.26, depth: 0.17 },
+          pos: [0.35, 0.13, 0.3],
+          rot: [0.08, -0.25, -0.2],
+          material: STONE_MID,
+        },
+        // Crenellation merlon — small square battlement block.
+        {
+          shape: "box",
+          dims: { width: 0.14, height: 0.14, depth: 0.14 },
+          pos: [-0.05, 0.36, -0.1],
+          rot: [-0.05, 0.2, 0.12],
+          material: STONE_LIGHT,
+        },
+        // Second merlon, fallen away from the wall.
+        {
+          shape: "box",
+          dims: { width: 0.13, height: 0.13, depth: 0.13 },
+          pos: [-0.35, 0.07, 0.1],
+          rot: [0.35, 0.1, 0.5],
+          material: STONE_MID,
+        },
         // A snapped-off blue roof shard on top.
         {
           shape: "box",
@@ -766,6 +790,22 @@ export const VARIANTS: VariantDescriptor[] = [
           pos: [0.1, 0.34, -0.05],
           rot: [-0.2, 0.3, -0.12],
           material: ROOF_BLUE,
+        },
+        // Second roof shard — narrower, tipped far.
+        {
+          shape: "box",
+          dims: { width: 0.22, height: 0.05, depth: 0.14 },
+          pos: [-0.3, 0.05, -0.3],
+          rot: [0.5, 0.3, 0.6],
+          material: ROOF_BLUE,
+        },
+        // Arch stone — wedge-shaped keystone, part of a window arch.
+        {
+          shape: "box",
+          dims: { width: 0.2, height: 0.12, depth: 0.14 },
+          pos: [0.25, 0.08, -0.35],
+          rot: [0.25, -0.3, 0.18],
+          material: STONE_DARK,
         },
         // Broken pole stub.
         {
@@ -791,11 +831,11 @@ export const VARIANTS: VariantDescriptor[] = [
     params: {
       seed: 0xc1a7,
       rocks: {
-        count: 224,
+        count: 126,
         footprint: { width: 1.625, depth: 1.625 },
-        sizeRange: [0.1, 0.26],
+        sizeRange: [0.17, 0.34],
         maxHeight: 0.4375,
-        flatness: [0.45, 1.0],
+        flatness: [0.35, 0.9],
         materials: [
           [STONE_DARK, 3],
           [STONE_MID, 5],
@@ -806,6 +846,7 @@ export const VARIANTS: VariantDescriptor[] = [
         ],
       },
       chunks: [
+        // Main keep-wall chunk — leaning slab.
         {
           shape: "box",
           dims: { width: 0.625, height: 0.3125, depth: 0.1875 },
@@ -813,12 +854,51 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [-0.06, 0.1, 0.14],
           material: STONE_LIGHT,
         },
+        // Second wall chunk.
         {
           shape: "box",
           dims: { width: 0.375, height: 0.3125, depth: 0.1875 },
           pos: [0.3, 0.14, 0.2],
           rot: [0.08, -0.2, -0.18],
           material: STONE_MID,
+        },
+        // Third wall fragment — shorter, different angle.
+        {
+          shape: "box",
+          dims: { width: 0.32, height: 0.24, depth: 0.17 },
+          pos: [-0.35, 0.13, 0.3],
+          rot: [0.1, 0.5, -0.12],
+          material: STONE_DARK,
+        },
+        // Crenellation merlons — three battlement cubes fallen away.
+        {
+          shape: "box",
+          dims: { width: 0.15, height: 0.15, depth: 0.15 },
+          pos: [0.0, 0.37, -0.1],
+          rot: [-0.08, 0.15, 0.1],
+          material: STONE_LIGHT,
+        },
+        {
+          shape: "box",
+          dims: { width: 0.14, height: 0.14, depth: 0.14 },
+          pos: [0.4, 0.08, -0.38],
+          rot: [0.4, 0.2, 0.5],
+          material: STONE_MID,
+        },
+        {
+          shape: "box",
+          dims: { width: 0.13, height: 0.13, depth: 0.13 },
+          pos: [-0.25, 0.07, -0.35],
+          rot: [0.3, 0.5, -0.2],
+          material: STONE_LIGHT,
+        },
+        // Arch keystone — wedge from the gateway.
+        {
+          shape: "box",
+          dims: { width: 0.22, height: 0.14, depth: 0.16 },
+          pos: [0.1, 0.08, 0.4],
+          rot: [0.18, 0.3, -0.15],
+          material: STONE_DARK,
         },
         // Two roof shards.
         {
@@ -835,6 +915,14 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [0.3, -0.2, 0.12],
           material: ROOF_BLUE,
         },
+        // Third roof shard — tipped flat on the pile.
+        {
+          shape: "box",
+          dims: { width: 0.2, height: 0.05, depth: 0.13 },
+          pos: [-0.38, 0.04, -0.1],
+          rot: [0.55, 0.3, 0.4],
+          material: ROOF_BLUE,
+        },
         // Broken pole stub.
         {
           shape: "cylinder",
@@ -848,9 +936,9 @@ export const VARIANTS: VariantDescriptor[] = [
           rot: [-Math.PI / 2 + 0.3, 0.0, 0.6],
           material: WOOD_DARK,
         },
-        // Torn flag fragment — long thin red slab lying near the pole
-        // stub, identifying this pile as the home tower. Named "flag"
-        // so the entity manager can tint it per-owner (see debris.ts).
+        // Torn flag fragment — long thin slab lying near the pole stub,
+        // identifying this pile as the home tower. Named "flag" so the
+        // entity manager can tint it per-owner (see debris.ts).
         {
           shape: "box",
           dims: { width: 0.3125, height: 0.03125, depth: 0.1875 },
@@ -1051,8 +1139,14 @@ export function debrisLayout(variant: VariantDescriptor): LayoutPiece[] {
 
   const out: LayoutPiece[] = [];
   for (let i = 0; i < rocks.count; i++) {
-    const xPos = (rng() * 2 - 1) * halfW;
-    const zPos = (rng() * 2 - 1) * halfD;
+    // Polar sample inside an ellipse inscribed in the footprint —
+    // rocks spread in a round heap rather than filling the rectangle
+    // out to the corners. `sqrt(rng())` keeps area density uniform so
+    // the pile stays as full as it was under rectangular sampling.
+    const angle = rng() * Math.PI * 2;
+    const norm = Math.sqrt(rng());
+    const xPos = Math.cos(angle) * norm * halfW;
+    const zPos = Math.sin(angle) * norm * halfD;
     const radius = Math.hypot(xPos, zPos);
     const yEnvelope = rocks.maxHeight * Math.max(0, 1 - radius / envR);
     // Random share of the local envelope so rocks scatter at different
