@@ -49,13 +49,8 @@
  */
 
 import * as THREE from "three";
-import type { GameMap } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type {
-  OverlayCannonball,
-  RenderOverlay,
-} from "../../../shared/ui/overlay-types.ts";
-import { targetTopAt } from "../elevation.ts";
+import type { OverlayCannonball } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import {
   buildCannonball,
@@ -77,28 +72,17 @@ export interface CannonballsManager {
  *  tile (the full ±1 sprite fits inside a 1×1 tile). Matches the
  *  grunt scale convention. */
 const CANNONBALL_SCALE = TILE_SIZE / 2;
-/** Arc apex = flight distance × APEX_RATIO, clamped to at least
- *  MIN_APEX. Tuned so long shots stay inside the camera frustum:
- *  the map is ~28 tiles tall, so a 20-tile shot should apex around
- *  ~10 tiles. MIN_APEX keeps close shots from looking flat. */
-const APEX_RATIO = 0.48;
-const MIN_APEX = TILE_SIZE * 1.6;
 /** Scale bonus at apex — matches the 2D formula's ~66% radius growth
- *  from launch to apex (3→5 px and 4.5→7.5 px both land at +66%). */
+ *  from launch to apex (3→5 px and 4.5→7.5 px both land at +66%).
+ *  Driven by altitude relative to a "typical apex" reference height
+ *  rather than `sin(progress·π)` so the scale bump tracks the actual
+ *  ballistic curve instead of a faked one. */
 const SCALE_APEX_BONUS = 2 / 3;
-/** Muzzle-tip offset applied at progress=0 so the ball visibly
- *  emerges from the barrel tip rather than from the cannon's ground
- *  center. Fades linearly to zero by progress=1 (impact).
- *    • forward: tier_1 barrel length ≈ 13 world units (half-length
- *      ~6.5) plus ~3.5 for barrel zOffset from cannon center → 10.
- *      Tuned by eye; close enough for every variant since larger
- *      cannons also have proportionally longer barrels relative to
- *      their footprints.
- *    • Y: barrel sits ~12 world units above the ground plane. See
- *      CANNON_TOP_Y = 14 in elevation.ts — we aim slightly below the
- *      top so the ball emerges from the bore, not the muzzle swell. */
-const MUZZLE_FORWARD = 10;
-const MUZZLE_Y = 12;
+/** Reference altitude (world units) at which the scale bonus reaches
+ *  its full +SCALE_APEX_BONUS multiplier. Roughly the apex of a
+ *  mid-range shot (~30 tiles); higher shots cap at full bonus, lower
+ *  shots scale proportionally. */
+const SCALE_APEX_REFERENCE_Y = 110;
 
 export function createCannonballsManager(
   scene: THREE.Scene,
@@ -130,11 +114,7 @@ export function createCannonballsManager(
     }
   }
 
-  function positionHosts(
-    balls: readonly OverlayCannonball[],
-    overlay: RenderOverlay | undefined,
-    map: GameMap | undefined,
-  ): void {
+  function positionHosts(balls: readonly OverlayCannonball[]): void {
     // The ball set fingerprint ensures host count matches ball count.
     // Walk in parallel — index i of root.children matches index i of
     // the overlay array.
@@ -143,46 +123,22 @@ export function createCannonballsManager(
       const ball = balls[i]!;
       const host = hosts[i];
       if (!(host instanceof THREE.Group)) continue;
-      // Parabolic arc: peaks at progress=0.5, zero at 0 and 1.
-      const arc = Math.sin(ball.progress * Math.PI);
-      // Floor elevation lerps from launch (ground level for now) to the
-      // target's top. Using `targetTopAt` means balls landing on a
-      // tower / cannon / house / grunt disappear at that entity's top
-      // instead of punching through to the ground plane at Y=0.
-      // Sampling only at the endpoints (not the ball's current
-      // position) prevents the ball from "bobbing up" as it flies over
-      // the shooter's own walls.
-      const targetFloor = targetTopAt(ball.targetX, ball.targetY, overlay, map);
-      const floor = targetFloor * ball.progress;
-      // Apex lift scales with flight distance (a la Rampart's tall
-      // arcs). Close shots bottom out at MIN_APEX so they still read
-      // as arcs, long shots fly proportionally higher.
-      const dx = ball.targetX - ball.startX;
-      const dy = ball.targetY - ball.startY;
-      const flightDist = Math.hypot(dx, dy);
-      const apex = Math.max(MIN_APEX, flightDist * APEX_RATIO);
-      // Muzzle-tip offset: at progress=0 the ball sits at the barrel
-      // tip (forward along the firing direction + elevated to barrel
-      // Y), fading linearly to zero by progress=1 so impact still
-      // lands exactly at the target. Without this the ball visually
-      // spawns at cannon-center-on-ground and "teleports" up+forward
-      // on its first frame of flight.
-      const muzzleFade = 1 - ball.progress;
-      const fwdUnit = flightDist > 0 ? 1 / flightDist : 0;
-      const muzzleOffX = dx * fwdUnit * MUZZLE_FORWARD * muzzleFade;
-      const muzzleOffZ = dy * fwdUnit * MUZZLE_FORWARD * muzzleFade;
-      const muzzleOffY = MUZZLE_Y * muzzleFade;
-      host.position.set(
-        ball.x + muzzleOffX,
-        floor + arc * apex + muzzleOffY,
-        ball.y + muzzleOffZ,
+      // Trajectory is fully resolved by the simulation: ball.x, ball.y
+      // (xz plane) and ball.altitude (worldY) are the parabolic
+      // closed-form result. Renderer just plots the point.
+      host.position.set(ball.x, ball.altitude, ball.y);
+      // Scale grows with altitude as a perspective cue, peaking at
+      // SCALE_APEX_REFERENCE_Y (typical mid-range apex). Capped at
+      // 1 + SCALE_APEX_BONUS so very high shots don't blow up.
+      const altScale = Math.min(1, ball.altitude / SCALE_APEX_REFERENCE_Y);
+      host.scale.setScalar(
+        CANNONBALL_SCALE * (1 + altScale * SCALE_APEX_BONUS),
       );
-      host.scale.setScalar(CANNONBALL_SCALE * (1 + arc * SCALE_APEX_BONUS));
     }
   }
 
   function update(ctx: FrameCtx): void {
-    const { overlay, map } = ctx;
+    const { overlay } = ctx;
     const balls = overlay?.battle?.cannonballs ?? [];
     const signature = computeBallSetSignature(balls);
     if (signature !== lastBallSetSignature) {
@@ -191,7 +147,7 @@ export function createCannonballsManager(
       if (balls.length === 0) return;
       buildAllCannonballs(balls);
     }
-    if (balls.length > 0) positionHosts(balls, overlay, map);
+    if (balls.length > 0) positionHosts(balls);
   }
 
   function dispose(): void {

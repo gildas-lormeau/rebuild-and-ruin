@@ -386,7 +386,10 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     const balls = overlay?.battle?.cannonballs;
     if (!balls || balls.length === 0) return;
     for (const ball of balls) {
-      if (ball.progress >= 1) continue;
+      // Spent balls are at their landing point — the firing cannon's
+      // recoil should ease back, not hold the kicked-up pose for an
+      // extra frame.
+      if (ball.spent) continue;
       // `startX = (col + size/2) * TILE_SIZE`. We don't know `size`
       // here without searching the castles, but the key just needs to
       // be stable per-cannon across frames. Using the raw startX /

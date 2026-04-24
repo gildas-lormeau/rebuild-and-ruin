@@ -212,10 +212,17 @@ export interface FullStateMessage {
     cannonIdx: number;
     startX: number;
     startY: number;
+    launchX: number;
+    launchY: number;
+    elapsed: number;
     x: number;
     y: number;
+    altitude: number;
     targetX: number;
     targetY: number;
+    targetAltitude: number;
+    vy0: number;
+    flightTime: number;
     speed: number;
     playerId: ValidPlayerSlot;
     scoringPlayerId?: ValidPlayerSlot;
