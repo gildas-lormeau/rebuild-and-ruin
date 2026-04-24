@@ -1210,7 +1210,14 @@ function cobblestoneBaseColor(interiorLight: RGB): RGB {
 
 /** Render a single 16×16 sinkhole-tile patch with a custom grass base color.
  *  Reuses the same SDF distance values as the base terrain — only the grass
- *  color the bank gradient blends INTO changes per variant. */
+ *  color the bank gradient blends INTO changes per variant.
+ *
+ *  Grass-side pixels (distance < GRASS_TO_BANK_DIST) are transparent: the
+ *  terrain mesh at Y=0.01 already paints the owner's tinted cobble / checker
+ *  on the tile, and layering an opaque grass fill on top here would override
+ *  that tint with a duplicate (and in battle, off-shade) copy. The patch only
+ *  owns the bank→water gradient; alpha fades in across the grass→bank
+ *  transition so the bank band has no hard inner edge. */
 function renderSinkholeTilePatch(
   sdf: Float32Array,
   W: number,
@@ -1232,14 +1239,29 @@ function renderSinkholeTilePatch(
       const grass = texturedColor(GRASS_TEX, grassBase, inBattle, lx, ly);
       const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
       const color = selectTerrainColor(isWaterTile, distance, grass, water);
+      const alpha = sinkholePatchAlpha(isWaterTile, distance);
       const idx = (ly * TILE_SIZE + lx) * 4;
       data[idx] = color[0];
       data[idx + 1] = color[1];
       data[idx + 2] = color[2];
-      data[idx + 3] = 255;
+      data[idx + 3] = alpha;
     }
   }
   return patch;
+}
+
+/** Per-pixel alpha for `renderSinkholeTilePatch`. Transparent in the grass
+ *  region (mesh owns the tint), ramps up across the grass→bank transition,
+ *  opaque from the bank band onward. */
+function sinkholePatchAlpha(isWater: boolean, distance: number): number {
+  if (!isWater) return 0;
+  if (distance < GRASS_TO_BANK_DIST) return 0;
+  if (distance < GRASS_TO_BANK_DIST + TRANSITION_WIDTH) {
+    return Math.round(
+      255 * smoothClamp((distance - GRASS_TO_BANK_DIST) / TRANSITION_WIDTH),
+    );
+  }
+  return 255;
 }
 
 /** Apply a per-pixel texture offset to a base color, only in battle mode. */
