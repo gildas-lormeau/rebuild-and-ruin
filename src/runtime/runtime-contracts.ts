@@ -1,5 +1,6 @@
 import type {
   BalloonFlight,
+  CannonDestroy,
   Crosshair,
   Impact,
   ThawingTile,
@@ -193,6 +194,7 @@ export interface OnlineOverlayParams {
     impacts: Impact[];
     thawing: ThawingTile[];
     wallBurns: WallBurn[];
+    cannonDestroys: CannonDestroy[];
   };
   frame: {
     crosshairs: Crosshair[];

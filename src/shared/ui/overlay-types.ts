@@ -1,6 +1,7 @@
 import type {
   BurningPit,
   Cannon,
+  CannonDestroy,
   Crosshair,
   Grunt,
   Impact,
@@ -207,6 +208,7 @@ export interface BattleOverlay {
   crosshairs?: readonly Crosshair[];
   impacts?: readonly Impact[];
   wallBurns?: readonly WallBurn[];
+  cannonDestroys?: readonly CannonDestroy[];
   balloons?: readonly OverlayBalloon[];
   battleTerritory?: readonly Set<number>[];
   battleWalls?: readonly Set<number>[];

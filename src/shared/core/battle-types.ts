@@ -153,6 +153,16 @@ export interface WallBurn extends TilePos {
   age: number;
 }
 
+/** A cannon footprint where the cannon was just destroyed — drives a
+ *  larger / denser cousin of the wall-burn burst, scaled to the cannon's
+ *  2×2 / 3×3 size. Pure visual state. */
+export interface CannonDestroy extends TilePos {
+  /** Cannon footprint size in tiles (2 for normal/balloon/rampart, 3 for super). */
+  size: number;
+  /** Seconds since the cannon was destroyed. */
+  age: number;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
@@ -161,6 +171,7 @@ export interface BattleAnimState {
   impacts: Impact[];
   thawing: ThawingTile[];
   wallBurns: WallBurn[];
+  cannonDestroys: CannonDestroy[];
 }
 
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
@@ -169,6 +180,9 @@ export const THAW_DURATION = 0.6;
  *  the demo TTL — long enough to read as a real burst, short enough to
  *  not delay the post-battle banner. */
 export const WALL_BURN_DURATION = 0.7;
+/** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
+ *  longer than wall-burns so the heavier blast has time to read. */
+export const CANNON_DESTROY_DURATION = 0.9;
 
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
@@ -193,6 +207,7 @@ export function createBattleAnimState(): BattleAnimState {
     impacts: [],
     thawing: [],
     wallBurns: [],
+    cannonDestroys: [],
   };
 }
 
@@ -201,10 +216,12 @@ export function clearImpacts(battleAnim: {
   impacts: Impact[];
   thawing: ThawingTile[];
   wallBurns: WallBurn[];
+  cannonDestroys: CannonDestroy[];
 }): void {
   battleAnim.impacts = [];
   battleAnim.thawing = [];
   battleAnim.wallBurns = [];
+  battleAnim.cannonDestroys = [];
 }
 
 /** Age transient battle effect animations by `dt` seconds and remove expired ones. */
@@ -213,6 +230,7 @@ export function ageImpacts(
     impacts: Impact[];
     thawing: ThawingTile[];
     wallBurns: WallBurn[];
+    cannonDestroys: CannonDestroy[];
   },
   dt: number,
   flashDuration: number,
@@ -228,5 +246,9 @@ export function ageImpacts(
   for (const burn of battleAnim.wallBurns) burn.age += dt;
   battleAnim.wallBurns = battleAnim.wallBurns.filter(
     (burn) => burn.age < WALL_BURN_DURATION,
+  );
+  for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
+  battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(
+    (destroy) => destroy.age < CANNON_DESTROY_DURATION,
   );
 }

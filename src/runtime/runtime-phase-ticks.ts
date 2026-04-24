@@ -50,6 +50,7 @@ import {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
+import { cannonSize } from "../shared/core/spatial.ts";
 import {
   type CannonController,
   isHuman,
@@ -269,6 +270,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.battleAnim.wallBurns.push({
         row: event.row,
         col: event.col,
+        age: 0,
+      });
+    });
+    bus.on(BATTLE_MESSAGE.CANNON_DAMAGED, (event) => {
+      if (event.newHp > 0) return;
+      const cannon =
+        runtimeState.state.players[event.playerId]?.cannons[event.cannonIdx];
+      if (!cannon) return;
+      runtimeState.battleAnim.cannonDestroys.push({
+        row: cannon.row,
+        col: cannon.col,
+        size: cannonSize(cannon.mode),
         age: 0,
       });
     });
@@ -737,7 +750,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
-      battleAnim.wallBurns.length > 0
+      battleAnim.wallBurns.length > 0 ||
+      battleAnim.cannonDestroys.length > 0
     )
       return false;
 

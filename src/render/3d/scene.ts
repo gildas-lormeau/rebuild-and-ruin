@@ -29,6 +29,10 @@ import {
   createBonusSquaresManager,
 } from "./effects/bonus-squares.ts";
 import {
+  type CannonBurnsManager,
+  createCannonBurnsManager,
+} from "./effects/cannon-burns.ts";
+import {
   type CrosshairsManager,
   createCrosshairsManager,
 } from "./effects/crosshairs.ts";
@@ -155,6 +159,11 @@ export interface Render3dContext {
    *  + crackle math; deterministic per-tile variation derives from
    *  `tileSeed`. */
   readonly wallBurns: WallBurnsManager;
+  /** Cannon-burn manager — heavier sibling of `wallBurns`, fired when a
+   *  cannon is destroyed. Reconciles `overlay.battle.cannonDestroys`
+   *  into per-cannon hosts sized to the 2×2 / 3×3 footprint with ~1.5×
+   *  the flames / sparks / smoke of a wall burst. */
+  readonly cannonBurns: CannonBurnsManager;
   /** Crosshair manager — Phase 6. Eight-arm flat meshes per crosshair
    *  anchored at `overlay.battle.crosshairs[].x/y` (pixel units). Arm
    *  length / alpha pulse with the 2D-parity `cannonReady` timeline. */
@@ -236,6 +245,7 @@ export function createRender3dScene(
   const phantoms = createPhantomsManager(scene);
   const impacts = createImpactsManager(scene);
   const wallBurns = createWallBurnsManager(scene);
+  const cannonBurns = createCannonBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
@@ -333,6 +343,7 @@ export function createRender3dScene(
     phantoms,
     impacts,
     wallBurns,
+    cannonBurns,
     crosshairs,
     fog,
     thawing,

@@ -203,6 +203,7 @@ export function createRender3d(
     ctx.phantoms.update(frame);
     ctx.impacts.update(frame);
     ctx.wallBurns.update(frame);
+    ctx.cannonBurns.update(frame);
     ctx.crosshairs.update(frame);
     ctx.fog.update(frame);
     ctx.thawing.update(frame);
