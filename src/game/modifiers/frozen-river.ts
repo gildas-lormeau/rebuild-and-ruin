@@ -10,10 +10,10 @@ import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const frozenRiverImpl: ModifierImpl = {
-  apply: (state: GameState) => {
-    applyFrozenRiver(state);
-    return { changedTiles: [] as number[], gruntsSpawned: 0 };
-  },
+  apply: (state: GameState) => ({
+    changedTiles: [...applyFrozenRiver(state)],
+    gruntsSpawned: 0,
+  }),
   // Marks frozen positions in a Set; does not mutate `state.map.tiles`
   // (water stays water, just walkable). Interior is unaffected.
   skipsRecheck: true,
