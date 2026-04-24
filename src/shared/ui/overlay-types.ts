@@ -172,6 +172,9 @@ export interface PhantomOverlay {
   cannonPhantoms?: readonly RenderCannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
   defaultFacings?: ReadonlyMap<number, number>;
+  /** Current cannon tier per player — lets the 3D cannon-phantom picker
+   *  match the authored sprite of the actual cannon that will be placed. */
+  cannonTiers?: ReadonlyMap<number, 1 | 2 | 3>;
 }
 
 /** Cannonball in flight — overlay payload with animation progress. */
@@ -477,6 +480,11 @@ export interface CastleData {
   /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
    *  Rendered with a crack overlay so players can see which walls are weakened. */
   damagedWalls?: ReadonlySet<number>;
+  /** Current cannon tier for this player (derived from lives lost — 1 at
+   *  full lives, 2 after one loss, 3 on the last life). The 3D renderer
+   *  swaps regular cannons to the matching `tier_N` sprite; the 2D path
+   *  uses a single sprite and ignores this field. */
+  cannonTier: 1 | 2 | 3;
 }
 
 export interface PlayerStats {

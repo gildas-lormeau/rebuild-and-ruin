@@ -200,7 +200,10 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
       for (const castle of overlay.castles) {
         for (const cannon of castle.cannons) {
           if (isCannonAlive(cannon)) continue;
-          const variantName = cannonDebrisVariantName(cannon);
+          const variantName = cannonDebrisVariantName(
+            cannon,
+            castle.cannonTier,
+          );
           const isSuper = isSuperCannon(cannon);
           const offset = isSuper
             ? TILE_3X3_CENTER_OFFSET
@@ -343,7 +346,7 @@ function computeSignature(
       for (const cannon of castle.cannons) {
         if (isCannonAlive(cannon)) continue;
         parts.push(
-          `c:${castle.playerId}:${cannon.col}:${cannon.row}:${cannonDebrisVariantName(cannon)}`,
+          `c:${castle.playerId}:${cannon.col}:${cannon.row}:${cannonDebrisVariantName(cannon, castle.cannonTier)}`,
         );
       }
     }
@@ -370,15 +373,18 @@ function computeSignature(
 }
 
 /** Pick the debris variant that best matches a dead cannon. Mirrors
- *  the 2D path's switch (rampart / super / mortar / default). The live
- *  game state doesn't carry a cannon "tier", so every regular cannon
- *  lands on `tier_1_debris`. Rampart cannons use a dedicated variant
- *  with a metallic-core palette + green emblem so the rubble reads as
- *  a wrecked forge rather than a wrecked barrel. */
-function cannonDebrisVariantName(cannon: {
-  mode: CannonMode;
-  mortar?: boolean;
-}): string {
+ *  the 2D path's switch (rampart / super / mortar / default). Regular
+ *  cannons pick the tier debris matching their owner's current tier so
+ *  the rubble reads as the cannon that was there. Rampart cannons use
+ *  a dedicated variant with a metallic-core palette + green emblem so
+ *  the rubble reads as a wrecked forge rather than a wrecked barrel. */
+function cannonDebrisVariantName(
+  cannon: {
+    mode: CannonMode;
+    mortar?: boolean;
+  },
+  tier: 1 | 2 | 3,
+): string {
   const kind = cannonKind(cannon);
   switch (kind) {
     case "rampart":
@@ -393,7 +399,11 @@ function cannonDebrisVariantName(cannon: {
     // mortar flag matched a balloon cannon.
     case "balloon":
     case "tier_1":
-      return "tier_1_debris";
+      return tier === 1
+        ? "tier_1_debris"
+        : tier === 2
+          ? "tier_2_debris"
+          : "tier_3_debris";
   }
 }
 

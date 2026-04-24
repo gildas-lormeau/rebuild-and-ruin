@@ -12,6 +12,7 @@ import type {
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { cannonTier } from "../shared/core/player-types.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import type {
   InputReceiver,
@@ -159,8 +160,10 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // — live derivation guarantees the capture sees the post-mutation
     // facings that the renderer is about to draw against.
     const defaultFacings = new Map<number, number>();
+    const cannonTiers = new Map<number, 1 | 2 | 3>();
     for (const player of runtimeState.state.players) {
       defaultFacings.set(player.id, player.defaultFacing);
+      cannonTiers.set(player.id, cannonTier(player));
     }
     const overlayFrame = {
       crosshairs: runtimeState.frame.crosshairs,
@@ -168,6 +171,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
         piecePhantoms: buildPiecePhantomsUnion(runtimeState),
         cannonPhantoms: buildCannonPhantomsUnion(runtimeState),
         defaultFacings,
+        cannonTiers,
       },
       announcement: runtimeState.frame.announcement,
       gameOver: runtimeState.frame.gameOver,

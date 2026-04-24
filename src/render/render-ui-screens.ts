@@ -9,6 +9,7 @@ import type { UIContext } from "../runtime/runtime-contracts.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { cannonTier } from "../shared/core/player-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
@@ -97,6 +98,7 @@ export function createOptionsOverlay(frameCtx: UIContext): {
           interior: player.interior,
           cannons: player.cannons,
           playerId: player.id,
+          cannonTier: cannonTier(player),
         }))
     : undefined;
   const overlay: RenderOverlay = {

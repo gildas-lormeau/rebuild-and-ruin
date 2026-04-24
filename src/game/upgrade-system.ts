@@ -11,7 +11,11 @@ import type { ImpactEvent } from "../shared/core/battle-events.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { isPlayerSeated, type Player } from "../shared/core/player-types.ts";
+import {
+  cannonTier,
+  isPlayerSeated,
+  type Player,
+} from "../shared/core/player-types.ts";
 import {
   type GameState,
   hasFeature,
@@ -120,14 +124,20 @@ export function buildTimerBonus(state: GameState): number {
 }
 
 /** Cannonball speed multiplier for a firing cannon. Combines upgrade
- *  contributions (Rapid Fire) with cannon-mode effects (mortar). Encodes
- *  the design rule that Rapid Fire + Mortar cancel out to normal speed.
- *  Wired directly — cross-upgrade interaction doesn't fit the registry. */
+ *  contributions (Rapid Fire), cannon-mode effects (mortar), and the
+ *  player's current cannon tier (derived from lives lost — tier 2 at
+ *  1.2×, tier 3 at 1.44× over tier 1). Encodes the design rule that
+ *  Rapid Fire + Mortar cancel out to normal speed, then applies tier
+ *  on top of that resolved value so tier always boosts the actual
+ *  shot — including mortars and super guns. Wired directly because
+ *  cross-upgrade interaction doesn't fit the registry. */
 export function ballSpeedMult(player: Player, isMortar: boolean): number {
   const hasRapidFire = rapidFireOwns(player);
-  if (isMortar && hasRapidFire) return 1;
-  if (isMortar) return mortarSpeedMult();
-  return rapidFireBallMult(player);
+  let base: number;
+  if (isMortar && hasRapidFire) base = 1;
+  else if (isMortar) base = mortarSpeedMult();
+  else base = rapidFireBallMult(player);
+  return base * cannonTierSpeedMult(cannonTier(player));
 }
 
 /** True when a wall hit should be absorbed (wall survives this shot).
@@ -332,6 +342,12 @@ export function resetPlayerUpgrades(state: GameState): void {
     player.damagedWalls.clear();
     player.upgrades.clear();
   }
+}
+
+/** Per-tier cannonball speed factor. Tier 1 = 1.0, tier 2 = 1.2,
+ *  tier 3 = 1.44 (each tier is 20% faster than the previous). */
+function cannonTierSpeedMult(tier: 1 | 2 | 3): number {
+  return tier === 1 ? 1 : tier === 2 ? 1.2 : 1.44;
 }
 
 /** Draw N unique upgrades from the implemented pool using state.rng. */

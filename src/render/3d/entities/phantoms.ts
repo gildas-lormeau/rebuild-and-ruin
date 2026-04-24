@@ -66,6 +66,8 @@ export interface PhantomsManager {
 
 type CannonVariantName =
   | "tier_1"
+  | "tier_2"
+  | "tier_3"
   | "super_gun"
   | "rampart_cannon"
   | "balloon_base";
@@ -275,11 +277,12 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
 
   function selectCannonVariant(
     phantom: RenderCannonPhantom,
+    tier: 1 | 2 | 3,
   ): CannonVariantName {
     // Phantoms carry only `mode` — no mortar flag — so the "mortar"
     // kind is never produced for a phantom; we still list the case in
     // the switch so adding a new CannonMode fails the exhaustiveness
-    // check. Mortar phantoms fall through to the tier_1 base, matching
+    // check. Mortar phantoms fall through to the tiered base, matching
     // the pre-refactor default.
     const kind = cannonKind({ mode: phantom.mode });
     switch (kind) {
@@ -291,7 +294,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
         return "super_gun";
       case "mortar":
       case "tier_1":
-        return "tier_1";
+        return tier === 1 ? "tier_1" : tier === 2 ? "tier_2" : "tier_3";
     }
   }
 
@@ -299,8 +302,12 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
     phantom: RenderCannonPhantom,
     index: number,
     facings: ReadonlyMap<number, number> | undefined,
+    tiers: ReadonlyMap<number, 1 | 2 | 3> | undefined,
   ): void {
-    const variant = selectCannonVariant(phantom);
+    const variant = selectCannonVariant(
+      phantom,
+      tiers?.get(phantom.playerId) ?? 1,
+    );
     const template = ensureCannonTemplate(variant);
     if (!template) return;
     const existing = cannonHosts[index];
@@ -355,8 +362,9 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
 
     const cannonPhantoms = phantoms?.cannonPhantoms ?? [];
     const facings = phantoms?.defaultFacings;
+    const tiers = phantoms?.cannonTiers;
     for (let i = 0; i < cannonPhantoms.length; i++) {
-      placeCannon(cannonPhantoms[i]!, i, facings);
+      placeCannon(cannonPhantoms[i]!, i, facings, tiers);
     }
     trimCannonHosts(cannonPhantoms.length);
   }

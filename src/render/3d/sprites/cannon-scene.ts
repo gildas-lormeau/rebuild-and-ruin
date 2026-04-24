@@ -349,8 +349,14 @@ export const VARIANTS: CannonVariant[] = [
         material: {
           kind: "standard",
           color: 0xffffff,
-          roughness: 0.35,
-          metalness: 0.8,
+          roughness: 0.5,
+          // Low metalness on purpose: the in-game lighting is ambient
+          // (1.0) + a tiny directional (0.2) with no env map, so metals
+          // lose their diffuse contribution and barely receive specular
+          // from the off-axis sun — high-metalness here renders dark
+          // grey on the flat top-down disc. The grip texture's authored
+          // rivets still read as metal at metalness 0.2.
+          metalness: 0.2,
           texture: "cannon_metal_grip",
         },
       },
@@ -558,8 +564,9 @@ export const VARIANTS: CannonVariant[] = [
         material: {
           kind: "standard",
           color: 0xffffff,
-          roughness: 0.35,
-          metalness: 0.8,
+          roughness: 0.5,
+          // See tier_2 base — high metalness reads dark in-game.
+          metalness: 0.2,
           texture: "cannon_metal_grip",
         },
       },
@@ -767,8 +774,9 @@ export const VARIANTS: CannonVariant[] = [
         material: {
           kind: "standard",
           color: 0xffffff,
-          roughness: 0.25,
-          metalness: 0.9,
+          roughness: 0.5,
+          // See tier_2 base — high metalness reads dark in-game.
+          metalness: 0.2,
           texture: "cannon_metal_grip",
         },
       },

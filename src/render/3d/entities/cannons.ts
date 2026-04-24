@@ -288,7 +288,7 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
       for (const cannon of castle.cannons) {
         if (!isCannonAlive(cannon)) continue;
         if (isBalloonCannon(cannon)) continue;
-        const variant = selectVariant(cannon);
+        const variant = selectVariant(cannon, castle.cannonTier);
         let list = byVariant.get(variant);
         if (!list) {
           list = [];
@@ -504,8 +504,12 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
 
 /** Pick a bucket key for the cannon. Mirrors the 2D path's switch. The
  *  caller guarantees non-balloon cannons (balloons are filtered out
- *  before this is reached), so the "balloon" kind is unreachable. */
-function selectVariant(cannon: Cannon): VariantName {
+ *  before this is reached), so the "balloon" kind is unreachable.
+ *
+ *  `tier` applies only to regular cannons — super/mortar/rampart have
+ *  their own authored sprites and keep them at every tier (speed boost
+ *  still applies via ballSpeedMult in the simulation). */
+function selectVariant(cannon: Cannon, tier: 1 | 2 | 3): VariantName {
   const kind = cannonKind(cannon);
   switch (kind) {
     case "rampart":
@@ -515,7 +519,7 @@ function selectVariant(cannon: Cannon): VariantName {
     case "mortar":
       return "mortar";
     case "tier_1":
-      return "tier_1";
+      return tier === 1 ? "tier_1" : tier === 2 ? "tier_2" : "tier_3";
     case "balloon":
       throw new Error("selectVariant: balloon cannons are filtered upstream");
   }
@@ -523,7 +527,8 @@ function selectVariant(cannon: Cannon): VariantName {
 
 /** Composite signature across every live cannon. Rebuilds only when one
  *  of the watched fields changes. `inBattle` is included because the
- *  base disc hides during battle. */
+ *  base disc hides during battle; `cannonTier` so regular cannons swap
+ *  to the matching tier sprite when the owning player loses a life. */
 function computeSignature(overlay: RenderOverlay | undefined): string {
   if (!overlay?.castles) return "";
   const parts: string[] = [overlay.battle?.inBattle ? "b" : "p"];
@@ -534,7 +539,7 @@ function computeSignature(overlay: RenderOverlay | undefined): string {
       parts.push(
         `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${
           cannon.facing ?? 0
-        }:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}`,
+        }:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}`,
       );
     }
   }

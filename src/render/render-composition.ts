@@ -20,6 +20,7 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
 import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
@@ -567,6 +568,7 @@ function buildCastleOverlay(view: RenderView): CastleData[] {
       playerId: player.id,
       damagedWalls:
         player.damagedWalls.size > 0 ? player.damagedWalls : undefined,
+      cannonTier: cannonTier(player),
     }));
 }
 

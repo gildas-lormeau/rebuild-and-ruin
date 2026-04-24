@@ -30,6 +30,7 @@ import {
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { cannonTier } from "../shared/core/player-types.ts";
 import type { SfxObserver } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
@@ -161,11 +162,20 @@ const CANNONBALL_WHISTLE_SAMPLES: readonly string[] = [
   "fwwhist3",
   "fwwhist2",
 ];
+/** Cannon-fire sample per tier — tier 1 keeps the original `baboom`, tier
+ *  2 upgrades to `cannon1` (heavier report), tier 3 to `magnum1` (deepest
+ *  boom). Indexed by `cannonTier(player) - 1`. Kept here (not on the
+ *  event payload) so swapping the SOUND.RSC pack or renaming a sample
+ *  never touches the wire protocol or determinism fixtures. */
+const CANNON_FIRE_SAMPLES_BY_TIER: readonly string[] = [
+  "baboom",
+  "cannon1",
+  "magnum1",
+];
 /** Map of bus-event → sample (+ optional filter). Lookup happens at emit
  *  time, so editing an entry only affects subsequent events. */
 const SFX_EVENT_MAP: SfxEventMap = {
   cannonPlaced: { sample: "clunk1" },
-  cannonFired: { sample: "baboom" },
   battleReady: { sample: "ready" },
   battleAim: { sample: "aim" },
   battleFire: { sample: "fire" },
@@ -205,6 +215,10 @@ const SFX_EVENT_MAP: SfxEventMap = {
   // Handled outside this map (subscribeBus ties each to a hand-written
   // handler because the one-sample-per-event-type shape can't express
   // what they need):
+  //   - cannonFired: picks baboom / cannon1 / magnum1 by the firing
+  //     player's cannon tier (CANNON_FIRE_SAMPLES_BY_TIER above). Reads
+  //     tier via deps.getState() so the event payload stays minimal and
+  //     the wire protocol doesn't carry a tier field.
   //   - towerEnclosed: plays elechit1, then chains the player's fanfare
   //     on the first enclosure per player per phase.
   //   - gameEnd: plays welldone, then chains the winner's color stinger
@@ -221,8 +235,6 @@ const SFX_EVENT_MAP: SfxEventMap = {
   //   - placecan, capture, rotate, redbeg, blubeg, orgbeg — cannon tutorial.
   //   - alive, agony2, blade, guill2 — guillotine (defeat) screen.
   //   - zap1 — "enclosed tower highlight" overlay before/after the score screen.
-  //   - cannon1, magnum1 — parked as alternate cannon-fire samples for future
-  //     variety (e.g. captured-cannon cue). baboom covers all cannons today.
 };
 
 export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
@@ -481,6 +493,26 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     boundHandlers.push({
       type: GAME_EVENT.CANNONBALL_DESCENDING,
       handler: descendingHandler as GameEventHandler<EventKey>,
+    });
+    // cannonFired — sample varies by the firing player's cannon tier so
+    // tier-2 / tier-3 cannons carry a heavier report. State lookup goes
+    // through deps.getState() so the event payload stays asset-agnostic
+    // (same rationale as cannonballDescending above). Falls back to the
+    // tier-1 baboom when state is unavailable — e.g. replays that fire
+    // the event before the GameState is attached.
+    const firedHandler: GameEventHandler<"cannonFired"> = (event) => {
+      const state = deps.getState();
+      const player = state?.players[event.playerId];
+      const tier = player ? cannonTier(player) : 1;
+      const sampleName =
+        CANNON_FIRE_SAMPLES_BY_TIER[tier - 1] ??
+        CANNON_FIRE_SAMPLES_BY_TIER[0]!;
+      void playSample(sampleName);
+    };
+    bus.on(GAME_EVENT.CANNON_FIRED, firedHandler);
+    boundHandlers.push({
+      type: GAME_EVENT.CANNON_FIRED,
+      handler: firedHandler as GameEventHandler<EventKey>,
     });
   }
 

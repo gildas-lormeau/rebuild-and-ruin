@@ -8,6 +8,7 @@
 
 import type { Rng } from "../platform/rng.ts";
 import type { Cannon } from "./battle-types.ts";
+import { STARTING_LIVES } from "./game-constants.ts";
 import type { Castle, Tower } from "./geometry-types.ts";
 import {
   type BagState,
@@ -136,6 +137,18 @@ export function isPlayerEliminated(
 export function eliminatePlayer(player: Player): void {
   player.eliminated = true;
   player.lives = 0;
+}
+
+/** Cannon tier for a player, derived from lives lost. Tier 1 at full lives,
+ *  tier 2 after one life lost, tier 3 after two (the post-continue tier for
+ *  a player on their last life). Clamped to [1, 3] so test maps or custom
+ *  starting-lives values can't produce tier 4+. Used by ball-speed and the
+ *  3D cannon sprite selection. */
+export function cannonTier(player: { readonly lives: number }): 1 | 2 | 3 {
+  const lost = STARTING_LIVES - player.lives;
+  if (lost >= 2) return 3;
+  if (lost === 1) return 2;
+  return 1;
 }
 
 /** Set a player's home tower. Called during selection / reselection
