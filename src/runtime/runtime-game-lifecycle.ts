@@ -140,16 +140,20 @@ export function createGameLifecycle(
     await deps.bootstrapNewGame();
   }
 
-  function endGame(winner: { id: number }): void {
+  function teardownSession(): void {
+    deps.clearDemoTimer();
     deps.resetScoreDeltas();
-    deps.resetLifeLostDialog();
     deps.clearAllZoomState();
+  }
+
+  function endGame(winner: { id: number }): void {
+    teardownSession();
+    deps.resetLifeLostDialog();
     deps.onEndGame?.(winner);
     deps.setGameOverFrame(winner);
     deps.render();
     deps.setModeStopped();
 
-    deps.clearDemoTimer();
     if (deps.isAllAi()) {
       deps.setDemoTimer(() => {
         if (deps.isModeStopped()) returnToLobby();
@@ -167,14 +171,12 @@ export function createGameLifecycle(
   }
 
   function returnToLobby(): void {
-    deps.clearDemoTimer();
-    deps.resetScoreDeltas();
     // Clear stale per-phase pinch memory + viewport targets from the
     // game we just quit so the lobby's background demo doesn't snap to
     // the previous human's favourite zoom when it reaches that phase.
     // We don't flip `zoomActivated` — the demo has no pointer player,
     // so `autoZoom`'s `!hasPointerPlayer` guard already keeps it idle.
-    deps.clearAllZoomState();
+    teardownSession();
     // Drop the cached lobby map so the next `bootstrapGame` regenerates
     // from scratch instead of reusing the just-quit game's mutated map
     // (houses spawned during play, tiles mutated by modifiers, etc.).
