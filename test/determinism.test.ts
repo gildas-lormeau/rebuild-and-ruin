@@ -32,6 +32,12 @@ interface Fixture {
 const FIXTURES = [
   "seed-42-classic.json",
   "seed-7-modern.json",
+  // Modifier-roll fixture: seed 0 fires wildfire at round 3, exercising the
+  // IMPLEMENTED_MODIFIERS weighted-selection path. Adding a new modifier
+  // shifts the totalWeight + threshold and will diverge here — that's the
+  // whole point of the gate. Re-record (with a written reason) when an
+  // intentional registry change makes the divergence expected.
+  "seed-0-modern.json",
 ] as const;
 
 for (const fixtureFile of FIXTURES) {

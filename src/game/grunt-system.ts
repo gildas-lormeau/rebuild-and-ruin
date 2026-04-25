@@ -22,6 +22,7 @@ import {
   GRUNT_WALL_ATTACK_MIN_BATTLES,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
+  MODIFIER_ID,
 } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
@@ -210,6 +211,9 @@ export function gruntAttackTowers(
   state: GameState,
   dt: number,
 ): TowerKilledMessage[] {
+  // Frostbite: ice-cube grunts can't swing at adjacent walls or towers either.
+  if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE) return [];
+
   const deadZones = getDeadZones(state);
   const events: TowerKilledMessage[] = [];
   for (const grunt of state.grunts) {

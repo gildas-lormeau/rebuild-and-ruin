@@ -18,7 +18,7 @@ import {
   hasInteriorAt,
   hasWallAt,
 } from "../shared/core/board-occupancy.ts";
-import { TOWER_SIZE } from "../shared/core/game-constants.ts";
+import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
@@ -51,6 +51,11 @@ const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
  * lock+move separately.
  */
 export function tickGrunts(state: GameState): boolean {
+  // Frostbite: grunts spawn as immobile ice cubes for the entire battle.
+  // Skip both target-lock and movement so they keep whatever facing they
+  // were spawned with and never advance.
+  if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE) return false;
+
   let anyMoved = false;
   const deadZones = getDeadZones(state);
 

@@ -19,6 +19,7 @@ import { crumblingWallsImpl } from "./modifiers/crumbling-walls.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
 import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
 import { fogOfWarImpl } from "./modifiers/fog-of-war.ts";
+import { frostbiteImpl } from "./modifiers/frostbite.ts";
 import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
 import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
 import { highTideImpl } from "./modifiers/high-tide.ts";
@@ -45,6 +46,7 @@ const MODIFIER_IMPLS = {
   low_water: lowWaterImpl,
   dry_lightning: dryLightningImpl,
   fog_of_war: fogOfWarImpl,
+  frostbite: frostbiteImpl,
 } as const satisfies Record<ModifierId, ModifierImpl>;
 /** Registry map for dispatching modifier lifecycle hooks by id. */
 export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(

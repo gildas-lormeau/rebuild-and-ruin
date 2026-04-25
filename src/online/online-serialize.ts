@@ -486,6 +486,9 @@ function serializeModifierTileSets(state: GameState) {
     lowWaterTiles: state.modern?.lowWaterTiles
       ? [...state.modern.lowWaterTiles]
       : null,
+    chippedGrunts: state.modern?.chippedGrunts
+      ? [...state.modern.chippedGrunts]
+      : null,
   };
 }
 

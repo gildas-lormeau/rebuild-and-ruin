@@ -102,6 +102,7 @@ type ImpactMsg = Extract<
       | "cannonDamaged"
       | "houseDestroyed"
       | "gruntKilled"
+      | "gruntChipped"
       | "gruntSpawned"
       | "pitCreated"
       | "iceThawed";
@@ -158,6 +159,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.CANNON_DAMAGED:
     case MESSAGE.HOUSE_DESTROYED:
     case MESSAGE.GRUNT_KILLED:
+    case MESSAGE.GRUNT_CHIPPED:
     case MESSAGE.GRUNT_SPAWNED:
     case MESSAGE.PIT_CREATED:
     case MESSAGE.ICE_THAWED:

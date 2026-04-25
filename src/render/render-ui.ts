@@ -147,6 +147,7 @@ const MODIFIER_COLORS: Record<
   low_water: { title: "#a0d8b0", border: "#508060", pulseColor: "#78c890" },
   dry_lightning: { title: "#ffe080", border: "#c0a030", pulseColor: "#f0d060" },
   fog_of_war: { title: "#c8d0d8", border: "#6c7480", pulseColor: "#a0a8b4" },
+  frostbite: { title: "#b8e8ff", border: "#5098c8", pulseColor: "#88d0f0" },
 };
 
 /** Draw announcement text centered on screen. */

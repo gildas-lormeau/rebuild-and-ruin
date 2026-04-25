@@ -227,6 +227,9 @@ export interface BattleOverlay {
    *  walls + interior with an animated fog layer so players must aim
    *  from memory. */
   fogOfWar?: boolean;
+  /** True when Frostbite is active — renderer tints all grunts pale cyan
+   *  to read as ice cubes (immobile, two hits to break). */
+  frostbite?: boolean;
 }
 
 /** Banner sweep UI — shared shape returned by `createBannerUi` and

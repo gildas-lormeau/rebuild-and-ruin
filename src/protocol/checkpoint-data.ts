@@ -119,6 +119,9 @@ export interface BattleStartData {
   highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
+  /** Frostbite chipped grunt tile keys — grunts that have absorbed one hit.
+   *  null = no frostbite this round. */
+  chippedGrunts?: number[] | null;
   /** Modifier visual diff for the reveal banner. null = no modifier this round.
    *  The display label is intentionally NOT serialized — it's deterministic
    *  from `id` via `modifierDef(id).label` and both ends share `modifier-defs.ts`. */
@@ -147,6 +150,9 @@ export interface BuildStartData {
   highTideTiles?: number[] | null;
   /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
   sinkholeTiles?: number[] | null;
+  /** Frostbite chipped grunt tile keys — grunts that have absorbed one hit.
+   *  null = no frostbite carrying over from the prior battle. */
+  chippedGrunts?: number[] | null;
 }
 
 /** Data needed to sync state at build phase end. */

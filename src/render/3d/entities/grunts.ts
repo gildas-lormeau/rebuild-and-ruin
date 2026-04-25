@@ -90,6 +90,10 @@ const BASE_VARIANT_NAME = "grunt_n";
  *  docs; 64 gives headroom without noticeable overhead (each slot is a
  *  4×4 float matrix = 64 bytes per sub-part — ~1 KB per sub-part). */
 const INITIAL_CAPACITY = 64;
+/** Pale-cyan ice tint applied to grunt materials when the Frostbite
+ *  modifier is active for the round. Multiplied into each owned
+ *  material's authored base color so all sub-parts read as ice cubes. */
+const FROSTBITE_TINT = 0x88d0f0;
 
 /** 3-step gradient texture for `MeshToonMaterial`. Pixel 0 = shadow,
  *  pixel 1 = mid, pixel 2 = lit. NearestFilter so steps are hard. The
@@ -102,13 +106,14 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   root.name = "grunts";
   scene.add(root);
 
-  // Owned materials — we don't tint grunts per-player (they're
-  // neutral) so this list is currently empty, but kept for the
-  // dispose path symmetry with other managers.
+  // Owned materials — populated by buildSubParts. Kept around so the
+  // dispose path can free them and so per-frame tinting (Frostbite ice
+  // cube) can mutate `.color` against a stashed `userData` baseline.
   const ownedMaterials: THREE.Material[] = [];
   let subParts: BucketSubPart[] = [];
   let capacity = 0;
   let lastSignature: string | undefined;
+  let lastFrostbite = false;
 
   // Scratch objects re-used inside `update` to avoid per-frame
   // allocations. Not shared across managers — each closure owns its
@@ -147,6 +152,12 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     const { overlay } = ctx;
     const grunts = overlay?.entities?.grunts;
     const count = grunts?.length ?? 0;
+    const frostbite = overlay?.battle?.frostbite === true;
+
+    if (frostbite !== lastFrostbite) {
+      applyFrostbiteTint(ownedMaterials, frostbite);
+      lastFrostbite = frostbite;
+    }
 
     const signature = computeSignature(grunts);
     if (signature === lastSignature) return;
@@ -160,7 +171,14 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
       return;
     }
 
+    const grewCapacity = count > capacity || subParts.length === 0;
     ensureCapacity(count);
+    // Capacity growth rebuilds materials from scratch — reapply any
+    // active frostbite tint so the fresh materials don't render at
+    // their authored color for one frame.
+    if (grewCapacity && frostbite) {
+      applyFrostbiteTint(ownedMaterials, true);
+    }
 
     // Delegate the host×local compose + setMatrixAt loop to the shared
     // bucket helper so every bucket-based manager shares one code path.
@@ -281,6 +299,37 @@ function getToonGradient(): THREE.DataTexture {
   tex.needsUpdate = true;
   cachedToonGradient = tex;
   return tex;
+}
+
+/** Tint or restore the shared grunt materials for the Frostbite modifier.
+ *  Called only when the active state flips (or after capacity growth has
+ *  swapped in a fresh material set). The original authored color is
+ *  stashed on `material.userData.frostbiteOriginal` on first tint so
+ *  subsequent restores can recover it without leaking source state. */
+function applyFrostbiteTint(
+  materials: readonly THREE.Material[],
+  active: boolean,
+): void {
+  for (const material of materials) {
+    if (!hasColor(material)) continue;
+    if (active) {
+      if (material.userData.frostbiteOriginal === undefined) {
+        material.userData.frostbiteOriginal = material.color.getHex();
+      }
+      material.color.setHex(FROSTBITE_TINT);
+    } else if (material.userData.frostbiteOriginal !== undefined) {
+      material.color.setHex(material.userData.frostbiteOriginal as number);
+      material.userData.frostbiteOriginal = undefined;
+    }
+  }
+}
+
+/** Type guard — InstancedMesh-bound materials may be unlit (no `.color`)
+ *  in the case of TURRET_AO contact shadows; skip those so we don't crash. */
+function hasColor(
+  material: THREE.Material,
+): material is THREE.Material & { color: THREE.Color } {
+  return (material as { color?: unknown }).color instanceof THREE.Color;
 }
 
 /** Composite signature across every grunt. Rebuilds only when one of

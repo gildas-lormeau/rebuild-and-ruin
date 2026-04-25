@@ -7,6 +7,7 @@ import {
   BATTLE_MESSAGE,
   type CannonDamagedMessage,
   type CannonFiredMessage,
+  type GruntChippedMessage,
   type GruntKilledMessage,
   type GruntSpawnedMessage,
   type HouseDestroyedMessage,
@@ -349,6 +350,7 @@ export type ServerMessage =
   | WallDestroyedMessage
   | CannonDamagedMessage
   | GruntKilledMessage
+  | GruntChippedMessage
   | HouseDestroyedMessage
   | GruntSpawnedMessage
   | PitCreatedMessage

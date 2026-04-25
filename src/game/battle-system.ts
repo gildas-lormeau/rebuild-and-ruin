@@ -29,6 +29,7 @@ import {
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
   HOUSE_GRUNT_SPAWN_CHANCE,
+  MODIFIER_ID,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/core/game-constants.ts";
@@ -731,6 +732,7 @@ export function applyImpactEvent(
       state.grunts = state.grunts.filter(
         (grunt) => !isAtTile(grunt, event.row, event.col),
       );
+      state.modern?.chippedGrunts?.delete(packTile(event.row, event.col));
       if (shooter) {
         shooter.score +=
           DESTROY_GRUNT_POINTS +
@@ -738,6 +740,9 @@ export function applyImpactEvent(
       }
       break;
     }
+    case BATTLE_MESSAGE.GRUNT_CHIPPED:
+      state.modern?.chippedGrunts?.add(packTile(event.row, event.col));
+      break;
     case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
       state.map.mapVersion++;
@@ -1177,6 +1182,8 @@ function collectHouseImpacts(
 }
 
 /** Collect grunt kill events at a tile.
+ *  Frostbite: a frosted grunt's first hit is absorbed (chip event marks the
+ *  tile in `state.modern.chippedGrunts`); subsequent hits kill normally.
  *  Conscription: killed grunts have a chance to respawn on a random enemy zone. */
 function collectGruntImpacts(
   state: GameState,
@@ -1185,29 +1192,40 @@ function collectGruntImpacts(
   shooterId: ValidPlayerSlot,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
+  const frostbiteActive =
+    state.modern?.activeModifier === MODIFIER_ID.FROSTBITE;
   for (const grunt of state.grunts) {
-    if (isAtTile(grunt, row, col)) {
+    if (!isAtTile(grunt, row, col)) continue;
+    const tileKey = packTile(grunt.row, grunt.col);
+    if (frostbiteActive && !state.modern?.chippedGrunts?.has(tileKey)) {
       events.push({
-        type: BATTLE_MESSAGE.GRUNT_KILLED,
+        type: BATTLE_MESSAGE.GRUNT_CHIPPED,
         row: grunt.row,
         col: grunt.col,
         shooterId,
       });
-      const respawn = onGruntKilled(state, shooterId);
-      if (respawn) {
-        const spawnPos = findGruntSpawnNear(
-          state,
-          respawn.anchorRow,
-          respawn.anchorCol,
-        );
-        if (spawnPos) {
-          events.push({
-            type: BATTLE_MESSAGE.GRUNT_SPAWNED,
-            row: spawnPos.row,
-            col: spawnPos.col,
-            victimPlayerId: respawn.victimId,
-          });
-        }
+      continue;
+    }
+    events.push({
+      type: BATTLE_MESSAGE.GRUNT_KILLED,
+      row: grunt.row,
+      col: grunt.col,
+      shooterId,
+    });
+    const respawn = onGruntKilled(state, shooterId);
+    if (respawn) {
+      const spawnPos = findGruntSpawnNear(
+        state,
+        respawn.anchorRow,
+        respawn.anchorCol,
+      );
+      if (spawnPos) {
+        events.push({
+          type: BATTLE_MESSAGE.GRUNT_SPAWNED,
+          row: spawnPos.row,
+          col: spawnPos.col,
+          victimPlayerId: respawn.victimId,
+        });
       }
     }
   }

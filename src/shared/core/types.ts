@@ -171,6 +171,10 @@ export interface ModernState {
   /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
    *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
   lowWaterTiles: Set<number> | null;
+  /** Grunt tile keys that have absorbed one frostbite hit (the ice "chip" from
+   *  reinforced-walls-style two-hit kill). Populated when frostbite is active;
+   *  cleared between battles. null = no frostbite this round. */
+  chippedGrunts: Set<number> | null;
 }
 
 /** Player selection lobby state. */
@@ -263,5 +267,6 @@ function createModernState(): ModernState {
     sinkholeTiles: null,
     highTideTiles: null,
     lowWaterTiles: null,
+    chippedGrunts: null,
   };
 }

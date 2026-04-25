@@ -59,6 +59,15 @@ export interface GruntKilledMessage {
   shooterId?: number;
 }
 
+/** A frosted grunt absorbed its first hit (ice chip — grunt survives, marked
+ *  in `state.modern.chippedGrunts`; the next hit on the same tile kills). */
+export interface GruntChippedMessage {
+  type: "gruntChipped";
+  row: number;
+  col: number;
+  shooterId?: number;
+}
+
 /** A house was destroyed by a cannonball. */
 export interface HouseDestroyedMessage {
   type: "houseDestroyed";
@@ -124,6 +133,7 @@ export type ImpactEvent =
   | CannonDamagedMessage
   | HouseDestroyedMessage
   | GruntKilledMessage
+  | GruntChippedMessage
   | GruntSpawnedMessage
   | PitCreatedMessage
   | IceThawedMessage;
@@ -148,6 +158,7 @@ export const BATTLE_MESSAGE = {
   WALL_DESTROYED: "wallDestroyed",
   CANNON_DAMAGED: "cannonDamaged",
   GRUNT_KILLED: "gruntKilled",
+  GRUNT_CHIPPED: "gruntChipped",
   HOUSE_DESTROYED: "houseDestroyed",
   GRUNT_SPAWNED: "gruntSpawned",
   PIT_CREATED: "pitCreated",
@@ -191,6 +202,11 @@ export const BATTLE_EVENT_CONSUMERS = {
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     combo: "src/game/combo-system.ts",
+  },
+  gruntChipped: {
+    stateApply: "src/game/battle-system.ts",
+    networkHandle: "src/online/online-server-events.ts",
+    networkRelay: "server/game-room.ts",
   },
   houseDestroyed: {
     stateApply: "src/game/battle-system.ts",

@@ -38,4 +38,8 @@ export interface ModifierTileData {
   readonly highTideTiles?: readonly number[] | null;
   readonly sinkholeTiles?: readonly number[] | null;
   readonly lowWaterTiles?: readonly number[] | null;
+  /** Grunt tile keys that have absorbed one frostbite hit. Not really tile
+   *  state, but follows the same checkpoint round-trip as frozenTiles to keep
+   *  host/watcher in sync mid-battle. */
+  readonly chippedGrunts?: readonly number[] | null;
 }

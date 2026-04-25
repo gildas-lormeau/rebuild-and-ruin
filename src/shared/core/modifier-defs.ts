@@ -169,6 +169,18 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     // Visual-only overlay drawn over castle walls + interior. No tile mutation.
     tileMutationPrev: null,
   },
+  {
+    id: "frostbite",
+    label: "Frostbite",
+    description:
+      "Grunts spawn as ice cubes — fully immobile and require two hits to break",
+    weight: 2,
+    implemented: true,
+    // Tracks per-grunt chipped state (one tile-key set on ModernState) that
+    // must survive host migration mid-battle. No tile mutation.
+    needsCheckpoint: true,
+    tileMutationPrev: null,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -214,6 +226,10 @@ export const MODIFIER_CONSUMERS = {
   fog_of_war: {
     impl: "src/game/modifiers/fog-of-war.ts",
     render: "src/render/3d/effects/fog.ts",
+  },
+  frostbite: {
+    impl: "src/game/modifiers/frostbite.ts",
+    serialize: "src/online/online-serialize.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

@@ -60,6 +60,7 @@
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/fire.ts",
       "src/game/modifiers/fog-of-war.ts",
+      "src/game/modifiers/frostbite.ts",
       "src/game/modifiers/frozen-river.ts",
       "src/game/modifiers/grunt-surge.ts",
       "src/game/modifiers/high-tide.ts",

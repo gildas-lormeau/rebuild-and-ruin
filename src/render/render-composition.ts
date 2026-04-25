@@ -378,6 +378,11 @@ export function createOnlineOverlay(
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
       fogOfWar:
         inBattle && view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
+      // Frostbite tint follows the modifier's lifetime, not just the battle
+      // phase: surviving frosted grunts must keep reading as ice through the
+      // post-battle banner and the next build/cannon phases. The tint clears
+      // when the next prepareBattleState reassigns activeModifier.
+      frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
     },
     phantoms: frame.phantoms,
     ui: {
