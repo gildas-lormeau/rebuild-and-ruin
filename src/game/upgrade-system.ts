@@ -23,6 +23,7 @@ import {
 } from "../shared/core/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
+  UID,
   type UpgradeId,
 } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
@@ -37,11 +38,7 @@ import { foundationsImpl } from "./upgrades/foundations.ts";
 import { masterBuilderImpl } from "./upgrades/master-builder.ts";
 import { mortarImpl, mortarSpeedMult } from "./upgrades/mortar.ts";
 import { rapidEmplacementImpl } from "./upgrades/rapid-emplacement.ts";
-import {
-  rapidFireBallMult,
-  rapidFireImpl,
-  rapidFireOwns,
-} from "./upgrades/rapid-fire.ts";
+import { rapidFireImpl } from "./upgrades/rapid-fire.ts";
 import { reclamationImpl } from "./upgrades/reclamation.ts";
 import { reinforcedWallsImpl } from "./upgrades/reinforced-walls.ts";
 import { restorationCrewImpl } from "./upgrades/restoration-crew.ts";
@@ -88,6 +85,9 @@ const UPGRADE_IMPLS = {
 const UPGRADE_FIRST_ROUND = 3;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
+/** Cannonball speed multiplier when Rapid Fire is active.
+ *  Cancels out with Mortar's slowdown by design — see ballSpeedMult below. */
+const RAPID_FIRE_SPEED_MULT = 1.5;
 /** Registry map for dispatching upgrade lifecycle hooks by id. */
 const UPGRADE_REGISTRY = new Map<UpgradeId, UpgradeImpl>(
   Object.entries(UPGRADE_IMPLS) as [UpgradeId, UpgradeImpl][],
@@ -132,11 +132,11 @@ export function buildTimerBonus(state: GameState): number {
  *  shot — including mortars and super guns. Wired directly because
  *  cross-upgrade interaction doesn't fit the registry. */
 export function ballSpeedMult(player: Player, isMortar: boolean): number {
-  const hasRapidFire = rapidFireOwns(player);
+  const hasRapidFire = !!player.upgrades.get(UID.RAPID_FIRE);
   let base: number;
   if (isMortar && hasRapidFire) base = 1;
   else if (isMortar) base = mortarSpeedMult();
-  else base = rapidFireBallMult(player);
+  else base = hasRapidFire ? RAPID_FIRE_SPEED_MULT : 1;
   return base * cannonTierSpeedMult(cannonTier(player));
 }
 

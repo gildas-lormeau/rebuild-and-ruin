@@ -44,7 +44,6 @@ import {
   checkFatWall,
   compareByNumericScoreDesc,
   compareCandidatesByObstaclePreference,
-  compareScoredByScoreDesc,
   countFatBlocks,
   countSmallPocketTiles,
   FAT_WALL_TILE_PENALTY,
@@ -332,7 +331,7 @@ function selectBestPlacement(
     return candidateToPlacement(least[0]!);
   }
 
-  const sortedScored = [...scored].sort(compareScoredByScoreDesc);
+  const sortedScored = [...scored].sort((a, b) => b.score - a.score);
   let topCandidates = sortedScored.slice(0, scoringCtx.skill.topCandidates);
 
   // When the target has manageable gaps (1-8) and at least one candidate fills

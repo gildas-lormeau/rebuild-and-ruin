@@ -259,10 +259,6 @@ export function compareCandidatesByObstaclePreference(
   );
 }
 
-export function compareScoredByScoreDesc(a: Scored, b: Scored): number {
-  return b.score - a.score;
-}
-
 export function compareByNumericScoreDesc<T extends { score: number }>(
   a: T,
   b: T,
@@ -287,13 +283,6 @@ export function candidateToPlacement(candidate: Candidate): AiPlacement {
     row: candidate.row,
     col: candidate.col,
   };
-}
-
-export function isFatFreeCandidate(
-  walls: ReadonlySet<number>,
-  candidate: Candidate,
-): boolean {
-  return countFatBlocks(walls, candidate) === 0;
 }
 
 /** Count 2×2 all-wall blocks a candidate would create (no exemptions). */

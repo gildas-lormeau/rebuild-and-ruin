@@ -21,8 +21,8 @@ import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,
+  countFatBlocks,
   createSimulatedWalls,
-  isFatFreeCandidate,
 } from "./ai-build-score.ts";
 import type {
   AiPlacement,
@@ -110,7 +110,7 @@ export function pickFallbackPlacement(
     : unenclosedTowers;
 
   const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
-    return insideEnclosure(candidate) || !isFatFreeCandidate(walls, candidate);
+    return insideEnclosure(candidate) || countFatBlocks(walls, candidate) > 0;
   };
 
   if (fallbackTowers.length > 0) {

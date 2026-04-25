@@ -91,10 +91,6 @@ export const LIFE_LOST_FOCUS_ABANDON = 1;
 export const FOCUS_REMATCH: GameOverFocus = "rematch";
 export const FOCUS_MENU: GameOverFocus = "menu";
 
-export function createControlsState(): ControlsState {
-  return { playerIdx: 0, actionIdx: 0, rebinding: false };
-}
-
 /** True when this player's dialog entry should auto-resolve (no local input needed).
  *  Host checks controller identity; non-host only resolves its own slot. */
 export function shouldAutoResolve(

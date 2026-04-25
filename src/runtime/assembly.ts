@@ -17,7 +17,6 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import { createEmptyFrameData } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
 import {
@@ -75,7 +74,13 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   mainLoop: (now: number) => void;
 } {
   function clearFrameData(): void {
-    deps.runtimeState.frame = createEmptyFrameData(deps.runtimeState.frame);
+    // Preserve sticky fields (gameOver) that outlive a single tick.
+    // If you add a sticky field to FrameData, preserve it here.
+    const prev = deps.runtimeState.frame;
+    deps.runtimeState.frame = {
+      crosshairs: [],
+      ...(prev?.gameOver !== undefined ? { gameOver: prev.gameOver } : {}),
+    };
     deps.clearHumanCache();
   }
 

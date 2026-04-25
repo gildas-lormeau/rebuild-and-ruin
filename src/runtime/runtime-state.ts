@@ -23,7 +23,6 @@ import {
 import {
   type CastleBuildState,
   type ControlsState,
-  createControlsState,
   type LifeLostDialogState,
   type UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
@@ -309,7 +308,7 @@ export function createRuntimeState(): RuntimeState {
     optionsUI: { returnMode: null, cursor: 0 },
 
     settings: loadSettings(),
-    controlsState: createControlsState(),
+    controlsState: { playerIdx: 0, actionIdx: 0, rebinding: false },
 
     scoreDisplay: {
       deltas: [],
