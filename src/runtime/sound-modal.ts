@@ -30,6 +30,12 @@ interface SoundModal {
   /** Register a callback invoked when the modal closes. Receives the reloaded
    *  `MusicAssets` (undefined if any required file is still missing). */
   setOnClose(callback: (assets: MusicAssets | undefined) => void): void;
+  /** Register a callback invoked synchronously when the close button is
+   *  clicked, before the async `loadStoredAssets` reload. Use this for
+   *  gesture-bound work (e.g. constructing an `AudioContext`) that must
+   *  happen inside the click's transient activation window — the regular
+   *  `onClose` runs after at least one await and may be too late. */
+  setOnCloseSync(callback: () => void): void;
 }
 
 const MUSIC_URL_STORAGE_KEY = "castles99_music_url";
@@ -55,6 +61,7 @@ export function createSoundModal(): SoundModal {
   const closeButton = requireElement<HTMLButtonElement>("#btn-sound-close");
 
   let onClose: (assets: MusicAssets | undefined) => void = () => {};
+  let onCloseSync: () => void = () => {};
 
   urlInput.value =
     localStorage.getItem(MUSIC_URL_STORAGE_KEY) || DEFAULT_ARCHIVE_URL;
@@ -84,6 +91,10 @@ export function createSoundModal(): SoundModal {
 
   function close(): void {
     modal.hidden = true;
+    // Sync first: lets the consumer construct AudioContext / call resume()
+    // inside the close-button gesture. Async second: hand back the reloaded
+    // assets once IDB has confirmed them.
+    onCloseSync();
     void loadStoredAssets().then((assets) => onClose(assets));
   }
 
@@ -105,7 +116,9 @@ export function createSoundModal(): SoundModal {
     statusOutput.textContent = `Fetching ${url} \u2026`;
     loadUrlButton.disabled = true;
     try {
-      reportResult(await fetchAndStoreFromArchive(url));
+      const result = await fetchAndStoreFromArchive(url);
+      reportResult(result);
+      await maybeRenderAfterUpload(result);
     } catch (error) {
       statusOutput.textContent = `Load failed: ${
         error instanceof Error ? error.message : String(error)
@@ -120,7 +133,9 @@ export function createSoundModal(): SoundModal {
     if (!files?.length) return;
     statusOutput.textContent = `Saving ${files.length} file(s) \u2026`;
     try {
-      reportResult(await storeAssets(Array.from(files)));
+      const result = await storeAssets(Array.from(files));
+      reportResult(result);
+      await maybeRenderAfterUpload(result);
     } catch (error) {
       statusOutput.textContent = `Save failed: ${
         error instanceof Error ? error.message : String(error)
@@ -143,16 +158,67 @@ export function createSoundModal(): SoundModal {
         `Rejected: ${result.rejected.map((entry) => `${entry.name} (${entry.reason})`).join("; ")}.`,
       );
     }
-    if (!result.missing.length && !result.rejected.length) {
-      parts.push("Music is ready \u2014 close to hear it.");
-    }
     statusOutput.textContent = parts.join(" ");
+  }
+
+  // After a successful upload that produced a complete asset set, render
+  // every track to PCM and persist it. This pushes the slow synth pass out
+  // of the in-game `activate()` path and into the settings flow where the
+  // user already expects to wait. If the asset set is incomplete (still
+  // missing files), skip \u2014 the next upload will trigger this again.
+  async function maybeRenderAfterUpload(result: StoreResult): Promise<void> {
+    if (!result.accepted.length) return;
+    if (result.missing.length) return;
+    const assets = await loadStoredAssets();
+    if (!assets) return;
+    statusOutput.textContent = "Rendering music \u2026";
+    // We need a sample rate but no playback. AudioContext starts suspended
+    // outside a user gesture; .sampleRate is readable regardless. Closing
+    // it releases the resource immediately.
+    let sampleRate = 48000;
+    try {
+      if (typeof AudioContext !== "undefined") {
+        const probe = new AudioContext();
+        sampleRate = probe.sampleRate;
+        await probe.close().catch(() => {});
+      }
+    } catch {
+      // Probe failed \u2014 fall back to 48 kHz default. Resampling at playback
+      // covers any mismatch.
+    }
+    try {
+      // Dynamic import keeps Vite's `?url` suffix out of the Deno test
+      // harness's static-resolution path. The renderer module pulls in
+      // libadlmidi WASM URLs that Deno can't parse.
+      const loader = await import("./music-synth-loader.ts");
+      const summary = await loader.renderAllTracksToCache(
+        assets,
+        sampleRate,
+        (done, total) => {
+          statusOutput.textContent = `Rendering music \u2026 ${done}/${total}`;
+        },
+      );
+      if (summary.failed.length) {
+        statusOutput.textContent =
+          `Music ready, but ${summary.failed.length} track(s) failed to ` +
+          `render: ${summary.failed.join(", ")}.`;
+      } else {
+        statusOutput.textContent = `Music ready (${summary.rendered} tracks). Close to hear it.`;
+      }
+    } catch (error) {
+      statusOutput.textContent = `Render failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`;
+    }
   }
 
   return {
     show,
     setOnClose(callback) {
       onClose = callback;
+    },
+    setOnCloseSync(callback) {
+      onCloseSync = callback;
     },
   };
 }

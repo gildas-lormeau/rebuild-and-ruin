@@ -1,111 +1,107 @@
 /**
- * Browser-only synth loader — isolates the Vite-specific `?url` imports for
- * libadlmidi-js's AudioWorklet + WASM assets. music-player.ts dynamically
- * imports this on first play so the Deno test harness never resolves the
- * URLs (Deno doesn't understand Vite's `?url` suffix).
+ * Music render path — drives the headless libadlmidi WASM core to convert
+ * player-supplied Rampart XMIs into raw PCM, and wraps the persistence
+ * layer that caches the result in IndexedDB.
+ *
+ * Music playback is fully PCM-based: every track (bg loops, one-shot
+ * stingers, tower-enclosure fanfares) is rendered once at upload-time
+ * (`renderAllTracksToCache`) so the in-game `activate()` path is a pure
+ * IDB read + `AudioBuffer` construction. No live AudioWorklet, no
+ * per-frame synth CPU. Browser-native loop support handles XMI `FOR/NEXT`
+ * markers at playback via `source.loop` / `loopStart` / `loopEnd`.
+ *
+ * Vite-specific `?url` import is isolated here so the Deno test harness
+ * never resolves it (Deno doesn't understand the `?url` suffix).
  */
 
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";
-import wasmUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.wasm?url";
-import processorUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.processor.js?url";
 import { ailToWopl } from "../shared/platform/ail-to-wopl.ts";
-import type { MusicAssets } from "./music-assets.ts";
+import {
+  xmiContainerBlocks,
+  xmidToSmf,
+} from "../shared/platform/xmi-to-smf.ts";
+import {
+  type CachedPcm,
+  fanfareCacheId,
+  type MusicAssets,
+  PRERENDER_BG_TRACKS,
+  PRERENDER_FANFARE_SONGS,
+  storePcmCache,
+  type XmiFileKey,
+} from "./music-assets.ts";
 
-export interface SynthHandle {
-  readonly audioContext: AudioContext | null;
-  loadMidi(buffer: ArrayBuffer): Promise<void>;
-  play(): Promise<void>;
-  stop(): Promise<void>;
-  selectSongNum(num: number): void;
-  /** Enable/disable looping for the loaded file. XMI files with explicit
-   *  loopstart/loopend markers honor them; files without markers loop from
-   *  the end back to the start. */
-  setLoopEnabled(enabled: boolean): void;
-  /** Detected loop markers in seconds, or -1 if absent. XMI `FOR/NEXT` and
-   *  standard MIDI `loopStart`/`loopEnd` text markers both surface here. */
-  getLoopStartTime(): Promise<number>;
-  getLoopEndTime(): Promise<number>;
-  getMusicTitle(): Promise<string>;
-  getMarkerCount(): Promise<number>;
-  getSongsCount(): Promise<number>;
-  /** Output-level gain for this synth. 1.0 = neutral, applied between the
-   *  worklet node and the AudioContext destination. Use to level tracks
-   *  whose XMI mix is quieter than others (e.g. RXMI_CANNON vs TETRIS). */
-  setVolume(value: number): void;
-  /** Ramp the gain linearly to `value` over `durationSec` on the synth's
-   *  AudioContext clock. Cancels any prior ramp in flight. Used for
-   *  phase-transition decrescendos (e.g. build bg fading into the
-   *  countdown snare). */
-  fadeTo(value: number, durationSec: number): void;
-}
-
-/** Headless renderer for short MIDI sub-songs — drives the libadlmidi WASM
- *  core directly (no AudioWorklet, no live AudioContext) and returns a
- *  PCM AudioBuffer ready to play via AudioBufferSourceNode. Used for the
- *  tower-enclosure fanfares: each variant is a fixed one-shot ~1.5 s long,
- *  so rendering once at activate-time and replaying via plain BufferSources
- *  drops idle CPU to zero (no per-slot worklet ticking) and supports free
- *  overlap when two enclosures land in the same window. */
-interface FanfareRenderer {
-  /** Render a sub-song from `midi` (SMF bytes) to a stereo AudioBuffer
-   *  on `destinationContext`. Returns undefined if the WASM core rejects
-   *  the data — caller falls back to silence for that slot. Synchronous
-   *  WASM call; the `Promise` shape on `createFanfareRenderer` covers the
-   *  one-time WASM module load, not per-track render. */
-  render(midi: Uint8Array, songIndex: number): AudioBuffer | undefined;
-  /** Free the WASM player. Idempotent. */
+interface PcmRenderer {
+  render(midi: Uint8Array): CachedPcm | undefined;
   close(): void;
 }
 
-export async function loadSynth(assets: MusicAssets): Promise<SynthHandle> {
-  const module = await import("libadlmidi-js/dosbox/slim");
-  const synth = new module.AdlMidi();
-  await synth.init(processorUrl, wasmUrl);
-  const wopl = ailToWopl(assets.rampAd);
-  const buffer = new ArrayBuffer(wopl.byteLength);
-  new Uint8Array(buffer).set(wopl);
-  await synth.loadBankData(buffer);
+const FANFARE_FILE: XmiFileKey = "RXMI_TETRIS.xmi";
 
-  // Insert a GainNode between the worklet and the destination so callers
-  // can trim per-track volume. Transparent at value=1.0. The AdlMidi profile
-  // re-exports don't publish types for the inherited `node` field, so access
-  // via a structural cast.
-  const ctx = synth.audioContext;
-  const workletNode = (synth as unknown as { node: AudioWorkletNode | null })
-    .node;
-  let gainNode: GainNode | undefined;
-  if (ctx && workletNode) {
-    gainNode = ctx.createGain();
-    gainNode.gain.value = 1;
-    workletNode.disconnect();
-    workletNode.connect(gainNode);
-    gainNode.connect(ctx.destination);
+export async function renderAllTracksToCache(
+  assets: MusicAssets,
+  sampleRate: number,
+  onProgress?: (done: number, total: number) => void,
+): Promise<{ rendered: number; total: number; failed: readonly string[] }> {
+  const total = PRERENDER_BG_TRACKS.length + PRERENDER_FANFARE_SONGS.length;
+  const failed: string[] = [];
+  const renderer = await createPcmRenderer(assets, sampleRate);
+  if (!renderer) {
+    return { rendered: 0, total, failed: ["renderer-init-failed"] };
   }
-
-  return Object.assign(synth, {
-    setVolume(value: number): void {
-      if (gainNode) gainNode.gain.value = value;
-    },
-    fadeTo(value: number, durationSec: number): void {
-      if (!gainNode || !ctx) return;
-      const now = ctx.currentTime;
-      // Pin current value then ramp — without setValueAtTime the ramp
-      // would start from the last scheduled point, which breaks mid-fade
-      // cancellations (e.g. immediate stop during a decrescendo).
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(value, now + durationSec);
-    },
-  });
+  let done = 0;
+  let rendered = 0;
+  // Yield to the event loop so UI can paint the progress between renders.
+  // Render is synchronous WASM and would otherwise block the main thread.
+  const yieldToUi = () =>
+    new Promise<void>((resolve) => setTimeout(resolve, 0));
+  try {
+    for (const spec of PRERENDER_BG_TRACKS) {
+      const smf = extractSmfBlock(assets, spec.file, spec.songIndex);
+      if (!smf) {
+        failed.push(spec.id);
+      } else {
+        const pcm = renderer.render(smf);
+        if (pcm) {
+          await storePcmCache(spec.id, pcm);
+          rendered += 1;
+        } else {
+          failed.push(spec.id);
+        }
+      }
+      done += 1;
+      onProgress?.(done, total);
+      await yieldToUi();
+    }
+    for (const songIndex of PRERENDER_FANFARE_SONGS) {
+      const id = fanfareCacheId(songIndex);
+      const smf = extractSmfBlock(assets, FANFARE_FILE, songIndex);
+      if (!smf) {
+        failed.push(id);
+      } else {
+        const pcm = renderer.render(smf);
+        if (pcm) {
+          await storePcmCache(id, pcm);
+          rendered += 1;
+        } else {
+          failed.push(id);
+        }
+      }
+      done += 1;
+      onProgress?.(done, total);
+      await yieldToUi();
+    }
+  } finally {
+    renderer.close();
+  }
+  return { rendered, total, failed };
 }
 
-export async function createFanfareRenderer(
+async function createPcmRenderer(
   assets: MusicAssets,
-  destinationContext: AudioContext,
-): Promise<FanfareRenderer | undefined> {
+  sampleRate: number,
+): Promise<PcmRenderer | undefined> {
   const module = await import("libadlmidi-js/dosbox/slim");
   const core = await module.AdlMidiCore.create({ corePath: coreUrl });
-  const sampleRate = destinationContext.sampleRate;
   if (!core.init(sampleRate)) {
     core.close();
     return undefined;
@@ -124,11 +120,14 @@ export async function createFanfareRenderer(
   const CHUNK_FRAMES = 4096;
 
   return {
-    render(midi, songIndex) {
+    render(midi) {
       const midiBuf = new ArrayBuffer(midi.byteLength);
       new Uint8Array(midiBuf).set(midi);
       if (!core.loadMidi(midiBuf)) return undefined;
-      core.selectSongNum(songIndex);
+      // Loops disabled for offline render: we capture one full pass (intro +
+      // one loop body iteration). At playback time the AudioBufferSourceNode
+      // re-loops the marked region indefinitely — far cheaper than re-running
+      // the synth.
       core.setLoopEnabled(false);
 
       const totalFrames = Math.ceil(
@@ -149,21 +148,36 @@ export async function createFanfareRenderer(
       }
 
       if (writtenFrames === 0) return undefined;
-      const buffer = destinationContext.createBuffer(
-        2,
-        writtenFrames,
+      // Trim the buffer to the actual frame count rather than handing the
+      // padded full-length array to the cache.
+      const pcm =
+        writtenFrames * 2 < interleaved.length
+          ? interleaved.slice(0, writtenFrames * 2)
+          : interleaved;
+      return {
+        pcm,
+        frames: writtenFrames,
         sampleRate,
-      );
-      const left = buffer.getChannelData(0);
-      const right = buffer.getChannelData(1);
-      for (let i = 0; i < writtenFrames; i += 1) {
-        left[i] = interleaved[i * 2]!;
-        right[i] = interleaved[i * 2 + 1]!;
-      }
-      return buffer;
+        loopStartSec: core.getLoopStartTime(),
+        loopEndSec: core.getLoopEndTime(),
+      };
     },
     close() {
       core.close();
     },
   };
+}
+
+/** Extract one sub-song from an XMI container and convert it to standard
+ *  MIDI bytes. Returns undefined if the container is missing the requested
+ *  block or if the conversion fails. */
+function extractSmfBlock(
+  assets: MusicAssets,
+  file: XmiFileKey,
+  songIndex: number,
+): Uint8Array | undefined {
+  const blocks = xmiContainerBlocks(assets.xmi[file]);
+  const block = blocks[songIndex]?.block;
+  if (!block) return undefined;
+  return xmidToSmf(block) ?? undefined;
 }

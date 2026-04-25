@@ -1,47 +1,37 @@
 /**
- * Music sub-system — libadlmidi-js-driven OPL3 playback of player-supplied
- * Rampart music files.
+ * Music sub-system — PCM playback of player-supplied Rampart music.
  *
- * ### Synth topology
+ * ### Topology
  *
- * All non-overlapping tracks (title / cannon-bg / build-bg / score-bg /
- * life-lost / jaws) share one `bgSynth`. Game flow guarantees only one plays
- * at a time — phases are sequential and the stingers (life-lost, jaws) sit in
- * windows where no other bg track is running. Collapsing them onto one synth
- * means one AudioContext + WASM instance instead of six, well below the
- * browser's active-context cap.
- *
- * Fanfares overlap bg music (an enclosure completed mid-build fires a fanfare
- * while build-bg keeps playing). Rather than spinning a second worklet per
- * slot, they're pre-rendered once at activate-time via the headless WASM core
- * (no AudioContext, no AudioWorklet) and replayed via plain
- * `AudioBufferSourceNode` on the bg synth's AudioContext. Free overlap, zero
- * idle CPU.
+ * Every track (title / cannon-bg / build-bg / score-bg / life-lost / jaws)
+ * and every fanfare variant is rendered once at upload-time
+ * ([sound-modal.ts](./sound-modal.ts) → `renderAllTracksToCache` in
+ * [music-synth-loader.ts](./music-synth-loader.ts)) and persisted as PCM
+ * in IndexedDB. The in-game `activate()` path just reads the cache and
+ * builds `AudioBuffer`s — no WASM, no synth, ready in ~10 ms instead of
+ * the 5–10 s a fresh render takes on mobile. Playback creates a fresh
+ * `AudioBufferSourceNode` per trigger; looping is handled by the browser
+ * (`source.loop` + XMI `loopStart` / `loopEnd` when present), volume +
+ * fades by a per-trigger `GainNode`. No live AudioWorklet, free overlap
+ * of fanfares with bg.
  *
  * Plays RXMI_TITLE.xmi from the moment the subsystem is bound to a game bus
- * (first launch + rematch) until the first WALL_BUILD phase starts. Silent if
- * `MusicAssets` is null (player hasn't dropped in their Rampart files). Mirrors
- * the observer+bus pattern used by [runtime-haptics.ts](./runtime-haptics.ts).
+ * (first launch + rematch) until the first WALL_BUILD phase starts. Silent
+ * if the cache is empty (player hasn't dropped in their Rampart files yet,
+ * or the render after their last upload failed). Mirrors the observer+bus
+ * pattern used by [runtime-haptics.ts](./runtime-haptics.ts).
  *
  * ### Autoplay policy
  *
  * Browsers suspend a fresh AudioContext until a user gesture. The first
- * `synth.init()` call therefore may hang pending a click/tap. We don't try to
- * start music at construction time; instead the composition root wires it to
- * the first UI_TAP on each new bus.
- *
- * ### libadlmidi-js
- *
- * Bundled as an npm dep, lazy-loaded on the first `activate()` so the main
- * entry chunk stays small. The processor.js + core.wasm files ship as
- * `new URL(..., import.meta.url)` asset references that Vite emits into
- * dist/ at build time — no CDN at runtime.
+ * `activate()` call is wired to the home-page "Play" button so the context
+ * resumes inside that gesture.
  *
  * ### Test observer
  *
  * Tests pass an optional `observer` that captures `onPlay(track)` / `onStop`
  * intents, so a scenario can assert "binding this bus would trigger title
- * music" without booting an AudioContext or fetching WASM.
+ * music" without booting an AudioContext or reading IndexedDB.
  */
 
 import {
@@ -59,17 +49,21 @@ import {
   AUDIO_CONTEXT_SUSPENDED,
 } from "../shared/platform/platform.ts";
 import {
-  xmiContainerBlocks,
-  xmidToSmf,
-} from "../shared/platform/xmi-to-smf.ts";
-import type { MusicAssets, XmiFileKey } from "./music-assets.ts";
-import type { SynthHandle } from "./music-synth-loader.ts";
+  type CachedPcm,
+  fanfareCacheId,
+  loadPcmCache,
+  PRERENDER_BG_TRACKS,
+  PRERENDER_FANFARE_SONGS,
+  type XmiFileKey,
+} from "./music-assets.ts";
 
 interface MusicSubsystem {
-  /** Pre-warm the AudioContext + WASM inside a user-gesture handler (the
-   *  home-page "Play" button click). Pure side-effect: kicks off synth init
-   *  and returns when WOPL is loaded. No playback yet. Safe to call repeatedly;
-   *  subsequent calls are no-ops. */
+  /** Pre-warm the AudioContext + decode every cached PCM track into
+   *  AudioBuffers, inside a user-gesture handler (the home-page "Play"
+   *  button click). Returns once buffers are ready. Idempotent — repeat
+   *  calls short-circuit. Silent if no PCM is cached (user hasn't
+   *  uploaded their Rampart files yet, or the upload-time render
+   *  hasn't completed). */
   activate(): Promise<void>;
   /** Start the RXMI_TITLE.xmi track. Called from the lobby entry point so
    *  music covers the pre-game screen. Idempotent per instance. */
@@ -77,8 +71,8 @@ interface MusicSubsystem {
   /** Stop any active playback. Idempotent. */
   stopTitle(): Promise<void>;
   /** Play the one-shot tower-enclosure fanfare for a player. Picks a
-   *  TETRIS sub-song by player slot (5/6/7 cycle). Runs on its own synth
-   *  so it can overlap build-bg during WALL_BUILD. */
+   *  TETRIS sub-song by player slot (5/6/7 cycle). Plays through a fresh
+   *  AudioBufferSourceNode so it overlaps any in-flight bg track for free. */
   playFanfare(playerId: ValidPlayerSlot): Promise<void>;
   /** Bind to the supplied game bus so PHASE_START=WALL_BUILD auto-stops the
    *  title track when the first castle goes down. Re-binding to a different
@@ -89,34 +83,28 @@ interface MusicSubsystem {
    *  and stop on WALL_BUILD exit. Mirrors sfx-player's equivalent hook. */
   tickPresentation(state: GameState): void;
   /** Suspend or resume the AudioContext — wired to `document.visibilitychange`
-   *  so music doesn't keep looping in a backgrounded tab. No-op until the
-   *  synth has been initialized. */
+   *  so music doesn't keep looping in a backgrounded tab. No-op until
+   *  `activate()` has run. */
   setPaused(paused: boolean): Promise<void>;
   /** Release the bus listener and stop playback. */
   dispose(): Promise<void>;
 }
 
 interface MusicSubsystemDeps {
-  /** Live getter so the composition root can construct the subsystem once and
-   *  let the settings dialog populate IDB later — the first `activate()` or
-   *  bus subscription after files are loaded will pick them up. */
-  readonly getAssets: () => MusicAssets | undefined;
-  /** Optional promise the subsystem awaits inside `activate()` so the
-   *  home-page click handler can race ahead of the initial IDB read without
-   *  silently getting null assets. */
-  readonly assetsReady?: Promise<void>;
   readonly observer?: MusicObserver;
 }
 
 type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
 
-/** Descriptor for a track that plays on the shared `bgSynth`. `id` is the
- *  opaque label surfaced to the test observer — disambiguates same-file
- *  different-sub-song tracks (build-bg vs life-lost both live in TETRIS.xmi). */
+/** Metadata for a track playing through the shared AudioContext. `cacheId`
+ *  is the IDB key (matches an entry in `PRERENDER_BG_TRACKS`); `id` is the
+ *  opaque label surfaced to the test observer — same string in current
+ *  use, kept distinct so the cache key can change without breaking
+ *  observer expectations. */
 interface BgTrack {
   readonly id: string;
+  readonly cacheId: string;
   readonly file: XmiFileKey;
-  readonly songIndex: number;
   readonly loop: boolean;
   readonly volume: number;
 }
@@ -138,22 +126,22 @@ const TRACK_VOLUMES: Record<BgTrackId, number> = {
 const FANFARE_VOLUME = 1.25;
 const BG_TRACK_TITLE: BgTrack = {
   id: "RXMI_TITLE.xmi",
+  cacheId: "RXMI_TITLE.xmi",
   file: "RXMI_TITLE.xmi",
-  songIndex: 0,
   loop: true,
   volume: TRACK_VOLUMES.title,
 };
 const BG_TRACK_CANNON: BgTrack = {
   id: "RXMI_CANNON.xmi",
+  cacheId: "RXMI_CANNON.xmi",
   file: "RXMI_CANNON.xmi",
-  songIndex: 0,
   loop: true,
   volume: TRACK_VOLUMES.cannon,
 };
 const BG_TRACK_BUILD: BgTrack = {
   id: "RXMI_TETRIS.xmi",
+  cacheId: "RXMI_TETRIS.xmi",
   file: "RXMI_TETRIS.xmi",
-  songIndex: 0,
   loop: true,
   volume: TRACK_VOLUMES.build,
 };
@@ -162,8 +150,8 @@ const BG_TRACK_BUILD: BgTrack = {
 // the duration of the between-rounds score-delta overlay.
 const BG_TRACK_SCORE: BgTrack = {
   id: "RXMI_SCORE.xmi",
+  cacheId: "RXMI_SCORE.xmi",
   file: "RXMI_SCORE.xmi",
-  songIndex: 4,
   loop: true,
   volume: TRACK_VOLUMES.score,
 };
@@ -174,8 +162,8 @@ const BG_TRACK_SCORE: BgTrack = {
 // replace it; if a very short reselect races ahead the tail gets clipped.
 const BG_TRACK_LIFE_LOST: BgTrack = {
   id: "RXMI_TETRIS.xmi#life-lost",
+  cacheId: "RXMI_TETRIS.xmi#life-lost",
   file: "RXMI_TETRIS.xmi",
-  songIndex: 1,
   loop: false,
   volume: TRACK_VOLUMES.lifeLost,
 };
@@ -186,8 +174,8 @@ const BG_TRACK_LIFE_LOST: BgTrack = {
 // trim to keep the animation beat tight.
 const BG_TRACK_JAWS: BgTrack = {
   id: "RXMI_BATTLE.xmi",
+  cacheId: "RXMI_BATTLE.xmi",
   file: "RXMI_BATTLE.xmi",
-  songIndex: 6,
   loop: false,
   volume: TRACK_VOLUMES.jaws,
 };
@@ -195,6 +183,8 @@ const FANFARE_TRACK: XmiFileKey = "RXMI_TETRIS.xmi";
 // Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
+// Sub-songs are persisted in the cache by index; this map picks one
+// per player slot.
 const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
 // Build bg decrescendo runs on the same 1 s window as the snare's
 // crescendo in sfx-player.ts (SNARE_CRESCENDO_SEC): fade STARTS at
@@ -207,29 +197,28 @@ const STOP_REASON_PHASE = "phase" as const;
 const STOP_REASON_DISPOSE = "dispose" as const;
 
 export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
-  // Shared synth for all non-fanfare tracks. Game flow guarantees only one
-  // bg track plays at a time, so one AudioContext + WASM instance handles
-  // all six.
-  let bgSynth: Promise<SynthHandle | undefined> | undefined;
-  // Track currently loaded into bgSynth. loadMidi is skipped when the same
-  // track is (re)played — repeat triggers only pay the stop+play rewind cost.
-  let bgLoaded: BgTrack | undefined;
+  // Single AudioContext shared by every bg track + every fanfare. Created
+  // lazily inside `activate()` so the constructor never touches Web Audio
+  // outside a user gesture. No worklet, no WASM at runtime.
+  let audioContext: AudioContext | undefined;
+  // Active bg source + its volume gain. Stopping bg = `source.stop()` +
+  // null these out. Fading bg = ramp `gain.gain` on the audio-clock.
+  let activeSource: AudioBufferSourceNode | undefined;
+  let activeGain: GainNode | undefined;
   // Track most recently asked to play; cleared by stopBg. Drives
   // tickPresentation's build-bg fade trigger and the setPaused restart hook.
   let bgPlaying: BgTrack | undefined;
-  // Cached SMF bytes per (file, songIndex). XMI→SMF conversion happens once
-  // per unique track per session; switching tracks only replays cached bytes
-  // plus a fresh copy (AudioWorklet transfers ownership on loadMidi). null
-  // means "we tried to parse this once and it failed" — don't warn again.
-  const smfCache = new Map<string, Uint8Array | null>();
 
-  // Pre-rendered PCM AudioBuffers for each fanfare variant, keyed by player
-  // slot. Built once during `activate()` via the headless WASM core (no
-  // worklet, no extra AudioContext). Playback creates an AudioBufferSourceNode
-  // on the bg synth's context — free overlap, no per-slot worklet ticking.
+  // AudioBuffers built from cached PCM during activate(). Bg tracks live
+  // by track id, fanfares by player slot. Populated incrementally — each
+  // `activateOnce()` call only loads tracks not already cached, so the
+  // first activate (cache empty) followed by a settings-modal upload +
+  // close (cache populated) ends up loading the new entries on the
+  // post-upload activate without needing a page refresh.
+  const bgBuffers = new Map<string, CachedPcm>();
   const fanfareBuffers = new Map<number, AudioBuffer>();
-  let fanfaresPrerendered = false;
-  let fanfaresPrerenderingPromise: Promise<void> | undefined;
+  const bgAudioBuffers = new Map<string, AudioBuffer>();
+  let activatingPromise: Promise<void> | undefined;
 
   // `wantsTitle` is the caller's intent (lobby said "play title"). `paused`
   // means the composition told us the host tab is hidden / externally
@@ -253,81 +242,143 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     handler: GameEventHandler<EventKey>;
   }> = [];
 
-  function loadSmf(track: BgTrack): Uint8Array | undefined {
-    const key = `${track.file}#${track.songIndex}`;
-    if (smfCache.has(key)) return smfCache.get(key) ?? undefined;
-    const assets = deps.getAssets();
-    if (!assets) return undefined;
-    const blocks = xmiContainerBlocks(assets.xmi[track.file]);
-    const block = blocks[track.songIndex]?.block;
-    if (!block) {
-      console.warn(
-        `[music] ${track.id} sub-song ${track.songIndex} missing in ${track.file}`,
-      );
-      smfCache.set(key, null);
-      return undefined;
-    }
-    const smf = xmidToSmf(block);
-    if (!smf) {
-      console.warn(`[music] ${track.id} has no EVNT chunk`);
-      smfCache.set(key, null);
-      return undefined;
-    }
-    smfCache.set(key, smf);
-    return smf;
+  function ensureAudioContext(): AudioContext | undefined {
+    if (audioContext) return audioContext;
+    if (typeof AudioContext === "undefined") return undefined;
+    audioContext = new AudioContext();
+    return audioContext;
   }
 
-  // Permanent-fail latch: a failed synth init (dynamic import error, WASM load
-  // failure, loadSynth throw) is deterministic within a session — the asset
-  // bundle and browser caps don't change. Without the latch, every subsequent
-  // playBg/activate would re-run the same guaranteed-failing init.
-  let bgSynthLoadFailed = false;
+  function pcmToAudioBuffer(ctx: AudioContext, pcm: CachedPcm): AudioBuffer {
+    // Cached PCM is rendered at the device sample rate the user had at
+    // upload time — usually but not always the same as `ctx.sampleRate`.
+    // Constructing the AudioBuffer at the cached rate is correct: the
+    // AudioBufferSourceNode resamples on playback if rates differ.
+    const buffer = ctx.createBuffer(2, pcm.frames, pcm.sampleRate);
+    const left = buffer.getChannelData(0);
+    const right = buffer.getChannelData(1);
+    for (let i = 0; i < pcm.frames; i += 1) {
+      left[i] = pcm.pcm[i * 2]!;
+      right[i] = pcm.pcm[i * 2 + 1]!;
+    }
+    return buffer;
+  }
 
-  function ensureBgSynth(): Promise<SynthHandle | undefined> {
-    if (bgSynthLoadFailed) return Promise.resolve(undefined);
-    if (bgSynth) return bgSynth;
-    bgSynth = (async () => {
-      const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      return loader.loadSynth(assets);
-    })().catch((error) => {
-      console.error("[music] synth init failed:", error);
-      bgSynthLoadFailed = true;
-      bgSynth = undefined;
-      deps.observer?.onInitError?.(error);
-      return undefined;
+  function activateOnce(): Promise<void> {
+    if (activatingPromise) return activatingPromise;
+    activatingPromise = (async () => {
+      const ctx = ensureAudioContext();
+      if (!ctx) return;
+      // Resume now (we're inside the home-page click). Safe to call repeatedly.
+      if (ctx.state === AUDIO_CONTEXT_SUSPENDED) {
+        await ctx.resume().catch(() => {});
+      }
+      // Hydrate bg tracks from the upload-time PCM cache. Skip tracks
+      // already loaded — repeat calls (e.g. after a settings-modal upload)
+      // only pay the IDB cost for newly-cached entries. Missing entries
+      // (cache wiped, render failed, user hasn't uploaded yet) leave the
+      // track silent — playBg gracefully no-ops.
+      for (const spec of PRERENDER_BG_TRACKS) {
+        if (bgAudioBuffers.has(spec.id)) continue;
+        const pcm = await loadPcmCache(spec.id).catch((error) => {
+          console.warn(`[music] cache read failed for ${spec.id}:`, error);
+          return undefined;
+        });
+        if (!pcm) continue;
+        bgBuffers.set(spec.id, pcm);
+        bgAudioBuffers.set(spec.id, pcmToAudioBuffer(ctx, pcm));
+      }
+      // Hydrate fanfares the same way; map every slot that uses each
+      // sub-song to the same AudioBuffer (slots 0 and 3 share song 4).
+      const fanfareAudioBySong = new Map<number, AudioBuffer>();
+      for (const songIndex of PRERENDER_FANFARE_SONGS) {
+        if (
+          // already loaded for some slot? skip the IDB read.
+          [...fanfareBuffers.entries()].some(
+            ([slot, buf]) =>
+              FANFARE_SONG_BY_SLOT[slot] === songIndex && buf !== undefined,
+          )
+        ) {
+          continue;
+        }
+        const pcm = await loadPcmCache(fanfareCacheId(songIndex)).catch(
+          (error) => {
+            console.warn(
+              `[music] cache read failed for fanfare ${songIndex}:`,
+              error,
+            );
+            return undefined;
+          },
+        );
+        if (!pcm) continue;
+        fanfareAudioBySong.set(songIndex, pcmToAudioBuffer(ctx, pcm));
+      }
+      for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
+        if (fanfareBuffers.has(slot)) continue;
+        const songIndex = FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0];
+        if (songIndex === undefined) continue;
+        const buffer = fanfareAudioBySong.get(songIndex);
+        if (buffer) fanfareBuffers.set(slot, buffer);
+      }
+    })();
+    // Clear the in-flight handle once the load resolves, so a later
+    // call (e.g. after the settings modal closes with new PCM in IDB)
+    // re-runs the cache load instead of returning the cached resolved
+    // promise.
+    void activatingPromise.finally(() => {
+      activatingPromise = undefined;
     });
-    return bgSynth;
+    return activatingPromise;
+  }
+
+  function stopActiveSource(): void {
+    if (!activeSource) return;
+    try {
+      activeSource.stop();
+    } catch {
+      // Source already ended — fine.
+    }
+    activeSource = undefined;
+    activeGain = undefined;
   }
 
   async function playBg(track: BgTrack): Promise<void> {
     if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureBgSynth();
-    if (!synth || paused) return;
+    await activateOnce();
+    if (paused) return;
+    const ctx = audioContext;
+    const buffer = bgAudioBuffers.get(track.cacheId);
+    const pcm = bgBuffers.get(track.cacheId);
+    if (!ctx || !buffer || !pcm) return;
     try {
-      // stop() before (re)play rewinds so a repeat trigger replays from the
-      // top. Also cancels any in-flight fade from the previous use of this
-      // synth (the build-bg decrescendo leaves the gain ramped to 0).
-      await synth.stop();
-      if (bgLoaded !== track) {
-        const smf = loadSmf(track);
-        if (!smf) return;
-        // AudioWorklet messaging transfers ownership — hand over a copy so
-        // the cached SMF stays intact for subsequent replays.
-        await synth.loadMidi(copyBuffer(smf));
-        // Loop flag applies to the currently loaded file; must be set after
-        // loadMidi, not before.
-        synth.setLoopEnabled(track.loop);
-        bgLoaded = track;
+      stopActiveSource();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      if (track.loop) {
+        source.loop = true;
+        // XMI FOR/NEXT markers: re-loop only the marked region. Without
+        // markers, source.loop with default loopStart=0 / loopEnd=0
+        // re-loops the entire buffer.
+        if (pcm.loopStartSec >= 0 && pcm.loopEndSec > 0) {
+          source.loopStart = pcm.loopStartSec;
+          source.loopEnd = pcm.loopEndSec;
+        }
       }
-      // Reset gain every play — the previous track's fade (or its own
-      // different volume) otherwise bleeds in. setVolume writes .gain.value
-      // directly, which beats an already-settled ramp; active ramps are
-      // cancelled by the preceding stop().
-      synth.setVolume(track.volume);
-      await synth.play();
+      const gain = ctx.createGain();
+      gain.gain.value = track.volume;
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      // Self-clear when the source ends naturally (one-shots only — looped
+      // sources keep the references alive until explicit stopBg).
+      source.addEventListener("ended", () => {
+        if (activeSource === source) {
+          activeSource = undefined;
+          activeGain = undefined;
+        }
+      });
+      source.start(0);
+      activeSource = source;
+      activeGain = gain;
       bgPlaying = track;
       buildBgFadeTriggered = false;
       deps.observer?.onPlay?.(track.id);
@@ -336,110 +387,42 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     }
   }
 
-  async function stopBg(
-    reason: "phase" | "rematch" | "dispose",
-  ): Promise<void> {
-    if (!bgSynth) return;
+  function stopBg(reason: "phase" | "rematch" | "dispose"): void {
     const wasPlaying = bgPlaying !== undefined;
     bgPlaying = undefined;
-    try {
-      const synth = await bgSynth;
-      await synth?.stop();
-    } catch {
-      // synth failed to init or is already gone — nothing to stop
-    }
+    stopActiveSource();
     if (wasPlaying) deps.observer?.onStop?.(reason);
   }
 
-  async function fadeOutBg(): Promise<void> {
-    if (!bgSynth) return;
-    const synth = await bgSynth;
-    synth?.fadeTo(0, BUILD_BG_FADE_DURATION_SEC);
+  function fadeOutBg(): void {
+    if (!audioContext || !activeGain) return;
+    const now = audioContext.currentTime;
+    activeGain.gain.cancelScheduledValues(now);
+    activeGain.gain.setValueAtTime(activeGain.gain.value, now);
+    activeGain.gain.linearRampToValueAtTime(
+      0,
+      now + BUILD_BG_FADE_DURATION_SEC,
+    );
   }
 
   async function playTitle(): Promise<void> {
     wantsTitle = true;
-    // Wait for the initial IDB read — the lobby's startTitle() can race ahead.
-    if (deps.assetsReady) await deps.assetsReady;
     if (paused) return; // will start when setPaused(false) fires
     if (bgPlaying === BG_TRACK_TITLE) return;
     await playBg(BG_TRACK_TITLE);
   }
 
-  async function stopTitle(): Promise<void> {
+  function stopTitle(): Promise<void> {
     wantsTitle = false;
-    await stopBg(STOP_REASON_PHASE);
-  }
-
-  function prerenderFanfares(): Promise<void> {
-    if (fanfaresPrerendered) return Promise.resolve();
-    if (fanfaresPrerenderingPromise) return fanfaresPrerenderingPromise;
-    fanfaresPrerenderingPromise = (async () => {
-      if (deps.assetsReady) await deps.assetsReady;
-      const synth = await ensureBgSynth();
-      const ctx = synth?.audioContext;
-      if (!ctx) return;
-      const assets = deps.getAssets();
-      if (!assets) return;
-      const blocks = xmiContainerBlocks(assets.xmi[FANFARE_TRACK]);
-      const loader = await import("./music-synth-loader.ts");
-      const renderer = await loader
-        .createFanfareRenderer(assets, ctx)
-        .catch((error) => {
-          console.error("[music] fanfare renderer init failed:", error);
-          return undefined;
-        });
-      if (!renderer) return;
-      try {
-        // Render each unique sub-song once, then map every slot that uses
-        // that sub-song to the same AudioBuffer (slots 0 and 3 share song 4).
-        const buffersBySong = new Map<number, AudioBuffer>();
-        for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
-          const songIdx =
-            FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0]!;
-          let buffer = buffersBySong.get(songIdx);
-          if (!buffer) {
-            const block = blocks[songIdx]?.block;
-            if (!block) {
-              console.warn(
-                `[music] fanfare song ${songIdx} missing in TETRIS.xmi`,
-              );
-              continue;
-            }
-            const smf = xmidToSmf(block);
-            if (!smf) {
-              console.warn(`[music] fanfare song ${songIdx} has no EVNT chunk`);
-              continue;
-            }
-            let rendered: AudioBuffer | undefined;
-            try {
-              rendered = renderer.render(smf, songIdx);
-            } catch (error) {
-              console.error(
-                `[music] fanfare song ${songIdx} render failed:`,
-                error,
-              );
-              continue;
-            }
-            if (!rendered) continue;
-            buffersBySong.set(songIdx, rendered);
-            buffer = rendered;
-          }
-          fanfareBuffers.set(slot, buffer);
-        }
-      } finally {
-        renderer.close();
-      }
-      fanfaresPrerendered = true;
-    })();
-    return fanfaresPrerenderingPromise;
+    stopBg(STOP_REASON_PHASE);
+    return Promise.resolve();
   }
 
   async function playFanfare(playerId: ValidPlayerSlot): Promise<void> {
     if (paused) return;
-    await prerenderFanfares();
-    const synth = await ensureBgSynth();
-    const ctx = synth?.audioContext;
+    await activateOnce();
+    if (paused) return;
+    const ctx = audioContext;
     if (!ctx) return;
     const buffer = fanfareBuffers.get(playerId) ?? fanfareBuffers.get(0);
     if (!buffer) return;
@@ -465,9 +448,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // Edge: just left WALL_BUILD — hard-stop build-bg (safety net in case
     // the fade signal never crossed, e.g. build phase cut short). Guarded on
     // bgPlaying so we don't cut off the next phase's music (cannon-bg may
-    // already have started on the same synth by the time this frame runs).
+    // already have started by the time this frame runs).
     if (buildBgLastPhase === Phase.WALL_BUILD && phase !== Phase.WALL_BUILD) {
-      if (bgPlaying === BG_TRACK_BUILD) void stopBg(STOP_REASON_PHASE);
+      if (bgPlaying === BG_TRACK_BUILD) stopBg(STOP_REASON_PHASE);
       buildBgFadeTriggered = false;
     }
     buildBgLastPhase = phase;
@@ -477,7 +460,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     if (bgPlaying !== BG_TRACK_BUILD) return;
     if (state.timer <= 0 || state.timer > BUILD_BG_FADE_START_SEC) return;
     buildBgFadeTriggered = true;
-    void fadeOutBg();
+    fadeOutBg();
   }
 
   function unbindCurrentBus(): void {
@@ -514,7 +497,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     bind(GAME_EVENT.CASTLE_PLACED, (event) => {
       if (event.isReselect) return;
       wantsTitle = false;
-      void stopBg(STOP_REASON_PHASE);
+      stopBg(STOP_REASON_PHASE);
     });
 
     // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
@@ -529,14 +512,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         event.bannerKind === "battle" ||
         event.bannerKind === "modifier-reveal"
       ) {
-        void stopBg(STOP_REASON_PHASE);
+        stopBg(STOP_REASON_PHASE);
       } else if (
         event.bannerKind === "build" &&
         bgPlaying === BG_TRACK_CANNON
       ) {
         // Upgrade-pick flow started cannon-bg early to cover the dialog;
         // stop it here so build-bg can take over at bannerSweepEnd.
-        void stopBg(STOP_REASON_PHASE);
+        stopBg(STOP_REASON_PHASE);
       }
     });
 
@@ -557,7 +540,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       void playBg(BG_TRACK_SCORE);
     });
     bind(GAME_EVENT.SCORE_OVERLAY_END, () => {
-      void stopBg(STOP_REASON_PHASE);
+      stopBg(STOP_REASON_PHASE);
     });
 
     // Life-lost popup: one-shot track. Plays through the dialog and into
@@ -576,7 +559,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       void playBg(BG_TRACK_JAWS);
     });
     bind(GAME_EVENT.BALLOON_ANIM_END, () => {
-      void stopBg(STOP_REASON_PHASE);
+      stopBg(STOP_REASON_PHASE);
     });
 
     // Upgrade-pick dialog: play cannon-bg through the whole screen —
@@ -590,30 +573,19 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   }
 
   async function activate(): Promise<void> {
-    if (deps.assetsReady) await deps.assetsReady;
-    await ensureBgSynth();
-    // Pre-render fanfares now (we're inside a user gesture and the bg
-    // AudioContext is warm) so the first enclosure plays without latency.
-    await prerenderFanfares();
-  }
-
-  async function suspendContext(context: AudioContext | null): Promise<void> {
-    if (!context || context.state !== AUDIO_CONTEXT_RUNNING) return;
-    await context.suspend().catch(() => {});
-  }
-
-  async function resumeContext(context: AudioContext | null): Promise<void> {
-    if (!context || context.state !== AUDIO_CONTEXT_SUSPENDED) return;
-    await context.resume().catch(() => {});
+    await activateOnce();
   }
 
   async function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
-    const bgHandle = bgSynth ? await bgSynth.catch(() => undefined) : undefined;
-    // Fanfares share the bg synth's AudioContext, so suspending it quiets
-    // any in-flight AudioBufferSourceNodes alongside the bg track.
-    if (nextPaused) await suspendContext(bgHandle?.audioContext ?? null);
-    else await resumeContext(bgHandle?.audioContext ?? null);
+    const ctx = audioContext;
+    if (ctx) {
+      if (nextPaused && ctx.state === AUDIO_CONTEXT_RUNNING) {
+        await ctx.suspend().catch(() => {});
+      } else if (!nextPaused && ctx.state === AUDIO_CONTEXT_SUSPENDED) {
+        await ctx.resume().catch(() => {});
+      }
+    }
     // Deferred start: if we were asked to play title while paused, kick it off
     // now that the tab is visible again.
     if (!nextPaused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
@@ -623,21 +595,16 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
 
   async function dispose(): Promise<void> {
     unbindCurrentBus();
-    await stopBg(STOP_REASON_DISPOSE);
+    stopBg(STOP_REASON_DISPOSE);
     wantsTitle = false;
-    if (bgSynth) {
-      const synth = await bgSynth.catch(() => undefined);
-      await synth?.audioContext?.close().catch(() => {});
-      bgSynth = undefined;
-      bgLoaded = undefined;
+    if (audioContext) {
+      await audioContext.close().catch(() => {});
+      audioContext = undefined;
     }
-    // Fanfare AudioBuffers are tied to the bg synth's context; closing that
-    // context above unbinds them. Just clear the map so a rematch
-    // re-renders.
+    bgBuffers.clear();
+    bgAudioBuffers.clear();
     fanfareBuffers.clear();
-    fanfaresPrerendered = false;
-    fanfaresPrerenderingPromise = undefined;
-    smfCache.clear();
+    activatingPromise = undefined;
   }
 
   return {
@@ -650,12 +617,4 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     setPaused,
     dispose,
   };
-}
-
-function copyBuffer(bytes: Uint8Array): ArrayBuffer {
-  // AudioWorklet messaging transfers ownership — always hand over a copy so the
-  // caller's view of MusicAssets (and the SMF cache) stays intact after postMessage.
-  const copy = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(copy).set(bytes);
-  return copy;
 }

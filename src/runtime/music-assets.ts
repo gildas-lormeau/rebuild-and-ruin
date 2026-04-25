@@ -5,10 +5,16 @@
  * RAMP.AD + RXMI_*.xmi from a legitimate DOS install via a file picker.
  * Files are cached in IndexedDB so the picker is a one-time chore per browser.
  *
+ * Two object stores live in the same database:
+ * - `assets`: raw uploaded files (RAMP.AD, SOUND.RSC, RXMI_*.xmi).
+ * - `pcm`: rendered PCM tracks (one entry per bg/stinger track and per
+ *   fanfare sub-song). Populated by [music-synth-loader.ts](./music-synth-loader.ts)'s
+ *   `renderAllTracksToCache` after a successful upload, consumed by
+ *   [music-player.ts](./music-player.ts) at activate-time. Wiping `assets`
+ *   wipes `pcm` as well — the rendered audio is keyed off the raw files.
+ *
  * Pure data module: only touches IndexedDB and the File API, no audio/engine
- * dependencies. The music subsystem (separate file) consumes `MusicAssets` to
- * drive libadlmidi-js. If any required file is missing, `loadStoredAssets`
- * returns undefined and the game runs silently.
+ * dependencies.
  */
 
 import { unzipSync } from "fflate";
@@ -37,9 +43,32 @@ export interface StoreResult {
   readonly missing: AssetKey[];
 }
 
+/** Stereo PCM track, structured-cloneable for IDB. Same shape as the
+ *  renderer's in-memory `RenderedPcm` — passed through `storePcmCache` /
+ *  `loadPcmCache` without conversion. */
+export interface CachedPcm {
+  readonly pcm: Float32Array;
+  readonly frames: number;
+  readonly sampleRate: number;
+  readonly loopStartSec: number;
+  readonly loopEndSec: number;
+}
+
+/** Static asset descriptor for a bg/stinger track. The `id` is the cache
+ *  key the playback layer uses to look the rendered PCM up. */
+interface PrerenderSpec {
+  readonly id: string;
+  readonly file: XmiFileKey;
+  readonly songIndex: number;
+}
+
+const FANFARE_FILE: XmiFileKey = "RXMI_TETRIS.xmi";
 const DB_NAME = "rebuild-and-ruin-music";
-const DB_VERSION = 1;
+// Bumped to 2 to add the `pcm` object store. Existing browsers wipe their
+// (small) cache and re-render on next upload — acceptable per direction.
+const DB_VERSION = 2;
 const STORE_NAME = "assets";
+const PCM_STORE_NAME = "pcm";
 /** Expected on-disk sizes from the original DOS install (bytes). Used only as
  *  a sanity check in the validator; libadlmidi rejects malformed content later. */
 const EXPECTED_SIZES: Record<AssetKey, { min: number; max: number }> = {
@@ -63,6 +92,20 @@ const RSC_XMI_NAME_MAP: Readonly<Record<string, XmiFileKey>> = {
 };
 const RAMP_AD_KEY = "RAMP.AD" as const;
 const SOUND_RSC_KEY = "SOUND.RSC" as const;
+/** Bg + one-shot tracks rendered at upload time. Music-player references
+ *  them by id; the renderer iterates them at upload time. */
+export const PRERENDER_BG_TRACKS: readonly PrerenderSpec[] = [
+  { id: "RXMI_TITLE.xmi", file: "RXMI_TITLE.xmi", songIndex: 0 },
+  { id: "RXMI_CANNON.xmi", file: "RXMI_CANNON.xmi", songIndex: 0 },
+  { id: "RXMI_TETRIS.xmi", file: "RXMI_TETRIS.xmi", songIndex: 0 },
+  { id: "RXMI_SCORE.xmi", file: "RXMI_SCORE.xmi", songIndex: 4 },
+  { id: "RXMI_TETRIS.xmi#life-lost", file: "RXMI_TETRIS.xmi", songIndex: 1 },
+  { id: "RXMI_BATTLE.xmi", file: "RXMI_BATTLE.xmi", songIndex: 6 },
+];
+/** Unique fanfare sub-songs in RXMI_TETRIS.xmi. Slot-to-song mapping is
+ *  the playback layer's concern; the renderer just produces one PCM blob
+ *  per unique sub-song. */
+export const PRERENDER_FANFARE_SONGS: readonly number[] = [4, 5, 6];
 export const DEFAULT_ARCHIVE_URL =
   "https://cors.archive.org/cors/msdos_Rampart_1992/Rampart_1992.zip";
 export const XMI_FILE_KEYS = [
@@ -72,6 +115,12 @@ export const XMI_FILE_KEYS = [
   "RXMI_TETRIS.xmi",
   "RXMI_SCORE.xmi",
 ] as const;
+
+/** Shared fanfare-cache id format used by writer (renderer) and reader
+ *  (player). Changing the format requires re-rendering all caches. */
+export function fanfareCacheId(songIndex: number): string {
+  return `${FANFARE_FILE}#fanfare-${songIndex}`;
+}
 
 export async function loadStoredAssets(): Promise<MusicAssets | undefined> {
   if (typeof indexedDB === "undefined") return undefined;
@@ -114,6 +163,52 @@ export async function fetchAndStoreFromArchive(
   if (!response.ok) throw new Error(`fetch ${url}: ${response.status}`);
   const zipBytes = new Uint8Array(await response.arrayBuffer());
   return writeEntries(extractAssetsFromZip(zipBytes));
+}
+
+export async function storePcmCache(
+  trackId: string,
+  data: CachedPcm,
+): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  const database = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(PCM_STORE_NAME, "readwrite");
+      const request = transaction
+        .objectStore(PCM_STORE_NAME)
+        .put(data, trackId);
+      request.onerror = () =>
+        reject(request.error ?? new Error("PCM cache write failed"));
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () =>
+        reject(transaction.error ?? new Error("PCM cache transaction failed"));
+    });
+  } finally {
+    database.close();
+  }
+}
+
+export async function loadPcmCache(
+  trackId: string,
+): Promise<CachedPcm | undefined> {
+  if (typeof indexedDB === "undefined") return undefined;
+  const database = await openDatabase();
+  try {
+    return await new Promise<CachedPcm | undefined>((resolve, reject) => {
+      const transaction = database.transaction(PCM_STORE_NAME, "readonly");
+      const request = transaction.objectStore(PCM_STORE_NAME).get(trackId);
+      request.onsuccess = () => {
+        const value = request.result;
+        if (!value) return resolve(undefined);
+        // Trust the structured-clone shape; producer is `storePcmCache`.
+        resolve(value as CachedPcm);
+      };
+      request.onerror = () =>
+        reject(request.error ?? new Error("PCM cache read failed"));
+    });
+  } finally {
+    database.close();
+  }
 }
 
 function extractAssetsFromZip(
@@ -227,6 +322,10 @@ async function writeEntries(
   } finally {
     database.close();
   }
+  // Any successful write invalidates the rendered PCM (different bank,
+  // different XMI → different audio). Wipe the cache so the next render
+  // pass starts clean. Cheap when the cache is empty.
+  if (accepted.length > 0) await clearPcmCache();
   const missing: AssetKey[] = [];
   const presentKeys = new Set<AssetKey>(accepted);
   const status = await listStoredAssets();
@@ -264,6 +363,22 @@ export async function listStoredAssets(): Promise<StoredFileStatus[]> {
   }
 }
 
+async function clearPcmCache(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  const database = await openDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(PCM_STORE_NAME, "readwrite");
+      const request = transaction.objectStore(PCM_STORE_NAME).clear();
+      request.onerror = () =>
+        reject(request.error ?? new Error("PCM cache clear failed"));
+      transaction.oncomplete = () => resolve();
+    });
+  } finally {
+    database.close();
+  }
+}
+
 function matchAssetKey(filename: string): AssetKey | null {
   const normalized = filename.split(/[\\/]/).at(-1)?.trim();
   if (!normalized) return null;
@@ -283,6 +398,9 @@ function openDatabase(): Promise<IDBDatabase> {
       const database = request.result;
       if (!database.objectStoreNames.contains(STORE_NAME)) {
         database.createObjectStore(STORE_NAME);
+      }
+      if (!database.objectStoreNames.contains(PCM_STORE_NAME)) {
+        database.createObjectStore(PCM_STORE_NAME);
       }
     };
     request.onsuccess = () => resolve(request.result);

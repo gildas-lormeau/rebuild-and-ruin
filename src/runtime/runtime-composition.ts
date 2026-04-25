@@ -246,8 +246,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       console.error("[music] loadStoredAssets failed:", error);
     });
   const music = createMusicSubsystem({
-    getAssets: () => musicAssets,
-    assetsReady: musicAssetsReady,
     observer: config.observers?.music,
   });
   // SFX lives in a separate AudioContext from the music synth — Web Audio
@@ -271,6 +269,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     typeof document !== "undefined" && document.getElementById("sound-modal")
       ? createSoundModal()
       : undefined;
+  // Synchronous close hook: kicks off `music.activate()` inside the close
+  // click so `new AudioContext()` and `ctx.resume()` happen within the
+  // transient user-activation window. Without this, the post-IDB-await
+  // resume is silently denied on browsers that consume gesture state
+  // across awaits — music plays into a suspended context and stays silent
+  // until the next user interaction (e.g. toggling soundEnabled).
+  soundModal?.setOnCloseSync(() => {
+    void music.activate();
+  });
   soundModal?.setOnClose((assets) => {
     musicAssets = assets;
     // SOUND.RSC bytes may have changed — drop the cached sample map so the
