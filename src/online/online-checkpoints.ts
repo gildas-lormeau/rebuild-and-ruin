@@ -4,20 +4,13 @@ import {
 } from "../game/index.ts";
 import type {
   BuildEndData,
-  BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
-import { FID } from "../shared/core/feature-defs.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import type { OrbitParams } from "../shared/core/system-interfaces.ts";
-import {
-  type GameState,
-  hasFeature,
-  type UpgradeOfferTuple,
-} from "../shared/core/types.ts";
+import { type GameState } from "../shared/core/types.ts";
 import {
   applyGruntsCheckpoint,
   applyHousesCheckpoint,
@@ -90,39 +83,6 @@ export function applyBattleStartWatcherUI(deps: CheckpointDeps): void {
     if (!isPlayerSeated(player)) continue;
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
-}
-
-/** Apply a build-start checkpoint received from the host.
- *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
- *    Use this to capture pre-state for banner animations.
- *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator.
- *  Does NOT reset watcher crosshairs (build phase has no crosshairs). */
-export function applyBuildStartCheckpoint(
-  data: BuildStartData,
-  deps: CheckpointDeps,
-  capturePreState?: () => void,
-): void {
-  applyCommonCheckpoint(data, deps, capturePreState);
-  deps.state.round = data.round;
-  deps.state.timer = data.timer;
-  applyCheckpointModifierTiles(deps.state, data);
-  if (hasFeature(deps.state, FID.UPGRADES)) {
-    deps.state.modern!.pendingUpgradeOffers = data.pendingUpgradeOffers
-      ? new Map(
-          data.pendingUpgradeOffers.map(([pid, offers]) => [
-            pid as ValidPlayerSlot,
-            offers as UpgradeOfferTuple,
-          ]),
-        )
-      : null;
-    // Master Builder lockout (exclusive build window)
-    deps.state.modern!.masterBuilderLockout = data.masterBuilderLockout ?? 0;
-    deps.state.modern!.masterBuilderOwners = data.masterBuilderOwners
-      ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
-      : null;
-  }
-  clearInflightCannonballs(deps);
-  deps.accum.grunt = 0;
 }
 
 /** Apply a build-end checkpoint: players + host-computed scores.

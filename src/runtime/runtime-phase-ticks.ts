@@ -474,7 +474,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         ? {
             cannonStart: (state) => online?.broadcastCannonStart?.(state),
             battleStart: (rngState) => online?.broadcastBattleStart?.(rngState),
-            buildStart: (state) => online?.broadcastBuildStart?.(state),
+            buildStart: () => online?.broadcastBuildStart?.(),
             buildEnd: (state, payload) =>
               online?.broadcastBuildEnd?.(state, {
                 needsReselect: [...payload.needsReselect],

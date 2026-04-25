@@ -56,7 +56,6 @@ import { setPhase } from "../game/phase-setup.ts";
 import type {
   BattleStartData,
   BuildEndData,
-  BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import type { BuildEndMessage } from "../protocol/protocol.ts";
@@ -90,6 +89,11 @@ import {
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import {
+  ACCUM_BUILD,
+  ACCUM_GRUNT,
+  resetAccum,
+} from "./runtime-tick-context.ts";
 import type { BuildEndSummary } from "./runtime-types.ts";
 
 export type TransitionId =
@@ -205,8 +209,6 @@ export interface BattleLifecycle {
 }
 
 export type ApplyCannonStart = (msg: CannonStartData) => void;
-
-export type ApplyBuildStart = (msg: BuildStartData) => void;
 
 export type ApplyBuildEnd = (
   msg: BuildEndData,
@@ -358,7 +360,9 @@ export interface PhaseTransitionCtx {
     readonly cannonStart?: (state: GameState) => void;
     /** Receives the host's pre-`enterBattlePhase` `state.rng` state. */
     readonly battleStart?: (rngState: number) => void;
-    readonly buildStart?: (state: GameState) => void;
+    /** Phase-marker signal — watcher runs `enterBuildPhase` locally on
+     *  receipt. No payload; both sides derive identical state. */
+    readonly buildStart?: () => void;
     readonly buildEnd?: (state: GameState, payload: BuildEndSummary) => void;
   };
 
@@ -400,7 +404,6 @@ export interface PhaseTransitionCtx {
      *  player crosshair-pos init). Game state is mutated locally by
      *  `enterBattlePhase` running in the watcher mutate. */
     readonly applyBattleStartWatcherUI?: () => void;
-    readonly applyBuildStart?: ApplyBuildStart;
     readonly applyBuildEnd?: ApplyBuildEnd;
   };
 
@@ -496,7 +499,14 @@ const WALL_BUILD_DONE: Transition = {
  *  rotation, round increment) and broadcasts BUILD_START. Does NOT
  *  flip the phase and shows no banner — `postDisplay` routes to
  *  `enter-upgrade-pick` (when offers were generated) or
- *  `enter-wall-build`, each of which owns setPhase + its own banner. */
+ *  `enter-wall-build`, each of which owns setPhase + its own banner.
+ *
+ *  Both sides run `enterBuildPhase` locally — the wire signal is just
+ *  a marker telling the watcher when to dispatch this transition.
+ *  RNG was synced at the previous `BATTLE_START` and has tracked
+ *  identically through impact resolution, so post-battle RNG draws
+ *  (interbattle grunt spawn, upgrade offers, bonus square shuffle,
+ *  enclosed-grunt respawn) advance in lockstep. */
 const BATTLE_DONE: Transition = {
   id: "battle-done",
   from: Phase.BATTLE,
@@ -509,12 +519,15 @@ const BATTLE_DONE: Transition = {
         ctx.runtimeState.battleAnim.territory,
         ctx.runtimeState.battleAnim.walls,
       );
-      ctx.broadcast?.buildStart?.(ctx.state);
+      ctx.broadcast?.buildStart?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: (ctx) => {
-      const msg = ctx.incomingMsg as BuildStartData;
-      ctx.checkpoint?.applyBuildStart?.(msg);
+      enterBuildPhase(
+        ctx.state,
+        ctx.runtimeState.battleAnim.territory,
+        ctx.runtimeState.battleAnim.walls,
+      );
       return EMPTY_TRANSITION_RESULT;
     },
   },
@@ -544,7 +557,7 @@ const CEASEFIRE: Transition = {
       ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset?.();
       ctx.ceasefireSkipBattle?.();
-      ctx.broadcast?.buildStart?.(ctx.state);
+      ctx.broadcast?.buildStart?.();
       return EMPTY_TRANSITION_RESULT;
     },
     // No watcher mutate: host broadcasts BUILD_START and the watcher routes
@@ -640,6 +653,14 @@ const ENTER_WALL_BUILD: Transition = {
     watcher: (ctx) => {
       setPhase(ctx.state, Phase.WALL_BUILD);
       ctx.watcher?.initLocalBuildControllerIfActive();
+      // Mirror host's startBuildPhaseLocal runtime resets — accumulators
+      // and impact flashes that the watcher's BUILD-phase tickers would
+      // otherwise inherit from the prior battle. Was previously done in
+      // applyBuildStartCheckpoint; moved here for symmetry with host's
+      // call site (startBuildPhase → ENTER_WALL_BUILD).
+      ctx.battle.clearImpacts();
+      resetAccum(ctx.runtimeState.accum, ACCUM_GRUNT);
+      resetAccum(ctx.runtimeState.accum, ACCUM_BUILD);
       return EMPTY_TRANSITION_RESULT;
     },
   },

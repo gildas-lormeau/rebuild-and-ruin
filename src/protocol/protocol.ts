@@ -26,7 +26,6 @@ import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
   BattleStartData,
-  BuildStartData,
   CannonStartData,
   SerializedBonusSquare,
   SerializedBurningPit,
@@ -138,8 +137,9 @@ export interface BattleStartMessage extends BattleStartData {
   type: "battleStart";
 }
 
-/** Start of build phase — full reconciliation point. */
-export interface BuildStartMessage extends BuildStartData {
+/** Start of build phase — phase-marker signal. Watcher runs
+ *  `enterBuildPhase` locally on receipt; no payload. */
+export interface BuildStartMessage {
   type: "buildStart";
 }
 

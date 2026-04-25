@@ -197,7 +197,7 @@ const runtime: GameRuntime = createGameRuntime({
     broadcastCannonStart: (state) => send(createCannonStartMessage(state)),
     broadcastBattleStart: (rngState) =>
       send(createBattleStartMessage(rngState)),
-    broadcastBuildStart: (state) => send(createBuildStartMessage(state)),
+    broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: (state, summary) =>
       send({
         type: MESSAGE.BUILD_END,

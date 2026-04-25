@@ -44,25 +44,11 @@ interface FullStateResult {
 /** Returned when validation fails — no state was mutated. */
 type FullStateApplyResult = FullStateResult | null;
 
-export function createBuildStartMessage(state: GameState) {
-  return {
-    type: MESSAGE.BUILD_START,
-    round: state.round,
-    timer: state.timer,
-    players: serializePlayersCheckpoint(state),
-    houses: state.map.houses.map((h) => ({
-      row: h.row,
-      col: h.col,
-      zone: h.zone,
-      alive: h.alive,
-    })),
-    grunts: serializeGrunts(state),
-    bonusSquares: serializeBonusSquares(state),
-    towerAlive: [...state.towerAlive],
-    burningPits: serializeBurningPits(state),
-    rngSeed: state.rng.seed,
-    ...serializeModernFields(state),
-  };
+/** Create a BUILD_START phase-marker message. The watcher runs
+ *  `enterBuildPhase` locally on receipt — see `BuildStartData` in
+ *  checkpoint-data.ts for the contract. */
+export function createBuildStartMessage() {
+  return { type: MESSAGE.BUILD_START };
 }
 
 export function createCannonStartMessage(state: GameState) {

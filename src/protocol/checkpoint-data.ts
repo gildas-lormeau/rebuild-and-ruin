@@ -117,33 +117,6 @@ export interface BattleStartData {
   rngState: number;
 }
 
-/** Data needed to sync state at build phase start. */
-export interface BuildStartData {
-  round: number;
-  timer: number;
-  players: SerializedPlayer[];
-  houses: SerializedHouse[];
-  grunts: SerializedGrunt[];
-  bonusSquares: SerializedBonusSquare[];
-  towerAlive: boolean[];
-  burningPits: SerializedBurningPit[];
-  rngSeed: number;
-  pendingUpgradeOffers?: [number, [string, string, string]][] | null;
-  /** Master Builder lockout seconds remaining (0 = no lockout). */
-  masterBuilderLockout?: number;
-  /** Player slots who own Master Builder this round. null = nobody. */
-  masterBuilderOwners?: number[] | null;
-  /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
-  frozenTiles: number[] | null;
-  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
-  highTideTiles?: number[] | null;
-  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
-  sinkholeTiles?: number[] | null;
-  /** Frostbite chipped grunt tile keys — grunts that have absorbed one hit.
-   *  null = no frostbite carrying over from the prior battle. */
-  chippedGrunts?: number[] | null;
-}
-
 /** Data needed to sync state at build phase end. */
 export interface BuildEndData {
   players: readonly SerializedPlayer[];

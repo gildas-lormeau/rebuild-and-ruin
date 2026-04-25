@@ -5,7 +5,6 @@ import {
 } from "../game/index.ts";
 import type {
   BuildEndData,
-  BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
@@ -38,7 +37,6 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   applyBattleStartWatcherUI,
   applyBuildEndCheckpoint,
-  applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
@@ -323,9 +321,6 @@ function buildWatcherCheckpointHooks(deps: WatcherDeps) {
     },
     applyBattleStartWatcherUI: () => {
       applyBattleStartWatcherUI(buildCheckpointDeps(deps));
-    },
-    applyBuildStart: (msg: BuildStartData) => {
-      applyBuildStartCheckpoint(msg, buildCheckpointDeps(deps));
     },
     applyBuildEnd: (msg: BuildEndData, capturePreScores: () => void) => {
       applyBuildEndCheckpoint(msg, buildCheckpointDeps(deps), capturePreScores);

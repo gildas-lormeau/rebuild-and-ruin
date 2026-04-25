@@ -133,7 +133,10 @@ export interface OnlinePhaseTicks {
    *  locally. See `BattleStartData` in checkpoint-data.ts. */
   broadcastBattleStart?: (rngState: number) => void;
   /** Host: broadcast the build-phase entry checkpoint to watchers. */
-  broadcastBuildStart?: (state: GameState) => void;
+  /** Host: broadcast the build-phase entry phase-marker. Watcher runs
+   *  `enterBuildPhase` locally on receipt — no payload. See
+   *  `BuildStartData` in checkpoint-data.ts. */
+  broadcastBuildStart?: () => void;
   /** Host: broadcast the end-of-build summary (lives lost + eliminations
    *  + scores). The hook serializes the post-build player snapshot itself
    *  — the runtime does not need to know how to serialize players. */
