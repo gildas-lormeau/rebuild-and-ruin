@@ -948,7 +948,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       beginBattle: phaseTicks.beginBattle,
       subscribeBusObservers: phaseTicks.subscribeBusObservers,
     },
-    music: { activate: music.activate, startTitle: music.startTitle },
+    music: {
+      activate: music.activate,
+      startTitle: music.startTitle,
+      stopTitle: music.stopTitle,
+    },
     sfx: { activate: sfx.activate },
 
     upgradePick,

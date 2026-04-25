@@ -320,6 +320,9 @@ export function initOnlineRuntime(): void {
     setMode(runtime.runtimeState, Mode.STOPPED);
     runtime.runtimeState.lobby.active = false;
     sessionHelpers.resetSession();
+    // Silence whatever bg track is playing. stopTitle stops the active
+    // bg source regardless of which track is loaded (see local main.ts).
+    void runtime.music.stopTitle();
   });
 }
 

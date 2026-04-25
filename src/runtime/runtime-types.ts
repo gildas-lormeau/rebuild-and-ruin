@@ -554,6 +554,10 @@ export interface RuntimeMusic {
    *  pre-game lobby screen (the bus-based stop-on-WALL_BUILD subscription
    *  happens separately inside the runtime when a game starts). */
   startTitle(): Promise<void>;
+  /** Stop any bg track currently playing and clear `wantsTitle`. Used by the
+   *  GAME_EXIT_EVENT (back-button / route-out) handlers to silence music when
+   *  the user leaves /play. */
+  stopTitle(): Promise<void>;
 }
 
 /** Narrow handle for the SFX sub-system. Parallel to RuntimeMusic so the
