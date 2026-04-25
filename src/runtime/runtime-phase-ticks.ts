@@ -734,11 +734,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       : [];
     const result = resolveBattleCombatStep(fireEvents, state, dt);
 
-    // Broadcast events to network
+    // Broadcast CANNON_FIRED only — the watcher derives TOWER_KILLED and
+    // every ImpactEvent locally by running the same engine combat tick
+    // (tickWatcherBattlePhase calls tickBattlePhase). Both sides share
+    // synced state at BATTLE_START + matching dt sequence, so impact
+    // resolution converges without per-event wire chatter.
     if (broadcast) {
       for (const evt of result.fireEvents) broadcast(evt);
-      for (const evt of result.towerEvents) broadcast(evt);
-      for (const evt of result.impactEvents) broadcast(evt);
     }
 
     // Record visual impacts

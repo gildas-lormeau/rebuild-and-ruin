@@ -204,12 +204,19 @@ export function createLocalNetworkApi(opts: {
     handler: (msg: ServerMessage) => void | Promise<void>,
   ) => () => void;
   remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
+  /** Optional override — defaults to `true` to match local/test "no peers"
+   *  play where the runtime is the only authority. Network tests that
+   *  build a host + watcher pair set `false` on the watcher side so its
+   *  `tickGame` routes to `tickWatcher` (production watcher path) instead
+   *  of running host phase ticks redundantly on top of incoming wire
+   *  checkpoints. */
+  amHost?: () => boolean;
 }): NetworkApi {
   const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;
   return {
     send: opts.send,
     onMessage: opts.onMessage ?? (() => () => {}),
-    amHost: () => true,
+    amHost: opts.amHost ?? (() => true),
     myPlayerId: () => SPECTATOR_SLOT,
     remotePlayerSlots: () => remotes,
   };

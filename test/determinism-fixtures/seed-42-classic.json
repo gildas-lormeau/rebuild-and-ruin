@@ -12113,18 +12113,18 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {
+        "variant": 0
+      }
+    },
+    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 0,
         "newHp": 0,
         "playerId": 0,
         "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonballDescending",
-      "payload": {
-        "variant": 0
       }
     },
     {
@@ -38190,18 +38190,18 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {
+        "variant": 1
+      }
+    },
+    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 4,
         "newHp": 2,
         "playerId": 0,
         "shooterId": 2
-      }
-    },
-    {
-      "type": "cannonballDescending",
-      "payload": {
-        "variant": 1
       }
     },
     {

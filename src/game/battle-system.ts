@@ -489,15 +489,6 @@ export function spawnCannonballFromMessage(
   });
 }
 
-/** Network-replay primitive for `BATTLE_MESSAGE.TOWER_KILLED` events.
- *  Host path: `grunt-system.ts` mutates `state.towerAlive` directly before emitting. */
-export function applyTowerKilled(
-  state: GameState,
-  event: TowerKilledMessage,
-): void {
-  state.towerAlive[event.towerIdx] = false;
-}
-
 function getAnnouncementStep(
   battleCountdown: number,
 ): AnnouncementStep | undefined {
@@ -517,6 +508,21 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   const impacts: TilePos[] = [];
   const events: ImpactEvent[] = [];
   const remaining: Cannonball[] = [];
+
+  // Iterate in a canonical (playerId, cannonIdx) order so host and watcher
+  // resolve impacts in the same sequence even when balls reach the array
+  // through different paths. Host inserts in fire order
+  // (`tickLocalBattleControllers`); watcher inserts in wire-arrival order
+  // (`spawnCannonballFromMessage`), which can differ — AssistedHuman
+  // controllers broadcast `CANNON_FIRED` inline during battleTick while
+  // AI fires broadcast post-tick. Without canonicalization, balls landing
+  // on the same frame would consume `state.rng` (house→grunt spawn,
+  // conscription, ricochet) in different orders on each side, drifting
+  // RNG state. `(playerId, cannonIdx)` is unique per in-flight ball
+  // (canFireOwnCannon / canFireCapturedCannon enforce one ball per cannon).
+  state.cannonballs.sort(
+    (a, b) => a.playerId - b.playerId || a.cannonIdx - b.cannonIdx,
+  );
 
   for (const ball of state.cannonballs) {
     maybeEmitDescendingWhistle(state, ball);
@@ -610,47 +616,6 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
 }
 
 /**
- * Advance a cannonball by one tick (`dt` seconds). Replays the pinned
- * ballistic trajectory: x/y interpolate linearly from launch toward
- * impact while altitude follows a parabola under gravity. The pinned
- * impact tile (and timing) was decided at fire time on the host and
- * shipped to the watcher via `CannonFiredMessage`, so both sides land
- * on the same frame at the same tile from the same inputs.
- *
- * Pure: no game-state reads, no map sampling. Mutates only the ball.
- */
-export function advanceCannonball(
-  ball: Cannonball,
-  dt: number,
-): TilePos | null {
-  ball.elapsed += dt;
-  if (ball.elapsed >= ball.flightTime) {
-    ball.elapsed = ball.flightTime;
-    ball.x = ball.impactX;
-    ball.y = ball.impactY;
-    ball.altitude = ball.impactAltitude;
-    return { row: ball.impactRow, col: ball.impactCol };
-  }
-  const horizontal = horizontalAt(
-    ball.launchX,
-    ball.launchY,
-    ball.impactX,
-    ball.impactY,
-    ball.flightTime,
-    ball.elapsed,
-  );
-  ball.x = horizontal.x;
-  ball.y = horizontal.y;
-  ball.altitude = altitudeAt(
-    ball.launchAltitude,
-    ball.vy0,
-    GRAVITY,
-    ball.elapsed,
-  );
-  return null;
-}
-
-/**
  * Apply a single impact event to game state. Used by both host and watcher.
  *
  * **INTERIOR STALENESS CONTRACT — canonical source of truth.** Battle-phase
@@ -666,7 +631,7 @@ export function advanceCannonball(
  * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
  *   (host passes it from the firing loop; network events embed it in the payload).
  */
-export function applyImpactEvent(
+function applyImpactEvent(
   state: GameState,
   event: ImpactEvent,
   shooterId?: number,
@@ -764,6 +729,44 @@ export function applyImpactEvent(
       break;
     }
   }
+}
+
+/**
+ * Advance a cannonball by one tick (`dt` seconds). Replays the pinned
+ * ballistic trajectory: x/y interpolate linearly from launch toward
+ * impact while altitude follows a parabola under gravity. The pinned
+ * impact tile (and timing) was decided at fire time on the host and
+ * shipped to the watcher via `CannonFiredMessage`, so both sides land
+ * on the same frame at the same tile from the same inputs.
+ *
+ * Pure: no game-state reads, no map sampling. Mutates only the ball.
+ */
+function advanceCannonball(ball: Cannonball, dt: number): TilePos | null {
+  ball.elapsed += dt;
+  if (ball.elapsed >= ball.flightTime) {
+    ball.elapsed = ball.flightTime;
+    ball.x = ball.impactX;
+    ball.y = ball.impactY;
+    ball.altitude = ball.impactAltitude;
+    return { row: ball.impactRow, col: ball.impactCol };
+  }
+  const horizontal = horizontalAt(
+    ball.launchX,
+    ball.launchY,
+    ball.impactX,
+    ball.impactY,
+    ball.flightTime,
+    ball.elapsed,
+  );
+  ball.x = horizontal.x;
+  ball.y = horizontal.y;
+  ball.altitude = altitudeAt(
+    ball.launchAltitude,
+    ball.vy0,
+    GRAVITY,
+    ball.elapsed,
+  );
+  return null;
 }
 
 /** Map battleCountdown to the corresponding announcement step (text +

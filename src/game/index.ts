@@ -3,7 +3,6 @@
 export type { BattleCombatResult } from "./battle-system.ts";
 export {
   advanceBattleCountdown,
-  advanceCannonball,
   aimCannons,
   canFireOwnCannon,
   canPlayerFire,

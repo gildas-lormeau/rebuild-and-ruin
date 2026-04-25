@@ -2,11 +2,7 @@
 // intentionally not exposed via ../game/index.ts — see
 // scripts/lint-restricted-imports.ts for the allowlist that pins this exemption.
 
-import {
-  applyImpactEvent,
-  applyTowerKilled,
-  spawnCannonballFromMessage,
-} from "../game/battle-system.ts";
+import { spawnCannonballFromMessage } from "../game/battle-system.ts";
 import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonPlacement } from "../game/cannon-system.ts";
 import {
@@ -22,12 +18,11 @@ import {
   isHostInContext,
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
-import type { ImpactEvent } from "../shared/core/battle-events.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { inBoundsStrict, packTile } from "../shared/core/spatial.ts";
+import { inBoundsStrict } from "../shared/core/spatial.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
@@ -92,26 +87,7 @@ type CannonPlacedMsg = Extract<ServerMessage, { type: "opponentCannonPlaced" }>;
 
 type CannonFiredMsg = Extract<ServerMessage, { type: "cannonFired" }>;
 
-type ImpactMsg = Extract<
-  ServerMessage,
-  {
-    type:
-      | "wallDestroyed"
-      | "wallAbsorbed"
-      | "wallShielded"
-      | "cannonDamaged"
-      | "houseDestroyed"
-      | "gruntKilled"
-      | "gruntChipped"
-      | "gruntSpawned"
-      | "pitCreated"
-      | "iceThawed";
-  }
->;
-
 type AimUpdateMsg = Extract<ServerMessage, { type: "aimUpdate" }>;
-
-type TowerKilledMsg = Extract<ServerMessage, { type: "towerKilled" }>;
 
 type PiecePhantomMsg = Extract<ServerMessage, { type: "opponentPhantom" }>;
 
@@ -153,21 +129,8 @@ export function handleServerIncrementalMessage(
       return handleCannonPlaced(msg, state, deps);
     case MESSAGE.CANNON_FIRED:
       return handleCannonFired(msg, state, deps);
-    case MESSAGE.WALL_DESTROYED:
-    case MESSAGE.WALL_ABSORBED:
-    case MESSAGE.WALL_SHIELDED:
-    case MESSAGE.CANNON_DAMAGED:
-    case MESSAGE.HOUSE_DESTROYED:
-    case MESSAGE.GRUNT_KILLED:
-    case MESSAGE.GRUNT_CHIPPED:
-    case MESSAGE.GRUNT_SPAWNED:
-    case MESSAGE.PIT_CREATED:
-    case MESSAGE.ICE_THAWED:
-      return handleImpactEvent(msg, state, deps);
     case MESSAGE.AIM_UPDATE:
       return handleAimUpdate(msg, state, deps);
-    case MESSAGE.TOWER_KILLED:
-      return handleTowerKilled(msg, state, deps);
     case MESSAGE.OPPONENT_PHANTOM:
       return handlePiecePhantom(msg, state, deps);
     case MESSAGE.OPPONENT_CANNON_PHANTOM:
@@ -325,36 +288,6 @@ function handleCannonFired(
   return APPLIED;
 }
 
-/** Watcher-only: the host computes impacts locally, so it never applies
- *  incoming impact messages. Watchers apply all impacts unconditionally.
- *  This is intentionally different from other handlers that use
- *  `isRemoteHumanAction()` — impacts are authoritative host events, not
- *  player actions that need remote-human filtering. */
-function handleImpactEvent(
-  msg: ImpactMsg,
-  state: GameState | undefined,
-  deps: HandleServerIncrementalDeps,
-): HandleResult {
-  if (isHostInContext(deps.session) || !state) return DROPPED;
-  if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
-    return DROPPED;
-  if ("playerId" in msg && !validPid(msg.playerId, state)) return DROPPED;
-  if (msg.type === MESSAGE.WALL_DESTROYED) {
-    const wallKey = packTile(msg.row, msg.col);
-    const owner = state.players.find((player) => player.walls.has(wallKey));
-    deps.log(
-      `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
-    );
-  } else if (msg.type === MESSAGE.CANNON_DAMAGED) {
-    deps.log(
-      `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
-    );
-  }
-  applyImpactEvent(state, msg as ImpactEvent);
-  state.bus.emit(msg.type as ImpactEvent["type"], msg as ImpactEvent);
-  return APPLIED;
-}
-
 function handleAimUpdate(
   msg: AimUpdateMsg,
   state: GameState | undefined,
@@ -366,19 +299,6 @@ function handleAimUpdate(
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
   if (msg.orbit) deps.watcher.watcherOrbitParams.set(msg.playerId, msg.orbit);
-  return APPLIED;
-}
-
-function handleTowerKilled(
-  msg: TowerKilledMsg,
-  state: GameState | undefined,
-  deps: HandleServerIncrementalDeps,
-): HandleResult {
-  if (isHostInContext(deps.session) || !state) return DROPPED;
-  if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
-    return DROPPED;
-  applyTowerKilled(state, msg);
-  state.bus.emit(msg.type, msg);
   return APPLIED;
 }
 

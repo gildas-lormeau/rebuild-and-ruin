@@ -70,6 +70,12 @@ interface HeadlessRuntimeOptions {
    *  that need real broadcasts pass an explicit `onlinePhaseTicks` instead;
    *  see `test/network-setup.ts`. */
   hostMode?: boolean;
+  /** Override `amHost` on the runtime's network api. Defaults to `true`
+   *  (the production "no peers" shape). Network-pair tests pass
+   *  `() => false` for the watcher half so its `tickGame` routes to
+   *  `tickWatcher` (production watcher path) instead of running host
+   *  phase ticks redundantly on top of incoming wire checkpoints. */
+  amHost?: () => boolean;
   /** Optional renderer override. When provided, replaces the default no-op
    *  stub renderer — used by tests that need the real draw pipeline to fire
    *  (e.g. for `RenderObserver` assertions). The caller is responsible for
@@ -283,6 +289,7 @@ export async function createHeadlessRuntime(
         return () => messageHandlers.delete(handler);
       },
       remotePlayerSlots,
+      amHost: opts.amHost,
     }),
     // No ai wiring here (nor in main.ts / online-runtime-game.ts) — the
     // composition root `src/runtime/runtime-composition.ts` imports the ai functions

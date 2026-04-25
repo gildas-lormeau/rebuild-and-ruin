@@ -1,12 +1,12 @@
 import {
-  advanceCannonball,
   canPlayerFire,
   emitBattleCeaseIfTimerCrossed,
   setBattleCountdown,
+  tickBattlePhase,
 } from "../game/index.ts";
 import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
+import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type {
-  Cannonball,
   Crosshair,
   Impact,
   ThawingTile,
@@ -28,7 +28,6 @@ import type {
   ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { packTile } from "../shared/core/spatial.ts";
 import type {
   OrbitParams,
   PlayerController,
@@ -177,21 +176,24 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     aimCannons,
   } = deps;
 
-  const remaining: Cannonball[] = [];
-  for (const ball of state.cannonballs) {
-    const hit = advanceCannonball(ball, dt);
-    if (hit) {
-      battleAnim.impacts.push({ ...hit, age: 0 });
-      // Record thaw animation if this hit landed on frozen water
-      const frozenSet = state.modern?.frozenTiles;
-      if (frozenSet?.has(packTile(hit.row, hit.col))) {
-        battleAnim.thawing.push({ row: hit.row, col: hit.col, age: 0 });
-      }
-    } else {
-      remaining.push(ball);
+  // Run the same engine combat tick as the host: gruntAttackTowers (tower
+  // kills + grunt-broken WALL_DESTROYED via wallEvents) followed by
+  // tickCannonballs (cannonball impacts + applyImpactEvent + bus emits).
+  // Both halves are deterministic given synced state + dt, so the watcher
+  // derives every TOWER_KILLED / WALL_DESTROYED / CANNON_DAMAGED / etc.
+  // identically to the host. RNG calls inside computeImpact (house→grunt
+  // spawn, conscription, ricochet) advance state.rng symmetrically — both
+  // sides started this BATTLE with byte-identical state.rng (synced via
+  // BattleStartData.rngState).
+  const result = tickBattlePhase(state, dt);
+  for (const impact of result.newImpacts) {
+    battleAnim.impacts.push({ ...impact, age: 0 });
+  }
+  for (const evt of result.impactEvents) {
+    if (evt.type === BATTLE_MESSAGE.ICE_THAWED) {
+      battleAnim.thawing.push({ row: evt.row, col: evt.col, age: 0 });
     }
   }
-  state.cannonballs = remaining;
 
   frame.crosshairs = [];
   logThrottled(

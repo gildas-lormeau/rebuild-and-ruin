@@ -220,6 +220,10 @@ async function buildWatcherRuntime(
     hostMode: false,
     remotePlayerSlots: allRemote,
     onlinePhaseTicks: buildWatcherPhaseTicks(tickCtx, client.ctx.watcher),
+    // True watcher: amHost=false routes `tickGame` to `tickWatcher`,
+    // matching production. Without this the watcher would also run host
+    // phase ticks on top of incoming wire checkpoints.
+    amHost: () => false,
   });
   headlessHolder.current = headless;
 

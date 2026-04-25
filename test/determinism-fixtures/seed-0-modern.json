@@ -35318,19 +35318,19 @@
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 34,
-        "playerId": 0,
-        "row": 19,
-        "shooterId": 2
+        "col": 18,
+        "playerId": 2,
+        "row": 10,
+        "shooterId": 1
       }
     },
     {
       "type": "wallDestroyed",
       "payload": {
-        "col": 18,
-        "playerId": 2,
-        "row": 10,
-        "shooterId": 1
+        "col": 34,
+        "playerId": 0,
+        "row": 19,
+        "shooterId": 2
       }
     },
     {
@@ -36690,18 +36690,18 @@
       }
     },
     {
+      "type": "cannonballDescending",
+      "payload": {
+        "variant": 1
+      }
+    },
+    {
       "type": "wallDestroyed",
       "payload": {
         "col": 18,
         "playerId": 2,
         "row": 7,
         "shooterId": 1
-      }
-    },
-    {
-      "type": "cannonballDescending",
-      "payload": {
-        "variant": 1
       }
     },
     {
