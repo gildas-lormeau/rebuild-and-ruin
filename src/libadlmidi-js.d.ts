@@ -28,6 +28,10 @@ declare module "libadlmidi-js/dosbox/slim" {
   export class AdlMidiCore {
     static create(options?: {
       corePath?: string;
+      /** Pre-fetched WASM bytes. When set, the Emscripten module skips its
+       *  own auto-fetch (which resolves the .wasm relative to the .core.js
+       *  URL — wrong under Vite's hashed-filename output). */
+      wasmBinary?: ArrayBuffer | Uint8Array;
     }): Promise<AdlMidiCoreInstance>;
   }
 }

@@ -15,6 +15,7 @@
  */
 
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";
+import wasmUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.wasm?url";
 import { ailToWopl } from "../shared/platform/ail-to-wopl.ts";
 import {
   xmiContainerBlocks,
@@ -101,7 +102,23 @@ async function createPcmRenderer(
   sampleRate: number,
 ): Promise<PcmRenderer | undefined> {
   const module = await import("libadlmidi-js/dosbox/slim");
-  const core = await module.AdlMidiCore.create({ corePath: coreUrl });
+  // Pre-fetch the WASM bytes and pass them via `wasmBinary` so
+  // Emscripten doesn't try to auto-locate the `.wasm` next to its
+  // `.core.js` — Vite hashes those filenames separately, so the
+  // auto-fetch hits a 404 (which is served as an HTML page, hence
+  // the "unsupported MIME type 'text/html'" error in production).
+  const wasmResponse = await fetch(wasmUrl);
+  if (!wasmResponse.ok) {
+    console.error(
+      `[music] WASM fetch failed (${wasmResponse.status}) at ${wasmUrl}`,
+    );
+    return undefined;
+  }
+  const wasmBinary = await wasmResponse.arrayBuffer();
+  const core = await module.AdlMidiCore.create({
+    corePath: coreUrl,
+    wasmBinary,
+  });
   if (!core.init(sampleRate)) {
     core.close();
     return undefined;
