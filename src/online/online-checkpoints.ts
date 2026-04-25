@@ -94,6 +94,8 @@ export function applyBattleStartCheckpoint(
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
   deps.state.towerAlive = data.towerAlive;
+  // Sync RNG to host's post-`prepareBattleState` state — see BattleStartData.rngState.
+  deps.state.rng.setState(data.rngState);
 
   applyCapturedCannons(deps.state, data.capturedCannons);
 

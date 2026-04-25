@@ -113,6 +113,7 @@ export function createBattleStartMessage(
     })),
     burningPits: serializeBurningPits(state),
     towerAlive: [...state.towerAlive],
+    rngState: state.rng.getState(),
     flights: flights
       ? flights.map((flight) => ({
           startX: flight.startX,

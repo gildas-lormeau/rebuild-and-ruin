@@ -111,6 +111,15 @@ export interface BattleStartData {
   }[];
   burningPits: SerializedBurningPit[];
   towerAlive: boolean[];
+  /** Host's `state.rng` internal state at the end of `prepareBattleState`.
+   *  Single explicit RNG-sync point per round — host advances RNG via
+   *  `rollModifier` / `applyBattleStartModifiers` / `rollGruntWallAttacks`
+   *  / `resolveBalloonCaptures` before this message is built; watcher
+   *  applies it inside `applyBattleStartCheckpoint` so both sides enter
+   *  BATTLE with byte-identical `state.rng`. From there, both sides must
+   *  call RNG identically (same code, same call order) until the next
+   *  `BATTLE_START` resync. */
+  rngState: number;
   /** Balloon flight paths (for animation). Empty array = no balloon shots this round. */
   flights: { startX: number; startY: number; endX: number; endY: number }[];
   /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
