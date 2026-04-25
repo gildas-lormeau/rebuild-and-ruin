@@ -327,6 +327,10 @@ export function generateUpgradeOffers(
 ): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
   if (!hasFeature(state, FID.UPGRADES)) return null;
   if (state.round < UPGRADE_FIRST_ROUND) return null;
+  // No upgrades for the final round — they'd only affect a single battle
+  // before the game ends, wasting the pick interaction. `maxRounds` is
+  // Infinity for unlimited-round games, so this never trips there.
+  if (state.round >= state.maxRounds) return null;
 
   const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
   for (const player of state.players) {
