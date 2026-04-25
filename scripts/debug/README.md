@@ -21,7 +21,7 @@ Real interactive primitives (eval, frames, step) are also exposed.
 
 ```
 debug launch [--session ID] [--node|--deno-run|--deno-test] -- <cmd> [args...]
-debug capture [--session ID] <file>:<line> <expr> [<expr>...]
+debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
 debug bp      [--session ID] <file>:<line> [--cond <expr>]
 debug rm      [--session ID] <bpId>
 debug run     [--session ID] [--wait <ms>]        # resume + wait for exit
@@ -94,6 +94,48 @@ $ debug run
 $ debug trace --format table
 # 120-row interleaved trace of every event + every transition
 ```
+
+## Filtering with `--cond`
+
+Without filtering, a busy bp can produce hundreds of rows and you're back
+to grepping output. `--cond <expr>` evaluates V8-side at hit time — only
+hits where the expression is truthy land in the trace, no I/O cost for
+skipped ones:
+
+```sh
+# All events from emitGameEvent — 120+ rows
+$ debug capture src/shared/core/game-event-bus.ts:406  type
+
+# Only phaseStart events — 6 rows
+$ debug capture --cond "type === 'phaseStart'" \
+    src/shared/core/game-event-bus.ts:406  type  payload.phase  payload.round
+```
+
+The condition is plain JavaScript evaluated in the bp's call frame, so it
+sees locals, parameters, and `this`.
+
+## Multi-runtime investigations (host vs watcher)
+
+When two runtimes share a process (e.g. host + watcher in
+`test/network-vs-local.test.ts`), the same code path executes twice
+and you need to tell which run produced each row.
+
+Add a temporary marker to each runtime's state at construction (e.g.
+`state.debugTag = "host"` / `"watcher"`), then capture it as a column.
+The trace interleaves both runtimes, pre-tagged:
+
+```sh
+$ debug capture src/game/battle-system.ts:660 \
+    state.debugTag  state.round  state.timer  event.row  event.col
+$ debug run
+$ debug trace --format table
+#  +ms   loc                            state.debugTag  state.round  state.timer  event.row  event.col
+0  120   src/game/battle-system.ts:660  host            3            8.17         11         14
+1  121   src/game/battle-system.ts:660  watcher         3            6.13         11         14   ← drift here
+```
+
+Combine with `--cond "state.round === 3 && event.row === 11"` to surface
+only the divergent event.
 
 ## Architecture
 

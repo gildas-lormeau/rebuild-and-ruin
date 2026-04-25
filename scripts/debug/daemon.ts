@@ -31,6 +31,7 @@ interface Capture {
   file: string;
   line: number;
   exprs: string[];
+  condition?: string;
 }
 
 interface CaptureHit {
@@ -79,6 +80,7 @@ interface PendingCapture {
   file: string;
   line: number;
   exprs: string[];
+  condition?: string;
 }
 
 interface Session {
@@ -449,11 +451,18 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
       const file = p.file as string;
       const line = p.line as number;
       const exprs = p.exprs as string[];
+      const condition = p.condition as string | undefined;
       if (!Array.isArray(exprs) || exprs.length === 0) {
         throw new Error("setCapture requires non-empty exprs[]");
       }
-      const set = await setBpResolved(session, file, line);
-      session.captures.set(set.bpId, { bpId: set.bpId, file, line, exprs });
+      const set = await setBpResolved(session, file, line, condition);
+      session.captures.set(set.bpId, {
+        bpId: set.bpId,
+        file,
+        line,
+        exprs,
+        condition,
+      });
       // urlRegex-based bps with no current matches are queued by V8, but
       // V8 doesn't always rebind them when the script parses later (esp.
       // for source-mapped TS). Track them so we can retry with scriptId
@@ -464,6 +473,7 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
           file,
           line,
           exprs,
+          condition,
         });
       }
       return {
@@ -575,7 +585,7 @@ async function retryPendingCaptures(
     // Reuse setBpResolved which now tries source-map → scriptId → urlRegex.
     let result: BpResult;
     try {
-      result = await setBpResolved(session, pc.file, pc.line);
+      result = await setBpResolved(session, pc.file, pc.line, pc.condition);
     } catch (e) {
       console.error(
         `retryPendingCaptures: ${pc.file}:${pc.line} → ${(e as Error).message}`,
@@ -602,6 +612,7 @@ async function retryPendingCaptures(
       file: pc.file,
       line: pc.line,
       exprs: pc.exprs,
+      condition: pc.condition,
     });
     console.log(
       `retry bound ${pc.file}:${pc.line} via=${result.via} bpId=${result.bpId} locations=${JSON.stringify(result.locations)}`,

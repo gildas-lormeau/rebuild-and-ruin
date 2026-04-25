@@ -203,10 +203,12 @@ async function cmdCapture(parsed: ParsedArgs): Promise<void> {
   if (exprs.length === 0)
     throw new Error("capture requires at least one expression");
   const { file, line } = parseFileLine(target);
+  const condition = parsed.flags.get("cond");
   const result = await sendIpc(parsed.session, "setCapture", {
     file,
     line,
     exprs,
+    ...(typeof condition === "string" ? { condition } : {}),
   });
   console.log(JSON.stringify(result));
 }
