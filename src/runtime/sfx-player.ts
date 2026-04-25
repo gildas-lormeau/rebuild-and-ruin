@@ -399,14 +399,18 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       handler: phaseStartHandler as GameEventHandler<EventKey>,
     });
     // towerEnclosed — play elechit1, and on the player's first enclosure
-    // this phase schedule the fanfare via Web Audio's own clock: stop the
-    // BufferSource at +FANFARE_AFTER_SEC so the `ended` event fires
-    // exactly there. No setTimeout, no wall-clock math.
+    // of a *live* tower this phase schedule the fanfare via Web Audio's own
+    // clock: stop the BufferSource at +FANFARE_AFTER_SEC so the `ended`
+    // event fires exactly there. No setTimeout, no wall-clock math.
+    // Dead towers still get elechit1 (the enclosure itself happened) but
+    // skip the fanfare and don't burn the per-phase fanfare slot — a later
+    // live-tower enclosure in the same phase still rings.
     const enclosedHandler: GameEventHandler<"towerEnclosed"> = (event) => {
+      const towerAlive = deps.getState()?.towerAlive[event.towerIndex] ?? false;
       const isFirst = !fanfarePlayedThisPhase.has(event.playerId);
       const playerId = event.playerId;
       void playSample("elechit1").then((source) => {
-        if (!isFirst) return;
+        if (!isFirst || !towerAlive) return;
         fanfarePlayedThisPhase.add(playerId);
         if (!deps.onFirstEnclosure) return;
         if (!source || !audioContext) {
