@@ -15,8 +15,6 @@ import { TILE_SIZE } from "./grid.ts";
 
 /** Top of the wall body (walk surface of a battlement). */
 export const WALL_TOP_Y = 3.22 * (TILE_SIZE / 2);
-/** Top of a tower (authored home_tower variant). */
-export const TOWER_TOP_Y = 56;
 /** Top of a regular cannon body (authored tier_1 variant). */
 export const CANNON_TOP_Y = 14;
 /** Top of a house (authored house variant). */

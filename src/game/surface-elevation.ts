@@ -25,7 +25,6 @@ import {
   CANNON_TOP_Y,
   GRUNT_TOP_Y,
   HOUSE_TOP_Y,
-  TOWER_TOP_Y,
   WALL_TOP_Y,
 } from "../shared/core/elevation-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
@@ -64,8 +63,9 @@ const IMPACT_SAMPLES = 64;
  *
  *  Returns:
  *    - `{ impactTime, impactX, impactY }` — first obstacle interception
- *      (may be a wall / tower / cannon / house / grunt the ball flies
- *      into while arcing toward its aim point)
+ *      (may be a wall / cannon / house / grunt the ball flies into while
+ *      arcing toward its aim point; towers are transparent — see
+ *      `surfaceAltitudeAt`)
  *    - `null` — the trajectory reaches the aim point without collision;
  *      caller should use the nominal aim impact.
  *
@@ -158,19 +158,11 @@ function surfaceAltitudeAt(
     return WALL_TOP_Y;
   }
 
-  // Towers (2×2)
-  for (let index = 0; index < state.map.towers.length; index++) {
-    const tower = state.map.towers[index]!;
-    if (state.towerAlive[index] === false) continue;
-    if (
-      col >= tower.col &&
-      col < tower.col + 2 &&
-      row >= tower.row &&
-      row < tower.row + 2
-    ) {
-      return TOWER_TOP_Y;
-    }
-  }
+  // Towers are transparent to cannonballs — they take no damage from
+  // cannons (only grunts kill them, see computeImpact in battle-system.ts).
+  // Treating their 2×2 silhouette as opaque would cause a ball aimed at a
+  // shorter target (cannon, grunt, wall) behind a tower to "land" on the
+  // tower roof with zero effect — a wasted shot the player never asked for.
 
   // Cannons (2×2 or 3×3)
   for (const player of state.players) {

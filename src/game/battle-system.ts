@@ -882,9 +882,10 @@ function fireCapturedCannon(
  * Pins the full ballistic trajectory (vy0, flightTime, impact tile) at
  * fire time using host state, so playback is purely parametric and
  * identical on host vs watcher. Surface sampling walks the trajectory
- * to detect collisions with walls / cannons / towers / houses / grunts
- * — the ball lands at the first obstacle it intercepts, falling
- * through to the nominal aim tile when the path is clear.
+ * to detect collisions with walls / cannons / houses / grunts — the
+ * ball lands at the first obstacle it intercepts, falling through to
+ * the nominal aim tile when the path is clear. Towers are transparent
+ * to cannonballs (only grunts kill towers; see `surface-elevation.ts`).
  */
 function launchCannonball(
   state: GameState,
