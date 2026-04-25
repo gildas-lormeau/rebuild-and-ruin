@@ -169,9 +169,9 @@ const BG_TRACK_LIFE_LOST: BgTrack = {
 };
 // Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
 // (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
-// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION is set
-// to 5.5 s so balloonAnimEnd cuts the track's tail — an intentional
-// trim to keep the animation beat tight.
+// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION (8.5 s)
+// exceeds the track length, so the music finishes naturally and the
+// last ~0.84 s of the animation plays silent.
 const BG_TRACK_JAWS: BgTrack = {
   id: "RXMI_BATTLE.xmi",
   cacheId: "RXMI_BATTLE.xmi",

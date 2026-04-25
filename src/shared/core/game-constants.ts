@@ -150,10 +150,10 @@ export const RAMPART_SHIELD_HP = 6;
 export const RAMPART_SHIELD_RADIUS = 2;
 /** Maximum total cannon slots a reselecting player can earn. */
 export const MAX_CANNON_LIMIT_ON_RESELECT = 8;
-/** Balloon flight animation duration in seconds. Targets the jaws
- *  theme (~7.66 s) — slight truncation of the tail still observed;
- *  root cause TBD. */
-export const BALLOON_FLIGHT_DURATION = 7.5;
+/** Balloon flight animation duration in seconds. Exceeds the jaws
+ *  theme (~7.66 s) by ~0.84 s; the music tail finishes before the
+ *  animation ends (silent tail is intentional). */
+export const BALLOON_FLIGHT_DURATION = 8.5;
 /** Duration of the impact flash effect in seconds. */
 export const IMPACT_FLASH_DURATION = 0.3;
 /** Duration of phase-transition banner sweep in seconds. */
