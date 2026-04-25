@@ -271,11 +271,15 @@ export function tickBattlePhase(
   state: GameState,
   dt: number,
 ): BattleCombatResult {
-  const towerEvents = gruntAttackTowers(state, dt);
-  const { impacts: newImpacts, events: impactEvents } = tickCannonballs(
+  const { towerEvents, wallEvents } = gruntAttackTowers(state, dt);
+  const { impacts: newImpacts, events: cannonImpactEvents } = tickCannonballs(
     state,
     dt,
   );
+  // Grunt-broken walls flow through the same `impactEvents` channel as
+  // cannonball-driven WALL_DESTROYED so they reach the watcher via the
+  // shared broadcast loop in `runtime-phase-ticks.ts`.
+  const impactEvents = [...wallEvents, ...cannonImpactEvents];
   return { towerEvents, impactEvents, newImpacts };
 }
 

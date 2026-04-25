@@ -6,6 +6,7 @@
 
 import {
   BATTLE_MESSAGE,
+  type ImpactEvent,
   type TowerKilledMessage,
 } from "../shared/core/battle-events.ts";
 import type { Grunt } from "../shared/core/battle-types.ts";
@@ -34,7 +35,7 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
-import { removeWallFromAllPlayers } from "../shared/core/player-walls.ts";
+import { deletePlayerWallBattle } from "../shared/core/player-walls.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -210,12 +211,14 @@ export function spawnGruntSurgeOnZone(
 export function gruntAttackTowers(
   state: GameState,
   dt: number,
-): TowerKilledMessage[] {
+): { towerEvents: TowerKilledMessage[]; wallEvents: ImpactEvent[] } {
   // Frostbite: ice-cube grunts can't swing at adjacent walls or towers either.
-  if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE) return [];
+  if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE)
+    return { towerEvents: [], wallEvents: [] };
 
   const deadZones = getDeadZones(state);
   const events: TowerKilledMessage[] = [];
+  const wallEvents: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
     // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
     if (grunt.attackingWall) {
@@ -236,8 +239,24 @@ export function gruntAttackTowers(
           const result = resolveWallShield(state, r, c, bestWallKey);
           if (result?.absorbed) {
             applyWallShield(state, result);
-          } else {
-            removeWallFromAllPlayers(state, bestWallKey);
+          } else if (result) {
+            // Emit WALL_DESTROYED so the watcher mirrors the wall set
+            // mid-battle. shooterId omitted — no scoring on grunt-broken
+            // walls. The host applies the mutation locally here (calling
+            // applyImpactEvent would cycle the import — battle-system
+            // already imports from this file); the event is bubbled to
+            // `tickBattlePhase` via `wallEvents` for wire broadcast and
+            // watcher-side `applyImpactEvent`.
+            const owner = state.players[result.playerId];
+            if (owner) deletePlayerWallBattle(owner, bestWallKey);
+            const event: ImpactEvent = {
+              type: BATTLE_MESSAGE.WALL_DESTROYED,
+              row: r,
+              col: c,
+              playerId: result.playerId,
+            };
+            wallEvents.push(event);
+            state.bus.emit(event.type, event);
           }
           grunt.attackingWall = false;
         }
@@ -291,7 +310,7 @@ export function gruntAttackTowers(
       grunt.attackCountdown = undefined;
     }
   }
-  return events;
+  return { towerEvents: events, wallEvents };
 }
 
 /**
