@@ -376,12 +376,11 @@ export function createOnlineOverlay(
       houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
       crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
-      fogOfWar:
-        inBattle && view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
-      // Frostbite tint follows the modifier's lifetime, not just the battle
-      // phase: surviving frosted grunts must keep reading as ice through the
-      // post-battle banner and the next build/cannon phases. The tint clears
-      // when the next prepareBattleState reassigns activeModifier.
+      // Fog and frostbite follow the modifier's lifetime, not just the
+      // battle phase: the overlay must appear during the reveal banner and
+      // stay up for the whole battle. Both clear when the next
+      // prepareBattleState reassigns activeModifier.
+      fogOfWar: view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
       frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
     },
     phantoms: frame.phantoms,
