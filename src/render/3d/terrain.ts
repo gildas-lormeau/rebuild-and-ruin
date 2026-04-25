@@ -22,7 +22,7 @@
  *     respond to state changes without rebuilding geometry.
  *
  * Color parity: base RGB values mirror the 2D renderer's tile palette in
- * `render-map.ts` (GRASS_DARK/LIGHT/BATTLE, WATER_COLOR, ICE_COLOR) and the
+ * `render-map.ts` (GRASS_DARK/LIGHT/BATTLE) and the
  * `bonus_square` / `burning_pit_*` sprites in `scripts/generate-sprites.html`.
  * Water shimmer uses the same period/phase math as `drawWaterAnimation` in
  * `render-effects.ts`, reduced to a per-tile amplitude modulation on the
@@ -72,11 +72,10 @@ export interface TerrainContext {
   dispose(): void;
 }
 
-// Per-tile base colors — raw grass/water/bank now come from the 2D
+// Per-tile base colors — raw grass/water/bank/ice now come from the 2D
 // `getTerrainBitmap` texture uploaded in `effects/terrain-bitmap.ts`;
-// the mesh only owns overlay tile colors (interiors, bonus, frozen,
-// owned sinkhole tints) which must stay in sync with `render-map.ts`.
-const ICE_COLOR: [number, number, number] = [165, 210, 230];
+// the mesh only owns overlay tile colors (interiors, bonus, owned
+// sinkhole tints) which must stay in sync with `render-map.ts`.
 // Cobblestone base color for battle-mode interiors. Intentionally
 // lighter than the 2D sprite's `COBBLESTONE_BASE = [90, 85, 80]` in
 // `render-map.ts` → `cobblestoneBaseColor`: at 3D's tile resolution the
@@ -202,32 +201,30 @@ export function createTerrain(): TerrainContext {
           blue = baseColor[2];
           alpha = 1;
         } else if (tile === Tile.Water) {
-          if (frozen?.has(key)) {
-            [red, green, blue] = ICE_COLOR;
+          // Owned sinkhole tiles — tint with the owning player's
+          // interior-grass color so enclosed lakes read as part of the
+          // castle interior (2D recolors the bank pixels per-pixel via
+          // `drawSinkholeOverlays`; 3D approximates at tile resolution).
+          // Frozen tiles fall through to alpha=0 so the bitmap's ice
+          // rendering wins (texture + edge blend in render-map.ts).
+          const isFrozen = frozen?.has(key);
+          const sinkholeOwner =
+            !isFrozen && sinkholeTiles?.has(key) && interiorOwner !== undefined
+              ? interiorOwner
+              : undefined;
+          if (sinkholeOwner !== undefined) {
+            const tint = interiorTileColor(sinkholeOwner, r, c, inBattle);
+            red = tint[0];
+            green = tint[1];
+            blue = tint[2];
             alpha = 1;
           } else {
-            // Owned sinkhole tiles — tint with the owning player's
-            // interior-grass color so enclosed lakes read as part of the
-            // castle interior (2D recolors the bank pixels per-pixel via
-            // `drawSinkholeOverlays`; 3D approximates at tile resolution).
-            const sinkholeOwner =
-              sinkholeTiles?.has(key) && interiorOwner !== undefined
-                ? interiorOwner
-                : undefined;
-            if (sinkholeOwner !== undefined) {
-              const tint = interiorTileColor(sinkholeOwner, r, c, inBattle);
-              red = tint[0];
-              green = tint[1];
-              blue = tint[2];
-              alpha = 1;
-            } else {
-              // Raw water — let the terrain bitmap paint this tile
-              // (including the SDF bank band at any grass/water edge).
-              red = 0;
-              green = 0;
-              blue = 0;
-              alpha = 0;
-            }
+            // Raw water or frozen water — let the terrain bitmap paint it
+            // (SDF bank band, wave texture, ICE_COLOR + ice-edge blend).
+            red = 0;
+            green = 0;
+            blue = 0;
+            alpha = 0;
           }
         } else {
           // Raw grass — let the terrain bitmap paint this tile

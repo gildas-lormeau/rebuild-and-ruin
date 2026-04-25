@@ -25,10 +25,14 @@ import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 interface CanvasRenderer extends RendererInterface {
   /** Internal offscreen scene canvas — the 2D-drawn pre-blit buffer. */
   sceneCanvas(): HTMLCanvasElement;
-  /** Baked terrain bitmap (grass + water + bank) for `map`. The 3D
-   *  renderer uploads this as a CanvasTexture so water/grass visuals
-   *  stay pixel-identical across backends. */
-  getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData;
+  /** Baked terrain bitmap (grass + water + bank + frozen ice) for `map`.
+   *  The 3D renderer uploads this as a CanvasTexture so water/grass/ice
+   *  visuals stay pixel-identical across backends. */
+  getTerrainBitmap(
+    map: GameMap,
+    inBattle: boolean,
+    frozenTiles?: ReadonlySet<number>,
+  ): ImageData;
   /** Owner-tinted sinkhole bank overlay ImageData for `(map, overlay)`,
    *  or `undefined` when no enclosed sinkhole cluster needs recoloring.
    *  The 3D renderer uploads this as a CanvasTexture on a plane above

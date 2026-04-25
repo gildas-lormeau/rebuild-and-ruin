@@ -154,14 +154,23 @@ interface RenderMap {
   ) => void;
   /** Pre-compute terrain bitmaps for `map` so the first frame doesn't stall.
    *  Per-renderer-instance: each `createRenderMap` owns its own cache, so
-   *  warming a map for one renderer doesn't affect another. */
-  precomputeTerrainCache: (map: GameMap) => void;
+   *  warming a map for one renderer doesn't affect another.
+   *  `frozenTiles` participates in the bake — when the frozen-river modifier
+   *  fires, `state.map.mapVersion` bumps and the cache re-bakes with ice. */
+  precomputeTerrainCache: (
+    map: GameMap,
+    frozenTiles?: ReadonlySet<number>,
+  ) => void;
   /** Return the baked terrain bitmap (grass + water + bank + checkerboard
-   *  noise) for `map` in either peacetime or battle palette. Populates the
-   *  cache on first call via `precomputeTerrainCache`. The 3D renderer
-   *  uploads this as a CanvasTexture so water/grass/bank visuals stay
-   *  pixel-identical across 2D and 3D. */
-  getTerrainBitmap: (map: GameMap, inBattle: boolean) => ImageData;
+   *  noise + frozen ice) for `map` in either peacetime or battle palette.
+   *  Populates the cache on first call via `precomputeTerrainCache`. The 3D
+   *  renderer uploads this as a CanvasTexture so water/grass/bank/ice
+   *  visuals stay pixel-identical across 2D and 3D. */
+  getTerrainBitmap: (
+    map: GameMap,
+    inBattle: boolean,
+    frozenTiles?: ReadonlySet<number>,
+  ) => ImageData;
   /** Return a MAP_PX_W × MAP_PX_H ImageData containing only the owner-tinted
    *  sinkhole bank patches (transparent elsewhere), or `undefined` when no
    *  enclosed sinkhole cluster exists for the current overlay. The 3D
@@ -367,8 +376,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   /** Pre-compute both terrain variants (normal + battle) so the first
-   *  render of each doesn't stall the frame. Call during game init. */
-  function precomputeTerrainCache(map: GameMap): void {
+   *  render of each doesn't stall the frame. Call during game init.
+   *  `frozenTiles` is baked into the bitmap when present — `mapVersion`
+   *  bumps on freeze/thaw invalidate the cache. */
+  function precomputeTerrainCache(
+    map: GameMap,
+    frozenTiles?: ReadonlySet<number>,
+  ): void {
     const W = MAP_PX_W;
     const H = MAP_PX_H;
     const cache = getTerrainCache(map, W, H);
@@ -379,12 +393,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
 
     if (!cache.normal) {
       const imgData = new ImageData(W, H);
-      renderTerrainPixels(imgData, sdf, W, H, map, false);
+      renderTerrainPixels(imgData, sdf, W, H, map, false, frozenTiles);
       cache.normal = imgData;
     }
     if (!cache.battle) {
       const imgData = new ImageData(W, H);
-      renderTerrainPixels(imgData, sdf, W, H, map, true);
+      renderTerrainPixels(imgData, sdf, W, H, map, true, frozenTiles);
       cache.battle = imgData;
     }
   }
@@ -778,8 +792,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return bridge;
   }
 
-  function getTerrainBitmap(map: GameMap, inBattle: boolean): ImageData {
-    precomputeTerrainCache(map);
+  function getTerrainBitmap(
+    map: GameMap,
+    inBattle: boolean,
+    frozenTiles?: ReadonlySet<number>,
+  ): ImageData {
+    precomputeTerrainCache(map, frozenTiles);
     const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
     return inBattle ? cache.battle! : cache.normal!;
   }
@@ -1063,7 +1081,11 @@ function renderTerrainPixels(
         waterBase =
           iceBlend < 1 ? lerp3(WATER_COLOR, ICE_COLOR, iceBlend) : ICE_COLOR;
       }
-      const water = texturedColor(WATER_TEX, waterBase, inBattle, lx, ly);
+      // Frozen tiles render as smooth ice — skip the wave texture that
+      // brightens/darkens battle-mode water along WAVE_HI / WAVE_LO.
+      const water = tileIsFrozen
+        ? waterBase
+        : texturedColor(WATER_TEX, waterBase, inBattle, lx, ly);
 
       // Blend grass → bank → water based on SDF distance
       const color = selectTerrainColor(

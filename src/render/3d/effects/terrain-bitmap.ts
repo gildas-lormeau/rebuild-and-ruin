@@ -40,7 +40,11 @@ export interface TerrainBitmapManager {
   dispose(): void;
 }
 
-export type GetTerrainBitmap = (map: GameMap, inBattle: boolean) => ImageData;
+export type GetTerrainBitmap = (
+  map: GameMap,
+  inBattle: boolean,
+  frozenTiles?: ReadonlySet<number>,
+) => ImageData;
 
 export function createTerrainBitmapManager(
   scene: THREE.Scene,
@@ -63,11 +67,17 @@ export function createTerrainBitmapManager(
       return;
     }
     const inBattle = !!overlay?.battle?.inBattle;
+    // mapVersion bumps on freeze/thaw (see frozen-river.ts), so it alone
+    // covers cache invalidation — no separate frozenTiles fingerprint needed.
     if (bakedVersion === map.mapVersion && bakedInBattle === inBattle) return;
     bakedVersion = map.mapVersion;
     bakedInBattle = inBattle;
 
-    const bitmap = getTerrainBitmap(map, inBattle);
+    const bitmap = getTerrainBitmap(
+      map,
+      inBattle,
+      overlay?.entities?.frozenTiles,
+    );
     canvasCtx.putImageData(bitmap, 0, 0);
     texture.needsUpdate = true;
     mesh.visible = true;
