@@ -58,6 +58,11 @@ interface OptionsSystemDeps {
   onCloseOptions?: () => void;
   /** Open the HTML Sound modal (player-supplied Rampart file loader). */
   showSoundModal: () => void;
+  /** True when player-supplied sound assets are present in IDB. */
+  getSoundReady: () => boolean;
+  /** Re-apply music + SFX mute state from `settings.soundEnabled` (and tab
+   *  visibility). Called when the Sound row toggles. */
+  applyAudioState: () => void;
   seedField: SeedField;
 
   // Render-domain functions (injected from composition root)
@@ -116,9 +121,23 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function changeOption(dir: number): void {
+    const idx = visibleToActualOptionIdx();
+    if (idx === OPT_SOUND) {
+      // No assets loaded → arrows act as a shortcut into the file-loader
+      // modal (the only meaningful action available). Once assets are in IDB
+      // the arrows toggle the soundEnabled mute flag.
+      if (!deps.getSoundReady()) {
+        deps.showSoundModal();
+        return;
+      }
+      runtimeState.settings.soundEnabled = !runtimeState.settings.soundEnabled;
+      saveSettings(runtimeState.settings);
+      deps.applyAudioState();
+      return;
+    }
     deps.cycleOption(
       dir,
-      visibleToActualOptionIdx(),
+      idx,
       runtimeState.settings,
       runtimeState.optionsUI.returnMode,
       safeState(runtimeState) ?? null,
@@ -229,7 +248,12 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       showControls();
     } else if (realIdx === OPT_SOUND) {
       blurSeedInput();
-      deps.showSoundModal();
+      // Arrow tap on the Sound row toggles soundEnabled (or opens the modal
+      // when no assets are loaded yet — handled inside changeOption). A tap
+      // on the row label still opens the modal so the file loader stays
+      // reachable even when arrows toggle.
+      if (hit.type === HIT_ARROW) changeOption(hit.dir);
+      else deps.showSoundModal();
     } else if (realIdx === OPT_SEED) {
       focusSeedInput();
     } else {

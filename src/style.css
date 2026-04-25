@@ -806,14 +806,58 @@ nav.dpad {
   color: #d5d9e0;
 }
 
-.sound-modal-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.sound-source {
+  display: grid;
+  gap: 0.4rem;
   margin-top: 0.75rem;
 }
 
-.sound-modal-actions .lobby-btn {
+.sound-source-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.sound-source-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.sound-source-row .lobby-input {
+  min-width: 0;
+}
+
+.sound-source-row .lobby-btn {
+  margin: 0;
+}
+
+.sound-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0 0.75rem;
+  color: var(--color-dim);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sound-divider::before,
+.sound-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-border), transparent 50%);
+}
+
+.sound-file-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.sound-file-actions .lobby-btn {
   margin: 0;
 }
 

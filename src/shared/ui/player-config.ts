@@ -44,6 +44,10 @@ export interface GameSettings {
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
   gameMode: GameMode;
+  /** When false, music + SFX are silenced regardless of whether the player has
+   *  loaded Rampart asset files. Toggled from the Sound row on the options
+   *  screen; only meaningful when assets are present. */
+  soundEnabled: boolean;
 }
 
 /** Index into ROUNDS_OPTIONS — index 2 is the 8-rounds option. */
@@ -132,6 +136,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   keyBindings: [],
   leftHanded: false,
   gameMode: GAME_MODE_MODERN,
+  soundEnabled: true,
 };
 export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
@@ -170,6 +175,7 @@ export function loadSettings(): GameSettings {
           saved.gameMode === GAME_MODE_CLASSIC
             ? GAME_MODE_CLASSIC
             : GAME_MODE_MODERN,
+        soundEnabled: saved.soundEnabled ?? DEFAULT_SETTINGS.soundEnabled,
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS

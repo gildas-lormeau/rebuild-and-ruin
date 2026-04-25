@@ -283,6 +283,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (assets && runtimeState.mode === Mode.LOBBY) {
       void music.startTitle();
     }
+    // Re-apply mute state in case the user just removed/added assets while
+    // soundEnabled was toggled to a non-default value.
+    applyAudioState();
   });
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
@@ -293,19 +296,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // only release it if the current reason is still "visibility" (never
   // overriding a user pause). Initial call also covers the dev hot-reload
   // case of starting in a hidden tab.
-  function applyVisibility(): void {
+  function applyAudioState(): void {
     const hidden = typeof document !== "undefined" && document.hidden;
     if (hidden && runtimeState.pausedBy === "none") {
       runtimeState.pausedBy = "visibility";
     } else if (!hidden && runtimeState.pausedBy === "visibility") {
       runtimeState.pausedBy = "none";
     }
-    void music.setPaused(hidden);
-    void sfx.setPaused(hidden);
+    const silenced = hidden || !runtimeState.settings.soundEnabled;
+    void music.setPaused(silenced);
+    void sfx.setPaused(silenced);
   }
-  applyVisibility();
+  applyAudioState();
   if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", applyVisibility);
+    document.addEventListener("visibilitychange", applyAudioState);
   }
 
   // Touch handles created early — render, options, and lifecycle read them
@@ -803,6 +807,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
     showSoundModal: () => soundModal?.show(),
+    getSoundReady: () => musicAssets !== undefined,
+    applyAudioState,
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;
       runtimeState.settings.seed = digits;

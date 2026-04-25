@@ -56,8 +56,10 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   const readOnly = frameCtx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
-    // Seed is typed, Controls + Sound open sub-screens — none use left/right cycling
-    if (i === OPT_SEED || i === OPT_CONTROLS || i === OPT_SOUND)
+    // Seed is typed, Controls opens a sub-screen — no left/right cycling.
+    // Sound is editable: arrows toggle on/off when assets are loaded, or
+    // open the Sound modal when they aren't (handled in changeOption).
+    if (i === OPT_SEED || i === OPT_CONTROLS)
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
@@ -245,7 +247,10 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === OPT_DPAD) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
   if (idx === OPT_GAME_MODE)
     return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
-  if (idx === OPT_SOUND) return frameCtx.getSoundReady() ? "Ready" : "Off";
+  if (idx === OPT_SOUND) {
+    if (!frameCtx.getSoundReady()) return "Off";
+    return settings.soundEnabled ? "On" : "Off";
+  }
   return "";
 }
 

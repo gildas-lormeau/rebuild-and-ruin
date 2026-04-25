@@ -198,12 +198,15 @@
         files are copyrighted. To enable sound you need a legitimate copy of the DOS game's
         files (<code>RAMP.AD</code> + <code>RXMI_*.xmi</code>).
       </p>
-      <div class="setting-row">
-        <label for="music-url" class="setting-label">Source URL (zip)</label>
-        <input class="lobby-input" id="music-url" type="url" autocomplete="off" spellcheck="false">
+      <div class="sound-source">
+        <label for="music-url" class="sound-source-label">Source URL (zip)</label>
+        <div class="sound-source-row">
+          <input class="lobby-input" id="music-url" type="url" autocomplete="off" spellcheck="false">
+          <button type="button" class="lobby-btn secondary" id="btn-music-load-url">Load</button>
+        </div>
       </div>
-      <div class="sound-modal-actions">
-        <button type="button" class="lobby-btn secondary" id="btn-music-load-url">Load from URL</button>
+      <div class="sound-divider"><span>or load files locally</span></div>
+      <div class="sound-file-actions">
         <button type="button" class="lobby-btn secondary" id="btn-music-pick-zip">Pick zip file…</button>
         <button type="button" class="lobby-btn secondary" id="btn-music-pick-files">Pick individual files…</button>
         <input type="file" id="music-zip-picker" accept=".zip,application/zip" hidden>
