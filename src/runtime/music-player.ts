@@ -11,9 +11,12 @@
  * means one AudioContext + WASM instance instead of six, well below the
  * browser's active-context cap.
  *
- * The fanfare pool stays separate: fanfares ring on top of build-bg during
- * WALL_BUILD (an enclosure completed mid-build fires a fanfare while bg music
- * keeps playing), so they need their own synths.
+ * Fanfares overlap bg music (an enclosure completed mid-build fires a fanfare
+ * while build-bg keeps playing). Rather than spinning a second worklet per
+ * slot, they're pre-rendered once at activate-time via the headless WASM core
+ * (no AudioContext, no AudioWorklet) and replayed via plain
+ * `AudioBufferSourceNode` on the bg synth's AudioContext. Free overlap, zero
+ * idle CPU.
  *
  * Plays RXMI_TITLE.xmi from the moment the subsystem is bound to a game bus
  * (first launch + rematch) until the first WALL_BUILD phase starts. Silent if
@@ -220,11 +223,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   // means "we tried to parse this once and it failed" — don't warn again.
   const smfCache = new Map<string, Uint8Array | null>();
 
-  // One synth per fanfare slot. Each owns its own AudioContext + WASM
-  // instance, so fanfares can ring on top of build-bg (different synth) and
-  // multiple enclosures landing within the same ~second (parallel prebuilds)
-  // can overlap. Lazy init per slot.
-  const fanfareSynths = new Map<number, Promise<SynthHandle | undefined>>();
+  // Pre-rendered PCM AudioBuffers for each fanfare variant, keyed by player
+  // slot. Built once during `activate()` via the headless WASM core (no
+  // worklet, no extra AudioContext). Playback creates an AudioBufferSourceNode
+  // on the bg synth's context — free overlap, no per-slot worklet ticking.
+  const fanfareBuffers = new Map<number, AudioBuffer>();
+  let fanfaresPrerendered = false;
+  let fanfaresPrerenderingPromise: Promise<void> | undefined;
 
   // `wantsTitle` is the caller's intent (lobby said "play title"). `paused`
   // means the composition told us the host tab is hidden / externally
@@ -366,54 +371,86 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     await stopBg(STOP_REASON_PHASE);
   }
 
-  function ensureFanfareSynth(
-    playerId: ValidPlayerSlot,
-  ): Promise<SynthHandle | undefined> {
-    const cached = fanfareSynths.get(playerId);
-    if (cached) return cached;
-    const songIdx = FANFARE_SONG_BY_SLOT[playerId] ?? FANFARE_SONG_BY_SLOT[0]!;
-    const promise = (async () => {
+  function prerenderFanfares(): Promise<void> {
+    if (fanfaresPrerendered) return Promise.resolve();
+    if (fanfaresPrerenderingPromise) return fanfaresPrerenderingPromise;
+    fanfaresPrerenderingPromise = (async () => {
+      if (deps.assetsReady) await deps.assetsReady;
+      const synth = await ensureBgSynth();
+      const ctx = synth?.audioContext;
+      if (!ctx) return;
       const assets = deps.getAssets();
-      if (!assets) return undefined;
-      const loader = await import("./music-synth-loader.ts");
-      const synth = await loader.loadSynth(assets);
+      if (!assets) return;
       const blocks = xmiContainerBlocks(assets.xmi[FANFARE_TRACK]);
-      const block = blocks[songIdx]?.block;
-      if (!block) {
-        console.warn(`[music] fanfare song ${songIdx} missing in TETRIS.xmi`);
-        return undefined;
+      const loader = await import("./music-synth-loader.ts");
+      const renderer = await loader
+        .createFanfareRenderer(assets, ctx)
+        .catch((error) => {
+          console.error("[music] fanfare renderer init failed:", error);
+          return undefined;
+        });
+      if (!renderer) return;
+      try {
+        // Render each unique sub-song once, then map every slot that uses
+        // that sub-song to the same AudioBuffer (slots 0 and 3 share song 4).
+        const buffersBySong = new Map<number, AudioBuffer>();
+        for (let slot = 0; slot < FANFARE_SONG_BY_SLOT.length; slot += 1) {
+          const songIdx =
+            FANFARE_SONG_BY_SLOT[slot] ?? FANFARE_SONG_BY_SLOT[0]!;
+          let buffer = buffersBySong.get(songIdx);
+          if (!buffer) {
+            const block = blocks[songIdx]?.block;
+            if (!block) {
+              console.warn(
+                `[music] fanfare song ${songIdx} missing in TETRIS.xmi`,
+              );
+              continue;
+            }
+            const smf = xmidToSmf(block);
+            if (!smf) {
+              console.warn(`[music] fanfare song ${songIdx} has no EVNT chunk`);
+              continue;
+            }
+            let rendered: AudioBuffer | undefined;
+            try {
+              rendered = renderer.render(smf, songIdx);
+            } catch (error) {
+              console.error(
+                `[music] fanfare song ${songIdx} render failed:`,
+                error,
+              );
+              continue;
+            }
+            if (!rendered) continue;
+            buffersBySong.set(songIdx, rendered);
+            buffer = rendered;
+          }
+          fanfareBuffers.set(slot, buffer);
+        }
+      } finally {
+        renderer.close();
       }
-      const smf = xmidToSmf(block);
-      if (!smf) {
-        console.warn(`[music] fanfare song ${songIdx} has no EVNT chunk`);
-        return undefined;
-      }
-      await synth.loadMidi(copyBuffer(smf));
-      synth.setLoopEnabled(false);
-      synth.setVolume(FANFARE_VOLUME);
-      return synth;
-    })().catch((error) => {
-      console.error(
-        `[music] fanfare synth init failed for slot ${playerId}:`,
-        error,
-      );
-      fanfareSynths.delete(playerId);
-      return undefined;
-    });
-    fanfareSynths.set(playerId, promise);
-    return promise;
+      fanfaresPrerendered = true;
+    })();
+    return fanfaresPrerenderingPromise;
   }
 
   async function playFanfare(playerId: ValidPlayerSlot): Promise<void> {
     if (paused) return;
-    if (deps.assetsReady) await deps.assetsReady;
-    const synth = await ensureFanfareSynth(playerId);
-    if (!synth) return;
+    await prerenderFanfares();
+    const synth = await ensureBgSynth();
+    const ctx = synth?.audioContext;
+    if (!ctx) return;
+    const buffer = fanfareBuffers.get(playerId) ?? fanfareBuffers.get(0);
+    if (!buffer) return;
     try {
-      // stop() then play() rewinds so a repeat enclosure (next phase)
-      // replays the fanfare from the top instead of idling at the tail.
-      await synth.stop();
-      await synth.play();
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gain = ctx.createGain();
+      gain.gain.value = FANFARE_VOLUME;
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
       deps.observer?.onPlay?.(`${FANFARE_TRACK}#slot${playerId}`);
     } catch (error) {
       console.error(
@@ -555,6 +592,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   async function activate(): Promise<void> {
     if (deps.assetsReady) await deps.assetsReady;
     await ensureBgSynth();
+    // Pre-render fanfares now (we're inside a user gesture and the bg
+    // AudioContext is warm) so the first enclosure plays without latency.
+    await prerenderFanfares();
   }
 
   async function suspendContext(context: AudioContext | null): Promise<void> {
@@ -570,18 +610,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   async function setPaused(nextPaused: boolean): Promise<void> {
     paused = nextPaused;
     const bgHandle = bgSynth ? await bgSynth.catch(() => undefined) : undefined;
-    // The fanfare pool holds its own AudioContexts, so backgrounding the
-    // tab needs to quiet them too (otherwise a fanfare started just before
-    // visibility-change keeps ringing).
-    const fanfareSnapshots = await Promise.all(
-      Array.from(fanfareSynths.values()).map((pending) =>
-        pending.catch(() => undefined),
-      ),
-    );
-    for (const synth of [bgHandle, ...fanfareSnapshots]) {
-      if (nextPaused) await suspendContext(synth?.audioContext ?? null);
-      else await resumeContext(synth?.audioContext ?? null);
-    }
+    // Fanfares share the bg synth's AudioContext, so suspending it quiets
+    // any in-flight AudioBufferSourceNodes alongside the bg track.
+    if (nextPaused) await suspendContext(bgHandle?.audioContext ?? null);
+    else await resumeContext(bgHandle?.audioContext ?? null);
     // Deferred start: if we were asked to play title while paused, kick it off
     // now that the tab is visible again.
     if (!nextPaused && wantsTitle && bgPlaying !== BG_TRACK_TITLE) {
@@ -599,16 +631,12 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       bgSynth = undefined;
       bgLoaded = undefined;
     }
-    // Shut down the fanfare synth pool — each owns an AudioContext we must
-    // explicitly close, otherwise rematches stack new ones on top (browsers
-    // cap the total and will refuse new contexts eventually).
-    for (const [, fanfarePromise] of fanfareSynths) {
-      const synth = await fanfarePromise.catch(() => undefined);
-      if (!synth) continue;
-      await synth.stop().catch(() => {});
-      await synth.audioContext?.close().catch(() => {});
-    }
-    fanfareSynths.clear();
+    // Fanfare AudioBuffers are tied to the bg synth's context; closing that
+    // context above unbinds them. Just clear the map so a rematch
+    // re-renders.
+    fanfareBuffers.clear();
+    fanfaresPrerendered = false;
+    fanfaresPrerenderingPromise = undefined;
     smfCache.clear();
   }
 
