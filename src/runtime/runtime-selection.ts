@@ -146,11 +146,13 @@ export function createSelectionSystem(
     // selectionStates + player.homeTower defaults.
     //
     // Drivable slot policy:
-    //   Watcher: nobody — just observing
+    //   Watcher: AI slots only — runs deterministically off `strategy.rng`
+    //     so `homeTower` mirrors host without wire chatter; human slots
+    //     get their selection via `OPPONENT_TOWER_SELECTED`.
     //   Non-host player: only myPlayerId — remote players handled by host
     //   Host: all non-remote-humans — host drives AI + local player
     const shouldSelect = (pid: ValidPlayerSlot): boolean => {
-      if (isWatcher) return false;
+      if (isWatcher) return !isHuman(runtimeState.controllers[pid]!);
       if (!isHost) return pid === myPlayerId;
       return !isRemotePlayer(pid, remotePlayerSlots);
     };
@@ -249,7 +251,12 @@ export function createSelectionSystem(
     );
     if (!result) return allSelectionsConfirmed(runtimeState.selection.states);
 
-    deps.sendTowerSelected(pid, result.towerIdx, true);
+    // Only humans need wire confirmation — AI selection runs locally on
+    // the watcher and reaches the same `confirmed` state via its own
+    // `selectionTick` returning true.
+    if (isHuman(runtimeState.controllers[pid]!)) {
+      deps.sendTowerSelected(pid, result.towerIdx, true);
+    }
 
     if (result.isReselect) {
       runtimeState.selection.reselectionPids.push(pid);
@@ -286,17 +293,42 @@ export function createSelectionSystem(
       state.timer = Math.max(0, SELECT_TIMER - accum.select);
     }
 
-    // Non-host watcher: just render
-    if (!isHost && !isActivePlayer(myPlayerId)) {
-      deps.render();
-      return;
-    }
+    // Non-host: tick AI controllers' selectionTick locally (deterministic
+    // from strategy.rng), then animate any host-broadcast wall plans, then
+    // render. Each player's `homeTower` updates identically to host without
+    // needing wire chatter for AI picks. Block until announcement finishes
+    // so the AI tick count matches host's (host gates the same way below).
+    // Wall-build animation runs inline here to mirror host's tickSelection
+    // — without it, host's per-player CASTLE_WALLS would never animate
+    // because the watcher no longer flips to Mode.CASTLE_BUILD.
+    if (!isHost) {
+      if (accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION) {
+        for (const [rawPid, selectionState] of selection.states) {
+          const pid = rawPid as ValidPlayerSlot;
+          if (selectionState.confirmed) continue;
+          const ctrl = runtimeState.controllers[pid]!;
+          if (isHuman(ctrl)) continue;
+          const towerBefore = state.players[pid]!.homeTower;
+          if (ctrl.selectionTick(dt, state)) {
+            // Watcher locally marks confirmed; host's wire broadcast for
+            // own-slot confirmations is skipped (we're not host) — there
+            // are none for AI slots anyway.
+            selectionState.confirmed = true;
+            continue;
+          }
+          if (state.players[pid]!.homeTower !== towerBefore) {
+            const newTower = state.players[pid]!.homeTower;
+            if (newTower) selectionState.highlighted = newTower.index;
+          }
+        }
+      }
 
-    // Non-host active player: auto-confirm on timer expiry
-    if (!isHost && isActivePlayer(myPlayerId)) {
-      if (accum.select >= SELECT_TIMER) {
+      // Active local player: auto-confirm on timer expiry.
+      if (isActivePlayer(myPlayerId) && accum.select >= SELECT_TIMER) {
         confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
       }
+
+      if (tickAllCastleBuilds(dt)) recheckTerritory(state);
       deps.render();
       return;
     }
@@ -318,8 +350,9 @@ export function createSelectionSystem(
       if (selectionState.confirmed) continue;
       if (isRemotePlayer(pid, remotePlayerSlots)) continue;
 
+      const ctrl = runtimeState.controllers[pid]!;
       const towerBefore = state.players[pid]!.homeTower;
-      if (runtimeState.controllers[pid]!.selectionTick(dt, state)) {
+      if (ctrl.selectionTick(dt, state)) {
         confirmSelectionAndStartBuild(pid, isReselect);
         continue;
       }
@@ -329,7 +362,11 @@ export function createSelectionSystem(
         if (newTower) {
           selectionState.highlighted = newTower.index;
           syncSelectionOverlay();
-          deps.sendTowerSelected(pid, newTower.index, false);
+          // Only humans need wire mirroring — AI selection is deterministic
+          // from `strategy.rng` and runs locally on the watcher too.
+          if (isHuman(ctrl)) {
+            deps.sendTowerSelected(pid, newTower.index, false);
+          }
         }
       }
     }

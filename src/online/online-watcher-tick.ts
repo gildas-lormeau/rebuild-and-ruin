@@ -255,8 +255,10 @@ export function tickWatcher(
     case Phase.CASTLE_RESELECT:
     case Phase.UPGRADE_PICK:
       // Watcher sits in a non-GAME mode for these phases (selection /
-      // upgrade-pick dialog); tickWatcher's phase-specific handlers
-      // don't run during them. Explicit no-ops for exhaustiveness.
+      // upgrade-pick dialog). AI selection on the watcher is driven by
+      // `runtime-selection.ts` `tickSelection`'s non-host branch
+      // (Mode.SELECTION); tickWatcher (which only fires from Mode.GAME
+      // via `tickGame`) doesn't need to do anything here.
       break;
   }
 

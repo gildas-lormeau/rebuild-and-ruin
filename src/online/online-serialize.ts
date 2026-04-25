@@ -150,15 +150,6 @@ export function createFullStateMessage(
   };
 }
 
-/** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
- *  castleWallTiles). Smaller wire footprint for frequent messages. */
-export function serializePlayersCheckpoint(state: GameState) {
-  return state.players.map((player) => ({
-    ...serializePlayerCore(player),
-    cannons: player.cannons.map(serializeCannon),
-  }));
-}
-
 export function restoreFullStateSnapshot(
   state: GameState,
   msg: FullStateMessage,
@@ -344,6 +335,15 @@ export function createGameOverPayload(
       })),
     },
   };
+}
+
+/** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
+ *  castleWallTiles). Smaller wire footprint for frequent messages. */
+function serializePlayersCheckpoint(state: GameState) {
+  return state.players.map((player) => ({
+    ...serializePlayerCore(player),
+    cannons: player.cannons.map(serializeCannon),
+  }));
 }
 
 /** Restore captured cannon object references from serialized indices.

@@ -55,10 +55,8 @@ import {
 import { setPhase } from "../game/phase-setup.ts";
 import type {
   BattleStartData,
-  BuildEndData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
-import type { BuildEndMessage } from "../protocol/protocol.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import {
@@ -94,7 +92,6 @@ import {
   ACCUM_GRUNT,
   resetAccum,
 } from "./runtime-tick-context.ts";
-import type { BuildEndSummary } from "./runtime-types.ts";
 
 export type TransitionId =
   | "castle-select-done"
@@ -209,11 +206,6 @@ export interface BattleLifecycle {
 }
 
 export type ApplyCannonStart = (msg: CannonStartData) => void;
-
-export type ApplyBuildEnd = (
-  msg: BuildEndData,
-  capturePreScores: () => void,
-) => void;
 
 /** Watcher-specific hooks. Populated only when `role === "watcher"`. */
 export interface WatcherHooks {
@@ -363,7 +355,9 @@ export interface PhaseTransitionCtx {
     /** Phase-marker signal — watcher runs `enterBuildPhase` locally on
      *  receipt. No payload; both sides derive identical state. */
     readonly buildStart?: () => void;
-    readonly buildEnd?: (state: GameState, payload: BuildEndSummary) => void;
+    /** Phase-marker signal — watcher runs `finalizeBuildPhase` locally
+     *  on receipt. No payload. */
+    readonly buildEnd?: () => void;
   };
 
   // ── Castle-select / reselect hooks ──
@@ -404,7 +398,6 @@ export interface PhaseTransitionCtx {
      *  player crosshair-pos init). Game state is mutated locally by
      *  `enterBattlePhase` running in the watcher mutate. */
     readonly applyBattleStartWatcherUI?: () => void;
-    readonly applyBuildEnd?: ApplyBuildEnd;
   };
 
   readonly watcher?: WatcherHooks;
@@ -461,28 +454,21 @@ const WALL_BUILD_DONE: Transition = {
       // called from `advance-to-cannon` / `castle-reselect-done` /
       // game-over flows so the cannons banner reveals them.
       const { needsReselect, eliminated } = finalizeBuildPhase(ctx.state);
-      ctx.broadcast?.buildEnd?.(ctx.state, {
-        needsReselect,
-        eliminated,
-        scores: ctx.state.players.map((player) => player.score),
-      });
+      ctx.broadcast?.buildEnd?.();
       return { ...EMPTY_TRANSITION_RESULT, needsReselect, eliminated };
     },
     watcher: (ctx) => {
-      const msg = ctx.incomingMsg as BuildEndMessage;
-      let preScores: readonly number[] = [];
-      ctx.checkpoint?.applyBuildEnd?.(msg, () => {
-        preScores = ctx.state.players.map((player) => player.score);
-      });
-      ctx.watcher?.resetRemovedPlayerZones(msg.needsReselect, msg.eliminated);
-      // Feed pre-scores into scoreDelta so the score-overlay display step
-      // animates against the correct starting values (checkpoint has already
-      // written the new scores into state).
+      // Capture pre-scores BEFORE finalizeBuildPhase mutates them via
+      // territory + life-penalty point awards — score-overlay needs the
+      // starting values for the delta animation.
+      const preScores = ctx.state.players.map((player) => player.score);
+      const { needsReselect, eliminated } = finalizeBuildPhase(ctx.state);
+      ctx.watcher?.resetRemovedPlayerZones(needsReselect, eliminated);
       ctx.scoreDelta.setPreScores?.(preScores);
       return {
         ...EMPTY_TRANSITION_RESULT,
-        needsReselect: msg.needsReselect,
-        eliminated: msg.eliminated,
+        needsReselect,
+        eliminated,
         preScores,
       };
     },

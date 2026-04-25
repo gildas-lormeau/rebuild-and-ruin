@@ -40,7 +40,6 @@ import {
   createBuildStartMessage,
   createCannonStartMessage,
   createGameOverPayload,
-  serializePlayersCheckpoint,
 } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
 import {
@@ -198,14 +197,7 @@ const runtime: GameRuntime = createGameRuntime({
     broadcastBattleStart: (rngState) =>
       send(createBattleStartMessage(rngState)),
     broadcastBuildStart: () => send(createBuildStartMessage()),
-    broadcastBuildEnd: (state, summary) =>
-      send({
-        type: MESSAGE.BUILD_END,
-        needsReselect: [...summary.needsReselect],
-        eliminated: [...summary.eliminated],
-        scores: [...summary.scores],
-        players: serializePlayersCheckpoint(state),
-      }),
+    broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
 
     // ── Host: per-controller crosshair fan-out ────────────────────────
     // No internal isHost gate — the runtime calls this only from the host

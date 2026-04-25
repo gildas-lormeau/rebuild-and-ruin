@@ -308,6 +308,11 @@ export interface RecordedEvent {
 /** Default budget for wait helpers — matches the E2E mirror's default
  *  so agents don't mix up units when copying test code between APIs. */
 const DEFAULT_WAIT_TIMEOUT_MS = DEFAULT_RUNUNTIL_TIMEOUT_MS;
+/** Bus events that are purely cosmetic (sound, animation cues) and must
+ *  be excluded from determinism replay. The picks driving them use
+ *  `Math.random()` (e.g. whistle variant), not `state.rng`, so the
+ *  game-logic event log stays reproducible. */
+const COSMETIC_EVENT_TYPES = new Set<string>(["cannonballDescending"]);
 
 /** Boot a scenario for a registered seed condition. Looks up the cached
  *  seed in `test/seed-fixtures.json` and uses the condition's declared
@@ -618,10 +623,12 @@ export async function step<T>(
 }
 
 /** Subscribe to every bus event and accumulate them in order.
- *  Call BEFORE driving the runtime so no events are missed. */
+ *  Call BEFORE driving the runtime so no events are missed.
+ *  Filters out cosmetic SFX events — see `COSMETIC_EVENT_TYPES`. */
 export function recordEvents(sc: Scenario): RecordedEvent[] {
   const events: RecordedEvent[] = [];
   sc.bus.onAny((type, ev) => {
+    if (COSMETIC_EVENT_TYPES.has(type as string)) return;
     events.push(normalizeEvent(type as string, ev));
   });
   return events;

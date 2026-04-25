@@ -2,10 +2,7 @@ import {
   applyCheckpointModifierTiles,
   recomputeAllTerritory,
 } from "../game/index.ts";
-import type {
-  BuildEndData,
-  CannonStartData,
-} from "../protocol/checkpoint-data.ts";
+import type { CannonStartData } from "../protocol/checkpoint-data.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
@@ -82,24 +79,6 @@ export function applyBattleStartWatcherUI(deps: CheckpointDeps): void {
   for (const player of deps.state.players) {
     if (!isPlayerSeated(player)) continue;
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
-  }
-}
-
-/** Apply a build-end checkpoint: players + host-computed scores.
- *  Only needs state from deps (no crosshairs/battleAnim/territory to reset).
- *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
- *    Use this to capture pre-state (walls, scores, castles) for banner animations. */
-export function applyBuildEndCheckpoint(
-  data: BuildEndData,
-  deps: Pick<CheckpointDeps, "state">,
-  capturePreState?: () => void,
-): void {
-  capturePreState?.();
-  applyPlayersCheckpoint(deps.state, data.players);
-  recomputeAllTerritory(deps.state);
-  for (let idx = 0; idx < deps.state.players.length; idx++) {
-    deps.state.players[idx]!.score =
-      data.scores[idx] ?? deps.state.players[idx]!.score;
   }
 }
 

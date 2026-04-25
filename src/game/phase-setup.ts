@@ -56,6 +56,7 @@ import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
+  initPlayerBag,
   isPlayerAlive,
   isPlayerEliminated,
   isPlayerSeated,
@@ -106,6 +107,7 @@ import {
   onBattlePhaseStart,
   onBuildPhaseStart,
   resetPlayerUpgrades,
+  useSmallPieces,
 } from "./upgrade-system.ts";
 
 interface ScoreDelta {
@@ -134,11 +136,6 @@ export function finalizeCastleConstruction(state: GameState): void {
 export function prepareBattleState(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
-  // Pre-modifier recheck: reconcile interior + grunts/houses against the
-  // post-sweep wall set. A SECOND post-modifier recheck happens inside
-  // `applyBattleStartModifiers` (default-on; modifiers opt out via
-  // `skipsRecheck`). The watcher's `applyBattleStartCheckpoint` mirrors
-  // the second recheck via `recomputeAllTerritory` after restoring tiles.
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearActiveModifiers(state);
@@ -225,6 +222,16 @@ export function enterBuildFromBattle(state: GameState): void {
 
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
+
+  // Per-player piece bag init — moved out of controller.startBuildPhase
+  // so host and watcher consume RNG identically (watchers have no local
+  // controllers, so the per-controller path was host-only). `currentPiece`
+  // is game state (read by AI strategy + human UI during BUILD), so it
+  // belongs in the engine. Iterate in slot order for deterministic RNG.
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    initPlayerBag(player, state.round, state.rng, useSmallPieces(player));
+  }
 }
 
 /**

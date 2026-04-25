@@ -251,13 +251,35 @@ export const BATTLE_EVENT_CONSUMERS = {
 
 /** Create a CANNON_FIRED message from a cannonball's launch data.
  *  Carries the pinned ballistic trajectory so the watcher can replay
- *  the flight deterministically — no state lookups on receive. */
+ *  the flight deterministically — no state lookups on receive.
+ *
+ *  Builds the message field-by-field (rather than spreading `ball`) so
+ *  ball-only runtime fields like `whistleVariant` (per-side cosmetic
+ *  SFX pick — see `selectWhistleVariant`) don't leak into the wire /
+ *  bus payload, which would make the determinism event log sensitive
+ *  to a non-deterministic value. */
 export function createCannonFiredMsg(
   ball: CannonFiredPayload,
 ): CannonFiredMessage {
   return {
-    ...ball,
     type: BATTLE_MESSAGE.CANNON_FIRED,
+    playerId: ball.playerId,
+    cannonIdx: ball.cannonIdx,
+    startX: ball.startX,
+    startY: ball.startY,
+    targetX: ball.targetX,
+    targetY: ball.targetY,
+    speed: ball.speed,
+    launchX: ball.launchX,
+    launchY: ball.launchY,
+    launchAltitude: ball.launchAltitude,
+    impactX: ball.impactX,
+    impactY: ball.impactY,
+    impactRow: ball.impactRow,
+    impactCol: ball.impactCol,
+    impactAltitude: ball.impactAltitude,
+    vy0: ball.vy0,
+    flightTime: ball.flightTime,
     incendiary: ball.incendiary ? true : undefined,
     mortar: ball.mortar ? true : undefined,
   };

@@ -97,15 +97,6 @@ import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/core/types.ts";
 
-/** Summary of what happened at the end of a build phase. Built by the
- *  runtime, consumed by `OnlinePhaseTicks.broadcastBuildEnd` to construct
- *  the BUILD_END checkpoint payload. */
-export interface BuildEndSummary {
-  needsReselect: readonly ValidPlayerSlot[];
-  eliminated: readonly ValidPlayerSlot[];
-  scores: readonly number[];
-}
-
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
  *
  *  Every field is INDEPENDENTLY OPTIONAL — the runtime checks for presence
@@ -140,7 +131,9 @@ export interface OnlinePhaseTicks {
   /** Host: broadcast the end-of-build summary (lives lost + eliminations
    *  + scores). The hook serializes the post-build player snapshot itself
    *  — the runtime does not need to know how to serialize players. */
-  broadcastBuildEnd?: (state: GameState, summary: BuildEndSummary) => void;
+  /** Host: broadcast the build-phase end phase-marker. Watcher runs
+   *  `finalizeBuildPhase` locally on receipt — no payload. */
+  broadcastBuildEnd?: () => void;
 
   // ── Host-only: per-controller crosshair fan-out ────────────────────────
   /** Host: broadcast a single local controller's crosshair to watchers

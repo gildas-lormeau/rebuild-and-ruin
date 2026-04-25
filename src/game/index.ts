@@ -76,6 +76,5 @@ export {
   buildTimerBonus,
   canBuildThisFrame,
   shouldSkipBattle,
-  useSmallPieces,
 } from "./upgrade-system.ts";
 export { consumeRapidEmplacement } from "./upgrades/rapid-emplacement.ts";

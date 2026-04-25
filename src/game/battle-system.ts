@@ -462,6 +462,15 @@ export function spawnCannonballFromMessage(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
+  // Mirror host's fireCannon: bump shotsFired so spawnIdleFirstBattleGrunts
+  // (round-1 punishment trigger) and any other shotsFired-gated logic fire
+  // identically on host and watcher.
+  state.shotsFired++;
+  // Watcher picks its own whistle variant locally — SFX is decoupled
+  // from `state.rng` (uses Math.random) so the watcher still emits the
+  // descending-whistle event without needing the wire to carry it.
+  // Pick may differ from host's; that's fine for cosmetic SFX.
+  const whistleVariant = selectWhistleVariant(msg.flightTime);
   state.cannonballs.push({
     cannonIdx: msg.cannonIdx,
     startX: msg.startX,
@@ -486,6 +495,7 @@ export function spawnCannonballFromMessage(
     altitude: msg.launchAltitude,
     incendiary: msg.incendiary,
     mortar: msg.mortar,
+    whistleVariant,
   });
 }
 
@@ -968,7 +978,7 @@ function launchCannonball(
   const impactRow = pxToTile(impactY);
   const impactCol = pxToTile(impactX);
 
-  const whistleVariant = selectWhistleVariant(state, flightTime);
+  const whistleVariant = selectWhistleVariant(flightTime);
   state.cannonballs.push({
     cannonIdx,
     startX: launchX,
@@ -999,19 +1009,19 @@ function launchCannonball(
 }
 
 /** Pick a random whistle variant whose duration fits in the ball's total
- *  travel time, drawn from state.rng for determinism. Returns undefined
- *  when the shot is too short for any variant — caller then stores no
- *  whistle id on the ball. */
-function selectWhistleVariant(
-  state: GameState,
-  totalTravelSec: number,
-): number | undefined {
+ *  travel time. Uses `Math.random()` (NOT `state.rng`) — sound is a
+ *  cosmetic concern and must not advance the game's deterministic RNG.
+ *  In online play the watcher computes its own variant locally; host
+ *  and watcher may pick different variants per ball, which is fine for
+ *  SFX cosmetics. Returns undefined when the shot is too short for any
+ *  variant — caller then stores no whistle id on the ball. */
+function selectWhistleVariant(totalTravelSec: number): number | undefined {
   const eligible: number[] = [];
   for (let i = 0; i < WHISTLE_VARIANT_DURATIONS_SEC.length; i += 1) {
     if (WHISTLE_VARIANT_DURATIONS_SEC[i]! <= totalTravelSec) eligible.push(i);
   }
   if (eligible.length === 0) return undefined;
-  return state.rng.pick(eligible);
+  return eligible[Math.floor(Math.random() * eligible.length)];
 }
 
 /** Check if a captured cannon is ready to fire (not destroyed, no ball in flight).

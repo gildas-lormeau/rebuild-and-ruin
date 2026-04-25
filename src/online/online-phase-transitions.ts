@@ -3,10 +3,7 @@ import {
   prepareControllerCannonPhase,
   resetZoneState,
 } from "../game/index.ts";
-import type {
-  BuildEndData,
-  CannonStartData,
-} from "../protocol/checkpoint-data.ts";
+import type { CannonStartData } from "../protocol/checkpoint-data.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import {
@@ -33,10 +30,8 @@ import {
   LifeLostChoice,
 } from "../shared/ui/interaction-types.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
 import {
   applyBattleStartWatcherUI,
-  applyBuildEndCheckpoint,
   applyCannonStartCheckpoint,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
@@ -100,8 +95,6 @@ export function handleCastleWallsTransition(
       );
     }
   }
-  runtime.selection.getStates().clear();
-  clearSelectionOverlay(runtime.runtimeState);
   const myPlan = plans.find(
     (plan) => plan.playerId === deps.session.myPlayerId,
   );
@@ -112,10 +105,13 @@ export function handleCastleWallsTransition(
     wallTimelineIdx: 0,
     accum: 0,
   });
-  runtime.runtimeState.selection.castleBuildOnDone = () => {
-    // No phase transition — cannon_start checkpoint drives it.
-  };
-  setMode(runtime.runtimeState, Mode.CASTLE_BUILD);
+  // Stay in Mode.SELECTION — matches host. The watcher's `tickSelection`
+  // animates castle builds inline (just like host) AND keeps ticking
+  // not-yet-confirmed AI selections. CANNON_START is what eventually
+  // flips the mode to GAME, by which point all AI selections have
+  // confirmed and all wall animations have completed. Do NOT clear
+  // selection.states here — that would freeze unconfirmed AI slots at
+  // their current browse position.
 }
 
 /** Watcher-only: processes CANNON_START checkpoint and transitions to
@@ -321,9 +317,6 @@ function buildWatcherCheckpointHooks(deps: WatcherDeps) {
     },
     applyBattleStartWatcherUI: () => {
       applyBattleStartWatcherUI(buildCheckpointDeps(deps));
-    },
-    applyBuildEnd: (msg: BuildEndData, capturePreScores: () => void) => {
-      applyBuildEndCheckpoint(msg, buildCheckpointDeps(deps), capturePreScores);
     },
   };
 }

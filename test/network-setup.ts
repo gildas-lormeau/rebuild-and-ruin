@@ -39,7 +39,6 @@ import {
   createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
-  serializePlayersCheckpoint,
 } from "../src/online/online-serialize.ts";
 import {
   createDedupMaps,
@@ -252,14 +251,7 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
     broadcastBattleStart: (rngState) =>
       send(createBattleStartMessage(rngState)),
     broadcastBuildStart: () => send(createBuildStartMessage()),
-    broadcastBuildEnd: (state, summary) =>
-      send({
-        type: MESSAGE.BUILD_END,
-        needsReselect: [...summary.needsReselect],
-        eliminated: [...summary.eliminated],
-        scores: [...summary.scores],
-        players: serializePlayersCheckpoint(state),
-      }),
+    broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     remoteCannonPhantoms: () => [],
     remotePiecePhantoms: () => [],
     extendCrosshairs: (crosshairs) => [...crosshairs],

@@ -368,18 +368,22 @@ function awardEndOfBuildPoints(
 ): void {
   // Territory points (tiered by interior size)
   const territoryMult = territoryScoreMult(player);
+  let terrPts = 0;
   for (const [threshold, points] of TERRITORY_POINT_TIERS) {
     if (territorySize >= threshold) {
-      player.score += points * territoryMult;
+      terrPts = points * territoryMult;
+      player.score += terrPts;
       break;
     }
   }
 
   // Castle bonus (home castle = 2 units, others = 1 unit)
   const castleUnits = countCastleBonusUnits(state, player);
+  let castlePts = 0;
   if (castleUnits > 0) {
     const idx = Math.min(castleUnits, CASTLE_BONUS_TABLE.length - 1);
-    player.score += CASTLE_BONUS_TABLE[idx]!;
+    castlePts = CASTLE_BONUS_TABLE[idx]!;
+    player.score += castlePts;
   }
 }
 
@@ -532,7 +536,8 @@ function captureEnclosedBonusSquares(
   state.bonusSquares = state.bonusSquares.filter((bonus) => {
     const bonusSquareKey = packTile(bonus.row, bonus.col);
     if (interior.has(bonusSquareKey)) {
-      player.score += territoryBonusSquarePoints(territorySize);
+      const pts = territoryBonusSquarePoints(territorySize);
+      player.score += pts;
       return false;
     }
     return true;

@@ -116,9 +116,3 @@ export interface CannonStartData {
 export interface BattleStartData {
   rngState: number;
 }
-
-/** Data needed to sync state at build phase end. */
-export interface BuildEndData {
-  players: readonly SerializedPlayer[];
-  scores: readonly number[];
-}
