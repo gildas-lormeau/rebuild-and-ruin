@@ -58,9 +58,8 @@
  *   - `isStateReady(runtimeState)` → boolean guard
  */
 
-import type { BattleStartData } from "../protocol/checkpoint-data.ts";
 import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
-import type { BalloonFlight, Crosshair } from "../shared/core/battle-types.ts";
+import type { Crosshair } from "../shared/core/battle-types.ts";
 import type {
   GameMap,
   Viewport,
@@ -128,13 +127,11 @@ export interface OnlinePhaseTicks {
   // ── Host-only: phase-transition checkpoint broadcasts ──────────────────
   /** Host: broadcast the cannon-phase entry checkpoint to watchers. */
   broadcastCannonStart?: (state: GameState) => void;
-  /** Host: broadcast the battle-phase entry checkpoint, including the
-   *  resolved balloon flights and the optional modifier diff. */
-  broadcastBattleStart?: (
-    state: GameState,
-    flights: readonly BalloonFlight[],
-    modifierDiff?: BattleStartData["modifierDiff"],
-  ) => void;
+  /** Host: broadcast the battle-phase entry checkpoint. Carries the
+   *  pre-`enterBattlePhase` RNG state so the watcher can run the same
+   *  setup (modifier roll, balloon resolution, grunt wall-attack roll)
+   *  locally. See `BattleStartData` in checkpoint-data.ts. */
+  broadcastBattleStart?: (rngState: number) => void;
   /** Host: broadcast the build-phase entry checkpoint to watchers. */
   broadcastBuildStart?: (state: GameState) => void;
   /** Host: broadcast the end-of-build summary (lives lost + eliminations

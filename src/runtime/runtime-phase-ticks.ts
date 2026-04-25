@@ -473,8 +473,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       broadcast: isHost
         ? {
             cannonStart: (state) => online?.broadcastCannonStart?.(state),
-            battleStart: (state, flights, modifierDiff) =>
-              online?.broadcastBattleStart?.(state, [...flights], modifierDiff),
+            battleStart: (rngState) => online?.broadcastBattleStart?.(rngState),
             buildStart: (state) => online?.broadcastBuildStart?.(state),
             buildEnd: (state, payload) =>
               online?.broadcastBuildEnd?.(state, {

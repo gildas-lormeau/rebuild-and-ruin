@@ -8,7 +8,6 @@ import {
 // scripts/lint-restricted-imports.ts.
 import { setPhase } from "../game/phase-setup.ts";
 import type {
-  BattleStartData,
   SerializedGrunt,
   SerializedHouse,
   SerializedPlayer,
@@ -97,42 +96,14 @@ export function createCannonStartMessage(state: GameState) {
   };
 }
 
-export function createBattleStartMessage(
-  state: GameState,
-  flights?: readonly BalloonFlight[],
-  modifierDiff?: BattleStartData["modifierDiff"],
-) {
-  return {
-    type: MESSAGE.BATTLE_START,
-    players: serializePlayersCheckpoint(state),
-    grunts: serializeGrunts(state),
-    capturedCannons: state.capturedCannons.map((captured) => ({
-      victimId: captured.victimId,
-      capturerId: captured.capturerId,
-      cannonIdx: captured.cannonIdx,
-    })),
-    burningPits: serializeBurningPits(state),
-    towerAlive: [...state.towerAlive],
-    rngState: state.rng.getState(),
-    flights: flights
-      ? flights.map((flight) => ({
-          startX: flight.startX,
-          startY: flight.startY,
-          endX: flight.endX,
-          endY: flight.endY,
-        }))
-      : [],
-    ...serializeModifierTileSets(state),
-    modifierDiff: modifierDiff
-      ? {
-          id: modifierDiff.id,
-          // label intentionally omitted from the wire — derived from id at
-          // the watcher via `modifierDef(id).label`. See checkpoint-data.ts.
-          changedTiles: [...modifierDiff.changedTiles],
-          gruntsSpawned: modifierDiff.gruntsSpawned,
-        }
-      : null,
-  };
+/** Create a BATTLE_START message carrying the host's pre-`enterBattlePhase`
+ *  RNG state. The watcher applies `setState(rngState)` then runs
+ *  `enterBattlePhase` locally to derive every battle-start mutation
+ *  (modifier tiles, captured cannons, grunt wall-attack flags, balloon
+ *  flights, combo tracker) — no need to ship them on the wire. See
+ *  `BattleStartData` in checkpoint-data.ts for the contract. */
+export function createBattleStartMessage(rngState: number) {
+  return { type: MESSAGE.BATTLE_START, rngState };
 }
 
 export function createFullStateMessage(
@@ -390,9 +361,9 @@ export function createGameOverPayload(
 }
 
 /** Restore captured cannon object references from serialized indices.
- *  Shared by both full-state recovery and battle-start checkpoint apply.
+ *  Used by full-state recovery (`restoreFullStateSnapshot`).
  *  Validates victimId bounds and cannonIdx before resolving object references. */
-export function applyCapturedCannons(
+function applyCapturedCannons(
   state: GameState,
   entries: readonly {
     victimId: number;

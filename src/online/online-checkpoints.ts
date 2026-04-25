@@ -1,16 +1,13 @@
 import {
   applyCheckpointModifierTiles,
   recomputeAllTerritory,
-  rehydrateComboTracker,
 } from "../game/index.ts";
 import type {
-  BattleStartData,
   BuildEndData,
   BuildStartData,
   CannonStartData,
 } from "../protocol/checkpoint-data.ts";
 import { FID } from "../shared/core/feature-defs.ts";
-import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
@@ -22,7 +19,6 @@ import {
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
 import {
-  applyCapturedCannons,
   applyGruntsCheckpoint,
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
@@ -84,49 +80,16 @@ export function applyCannonStartCheckpoint(
  *  @sideeffect Clears watcher crosshairs via resetWatcherCrosshairs(), re-initializes
  *  crosshair positions from home towers. Clears in-flight cannonballs. Impact
  *  / thaw flashes are cleared by the machine's postMutate. */
-export function applyBattleStartCheckpoint(
-  data: BattleStartData,
-  deps: CheckpointDeps,
-  capturePreState?: () => void,
-): void {
-  capturePreState?.();
-  applyPlayersCheckpoint(deps.state, data.players);
-  applyGruntsCheckpoint(deps.state, data.grunts);
-  deps.state.burningPits = data.burningPits;
-  deps.state.towerAlive = data.towerAlive;
-  // Sync RNG to host's post-`prepareBattleState` state — see BattleStartData.rngState.
-  deps.state.rng.setState(data.rngState);
-
-  applyCapturedCannons(deps.state, data.capturedCannons);
-
-  applyCheckpointModifierTiles(deps.state, data);
-
-  // Mirror host's `applyBattleStartModifiers`: sync `activeModifier` +
-  // `activeModifierChangedTiles` onto the watcher's state from the
-  // BATTLE_START message so the MODIFIER_REVEAL dwell-phase render has
-  // the same data on both sides. `activeModifier` on the watcher used
-  // to drift (never synced except via full-state sync) — this closes
-  // that gap for modifiers feature.
-  if (hasFeature(deps.state, FID.MODIFIERS)) {
-    deps.state.modern!.activeModifier = data.modifierDiff?.id ?? null;
-    deps.state.modern!.activeModifierChangedTiles =
-      data.modifierDiff?.changedTiles ?? [];
-  }
-
-  // State-level projectile clear (mirrors host's prepareBattleState).
-  deps.state.cannonballs = [];
-  deps.state.timer = BATTLE_TIMER;
-  rehydrateComboTracker(deps.state);
+/** Watcher-side UI cleanup at battle entry. Game state is mutated by
+ *  `enterBattlePhase` running locally in the watcher mutate (see
+ *  CANNON_PLACE_DONE). This helper handles only the watcher-specific
+ *  UI maps that have no equivalent on the host. */
+export function applyBattleStartWatcherUI(deps: CheckpointDeps): void {
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
     if (!isPlayerSeated(player)) continue;
     deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
-
-  // Territory recompute runs on the post-modifier map. Phase flip happens
-  // in the machine's watcher mutate, uniform with cannon-start / build-start
-  // / build-end (which also don't setPhase inside the checkpoint apply fn).
-  recomputeAllTerritory(deps.state);
 }
 
 /** Apply a build-start checkpoint received from the host.

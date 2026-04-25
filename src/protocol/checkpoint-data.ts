@@ -12,7 +12,6 @@
  * Checkpoint apply functions (online-checkpoints.ts) trust host-provided data.
  */
 
-import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 
 export interface SerializedCannon {
@@ -100,41 +99,22 @@ export interface CannonStartData {
   sinkholeTiles?: number[] | null;
 }
 
-/** Data needed to sync state at battle start. */
+/** BATTLE_START wire payload — once-per-round RNG resync point.
+ *  Host captures `state.rng.getState()` BEFORE running `enterBattlePhase`
+ *  (which consumes RNG via `recheckTerritory` / `rollModifier` /
+ *  `applyBattleStartModifiers` / `rollGruntWallAttacks` /
+ *  `resolveBalloonCaptures`). Watcher applies the same `setState(rngState)`
+ *  and runs `enterBattlePhase` locally — both sides advance RNG
+ *  identically and produce byte-identical post-prep state.
+ *
+ *  No other fields: every battle-start mutation (modifier tiles,
+ *  captured cannons, grunt wall-attack flags, balloon flights, combo
+ *  tracker, etc.) is derived locally on both sides from synced state +
+ *  synced RNG. Defense-in-depth is provided by the rngState round-trip:
+ *  if the watcher's local `state.rng` already matches `rngState` before
+ *  setState, no drift occurred since the previous `BATTLE_START`. */
 export interface BattleStartData {
-  players: SerializedPlayer[];
-  grunts: SerializedGrunt[];
-  capturedCannons: {
-    victimId: ValidPlayerSlot;
-    capturerId: ValidPlayerSlot;
-    cannonIdx: number;
-  }[];
-  burningPits: SerializedBurningPit[];
-  towerAlive: boolean[];
-  /** Host's `state.rng` internal state at the end of `prepareBattleState`.
-   *  Single explicit RNG-sync point per round — host advances RNG via
-   *  `rollModifier` / `applyBattleStartModifiers` / `rollGruntWallAttacks`
-   *  / `resolveBalloonCaptures` before this message is built; watcher
-   *  applies it inside `applyBattleStartCheckpoint` so both sides enter
-   *  BATTLE with byte-identical `state.rng`. From there, both sides must
-   *  call RNG identically (same code, same call order) until the next
-   *  `BATTLE_START` resync. */
   rngState: number;
-  /** Balloon flight paths (for animation). Empty array = no balloon shots this round. */
-  flights: { startX: number; startY: number; endX: number; endY: number }[];
-  /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
-  frozenTiles: number[] | null;
-  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
-  highTideTiles?: number[] | null;
-  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
-  sinkholeTiles?: number[] | null;
-  /** Frostbite chipped grunt tile keys — grunts that have absorbed one hit.
-   *  null = no frostbite this round. */
-  chippedGrunts?: number[] | null;
-  /** Modifier visual diff for the reveal banner. null = no modifier this round.
-   *  The display label is intentionally NOT serialized — it's deterministic
-   *  from `id` via `modifierDef(id).label` and both ends share `modifier-defs.ts`. */
-  modifierDiff: ModifierDiff | null;
 }
 
 /** Data needed to sync state at build phase start. */

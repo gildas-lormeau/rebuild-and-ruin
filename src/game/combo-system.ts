@@ -45,18 +45,6 @@ export function comboDemolitionBonus(tracker: ComboTracker): number[] {
   );
 }
 
-/** Set `state.modern.comboTracker` to a fresh tracker for the current player
- *  count, or null if combos are disabled for this match. Used by checkpoint
- *  rehydration (watcher + host promotion) to match the host's behavior in
- *  prepareBattleState, and by game-engine setup paths. No-op if the
- *  modifiers feature set doesn't include combos. */
-export function rehydrateComboTracker(state: GameState): void {
-  if (!hasFeature(state, FID.COMBOS)) return;
-  state.modern!.comboTracker = isCombosEnabled(state)
-    ? createComboTracker(state.players.length)
-    : null;
-}
-
 export function createComboTracker(playerCount: number): ComboTracker {
   const players: ComboPlayerState[] = [];
   for (let i = 0; i < playerCount; i++) {

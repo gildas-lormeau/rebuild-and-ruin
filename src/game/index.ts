@@ -33,7 +33,6 @@ export {
   resetCannonFacings,
 } from "./cannon-system.ts";
 export { createCastle } from "./castle-generation.ts";
-export { rehydrateComboTracker } from "./combo-system.ts";
 export {
   executeCannonFire,
   executePlaceCannon,

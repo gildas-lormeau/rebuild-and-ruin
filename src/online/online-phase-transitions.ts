@@ -4,7 +4,6 @@ import {
   resetZoneState,
 } from "../game/index.ts";
 import type {
-  BattleStartData,
   BuildEndData,
   BuildStartData,
   CannonStartData,
@@ -37,7 +36,7 @@ import {
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
-  applyBattleStartCheckpoint,
+  applyBattleStartWatcherUI,
   applyBuildEndCheckpoint,
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
@@ -322,8 +321,8 @@ function buildWatcherCheckpointHooks(deps: WatcherDeps) {
       // clear it here so the cannon banner reveals against a clean scene.
       clearSelectionOverlay(deps.getRuntime().runtimeState);
     },
-    applyBattleStart: (msg: BattleStartData) => {
-      applyBattleStartCheckpoint(msg, buildCheckpointDeps(deps));
+    applyBattleStartWatcherUI: () => {
+      applyBattleStartWatcherUI(buildCheckpointDeps(deps));
     },
     applyBuildStart: (msg: BuildStartData) => {
       applyBuildStartCheckpoint(msg, buildCheckpointDeps(deps));

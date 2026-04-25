@@ -204,12 +204,6 @@ export interface BattleLifecycle {
   readonly begin: () => void;
 }
 
-/** Watcher checkpoint-apply hooks. Only set on watcher ctx. Each function
- *  accepts the incoming checkpoint payload (defined in
- *  `protocol/checkpoint-data.ts`) and applies the mutation to state /
- *  territory / battleAnim. */
-export type ApplyBattleStart = (msg: BattleStartData) => void;
-
 export type ApplyCannonStart = (msg: CannonStartData) => void;
 
 export type ApplyBuildStart = (msg: BuildStartData) => void;
@@ -362,11 +356,8 @@ export interface PhaseTransitionCtx {
 
   readonly broadcast?: {
     readonly cannonStart?: (state: GameState) => void;
-    readonly battleStart?: (
-      state: GameState,
-      flights: readonly BalloonFlight[],
-      modifierDiff: ModifierDiff | null,
-    ) => void;
+    /** Receives the host's pre-`enterBattlePhase` `state.rng` state. */
+    readonly battleStart?: (rngState: number) => void;
     readonly buildStart?: (state: GameState) => void;
     readonly buildEnd?: (state: GameState, payload: BuildEndSummary) => void;
   };
@@ -405,7 +396,10 @@ export interface PhaseTransitionCtx {
 
   readonly checkpoint?: {
     readonly applyCannonStart?: ApplyCannonStart;
-    readonly applyBattleStart?: ApplyBattleStart;
+    /** Watcher-side UI cleanup at battle entry (crosshair maps + per-
+     *  player crosshair-pos init). Game state is mutated locally by
+     *  `enterBattlePhase` running in the watcher mutate. */
+    readonly applyBattleStartWatcherUI?: () => void;
     readonly applyBuildStart?: ApplyBuildStart;
     readonly applyBuildEnd?: ApplyBuildEnd;
   };
@@ -818,7 +812,11 @@ const LAST_PLAYER_STANDING: Transition = {
  *  post-modifier territory/wall snapshots) and broadcasts BATTLE_START.
  *  Does NOT flip the phase and shows no banner — `postDisplay` routes
  *  to `enter-modifier-reveal` (when a modifier was rolled) or straight
- *  to `enter-battle`, each of which owns setPhase + its own banner. */
+ *  to `enter-battle`, each of which owns setPhase + its own banner.
+ *
+ *  Both sides run `enterBattlePhase` locally — the wire just carries
+ *  the host's pre-prep `state.rng` state so the watcher can resync
+ *  before consuming RNG. See `BattleStartData`. */
 const CANNON_PLACE_DONE: Transition = {
   id: "cannon-place-done",
   from: Phase.CANNON_PLACE,
@@ -826,21 +824,34 @@ const CANNON_PLACE_DONE: Transition = {
     host: (ctx) => {
       ctx.log(`startBattle (round=${ctx.state.round})`);
       ctx.scoreDelta.reset();
+      // Capture pre-prep RNG state for the wire — watcher applies it
+      // BEFORE running its own enterBattlePhase so RNG advances in lockstep.
+      const rngStateBeforePrep = ctx.state.rng.getState();
       const entry = enterBattlePhase(ctx.state);
-      ctx.broadcast?.battleStart?.(
-        ctx.state,
-        entry.flights,
-        entry.modifierDiff,
-      );
+      ctx.broadcast?.battleStart?.(rngStateBeforePrep);
       return { modifierDiff: entry.modifierDiff, flights: entry.flights };
     },
     watcher: (ctx) => {
       const msg = ctx.incomingMsg as BattleStartData;
-      ctx.checkpoint?.applyBattleStart?.(msg);
-      return {
-        modifierDiff: msg.modifierDiff,
-        flights: msg.flights,
-      };
+      // Sync RNG to host's pre-prep state, then run the same engine
+      // setup locally — modifier tiles, captured cannons, grunt
+      // wall-attack flags, balloon flights, combo tracker all derived
+      // identically from synced state + synced RNG. Watcher-side UI
+      // (crosshair maps) is reset via the postMutate path; nothing else
+      // needs explicit cross-checking here.
+      const localRng = ctx.state.rng.getState();
+      if (localRng !== msg.rngState) {
+        // Drift detector — between BATTLE_START syncs both sides should
+        // call RNG identically. Log loudly so the divergence point is
+        // visible; setState recovers.
+        ctx.log(
+          `BATTLE_START rng drift: local=${localRng} wire=${msg.rngState}`,
+        );
+      }
+      ctx.state.rng.setState(msg.rngState);
+      ctx.checkpoint?.applyBattleStartWatcherUI?.();
+      const entry = enterBattlePhase(ctx.state);
+      return { modifierDiff: entry.modifierDiff, flights: entry.flights };
     },
   },
   postMutate: syncBattleAnim,
