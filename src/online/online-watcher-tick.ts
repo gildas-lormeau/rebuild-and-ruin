@@ -164,7 +164,14 @@ export function tickWatcher(
   const frame = transitionCtx.getFrame();
   const accum = transitionCtx.getAccum();
 
-  tickWatcherTimers(state, frame, watcherState.timing, transitionCtx.now);
+  tickWatcherTimers(
+    state,
+    frame,
+    watcherState.timing,
+    transitionCtx.now,
+    accum,
+    dt,
+  );
 
   const myPlayerId = transitionCtx.session.myPlayerId;
   const localController = getLocalController(

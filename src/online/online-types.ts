@@ -46,8 +46,9 @@ export const REMOTE_CROSSHAIR_SPEED =
 export function setWatcherPhaseTimerAtBannerEnd(
   timing: WatcherTimingState,
   phaseDuration: number,
+  now: number,
 ): void {
-  setWatcherPhaseTimer(timing, performance.now(), phaseDuration);
+  setWatcherPhaseTimer(timing, now, phaseDuration);
 }
 
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.

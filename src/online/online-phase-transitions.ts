@@ -324,7 +324,11 @@ function buildWatcherCheckpointHooks(deps: WatcherDeps) {
 function buildWatcherHooks(deps: WatcherDeps) {
   return {
     setPhaseTimerAtBannerEnd: (phaseDuration: number) => {
-      setWatcherPhaseTimerAtBannerEnd(deps.watcher.timing, phaseDuration);
+      setWatcherPhaseTimerAtBannerEnd(
+        deps.watcher.timing,
+        phaseDuration,
+        deps.timing.now(),
+      );
     },
     initLocalCannonControllerIfActive: () =>
       initLocalCannonControllerIfActive(deps),

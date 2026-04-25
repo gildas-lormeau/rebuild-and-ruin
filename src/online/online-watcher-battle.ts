@@ -4,7 +4,12 @@ import {
   setBattleCountdown,
   tickBattlePhase,
 } from "../game/index.ts";
-import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
+import {
+  ACCUM_BATTLE,
+  advancePhaseTimer,
+  type TimerAccums,
+  type WatcherTimingState,
+} from "../runtime/runtime-tick-context.ts";
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type {
   Crosshair,
@@ -120,6 +125,8 @@ export function tickWatcherTimers(
   frame: WatcherFrameAnnouncement,
   timing: WatcherTimingState,
   now: () => number,
+  accum: TimerAccums,
+  dt: number,
 ): void {
   // MODIFIER_REVEAL is also a phase-timer-driven phase on the watcher
   // side (same wall-clock synthesis pattern as placement phases) —
@@ -151,9 +158,14 @@ export function tickWatcherTimers(
     return;
   }
 
-  const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
+  // After countdown: dt-based decrement (matches host). Wall-clock
+  // synthesis was used here originally for jitter resilience but it
+  // drifts from the host's sim-tick accumulation (~17ms wall vs 1/60s
+  // sim per tick), and that drift shifts combo streak windows. Both
+  // peers reset ACCUM_BATTLE to 0 in `beginBattle`, so advancing it by
+  // dt keeps state.timer in lockstep with host.
   const prevTimer = state.timer;
-  state.timer = Math.max(0, timing.phaseDuration - elapsed);
+  advancePhaseTimer(accum, ACCUM_BATTLE, state, dt, BATTLE_TIMER);
   emitBattleCeaseIfTimerCrossed(state, prevTimer);
 }
 
