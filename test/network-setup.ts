@@ -34,7 +34,10 @@ import {
   handleServerMessage,
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
-import type { WatcherDeps } from "../src/online/online-phase-transitions.ts";
+import {
+  dispatchWatcherLocal,
+  type WatcherDeps,
+} from "../src/online/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -205,12 +208,8 @@ async function buildWatcherRuntime(
         cannonPhantoms: phantoms,
       };
     },
-    onModifierRevealExpired: () => {
-      // Test harness doesn't need the watcher's local enter-battle
-      // dispatch — no existing test drives the MODIFIER_REVEAL timer
-      // expiry through this fake. If one starts to, wire through the
-      // real `dispatchWatcherLocal` here.
-    },
+    onModifierRevealExpired: () =>
+      dispatchWatcherLocal("enter-battle", watcherDeps),
     now: () => headlessHolder.current!.now(),
   };
 
