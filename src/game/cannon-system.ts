@@ -133,9 +133,8 @@ export function placeCannon(
   },
 ): boolean {
   if (isPlayerEliminated(player)) return false;
-  const cost = effectivePlacementCost(player, mode);
-  if (cannonSlotsUsed(player) + cost > maxCannons) return false;
-  if (!canPlaceCannon(player, row, col, mode, state)) return false;
+  if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
+    return false;
   applyCannonPlacement(player, row, col, mode, state);
   consumeRapidEmplacement(player);
   emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
@@ -145,6 +144,30 @@ export function placeCannon(
     cannonIdx: player.cannons.length - 1,
   });
   return true;
+}
+
+/** True if the player can legally place a cannon of `mode` at `(row, col)`.
+ *  Composes the slot-budget check (slots used + this cannon's effective cost
+ *  must fit in `maxCannons`) and the spatial check (`canPlaceCannon`).
+ *
+ *  Single source of truth for both the local action path (`placeCannon`)
+ *  and the host-side anti-cheat gate in the network handler — keeping them
+ *  in lockstep is what prevents a peer from bypassing a future placement
+ *  rule that's added in only one place. */
+export function isCannonPlacementLegal(
+  player: Player,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  maxCannons: number,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+): boolean {
+  if (
+    cannonSlotsUsed(player) + effectivePlacementCost(player, mode) >
+    maxCannons
+  )
+    return false;
+  return canPlaceCannon(player, row, col, mode, state);
 }
 
 /** Apply cannon placement (no validation). Used by host and watcher. */

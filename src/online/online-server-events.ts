@@ -6,12 +6,10 @@ import { applyCannonFired } from "../game/battle-system.ts";
 import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonPlacement } from "../game/cannon-system.ts";
 import {
-  cannonSlotsUsed,
-  canPlaceCannon,
   canPlacePiece,
   consumeRapidEmplacement,
-  effectivePlacementCost,
   highlightTowerSelection,
+  isCannonPlacementLegal,
 } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import {
@@ -221,12 +219,15 @@ function handleCannonPlaced(
   const normalizedMode = toCannonMode(msg.mode);
   if (isHostInContext(deps.session)) {
     const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
-    const slotsExceeded =
-      cannonSlotsUsed(player) + effectivePlacementCost(player, normalizedMode) >
-      maxCannons;
     if (
-      slotsExceeded ||
-      !canPlaceCannon(player, msg.row, msg.col, normalizedMode, state)
+      !isCannonPlacementLegal(
+        player,
+        msg.row,
+        msg.col,
+        normalizedMode,
+        maxCannons,
+        state,
+      )
     ) {
       deps.log(
         `cannon_placed: rejected invalid placement for P${msg.playerId}`,

@@ -28,6 +28,7 @@ export {
   filterActiveFiringCannons,
   hasAnyCannonPlacement,
   isCannonEnclosed,
+  isCannonPlacementLegal,
   placeCannon,
   prepareControllerCannonPhase,
   resetCannonFacings,
