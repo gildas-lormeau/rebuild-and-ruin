@@ -139,6 +139,7 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     hostMode: true,
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
   });
+  headless.runtime.runtimeState.state.debugTag = "HOST";
   const scenario = wrapHeadless(headless, sentMessages);
   return { scenario, headless, sentMessages };
 }
@@ -224,6 +225,7 @@ async function buildWatcherRuntime(
     amHost: () => false,
   });
   headlessHolder.current = headless;
+  headless.runtime.runtimeState.state.debugTag = "WATCHER";
 
   initDeps({
     runtime: headless.runtime,

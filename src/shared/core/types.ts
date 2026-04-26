@@ -28,6 +28,14 @@ import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 export interface GameState {
+  /** Optional runtime-instance label for cross-runtime debugging.
+   *  Set by test scenarios (HOST/WATCHER for `network-setup.ts`,
+   *  LOCAL for `scenario.ts`) so capture-point traces from
+   *  `scripts/debug` can attribute interleaved frames to the runtime
+   *  that produced them. Production code never sets or reads this —
+   *  it's pure test/diagnostic infrastructure. Kept on the type so
+   *  V8-side capture expressions can reference it without a cast. */
+  debugTag?: string;
   /** Shared seeded RNG for deterministic gameplay decisions.
    *  Available methods: .next() → [0,1), .int(lo,hi), .bool(prob),
    *  .pick(arr), .shuffle(arr). See rng.ts for full API. */

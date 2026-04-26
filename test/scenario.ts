@@ -369,6 +369,11 @@ export async function createScenario(
   const headless = await createHeadlessRuntime(
     buildHeadlessOptions(opts, sentMessages, ascii),
   );
+  // Lobby-only scenarios start before bootstrap, so `state` is still null
+  // until a slot joins. Tag once it exists; safe to skip when it doesn't.
+  if (headless.runtime.runtimeState.state) {
+    headless.runtime.runtimeState.state.debugTag = "LOCAL";
+  }
   if (ascii) {
     ascii.bind(() => headless.runtime.runtimeState.state);
   }

@@ -25,34 +25,104 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
+interface Violation {
+  field: string;
+  container: string;
+  message: string;
+}
+
 const TYPES_FILE = join(process.cwd(), "src/shared/core/types.ts");
 const SERIALIZE_FILE = join(process.cwd(), "src/online/online-serialize.ts");
-
 /** Fields intentionally NOT synced over the network. Every entry must carry
  *  a one-line reason — this is the decision log for "why does it not need
  *  to be serialized". When adding a new field to GameState, either:
  *    (a) wire it into online-serialize.ts, or
  *    (b) add it here with a reason. */
 const GAME_STATE_EXCLUSIONS: Record<string, string> = {
+  debugTag:
+    "test-only diagnostic label set by test scenarios (HOST/WATCHER/LOCAL) so capture-point traces can attribute interleaved frames to the runtime that produced them — production never sets or reads it",
   bus: "transient — created by createGameEventBus() at game start, not observable state",
   map: "immutable after init (tiles/zones/towers) — sub-fields that mutate (houses, tile overrides) are serialized individually; tile modifier effects go through applyCheckpointModifierTiles",
-  activeFeatures: "derived from gameMode via setGameMode() — restored automatically when gameMode is applied",
-  buildTimer: "difficulty-scaled constant set at game start, never mutated — recovered from settings",
-  cannonPlaceTimer: "difficulty-scaled constant set at game start, never mutated — recovered from settings",
-  firstRoundCannons: "difficulty-scaled constant set at game start, never mutated — recovered from settings",
-  cannonMaxHp: "configurable constant set at game start, never mutated — recovered from settings",
-  reselectedPlayers: "transient flag cleared at cannon-phase setup; reselects are already reflected in the serialized phase + castle state",
+  activeFeatures:
+    "derived from gameMode via setGameMode() — restored automatically when gameMode is applied",
+  buildTimer:
+    "difficulty-scaled constant set at game start, never mutated — recovered from settings",
+  cannonPlaceTimer:
+    "difficulty-scaled constant set at game start, never mutated — recovered from settings",
+  firstRoundCannons:
+    "difficulty-scaled constant set at game start, never mutated — recovered from settings",
+  cannonMaxHp:
+    "configurable constant set at game start, never mutated — recovered from settings",
+  reselectedPlayers:
+    "transient flag cleared at cannon-phase setup; reselects are already reflected in the serialized phase + castle state",
 };
-
 /** Modern-state fields that are intentionally not synced over the wire. */
 const MODERN_STATE_EXCLUSIONS: Record<string, string> = {
-  comboTracker: "transient — created at battle start, cleared at battle end; scoring is already reflected in player.score",
+  comboTracker:
+    "transient — created at battle start, cleared at battle end; scoring is already reflected in player.score",
 };
 
-interface Violation {
-  field: string;
-  container: string;
-  message: string;
+main();
+
+function main(): void {
+  const typesContent = readFileSync(TYPES_FILE, "utf-8");
+  const serializeContent = readFileSync(SERIALIZE_FILE, "utf-8");
+
+  const gameStateFields = parseInterfaceFields(typesContent, "GameState");
+  const modernStateFields = parseInterfaceFields(typesContent, "ModernState");
+
+  const violations: Violation[] = [
+    ...checkContainer(
+      serializeContent,
+      "GameState",
+      gameStateFields,
+      GAME_STATE_EXCLUSIONS,
+    ),
+    ...checkContainer(
+      serializeContent,
+      "ModernState",
+      modernStateFields,
+      MODERN_STATE_EXCLUSIONS,
+    ),
+  ];
+
+  // Sanity check: flag exclusion entries for fields that no longer exist
+  // (caught at refactor time so the allowlist doesn't rot).
+  const gameStateSet = new Set(gameStateFields);
+  const modernStateSet = new Set(modernStateFields);
+  for (const field of Object.keys(GAME_STATE_EXCLUSIONS)) {
+    if (!gameStateSet.has(field)) {
+      violations.push({
+        field,
+        container: "GameState (exclusion)",
+        message: `GAME_STATE_EXCLUSIONS lists "${field}" but the field no longer exists on GameState. Remove the exclusion entry.`,
+      });
+    }
+  }
+  for (const field of Object.keys(MODERN_STATE_EXCLUSIONS)) {
+    if (!modernStateSet.has(field)) {
+      violations.push({
+        field,
+        container: "ModernState (exclusion)",
+        message: `MODERN_STATE_EXCLUSIONS lists "${field}" but the field no longer exists on ModernState. Remove the exclusion entry.`,
+      });
+    }
+  }
+
+  if (violations.length === 0) {
+    console.log(
+      `\u2714 Checkpoint-field completeness OK (${gameStateFields.length} GameState fields, ${modernStateFields.length} ModernState fields)`,
+    );
+    process.exit(0);
+  }
+
+  console.log(
+    `\u2718 ${violations.length} checkpoint-field violation(s) found:\n`,
+  );
+  for (const v of violations) {
+    console.log(`  ${v.container}.${v.field}: ${v.message}`);
+  }
+  process.exit(1);
 }
 
 /** Parse an `interface Name { ... }` block and return its top-level field
@@ -128,66 +198,3 @@ function checkContainer(
   }
   return violations;
 }
-
-function main(): void {
-  const typesContent = readFileSync(TYPES_FILE, "utf-8");
-  const serializeContent = readFileSync(SERIALIZE_FILE, "utf-8");
-
-  const gameStateFields = parseInterfaceFields(typesContent, "GameState");
-  const modernStateFields = parseInterfaceFields(typesContent, "ModernState");
-
-  const violations: Violation[] = [
-    ...checkContainer(
-      serializeContent,
-      "GameState",
-      gameStateFields,
-      GAME_STATE_EXCLUSIONS,
-    ),
-    ...checkContainer(
-      serializeContent,
-      "ModernState",
-      modernStateFields,
-      MODERN_STATE_EXCLUSIONS,
-    ),
-  ];
-
-  // Sanity check: flag exclusion entries for fields that no longer exist
-  // (caught at refactor time so the allowlist doesn't rot).
-  const gameStateSet = new Set(gameStateFields);
-  const modernStateSet = new Set(modernStateFields);
-  for (const field of Object.keys(GAME_STATE_EXCLUSIONS)) {
-    if (!gameStateSet.has(field)) {
-      violations.push({
-        field,
-        container: "GameState (exclusion)",
-        message: `GAME_STATE_EXCLUSIONS lists "${field}" but the field no longer exists on GameState. Remove the exclusion entry.`,
-      });
-    }
-  }
-  for (const field of Object.keys(MODERN_STATE_EXCLUSIONS)) {
-    if (!modernStateSet.has(field)) {
-      violations.push({
-        field,
-        container: "ModernState (exclusion)",
-        message: `MODERN_STATE_EXCLUSIONS lists "${field}" but the field no longer exists on ModernState. Remove the exclusion entry.`,
-      });
-    }
-  }
-
-  if (violations.length === 0) {
-    console.log(
-      `\u2714 Checkpoint-field completeness OK (${gameStateFields.length} GameState fields, ${modernStateFields.length} ModernState fields)`,
-    );
-    process.exit(0);
-  }
-
-  console.log(
-    `\u2718 ${violations.length} checkpoint-field violation(s) found:\n`,
-  );
-  for (const v of violations) {
-    console.log(`  ${v.container}.${v.field}: ${v.message}`);
-  }
-  process.exit(1);
-}
-
-main();
