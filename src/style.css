@@ -112,6 +112,9 @@ nav.dpad {
     font-weight: bold;
     display: grid;
     place-items: center;
+    transition:
+      opacity 0.25s ease-out,
+      transform 0.25s ease-out;
   }
 
   .up {
