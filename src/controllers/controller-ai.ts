@@ -10,7 +10,7 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
-import { STEP, secondsToTicks } from "../ai/ai-constants.ts";
+import { secondsToTicks } from "../ai/ai-constants.ts";
 import { aiChooseLifeLost } from "../ai/ai-life-lost.ts";
 import {
   type BattleHost,
@@ -60,7 +60,6 @@ import {
   type CannonPlacementPreview,
   CROSSHAIR_SPEED,
   type FireIntent,
-  type OrbitParams,
   type PiecePlacementPreview,
   type PlaceCannonIntent,
   type PlacePieceIntent,
@@ -120,20 +119,6 @@ export class AiController extends BaseController implements AiAnimatable {
 
   getCrosshairTarget(): PixelPos | null {
     return this._battlePhase.crosshairTarget;
-  }
-
-  getOrbitParams(): OrbitParams | null {
-    const battlePhase = this._battlePhase;
-    if (battlePhase.state.step === STEP.COUNTDOWN && battlePhase.state.orbit) {
-      const orbit = battlePhase.state.orbit;
-      return {
-        rx: orbit.rx,
-        ry: orbit.ry,
-        speed: orbit.speed,
-        phaseAngle: battlePhase.orbitAngle,
-      };
-    }
-    return null;
   }
 
   /** When true, castle rects hug the river bank (plug approach).

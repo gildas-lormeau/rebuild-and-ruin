@@ -123,7 +123,7 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 | `pitCreated` | BATTLE | Burning pit from incendiary shot (host-only) |
 | `iceThawed` | BATTLE | Frozen water tile thawed by cannonball (host-only) |
 | `towerKilled` | BATTLE | A tower was destroyed by grunts (host-only) |
-| `aimUpdate` | BATTLE | Crosshair position + orbit params |
+| `aimUpdate` | BATTLE | Crosshair position |
 | `lifeLostChoice` | Any | Forwarded from non-host client to all (playerId + choice) |
 | `upgradePick` | Any | Forwarded from non-host client to host (playerId + choice) |
 
@@ -179,8 +179,7 @@ Watchers receive the same messages as players. They:
 2. Resync RNG once per round at `battleStart` before running `enterBattlePhase`
 3. Apply incremental events (piece placed, cannon placed, cannon fired, wall destroyed, etc.) as they arrive
 4. Interpolate crosshair positions from `aimUpdate` messages
-5. Animate orbits locally from orbit params sent once per countdown
-6. Tick grunts locally (deterministic movement from shared state)
-7. Use sim-time accumulators with the mock clock in tests, wall-clock timers in production (immune to RAF throttling when tab is backgrounded)
+5. Tick grunts locally (deterministic movement from shared state)
+6. Use sim-time accumulators with the mock clock in tests, wall-clock timers in production (immune to RAF throttling when tab is backgrounded)
 
 Late-joining watchers (mid-game) and post-host-migration watchers receive `fullState` instead, which carries the complete serialized state.

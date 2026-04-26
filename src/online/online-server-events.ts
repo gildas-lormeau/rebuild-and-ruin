@@ -297,7 +297,6 @@ function handleAimUpdate(
   if (isPlayerEliminated(state?.players[msg.playerId])) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
-  if (msg.orbit) deps.watcher.watcherOrbitParams.set(msg.playerId, msg.orbit);
   return APPLIED;
 }
 

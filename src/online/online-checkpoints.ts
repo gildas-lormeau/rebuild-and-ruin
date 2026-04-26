@@ -1,7 +1,6 @@
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
-import type { OrbitParams } from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
 
 export interface CheckpointAccums {
@@ -22,8 +21,6 @@ export interface CheckpointDeps {
   accum: CheckpointAccums;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  watcherOrbitParams: Map<number, OrbitParams>;
-  watcherOrbitAngles: Map<number, number>;
   snapshotTerritory: () => Set<number>[];
 }
 
@@ -50,10 +47,8 @@ export function applyBattleStartWatcherUI(deps: CheckpointDeps): void {
   }
 }
 
-/** Clear all watcher crosshair/orbit tracking maps. */
+/** Clear all watcher crosshair tracking maps. */
 function resetWatcherCrosshairs(deps: CheckpointDeps): void {
   deps.remoteCrosshairs.clear();
   deps.watcherCrosshairPos.clear();
-  deps.watcherOrbitParams.clear();
-  deps.watcherOrbitAngles.clear();
 }

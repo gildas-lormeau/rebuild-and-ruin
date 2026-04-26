@@ -46,7 +46,6 @@ export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   watcherCrosshairPos: Map<number, PixelPos>;
-  watcherOrbitAngles: Map<number, number>;
   hostMigrationTimer: number;
   hostMigrationText: string;
 }
@@ -92,8 +91,6 @@ export function createWatcherState(): WatcherState {
     remoteCrosshairs: new Map(),
     remoteCannonPhantoms: [],
     watcherCrosshairPos: new Map(),
-    watcherOrbitAngles: new Map(),
-    watcherOrbitParams: new Map(),
     remotePiecePhantoms: [],
     hostMigrationTimer: 0,
     hostMigrationText: "",
@@ -106,8 +103,6 @@ export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remoteCannonPhantoms = [];
   watcherState.remotePiecePhantoms = [];
   watcherState.watcherCrosshairPos.clear();
-  watcherState.watcherOrbitAngles.clear();
-  watcherState.watcherOrbitParams.clear();
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
@@ -116,7 +111,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
 }
 
 /**
- * Partial reset for host promotion. Clears timing and AI-driven state
+ * Partial reset for host promotion. Clears timing
  * but keeps remoteCrosshairs/phantoms/crosshairPos — the new host still
  * uses those for remote human players via extendCrosshairs.
  */
@@ -126,8 +121,6 @@ export function resetWatcherTimingForHostPromotion(
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
-  watcherState.watcherOrbitAngles.clear();
-  watcherState.watcherOrbitParams.clear();
 }
 
 /** Tick the migration announcement timer. Two announcement channels exist:
@@ -191,8 +184,6 @@ export function tickWatcher(
         localController,
         remoteCrosshairs: watcherState.remoteCrosshairs,
         watcherCrosshairPos: watcherState.watcherCrosshairPos,
-        watcherOrbitAngles: watcherState.watcherOrbitAngles,
-        watcherOrbitParams: watcherState.watcherOrbitParams,
         logThrottled: transitionCtx.logThrottled,
         interpolateToward,
         nextReadyCombined,

@@ -122,7 +122,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 |------|-----------|
 | **Controller** | The decision-making interface for a player — either human (input-driven) or AI (strategy-driven). Phase-scoped: selection, build, cannon, and battle sub-interfaces. |
 | **Human Controller** | Receives keyboard/mouse/touch input. Returns intents (FireIntent, PlacePieceIntent) that the orchestrator executes. |
-| **AI Controller** | Computes strategy decisions (target selection, piece placement, cannon placement, battle aim). Animated with orbit parameters during countdown. |
+| **AI Controller** | Computes strategy decisions (target selection, piece placement, cannon placement, battle aim). Idle countdown wobble is rendered natively by the local controller. |
 | **Intent** | A declarative action request (fire at target, place piece at position). Controllers produce intents; the runtime/orchestrator executes mutations against game state. |
 | **Input Receiver** | Human-specific input handling: key matching, piece rotation, placement attempts, cannon mode cycling. |
 

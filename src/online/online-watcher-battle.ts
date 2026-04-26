@@ -33,10 +33,7 @@ import type {
   ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import type {
-  OrbitParams,
-  PlayerController,
-} from "../shared/core/system-interfaces.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
@@ -65,8 +62,6 @@ interface WatcherBattleDeps {
   localController: PlayerController | null;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  watcherOrbitAngles: Map<number, number>;
-  watcherOrbitParams: Map<number, OrbitParams>;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
     visualPos: PixelPos,
@@ -114,11 +109,6 @@ interface TickWatcherBuildPhantomsDeps {
    *  come from each controller's `currentBuildPhantoms`. */
   setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
-
-/** Orbital idle wobble frequency on X axis (rad/s — coprime with Y to avoid repetition). */
-const ORBIT_FREQ_X = 0.23;
-/** Orbital idle wobble frequency on Y axis (rad/s — coprime with X to avoid repetition). */
-const ORBIT_FREQ_Y = 0.19;
 
 export function tickWatcherTimers(
   state: GameState,
@@ -179,8 +169,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     localController,
     remoteCrosshairs,
     watcherCrosshairPos,
-    watcherOrbitAngles,
-    watcherOrbitParams,
     logThrottled,
     interpolateToward,
     nextReadyCombined,
@@ -233,18 +221,13 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       watcherCrosshairPos.set(pid, visualPos);
     }
 
-    const orbitParams =
-      state.battleCountdown > 0 ? watcherOrbitParams.get(pid) : undefined;
-    const newAngle = updateOrbitCrosshair(
+    interpolateToward(
       visualPos,
-      target,
-      orbitParams,
-      watcherOrbitAngles.get(pid) ?? orbitParams?.phaseAngle ?? 0,
-      dt,
+      target.x,
+      target.y,
       REMOTE_CROSSHAIR_SPEED,
-      interpolateToward,
+      dt,
     );
-    if (orbitParams) watcherOrbitAngles.set(pid, newAngle);
 
     frame.crosshairs.push({
       x: visualPos.x,
@@ -346,40 +329,6 @@ export function tickWatcherBuildPhantomsPhase(
       valid: phantom.valid,
     });
   }
-}
-
-/** Interpolate a crosshair toward its target, applying orbital wobble when orbit params are present.
- *  @param angle — orbital phase angle in radians (NOT a game Phase enum). */
-function updateOrbitCrosshair(
-  visualPos: PixelPos,
-  target: PixelPos,
-  orbitParams: OrbitParams | undefined,
-  angle: number,
-  dt: number,
-  speed: number,
-  interpolateToward: (
-    visualPos: PixelPos,
-    tx: number,
-    ty: number,
-    speed: number,
-    dt: number,
-  ) => void,
-): number {
-  if (orbitParams) {
-    const rx = orbitParams.rx + Math.sin(angle * ORBIT_FREQ_X);
-    const ry = orbitParams.ry + Math.sin(angle * ORBIT_FREQ_Y);
-    const nextAngle = angle + orbitParams.speed * dt;
-    interpolateToward(
-      visualPos,
-      target.x + Math.cos(nextAngle) * rx,
-      target.y + Math.sin(nextAngle) * ry,
-      speed,
-      dt,
-    );
-    return nextAngle;
-  }
-  interpolateToward(visualPos, target.x, target.y, speed, dt);
-  return angle;
 }
 
 /** Tick the local player's battle crosshair and send aim updates. */

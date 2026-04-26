@@ -51,11 +51,7 @@ export interface WatcherDeps {
   >;
   readonly watcher: Pick<
     WatcherState,
-    | "timing"
-    | "remoteCrosshairs"
-    | "watcherCrosshairPos"
-    | "watcherOrbitParams"
-    | "watcherOrbitAngles"
+    "timing" | "remoteCrosshairs" | "watcherCrosshairPos"
   >;
   /** Injected timing primitives — threaded into the watcher-role
    *  `PhaseTransitionCtx` so display steps (e.g. `proceedToBattle`'s
@@ -308,8 +304,6 @@ function buildCheckpointDeps(deps: WatcherDeps): CheckpointDeps {
     accum: runtime.runtimeState.accum,
     remoteCrosshairs: deps.watcher.remoteCrosshairs,
     watcherCrosshairPos: deps.watcher.watcherCrosshairPos,
-    watcherOrbitParams: deps.watcher.watcherOrbitParams,
-    watcherOrbitAngles: deps.watcher.watcherOrbitAngles,
     snapshotTerritory: () => runtime.snapshotTerritory(),
   };
 }

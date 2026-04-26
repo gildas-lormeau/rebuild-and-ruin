@@ -99,14 +99,6 @@ export interface BattleViewState extends GameViewState {
   } | null;
 }
 
-/** Orbit animation parameters for AI countdown idle animation. */
-export type OrbitParams = {
-  rx: number;
-  ry: number;
-  speed: number;
-  phaseAngle: number;
-};
-
 /** Intent to fire a cannon — returned by BattleController.fire() for the orchestrator to execute. */
 export interface FireIntent {
   readonly playerId: ValidPlayerSlot;
@@ -426,9 +418,6 @@ export interface InputReceiver {
 export interface AiAnimatable {
   /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
   getCrosshairTarget(): PixelPos | null;
-
-  /** AI's orbit parameters for countdown animation (null if not orbiting). */
-  getOrbitParams(): OrbitParams | null;
 }
 
 /** Reason a haptic call was made — lets the observer (and future debug

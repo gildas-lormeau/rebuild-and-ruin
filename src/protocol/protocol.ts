@@ -306,8 +306,6 @@ export interface AimUpdateMessage {
   playerId: ValidPlayerSlot;
   x: number;
   y: number;
-  /** Optional orbit parameters (sent once at countdown start). */
-  orbit?: { rx: number; ry: number; speed: number; phaseAngle: number };
 }
 
 export type ServerMessage =

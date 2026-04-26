@@ -8,10 +8,7 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
-import {
-  CROSSHAIR_SPEED,
-  type OrbitParams,
-} from "../shared/core/system-interfaces.ts";
+import { CROSSHAIR_SPEED } from "../shared/core/system-interfaces.ts";
 
 /** Subset of watcher state containing network-received data (phantoms, crosshairs).
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers
@@ -20,7 +17,6 @@ export interface WatcherNetworkState {
   remoteCrosshairs: Map<number, PixelPos>;
   remoteCannonPhantoms: readonly CannonPhantom[];
   remotePiecePhantoms: readonly PiecePhantom[];
-  watcherOrbitParams: Map<number, OrbitParams>;
 }
 
 /** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).

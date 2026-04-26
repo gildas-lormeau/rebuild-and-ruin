@@ -2,9 +2,10 @@
  * Host-side crosshair networking — broadcasts local AI crosshairs and
  * merges remote human crosshairs into the frame.
  *
- * Host uses simple linear interpolation for remote crosshairs (interpolateToward).
- * Watcher adds orbital wobble for idle AI crosshairs — see online-watcher-battle.ts
- * updateOrbitCrosshair(). Do not add orbital wobble here.
+ * Both host and watcher render remote crosshairs with simple linear
+ * interpolation toward the received target. Local AI crosshairs wobble
+ * natively via the controller's getCrosshair(); the wire format does not
+ * carry orbit params.
  *
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
@@ -44,15 +45,13 @@ export function broadcastLocalCrosshair(
 ): void {
   const target =
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
-  const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
-  const key = makeCrosshairDedupKey(target, orbit);
+  const key = makeCrosshairDedupKey(target);
   if (!deps.lastSentAimTarget.shouldSend(ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,
     x: target.x,
     y: target.y,
-    orbit: orbit ?? undefined,
   });
 }
 
@@ -100,13 +99,9 @@ export function extendWithRemoteCrosshairs(
 
 /**
  * Build dedup key for crosshair network sends.
- * Format: "roundedX,roundedY,orbitFlag" — field order is load-bearing for dedup.
  * Crosshairs use DedupChannel's atomic shouldSend() mechanism (no array rebuild).
  * Contrast with phantoms in online-server-events.ts which use explicit filter+push.
  */
-function makeCrosshairDedupKey(
-  target: { x: number; y: number },
-  orbit: unknown,
-): string {
-  return `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
+function makeCrosshairDedupKey(target: { x: number; y: number }): string {
+  return `${Math.round(target.x)},${Math.round(target.y)}`;
 }
