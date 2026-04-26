@@ -9,7 +9,10 @@ import {
   createGameRuntime,
 } from "../runtime/runtime-composition.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import { isHostInContext } from "../runtime/runtime-tick-context.ts";
+import {
+  isHostInContext,
+  tickPersistentAnnouncement,
+} from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
   BATTLE_COUNTDOWN,
@@ -42,11 +45,7 @@ import {
   createGameOverPayload,
 } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
-import {
-  tickMigrationAnnouncement,
-  tickWatcher,
-  type WatcherTickContext,
-} from "./online-watcher-tick.ts";
+import { tickWatcher, type WatcherTickContext } from "./online-watcher-tick.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names
@@ -232,7 +231,11 @@ const runtime: GameRuntime = createGameRuntime({
         logThrottled: devLogThrottled,
       }),
     tickMigrationAnnouncement: (dt) =>
-      tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
+      tickPersistentAnnouncement(
+        ctx.watcher.migrationBanner,
+        runtime.runtimeState.frame,
+        dt,
+      ),
   },
   onlineActions: {
     maybeSendAimUpdate,

@@ -38,8 +38,9 @@ export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   watcherCrosshairPos: Map<number, PixelPos>;
-  hostMigrationTimer: number;
-  hostMigrationText: string;
+  /** Host-migration announcement: survives frame clears for the duration, then self-clears.
+   *  Driven through `tickPersistentAnnouncement` from runtime-tick-context. */
+  migrationBanner: { timer: number; text: string };
 }
 
 export interface WatcherTickContext {
@@ -84,8 +85,7 @@ export function createWatcherState(): WatcherState {
     remoteCannonPhantoms: [],
     watcherCrosshairPos: new Map(),
     remotePiecePhantoms: [],
-    hostMigrationTimer: 0,
-    hostMigrationText: "",
+    migrationBanner: { timer: 0, text: "" },
   };
 }
 
@@ -98,8 +98,8 @@ export function resetWatcherState(watcherState: WatcherState): void {
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
-  watcherState.hostMigrationTimer = 0;
-  watcherState.hostMigrationText = "";
+  watcherState.migrationBanner.timer = 0;
+  watcherState.migrationBanner.text = "";
 }
 
 /**
@@ -113,31 +113,6 @@ export function resetWatcherTimingForHostPromotion(
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
-}
-
-/** Tick the migration announcement timer. Two announcement channels exist:
- *  1. frame.announcement — general-purpose, set directly (reconnection, countdown).
- *     Cleared each frame by clearFrameData(). Used by online-runtime-ws.ts for
- *     "Reconnecting..." / "Disconnected" and by battle countdown.
- *  2. watcherState.hostMigrationText — persists across frames, copied into frame.announcement here.
- *     Used only for host-migration announcements that must survive frame clears.
- *  This function bridges channel 2→1 without overwriting existing game announcements. */
-export function tickMigrationAnnouncement(
-  watcherState: WatcherState,
-  frame: { announcement?: string },
-  dt: number,
-): void {
-  if (watcherState.hostMigrationTimer <= 0) return;
-  watcherState.hostMigrationTimer -= dt;
-  if (watcherState.hostMigrationTimer > 0) {
-    // Don't overwrite game announcements (e.g., Ready/Aim/Fire countdown)
-    if (!frame.announcement) {
-      frame.announcement = watcherState.hostMigrationText;
-    }
-  } else {
-    watcherState.hostMigrationTimer = 0;
-    watcherState.hostMigrationText = "";
-  }
 }
 
 export function tickWatcher(

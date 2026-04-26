@@ -149,6 +149,36 @@ export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
   timing.phaseDuration = 0;
 }
 
+/** Decay a persistent-announcement timer and surface its text into the frame.
+ *
+ *  Two announcement channels co-exist:
+ *    1. `frame.announcement` — general-purpose, set directly per-frame
+ *       (battle countdown, "Reconnecting…"). Cleared each frame by
+ *       clearFrameData().
+ *    2. A persistent `{ timer, text }` slot — survives frame clears, used
+ *       for messages that must remain on screen for a fixed duration
+ *       (e.g. host-migration announcement).
+ *
+ *  This helper bridges (2) → (1) without overwriting an existing per-frame
+ *  announcement (so a Ready/Aim/Fire countdown beats the persistent text).
+ *  When the timer expires, the slot self-clears. */
+export function tickPersistentAnnouncement(
+  banner: { timer: number; text: string },
+  frame: { announcement?: string },
+  dt: number,
+): void {
+  if (banner.timer <= 0) return;
+  banner.timer -= dt;
+  if (banner.timer > 0) {
+    if (!frame.announcement) {
+      frame.announcement = banner.text;
+    }
+  } else {
+    banner.timer = 0;
+    banner.text = "";
+  }
+}
+
 /** Synthesize `state.timer` and battle-countdown announcements on the watcher.
  *
  *  Three regimes, gated on `state.phase`:

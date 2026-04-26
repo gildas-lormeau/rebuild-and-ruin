@@ -184,8 +184,9 @@ function buildUiDeps() {
       setMode(_depsInit.runtime.runtimeState, Mode.GAME);
     },
     setAnnouncement: (text: string) => {
-      _client.ctx.watcher.hostMigrationText = text;
-      _client.ctx.watcher.hostMigrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+      _client.ctx.watcher.migrationBanner.text = text;
+      _client.ctx.watcher.migrationBanner.timer =
+        MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,
     joinErrorEl: joinError,
