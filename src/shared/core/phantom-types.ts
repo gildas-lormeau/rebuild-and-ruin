@@ -89,6 +89,21 @@ export function filterAlivePhantoms<T extends { playerId: ValidPlayerSlot }>(
   );
 }
 
+/** Upsert a phantom for a player in a phantom list, preserving the
+ *  one-phantom-per-player invariant. Drops any existing entry for the same
+ *  playerId, appends the new entry. Returns a fresh array (phantom lists are
+ *  readonly on WatcherNetworkState). */
+export function upsertPhantomForPlayer<T extends { playerId: ValidPlayerSlot }>(
+  list: readonly T[],
+  entry: T,
+): T[] {
+  const updated = list.filter(
+    (existing) => existing.playerId !== entry.playerId,
+  );
+  updated.push(entry);
+  return updated;
+}
+
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display.
  *  Format: `"row,col,mode,valid"` where valid is `1` (true) or `0` (false).
  *  Same pattern as piecePhantomKey — both are `(phantom: T) => string` dedup keys

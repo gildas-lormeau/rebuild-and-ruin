@@ -17,6 +17,7 @@ import {
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
+import { upsertPhantomForPlayer } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
@@ -291,7 +292,7 @@ function handlePiecePhantom(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   // Replace existing phantom for this player (latest preview wins, not accumulated).
-  deps.watcher.remotePiecePhantoms = replacePhantomForPlayer(
+  deps.watcher.remotePiecePhantoms = upsertPhantomForPlayer(
     deps.watcher.remotePiecePhantoms,
     {
       offsets: msg.offsets,
@@ -312,7 +313,7 @@ function handleCannonPhantom(
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  deps.watcher.remoteCannonPhantoms = replacePhantomForPlayer(
+  deps.watcher.remoteCannonPhantoms = upsertPhantomForPlayer(
     deps.watcher.remoteCannonPhantoms,
     {
       row: msg.row,
@@ -411,17 +412,4 @@ function isActivePlayer(
 
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
-}
-
-/** Replace this player's phantom in the list with `entry` (filter old + push new).
- *  Latest preview wins; entries are not accumulated across messages. */
-function replacePhantomForPlayer<T extends { playerId: ValidPlayerSlot }>(
-  list: readonly T[],
-  entry: T,
-): T[] {
-  const updated = list.filter(
-    (existing) => existing.playerId !== entry.playerId,
-  );
-  updated.push(entry);
-  return updated;
 }
