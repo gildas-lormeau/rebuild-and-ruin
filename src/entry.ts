@@ -186,14 +186,32 @@ function exitGameIfActive(): void {
   }
 }
 
-/** Request fullscreen + wake lock on mobile (must be called from a user gesture handler). */
+/** Request fullscreen + wake lock + orientation lock on mobile (must be called
+ *  from a user gesture handler). Orientation lock is chained AFTER fullscreen
+ *  resolves: Chrome (and most engines) reject `screen.orientation.lock()`
+ *  unless the document is fullscreen, so the boot-time attempt on the home
+ *  page silently fails. The chain here is the only path that actually pins
+ *  the orientation. */
 function tryFullscreen(): void {
   if (!IS_TOUCH_DEVICE) return;
-  if (location.port) return; // skip in dev mode
-  document.documentElement.requestFullscreen?.().catch(() => {});
-  navigator.wakeLock?.request?.("screen").catch(() => {});
+  // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
+  if (import.meta.env?.DEV) return; // skip Vite dev server; preview is a prod build
+  document.documentElement
+    .requestFullscreen?.()
+    .then(() => {
+      (
+        screen.orientation as unknown as {
+          lock?: (orientation: string) => Promise<void>;
+        }
+      )
+        ?.lock?.(targetOrientation)
+        .catch(() => {});
+    })
+    .catch(() => {});
+  navigator.wakeLock.request?.("screen").catch(() => {});
 }
 
-if ("serviceWorker" in navigator && !location.port) {
+// @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
+if ("serviceWorker" in navigator && !import.meta.env?.DEV) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
