@@ -6,9 +6,10 @@
  * id (default "default" — single-session is the common case).
  *
  * Usage:
- *   debug launch [--session ID] [--node | --deno-test | --deno-run] -- <cmd> [args...]
+ *   debug launch  [--session ID] [--restart] [--node | --deno-test | --deno-run] -- <cmd> [args...]
+ *   debug rerun   [--session ID]                       # close + relaunch with prior cmd
  *   debug bp      [--session ID] <file>:<line> [--cond <expr>]
- *   debug capture [--session ID] <file>:<line> <expr> [<expr>...]
+ *   debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
  *   debug rm      [--session ID] <bpId>
  *   debug run     [--session ID] [--wait <ms>]   # resume + wait for exit
  *   debug continue [--session ID]
@@ -50,6 +51,7 @@ const [subcommand, ...rest] = Deno.args;
 const parsed = parseArgs(rest);
 const dispatch: Record<string, (p: ParsedArgs) => Promise<void>> = {
   launch: cmdLaunch,
+  rerun: cmdRerun,
   bp: cmdBp,
   capture: cmdCapture,
   rm: cmdRm,
@@ -96,8 +98,30 @@ function parseArgs(args: string[]): ParsedArgs {
 }
 
 async function cmdLaunch(parsed: ParsedArgs): Promise<void> {
+  if (parsed.flags.has("restart")) {
+    await killExistingSession(parsed.session);
+  }
   const cmd = buildLaunchCmd(parsed);
+  await launchWithCmd(parsed.session, cmd);
+}
+
+async function cmdRerun(parsed: ParsedArgs): Promise<void> {
   const sessionDir = `${SESSIONS_ROOT}/${parsed.session}`;
+  let cmd: string[];
+  try {
+    const json = await Deno.readTextFile(`${sessionDir}/cmd.json`);
+    cmd = JSON.parse(json) as string[];
+  } catch {
+    throw new Error(
+      `no prior cmd recorded for session "${parsed.session}". Run \`debug launch\` first.`,
+    );
+  }
+  await killExistingSession(parsed.session);
+  await launchWithCmd(parsed.session, cmd);
+}
+
+async function launchWithCmd(session: string, cmd: string[]): Promise<void> {
+  const sessionDir = `${SESSIONS_ROOT}/${session}`;
   await Deno.mkdir(sessionDir, { recursive: true });
 
   // Clean stale state from a prior session of the same name.
@@ -108,9 +132,11 @@ async function cmdLaunch(parsed: ParsedArgs): Promise<void> {
       // not present
     }
   }
+  // Persist the cmd so `rerun` can replay it.
+  await Deno.writeTextFile(`${sessionDir}/cmd.json`, JSON.stringify(cmd));
 
   const child = new Deno.Command("deno", {
-    args: ["run", "-A", DAEMON_PATH, parsed.session, "--", ...cmd],
+    args: ["run", "-A", DAEMON_PATH, session, "--", ...cmd],
     stdin: "null",
     stdout: "null",
     stderr: "null",
@@ -126,12 +152,7 @@ async function cmdLaunch(parsed: ParsedArgs): Promise<void> {
     try {
       await Deno.stat(readyPath);
       console.log(
-        JSON.stringify({
-          session: parsed.session,
-          cmd,
-          pid: child.pid,
-          status: "ready",
-        }),
+        JSON.stringify({ session, cmd, pid: child.pid, status: "ready" }),
       );
       return;
     } catch {
@@ -149,6 +170,45 @@ async function cmdLaunch(parsed: ParsedArgs): Promise<void> {
   throw new Error(
     `daemon did not become ready within 12s (see ${sessionDir}/daemon.log)`,
   );
+}
+
+async function killExistingSession(session: string): Promise<void> {
+  const sessionDir = `${SESSIONS_ROOT}/${session}`;
+  const socketPath = `${sessionDir}/socket`;
+  try {
+    await Deno.stat(socketPath);
+  } catch {
+    return; // not running
+  }
+  // Try graceful close via IPC.
+  try {
+    await sendIpc(session, "close");
+  } catch {
+    // socket dead or daemon already gone
+  }
+  // Wait for the socket file to disappear.
+  const start = Date.now();
+  while (Date.now() - start < 2_000) {
+    try {
+      await Deno.stat(socketPath);
+      await new Promise((r) => setTimeout(r, 50));
+    } catch {
+      return; // gone
+    }
+  }
+  // Hard kill if still alive.
+  try {
+    const pid = Number(await Deno.readTextFile(`${sessionDir}/daemon.pid`));
+    if (Number.isFinite(pid) && pid > 0) Deno.kill(pid, "SIGKILL");
+  } catch {
+    // already gone
+  }
+  // Clear lingering socket file so the next listen() doesn't EADDRINUSE.
+  try {
+    await Deno.remove(socketPath);
+  } catch {
+    // already gone
+  }
 }
 
 function buildLaunchCmd(parsed: ParsedArgs): string[] {
@@ -428,9 +488,10 @@ function usage(): never {
   console.error(
     `usage: debug <subcommand> [args]
 
-  launch [--session ID] [--node|--deno-run|--deno-test] -- <cmd> [args...]
+  launch  [--session ID] [--restart] [--node|--deno-run|--deno-test] -- <cmd> [args...]
+  rerun   [--session ID]                       # close existing + relaunch with the prior cmd
   bp      [--session ID] <file>:<line> [--cond <expr>]
-  capture [--session ID] <file>:<line> <expr> [<expr>...]
+  capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
   rm      [--session ID] <bpId>
   run     [--session ID] [--wait <ms>]
   continue [--session ID]

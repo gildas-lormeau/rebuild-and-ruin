@@ -249,6 +249,15 @@ async function main(): Promise<void> {
     } catch {
       // closed
     }
+    // Re-resolve any pending captures that may now be bindable. Lazily
+    // imported modules (e.g. AI controllers loaded on demand) often parse
+    // long after the post-import init pause, so the one-shot retry there
+    // misses them. retryPendingCaptures is a no-op for unbindable entries.
+    if (session.pendingCaptures.length > 0) {
+      void retryPendingCaptures(session).catch((e) =>
+        console.error(`scriptParsed-retry failed: ${(e as Error).message}`),
+      );
+    }
   });
   cdp.on("Debugger.paused", (params) => {
     const reason = params.reason as string;
@@ -582,7 +591,17 @@ async function retryPendingCaptures(
   const remaining: PendingCapture[] = [];
   let bound = 0;
   for (const pc of session.pendingCaptures) {
-    // Reuse setBpResolved which now tries source-map → scriptId → urlRegex.
+    // Cheap pre-check: only attempt rebind if a non-urlRegex resolution is
+    // possible. Otherwise setBpResolved would create another urlRegex bp
+    // (leaking — we'd discard the new bpId and keep the old fallback).
+    const sourceUrl = `file://${realPathSafe(pc.file)}`;
+    const canResolve =
+      session.sourceMaps.resolve(sourceUrl, pc.line - 1) !== null ||
+      findScriptForFile(session, pc.file) !== null;
+    if (!canResolve) {
+      remaining.push(pc);
+      continue;
+    }
     let result: BpResult;
     try {
       result = await setBpResolved(session, pc.file, pc.line, pc.condition);
@@ -594,7 +613,15 @@ async function retryPendingCaptures(
       continue;
     }
     if (result.via === "urlRegex" && result.locations.length === 0) {
-      // Still couldn't bind. Keep pending; nothing to do.
+      // Defensive: pre-check said yes but resolution returned urlRegex
+      // anyway. Clean up the stray bp and keep waiting.
+      try {
+        await cdp.send("Debugger.removeBreakpoint", {
+          breakpointId: result.bpId,
+        });
+      } catch {
+        // already gone
+      }
       remaining.push(pc);
       continue;
     }

@@ -20,7 +20,8 @@ Real interactive primitives (eval, frames, step) are also exposed.
 ## Subcommands
 
 ```
-debug launch [--session ID] [--node|--deno-run|--deno-test] -- <cmd> [args...]
+debug launch  [--session ID] [--restart] [--node|--deno-run|--deno-test] -- <cmd> [args...]
+debug rerun   [--session ID]                          # close + relaunch with prior cmd
 debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
 debug bp      [--session ID] <file>:<line> [--cond <expr>]
 debug rm      [--session ID] <bpId>
@@ -94,6 +95,23 @@ $ debug run
 $ debug trace --format table
 # 120-row interleaved trace of every event + every transition
 ```
+
+## Iterating (n+1 finding)
+
+A finding usually leads to a next question — different captures, maybe a
+different filter. Two ways to relaunch without a separate `close`:
+
+```sh
+# Same launch line, --restart kills any existing session of that id first.
+$ debug launch --session sc --restart --deno-test -- test/foo.test.ts "filter"
+
+# Or: re-use the prior cmd (saved on every launch as cmd.json in the
+# session dir). Tighter loop when the cmd doesn't change.
+$ debug rerun --session sc
+```
+
+Captures are *not* preserved across either path — each run is a fresh
+session, deliberately, so the captures stay part of intent.
 
 ## Filtering with `--cond`
 
