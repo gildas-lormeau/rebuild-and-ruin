@@ -118,8 +118,6 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function enterTowerSelection(): void {
-    resetSelectionState();
-
     const { state } = runtimeState;
     const isHost = deps.hostAtFrameStart();
     const { myPlayerId, remotePlayerSlots } = runtimeState.frameMeta;
@@ -129,6 +127,34 @@ export function createSelectionSystem(
     );
 
     const isWatcher = !isHost && !isActivePlayer(myPlayerId);
+
+    // Pure-watcher path: SELECT_START arrives in two flavours.
+    // (1) Initial selection — every active player still has homeTower=null.
+    // (2) Reselection — only the player(s) who lost a life have null
+    //     homeTower; resetPlayerBoardState cleared theirs in
+    //     applyLifePenalties, while the others keep their prior pick.
+    // The host runs `startReselection` for (2) which only ticks the
+    // queued slot. Reusing the full enterSelectionPhase here would
+    // re-init every AI slot's selection and drift strategy.rng for
+    // slots NOT in the queue. Detect (2) via "some player has homeTower
+    // and some doesn't" and route to startReselection instead.
+    if (isWatcher) {
+      const queue: ValidPlayerSlot[] = [];
+      let anyHasHome = false;
+      for (let i = 0; i < state.players.length; i++) {
+        const player = state.players[i];
+        if (!player || player.eliminated) continue;
+        if (player.homeTower) anyHasHome = true;
+        else queue.push(i as ValidPlayerSlot);
+      }
+      if (anyHasHome && queue.length > 0) {
+        runtimeState.selection.reselectQueue = queue;
+        startReselection();
+        return;
+      }
+    }
+
+    resetSelectionState();
 
     // Non-host active player joining mid-game needs reselect phase
     if (!isHost && isActivePlayer(myPlayerId)) {
@@ -466,6 +492,9 @@ export function createSelectionSystem(
 
   function startReselection() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
+    const isHost = deps.hostAtFrameStart();
+    const { myPlayerId } = runtimeState.frameMeta;
+    const isWatcher = !isHost && !isActivePlayer(myPlayerId);
     const { state } = runtimeState;
     resetSelectionState();
 
@@ -482,8 +511,16 @@ export function createSelectionSystem(
     // need UI interaction. Both paths run through the selection tick —
     // there's no "done immediately" branch (the old processReselectionQueue
     // had one but it was never reachable).
+    //
+    // Drivable slot policy mirrors `enterTowerSelection`:
+    //   Watcher: every AI slot in the queue (humans handled via wire)
+    //   Host: every non-remote-human slot in the queue
+    const shouldDrive = (pid: ValidPlayerSlot): boolean => {
+      if (isWatcher) return !isHuman(runtimeState.controllers[pid]!);
+      return !isRemotePlayer(pid, remotePlayerSlots);
+    };
     for (const pid of runtimeState.selection.reselectQueue) {
-      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
+      if (!shouldDrive(pid)) continue;
       const zone = state.playerZones[pid] ?? 0;
       runtimeState.controllers[pid]!.selectReplacementTower(state, zone);
       if (isHuman(runtimeState.controllers[pid]!)) {

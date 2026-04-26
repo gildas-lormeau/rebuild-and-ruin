@@ -197,7 +197,15 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   // spawn, conscription, ricochet) advance state.rng symmetrically — both
   // sides started this BATTLE with byte-identical state.rng (synced via
   // BattleStartData.rngState).
-  const result = tickBattlePhase(state, dt);
+  //
+  // Skip during the READY/AIM/FIRE countdown — host gates tickBattlePhase
+  // on `battleCountdown === 0` (runtime-phase-ticks.ts), so without this
+  // guard the watcher runs ~360 extra grunt-attack ticks during the 6s
+  // countdown before host even starts. That diverges grunt-broken walls.
+  const result =
+    state.battleCountdown > 0
+      ? { impactEvents: [], newImpacts: [] }
+      : tickBattlePhase(state, dt);
   for (const impact of result.newImpacts) {
     battleAnim.impacts.push({ ...impact, age: 0 });
   }
