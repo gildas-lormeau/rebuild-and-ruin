@@ -44,17 +44,14 @@ export function createOnlineRuntimeSessionHelpers(
     hideRoomCodeOverlay(roomCodeOverlay);
     navigateTo(ROUTE_ONLINE);
     deps.destroyClient();
-    // Clear the room-seed display in the options modal — paired with
-    // the write in showWaitingRoom. settings.seed has dual purpose:
-    // user-input custom seed locally, room-seed mirror online.
-    runtime.runtimeState.settings.seed = "";
+    runtime.runtimeState.lobby.roomSeedDisplay = null;
   }
 
   function showWaitingRoom(code: string, seed: number): void {
     const runtime = deps.getRuntime();
     const lobby = runtime.runtimeState.lobby;
     deps.session.roomSeed = seed;
-    runtime.runtimeState.settings.seed = String(seed);
+    lobby.roomSeedDisplay = seed;
     const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
     buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
     pageOnline.hidden = true;

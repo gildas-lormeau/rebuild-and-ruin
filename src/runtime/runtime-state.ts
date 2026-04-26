@@ -300,6 +300,7 @@ export function createRuntimeState(): RuntimeState {
       timerAccum: 0,
       seed: 0,
       map: null,
+      roomSeedDisplay: null,
     },
 
     mode: Mode.STOPPED,

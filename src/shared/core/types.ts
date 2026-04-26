@@ -194,6 +194,12 @@ export interface LobbyState {
   /** Pre-computed seed for the next game (also used for lobby map preview). */
   seed: number;
   map: GameMap | null;
+  /** Online-only: the server-assigned room seed shown in the options modal.
+   *  Set on showWaitingRoom, cleared on quit-to-menu. Distinct from `seed`
+   *  (which is always a number, including the initial 0) so the renderer
+   *  can show "—" before a room exists without colliding with a server-
+   *  assigned seed of 0. */
+  roomSeedDisplay: number | null;
 }
 
 /** Per-player state during castle selection (highlighted tower, confirm status). */
