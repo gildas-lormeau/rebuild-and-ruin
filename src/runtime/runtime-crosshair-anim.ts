@@ -50,7 +50,7 @@ export function tickRemoteCrosshair(
     visualPosCache.set(pid, visualPos);
   }
   interpolateToward(visualPos, target.x, target.y, REMOTE_CROSSHAIR_SPEED, dt);
-  aimCannons(state, pid, visualPos.x, visualPos.y, dt);
+  aimCannons(state, pid, visualPos.x, visualPos.y);
   return visualPos;
 }
 

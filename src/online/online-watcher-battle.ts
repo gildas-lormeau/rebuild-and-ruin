@@ -254,5 +254,5 @@ function tickLocalBattle(
   }
 
   maybeSendAimUpdate(ch.x, ch.y);
-  aimCannons(state, pid, ch.x, ch.y, dt);
+  aimCannons(state, pid, ch.x, ch.y);
 }

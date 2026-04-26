@@ -61,8 +61,6 @@ interface BattlePhase {
   orbitAngle: number;
 }
 
-/** Fixed dt passed to aimCannons (visual-only rotation, no RNG). */
-const AIM_DT = SIM_TICK_DT;
 /** Per-tick multiplier for orbit angular speed (rad/s → rad/tick). */
 const ORBIT_DT = SIM_TICK_DT;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
@@ -137,7 +135,7 @@ export function tickBattle(
   if (!nextReadyCombined(state, host.playerId)) return;
 
   const aimAt = phase.crosshairTarget ?? host.crosshair;
-  aimCannons(state, host.playerId, aimAt.x, aimAt.y, AIM_DT);
+  aimCannons(state, host.playerId, aimAt.x, aimAt.y);
 
   // During countdown or after battle timer expires: move/orbit only
   if (state.battleCountdown > 0 || state.timer <= 0) {

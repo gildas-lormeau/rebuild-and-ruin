@@ -233,7 +233,7 @@ export class HumanController extends BaseController implements InputReceiver {
 
   battleTick(state: BattleViewState, dt: number): void {
     this.moveCrosshairFromInput(dt);
-    aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
+    aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y);
   }
 
   /** Apply held directional keys to crosshair position (sprint when ROTATE held).

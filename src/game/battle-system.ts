@@ -57,7 +57,6 @@ import {
   isWater,
   packTile,
   pxToTile,
-  rotateToward,
   TILE_CENTER_OFFSET,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
@@ -116,10 +115,6 @@ interface AnnouncementStep {
   readonly eventType: "battleReady" | "battleAim" | "battleFire";
 }
 
-/** Cannon barrel rotation speed: 3π rad/s ≈ 540°/s.
- *  Tuned for snappy visual feedback — cannons should visually track
- *  the crosshair with minimal lag but not feel instant. */
-const CANNON_ROTATE_SPEED = Math.PI * 3;
 /** Firework-whistle variant durations (seconds), indexed by variant id.
  *  The sample audio contains a rising whistle followed by a built-in
  *  explosion pop — so the whole duration must fit inside the ball's
@@ -215,7 +210,8 @@ export function canPlayerFire(
 
 /** Point all of a player's live cannons toward a crosshair position (pixels).
  *  Also aims any cannons this player has captured via propaganda balloons.
- *  When dt > 0, rotation is smooth; when dt <= 0, rotation snaps instantly. */
+ *  Snap-only: cannon.facing is a pure function of (cannon position, crosshair).
+ *  Visual smoothness comes from the crosshair itself being smoothed upstream. */
 export function aimCannons(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
@@ -223,7 +219,6 @@ export function aimCannons(
   playerId: ValidPlayerSlot,
   cx: number,
   cy: number,
-  dt = 0,
 ): void {
   const player = state.players[playerId];
   if (!player) return;
@@ -232,14 +227,9 @@ export function aimCannons(
   for (const captured of state.capturedCannons) {
     capturedByOthers.add(captured.cannon);
   }
-  // Infinity = snap instantly (used when dt <= 0, e.g. initial facing setup)
-  const maxStep = dt > 0 ? CANNON_ROTATE_SPEED * dt : Infinity;
   const aimAt = (cannon: Cannon) => {
     const { x: ox, y: oy } = cannonCenter(cannon);
-    const target = Math.atan2(cx - ox, -(cy - oy));
-    const current = cannon.facing ?? 0;
-    cannon.facing =
-      maxStep === Infinity ? target : rotateToward(current, target, maxStep);
+    cannon.facing = Math.atan2(cx - ox, -(cy - oy));
   };
 
   // Aim own cannons (excluding ones captured by someone else or not enclosed)

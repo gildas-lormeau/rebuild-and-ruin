@@ -267,25 +267,6 @@ export function snapAngle(angle: number, step: number): number {
   return Math.round(angle / step) * step;
 }
 
-/** Smoothly rotate `current` angle toward `target` angle by at most `maxStep` radians.
- *  Both angles in radians. Takes the shortest path around the circle. */
-export function rotateToward(
-  current: number,
-  target: number,
-  maxStep: number,
-): number {
-  // Normalize difference to [-PI, PI]
-  const raw = (target - current) % (Math.PI * 2);
-  const diff =
-    raw > Math.PI
-      ? raw - Math.PI * 2
-      : raw < -Math.PI
-        ? raw + Math.PI * 2
-        : raw;
-  if (Math.abs(diff) <= maxStep) return target;
-  return current + Math.sign(diff) * maxStep;
-}
-
 /** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
   towers: readonly TilePos[],
