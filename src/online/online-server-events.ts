@@ -150,8 +150,7 @@ function handleTowerSelected(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
     return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -192,8 +191,7 @@ function handlePiecePlaced(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -225,8 +223,7 @@ function handleCannonPlaced(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODE_IDS.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -268,8 +265,7 @@ function handleCannonFired(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!state || !validPid(msg.playerId, state)) return DROPPED;
-  if (isPlayerEliminated(state.players[msg.playerId])) return DROPPED;
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!Number.isFinite(msg.speed) || msg.speed <= 0) return DROPPED;
   if (
     !Number.isFinite(msg.startX) ||
@@ -317,18 +313,16 @@ function handlePiecePhantom(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   // Replace existing phantom for this player (latest preview wins, not accumulated).
-  // filter() removes the old entry; push() adds the new one.
-  const updated = deps.watcher.remotePiecePhantoms.filter(
-    (entry) => entry.playerId !== msg.playerId,
+  deps.watcher.remotePiecePhantoms = replacePhantomForPlayer(
+    deps.watcher.remotePiecePhantoms,
+    {
+      offsets: msg.offsets,
+      row: msg.row,
+      col: msg.col,
+      playerId: msg.playerId,
+      valid: msg.valid,
+    },
   );
-  updated.push({
-    offsets: msg.offsets,
-    row: msg.row,
-    col: msg.col,
-    playerId: msg.playerId,
-    valid: msg.valid,
-  });
-  deps.watcher.remotePiecePhantoms = updated;
   return APPLIED;
 }
 
@@ -340,17 +334,16 @@ function handleCannonPhantom(
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  const updated = deps.watcher.remoteCannonPhantoms.filter(
-    (entry) => entry.playerId !== msg.playerId,
+  deps.watcher.remoteCannonPhantoms = replacePhantomForPlayer(
+    deps.watcher.remoteCannonPhantoms,
+    {
+      row: msg.row,
+      col: msg.col,
+      valid: msg.valid,
+      mode: toCannonMode(msg.mode),
+      playerId: msg.playerId,
+    },
   );
-  updated.push({
-    row: msg.row,
-    col: msg.col,
-    valid: msg.valid,
-    mode: toCannonMode(msg.mode),
-    playerId: msg.playerId,
-  });
-  deps.watcher.remoteCannonPhantoms = updated;
   return APPLIED;
 }
 
@@ -422,6 +415,34 @@ function isRemoteHumanAction(
   );
 }
 
+/** Type guard: state exists, pid is in range, and the player is not eliminated.
+ *  Used by the four "real action" handlers (tower/piece/cannon/fire) which all
+ *  require a live player to apply. Phantom + aim handlers have looser variants
+ *  (state-optional, no eliminated check) and validate inline. */
+function isActivePlayer(
+  state: GameState | undefined,
+  pid: number,
+): state is GameState {
+  return (
+    state !== undefined &&
+    validPid(pid, state) &&
+    !isPlayerEliminated(state.players[pid])
+  );
+}
+
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
+}
+
+/** Replace this player's phantom in the list with `entry` (filter old + push new).
+ *  Latest preview wins; entries are not accumulated across messages. */
+function replacePhantomForPlayer<T extends { playerId: ValidPlayerSlot }>(
+  list: readonly T[],
+  entry: T,
+): T[] {
+  const updated = list.filter(
+    (existing) => existing.playerId !== entry.playerId,
+  );
+  updated.push(entry);
+  return updated;
 }

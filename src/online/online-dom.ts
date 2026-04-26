@@ -41,3 +41,11 @@ export const joinCodeInput = document.getElementById(
 // ── Shared (used by both lobby and deps) ───────────────────────────
 export const createError = document.getElementById("create-error")!;
 export const joinError = document.getElementById("join-error")!;
+
+/** Show the `<main class="page" data-route="...">` matching `route`,
+ *  hide the others. Called by the router on every route change. */
+export function setActivePageByRoute(route: string): void {
+  for (const element of document.querySelectorAll<HTMLElement>(".page")) {
+    element.hidden = element.dataset["route"] !== route;
+  }
+}

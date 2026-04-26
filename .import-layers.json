@@ -10,7 +10,6 @@
       "src/input/input.ts",
       "src/libadlmidi-js.d.ts",
       "src/online/online-dom.ts",
-      "src/online/online-router.ts",
       "src/protocol/routes.ts",
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/lights.ts",
@@ -47,9 +46,9 @@
     "name": "foundational types & local entry",
     "tier": "types",
     "files": [
-      "src/entry.ts",
       "src/online/online-config.ts",
       "src/online/online-full-state-recovery.ts",
+      "src/online/online-router.ts",
       "src/protocol/checkpoint-data.ts",
       "src/render/3d/effects/layer-canvas.ts",
       "src/render/3d/sprites/balloon-scene.ts",
@@ -73,6 +72,7 @@
     "name": "derived types",
     "tier": "types",
     "files": [
+      "src/entry.ts",
       "src/render/3d/camera.ts",
       "src/render/3d/sprites/cannon-scene.ts",
       "src/render/3d/sprites/debris-scene.ts",

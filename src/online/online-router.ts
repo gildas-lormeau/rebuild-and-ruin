@@ -8,7 +8,7 @@
  * activates — deduped so repeat navigations to the same route are ignored.
  */
 
-/** CSS class toggled on #game-container to show/hide it. */
+import { setActivePageByRoute } from "./online-dom.ts";
 
 type RouteHandler = () => void;
 
@@ -43,9 +43,7 @@ export function initRouter(): void {
  *  Calls the registered route handler when the route changes. */
 function applyRoute(): void {
   const route = getRoute();
-  for (const element of document.querySelectorAll<HTMLElement>(".page")) {
-    element.hidden = element.dataset["route"] !== route;
-  }
+  setActivePageByRoute(route);
   if (route !== currentRoute) {
     currentRoute = route;
     handlers.get(route)?.();
