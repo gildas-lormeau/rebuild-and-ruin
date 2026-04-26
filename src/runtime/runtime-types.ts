@@ -591,6 +591,11 @@ export interface GameRuntime {
   phaseTicks: RuntimePhaseTicks;
   music: RuntimeMusic;
   sfx: RuntimeSfx;
+  /** Quit-to-menu cleanup shared by both entry points (local + online).
+   *  Sets mode to STOPPED, stops any active bg track, and silences
+   *  in-flight SFX. Wired to the GAME_EXIT_EVENT (back-button / hash
+   *  navigation away from /play). */
+  shutdown: () => void;
   /** Camera sub-system. Exposed so tests (and any future consumer) can
    *  observe zoom/pitch state — the underlying camera value is already
    *  constructed inside `createGameRuntime`, this just surfaces it on

@@ -93,14 +93,10 @@ export function activateMusic(): Promise<void> {
   );
 }
 
-document.addEventListener(GAME_EXIT_EVENT, () => {
-  setMode(runtime.runtimeState, Mode.STOPPED);
-  // Back-button / hash navigation away from /play: silence music.
-  // stopTitle clears `wantsTitle` and stops whatever bg track is active
-  // (the function name is historical — it stops any current source, not
-  // just the title screen).
-  void runtime.music.stopTitle();
-});
+// Back-button / hash navigation away from /play: stop the active bg
+// track + any in-flight SFX, set mode to STOPPED. Shared with the
+// online entry — see runtime.shutdown in runtime-composition.ts.
+document.addEventListener(GAME_EXIT_EVENT, runtime.shutdown);
 
 function showLobby(): void {
   const lobby = runtime.runtimeState.lobby;

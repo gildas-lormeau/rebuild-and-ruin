@@ -961,6 +961,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     sfx: { activate: sfx.activate },
 
+    // Shared quit-to-menu cleanup. Called from both local (main.ts) and
+    // online (online-runtime-game.ts GAME_EXIT_EVENT, plus the imperative
+    // online "leave" path in online-runtime-session.showLobby) — they
+    // each layer their own session/navigation resets on top.
+    shutdown: (): void => {
+      setMode(runtimeState, Mode.STOPPED);
+      // Close the lobby input gate. Game-start paths flip this themselves
+      // (runtime-lobby tickLobby, online initFromServer); this covers the
+      // quit-back-to-menu paths so callers don't repeat the assignment.
+      runtimeState.lobby.active = false;
+      // stopTitle clears `wantsTitle` and stops whatever bg track is
+      // active (the function name is historical — it stops any current
+      // bg source, not just the title screen).
+      void music.stopTitle();
+      sfx.stopAll();
+    },
+
     upgradePick,
     scoreDelta: {
       show: scoreDelta.show,

@@ -22,7 +22,6 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { Mode } from "../shared/ui/ui-mode.ts";
 import { canvas, worldCanvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
@@ -312,12 +311,8 @@ export function initOnlineRuntime(): void {
   network.onMessage(handleServerMessage);
 
   document.addEventListener(GAME_EXIT_EVENT, () => {
-    setMode(runtime.runtimeState, Mode.STOPPED);
-    runtime.runtimeState.lobby.active = false;
+    runtime.shutdown();
     sessionHelpers.resetSession();
-    // Silence whatever bg track is playing. stopTitle stops the active
-    // bg source regardless of which track is loaded (see local main.ts).
-    void runtime.music.stopTitle();
   });
 }
 

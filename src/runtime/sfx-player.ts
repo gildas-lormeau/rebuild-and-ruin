@@ -63,6 +63,11 @@ interface SfxSubsystem {
   tickPresentation(state: GameState): void;
   /** Suspend/resume the AudioContext — wired to `visibilitychange`. */
   setPaused(paused: boolean): Promise<void>;
+  /** Hard-stop every currently playing source — snare loop, in-flight
+   *  one-shots (welldone / fanfare chain / cannon shots / etc.). Called
+   *  on quit-to-menu so a long sample doesn't outlive the game. The
+   *  AudioContext stays open so the next match can play normally. */
+  stopAll(): void;
   dispose(): Promise<void>;
 }
 
@@ -261,6 +266,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   // countdown at a time. Started/stopped on derived-signal transitions,
   // not on bus events.
   let snareSource: AudioBufferSourceNode | undefined;
+  // Every BufferSource we hand to the audio graph — one-shots and the
+  // snare loop alike. Kept so `stopAll` can silence in-flight playback
+  // on quit-to-menu (welldone + winner stinger chain can otherwise run
+  // for several seconds after the lobby is back on screen).
+  const activeSources = new Set<AudioBufferSourceNode>();
   // Last frame's derived signals — diffed against the next frame to
   // detect transitions (signal rose / signal fell).
   let lastSignals: SfxSignals = { countdownActive: false };
@@ -342,9 +352,17 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(context.destination);
+    trackSource(source);
     source.start(0);
     deps.observer?.onPlaySample?.(name);
     return source;
+  }
+
+  function trackSource(source: AudioBufferSourceNode): void {
+    activeSources.add(source);
+    source.addEventListener("ended", () => {
+      activeSources.delete(source);
+    });
   }
 
   function unbindCurrentBus(): void {
@@ -570,6 +588,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     gain.gain.linearRampToValueAtTime(1, now + SNARE_CRESCENDO_SEC);
     source.connect(gain);
     gain.connect(context.destination);
+    trackSource(source);
     source.start(0);
     snareSource = source;
   }
@@ -582,6 +601,19 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
       // already ended — fine
     }
     snareSource = undefined;
+  }
+
+  function stopAll(): void {
+    for (const source of activeSources) {
+      try {
+        source.stop();
+      } catch {
+        // already ended — fine
+      }
+    }
+    activeSources.clear();
+    snareSource = undefined;
+    lastSignals = { countdownActive: false };
   }
 
   async function setPaused(next: boolean): Promise<void> {
@@ -631,6 +663,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     refreshSamples,
     tickPresentation,
     setPaused,
+    stopAll,
     dispose,
   };
 }

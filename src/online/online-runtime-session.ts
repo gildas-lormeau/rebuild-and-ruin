@@ -45,9 +45,7 @@ export function createOnlineRuntimeSessionHelpers(
   }
 
   function showLobby(): void {
-    const runtime = deps.getRuntime();
-    setMode(runtime.runtimeState, Mode.STOPPED);
-    runtime.runtimeState.lobby.active = false;
+    deps.getRuntime().shutdown();
     deps.container.classList.remove(GAME_CONTAINER_ACTIVE);
     hideRoomCodeOverlay(roomCodeOverlay);
     navigateTo(ROUTE_ONLINE);
