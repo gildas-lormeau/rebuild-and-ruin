@@ -15,7 +15,9 @@
  *   debug continue [--session ID]
  *   debug step    [--session ID] [over|into|out]
  *   debug eval    [--session ID] <expr> [--frame N]
- *   debug trace   [--session ID] [--since N] [--format json|table]
+ *   debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+ *   debug stacks  [--session ID] [--format json]
+ *   debug stack   [--session ID] <hit#>
  *   debug status  [--session ID]
  *   debug logs    [--session ID] [--stderr | --stdout | --daemon]
  *   debug close   [--session ID]
@@ -45,6 +47,21 @@ interface IpcResponse {
   error?: string;
 }
 
+interface TraceFrame {
+  name: string;
+  url: string;
+  line: number;
+}
+
+interface TraceHit {
+  ts: number;
+  bpId: string;
+  file: string;
+  line: number;
+  values: Record<string, unknown>;
+  frames?: TraceFrame[];
+}
+
 const SESSIONS_ROOT = "/tmp/debug-sessions";
 const DAEMON_PATH = new URL("./daemon.ts", import.meta.url).pathname;
 const [subcommand, ...rest] = Deno.args;
@@ -60,6 +77,8 @@ const dispatch: Record<string, (p: ParsedArgs) => Promise<void>> = {
   step: cmdStep,
   eval: cmdEval,
   trace: cmdTrace,
+  stacks: cmdStacks,
+  stack: cmdStack,
   status: cmdStatus,
   logs: cmdLogs,
   close: cmdClose,
@@ -321,29 +340,76 @@ async function cmdTrace(parsed: ParsedArgs): Promise<void> {
   const params: Record<string, unknown> = {};
   if (typeof since === "string") params.since = Number(since);
   const result = (await sendIpc(parsed.session, "trace", params)) as {
-    hits: Array<{
-      ts: number;
-      bpId: string;
-      file: string;
-      line: number;
-      values: Record<string, unknown>;
-    }>;
+    hits: TraceHit[];
     total: number;
   };
   if (parsed.flags.get("format") === "table") {
-    printTrace(result.hits);
+    const markStack = parsed.flags.get("mark-stack-changes") === true;
+    printTrace(result.hits, { markStack });
   } else {
     console.log(JSON.stringify(result, null, 2));
   }
 }
 
+async function cmdStacks(parsed: ParsedArgs): Promise<void> {
+  const result = (await sendIpc(parsed.session, "stacks")) as {
+    stacks: Array<{
+      key: string;
+      count: number;
+      firstHit: number;
+      lastHit: number;
+      frames: TraceFrame[];
+    }>;
+    totalHits: number;
+  };
+  if (parsed.flags.get("format") === "json") {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (result.stacks.length === 0) {
+    console.log("(no captures)");
+    return;
+  }
+  const header = ["count", "first", "last", "stack"];
+  const rows = result.stacks.map((s) => [
+    String(s.count),
+    String(s.firstHit),
+    String(s.lastHit),
+    s.key || "<no frames>",
+  ]);
+  const widths = header.map((h, i) =>
+    Math.max(h.length, ...rows.map((r) => r[i].length)),
+  );
+  const fmt = (cells: string[]) =>
+    cells.map((c, i) => c.padEnd(widths[i])).join("  ");
+  console.log(fmt(header));
+  console.log(widths.map((w) => "-".repeat(w)).join("  "));
+  for (const r of rows) console.log(fmt(r));
+  console.log(
+    `\n${result.stacks.length} unique stacks across ${result.totalHits} hits`,
+  );
+}
+
+async function cmdStack(parsed: ParsedArgs): Promise<void> {
+  const arg = parsed.positional[0];
+  if (arg === undefined) throw new Error("stack requires <hit-index>");
+  const hit = Number(arg);
+  if (!Number.isFinite(hit)) throw new Error(`invalid hit index: "${arg}"`);
+  const result = (await sendIpc(parsed.session, "stack", { hit })) as {
+    hit: number;
+    loc: string;
+    frames: TraceFrame[];
+  };
+  console.log(`hit ${result.hit} @ ${result.loc}`);
+  for (const f of result.frames) {
+    const where = f.url ? `${f.url}:${f.line}` : `(line ${f.line})`;
+    console.log(`  ${f.name}  ${where}`);
+  }
+}
+
 function printTrace(
-  hits: Array<{
-    ts: number;
-    file: string;
-    line: number;
-    values: Record<string, unknown>;
-  }>,
+  hits: TraceHit[],
+  opts: { markStack: boolean } = { markStack: false },
 ): void {
   if (hits.length === 0) {
     console.log("(no captures)");
@@ -351,13 +417,26 @@ function printTrace(
   }
   const exprs = Array.from(new Set(hits.flatMap((h) => Object.keys(h.values))));
   const t0 = hits[0].ts;
-  const header = ["#", "+ms", "loc", ...exprs];
-  const rows = hits.map((h, i) => [
-    String(i),
-    String(h.ts - t0),
-    `${h.file}:${h.line}`,
-    ...exprs.map((e) => formatValue(h.values[e])),
-  ]);
+  // Stack-change marker: '*' on rows where frames differ from the previous hit.
+  const stackMark = (i: number): string => {
+    if (!opts.markStack) return "";
+    const cur = (hits[i].frames ?? []).map((f) => f.name).join("|");
+    const prev =
+      i === 0 ? null : (hits[i - 1].frames ?? []).map((f) => f.name).join("|");
+    return prev === null || prev !== cur ? "*" : " ";
+  };
+  const header = opts.markStack
+    ? ["#", "△", "+ms", "loc", ...exprs]
+    : ["#", "+ms", "loc", ...exprs];
+  const rows = hits.map((h, i) => {
+    const base = [
+      String(i),
+      String(h.ts - t0),
+      `${h.file}:${h.line}`,
+      ...exprs.map((e) => formatValue(h.values[e])),
+    ];
+    return opts.markStack ? [base[0], stackMark(i), ...base.slice(1)] : base;
+  });
   const widths = header.map((h, i) =>
     Math.max(h.length, ...rows.map((r) => r[i].length)),
   );
@@ -497,7 +576,9 @@ function usage(): never {
   continue [--session ID]
   step    [--session ID] [over|into|out]
   eval    [--session ID] <expr> [--frame N]
-  trace   [--session ID] [--since N] [--format json|table]
+  trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+  stacks  [--session ID] [--format json]                         # histogram of unique stacks across hits
+  stack   [--session ID] <hit#>                                  # full call stack for one hit
   status  [--session ID]
   logs    [--session ID] [--daemon|--stderr|--stdout]
   close   [--session ID]

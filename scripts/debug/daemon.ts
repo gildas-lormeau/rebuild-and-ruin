@@ -34,12 +34,19 @@ interface Capture {
   condition?: string;
 }
 
+interface FrameInfo {
+  name: string;
+  url: string;
+  line: number;
+}
+
 interface CaptureHit {
   ts: number;
   bpId: string;
   file: string;
   line: number;
   values: Record<string, unknown>;
+  frames: FrameInfo[];
 }
 
 interface PausedFrame {
@@ -112,6 +119,8 @@ interface BpResult {
   locations: unknown[];
   via: "sourceMap" | "scriptId" | "urlRegex";
 }
+
+const MAX_FRAMES = 6;
 
 await main();
 
@@ -400,6 +409,10 @@ async function handlePaused(
 
   if (captureBps.length > 0 && rawFrames.length > 0) {
     const callFrameId = rawFrames[0].callFrameId as string;
+    // Snapshot the top frames once per pause; reused for every capture-bp
+    // that fired in this stop. Frames are already in the pause event — no
+    // extra CDP calls. MAX_FRAMES caps per-hit memory for hot paths.
+    const frames = extractFrames(rawFrames, MAX_FRAMES);
     for (const bpId of captureBps) {
       const cap = session.captures.get(bpId);
       if (!cap) continue;
@@ -413,6 +426,7 @@ async function handlePaused(
         file: cap.file,
         line: cap.line,
         values,
+        frames,
       });
     }
     await cdp.send("Debugger.resume");
@@ -624,6 +638,46 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
       const since = (p.since as number | undefined) ?? 0;
       return { hits: session.hits.slice(since), total: session.hits.length };
     },
+    stacks: () => {
+      // Histogram: group hits by stack key (function names ← from top to
+      // bottom). Sorted by count desc. firstHit/lastHit point into the
+      // hits array so the user can drill in via `debug stack <hit#>`.
+      const groups = new Map<
+        string,
+        {
+          count: number;
+          firstHit: number;
+          lastHit: number;
+          frames: FrameInfo[];
+        }
+      >();
+      for (let i = 0; i < session.hits.length; i++) {
+        const h = session.hits[i];
+        const key = stackKey(h.frames);
+        let g = groups.get(key);
+        if (!g) {
+          g = { count: 0, firstHit: i, lastHit: i, frames: h.frames };
+          groups.set(key, g);
+        }
+        g.count++;
+        g.lastHit = i;
+      }
+      const stacks = Array.from(groups.entries())
+        .map(([key, g]) => ({ key, ...g }))
+        .sort((a, b) => b.count - a.count);
+      return { stacks, totalHits: session.hits.length };
+    },
+    stack: (p) => {
+      const hit = p.hit as number;
+      const h = session.hits[hit];
+      if (!h)
+        throw new Error(`no hit at index ${hit} (have ${session.hits.length})`);
+      return {
+        hit,
+        loc: `${h.file}:${h.line}`,
+        frames: h.frames,
+      };
+    },
     waitForExit: async (p) => {
       const timeoutMs = (p.timeoutMs as number | undefined) ?? 30_000;
       const start = Date.now();
@@ -813,6 +867,24 @@ function diagnoseBp(
     }
   }
   return undefined;
+}
+
+function extractFrames(
+  rawFrames: Array<Record<string, unknown>>,
+  max: number,
+): FrameInfo[] {
+  return rawFrames.slice(0, max).map((f) => {
+    const loc = (f.location as { lineNumber?: number }) ?? {};
+    return {
+      name: (f.functionName as string) || "<anonymous>",
+      url: (f.url as string) || "",
+      line: (loc.lineNumber ?? 0) + 1,
+    };
+  });
+}
+
+function stackKey(frames: FrameInfo[]): string {
+  return frames.map((f) => f.name).join(" ← ");
 }
 
 function findScriptForFile(

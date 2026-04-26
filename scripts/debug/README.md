@@ -29,7 +29,9 @@ debug run     [--session ID] [--wait <ms>]        # resume + wait for exit
 debug continue [--session ID]
 debug step    [--session ID] [over|into|out]
 debug eval    [--session ID] <expr> [--frame N]
-debug trace   [--session ID] [--since N] [--format json|table]
+debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+debug stacks  [--session ID] [--format json]   # histogram of unique stacks
+debug stack   [--session ID] <hit#>            # full stack for one hit
 debug status  [--session ID]
 debug logs    [--session ID] [--daemon|--stderr|--stdout]
 debug close   [--session ID]
@@ -136,6 +138,43 @@ capture, so you can audit a setup before running. Common hints:
   you picked a comment / blank line / multi-line expression continuation.
 - `file indexed but no source-map segments anywhere near this line` —
   wrong file path, or line is way off.
+
+## Discovering call sites
+
+Every capture-point hit silently records the top frames from the
+`Debugger.paused` event (free — no extra CDP calls). The trace stays
+clean by default; query the stacks on demand:
+
+```sh
+# Histogram: how many distinct callers? Rolls 326 hits into 18 rows.
+$ debug stacks
+count  first  last  stack
+113      153   321  emitGameEvent ← applyPiecePlacement ← placePiece ← executePlacePiece
+95         1    99  emitGameEvent ← tickCastleBuildAnimation ← tickAllCastleBuilds ← …
+35       123   254  emitGameEvent ← maybeEmitDescendingWhistle ← tickCannonballs ← …
+…
+
+# Drill-down: full chain for one specific hit.
+$ debug stack 0
+hit 0 @ src/shared/core/game-event-bus.ts:406
+  emitGameEvent  (line 98)
+  confirmTowerSelection  (line 40)
+  …
+
+# Trace with a marker on rows where the stack differs from the previous.
+# The △ column flags call-site shifts in an otherwise quiet column.
+$ debug trace --format table --mark-stack-changes
+#   △  +ms   loc                                    type
+0   *    0   …game-event-bus.ts:406                 castlePlaced
+1   *    1   …game-event-bus.ts:406                 castleBuildTile     ← different caller
+2        6   …game-event-bus.ts:406                 castleBuildTile
+3   *   10   …game-event-bus.ts:406                 castlePlaced        ← different caller
+…
+```
+
+The three compose: marker says *where* the call site shifted, `stacks`
+shows the *distribution*, `stack <hit#>` gives the *full chain* for any
+one row.
 
 ## Filtering with `--cond`
 
