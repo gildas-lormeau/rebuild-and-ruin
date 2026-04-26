@@ -2,11 +2,7 @@ import {
   createController,
   ensureAiModulesLoaded,
 } from "../controllers/controller-factory.ts";
-import {
-  applyGameConfig,
-  createGameFromSeed,
-  generateMap,
-} from "../game/index.ts";
+import { applyGameConfig, createGameFromSeed } from "../game/index.ts";
 import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
@@ -19,7 +15,7 @@ import type {
   ControllerFactory,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState, LobbyState } from "../shared/core/types.ts";
+import type { GameState } from "../shared/core/types.ts";
 import { MAX_UINT32 } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
@@ -32,23 +28,7 @@ import {
   CANNON_HP_OPTIONS,
   ROUNDS_OPTIONS,
 } from "../shared/ui/settings-defs.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
 import { type RuntimeState, setRuntimeGameState } from "./runtime-state.ts";
-
-interface InitWaitingRoomDeps {
-  seed: number;
-  hideLobbyPage: () => void;
-  activateGameContainer: () => void;
-  lobby: LobbyState;
-  maxPlayers: number;
-  log: (msg: string) => void;
-  setLobbyStartTime: (timeMs: number) => void;
-  setModeLobby: () => void;
-  setLastTime: (timeMs: number) => void;
-  requestFrame: () => void;
-  /** Injected timing primitives — replaces bare `performance.now()` access. */
-  timing: TimingApi;
-}
 
 interface InitGameDeps {
   seed: number;
@@ -105,35 +85,6 @@ interface ResolvedGameConfig {
   cannonPlaceTimer: number;
   firstRoundCannons: number;
   gameMode: GameMode;
-}
-
-export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
-  const {
-    seed,
-    hideLobbyPage,
-    activateGameContainer,
-    lobby,
-    maxPlayers,
-    setLobbyStartTime,
-    log,
-    setModeLobby,
-    setLastTime,
-    requestFrame,
-  } = deps;
-
-  hideLobbyPage();
-  activateGameContainer();
-
-  lobby.seed = seed;
-  log(`[online] seed: ${seed}`);
-  lobby.map = generateMap(seed);
-  lobby.joined = new Array(maxPlayers).fill(false);
-  lobby.active = true;
-  const time = deps.timing.now();
-  setLobbyStartTime(time);
-  setModeLobby();
-  setLastTime(time);
-  requestFrame();
 }
 
 /** Create an AI-only controller (no key bindings). Used during initial game

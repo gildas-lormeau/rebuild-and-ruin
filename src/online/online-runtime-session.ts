@@ -1,9 +1,7 @@
+import { generateMap } from "../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
-import {
-  bootstrapGame,
-  initWaitingRoom,
-} from "../runtime/runtime-bootstrap.ts";
+import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import { setWatcherPhaseTimer } from "../runtime/runtime-tick-context.ts";
@@ -54,36 +52,24 @@ export function createOnlineRuntimeSessionHelpers(
 
   function showWaitingRoom(code: string, seed: number): void {
     const runtime = deps.getRuntime();
+    const lobby = runtime.runtimeState.lobby;
     deps.session.roomSeed = seed;
     runtime.runtimeState.settings.seed = String(seed);
     const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
     buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
-    initWaitingRoom({
-      seed,
-      hideLobbyPage: () => {
-        pageOnline.hidden = true;
-      },
-      activateGameContainer: () => {
-        deps.container.classList.add(GAME_CONTAINER_ACTIVE);
-      },
-      lobby: runtime.runtimeState.lobby,
-      maxPlayers: MAX_PLAYERS,
-      log: deps.log,
-      setLobbyStartTime: (timestamp: number) => {
-        deps.session.lobbyStartTime = timestamp;
-      },
-      setModeLobby: () => {
-        setMode(runtime.runtimeState, Mode.LOBBY);
-      },
-      setLastTime: (timestamp: number) => {
-        runtime.runtimeState.lastTime = timestamp;
-      },
-      requestFrame: () => {
-        deps.timing.requestFrame(runtime.mainLoop);
-      },
-      timing: deps.timing,
-    });
-    runtime.warmMapCache(runtime.runtimeState.lobby.map!);
+    pageOnline.hidden = true;
+    deps.container.classList.add(GAME_CONTAINER_ACTIVE);
+    lobby.seed = seed;
+    deps.log(`[online] seed: ${seed}`);
+    lobby.map = generateMap(seed);
+    lobby.joined = new Array(MAX_PLAYERS).fill(false);
+    lobby.active = true;
+    const time = deps.timing.now();
+    deps.session.lobbyStartTime = time;
+    setMode(runtime.runtimeState, Mode.LOBBY);
+    runtime.runtimeState.lastTime = time;
+    deps.timing.requestFrame(runtime.mainLoop);
+    runtime.warmMapCache(lobby.map);
   }
 
   async function initFromServer(msg: InitMessage): Promise<void> {
