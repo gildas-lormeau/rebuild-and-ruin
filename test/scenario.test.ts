@@ -162,8 +162,11 @@ Deno.test("scenario: runGame plays a full game to completion", async () => {
 Deno.test(
   "scenario: assisted controller broadcasts placements through network.send",
   async () => {
-    const sc = await createScenario({ seed: 42, rounds: 3 });
-    await sc.installAssistedController(1 as ValidPlayerSlot);
+    const sc = await createScenario({
+      seed: 42,
+      rounds: 3,
+      assistedSlots: [1 as ValidPlayerSlot],
+    });
 
     // Round 1 auto-builds castles (WALL_BUILD skipped), so drive to round 2+
     // to exercise the real build phase before checking message broadcasts.

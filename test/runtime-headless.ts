@@ -28,7 +28,10 @@ import type {
   RenderOverlay,
 } from "../src/shared/ui/overlay-types.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import type { HapticsObserver } from "../src/shared/core/system-interfaces.ts";
+import type {
+  ControllerFactory,
+  HapticsObserver,
+} from "../src/shared/core/system-interfaces.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
@@ -115,6 +118,15 @@ interface HeadlessRuntimeOptions {
    *  side). When undefined, falls back to `hostMode`-driven default
    *  (noop emitters if `hostMode`, no online hooks otherwise). */
   onlinePhaseTicks?: OnlinePhaseTicks;
+  /** Slots that should be driven by `AiAssistedHumanController` instead of
+   *  the regular `AiController`. AI logic still picks placements, but every
+   *  outcome flows through `network.send` so per-action wire formats are
+   *  exercised. Used by the network-vs-local parity test to prove host →
+   *  watcher convergence under the assisted-human code path. The factory
+   *  is wired at bootstrap so the assisted controller is the SLOT 1
+   *  controller from the first `selectInitialTower` call onward — no
+   *  mid-game swap, no asymmetric RNG advance. */
+  assistedSlots?: readonly ValidPlayerSlot[];
 }
 
 export interface RunOpts {
@@ -218,7 +230,15 @@ export async function createHeadlessRuntime(
     remotePlayerSlots,
     hapticsObserver,
     onlinePhaseTicks: onlinePhaseTicksOverride,
+    assistedSlots,
   } = opts;
+
+  const controllerFactory =
+    assistedSlots && assistedSlots.length > 0
+      ? buildAssistedControllerFactory(assistedSlots, (msg) =>
+          networkObserver?.sent?.(msg),
+        )
+      : undefined;
 
   // ── Mock clock + deterministic timer scheduling ───────────────────
   // All timing flows through this closure. `mainLoop` is driven manually
@@ -336,6 +356,7 @@ export async function createHeadlessRuntime(
     // Headless has no place to apply tilt — keeping it off also keeps
     // `PITCH_SETTLED` bus events out of the determinism event log.
     cameraTiltEnabled: false,
+    controllerFactory,
   });
   runtimeHolder.current = runtime;
 
@@ -488,6 +509,52 @@ export async function createHeadlessRuntime(
     pointerEventTarget: renderer.eventTarget as unknown as EventTarget,
     deliverNetworkMessage,
     subscribeNetworkMessage,
+  };
+}
+
+/** Build a `ControllerFactory` that substitutes `AiAssistedHumanController`
+ *  for the slots in `assistedSlots`, falling back to the default
+ *  `createController` for everyone else. The senders bag wraps `send` (the
+ *  same closure the runtime uses for `network.send`) with the appropriate
+ *  protocol message types. Used at bootstrap so the assisted controller is
+ *  the slot's controller from the very first phase init — no mid-game swap. */
+function buildAssistedControllerFactory(
+  assistedSlots: readonly ValidPlayerSlot[],
+  send: (msg: GameMessage) => void,
+): ControllerFactory {
+  const assistedSet = new Set<ValidPlayerSlot>(assistedSlots);
+  return async (slot, isAi, keys, strategySeed, difficulty) => {
+    if (!isAi || !assistedSet.has(slot)) {
+      const { createController } = await import(
+        "../src/controllers/controller-factory.ts"
+      );
+      return createController(slot, isAi, keys, strategySeed, difficulty);
+    }
+    const [
+      { AiAssistedHumanController },
+      { DefaultStrategy },
+      { MESSAGE },
+      { createCannonFiredMsg },
+    ] = await Promise.all([
+      import("../src/controllers/controller-ai-assisted-human.ts"),
+      import("../src/ai/ai-strategy.ts"),
+      import("../src/protocol/protocol.ts"),
+      import("../src/shared/core/battle-events.ts"),
+    ]);
+    return new AiAssistedHumanController(slot, {
+      strategy: new DefaultStrategy(undefined, strategySeed, difficulty),
+      senders: {
+        sendPiecePlaced: (payload) =>
+          send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
+        sendCannonPlaced: (payload) =>
+          send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
+        sendCannonFired: (ball) => send(createCannonFiredMsg(ball)),
+        sendUpgradePick: (choice) =>
+          send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
+        sendLifeLostChoice: (choice) =>
+          send({ type: MESSAGE.LIFE_LOST_CHOICE, playerId: slot, choice }),
+      },
+    });
   };
 }
 

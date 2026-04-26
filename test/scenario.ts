@@ -133,6 +133,15 @@ export interface ScenarioOptions {
   renderer?:
     | "ascii"
     | { canvas: CanvasRecorder; observer?: RenderObserver };
+  /** Slots that should be driven by `AiAssistedHumanController` instead of
+   *  the default `AiController`. AI logic still picks placements, but every
+   *  outcome flows through `network.send`, producing wire messages on
+   *  `sentMessages`. Used by the network-vs-local parity test to validate
+   *  per-action wire formats end-to-end. The factory wires the assisted
+   *  controller at bootstrap, so the slot's first `selectInitialTower` runs
+   *  on the assisted controller (no mid-game swap, no asymmetric RNG
+   *  advance vs. a watcher peer). */
+  assistedSlots?: readonly ValidPlayerSlot[];
 }
 
 export interface Scenario extends Disposable {
@@ -222,19 +231,6 @@ export interface Scenario extends Disposable {
      *  behaviour call it directly after `createScenario`. */
     enableMobileZoom: () => void;
   };
-  /** Replace the controller at `playerId` with an `AiAssistedHumanController`
-   *  — AI drives gameplay but every placement/fire flows through the same
-   *  `network.send` pathway humans use, producing wire messages on
-   *  `sentMessages`. Useful for protocol fuzzing tests.
-   *
-   *  Call AFTER `createScenario` returns (controllers must exist). The helper
-   *  re-invokes the phase-init hook for the new controller so mid-phase
-   *  installs don't lose state. Currently supports install during
-   *  `CASTLE_SELECT`; throws otherwise (keeps scope tight for v1). */
-  installAssistedController(
-    playerId: ValidPlayerSlot,
-    opts?: { strategySeed?: number },
-  ): Promise<void>;
   /** Start a fresh game on the same runtime — production-equivalent to the
    *  rematch button on the game-over screen. Installs a new `state` (with
    *  a new `state.bus`) via `bootstrapGame`, which in turn re-runs the
@@ -411,6 +407,7 @@ export function buildHeadlessOptions(
     autoStartGame: opts.autoStartGame ?? true,
     networkObserver: { sent: (msg) => sentMessages.push(msg) },
     hapticsObserver: opts.hapticsObserver,
+    assistedSlots: opts.assistedSlots,
   };
 }
 
@@ -449,61 +446,6 @@ export function wrapHeadless(
     },
     rematch: async () => {
       await headless.runtime.lifecycle.rematch();
-    },
-    installAssistedController: async (playerId, opts) => {
-      const { AiAssistedHumanController } = await import(
-        "../src/controllers/controller-ai-assisted-human.ts"
-      );
-      const { AiController } = await import(
-        "../src/controllers/controller-ai.ts"
-      );
-      const { DefaultStrategy } = await import("../src/ai/ai-strategy.ts");
-      const { Phase } = await import("../src/shared/core/game-phase.ts");
-      const { MESSAGE } = await import("../src/protocol/protocol.ts");
-      const { createCannonFiredMsg } = await import(
-        "../src/shared/core/battle-events.ts"
-      );
-      const { runtimeState } = headless.runtime;
-      const state = runtimeState.state;
-      const send = headless.runtime.networkSend;
-      // Inherit the existing AI controller's strategy so the swap is
-      // deterministic across runs — it was seeded from state.rng during
-      // bootstrap and has already consumed RNG for the initial selection
-      // tick. An explicit `strategySeed` override wins for tests that want
-      // a different strategy.
-      const existing = runtimeState.controllers[playerId];
-      const strategy =
-        opts?.strategySeed !== undefined
-          ? new DefaultStrategy(undefined, opts.strategySeed)
-          : existing instanceof AiController
-            ? existing.strategy
-            : new DefaultStrategy();
-      const ctrl = new AiAssistedHumanController(playerId, {
-        strategy,
-        senders: {
-          sendPiecePlaced: (payload) =>
-            send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
-          sendCannonPlaced: (payload) =>
-            send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
-          sendCannonFired: (ball) => send(createCannonFiredMsg(ball)),
-          sendUpgradePick: (choice) =>
-            send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
-          sendLifeLostChoice: (choice) =>
-            send({ type: MESSAGE.LIFE_LOST_CHOICE, playerId, choice }),
-        },
-      });
-      runtimeState.controllers[playerId] = ctrl;
-      // Re-run phase init so the swapped-in controller picks up where the
-      // replaced one left off. v1 only supports CASTLE_SELECT to keep the
-      // contract narrow; expand as real tests need other phases.
-      if (state.phase === Phase.CASTLE_SELECT) {
-        const zone = state.playerZones[playerId] ?? 0;
-        ctrl.selectInitialTower(state, zone);
-      } else {
-        throw new Error(
-          `installAssistedController: install during phase ${state.phase} is not supported yet`,
-        );
-      }
     },
     [Symbol.dispose]: () => {
       // No cleanup is performed for the *observers* this Scenario installed:

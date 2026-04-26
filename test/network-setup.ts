@@ -148,7 +148,13 @@ async function buildWatcherRuntime(
   opts: ScenarioOptions,
 ): Promise<RuntimeBuild> {
   const sentMessages: GameMessage[] = [];
-  const base = buildHeadlessOptions(opts, sentMessages);
+  // Watcher must run regular AI for every slot — same strategy seed as the
+  // host advances RNG identically across peers, keeping selections in
+  // lockstep. `assertWireExercised` is the test's separate proof that
+  // the host's broadcasts actually reach the wire (the watcher would
+  // converge "trivially" via its own AI otherwise).
+  const watcherOpts: ScenarioOptions = { ...opts, assistedSlots: undefined };
+  const base = buildHeadlessOptions(watcherOpts, sentMessages);
 
   // Watchers observe every slot — no local AI runs.
   const allRemote = new Set<ValidPlayerSlot>();

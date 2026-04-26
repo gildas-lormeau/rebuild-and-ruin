@@ -380,6 +380,19 @@ export interface PlayerController
     UpgradePickController,
     LifeLostController {}
 
+/** Per-slot controller construction signature. Production wiring uses the
+ *  default `createController` (controller-factory.ts); tests inject a custom
+ *  factory to install variants like `AiAssistedHumanController` from
+ *  bootstrap onward, avoiding mid-game controller swaps that would advance
+ *  RNG asymmetrically across host/watcher. */
+export type ControllerFactory = (
+  slot: ValidPlayerSlot,
+  isAi: boolean,
+  keys: KeyBindings | undefined,
+  strategySeed: number | undefined,
+  difficulty: number | undefined,
+) => Promise<PlayerController>;
+
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {
   /** Match a keyboard key to an action name. Returns null if no match. */

@@ -628,6 +628,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
               music.subscribeBus(runtimeState.state.bus);
               sfx.subscribeBus(runtimeState.state.bus);
             },
+            controllerFactory: config.controllerFactory,
           },
           config.getUrlModeOverride,
         ),

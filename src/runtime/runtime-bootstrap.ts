@@ -15,7 +15,10 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import type { PlayerController } from "../shared/core/system-interfaces.ts";
+import type {
+  ControllerFactory,
+  PlayerController,
+} from "../shared/core/system-interfaces.ts";
 import type { GameState, LobbyState } from "../shared/core/types.ts";
 import { MAX_UINT32 } from "../shared/platform/rng.ts";
 import {
@@ -78,6 +81,11 @@ interface InitGameDeps {
    *  (sound / haptics / stats observers). Required because each game gets
    *  a new bus and the previous game's subscription is discarded with it. */
   onStateReady: () => void;
+  /** Optional override for per-slot controller construction. When unset
+   *  (production path), `createController` is used. Tests inject a wrapper
+   *  to install `AiAssistedHumanController` for selected slots from
+   *  bootstrap onward — see `assistedSlots` in `test/runtime-headless.ts`. */
+  controllerFactory?: ControllerFactory;
 }
 
 interface BootstrapFromSettingsDeps {
@@ -85,6 +93,7 @@ interface BootstrapFromSettingsDeps {
   readonly resetUIState: () => void;
   readonly enterSelection: () => void;
   readonly onStateReady: () => void;
+  readonly controllerFactory?: ControllerFactory;
 }
 
 /** Resolved game configuration from settings + URL overrides.
@@ -179,6 +188,7 @@ export async function bootstrapNewGameFromSettings(
     resetUIState: deps.resetUIState,
     enterSelection: deps.enterSelection,
     onStateReady: deps.onStateReady,
+    controllerFactory: deps.controllerFactory,
   });
 }
 
@@ -224,11 +234,12 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   //   AI identity is NOT preserved from the pre-promotion host. If you ever
   //   need identity preservation across promotion, checkpoint the strategy
   //   seeds into SerializedPlayer and restore them on rebuild.
+  const factory = deps.controllerFactory ?? createController;
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const isAi = !deps.humanSlots[i];
       const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
-      return createController(
+      return factory(
         i as ValidPlayerSlot,
         isAi,
         deps.keyBindings[i],

@@ -80,6 +80,7 @@ import type {
   BuildViewState,
   CannonController,
   CannonViewState,
+  ControllerFactory,
   ControllerIdentity,
   HapticsObserver,
   InputReceiver,
@@ -322,6 +323,14 @@ export interface RuntimeConfig {
    *  in the browser; headless tests pass `false` so `PITCH_SETTLED` events
    *  stay out of the determinism event log. */
   cameraTiltEnabled?: boolean;
+
+  /** Optional override for per-slot controller construction at bootstrap.
+   *  When undefined (production path), the default `createController`
+   *  factory is used. Tests use this to install
+   *  `AiAssistedHumanController` for selected slots from bootstrap onward,
+   *  avoiding mid-game controller swaps. See `assistedSlots` in
+   *  `test/runtime-headless.ts`. */
+  controllerFactory?: ControllerFactory;
 }
 
 export interface CameraSystem {

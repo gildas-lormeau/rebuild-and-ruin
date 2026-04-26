@@ -200,19 +200,25 @@ Deno.test(
 
     // Local baseline — assisted human runs locally, broadcasts land in
     // `local.sentMessages` but are never delivered to any peer.
-    const local = await createScenario({ seed, mode, rounds });
-    await local.installAssistedController(assistedSlot);
+    const local = await createScenario({
+      seed,
+      mode,
+      rounds,
+      assistedSlots: [assistedSlot],
+    });
     local.runGame();
     const localPlayers = snapshotPlayers(local);
 
     // Networked — host runs the assisted controller, broadcasts flow to
-    // the watcher through `pump()`.
+    // the watcher through `pump()`. The watcher runs regular AI for every
+    // slot (no `assistedSlots`) so its strategy.rng stays in lockstep with
+    // the host's same-seeded slot 1 strategy.
     const { host, watcher, pump } = await createNetworkedPair({
       seed,
       mode,
       rounds,
+      assistedSlots: [assistedSlot],
     });
-    await host.installAssistedController(assistedSlot);
     await runNetworkedToEnd(host, watcher, pump);
 
     const hostPlayers = snapshotPlayers(host);
@@ -252,16 +258,16 @@ for (const stress of ASSISTED_STRESS) {
         seed: stress.seed,
         mode: stress.mode,
         rounds: stress.rounds,
+        assistedSlots: [slot],
       });
-      await local.installAssistedController(slot);
       local.runGame();
 
       const { host, watcher, pump } = await createNetworkedPair({
         seed: stress.seed,
         mode: stress.mode,
         rounds: stress.rounds,
+        assistedSlots: [slot],
       });
-      await host.installAssistedController(slot);
       await runNetworkedToEnd(host, watcher, pump);
 
       const hostPlayers = snapshotPlayers(host);
