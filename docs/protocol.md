@@ -13,9 +13,11 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 
 ### Key Principles
 - **Deterministic from seed**: all clients derive the map, towers, zones, and houses from the seed. The `init` message only carries the seed + settings — no map data.
-- **Checkpoints at phase transitions**: full state snapshots sent at each phase boundary for reconciliation.
+- **Bare-marker phase checkpoints**: `buildStart`, `cannonStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (`enterBuildPhase`, source-prefix + `enterCannonPhase`, `finalizeBuildPhase`). Watcher and host produce byte-identical state from synced RNG.
+- **One RNG resync per round**: `battleStart` carries only `rngState` — the host's pre-`enterBattlePhase` RNG. The watcher applies `setState(rngState)` then runs the same setup locally (modifier roll, balloon resolution, grunt wall-attack flags, captured cannons, combo tracker). Drift over a full round is caught here as a defense-in-depth round-trip check.
 - **Events during phases**: incremental updates (piece placed, cannon fired, wall destroyed) streamed in real-time.
-- **Local execution**: build and cannon phases run locally on each client for zero-latency input. The host validates and sends checkpoints.
+- **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
+- **Local execution**: build and cannon phases run locally on each client for zero-latency input. The host's local controllers broadcast their actions as incremental events; the watcher derives everything else from local engine fns.
 
 ## Connection Flow
 
@@ -77,69 +79,29 @@ Sent inside `createRoom`, `roomCreated`, and `roomJoined`:
 | `cannonMaxHp` | `number` | 3, 6, 9, or 12 |
 | `waitTimerSec` | `number` | Lobby wait duration before auto-start (seconds, max 120) |
 | `seed?` | `number` | Optional map seed (server generates random if omitted) |
-| `gameMode?` | `string` | `"classic"` or `"modern"` (default `"classic"`) |
+| `gameMode?` | `string` | `"classic"` or `"modern"` (default `"modern"`) |
 
 ### Host → All (Phase Transitions / Checkpoints)
 
-These are sent by the host and relayed to all other clients. They carry full state for reconciliation.
+Bare-marker checkpoints carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. The only payload-carrying checkpoint is `battleStart`, which ships the host's pre-`enterBattlePhase` `rngState` so the watcher can resync once per round.
 
-| Message | When | Key Data |
-|---------|------|----------|
-| `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) |
-| `selectStart` | Tower selection begins | `timer` |
-| `castleWalls` | Castle construction animation | `plans[]` (playerId + ordered wall tiles) |
-| `cannonStart` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `houses[]` |
-| `battleStart` | Battle begins | `players[]`, `grunts[]`, `capturedCannons[]`, `burningPits[]`, `towerAlive[]`, `flights`, `frozenTiles`, `modifierDiff` |
-| `buildStart` | Build/repair phase begins | `round`, `timer`, `players[]`, `houses[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `rngSeed`, `pendingUpgradeOffers?`, `frozenTiles` |
-| `buildEnd` | Build phase ends | `needsReselect[]`, `eliminated[]`, `scores[]`, `players[]` |
-| `gameOver` | Game ends | `winner`, `scores[]` |
+| Message | When | Payload | Watcher action |
+|---------|------|---------|----------------|
+| `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) | Bootstrap from seed |
+| `selectStart` | Tower selection begins | `timer` | Run `enterTowerSelection` |
+| `cannonStart` | CASTLE_SELECT / CASTLE_RESELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeBuildVisuals` / `finalizeReselectedPlayers` / `finalizeCastleConstruction`) + `enterCannonPhase` |
+| `battleStart` | CANNON_PLACE → BATTLE | `rngState` (host's pre-`enterBattlePhase` RNG) | `state.rng.setState(rngState)` then `enterBattlePhase` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) |
+| `buildStart` | BATTLE → WALL_BUILD | _none_ | `enterBuildPhase` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
+| `buildEnd` | End of build phase | _none_ | `finalizeBuildPhase` (territory finalize, life penalties, score) |
+| `gameOver` | Game ends | `winner`, `scores[]` | Render terminal frame |
 
-#### Serialized Player Shape
+**Drift detection**: a watcher whose state ever desynced from host will fail the `state.rng` round-trip when the next `battleStart` arrives — the local RNG must already match `rngState` before `setState` is applied. In practice this is a soft check (`setState` always wins) but it surfaces in determinism tests that assert byte-for-byte parity.
 
-The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/shared/net/checkpoint-data.ts`):
+#### Serialized Shapes
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `number` | Player index |
-| `walls` | `number[]` | Wall tile keys (row×COLS+col) |
-| `cannons` | `{row, col, hp, mode, facing?}[]` | Cannon positions and state |
-| `homeTowerIdx` | `number \| null` | Home tower index |
-| `castleWallTiles` | `number[]?` | Castle wall tiles protected from debris sweep (includes clumsy extras) |
-| `lives` | `number` | Lives remaining |
-| `eliminated` | `boolean` | Whether player is out |
-| `score` | `number` | Accumulated score |
-| `upgrades` | `[string, number][]?` | Active upgrades with stack count (modern mode) |
-| `damagedWalls` | `number[]?` | Wall tiles that absorbed one hit (reinforced walls upgrade) |
+The `SerializedPlayer` / `SerializedHouse` / `SerializedGrunt` / `SerializedBonusSquare` / `SerializedBurningPit` types in `src/protocol/checkpoint-data.ts` are used **only** by `fullState` (host migration / late-join recovery — see [Host Migration](#host-migration)). Phase-marker checkpoints carry no payload, so they don't reference these shapes.
 
-`interior` and `ownedTowers` are recomputed from `walls` on the receiver (flood-fill + tower enclosure check).
-
-#### Serialized House Shape
-
-Houses are sent as `houses: SerializedHouse[]` in `cannonStart`, `battleStart`, and `buildStart` checkpoints:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `row` | `number` | Grid row |
-| `col` | `number` | Grid column |
-| `zone` | `number` | Zone index |
-| `alive` | `boolean` | Whether the house is still standing |
-
-House positions are deterministic from the seed, but alive/zone state is synced via the full `SerializedHouse` array.
-
-#### Serialized Grunt Shape
-
-The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/shared/net/checkpoint-data.ts`):
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `row` | `number` | Grid row |
-| `col` | `number` | Grid column |
-| `victimPlayerId` | `number` | Player being attacked |
-| `targetTowerIdx?` | `number` | Specific tower target |
-| `attackCountdown?` | `number` | Countdown (seconds) before killing adjacent tower or wall |
-| `blockedRounds?` | `number` | Consecutive battles not adjacent to target tower |
-| `attackingWall?` | `boolean` | Currently attacking a wall tile (decided at battle start) |
-| `facing?` | `number` | Sprite facing direction |
+`interior` and `ownedTowers` are always recomputed from `walls` on the receiver (flood-fill + tower enclosure check) — they're never serialized.
 
 ### Host → All (Incremental Events)
 
@@ -151,7 +113,7 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 | `opponentPhantom` | WALL_BUILD | Ghost piece position (cursor preview) |
 | `opponentCannonPlaced` | CANNON_PLACE | AI/remote player placed a cannon |
 | `opponentCannonPhantom` | CANNON_PLACE | Ghost cannon position |
-| `opponentTowerSelected` | SELECTION | Player browsing/confirming tower |
+| `opponentTowerSelected` | SELECTION | **Human** player browsing/confirming tower (AI selections derived locally on every peer from synced `strategy.rng` — never sent over the wire) |
 | `cannonFired` | BATTLE | A cannon fired a cannonball |
 | `wallDestroyed` | BATTLE | A wall tile was destroyed (host-only) |
 | `cannonDamaged` | BATTLE | A cannon took damage (host-only) |
@@ -169,21 +131,23 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 
 The battle impact messages are grouped into type aliases in `src/shared/core/battle-events.ts` for type-safe handling:
 
-- **`ImpactEvent`** = `wallDestroyed` | `cannonDamaged` | `houseDestroyed` | `gruntKilled` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
+- **`ImpactEvent`** = `wallDestroyed` | `wallAbsorbed` | `wallShielded` | `cannonDamaged` | `houseDestroyed` | `gruntKilled` | `gruntChipped` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
 - **`BattleEvent`** = `cannonFired` | `towerKilled` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.
 
 ## Game Phases
 
 ```
-CASTLE_SELECT ──> CASTLE_BUILD ──> CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┐
-      ↑                                                                      │
-      └──── (life lost → reselect) ──────────────────────────────────────────┘
+CASTLE_SELECT ──> CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┐
+      ↑                                                     │
+      └──── (life lost → CASTLE_RESELECT) ──────────────────┘
       └──── (no reselect) ──> CANNON_PLACE ──> ...
 ```
 
-Modern mode inserts an upgrade draft/pick between battle end and build banner (from round 3). Upgrade offers are delivered in `buildStart.pendingUpgradeOffers` and players respond with `upgradePick` messages.
+Castle wall construction is animated inline during `CASTLE_SELECT` / `CASTLE_RESELECT` — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
 
-Each transition is marked by a checkpoint message from the host. Watchers apply the checkpoint to reconcile state, then render locally until the next checkpoint.
+Modern mode inserts an upgrade draft/pick between battle end and build banner (from round 3). Upgrade offers are generated locally on every peer inside `enterBuildFromBattle` (synced RNG); players respond with `upgradePick` messages, which the host applies and re-broadcasts.
+
+Each transition is marked by a bare-marker checkpoint from the host. Watchers run the matching engine fn locally on receipt and render incremental events until the next checkpoint.
 
 ## Host Migration
 
@@ -192,13 +156,13 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 | Message | Sender | Description |
 |---------|--------|-------------|
 | `hostLeft` | Server → All | `newHostPlayerId`, `disconnectedPlayerId`. `null` if no human available (watcher fallback). |
-| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `lastModifierId`, `pendingUpgradeOffers?`, `frozenTiles`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `balloonHits[]`, `cannonballs[]`, `balloonFlights?`. |
+| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` so additions can't silently drift. |
 
 ## Anti-Cheat (Server-Side)
 
 The relay server validates without running game logic:
 
-- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannonStart`, `battleStart`, `buildStart`, `buildEnd`, `gameOver`, `fullState`, `selectStart`, `castleWalls`) and battle impact events (`wallDestroyed`, `cannonDamaged`, `houseDestroyed`, `gruntKilled`, `gruntSpawned`, `pitCreated`, `iceThawed`, `towerKilled`)
+- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `selectStart`, `cannonStart`, `battleStart`, `buildStart`, `buildEnd`, `gameOver`, `fullState`) and battle impact events (`wallDestroyed`, `wallAbsorbed`, `wallShielded`, `cannonDamaged`, `houseDestroyed`, `gruntKilled`, `gruntChipped`, `gruntSpawned`, `pitCreated`, `iceThawed`, `towerKilled`)
 - **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
 - **Phase gating**: `cannonFired` and `aimUpdate` rejected outside BATTLE, `opponentPiecePlaced` and `opponentPhantom` rejected outside WALL_BUILD, `opponentCannonPlaced` and `opponentCannonPhantom` rejected outside CANNON_PLACE, `opponentTowerSelected` rejected outside CASTLE_SELECT
 - **Rate limiting**: cosmetic messages (`opponentPhantom`, `opponentCannonPhantom`, `aimUpdate`) capped at 100/s per socket per message type. Game-state messages (`opponentPiecePlaced`, `opponentCannonPlaced`, `cannonFired`, `opponentTowerSelected`, `lifeLostChoice`, `upgradePick`) are **not** rate-limited — they are low-frequency and must never be silently dropped
@@ -211,9 +175,12 @@ Per watcher, ~1 KB/s average. 100 rooms × 3 players ≈ 3 Mbps combined. Domina
 ## Watcher Rendering
 
 Watchers receive the same messages as players. They:
-1. Apply checkpoints to reconcile full state at phase boundaries
-2. Render incremental events (cannonballs, impacts, wall destruction) locally
-3. Interpolate crosshair positions from `aimUpdate` messages
-4. Animate orbits locally from orbit params sent once per countdown
-5. Tick grunts locally (deterministic movement from shared state)
-6. Use wall-clock timers (immune to RAF throttling when tab is backgrounded)
+1. Run the same engine fn locally at each phase-marker checkpoint (`enterBuildPhase`, `enterCannonPhase`, `finalizeBuildPhase`, etc.) — derive every state mutation from synced RNG instead of reading wire payloads
+2. Resync RNG once per round at `battleStart` before running `enterBattlePhase`
+3. Apply incremental events (piece placed, cannon placed, cannon fired, wall destroyed, etc.) as they arrive
+4. Interpolate crosshair positions from `aimUpdate` messages
+5. Animate orbits locally from orbit params sent once per countdown
+6. Tick grunts locally (deterministic movement from shared state)
+7. Use sim-time accumulators with the mock clock in tests, wall-clock timers in production (immune to RAF throttling when tab is backgrounded)
+
+Late-joining watchers (mid-game) and post-host-migration watchers receive `fullState` instead, which carries the complete serialized state.
