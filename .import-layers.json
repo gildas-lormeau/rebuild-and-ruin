@@ -92,6 +92,7 @@
     "tier": "types",
     "files": [
       "src/protocol/protocol.ts",
+      "src/runtime/runtime-battle-anim.ts",
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/player-types.ts",
       "src/shared/ui/settings-ui.ts"

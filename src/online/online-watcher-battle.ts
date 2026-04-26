@@ -4,8 +4,8 @@ import {
   nextReadyCombined,
   tickBattlePhase,
 } from "../game/index.ts";
+import { recordBattleVisualEvents } from "../runtime/runtime-battle-anim.ts";
 import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
-import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type {
   Crosshair,
   Impact,
@@ -111,14 +111,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     state.battleCountdown > 0
       ? { impactEvents: [], newImpacts: [] }
       : tickBattlePhase(state, dt);
-  for (const impact of result.newImpacts) {
-    battleAnim.impacts.push({ ...impact, age: 0 });
-  }
-  for (const evt of result.impactEvents) {
-    if (evt.type === BATTLE_MESSAGE.ICE_THAWED) {
-      battleAnim.thawing.push({ row: evt.row, col: evt.col, age: 0 });
-    }
-  }
+  recordBattleVisualEvents(result, battleAnim);
 
   frame.crosshairs = [];
   logThrottled(

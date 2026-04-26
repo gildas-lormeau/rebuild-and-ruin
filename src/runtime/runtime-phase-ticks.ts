@@ -60,6 +60,7 @@ import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { recordBattleVisualEvents } from "./runtime-battle-anim.ts";
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
@@ -737,16 +738,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       for (const evt of result.fireEvents) broadcast(evt);
     }
 
-    // Record visual impacts
-    for (const imp of result.newImpacts) {
-      battleAnim.impacts.push({ ...imp, age: 0 });
-    }
-    // Record thaw animations for ice-break effect
-    for (const evt of result.impactEvents) {
-      if (evt.type === BATTLE_MESSAGE.ICE_THAWED) {
-        battleAnim.thawing.push({ row: evt.row, col: evt.col, age: 0 });
-      }
-    }
+    recordBattleVisualEvents(result, battleAnim);
 
     // Haptics and stats are handled by bus subscribers (onAny above / haptics subsystem).
 
