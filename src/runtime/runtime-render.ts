@@ -12,7 +12,7 @@ import type {
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { cannonTier } from "../shared/core/player-types.ts";
+import { cannonTier, isPlayerEliminated } from "../shared/core/player-types.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import type {
   InputReceiver,
@@ -148,9 +148,10 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     const view = selectRenderView(runtimeState.state);
 
     // Assemble the overlay's phantom payload from the controller-owned
-    // `currentBuildPhantoms` / `currentCannonPhantom` + the runtime
-    // remote slot. `frame.phantoms` is not read here — controllers
-    // + `runtimeState.remotePhantoms` are the sole sources.
+    // `currentBuildPhantoms` / `currentCannonPhantom`. Every slot has a
+    // controller (local or remote), and remote-controlled slots have
+    // their fields written by the inbound network handler — the
+    // controller is the sole source for both render and broadcast.
     //
     // `defaultFacings` is derived live from `state.players[i].defaultFacing`
     // (rather than read from a tick-populated cache) for the same reason
@@ -238,12 +239,11 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
     const chList = runtimeState.frame.crosshairs;
     const selH = runtimeState.overlay.selection?.highlights;
-    // Phase 2b + 3: both phantom kinds are owned by each controller
-    // (`currentBuildPhantoms` / `currentCannonPhantom`) + the runtime
-    // remote slot. Read both for the summary counts so the log reflects
-    // the same union the render/touch paths consume.
-    let piecePhantomsCount = runtimeState.remotePhantoms.piecePhantoms.length;
-    let cannonPhantomsCount = runtimeState.remotePhantoms.cannonPhantoms.length;
+    // Both phantom kinds are owned by each controller
+    // (`currentBuildPhantoms` / `currentCannonPhantom`). Remote-controlled
+    // slots have their fields written by the inbound network handler.
+    let piecePhantomsCount = 0;
+    let cannonPhantomsCount = 0;
     for (const ctrl of runtimeState.controllers) {
       piecePhantomsCount += ctrl.currentBuildPhantoms.length;
       if (ctrl.currentCannonPhantom) cannonPhantomsCount++;
@@ -323,44 +323,45 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 }
 
 /** Assemble the full piece-phantom set for the current frame: each
- *  controller's `currentBuildPhantoms` (local previews) followed by the
- *  runtime's `remotePhantoms.piecePhantoms` slot (remote previews).
- *  Returns undefined when no phantoms exist — keeps `overlay.phantoms`
- *  undefined in the same cases as pre-phase-2b (avoids forcing the 3D
- *  renderer into its piecePhantoms loop during non-build phases). */
+ *  controller's `currentBuildPhantoms`. Remote-controlled slots have
+ *  their field written by the inbound network handler, so a single
+ *  loop over controllers covers both local and remote previews.
+ *  Eliminated players are skipped here so callers don't have to
+ *  filter, and stale phantoms left on a just-eliminated controller
+ *  don't render. Returns undefined when no phantoms exist — keeps
+ *  `overlay.phantoms.piecePhantoms` undefined in non-build phases. */
 function buildPiecePhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
+    playerId: ValidPlayerSlot;
     currentBuildPhantoms: readonly PiecePhantom[];
   }>;
-  remotePhantoms: { piecePhantoms: readonly PiecePhantom[] };
+  state: { players: readonly { eliminated?: boolean }[] };
 }): readonly PiecePhantom[] | undefined {
-  const remote = runtimeState.remotePhantoms.piecePhantoms;
   const out: PiecePhantom[] = [];
   for (const ctrl of runtimeState.controllers) {
+    if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
     for (const phantom of ctrl.currentBuildPhantoms) out.push(phantom);
   }
-  for (const phantom of remote) out.push(phantom);
   return out.length > 0 ? out : undefined;
 }
 
 /** Assemble the full cannon-phantom set for the current frame: each
- *  controller's `currentCannonPhantom` (local preview, at most one each)
- *  followed by the runtime's `remotePhantoms.cannonPhantoms` slot
- *  (remote previews). Returns undefined when no phantoms exist —
- *  keeps `overlay.phantoms.cannonPhantoms` undefined in the same cases
- *  as the previous frame-based path (avoids forcing the 3D renderer
- *  into its cannonPhantoms loop during non-cannon phases). */
+ *  controller's `currentCannonPhantom` (at most one each). Remote-
+ *  controlled slots have their field written by the inbound network
+ *  handler. Eliminated players are skipped (see piece-phantom counterpart
+ *  for rationale). Returns undefined when no phantoms exist — keeps
+ *  `overlay.phantoms.cannonPhantoms` undefined in non-cannon phases. */
 function buildCannonPhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
+    playerId: ValidPlayerSlot;
     currentCannonPhantom: CannonPhantom | undefined;
   }>;
-  remotePhantoms: { cannonPhantoms: readonly CannonPhantom[] };
+  state: { players: readonly { eliminated?: boolean }[] };
 }): readonly CannonPhantom[] | undefined {
-  const remote = runtimeState.remotePhantoms.cannonPhantoms;
   const out: CannonPhantom[] = [];
   for (const ctrl of runtimeState.controllers) {
+    if (isPlayerEliminated(runtimeState.state.players[ctrl.playerId])) continue;
     if (ctrl.currentCannonPhantom) out.push(ctrl.currentCannonPhantom);
   }
-  for (const phantom of remote) out.push(phantom);
   return out.length > 0 ? out : undefined;
 }

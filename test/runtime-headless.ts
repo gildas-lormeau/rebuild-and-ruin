@@ -568,8 +568,6 @@ function noopHostPhaseTicks(): OnlinePhaseTicks {
     broadcastBuildStart: () => {},
     broadcastBuildEnd: () => {},
     broadcastLocalCrosshair: () => {},
-    remoteCannonPhantoms: () => [],
-    remotePiecePhantoms: () => [],
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
     // tickWatcher / watcherBeginBattle intentionally omitted — host-only stub.

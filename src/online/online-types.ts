@@ -3,18 +3,15 @@
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type {
-  CannonPhantom,
-  PiecePhantom,
-} from "../shared/core/phantom-types.ts";
 
-/** Subset of watcher state containing network-received data (phantoms, crosshairs).
+/** Subset of watcher state containing network-received data (crosshairs).
+ *  Phantoms are written directly onto each remote-controlled slot's
+ *  controller (`current{Build,Cannon}Phantom(s)`) by the inbound network
+ *  handler, so they don't need a parallel slot here.
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers
  *  can reference it without importing from the higher-layer watcher module. */
 export interface WatcherNetworkState {
   remoteCrosshairs: Map<number, PixelPos>;
-  remoteCannonPhantoms: readonly CannonPhantom[];
-  remotePiecePhantoms: readonly PiecePhantom[];
 }
 
 /** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */

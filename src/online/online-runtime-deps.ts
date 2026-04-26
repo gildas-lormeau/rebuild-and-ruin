@@ -122,6 +122,7 @@ function buildIncrementalDeps() {
     session: _client.ctx.session,
     watcher: _client.ctx.watcher,
     getState: () => _depsInit.runtime.runtimeState.state,
+    getControllers: () => _depsInit.runtime.runtimeState.controllers,
     selectionStates: _depsInit.runtime.selection.getStates(),
     syncSelectionOverlay: () => _depsInit.runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>

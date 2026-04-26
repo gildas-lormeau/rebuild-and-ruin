@@ -118,18 +118,6 @@ const watcherTickCtx: WatcherTickContext = {
   maybeSendAimUpdate,
   render: () => runtime.render(),
   now: () => performance.now(),
-  setRemotePiecePhantoms: (phantoms) => {
-    runtime.runtimeState.remotePhantoms = {
-      piecePhantoms: phantoms,
-      cannonPhantoms: runtime.runtimeState.remotePhantoms.cannonPhantoms,
-    };
-  },
-  setRemoteCannonPhantoms: (phantoms) => {
-    runtime.runtimeState.remotePhantoms = {
-      piecePhantoms: runtime.runtimeState.remotePhantoms.piecePhantoms,
-      cannonPhantoms: phantoms,
-    };
-  },
   onModifierRevealExpired: () =>
     dispatchWatcherLocal("enter-battle", watcherDeps),
 };
@@ -207,8 +195,6 @@ const runtime: GameRuntime = createGameRuntime({
       }),
 
     // ── Host: per-frame phantom dedup ─────────────────────────────────
-    remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
-    remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
     shouldSendCannonPhantom: (playerId, key) =>
       ctx.dedup.cannonPhantom.shouldSend(playerId, key),
     shouldSendPiecePhantom: (playerId, key) =>

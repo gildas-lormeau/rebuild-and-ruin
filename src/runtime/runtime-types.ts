@@ -66,10 +66,6 @@ import type {
   WorldPos,
 } from "../shared/core/geometry-types.ts";
 import type {
-  CannonPhantom,
-  PiecePhantom,
-} from "../shared/core/phantom-types.ts";
-import type {
   PlayerSlotId,
   ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
@@ -149,10 +145,6 @@ export interface OnlinePhaseTicks {
   ) => void;
 
   // ── Host-only: per-frame phantom dedup ─────────────────────────────────
-  /** Host: pending remote cannon phantoms to merge into the local frame. */
-  remoteCannonPhantoms?: () => readonly CannonPhantom[];
-  /** Host: pending remote piece phantoms to merge into the local frame. */
-  remotePiecePhantoms?: () => readonly PiecePhantom[];
   /** Host: check-then-update for outgoing cannon-phantom broadcasts. Returns
    *  true if the runtime should emit (key differs from last send for this
    *  player). Implementation owns the dedup storage and its lifecycle across
@@ -688,16 +680,6 @@ export const ONLINE_PHASE_TICKS_CONSUMERS = {
   },
   broadcastLocalCrosshair: {
     "wire:prod": "src/online/online-runtime-game.ts",
-    "wire:test-stub": "test/runtime-headless.ts",
-  },
-  remoteCannonPhantoms: {
-    "wire:prod": "src/online/online-runtime-game.ts",
-    "wire:test-host": "test/network-setup.ts",
-    "wire:test-stub": "test/runtime-headless.ts",
-  },
-  remotePiecePhantoms: {
-    "wire:prod": "src/online/online-runtime-game.ts",
-    "wire:test-host": "test/network-setup.ts",
     "wire:test-stub": "test/runtime-headless.ts",
   },
   shouldSendCannonPhantom: {

@@ -42,7 +42,6 @@ import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
   cannonPhantomKey,
-  filterAlivePhantoms,
   type PiecePhantomPayload,
   type PiecePlacedPayload,
   phantomWireMode,
@@ -618,17 +617,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
 
-    // Remote phantoms are consumed from `runtimeState.remotePhantoms`
-    // by the render + touch layers; controllers own local previews in
-    // `currentCannonPhantom`.
-    const remoteCannonPhantoms = filterAlivePhantoms(
-      online?.remoteCannonPhantoms?.() ?? [],
-      state.players,
-    );
-    runtimeState.remotePhantoms = {
-      piecePhantoms: runtimeState.remotePhantoms.piecePhantoms,
-      cannonPhantoms: remoteCannonPhantoms,
-    };
+    // Remote phantoms live on each remote-controlled slot's controller
+    // (`currentCannonPhantom`), written by the inbound network handler.
+    // Render reads them via `buildCannonPhantomsUnion`.
 
     deps.render();
 
@@ -850,17 +841,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       }
     }
 
-    // Remote phantoms are consumed from `runtimeState.remotePhantoms`
-    // by the render + touch layers; controllers own local previews in
-    // `currentBuildPhantoms`.
-    const remotePiecePhantoms = filterAlivePhantoms(
-      online?.remotePiecePhantoms?.() ?? [],
-      state.players,
-    );
-    runtimeState.remotePhantoms = {
-      piecePhantoms: remotePiecePhantoms,
-      cannonPhantoms: runtimeState.remotePhantoms.cannonPhantoms,
-    };
+    // Remote phantoms live on each remote-controlled slot's controller
+    // (`currentBuildPhantoms`), written by the inbound network handler.
+    // Render reads them via `buildPiecePhantomsUnion`.
 
     deps.render();
     if (state.timer > 0) return false;

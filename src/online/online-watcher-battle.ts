@@ -16,7 +16,6 @@ import {
   type CannonPhantom,
   cannonPhantomKey,
   type DedupChannel,
-  filterAlivePhantoms,
   type PiecePhantom,
   phantomWireMode,
   piecePhantomKey,
@@ -55,28 +54,16 @@ interface TickWatcherCannonPhantomsDeps {
   dt: number;
   myPlayerId: PlayerSlotId;
   localController: PlayerController | null;
-  remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPhantom: (msg: CannonPhantom) => void;
-  /** Sink for the runtime's `remotePhantoms.cannonPhantoms` slot.
-   *  Receives the alive-filtered remote array so render + touch readers
-   *  can source remote previews from the runtime slot; local previews
-   *  come from the controller's `currentCannonPhantom`. */
-  setRemoteCannonPhantoms: (phantoms: readonly CannonPhantom[]) => void;
 }
 
 interface TickWatcherBuildPhantomsDeps {
   state: GameState;
   dt: number;
   localController: PlayerController | null;
-  remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
   sendOpponentPiecePhantom: (msg: PiecePhantom) => void;
-  /** Sink for the runtime's `remotePhantoms.piecePhantoms` slot.
-   *  Receives the alive-filtered remote array so render + touch readers
-   *  can source remote previews from the runtime slot; local previews
-   *  come from each controller's `currentBuildPhantoms`. */
-  setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
 }
 
 export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
@@ -156,16 +143,14 @@ export function tickWatcherCannonPhantomsPhase(
     dt,
     myPlayerId,
     localController,
-    remoteCannonPhantoms,
     lastSentCannonPhantom,
     sendOpponentCannonPhantom,
   } = deps;
 
-  const aliveRemote = filterAlivePhantoms(remoteCannonPhantoms, state.players);
-  // Remote phantoms flow through the runtime slot; render + touch read
-  // from there so the watcher never writes to `frame.phantoms`. The local
-  // controller's phantom is owned by `ctrl.currentCannonPhantom`.
-  deps.setRemoteCannonPhantoms(aliveRemote);
+  // Remote phantoms live on each remote-controlled slot's controller
+  // (`currentCannonPhantom`), written by the inbound network handler.
+  // Render reads them via `buildCannonPhantomsUnion`. Eliminated-player
+  // filtering also happens at the read site.
 
   if (!localController) return;
 
@@ -195,17 +180,14 @@ export function tickWatcherBuildPhantomsPhase(
     state,
     dt,
     localController,
-    remotePiecePhantoms,
     lastSentPiecePhantom,
     sendOpponentPiecePhantom,
-    setRemotePiecePhantoms,
   } = deps;
 
-  const aliveRemote = filterAlivePhantoms(remotePiecePhantoms, state.players);
-  // Remote phantoms flow through the runtime slot; render + touch read
-  // from there so the watcher never writes to `frame.phantoms`. The local
-  // controller's phantoms are owned by `ctrl.currentBuildPhantoms`.
-  setRemotePiecePhantoms(aliveRemote);
+  // Remote phantoms live on each remote-controlled slot's controller
+  // (`currentBuildPhantoms`), written by the inbound network handler.
+  // Render reads them via `buildPiecePhantomsUnion`. Eliminated-player
+  // filtering also happens at the read site.
 
   if (!localController) return;
 

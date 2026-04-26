@@ -1,6 +1,5 @@
 import { CannonMode } from "./battle-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import { isPlayerEliminated } from "./player-types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
 export type CannonPhantom = {
@@ -75,33 +74,6 @@ export function createDedupChannel(): DedupChannel {
       map.clear();
     },
   };
-}
-
-/** Filter remote phantoms to only those from non-eliminated players.
- *  Shared between host (mergeRemotePiecePhantoms) and watcher to prevent
- *  drift in the eliminated-player exclusion logic. */
-export function filterAlivePhantoms<T extends { playerId: ValidPlayerSlot }>(
-  phantoms: readonly T[],
-  players: readonly { eliminated?: boolean }[],
-): T[] {
-  return phantoms.filter(
-    (phantom) => !isPlayerEliminated(players[phantom.playerId]),
-  );
-}
-
-/** Upsert a phantom for a player in a phantom list, preserving the
- *  one-phantom-per-player invariant. Drops any existing entry for the same
- *  playerId, appends the new entry. Returns a fresh array (phantom lists are
- *  readonly on WatcherNetworkState). */
-export function upsertPhantomForPlayer<T extends { playerId: ValidPlayerSlot }>(
-  list: readonly T[],
-  entry: T,
-): T[] {
-  const updated = list.filter(
-    (existing) => existing.playerId !== entry.playerId,
-  );
-  updated.push(entry);
-  return updated;
 }
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display.

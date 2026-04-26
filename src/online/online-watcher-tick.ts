@@ -11,10 +11,6 @@ import type { BattleAnimState } from "../shared/core/battle-types.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type {
-  CannonPhantom,
-  PiecePhantom,
-} from "../shared/core/phantom-types.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -56,14 +52,6 @@ export interface WatcherTickContext {
   maybeSendAimUpdate: (x: number, y: number) => void;
   render: () => void;
   now: () => number;
-  /** Sink for the runtime's `remotePhantoms.piecePhantoms` slot.
-   *  Forwarded into `tickWatcherBuildPhantomsPhase` so render + touch
-   *  read remote piece phantoms from the runtime slot. */
-  setRemotePiecePhantoms: (phantoms: readonly PiecePhantom[]) => void;
-  /** Sink for the runtime's `remotePhantoms.cannonPhantoms` slot.
-   *  Forwarded into `tickWatcherCannonPhantomsPhase` so render + touch
-   *  read remote cannon phantoms from the runtime slot. */
-  setRemoteCannonPhantoms: (phantoms: readonly CannonPhantom[]) => void;
   /** Fires when the watcher-side `MODIFIER_REVEAL` phase timer expires.
    *  The caller binds this to `enter-battle` dispatch — `tickWatcher`
    *  stays phase-agnostic and doesn't import phase-machine types (that
@@ -82,9 +70,7 @@ export function createWatcherState(): WatcherState {
       countdownDuration: 0,
     },
     remoteCrosshairs: new Map(),
-    remoteCannonPhantoms: [],
     watcherCrosshairPos: new Map(),
-    remotePiecePhantoms: [],
     migrationBanner: { timer: 0, text: "" },
   };
 }
@@ -92,8 +78,6 @@ export function createWatcherState(): WatcherState {
 /** Full reset — clears all watcher state. Used when joining a new game or full-state recovery. */
 export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remoteCrosshairs.clear();
-  watcherState.remoteCannonPhantoms = [];
-  watcherState.remotePiecePhantoms = [];
   watcherState.watcherCrosshairPos.clear();
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
@@ -104,8 +88,10 @@ export function resetWatcherState(watcherState: WatcherState): void {
 
 /**
  * Partial reset for host promotion. Clears timing
- * but keeps remoteCrosshairs/phantoms/crosshairPos — the new host still
+ * but keeps remoteCrosshairs/crosshairPos — the new host still
  * uses those for remote human players via extendCrosshairs.
+ * Phantoms live on each remote-controlled slot's controller and are
+ * preserved across promotion alongside the controllers themselves.
  */
 export function resetWatcherTimingForHostPromotion(
   watcherState: WatcherState,
@@ -173,7 +159,6 @@ export function tickWatcher(
         dt,
         myPlayerId,
         localController,
-        remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
         lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
         sendOpponentCannonPhantom: (msg) => {
           transitionCtx.send({
@@ -181,7 +166,6 @@ export function tickWatcher(
             ...msg,
           });
         },
-        setRemoteCannonPhantoms: transitionCtx.setRemoteCannonPhantoms,
       });
       break;
     case Phase.WALL_BUILD: {
@@ -204,12 +188,10 @@ export function tickWatcher(
         state,
         dt,
         localController: effectiveLocal,
-        remotePiecePhantoms: watcherState.remotePiecePhantoms,
         lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
         sendOpponentPiecePhantom: (msg) => {
           transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
         },
-        setRemotePiecePhantoms: transitionCtx.setRemotePiecePhantoms,
       });
       break;
     }

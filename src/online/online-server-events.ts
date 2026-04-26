@@ -17,10 +17,10 @@ import {
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
-import { upsertPhantomForPlayer } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
+import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
 import {
   LifeLostChoice,
@@ -59,6 +59,9 @@ export interface HandleServerIncrementalDeps {
   >;
   watcher: WatcherNetworkState;
   getState: () => GameState | undefined;
+  /** Per-slot controllers — phantom messages for remote-controlled slots
+   *  write directly into `controllers[msg.playerId].current{Build,Cannon}Phantom(s)`. */
+  getControllers: () => readonly PlayerController[];
   selectionStates: Map<number, SelectionState>;
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
@@ -280,9 +283,13 @@ function handleAimUpdate(
   return APPLIED;
 }
 
-/** Phantoms use explicit filter+push array replacement for dedup (latest preview wins).
- *  Contrast with crosshairs in online-host-crosshairs.ts which use DedupChannel's
- *  atomic shouldSend() mechanism — crosshairs are fire-and-forget, phantoms accumulate. */
+/** Phantoms write the latest preview directly onto the remote slot's
+ *  controller. The controller's own `current{Build,Cannon}Phantom(s)`
+ *  field is the single source of truth for both render and broadcast,
+ *  so there is no separate "remote slot" to upsert into.
+ *  Contrast with crosshairs in online-host-crosshairs.ts which use
+ *  DedupChannel's atomic shouldSend() mechanism — crosshairs are
+ *  fire-and-forget, phantoms accumulate. */
 function handlePiecePhantom(
   msg: PiecePhantomMsg,
   state: GameState | undefined,
@@ -291,9 +298,9 @@ function handlePiecePhantom(
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  // Replace existing phantom for this player (latest preview wins, not accumulated).
-  deps.watcher.remotePiecePhantoms = upsertPhantomForPlayer(
-    deps.watcher.remotePiecePhantoms,
+  const ctrl = deps.getControllers()[msg.playerId];
+  if (!ctrl) return DROPPED;
+  ctrl.currentBuildPhantoms = [
     {
       offsets: msg.offsets,
       row: msg.row,
@@ -301,7 +308,7 @@ function handlePiecePhantom(
       playerId: msg.playerId,
       valid: msg.valid,
     },
-  );
+  ];
   return APPLIED;
 }
 
@@ -313,16 +320,15 @@ function handleCannonPhantom(
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  deps.watcher.remoteCannonPhantoms = upsertPhantomForPlayer(
-    deps.watcher.remoteCannonPhantoms,
-    {
-      row: msg.row,
-      col: msg.col,
-      valid: msg.valid,
-      mode: toCannonMode(msg.mode),
-      playerId: msg.playerId,
-    },
-  );
+  const ctrl = deps.getControllers()[msg.playerId];
+  if (!ctrl) return DROPPED;
+  ctrl.currentCannonPhantom = {
+    row: msg.row,
+    col: msg.col,
+    valid: msg.valid,
+    mode: toCannonMode(msg.mode),
+    playerId: msg.playerId,
+  };
   return APPLIED;
 }
 

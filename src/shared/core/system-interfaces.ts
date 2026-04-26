@@ -166,12 +166,13 @@ export interface BuildController {
   buildCursor: TilePos;
 
   /** Controller-owned view of "what piece previews this player wants drawn
-   *  right now". Populated by `startBuildPhase` (so the WALL_BUILD banner's
-   *  B-snapshot captures previews even though no tick has run yet) and
-   *  refreshed after every `buildTick`. Render and network-broadcast paths
-   *  read from here. Empty array when
-   *  the player is eliminated, not ready to place, or has no active
-   *  preview. */
+   *  right now". For local-controlled slots, populated by `startBuildPhase`
+   *  (so the WALL_BUILD banner's B-snapshot captures previews even though
+   *  no tick has run yet) and refreshed after every `buildTick`. For
+   *  remote-controlled slots, written by the inbound `OPPONENT_PHANTOM`
+   *  network handler. Render and network-broadcast paths read from here.
+   *  Empty array when the player is eliminated, not ready to place, or has
+   *  no active preview. */
   currentBuildPhantoms: readonly PiecePhantom[];
 
   /** Called once at the start of the build phase. Must populate
@@ -208,10 +209,12 @@ export interface CannonController {
   cannonCursor: TilePos;
 
   /** Controller-owned view of "what cannon preview this player wants drawn
-   *  right now". Populated by `startCannonPhase` (so the CANNON_PLACE
-   *  banner's B-snapshot captures the preview even though no tick has
-   *  run yet) and refreshed after every `cannonTick`. `undefined` when
-   *  the player is eliminated, out of slots, or has no active preview. */
+   *  right now". For local-controlled slots, populated by `startCannonPhase`
+   *  (so the CANNON_PLACE banner's B-snapshot captures the preview even
+   *  though no tick has run yet) and refreshed after every `cannonTick`.
+   *  For remote-controlled slots, written by the inbound
+   *  `OPPONENT_CANNON_PHANTOM` network handler. `undefined` when the
+   *  player is eliminated, out of slots, or has no active preview. */
   currentCannonPhantom: CannonPhantom | undefined;
 
   /** Place cannons. Mode selection differs by controller type:

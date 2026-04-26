@@ -199,22 +199,6 @@ async function buildWatcherRuntime(
     logThrottled: () => {},
     maybeSendAimUpdate: () => {},
     render: () => headlessHolder.current!.runtime.render(),
-    setRemotePiecePhantoms: (phantoms) => {
-      headlessHolder.current!.runtime.runtimeState.remotePhantoms = {
-        piecePhantoms: phantoms,
-        cannonPhantoms:
-          headlessHolder.current!.runtime.runtimeState.remotePhantoms
-            .cannonPhantoms,
-      };
-    },
-    setRemoteCannonPhantoms: (phantoms) => {
-      headlessHolder.current!.runtime.runtimeState.remotePhantoms = {
-        piecePhantoms:
-          headlessHolder.current!.runtime.runtimeState.remotePhantoms
-            .piecePhantoms,
-        cannonPhantoms: phantoms,
-      };
-    },
     onModifierRevealExpired: () =>
       dispatchWatcherLocal("enter-battle", watcherDeps),
     now: () => headlessHolder.current!.now(),
@@ -259,8 +243,6 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
       send(createBattleStartMessage(rngState)),
     broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
-    remoteCannonPhantoms: () => [],
-    remotePiecePhantoms: () => [],
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
   };
