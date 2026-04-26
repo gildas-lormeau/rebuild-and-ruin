@@ -1,7 +1,7 @@
 /**
  * Online subsystem unit tests — fast, pure-logic tests for online infrastructure.
  *
- * Covers: DedupChannel, host-migration sequence, full-state UI recovery.
+ * Covers: DedupChannel, host-migration sequence.
  *
  * Run with: deno test --no-check test/online-unit.test.ts
  */
@@ -9,14 +9,10 @@
 import { assert, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../src/protocol/protocol.ts";
 import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
-import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
-import type { BalloonFlight } from "../src/shared/core/battle-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import type { GameMode } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
-import { Phase } from "../src/shared/core/game-phase.ts";
-import { Mode } from "../src/shared/ui/ui-mode.ts";
 
 Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
@@ -37,71 +33,6 @@ Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
   ch.shouldSend(0 as ValidPlayerSlot, "second");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "second") === false, "stored key should be 'second' after change");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
-});
-
-Deno.test("full_state recovery clears stale transition mode into game mode", () => {
-  const target = {
-    mode: Mode.TRANSITION,
-    castleBuilds: [1],
-    announcement: "Battle!" as string | undefined,
-    battleFlights: [{ flight: { startX: 0, startY: 0, endX: 10, endY: 10 }, progress: 0.5 }],
-    lifeLostCleared: false,
-  };
-
-  restoreFullStateUiRecovery(
-    {
-      setMode: (mode) => {
-        target.mode = mode;
-      },
-      clearCastleBuilds: () => {
-        target.castleBuilds = [];
-      },
-      clearLifeLostDialog: () => {
-        target.lifeLostCleared = true;
-      },
-      clearAnnouncement: () => {
-        target.announcement = undefined;
-      },
-      setBattleFlights: (flights) => {
-        target.battleFlights = [...flights];
-      },
-    },
-    Phase.BATTLE,
-  );
-
-  assert(target.mode === Mode.GAME, `expected GAME mode, got ${Mode[target.mode]}`);
-  assert(target.castleBuilds.length === 0, "expected castle build animation queue to be cleared");
-  assert(target.announcement === undefined, "expected stale banner announcement to be cleared");
-  assert(target.lifeLostCleared, "expected stale life-lost dialog to be cleared");
-  assert(target.battleFlights.length === 0, "expected stale balloon flights to be cleared");
-});
-
-Deno.test("full_state recovery restores balloon animation mode when flights are present", () => {
-  const target = {
-    mode: Mode.GAME,
-    battleFlights: [] as { flight: BalloonFlight; progress: number }[],
-  };
-  const flights = [{ flight: { startX: 1, startY: 2, endX: 3, endY: 4 }, progress: 0.25 }];
-
-  restoreFullStateUiRecovery(
-    {
-      setMode: (mode) => {
-        target.mode = mode;
-      },
-      clearCastleBuilds: () => {},
-      clearLifeLostDialog: () => {},
-      clearAnnouncement: () => {},
-      setBattleFlights: (nextFlights) => {
-        target.battleFlights = [...nextFlights];
-      },
-    },
-    Phase.BATTLE,
-    flights,
-  );
-
-  assert(target.mode === Mode.BALLOON_ANIM, `expected BALLOON_ANIM mode, got ${Mode[target.mode]}`);
-  assert(target.battleFlights.length === 1, `expected 1 recovered flight, got ${target.battleFlights.length}`);
-  assert(target.battleFlights[0]!.progress === 0.25, "expected recovered flight progress to be preserved");
 });
 
 Deno.test("lifecycle drops stale full_state after host migration", () => {

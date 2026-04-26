@@ -7,10 +7,10 @@ import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import { setWatcherPhaseTimer } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
-import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
@@ -121,28 +121,16 @@ export function createOnlineRuntimeSessionHelpers(
     const result = restoreFullStateSnapshot(state, msg);
     if (!result) return;
 
-    restoreFullStateUiRecovery(
-      {
-        setMode: (mode) => {
-          setMode(runtime.runtimeState, mode);
-        },
-        onModeSet: () => {},
-        clearCastleBuilds: () => {
-          runtime.runtimeState.selection.castleBuilds = [];
-        },
-        clearLifeLostDialog: () => {
-          runtime.lifeLost.set(null);
-        },
-        clearAnnouncement: () => {
-          runtime.runtimeState.frame.announcement = undefined;
-        },
-        setBattleFlights: (flights) => {
-          runtime.runtimeState.battleAnim.flights = flights;
-        },
-      },
-      state.phase,
-      result.balloonFlights,
+    const flights = result.balloonFlights ?? [];
+    const inBattle = state.phase === Phase.BATTLE;
+    setMode(
+      runtime.runtimeState,
+      resolveModeAfterFullState(state.phase, inBattle && flights.length > 0),
     );
+    runtime.runtimeState.selection.castleBuilds = [];
+    runtime.lifeLost.set(null);
+    runtime.runtimeState.frame.announcement = undefined;
+    runtime.runtimeState.battleAnim.flights = inBattle ? flights : [];
 
     setWatcherPhaseTimer(deps.watcher.timing, performance.now(), state.timer);
     // Always sync watcher countdown timing — even if battleCountdown is 0
@@ -159,4 +147,12 @@ export function createOnlineRuntimeSessionHelpers(
     showLobby,
     showWaitingRoom,
   };
+}
+
+function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
+  if (phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT) {
+    return Mode.SELECTION;
+  }
+  if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
+  return Mode.GAME;
 }

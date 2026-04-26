@@ -47,7 +47,6 @@
     "tier": "types",
     "files": [
       "src/online/online-config.ts",
-      "src/online/online-full-state-recovery.ts",
       "src/online/online-router.ts",
       "src/protocol/checkpoint-data.ts",
       "src/render/3d/effects/layer-canvas.ts",
