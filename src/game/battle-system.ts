@@ -448,7 +448,7 @@ export function nextReadyCombined(
 
 /** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events.
  *  Host path: `launchCannonball` pushes a ball and emits via `createCannonFiredMsg`. */
-export function spawnCannonballFromMessage(
+export function applyCannonFired(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
@@ -513,7 +513,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
   // resolve impacts in the same sequence even when balls reach the array
   // through different paths. Host inserts in fire order
   // (`tickLocalBattleControllers`); watcher inserts in wire-arrival order
-  // (`spawnCannonballFromMessage`), which can differ — AssistedHuman
+  // (`applyCannonFired`), which can differ — AssistedHuman
   // controllers broadcast `CANNON_FIRED` inline during battleTick while
   // AI fires broadcast post-tick. Without canonicalization, balls landing
   // on the same frame would consume `state.rng` (house→grunt spawn,

@@ -2,7 +2,7 @@
 // intentionally not exposed via ../game/index.ts — see
 // scripts/lint-restricted-imports.ts for the allowlist that pins this exemption.
 
-import { spawnCannonballFromMessage } from "../game/battle-system.ts";
+import { applyCannonFired } from "../game/battle-system.ts";
 import { applyPiecePlacement } from "../game/build-system.ts";
 import { applyCannonPlacement } from "../game/cannon-system.ts";
 import {
@@ -261,7 +261,7 @@ function handleCannonFired(
     );
     return DROPPED;
   }
-  spawnCannonballFromMessage(state, msg);
+  applyCannonFired(state, msg);
   state.bus.emit(msg.type, msg);
   return APPLIED;
 }

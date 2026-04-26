@@ -127,9 +127,9 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
 > = {
   "src/online/online-server-events.ts": {
     "../game/battle-system.ts": new Set([
+      "applyCannonFired",
       "applyImpactEvent",
       "applyTowerKilled",
-      "spawnCannonballFromMessage",
     ]),
     "../game/build-system.ts": new Set(["applyPiecePlacement"]),
     "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
