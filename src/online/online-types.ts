@@ -1,6 +1,5 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
-import type { WatcherTimingState } from "../runtime/runtime-tick-context.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
@@ -16,44 +15,6 @@ export interface WatcherNetworkState {
   remoteCrosshairs: Map<number, PixelPos>;
   remoteCannonPhantoms: readonly CannonPhantom[];
   remotePiecePhantoms: readonly PiecePhantom[];
-}
-
-/** Anchor the watcher phase timer to the current wall clock. Call from inside
- *  the banner onComplete callback — `performance.now()` at that instant is the
- *  moment the banner animation finished on this client, which is the logical
- *  moment the phase begins (mirroring the host's `resetAccum` at the end of
- *  the same transition recipe).
- *
- *  Use this helper for every phase whose watcher timer starts after a banner:
- *  cannon-start and build-start both call it. Do NOT pre-compute the origin
- *  as `bannerStartedAt + bannerDuration * 1000` — that relies on the banner
- *  animation matching its nominal duration exactly, which frame drops or
- *  browser throttling can violate. A dialog (upgrade-pick) that plays BEFORE
- *  the banner is fine: the dialog finishes before `showBanner()` is called,
- *  so the callback still fires at true banner-end. */
-export function setWatcherPhaseTimerAtBannerEnd(
-  timing: WatcherTimingState,
-  phaseDuration: number,
-  now: number,
-): void {
-  setWatcherPhaseTimer(timing, now, phaseDuration);
-}
-
-/** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
- *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */
-export function setWatcherPhaseTimer(
-  timing: WatcherTimingState,
-  now: number,
-  phaseDuration: number,
-): void {
-  timing.phaseStartTime = now;
-  timing.phaseDuration = phaseDuration;
-}
-
-/** Reset phase timing to idle (no active phase timer). */
-export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
-  timing.phaseStartTime = 0;
-  timing.phaseDuration = 0;
 }
 
 /** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */

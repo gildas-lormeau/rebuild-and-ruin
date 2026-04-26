@@ -8,6 +8,7 @@ import {
   type TransitionId,
 } from "../runtime/runtime-phase-machine.ts";
 import { type RuntimeState, setMode } from "../runtime/runtime-state.ts";
+import { setWatcherPhaseTimerAtBannerEnd } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import {
   type BalloonFlight,
@@ -30,7 +31,6 @@ import {
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
 import type { OnlineSession } from "./online-session.ts";
-import { setWatcherPhaseTimerAtBannerEnd } from "./online-types.ts";
 import type { WatcherState } from "./online-watcher-tick.ts";
 
 /** Dependencies the watcher-side transition handlers need.

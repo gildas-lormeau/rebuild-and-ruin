@@ -42,7 +42,15 @@
  * skips prerequisites (e.g. flush before init, sweep before score).
  */
 
-import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
+import {
+  emitBattleCeaseIfTimerCrossed,
+  setBattleCountdown,
+} from "../game/index.ts";
+import {
+  BATTLE_TIMER,
+  GRUNT_TICK_INTERVAL,
+} from "../shared/core/game-constants.ts";
+import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -114,6 +122,83 @@ export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
   return net?.isHost ?? true;
 }
 
+/** Anchor the watcher phase timer to the current wall clock. Call from inside
+ *  the banner onComplete callback — `performance.now()` at that instant is the
+ *  moment the banner animation finished on this client, which is the logical
+ *  moment the phase begins (mirroring the host's `resetAccum` at the end of
+ *  the same transition recipe).
+ *
+ *  Use this helper for every phase whose watcher timer starts after a banner:
+ *  cannon-start and build-start both call it. Do NOT pre-compute the origin
+ *  as `bannerStartedAt + bannerDuration * 1000` — that relies on the banner
+ *  animation matching its nominal duration exactly, which frame drops or
+ *  browser throttling can violate. A dialog (upgrade-pick) that plays BEFORE
+ *  the banner is fine: the dialog finishes before `showBanner()` is called,
+ *  so the callback still fires at true banner-end. */
+export function setWatcherPhaseTimerAtBannerEnd(
+  timing: WatcherTimingState,
+  phaseDuration: number,
+  now: number,
+): void {
+  setWatcherPhaseTimer(timing, now, phaseDuration);
+}
+
+/** Reset watcher phase timing to idle (no active phase timer). */
+export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
+  timing.phaseStartTime = 0;
+  timing.phaseDuration = 0;
+}
+
+/** Synthesize `state.timer` and battle-countdown announcements on the watcher.
+ *
+ *  Three regimes, gated on `state.phase`:
+ *    1. Placement phases (+ MODIFIER_REVEAL) — wall-clock subtraction from
+ *       `phaseStartTime + phaseDuration`. Resilient to frame jitter.
+ *    2. Battle countdown — same wall-clock pattern, but routed through
+ *       `setBattleCountdown` to drive the Ready/Aim/Fire announcement.
+ *       When the countdown ends, anchor the phase timer to the exact
+ *       countdown-end instant so the BATTLE timer continues seamlessly.
+ *    3. Battle proper — dt-based decrement via `advancePhaseTimer`, matching
+ *       the host. (Wall-clock synthesis here drifts ~17ms vs sim-tick across
+ *       the 30s timer and shifts combo-streak windows.) */
+export function tickWatcherTimers(
+  state: GameState,
+  frame: { announcement?: string },
+  timing: WatcherTimingState,
+  now: () => number,
+  accum: TimerAccums,
+  dt: number,
+): void {
+  if (isPlacementPhase(state.phase) || state.phase === Phase.MODIFIER_REVEAL) {
+    const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
+    state.timer = Math.max(0, timing.phaseDuration - elapsed);
+    return;
+  }
+
+  if (state.phase !== Phase.BATTLE) return;
+
+  if (timing.countdownDuration > 0) {
+    const elapsed = Math.max(0, (now() - timing.countdownStartTime) / 1000);
+    frame.announcement = setBattleCountdown(
+      state,
+      timing.countdownDuration - elapsed,
+    );
+    if (!frame.announcement) {
+      setWatcherPhaseTimer(
+        timing,
+        timing.countdownStartTime + timing.countdownDuration * 1000,
+        BATTLE_TIMER,
+      );
+      timing.countdownDuration = 0;
+    }
+    return;
+  }
+
+  const prevTimer = state.timer;
+  advancePhaseTimer(accum, ACCUM_BATTLE, state, dt, BATTLE_TIMER);
+  emitBattleCeaseIfTimerCrossed(state, prevTimer);
+}
+
 /** Advance a phase timer: accum += dt, state.timer = max - accum.
  *  INVARIANT: All phase timers MUST use this function. Never manually write `accum.X += dt`.
  *
@@ -131,6 +216,18 @@ export function advancePhaseTimer<K extends string>(
 ): void {
   const elapsed = (accum[key] += dt);
   state.timer = Math.max(0, max - elapsed);
+}
+
+/** Start tracking a new phase timer on the watcher. Call at the moment a phase
+ *  begins on the watcher side. The watcher reconstructs `state.timer` each
+ *  frame from `(now - phaseStartTime)`. */
+export function setWatcherPhaseTimer(
+  timing: WatcherTimingState,
+  now: number,
+  phaseDuration: number,
+): void {
+  timing.phaseStartTime = now;
+  timing.phaseDuration = phaseDuration;
 }
 
 /** Advance grunt accumulator and tick grunts when the interval elapses.

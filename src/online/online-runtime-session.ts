@@ -6,6 +6,7 @@ import {
 } from "../runtime/runtime-bootstrap.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
+import { setWatcherPhaseTimer } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
@@ -19,7 +20,6 @@ import {
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 import type { OnlineSession } from "./online-session.ts";
-import { setWatcherPhaseTimer } from "./online-types.ts";
 import type { WatcherState } from "./online-watcher-tick.ts";
 
 interface OnlineRuntimeSessionDeps {

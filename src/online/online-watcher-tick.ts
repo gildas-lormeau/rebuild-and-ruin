@@ -1,8 +1,10 @@
 import { canBuildThisFrame, tickGrunts as moveGrunts } from "../game/index.ts";
 import { MESSAGE } from "../protocol/protocol.ts";
 import {
+  clearWatcherPhaseTimer,
   type TimerAccums,
   tickGruntsIfDue,
+  tickWatcherTimers,
   type WatcherTimingState,
 } from "../runtime/runtime-tick-context.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
@@ -25,15 +27,11 @@ import {
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import type { FrameData } from "../shared/ui/overlay-types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
-import {
-  clearWatcherPhaseTimer,
-  type WatcherNetworkState,
-} from "./online-types.ts";
+import type { WatcherNetworkState } from "./online-types.ts";
 import {
   tickWatcherBattlePhase,
   tickWatcherBuildPhantomsPhase,
   tickWatcherCannonPhantomsPhase,
-  tickWatcherTimers,
 } from "./online-watcher-battle.ts";
 
 export interface WatcherState extends WatcherNetworkState {

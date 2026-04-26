@@ -127,6 +127,7 @@
       "src/game/upgrades/upgrade-types.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-session.ts",
+      "src/online/online-types.ts",
       "src/render/3d/entities/entity-helpers.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-life-lost-core.ts",
@@ -208,7 +209,7 @@
       "src/online/online-host-crosshairs.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-server-lifecycle.ts",
-      "src/online/online-types.ts",
+      "src/online/online-watcher-battle.ts",
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
       "src/render/3d/effects/fire-burst.ts",
@@ -251,7 +252,7 @@
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
-      "src/online/online-watcher-battle.ts",
+      "src/online/online-watcher-tick.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
@@ -274,7 +275,7 @@
     "files": [
       "src/ai/ai-build-fallback.ts",
       "src/game/grunt-system.ts",
-      "src/online/online-watcher-tick.ts",
+      "src/online/online-stores.ts",
       "src/render/3d/scene.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
@@ -294,7 +295,7 @@
       "src/ai/ai-strategy-build.ts",
       "src/game/build-system.ts",
       "src/game/modifier-system.ts",
-      "src/online/online-stores.ts",
+      "src/online/online-runtime-ws.ts",
       "src/render/render-canvas.ts"
     ]
   },
@@ -304,7 +305,7 @@
     "files": [
       "src/ai/ai-strategy.ts",
       "src/game/battle-system.ts",
-      "src/online/online-runtime-ws.ts",
+      "src/online/online-runtime-lobby.ts",
       "src/render/3d/renderer.ts"
     ]
   },
@@ -318,7 +319,6 @@
       "src/ai/ai-phase-select.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
-      "src/online/online-runtime-lobby.ts",
       "src/online/online-server-events.ts"
     ]
   },
