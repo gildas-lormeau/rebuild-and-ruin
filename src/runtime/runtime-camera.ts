@@ -491,9 +491,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       if (mobileAuto && frameCtx.humanIsReselecting) {
         autoZoom(state.phase);
       }
-    } else if (mobileAuto && frameCtx.mode !== Mode.SELECTION) {
+    } else if (
+      mobileAuto &&
+      frameCtx.mode !== Mode.SELECTION &&
+      state.phase !== Phase.MODIFIER_REVEAL
+    ) {
       // SELECTION mode is owned by `handleSelectionZoom`, which times the
       // zoom against the announcement-end signal. Don't preempt it here.
+      // MODIFIER_REVEAL is a global banner — the transition's shouldUnzoom
+      // already pulled out to the full map; re-zooming to the player's own
+      // zone mid-banner contradicts the "modifiers are global" framing.
       autoZoom(state.phase);
     }
     // Pitch is no longer set here. Tilt-in is driven explicitly by
