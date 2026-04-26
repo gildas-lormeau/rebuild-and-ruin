@@ -3,6 +3,7 @@ import { API_ROOMS_PATH } from "../protocol/routes.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { GOLD, PANEL_BG } from "../shared/ui/theme.ts";
 import { computeApiUrl } from "./online-config.ts";
+import { roomCodeOverlay } from "./online-dom.ts";
 
 interface LobbyElements {
   btnCreateConfirm: HTMLElement;
@@ -204,19 +205,18 @@ export function initLobbyUi({
   return { joinRoom: doJoin };
 }
 
-export function hideRoomCodeOverlay(overlay: HTMLElement): void {
-  overlay.style.display = "none";
+export function hideRoomCodeOverlay(): void {
+  roomCodeOverlay.style.display = "none";
 }
 
 /** Populate the room-code overlay with a styled code badge and QR image. */
 export function buildRoomCodeOverlay(
-  overlay: HTMLElement,
   code: string,
   joinUrl: string,
   doc: Document = document,
 ): void {
-  overlay.style.display = "block";
-  overlay.innerHTML = "";
+  roomCodeOverlay.style.display = "block";
+  roomCodeOverlay.innerHTML = "";
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
   const wrapper = doc.createElement("div");
   Object.assign(wrapper.style, {
@@ -251,5 +251,5 @@ export function buildRoomCodeOverlay(
     qrImage.style.display = "none";
   });
   wrapper.appendChild(qrImage);
-  overlay.appendChild(wrapper);
+  roomCodeOverlay.appendChild(wrapper);
 }

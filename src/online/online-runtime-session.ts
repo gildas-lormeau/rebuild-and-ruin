@@ -1,3 +1,19 @@
+/**
+ * Online runtime session helpers — the four entry points for room/game
+ * lifecycle transitions in the online client.
+ *
+ * UI navigation (triggered by user / router):
+ * - showLobby — leave the current room and return to the /online lobby page
+ * - showWaitingRoom — enter the in-game waiting room after creating/joining
+ *
+ * Server message handlers (triggered by WebSocket frames):
+ * - initFromServer — server says the game is starting; bootstrap the runtime
+ * - restoreFullState — full-state snapshot recovery after disconnect/migration
+ *
+ * The factory is a thin closure over the runtime/session/timing/container
+ * deps it needs from online-runtime-game's composition root.
+ */
+
 import { generateMap } from "../game/index.ts";
 import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
@@ -10,7 +26,7 @@ import type { GameMode } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
+import { pageOnline } from "./online-dom.ts";
 import {
   buildRoomCodeOverlay,
   hideRoomCodeOverlay,
@@ -41,7 +57,7 @@ export function createOnlineRuntimeSessionHelpers(
     const runtime = deps.getRuntime();
     runtime.shutdown();
     deps.container.classList.remove(GAME_CONTAINER_ACTIVE);
-    hideRoomCodeOverlay(roomCodeOverlay);
+    hideRoomCodeOverlay();
     navigateTo(ROUTE_ONLINE);
     deps.destroyClient();
     runtime.runtimeState.lobby.roomSeedDisplay = null;
@@ -53,7 +69,7 @@ export function createOnlineRuntimeSessionHelpers(
     deps.session.roomSeed = seed;
     lobby.roomSeedDisplay = seed;
     const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
-    buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
+    buildRoomCodeOverlay(code, joinUrl);
     pageOnline.hidden = true;
     deps.container.classList.add(GAME_CONTAINER_ACTIVE);
     lobby.seed = seed;
@@ -71,7 +87,7 @@ export function createOnlineRuntimeSessionHelpers(
 
   async function initFromServer(msg: InitMessage): Promise<void> {
     const runtime = deps.getRuntime();
-    hideRoomCodeOverlay(roomCodeOverlay);
+    hideRoomCodeOverlay();
     runtime.runtimeState.lobby.active = false;
     const settings = runtime.runtimeState.settings;
     const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
