@@ -312,7 +312,10 @@ export function initOnlineRuntime(): void {
 
   document.addEventListener(GAME_EXIT_EVENT, () => {
     runtime.shutdown();
-    sessionHelpers.resetSession();
+    defaultClient.destroy();
+    // Clear the room-seed display in the options modal — see
+    // online-runtime-session.showLobby for the dual-purpose note.
+    runtime.runtimeState.settings.seed = "";
   });
 }
 

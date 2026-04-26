@@ -37,17 +37,17 @@ interface OnlineRuntimeSessionDeps {
 export function createOnlineRuntimeSessionHelpers(
   deps: OnlineRuntimeSessionDeps,
 ) {
-  function resetSession(): void {
-    deps.destroyClient();
-    deps.getRuntime().runtimeState.settings.seed = "";
-  }
-
   function showLobby(): void {
-    deps.getRuntime().shutdown();
+    const runtime = deps.getRuntime();
+    runtime.shutdown();
     deps.container.classList.remove(GAME_CONTAINER_ACTIVE);
     hideRoomCodeOverlay(roomCodeOverlay);
     navigateTo(ROUTE_ONLINE);
-    resetSession();
+    deps.destroyClient();
+    // Clear the room-seed display in the options modal — paired with
+    // the write in showWaitingRoom. settings.seed has dual purpose:
+    // user-input custom seed locally, room-seed mirror online.
+    runtime.runtimeState.settings.seed = "";
   }
 
   function showWaitingRoom(code: string, seed: number): void {
@@ -143,7 +143,6 @@ export function createOnlineRuntimeSessionHelpers(
   return {
     initFromServer,
     restoreFullState,
-    resetSession,
     showLobby,
     showWaitingRoom,
   };
