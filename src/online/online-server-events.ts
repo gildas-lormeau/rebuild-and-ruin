@@ -19,7 +19,6 @@ import {
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
-import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
@@ -72,7 +71,6 @@ export interface HandleServerIncrementalDeps {
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
   finishSelection: () => void;
-  onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
 }
@@ -205,16 +203,7 @@ function handlePiecePlaced(
   deps.log(
     `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
   );
-  // Read interior size directly (not via getInterior) — the fanfare-trigger
-  // check is cosmetic, and the interior may legitimately be stale on the
-  // receive side immediately after a castle build animation or mid-round
-  // reselect. applyPiecePlacement runs recheckTerritory afterward, so the
-  // post-state read is always fresh.
-  const hadInterior = state.players[msg.playerId]!.interior.size > 0;
   applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
-  if (!hadInterior && getInterior(state.players[msg.playerId]!).size > 0) {
-    deps.onFirstEnclosure?.(msg.playerId);
-  }
   return APPLIED;
 }
 
