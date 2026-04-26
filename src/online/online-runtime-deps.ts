@@ -42,7 +42,6 @@ import {
   handleBuildEndTransition,
   handleBuildStartTransition,
   handleCannonStartTransition,
-  handleCastleWallsTransition,
   handleGameOverTransition,
   type WatcherDeps,
 } from "./online-phase-transitions.ts";
@@ -130,8 +129,13 @@ function buildIncrementalDeps() {
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
       isReselect: boolean,
+      source?: "local" | "network",
     ) => {
-      _depsInit.runtime.selection.confirmAndStartBuild(playerId, isReselect);
+      _depsInit.runtime.selection.confirmAndStartBuild(
+        playerId,
+        isReselect,
+        source,
+      );
     },
     allSelectionsConfirmed: () => _depsInit.runtime.selection.allConfirmed(),
     finishReselection: () => _depsInit.runtime.selection.finishReselection(),
@@ -198,8 +202,6 @@ function buildGameDeps() {
 
 function buildTransitionDeps() {
   return {
-    onCastleWalls: (msg: ServerMessage) =>
-      handleCastleWallsTransition(msg, _depsInit.watcherDeps),
     onCannonStart: (msg: ServerMessage) =>
       handleCannonStartTransition(msg, _depsInit.watcherDeps),
     onBattleStart: (msg: ServerMessage) =>

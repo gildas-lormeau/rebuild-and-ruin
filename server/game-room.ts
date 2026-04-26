@@ -59,8 +59,6 @@ type PhaseServerDisjoint = [PhaseServerOverlap] extends [never] ? true : false;
 const SERVER_ONLY_PHASE = {
   /** Before game starts (no Phase enum equivalent). */
   LOBBY: "LOBBY",
-  /** Castle wall animation (UI-only state, no Phase enum equivalent). */
-  CASTLE_BUILD: "CASTLE_BUILD",
 } as const;
 const phaseServerDisjointCheck: PhaseServerDisjoint = true;
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
@@ -98,7 +96,6 @@ const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
 const HOST_ONLY: ReadonlySet<string> = new Set([
   MESSAGE.INIT,
   MESSAGE.SELECT_START,
-  MESSAGE.CASTLE_WALLS,
   MESSAGE.CANNON_START,
   MESSAGE.BATTLE_START,
   MESSAGE.BUILD_START,
@@ -159,7 +156,6 @@ export class GameRoom {
   /** Current phase, tracked from checkpoint messages.
    * Uses Phase enum values for game phases + server-only string literals:
    * - "LOBBY" — before game starts (no Phase enum equivalent)
-   * - "CASTLE_BUILD" — castle wall construction animation (UI-only state)
    * See updatePhaseFromMessage() for all transitions. */
   private phase: ServerPhase = SERVER_ONLY_PHASE.LOBBY;
 
@@ -222,8 +218,6 @@ export class GameRoom {
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
     else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
     else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
-    else if (type === MESSAGE.CASTLE_WALLS)
-      this.phase = SERVER_ONLY_PHASE.CASTLE_BUILD;
   }
 
   // ---------------------------------------------------------------------------

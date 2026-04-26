@@ -248,7 +248,7 @@ async function buildWatcherRuntime(
  *  watcher-originated phantoms back to the host. */
 function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks {
   return {
-    broadcastCannonStart: (state) => send(createCannonStartMessage(state)),
+    broadcastCannonStart: () => send(createCannonStartMessage()),
     broadcastBattleStart: (rngState) =>
       send(createBattleStartMessage(rngState)),
     broadcastBuildStart: () => send(createBuildStartMessage()),

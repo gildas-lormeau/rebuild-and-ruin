@@ -116,8 +116,10 @@ export type { FrameContext } from "../shared/core/types.ts";
  *  mode (main.ts, test/runtime-headless.ts) and never invokes any of these. */
 export interface OnlinePhaseTicks {
   // ── Host-only: phase-transition checkpoint broadcasts ──────────────────
-  /** Host: broadcast the cannon-phase entry checkpoint to watchers. */
-  broadcastCannonStart?: (state: GameState) => void;
+  /** Host: broadcast the cannon-phase entry phase-marker. Watcher runs the
+   *  source-phase prefix + `enterCannonPhase` locally on receipt — no
+   *  payload. See `CANNON_ENTRY_WATCHER_STEP` in `runtime-phase-machine.ts`. */
+  broadcastCannonStart?: () => void;
   /** Host: broadcast the battle-phase entry checkpoint. Carries the
    *  pre-`enterBattlePhase` RNG state so the watcher can run the same
    *  setup (modifier roll, balloon resolution, grunt wall-attack roll)
@@ -419,7 +421,11 @@ export interface RuntimeSelection {
   enter: () => void;
   syncOverlay: () => void;
   highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
-  confirmAndStartBuild: (pid: ValidPlayerSlot, isReselect?: boolean) => boolean;
+  confirmAndStartBuild: (
+    pid: ValidPlayerSlot,
+    isReselect?: boolean,
+    source?: "local" | "network",
+  ) => boolean;
   allConfirmed: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;

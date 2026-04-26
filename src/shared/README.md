@@ -52,9 +52,10 @@ Network seam. Consumed primarily by `online/` but also by `runtime/`
 
 - **`protocol.ts`** — ServerMessage/GameMessage unions, MESSAGE
   constants. The canonical wire format.
-- **`checkpoint-data.ts`** — BattleStartData, BuildStartData,
-  CannonStartData, and all serialized field shapes. These are the
-  DTOs that cross the wire during phase transitions.
+- **`checkpoint-data.ts`** — BattleStartData (rng resync) plus the
+  serialized field shapes used by FULL_STATE (join / host migration).
+  Phase-marker checkpoints (BUILD_START / BUILD_END / CANNON_START)
+  carry no payload — watchers derive state locally on receipt.
 - **`tick-context.ts`** — `HostNetContext`, `TimerAccums`,
   `isHostInContext()` helper. The per-frame networking context
   that gates host/watcher behavior.

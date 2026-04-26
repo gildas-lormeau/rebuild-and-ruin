@@ -26,7 +26,6 @@ import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
   BattleStartData,
-  CannonStartData,
   SerializedBonusSquare,
   SerializedBurningPit,
   SerializedGrunt,
@@ -127,8 +126,10 @@ export interface SelectStartMessage {
   timer: number;
 }
 
-/** Start of cannon placement phase. */
-export interface CannonStartMessage extends CannonStartData {
+/** Start of cannon placement phase — phase-marker signal. Watcher runs the
+ *  source-phase prefix + `enterCannonPhase` locally on receipt; no payload.
+ *  See `CANNON_ENTRY_WATCHER_STEP` in `runtime-phase-machine.ts`. */
+export interface CannonStartMessage {
   type: "cannonStart";
 }
 
@@ -285,12 +286,6 @@ export interface OpponentTowerSelectedMessage {
   confirmed?: boolean;
 }
 
-/** Ordered wall tiles for castle construction animation (round 1 / reselection). */
-export interface CastleWallsMessage {
-  type: "castleWalls";
-  plans: { playerId: ValidPlayerSlot; tiles: number[] }[];
-}
-
 /** Life-lost choice forwarded from a non-host client to the host. */
 export interface LifeLostChoiceForwardedMessage {
   type: "lifeLostChoice";
@@ -338,8 +333,6 @@ export type ServerMessage =
   | OpponentCannonPlacedMessage
   | OpponentCannonPhantomMessage
   | OpponentTowerSelectedMessage
-  // Animation events
-  | CastleWallsMessage
   // Battle events
   | CannonFiredMessage
   | WallDestroyedMessage
@@ -405,8 +398,6 @@ export const MESSAGE = {
   OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
   OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
   OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
-  // Animation
-  CASTLE_WALLS: "castleWalls",
   AIM_UPDATE: "aimUpdate",
   // Host migration
   HOST_LEFT: "hostLeft",

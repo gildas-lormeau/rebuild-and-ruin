@@ -81,24 +81,6 @@ export interface SerializedBonusSquare {
   zone: number;
 }
 
-/** Data needed to sync state at cannon phase start. */
-export interface CannonStartData {
-  timer: number;
-  limits: number[];
-  players: SerializedPlayer[];
-  grunts: SerializedGrunt[];
-  bonusSquares: SerializedBonusSquare[];
-  towerAlive: boolean[];
-  burningPits: SerializedBurningPit[];
-  houses: SerializedHouse[];
-  /** Bonus cannon slots from Salvage upgrade (cannon kills). */
-  salvageSlots?: number[];
-  /** High tide tiles (packed keys) — temporarily flooded river banks. null = no high tide. */
-  highTideTiles?: number[] | null;
-  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
-  sinkholeTiles?: number[] | null;
-}
-
 /** BATTLE_START wire payload — once-per-round RNG resync point.
  *  Host captures `state.rng.getState()` BEFORE running `enterBattlePhase`
  *  (which consumes RNG via `recheckTerritory` / `rollModifier` /

@@ -1,9 +1,4 @@
-import {
-  createCastle,
-  prepareControllerCannonPhase,
-  resetZoneState,
-} from "../game/index.ts";
-import type { CannonStartData } from "../protocol/checkpoint-data.ts";
+import { prepareControllerCannonPhase, resetZoneState } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import {
@@ -19,7 +14,6 @@ import {
   clearImpacts,
 } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { TILE_COUNT } from "../shared/core/grid.ts";
 import {
   isActivePlayer,
   type ValidPlayerSlot,
@@ -32,7 +26,7 @@ import {
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import {
   applyBattleStartWatcherUI,
-  applyCannonStartCheckpoint,
+  applyCannonStartWatcherUI,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -68,50 +62,6 @@ export interface WatcherDeps {
    *  pitch-settle watchdog) schedule through the same mock clock that
    *  drives headless tests. */
   readonly timing: TimingApi;
-}
-
-/** Watcher-only: processes CASTLE_WALLS from host (triggers castle build
- *  animation). Not a machine-driven transition — castle construction is a
- *  one-shot animation, not a phase change. */
-export function handleCastleWallsTransition(
-  msg: ServerMessage,
-  deps: WatcherDeps,
-): void {
-  if (msg.type !== MESSAGE.CASTLE_WALLS) return;
-  const runtime = deps.getRuntime();
-  const state = runtime.runtimeState.state;
-  const plans = msg.plans.map((plan) => ({
-    ...plan,
-    tiles: plan.tiles.filter((tile) => tile >= 0 && tile < TILE_COUNT),
-  }));
-  const maxTiles = Math.max(...plans.map((plan) => plan.tiles.length), 0);
-  for (const plan of plans) {
-    const player = state.players[plan.playerId];
-    if (player?.homeTower && !player.castle) {
-      player.castle = createCastle(
-        player.homeTower,
-        state.map.tiles,
-        state.map.towers,
-      );
-    }
-  }
-  const myPlan = plans.find(
-    (plan) => plan.playerId === deps.session.myPlayerId,
-  );
-  if (myPlan) runtime.selection.setCastleBuildViewport([myPlan]);
-  runtime.runtimeState.selection.castleBuilds.push({
-    wallPlans: plans,
-    maxTiles,
-    wallTimelineIdx: 0,
-    accum: 0,
-  });
-  // Stay in Mode.SELECTION — matches host. The watcher's `tickSelection`
-  // animates castle builds inline (just like host) AND keeps ticking
-  // not-yet-confirmed AI selections. CANNON_START is what eventually
-  // flips the mode to GAME, by which point all AI selections have
-  // confirmed and all wall animations have completed. Do NOT clear
-  // selection.states here — that would freeze unconfirmed AI slots at
-  // their current browse position.
 }
 
 /** Watcher-only: processes CANNON_START checkpoint and transitions to
@@ -284,6 +234,10 @@ function buildWatcherPhaseCtx(
     checkpoint: buildWatcherCheckpointHooks(deps),
     watcher: buildWatcherHooks(deps),
     incomingMsg: msg,
+    // Pids of players who reselected this round — populated by selection
+    // system as confirmations come in. Read by the watcher's CANNON_PLACE
+    // entry mutate to call `finalizeReselectedPlayers` (mirrors host).
+    reselectionPids: runtimeState.selection.reselectionPids,
     getPitchState: runtime.getPitchState,
     beginBattleTilt: runtime.beginBattleTilt,
     engageAutoZoom: runtime.engageAutoZoom,
@@ -309,8 +263,8 @@ function buildWatcherBattleHooks(runtime: GameRuntime) {
 
 function buildWatcherCheckpointHooks(deps: WatcherDeps) {
   return {
-    applyCannonStart: (msg: CannonStartData) => {
-      applyCannonStartCheckpoint(msg, buildCheckpointDeps(deps));
+    applyCannonStart: () => {
+      applyCannonStartWatcherUI(buildCheckpointDeps(deps));
       // Selection overlay is a UI concern tied to the host's state handoff;
       // clear it here so the cannon banner reveals against a clean scene.
       clearSelectionOverlay(deps.getRuntime().runtimeState);

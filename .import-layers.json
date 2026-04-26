@@ -176,6 +176,7 @@
       "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
+      "src/online/online-checkpoints.ts",
       "src/online/online-send-actions.ts",
       "src/render/3d/elevation.ts",
       "src/render/3d/entities/instance-bucket.ts",
@@ -335,7 +336,7 @@
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
-      "src/online/online-checkpoints.ts",
+      "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-session.ts",
       "src/runtime/runtime-phase-ticks.ts"
@@ -345,7 +346,7 @@
     "name": "session & runtime lifecycle",
     "tier": "roots",
     "files": [
-      "src/online/online-phase-transitions.ts",
+      "src/online/online-runtime-deps.ts",
       "src/runtime/runtime-composition.ts"
     ]
   },
@@ -354,18 +355,11 @@
     "tier": "roots",
     "files": [
       "src/main.ts",
-      "src/online/online-runtime-deps.ts"
-    ]
-  },
-  {
-    "name": "online composition root",
-    "tier": "roots",
-    "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "online client entry",
+    "name": "online composition root",
     "tier": "roots",
     "files": [
       "src/online-client.ts"

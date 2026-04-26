@@ -63,7 +63,6 @@ export interface HandleServerLifecycleDeps {
   };
 
   transitions: {
-    onCastleWalls: (msg: ServerMessage) => void;
     onCannonStart: (msg: ServerMessage) => void;
     onBattleStart: (msg: ServerMessage) => void;
     onBuildStart: (msg: ServerMessage) => void;
@@ -110,8 +109,7 @@ export async function handleServerLifecycleMessage(
     (msg.type === MESSAGE.CANNON_START ||
       msg.type === MESSAGE.BATTLE_START ||
       msg.type === MESSAGE.BUILD_START ||
-      msg.type === MESSAGE.SELECT_START ||
-      msg.type === MESSAGE.CASTLE_WALLS);
+      msg.type === MESSAGE.SELECT_START);
   if (isPhaseTransition && deps.ui.getLifeLostDialog()) {
     deps.log("dismissing stale life-lost dialog (phase transition received)");
     deps.ui.clearLifeLostDialog();
@@ -195,11 +193,6 @@ export async function handleServerLifecycleMessage(
 
     case MESSAGE.SELECT_START:
       deps.game.enterTowerSelection();
-      return true;
-
-    case MESSAGE.CASTLE_WALLS:
-      if (!isHostInContext(deps.session) && deps.game.getState())
-        deps.transitions.onCastleWalls(msg);
       return true;
 
     case MESSAGE.CANNON_START:

@@ -53,10 +53,7 @@ import {
   snapshotTerritory,
 } from "../game/index.ts";
 import { setPhase } from "../game/phase-setup.ts";
-import type {
-  BattleStartData,
-  CannonStartData,
-} from "../protocol/checkpoint-data.ts";
+import type { BattleStartData } from "../protocol/checkpoint-data.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import {
@@ -205,7 +202,7 @@ export interface BattleLifecycle {
   readonly begin: () => void;
 }
 
-export type ApplyCannonStart = (msg: CannonStartData) => void;
+export type ApplyCannonStart = () => void;
 
 /** Watcher-specific hooks. Populated only when `role === "watcher"`. */
 export interface WatcherHooks {
@@ -349,7 +346,7 @@ export interface PhaseTransitionCtx {
   // ── Host-only hooks ──
 
   readonly broadcast?: {
-    readonly cannonStart?: (state: GameState) => void;
+    readonly cannonStart?: () => void;
     /** Receives the host's pre-`enterBattlePhase` `state.rng` state. */
     readonly battleStart?: (rngState: number) => void;
     /** Phase-marker signal — watcher runs `enterBuildPhase` locally on
@@ -672,14 +669,31 @@ const ENTER_WALL_BUILD: Transition = {
  *  CANNON_PLACE (`castle-select-done`, `castle-reselect-done`,
  *  `advance-to-cannon`). The watcher dispatches one id regardless of
  *  host-side source, so all three transitions reuse this bundle.
- *  `applyCannonStart` restores `state.timer` from the checkpoint payload —
- *  no separate override needed since the host serializes it right after
- *  `enterCannonPhase` (which set it to `cannonPlaceTimer`). */
+ *
+ *  Watcher derives state locally rather than reading the wire payload:
+ *  the prefix mirrors host-side per source phase, then `enterCannonPhase`
+ *  sets phase + cannon limits + facings + timer (`state.cannonPlaceTimer`).
+ *  Watcher state has tracked host's via local `enterBuildPhase` /
+ *  `enterBattlePhase` + RNG sync at BATTLE_START, so derived state matches
+ *  byte-for-byte. The watcher hook handles only watcher-specific UI cleanup
+ *  (crosshair maps, in-flight cannonballs, selection overlay). */
 const CANNON_ENTRY_WATCHER_STEP: TransitionStep = {
   mutate: (ctx) => {
-    const msg = ctx.incomingMsg as CannonStartData;
-    ctx.checkpoint?.applyCannonStart?.(msg);
-    setPhase(ctx.state, Phase.CANNON_PLACE);
+    const fromPhase = ctx.state.phase;
+    if (fromPhase === Phase.CASTLE_RESELECT || fromPhase === Phase.WALL_BUILD) {
+      finalizeBuildVisuals(ctx.state);
+    }
+    if (fromPhase === Phase.CASTLE_RESELECT) {
+      finalizeReselectedPlayers(ctx.state, ctx.reselectionPids ?? []);
+    }
+    if (
+      fromPhase === Phase.CASTLE_SELECT ||
+      fromPhase === Phase.CASTLE_RESELECT
+    ) {
+      finalizeCastleConstruction(ctx.state);
+    }
+    enterCannonPhase(ctx.state);
+    ctx.checkpoint?.applyCannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postDisplay: (ctx) => {
@@ -707,7 +721,7 @@ const CASTLE_SELECT_DONE: Transition = {
       finalizeCastleConstruction(ctx.state);
       ctx.clearCastleBuildViewport?.();
       enterCannonPhase(ctx.state);
-      ctx.broadcast?.cannonStart?.(ctx.state);
+      ctx.broadcast?.cannonStart?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_STEP.mutate,
@@ -748,7 +762,7 @@ const CASTLE_RESELECT_DONE: Transition = {
       finalizeCastleConstruction(ctx.state);
       ctx.clearCastleBuildViewport?.();
       enterCannonPhase(ctx.state);
-      ctx.broadcast?.cannonStart?.(ctx.state);
+      ctx.broadcast?.cannonStart?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_STEP.mutate,
@@ -775,7 +789,7 @@ const ADVANCE_TO_CANNON: Transition = {
       // cannons banner reveal, then cannon phase entry.
       finalizeBuildVisuals(ctx.state);
       enterCannonPhase(ctx.state);
-      ctx.broadcast?.cannonStart?.(ctx.state);
+      ctx.broadcast?.cannonStart?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: CANNON_ENTRY_WATCHER_STEP.mutate,

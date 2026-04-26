@@ -193,7 +193,7 @@ const runtime: GameRuntime = createGameRuntime({
     // ── Host: phase-transition checkpoint broadcasts ──────────────────
     // Direct imports — these are pure (state) → message factories with
     // no captured state, so they need no closure dance.
-    broadcastCannonStart: (state) => send(createCannonStartMessage(state)),
+    broadcastCannonStart: () => send(createCannonStartMessage()),
     broadcastBattleStart: (rngState) =>
       send(createBattleStartMessage(rngState)),
     broadcastBuildStart: () => send(createBuildStartMessage()),

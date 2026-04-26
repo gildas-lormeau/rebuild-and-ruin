@@ -27,7 +27,6 @@ import {
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
 import { fireOnce } from "../shared/platform/utils.ts";
-import type { CastleWallPlan } from "../shared/ui/interaction-types.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
@@ -63,7 +62,6 @@ interface SelectionSystemDeps {
     towerIdx: number,
     confirmed: boolean,
   ) => void;
-  sendCastleWalls: (plans: readonly CastleWallPlan[]) => void;
   sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
 
@@ -267,6 +265,7 @@ export function createSelectionSystem(
   function confirmSelectionAndStartBuild(
     pid: ValidPlayerSlot,
     isReselect = false,
+    source: "local" | "network" = "local",
   ): boolean {
     const result = confirmTowerSelection(
       runtimeState.state,
@@ -277,10 +276,12 @@ export function createSelectionSystem(
     );
     if (!result) return allSelectionsConfirmed(runtimeState.selection.states);
 
-    // Only humans need wire confirmation — AI selection runs locally on
-    // the watcher and reaches the same `confirmed` state via its own
-    // `selectionTick` returning true.
-    if (isHuman(runtimeState.controllers[pid]!)) {
+    // Only locally-driven human confirmations broadcast to the network.
+    // - Local human auto-confirm / mouse confirm: source="local", sends to host.
+    // - AI selection: source="local" but isHuman=false, no send.
+    // - Network-received remote-human confirm (handleTowerSelected): source="network",
+    //   skip send (server already relayed; an echo would be redundant).
+    if (source === "local" && isHuman(runtimeState.controllers[pid]!)) {
       deps.sendTowerSelected(pid, result.towerIdx, true);
     }
 
@@ -290,7 +291,10 @@ export function createSelectionSystem(
 
     syncSelectionOverlay();
     deps.render();
-    if (deps.hostAtFrameStart()) startPlayerCastleBuild(pid);
+    // Both host and watcher run startPlayerCastleBuild — derives wall plan
+    // locally via prepareCastleWallsForPlayer (consumes state.rng) and
+    // queues animation. No wire payload: state.rng is in sync, so plans match.
+    startPlayerCastleBuild(pid);
     return result.allDone;
   }
 
@@ -336,10 +340,12 @@ export function createSelectionSystem(
           if (isHuman(ctrl)) continue;
           const towerBefore = state.players[pid]!.homeTower;
           if (ctrl.selectionTick(dt, state)) {
-            // Watcher locally marks confirmed; host's wire broadcast for
-            // own-slot confirmations is skipped (we're not host) — there
-            // are none for AI slots anyway.
-            selectionState.confirmed = true;
+            // Run the full confirmation flow so the watcher consumes
+            // state.rng identically to host (via startPlayerCastleBuild →
+            // prepareCastleWallsForPlayer). AI is non-human, so no
+            // sendTowerSelected fires. Source is "local" (deterministic
+            // local derivation), but for AI that's distinction-free.
+            confirmSelectionAndStartBuild(pid, isReselectPhase(state.phase));
             continue;
           }
           if (state.players[pid]!.homeTower !== towerBefore) {
@@ -440,12 +446,15 @@ export function createSelectionSystem(
     deps.enterCannonAfterCastleSelect();
   }
 
-  /** Generate + broadcast castle walls for a confirmed player.
-   *  Caller must guard with isHost() — non-hosts receive walls via network. */
+  /** Derive a player's castle-wall plan and queue the build animation.
+   *  Run on both host and watcher: `prepareCastleWallsForPlayer` consumes
+   *  state.rng (clumsy builders + wall ordering) and sets player.castle —
+   *  identical RNG sequence on both sides keeps state in sync. No wire
+   *  broadcast: every confirmation path (local AI, local human, network
+   *  remote-human) runs this locally on every peer. */
   function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
-    deps.sendCastleWalls([plan]);
     const human = deps.pointerPlayer();
     runtimeState.selection.castleBuilds.push(createCastleBuildState([plan]));
     // Only zoom to the human player's castle build

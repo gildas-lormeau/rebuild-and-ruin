@@ -37,19 +37,13 @@ Deno.test(
       counts.set(msg.type, (counts.get(msg.type) ?? 0) + 1);
     }
 
-    // Note: OPPONENT_TOWER_SELECTED is intentionally NOT asserted here.
-    // AI selections are derived locally on the watcher from strategy.rng,
-    // so the host only fires OPPONENT_TOWER_SELECTED for human selections.
-    // This test seeds an all-AI scenario, so zero of those messages is
-    // expected and correct under the cleaned-up protocol.
-
-    // Castle walls: the host broadcasts every player's auto-built first-
-    // round castle as a CASTLE_WALLS message (one per player).
-    assertGreater(
-      counts.get(MESSAGE.CASTLE_WALLS) ?? 0,
-      0,
-      "expected host to broadcast CASTLE_WALLS for the auto-built first round",
-    );
+    // Note: OPPONENT_TOWER_SELECTED + CASTLE_WALLS are intentionally NOT
+    // asserted here. AI selections are derived locally on the watcher from
+    // strategy.rng, and castle wall plans are derived locally on the watcher
+    // from synced state.rng (no wire payload). The host only fires
+    // OPPONENT_TOWER_SELECTED for human selections; this test seeds an
+    // all-AI scenario, so zero of those messages is expected and correct
+    // under the cleaned-up protocol.
 
     // Cannon placement: every cannon the host (or its AI shims) places
     // during the cannon phase fans out as OPPONENT_CANNON_PLACED.

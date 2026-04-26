@@ -83,30 +83,9 @@ Deno.test("relay matches current lobby, checkpoint, and migration protocol", asy
     );
     assertEquals(watcherTower.towerIdx, 4);
 
-    send(host.ws, {
-      type: MESSAGE.CASTLE_WALLS,
-      plans: [
-        { playerId: 0, tiles: [100, 101, 102] },
-        { playerId: 1, tiles: [200, 201, 202] },
-        { playerId: 2, tiles: [300, 301, 302] },
-      ],
-    });
-    const castleWalls = await watcher.waitFor(MESSAGE.CASTLE_WALLS);
-    assertEquals((castleWalls.plans as unknown[]).length, 3);
-
-    send(host.ws, {
-      type: MESSAGE.CANNON_START,
-      timer: 15,
-      limits: [3, 3, 3],
-      players: [],
-      grunts: [],
-      bonusSquares: [],
-      towerAlive: [],
-      burningPits: [],
-      houses: [],
-    });
+    send(host.ws, { type: MESSAGE.CANNON_START });
     const cannonStart = await watcher.waitFor(MESSAGE.CANNON_START);
-    assertEquals(cannonStart.timer, 15);
+    assertEquals(cannonStart.type, MESSAGE.CANNON_START);
 
     host.ws.close();
 

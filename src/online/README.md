@@ -109,10 +109,12 @@ If you hold those three in mind, the file structure makes sense.
   the frame via linear interpolation.
 
 ### Watcher flow: apply checkpoints + tick state (3 files)
-- **`online-checkpoints.ts`** — `applyBattleStartCheckpoint`,
-  `applyBuildStartCheckpoint`, `applyCannonStartCheckpoint`,
-  `applyBuildEndCheckpoint`. Watcher-side phase-transition state
-  restore.
+- **`online-checkpoints.ts`** — Watcher-side UI cleanup hooks fired at
+  cannon-entry / battle-entry (`applyCannonStartWatcherUI`,
+  `applyBattleStartWatcherUI`). Game-state mutations are owned by the
+  phase-machine watcher mutates, which run engine fns
+  (`enterCannonPhase`, `enterBattlePhase`, `enterBuildPhase`,
+  `finalizeBuildPhase`) locally — checkpoints carry no payload.
 - **`online-watcher-tick.ts`** — `tickWatcher()` — per-frame watcher
   state application. Also owns `tickMigrationAnnouncement` (the
   "HOST MIGRATED" banner).
@@ -132,13 +134,15 @@ If you hold those three in mind, the file structure makes sense.
   sequence).
 
 ### Serialization (1 file)
-- **`online-serialize.ts`** — Serializes game state into checkpoint
-  message payloads. The other direction (deserializing into game
-  state) lives in `online-checkpoints.ts` on the watcher side. Also
-  contains `createGameOverPayload()` and `serializePlayersCheckpoint()`.
-  **Exhaustiveness is NOT automatic** — the `lint-checkpoint-fields.ts`
-  script verifies every GameState field is referenced at least once
-  in this file, so drift becomes a lint failure.
+- **`online-serialize.ts`** — `createFullStateMessage` /
+  `restoreFullStateSnapshot` (host-migration / late-join recovery) plus
+  the bare-marker phase-checkpoint factories
+  (`createBuildStartMessage`, `createCannonStartMessage`,
+  `createBattleStartMessage`, `BUILD_END`). Phase-marker checkpoints
+  carry no game state — watchers derive everything locally. **Exhaustiveness
+  is NOT automatic** — `lint-checkpoint-fields.ts` verifies every
+  GameState field is referenced at least once in the full-state
+  payload, so drift becomes a lint failure.
 
 ### Runtime helpers (3 files)
 - **`online-runtime-session.ts`** — `createOnlineRuntimeSessionHelpers()`
@@ -246,11 +250,14 @@ for them so tests can drive them via injected messages.
   disconnect are handled differently — they re-run `initFromServer`
   and replay the lifecycle sequence.
 
-- **Checkpoint order matters.** `BUILD_START` carries the
-  per-player wall/territory snapshots; `CANNON_START` carries the
-  fresh battle state including grunts; `BATTLE_START` carries
-  balloon flights + modifier diff. Watcher apply order must match
-  host emit order or field visibility gets out of sync.
+- **Phase markers are bare triggers.** `BUILD_START` / `BUILD_END` /
+  `CANNON_START` carry no payload — the watcher runs the matching
+  engine fn (`enterBuildPhase` / `finalizeBuildPhase` / source-prefix
+  + `enterCannonPhase`) locally on receipt. `BATTLE_START` carries
+  only `rngState` so the watcher can resync RNG before running
+  `enterBattlePhase`. Drift over a full round is bounded: BATTLE_START's
+  `rngState` is checked against the watcher's local RNG before
+  applying — divergence in the prior phase shows up there.
 
 - **`ctx.session` vs `ctx` are different bags.** Some callbacks take
   `session: Pick<OnlineSession, ...>`, some take the full

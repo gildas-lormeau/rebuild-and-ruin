@@ -51,35 +51,16 @@ export function createBuildStartMessage() {
   return { type: MESSAGE.BUILD_START };
 }
 
-export function createCannonStartMessage(state: GameState) {
-  return {
-    type: MESSAGE.CANNON_START,
-    timer: state.timer,
-    limits: [...state.cannonLimits],
-    salvageSlots: state.salvageSlots.some((slot) => slot > 0)
-      ? [...state.salvageSlots]
-      : undefined,
-    players: serializePlayersCheckpoint(state),
-    grunts: serializeGrunts(state),
-    bonusSquares: serializeBonusSquares(state),
-    towerAlive: [...state.towerAlive],
-    burningPits: serializeBurningPits(state),
-    houses: state.map.houses.map((h) => ({
-      row: h.row,
-      col: h.col,
-      zone: h.zone,
-      alive: h.alive,
-    })),
-    sinkholeTiles: state.modern?.sinkholeTiles
-      ? [...state.modern.sinkholeTiles]
-      : null,
-    highTideTiles: state.modern?.highTideTiles
-      ? [...state.modern.highTideTiles]
-      : null,
-    lowWaterTiles: state.modern?.lowWaterTiles
-      ? [...state.modern.lowWaterTiles]
-      : null,
-  };
+/** Create a CANNON_START phase-marker message. The watcher runs the
+ *  source-phase prefix (`finalizeBuildVisuals` / `finalizeReselectedPlayers` /
+ *  `finalizeCastleConstruction`, depending on which phase it's leaving) plus
+ *  `enterCannonPhase` locally on receipt — see `CANNON_ENTRY_WATCHER_STEP`
+ *  in `runtime-phase-machine.ts`. No payload: every cannon-entry mutation
+ *  (cannon limits, default facings, timer, bonus squares, salvage slots,
+ *  modifier tiles) is derived locally on both sides from synced state.
+ *  RNG sync at the previous BATTLE_START is the defense-in-depth guarantee. */
+export function createCannonStartMessage() {
+  return { type: MESSAGE.CANNON_START };
 }
 
 /** Create a BATTLE_START message carrying the host's pre-`enterBattlePhase`
@@ -242,8 +223,28 @@ export function restoreFullStateSnapshot(
   };
 }
 
+export function createGameOverPayload(
+  winner: { id: number },
+  state: GameState,
+  playerNames: ReadonlyArray<string>,
+) {
+  const winnerName = playerNames[winner.id] ?? `Player ${winner.id + 1}`;
+  return {
+    winnerName,
+    serverPayload: {
+      type: MESSAGE.GAME_OVER,
+      winner: winnerName,
+      scores: state.players.map((player) => ({
+        name: playerNames[player.id] ?? `P${player.id + 1}`,
+        score: player.score,
+        eliminated: player.eliminated,
+      })),
+    },
+  };
+}
+
 /** Replace the full houses array from checkpoint data. */
-export function applyHousesCheckpoint(
+function applyHousesCheckpoint(
   state: GameState,
   houses: readonly SerializedHouse[],
 ): void {
@@ -259,7 +260,7 @@ export function applyHousesCheckpoint(
  *  Does NOT recompute territory — callers decide whether to call
  *  recomputeTerritoryFromWalls based on phase context (interior is
  *  intentionally stale during battle). */
-export function applyPlayersCheckpoint(
+function applyPlayersCheckpoint(
   state: GameState,
   serialized: readonly SerializedPlayer[],
 ): void {
@@ -310,40 +311,11 @@ export function applyPlayersCheckpoint(
   }
 }
 
-export function applyGruntsCheckpoint(
+function applyGruntsCheckpoint(
   state: GameState,
   serialized: readonly SerializedGrunt[],
 ): void {
   state.grunts = serialized.map(deserializeGrunt);
-}
-
-export function createGameOverPayload(
-  winner: { id: number },
-  state: GameState,
-  playerNames: ReadonlyArray<string>,
-) {
-  const winnerName = playerNames[winner.id] ?? `Player ${winner.id + 1}`;
-  return {
-    winnerName,
-    serverPayload: {
-      type: MESSAGE.GAME_OVER,
-      winner: winnerName,
-      scores: state.players.map((player) => ({
-        name: playerNames[player.id] ?? `P${player.id + 1}`,
-        score: player.score,
-        eliminated: player.eliminated,
-      })),
-    },
-  };
-}
-
-/** Checkpoint player serialization — omits immutable fields (homeTowerIdx,
- *  castleWallTiles). Smaller wire footprint for frequent messages. */
-function serializePlayersCheckpoint(state: GameState) {
-  return state.players.map((player) => ({
-    ...serializePlayerCore(player),
-    cannons: player.cannons.map(serializeCannon),
-  }));
 }
 
 /** Restore captured cannon object references from serialized indices.

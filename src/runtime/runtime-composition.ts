@@ -543,8 +543,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         towerIdx: idx,
         confirmed,
       }),
-    sendCastleWalls: (plans) =>
-      config.network.send({ type: MESSAGE.CASTLE_WALLS, plans: [...plans] }),
     sendSelectStart: (timer) =>
       config.network.send({ type: MESSAGE.SELECT_START, timer }),
     log: config.log,
