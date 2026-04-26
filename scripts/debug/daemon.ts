@@ -440,21 +440,40 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
     return session.cdp;
   };
   return {
-    status: () => ({
-      sessionId: session.id,
-      debuggeeExited: session.exited,
-      exitCode: session.exitCode,
-      exitSignal: session.exitSignal,
-      paused: session.paused,
-      captures: Array.from(session.captures.values()),
-      hitCount: session.hits.length,
-    }),
+    status: () => {
+      const pendingByBpId = new Set(
+        session.pendingCaptures.map((pc) => pc.fallbackBpId),
+      );
+      const captures = Array.from(session.captures.values()).map((c) => ({
+        ...c,
+        pending: pendingByBpId.has(c.bpId),
+        ...(pendingByBpId.has(c.bpId)
+          ? { hint: diagnoseBp(session, c.file, c.line) }
+          : {}),
+      }));
+      return {
+        sessionId: session.id,
+        debuggeeExited: session.exited,
+        exitCode: session.exitCode,
+        exitSignal: session.exitSignal,
+        paused: session.paused,
+        captures,
+        hitCount: session.hits.length,
+      };
+    },
     setBreakpoint: async (p) => {
       const file = p.file as string;
       const line = p.line as number;
       const condition = p.condition as string | undefined;
       const set = await setBpResolved(session, file, line, condition);
-      return { bpId: set.bpId, locations: set.locations, via: set.via };
+      const pending = set.via === "urlRegex" && set.locations.length === 0;
+      return {
+        bpId: set.bpId,
+        locations: set.locations,
+        via: set.via,
+        pending,
+        ...(pending ? { hint: diagnoseBp(session, file, line) } : {}),
+      };
     },
     setCapture: async (p) => {
       const file = p.file as string;
@@ -476,7 +495,8 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
       // V8 doesn't always rebind them when the script parses later (esp.
       // for source-mapped TS). Track them so we can retry with scriptId
       // after the post-import init pause.
-      if (set.via === "urlRegex" && set.locations.length === 0) {
+      const pending = set.via === "urlRegex" && set.locations.length === 0;
+      if (pending) {
         session.pendingCaptures.push({
           fallbackBpId: set.bpId,
           file,
@@ -489,14 +509,55 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
         bpId: set.bpId,
         locations: set.locations,
         via: set.via,
-        pending: set.via === "urlRegex" && set.locations.length === 0,
+        pending,
+        ...(pending ? { hint: diagnoseBp(session, file, line) } : {}),
       };
     },
     removeBreakpoint: async (p) => {
-      const bpId = p.bpId as string;
-      await cdp().send("Debugger.removeBreakpoint", { breakpointId: bpId });
-      session.captures.delete(bpId);
-      return { ok: true };
+      const arg = p.bpId as string;
+      // Dual-dispatch: known bpId → remove that one; else parse as
+      // file:line and remove every capture/pending matching it.
+      if (session.captures.has(arg)) {
+        try {
+          await cdp().send("Debugger.removeBreakpoint", { breakpointId: arg });
+        } catch {
+          // already gone
+        }
+        session.captures.delete(arg);
+        session.pendingCaptures = session.pendingCaptures.filter(
+          (pc) => pc.fallbackBpId !== arg,
+        );
+        return { removed: [arg], count: 1, mode: "bpId" };
+      }
+      const m = arg.match(/^(.+):(\d+)$/);
+      if (m) {
+        const file = m[1];
+        const line = Number(m[2]);
+        const wantAbs = realPathSafe(file);
+        const removed: string[] = [];
+        for (const [bpId, cap] of session.captures) {
+          if (realPathSafe(cap.file) !== wantAbs || cap.line !== line) continue;
+          try {
+            await cdp().send("Debugger.removeBreakpoint", {
+              breakpointId: bpId,
+            });
+          } catch {
+            // already gone
+          }
+          session.captures.delete(bpId);
+          removed.push(bpId);
+        }
+        session.pendingCaptures = session.pendingCaptures.filter(
+          (pc) => !(realPathSafe(pc.file) === wantAbs && pc.line === line),
+        );
+        if (removed.length > 0) {
+          return { removed, count: removed.length, mode: "fileLine" };
+        }
+      }
+      // Fall through: untracked bpId (e.g. one set via `bp`, not `capture`).
+      // Just forward to CDP and let it succeed-or-error naturally.
+      await cdp().send("Debugger.removeBreakpoint", { breakpointId: arg });
+      return { removed: [arg], count: 1, mode: "bpId" };
     },
     continue: async () => {
       const notes: string[] = [];
@@ -725,6 +786,33 @@ function fileToUrlRegex(file: string): string {
   if (file.startsWith("/private")) variants.add(file.slice("/private".length));
   const alts = [...variants].map((v) => escape(`file://${v}`)).join("|");
   return `^(?:${alts})$`;
+}
+
+/** Explain why a bp didn't resolve cleanly, when it didn't. Returns
+ *  undefined if everything is fine (script is parsed and binding worked).
+ *  Distinguishes "file unknown" from "file known but line unbreakable" so
+ *  the user gets actionable feedback (typo'd path? bad line? lazy import?). */
+function diagnoseBp(
+  session: Session,
+  file: string,
+  line: number,
+): string | undefined {
+  const sourceUrl = `file://${realPathSafe(file)}`;
+  const indexedAsSource = session.sourceMaps.hasSource(sourceUrl);
+  const directScript = findScriptForFile(session, file);
+  if (!indexedAsSource && !directScript) {
+    return "file not yet parsed; bp will retry when its script loads";
+  }
+  if (indexedAsSource) {
+    const nearest = session.sourceMaps.nearestMappedLine(sourceUrl, line - 1);
+    if (nearest === null) {
+      return "file indexed but no source-map segments anywhere near this line";
+    }
+    if (nearest !== line - 1) {
+      return `line ${line} has no source-map segment; nearest mapped line: ${nearest + 1}`;
+    }
+  }
+  return undefined;
 }
 
 function findScriptForFile(

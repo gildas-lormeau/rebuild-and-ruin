@@ -103,6 +103,37 @@ export class SourceMapResolver {
     for (const [, m] of this.maps) for (const s of m.sources) set.add(s);
     return [...set];
   }
+
+  /** Has any indexed source map listed this URL as a source? Distinguishes
+   *  "file we know about (parse-time)" from "file we've never seen". */
+  hasSource(sourceUrl: string): boolean {
+    for (const [, m] of this.maps) {
+      if (m.sources.includes(sourceUrl)) return true;
+    }
+    return false;
+  }
+
+  /** Find the nearest source line that actually has at least one mapping
+   *  segment, within ±range of the requested 0-indexed line. Useful when a
+   *  user picks a line with no breakable code (comment, blank, multi-line
+   *  expression continuation) — point them at a line that will fire.
+   *  Returns null if nothing mapped within range. */
+  nearestMappedLine(
+    sourceUrl: string,
+    sourceLine: number,
+    range = 20,
+  ): number | null {
+    for (const [, m] of this.maps) {
+      const perFile = m.reverseMap.get(sourceUrl);
+      if (!perFile) continue;
+      if (perFile.has(sourceLine)) return sourceLine;
+      for (let d = 1; d <= range; d++) {
+        if (perFile.has(sourceLine - d)) return sourceLine - d;
+        if (perFile.has(sourceLine + d)) return sourceLine + d;
+      }
+    }
+    return null;
+  }
 }
 
 function decodeSourceMapURL(url: string): SourceMap | null {

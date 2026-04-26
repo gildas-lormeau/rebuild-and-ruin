@@ -10,7 +10,7 @@
  *   debug rerun   [--session ID]                       # close + relaunch with prior cmd
  *   debug bp      [--session ID] <file>:<line> [--cond <expr>]
  *   debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
- *   debug rm      [--session ID] <bpId>
+ *   debug rm      [--session ID] <bpId | file:line>
  *   debug run     [--session ID] [--wait <ms>]   # resume + wait for exit
  *   debug continue [--session ID]
  *   debug step    [--session ID] [over|into|out]
@@ -492,7 +492,7 @@ function usage(): never {
   rerun   [--session ID]                       # close existing + relaunch with the prior cmd
   bp      [--session ID] <file>:<line> [--cond <expr>]
   capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
-  rm      [--session ID] <bpId>
+  rm      [--session ID] <bpId | file:line>
   run     [--session ID] [--wait <ms>]
   continue [--session ID]
   step    [--session ID] [over|into|out]

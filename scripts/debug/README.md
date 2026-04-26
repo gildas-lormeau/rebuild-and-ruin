@@ -24,7 +24,7 @@ debug launch  [--session ID] [--restart] [--node|--deno-run|--deno-test] -- <cmd
 debug rerun   [--session ID]                          # close + relaunch with prior cmd
 debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
 debug bp      [--session ID] <file>:<line> [--cond <expr>]
-debug rm      [--session ID] <bpId>
+debug rm      [--session ID] <bpId | file:line>     # bpId removes one; file:line removes every capture at that site
 debug run     [--session ID] [--wait <ms>]        # resume + wait for exit
 debug continue [--session ID]
 debug step    [--session ID] [over|into|out]
@@ -112,6 +112,30 @@ $ debug rerun --session sc
 
 Captures are *not* preserved across either path — each run is a fresh
 session, deliberately, so the captures stay part of intent.
+
+## Diagnosing why a bp isn't firing
+
+`capture` and `bp` return a `pending: true` flag when V8 hasn't yet bound
+the bp to a real location, plus a `hint` explaining why:
+
+```sh
+$ debug capture src/foo.ts:64 'x'
+{"bpId":"…","via":"urlRegex","pending":true,"hint":"file not yet parsed; bp will retry when its script loads"}
+
+$ debug capture src/game/phase-setup.ts:18 'x'   # line 18 is a comment
+{"bpId":"…","via":"urlRegex","pending":true,"hint":"line 18 has no source-map segment; nearest mapped line: 22"}
+```
+
+`debug status` includes the same `pending` + `hint` columns for every
+capture, so you can audit a setup before running. Common hints:
+
+- `file not yet parsed; bp will retry when its script loads` — usually
+  fine for lazy-loaded modules; the [scriptParsed retry](daemon.ts) will
+  rebind it.
+- `line N has no source-map segment; nearest mapped line: M` — typo, or
+  you picked a comment / blank line / multi-line expression continuation.
+- `file indexed but no source-map segments anywhere near this line` —
+  wrong file path, or line is way off.
 
 ## Filtering with `--cond`
 
