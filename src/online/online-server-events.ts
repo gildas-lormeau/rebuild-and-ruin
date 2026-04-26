@@ -97,6 +97,8 @@ type CannonPhantomMsg = Extract<
 
 type LifeLostChoiceMsg = Extract<ServerMessage, { type: "lifeLostChoice" }>;
 
+type UpgradePickMsg = Extract<ServerMessage, { type: "upgradePick" }>;
+
 /** Result of handling a server message.
  *  `applied` = true when the message mutated game state.
  *  `applied` = false when it was silently dropped (validation failed,
@@ -104,8 +106,6 @@ type LifeLostChoiceMsg = Extract<ServerMessage, { type: "lifeLostChoice" }>;
 interface HandleResult {
   applied: boolean;
 }
-
-type UpgradePickMsg = Extract<ServerMessage, { type: "upgradePick" }>;
 
 const APPLIED: HandleResult = { applied: true };
 const DROPPED: HandleResult = { applied: false };
@@ -216,36 +216,26 @@ function handleCannonPlaced(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODE_IDS.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const player = state.players[msg.playerId];
+  if (!player) return DROPPED;
+  const normalizedMode = toCannonMode(msg.mode);
   if (isHostInContext(deps.session)) {
-    const player = state.players[msg.playerId];
-    if (!player) return DROPPED;
     const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
-    const normalizedMode = toCannonMode(msg.mode);
-    if (
+    const slotsExceeded =
       cannonSlotsUsed(player) + effectivePlacementCost(player, normalizedMode) >
-      maxCannons
+      maxCannons;
+    if (
+      slotsExceeded ||
+      !canPlaceCannon(player, msg.row, msg.col, normalizedMode, state)
     ) {
       deps.log(
         `cannon_placed: rejected invalid placement for P${msg.playerId}`,
       );
       return DROPPED;
     }
-    if (!canPlaceCannon(player, msg.row, msg.col, normalizedMode, state)) {
-      deps.log(
-        `cannon_placed: rejected invalid placement for P${msg.playerId}`,
-      );
-      return DROPPED;
-    }
   }
-  const cannonPlayer = state.players[msg.playerId]!;
-  applyCannonPlacement(
-    cannonPlayer,
-    msg.row,
-    msg.col,
-    toCannonMode(msg.mode),
-    state,
-  );
-  consumeRapidEmplacement(cannonPlayer);
+  applyCannonPlacement(player, msg.row, msg.col, normalizedMode, state);
+  consumeRapidEmplacement(player);
   return APPLIED;
 }
 
@@ -282,8 +272,7 @@ function handleAimUpdate(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return DROPPED;
-  if (state && !validPid(msg.playerId, state)) return DROPPED;
-  if (isPlayerEliminated(state?.players[msg.playerId])) return DROPPED;
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
   return APPLIED;
@@ -404,9 +393,10 @@ function isRemoteHumanAction(
 }
 
 /** Type guard: state exists, pid is in range, and the player is not eliminated.
- *  Used by the four "real action" handlers (tower/piece/cannon/fire) which all
- *  require a live player to apply. Phantom + aim handlers have looser variants
- *  (state-optional, no eliminated check) and validate inline. */
+ *  Used by the five "real action / aim" handlers (tower/piece/cannon/fire/aim)
+ *  which all require a live player to apply. Phantom handlers are intentionally
+ *  looser (state-optional, no eliminated check) — phantoms are cosmetic and
+ *  tolerate late arrival before state init or after elimination. */
 function isActivePlayer(
   state: GameState | undefined,
   pid: number,
