@@ -1,9 +1,12 @@
 import {
+  aimCannons,
   canPlayerFire,
   emitBattleCeaseIfTimerCrossed,
+  nextReadyCombined,
   setBattleCountdown,
   tickBattlePhase,
 } from "../game/index.ts";
+import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
 import {
   ACCUM_BATTLE,
   advancePhaseTimer,
@@ -32,13 +35,9 @@ import type {
   PlayerSlotId,
   ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import {
-  REMOTE_CROSSHAIR_SPEED,
-  setWatcherPhaseTimer,
-} from "./online-types.ts";
+import { setWatcherPhaseTimer } from "./online-types.ts";
 
 interface WatcherFrameAnnouncement {
   announcement?: string;
@@ -63,22 +62,7 @@ interface WatcherBattleDeps {
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
   logThrottled: (key: string, msg: string) => void;
-  interpolateToward: (
-    visualPos: PixelPos,
-    tx: number,
-    ty: number,
-    speed: number,
-    dt: number,
-  ) => void;
-  nextReadyCombined: (state: GameState, playerId: ValidPlayerSlot) => unknown;
   maybeSendAimUpdate: (x: number, y: number) => void;
-  aimCannons: (
-    state: GameState,
-    playerId: ValidPlayerSlot,
-    x: number,
-    y: number,
-    dt: number,
-  ) => void;
 }
 
 interface TickWatcherCannonPhantomsDeps {
@@ -170,10 +154,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     remoteCrosshairs,
     watcherCrosshairPos,
     logThrottled,
-    interpolateToward,
-    nextReadyCombined,
     maybeSendAimUpdate,
-    aimCannons,
   } = deps;
 
   // Run the same engine combat tick as the host: gruntAttackTowers (tower
@@ -211,24 +192,14 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   for (const [rawPid, target] of remoteCrosshairs) {
     const pid = rawPid as ValidPlayerSlot;
-    const player = state.players[pid];
-    if (isPlayerEliminated(player)) continue;
-    if (!canPlayerFire(state, pid)) continue;
-
-    let visualPos = watcherCrosshairPos.get(pid);
-    if (!visualPos) {
-      visualPos = { x: target.x, y: target.y };
-      watcherCrosshairPos.set(pid, visualPos);
-    }
-
-    interpolateToward(
-      visualPos,
-      target.x,
-      target.y,
-      REMOTE_CROSSHAIR_SPEED,
+    const visualPos = tickRemoteCrosshair(
+      pid,
+      target,
+      state,
       dt,
+      watcherCrosshairPos,
     );
-
+    if (!visualPos) continue;
     frame.crosshairs.push({
       x: visualPos.x,
       y: visualPos.y,
@@ -236,7 +207,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       cannonReady:
         state.battleCountdown <= 0 && !!nextReadyCombined(state, pid),
     });
-    aimCannons(state, pid, visualPos.x, visualPos.y, dt);
   }
 
   tickLocalBattle(
@@ -245,9 +215,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     dt,
     myPlayerId,
     localController,
-    nextReadyCombined,
     maybeSendAimUpdate,
-    aimCannons,
   );
 }
 
@@ -338,15 +306,7 @@ function tickLocalBattle(
   dt: number,
   myPlayerId: PlayerSlotId,
   localController: PlayerController | null,
-  nextReadyCombined: (state: GameState, playerId: ValidPlayerSlot) => unknown,
   maybeSendAimUpdate: (x: number, y: number) => void,
-  aimCannons: (
-    state: GameState,
-    playerId: ValidPlayerSlot,
-    x: number,
-    y: number,
-    dt: number,
-  ) => void,
 ): void {
   if (!localController) return;
 

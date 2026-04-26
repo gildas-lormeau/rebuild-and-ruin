@@ -1,9 +1,4 @@
-import {
-  aimCannons,
-  canBuildThisFrame,
-  tickGrunts as moveGrunts,
-  nextReadyCombined,
-} from "../game/index.ts";
+import { canBuildThisFrame, tickGrunts as moveGrunts } from "../game/index.ts";
 import { MESSAGE } from "../protocol/protocol.ts";
 import {
   type TimerAccums,
@@ -32,7 +27,6 @@ import type { FrameData } from "../shared/ui/overlay-types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   clearWatcherPhaseTimer,
-  interpolateToward,
   type WatcherNetworkState,
 } from "./online-types.ts";
 import {
@@ -185,10 +179,7 @@ export function tickWatcher(
         remoteCrosshairs: watcherState.remoteCrosshairs,
         watcherCrosshairPos: watcherState.watcherCrosshairPos,
         logThrottled: transitionCtx.logThrottled,
-        interpolateToward,
-        nextReadyCombined,
         maybeSendAimUpdate: transitionCtx.maybeSendAimUpdate,
-        aimCannons,
       });
       break;
     case Phase.MODIFIER_REVEAL:

@@ -8,7 +8,6 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
-import { CROSSHAIR_SPEED } from "../shared/core/system-interfaces.ts";
 
 /** Subset of watcher state containing network-received data (phantoms, crosshairs).
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers
@@ -18,13 +17,6 @@ export interface WatcherNetworkState {
   remoteCannonPhantoms: readonly CannonPhantom[];
   remotePiecePhantoms: readonly PiecePhantom[];
 }
-
-/** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).
- *  Shared between host (online-host-crosshairs) and watcher (online-watcher-battle). */
-const REMOTE_CROSSHAIR_MULTIPLIER = 2;
-/** Pre-computed remote crosshair speed (base speed × remote multiplier). */
-export const REMOTE_CROSSHAIR_SPEED =
-  CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
 
 /** Anchor the watcher phase timer to the current wall clock. Call from inside
  *  the banner onComplete callback — `performance.now()` at that instant is the
@@ -69,25 +61,4 @@ export function toCannonMode(value: string | undefined): CannonMode {
   if (value && (CANNON_MODE_IDS as ReadonlySet<string>).has(value))
     return value as CannonMode;
   return CannonMode.NORMAL;
-}
-
-/** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */
-export function interpolateToward(
-  vis: PixelPos,
-  tx: number,
-  ty: number,
-  speed: number,
-  dt: number,
-): void {
-  const dx = tx - vis.x,
-    dy = ty - vis.y;
-  const dist = Math.hypot(dx, dy);
-  const move = speed * dt;
-  if (dist <= move) {
-    vis.x = tx;
-    vis.y = ty;
-  } else {
-    vis.x += (dx / dist) * move;
-    vis.y += (dy / dist) * move;
-  }
 }

@@ -267,6 +267,7 @@
       "src/runtime/dev-console.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/runtime-castle-build.ts",
+      "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-life-lost-core.ts",
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/runtime/runtime-contracts.ts",

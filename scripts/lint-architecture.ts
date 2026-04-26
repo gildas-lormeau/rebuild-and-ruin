@@ -43,6 +43,7 @@ const EXEMPT = new Set([
   "runtime-transition-steps.ts", // shared transition recipes, not a factory sub-system
   "runtime-phase-machine.ts", // pure data-driven state machine, not a factory sub-system
   "runtime-castle-build.ts", // pure animation primitives, not a factory sub-system
+  "runtime-crosshair-anim.ts", // pure remote-crosshair render-prep helpers, not a factory sub-system
   "runtime-life-lost-core.ts", // pure dialog primitives, not a factory sub-system
   "runtime-upgrade-pick-core.ts", // pure dialog primitives, not a factory sub-system
   "dev-console-grid.ts", // pure debug primitives, not a factory sub-system
