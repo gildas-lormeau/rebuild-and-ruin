@@ -15,6 +15,7 @@ import {
   onRoute,
 } from "./online/online-router.ts";
 import { ROUTE_HOME, ROUTE_ONLINE, ROUTE_PLAY } from "./protocol/routes.ts";
+import { GRID_PORTRAIT_LAUNCHED } from "./shared/core/grid.ts";
 import { IS_TOUCH_DEVICE } from "./shared/platform/platform.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
@@ -26,6 +27,21 @@ const serverHostInput = document.getElementById(
 ) as HTMLInputElement;
 const params = new URLSearchParams(location.search);
 const autoJoinCode = params.get("join");
+// Lock orientation on mobile (best-effort, silently ignored if unsupported).
+// Locks to whichever orientation the game booted in: a portrait boot pins
+// the grid axes to 28×44, so we want to keep the screen in portrait too.
+// When the lock isn't honoured AND we booted in portrait, GRID_PORTRAIT_LAUNCHED
+// has already flipped the grid axes; tag the body so the CSS layout stays in
+// portrait mode even if the device is physically rotated (a landscape boot
+// that later rotates still gets the orientation-driven portrait CSS via
+// `is-portrait` below — `portrait-launched` only fires on the boot path).
+const targetOrientation = GRID_PORTRAIT_LAUNCHED ? "portrait" : "landscape";
+// `is-portrait` drives the portrait layout. It's the union of "we're
+// currently in portrait orientation" and "we booted in portrait" — the
+// second clause keeps the layout pinned even if the device rotates while
+// the orientation lock isn't honoured (same platforms where the lock
+// silently fails are the ones that allow the unwanted rotation).
+const portraitMQ = matchMedia("(orientation: portrait)");
 
 // Flips to true when the user clicks "Local Play" — the click both activates
 // the AudioContext (needs a user gesture) and enters #/play. A direct hit on
@@ -33,17 +49,31 @@ const autoJoinCode = params.get("join");
 // redirect those visits to the home page.
 let userInitiatedPlay = false;
 
-// Lock to landscape on mobile (best-effort, silently ignored if unsupported)
+if (GRID_PORTRAIT_LAUNCHED) {
+  document.body.classList.add("portrait-launched");
+}
+
 try {
   (
     screen.orientation as unknown as {
       lock?: (orientation: string) => Promise<void>;
     }
   )
-    ?.lock?.("landscape")
+    ?.lock?.(targetOrientation)
     .catch(() => {});
 } catch {
   /* unsupported */
+}
+
+syncIsPortrait();
+
+portraitMQ.addEventListener("change", syncIsPortrait);
+
+function syncIsPortrait(): void {
+  document.body.classList.toggle(
+    "is-portrait",
+    GRID_PORTRAIT_LAUNCHED || portraitMQ.matches,
+  );
 }
 
 // --- Route handlers ---
@@ -118,7 +148,10 @@ document
   });
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
-if (autoJoinCode) {
+// Skip in portrait-launched mode — the grid is 28×44 and would desync from a
+// landscape host's 44×28 wire format. The user lands on the home page (which
+// hides the "Play Online" button via CSS in this mode) instead.
+if (autoJoinCode && !GRID_PORTRAIT_LAUNCHED) {
   tryFullscreen(); // call synchronously — QR tap navigation preserves user activation
   activateOnlineAudio();
   void (async () => {

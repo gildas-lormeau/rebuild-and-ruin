@@ -340,10 +340,14 @@ nav.dpad {
   display: none;
 }
 
-@media (orientation: portrait) {
-  :root {
-    --dpad-btn-size: min(72px, 11.25vmin);
-  }
+/* Portrait layout. Driven by `body.is-portrait`, which entry.ts sets to
+   the union of (a) the `(orientation: portrait)` media query and (b)
+   `GRID_PORTRAIT_LAUNCHED`. Clause (b) keeps the layout pinned when the
+   game booted in portrait — even if the device physically rotates and
+   the orientation lock isn't honoured, the grid axes are still 28×44
+   and the landscape layout would render the map sideways. */
+body.is-portrait {
+  --dpad-btn-size: min(72px, 11.25vmin);
 
   .floating-actions .btn-round {
     width: min(72px, 11.25vmin);
@@ -396,6 +400,28 @@ nav.dpad {
     }
   }
 
+  /* Portrait-launched: grid axes are already flipped (28×44), so the top
+     loupe is redundant. Hide it and shrink the top bar to fit only the
+     quit button, freeing vertical space for the canvas. A landscape boot
+     that later rotates keeps the loupe (no `.portrait-launched` class).
+     `align-self` puts the quit button on the same screen edge as the
+     dpad below — right by default, left in left-handed mode — so the
+     reachable corner is consistent top-to-bottom. `&` resolves to
+     `body.is-portrait`, so the combined selector is
+     `body.is-portrait.portrait-launched ...`. */
+  &.portrait-launched .portrait-top {
+    flex: 0 0 auto;
+    align-self: end;
+
+    .loupe {
+      display: none;
+    }
+  }
+
+  &.portrait-launched .has-touch-panels.left-handed > .portrait-top {
+    align-self: start;
+  }
+
   /* Bottom bar: all interactive, use --safe-padding */
   .portrait-bottom {
     flex-direction: row;
@@ -437,6 +463,13 @@ nav.dpad {
       grid-area: 3 / 2;
     }
   }
+}
+
+/* Hide the "Play Online" button when the game booted in portrait — the
+   grid is locked to 28×44 and the wire format would desync from a
+   landscape host's 44×28. The QR auto-join path is gated in entry.ts. */
+body.portrait-launched #btn-online {
+  display: none;
 }
 
 /* ===== Pages ===== */

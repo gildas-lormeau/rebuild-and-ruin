@@ -1,3 +1,4 @@
+import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
 import {
@@ -295,7 +296,12 @@ function setupTouchControls(
   setupZoomButtons(touch, deps);
   setupFloatingActions(inputDeps, touch, deps);
 
-  touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
+  // Skip loupe wiring when booted in portrait — the CSS hides it and
+  // a null handle short-circuits `updateTouchControls` upstream, so the
+  // 3D loupe-composite (a per-frame WebGL+2D copy) never runs.
+  touch.loupeHandle = GRID_PORTRAIT_LAUNCHED
+    ? null
+    : (renderer.createLoupe?.(gameContainer) ?? null);
   camera.enableMobileZoom();
 }
 

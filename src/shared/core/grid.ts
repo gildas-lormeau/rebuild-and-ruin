@@ -12,11 +12,23 @@ export enum Tile {
   Water = 1,
 }
 
+/** True when the game booted on a touch device whose screen is in portrait
+ *  orientation. The grid axes flip so the playfield matches the screen
+ *  aspect (28×44 portrait vs 44×28 landscape). Resolved once at module
+ *  load — orientation changes mid-session do not re-trigger the swap, so
+ *  a landscape-launched session that rotates to portrait keeps the
+ *  44×28 grid and the side loupe converts to a top loupe via CSS only.
+ *  Falsy on Deno/Node where matchMedia is undefined (server + tests). */
+export const GRID_PORTRAIT_LAUNCHED: boolean =
+  typeof matchMedia === "function" &&
+  typeof window !== "undefined" &&
+  ("ontouchstart" in window || navigator.maxTouchPoints > 0) &&
+  matchMedia("(orientation: portrait)").matches;
 /** Grid width in tiles. All packed tile indices across the codebase use:
  *    key = row * GRID_COLS + col
  *  Use packTile(r,c) / unpackTile(key) from spatial.ts — never encode manually. */
-export const GRID_COLS = 44;
-export const GRID_ROWS = 28;
+export const GRID_COLS = GRID_PORTRAIT_LAUNCHED ? 28 : 44;
+export const GRID_ROWS = GRID_PORTRAIT_LAUNCHED ? 44 : 28;
 /** Total tile count — upper bound for packed tile indices (row * GRID_COLS + col). */
 export const TILE_COUNT = GRID_ROWS * GRID_COLS;
 export const TILE_SIZE = 16;
