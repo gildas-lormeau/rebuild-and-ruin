@@ -625,7 +625,23 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   };
   async function debugPlayBg(trackId: BgTrackId): Promise<void> {
     await activate();
-    await playBg(DEBUG_BG_TRACKS[trackId]);
+    const track = DEBUG_BG_TRACKS[trackId];
+    const pcm = bgBuffers.get(track.cacheId);
+    const buffer = bgAudioBuffers.get(track.cacheId);
+    console.log(
+      `[__dev.playBg] ${trackId}`,
+      pcm
+        ? {
+            loop: track.loop,
+            durationSec: buffer?.duration?.toFixed(2),
+            loopStartSec: pcm.loopStartSec,
+            loopEndSec: pcm.loopEndSec,
+            frames: pcm.frames,
+            sampleRate: pcm.sampleRate,
+          }
+        : "(no PCM cached — upload assets first)",
+    );
+    await playBg(track);
   }
 
   return {

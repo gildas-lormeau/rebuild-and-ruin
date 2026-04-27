@@ -157,7 +157,20 @@ export function xmidToSmf(xmid: Uint8Array, division = 120): Uint8Array | null {
         cursor += 1;
         const b2 = evnt[cursor]!;
         cursor += 1;
-        events.push([t, 0, new Uint8Array([status, b1, b2])]);
+        // XMI loop markers (Miles AIL convention): CC 116 = for_loop,
+        // CC 117 = next_loop. libADLMIDI's SMF parser doesn't scan for
+        // these CCs as loop markers — that's an XMI-format thing. Rewrite
+        // them as Marker meta events ("loopStart" / "loopEnd"), which the
+        // SMF parser does scan for (see libADLMIDI's loopstart/loopend
+        // string match). Without this rewrite the AudioBufferSourceNode
+        // gets `loopEndSec = -1` and falls back to whole-buffer loop —
+        // wrong for the title track, which intentionally tail-loops a
+        // 2.12 s region after a 30.7 s intro.
+        if (hi === 0xb0 && (b1 === 116 || b1 === 117)) {
+          events.push([t, 0, makeLoopMarker(b1 === 116)]);
+        } else {
+          events.push([t, 0, new Uint8Array([status, b1, b2])]);
+        }
       }
     } else if (status === 0xff) {
       const meta = evnt[cursor]!;
@@ -289,6 +302,24 @@ function readMidiVarlen(buf: Uint8Array, offset: number): [number, number] {
   return [value, cursor];
 }
 
+function pushBytes(target: number[], bytes: Uint8Array): void {
+  for (const byte of bytes) target.push(byte);
+}
+
+/** Build an SMF Marker meta event (`0xFF 0x06 <varlen-len> <text>`) carrying
+ *  "loopStart" or "loopEnd" — the marker text libADLMIDI's SMF parser scans
+ *  for to populate `getLoopStartTime()` / `getLoopEndTime()`. */
+function makeLoopMarker(isStart: boolean): Uint8Array {
+  const text = isStart ? "loopStart" : "loopEnd";
+  const textBytes = new TextEncoder().encode(text);
+  const lenBytes = varlen(textBytes.length);
+  const merged = new Uint8Array(2 + lenBytes.length + textBytes.length);
+  merged.set([0xff, 0x06], 0);
+  merged.set(lenBytes, 2);
+  merged.set(textBytes, 2 + lenBytes.length);
+  return merged;
+}
+
 function varlen(value: number): Uint8Array {
   if (value === 0) return new Uint8Array([0]);
   const buf: number[] = [];
@@ -300,8 +331,4 @@ function varlen(value: number): Uint8Array {
   buf.reverse();
   for (let i = 0; i < buf.length - 1; i += 1) buf[i]! |= STATUS_BYTE_MASK;
   return Uint8Array.from(buf);
-}
-
-function pushBytes(target: number[], bytes: Uint8Array): void {
-  for (const byte of bytes) target.push(byte);
 }
