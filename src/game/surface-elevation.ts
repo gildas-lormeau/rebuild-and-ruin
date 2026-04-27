@@ -1,30 +1,44 @@
 /**
- * Host-only surface sampling for ballistic impact detection.
+ * Host-only surface sampling for ballistic trajectory shaping.
  *
  * Given the full game state, returns the top altitude (in world units)
- * at any (x, y) position, treating walls, towers, cannons, houses, and
- * grunts as solid obstacles. Used exclusively at fire time to pin the
- * cannonball's impact tile — sampling walks the trajectory forward and
- * finds the first point where the ball's altitude dips below the
- * surface top at that position.
+ * at any (x, y) position, treating walls, cannons, houses, and grunts
+ * as solid obstacles. Used at fire time to:
+ *
+ *   1. Pin the cannonball's aim altitude (the surface top of the target
+ *      tile) so the ball lands on the thing the player aimed at.
+ *   2. Walk the trajectory and either lift the arc to clear obstacles
+ *      OR — when lifting isn't feasible — pin an early impact at the
+ *      first obstacle the natural arc intercepts.
  *
  * **Why host-only:** state reads here happen exactly once per shot (at
- * fire time), then the result is pinned onto the Cannonball and shipped
- * over the wire via `CannonFiredMessage`. The watcher never calls this
- * module — it replays the pinned trajectory deterministically. State
- * divergence between host and watcher therefore cannot leak into the
- * ball's flight path or impact point.
+ * fire time), then the resulting trajectory is pinned onto the Cannonball
+ * and shipped over the wire via `CannonFiredMessage`. The watcher never
+ * calls this module — it replays the pinned trajectory deterministically.
+ * State divergence between host and watcher therefore cannot leak into
+ * the ball's flight path or impact point.
  *
- * Shooter-own-walls rule: the shooter's own walls and cannons are
+ * **Tower rule:** towers are TRANSPARENT to cannonball *impact* (only
+ * grunts kill towers). They are, however, OPAQUE to the *clearance solver*
+ * — when the solver can lift the arc over a tower without exceeding the
+ * slowdown floor, it will. This keeps the ball from visually phasing
+ * through tower mass on shots where a higher arc is cheap. When the lift
+ * would exceed `BALLISTIC_MAX_SLOWDOWN`, the solver gives up and the
+ * ball flies its natural arc through the tower (impact still skipped).
+ *
+ * **Shooter-own rule:** the shooter's own walls and cannons are
  * TRANSPARENT during flight (the ball arcs over them) but OPAQUE at the
  * pinned aim tile — this preserves deliberate self-targeting (a player
  * aiming at their own cannon still destroys it).
  */
 
 import {
+  BALLISTIC_CLEARANCE_MARGIN,
+  BALLISTIC_MAX_SLOWDOWN,
   CANNON_TOP_Y,
   GRUNT_TOP_Y,
   HOUSE_TOP_Y,
+  TOWER_TOP_Y,
   WALL_TOP_Y,
 } from "../shared/core/elevation-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
@@ -33,10 +47,15 @@ import {
   isAtTile,
   isCannonAlive,
   isCannonTile,
+  isTowerTile,
   packTile,
   pxToTile,
 } from "../shared/core/spatial.ts";
-import { altitudeAt, horizontalAt } from "../shared/core/trajectory.ts";
+import {
+  altitudeAt,
+  horizontalAt,
+  solveTrajectory,
+} from "../shared/core/trajectory.ts";
 import type { GameState } from "../shared/core/types.ts";
 
 /** Options threaded through surface sampling. */
@@ -50,6 +69,11 @@ interface SurfaceOpts {
    *  shooter-owned geometry as transparent); set by the impact finder
    *  only when testing the final target tile. */
   readonly aimTile?: { readonly row: number; readonly col: number };
+  /** Whether towers should report their silhouette altitude. The
+   *  clearance solver passes `true` so it will try to arc over them;
+   *  the impact path passes `false` so towers stay transparent and
+   *  cannonballs phase through. */
+  readonly includeTowers: boolean;
 }
 
 /** Number of sample points along a trajectory when searching for impact.
@@ -58,61 +82,12 @@ interface SurfaceOpts {
  *  we round up to 64 for safety margin at mortar speeds). */
 const IMPACT_SAMPLES = 64;
 
-/** Walk the parametric trajectory sample-by-sample and return the first
- *  time the ball's altitude meets or crosses the surface top below it.
- *
- *  Returns:
- *    - `{ impactTime, impactX, impactY }` — first obstacle interception
- *      (may be a wall / cannon / house / grunt the ball flies into while
- *      arcing toward its aim point; towers are transparent — see
- *      `surfaceAltitudeAt`)
- *    - `null` — the trajectory reaches the aim point without collision;
- *      caller should use the nominal aim impact.
- *
- *  Samples include neither t=0 (muzzle clearance is assumed) nor t>=
- *  flightTime (the aim point itself is evaluated separately by the
- *  caller to allow shooter-own-at-aim opacity). Caller is expected to
- *  handle those endpoints.
- */
-export function findTrajectoryImpact(
-  state: GameState,
-  launchX: number,
-  launchY: number,
-  launchAlt: number,
-  aimX: number,
-  aimY: number,
-  vy0: number,
-  gravity: number,
-  flightTime: number,
-  shooterId: ValidPlayerSlot,
-): { impactTime: number; impactX: number; impactY: number } | null {
-  if (flightTime <= 0) return null;
-  // Walk from just past muzzle to just before the aim point.
-  for (let sample = 1; sample < IMPACT_SAMPLES; sample++) {
-    const elapsed = (sample / IMPACT_SAMPLES) * flightTime;
-    const { x, y } = horizontalAt(
-      launchX,
-      launchY,
-      aimX,
-      aimY,
-      flightTime,
-      elapsed,
-    );
-    const altitude = altitudeAt(launchAlt, vy0, gravity, elapsed);
-    const surface = surfaceAltitudeAt(state, x, y, { shooterId });
-    if (surface > 0 && altitude <= surface) {
-      return { impactTime: elapsed, impactX: x, impactY: y };
-    }
-  }
-  return null;
-}
-
 /** Sample the surface under the aim tile. Returns the target altitude
- *  the trajectory solver should land on — tower top if aimed at a
- *  tower, ground (0) for an open tile, etc. Respects the shooter-at-aim
- *  rule so players can still deliberately target their own walls or
- *  cannons. Purely a convenience wrapper around `surfaceAltitudeAt`
- *  with `aimTile` set. */
+ *  the trajectory solver should land on — wall top if aimed at a wall,
+ *  ground (0) for an open tile, etc. Towers are NOT included (they
+ *  remain transparent to impact — see module header). Respects the
+ *  shooter-at-aim rule so players can still deliberately target their
+ *  own walls or cannons. */
 export function aimSurfaceAltitude(
   state: GameState,
   aimX: number,
@@ -124,7 +99,182 @@ export function aimSurfaceAltitude(
   return surfaceAltitudeAt(state, aimX, aimY, {
     shooterId,
     aimTile: { row, col },
+    includeTowers: false,
   });
+}
+
+/** Resolve the full ballistic trajectory at fire time.
+ *
+ *  Algorithm:
+ *    1. Solve the natural arc that lands at the aim point with the given
+ *       baseline horizontal speed.
+ *    2. Walk the path, computing for each in-path obstacle the minimum
+ *       flight time `T` whose arc would clear it by `BALLISTIC_CLEARANCE_MARGIN`.
+ *       Track the maximum across all obstacles. Towers are included
+ *       here so the solver tries to arc over them.
+ *    3. If the max required `T` is at most the natural `T`, the natural
+ *       arc already clears everything — return it unchanged.
+ *    4. If the max required `T` is within `BALLISTIC_MAX_SLOWDOWN`× the
+ *       natural `T`, lift the arc to that flight time (slower ball,
+ *       higher peak) and return the lifted trajectory.
+ *    5. Otherwise the obstacle can't be cleared affordably — fall back
+ *       to the natural arc and pin impact at the first obstacle the
+ *       natural arc would intercept (towers excluded; they stay
+ *       transparent).
+ *
+ *  Closed-form trajectory altitude identity (used for the lift solve):
+ *      alt(f) = lerp(launchAlt, impactAlt, f) + 0.5·g·T²·f·(1−f)
+ *  where f = t/T. Setting `alt(f) ≥ obstacle + margin` and solving for T²
+ *  gives the per-obstacle clearance constraint.
+ */
+export function solveBallisticClearing(
+  state: GameState,
+  launchX: number,
+  launchY: number,
+  launchAlt: number,
+  aimX: number,
+  aimY: number,
+  aimAlt: number,
+  baselineSpeed: number,
+  gravity: number,
+  shooterId: ValidPlayerSlot,
+): {
+  flightTime: number;
+  vy0: number;
+  impactX: number;
+  impactY: number;
+  impactAlt: number;
+} {
+  const naturalSolve = solveTrajectory(
+    launchX,
+    launchY,
+    launchAlt,
+    aimX,
+    aimY,
+    aimAlt,
+    baselineSpeed,
+    gravity,
+  );
+  const tNatural = naturalSolve.flightTime;
+  if (tNatural <= 0) {
+    return {
+      flightTime: 0,
+      vy0: 0,
+      impactX: aimX,
+      impactY: aimY,
+      impactAlt: aimAlt,
+    };
+  }
+
+  const aimRow = pxToTile(aimY);
+  const aimCol = pxToTile(aimX);
+  const altDelta = aimAlt - launchAlt;
+  let tRequiredSq = 0;
+  let firstInterception:
+    | {
+        time: number;
+        x: number;
+        y: number;
+        alt: number;
+      }
+    | undefined;
+
+  for (let sample = 1; sample < IMPACT_SAMPLES; sample++) {
+    const fraction = sample / IMPACT_SAMPLES;
+    const elapsed = fraction * tNatural;
+    const { x, y } = horizontalAt(
+      launchX,
+      launchY,
+      aimX,
+      aimY,
+      tNatural,
+      elapsed,
+    );
+    const sampleRow = pxToTile(y);
+    const sampleCol = pxToTile(x);
+    if (sampleRow === aimRow && sampleCol === aimCol) continue;
+
+    const surfaceForLift = surfaceAltitudeAt(state, x, y, {
+      shooterId,
+      includeTowers: true,
+    });
+    if (surfaceForLift > 0) {
+      const lerpAlt = launchAlt + altDelta * fraction;
+      const need = surfaceForLift + BALLISTIC_CLEARANCE_MARGIN - lerpAlt;
+      if (need > 0) {
+        const denom = gravity * fraction * (1 - fraction);
+        if (denom > 0) {
+          const tSq = (2 * need) / denom;
+          if (tSq > tRequiredSq) tRequiredSq = tSq;
+        }
+      }
+    }
+
+    if (firstInterception === undefined) {
+      const surfaceForImpact = surfaceAltitudeAt(state, x, y, {
+        shooterId,
+        includeTowers: false,
+      });
+      if (surfaceForImpact > 0) {
+        const altAtSample = altitudeAt(
+          launchAlt,
+          naturalSolve.vy0,
+          gravity,
+          elapsed,
+        );
+        if (altAtSample <= surfaceForImpact) {
+          firstInterception = {
+            time: elapsed,
+            x,
+            y,
+            alt: altAtSample,
+          };
+        }
+      }
+    }
+  }
+
+  const tRequired = Math.sqrt(tRequiredSq);
+  if (tRequired <= tNatural) {
+    return {
+      flightTime: tNatural,
+      vy0: naturalSolve.vy0,
+      impactX: aimX,
+      impactY: aimY,
+      impactAlt: aimAlt,
+    };
+  }
+
+  const tCeiling = tNatural * BALLISTIC_MAX_SLOWDOWN;
+  if (tRequired <= tCeiling) {
+    const tChosen = tRequired;
+    const liftedVy0 = altDelta / tChosen + 0.5 * gravity * tChosen;
+    return {
+      flightTime: tChosen,
+      vy0: liftedVy0,
+      impactX: aimX,
+      impactY: aimY,
+      impactAlt: aimAlt,
+    };
+  }
+
+  if (firstInterception !== undefined) {
+    return {
+      flightTime: firstInterception.time,
+      vy0: naturalSolve.vy0,
+      impactX: firstInterception.x,
+      impactY: firstInterception.y,
+      impactAlt: firstInterception.alt,
+    };
+  }
+
+  return {
+    flightTime: tNatural,
+    vy0: naturalSolve.vy0,
+    impactX: aimX,
+    impactY: aimY,
+    impactAlt: aimAlt,
+  };
 }
 
 /** Top-Y of the tallest occupant at `(x, y)`. Mirrors the renderer's
@@ -135,7 +285,11 @@ export function aimSurfaceAltitude(
  *  Shooter-own-walls rule: if the sample tile is owned by `opts.shooterId`
  *  and differs from the aim tile, shooter's own walls / cannons return
  *  altitude 0 so the ball arcs over them. At the aim tile they remain
- *  opaque. */
+ *  opaque.
+ *
+ *  Tower rule: towers are reported only when `opts.includeTowers` is
+ *  true. The clearance solver passes `true`; the impact path passes
+ *  `false` so towers stay transparent to impact. */
 function surfaceAltitudeAt(
   state: GameState,
   x: number,
@@ -158,11 +312,14 @@ function surfaceAltitudeAt(
     return WALL_TOP_Y;
   }
 
-  // Towers are transparent to cannonballs — they take no damage from
-  // cannons (only grunts kill them, see computeImpact in battle-system.ts).
-  // Treating their 2×2 silhouette as opaque would cause a ball aimed at a
-  // shorter target (cannon, grunt, wall) behind a tower to "land" on the
-  // tower roof with zero effect — a wasted shot the player never asked for.
+  // Towers (silhouette-only — never an impact target; see module header).
+  if (opts.includeTowers) {
+    for (let towerIdx = 0; towerIdx < state.map.towers.length; towerIdx++) {
+      if (state.towerAlive[towerIdx] === false) continue;
+      const tower = state.map.towers[towerIdx]!;
+      if (isTowerTile(tower, row, col)) return TOWER_TOP_Y;
+    }
+  }
 
   // Cannons (2×2 or 3×3)
   for (const player of state.players) {

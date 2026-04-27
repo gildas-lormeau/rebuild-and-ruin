@@ -60,11 +60,7 @@ import {
   TILE_CENTER_OFFSET,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
-import {
-  altitudeAt,
-  horizontalAt,
-  solveTrajectory,
-} from "../shared/core/trajectory.ts";
+import { altitudeAt, horizontalAt } from "../shared/core/trajectory.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   filterActiveFiringCannons,
@@ -81,7 +77,7 @@ import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifier-system.ts";
 import {
   aimSurfaceAltitude,
-  findTrajectoryImpact,
+  solveBallisticClearing,
 } from "./surface-elevation.ts";
 import {
   ballSpeedMult,
@@ -920,7 +916,17 @@ function launchCannonball(
 
   const launchAltitude = MUZZLE_Y;
   const aimAltitude = aimSurfaceAltitude(state, aimX, aimY, playerId);
-  const aimSolution = solveTrajectory(
+  // Resolve the trajectory: lifts the arc to clear in-path obstacles
+  // when feasible, falls back to the natural arc + first interception
+  // when the required slowdown exceeds BALLISTIC_MAX_SLOWDOWN.
+  const {
+    flightTime,
+    vy0,
+    impactX,
+    impactY,
+    impactAlt: impactAltitude,
+  } = solveBallisticClearing(
+    state,
     launchX,
     launchY,
     launchAltitude,
@@ -929,42 +935,8 @@ function launchCannonball(
     aimAltitude,
     speed,
     GRAVITY,
-  );
-
-  // Walk the parametric trajectory looking for an obstacle along the
-  // way. If we find one, repin impact to that point; otherwise the
-  // ball lands at the nominal aim point.
-  let impactX = aimX;
-  let impactY = aimY;
-  let impactAltitude = aimAltitude;
-  let flightTime = aimSolution.flightTime;
-  let vy0 = aimSolution.vy0;
-  const intercepted = findTrajectoryImpact(
-    state,
-    launchX,
-    launchY,
-    launchAltitude,
-    aimX,
-    aimY,
-    aimSolution.vy0,
-    GRAVITY,
-    aimSolution.flightTime,
     playerId,
   );
-  if (intercepted) {
-    impactX = intercepted.impactX;
-    impactY = intercepted.impactY;
-    flightTime = intercepted.impactTime;
-    impactAltitude = altitudeAt(
-      launchAltitude,
-      aimSolution.vy0,
-      GRAVITY,
-      intercepted.impactTime,
-    );
-    // vy0 stays the same — we kept the original parabola and just
-    // truncated it at the interception time.
-    vy0 = aimSolution.vy0;
-  }
   const impactRow = pxToTile(impactY);
   const impactCol = pxToTile(impactX);
 
