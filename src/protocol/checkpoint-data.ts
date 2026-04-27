@@ -80,21 +80,3 @@ export interface SerializedBonusSquare {
   col: number;
   zone: number;
 }
-
-/** BATTLE_START wire payload — once-per-round RNG resync point.
- *  Host captures `state.rng.getState()` BEFORE running `enterBattlePhase`
- *  (which consumes RNG via `recheckTerritory` / `rollModifier` /
- *  `applyBattleStartModifiers` / `rollGruntWallAttacks` /
- *  `resolveBalloonCaptures`). Watcher applies the same `setState(rngState)`
- *  and runs `enterBattlePhase` locally — both sides advance RNG
- *  identically and produce byte-identical post-prep state.
- *
- *  No other fields: every battle-start mutation (modifier tiles,
- *  captured cannons, grunt wall-attack flags, balloon flights, combo
- *  tracker, etc.) is derived locally on both sides from synced state +
- *  synced RNG. Defense-in-depth is provided by the rngState round-trip:
- *  if the watcher's local `state.rng` already matches `rngState` before
- *  setState, no drift occurred since the previous `BATTLE_START`. */
-export interface BattleStartData {
-  rngState: number;
-}

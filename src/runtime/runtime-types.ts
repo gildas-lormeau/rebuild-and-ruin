@@ -121,7 +121,7 @@ export interface OnlinePhaseTicks {
    *  pre-`enterBattlePhase` RNG state so the watcher can run the same
    *  setup (modifier roll, balloon resolution, grunt wall-attack roll)
    *  locally. See `BattleStartData` in checkpoint-data.ts. */
-  broadcastBattleStart?: (rngState: number) => void;
+  broadcastBattleStart?: () => void;
   /** Host: broadcast the build-phase entry checkpoint to watchers. */
   /** Host: broadcast the build-phase entry phase-marker. Watcher runs
    *  `enterBuildPhase` locally on receipt — no payload. See

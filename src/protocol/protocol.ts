@@ -25,7 +25,6 @@ import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
-  BattleStartData,
   SerializedBonusSquare,
   SerializedBurningPit,
   SerializedGrunt,
@@ -133,8 +132,9 @@ export interface CannonStartMessage {
   type: "cannonStart";
 }
 
-/** Start of battle (after balloon resolution, grunt spawning, wall sweep). */
-export interface BattleStartMessage extends BattleStartData {
+/** Start of battle — phase-marker signal. Watcher runs
+ *  `enterBattlePhase` locally on receipt; no payload. */
+export interface BattleStartMessage {
   type: "battleStart";
 }
 

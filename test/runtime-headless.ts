@@ -587,8 +587,7 @@ function buildHeadlessHostPhaseTicks(
 ): OnlinePhaseTicks {
   return {
     broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: (rngState) =>
-      send(createBattleStartMessage(rngState)),
+    broadcastBattleStart: () => send(createBattleStartMessage()),
     broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     broadcastLocalCrosshair: () => {},

@@ -213,8 +213,7 @@ async function buildWatcherRuntime(
 function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks {
   return {
     broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: (rngState) =>
-      send(createBattleStartMessage(rngState)),
+    broadcastBattleStart: () => send(createBattleStartMessage()),
     broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     extendCrosshairs: (crosshairs) => [...crosshairs],

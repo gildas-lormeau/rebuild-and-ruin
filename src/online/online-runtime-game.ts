@@ -158,8 +158,7 @@ const runtime: GameRuntime = createGameRuntime({
     // Direct imports — these are pure (state) → message factories with
     // no captured state, so they need no closure dance.
     broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: (rngState) =>
-      send(createBattleStartMessage(rngState)),
+    broadcastBattleStart: () => send(createBattleStartMessage()),
     broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
 

@@ -56,7 +56,6 @@ import {
   snapshotTerritory,
 } from "../game/index.ts";
 import { setPhase } from "../game/phase-setup.ts";
-import type { BattleStartData } from "../protocol/checkpoint-data.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import {
@@ -346,8 +345,9 @@ export interface PhaseTransitionCtx {
 
   readonly broadcast?: {
     readonly cannonStart?: () => void;
-    /** Receives the host's pre-`enterBattlePhase` `state.rng` state. */
-    readonly battleStart?: (rngState: number) => void;
+    /** Phase-marker signal — watcher runs `enterBattlePhase` locally on
+     *  receipt. No payload. */
+    readonly battleStart?: () => void;
     /** Phase-marker signal — watcher runs `enterBuildPhase` locally on
      *  receipt. No payload; both sides derive identical state. */
     readonly buildStart?: () => void;
@@ -765,23 +765,11 @@ const CANNON_PLACE_DONE: Transition = {
   mutate: (ctx) => {
     ctx.log(`startBattle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset();
-    // Capture pre-prep RNG state. Host broadcasts it via BATTLE_START so
-    // any peer running ahead can resync; both sides should already be in
-    // lockstep, so the wire `rngState` is a drift detector, not a
-    // primary sync source.
-    const rngStateBeforePrep = ctx.state.rng.getState();
-    if (ctx.incomingMsg) {
-      const msg = ctx.incomingMsg as BattleStartData;
-      if (rngStateBeforePrep !== msg.rngState) {
-        ctx.log(
-          `BATTLE_START rng drift: local=${rngStateBeforePrep} wire=${msg.rngState}`,
-        );
-      }
-      ctx.state.rng.setState(msg.rngState);
-      ctx.checkpoint?.applyBattleStartWatcherUI?.();
-    }
+    // Watcher-side: clear remote-crosshair maps before entering battle.
+    // (No-op on host since `ctx.checkpoint` is unwired.)
+    ctx.checkpoint?.applyBattleStartWatcherUI?.();
     const entry = enterBattlePhase(ctx.state);
-    ctx.broadcast?.battleStart?.(rngStateBeforePrep);
+    ctx.broadcast?.battleStart?.();
     return { modifierDiff: entry.modifierDiff, flights: entry.flights };
   },
   postMutate: syncBattleAnim,

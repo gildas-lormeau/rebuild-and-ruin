@@ -63,14 +63,14 @@ export function createCannonStartMessage() {
   return { type: MESSAGE.CANNON_START };
 }
 
-/** Create a BATTLE_START message carrying the host's pre-`enterBattlePhase`
- *  RNG state. The watcher applies `setState(rngState)` then runs
- *  `enterBattlePhase` locally to derive every battle-start mutation
+/** Create a BATTLE_START phase-marker message. The watcher runs
+ *  `enterBattlePhase` locally on receipt — every battle-start mutation
  *  (modifier tiles, captured cannons, grunt wall-attack flags, balloon
- *  flights, combo tracker) — no need to ship them on the wire. See
- *  `BattleStartData` in checkpoint-data.ts for the contract. */
-export function createBattleStartMessage(rngState: number) {
-  return { type: MESSAGE.BATTLE_START, rngState };
+ *  flights, combo tracker) is derived locally on both sides from synced
+ *  state + RNG. No payload: clone-everywhere model means RNG advances in
+ *  lockstep across peers, no resync required. */
+export function createBattleStartMessage() {
+  return { type: MESSAGE.BATTLE_START };
 }
 
 export function createFullStateMessage(
