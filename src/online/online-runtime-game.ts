@@ -180,14 +180,14 @@ const runtime: GameRuntime = createGameRuntime({
     // ── Cross-machine merging ─────────────────────────────────────────
     extendCrosshairs: (crosshairs, dt) =>
       extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
-        remoteCrosshairs: ctx.watcher.remoteCrosshairs,
-        watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
+        remoteCrosshairs: ctx.presence.remoteCrosshairs,
+        smoothedCrosshairPos: ctx.presence.smoothedCrosshairPos,
         remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
       }),
     tickMigrationAnnouncement: (dt) =>
       tickPersistentAnnouncement(
-        ctx.watcher.migrationBanner,
+        ctx.presence.migrationBanner,
         runtime.runtimeState.frame,
         dt,
       ),

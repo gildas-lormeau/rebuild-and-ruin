@@ -217,7 +217,7 @@
       "src/online/online-full-state-recovery.ts",
       "src/online/online-send-actions.ts",
       "src/online/online-checkpoints.ts",
-      "src/online/online-watcher-state.ts",
+      "src/online/online-presence-state.ts",
       "src/online/online-phase-transitions.ts",
       "src/online/online-server-events.ts",
       "src/online/online-host-crosshairs.ts",

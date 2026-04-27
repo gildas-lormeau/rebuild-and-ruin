@@ -27,7 +27,7 @@ import {
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
-import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
+import { type RemoteCrosshairTargets, toCannonMode } from "./online-types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: ValidPlayerSlot;
@@ -57,7 +57,7 @@ export interface HandleServerIncrementalDeps {
     | "earlyLifeLostChoices"
     | "earlyUpgradePickChoices"
   >;
-  watcher: WatcherNetworkState;
+  presence: RemoteCrosshairTargets;
   getState: () => GameState | undefined;
   /** Per-slot controllers — phantom messages for remote-controlled slots
    *  write directly into `controllers[msg.playerId].current{Build,Cannon}Phantom(s)`. */
@@ -279,7 +279,7 @@ function handleAimUpdate(
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return DROPPED;
   if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
+  deps.presence.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
   return APPLIED;
 }
 

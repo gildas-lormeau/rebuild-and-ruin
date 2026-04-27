@@ -31,7 +31,7 @@ interface BroadcastDeps {
 
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
-  watcherCrosshairPos: Map<number, PixelPos>;
+  smoothedCrosshairPos: Map<number, PixelPos>;
   remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
   logThrottled: (key: string, msg: string) => void;
 }
@@ -74,7 +74,7 @@ export function extendWithRemoteCrosshairs(
       target,
       state,
       dt,
-      deps.watcherCrosshairPos,
+      deps.smoothedCrosshairPos,
     );
     if (!visualPos) continue;
     remote.push({

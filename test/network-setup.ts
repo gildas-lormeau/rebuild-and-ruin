@@ -48,9 +48,9 @@ import {
 } from "../src/online/online-session.ts";
 import type { OnlineClient } from "../src/online/online-stores.ts";
 import {
-  createWatcherState,
-  type WatcherState,
-} from "../src/online/online-watcher-state.ts";
+  createOnlinePresenceState,
+  type OnlinePresenceState,
+} from "../src/online/online-presence-state.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
 import {
@@ -207,7 +207,7 @@ function buildWatcherPhaseTicks(): OnlinePhaseTicks {
 }
 
 /** Minimal `OnlineClient` for a watcher. The dispatcher reads
- *  `ctx.session`, `ctx.dedup`, `ctx.watcher`, and `devLog`; everything
+ *  `ctx.session`, `ctx.dedup`, `ctx.presence`, and `devLog`; everything
  *  else is a no-op stub. `session.isHost` stays `false` — this is a
  *  pure watcher, never promoted. */
 function buildWatcherClient(
@@ -218,9 +218,9 @@ function buildWatcherClient(
     session.remotePlayerSlots.add(slot);
   }
   const dedup: DedupMaps = createDedupMaps();
-  const watcher: WatcherState = createWatcherState();
+  const presence: OnlinePresenceState = createOnlinePresenceState();
   return {
-    ctx: { session, dedup, watcher, reconnect: { count: 0, timer: null } },
+    ctx: { session, dedup, presence, reconnect: { count: 0, timer: null } },
     send: () => {},
     maybeSendAimUpdate: () => {},
     resetNetworking: () => {},

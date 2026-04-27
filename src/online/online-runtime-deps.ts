@@ -112,7 +112,7 @@ function buildIncrementalDeps() {
   return {
     log: _client.devLog,
     session: _client.ctx.session,
-    watcher: _client.ctx.watcher,
+    presence: _client.ctx.presence,
     getState: () => _depsInit.runtime.runtimeState.state,
     getControllers: () => _depsInit.runtime.runtimeState.controllers,
     selectionStates: _depsInit.runtime.selection.getStates(),
@@ -176,8 +176,8 @@ function buildUiDeps() {
       setMode(_depsInit.runtime.runtimeState, Mode.GAME);
     },
     setAnnouncement: (text: string) => {
-      _client.ctx.watcher.migrationBanner.text = text;
-      _client.ctx.watcher.migrationBanner.timer =
+      _client.ctx.presence.migrationBanner.text = text;
+      _client.ctx.presence.migrationBanner.timer =
         MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,

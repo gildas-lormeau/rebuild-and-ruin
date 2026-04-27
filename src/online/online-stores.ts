@@ -19,6 +19,12 @@ import {
 } from "../shared/core/player-slot.ts";
 import { IS_DEV } from "../shared/platform/platform.ts";
 import {
+  createOnlinePresenceState,
+  type OnlinePresenceState,
+  resetOnlinePresenceState,
+  resetPresenceForHostPromotion,
+} from "./online-presence-state.ts";
+import {
   createDedupMaps,
   createSession,
   type DedupMaps,
@@ -28,19 +34,13 @@ import {
   sendAimUpdate,
   sendMessage,
 } from "./online-session.ts";
-import {
-  createWatcherState,
-  resetWatcherState,
-  resetWatcherTimingForHostPromotion,
-  type WatcherState,
-} from "./online-watcher-state.ts";
 
 type ResetScope = "dedup" | "new-game" | "host-promotion";
 
 interface OnlineContext {
   readonly session: OnlineSession;
   readonly dedup: DedupMaps;
-  readonly watcher: WatcherState;
+  readonly presence: OnlinePresenceState;
   readonly reconnect: {
     count: number;
     timer: ReturnType<typeof setTimeout> | null;
@@ -87,7 +87,7 @@ function createOnlineClient(): OnlineClient {
   const context: OnlineContext = {
     session: createSession(),
     dedup: createDedupMaps(),
-    watcher: createWatcherState(),
+    presence: createOnlinePresenceState(),
     reconnect: { count: 0, timer: null },
   };
   const throttleTimestamps = new Map<string, number>();
@@ -118,9 +118,9 @@ function createOnlineClient(): OnlineClient {
     resetNetworking: (scope) => {
       resetDedupMaps(context.dedup);
       if (scope === "new-game") {
-        resetWatcherState(context.watcher);
+        resetOnlinePresenceState(context.presence);
       } else if (scope === "host-promotion") {
-        resetWatcherTimingForHostPromotion(context.watcher);
+        resetPresenceForHostPromotion(context.presence);
       }
     },
     clearReconnect: () => {
