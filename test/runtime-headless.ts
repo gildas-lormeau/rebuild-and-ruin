@@ -16,6 +16,12 @@
 
 import { generateMap } from "../src/game/index.ts";
 import {
+  createBattleStartMessage,
+  createBuildStartMessage,
+  createCannonStartMessage,
+} from "../src/online/online-serialize.ts";
+import { type GameMessage, MESSAGE, type ServerMessage } from "../src/protocol/protocol.ts";
+import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
@@ -33,7 +39,6 @@ import type {
   HapticsObserver,
 } from "../src/shared/core/system-interfaces.ts";
 import { SEED_CUSTOM } from "../src/shared/ui/player-config.ts";
-import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import {
   createGameRuntime,
@@ -357,7 +362,10 @@ export async function createHeadlessRuntime(
       setMode(built.runtimeState, Mode.SELECTION);
     },
     onlinePhaseTicks:
-      onlinePhaseTicksOverride ?? (hostMode ? noopHostPhaseTicks() : undefined),
+      onlinePhaseTicksOverride ??
+      (hostMode
+        ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
+        : undefined),
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
     // Headless has no place to apply tilt — keeping it off also keeps
     // `PITCH_SETTLED` bus events out of the determinism event log.
@@ -570,15 +578,19 @@ function buildAssistedControllerFactory(
   };
 }
 
-/** Build a no-op `OnlinePhaseTicks` for headless host mode. Every broadcast
- *  is a black hole, every getter returns the empty/noop equivalent, no
- *  watcher fields are set (this machine is host-only). */
-function noopHostPhaseTicks(): OnlinePhaseTicks {
+/** Build an `OnlinePhaseTicks` for headless host mode. Phase-checkpoint
+ *  broadcasts are forwarded to `send` (matching production wiring in
+ *  `online-runtime-game.ts`); other hooks are no-ops. No watcher fields
+ *  are set — this is host-only. */
+function buildHeadlessHostPhaseTicks(
+  send: (msg: GameMessage) => void,
+): OnlinePhaseTicks {
   return {
-    broadcastCannonStart: () => {},
-    broadcastBattleStart: () => {},
-    broadcastBuildStart: () => {},
-    broadcastBuildEnd: () => {},
+    broadcastCannonStart: () => send(createCannonStartMessage()),
+    broadcastBattleStart: (rngState) =>
+      send(createBattleStartMessage(rngState)),
+    broadcastBuildStart: () => send(createBuildStartMessage()),
+    broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     broadcastLocalCrosshair: () => {},
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},

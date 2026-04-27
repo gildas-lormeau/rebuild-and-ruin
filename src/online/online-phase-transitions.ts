@@ -15,11 +15,9 @@ import {
   clearImpacts,
 } from "../shared/core/battle-types.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import {
-  isActivePlayer,
-  type ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../shared/core/player-types.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
 import {
   FOCUS_REMATCH,
   LifeLostChoice,
@@ -308,28 +306,37 @@ function buildCheckpointDeps(deps: WatcherDeps): CheckpointDeps {
   };
 }
 
+/** Initialize cannon-place state for every driven controller (own local
+ *  human + all AI controllers). AIs are simulated locally on every peer
+ *  per the wire-only-uncomputable rule, so each peer must initialize them
+ *  identically when entering CANNON_PLACE. Mirrors host's
+ *  `initLocalCannonControllers`. */
 function initLocalCannonControllerIfActive(deps: WatcherDeps): void {
-  const myPlayerId = deps.session.myPlayerId;
-  if (!isActivePlayer(myPlayerId)) return;
   const runtime = deps.getRuntime();
   const state = runtime.runtimeState.state;
-  const ctrl = runtime.runtimeState.controllers[myPlayerId];
-  if (!ctrl) return;
-  const prep = prepareControllerCannonPhase(ctrl.playerId, state);
-  if (!prep) return;
-  ctrl.placeCannons(state, prep.maxSlots);
-  ctrl.cannonCursor = prep.cursorPos;
-  ctrl.startCannonPhase(state);
+  const myPlayerId = deps.session.myPlayerId;
+  for (const ctrl of runtime.runtimeState.controllers) {
+    // Skip remote humans; drive AIs and own local human.
+    if (isHuman(ctrl) && ctrl.playerId !== myPlayerId) continue;
+    const prep = prepareControllerCannonPhase(ctrl.playerId, state);
+    if (!prep) continue;
+    ctrl.placeCannons(state, prep.maxSlots);
+    ctrl.cannonCursor = prep.cursorPos;
+    ctrl.startCannonPhase(state);
+  }
 }
 
+/** Initialize build-phase state for every driven controller. See above. */
 function initLocalBuildControllerIfActive(deps: WatcherDeps): void {
-  const myPlayerId = deps.session.myPlayerId;
-  if (!isActivePlayer(myPlayerId)) return;
   const runtime = deps.getRuntime();
   const state = runtime.runtimeState.state;
-  const player = state.players[myPlayerId];
-  if (!isPlayerAlive(player)) return;
-  runtime.runtimeState.controllers[myPlayerId]?.startBuildPhase(state);
+  const myPlayerId = deps.session.myPlayerId;
+  for (const ctrl of runtime.runtimeState.controllers) {
+    if (isHuman(ctrl) && ctrl.playerId !== myPlayerId) continue;
+    const player = state.players[ctrl.playerId];
+    if (!isPlayerAlive(player)) continue;
+    ctrl.startBuildPhase(state);
+  }
 }
 
 function clearSelectionOverlay(runtimeState: RuntimeState): void {

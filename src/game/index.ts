@@ -15,7 +15,6 @@ export {
 } from "./battle-system.ts";
 export {
   canPlacePiece,
-  diffNewWalls,
   recheckTerritory,
   recomputeAllTerritory,
 } from "./build-system.ts";

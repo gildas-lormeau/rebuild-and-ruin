@@ -20,11 +20,12 @@
 
 import { assert, assertGreater } from "@std/assert";
 import { Phase } from "../src/shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
 Deno.test(
-  "network observer: hostMode runtime broadcasts selection + placement messages by the time the first battle starts",
+  "network observer: hostMode runtime broadcasts phase checkpoints by the time the first battle starts",
   async () => {
     using sc = await createScenario({ seed: 42, hostMode: true });
     waitForPhase(sc, Phase.BATTLE);
@@ -37,47 +38,49 @@ Deno.test(
       counts.set(msg.type, (counts.get(msg.type) ?? 0) + 1);
     }
 
-    // Note: OPPONENT_TOWER_SELECTED + CASTLE_WALLS are intentionally NOT
-    // asserted here. AI selections are derived locally on the watcher from
-    // strategy.rng, and castle wall plans are derived locally on the watcher
-    // from synced state.rng (no wire payload). The host only fires
-    // OPPONENT_TOWER_SELECTED for human selections; this test seeds an
-    // all-AI scenario, so zero of those messages is expected and correct
-    // under the cleaned-up protocol.
-
-    // Cannon placement: every cannon the host (or its AI shims) places
-    // during the cannon phase fans out as OPPONENT_CANNON_PLACED.
+    // Wire = uncomputable inputs only. Pure-AI scenarios produce no
+    // OPPONENT_CANNON_PLACED / OPPONENT_PIECE_PLACED / OPPONENT_TOWER_SELECTED
+    // / CASTLE_WALLS / CANNON_FIRED — every peer recomputes those from
+    // strategy.rng + state. What the host DOES broadcast is the phase-
+    // checkpoint markers (CANNON_START → BATTLE_START → BUILD_START →
+    // BUILD_END), which serve as deterministic "advance now" notifications
+    // for watchers' phase machines.
     assertGreater(
-      counts.get(MESSAGE.OPPONENT_CANNON_PLACED) ?? 0,
+      counts.get(MESSAGE.CANNON_START) ?? 0,
       0,
-      "expected host to broadcast OPPONENT_CANNON_PLACED during the cannon-place phase",
+      "expected host to broadcast CANNON_START on castle-select-done",
+    );
+    assertGreater(
+      counts.get(MESSAGE.BATTLE_START) ?? 0,
+      0,
+      "expected host to broadcast BATTLE_START on cannon-place-done",
     );
   },
 );
 
 Deno.test(
-  "network observer: local-play runtime still calls network.send (impl is no-op, but the seam is wired)",
+  "network observer: assisted-human slots broadcast their placements through network.send",
   async () => {
-    using sc = await createScenario({ seed: 42, hostMode: false });
+    using sc = await createScenario({
+      seed: 42,
+      hostMode: true,
+      assistedSlots: [0 as ValidPlayerSlot],
+    });
     waitForPhase(sc, Phase.BATTLE);
 
-    // Important nuance: even local play wraps every "broadcastable"
-    // action (`sendCastleWalls`, `sendTowerSelected`, …) in a
-    // `config.network.send` call. The local-play impl is `() => {}`, so
-    // peers never see anything, but the observer is wrapping the call
-    // *before* the no-op fires, so it still captures every message. The
-    // difference between local and host mode is on the *receiver* side
-    // (no peers in local) and in the additional `onlinePhaseTicks`
-    // checkpoint fan-out (which goes through a separate path, not
-    // `network.send`).
-    //
-    // We assert that the count is non-zero so a future "skip the send
-    // entirely in local mode" optimization doesn't silently break the
-    // observer's coverage of the action wrappers.
+    // Assisted-human controllers are treated as humans for protocol
+    // purposes — their placements (driven internally by AI but emitted
+    // through the human input path) broadcast OPPONENT_CANNON_PLACED /
+    // OPPONENT_PIECE_PLACED. This is the test that catches a regression
+    // where the human-input broadcast seam stops firing.
+    const counts = new Map<string, number>();
+    for (const msg of sc.sentMessages) {
+      counts.set(msg.type, (counts.get(msg.type) ?? 0) + 1);
+    }
     assertGreater(
-      sc.sentMessages.length,
+      counts.get(MESSAGE.OPPONENT_CANNON_PLACED) ?? 0,
       0,
-      "local-play should still hit the send wrappers (the underlying impl no-ops)",
+      "expected assisted-human slot to broadcast OPPONENT_CANNON_PLACED",
     );
   },
 );

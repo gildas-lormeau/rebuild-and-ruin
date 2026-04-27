@@ -1,8 +1,7 @@
-import type { BattleCombatResult, GameOverReason } from "../game/index.ts";
+import type { GameOverReason } from "../game/index.ts";
 import {
   advanceBattleCountdown,
   canBuildThisFrame,
-  diffNewWalls,
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
@@ -17,8 +16,6 @@ import {
 import {
   BATTLE_MESSAGE,
   type BattleEvent,
-  type CannonFiredMessage,
-  createCannonFiredMsg,
 } from "../shared/core/battle-events.ts";
 import {
   ageImpacts,
@@ -569,38 +566,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       state.cannonPlaceTimer,
     );
 
-    // PASS 1: tick local controllers, broadcast placements + phantoms.
-    // Local phantoms live on `ctrl.currentCannonPhantom`; render reads
-    // them directly from the controller union in `refreshOverlay`.
+    // PASS 1: tick local controllers, broadcast own-human's cannon phantom.
+    // AI cannon placements are deterministic from strategy.rng + state — every
+    // peer recomputes them locally, no wire payload (see project rule
+    // "wire = uncomputable inputs only"). Human placements broadcast from
+    // inside the placement callback, not here.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-      const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
       const phantom = ctrl.cannonTick(state, dt);
-
-      // Broadcast only for pure-AI locals. Human-shaped controllers
-      // (including AiAssistedHuman) broadcast from inside their own
-      // placement callbacks — emitting here would double-send.
-      if (isHost && !isHuman(ctrl)) {
-        const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
-        for (
-          let cannonIdx = cannonsBefore;
-          cannonIdx < cannonsAfter;
-          cannonIdx++
-        ) {
-          const cannon = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
-          deps.sendOpponentCannonPlaced({
-            playerId: ctrl.playerId,
-            row: cannon.row,
-            col: cannon.col,
-            mode: cannon.mode,
-          });
-        }
-      }
-
       if (!phantom) continue;
-
+      // Phantom = mouse-cursor preview for own human; AI phantoms are
+      // deterministic and recomputed on every peer.
       if (
         isHost &&
+        isHuman(ctrl) &&
         (online?.shouldSendCannonPhantom?.(
           ctrl.playerId,
           cannonPhantomKey(phantom),
@@ -688,10 +667,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickBattlePhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const { state, battleAnim } = runtimeState;
-    const broadcast = isHost ? deps.send : undefined;
 
     const prevTimer = state.timer;
     advancePhaseTimer(
@@ -712,22 +689,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // Controller ticks (pass 1) must precede engine combat (pass 2): new
     // cannonballs spawned during `battleTick` need to exist before the
-    // engine advances them and resolves hits on the same frame. The ordering
-    // is enforced by data flow — `fireEvents` is produced by pass 1 and
-    // threaded as a required parameter into `resolveBattleCombatStep`.
-    const fireEvents = weaponsActive
-      ? tickLocalBattleControllers(local, state, dt)
-      : [];
-    const result = resolveBattleCombatStep(fireEvents, state, dt);
-
-    // Broadcast CANNON_FIRED only — the watcher derives TOWER_KILLED and
-    // every ImpactEvent locally by running the same engine combat tick
-    // (tickWatcherBattlePhase calls tickBattlePhase). Both sides share
-    // synced state at BATTLE_START + matching dt sequence, so impact
-    // resolution converges without per-event wire chatter.
-    if (broadcast) {
-      for (const evt of result.fireEvents) broadcast(evt);
-    }
+    // engine advances them and resolves hits on the same frame. Both run
+    // locally on every peer — AI fires are deterministic from strategy.rng
+    // + state, human fires broadcast CANNON_FIRED via the human-input path.
+    if (weaponsActive) tickLocalBattleControllers(local, state, dt);
+    const result = engineTickBattlePhase(state, dt);
 
     recordBattleVisualEvents(result, battleAnim);
 
@@ -793,39 +759,25 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { timerMax } = engineTickBuildPhase(state, dt);
     advancePhaseTimer(accum, "build", state, dt, timerMax);
 
-    // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
+    // --- PASS 1: Tick local controllers, broadcast own-human's piece phantom ---
+    // AI piece placements are deterministic from strategy.rng + state — every
+    // peer recomputes them locally, no wire payload (see project rule
+    // "wire = uncomputable inputs only"). Human placements broadcast from
+    // inside the placement callback. Only the own-human's *phantom* (cursor
+    // preview) is sent, since cursor position is uncomputable input.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       if (!canBuildThisFrame(state, ctrl.playerId)) continue;
-      const player = state.players[ctrl.playerId]!;
-
-      // Snapshot walls BEFORE tick so we can diff new AI placements
-      const shouldSnapshot = isHost && !isHuman(ctrl);
-      const wallSnapshot = shouldSnapshot ? new Set(player.walls) : null;
       const phantoms = ctrl.buildTick(state, dt);
 
-      // Broadcast new AI walls
-      if (wallSnapshot) {
-        const offsets = diffNewWalls(state, ctrl.playerId, wallSnapshot);
-        if (offsets.length > 0) {
-          deps.sendOpponentPiecePlaced({
-            playerId: ctrl.playerId,
-            row: 0,
-            col: 0,
-            offsets,
-          });
-        }
-      }
-
-      // Broadcast phantoms (dedup for network)
+      if (!isHost || !isHuman(ctrl)) continue;
       for (const phantom of phantoms) {
         if (
-          isHost &&
-          (online?.shouldSendPiecePhantom?.(
+          online?.shouldSendPiecePhantom?.(
             phantom.playerId,
             piecePhantomKey(phantom),
           ) ??
-            true)
+          true
         ) {
           deps.sendOpponentPhantom({
             playerId: phantom.playerId,
@@ -989,35 +941,9 @@ function tickLocalBattleControllers(
   local: readonly PlayerController[],
   state: GameState,
   dt: number,
-): CannonFiredMessage[] {
-  const fireEvents: CannonFiredMessage[] = [];
+): void {
   for (const ctrl of local) {
     if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-    const ballsBefore = state.cannonballs.length;
     ctrl.battleTick(state, dt);
-    if (!isHuman(ctrl)) {
-      for (let idx = ballsBefore; idx < state.cannonballs.length; idx++) {
-        fireEvents.push(createCannonFiredMsg(state.cannonballs[idx]!));
-      }
-    }
   }
-  return fireEvents;
-}
-
-/** Pass 2 of the battle-phase tick: resolve engine combat (tower kills,
- *  cannonball impacts) against the state produced by pass 1. Takes
- *  `fireEvents` as a required parameter — not because the engine uses them,
- *  but because requiring them forces the caller to run
- *  `tickLocalBattleControllers` first. The returned bundle merges both
- *  passes into a single result for broadcast + animation. */
-function resolveBattleCombatStep(
-  fireEvents: readonly CannonFiredMessage[],
-  state: GameState,
-  dt: number,
-): BattleCombatResult & { fireEvents: readonly CannonFiredMessage[] } {
-  const { towerEvents, impactEvents, newImpacts } = engineTickBattlePhase(
-    state,
-    dt,
-  );
-  return { fireEvents, towerEvents, impactEvents, newImpacts };
 }

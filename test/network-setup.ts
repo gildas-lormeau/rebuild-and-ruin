@@ -59,7 +59,6 @@ import {
 import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
-import { MAX_PLAYERS } from "../src/shared/ui/player-config.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -156,16 +155,15 @@ async function buildWatcherRuntime(
   const watcherOpts: ScenarioOptions = { ...opts, assistedSlots: undefined };
   const base = buildHeadlessOptions(watcherOpts, sentMessages);
 
-  // Watchers observe every slot — no local AI runs.
-  const allRemote = new Set<ValidPlayerSlot>();
-  for (let slot = 0; slot < MAX_PLAYERS; slot++) {
-    allRemote.add(slot as ValidPlayerSlot);
-  }
+  // `remotePlayerSlots` carries only remote-human slots — AI controllers
+  // are recomputed locally on every peer (project rule: wire =
+  // uncomputable inputs only). For pure-AI tests, no humans means empty.
+  const remoteHumans = new Set<ValidPlayerSlot>();
 
   // Build the client + transition + watcher-tick contexts BEFORE
   // constructing the runtime so `tickWatcher` can close over them via
   // the `onlinePhaseTicks` we pass in.
-  const client = buildWatcherClient(allRemote);
+  const client = buildWatcherClient(remoteHumans);
   const headlessHolder: { current?: HeadlessRuntime } = {};
   const requireHeadless = (): HeadlessRuntime => {
     const headless = headlessHolder.current;
@@ -207,7 +205,7 @@ async function buildWatcherRuntime(
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
-    remotePlayerSlots: allRemote,
+    remotePlayerSlots: remoteHumans,
     onlinePhaseTicks: buildWatcherPhaseTicks(tickCtx, client.ctx.watcher),
     // True watcher: amHost=false routes `tickGame` to `tickWatcher`,
     // matching production. Without this the watcher would also run host
