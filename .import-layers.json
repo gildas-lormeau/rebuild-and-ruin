@@ -191,7 +191,7 @@
       "src/online/online-host-crosshairs.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-server-lifecycle.ts",
-      "src/online/online-watcher-battle.ts",
+      "src/online/online-watcher-state.ts",
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/crosshairs.ts",
       "src/render/3d/effects/fire-burst.ts",
@@ -228,7 +228,7 @@
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
       "src/input/input-touch-update.ts",
-      "src/online/online-watcher-tick.ts",
+      "src/online/online-stores.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
@@ -256,7 +256,7 @@
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
-      "src/online/online-stores.ts",
+      "src/online/online-runtime-ws.ts",
       "src/render/3d/scene.ts",
       "src/render/render-ui.ts",
       "src/runtime/dev-console.ts",
@@ -278,7 +278,7 @@
       "src/ai/ai-build-fallback.ts",
       "src/game/cannon-system.ts",
       "src/game/wall-impact.ts",
-      "src/online/online-runtime-ws.ts",
+      "src/online/online-runtime-lobby.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
       "src/runtime/runtime-camera.ts",
@@ -295,7 +295,6 @@
     "files": [
       "src/ai/ai-strategy-build.ts",
       "src/game/grunt-system.ts",
-      "src/online/online-runtime-lobby.ts",
       "src/render/render-canvas.ts"
     ]
   },

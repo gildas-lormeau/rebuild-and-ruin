@@ -134,36 +134,28 @@ export interface OnlinePhaseTicks {
    *  `finalizeBuildPhase` locally on receipt — no payload. */
   broadcastBuildEnd?: () => void;
 
-  // ── Host-only: per-controller crosshair fan-out ────────────────────────
-  /** Host: broadcast a single local controller's crosshair to watchers
-   *  (typically deduped by aim target). Called once per local controller
-   *  per frame from `syncCrosshairs`. */
+  // ── Per-controller crosshair fan-out ───────────────────────────────────
+  /** Broadcast a single local controller's crosshair to peers (typically
+   *  deduped by aim target). Called once per local controller per frame
+   *  from `syncCrosshairs`. The hook self-gates by ownership: only the
+   *  local-human's crosshair hits the wire; AI crosshairs are derived
+   *  identically on every peer and need no broadcast. */
   broadcastLocalCrosshair?: (
     ctrl: ControllerIdentity,
     crosshair: { x: number; y: number },
     cannonReady: boolean,
   ) => void;
 
-  // ── Host-only: per-frame phantom dedup ─────────────────────────────────
-  /** Host: check-then-update for outgoing cannon-phantom broadcasts. Returns
-   *  true if the runtime should emit (key differs from last send for this
-   *  player). Implementation owns the dedup storage and its lifecycle across
-   *  host migration — the runtime just asks yes/no per phantom. */
+  // ── Per-frame phantom dedup ────────────────────────────────────────────
+  /** Check-then-update for outgoing cannon-phantom broadcasts. Returns
+   *  true if the runtime should emit. The implementation gates by
+   *  ownership (only the local human emits) and dedups by `key` (skips
+   *  if the key matches the last emission for this player). */
   shouldSendCannonPhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
-  /** Host: check-then-update for outgoing piece-phantom broadcasts. Same
-   *  contract as `shouldSendCannonPhantom`. */
+  /** Same contract as `shouldSendCannonPhantom`, for piece-phantoms. */
   shouldSendPiecePhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
 
-  // ── Watcher-only: per-frame state apply ────────────────────────────────
-  /** Watcher: drive the per-frame state apply (replaces the host tick on
-   *  non-host machines). Implementation lives entirely in `online/`. */
-  tickWatcher?: (dt: number) => void;
-  /** Watcher: record the battle-countdown start so the non-host display can
-   *  sync to it. Called unconditionally from `beginBattle`; host wiring is a
-   *  no-op (host drives its own countdown via `state.battleCountdown`). */
-  watcherBeginBattle?: (nowMs: number) => void;
-
-  // ── Both roles: cross-machine merging ──────────────────────────────────
+  // ── Cross-machine merging ──────────────────────────────────────────────
   /** Both: extend the locally collected crosshair list with remote-human
    *  crosshairs. Called from `syncCrosshairs` after the local pass. */
   extendCrosshairs?: (
@@ -689,14 +681,6 @@ export const ONLINE_PHASE_TICKS_CONSUMERS = {
   },
   shouldSendPiecePhantom: {
     "wire:prod": "src/online/online-runtime-game.ts",
-  },
-  tickWatcher: {
-    "wire:prod": "src/online/online-runtime-game.ts",
-    "wire:test-watcher": "test/network-setup.ts",
-  },
-  watcherBeginBattle: {
-    "wire:prod": "src/online/online-runtime-game.ts",
-    "wire:test-watcher": "test/network-setup.ts",
   },
   extendCrosshairs: {
     "wire:prod": "src/online/online-runtime-game.ts",

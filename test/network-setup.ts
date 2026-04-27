@@ -10,13 +10,14 @@
  * as a single local runtime vs as a host + watcher pair, and asserting
  * state convergence. See `test/network-vs-local.test.ts`.
  *
- * The watcher uses production infrastructure (no fake
- * hostMode-on-receiver hacks): `session.isHost = false`,
- * `remotePlayerSlots` covers every slot so zero local AI runs, lifecycle
- * messages drive phase transitions via `handleServerLifecycleMessage`,
- * incremental messages drive state via `handleServerIncrementalMessage`,
- * `tickWatcher` handles per-frame visual state (cannonball flight,
- * crosshair smoothing).
+ * The watcher uses production infrastructure: `session.isHost = false`,
+ * `remotePlayerSlots` carries only remote-human slots (empty for pure-AI
+ * tests since AIs are recomputed locally on every peer per the
+ * wire-only-uncomputable rule). Lifecycle messages drive phase
+ * transitions via `handleServerLifecycleMessage`; incremental messages
+ * drive state via `handleServerIncrementalMessage`. The watcher runs the
+ * same `tickGame` as the host — there is no separate watcher tick path
+ * in the clone-everywhere architecture.
  *
  * The host side gets real broadcast emitters (CANNON_START / BATTLE_START
  * / BUILD_START / BUILD_END + per-action) via the existing
@@ -34,10 +35,7 @@ import {
   handleServerMessage,
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
-import {
-  dispatchWatcherLocal,
-  type WatcherDeps,
-} from "../src/online/online-phase-transitions.ts";
+import { type WatcherDeps } from "../src/online/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -52,11 +50,8 @@ import {
 import type { OnlineClient } from "../src/online/online-stores.ts";
 import {
   createWatcherState,
-  tickWatcher,
   type WatcherState,
-  type WatcherTickContext,
-} from "../src/online/online-watcher-tick.ts";
-import { BATTLE_COUNTDOWN } from "../src/shared/core/game-constants.ts";
+} from "../src/online/online-watcher-state.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
 import {
@@ -160,9 +155,8 @@ async function buildWatcherRuntime(
   // uncomputable inputs only). For pure-AI tests, no humans means empty.
   const remoteHumans = new Set<ValidPlayerSlot>();
 
-  // Build the client + transition + watcher-tick contexts BEFORE
-  // constructing the runtime so `tickWatcher` can close over them via
-  // the `onlinePhaseTicks` we pass in.
+  // Build the client + transition contexts BEFORE constructing the
+  // runtime so `onlinePhaseTicks` and `WatcherDeps` can close over them.
   const client = buildWatcherClient(remoteHumans);
   const headlessHolder: { current?: HeadlessRuntime } = {};
   const requireHeadless = (): HeadlessRuntime => {
@@ -183,33 +177,15 @@ async function buildWatcherRuntime(
     watcher: client.ctx.watcher,
     timing: lazyTiming,
   };
-  const tickCtx: WatcherTickContext = {
-    getState: () => headlessHolder.current!.runtime.runtimeState.state,
-    getFrame: () => headlessHolder.current!.runtime.runtimeState.frame,
-    getAccum: () => headlessHolder.current!.runtime.runtimeState.accum,
-    getBattleAnim: () =>
-      headlessHolder.current!.runtime.runtimeState.battleAnim,
-    getControllers: () =>
-      headlessHolder.current!.runtime.runtimeState.controllers,
-    session: client.ctx.session,
-    dedup: client.ctx.dedup,
-    send: () => {},
-    logThrottled: () => {},
-    maybeSendAimUpdate: () => {},
-    render: () => headlessHolder.current!.runtime.render(),
-    onModifierRevealExpired: () =>
-      dispatchWatcherLocal("enter-battle", watcherDeps),
-    now: () => headlessHolder.current!.now(),
-  };
 
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
     remotePlayerSlots: remoteHumans,
-    onlinePhaseTicks: buildWatcherPhaseTicks(tickCtx, client.ctx.watcher),
-    // True watcher: amHost=false routes `tickGame` to `tickWatcher`,
-    // matching production. Without this the watcher would also run host
-    // phase ticks on top of incoming wire checkpoints.
+    onlinePhaseTicks: buildWatcherPhaseTicks(),
+    // amHost=false flips the broadcast gate in `buildHostPhaseCtx`
+    // (no `ctx.broadcast` on watcher), so watcher transitions don't emit
+    // wire messages even though they run the same code as host.
     amHost: () => false,
   });
   headlessHolder.current = headless;
@@ -246,18 +222,12 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
   };
 }
 
-/** Watcher-side `OnlinePhaseTicks` with real `tickWatcher` wired plus the
- *  `watcherBeginBattle` hook the runtime calls to sync the battle countdown. */
-function buildWatcherPhaseTicks(
-  ctx: WatcherTickContext,
-  watcherState: WatcherState,
-): OnlinePhaseTicks {
+/** Watcher-side `OnlinePhaseTicks` — clone-everywhere model means no
+ *  separate watcher tick path, so this is just the cross-machine merging
+ *  hooks. Broadcasts are unset because the watcher's `ctx.broadcast`
+ *  is undefined (gated by `amHost=false`). */
+function buildWatcherPhaseTicks(): OnlinePhaseTicks {
   return {
-    tickWatcher: (dt) => tickWatcher(watcherState, dt, ctx),
-    watcherBeginBattle: (nowMs) => {
-      watcherState.timing.countdownStartTime = nowMs;
-      watcherState.timing.countdownDuration = BATTLE_COUNTDOWN;
-    },
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
   };

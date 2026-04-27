@@ -42,15 +42,7 @@
  * skips prerequisites (e.g. flush before init, sweep before score).
  */
 
-import {
-  emitBattleCeaseIfTimerCrossed,
-  setBattleCountdown,
-} from "../game/index.ts";
-import {
-  BATTLE_TIMER,
-  GRUNT_TICK_INTERVAL,
-} from "../shared/core/game-constants.ts";
-import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
+import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -177,56 +169,6 @@ export function tickPersistentAnnouncement(
     banner.timer = 0;
     banner.text = "";
   }
-}
-
-/** Synthesize `state.timer` and battle-countdown announcements on the watcher.
- *
- *  Three regimes, gated on `state.phase`:
- *    1. Placement phases (+ MODIFIER_REVEAL) — wall-clock subtraction from
- *       `phaseStartTime + phaseDuration`. Resilient to frame jitter.
- *    2. Battle countdown — same wall-clock pattern, but routed through
- *       `setBattleCountdown` to drive the Ready/Aim/Fire announcement.
- *       When the countdown ends, anchor the phase timer to the exact
- *       countdown-end instant so the BATTLE timer continues seamlessly.
- *    3. Battle proper — dt-based decrement via `advancePhaseTimer`, matching
- *       the host. (Wall-clock synthesis here drifts ~17ms vs sim-tick across
- *       the 30s timer and shifts combo-streak windows.) */
-export function tickWatcherTimers(
-  state: GameState,
-  frame: { announcement?: string },
-  timing: WatcherTimingState,
-  now: () => number,
-  accum: TimerAccums,
-  dt: number,
-): void {
-  if (isPlacementPhase(state.phase) || state.phase === Phase.MODIFIER_REVEAL) {
-    const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
-    state.timer = Math.max(0, timing.phaseDuration - elapsed);
-    return;
-  }
-
-  if (state.phase !== Phase.BATTLE) return;
-
-  if (timing.countdownDuration > 0) {
-    const elapsed = Math.max(0, (now() - timing.countdownStartTime) / 1000);
-    frame.announcement = setBattleCountdown(
-      state,
-      timing.countdownDuration - elapsed,
-    );
-    if (!frame.announcement) {
-      setWatcherPhaseTimer(
-        timing,
-        timing.countdownStartTime + timing.countdownDuration * 1000,
-        BATTLE_TIMER,
-      );
-      timing.countdownDuration = 0;
-    }
-    return;
-  }
-
-  const prevTimer = state.timer;
-  advancePhaseTimer(accum, ACCUM_BATTLE, state, dt, BATTLE_TIMER);
-  emitBattleCeaseIfTimerCrossed(state, prevTimer);
 }
 
 /** Advance a phase timer: accum += dt, state.timer = max - accum.

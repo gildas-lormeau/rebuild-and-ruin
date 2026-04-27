@@ -34,7 +34,7 @@ import {
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 import type { OnlineSession } from "./online-session.ts";
-import type { WatcherState } from "./online-watcher-tick.ts";
+import type { WatcherState } from "./online-watcher-state.ts";
 
 interface OnlineRuntimeSessionDeps {
   getRuntime: () => GameRuntime;

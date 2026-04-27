@@ -29,7 +29,7 @@ import {
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
 import type { OnlineSession } from "./online-session.ts";
-import type { WatcherState } from "./online-watcher-tick.ts";
+import type { WatcherState } from "./online-watcher-state.ts";
 
 /** Dependencies the watcher-side transition handlers need.
  *
@@ -83,35 +83,43 @@ export function handleCannonStartTransition(
   dispatchWatcher(id, msg, deps);
 }
 
-/** Watcher-only: processes BATTLE_START checkpoint and transitions to
- *  battle phase. */
+/** Watcher-only: processes BATTLE_START checkpoint. Dedup-guard: if the
+ *  watcher's local tick already advanced past CANNON_PLACE (clone-everywhere
+ *  model — both peers run the same phase ticks frame-locked), the wire
+ *  message is a redundant phase marker and a re-dispatch would re-run
+ *  enterBattlePhase, double-consume RNG, and diverge state. */
 export function handleBattleStartTransition(
   msg: ServerMessage,
   deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BATTLE_START) return;
+  if (deps.getRuntime().runtimeState.state.phase !== Phase.CANNON_PLACE) return;
   dispatchWatcher("cannon-place-done", msg, deps);
 }
 
-/** Watcher-only: processes BUILD_START checkpoint and transitions to build
- *  phase. */
+/** Watcher-only: processes BUILD_START checkpoint. Dedup-guard same as
+ *  `handleBattleStartTransition` — the local tick may have already
+ *  dispatched `battle-done` after detecting end-of-battle conditions. */
 export function handleBuildStartTransition(
   msg: ServerMessage,
   deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
+  if (deps.getRuntime().runtimeState.state.phase !== Phase.BATTLE) return;
   dispatchWatcher("battle-done", msg, deps);
 }
 
 /** Watcher-only: processes BUILD_END checkpoint. Score deltas + life-lost
  *  dialog are driven by the machine's display steps (`score-overlay` then
  *  `life-lost-dialog`). No banner — the banner sweep happens later when
- *  the host broadcasts CANNON_START (or the next life-lost resolution). */
+ *  the host broadcasts CANNON_START (or the next life-lost resolution).
+ *  Dedup-guard: skip if the local tick already advanced past WALL_BUILD. */
 export function handleBuildEndTransition(
   msg: ServerMessage,
   deps: WatcherDeps,
 ): void {
   if (msg.type !== MESSAGE.BUILD_END) return;
+  if (deps.getRuntime().runtimeState.state.phase !== Phase.WALL_BUILD) return;
   dispatchWatcher("wall-build-done", msg, deps);
 }
 
@@ -135,19 +143,6 @@ export function handleGameOverTransition(
       focused: FOCUS_REMATCH,
     };
   });
-}
-
-/** Dispatch a watcher-role transition from a LOCAL trigger (no incoming
- *  server message). Used by phase ticks that expire deterministically
- *  on both sides — e.g. `tickWatcher` detecting `MODIFIER_REVEAL` timer
- *  expiry and dispatching `enter-battle`. The ctx is built with no
- *  `incomingMsg`; transitions that read one must not be dispatched via
- *  this helper. */
-export function dispatchWatcherLocal(
-  id: TransitionId,
-  deps: WatcherDeps,
-): void {
-  runTransition(id, buildWatcherPhaseCtx(undefined, deps));
 }
 
 function dispatchWatcher(

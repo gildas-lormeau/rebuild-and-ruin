@@ -102,7 +102,6 @@ export const FEATURE_CONSUMERS = {
     "gate:generateUpgradeOffers": "src/game/phase-setup.ts",
     "gate:enterBuildFromReselect": "src/game/phase-setup.ts",
     "gate:masterBuilder": "src/game/upgrades/master-builder.ts",
-    "gate:watcherBuildTick": "src/online/online-watcher-tick.ts",
     "stateAccess:pendingOffers": "src/game/upgrade-system.ts",
     "stateAccess:masterBuilderOwners": "src/online/online-host-promotion.ts",
     "stateAccess:pendingUpgradeOffers":

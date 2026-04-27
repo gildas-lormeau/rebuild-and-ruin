@@ -1,5 +1,4 @@
 import {
-  type GameMessage,
   type InitMessage,
   MESSAGE,
   type ServerMessage,
@@ -15,22 +14,19 @@ import {
 } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import {
-  BATTLE_COUNTDOWN,
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { canvas, worldCanvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
-import {
-  dispatchWatcherLocal,
-  type WatcherDeps,
-} from "./online-phase-transitions.ts";
+import { type WatcherDeps } from "./online-phase-transitions.ts";
 import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
@@ -44,7 +40,6 @@ import {
   createGameOverPayload,
 } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
-import { tickWatcher, type WatcherTickContext } from "./online-watcher-tick.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names
@@ -104,23 +99,6 @@ const sendActions = createOnlineSendActions({
   send,
   getState: () => runtime.runtimeState.state,
 });
-// ── Watcher tick context ────────────────────────────────────────────
-const watcherTickCtx: WatcherTickContext = {
-  getState: () => runtime.runtimeState.state,
-  getFrame: () => runtime.runtimeState.frame,
-  getAccum: () => runtime.runtimeState.accum,
-  getBattleAnim: () => runtime.runtimeState.battleAnim,
-  getControllers: () => runtime.runtimeState.controllers,
-  session: ctx.session,
-  dedup: ctx.dedup,
-  send: (msg) => send(msg as GameMessage),
-  logThrottled: devLogThrottled,
-  maybeSendAimUpdate,
-  render: () => runtime.render(),
-  now: () => performance.now(),
-  onModifierRevealExpired: () =>
-    dispatchWatcherLocal("enter-battle", watcherDeps),
-};
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({
   renderer,
@@ -185,29 +163,30 @@ const runtime: GameRuntime = createGameRuntime({
     broadcastBuildStart: () => send(createBuildStartMessage()),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
 
-    // ── Host: per-controller crosshair fan-out ────────────────────────
-    // No internal isHost gate — the runtime calls this only from the host
-    // path inside `syncCrosshairs`.
-    broadcastLocalCrosshair: (ctrl, crosshair) =>
+    // ── Per-controller crosshair fan-out ──────────────────────────────
+    // Self-gates by ownership: only the local human's crosshair hits the
+    // wire. AI crosshairs are deterministic from strategy.rng + state, so
+    // every peer derives them locally — broadcasting would be redundant.
+    broadcastLocalCrosshair: (ctrl, crosshair) => {
+      if (!isHuman(ctrl) || ctrl.playerId !== ctx.session.myPlayerId) return;
       broadcastLocalCrosshairImpl(ctrl, crosshair, {
         lastSentAimTarget: ctx.dedup.aimTarget,
         send,
-      }),
-
-    // ── Host: per-frame phantom dedup ─────────────────────────────────
-    shouldSendCannonPhantom: (playerId, key) =>
-      ctx.dedup.cannonPhantom.shouldSend(playerId, key),
-    shouldSendPiecePhantom: (playerId, key) =>
-      ctx.dedup.piecePhantom.shouldSend(playerId, key),
-
-    // ── Watcher: per-frame state apply ────────────────────────────────
-    tickWatcher: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
-    watcherBeginBattle: (nowMs) => {
-      ctx.watcher.timing.countdownStartTime = nowMs;
-      ctx.watcher.timing.countdownDuration = BATTLE_COUNTDOWN;
+      });
     },
 
-    // ── Both roles: cross-machine merging ─────────────────────────────
+    // ── Per-frame phantom dedup ───────────────────────────────────────
+    // Self-gates by ownership before consulting the dedup channel.
+    shouldSendCannonPhantom: (playerId, key) => {
+      if (playerId !== ctx.session.myPlayerId) return false;
+      return ctx.dedup.cannonPhantom.shouldSend(playerId, key);
+    },
+    shouldSendPiecePhantom: (playerId, key) => {
+      if (playerId !== ctx.session.myPlayerId) return false;
+      return ctx.dedup.piecePhantom.shouldSend(playerId, key);
+    },
+
+    // ── Cross-machine merging ─────────────────────────────────────────
     extendCrosshairs: (crosshairs, dt) =>
       extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
         remoteCrosshairs: ctx.watcher.remoteCrosshairs,

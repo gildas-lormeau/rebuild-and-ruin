@@ -305,7 +305,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function syncCrosshairs(weaponsActive: boolean, dt: number): void {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, controllers } = runtimeState;
     const crosshairs: Crosshair[] = [];
 
@@ -327,11 +326,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         playerId: ctrl.playerId,
         cannonReady: weaponsActive && !!readyCannon,
       });
-      // Host-only fan-out: gated here at the call site so the wiring closure
-      // never has to know about role state.
-      if (isHost) {
-        online?.broadcastLocalCrosshair?.(ctrl, ch, !!readyCannon);
-      }
+      // Per-controller fan-out — the hook self-gates by ownership (only
+      // emits for the local human, not for AIs which every peer recomputes).
+      online?.broadcastLocalCrosshair?.(ctrl, ch, !!readyCannon);
     }
 
     runtimeState.frame.crosshairs = crosshairs;
@@ -521,7 +518,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     setBattleCountdown(runtimeState.state, BATTLE_COUNTDOWN);
     resetAccum(runtimeState.accum, ACCUM_BATTLE);
     setMode(runtimeState, Mode.GAME);
-    online?.watcherBeginBattle?.(deps.timing.now());
     deps.onBeginBattle?.();
   }
 
@@ -554,7 +550,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickCannonPhase(dt: number): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
@@ -570,30 +565,30 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // AI cannon placements are deterministic from strategy.rng + state — every
     // peer recomputes them locally, no wire payload (see project rule
     // "wire = uncomputable inputs only"). Human placements broadcast from
-    // inside the placement callback, not here.
+    // inside the placement callback, not here. The phantom hook self-gates
+    // by ownership so only the local-human's cursor preview hits the wire.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const phantom = ctrl.cannonTick(state, dt);
       if (!phantom) continue;
-      // Phantom = mouse-cursor preview for own human; AI phantoms are
-      // deterministic and recomputed on every peer.
+      if (!isHuman(ctrl)) continue;
       if (
-        isHost &&
-        isHuman(ctrl) &&
-        (online?.shouldSendCannonPhantom?.(
-          ctrl.playerId,
-          cannonPhantomKey(phantom),
-        ) ??
-          true)
+        !(
+          online?.shouldSendCannonPhantom?.(
+            ctrl.playerId,
+            cannonPhantomKey(phantom),
+          ) ?? false
+        )
       ) {
-        deps.sendOpponentCannonPhantom({
-          playerId: ctrl.playerId,
-          row: phantom.row,
-          col: phantom.col,
-          mode: phantomWireMode(phantom),
-          valid: phantom.valid,
-        });
+        continue;
       }
+      deps.sendOpponentCannonPhantom({
+        playerId: ctrl.playerId,
+        row: phantom.row,
+        col: phantom.col,
+        mode: phantomWireMode(phantom),
+        valid: phantom.valid,
+      });
     }
 
     // Remote phantoms live on each remote-controlled slot's controller
@@ -751,7 +746,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       return false;
     }
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, accum } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
@@ -764,29 +758,31 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // peer recomputes them locally, no wire payload (see project rule
     // "wire = uncomputable inputs only"). Human placements broadcast from
     // inside the placement callback. Only the own-human's *phantom* (cursor
-    // preview) is sent, since cursor position is uncomputable input.
+    // preview) is sent — the phantom hook self-gates by ownership.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       if (!canBuildThisFrame(state, ctrl.playerId)) continue;
       const phantoms = ctrl.buildTick(state, dt);
 
-      if (!isHost || !isHuman(ctrl)) continue;
+      if (!isHuman(ctrl)) continue;
       for (const phantom of phantoms) {
         if (
-          online?.shouldSendPiecePhantom?.(
-            phantom.playerId,
-            piecePhantomKey(phantom),
-          ) ??
-          true
+          !(
+            online?.shouldSendPiecePhantom?.(
+              phantom.playerId,
+              piecePhantomKey(phantom),
+            ) ?? false
+          )
         ) {
-          deps.sendOpponentPhantom({
-            playerId: phantom.playerId,
-            row: phantom.row,
-            col: phantom.col,
-            offsets: phantom.offsets,
-            valid: phantom.valid,
-          });
+          continue;
         }
+        deps.sendOpponentPhantom({
+          playerId: phantom.playerId,
+          row: phantom.row,
+          col: phantom.col,
+          offsets: phantom.offsets,
+          valid: phantom.valid,
+        });
       }
     }
 
@@ -814,49 +810,45 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   /** Canonical state-ready guard — all phase ticks funnel through here,
-   *  so a single assertion covers cannon, battle, build, and balloon ticks. */
+   *  so a single assertion covers cannon, battle, build, and balloon ticks.
+   *  Same code runs on every peer (clone-everywhere): each peer simulates
+   *  the full game from synced state + RNG; the wire only carries
+   *  uncomputable inputs (human input). */
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
-    if (runtimeState.frameMeta.hostAtFrameStart) {
-      // Age and filter impact flashes regardless of phase
-      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
+    // Age and filter impact flashes regardless of phase
+    ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
 
-      switch (runtimeState.state.phase) {
-        case Phase.CANNON_PLACE:
-          tickCannonPhase(dt);
-          break;
-        case Phase.BATTLE:
-          if (runtimeState.state.battleCountdown > 0) {
-            tickBattleCountdown(dt);
-          } else {
-            tickBattlePhase(dt);
-          }
-          break;
-        case Phase.WALL_BUILD:
-          tickBuildPhase(dt);
-          break;
-        case Phase.MODIFIER_REVEAL:
-          // Real timed phase — its banner's sweep-end flips mode to
-          // GAME (see `enter-modifier-reveal.postDisplay`), then this
-          // branch decrements `state.timer` and dispatches
-          // `enter-battle` when it expires. Before the phase-timer
-          // refactor this was an unreachable no-op because the banner
-          // owned the delay via a `holdMs` setTimeout.
-          tickModifierRevealPhase(dt);
-          break;
-        case Phase.UPGRADE_PICK:
-        case Phase.CASTLE_SELECT:
-        case Phase.CASTLE_RESELECT:
-          // UPGRADE_PICK runs in Mode.UPGRADE_PICK (not Mode.GAME);
-          // castle-select phases run in Mode.SELECTION / CASTLE_BUILD.
-          // tickGame never reaches these branches while those phases
-          // are active. Explicit no-ops for exhaustiveness.
-          break;
-      }
-    } else {
-      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
-      online?.tickWatcher?.(dt);
-      deps.render();
+    switch (runtimeState.state.phase) {
+      case Phase.CANNON_PLACE:
+        tickCannonPhase(dt);
+        break;
+      case Phase.BATTLE:
+        if (runtimeState.state.battleCountdown > 0) {
+          tickBattleCountdown(dt);
+        } else {
+          tickBattlePhase(dt);
+        }
+        break;
+      case Phase.WALL_BUILD:
+        tickBuildPhase(dt);
+        break;
+      case Phase.MODIFIER_REVEAL:
+        // Real timed phase — its banner's sweep-end flips mode to GAME
+        // (see `enter-modifier-reveal.postDisplay`), then this branch
+        // decrements `state.timer` and dispatches `enter-battle` when it
+        // expires. Both peers run the same timer locally; no network
+        // message is exchanged for the edge.
+        tickModifierRevealPhase(dt);
+        break;
+      case Phase.UPGRADE_PICK:
+      case Phase.CASTLE_SELECT:
+      case Phase.CASTLE_RESELECT:
+        // UPGRADE_PICK runs in Mode.UPGRADE_PICK (not Mode.GAME);
+        // castle-select phases run in Mode.SELECTION / CASTLE_BUILD.
+        // tickGame never reaches these branches while those phases
+        // are active. Explicit no-ops for exhaustiveness.
+        break;
     }
     online?.tickMigrationAnnouncement?.(dt);
   }

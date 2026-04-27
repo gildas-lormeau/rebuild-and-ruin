@@ -33,7 +33,7 @@ import {
   resetWatcherState,
   resetWatcherTimingForHostPromotion,
   type WatcherState,
-} from "./online-watcher-tick.ts";
+} from "./online-watcher-state.ts";
 
 type ResetScope = "dedup" | "new-game" | "host-promotion";
 
