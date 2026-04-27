@@ -792,9 +792,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // --- Engine tick (advances upgrade-effect timers, returns timer max) ---
     const { timerMax } = engineTickBuildPhase(state, dt);
     advancePhaseTimer(accum, "build", state, dt, timerMax);
-    tickGruntsIfDue(accum, dt, state, (gameState: GameState) => {
-      tickGrunts(gameState);
-    });
 
     // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
     for (const ctrl of local) {
@@ -844,6 +841,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Remote phantoms live on each remote-controlled slot's controller
     // (`currentBuildPhantoms`), written by the inbound network handler.
     // Render reads them via `buildPiecePhantomsUnion`.
+
+    // Grunt movement runs AFTER local controllers place walls so host and
+    // watcher see the same wall set when grunts step. The watcher applies
+    // wire-received placements before its own `tickGruntsIfDue` (see
+    // online-watcher-tick.ts); the host must mirror that order or grunts
+    // diverge by one frame, drifting state-dependent RNG draws.
+    tickGruntsIfDue(accum, dt, state, tickGrunts);
 
     deps.render();
     if (state.timer > 0) return false;

@@ -165,6 +165,7 @@ WALL_BUILD
   System → Generates piece bag for current round
   Each player → Places tetromino wall pieces before timer expires
   [Modern: Master Builder → opponents locked out for first 5s if single owner]
+  Grunts → move toward target towers (1 tile/sec; pace back-and-forth if blocked)
   System → Sweeps isolated walls (batch collect-then-delete, one layer per player)
   System → Recomputes territory (flood-fill)
   System → Scores territory (tiered points + castle bonus)
@@ -203,7 +204,7 @@ BATTLE
     - Hit frozen tile → tile thawed
     - Super cannon hit → creates burning pit
     - Balloon hit → accumulates toward cannon capture
-  Grunts → move toward target towers, attack when adjacent (3s countdown)
+  Grunts → attack target tower when adjacent (3s countdown; do not move during battle)
   [Blocked grunts may attack walls after 2+ rounds blocked]
   Timer expires →
     [Post-battle cleanup (battle → build transition)]:

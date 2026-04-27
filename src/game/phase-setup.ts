@@ -102,7 +102,6 @@ import {
   rollModifier,
 } from "./modifier-system.ts";
 import {
-  buildTimerBonus,
   generateUpgradeOffers,
   onBattlePhaseStart,
   onBuildPhaseStart,
@@ -218,8 +217,12 @@ export function enterBuildFromBattle(state: GameState): void {
   // Upgrade-effect setup for the new build phase (Master Builder owners +
   // lockout, plus any future hooks wired into onBuildPhaseStart).
   onBuildPhaseStart(state);
-  state.timer = state.buildTimer + buildTimerBonus(state);
-
+  // `state.timer` for the upcoming build phase is anchored in
+  // `enter-wall-build.mutate` (runtime-phase-machine.ts) — AFTER
+  // `applyUpgradePicks` has applied THIS round's picks. Setting it here
+  // would freeze the value at the previous round's upgrade set, so
+  // Double Time / Master Builder bonuses applied this round would not
+  // affect phase length and host/watcher would disagree.
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
 

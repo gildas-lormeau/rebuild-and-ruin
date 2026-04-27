@@ -206,11 +206,11 @@ export function tickWatcher(
       break;
   }
 
-  // Grunt movement during build phase (deterministic — runs locally)
+  // Grunt movement during build phase (deterministic — runs locally).
+  // Runs AFTER wire-received placements have been applied this tick, so the
+  // grunt step sees frame-N walls. Host's tickBuildPhase mirrors this order.
   if (state.phase === Phase.WALL_BUILD) {
-    tickGruntsIfDue(accum, dt, state, (gameState) => {
-      moveGrunts(gameState);
-    });
+    tickGruntsIfDue(accum, dt, state, moveGrunts);
   }
 
   transitionCtx.render();

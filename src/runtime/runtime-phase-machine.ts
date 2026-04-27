@@ -42,6 +42,7 @@
 import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
+  buildTimerBonus,
   enterBattlePhase,
   enterBuildPhase,
   enterCannonPhase,
@@ -630,11 +631,21 @@ const ENTER_WALL_BUILD: Transition = {
   mutate: {
     host: (ctx) => {
       setPhase(ctx.state, Phase.WALL_BUILD);
+      // Anchor the phase timer here — AFTER `applyUpgradePicks` (which
+      // runs in `upgrade-pick-done.mutate`) and `resetPlayerUpgrades`
+      // (which runs in `enterBuildFromBattle`) have settled the upgrade
+      // set for this round. Setting it earlier (e.g. in
+      // `enterBuildFromBattle`) reflects the PREVIOUS round's upgrades
+      // and diverges Double Time / Master Builder bonuses from what the
+      // build phase actually plays out with — host vs watcher would
+      // disagree on phase length.
+      ctx.state.timer = ctx.state.buildTimer + buildTimerBonus(ctx.state);
       ctx.startBuildPhaseLocal?.();
       return EMPTY_TRANSITION_RESULT;
     },
     watcher: (ctx) => {
       setPhase(ctx.state, Phase.WALL_BUILD);
+      ctx.state.timer = ctx.state.buildTimer + buildTimerBonus(ctx.state);
       ctx.watcher?.initLocalBuildControllerIfActive();
       // Mirror host's startBuildPhaseLocal runtime resets — accumulators
       // and impact flashes that the watcher's BUILD-phase tickers would

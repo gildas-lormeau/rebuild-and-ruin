@@ -35,6 +35,7 @@ import {
 } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
+  advancePlayerBag,
   type FreshInterior,
   isPlayerEliminated,
   isPlayerSeated,
@@ -144,7 +145,14 @@ export function canPlacePiece(
 /** Apply a piece placement to the board. Marks walls dirty after mutation.
  *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh().
- *  Used by host and watcher (no validation). */
+ *  Used by host and watcher (no validation).
+ *
+ *  Advances the player's piece bag at the end so host and watcher consume
+ *  state.rng identically per placement: `advancePlayerBag → nextPiece →
+ *  refillBagQueueIfNeeded → piecePool → state.rng.shuffle` runs on both
+ *  sides at the same point in the RNG stream. Skipping it on the watcher
+ *  drifts state.rng once any player's bag refills mid-build, with the drift
+ *  showing up later as desynced grunt/house spawn positions. */
 export function applyPiecePlacement(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -183,6 +191,7 @@ export function applyPiecePlacement(
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
   }
+  advancePlayerBag(player, true);
 }
 
 /** Reclaim territory for all players after a wall mutation during active build phase.

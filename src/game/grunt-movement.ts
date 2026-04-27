@@ -38,10 +38,11 @@ import type { GameState } from "../shared/core/types.ts";
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
 
 /**
- * Tick grunt movement during battle phase. Each grunt moves 1 step toward
- * the nearest enemy tower. When blocked by another grunt, tries orthogonal
- * moves to go around, producing natural encirclement of towers.
- * Returns true if any grunt moved (for animation purposes).
+ * Tick grunt movement during the build phase (grunts are stationary in
+ * battle — they only attack adjacent towers/walls there). Each grunt moves
+ * 1 step toward the nearest enemy tower. When blocked by another grunt,
+ * tries orthogonal moves to go around, producing natural encirclement of
+ * towers. Returns true if any grunt moved (for animation purposes).
  *
  * INVARIANT: targets must be locked before movement. The two-pass order is:
  * 1. lockGruntTarget() for all grunts (assigns targetTowerIdx/victimPlayerId)
