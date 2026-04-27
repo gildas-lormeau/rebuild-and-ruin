@@ -117,44 +117,38 @@ export function createSelectionSystem(
 
   function enterTowerSelection(): void {
     const { state } = runtimeState;
-    const isHost = deps.hostAtFrameStart();
     const { myPlayerId, remotePlayerSlots } = runtimeState.frameMeta;
+    const isHost = deps.hostAtFrameStart();
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
     );
 
-    const isWatcher = !isHost && !isActivePlayer(myPlayerId);
-
-    // Pure-watcher path: SELECT_START arrives in two flavours.
-    // (1) Initial selection — every active player still has homeTower=null.
-    // (2) Reselection — only the player(s) who lost a life have null
-    //     homeTower; resetPlayerBoardState cleared theirs in
-    //     applyLifePenalties, while the others keep their prior pick.
-    // The host runs `startReselection` for (2) which only ticks the
-    // queued slot. Reusing the full enterSelectionPhase here would
-    // re-init every AI slot's selection and drift strategy.rng for
-    // slots NOT in the queue. Detect (2) via "some player has homeTower
-    // and some doesn't" and route to startReselection instead.
-    if (isWatcher) {
-      const queue: ValidPlayerSlot[] = [];
-      let anyHasHome = false;
-      for (let i = 0; i < state.players.length; i++) {
-        const player = state.players[i];
-        if (!player || player.eliminated) continue;
-        if (player.homeTower) anyHasHome = true;
-        else queue.push(i as ValidPlayerSlot);
-      }
-      if (anyHasHome && queue.length > 0) {
-        runtimeState.selection.reselectQueue = queue;
-        startReselection();
-        return;
-      }
+    // SELECT_START / local entry: detect reselection by inspecting state
+    // (some active players have a homeTower, some don't). Reselection only
+    // ticks the queued slot — re-running the full enterSelectionPhase here
+    // would re-init every AI's selection and advance strategy.rng for
+    // slots that didn't actually reselect, drifting state vs other peers.
+    const queue: ValidPlayerSlot[] = [];
+    let anyHasHome = false;
+    for (let i = 0; i < state.players.length; i++) {
+      const player = state.players[i];
+      if (!player || player.eliminated) continue;
+      if (player.homeTower) anyHasHome = true;
+      else queue.push(i as ValidPlayerSlot);
+    }
+    if (anyHasHome && queue.length > 0) {
+      runtimeState.selection.reselectQueue = queue;
+      startReselection();
+      return;
     }
 
     resetSelectionState();
 
-    // Non-host active player joining mid-game needs reselect phase
+    // Non-host active player joining mid-game (state.phase isn't
+    // CASTLE_SELECT yet) needs to flip into the reselect phase locally.
+    // Host never reaches this branch — it's the source of truth and
+    // already in CASTLE_SELECT when this runs.
     if (!isHost && isActivePlayer(myPlayerId)) {
       const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
       if (needsCastleReselect && !isReselectPhase(state.phase)) {
@@ -165,29 +159,19 @@ export function createSelectionSystem(
     // Engine owns selection-state init + timer.
     enterSelectionPhase(state, runtimeState.selection.states);
 
-    // Per-player runtime setup: AI/controller init for drivable slots,
-    // camera zoom for humans. Runs after the engine has populated
-    // selectionStates + player.homeTower defaults.
-    //
-    // Drivable slot policy:
-    //   Watcher: AI slots only — runs deterministically off `strategy.rng`
-    //     so `homeTower` mirrors host without wire chatter; human slots
-    //     get their selection via `OPPONENT_TOWER_SELECTED`.
-    //   Non-host player: only myPlayerId — remote players handled by host
-    //   Host: all non-remote-humans — host drives AI + local player
-    const shouldSelect = (pid: ValidPlayerSlot): boolean => {
-      if (isWatcher) return !isHuman(runtimeState.controllers[pid]!);
-      if (!isHost) return pid === myPlayerId;
-      return !isRemotePlayer(pid, remotePlayerSlots);
-    };
-
+    // Per-player runtime setup: drive non-remote-human slots (AI + own
+    // local human). AI selection ticks deterministically from
+    // `strategy.rng`, so every peer derives identical `homeTower`
+    // sequences without wire chatter. Remote humans (other peers' input)
+    // come in via OPPONENT_TOWER_SELECTED.
     for (let i = 0; i < state.players.length; i++) {
       const pid = i as ValidPlayerSlot;
       const zone = state.playerZones[i]!;
-      if (shouldSelect(pid)) {
-        runtimeState.controllers[i]!.selectInitialTower(state, zone);
+      const ctrl = runtimeState.controllers[i]!;
+      if (!isRemotePlayer(pid, remotePlayerSlots)) {
+        ctrl.selectInitialTower(state, zone);
       }
-      if (isHuman(runtimeState.controllers[pid]!)) {
+      if (isHuman(ctrl)) {
         const player = state.players[pid];
         if (player?.homeTower)
           deps.camera.setSelectionViewport(
@@ -309,8 +293,6 @@ export function createSelectionSystem(
   function tickSelection(dt: number) {
     const { state, accum, selection } = runtimeState;
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = deps.hostAtFrameStart();
-    const myPlayerId = runtimeState.frameMeta.myPlayerId;
 
     // Advance announcement / selection timer (blessed mutation site — see MutableAccums)
     const mutAccum = accum as MutableAccums;
@@ -323,49 +305,8 @@ export function createSelectionSystem(
       state.timer = Math.max(0, SELECT_TIMER - accum.select);
     }
 
-    // Non-host: tick AI controllers' selectionTick locally (deterministic
-    // from strategy.rng), then animate any host-broadcast wall plans, then
-    // render. Each player's `homeTower` updates identically to host without
-    // needing wire chatter for AI picks. Block until announcement finishes
-    // so the AI tick count matches host's (host gates the same way below).
-    // Wall-build animation runs inline here to mirror host's tickSelection
-    // — without it, host's per-player CASTLE_WALLS would never animate
-    // because the watcher no longer flips to Mode.CASTLE_BUILD.
-    if (!isHost) {
-      if (accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION) {
-        for (const [rawPid, selectionState] of selection.states) {
-          const pid = rawPid as ValidPlayerSlot;
-          if (selectionState.confirmed) continue;
-          const ctrl = runtimeState.controllers[pid]!;
-          if (isHuman(ctrl)) continue;
-          const towerBefore = state.players[pid]!.homeTower;
-          if (ctrl.selectionTick(dt, state)) {
-            // Run the full confirmation flow so the watcher consumes
-            // state.rng identically to host (via startPlayerCastleBuild →
-            // prepareCastleWallsForPlayer). AI is non-human, so no
-            // sendTowerSelected fires. Source is "local" (deterministic
-            // local derivation), but for AI that's distinction-free.
-            confirmSelectionAndStartBuild(pid, isReselectPhase(state.phase));
-            continue;
-          }
-          if (state.players[pid]!.homeTower !== towerBefore) {
-            const newTower = state.players[pid]!.homeTower;
-            if (newTower) selectionState.highlighted = newTower.index;
-          }
-        }
-      }
-
-      // Active local player: auto-confirm on timer expiry.
-      if (isActivePlayer(myPlayerId) && accum.select >= SELECT_TIMER) {
-        confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
-      }
-
-      if (tickAllCastleBuilds(dt)) recheckTerritory(state);
-      deps.render();
-      return;
-    }
-
-    // Host: block selection until announcement finishes
+    // Block selection until announcement finishes — same gate on every
+    // peer so the AI tick count stays in lockstep across runtimes.
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
       deps.render();
       return;
@@ -375,7 +316,11 @@ export function createSelectionSystem(
       syncSelectionOverlay();
     }
 
-    // Tick controllers (AI + local human)
+    // Tick non-remote-human controllers (AI + own local human). Every peer
+    // runs AI selection locally — `selectionTick` consumes `strategy.rng`
+    // deterministically, so each peer derives identical homeTower
+    // sequences without wire chatter. Remote-human selections come in via
+    // OPPONENT_TOWER_SELECTED from the input handler on the owning peer.
     const isReselect = isReselectPhase(state.phase);
     for (const [rawPid, selectionState] of selection.states) {
       const pid = rawPid as ValidPlayerSlot;
@@ -394,11 +339,6 @@ export function createSelectionSystem(
         if (newTower) {
           selectionState.highlighted = newTower.index;
           syncSelectionOverlay();
-          // Only humans need wire mirroring — AI selection is deterministic
-          // from `strategy.rng` and runs locally on the watcher too.
-          if (isHuman(ctrl)) {
-            deps.sendTowerSelected(pid, newTower.index, false);
-          }
         }
       }
     }
@@ -410,11 +350,15 @@ export function createSelectionSystem(
 
     deps.render();
 
-    // Auto-confirm pending selections on timer expiry
+    // Auto-confirm pending selections on timer expiry. Skip remote
+    // humans — their owning peer runs the same auto-confirm and
+    // broadcasts via OPPONENT_TOWER_SELECTED.
     if (accum.select >= SELECT_TIMER) {
       for (const [rawPid, selectionState] of selection.states) {
         if (selectionState.confirmed) continue;
-        confirmSelectionAndStartBuild(rawPid as ValidPlayerSlot, isReselect);
+        const pid = rawPid as ValidPlayerSlot;
+        if (isRemotePlayer(pid, remotePlayerSlots)) continue;
+        confirmSelectionAndStartBuild(pid, isReselect);
       }
     }
 
@@ -501,9 +445,6 @@ export function createSelectionSystem(
 
   function startReselection() {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const isHost = deps.hostAtFrameStart();
-    const { myPlayerId } = runtimeState.frameMeta;
-    const isWatcher = !isHost && !isActivePlayer(myPlayerId);
     const { state } = runtimeState;
     resetSelectionState();
 
@@ -516,20 +457,12 @@ export function createSelectionSystem(
     );
 
     // Runtime: per-player controller (selectReplacementTower) + camera
-    // setup loop. AI players auto-confirm via selectionTick(); humans
-    // need UI interaction. Both paths run through the selection tick —
-    // there's no "done immediately" branch (the old processReselectionQueue
-    // had one but it was never reachable).
-    //
-    // Drivable slot policy mirrors `enterTowerSelection`:
-    //   Watcher: every AI slot in the queue (humans handled via wire)
-    //   Host: every non-remote-human slot in the queue
-    const shouldDrive = (pid: ValidPlayerSlot): boolean => {
-      if (isWatcher) return !isHuman(runtimeState.controllers[pid]!);
-      return !isRemotePlayer(pid, remotePlayerSlots);
-    };
+    // setup loop. Drive every non-remote-human slot in the queue —
+    // AI players auto-confirm via selectionTick(); own local human
+    // needs UI interaction. Remote humans (other peers' input) handled
+    // on their owning peer.
     for (const pid of runtimeState.selection.reselectQueue) {
-      if (!shouldDrive(pid)) continue;
+      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
       const zone = state.playerZones[pid] ?? 0;
       runtimeState.controllers[pid]!.selectReplacementTower(state, zone);
       if (isHuman(runtimeState.controllers[pid]!)) {
@@ -547,6 +480,9 @@ export function createSelectionSystem(
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
       setMode(runtimeState, Mode.SELECTION);
+      // Host fan-out: SELECT_START tells watchers to enter the reselect
+      // phase. Self-gates via `hostAtFrameStart` since the wire is the
+      // host's responsibility — watchers see this no-op and don't echo.
       if (deps.hostAtFrameStart()) {
         deps.sendSelectStart(SELECT_TIMER);
       }
