@@ -25,6 +25,7 @@ export type UpgradeId =
   | "territorial_ambition"
   | "reclamation"
   | "demolition"
+  | "erosion"
   | "restoration_crew"
   | "rapid_emplacement"
   | "entomb";
@@ -91,6 +92,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   TERRITORIAL_AMBITION: "territorial_ambition",
   RECLAMATION: "reclamation",
   DEMOLITION: "demolition",
+  EROSION: "erosion",
   RESTORATION_CREW: "restoration_crew",
   RAPID_EMPLACEMENT: "rapid_emplacement",
   ENTOMB: "entomb",
@@ -274,6 +276,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "demolition",
     label: "Demolition",
     description: "Strip all non-load-bearing walls (can merge castles)",
+    category: ONE_USE,
+    weight: WEIGHT_RARE,
+    oneUse: true,
+    global: true,
+    implemented: true,
+  },
+  {
+    id: "erosion",
+    label: "Erosion",
+    description: "Sweep one layer of exposed walls from every player",
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,

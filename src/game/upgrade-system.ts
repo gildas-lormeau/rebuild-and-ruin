@@ -34,6 +34,7 @@ import { conscriptionImpl } from "./upgrades/conscription.ts";
 import { demolitionImpl } from "./upgrades/demolition.ts";
 import { doubleTimeImpl } from "./upgrades/double-time.ts";
 import { entombImpl } from "./upgrades/entomb.ts";
+import { erosionImpl } from "./upgrades/erosion.ts";
 import { foundationsImpl } from "./upgrades/foundations.ts";
 import { masterBuilderImpl } from "./upgrades/master-builder.ts";
 import { mortarImpl, mortarSpeedMult } from "./upgrades/mortar.ts";
@@ -76,6 +77,7 @@ const UPGRADE_IMPLS = {
   supply_drop: supplyDropImpl,
   second_wind: secondWindImpl,
   demolition: demolitionImpl,
+  erosion: erosionImpl,
   clear_the_field: clearTheFieldImpl,
   restoration_crew: restorationCrewImpl,
   rapid_emplacement: rapidEmplacementImpl,

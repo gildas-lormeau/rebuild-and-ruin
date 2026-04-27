@@ -224,7 +224,7 @@
       "src/controllers/controller-factory.ts",
       "src/game/castle-generation.ts",
       "src/game/grunt-movement.ts",
-      "src/game/upgrade-system.ts",
+      "src/game/upgrades/erosion.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-seed-field.ts",
       "src/input/input-touch-update.ts",
@@ -251,8 +251,7 @@
     "files": [
       "src/ai/ai-build-score.ts",
       "src/ai/ai-build-target.ts",
-      "src/game/cannon-system.ts",
-      "src/game/wall-impact.ts",
+      "src/game/upgrade-system.ts",
       "src/input/input-keyboard.ts",
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
@@ -277,7 +276,8 @@
     "tier": "systems",
     "files": [
       "src/ai/ai-build-fallback.ts",
-      "src/game/grunt-system.ts",
+      "src/game/cannon-system.ts",
+      "src/game/wall-impact.ts",
       "src/online/online-runtime-ws.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
@@ -294,8 +294,7 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy-build.ts",
-      "src/game/build-system.ts",
-      "src/game/modifier-system.ts",
+      "src/game/grunt-system.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/render-canvas.ts"
     ]
@@ -305,7 +304,8 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
-      "src/game/battle-system.ts",
+      "src/game/build-system.ts",
+      "src/game/modifier-system.ts",
       "src/render/3d/renderer.ts"
     ]
   },
@@ -317,9 +317,7 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/online/online-server-events.ts"
+      "src/game/battle-system.ts"
     ]
   },
   {
@@ -327,9 +325,9 @@
     "tier": "assembly",
     "files": [
       "src/controllers/controller-ai.ts",
-      "src/game/game-engine.ts",
-      "src/online/online-serialize.ts",
-      "src/runtime/runtime-phase-machine.ts"
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
+      "src/online/online-server-events.ts"
     ]
   },
   {
@@ -337,6 +335,15 @@
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
+      "src/game/game-engine.ts",
+      "src/online/online-serialize.ts",
+      "src/runtime/runtime-phase-machine.ts"
+    ]
+  },
+  {
+    "name": "session & runtime lifecycle",
+    "tier": "roots",
+    "files": [
       "src/online/online-phase-transitions.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-session.ts",
@@ -344,7 +351,7 @@
     ]
   },
   {
-    "name": "session & runtime lifecycle",
+    "name": "app wiring",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts",
@@ -352,7 +359,7 @@
     ]
   },
   {
-    "name": "app wiring",
+    "name": "online composition root",
     "tier": "roots",
     "files": [
       "src/main.ts",
@@ -360,8 +367,7 @@
     ]
   },
   {
-    "name": "online composition root",
-    "tier": "roots",
+    "name": "layer 18",
     "files": [
       "src/online-client.ts"
     ]
