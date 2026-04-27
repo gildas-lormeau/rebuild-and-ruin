@@ -35,7 +35,6 @@ import {
   handleServerMessage,
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
-import { type WatcherDeps } from "../src/online/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -64,7 +63,6 @@ import {
   type ScenarioOptions,
   wrapHeadless,
 } from "./scenario.ts";
-import type { TimingApi } from "../src/runtime/runtime-contracts.ts";
 
 export interface NetworkedPair {
   /** Host runtime — real game, real broadcasts. */
@@ -155,29 +153,7 @@ async function buildWatcherRuntime(
   // uncomputable inputs only). For pure-AI tests, no humans means empty.
   const remoteHumans = new Set<ValidPlayerSlot>();
 
-  // Build the client + transition contexts BEFORE constructing the
-  // runtime so `onlinePhaseTicks` and `WatcherDeps` can close over them.
   const client = buildWatcherClient(remoteHumans);
-  const headlessHolder: { current?: HeadlessRuntime } = {};
-  const requireHeadless = (): HeadlessRuntime => {
-    const headless = headlessHolder.current;
-    if (!headless) throw new Error("watcher runtime not yet constructed");
-    return headless;
-  };
-  const lazyTiming: TimingApi = {
-    now: () => requireHeadless().timing.now(),
-    setTimeout: (callback, ms) =>
-      requireHeadless().timing.setTimeout(callback, ms),
-    clearTimeout: (handle) => requireHeadless().timing.clearTimeout(handle),
-    requestFrame: (callback) => requireHeadless().timing.requestFrame(callback),
-  };
-  const watcherDeps: WatcherDeps = {
-    getRuntime: () => requireHeadless().runtime,
-    session: client.ctx.session,
-    watcher: client.ctx.watcher,
-    timing: lazyTiming,
-  };
-
   const headless = await createHeadlessRuntime({
     ...base,
     hostMode: false,
@@ -188,7 +164,6 @@ async function buildWatcherRuntime(
     // wire messages even though they run the same code as host.
     amHost: () => false,
   });
-  headlessHolder.current = headless;
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
 
   initDeps({
@@ -196,7 +171,6 @@ async function buildWatcherRuntime(
     initFromServer: () => Promise.resolve(),
     restoreFullState: () => {},
     showWaitingRoom: () => {},
-    watcherDeps,
     client,
   });
   headless.subscribeNetworkMessage(handleServerMessage);

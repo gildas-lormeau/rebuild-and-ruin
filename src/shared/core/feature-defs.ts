@@ -89,9 +89,6 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:detectIceThaw": "src/game/battle-system.ts",
     "stateAccess:activeModifier": "src/runtime/runtime-phase-ticks.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
-    "checkpoint:cannonStart": "src/online/online-checkpoints.ts",
-    "checkpoint:battleStart": "src/online/online-checkpoints.ts",
-    "checkpoint:buildStart": "src/online/online-checkpoints.ts",
     "render:modifierLabel": "src/render/render-composition.ts",
     "render:frozenTiles": "src/render/render-composition.ts",
     "render:bannerPrevScene": "src/render/render-map.ts",
@@ -109,7 +106,6 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:runtimePending": "src/runtime/runtime-phase-ticks.ts",
     "stateAccess:lockoutOverlay": "src/runtime/runtime-render.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
-    "checkpoint:buildStart": "src/online/online-checkpoints.ts",
     "render:lockoutTimer": "src/runtime/runtime-render.ts",
   },
   combos: {
@@ -118,7 +114,6 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:scoreImpactCombo": "src/game/combo-system.ts",
     "stateAccess:tickComboTracking": "src/game/combo-system.ts",
     "stateAccess:awardComboBonuses": "src/game/phase-setup.ts",
-    "checkpoint:battleStart": "src/online/online-checkpoints.ts",
     "render:comboEvents": "src/render/render-composition.ts",
   },
 } as const satisfies Record<FeatureId, Readonly<Record<string, string>>>;

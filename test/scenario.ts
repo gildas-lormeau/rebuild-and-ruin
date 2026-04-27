@@ -106,8 +106,8 @@ export interface ScenarioOptions {
    *  - `"host"` — full host with real broadcast emitters (CANNON_START /
    *    BATTLE_START / BUILD_START / BUILD_END + per-action). Outbound
    *    messages land in `sc.sentMessages`.
-   *  - `"watcher"` — pure watcher. `session.isHost = false`, every slot
-   *    remote (no local AI), `tickWatcher` wired, production
+   *  - `"watcher"` — pure watcher. `session.isHost = false`, runs the
+   *    same `tickGame` as the host locally (clone-everywhere). Production
    *    `handleServerMessage` dispatcher subscribed to the receive channel.
    *    Messages arrive via `sc.deliverMessage(msg)`.
    *  Pair them via `createNetworkedPair({ ... })` in `network-setup.ts`

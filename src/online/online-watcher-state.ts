@@ -1,24 +1,17 @@
 /**
- * Watcher-side runtime state — remote-human crosshair maps + per-phase
- * timing anchor + host-migration banner. Held by every peer (host or
- * watcher) because every peer renders remote humans and may receive a
- * host-migration announcement.
+ * Watcher-side runtime state — remote-human crosshair maps + host-migration
+ * banner. Held by every peer (host or watcher) because every peer renders
+ * remote humans and may receive a host-migration announcement.
  *
- * State lives here; reset/lifecycle helpers live with it. Tick functions
- * (per-phase battle/build/cannon) were removed when the runtime collapsed
- * to the clone-everywhere model — every peer runs the same host phase
- * ticks locally.
+ * Tick functions and wall-clock phase-timer anchoring were removed when
+ * the runtime collapsed to the clone-everywhere model — every peer runs
+ * the same host phase ticks locally with dt-based timer decrement.
  */
 
-import {
-  clearWatcherPhaseTimer,
-  type WatcherTimingState,
-} from "../runtime/runtime-tick-context.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { WatcherNetworkState } from "./online-types.ts";
 
 export interface WatcherState extends WatcherNetworkState {
-  timing: WatcherTimingState;
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   watcherCrosshairPos: Map<number, PixelPos>;
   /** Host-migration announcement: survives frame clears for the duration, then self-clears.
@@ -28,12 +21,6 @@ export interface WatcherState extends WatcherNetworkState {
 
 export function createWatcherState(): WatcherState {
   return {
-    timing: {
-      phaseStartTime: 0,
-      phaseDuration: 0,
-      countdownStartTime: 0,
-      countdownDuration: 0,
-    },
     remoteCrosshairs: new Map(),
     watcherCrosshairPos: new Map(),
     migrationBanner: { timer: 0, text: "" },
@@ -44,24 +31,20 @@ export function createWatcherState(): WatcherState {
 export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remoteCrosshairs.clear();
   watcherState.watcherCrosshairPos.clear();
-  clearWatcherPhaseTimer(watcherState.timing);
-  watcherState.timing.countdownStartTime = 0;
-  watcherState.timing.countdownDuration = 0;
   watcherState.migrationBanner.timer = 0;
   watcherState.migrationBanner.text = "";
 }
 
 /**
- * Partial reset for host promotion. Clears timing
- * but keeps remoteCrosshairs/crosshairPos — the new host still
- * uses those for remote human players via extendCrosshairs.
- * Phantoms live on each remote-controlled slot's controller and are
- * preserved across promotion alongside the controllers themselves.
+ * Partial reset for host promotion — keeps remoteCrosshairs/crosshairPos
+ * since the new host still uses those for remote human players via
+ * extendCrosshairs. Phantoms live on each remote-controlled slot's
+ * controller and are preserved across promotion alongside the controllers
+ * themselves. Effectively a no-op now (kept for symmetry with
+ * resetWatcherState in case future watcher-only state is added).
  */
 export function resetWatcherTimingForHostPromotion(
-  watcherState: WatcherState,
+  _watcherState: WatcherState,
 ): void {
-  clearWatcherPhaseTimer(watcherState.timing);
-  watcherState.timing.countdownStartTime = 0;
-  watcherState.timing.countdownDuration = 0;
+  // No watcher-only timing state to reset.
 }

@@ -20,7 +20,6 @@ import { ROUTE_ONLINE } from "../protocol/routes.ts";
 import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
-import { setWatcherPhaseTimer } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -34,12 +33,10 @@ import {
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "./online-router.ts";
 import { restoreFullStateSnapshot } from "./online-serialize.ts";
 import type { OnlineSession } from "./online-session.ts";
-import type { WatcherState } from "./online-watcher-state.ts";
 
 interface OnlineRuntimeSessionDeps {
   getRuntime: () => GameRuntime;
   session: OnlineSession;
-  watcher: Pick<WatcherState, "timing">;
   /** Injected timing primitives — replaces bare `performance.now()` /
    *  `requestAnimationFrame` access. Same `TimingApi` instance the runtime
    *  receives via `RuntimeConfig.timing`. */
@@ -144,13 +141,8 @@ export function createOnlineRuntimeSessionHelpers(
     runtime.lifeLost.set(null);
     runtime.runtimeState.frame.announcement = undefined;
     runtime.runtimeState.battleAnim.flights = inBattle ? flights : [];
-
-    setWatcherPhaseTimer(deps.watcher.timing, performance.now(), state.timer);
-    // Always sync watcher countdown timing — even if battleCountdown is 0
-    // (e.g. full-state recovery mid-battle). Omitting leaves stale values
-    // in countdownStartTime/countdownDuration from a prior phase.
-    deps.watcher.timing.countdownStartTime = performance.now();
-    deps.watcher.timing.countdownDuration = state.battleCountdown;
+    // Phase timer / battle countdown read straight from `state` — both
+    // peers now use dt-based decrement, no separate wall-clock anchor.
   }
 
   return {

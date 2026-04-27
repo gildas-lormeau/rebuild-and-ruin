@@ -63,10 +63,11 @@ export interface HandleServerLifecycleDeps {
   };
 
   transitions: {
-    onCannonStart: (msg: ServerMessage) => void;
-    onBattleStart: (msg: ServerMessage) => void;
-    onBuildStart: (msg: ServerMessage) => void;
-    onBuildEnd: (msg: ServerMessage) => void;
+    /** GAME_OVER carries the host's authoritative scores; other peers
+     *  paint the terminal frame from the wire payload. Other phase-marker
+     *  messages (CANNON_START / BATTLE_START / BUILD_START / BUILD_END)
+     *  are ignored: every peer runs the same phase ticks locally and
+     *  dispatches the matching transition from its own tick. */
     onGameOver: (msg: ServerMessage) => void;
   };
 
@@ -196,23 +197,13 @@ export async function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.CANNON_START:
-      if (!isHostInContext(deps.session) && deps.game.getState())
-        deps.transitions.onCannonStart(msg);
-      return true;
-
     case MESSAGE.BATTLE_START:
-      if (!isHostInContext(deps.session) && deps.game.getState())
-        deps.transitions.onBattleStart(msg);
-      return true;
-
     case MESSAGE.BUILD_START:
-      if (!isHostInContext(deps.session) && deps.game.getState())
-        deps.transitions.onBuildStart(msg);
-      return true;
-
     case MESSAGE.BUILD_END:
-      if (!isHostInContext(deps.session) && deps.game.getState())
-        deps.transitions.onBuildEnd(msg);
+      // Phase-marker messages — clone-everywhere model means every peer
+      // dispatches the matching transition locally from its own tick.
+      // Acknowledge receipt (`return true`) so the wire stays free of
+      // unhandled-message warnings.
       return true;
 
     case MESSAGE.GAME_OVER:

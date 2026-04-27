@@ -26,7 +26,6 @@ import {
   broadcastLocalCrosshair as broadcastLocalCrosshairImpl,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
-import { type WatcherDeps } from "./online-phase-transitions.ts";
 import { GAME_EXIT_EVENT } from "./online-router.ts";
 import { handleServerMessage, initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
@@ -75,7 +74,6 @@ const network: NetworkApi = {
 const sessionHelpers = createOnlineRuntimeSessionHelpers({
   getRuntime: () => runtime,
   session: ctx.session,
-  watcher: ctx.watcher,
   timing,
   resetNetworkingForNewGame: () => {
     defaultClient.resetNetworking(RESET_SCOPE_NEW_GAME);
@@ -86,12 +84,6 @@ const sessionHelpers = createOnlineRuntimeSessionHelpers({
   log: devLog,
   container: renderer.container,
 });
-const watcherDeps: WatcherDeps = {
-  getRuntime: () => runtime,
-  session: ctx.session,
-  watcher: ctx.watcher,
-  timing,
-};
 // ── Send-on-success action wrappers ────────────────────────────────
 // `send` and `getState` are bound once here so individual call sites
 // (input dispatch, AI tick) don't have to plumb them through.
@@ -264,7 +256,6 @@ export function initOnlineRuntime(): void {
     initFromServer: sessionHelpers.initFromServer,
     restoreFullState: sessionHelpers.restoreFullState,
     showWaitingRoom: sessionHelpers.showWaitingRoom,
-    watcherDeps,
     client: defaultClient,
   });
 

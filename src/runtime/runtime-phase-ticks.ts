@@ -60,7 +60,6 @@ import { recordBattleVisualEvents } from "./runtime-battle-anim.ts";
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
-  ROLE_HOST,
   runTransition,
 } from "./runtime-phase-machine.ts";
 import {
@@ -397,7 +396,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return {
       state: runtimeState.state,
       runtimeState,
-      role: ROLE_HOST,
       timing: deps.timing,
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
@@ -618,15 +616,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return true;
   }
 
-  /** MODIFIER_REVEAL phase tick (host). The phase has no game-mechanics
+  /** MODIFIER_REVEAL phase tick. The phase has no game-mechanics
    *  content — it exists purely to hold the modifier-reveal banner on
    *  screen for a beat before battle begins. `enter-modifier-reveal`'s
    *  mutate set `state.timer = MODIFIER_REVEAL_TIMER`; we decrement it
-   *  here and dispatch `enter-battle` when it expires. Watcher-side,
-   *  `tickWatcher` does the equivalent via `tickWatcherTimers` +
-   *  a local enter-battle dispatch — neither side exchanges a network
-   *  message for this edge, it's driven by the deterministic phase
-   *  duration on both sides. */
+   *  here and dispatch `enter-battle` when it expires. Same on every
+   *  peer — clone-everywhere model means each peer drives the timer
+   *  itself, no network message is exchanged for this edge. */
   function tickModifierRevealPhase(dt: number): boolean {
     advancePhaseTimer(
       runtimeState.accum,

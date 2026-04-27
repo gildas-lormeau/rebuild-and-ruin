@@ -207,10 +207,10 @@ export function createLocalNetworkApi(opts: {
   remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
   /** Optional override — defaults to `true` to match local/test "no peers"
    *  play where the runtime is the only authority. Network tests that
-   *  build a host + watcher pair set `false` on the watcher side so its
-   *  `tickGame` routes to `tickWatcher` (production watcher path) instead
-   *  of running host phase ticks redundantly on top of incoming wire
-   *  checkpoints. */
+   *  build a host + watcher pair set `false` on the watcher side; this
+   *  flips the broadcast gate in `buildHostPhaseCtx` (no `ctx.broadcast`
+   *  on watchers) so transitions don't emit wire messages even though
+   *  every peer runs the same `tickGame`. */
   amHost?: () => boolean;
 }): NetworkApi {
   const remotes = opts.remotePlayerSlots ?? EMPTY_REMOTE_SLOTS;

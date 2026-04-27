@@ -63,7 +63,6 @@ export {
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   prepareCastleWallsForPlayer,
-  resetZoneState,
 } from "./phase-setup.ts";
 export {
   allSelectionsConfirmed,

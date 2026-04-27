@@ -37,14 +37,7 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createError, joinError } from "./online-dom.ts";
-import {
-  handleBattleStartTransition,
-  handleBuildEndTransition,
-  handleBuildStartTransition,
-  handleCannonStartTransition,
-  handleGameOverTransition,
-  type WatcherDeps,
-} from "./online-phase-transitions.ts";
+import { handleGameOverTransition } from "./online-phase-transitions.ts";
 import { promoteToHost } from "./online-runtime-promote.ts";
 import {
   type HandleServerIncrementalDeps,
@@ -62,7 +55,6 @@ interface DepsInit {
   readonly initFromServer: (msg: InitMessage) => Promise<void>;
   readonly restoreFullState: (msg: FullStateMessage) => void;
   readonly showWaitingRoom: (code: string, seed: number) => void;
-  readonly watcherDeps: WatcherDeps;
   readonly client: OnlineClient;
 }
 
@@ -203,16 +195,8 @@ function buildGameDeps() {
 
 function buildTransitionDeps() {
   return {
-    onCannonStart: (msg: ServerMessage) =>
-      handleCannonStartTransition(msg, _depsInit.watcherDeps),
-    onBattleStart: (msg: ServerMessage) =>
-      handleBattleStartTransition(msg, _depsInit.watcherDeps),
-    onBuildStart: (msg: ServerMessage) =>
-      handleBuildStartTransition(msg, _depsInit.watcherDeps),
-    onBuildEnd: (msg: ServerMessage) =>
-      handleBuildEndTransition(msg, _depsInit.watcherDeps),
     onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, _depsInit.watcherDeps),
+      handleGameOverTransition(msg, _depsInit.runtime),
   };
 }
 

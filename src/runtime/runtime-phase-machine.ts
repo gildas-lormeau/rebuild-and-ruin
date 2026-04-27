@@ -86,13 +86,8 @@ import {
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import {
-  ACCUM_BUILD,
-  ACCUM_GRUNT,
-  resetAccum,
-} from "./runtime-tick-context.ts";
 
-export type TransitionId =
+type TransitionId =
   | "castle-select-done"
   | "castle-reselect-done"
   | "advance-to-cannon"
@@ -186,8 +181,7 @@ interface Transition {
 }
 
 /** Minimal battle-lifecycle hooks the machine needs to drive the post-
- *  battle-banner step (balloon anim or beginBattle). Host and watcher plug
- *  in different implementations. */
+ *  battle-banner step (balloon anim or beginBattle). */
 export interface BattleLifecycle {
   readonly setFlights: (
     flights: { flight: BalloonFlight; progress: number }[],
@@ -195,40 +189,15 @@ export interface BattleLifecycle {
   readonly setTerritory: (territory: readonly Set<number>[]) => void;
   readonly setWalls: (walls: readonly Set<number>[]) => void;
   readonly clearImpacts: () => void;
-  /** On host: calls into runtime-phase-ticks `beginBattle`. On watcher:
-   *  the watcher's equivalent countdown start. */
   readonly begin: () => void;
 }
 
-export type ApplyCannonStart = () => void;
-
-/** Watcher-specific hooks. Populated only when `role === "watcher"`. */
-export interface WatcherHooks {
-  /** Anchor the watcher's phase timer at the banner-end moment (so
-   *  `state.timer` reconstruction matches the host). */
-  readonly setPhaseTimerAtBannerEnd: (phaseDuration: number) => void;
-  /** Initialize the local player's cannon controller (placeCannons / cursor
-   *  / startCannonPhase) — watcher only init's its own controller, not all
-   *  local controllers like host does. No-op when the local player is
-   *  unseated or eliminated. */
-  readonly initLocalCannonControllerIfActive: () => void;
-  /** Initialize the local player's build-phase controller state. No-op when
-   *  local player is unseated or eliminated. */
-  readonly initLocalBuildControllerIfActive: () => void;
-  /** Reset zone state for every player returned by the build-end checkpoint
-   *  as `needsReselect` or `eliminated`. */
-  readonly resetRemovedPlayerZones: (
-    needsReselect: readonly ValidPlayerSlot[],
-    eliminated: readonly ValidPlayerSlot[],
-  ) => void;
-}
-
-/** Context passed to every transition step. Host and watcher build this
- *  with different `role` and role-specific hooks filled in. */
+/** Context passed to every transition step. Same shape on every peer —
+ *  role differences (host has wire `broadcast`, watcher doesn't) are
+ *  encoded via optional fields populated only where they apply. */
 export interface PhaseTransitionCtx {
   readonly state: GameState;
   readonly runtimeState: RuntimeState;
-  readonly role: "host" | "watcher";
   /** Injected timing primitives. Transition display steps that schedule
    *  fallback timers (e.g. `proceedToBattle`'s pitch-settle watchdog) MUST
    *  route through here so headless tests on the mock clock observe the
@@ -381,22 +350,6 @@ export interface PhaseTransitionCtx {
   /** Winner determined by the life-lost resolution. Threaded through via
    *  ctx so the mutate can pass it to `endGame`. */
   readonly winner?: { id: number };
-
-  // ── Watcher-only hooks ──
-
-  /** The incoming server message that triggered this transition. Only set
-   *  on watcher ctx; mutate fns cast to the expected message shape. */
-  readonly incomingMsg?: unknown;
-
-  readonly checkpoint?: {
-    readonly applyCannonStart?: ApplyCannonStart;
-    /** Watcher-side UI cleanup at battle entry (crosshair maps + per-
-     *  player crosshair-pos init). Game state is mutated locally by
-     *  `enterBattlePhase` running in the watcher mutate. */
-    readonly applyBattleStartWatcherUI?: () => void;
-  };
-
-  readonly watcher?: WatcherHooks;
 }
 
 /** Default "no battle-entry data" result. Every transition whose mutate
@@ -437,17 +390,16 @@ const WALL_BUILD_DONE: Transition = {
     ctx.finalizeLocalControllersBuildPhase?.();
     // Capture pre-scores BEFORE finalizeBuildPhase mutates them via
     // territory + life-penalty point awards — score-overlay needs the
-    // starting values for the delta animation. Watcher uses
-    // `setPreScores`; host already captured at startBuildPhase via
-    // `capturePreScores` (idempotent — same scores either way since
-    // build phase doesn't itself award points).
+    // starting values for the delta animation.
     const preScores = ctx.state.players.map((player) => player.score);
     // Phase A only: scoring + life penalties. The visual wall sweep +
     // dead-zone grunt sweep are deferred to `finalizeBuildVisuals`,
     // called from `advance-to-cannon` / `castle-reselect-done` /
     // game-over flows so the cannons banner reveals them.
+    // `applyLifePenalties` inside finalizeBuildPhase already runs
+    // `resetZoneState` for eliminated/reselect players — every peer
+    // converges identically.
     const { needsReselect, eliminated } = finalizeBuildPhase(ctx.state);
-    ctx.watcher?.resetRemovedPlayerZones?.(needsReselect, eliminated);
     ctx.scoreDelta.setPreScores?.(preScores);
     ctx.broadcast?.buildEnd?.();
     return {
@@ -594,18 +546,9 @@ const ENTER_WALL_BUILD: Transition = {
     // build phase actually plays out with — host vs watcher would
     // disagree on phase length.
     ctx.state.timer = ctx.state.buildTimer + buildTimerBonus(ctx.state);
-    if (ctx.startBuildPhaseLocal) {
-      // Host: startBuildPhase already does scoreDelta reset + per-controller
-      // startBuildPhase + clearImpacts + accumulator resets.
-      ctx.startBuildPhaseLocal();
-    } else {
-      // Watcher: per-controller init + matching runtime resets so the
-      // BUILD-phase tickers don't inherit prior-battle state.
-      ctx.watcher?.initLocalBuildControllerIfActive?.();
-      ctx.battle.clearImpacts();
-      resetAccum(ctx.runtimeState.accum, ACCUM_GRUNT);
-      resetAccum(ctx.runtimeState.accum, ACCUM_BUILD);
-    }
+    // Per-controller startBuildPhase + scoreDelta reset/capturePreScores
+    // + clearImpacts + accumulator resets. Same on every peer.
+    ctx.startBuildPhaseLocal?.();
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
@@ -617,22 +560,15 @@ const ENTER_WALL_BUILD: Transition = {
     },
   ],
   postDisplay: (ctx) => {
-    // Anchor the watcher's wall-clock phase timer at banner-end so its
-    // `tickWatcherTimers` decrements from there. Host (and any peer that
-    // didn't wire watcher hooks) skips via the optional call.
-    ctx.watcher?.setPhaseTimerAtBannerEnd?.(ctx.state.timer);
     ctx.setMode(Mode.GAME);
   },
 };
 /** Shared cannon-entry postDisplay for every transition that enters
  *  CANNON_PLACE (`castle-select-done`, `castle-reselect-done`,
- *  `advance-to-cannon`). Initializes the local cannon controllers
- *  (placeCannons + cursor + startCannonPhase) and flips to Mode.GAME.
- *  Watchers also anchor their wall-clock phase timer at banner-end. */
+ *  `advance-to-cannon`). Initializes local cannon controllers
+ *  (placeCannons + cursor + startCannonPhase) and flips to Mode.GAME. */
 const cannonEntryPostDisplay: PostDisplayFn = (ctx) => {
-  ctx.watcher?.setPhaseTimerAtBannerEnd?.(ctx.state.timer);
   ctx.initLocalCannonControllers?.();
-  ctx.watcher?.initLocalCannonControllerIfActive?.();
   ctx.setMode(Mode.GAME);
 };
 const cannonEntryDisplay: readonly DisplayStep[] = [
@@ -660,7 +596,6 @@ const CASTLE_SELECT_DONE: Transition = {
     ctx.clearCastleBuildViewport?.();
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
-    ctx.checkpoint?.applyCannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postMutate: clearBattleAnim,
@@ -687,7 +622,6 @@ const CASTLE_RESELECT_DONE: Transition = {
     ctx.clearCastleBuildViewport?.();
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
-    ctx.checkpoint?.applyCannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postMutate: clearBattleAnim,
@@ -712,7 +646,6 @@ const ADVANCE_TO_CANNON: Transition = {
     finalizeBuildVisuals(ctx.state);
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
-    ctx.checkpoint?.applyCannonStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
   postMutate: clearBattleAnim,
@@ -765,9 +698,6 @@ const CANNON_PLACE_DONE: Transition = {
   mutate: (ctx) => {
     ctx.log(`startBattle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset();
-    // Watcher-side: clear remote-crosshair maps before entering battle.
-    // (No-op on host since `ctx.checkpoint` is unwired.)
-    ctx.checkpoint?.applyBattleStartWatcherUI?.();
     const entry = enterBattlePhase(ctx.state);
     ctx.broadcast?.battleStart?.();
     return { modifierDiff: entry.modifierDiff, flights: entry.flights };
@@ -779,9 +709,8 @@ const CANNON_PLACE_DONE: Transition = {
 /** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Flips the phase,
  *  primes `state.timer` with `MODIFIER_REVEAL_TIMER` so the phase
  *  behaves like every other timed phase, and shows the modifier-reveal
- *  banner. The tick system (`tickModifierRevealPhase` host-side,
- *  `tickWatcher` watcher-side) counts `state.timer` down and dispatches
- *  `enter-battle` when it reaches 0 — the same pattern as
+ *  banner. `tickModifierRevealPhase` counts `state.timer` down and
+ *  dispatches `enter-battle` when it reaches 0 — the same pattern as
  *  `tickCannonPhase` → `cannon-place-done`. The banner is hidden by
  *  `runDisplay`'s end-of-sequence `hideBanner()` before `postDisplay`
  *  runs; the 2s MODIFIER_REVEAL dwell that follows shows the modifier
@@ -814,13 +743,10 @@ const ENTER_MODIFIER_REVEAL: Transition = {
     },
   ],
   postDisplay: (ctx) => {
-    // Anchor the watcher's wall-clock timer to the current `state.timer`
-    // (MODIFIER_REVEAL_TIMER) so `tickWatcherTimers` decrements from
-    // banner-end. Host (and any peer without watcher hooks) skips via the
-    // optional call. After flipping to Mode.GAME, `tickModifierRevealPhase`
-    // / `tickWatcher` count down and dispatch `enter-battle` when the
-    // timer hits 0 — no network message is exchanged for this edge.
-    ctx.watcher?.setPhaseTimerAtBannerEnd?.(ctx.state.timer);
+    // After flipping to Mode.GAME, `tickModifierRevealPhase` counts the
+    // dt-based `state.timer` down and dispatches `enter-battle` when it
+    // hits 0. Same on every peer — no network message exchanged for the
+    // edge.
     ctx.setMode(Mode.GAME);
   },
 };
@@ -869,15 +795,13 @@ const TRANSITIONS: readonly Transition[] = [
 const BY_ID: ReadonlyMap<TransitionId, Transition> = new Map(
   TRANSITIONS.map((transition) => [transition.id, transition] as const),
 );
-export const ROLE_HOST = "host" as const;
-export const ROLE_WATCHER = "watcher" as const;
 
-/** Execute a transition. Public entry for both host and watcher.
+/** Execute a transition.
  *
  *  Runner contract:
  *
- *   1. **Mutate** — runs the role-appropriate mutation (host runs game
- *      logic; watcher applies a checkpoint).
+ *   1. **Mutate** — runs the transition's mutation. Same fn on every peer;
+ *      role differences live in optional `ctx` fields the mutate dereferences.
  *
  *   2. **postMutate** — shared post-mutation sync (battleAnim rebuilds,
  *      impact clears). Runs once, before any display step.
@@ -1120,11 +1044,10 @@ function resolveTransition(
     throw new Error(`runTransition: unknown transition id "${id}"`);
   }
 
-  // Host-only source-phase guard. Watcher collapses multiple host
-  // sources into a single dispatched id (e.g. `advance-to-cannon` fires
-  // for any of host's three CANNON_START-broadcasting transitions), so
-  // the watcher can legitimately be in a different phase than `from`.
-  if (ctx.role === ROLE_HOST && transition.from !== "*") {
+  // Source-phase guard: every peer dispatches transitions from its own
+  // local tick, so the source phase is always known. Bypass for `*`
+  // (game-over transitions may fire from any phase).
+  if (transition.from !== "*") {
     const currentPhase = ctx.state.phase;
     const allowed = Array.isArray(transition.from)
       ? transition.from.includes(currentPhase)

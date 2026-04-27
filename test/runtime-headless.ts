@@ -80,9 +80,9 @@ interface HeadlessRuntimeOptions {
   hostMode?: boolean;
   /** Override `amHost` on the runtime's network api. Defaults to `true`
    *  (the production "no peers" shape). Network-pair tests pass
-   *  `() => false` for the watcher half so its `tickGame` routes to
-   *  `tickWatcher` (production watcher path) instead of running host
-   *  phase ticks redundantly on top of incoming wire checkpoints. */
+   *  `() => false` for the watcher half — this flips the broadcast gate
+   *  in `buildHostPhaseCtx` so the watcher's transitions don't emit
+   *  wire messages even though it runs the same `tickGame` as the host. */
   amHost?: () => boolean;
   /** Optional renderer override. When provided, replaces the default no-op
    *  stub renderer — used by tests that need the real draw pipeline to fire
@@ -118,10 +118,10 @@ interface HeadlessRuntimeOptions {
    *  game-event → haptic mappings without a real `navigator.vibrate`. */
   hapticsObserver?: HapticsObserver;
   /** Explicit `OnlinePhaseTicks` override. Takes precedence over the
-   *  `hostMode` noop default. Used by network tests that need real
-   *  broadcast emitters (host side) or a wired `tickWatcher` (watcher
-   *  side). When undefined, falls back to `hostMode`-driven default
-   *  (noop emitters if `hostMode`, no online hooks otherwise). */
+   *  `hostMode` default. Used by network tests that need real broadcast
+   *  emitters wired to a sink. When undefined, falls back to a hostMode-
+   *  driven default (broadcasts forwarded to `networkObserver`) or an
+   *  empty bag for non-host. */
   onlinePhaseTicks?: OnlinePhaseTicks;
   /** When true, the headless runtime calls `enableMobileZoom()` on the
    *  camera so per-phase memory, edge-pan, follow-crosshair, and the
@@ -593,7 +593,6 @@ function buildHeadlessHostPhaseTicks(
     broadcastLocalCrosshair: () => {},
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},
-    // tickWatcher / watcherBeginBattle intentionally omitted — host-only stub.
   };
 }
 

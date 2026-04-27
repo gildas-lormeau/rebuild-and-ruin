@@ -3,9 +3,10 @@
  * runs produce equivalent outcomes:
  *
  *   1. Local: one runtime, no network.
- *   2. Networked: host runtime + pure watcher runtime, host broadcasts
- *      through the real `OnlinePhaseTicks` emitters, watcher applies via
- *      the production `handleServerMessage` dispatcher + `tickWatcher`.
+ *   2. Networked: host runtime + pure watcher runtime, both running the
+ *      same `tickGame` locally (clone-everywhere). Host broadcasts wire
+ *      messages for the human-input deltas; watcher applies them via
+ *      the production `handleServerMessage` dispatcher.
  *
  * Convergence invariants asserted at game end:
  *   - `host.state.round` === `local.state.round` (host plays the same

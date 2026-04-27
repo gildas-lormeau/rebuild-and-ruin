@@ -87,17 +87,6 @@ export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
  *  All timestamps are performance.now() values (ms since page load).
  *  Sentinel: 0 = not yet started (no phase/countdown active).
  *  Durations are in seconds. */
-export interface WatcherTimingState {
-  /** Phase start timestamp (ms). 0 = no phase timer active. */
-  phaseStartTime: number;
-  /** Phase duration (seconds). 0 = no phase timer active. */
-  phaseDuration: number;
-  /** Countdown start timestamp (ms). 0 = no countdown active. */
-  countdownStartTime: number;
-  /** Countdown duration (seconds). 0 = no countdown active. */
-  countdownDuration: number;
-}
-
 /** Timer accumulator key constants. */
 export const ACCUM_BATTLE = "battle" satisfies keyof TimerAccums;
 export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
@@ -112,33 +101,6 @@ export const ACCUM_MODIFIER_REVEAL =
 export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
   // eslint-disable-next-line no-restricted-syntax -- canonical implementation
   return net?.isHost ?? true;
-}
-
-/** Anchor the watcher phase timer to the current wall clock. Call from inside
- *  the banner onComplete callback — `performance.now()` at that instant is the
- *  moment the banner animation finished on this client, which is the logical
- *  moment the phase begins (mirroring the host's `resetAccum` at the end of
- *  the same transition recipe).
- *
- *  Use this helper for every phase whose watcher timer starts after a banner:
- *  cannon-start and build-start both call it. Do NOT pre-compute the origin
- *  as `bannerStartedAt + bannerDuration * 1000` — that relies on the banner
- *  animation matching its nominal duration exactly, which frame drops or
- *  browser throttling can violate. A dialog (upgrade-pick) that plays BEFORE
- *  the banner is fine: the dialog finishes before `showBanner()` is called,
- *  so the callback still fires at true banner-end. */
-export function setWatcherPhaseTimerAtBannerEnd(
-  timing: WatcherTimingState,
-  phaseDuration: number,
-  now: number,
-): void {
-  setWatcherPhaseTimer(timing, now, phaseDuration);
-}
-
-/** Reset watcher phase timing to idle (no active phase timer). */
-export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
-  timing.phaseStartTime = 0;
-  timing.phaseDuration = 0;
 }
 
 /** Decay a persistent-announcement timer and surface its text into the frame.
@@ -188,18 +150,6 @@ export function advancePhaseTimer<K extends string>(
 ): void {
   const elapsed = (accum[key] += dt);
   state.timer = Math.max(0, max - elapsed);
-}
-
-/** Start tracking a new phase timer on the watcher. Call at the moment a phase
- *  begins on the watcher side. The watcher reconstructs `state.timer` each
- *  frame from `(now - phaseStartTime)`. */
-export function setWatcherPhaseTimer(
-  timing: WatcherTimingState,
-  now: number,
-  phaseDuration: number,
-): void {
-  timing.phaseStartTime = now;
-  timing.phaseDuration = phaseDuration;
 }
 
 /** Advance grunt accumulator and tick grunts when the interval elapses.
