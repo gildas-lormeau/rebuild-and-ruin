@@ -142,6 +142,11 @@ export interface ScenarioOptions {
    *  on the assisted controller (no mid-game swap, no asymmetric RNG
    *  advance vs. a watcher peer). */
   assistedSlots?: readonly ValidPlayerSlot[];
+  /** When true, enables mobile auto-zoom on the camera so per-phase memory,
+   *  edge-pan, follow-crosshair, and CAMERA_TARGET event emission all run.
+   *  Camera-determinism tests opt in. Defaults to false (matches the
+   *  existing fixtures, which were recorded with mobile zoom off). */
+  mobileZoomEnabled?: boolean;
 }
 
 export interface Scenario extends Disposable {
@@ -408,6 +413,7 @@ export function buildHeadlessOptions(
     networkObserver: { sent: (msg) => sentMessages.push(msg) },
     hapticsObserver: opts.hapticsObserver,
     assistedSlots: opts.assistedSlots,
+    mobileZoomEnabled: opts.mobileZoomEnabled,
   };
 }
 

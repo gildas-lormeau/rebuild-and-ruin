@@ -40,6 +40,7 @@ import {
   Phase,
 } from "../shared/core/game-phase.ts";
 import type { WorldPos } from "../shared/core/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { findNearestTower, towerAtPixel } from "../shared/core/spatial.ts";
 import {
@@ -423,6 +424,39 @@ export function dispatchPointerMove(
       const w = coords.pickHitWorld(x, y);
       human.setCrosshair(w.wx, w.wy);
       maybeSendAimUpdate(w.wx, w.wy);
+    }
+  });
+}
+
+/** Direct world-coord dispatch — used by delta-drag in the touch handler.
+ *  Bypasses screen-to-world so the cursor stays at the dragged world
+ *  position even if the camera pans during the drag (no feedback loop).
+ *  Selection phase falls back to the screen-coord path (delta drag doesn't
+ *  apply there). */
+export function dispatchPointerMoveWorld(
+  wx: number,
+  wy: number,
+  state: GameState,
+  deps: PointerMoveDeps,
+): void {
+  const { maybeSendAimUpdate } = deps;
+  if (isSelectionPhase(state.phase)) return;
+  deps.withPointerPlayer((human) => {
+    if (state.phase === Phase.WALL_BUILD) {
+      const row = Math.max(
+        0,
+        Math.min(GRID_ROWS - 1, Math.floor(wy / TILE_SIZE)),
+      );
+      const col = Math.max(
+        0,
+        Math.min(GRID_COLS - 1, Math.floor(wx / TILE_SIZE)),
+      );
+      human.setBuildCursor(state, row, col);
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      human.setCannonCursor(wx, wy);
+    } else if (state.phase === Phase.BATTLE) {
+      human.setCrosshair(wx, wy);
+      maybeSendAimUpdate(wx, wy);
     }
   });
 }

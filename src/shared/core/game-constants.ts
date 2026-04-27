@@ -192,10 +192,18 @@ export const ZOOM_LERP_SPEED = 6;
 export const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
 /** Pinch threshold to snap to full map (fraction of full map width). */
 export const PINCH_FULL_MAP_SNAP = 0.95;
-/** Tile padding around player walls when computing zone bounds. */
+/** Auto-zoom viewport size as fraction of full map (zone-follow during build/cannon/battle). */
+export const ZONE_AUTO_ZOOM_RATIO = 0.5;
+/** Tile padding kept between the placement phantom and the camera viewport
+ *  edges during BUILD / CANNON_PLACE auto-pan. */
+export const PHANTOM_TRACK_PAD_TILES = 1;
+/** Tile padding kept between the battle crosshair and the camera viewport
+ *  edges during BATTLE auto-pan. Smaller than PHANTOM_TRACK_PAD_TILES so
+ *  aiming feels less twitchy — the crosshair barely needs any margin to
+ *  remain visible. */
+export const CROSSHAIR_TRACK_PAD_TILES = 1;
+/** Tile padding around player walls when computing castle-build viewport (selection auto-build). */
 export const ZONE_PAD_WITH_WALLS = 4;
-/** Tile padding around zone tiles when player has no walls. */
-export const ZONE_PAD_NO_WALLS = 1;
 /** Tile padding around tower during selection zoom. */
 export const ZONE_PAD_SELECTION = 7;
 /** Pixel distance threshold for viewport lerp convergence snap. */

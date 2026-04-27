@@ -6,18 +6,25 @@
  */
 
 import {
+  CROSSHAIR_TRACK_PAD_TILES,
   MIN_ZOOM_RATIO,
+  PHANTOM_TRACK_PAD_TILES,
   PINCH_FULL_MAP_SNAP,
   VIEWPORT_SNAP_THRESHOLD,
-  ZONE_PAD_NO_WALLS,
+  ZONE_AUTO_ZOOM_RATIO,
   ZONE_PAD_SELECTION,
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "../shared/core/game-constants.ts";
-import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
+import {
+  type CameraTargetSource,
+  emitGameEvent,
+  GAME_EVENT,
+} from "../shared/core/game-event-bus.ts";
+import { Phase } from "../shared/core/game-phase.ts";
 import type {
   GameMap,
+  TileBounds,
   TilePos,
   Viewport,
   WorldPos,
@@ -30,6 +37,7 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   SCALE,
+  TILE_SIZE,
 } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
@@ -38,7 +46,6 @@ import {
   enemyZones,
   pxToTile,
   unpackTile,
-  zoneTileBounds,
 } from "../shared/core/spatial.ts";
 import { type GameState } from "../shared/core/types.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -48,7 +55,6 @@ import {
   fitTileBoundsToViewport,
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
-  type TileBounds,
 } from "./camera-projection.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 
@@ -64,6 +70,10 @@ interface CameraDeps {
   cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
+  /** Tile-space bounding box of the pointer player's active phantom, or
+   *  null when no phantom is being placed. Used to pan the pinch viewport
+   *  during BUILD/CANNON_PLACE so the preview stays on-screen. */
+  getPointerPlayerPhantomTileBounds?: () => TileBounds | null;
   /** Latest rendered overlay — source of elevated-geometry heights for the
    *  battle ray pick. Optional for headless runs (no tilt → pickHitWorld
    *  short-circuits before reading it). */
@@ -104,10 +114,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
   //
   // CAMERA STATE MACHINE — viewport priority (highest to lowest):
-  //   castleBuildVp  — during castle build phase (mobile auto-zoom to player zone)
-  //   pinchVp        — user pinch gesture (mobile, persists per-phase via phasePinch)
-  //   cameraZone     — follow player zone or crosshair (mobile auto-zoom)
-  //   fullMapVp      — default (entire map, desktop)
+  //   castleBuildVp  — selection / round-1 castle auto-build override
+  //   pinchVp        — persistent user-driven viewport (pinch, two-finger drag,
+  //                    tap-nudge, edge-pan) — survives phase transitions
+  //   cameraZone     — explicit "go to zone" via touch zoom-home / zoom-enemy
+  //                    buttons (only set by user, never by phase change)
+  //   fullMapVp      — default (entire map)
   // updateViewport() lerps currentVp toward the highest-priority non-null target.
 
   // Platform & session flags
@@ -128,15 +140,24 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
   let activePinch: ActivePinch | undefined;
 
-  // Per-phase pinch memory — saved/restored on phase transitions so each phase
-  // remembers its own user-chosen zoom level independently
-  const phasePinch: {
-    build: Viewport | undefined;
-    battle: Viewport | undefined;
-  } = {
-    build: undefined,
-    battle: undefined,
-  };
+  // Per-phase camera memory — each gameplay phase (BUILD / CANNON_PLACE /
+  // BATTLE) remembers its own camera state across rounds. On phase entry:
+  //   - If a slot is already set → restore it (continuity across rounds).
+  //   - If empty (first entry of the match for that phase) → set the per-
+  //     phase default (home zone for build/cannon, best enemy for battle).
+  // Each slot stores either a `cameraZone` reference (E/H buttons or the
+  // first-entry default — preserves identity so the touch zoom-button
+  // colors stay correct on restore) or a `pinchVp` viewport (user-driven
+  // pinch / edge-pan / tap-nudge). Slots refresh every gameplay frame so
+  // the latest state is captured before transitions / overlays fire.
+  type PhaseCameraSnapshot =
+    | { readonly kind: "zone"; readonly zone: number }
+    | { readonly kind: "pinch"; readonly viewport: Viewport };
+  const phaseCamera: {
+    build: PhaseCameraSnapshot | undefined;
+    cannon: PhaseCameraSnapshot | undefined;
+    battle: PhaseCameraSnapshot | undefined;
+  } = { build: undefined, cannon: undefined, battle: undefined };
 
   // Selection zoom lifecycle — tracks the one-time deferred zoom to the
   // player's home tower after the "Select your castle" announcement finishes
@@ -145,10 +166,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pendingVp: undefined,
   };
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
-  const cachedZoneBounds: Map<
-    number,
-    { viewport: Viewport; wallHash: number }
-  > = new Map();
+  // Tile-rect of every zone, derived once per match from `state.map.zones`.
+  // Zones are immutable after map-build, so we cache by zoneId only — no
+  // wall-aware invalidation. Used for both auto-zoom centering and the
+  // pinch-on-own-zone check in BATTLE.
+  const cachedZoneTileBounds = new Map<number, TileBounds>();
 
   const fullMapVp: Viewport = {
     x: 0,
@@ -221,34 +243,92 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return enemyZones(state.players, state.playerZones, povPlayerId());
   }
 
-  function computeZoneBounds(zoneId: number): Viewport {
+  /** Static tile-bounds of a zone, scanned once from `state.map.zones`.
+   *  Independent of walls — zones are immutable post-map-build. */
+  function computeZoneTileBounds(zoneId: number): TileBounds {
+    const cached = cachedZoneTileBounds.get(zoneId);
+    if (cached) return cached;
     const state = deps.getState()!;
-    const pid = state.playerZones.indexOf(zoneId);
-    const player = pid >= 0 ? state.players[pid] : undefined;
+    const zones = state.map.zones;
+    let minR = GRID_ROWS,
+      maxR = 0,
+      minC = GRID_COLS,
+      maxC = 0;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      const row = zones[r]!;
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (row[c] === zoneId) {
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+          if (c < minC) minC = c;
+          if (c > maxC) maxC = c;
+        }
+      }
+    }
+    const bounds: TileBounds = { minR, maxR, minC, maxC };
+    cachedZoneTileBounds.set(zoneId, bounds);
+    return bounds;
+  }
 
-    const hash = wallSetHash(player?.walls);
-    const cached = cachedZoneBounds.get(zoneId);
-    if (cached && cached.wallHash === hash) return cached.viewport;
+  /** Auto-zoom viewport for a zone: fixed size (ZONE_AUTO_ZOOM_RATIO of map),
+   *  centered on the geometric center of the player's castle (walls + home
+   *  tower bounding box). Falls back to the home tower alone when the
+   *  player has no walls yet, then to the zone's static tile center when
+   *  the zone has no occupant. */
+  function computeZoneViewport(zoneId: number): Viewport {
+    const center = castleCenterPx(zoneId);
+    const w = MAP_PX_W * ZONE_AUTO_ZOOM_RATIO;
+    const h = MAP_PX_H * ZONE_AUTO_ZOOM_RATIO;
+    const x = Math.max(0, Math.min(MAP_PX_W - w, center.x - w / 2));
+    const y = Math.max(0, Math.min(MAP_PX_H - h, center.y - h / 2));
+    return { x, y, w, h };
+  }
 
-    const { bounds, pad } = zoneTileBounds(
-      zoneId,
-      state.playerZones,
-      state.players,
-      state.map.zones,
-      ZONE_PAD_WITH_WALLS,
-      ZONE_PAD_NO_WALLS,
-    );
-    const result = fitTileBoundsToViewport(
-      {
-        minR: bounds.minR,
-        maxR: bounds.maxR,
-        minC: bounds.minC,
-        maxC: bounds.maxC,
-      },
-      pad,
-    );
-    cachedZoneBounds.set(zoneId, { viewport: result, wallHash: hash });
-    return result;
+  /** Pixel center of the castle owned by the player in `zoneId`: bounding
+   *  box of walls + home tower (best for the "zoom-enemy" use case so the
+   *  whole castle area frames symmetrically). Falls back to the home tower
+   *  when there are no walls, then to the zone's static tile-rect center. */
+  function castleCenterPx(zoneId: number): { x: number; y: number } {
+    const state = deps.getState();
+    const pid = state ? state.playerZones.indexOf(zoneId) : -1;
+    const player = pid >= 0 ? state!.players[pid] : undefined;
+    if (player) {
+      let minR = Number.POSITIVE_INFINITY;
+      let maxR = Number.NEGATIVE_INFINITY;
+      let minC = Number.POSITIVE_INFINITY;
+      let maxC = Number.NEGATIVE_INFINITY;
+      let any = false;
+      if (player.walls.size > 0) {
+        for (const key of player.walls) {
+          const { r, c } = unpackTile(key);
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+          if (c < minC) minC = c;
+          if (c > maxC) maxC = c;
+          any = true;
+        }
+      }
+      if (player.homeTower) {
+        const t = player.homeTower;
+        // 2x2 tower footprint extends to (row+1, col+1) inclusive.
+        if (t.row < minR) minR = t.row;
+        if (t.row + 1 > maxR) maxR = t.row + 1;
+        if (t.col < minC) minC = t.col;
+        if (t.col + 1 > maxC) maxC = t.col + 1;
+        any = true;
+      }
+      if (any) {
+        return {
+          x: ((minC + maxC + 1) * TILE_SIZE) / 2,
+          y: ((minR + maxR + 1) * TILE_SIZE) / 2,
+        };
+      }
+    }
+    const bounds = computeZoneTileBounds(zoneId);
+    return {
+      x: ((bounds.minC + bounds.maxC + 1) * TILE_SIZE) / 2,
+      y: ((bounds.minR + bounds.maxR + 1) * TILE_SIZE) / 2,
+    };
   }
 
   function computeCastleBuildViewport(
@@ -282,82 +362,58 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return fitTileBoundsToViewport(tileBounds, ZONE_PAD_WITH_WALLS);
   }
 
-  // --- Auto-zoom ---
-
-  function savePinchForCurrentPhase(isBattle: boolean): void {
-    if (!pinchVp) return;
-    if (isBattle) phasePinch.battle = { ...pinchVp };
-    else phasePinch.build = { ...pinchVp };
-  }
-
-  /** Save current pinch viewport to the phase-specific slot and restore the other.
-   *  enteringBattle=true: save current zoom as build-phase zoom, restore battle zoom.
-   *  enteringBattle=false: save current zoom as battle-phase zoom, restore build zoom. */
-  function swapPinchViewport(enteringBattle: boolean): void {
-    savePinchForCurrentPhase(!enteringBattle);
-    const candidate = enteringBattle ? phasePinch.battle : phasePinch.build;
-    pinchVp = candidate ? { ...candidate } : undefined;
-  }
-
-  /** Derive map zone from a world-pixel position. */
-  function zoneAtPixel(x: number, y: number): number | null {
+  // --- Camera target events ---
+  //
+  // Discrete-transition emit: phase entry / per-phase restore, explicit
+  // zone command (E/H button), engageAutoZoom (life-lost), follow-crosshair,
+  // pinch-end. Continuous motion (edge-pan, tap-nudge animation, mid-pinch
+  // updates) does NOT emit — only the moments where the player's intended
+  // target changes. Gated on `mobileZoomEnabled` so existing determinism
+  // fixtures (which run with mobile zoom off) don't see new events.
+  //
+  // No dedupe: every call emits, even when the resulting target equals
+  // the previous one. Makes the fixture a strict per-call spec — a
+  // regression that breaks one of the call sites still surfaces even
+  // when the restored target happens to match the one already in place.
+  function emitCameraTarget(source: CameraTargetSource): void {
+    if (!mobileZoomEnabled) return;
     const state = deps.getState();
-    if (!state) return null;
-    const row = pxToTile(y);
-    const col = pxToTile(x);
-    return state.map.zones[row]?.[col] ?? null;
-  }
-
-  /** Derive camera zone from the human crosshair position (enemy zones only). */
-  function crosshairZone(): number | null {
-    const ch = deps.getPointerPlayerCrosshair?.();
-    if (!ch) return null;
-    const zone = zoneAtPixel(ch.x, ch.y);
-    if (zone === null || zone === getMyZone()) return null;
-    return zone;
-  }
-
-  function autoZoom(phase: Phase): void {
-    // No auto-zoom when there is no human player (demo / spectator / eliminated)
-    if (!deps.getCtx().hasPointerPlayer) return;
-    if (phase === Phase.BATTLE) {
-      swapPinchViewport(true);
-      // If pinch points at own zone, reset — always pick enemy
-      const myZone = getMyZone();
-      if (pinchVp && myZone !== null) {
-        const zoneBounds = computeZoneBounds(myZone);
-        const cx = pinchVp.x + pinchVp.w / 2;
-        const cy = pinchVp.y + pinchVp.h / 2;
-        if (
-          cx >= zoneBounds.x &&
-          cx <= zoneBounds.x + zoneBounds.w &&
-          cy >= zoneBounds.y &&
-          cy <= zoneBounds.y + zoneBounds.h
-        ) {
-          pinchVp = undefined;
-          phasePinch.battle = undefined;
-        }
-      }
-      if (pinchVp) {
-        cameraZone = undefined;
-      } else {
-        // Camera follows crosshair zone; fall back to best enemy
-        cameraZone = crosshairZone() ?? getBestEnemyZone() ?? undefined;
-      }
-    } else {
-      swapPinchViewport(false);
-      if (pinchVp) {
-        cameraZone = undefined;
-      } else {
-        cameraZone = getMyZone() ?? undefined;
-      }
+    if (!state) return;
+    // emitGameEvent's `Omit<GameEventMap[K], "type">` collapses the
+    // discriminated union, so call bus.emit directly with the full event.
+    if (cameraZone !== undefined) {
+      state.bus.emit(GAME_EVENT.CAMERA_TARGET, {
+        type: "cameraTarget",
+        kind: "zone",
+        zone: cameraZone,
+        source,
+      });
+      return;
     }
+    if (pinchVp) {
+      state.bus.emit(GAME_EVENT.CAMERA_TARGET, {
+        type: "cameraTarget",
+        kind: "pinch",
+        viewport: { x: pinchVp.x, y: pinchVp.y, w: pinchVp.w, h: pinchVp.h },
+        source,
+      });
+      return;
+    }
+    state.bus.emit(GAME_EVENT.CAMERA_TARGET, {
+      type: "cameraTarget",
+      kind: "fullmap",
+      source,
+    });
   }
+
+  // --- Auto-zoom ---
+  //
+  // Camera persists across BUILD / CANNON_PLACE / BATTLE phase changes —
+  // pinchVp is no longer cleared on transitions, no per-phase pinch memory.
+  // cameraZone is only set by the touch zoom-home / zoom-enemy buttons
+  // (explicit user navigation), never by phase transitions.
 
   // --- Per-frame tick ---
-
-  let prevFramePaused = false;
-  let prevFrameQuitPending = false;
 
   function tickCamera(): void {
     const state = deps.getState();
@@ -366,12 +422,186 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const mobileAuto = mobileZoomEnabled && zoomActivated;
 
     unzoomForOverlays(state, frameCtx);
-    restoreZoomAfterModal(mobileAuto, state, frameCtx);
+    restoreCameraAfterOverlay(state, frameCtx);
     handleSelectionZoom(mobileAuto, state, frameCtx);
     const notTransition = !frameCtx.isTransition;
     handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
-    followCrosshairInBattle(mobileAuto, frameCtx, notTransition);
+    followCrosshairInBattle(state, frameCtx);
+    edgePan(state, frameCtx);
+    tickTapNudge();
+    recordCameraForPhase(state, frameCtx);
     tickPitch();
+  }
+
+  /** When the battle crosshair crosses into a different enemy zone, snap
+   *  the camera to that zone — same effect as the player tapping the E
+   *  zoom-enemy button. Triggers only on zone-change (not every frame
+   *  while the crosshair sits in an enemy zone), so dragging within the
+   *  current target doesn't fire it. Skipped while pinching, transitioning
+   *  or while an overlay is up. */
+  let lastBattleCrosshairZone: number | null | undefined;
+  function followCrosshairInBattle(
+    state: GameState,
+    frameCtx: FrameContext,
+  ): void {
+    if (state.phase !== Phase.BATTLE) {
+      lastBattleCrosshairZone = undefined;
+      return;
+    }
+    if (frameCtx.shouldUnzoom || frameCtx.isTransition || activePinch) return;
+    if (!(mobileZoomEnabled && zoomActivated)) return;
+    const zone = currentCrosshairZone(state);
+    if (zone === lastBattleCrosshairZone) return;
+    lastBattleCrosshairZone = zone;
+    if (zone === null || zone === getMyZone()) return;
+    setCameraZoneInternal(zone, "followCrosshair");
+  }
+
+  /** Map the pov player's battle crosshair to its zone id, or null when
+   *  the crosshair is missing or off-grid (rivers, letterbox). */
+  function currentCrosshairZone(state: GameState): number | null {
+    const ch = deps.getPointerPlayerCrosshair?.();
+    if (!ch) return null;
+    const row = pxToTile(ch.y);
+    const col = pxToTile(ch.x);
+    if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
+    return state.map.zones[row]?.[col] ?? null;
+  }
+
+  // --- Edge-pan ---
+  //
+  // Continuous proportional pan that nudges the camera in the direction of
+  // the pov player's focus point (build/cannon phantom or battle crosshair)
+  // when that focus is within the per-phase edge zone. Speed = 0 at the
+  // edge-zone inner boundary, max at the very edge. Reuses pinchVp as the
+  // mutable camera state — when edge-pan triggers while the camera is on a
+  // cameraZone-derived target, it converts the zone target into a pinchVp
+  // (the auto-zoom is overridden by user-driven movement).
+
+  /** Pixel speed at the very edge of the viewport (depth = 1). */
+  const EDGE_PAN_MAX_SPEED = 200;
+
+  function focusBoundsForEdgePan(
+    phase: Phase,
+  ): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    if (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) {
+      const tile = deps.getPointerPlayerPhantomTileBounds?.();
+      if (!tile) return null;
+      return {
+        minX: tile.minC * TILE_SIZE,
+        minY: tile.minR * TILE_SIZE,
+        maxX: (tile.maxC + 1) * TILE_SIZE,
+        maxY: (tile.maxR + 1) * TILE_SIZE,
+      };
+    }
+    if (phase === Phase.BATTLE) {
+      const ch = deps.getPointerPlayerCrosshair?.();
+      if (!ch) return null;
+      return { minX: ch.x, minY: ch.y, maxX: ch.x, maxY: ch.y };
+    }
+    return null;
+  }
+
+  function edgePan(state: GameState, frameCtx: FrameContext): void {
+    if (frameCtx.shouldUnzoom || frameCtx.isTransition || activePinch) return;
+    const focus = focusBoundsForEdgePan(state.phase);
+    if (!focus) return;
+    // Determine current target. Skip on full map (already shows everything)
+    // and the round-1 castle-build override.
+    let target: Viewport;
+    if (castleBuildVp) return;
+    if (pinchVp) target = pinchVp;
+    else if (cameraZone !== undefined) target = computeZoneViewport(cameraZone);
+    else return;
+
+    // If the focus is fully OUTSIDE the current viewport, the user just
+    // jumped the camera (E button, H button, pinch, two-finger pan) —
+    // the stale cursor in the old zone shouldn't drag the camera back.
+    // Edge-pan resumes once the cursor is dragged into the new viewport.
+    if (
+      focus.maxX < target.x ||
+      focus.minX > target.x + target.w ||
+      focus.maxY < target.y ||
+      focus.minY > target.y + target.h
+    ) {
+      return;
+    }
+
+    const tiles =
+      state.phase === Phase.BATTLE
+        ? CROSSHAIR_TRACK_PAD_TILES
+        : PHANTOM_TRACK_PAD_TILES;
+    const zonePx = tiles * TILE_SIZE;
+    if (zonePx <= 0) return;
+
+    const leftDepth = Math.max(
+      0,
+      Math.min(1, (zonePx - (focus.minX - target.x)) / zonePx),
+    );
+    const rightDepth = Math.max(
+      0,
+      Math.min(1, (zonePx - (target.x + target.w - focus.maxX)) / zonePx),
+    );
+    const topDepth = Math.max(
+      0,
+      Math.min(1, (zonePx - (focus.minY - target.y)) / zonePx),
+    );
+    const bottomDepth = Math.max(
+      0,
+      Math.min(1, (zonePx - (target.y + target.h - focus.maxY)) / zonePx),
+    );
+
+    const dt = deps.getFrameDt();
+    const dx = (rightDepth - leftDepth) * EDGE_PAN_MAX_SPEED * dt;
+    const dy = (bottomDepth - topDepth) * EDGE_PAN_MAX_SPEED * dt;
+    if (dx === 0 && dy === 0) return;
+
+    if (!pinchVp) {
+      pinchVp = { x: target.x, y: target.y, w: target.w, h: target.h };
+      cameraZone = undefined;
+    }
+    pinchVp.x = Math.max(0, Math.min(MAP_PX_W - pinchVp.w, pinchVp.x + dx));
+    pinchVp.y = Math.max(0, Math.min(MAP_PX_H - pinchVp.h, pinchVp.y + dy));
+  }
+
+  // --- Tap-nudge ---
+  //
+  // One-shot smooth pan when the player taps in the outer 25% ring of the
+  // viewport. Always runs to completion (per spec) — additional taps queue
+  // a new target only after the current animation finishes.
+
+  /** Tap-nudge animation duration (seconds). */
+  const TAP_NUDGE_DURATION = 0.25;
+  let tapNudge:
+    | {
+        fromX: number;
+        fromY: number;
+        toX: number;
+        toY: number;
+        elapsed: number;
+      }
+    | undefined;
+
+  function tickTapNudge(): void {
+    if (!tapNudge || !pinchVp) {
+      tapNudge = undefined;
+      return;
+    }
+    tapNudge.elapsed = Math.min(
+      TAP_NUDGE_DURATION,
+      tapNudge.elapsed + deps.getFrameDt(),
+    );
+    const t = tapNudge.elapsed / TAP_NUDGE_DURATION;
+    const eased = 1 - (1 - t) * (1 - t) * (1 - t); // cubic ease-out
+    const nx = tapNudge.fromX + (tapNudge.toX - tapNudge.fromX) * eased;
+    const ny = tapNudge.fromY + (tapNudge.toY - tapNudge.fromY) * eased;
+    pinchVp.x = nx;
+    pinchVp.y = ny;
+    if (tapNudge.elapsed >= TAP_NUDGE_DURATION) {
+      pinchVp.x = tapNudge.toX;
+      pinchVp.y = tapNudge.toY;
+      tapNudge = undefined;
+    }
   }
 
   /** Ease currentPitch toward targetPitch each frame. Hard-zero when tilt is
@@ -416,7 +646,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  needs a flat scene), not to every transition frame, so flattening
    *  here would fight `beginBattleTilt` (which runs in BALLOON_ANIM /
    *  BANNER postDisplay, where isTransition is still true). */
-  function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
+  function unzoomForOverlays(_state: GameState, frameCtx: FrameContext): void {
     if (
       !frameCtx.shouldUnzoom ||
       (cameraZone === undefined &&
@@ -424,33 +654,131 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         castleBuildVp === undefined)
     )
       return;
-    savePinchForCurrentPhase(state.phase === Phase.BATTLE);
     cameraZone = undefined;
     pinchVp = undefined;
     castleBuildVp = undefined;
   }
 
-  /** Re-engage auto-zoom when pause or quit dialog is dismissed (mobile only). */
-  function restoreZoomAfterModal(
-    mobileAuto: boolean,
+  /** Track per-phase entries: re-arm reselect's selection-zoom flag, and
+   *  drive per-phase camera memory (applyPhaseCameraOnEnter restores or
+   *  defaults the zoom for the new phase). */
+  function handlePhaseChangeZoom(
+    _mobileAuto: boolean,
+    state: GameState,
+    _frameCtx: FrameContext,
+    notTransition: boolean,
+  ): void {
+    if (state.phase === lastAutoZoomPhase || !notTransition) return;
+    if (state.phase === Phase.CASTLE_RESELECT) {
+      selectionZoom.applied = false;
+    }
+    applyPhaseCameraOnEnter(state);
+    lastAutoZoomPhase = state.phase;
+  }
+
+  /** Maps a Phase to its per-phase camera slot, or null when the phase has
+   *  no per-phase camera memory (selection / reselect / modifier-reveal). */
+  function phaseSlot(phase: Phase): "build" | "cannon" | "battle" | null {
+    if (phase === Phase.WALL_BUILD) return "build";
+    if (phase === Phase.CANNON_PLACE) return "cannon";
+    if (phase === Phase.BATTLE) return "battle";
+    return null;
+  }
+
+  /** Apply per-phase camera memory or first-entry default on phase entry.
+   *  Defaults: BUILD/CANNON_PLACE → home zone; BATTLE → best enemy zone.
+   *  First entry / restore-from-zone uses `cameraZone` (same path as the
+   *  E zoom-enemy / H zoom-home buttons) so the touch zoom-button colors
+   *  reflect the active zone. Restore-from-pinch sets `pinchVp` for the
+   *  user's custom pan/zoom level. No-op when mobile auto-zoom is disabled. */
+  function applyPhaseCameraOnEnter(state: GameState): void {
+    if (!(mobileZoomEnabled && zoomActivated)) return;
+    // No auto-zoom when there is no human player (all-AI rematch / demo
+    // / spectator). Mirrors the v1 autoZoom guard — required so the
+    // post-rematch all-AI game doesn't engage a cropped viewport.
+    if (!deps.getCtx().hasPointerPlayer) return;
+    const slot = phaseSlot(state.phase);
+    if (!slot) return;
+    tapNudge = undefined;
+    const remembered = phaseCamera[slot];
+    let source: CameraTargetSource;
+    if (remembered) {
+      if (remembered.kind === "pinch") {
+        pinchVp = { ...remembered.viewport };
+        cameraZone = undefined;
+      } else {
+        cameraZone = remembered.zone;
+        pinchVp = undefined;
+      }
+      source = "phaseEnter";
+    } else {
+      const zoneId = slot === "battle" ? getBestEnemyZone() : getMyZone();
+      if (zoneId === null) return;
+      pinchVp = undefined;
+      cameraZone = zoneId;
+      source = "phaseEnterDefault";
+    }
+    // Seed the follow-crosshair tracker so the saved/default camera wins
+    // on BATTLE entry — the carried-over crosshair (potentially over a
+    // different enemy from the last battle) won't snap us off the
+    // restored target on the first frame. Subsequent crosshair zone
+    // changes still trigger follow normally.
+    if (slot === "battle") {
+      lastBattleCrosshairZone = currentCrosshairZone(state);
+    }
+    emitCameraTarget(source);
+  }
+
+  /** Save current camera state to the active phase's slot every gameplay
+   *  frame. Captures pinchVp when set (user pinch / edge-pan / tap-nudge)
+   *  or cameraZone when set (E/H buttons / first-entry default). Skipped
+   *  during transitions / overlays so a phase-end unzoom doesn't overwrite
+   *  the user's last good camera state, and skipped when neither target
+   *  is set so the slot retains its last meaningful value. */
+  function recordCameraForPhase(
     state: GameState,
     frameCtx: FrameContext,
   ): void {
-    if (
-      mobileAuto &&
-      ((prevFramePaused && !frameCtx.paused) ||
-        (prevFrameQuitPending && !frameCtx.quitPending))
-    ) {
-      autoZoom(state.phase);
+    if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
+    const slot = phaseSlot(state.phase);
+    if (!slot) return;
+    if (pinchVp) {
+      phaseCamera[slot] = {
+        kind: "pinch",
+        viewport: { x: pinchVp.x, y: pinchVp.y, w: pinchVp.w, h: pinchVp.h },
+      };
+    } else if (cameraZone !== undefined) {
+      phaseCamera[slot] = { kind: "zone", zone: cameraZone };
     }
-    prevFramePaused = frameCtx.paused;
-    prevFrameQuitPending = frameCtx.quitPending;
   }
 
-  /** Auto-zoom to selection after announcement finishes. */
+  /** Restore the active phase's saved camera after an overlay (pause / quit /
+   *  life-lost dialog) clears pinchVp / cameraZone via unzoomForOverlays.
+   *  No-op while the overlay is still up or some target is already set. */
+  function restoreCameraAfterOverlay(
+    state: GameState,
+    frameCtx: FrameContext,
+  ): void {
+    if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
+    if (pinchVp || cameraZone !== undefined) return;
+    if (!(mobileZoomEnabled && zoomActivated)) return;
+    const slot = phaseSlot(state.phase);
+    if (!slot) return;
+    const remembered = phaseCamera[slot];
+    if (!remembered) return;
+    if (remembered.kind === "pinch") {
+      pinchVp = { ...remembered.viewport };
+    } else {
+      cameraZone = remembered.zone;
+    }
+  }
+
+  /** Auto-zoom to selection after announcement finishes — handles the
+   *  CASTLE_SELECT / CASTLE_RESELECT viewport (selectionZoom.pendingVp set
+   *  by setSelectionViewport while the announcement is still showing). */
   function handleSelectionZoom(
     mobileAuto: boolean,
-    state: GameState,
+    _state: GameState,
     frameCtx: FrameContext,
   ): void {
     if (
@@ -461,9 +789,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       return;
     selectionZoom.applied = true;
     if (!mobileAuto) return;
-    if (!isReselectPhase(state.phase) || frameCtx.humanIsReselecting) {
-      autoZoom(state.phase);
-    }
     if (selectionZoom.pendingVp) {
       castleBuildVp = fitTileBoundsToViewport(
         {
@@ -478,65 +803,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
   }
 
-  /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */
-  function handlePhaseChangeZoom(
-    mobileAuto: boolean,
-    state: GameState,
-    frameCtx: FrameContext,
-    notTransition: boolean,
-  ): void {
-    if (state.phase === lastAutoZoomPhase || !notTransition) return;
-    if (state.phase === Phase.CASTLE_RESELECT) {
-      selectionZoom.applied = false;
-      if (mobileAuto && frameCtx.humanIsReselecting) {
-        autoZoom(state.phase);
-      }
-    } else if (
-      mobileAuto &&
-      frameCtx.mode !== Mode.SELECTION &&
-      state.phase !== Phase.MODIFIER_REVEAL
-    ) {
-      // SELECTION mode is owned by `handleSelectionZoom`, which times the
-      // zoom against the announcement-end signal. Don't preempt it here.
-      // MODIFIER_REVEAL is a global banner — the transition's shouldUnzoom
-      // already pulled out to the full map; re-zooming to the player's own
-      // zone mid-banner contradicts the "modifiers are global" framing.
-      autoZoom(state.phase);
-    }
-    // Pitch is no longer set here. Tilt-in is driven explicitly by
-    // `beginBattleTilt` (called from the phase machine at battle-banner
-    // end, so the tilt plays unzoomed BEFORE balloons / ready). Untilt
-    // is driven by `onCameraReady` (which flattens pitch as part of
-    // requesting convergence — so the end-of-battle banner captures +
-    // sweeps a flat scene). Letting phase-change drive pitch would
-    // re-fire those animations at the wrong moments.
-    lastAutoZoomPhase = state.phase;
-  }
-
-  /** Track crosshair zone during battle for camera follow (mobile only). */
-  function followCrosshairInBattle(
-    mobileAuto: boolean,
-    frameCtx: FrameContext,
-    notTransition: boolean,
-  ): void {
-    if (
-      !mobileAuto ||
-      !frameCtx.inBattle ||
-      pinchVp ||
-      frameCtx.shouldUnzoom ||
-      !notTransition
-    )
-      return;
-    const zone = crosshairZone();
-    if (zone !== null && zone !== cameraZone) {
-      cameraZone = zone;
-    }
-  }
-
   // --- Viewport lerp ---
 
   function updateViewport(): Viewport | undefined {
-    const { mode } = deps.getCtx();
+    const frameCtx = deps.getCtx();
+    const { mode } = frameCtx;
     let target: Viewport;
     if (
       castleBuildVp &&
@@ -548,10 +819,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     } else if (pinchVp) {
       target = pinchVp;
     } else if (cameraZone !== undefined) {
-      target = computeZoneBounds(cameraZone);
+      target = computeZoneViewport(cameraZone);
     } else {
       target = fullMapVp;
     }
+
+    // Edge-pan (per-frame, in tickCamera) and tap-nudge (animation, in
+    // tickTapNudge) mutate pinchVp directly, so updateViewport just lerps
+    // currentVp toward the chosen target — no extra focus-tracking pass.
 
     const time = Math.min(1, ZOOM_LERP_SPEED * deps.getFrameDt());
     currentVp.x += (target.x - currentVp.x) * time;
@@ -699,18 +974,70 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function onPinchEnd(): void {
-    const state = deps.getState();
     activePinch = undefined;
     if (!pinchVp) return;
     if (pinchVp.w >= fullMapVp.w * PINCH_FULL_MAP_SNAP) {
       pinchVp = undefined;
+    }
+    // pinchVp persists across phases — no per-phase memory.
+    // Emit the settled target on gesture end (intermediate per-frame
+    // updates during pinch are continuous motion and intentionally not
+    // emitted — see emitCameraTarget JSDoc).
+    emitCameraTarget("userPinch");
+  }
+
+  /** Tap-nudge: when a single-finger tap lands in the outer 25% ring of the
+   *  current viewport, smoothly pan (preserving zoom) so the tap point
+   *  enters the inner 75% comfort zone. Tap inside the inner 75% → no-op.
+   *
+   *  Animation always finishes (per spec) — additional touches don't cancel
+   *  the in-flight tween. New gestures interact with the pinch handler
+   *  separately. Skipped when target is the full map or the round-1
+   *  castle-build override. */
+  function centerCameraOnTap(wx: number, wy: number): void {
+    if (castleBuildVp || tapNudge) return;
+    let w: number;
+    let h: number;
+    let curX: number;
+    let curY: number;
+    if (pinchVp) {
+      w = pinchVp.w;
+      h = pinchVp.h;
+      curX = pinchVp.x;
+      curY = pinchVp.y;
+    } else if (cameraZone !== undefined) {
+      const zoneVp = computeZoneViewport(cameraZone);
+      w = zoneVp.w;
+      h = zoneVp.h;
+      curX = zoneVp.x;
+      curY = zoneVp.y;
+    } else {
       return;
     }
-    if (state && state.phase === Phase.BATTLE) {
-      phasePinch.battle = { ...pinchVp };
-    } else {
-      phasePinch.build = { ...pinchVp };
+    const insetX = w * 0.125;
+    const insetY = h * 0.125;
+    let toX = curX;
+    let toY = curY;
+    if (wx < curX + insetX) toX = wx - insetX;
+    else if (wx > curX + w - insetX) toX = wx - w + insetX;
+    if (wy < curY + insetY) toY = wy - insetY;
+    else if (wy > curY + h - insetY) toY = wy - h + insetY;
+    toX = Math.max(0, Math.min(MAP_PX_W - w, toX));
+    toY = Math.max(0, Math.min(MAP_PX_H - h, toY));
+    if (toX === curX && toY === curY) return;
+
+    if (!pinchVp) {
+      pinchVp = { x: curX, y: curY, w, h };
+      cameraZone = undefined;
+      zoomActivated = true;
     }
+    tapNudge = {
+      fromX: pinchVp.x,
+      fromY: pinchVp.y,
+      toX,
+      toY,
+      elapsed: 0,
+    };
   }
 
   // --- Lifecycle commands ---
@@ -752,25 +1079,30 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     ready();
   }
 
-  /** Clear all zoom state including per-phase pinch memory.
-   *  Use for full resets (rematch, return to lobby). */
+  /** Clear all zoom state. Use for full resets (rematch, return to lobby). */
   function clearAllZoomState(): void {
     cameraZone = undefined;
     pinchVp = undefined;
-    phasePinch.build = undefined;
-    phasePinch.battle = undefined;
+    tapNudge = undefined;
+    phaseCamera.build = undefined;
+    phaseCamera.cannon = undefined;
+    phaseCamera.battle = undefined;
+    lastBattleCrosshairZone = undefined;
   }
 
   function resetCamera(): void {
     cameraZone = undefined;
     pinchVp = undefined;
-    phasePinch.build = undefined;
-    phasePinch.battle = undefined;
+    tapNudge = undefined;
     castleBuildVp = undefined;
+    phaseCamera.build = undefined;
+    phaseCamera.cannon = undefined;
+    phaseCamera.battle = undefined;
+    lastBattleCrosshairZone = undefined;
     lastAutoZoomPhase = undefined;
     selectionZoom.applied = false;
     selectionZoom.pendingVp = undefined;
-    cachedZoneBounds.clear();
+    cachedZoneTileBounds.clear();
     // Re-arm auto-zoom for the next match. `zoomActivated` is toggled
     // off in-game when the player taps the touch zoom-home button on
     // their own zone (`setCameraZone(undefined)`); the next game
@@ -816,15 +1148,26 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function setCameraZone(zone: number | undefined): void {
-    const state = deps.getState();
+    setCameraZoneInternal(zone, "userZone");
+  }
+
+  /** Internal setter that lets sub-systems (engageAutoZoom, follow-crosshair)
+   *  attribute the source on the emitted CAMERA_TARGET event. The public
+   *  `setCameraZone` is reserved for the E / H button paths. */
+  function setCameraZoneInternal(
+    zone: number | undefined,
+    source: CameraTargetSource,
+  ): void {
     cameraZone = zone;
     zoomActivated = zone !== undefined;
     pinchVp = undefined;
-    if (state && state.phase === Phase.BATTLE) {
-      phasePinch.battle = undefined;
-    } else {
-      phasePinch.build = undefined;
-    }
+    tapNudge = undefined;
+    // Explicit zone-zoom overrides the selection / auto-build castle
+    // viewport (which otherwise wins over cameraZone in updateViewport).
+    // Lets E (and H) work during CASTLE_SELECT / pre-build castle anim
+    // / CANNON_PLACE alike — the user explicitly chose where to look.
+    castleBuildVp = undefined;
+    emitCameraTarget(source);
   }
 
   /** Zoom around a tower during selection (5 tiles around for context). */
@@ -855,6 +1198,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function clearCastleBuildViewport(): void {
     castleBuildVp = undefined;
+    // Per-phase camera memory takes over from here — applyPhaseCameraOnEnter
+    // (in handlePhaseChangeZoom) seeds pinchVp on the next phase entry
+    // (CANNON_PLACE round 1 → home zone default).
   }
 
   function enableMobileZoom(): void {
@@ -862,17 +1208,17 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     zoomActivated = true;
   }
 
-  /** Re-engage the current phase's auto-zoom. Used at life-lost popup
-   *  time: the scores overlay ran unzoomed, and the spec calls for the
-   *  camera to zoom into the pov player's zone before the popup shows
-   *  (`scores → zoom → life lost popup`). `handlePhaseChangeZoom` can't
-   *  trigger it — the phase hasn't changed — so the phase machine calls
-   *  this directly. No-op when auto-zoom is disabled. */
+  /** Snap the camera to the pov player's home zone before the life-lost
+   *  popup opens (spec sequence: scores → zoom → life-lost popup). Called
+   *  by the phase machine at life-loss time. No-op when mobile auto-zoom
+   *  is disabled. The home-zone snap goes through `setCameraZone` so the
+   *  H zoom-home button color reflects the active state. */
   function engageAutoZoom(): void {
-    const state = deps.getState();
-    if (!state) return;
     if (!(mobileZoomEnabled && zoomActivated)) return;
-    autoZoom(state.phase);
+    if (!deps.getCtx().hasPointerPlayer) return;
+    const myZone = getMyZone();
+    if (myZone === null) return;
+    setCameraZoneInternal(myZone, "engageAutoZoom");
   }
 
   // --- Touch battle targeting ---
@@ -925,11 +1271,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     onPinchStart,
     onPinchUpdate,
     onPinchEnd,
+    centerCameraOnTap,
     povPlayerId,
     getMyZone,
     getBestEnemyZone,
     getEnemyZones,
-    computeZoneBounds,
     onCameraReady,
     onRenderedFrame,
     getCameraZone: () => cameraZone,
@@ -946,12 +1292,4 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     saveBattleCrosshair,
     resetBattleCrosshair,
   };
-}
-
-/** Cheap fingerprint for a wall set — count combined with sum of keys. */
-function wallSetHash(walls: ReadonlySet<number> | undefined): number {
-  if (!walls || walls.size === 0) return 0;
-  let sum = 0;
-  for (const key of walls) sum = (sum + key) | 0;
-  return (walls.size << 20) ^ sum;
 }

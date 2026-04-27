@@ -483,6 +483,10 @@ export interface RegisterOnlineInputDeps {
     onPinchStart?: (midX: number, midY: number) => void;
     onPinchUpdate?: (midX: number, midY: number, scale: number) => void;
     onPinchEnd?: () => void;
+    /** Snap the camera so `(wx, wy)` is at the viewport center (current
+     *  zoom preserved). Called by single-finger touchstart so a tap
+     *  re-centers wherever the player pressed. */
+    centerCameraOnTap?: (wx: number, wy: number) => void;
   };
 
   // --- Lobby ---

@@ -23,7 +23,7 @@ import {
 } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
-import type { PixelPos, TileBounds, TilePos, Tower } from "./geometry-types.ts";
+import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { isPlayerEliminated } from "./player-types.ts";
 
@@ -492,47 +492,6 @@ export function enemyZones(
   return zones;
 }
 
-/** Compute the tile bounding rect for a zone, derived from player walls
- *  (if present) or the raw zone grid. Returns bounds + appropriate padding. */
-export function zoneTileBounds(
-  zoneId: number,
-  playerZones: readonly number[],
-  players: readonly {
-    walls: ReadonlySet<number>;
-    homeTower: TilePos | null;
-  }[],
-  zones: readonly (readonly number[])[],
-  padWithWalls: number,
-  padNoWalls: number,
-): { bounds: TileBounds; pad: number } {
-  const pid = playerZones.indexOf(zoneId);
-  const player = pid >= 0 ? players[pid] : undefined;
-  const bounds: TileBounds = {
-    minR: GRID_ROWS,
-    maxR: 0,
-    minC: GRID_COLS,
-    maxC: 0,
-  };
-
-  if (player && player.walls.size > 0) {
-    for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      expandTileBounds(bounds, r, c);
-    }
-    if (player.homeTower)
-      expandTileBounds(bounds, player.homeTower.row, player.homeTower.col);
-  } else {
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (zones[r]![c] === zoneId) expandTileBounds(bounds, r, c);
-      }
-    }
-  }
-
-  const pad = player && player.walls.size > 0 ? padWithWalls : padNoWalls;
-  return { bounds, pad };
-}
-
 /** Convert a packed tile key back to row/column coordinates. */
 export function unpackTile(key: number): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
@@ -688,11 +647,4 @@ export function manhattanDistance(
   c2: number,
 ): number {
   return Math.abs(r1 - r2) + Math.abs(c1 - c2);
-}
-
-function expandTileBounds(bounds: TileBounds, r: number, c: number): void {
-  if (r < bounds.minR) bounds.minR = r;
-  if (r > bounds.maxR) bounds.maxR = r;
-  if (c < bounds.minC) bounds.minC = c;
-  if (c > bounds.maxC) bounds.maxC = c;
 }

@@ -26,11 +26,20 @@ interface CliConfig {
   mode: "classic" | "modern";
   rounds: number;
   timeoutMs: number;
+  /** When true, runs the scenario with mobile auto-zoom enabled and writes
+   *  the fixture to a `-camera.json` filename. Camera-determinism tests
+   *  load these to verify per-phase memory + first-entry default behavior. */
+  camera: boolean;
 }
 
 interface FixtureFile {
   seed: number;
-  opts: { seed: number; mode: "classic" | "modern"; rounds: number };
+  opts: {
+    seed: number;
+    mode: "classic" | "modern";
+    rounds: number;
+    mobileZoomEnabled?: boolean;
+  };
   timeoutMs: number;
   eventCount: number;
   events: ReturnType<typeof recordEvents>;
@@ -43,14 +52,16 @@ run();
 async function run(): Promise<void> {
   const config = parseArgs();
 
+  const flavor = config.camera ? "+camera" : "";
   console.log(
-    `Recording determinism fixture: seed=${config.seed} mode=${config.mode} rounds=${config.rounds}`,
+    `Recording determinism fixture: seed=${config.seed} mode=${config.mode} rounds=${config.rounds}${flavor}`,
   );
 
   const sc = await createScenario({
     seed: config.seed,
     mode: config.mode,
     rounds: config.rounds,
+    mobileZoomEnabled: config.camera ? true : undefined,
   });
   const events = recordEvents(sc);
   sc.runGame({ timeoutMs: config.timeoutMs });
@@ -61,6 +72,7 @@ async function run(): Promise<void> {
       seed: config.seed,
       mode: config.mode,
       rounds: config.rounds,
+      ...(config.camera ? { mobileZoomEnabled: true } : {}),
     },
     timeoutMs: config.timeoutMs,
     eventCount: events.length,
@@ -68,7 +80,8 @@ async function run(): Promise<void> {
   };
 
   await Deno.mkdir(FIXTURES_DIR, { recursive: true });
-  const path = `${FIXTURES_DIR}/seed-${config.seed}-${config.mode}.json`;
+  const suffix = config.camera ? "-camera" : "";
+  const path = `${FIXTURES_DIR}/seed-${config.seed}-${config.mode}${suffix}.json`;
   await Deno.writeTextFile(path, `${JSON.stringify(fixture, null, 2)}\n`);
 
   console.log(
@@ -82,6 +95,7 @@ function parseArgs(): CliConfig {
   let mode: "classic" | "modern" = "classic";
   let rounds = 2;
   let timeoutMs = 480_000;
+  let camera = false;
 
   for (let idx = 0; idx < args.length; idx++) {
     const arg = args[idx];
@@ -93,13 +107,15 @@ function parseArgs(): CliConfig {
       rounds = Number(args[++idx]);
     else if (arg === "--timeout-ms" && args[idx + 1]) {
       timeoutMs = Number(args[++idx]);
+    } else if (arg === "--camera") {
+      camera = true;
     } else if (arg === "--help" || arg === "-h") {
       console.log(
-        "Usage: deno run -A scripts/record-determinism.ts [--seed N] [--mode classic|modern] [--rounds N] [--timeout-ms N]",
+        "Usage: deno run -A scripts/record-determinism.ts [--seed N] [--mode classic|modern] [--rounds N] [--timeout-ms N] [--camera]",
       );
       Deno.exit(0);
     }
   }
 
-  return { seed, mode, rounds, timeoutMs };
+  return { seed, mode, rounds, timeoutMs, camera };
 }

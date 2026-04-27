@@ -11,6 +11,7 @@
 import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
+import type { Viewport } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
@@ -166,6 +167,30 @@ export type LifecycleEvent =
    *  radians so consumers can discriminate tilt vs untilt without
    *  re-querying the camera. */
   | { type: "pitchSettled"; pitch: number }
+  /** Camera target changed at a discrete state transition: phase entry
+   *  (per-phase memory restore or first-entry default), explicit zone
+   *  command (E/H button → setCameraZone), or life-lost auto-engage.
+   *  Continuous motion (edge-pan, tap-nudge animation, pinch updates)
+   *  does NOT emit this event — only the moments where the player's
+   *  intended camera target changes. `kind` discriminates between a
+   *  cameraZone-derived target and a freeform pinch viewport (or the
+   *  full map when both are cleared). Used by determinism fixtures to
+   *  verify camera v2 phase-transition behavior. */
+  | (
+      | {
+          type: "cameraTarget";
+          kind: "zone";
+          zone: number;
+          source: CameraTargetSource;
+        }
+      | {
+          type: "cameraTarget";
+          kind: "pinch";
+          viewport: Viewport;
+          source: CameraTargetSource;
+        }
+      | { type: "cameraTarget"; kind: "fullmap"; source: CameraTargetSource }
+    )
   /** A wall piece placed during the build phase landed on top of a live
    *  house, crushing it. Drives the `woodcrus` SFX. Distinct from the
    *  battle-phase `houseDestroyed` event (cannonball impact) — that one
@@ -240,6 +265,16 @@ export type ModernEvent =
  *  future sound) that react to "the user just tapped a control" without
  *  the control itself knowing about the feedback subsystem. */
 export type InteractionEvent = { type: "uiTap" };
+
+/** Origin annotation on `cameraTarget` events — fixture readability and
+ *  test-side filtering. Drives no game logic. */
+export type CameraTargetSource =
+  | "phaseEnter"
+  | "phaseEnterDefault"
+  | "userZone"
+  | "userPinch"
+  | "engageAutoZoom"
+  | "followCrosshair";
 
 /** All game events across all categories. */
 export type GameEvent =
@@ -327,6 +362,7 @@ const LIFECYCLE_EVENT = {
   CANNONBALL_DESCENDING: "cannonballDescending",
   HOUSE_CRUSHED: "houseCrushed",
   PITCH_SETTLED: "pitchSettled",
+  CAMERA_TARGET: "cameraTarget",
 } as const;
 const ENTITY_EVENT = {
   CASTLE_PLACED: "castlePlaced",

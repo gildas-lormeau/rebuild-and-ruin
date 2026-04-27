@@ -118,6 +118,12 @@ interface HeadlessRuntimeOptions {
    *  side). When undefined, falls back to `hostMode`-driven default
    *  (noop emitters if `hostMode`, no online hooks otherwise). */
   onlinePhaseTicks?: OnlinePhaseTicks;
+  /** When true, the headless runtime calls `enableMobileZoom()` on the
+   *  camera so per-phase memory, edge-pan, follow-crosshair, and the
+   *  CAMERA_TARGET event emitter all run during tests. Defaults to false
+   *  (matches the existing determinism fixtures, which were recorded
+   *  without mobile zoom). Camera-determinism tests opt in. */
+  mobileZoomEnabled?: boolean;
   /** Slots that should be driven by `AiAssistedHumanController` instead of
    *  the regular `AiController`. AI logic still picks placements, but every
    *  outcome flows through `network.send` so per-action wire formats are
@@ -359,6 +365,12 @@ export async function createHeadlessRuntime(
     controllerFactory,
   });
   runtimeHolder.current = runtime;
+
+  // Opt-in mobile auto-zoom for camera-determinism tests. Default is OFF
+  // so the existing fixtures (recorded without mobile zoom) stay valid.
+  if (opts.mobileZoomEnabled) {
+    runtime.camera.enableMobileZoom();
+  }
 
   // ── Seed injection ────────────────────────────────────────────────
   // bootstrapNewGameFromSettings reads runtimeState.lobby.seed and

@@ -145,6 +145,7 @@ interface InputSystemDeps {
     | "onPinchStart"
     | "onPinchUpdate"
     | "onPinchEnd"
+    | "centerCameraOnTap"
     | "povPlayerId"
     | "getEnemyZones"
     | "getCameraZone"
@@ -242,6 +243,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     onPinchStart: camera.onPinchStart,
     onPinchUpdate: camera.onPinchUpdate,
     onPinchEnd: camera.onPinchEnd,
+    centerCameraOnTap: camera.centerCameraOnTap,
   };
   const lobbyDeps: RegisterOnlineInputDeps["lobby"] = {
     isActive: () => runtimeState.lobby.active,

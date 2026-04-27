@@ -362,14 +362,16 @@ export interface CameraSystem {
   onPinchUpdate: (midX: number, midY: number, scale: number) => void;
   onPinchEnd: () => void;
 
+  /** Snap the camera so `(wx, wy)` is at the viewport center (current zoom
+   *  preserved). Used by touch handlers on single-finger touchstart so a
+   *  tap re-centers wherever the player pressed. */
+  centerCameraOnTap: (wx: number, wy: number) => void;
+
   // Zone queries
   povPlayerId: () => number;
   getMyZone: () => number | null;
   getBestEnemyZone: () => number | null;
   getEnemyZones: () => number[];
-
-  // Zone bounds (used by advanceToCannonPhase for score delta positions)
-  computeZoneBounds: (zoneId: number) => Viewport;
 
   // Zoom state
   getCameraZone: () => number | undefined;

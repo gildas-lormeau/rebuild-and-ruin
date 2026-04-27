@@ -37,6 +37,7 @@ import {
   dispatchModeTap,
   dispatchPlacement,
   dispatchPointerMove,
+  dispatchPointerMoveWorld,
   dispatchTowerSelect,
   markTouchTime,
   shouldHandleGameInput,
@@ -55,6 +56,15 @@ interface GestureState {
   pinchMoved: boolean;
   /** Suppress single-finger events until all fingers lift (avoids ghost taps after pinch). */
   suppressSingleTouch: boolean;
+  /** Delta-drag anchor: cursor world pos + finger screen pos at touchstart.
+   *  Cursor world during drag = anchor world + (current screen − anchor screen) × scale.
+   *  Decouples cursor world position from camera pans (no feedback loop). */
+  dragAnchor: {
+    worldX: number;
+    worldY: number;
+    screenX: number;
+    screenY: number;
+  } | null;
 }
 
 // Function type export — consumed as type-only import by runtime/
@@ -84,6 +94,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     if (gestureState.pinchActive) coords.onPinchEnd?.();
     gestureState.pinchActive = false;
     gestureState.suppressSingleTouch = false;
+    gestureState.dragAnchor = null;
   });
   renderer.eventTarget.addEventListener("contextmenu", (e) =>
     e.preventDefault(),
@@ -100,6 +111,7 @@ function createGestureState(): GestureState {
     pinchStartDist: 0,
     pinchMoved: false,
     suppressSingleTouch: false,
+    dragAnchor: null,
   };
 }
 
@@ -124,6 +136,11 @@ function handleTouchStart(
     gestureState.pinchActive = true;
     gestureState.pinchMoved = false;
     gestureState.suppressSingleTouch = true;
+    // Drop any single-touch drag anchor — the pinch invalidates the
+    // recorded world/screen pair (camera scale changes during pinch).
+    // Without this, lifting the 2nd finger with the 1st still down
+    // would resume single-touch drag with a stale pre-pinch anchor.
+    gestureState.dragAnchor = null;
     return;
   }
   if (gestureState.suppressSingleTouch) return;
@@ -161,7 +178,21 @@ function handleTouchStart(
   // the viewport may still be lerping from a different zone, so screen-to-tile
   // conversion would place the cursor at wrong coordinates).
   if (shouldHandleGameInput(getMode(), state)) {
+    // 1. Dispatch cursor at the touched world pos (absolute, using current
+    //    viewport). This places the cursor where the user tapped.
+    // 2. Record the delta-drag anchor so subsequent touchmove events use
+    //    finger screen-delta (camera pans don't shift the cursor world pos).
+    // 3. If the tap landed in the outer 25% ring of the viewport, queue a
+    //    smooth tap-nudge to bring the tap into the inner 75% comfort zone.
+    const tapWorld = coords.screenToWorld(x, y);
     dispatchPointerMove(x, y, state, deps);
+    gestureState.dragAnchor = {
+      worldX: tapWorld.wx,
+      worldY: tapWorld.wy,
+      screenX: x,
+      screenY: y,
+    };
+    coords.centerCameraOnTap?.(tapWorld.wx, tapWorld.wy);
   }
 }
 
@@ -203,6 +234,26 @@ function handleTouchMove(
   // Skip during transitions — viewport may still be lerping from a different
   // zone (e.g. enemy zone after battle), causing wrong cursor placement.
   if (!shouldHandleGameInput(deps.getMode(), state)) return;
+
+  const phase = state.phase;
+  const anchor = gestureState.dragAnchor;
+  if (anchor && (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE)) {
+    // Delta drag (placement phases only): cursor world += finger screen-delta
+    // × current viewport scale. Computed via two screenToWorld calls under
+    // the current viewport — the vp.x (and vp.y) terms cancel between the
+    // two, leaving a pure scale-from-screen-delta. Camera pans during the
+    // drag don't shift the cursor's world position.
+    //
+    // BATTLE intentionally falls through to absolute (`dispatchPointerMove`
+    // with `pickHitWorld`) so the crosshair ray-picks elevated geometry
+    // under tilt — the player taps to aim/fire there, never drags.
+    const w0 = coords.screenToWorld(anchor.screenX, anchor.screenY);
+    const w1 = coords.screenToWorld(x, y);
+    const targetWx = anchor.worldX + (w1.wx - w0.wx);
+    const targetWy = anchor.worldY + (w1.wy - w0.wy);
+    dispatchPointerMoveWorld(targetWx, targetWy, state, deps);
+    return;
+  }
 
   dispatchPointerMove(x, y, state, deps);
 }
@@ -276,6 +327,10 @@ function handleTouchEnd(
 
   // Battle: always fire on touch release (tap or drag)
   dispatchBattleFire(x, y, state, deps);
+
+  // Clear delta-drag anchor only when the last finger lifts (a stray
+  // changedTouches[0] doesn't necessarily mean all fingers are off).
+  if (e.touches.length === 0) gestureState.dragAnchor = null;
 }
 
 function canvasCoords(

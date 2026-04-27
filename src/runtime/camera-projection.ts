@@ -68,8 +68,6 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 
-export type { TileBounds };
-
 export interface CameraState {
   readonly center: { readonly x: number; readonly y: number };
   readonly zoom: number;

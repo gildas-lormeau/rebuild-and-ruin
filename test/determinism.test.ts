@@ -23,6 +23,9 @@ interface Fixture {
     readonly seed: number;
     readonly mode: "classic" | "modern";
     readonly rounds: number;
+    /** Camera-determinism fixtures opt in: enables mobile auto-zoom so
+     *  per-phase memory and CAMERA_TARGET event emission run during replay. */
+    readonly mobileZoomEnabled?: boolean;
   };
   readonly timeoutMs: number;
   readonly eventCount: number;
@@ -38,6 +41,12 @@ const FIXTURES = [
   // whole point of the gate. Re-record (with a written reason) when an
   // intentional registry change makes the divergence expected.
   "seed-0-modern.json",
+  // Camera-determinism fixture: same headless run as seed-42-classic but
+  // with mobileZoomEnabled=true so CAMERA_TARGET events are emitted at
+  // every phase entry / explicit zone command / engageAutoZoom / follow-
+  // crosshair trigger. Catches drift in the camera v2 phase-transition
+  // and per-phase-memory paths.
+  "seed-42-classic-camera.json",
 ] as const;
 
 for (const fixtureFile of FIXTURES) {
