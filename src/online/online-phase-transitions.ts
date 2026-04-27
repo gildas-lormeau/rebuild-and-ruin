@@ -59,10 +59,9 @@ export interface WatcherDeps {
 }
 
 /** Watcher-only: processes CANNON_START checkpoint and transitions to
- *  cannon phase. Dispatches to `advance-to-cannon` — the three host-side
- *  entry points (castle-select-done / castle-reselect-done /
- *  advance-to-cannon) all broadcast the same CANNON_START message and
- *  share watcher display + postDisplay, so one id is enough. */
+ *  cannon phase. Picks the transition id from the watcher's current
+ *  phase — each transition runs the appropriate finalize prefix in its
+ *  own merged mutate, so the dispatcher must select correctly. */
 export function handleCannonStartTransition(
   msg: ServerMessage,
   deps: WatcherDeps,
@@ -75,7 +74,13 @@ export function handleCannonStartTransition(
     initLocalCannonControllerIfActive(deps);
     return;
   }
-  dispatchWatcher("advance-to-cannon", msg, deps);
+  const id: TransitionId =
+    state.phase === Phase.CASTLE_SELECT
+      ? "castle-select-done"
+      : state.phase === Phase.CASTLE_RESELECT
+        ? "castle-reselect-done"
+        : "advance-to-cannon";
+  dispatchWatcher(id, msg, deps);
 }
 
 /** Watcher-only: processes BATTLE_START checkpoint and transitions to
