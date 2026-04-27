@@ -170,6 +170,16 @@ export function xmidToSmf(xmid: Uint8Array, division = 120): Uint8Array | null {
       // fixed 120 Hz tick rate regardless, so drop them here and inject a
       // canonical tempo below.
       if (meta === 0x51) continue;
+      // XMI's end-of-track meta sits at the last sequencer tick — but
+      // implicit-duration note-offs derived from XMI note-ons commonly
+      // schedule on or after that tick. If we passed the source EOT
+      // through, libADLMIDI would stop parsing the SMF at the first 0x2F
+      // it sees and never process the trailing note-offs, leaving OPL
+      // voices stuck in sustain (audible as a long ringing tail on the
+      // jaws stinger and the long-pad fanfares). We append our own EOT
+      // after every event has been drained, so dropping the source one
+      // is correct.
+      if (meta === 0x2f) continue;
       const prefix = new Uint8Array([0xff, meta]);
       const lenBytes = varlen(mlen);
       const merged = new Uint8Array(prefix.length + lenBytes.length + mlen);

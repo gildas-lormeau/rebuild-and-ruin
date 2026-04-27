@@ -57,7 +57,7 @@ import {
   type XmiFileKey,
 } from "./music-assets.ts";
 
-interface MusicSubsystem {
+export interface MusicSubsystem {
   /** Pre-warm the AudioContext + decode every cached PCM track into
    *  AudioBuffers, inside a user-gesture handler (the home-page "Play"
    *  button click). Returns once buffers are ready. Idempotent — repeat
@@ -88,6 +88,11 @@ interface MusicSubsystem {
   setPaused(paused: boolean): Promise<void>;
   /** Release the bus listener and stop playback. */
   dispose(): Promise<void>;
+  /** TEMP DEBUG — fire any bg track from `__dev.playBg("jaws")` etc. so
+   *  audio render fixes can be auditioned without driving the game to the
+   *  triggering phase. Bypasses the bus (works in lobby too). Remove once
+   *  the music render path is settled. */
+  debugPlayBg(trackId: BgTrackId): Promise<void>;
 }
 
 interface MusicSubsystemDeps {
@@ -168,10 +173,11 @@ const BG_TRACK_LIFE_LOST: BgTrack = {
   volume: TRACK_VOLUMES.lifeLost,
 };
 // Balloon-capture jaws theme — 0-indexed sub-song 6 of RXMI_BATTLE.xmi
-// (mapping.txt "7 -> jaws theme"). One-shot, no loop: the track is
-// ~7.66 s long (libADLMIDI playback). BALLOON_FLIGHT_DURATION (8.5 s)
-// exceeds the track length, so the music finishes naturally and the
-// last ~0.84 s of the animation plays silent.
+// (mapping.txt "7 -> jaws theme"). One-shot, no loop: the song body is
+// ~7.33 s (libADLMIDI playback) plus ~1.5 s of OPL release tail on the
+// final F+F# pad stinger. BALLOON_FLIGHT_DURATION (8.5 s) overlaps the
+// release; the source plays through naturally, the next phase's playBg
+// replaces it if it's still ringing.
 const BG_TRACK_JAWS: BgTrack = {
   id: "RXMI_BATTLE.xmi",
   cacheId: "RXMI_BATTLE.xmi",
@@ -553,8 +559,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     });
 
     // Balloon-capture jaws theme: one-shot. Start on animation start, stop
-    // on animation end — the track is pinned to exactly BALLOON_FLIGHT_DURATION
-    // so natural playback finish and the end event land on the same frame.
+    // on animation end — the track finishes (body + OPL release) within
+    // BALLOON_FLIGHT_DURATION, so the stop is defensive against a long
+    // release on an alternate sound bank.
     bind(GAME_EVENT.BALLOON_ANIM_START, () => {
       void playBg(BG_TRACK_JAWS);
     });
@@ -607,6 +614,20 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     activatingPromise = undefined;
   }
 
+  // TEMP DEBUG — see MusicSubsystem.debugPlayBg for context.
+  const DEBUG_BG_TRACKS: Record<BgTrackId, BgTrack> = {
+    title: BG_TRACK_TITLE,
+    cannon: BG_TRACK_CANNON,
+    build: BG_TRACK_BUILD,
+    score: BG_TRACK_SCORE,
+    lifeLost: BG_TRACK_LIFE_LOST,
+    jaws: BG_TRACK_JAWS,
+  };
+  async function debugPlayBg(trackId: BgTrackId): Promise<void> {
+    await activate();
+    await playBg(DEBUG_BG_TRACKS[trackId]);
+  }
+
   return {
     activate,
     startTitle: playTitle,
@@ -616,5 +637,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     tickPresentation,
     setPaused,
     dispose,
+    debugPlayBg,
   };
 }

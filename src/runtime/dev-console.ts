@@ -11,8 +11,17 @@ import {
   type Rect,
   zoneBounds,
 } from "./dev-console-grid.ts";
+import type { MusicSubsystem } from "./music-player.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
 import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
+
+type DebugBgTrackId =
+  | "title"
+  | "cannon"
+  | "build"
+  | "score"
+  | "lifeLost"
+  | "jaws";
 
 interface MapTextOptions {
   layer?: MapLayer;
@@ -31,6 +40,10 @@ interface DevConsole {
   pause: () => void;
   step: () => void;
   perfHud: (on?: boolean) => boolean;
+  /** TEMP DEBUG — play any bg track on demand. Useful for auditioning the
+   *  music render path (jaws stinger tail, fanfare release, etc.) without
+   *  driving the game to the right phase. */
+  playBg: (trackId: DebugBgTrackId) => Promise<void>;
 }
 
 const PLAYER_CSS = [
@@ -56,6 +69,7 @@ const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 export function exposeDevConsole(
   runtimeState: RuntimeState,
   timing: TimingApi,
+  music: MusicSubsystem,
 ): void {
   if (typeof window === "undefined") return;
 
@@ -194,6 +208,13 @@ export function exposeDevConsole(
       console.log(`Perf HUD ${next ? "on" : "off"} (3D renderer only)`);
       return next;
     },
+
+    async playBg(trackId: DebugBgTrackId): Promise<void> {
+      await music.debugPlayBg(trackId);
+      console.log(
+        `Playing ${trackId}. (No PCM cached → silent; upload assets first.)`,
+      );
+    },
   };
 
   win.__dev = dev;
@@ -246,11 +267,17 @@ function printHelp(): void {
   __dev.perfHud(true)      Show  __dev.perfHud(false)  Hide
   3D renderer only. Reads three.js renderer.info counters per frame.
 
+%cMusic (TEMP DEBUG)%c
+  __dev.playBg("jaws")     Audition any bg track on demand. Bypasses bus.
+  Track ids: "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws"
+
 %cSymbols%c
   · grass  ~ water  ░ territory  # wall  T tower  t dead tower
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
+    RESET_CSS,
+    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,

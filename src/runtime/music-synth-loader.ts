@@ -131,9 +131,12 @@ async function createPcmRenderer(
     return undefined;
   }
 
-  // Pre-roll budget: 100 ms of trailing silence past the reported duration
-  // covers OPL release tails (notes still ringing after the last event).
-  const TAIL_PAD_SEC = 0.1;
+  // Trailing pad past `core.duration` to capture OPL release envelopes
+  // after the sequencer hits EOT. With the EOT-collision bug fixed in
+  // xmi-to-smf.ts, note-offs fire at the right tick and OPL voices enter
+  // their natural release; this pad just lets that decay finish before we
+  // cut the buffer.
+  const TAIL_PAD_SEC = 0.5;
   const CHUNK_FRAMES = 4096;
 
   return {
@@ -154,7 +157,7 @@ async function createPcmRenderer(
       const interleaved = new Float32Array(totalFrames * 2);
 
       let writtenFrames = 0;
-      while (writtenFrames < totalFrames && !core.atEnd) {
+      while (writtenFrames < totalFrames) {
         const wantFrames = Math.min(CHUNK_FRAMES, totalFrames - writtenFrames);
         const chunk = core.play(wantFrames);
         if (chunk.length === 0) break;
