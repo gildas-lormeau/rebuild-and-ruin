@@ -27,7 +27,7 @@ If you hold those three in mind, the file structure makes sense.
   another client is promoted via `HOST_MIGRATION` and rebuilds
   its controllers as if it had been host all along. `isHost` is
   **volatile** — it can flip mid-session — and must always be read
-  through `isHostInContext()` from `tick-context.ts`, never cached.
+  through `isHostInContext()` from `runtime-tick-context.ts`, never cached.
 - **Phase transitions go through checkpoints.** When the host enters
   a new phase, it broadcasts a full checkpoint
   (`BUILD_START` / `CANNON_START` / `BATTLE_START` / `BUILD_END`).
@@ -88,92 +88,80 @@ If you hold those three in mind, the file structure makes sense.
   lifecycle, reconnect logic. Decoupled from game runtime via
   dependency injection to avoid init-order coupling.
 
-### Host flow: broadcasts + transitions (5 files)
-- **`online-phase-transitions.ts`** — Per-phase host recipes
-  (`executeCannonStart`, `executeBattleStart`, `executeBuildStart`,
-  `executeBuildEnd`, etc.). Each emits a checkpoint + banners + mode
-  change in the right order.
-- **`online-server-events.ts`** — `handleServerEvents()` — host-side
-  handling of per-frame events (cannon fires, impact events, grunt
-  spawns). Relays to watcher + applies locally.
+### Server message handling (3 files)
+- **`online-server-events.ts`** — `handleServerIncrementalMessage()` —
+  per-frame action / aim / phantom messages (tower-selected, piece-
+  placed, cannon-placed, cannon-fired, aim-update, life-lost-choice,
+  upgrade-pick, etc.). Validates + applies to local state. Host-only
+  legality checks gate via `isHostInContext`.
 - **`online-server-lifecycle.ts`** — `handleServerLifecycleMessage()`
-  — lifecycle messages (SELECT_SLOT, OPPONENT_CONNECTED,
-  HOST_MIGRATION, INIT, etc.). Mutates session slot state atomically
-  (clearLobbySlot / occupyLobbySlot).
+  — lifecycle messages (ROOM_CREATED / ROOM_JOINED, JOINED, INIT,
+  SELECT_START, HOST_LEFT, FULL_STATE, GAME_OVER, etc.). Mutates
+  session slot state atomically (clearLobbySlot / occupyLobbySlot).
+  Phase-marker messages (CANNON_START / BATTLE_START / BUILD_START /
+  BUILD_END) are acknowledged but ignored — every peer dispatches
+  the matching transition locally from its own tick (clone-everywhere).
+- **`online-phase-transitions.ts`** — `handleGameOverTransition()` —
+  the one wire-driven transition. GAME_OVER carries the host's
+  authoritative scores, used to paint the terminal frame on watchers.
+
+### Outgoing actions + crosshairs (2 files)
 - **`online-send-actions.ts`** — `createOnlineSendActions()` —
-  `tryPlacePiece`, `tryPlaceCannon`, `fire` —
-  action wrappers that apply locally THEN broadcast the event. Used
-  by the local controller path.
-- **`online-host-crosshairs.ts`** — Host-side crosshair networking.
-  Broadcasts local AI crosshairs, merges remote human crosshairs into
-  the frame via linear interpolation.
+  `tryPlacePiece`, `tryPlaceCannon`, `fire` — action wrappers that
+  apply locally THEN broadcast the event. Used by the local controller
+  path.
+- **`online-host-crosshairs.ts`** — `broadcastLocalCrosshair` (deduped
+  aim-update fan-out for the local human / AI) +
+  `extendWithRemoteCrosshairs` (merges remote-human crosshair targets
+  into the frame via linear interpolation). Both host and watcher
+  render remote crosshairs the same way.
 
-### Watcher flow: apply checkpoints + tick state (3 files)
-- **`online-checkpoints.ts`** — Watcher-side UI cleanup hooks fired at
-  cannon-entry / battle-entry (`applyCannonStartWatcherUI`,
-  `applyBattleStartWatcherUI`). Game-state mutations are owned by the
-  phase-machine watcher mutates, which run engine fns
-  (`enterCannonPhase`, `enterBattlePhase`, `enterBuildPhase`,
-  `finalizeBuildPhase`) locally — checkpoints carry no payload.
-- **`online-watcher-tick.ts`** — `tickWatcher()` — per-frame watcher
-  state application. Also owns `tickMigrationAnnouncement` (the
-  "HOST MIGRATED" banner).
-- **`online-watcher-battle.ts`** — Watcher-specific battle tick
-  handling (applies host-sent battle events to local state).
-
-### Host migration (3 files)
-- **`online-host-promotion.ts`** — Pure helpers for controller rebuild
-  + accumulator sync when this client gets promoted. Called from
+### Host migration (2 files)
+- **`online-host-promotion.ts`** — Helpers for controller rebuild +
+  accumulator sync when this client gets promoted. Called from
   `online-runtime-promote.ts`.
-- **`online-runtime-promote.ts`** — Orchestration wrapper around
-  `online-host-promotion.ts`. Resets networking, rebuilds controllers,
-  re-runs init with `isHost = true`. Called when `HOST_MIGRATION`
-  arrives.
-- **`online-full-state-recovery.ts`** — Full state snapshot restore
-  for late-joining watchers (when they miss the initial checkpoint
-  sequence).
+- **`online-runtime-promote.ts`** — `initPromote()` + `promoteToHost()`
+  — orchestration around `online-host-promotion.ts`. Resets networking,
+  rebuilds controllers, broadcasts FULL_STATE. Called when `HOST_LEFT`
+  arrives and this client is the new host.
 
 ### Serialization (1 file)
 - **`online-serialize.ts`** — `createFullStateMessage` /
   `restoreFullStateSnapshot` (host-migration / late-join recovery) plus
   the bare-marker phase-checkpoint factories
   (`createBuildStartMessage`, `createCannonStartMessage`,
-  `createBattleStartMessage`, `BUILD_END`). Phase-marker checkpoints
-  carry no game state — watchers derive everything locally. **Exhaustiveness
-  is NOT automatic** — `lint-checkpoint-fields.ts` verifies every
-  GameState field is referenced at least once in the full-state
-  payload, so drift becomes a lint failure.
+  `createBattleStartMessage`, `BUILD_END`) and `createGameOverPayload`.
+  Phase-marker checkpoints carry no game state — watchers derive
+  everything locally. **Exhaustiveness is NOT automatic** —
+  `lint-checkpoint-fields.ts` verifies every GameState field is
+  referenced at least once in the full-state payload, so drift becomes
+  a lint failure.
 
-### Runtime helpers (3 files)
+### Runtime helpers (2 files)
 - **`online-runtime-session.ts`** — `createOnlineRuntimeSessionHelpers()`
-  — session reset, show-lobby, show-waiting-room, init-from-server.
+  — session reset, show-lobby, show-waiting-room, init-from-server,
+  restore-full-state.
 - **`online-runtime-lobby.ts`** — Online lobby DOM bootstrap + init.
-  Exports `lobbyReady` — the single public API consumed by
-  `entry.ts`.
+  Exports `lobbyReady` — the single public API consumed by `entry.ts`.
+
+### Presence + UI + plumbing (4 files)
+- **`online-presence-state.ts`** — `OnlinePresenceState` (remote
+  crosshair targets + smoothed visual positions + host-migration
+  banner). Held by every peer; reset fully on new game, partial reset
+  on host promotion.
+- **`online-lobby-ui.ts`** — Online-specific lobby UI rendering.
+- **`online-router.ts`** — Hash-route dispatcher (`navigateTo`,
+  `onRoute`) + `GAME_EXIT_EVENT` constant.
 - **`online-dom.ts`** — Centralized `getElementById` for all DOM
   elements the online client reads. One file = one boundary for all
   DOM access in online/.
-
-### Watcher transition handlers
-- **`online-phase-transitions.ts`** — six handlers (`handleCastleWalls`,
-  `handleCannonStart`, `handleBattleStart`, `handleBuildStart`,
-  `handleBuildEnd`, `handleGameOver`). Four of them dispatch to the
-  shared phase state machine via `runTransition(id, ctx)` from
-  `runtime/runtime-phase-machine.ts` — the `WatcherDeps` bag is the
-  only watcher-specific seam; the rest is the same machine the host
-  uses, with `role: "watcher"` selecting the per-role mutate /
-  postDisplay. The two non-machine handlers (castle-walls, game-over)
-  use runtime + session directly because they're not phase changes.
-
-### Lobby UI (1 file)
-- **`online-lobby-ui.ts`** — Online-specific lobby UI rendering.
 
 ## The volatile host flag — the #1 footgun
 
 `session.isHost` can flip from `false` to `true` during host migration.
 **Never cache it across ticks, awaits, or phase transitions.** Always
 read fresh via `isHostInContext(session)` from
-`shared/net/tick-context.ts`. This is enforced by a custom ESLint rule
+`runtime/runtime-tick-context.ts`. This is enforced by a custom ESLint rule
 (`no-restricted-syntax` → `MemberExpression[property.name='isHost']`)
 — direct `.isHost` access is banned outside a small allowlist (session
 init, reset, promotion). If you genuinely need to write it, use
@@ -200,7 +188,7 @@ stale entries after a promotion will suppress legitimate sends.
 ## Common operations
 
 ### Add a new server message type
-1. Add the interface to `src/shared/net/protocol.ts` + the `MESSAGE.*`
+1. Add the interface to `src/protocol/protocol.ts` + the `MESSAGE.*`
    constant.
 2. Add to the `ServerMessage` union in the same file.
 3. Add a handler in `online-runtime-deps.ts` `handleServerMessage()`
@@ -211,9 +199,14 @@ stale entries after a promotion will suppress legitimate sends.
    never mutate one slot field without the other.
 
 ### Add a new phase transition
-Already covered in `online-phase-transitions.ts`. If it's a new phase
-entirely, you'll also need to touch `phase-setup.ts` (local side) and
-add a new checkpoint apply function in `online-checkpoints.ts`.
+The clone-everywhere model means every peer dispatches phase
+transitions from its own tick — there is no separate watcher apply
+path. Touch `phase-setup.ts` (local-side phase entry) and, if the
+host needs to broadcast a marker, add a factory in
+`online-serialize.ts` and wire it into the `broadcastXxx` callbacks
+in `online-runtime-game.ts:onlinePhaseTicks`. Watchers get the marker
+via `online-server-lifecycle.ts` and just acknowledge — their own
+local tick has already advanced state.
 
 ### Add a new dedup channel
 Add the key to `DedupMaps` in `online-session.ts`, initialize in
@@ -221,12 +214,13 @@ Add the key to `DedupMaps` in `online-session.ts`, initialize in
 `shouldSend(id, key)` at every send site.
 
 ### Debug a "local works, online doesn't" issue
-Run `npm run test:sync` — the host-vs-local-sync test boots a
-host-mode headless runtime and compares state against a local-mode
-run. Any divergence is almost always a missed checkpoint field,
-missing serialize path, or an event that mutates state differently
-on host vs. watcher. The test gives you a precise first-divergence
-frame count.
+Run `npm run test:network-vs-local` — boots a host-mode headless
+runtime and a watcher fed only by host-broadcast wire messages, and
+asserts the watcher's bus event log matches the host's. Any
+divergence is almost always a missed checkpoint field, a missing
+serialize path, or an event that mutates state differently on host
+vs. watcher. The test gives you a precise first-divergence frame
+count and runs across multiple seeds in classic + modern mode.
 
 ### Write a test that injects peer messages
 Use `test/online-headless.ts` — `createOnlineHarness()` builds a
@@ -251,17 +245,18 @@ for them so tests can drive them via injected messages.
   and replay the lifecycle sequence.
 
 - **Phase markers are bare triggers.** `BUILD_START` / `BUILD_END` /
-  `CANNON_START` carry no payload — the watcher runs the matching
-  engine fn (`enterBuildPhase` / `finalizeBuildPhase` / source-prefix
-  + `enterCannonPhase`) locally on receipt. `BATTLE_START` carries
-  only `rngState` so the watcher can resync RNG before running
-  `enterBattlePhase`. Drift over a full round is bounded: BATTLE_START's
-  `rngState` is checked against the watcher's local RNG before
-  applying — divergence in the prior phase shows up there.
+  `CANNON_START` / `BATTLE_START` all carry no payload — every peer
+  runs the matching engine fn (`enterBuildPhase` / `finalizeBuildPhase` /
+  source-prefix + `enterCannonPhase` / `enterBattlePhase`) locally
+  from its own tick. The clone-everywhere model means RNG advances
+  in lockstep across peers, so no resync payload is needed. The wire
+  marker only exists so a watcher can acknowledge receipt and stay
+  off the unhandled-message log; the lifecycle dispatcher returns
+  `true` and does nothing.
 
 - **`ctx.session` vs `ctx` are different bags.** Some callbacks take
   `session: Pick<OnlineSession, ...>`, some take the full
-  `OnlineContext` (which includes session + dedup + watcher). Read the
+  `OnlineContext` (session + dedup + presence + reconnect). Read the
   callback's type precisely.
 
 - **`online-runtime-game.ts` uses `defaultClient`, tests use a fresh
@@ -283,16 +278,18 @@ for them so tests can drive them via injected messages.
 
 - **[docs/protocol.md](../../docs/protocol.md)** — Wire protocol
   reference: message types, checkpoint shapes, serialization details.
-- **[src/shared/net/](../shared/net/)** — Protocol types
-  (`protocol.ts`), checkpoint data (`checkpoint-data.ts`), dedup
-  channels (`phantom-types.ts`), tick context (`tick-context.ts`),
-  routes (`routes.ts`).
-- **[test/online-headless.ts](../../test/online-headless.ts)** — The
-  test harness that builds an isolated online client backed by the
-  real dispatcher. Good reference for how the bootstrap sequence
-  works.
+- **[src/protocol/](../protocol/)** — Wire protocol types
+  (`protocol.ts`), checkpoint data (`checkpoint-data.ts`), routes
+  (`routes.ts`).
+- **[src/shared/core/phantom-types.ts](../shared/core/phantom-types.ts)** —
+  `DedupChannel` definition (the `shouldSend` primitive).
+- **[src/runtime/runtime-tick-context.ts](../runtime/runtime-tick-context.ts)** —
+  `isHostInContext`, `isRemotePlayer`, `tickPersistentAnnouncement`.
+- **[test/online-headless.ts](../../test/online-headless.ts)** — Test
+  harness that builds an isolated online client backed by the real
+  dispatcher. Good reference for how the bootstrap sequence works.
 - **[scripts/lint-checkpoint-fields.ts](../../scripts/lint-checkpoint-fields.ts)**
   — Verifies every GameState field appears in `online-serialize.ts`.
   This is what catches "forgot to serialize X" bugs.
-- **[CLAUDE.md](../../CLAUDE.md)** — Top-level summary with pointers
-  to determinism fixtures and the sync test.
+- **[test/network-vs-local.test.ts](../../test/network-vs-local.test.ts)**
+  — Host-vs-watcher parity gate (`npm run test:network-vs-local`).
