@@ -150,8 +150,8 @@ export function zoneTowerCenterPx(
   players: readonly ({ homeTower: Tower | null } | null | undefined)[],
   zone: number,
 ): PixelPos | null {
-  const pid = playerZones.indexOf(zone);
-  const tower = pid >= 0 ? players[pid]?.homeTower : null;
+  const pid = playerByZone(playerZones, zone);
+  const tower = pid !== undefined ? players[pid]?.homeTower : null;
   return tower ? towerCenterPx(tower) : null;
 }
 
@@ -518,8 +518,12 @@ export function battleTargetPosition(
     const col = pxToTile(lastPos.x);
     const zone = zones[row]?.[col];
     if (zone !== undefined) {
-      const pid = playerZones.indexOf(zone);
-      if (pid >= 0 && pid !== myPid && !isPlayerEliminated(players[pid])) {
+      const pid = playerByZone(playerZones, zone);
+      if (
+        pid !== undefined &&
+        pid !== myPid &&
+        !isPlayerEliminated(players[pid])
+      ) {
         return { x: lastPos.x, y: lastPos.y };
       }
     }
@@ -528,10 +532,22 @@ export function battleTargetPosition(
   // First battle or opponent died: aim at best enemy's home tower
   const zone = bestEnemyZone(players, playerZones, myPid);
   if (zone === null) return null;
-  const pid = playerZones.indexOf(zone);
-  const tower = pid >= 0 ? players[pid]?.homeTower : null;
+  const pid = playerByZone(playerZones, zone);
+  const tower = pid !== undefined ? players[pid]?.homeTower : null;
   if (!tower) return null;
   return towerCenterPx(tower);
+}
+
+/** Return the player slot whose zone matches `zone`, or `undefined` if no
+ *  player is assigned to that zone. Encodes the data-model invariant that
+ *  zones are exclusive: at most one player per zone (river isolation).
+ *  Use this in place of `playerZones.indexOf(zone)`. */
+export function playerByZone(
+  playerZones: readonly number[],
+  zone: number,
+): number | undefined {
+  const pid = playerZones.indexOf(zone);
+  return pid >= 0 ? pid : undefined;
 }
 
 /** Pixel center of a tower footprint. */

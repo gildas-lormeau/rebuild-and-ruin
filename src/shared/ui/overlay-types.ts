@@ -343,6 +343,11 @@ export interface RenderOverlay {
   phantoms?: PhantomOverlay;
   battle?: BattleOverlay;
   ui?: UIOverlay;
+  /** Zone-by-player-slot mapping. Stable for the entire match (set once at
+   *  game start). Renderers use `playerByZone()` to resolve a tile's zone
+   *  to its owning player slot — encodes the river-isolation invariant
+   *  that each zone has at most one player. */
+  playerZones?: readonly number[];
 }
 
 /**

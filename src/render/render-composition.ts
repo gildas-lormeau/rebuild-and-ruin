@@ -350,6 +350,7 @@ export function createOnlineOverlay(
     phase: view.phase,
     selection: previousSelection,
     castles: buildCastleOverlay(view),
+    playerZones: view.playerZones,
     entities: {
       houses: view.map.houses,
       grunts: view.grunts,

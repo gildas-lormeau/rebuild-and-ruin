@@ -27,6 +27,7 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
   packTile,
+  playerByZone,
   pxToTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -67,8 +68,13 @@ interface TerrainImageCache {
   sinkholeClusters?: SinkholeCluster[];
 }
 
-/** A connected group of sinkhole tiles (4-cardinal connectivity). */
+/** A connected group of sinkhole tiles (4-cardinal connectivity).
+ *  `zone` is the map zone every tile in the cluster belongs to — clusters
+ *  cannot straddle zones (zones are isolated by rivers, sinkhole tiles are
+ *  only ever placed inside a single active zone). Resolves the owner
+ *  without scanning every cluster tile. */
 interface SinkholeCluster {
+  zone: number;
   tiles: SinkholeTilePatches[];
 }
 
@@ -1151,7 +1157,9 @@ function buildSinkholeClusters(
         patches: buildSinkholeTilePatches(sdf, W, map, r, c),
       };
     });
-    clusters.push({ tiles });
+    const seed = tiles[0]!;
+    const zone = map.zones[seed.row]?.[seed.col] ?? -1;
+    clusters.push({ zone, tiles });
   }
   return clusters;
 }
@@ -1347,6 +1355,8 @@ function drawSinkholeOverlays(
   const sinkholeTiles = overlay?.entities?.sinkholeTiles;
   if (!sinkholeTiles || sinkholeTiles.size === 0) return;
   if (!cache.sinkholeClusters) return;
+  const playerZones = overlay.playerZones;
+  if (!playerZones) return;
   const inBattle = !!overlay.battle?.inBattle;
   const owners = buildOwnerTables(overlay, inBattle);
   for (const cluster of cache.sinkholeClusters) {
@@ -1354,7 +1364,7 @@ function drawSinkholeOverlays(
     // during a reveal banner only knows about pre-existing lakes.
     const clusterKeys = collectClusterKeys(cluster);
     if (!clusterBelongsToScene(clusterKeys, sinkholeTiles)) continue;
-    const owner = findSinkholeOwner(cluster, owners);
+    const owner = findSinkholeOwner(cluster, owners, playerZones);
     if (owner === undefined) continue;
     const key = variantId(inBattle, owner);
     for (const tile of cluster.tiles) {
@@ -1403,25 +1413,23 @@ function buildOwnerTables(
   return { interiorOwners, wallTiles };
 }
 
-/** Decide which player encloses a sinkhole cluster, if any. Game-state
- *  `player.interior` is the authoritative enclosure signal (`computeOutside`
- *  flood from the edges — walls block, everything else propagates, including
- *  water). Any cluster tile that lands inside a player's enclosed region is
- *  in `interiorOwners`; if two players both claim tiles in the same cluster
- *  (not currently possible — zones are isolated by rivers), the cluster is
- *  contested and we bail. */
+/** Decide which player encloses a sinkhole cluster, if any. The cluster's
+ *  zone uniquely identifies the only player who could possibly own it
+ *  (zones are river-isolated — at most one player per zone). The cluster
+ *  is owned iff that player has actually enclosed it: any cluster tile in
+ *  their interior is sufficient (water tiles enter `interior` whenever
+ *  walls fully ring them, since `computeOutside` floods through water). */
 function findSinkholeOwner(
   cluster: SinkholeCluster,
   owners: OwnerTables,
+  playerZones: readonly number[],
 ): ValidPlayerSlot | undefined {
-  let candidate: ValidPlayerSlot | undefined;
-  for (const tile of cluster.tiles) {
-    const owner = owners.interiorOwners.get(packTile(tile.row, tile.col));
-    if (owner === undefined) continue;
-    if (candidate === undefined) candidate = owner;
-    else if (candidate !== owner) return undefined;
-  }
-  return candidate;
+  const pid = playerByZone(playerZones, cluster.zone);
+  if (pid === undefined) return undefined;
+  const seed = cluster.tiles[0];
+  if (!seed) return undefined;
+  const owner = owners.interiorOwners.get(packTile(seed.row, seed.col));
+  return owner === pid ? owner : undefined;
 }
 
 /** Pack the cluster's tile coordinates into a key set for fast neighbor

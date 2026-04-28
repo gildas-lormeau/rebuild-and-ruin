@@ -16,6 +16,7 @@ import type {
   ZoomButtonDeps,
 } from "../runtime/runtime-contracts.ts";
 import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
+import { playerByZone } from "../shared/core/spatial.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import {
@@ -237,7 +238,9 @@ export function createEnemyZoomButton(
     const zone = deps.getCameraZone();
     const state = deps.getState();
     const pid =
-      zone !== undefined && state ? state.playerZones.indexOf(zone) : -1;
+      zone !== undefined && state
+        ? (playerByZone(state.playerZones, zone) ?? -1)
+        : -1;
     const isActive = zone !== undefined && getEnemyZones().includes(zone);
     const background = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
     for (const btn of buttons) btn.style.background = background;

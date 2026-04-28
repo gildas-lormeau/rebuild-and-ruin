@@ -44,6 +44,7 @@ import {
   battleTargetPosition,
   bestEnemyZone,
   enemyZones,
+  playerByZone,
   pxToTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -290,8 +291,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  when there are no walls, then to the zone's static tile-rect center. */
   function castleCenterPx(zoneId: number): { x: number; y: number } {
     const state = deps.getState();
-    const pid = state ? state.playerZones.indexOf(zoneId) : -1;
-    const player = pid >= 0 ? state!.players[pid] : undefined;
+    const pid = state ? playerByZone(state.playerZones, zoneId) : undefined;
+    const player = pid !== undefined ? state!.players[pid] : undefined;
     if (player) {
       let minR = Number.POSITIVE_INFINITY;
       let maxR = Number.NEGATIVE_INFINITY;
