@@ -170,11 +170,17 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
 
 /** Ceasefire: skip battle entirely — do pre-battle housekeeping then go straight to build.
  *  Performs the same cleanup as prepareBattleState (decay pits, sweep walls)
- *  but skips modifiers, grunt attacks, and battle setup. */
+ *  but skips modifiers, grunt attacks, and battle setup.
+ *
+ *  No `recheckTerritory` here — `finalizeBattle` runs it after
+ *  `cleanupBattleArtifacts` (which only mutates grunt fields, never the
+ *  grunt set or walls) and `spawnIdleFirstBattleGrunts` (no-op on the
+ *  ceasefire path since the upgrade gates at round ≥ 3 while idle-grunt
+ *  spawning gates at round === 1). Nothing between sweepAllPlayersWalls
+ *  and finalizeBattle's recheckTerritory reads `player.interior`. */
 export function enterBuildSkippingBattle(state: GameState): void {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
-  recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearActiveModifiers(state);
   finalizeBattle(state);
