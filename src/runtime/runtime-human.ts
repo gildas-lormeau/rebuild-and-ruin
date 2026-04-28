@@ -19,6 +19,11 @@ import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  /** Cache-independent boolean: true iff at least one alive human controller
+   *  exists right now. Use from paths that run between frames (bootstrap →
+   *  enterTowerSelection) where `pointerPlayer()`'s per-frame cache would
+   *  still hold the lobby tick's stale `null`. */
+  hasPointerPlayer: () => boolean;
   withPointerPlayer: WithPointerPlayer;
   /** Clear the per-frame cache. Must be called at the start of each frame. */
   clearCache: () => void;
@@ -28,6 +33,14 @@ export function createPointerPlayerLookup(
   runtimeState: RuntimeState,
 ): PointerPlayerLookup {
   let cached: (PlayerController & InputReceiver) | null | undefined;
+
+  function isEligibleHuman(
+    ctrl: PlayerController,
+  ): ctrl is PlayerController & InputReceiver {
+    return (
+      isHuman(ctrl) && isPlayerAlive(runtimeState.state.players[ctrl.playerId])
+    );
+  }
 
   function pointerPlayer(): (PlayerController & InputReceiver) | null {
     if (cached !== undefined) return cached;
@@ -39,23 +52,21 @@ export function createPointerPlayerLookup(
       const ctrl = runtimeState.controllers.find(
         (c) => c.playerId === runtimeState.inputTracking.mouseJoinedSlot,
       );
-      if (
-        ctrl &&
-        isHuman(ctrl) &&
-        isPlayerAlive(runtimeState.state.players[ctrl.playerId])
-      ) {
+      if (ctrl && isEligibleHuman(ctrl)) {
         return (cached = ctrl);
       }
     }
     for (const ctrl of runtimeState.controllers) {
-      if (
-        isHuman(ctrl) &&
-        isPlayerAlive(runtimeState.state.players[ctrl.playerId])
-      ) {
+      if (isEligibleHuman(ctrl)) {
         return (cached = ctrl);
       }
     }
     return (cached = null);
+  }
+
+  function hasPointerPlayer(): boolean {
+    if (!isStateReady(runtimeState) || runtimeState.lobby.active) return false;
+    return runtimeState.controllers.some(isEligibleHuman);
   }
 
   function withPointerPlayer(
@@ -71,5 +82,5 @@ export function createPointerPlayerLookup(
     cached = undefined;
   }
 
-  return { pointerPlayer, withPointerPlayer, clearCache };
+  return { pointerPlayer, hasPointerPlayer, withPointerPlayer, clearCache };
 }

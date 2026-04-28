@@ -64,13 +64,13 @@ import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;
-  /** Direct query for "is a human player driving the pointer right now?".
-   *  Read straight from the pointer-player lookup rather than via
-   *  `getCtx().hasPointerPlayer` because `mobileAutoZoomActive()` is called
-   *  while `FrameContext` is still being assembled (see `assembly.ts`
-   *  passing `mobileAutoZoom: deps.isMobileAutoZoom()` into
-   *  `computeFrameContext`'s inputs), at which point `frameMeta` may not
-   *  be populated yet. */
+  /** "Is a human player driving the pointer right now?" — the gate inside
+   *  `mobileAutoZoomActive()`. Must be cache-independent because the
+   *  predicate runs both from `assembly.ts` while `FrameContext` is itself
+   *  being assembled (`frameMeta` may still be null on the first tick) and
+   *  from between-frame paths (bootstrap → enterTowerSelection →
+   *  setSelectionViewport on lobby expiry, where the per-frame
+   *  `pointerPlayer()` cache still holds the lobby's stale `null`). */
   hasPointerPlayer: () => boolean;
   getFrameDt: () => number;
   /** Whether camera pitch animations run. `false` in headless (no renderer
@@ -822,10 +822,17 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const frameCtx = deps.getCtx();
     const { mode } = frameCtx;
     let target: Viewport;
-    if (
+    // Auto-zoom (cropped viewport) is a single-human-on-touch feature.
+    // All-AI / spectator / lobby-demo sessions stay at fullMapVp regardless
+    // of any latched state in `pinchVp` / `cameraZone` / `castleBuildVp` —
+    // touch input writers (pinch, tap, E/H zoom buttons) intentionally
+    // mutate state without checking the predicate, so the invariant lives
+    // at this single read seam.
+    if (!mobileAutoZoomActive()) {
+      target = fullMapVp;
+    } else if (
       castleBuildVp &&
-      (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) &&
-      mobileAutoZoomActive()
+      (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION)
     ) {
       target = castleBuildVp;
     } else if (pinchVp) {
@@ -1091,18 +1098,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     ready();
   }
 
-  /** Clear all zoom state. Use for full resets (rematch, return to lobby). */
+  /** Clear every camera-target / tracking field. Used by both `teardownSession`
+   *  (game-over / quit-to-lobby) and `resetCamera` (rematch bootstrap). The
+   *  goal is "no field can leak across game boundaries". The platform flag
+   *  (`mobileZoomEnabled`) and the session-arm flag (`zoomActivated`) survive
+   *  — `resetCamera` owns re-arming. The rendered-frame state (`currentVp`,
+   *  `currentPitch`) also survives because clearing it on quit would
+   *  jump-cut the visible viewport mid-transition; on rematch we want the
+   *  snap, so `resetCamera` does it explicitly. */
   function clearAllZoomState(): void {
-    cameraZone = undefined;
-    pinchVp = undefined;
-    tapNudge = undefined;
-    phaseCamera.build = undefined;
-    phaseCamera.cannon = undefined;
-    phaseCamera.battle = undefined;
-    lastBattleCrosshairZone = undefined;
-  }
-
-  function resetCamera(): void {
     cameraZone = undefined;
     pinchVp = undefined;
     tapNudge = undefined;
@@ -1114,7 +1118,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     lastAutoZoomPhase = undefined;
     selectionZoom.applied = false;
     selectionZoom.pendingVp = undefined;
+    lastBattleCrosshair = undefined;
     cachedZoneTileBounds.clear();
+  }
+
+  function resetCamera(): void {
+    clearAllZoomState();
     // Re-arm auto-zoom for the next match. `zoomActivated` is toggled
     // off in-game when the player taps the touch zoom-home button on
     // their own zone (`setCameraZone(undefined)`); the next game
@@ -1205,6 +1214,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function setCastleBuildViewport(
     wallPlans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
   ): void {
+    if (!mobileAutoZoomActive()) return;
     castleBuildVp = computeCastleBuildViewport(wallPlans);
   }
 
@@ -1261,10 +1271,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     lastBattleCrosshair = { x: pos.x, y: pos.y };
   }
 
-  function resetBattleCrosshair(): void {
-    lastBattleCrosshair = undefined;
-  }
-
   // --- Return public API ---
 
   return {
@@ -1301,6 +1307,5 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     isMobileAutoZoom: mobileAutoZoomActive,
     computeBattleTarget,
     saveBattleCrosshair,
-    resetBattleCrosshair,
   };
 }

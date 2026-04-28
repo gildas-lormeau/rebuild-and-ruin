@@ -532,9 +532,6 @@ export function createSelectionSystem(
       deps.startCannonPhase();
     },
     tickCastleBuild,
-    setCastleBuildViewport: (
-      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
-    ) => deps.camera.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
     reset,

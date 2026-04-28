@@ -102,10 +102,7 @@ interface LifecycleWiringDeps {
   // Subsystems needed for reset/cleanup
   readonly selection: Pick<RuntimeSelection, "reset">;
   readonly banner: { reset: () => void };
-  readonly camera: Pick<
-    CameraSystem,
-    "clearAllZoomState" | "resetBattleCrosshair" | "resetCamera"
-  >;
+  readonly camera: Pick<CameraSystem, "clearAllZoomState" | "resetCamera">;
   readonly getLifeLost: () => Pick<RuntimeLifeLost, "set">;
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };
@@ -275,7 +272,6 @@ export function buildLifecycleDeps(
       wiringDeps.getLifeLost().set(null);
       wiringDeps.getUpgradePick().set(null);
       wiringDeps.scoreDelta.reset();
-      wiringDeps.camera.resetBattleCrosshair();
       runtimeState.scoreDisplay.gameStats = createEmptyGameStats();
       wiringDeps.camera.resetCamera();
     },

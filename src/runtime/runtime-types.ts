@@ -407,8 +407,6 @@ export interface CameraSystem {
   computeBattleTarget: () => { x: number; y: number } | null;
   /** Store a crosshair position for restoration at the next battle start. */
   saveBattleCrosshair: (pos: { x: number; y: number }) => void;
-  /** Clear saved crosshair (called on resetUIState). */
-  resetBattleCrosshair: () => void;
 }
 
 export interface RuntimeSelection {
@@ -426,9 +424,6 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
-  setCastleBuildViewport: (
-    plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
-  ) => void;
   startReselection: () => void;
   finishReselection: () => void;
   /** Full reset for game restart / rematch. */
