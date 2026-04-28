@@ -91,6 +91,7 @@ export function createLifeLostDialogState(
     choice: LifeLostChoice.PENDING,
     autoTimer: 0,
     focusedButton: 0,
+    plannedChoice: null,
   }));
 
   for (const playerId of eliminated) {
@@ -101,6 +102,7 @@ export function createLifeLostDialogState(
       choice: LifeLostChoice.ABANDON,
       autoTimer: 0,
       focusedButton: 0,
+      plannedChoice: LifeLostChoice.ABANDON,
     });
   }
 

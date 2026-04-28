@@ -354,11 +354,16 @@ function handleCannonPhantom(
   return APPLIED;
 }
 
+/** Apply a remote slot's life-lost choice. Same clone-everywhere shape
+ *  as `handleUpgradePick`: runs on host AND watcher because a real human's
+ *  controller has no local AI brain to fill `entry.choice`. AI / assisted
+ *  controllers fill `entry.choice` deterministically (state.rng-derived)
+ *  on every peer, so a wire-arrived duplicate is silently dropped by the
+ *  `entry.choice === LifeLostChoice.PENDING` guard below. */
 function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!isHostInContext(deps.session)) return DROPPED;
   deps.log(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
@@ -385,11 +390,16 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
   return null;
 }
 
+/** Apply a remote slot's upgrade pick. Runs on host AND watcher under
+ *  clone-everywhere — the watcher needs the wire signal because a real
+ *  human's controller has no local AI brain to fill `entry.choice`
+ *  itself. AI / assisted-human controllers also tick locally on every
+ *  peer and pick deterministically (state.rng-derived), so a wire-arrived
+ *  pick that matches an already-filled entry is a harmless duplicate. */
 function handleUpgradePick(
   msg: UpgradePickMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!isHostInContext(deps.session)) return DROPPED;
   deps.log(
     `upgrade_pick from P${msg.playerId}: ${msg.choice} (dialog=${deps.getUpgradePickDialog() ? "active" : "null"})`,
   );
