@@ -82,7 +82,7 @@ const ROUNDS = 15;
  *  the phase and is still visible at the transition to the next phase).
  *  Pick-time effects observe at PHASE_END(BATTLE) because UPGRADE_PICKED
  *  events fire synchronously during applyUpgradePicks, which runs BEFORE
- *  enterBuildPhase emits PHASE_END(BATTLE). */
+ *  enterBuildFromBattle emits PHASE_END(BATTLE). */
 const EFFECT_PROBES: Partial<Record<UpgradeId, EffectProbe>> = {
   reinforced_walls: {
     description: "wallAbsorbed event fires for picker",

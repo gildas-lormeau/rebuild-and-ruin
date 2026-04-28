@@ -124,7 +124,7 @@ export interface OnlinePhaseTicks {
   broadcastBattleStart?: () => void;
   /** Host: broadcast the build-phase entry checkpoint to watchers. */
   /** Host: broadcast the build-phase entry phase-marker. Watcher runs
-   *  `enterBuildPhase` locally on receipt — no payload. See
+   *  `enterBuildFromBattle` locally on receipt — no payload. See
    *  `BuildStartData` in checkpoint-data.ts. */
   broadcastBuildStart?: () => void;
   /** Host: broadcast the end-of-build summary (lives lost + eliminations

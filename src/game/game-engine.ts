@@ -46,11 +46,7 @@ import {
   prepareControllerCannonPhase,
 } from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
-import {
-  enterBuildFromBattle,
-  prepareBattleState,
-  setPhase,
-} from "./phase-setup.ts";
+import { prepareBattleState, setPhase } from "./phase-setup.ts";
 import {
   allPlayersHaveTerritory,
   allSelectionsConfirmed,
@@ -234,22 +230,6 @@ export function enterReselectPhase(
     initTowerSelection(state, selectionStates, pid, zone);
   }
   initSelectionTimer(state);
-}
-
-/** Enter the build phase from BATTLE. Captures pre-transition snapshots
- *  Runs enterBuildFromBattle which performs the round-end housekeeping
- *  (combo bonuses, battle cleanup, grunt spawn, upgrade offer generation,
- *  modifier rotation, round increment, phase flip).
- *
- *  The runtime captures the scene as ImageData before calling this, so
- *  no state-cloning snapshots are needed here. The battleTerritory/walls
- *  parameters are kept for API compatibility but unused. */
-export function enterBuildPhase(
-  state: GameState,
-  _battleTerritory?: readonly Set<number>[],
-  _battleWalls?: readonly Set<number>[],
-): void {
-  enterBuildFromBattle(state);
 }
 
 /** Per-frame WALL_BUILD engine tick. Advances upgrade-effect timers and

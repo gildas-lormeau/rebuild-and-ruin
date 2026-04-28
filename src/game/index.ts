@@ -43,7 +43,6 @@ export {
   applyGameConfig,
   createGameFromSeed,
   enterBattlePhase,
-  enterBuildPhase,
   enterCannonPhase,
   enterCastleReselectPhase,
   enterReselectPhase,
@@ -58,6 +57,7 @@ export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
+  enterBuildFromBattle,
   enterBuildSkippingBattle,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,

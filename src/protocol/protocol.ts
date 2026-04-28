@@ -139,7 +139,7 @@ export interface BattleStartMessage {
 }
 
 /** Start of build phase — phase-marker signal. Watcher runs
- *  `enterBuildPhase` locally on receipt; no payload. */
+ *  `enterBuildFromBattle` locally on receipt; no payload. */
 export interface BuildStartMessage {
   type: "buildStart";
 }
