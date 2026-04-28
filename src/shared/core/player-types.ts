@@ -36,7 +36,13 @@ export interface Player {
   homeTower: Tower | null;
   /** The castle built around the home tower. */
   castle: Castle | null;
-  /** All towers currently enclosed by this player's walls. */
+  /** All towers currently enclosed by this player's walls.
+   *  Dual role: (1) hot-path cache for SFX, scoring, and grunt-spawn
+   *  eligibility; (2) snapshot source for `TOWER_ENCLOSED` event diffing
+   *  in `updateOwnedTowers` — the prior list is captured before rebuild,
+   *  so towers absent from the snapshot but present after fire a one-shot
+   *  enclosure event. Replacing this field with a lazy getter over
+   *  `interior` would silently break the diff. */
   ownedTowers: Tower[];
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col).
    *  ReadonlySet at the type level — mutations must go through board-occupancy

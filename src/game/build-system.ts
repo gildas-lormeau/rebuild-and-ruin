@@ -477,22 +477,24 @@ function recomputeInterior(player: Player): void {
   player.interior = markInteriorFresh(player, fresh);
 }
 
-/** Find towers enclosed by a player's territory and update ownedTowers list.
- *  Emits a `towerEnclosed` event for each tower that transitioned from
- *  un-enclosed to enclosed this pass — consumed by the SFX/music layer
- *  to trigger the enclosure stinger + first-per-phase fanfare. */
+/** Recompute `player.ownedTowers` from the current interior and emit one
+ *  `TOWER_ENCLOSED` event per tower that transitioned to enclosed this
+ *  pass (SFX uses the events for the enclosure stinger + first-per-phase
+ *  fanfare). The prior `ownedTowers` is captured BEFORE rebuild — that
+ *  snapshot is the diff source for newly-enclosed detection. */
 function updateOwnedTowers(state: GameState, player: Player): void {
-  const wasEnclosed = new Set(player.ownedTowers.map((tower) => tower.index));
-  player.ownedTowers = [];
-  for (const tower of state.map.towers) {
-    if (!isTowerOwnedByPlayer(tower, player)) continue;
-    player.ownedTowers.push(tower);
-    if (!wasEnclosed.has(tower.index)) {
-      emitGameEvent(state.bus, GAME_EVENT.TOWER_ENCLOSED, {
-        playerId: player.id,
-        towerIndex: tower.index,
-      });
-    }
+  const previouslyEnclosed = new Set(
+    player.ownedTowers.map((tower) => tower.index),
+  );
+  player.ownedTowers = state.map.towers.filter((tower) =>
+    isTowerOwnedByPlayer(tower, player),
+  );
+  for (const tower of player.ownedTowers) {
+    if (previouslyEnclosed.has(tower.index)) continue;
+    emitGameEvent(state.bus, GAME_EVENT.TOWER_ENCLOSED, {
+      playerId: player.id,
+      towerIndex: tower.index,
+    });
   }
 }
 
