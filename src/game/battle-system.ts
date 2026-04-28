@@ -74,7 +74,10 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
-import { applyDustStormJitter } from "./modifier-system.ts";
+import {
+  applyDustStormJitter,
+  consumeFireRngForActiveModifier,
+} from "./modifier-system.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,
@@ -452,15 +455,13 @@ export function applyCannonFired(
   // (round-1 punishment trigger) and any other shotsFired-gated logic fire
   // identically on host and watcher.
   state.shotsFired++;
-  // Mirror host's `launchCannonball` RNG consumption. The host's fire path
-  // calls `applyDustStormJitter`, which draws `state.rng` once when the
-  // dust-storm modifier is active (no-op otherwise). The wire payload
-  // already carries the host's post-jitter impact values, so the watcher
-  // doesn't need the result — but it MUST consume the same RNG draw to
-  // keep `state.rng` in lockstep across peers. Without this, every
-  // wire-applied fire under dust-storm drifts the watcher's rng by one
-  // step relative to the host. Discarded result is intentional.
-  applyDustStormJitter(state, msg.startX, msg.startY, msg.targetX, msg.targetY);
+  // Mirror the active modifier's per-fire `state.rng` consumption from
+  // the host's local fire path. Reads `ModifierImpl.fireRngDraws` from
+  // `MODIFIER_REGISTRY` and consumes the same number of `rng.next()` calls
+  // — the wire payload already carries the host's post-effect physics, so
+  // the values are discarded. No-op for modifiers that don't affect fires
+  // (default `fireRngDraws: 0`) or when no modifier is active.
+  consumeFireRngForActiveModifier(state);
   // Watcher picks its own whistle variant locally — SFX is decoupled
   // from `state.rng` (uses Math.random) so the watcher still emits the
   // descending-whistle event without needing the wire to carry it.

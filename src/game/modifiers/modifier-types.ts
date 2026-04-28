@@ -30,6 +30,22 @@ export interface ModifierImpl {
   /** Restore tile-mutating state from checkpoint data and re-apply tile
    *  mutations on a map regenerated from seed. */
   restore?: (state: GameState, data: ModifierTileData) => void;
+  /** Number of `state.rng.next()` calls this modifier performs per
+   *  cannon fire while active. The host's local fire path (e.g.
+   *  `applyDustStormJitter` inside `launchCannonball`) is responsible
+   *  for actually consuming these draws to compute its modifier-
+   *  specific effect. The wire-applied `applyCannonFired` mirrors the
+   *  count via `consumeFireRngForActiveModifier(state)` so peers stay
+   *  in lockstep without recomputing the (already wire-delivered)
+   *  trajectory. Default 0 — most modifiers don't affect fires.
+   *
+   *  Contract: the host's local fire path must consume EXACTLY this
+   *  many `state.rng.next()` calls per fire while the modifier is
+   *  active. A unit test
+   *  (`test/scenario.test.ts → modifier-fire-rng-contract`) asserts
+   *  this for every modifier with `fireRngDraws > 0`. Currently
+   *  declared by: dust_storm (1 draw — the jitter angle). */
+  fireRngDraws?: number;
 }
 
 /** Checkpoint data shape — the subset of checkpoint fields this helper reads. */

@@ -53,6 +53,23 @@ export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(
   Object.entries(MODIFIER_IMPLS) as [ModifierId, ModifierImpl][],
 );
 
+/** Mirror the active modifier's per-fire `state.rng.next()` draws on the
+ *  wire-applied path. The host's `launchCannonball` consumes these draws
+ *  via the modifier's bespoke fire-time function (e.g. `applyDustStormJitter`);
+ *  the watcher's `applyCannonFired` calls THIS to keep `state.rng` in
+ *  lockstep without recomputing the (already wire-delivered) trajectory.
+ *
+ *  The `fireRngDraws` field on `ModifierImpl` is the declarative contract:
+ *  any modifier whose host-side fire path consumes `state.rng` must declare
+ *  the count here. The contract is enforced by a unit test that fires a
+ *  cannonball with each modifier active and asserts the draw count matches. */
+export function consumeFireRngForActiveModifier(state: GameState): void {
+  const id = state.modern?.activeModifier;
+  if (!id) return;
+  const draws = MODIFIER_REGISTRY.get(id)?.fireRngDraws ?? 0;
+  for (let i = 0; i < draws; i++) state.rng.next();
+}
+
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
 export function rollModifier(state: GameState): ModifierId | null {

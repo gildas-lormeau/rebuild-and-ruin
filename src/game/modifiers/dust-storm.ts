@@ -15,6 +15,11 @@ export const dustStormImpl: ModifierImpl = {
   apply: () => ({ changedTiles: [] as number[], gruntsSpawned: 0 }),
   // Trajectory jitter only — no map / wall mutation.
   skipsRecheck: true,
+  // One `state.rng.next()` call per fire — the jitter angle drawn by
+  // `applyDustStormJitter`. The wire-applied `applyCannonFired` reads
+  // this count from `MODIFIER_REGISTRY` and mirrors the draws so
+  // `state.rng` stays in lockstep across peers.
+  fireRngDraws: 1,
 };
 
 /** Apply Dust Storm trajectory jitter to a target offset. Returns the

@@ -114,6 +114,53 @@ eliminated. Only needed for modifiers with `needsCheckpoint: true`.
 a map regenerated from seed. Only needed for tile-mutating modifiers. Each
 modifier reads only its own field from `ModifierTileData`.
 
+**`fireRngDraws`** — declares how many `state.rng.next()` calls your
+modifier performs **per cannon fire** while active. Default `0`. Only set
+this if your modifier's host-side fire-time function (e.g. trajectory
+jitter, damage variance) draws `state.rng` inside `launchCannonball` — see
+the "RNG-mirror contract" subsection below. Currently declared by:
+`dust_storm` (1 draw — the jitter angle).
+
+### RNG-mirror contract (modifiers that affect cannon fires)
+
+If your modifier consumes `state.rng` **per cannon fire** (not per battle
+start, which is symmetric across peers via `apply`), you cross into a
+parity-sensitive corner. Read this before adding such an effect.
+
+The host's local fire path runs `launchCannonball`, which may call into
+your modifier's bespoke fire-time function (e.g. `applyDustStormJitter`)
+that consumes `state.rng`. The wire-applied path on a non-host peer
+(`applyCannonFired`) reuses the host's pre-computed impact values from the
+wire payload — it doesn't recompute trajectories. But it MUST consume the
+same number of `state.rng` draws to keep the shared RNG in lockstep across
+peers, otherwise `state.rng` drifts by one step per fire and the
+parity test (`test/network-vs-local.test.ts`) goes red.
+
+The mechanism is registry-driven:
+
+1. Set `fireRngDraws: N` on your `ModifierImpl` (where N is the exact
+   number of `state.rng.next()` calls your fire-time function performs).
+2. The host's `launchCannonball` calls into your fire-time function the
+   normal way (uses the drawn values to compute trajectory).
+3. The wire-applied `applyCannonFired` automatically calls
+   `consumeFireRngForActiveModifier(state)` — defined in
+   `modifier-system.ts` — which reads `fireRngDraws` from the registry
+   and consumes that many draws. The values are discarded; the wire
+   payload already has the post-effect physics.
+
+**Contract**: the actual RNG-draw count of your fire-time function MUST
+match `fireRngDraws`. If your code draws conditionally (e.g. dust storm
+skips the draw when `dist === 0`), either restructure to always draw
+exactly `fireRngDraws` times or document the edge case as unreachable in
+production. For dust storm, `dist === 0` would mean a cannon firing at
+its own position — impossible in normal play.
+
+**Most modifiers don't need this.** RNG draws inside `apply` (battle
+setup) are symmetric across peers because every peer runs `apply`
+identically — no wire involved. Only fire-time / impact-time / per-frame
+draws inside the host's local path that the wire-applied path bypasses
+need the mirror.
+
 ### Pool entry fields
 
 | Field | Meaning |
