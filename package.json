@@ -94,6 +94,7 @@
   "dependencies": {
     "fflate": "^0.8.2",
     "libadlmidi-js": "^2.0.0",
+    "qrcode-generator": "^2.0.4",
     "three": "^0.160.0"
   }
 }

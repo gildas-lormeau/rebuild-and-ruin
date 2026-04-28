@@ -1,3 +1,4 @@
+import qrcode from "qrcode-generator";
 import { type ClientMessage, MESSAGE } from "../protocol/protocol.ts";
 import { API_ROOMS_PATH } from "../protocol/routes.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
@@ -34,6 +35,8 @@ const SECS_PER_MIN = 60;
 const SECS_PER_HOUR = 3600;
 const CLICK_EVENT = "click";
 const SUBMIT_EVENT = "submit";
+const QR_DISPLAY_PIXELS = 120;
+const QR_QUIET_MODULES = 4;
 
 /** Stored interval so repeated initLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | undefined;
@@ -217,7 +220,6 @@ export function buildRoomCodeOverlay(
 ): void {
   roomCodeOverlay.style.display = "block";
   roomCodeOverlay.innerHTML = "";
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
   const wrapper = doc.createElement("div");
   Object.assign(wrapper.style, {
     position: "fixed",
@@ -236,20 +238,55 @@ export function buildRoomCodeOverlay(
     textAlign: "center",
   });
   wrapper.textContent = code;
-  const qrImage = doc.createElement("img");
-  qrImage.src = qrSrc;
-  qrImage.alt = "QR";
-  Object.assign(qrImage.style, {
+  const qrCanvas = renderQrCanvas(joinUrl, doc);
+  if (qrCanvas) wrapper.appendChild(qrCanvas);
+  roomCodeOverlay.appendChild(wrapper);
+}
+
+function renderQrCanvas(text: string, doc: Document): HTMLCanvasElement | null {
+  const qr = buildQr(text);
+  if (!qr) return null;
+  const moduleCount = qr.getModuleCount();
+  const totalModules = moduleCount + QR_QUIET_MODULES * 2;
+  const scale = Math.max(1, Math.floor(QR_DISPLAY_PIXELS / totalModules));
+  const pixelSize = totalModules * scale;
+  const canvas = doc.createElement("canvas");
+  canvas.width = pixelSize;
+  canvas.height = pixelSize;
+  Object.assign(canvas.style, {
     display: "block",
     margin: "8px auto 0",
-    width: "120px",
-    height: "120px",
+    width: `${QR_DISPLAY_PIXELS}px`,
+    height: `${QR_DISPLAY_PIXELS}px`,
     imageRendering: "pixelated",
     borderRadius: "4px",
   });
-  qrImage.addEventListener("error", () => {
-    qrImage.style.display = "none";
-  });
-  wrapper.appendChild(qrImage);
-  roomCodeOverlay.appendChild(wrapper);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, pixelSize, pixelSize);
+  ctx.fillStyle = "#000";
+  for (let row = 0; row < moduleCount; row++) {
+    for (let col = 0; col < moduleCount; col++) {
+      if (!qr.isDark(row, col)) continue;
+      ctx.fillRect(
+        (col + QR_QUIET_MODULES) * scale,
+        (row + QR_QUIET_MODULES) * scale,
+        scale,
+        scale,
+      );
+    }
+  }
+  return canvas;
+}
+
+function buildQr(text: string) {
+  try {
+    const qr = qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    return qr;
+  } catch {
+    return null;
+  }
 }
