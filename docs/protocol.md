@@ -111,8 +111,9 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 |---------|-------|-------------|
 | `opponentPiecePlaced` | WALL_BUILD | AI/remote player placed a wall piece |
 | `opponentPhantom` | WALL_BUILD | Ghost piece position (cursor preview) |
-| `opponentCannonPlaced` | CANNON_PLACE | AI/remote player placed a cannon |
+| `opponentCannonPlaced` | CANNON_PLACE | **Human** player placed a cannon (AI placements derived locally on every peer — never sent over the wire) |
 | `opponentCannonPhantom` | CANNON_PLACE | Ghost cannon position |
+| `opponentCannonPhaseDone` | CANNON_PLACE | **Human** player finished placing cannons. Lets every peer's exit predicate (`allCannonPlaceDone`) wait for remote-driven slots before transitioning — without this, peers whose `localControllers` excluded the slot would early-exit while wire placements are still in flight. AI controllers are deterministic across peers and don't broadcast (their done-ness is implicit in `state.cannonPlaceDone` flipped by their local tick). |
 | `opponentTowerSelected` | SELECTION | **Human** player browsing/confirming tower (AI selections derived locally on every peer from synced `strategy.rng` — never sent over the wire) |
 | `cannonFired` | BATTLE | A cannon fired a cannonball |
 | `wallDestroyed` | BATTLE | A wall tile was destroyed (host-only) |
@@ -124,8 +125,8 @@ Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `
 | `iceThawed` | BATTLE | Frozen water tile thawed by cannonball (host-only) |
 | `towerKilled` | BATTLE | A tower was destroyed by grunts (host-only) |
 | `aimUpdate` | BATTLE | Crosshair position |
-| `lifeLostChoice` | Any | Forwarded from non-host client to all (playerId + choice) |
-| `upgradePick` | Any | Forwarded from non-host client to host (playerId + choice) |
+| `lifeLostChoice` | LIFE_LOST | Human player picked continue/abandon. Applied on every peer (host AND watcher) — fills `entry.choice` in the life-lost dialog. AI controllers fill `entry.choice` deterministically via `tickLifeLost` (decision/commit split: `plannedChoice` cached separately from `choice`), so a wire-arrived choice on the watcher is idempotent against the locally-computed one. |
+| `upgradePick` | UPGRADE_PICK | Human player picked an upgrade. Applied on every peer (host AND watcher) — fills `entry.choice` in the upgrade-pick dialog. AI controllers fill `entry.choice` deterministically via `tickAiUpgradePickEntry` (same decision/commit split). |
 
 #### Battle Event Unions
 
@@ -156,7 +157,7 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 | Message | Sender | Description |
 |---------|--------|-------------|
 | `hostLeft` | Server → All | `newHostPlayerId`, `disconnectedPlayerId`. `null` if no human available (watcher fallback). |
-| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` so additions can't silently drift. |
+| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for peer reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `cannonPlaceDone[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` so additions can't silently drift. |
 
 ## Anti-Cheat (Server-Side)
 
