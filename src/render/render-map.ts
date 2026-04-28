@@ -88,14 +88,6 @@ interface SinkholeTilePatches {
   patches: Map<string, ImageData>;
 }
 
-/** Tile-key → owning player tables built from the current overlay (one
- *  entry per non-cluster collidable tile). Used to classify cluster cardinal
- *  neighbors as "interior of player X", "wall", or "open grass". */
-interface OwnerTables {
-  interiorOwners: Map<number, ValidPlayerSlot>;
-  wallTiles: Set<number>;
-}
-
 interface OffscreenPair {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -855,10 +847,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return hasContent ? image : undefined;
   }
 
-  /** Populate `cache.sinkholeClusters` if not already built. `drawTerrain`
-   *  builds them lazily on the first draw, but `getSinkholeOverlayBitmap`
-   *  may be called from the 3D path before the 2D draw has run — so we
-   *  replicate the SDF + cluster build here when the cache is empty. */
+  /** Populate `cache.sinkholeClusters` lazily on first use. The cache is
+   *  reset on every `mapVersion` bump (via `getTerrainCache`), and the
+   *  sinkhole modifier always bumps mapVersion when changing tiles, so
+   *  the rebuilt clusters always match the current `sinkholeTiles` set. */
   function ensureSinkholeClusters(
     map: GameMap,
     sinkholeTiles: ReadonlySet<number>,
@@ -1336,33 +1328,21 @@ function selectTerrainColor(
 /** Recolor the bank pixels of every owned sinkhole tile so they blend into
  *  the surrounding interior/cobblestone color instead of the green that the
  *  base terrain bitmap painted. Unowned sinkholes are left untouched (the
- *  base bitmap already renders them correctly against grass).
- *
- *  The cluster cache is shared between the main scene and the banner prev
- *  scene (both key off map reference), but each scene has its own
- *  `sinkholeTiles` set — the prev scene can be a stale snapshot from before
- *  a new sinkhole was applied. Filter clusters by the scene's own set so we
- *  never blit an owner variant for a lake that the prev overlay doesn't know
- *  about (which would read ownership from stale castles and paint the wrong
- *  color on the first frame of a reveal banner). */
+ *  base bitmap already renders them correctly against grass). */
 function drawSinkholeOverlays(
   cache: TerrainImageCache,
   blit: (img: ImageData, dx: number, dy: number) => void,
   overlay?: RenderOverlay,
 ): void {
-  const sinkholeTiles = overlay?.entities?.sinkholeTiles;
-  if (!sinkholeTiles || sinkholeTiles.size === 0) return;
+  if (!overlay?.entities?.sinkholeTiles) return;
+  if (overlay.entities.sinkholeTiles.size === 0) return;
   if (!cache.sinkholeClusters) return;
   const playerZones = overlay.playerZones;
   if (!playerZones) return;
   const inBattle = !!overlay.battle?.inBattle;
-  const owners = buildOwnerTables(overlay, inBattle);
+  const interiorOwners = interiorOwnersFromOverlay(overlay);
   for (const cluster of cache.sinkholeClusters) {
-    // Skip clusters whose tiles aren't in this scene's set — the prev scene
-    // during a reveal banner only knows about pre-existing lakes.
-    const clusterKeys = collectClusterKeys(cluster);
-    if (!clusterBelongsToScene(clusterKeys, sinkholeTiles)) continue;
-    const owner = findSinkholeOwner(cluster, owners, playerZones);
+    const owner = findSinkholeOwner(cluster, interiorOwners, playerZones);
     if (owner === undefined) continue;
     const key = variantId(inBattle, owner);
     for (const tile of cluster.tiles) {
@@ -1415,64 +1395,24 @@ function interiorRefsMatch(
   return true;
 }
 
-function buildOwnerTables(
-  overlay: RenderOverlay,
-  inBattle: boolean,
-): OwnerTables {
-  const interiorOwners = interiorOwnersFromOverlay(overlay);
-  const wallTiles = new Set<number>();
-  if (inBattle) {
-    const walls = overlay.battle?.battleWalls;
-    if (walls) {
-      for (const set of walls) {
-        for (const key of set) wallTiles.add(key);
-      }
-    }
-  } else if (overlay.castles) {
-    for (const castle of overlay.castles) {
-      for (const key of castle.walls) wallTiles.add(key);
-    }
-  }
-  return { interiorOwners, wallTiles };
-}
-
 /** Decide which player encloses a sinkhole cluster, if any. The cluster's
  *  zone uniquely identifies the only player who could possibly own it
- *  (zones are river-isolated — at most one player per zone). The cluster
- *  is owned iff that player has actually enclosed it: any cluster tile in
- *  their interior is sufficient (water tiles enter `interior` whenever
- *  walls fully ring them, since `computeOutside` floods through water). */
+ *  (zones are river-isolated — at most one player per zone). Checking
+ *  the seed tile alone is sufficient: `computeOutside` propagates
+ *  outside-ness through water without barriers, so all cluster tiles
+ *  share the same enclosure status (a wall ring around the cluster
+ *  encloses every tile; a gap exposes every tile). */
 function findSinkholeOwner(
   cluster: SinkholeCluster,
-  owners: OwnerTables,
+  interiorOwners: ReadonlyMap<number, ValidPlayerSlot>,
   playerZones: readonly number[],
 ): ValidPlayerSlot | undefined {
   const pid = playerByZone(playerZones, cluster.zone);
   if (pid === undefined) return undefined;
   const seed = cluster.tiles[0];
   if (!seed) return undefined;
-  const owner = owners.interiorOwners.get(packTile(seed.row, seed.col));
+  const owner = interiorOwners.get(packTile(seed.row, seed.col));
   return owner === pid ? owner : undefined;
-}
-
-/** Pack the cluster's tile coordinates into a key set for fast neighbor
- *  membership tests inside the cluster. */
-function collectClusterKeys(cluster: SinkholeCluster): Set<number> {
-  const keys = new Set<number>();
-  for (const tile of cluster.tiles) keys.add(packTile(tile.row, tile.col));
-  return keys;
-}
-
-/** A cluster belongs to the scene iff every one of its tiles is present in
- *  that scene's `sinkholeTiles` set. */
-function clusterBelongsToScene(
-  clusterKeys: ReadonlySet<number>,
-  sceneSinkholeTiles: ReadonlySet<number>,
-): boolean {
-  for (const key of clusterKeys) {
-    if (!sceneSinkholeTiles.has(key)) return false;
-  }
-  return true;
 }
 
 function tileAt(map: GameMap, r: number, c: number): number {
