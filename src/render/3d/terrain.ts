@@ -54,7 +54,7 @@ import {
   Tile,
 } from "../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
-import type { RenderOverlay } from "../../shared/ui/overlay-types.ts";
+import { interiorOwnersFromOverlay } from "../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
 import { ELEVATION_STACK } from "./elevation.ts";
@@ -170,11 +170,7 @@ export function createTerrain(): TerrainContext {
     const sinkholeTiles = overlay?.entities?.sinkholeTiles;
     const inBattle = !!overlay?.battle?.inBattle;
 
-    // Per-tile owner maps for interiors and sinkhole bank tinting.
-    // Mirrors `buildOwnerTables` in render-map.ts: in battle we use
-    // `overlay.battle.battleTerritory` (player index → territory set),
-    // otherwise the live `castle.interior` sets.
-    const interiorOwners = buildInteriorOwners(overlay, inBattle);
+    const interiorOwners = interiorOwnersFromOverlay(overlay);
 
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
@@ -296,34 +292,6 @@ function sRGBToLinear(value: number): number {
   return value <= 0.04045
     ? value / 12.92
     : Math.pow((value + 0.055) / 1.055, 2.4);
-}
-
-/** Build a tile-key → owner map from the overlay's interior sets.
- *  Matches `buildOwnerTables` in render-map.ts — battle mode reads
- *  `overlay.battle.battleTerritory[pid]`, peacetime reads each castle's
- *  `interior`. Used for both the castle interior color and the sinkhole
- *  owner tint. */
-function buildInteriorOwners(
-  overlay: RenderOverlay | undefined,
-  inBattle: boolean,
-): Map<number, ValidPlayerSlot> {
-  const owners = new Map<number, ValidPlayerSlot>();
-  if (inBattle) {
-    const territories = overlay?.battle?.battleTerritory;
-    if (territories) {
-      for (let pid = 0; pid < territories.length; pid++) {
-        const territory = territories[pid];
-        if (!territory) continue;
-        const playerSlot = pid as unknown as ValidPlayerSlot;
-        for (const key of territory) owners.set(key, playerSlot);
-      }
-    }
-  } else if (overlay?.castles) {
-    for (const castle of overlay.castles) {
-      for (const key of castle.interior) owners.set(key, castle.playerId);
-    }
-  }
-  return owners;
 }
 
 /** Return the color for an owned interior tile at (row, col). Mirrors

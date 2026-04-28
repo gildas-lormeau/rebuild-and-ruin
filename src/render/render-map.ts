@@ -31,10 +31,11 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
-import type {
-  CastleData,
-  RenderObserver,
-  RenderOverlay,
+import {
+  type CastleData,
+  interiorOwnersFromOverlay,
+  type RenderObserver,
+  type RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import type { RGB } from "../shared/ui/theme.ts";
@@ -1384,19 +1385,10 @@ function buildOwnerTables(
   overlay: RenderOverlay,
   inBattle: boolean,
 ): OwnerTables {
-  const interiorOwners = new Map<number, ValidPlayerSlot>();
+  const interiorOwners = interiorOwnersFromOverlay(overlay);
   const wallTiles = new Set<number>();
   if (inBattle) {
-    const territories = overlay.battle?.battleTerritory;
     const walls = overlay.battle?.battleWalls;
-    if (territories) {
-      for (let pid = 0; pid < territories.length; pid++) {
-        const territory = territories[pid];
-        if (!territory) continue;
-        const playerSlot = pid as unknown as ValidPlayerSlot;
-        for (const key of territory) interiorOwners.set(key, playerSlot);
-      }
-    }
     if (walls) {
       for (const set of walls) {
         for (const key of set) wallTiles.add(key);
@@ -1404,9 +1396,6 @@ function buildOwnerTables(
     }
   } else if (overlay.castles) {
     for (const castle of overlay.castles) {
-      for (const key of castle.interior) {
-        interiorOwners.set(key, castle.playerId);
-      }
       for (const key of castle.walls) wallTiles.add(key);
     }
   }

@@ -503,3 +503,32 @@ export interface PlayerStats {
   wallsDestroyed: number;
   cannonsKilled: number;
 }
+
+/** Build a tile-key → owning player map from the overlay. Hides the
+ *  build/battle source split: in battle the snapshot lives in
+ *  `overlay.battle.battleTerritory[pid]`; out of battle the live owners
+ *  come from each castle's `interior` set. Renderers iterate the result
+ *  per-tile to color castle interiors and owned-sinkhole banks. Walls
+ *  are NOT included — callers that need them build a separate set. */
+export function interiorOwnersFromOverlay(
+  overlay: RenderOverlay | undefined,
+): Map<number, ValidPlayerSlot> {
+  const owners = new Map<number, ValidPlayerSlot>();
+  if (!overlay) return owners;
+  if (overlay.battle?.inBattle) {
+    const territories = overlay.battle.battleTerritory;
+    if (territories) {
+      for (let pid = 0; pid < territories.length; pid++) {
+        const territory = territories[pid];
+        if (!territory) continue;
+        const playerSlot = pid as unknown as ValidPlayerSlot;
+        for (const key of territory) owners.set(key, playerSlot);
+      }
+    }
+  } else if (overlay.castles) {
+    for (const castle of overlay.castles) {
+      for (const key of castle.interior) owners.set(key, castle.playerId);
+    }
+  }
+  return owners;
+}
