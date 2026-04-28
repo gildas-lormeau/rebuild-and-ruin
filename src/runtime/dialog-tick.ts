@@ -13,6 +13,38 @@
  * the dialog-specific logic (pending check, auto-resolve flag, force
  * strategy). Bus-event emission stays in the caller callbacks — this
  * helper only drives the loop order.
+ *
+ * ── Cross-phase pattern: per-slot done + wire signal ──
+ *
+ * Four phases share the same exit shape — "all active slots flagged
+ * done, OR timer fallback resolves the rest". The storage differs per
+ * phase but the contract is identical:
+ *
+ *   • SELECT / RESELECT — per-slot `selection.states[pid].confirmed`
+ *     (Map). Predicate: `allSelectionsConfirmed` (game/selection.ts).
+ *     Wire: `OPPONENT_TOWER_SELECTED confirmed:true`. Timer fallback:
+ *     auto-confirm.
+ *   • CANNON_PLACE — `state.cannonPlaceDone: Set<ValidPlayerSlot>`.
+ *     Predicate: `allCannonPlaceDone` (game/cannon-system.ts). Wire:
+ *     `OPPONENT_CANNON_PHASE_DONE`. Timer fallback: discard unfinished.
+ *   • UPGRADE_PICK — per-entry `entry.choice !== null`. Driven by this
+ *     helper. Wire: `UPGRADE_PICK`. Timer fallback: force-resolve.
+ *   • LIFE_LOST — per-entry `entry.choice !== PENDING`. Driven by this
+ *     helper. Wire: `LIFE_LOST_CHOICE`. Timer fallback: force-resolve.
+ *
+ * Architectural invariants any new phase in this family must respect:
+ *   1. Local controllers flip the slot's done flag via deterministic
+ *      logic. Human-kind controllers also broadcast a wire signal so
+ *      remote peers can mirror the flip.
+ *   2. The phase-exit predicate iterates ALL active slots — not the
+ *      `local` subset. A remote-driven slot's done flag arrives via
+ *      the wire; an early exit on `local.every(...)` is a parity bug.
+ *   3. RNG-touching decisions cache via a "decision/commit split"
+ *      (e.g. `UpgradePickEntry.plannedChoice`, `LifeLostEntry
+ *      .plannedChoice`). The local tick computes the decision once
+ *      regardless of whether the wire has filled the commit field —
+ *      otherwise a wire-arrived commit short-circuits the local
+ *      RNG draw and drifts `state.rng` between peers.
  */
 
 interface DialogTickState<TEntry> {

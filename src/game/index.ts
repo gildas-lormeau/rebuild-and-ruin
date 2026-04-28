@@ -19,6 +19,7 @@ export {
   recomputeAllTerritory,
 } from "./build-system.ts";
 export {
+  allCannonPlaceDone,
   autoPlaceRound1Cannons,
   cannonSlotCost,
   cannonSlotsUsed,

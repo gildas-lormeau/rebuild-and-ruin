@@ -170,6 +170,20 @@ export function isCannonPlacementLegal(
   return canPlaceCannon(player, row, col, mode, state);
 }
 
+/** True when every non-eliminated slot has flagged itself done with the
+ *  CANNON_PLACE phase. Mirrors `allSelectionsConfirmed` (game/selection.ts)
+ *  for the cannon phase: same shape, different storage (a Set on
+ *  GameState rather than a Map of per-slot states). Used by
+ *  `tickCannonPhase` as the early-exit predicate; the timer-fallback
+ *  path bypasses this check (unfinished slots are discarded — see
+ *  the project rule for cannon-phase timer expiry). */
+export function allCannonPlaceDone(state: GameState): boolean {
+  return state.players.every(
+    (player) =>
+      isPlayerEliminated(player) || state.cannonPlaceDone.has(player.id),
+  );
+}
+
 /** Apply cannon placement (no validation). Used by host and watcher. */
 export function applyCannonPlacement(
   player: Player,

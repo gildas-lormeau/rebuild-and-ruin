@@ -1,6 +1,7 @@
 import type { GameOverReason } from "../game/index.ts";
 import {
   advanceBattleCountdown,
+  allCannonPlaceDone,
   canBuildThisFrame,
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
@@ -617,13 +618,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Exit predicate: every non-eliminated slot must be in `cannonPlaceDone`.
     // Local slots flip the bit above; remote-driven slots flip it via the
     // wire (`OPPONENT_CANNON_PHASE_DONE`). Same predicate runs on every
-    // peer — no `local`-subset early exit.
-    const allDone = state.players.every(
-      (player) =>
-        isPlayerEliminated(player) || state.cannonPlaceDone.has(player.id),
-    );
-
-    if (state.timer > 0 && !allDone) return false;
+    // peer — no `local`-subset early exit. Parallels SELECT's
+    // `allSelectionsConfirmed` (per-slot Map) and the dialog phases'
+    // `tickDialogWithFallback` allResolved return (per-entry choice).
+    if (state.timer > 0 && !allCannonPlaceDone(state)) return false;
 
     // PASS 2: finalize controllers for phase transition.
     // Local vs remote use different finalize entry points — the helpers
