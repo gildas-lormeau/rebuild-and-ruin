@@ -322,7 +322,7 @@ export function applyUpgradePicks(
 }
 
 /** Generate upgrade offers for all alive players. Uses state.rng for determinism.
- *  Called from enterBuildFromBattle so the RNG is consumed before the
+ *  Called from prepareNextRound so the RNG is consumed before the
  *  BUILD_START checkpoint is sent. Returns null if not applicable. */
 export function generateUpgradeOffers(
   state: GameState,

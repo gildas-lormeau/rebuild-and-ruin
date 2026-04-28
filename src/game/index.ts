@@ -57,13 +57,14 @@ export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
-  enterBuildFromBattle,
   enterBuildSkippingBattle,
+  finalizeBattle,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   finalizeRound,
   finalizeRoundVisuals,
   prepareCastleWallsForPlayer,
+  prepareNextRound,
 } from "./phase-setup.ts";
 export {
   allSelectionsConfirmed,

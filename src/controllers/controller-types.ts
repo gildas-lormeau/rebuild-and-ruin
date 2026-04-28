@@ -115,7 +115,7 @@ export abstract class BaseController implements PlayerController {
   ): CannonPlacementPreview | undefined;
   /** Shared build-phase init: cursor on home tower.
    *  Private — only called as an internal step of the startBuildPhase() template method.
-   *  Bag init lives in the engine's `enterBuildFromBattle` (per-player loop)
+   *  Bag init lives in the engine's `prepareNextRound` (per-player loop)
    *  so host and watcher consume RNG identically — watchers have no local
    *  controllers, so a per-controller bag init advanced the host's RNG
    *  without advancing the watcher's. */

@@ -2,7 +2,7 @@
  *
  *  A player whose castle was just (re)built gets one battle of protection for
  *  the castle itself — `player.freshCastle` is set in finalizeReselectedPlayers
- *  and cleared in enterBuildFromBattle at end of the protected battle. The
+ *  and cleared in finalizeBattle at end of the protected battle. The
  *  protection is tile-scoped (2x2 tower + castle-wall ring), not zone-scoped:
  *  modifiers still apply to the fresh player's zone, they just can't land on
  *  the castle footprint itself. Grunt surges still spawn, crumbling walls

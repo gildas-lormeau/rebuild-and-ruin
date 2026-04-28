@@ -10,8 +10,8 @@
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Phase-entry vs start-phase contract — canonical source (applies to every
- * phase defined here, e.g. enterCannonPlacePhase, enterBuildFromBattle,
- * prepareBattleState, enterBuildSkippingBattle):
+ * phase defined here, e.g. enterCannonPlacePhase, finalizeBattle,
+ * prepareNextRound, prepareBattleState, enterBuildSkippingBattle):
  *
  *   enterXPhase(state)           — mutates state.phase + timer. Called by
  *                                  nextPhase() (local) or as the
@@ -131,7 +131,7 @@ export function finalizeCastleConstruction(state: GameState): void {
  *  modifier effects, and primes battle fields (timer, cannonballs, combo
  *  tracker). Does NOT flip `state.phase` — that's owned by the phase machine
  *  (`enter-modifier-reveal` or `enter-battle`). `lastModifierId` was already
- *  saved in `enterBuildFromBattle` (before the checkpoint). */
+ *  saved in `finalizeBattle` (before the checkpoint). */
 export function prepareBattleState(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
@@ -177,12 +177,20 @@ export function enterBuildSkippingBattle(state: GameState): void {
   recheckTerritory(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearActiveModifiers(state);
-  enterBuildFromBattle(state);
+  finalizeBattle(state);
+  prepareNextRound(state);
 }
 
-/** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
- *  Callers must init controllers afterwards (resetCannonFacings + startBuildPhase loop). */
-export function enterBuildFromBattle(state: GameState): void {
+/** Old-round housekeeping run after BATTLE ends (battle-done) or at ceasefire
+ *  entry. Closes out battle artifacts (balloons, captured cannons, grunts),
+ *  clears the fresh-castle grace period, snapshots `activeModifier` as
+ *  `lastModifierId` for the next roll, and emits `ROUND_END` for the round
+ *  being closed.
+ *
+ *  Does NOT increment `state.round` and does NOT emit `ROUND_START` — that
+ *  happens later, in `prepareNextRound`. Pair with `prepareNextRound` for
+ *  the new-round seeding half. */
+export function finalizeBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
   spawnIdleFirstBattleGrunts(state);
@@ -197,6 +205,16 @@ export function enterBuildFromBattle(state: GameState): void {
     state.modern!.lastModifierId = state.modern!.activeModifier;
   }
   emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
+}
+
+/** New-round seeding run after `finalizeBattle`. Increments `state.round`,
+ *  emits `ROUND_START`, and consumes RNG to spawn interbattle grunts,
+ *  generate upgrade offers, replenish bonus squares, and init per-player
+ *  piece bags. Order is load-bearing for online sync — the BUILD_START
+ *  checkpoint is created after this completes, and host / watcher /
+ *  headless must produce identical RNG sequences. Callers must init
+ *  controllers afterwards (resetCannonFacings + startBuildPhase loop). */
+export function prepareNextRound(state: GameState): void {
   state.round++;
   emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 

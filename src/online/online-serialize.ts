@@ -45,7 +45,7 @@ interface FullStateResult {
 type FullStateApplyResult = FullStateResult | null;
 
 /** Create a BUILD_START phase-marker message. The watcher runs
- *  `enterBuildFromBattle` locally on receipt — see `BuildStartData` in
+ *  `finalizeBattle` + `prepareNextRound` locally on receipt — see `BuildStartData` in
  *  checkpoint-data.ts for the contract. */
 export function createBuildStartMessage() {
   return { type: MESSAGE.BUILD_START };

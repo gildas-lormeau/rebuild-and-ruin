@@ -75,7 +75,7 @@ export interface Player {
   /** True for one battle after the player's castle is freshly (re)built.
    *  Modifiers still apply to this player's zone, but tile-placing effects
    *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via
-   *  getProtectedCastleTiles. Cleared in enterBuildFromBattle. */
+   *  getProtectedCastleTiles. Cleared in finalizeBattle. */
   freshCastle: boolean;
   /** Build-phase piece bag (deterministic from round + rng + smallPieces).
    *  Not serialized — regenerated on each peer at build-phase start. */

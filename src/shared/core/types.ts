@@ -170,7 +170,7 @@ export interface ModernState {
     events: ComboEvent[];
   } | null;
   /** Pre-generated upgrade offers per player for the current round.
-   *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
+   *  Generated in prepareNextRound using synced RNG, consumed by the upgrade pick dialog.
    *  null before UPGRADE_FIRST_ROUND. */
   pendingUpgradeOffers: Map<ValidPlayerSlot, UpgradeOfferTuple> | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.

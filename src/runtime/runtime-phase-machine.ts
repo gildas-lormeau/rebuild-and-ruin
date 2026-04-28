@@ -46,12 +46,13 @@ import {
   applyUpgradePicks,
   buildTimerBonus,
   enterBattlePhase,
-  enterBuildFromBattle,
   enterCannonPhase,
+  finalizeBattle,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   finalizeRound,
   finalizeRoundVisuals,
+  prepareNextRound,
   recheckTerritory,
   snapshotTerritory,
 } from "../game/index.ts";
@@ -295,7 +296,7 @@ export interface PhaseTransitionCtx {
   readonly startBuildPhaseLocal?: () => void;
   /** Run `enterBuildSkippingBattle(state)` — the engine-level phase flip
    *  that the ceasefire path uses when no one can fight. Separate from
-   *  `battle-done`'s `enterBuildFromBattle` because it also decays burning
+   *  `battle-done`'s `finalizeBattle` + `prepareNextRound` because it also decays burning
    *  pits, sweeps walls, rechecks territory, and clears active modifiers
    *  (things the real battle-end flow already handled). */
   readonly ceasefireSkipBattle?: () => void;
@@ -317,8 +318,8 @@ export interface PhaseTransitionCtx {
     /** Phase-marker signal — watcher runs `enterBattlePhase` locally on
      *  receipt. No payload. */
     readonly battleStart?: () => void;
-    /** Phase-marker signal — watcher runs `enterBuildFromBattle` locally on
-     *  receipt. No payload; both sides derive identical state. */
+    /** Phase-marker signal — watcher runs `finalizeBattle` + `prepareNextRound`
+     *  locally on receipt. No payload; both sides derive identical state. */
     readonly buildStart?: () => void;
     /** Phase-marker signal — watcher runs `finalizeRound` locally
      *  on receipt. No payload. */
@@ -413,14 +414,15 @@ const ROUND_END: Transition = {
   postDisplay: routeLifeLostResolution,
 };
 /** `battle-done` — BATTLE prep transition. Runs engine post-battle
- *  housekeeping (`enterBuildFromBattle`: combo bonuses, battle cleanup,
- *  grunt spawn, upgrade offer generation, modifier rotation, round
- *  increment) and broadcasts BUILD_START. Does NOT flip the phase and
- *  shows no banner — `postDisplay` routes to `enter-upgrade-pick` (when
- *  offers were generated) or `enter-wall-build`, each of which owns
- *  setPhase + its own banner.
+ *  housekeeping in two halves: `finalizeBattle` (combo bonuses, battle
+ *  cleanup, freshCastle clear, lastModifierId snapshot, ROUND_END emit)
+ *  followed by `prepareNextRound` (round increment, ROUND_START, grunt
+ *  spawn, upgrade offer generation, piece bag init). Broadcasts BUILD_START.
+ *  Does NOT flip the phase and shows no banner — `postDisplay` routes to
+ *  `enter-upgrade-pick` (when offers were generated) or `enter-wall-build`,
+ *  each of which owns setPhase + its own banner.
  *
- *  Both sides run `enterBuildFromBattle` locally — the wire signal is just
+ *  Both sides run `finalizeBattle` + `prepareNextRound` locally — the wire signal is just
  *  a marker telling the watcher when to dispatch this transition.
  *  RNG was synced at the previous `BATTLE_START` and has tracked
  *  identically through impact resolution, so post-battle RNG draws
@@ -432,7 +434,8 @@ const BATTLE_DONE: Transition = {
   mutate: (ctx) => {
     ctx.endBattleLocalControllers?.();
     ctx.saveBattleCrosshair?.();
-    enterBuildFromBattle(ctx.state);
+    finalizeBattle(ctx.state);
+    prepareNextRound(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -446,8 +449,8 @@ const BATTLE_DONE: Transition = {
  *  no side has fighting capability, so the battle is skipped at the
  *  engine level. `enterBuildSkippingBattle` does the pre-battle cleanup
  *  (burning-pit decay, wall sweep, territory recheck, modifier clear)
- *  then calls `enterBuildFromBattle` (round increment, upgrade offer
- *  generation). Shows no banner; `postDisplay` routes to
+ *  then calls `finalizeBattle` + `prepareNextRound` (round increment, upgrade
+ *  offer generation). Shows no banner; `postDisplay` routes to
  *  `enter-upgrade-pick` or `enter-wall-build`. Watcher never hits this
  *  transition — the host broadcasts BUILD_START and the watcher routes
  *  through `battle-done`. */
@@ -475,7 +478,7 @@ const CEASEFIRE: Transition = {
  *  shows the "Choose Upgrade" banner, then runs the picker modal in
  *  `postDisplay`. Dispatched from `battle-done` / `ceasefire`
  *  postDisplay only when `state.modern?.pendingUpgradeOffers` is
- *  populated (modern mode, offers generated in `enterBuildFromBattle`).
+ *  populated (modern mode, offers generated in `prepareNextRound`).
  *
  *  The picker modal sits over the same clipping rect as the banner;
  *  resolving all picks dispatches `upgrade-pick-done`. */
@@ -535,9 +538,9 @@ const ENTER_WALL_BUILD: Transition = {
     setPhase(ctx.state, Phase.WALL_BUILD);
     // Anchor the phase timer here — AFTER `applyUpgradePicks` (which
     // runs in `upgrade-pick-done.mutate`) and `resetPlayerUpgrades`
-    // (which runs in `enterBuildFromBattle`) have settled the upgrade
+    // (which runs in `prepareNextRound`) have settled the upgrade
     // set for this round. Setting it earlier (e.g. in
-    // `enterBuildFromBattle`) reflects the PREVIOUS round's upgrades
+    // `prepareNextRound`) reflects the PREVIOUS round's upgrades
     // and diverges Double Time / Master Builder bonuses from what the
     // build phase actually plays out with — host vs watcher would
     // disagree on phase length.
@@ -990,7 +993,7 @@ function applyUpgradePicksFromDialog(
  *  picker modal. When all players have resolved their picks (or
  *  auto-skipped) it dispatches `upgrade-pick-done` to continue the
  *  flow. `prepare()` is idempotent — the dialog was already generated
- *  by `enterBuildFromBattle`; `prepare()` just surfaces it. */
+ *  by `prepareNextRound`; `prepare()` just surfaces it. */
 function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   const picker = ctx.upgradePick;
   if (!picker || !picker.prepare()) {
