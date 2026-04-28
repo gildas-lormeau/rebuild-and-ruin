@@ -34,12 +34,17 @@ interface Fixture {
 
 const FIXTURES = [
   "seed-42-classic.json",
+  // 5-round modern fixtures exercise the round-3+ feature gates:
+  // modifier rolls (MODIFIER_FIRST_ROUND=3), upgrade pick lifecycle
+  // (UPGRADE_FIRST_ROUND=3, suppressed for the final round). Both
+  // fixtures include multiple modifierApplied + upgradePicked events,
+  // and seed-0 picks the Ceasefire upgrade — exercising the full
+  // ceasefire path (enterBuildSkippingBattle → finalizeBattle).
+  // Adding a new modifier or upgrade shifts weighted-selection thresholds
+  // and will diverge here — that's the whole point of the gate. Re-record
+  // (with a written reason) only when an intentional registry change
+  // makes the divergence expected.
   "seed-7-modern.json",
-  // Modifier-roll fixture: seed 0 fires wildfire at round 3, exercising the
-  // IMPLEMENTED_MODIFIERS weighted-selection path. Adding a new modifier
-  // shifts the totalWeight + threshold and will diverge here — that's the
-  // whole point of the gate. Re-record (with a written reason) when an
-  // intentional registry change makes the divergence expected.
   "seed-0-modern.json",
   // Camera-determinism fixture: same headless run as seed-42-classic but
   // with mobileZoomEnabled=true so CAMERA_TARGET events are emitted at
