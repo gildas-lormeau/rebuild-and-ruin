@@ -70,9 +70,11 @@ interface TerrainImageCache {
 
 /** A connected group of sinkhole tiles (4-cardinal connectivity).
  *  `zone` is the map zone every tile in the cluster belongs to — clusters
- *  cannot straddle zones (zones are isolated by rivers, sinkhole tiles are
- *  only ever placed inside a single active zone). Resolves the owner
- *  without scanning every cluster tile. */
+ *  cannot straddle zones today (zones are isolated by rivers, sinkhole
+ *  modifier places only within one active zone). Resolves the owner
+ *  without scanning every cluster tile. If a future zone-touching modifier
+ *  breaks the invariant, `zone` is set to -1 and the cluster renders
+ *  unowned — `playerByZone(playerZones, -1)` returns undefined. */
 interface SinkholeCluster {
   zone: number;
   tiles: SinkholeTilePatches[];
@@ -1152,7 +1154,10 @@ function buildSinkholeClusters(
     });
     const seed = tiles[0]!;
     const zone = map.zones[seed.row]?.[seed.col] ?? -1;
-    clusters.push({ zone, tiles });
+    const sameZone = tiles.every(
+      (tile) => (map.zones[tile.row]?.[tile.col] ?? -1) === zone,
+    );
+    clusters.push({ zone: sameZone ? zone : -1, tiles });
   }
   return clusters;
 }
