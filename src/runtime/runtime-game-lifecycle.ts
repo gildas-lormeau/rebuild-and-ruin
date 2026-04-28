@@ -189,8 +189,9 @@ export function createGameLifecycle(
     // Clear stale per-phase pinch memory + viewport targets from the
     // game we just quit so the lobby's background demo doesn't snap to
     // the previous human's favourite zoom when it reaches that phase.
-    // We don't flip `zoomActivated` — the demo has no pointer player,
-    // so `autoZoom`'s `!hasPointerPlayer` guard already keeps it idle.
+    // The mobile-auto-zoom predicate (`mobileAutoZoomActive` in the
+    // camera system) already gates on `hasPointerPlayer`, so the demo
+    // session reads as inactive regardless of `zoomActivated`'s value.
     teardownSession();
     // Drop the cached lobby map so the next `bootstrapGame` regenerates
     // from scratch instead of reusing the just-quit game's mutated map

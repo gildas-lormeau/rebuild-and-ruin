@@ -64,6 +64,14 @@ import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;
+  /** Direct query for "is a human player driving the pointer right now?".
+   *  Read straight from the pointer-player lookup rather than via
+   *  `getCtx().hasPointerPlayer` because `mobileAutoZoomActive()` is called
+   *  while `FrameContext` is still being assembled (see `assembly.ts`
+   *  passing `mobileAutoZoom: deps.isMobileAutoZoom()` into
+   *  `computeFrameContext`'s inputs), at which point `frameMeta` may not
+   *  be populated yet. */
+  hasPointerPlayer: () => boolean;
   getFrameDt: () => number;
   /** Whether camera pitch animations run. `false` in headless (no renderer
    *  to apply tilt, and `PITCH_SETTLED` events would pollute determinism
@@ -416,17 +424,27 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Per-frame tick ---
 
+  /** Single source of truth for "is mobile auto-zoom active right now?".
+   *  By definition auto-zoom only applies when a human player owns the
+   *  pointer on a touch device — all-AI rematch / lobby demo / spectator
+   *  must read as inactive even when `mobileZoomEnabled` / `zoomActivated`
+   *  are still latched from a prior session. Every read site (predicate,
+   *  per-frame tick, viewport selection, follow-crosshair, etc.) routes
+   *  through here so the invariant lives in one place. */
+  function mobileAutoZoomActive(): boolean {
+    return mobileZoomEnabled && zoomActivated && deps.hasPointerPlayer();
+  }
+
   function tickCamera(): void {
     const state = deps.getState();
     if (!state) return;
     const frameCtx = deps.getCtx();
-    const mobileAuto = mobileZoomEnabled && zoomActivated;
 
     unzoomForOverlays(state, frameCtx);
     restoreCameraAfterOverlay(state, frameCtx);
-    handleSelectionZoom(mobileAuto, state, frameCtx);
+    handleSelectionZoom(state, frameCtx);
     const notTransition = !frameCtx.isTransition;
-    handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
+    handlePhaseChangeZoom(state, frameCtx, notTransition);
     followCrosshairInBattle(state, frameCtx);
     edgePan(state, frameCtx);
     tickTapNudge();
@@ -450,7 +468,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       return;
     }
     if (frameCtx.shouldUnzoom || frameCtx.isTransition || activePinch) return;
-    if (!(mobileZoomEnabled && zoomActivated)) return;
+    if (!mobileAutoZoomActive()) return;
     const zone = currentCrosshairZone(state);
     if (zone === lastBattleCrosshairZone) return;
     lastBattleCrosshairZone = zone;
@@ -664,7 +682,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  drive per-phase camera memory (applyPhaseCameraOnEnter restores or
    *  defaults the zoom for the new phase). */
   function handlePhaseChangeZoom(
-    _mobileAuto: boolean,
     state: GameState,
     _frameCtx: FrameContext,
     notTransition: boolean,
@@ -693,11 +710,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  reflect the active zone. Restore-from-pinch sets `pinchVp` for the
    *  user's custom pan/zoom level. No-op when mobile auto-zoom is disabled. */
   function applyPhaseCameraOnEnter(state: GameState): void {
-    if (!(mobileZoomEnabled && zoomActivated)) return;
-    // No auto-zoom when there is no human player (all-AI rematch / demo
-    // / spectator). Mirrors the v1 autoZoom guard — required so the
-    // post-rematch all-AI game doesn't engage a cropped viewport.
-    if (!deps.getCtx().hasPointerPlayer) return;
+    if (!mobileAutoZoomActive()) return;
     const slot = phaseSlot(state.phase);
     if (!slot) return;
     tapNudge = undefined;
@@ -762,7 +775,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   ): void {
     if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
     if (pinchVp || cameraZone !== undefined) return;
-    if (!(mobileZoomEnabled && zoomActivated)) return;
+    if (!mobileAutoZoomActive()) return;
     const slot = phaseSlot(state.phase);
     if (!slot) return;
     const remembered = phaseCamera[slot];
@@ -778,7 +791,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  CASTLE_SELECT / CASTLE_RESELECT viewport (selectionZoom.pendingVp set
    *  by setSelectionViewport while the announcement is still showing). */
   function handleSelectionZoom(
-    mobileAuto: boolean,
     _state: GameState,
     frameCtx: FrameContext,
   ): void {
@@ -789,7 +801,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     )
       return;
     selectionZoom.applied = true;
-    if (!mobileAuto) return;
+    if (!mobileAutoZoomActive()) return;
     if (selectionZoom.pendingVp) {
       castleBuildVp = fitTileBoundsToViewport(
         {
@@ -813,8 +825,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (
       castleBuildVp &&
       (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) &&
-      mobileZoomEnabled &&
-      zoomActivated
+      mobileAutoZoomActive()
     ) {
       target = castleBuildVp;
     } else if (pinchVp) {
@@ -1173,7 +1184,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Zoom around a tower during selection (5 tiles around for context). */
   function setSelectionViewport(towerRow: number, towerCol: number): void {
-    if (!mobileZoomEnabled || !zoomActivated) return;
+    if (!mobileAutoZoomActive()) return;
     // Block until the "Select your home castle" banner delay has elapsed
     if (!selectionZoom.applied || lastAutoZoomPhase === undefined) {
       selectionZoom.pendingVp = { row: towerRow, col: towerCol };
@@ -1215,8 +1226,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  is disabled. The home-zone snap goes through `setCameraZone` so the
    *  H zoom-home button color reflects the active state. */
   function engageAutoZoom(): void {
-    if (!(mobileZoomEnabled && zoomActivated)) return;
-    if (!deps.getCtx().hasPointerPlayer) return;
+    if (!mobileAutoZoomActive()) return;
     const myZone = getMyZone();
     if (myZone === null) return;
     setCameraZoneInternal(myZone, "engageAutoZoom");
@@ -1233,7 +1243,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function computeBattleTarget(): { x: number; y: number } | null {
     const state = deps.getState();
     if (!state) return null;
-    if (!(mobileZoomEnabled && zoomActivated)) return null;
+    if (!mobileAutoZoomActive()) return null;
 
     const target = battleTargetPosition(
       state.players,
@@ -1288,7 +1298,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     clearCastleBuildViewport,
     enableMobileZoom,
     engageAutoZoom,
-    isMobileAutoZoom: () => mobileZoomEnabled && zoomActivated,
+    isMobileAutoZoom: mobileAutoZoomActive,
     computeBattleTarget,
     saveBattleCrosshair,
     resetBattleCrosshair,

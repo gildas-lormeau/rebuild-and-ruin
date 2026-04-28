@@ -491,6 +491,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const camera = createCameraSystem({
     getState: () => safeState(runtimeState),
     getCtx: () => runtimeState.frameMeta,
+    hasPointerPlayer: () => pointerPlayer() !== null,
     getFrameDt: () => runtimeState.frameDt,
     cameraTiltEnabled: config.cameraTiltEnabled ?? true,
     setFrameAnnouncement: (text) => {
