@@ -48,8 +48,11 @@ Groups are named by abstraction level, not by domain — files from any domain l
 Read this before implementing features involving flood-fill, wall gaps, grunt movement, or territory detection. Key: `computeOutside` uses 8-dir (any 1-tile gap breaks enclosure); grunts move 4-dir only. Don't use `computeOutside` for chokepoint/gap detection — test cardinal barrier adjacency directly.
 
 ### Phase flow
-CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
-Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).
+Round 1 (special): CASTLE_SELECT (auto-built walls) → CANNON_PLACE → BATTLE → WALL_BUILD (score finalized)
+Round N≥2: CANNON_PLACE → BATTLE → WALL_BUILD (score finalized) → loop
+A round closes at the end of WALL_BUILD when the score is displayed — this is where `state.round++` fires (in `startNextRound`, called from the `round-end` transition after `finalizeRound`). `state.round` during WALL_BUILD is the round being closed, not the upcoming one.
+CASTLE_RESELECT inserted between rounds when a player loses lives.
+Modern mode: UPGRADE_PICK between BATTLE and WALL_BUILD (from round 3).
 
 ### Game modes and feature capabilities
 - Classic: original Rampart rules, empty feature set
