@@ -258,7 +258,6 @@ Deno.test(
           ? { status: "hidden" as const, progress: 0, text: "" }
           : { status: banner.status, progress: banner.progress, text: banner.text };
       })(),
-      lobbyActive: sc.lobbyActive(),
       camera: {
         cameraZone: sc.camera.getCameraZone(),
         pitch: sc.camera.getPitch(),

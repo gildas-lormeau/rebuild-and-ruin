@@ -81,8 +81,10 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
+import { isPlayerAlive } from "../shared/core/player-types.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
+import { isHuman } from "../shared/core/system-interfaces.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import type {
@@ -491,7 +493,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const camera = createCameraSystem({
     getState: () => safeState(runtimeState),
     getCtx: () => runtimeState.frameMeta,
-    hasPointerPlayer: () => pointerPlayer() !== null,
+    // Cache-independent scan: `pointerPlayer()` caches per-frame and is
+    // cleared in `clearFrameData`, so reading it from in-between-frames
+    // paths (bootstrap → enterTowerSelection → setSelectionViewport)
+    // returns the lobby's stale `null` cache. The autozoom predicate runs
+    // from those paths, so we re-derive directly from controllers.
+    hasPointerPlayer: () => {
+      if (!isStateReady(runtimeState) || runtimeState.lobby.active)
+        return false;
+      const players = runtimeState.state.players;
+      return runtimeState.controllers.some(
+        (ctrl) => isHuman(ctrl) && isPlayerAlive(players[ctrl.playerId]),
+      );
+    },
     getFrameDt: () => runtimeState.frameDt,
     cameraTiltEnabled: config.cameraTiltEnabled ?? true,
     setFrameAnnouncement: (text) => {
@@ -985,7 +999,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Sub-system handles
     selection,
     lifeLost,
-    lobby: { renderLobby: lobby.renderLobby },
+    lobby: {
+      renderLobby: lobby.renderLobby,
+      show: lobby.show,
+      markJoined: lobby.markJoined,
+    },
     lifecycle: {
       startGame: lifecycle.startGame,
       rematch: lifecycle.rematch,

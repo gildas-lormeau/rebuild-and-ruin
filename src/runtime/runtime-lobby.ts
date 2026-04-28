@@ -12,6 +12,7 @@ import {
 } from "../shared/platform/platform.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { type KeyBindings, MAX_PLAYERS } from "../shared/ui/player-config.ts";
+import { Mode } from "../shared/ui/ui-mode.ts";
 import type {
   ComputeLobbyLayoutFn,
   CreateLobbyOverlayFn,
@@ -19,7 +20,7 @@ import type {
   LobbyHit,
   UIContext,
 } from "./runtime-contracts.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 
 interface LobbySystemDeps {
   runtimeState: RuntimeState;
@@ -47,6 +48,13 @@ interface LobbySystem {
   lobbyKeyJoin: (key: string) => boolean;
   lobbyClick: (canvasX: number, canvasY: number) => boolean;
   cursorAt: (canvasX: number, canvasY: number) => string;
+  /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
+   *  quit + options state, render once, flip mode to LOBBY. The host's
+   *  `RuntimeConfig.showLobby` callback wraps this with any platform
+   *  extras (browser: requestFrame, music, frame-timing reset). */
+  show: () => void;
+  /** Mark a slot joined and re-render the lobby preview. */
+  markJoined: (pid: ValidPlayerSlot) => void;
 }
 
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
@@ -153,12 +161,30 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       (runtimeState.lobby.timerAccum ?? 0) + LOBBY_SKIP_STEP;
   }
 
+  function show(): void {
+    runtimeState.lobby.joined = new Array(MAX_PLAYERS).fill(false);
+    runtimeState.lobby.active = true;
+    runtimeState.lobby.timerAccum = 0;
+    runtimeState.lobby.map = null; // force fresh seed + map preview
+    runtimeState.quit.pending = false;
+    runtimeState.optionsUI.returnMode = null;
+    renderLobby();
+    setMode(runtimeState, Mode.LOBBY);
+  }
+
+  function markJoined(pid: ValidPlayerSlot): void {
+    runtimeState.lobby.joined[pid] = true;
+    renderLobby();
+  }
+
   return {
     renderLobby,
     tickLobby,
     lobbyKeyJoin,
     lobbyClick,
     cursorAt,
+    show,
+    markJoined,
   };
 }
 

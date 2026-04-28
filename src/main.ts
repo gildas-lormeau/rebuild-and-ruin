@@ -19,7 +19,6 @@ import {
 import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
-import { MAX_PLAYERS } from "./shared/ui/player-config.ts";
 import { Mode } from "./shared/ui/ui-mode.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -61,10 +60,7 @@ const runtime = createGameRuntime({
   getUrlModeOverride: () =>
     new URL(location.href).searchParams.get("mode") ?? "",
   showLobby,
-  onLobbySlotJoined: (pid) => {
-    runtime.runtimeState.lobby.joined[pid] = true;
-    runtime.lobby.renderLobby();
-  },
+  onLobbySlotJoined: (pid) => runtime.lobby.markJoined(pid),
   onCloseOptions: () => {
     runtime.runtimeState.lobby.timerAccum = 0; // reset countdown after settings
   },
@@ -99,15 +95,7 @@ export function activateMusic(): Promise<void> {
 document.addEventListener(GAME_EXIT_EVENT, runtime.shutdown);
 
 function showLobby(): void {
-  const lobby = runtime.runtimeState.lobby;
-  lobby.joined = new Array(MAX_PLAYERS).fill(false);
-  lobby.active = true;
-  lobby.timerAccum = 0;
-  lobby.map = null; // force fresh seed + map preview
-  runtime.runtimeState.quit.pending = false;
-  runtime.runtimeState.optionsUI.returnMode = null;
-  runtime.lobby.renderLobby();
-  setMode(runtime.runtimeState, Mode.LOBBY);
+  runtime.lobby.show();
   resetFrameTiming(runtime.runtimeState, timing.now());
   timing.requestFrame(runtime.mainLoop);
   // Title music: harmless redundant call on first entry (startTitle is

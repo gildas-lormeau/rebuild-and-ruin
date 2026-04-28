@@ -55,9 +55,8 @@ import type { TimingApi } from "../src/runtime/runtime-contracts.ts";
 /** Test observer for the headless `network.send` seam. Receives every
  *  outbound message the runtime would broadcast through the production
  *  fan-out path, regardless of host vs. local mode (the headless
- *  `network.send` impl is otherwise a no-op). Mirrors the shape of the
- *  haptics / sound / render observers so the four test seams stay
- *  visually consistent. */
+ *  `network.send` impl is otherwise a no-op). One of four parallel test
+ *  seams — see also the haptics / sound / render observer types. */
 export interface NetworkObserver {
   sent?(msg: GameMessage): void;
 }
@@ -167,9 +166,9 @@ export interface HeadlessRuntime {
    *  "just run N frames" case — unit is deliberately different. */
   runUntil(predicate: () => boolean, opts?: RunOpts): void;
   /** Advance the simulation by a fixed number of frames without
-   *  checking any predicate. Mirrors the `sc.tick()` method on the
-   *  Scenario facade — this is the frame-denominated precision tool;
-   *  `runUntil` / `runGame` are budget-denominated. */
+   *  checking any predicate. The frame-denominated precision tool —
+   *  `runUntil` / `runGame` are the budget-denominated counterparts.
+   *  `Scenario.tick()` is a thin wrapper over this. */
   tick(frames?: number, dtMs?: number): void;
   /** Drive the simulation until `mode === STOPPED` (game over).
    *  Throws `ScenarioTimeoutError` on timeout. */
@@ -213,9 +212,9 @@ export const DEFAULT_RUNUNTIL_TIMEOUT_MS = 60_000;
 export const DEFAULT_RUNGAME_TIMEOUT_MS = 600_000;
 
 /** Thrown by `runUntil` / `runGame` / `waitFor*` when the predicate /
- *  target state doesn't materialize within the sim-ms budget. Mirrors
- *  `E2ETimeoutError` on the browser side — both APIs now share the
- *  same `{ timeoutMs }` shape so agents don't mix up units. */
+ *  target state doesn't materialize within the sim-ms budget.
+ *  TODO: collapse with `E2ETimeoutError` into a shared base class —
+ *  they currently duplicate the same `{ timeoutMs }` shape. */
 export class ScenarioTimeoutError extends Error {
   readonly timeoutMs: number;
   constructor(message: string, timeoutMs: number) {
@@ -341,20 +340,8 @@ export async function createHeadlessRuntime(
     getUrlRoundsOverride: () => rounds,
     getUrlModeOverride: () =>
       gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
-    showLobby: () => {},
-    // Mirrors main.ts:73 — when a slot is joined (key or mouse), mark it
-    // in `lobby.joined` so `tickLobby`'s `allJoined` check can detect when
-    // every joined human has confirmed and start the game without waiting
-    // for the full timeout.
-    onLobbySlotJoined: (pid) => {
-      const built = runtimeHolder.current;
-      if (!built) return;
-      built.runtimeState.lobby.joined[pid] = true;
-    },
-    // Mirrors main.ts:80 — when the lobby timer expires (or all slots
-    // joined), bootstrap the game and enter castle selection. Tests that
-    // exercise lobby input rely on this so a click-to-join → game-start
-    // flow runs end-to-end through the real handlers.
+    showLobby: () => runtimeHolder.current?.lobby.show(),
+    onLobbySlotJoined: (pid) => runtimeHolder.current?.lobby.markJoined(pid),
     onTickLobbyExpired: async () => {
       const built = runtimeHolder.current;
       if (!built) return;
