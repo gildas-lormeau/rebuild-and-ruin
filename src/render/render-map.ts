@@ -32,7 +32,6 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import {
-  type CastleData,
   interiorOwnersFromOverlay,
   type RenderObserver,
   type RenderOverlay,
@@ -101,20 +100,22 @@ interface OffscreenPair {
 }
 
 /** Cached sinkhole-overlay ImageData for the 3D renderer's upload path.
- *  The overlay input refs (`sinkholeTiles`, `castles`, `battleTerritory`,
- *  `battleWalls`) are all reused across frames when nothing mutates, so
- *  reference equality is enough to skip the rebuild on steady-state frames.
- *  `hasContent` distinguishes "empty overlay (no owned clusters)" from
- *  "not yet computed" — both return `undefined` to the 3D caller, but the
- *  cached empty slot still prevents a rebuild on the next frame. */
+ *  Bitmap output depends only on cluster shape (`map`+`mapVersion`+
+ *  `sinkholeTiles`), the inBattle patch variant, and owner data per
+ *  player. Owner data is captured as `interiorRefs` — the per-player
+ *  interior Set references in player-id order. Those refs are stable
+ *  across frames (mutated in place during battle, reassigned only by
+ *  `markInteriorFresh` after a wall change), so element-wise reference
+ *  equality skips the rebuild on steady-state frames. The previous
+ *  `castles` array-ref check missed because `buildCastleOverlay`
+ *  allocates a new array every frame, forcing a per-frame bitmap
+ *  rebuild even when nothing actually changed. */
 interface SinkholeOverlayCache {
   map: GameMap;
   mapVersion: number;
   inBattle: boolean;
   sinkholeTiles: ReadonlySet<number>;
-  castles: ReadonlyArray<CastleData> | undefined;
-  battleTerritory: ReadonlyArray<ReadonlySet<number>> | undefined;
-  battleWalls: ReadonlyArray<ReadonlySet<number>> | undefined;
+  interiorRefs: ReadonlyArray<ReadonlySet<number>>;
   image: ImageData;
   hasContent: boolean;
 }
@@ -819,20 +820,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       return undefined;
     }
     const inBattle = !!overlay.battle?.inBattle;
-    const castles = inBattle ? undefined : overlay.castles;
-    const battleTerritory = inBattle
-      ? overlay.battle?.battleTerritory
-      : undefined;
-    const battleWalls = inBattle ? overlay.battle?.battleWalls : undefined;
     if (
       sinkholeOverlayCache &&
       sinkholeOverlayCache.map === map &&
       sinkholeOverlayCache.mapVersion === map.mapVersion &&
       sinkholeOverlayCache.inBattle === inBattle &&
       sinkholeOverlayCache.sinkholeTiles === sinkholeTiles &&
-      sinkholeOverlayCache.castles === castles &&
-      sinkholeOverlayCache.battleTerritory === battleTerritory &&
-      sinkholeOverlayCache.battleWalls === battleWalls
+      interiorRefsMatch(sinkholeOverlayCache.interiorRefs, overlay, inBattle)
     ) {
       return sinkholeOverlayCache.hasContent
         ? sinkholeOverlayCache.image
@@ -852,9 +846,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       mapVersion: map.mapVersion,
       inBattle,
       sinkholeTiles,
-      castles,
-      battleTerritory,
-      battleWalls,
+      interiorRefs: snapshotInteriorRefs(overlay, inBattle),
       image,
       hasContent,
     };
@@ -1379,6 +1371,43 @@ function drawSinkholeOverlays(
 /** Variant cache key — `n0`/`b1`/etc. (phase × player). */
 function variantId(inBattle: boolean, playerId: ValidPlayerSlot): string {
   return `${inBattle ? "b" : "n"}${playerId}`;
+}
+
+/** Snapshot the per-player interior Set references that the bitmap
+ *  output depends on. Battle reads `battleAnim.territory[pid]`,
+ *  peacetime reads each castle's `interior`. The snapshot is element-
+ *  wise reference-compared against the cached version on subsequent
+ *  frames — same refs ⇒ no wall change ⇒ cache hit. */
+function snapshotInteriorRefs(
+  overlay: RenderOverlay,
+  inBattle: boolean,
+): ReadonlyArray<ReadonlySet<number>> {
+  if (inBattle) return overlay.battle?.battleTerritory?.slice() ?? [];
+  return overlay.castles?.map((castle) => castle.interior) ?? [];
+}
+
+/** Element-wise reference compare without materializing a fresh array. */
+function interiorRefsMatch(
+  cached: ReadonlyArray<ReadonlySet<number>>,
+  overlay: RenderOverlay,
+  inBattle: boolean,
+): boolean {
+  if (inBattle) {
+    const territory = overlay.battle?.battleTerritory;
+    if (!territory) return cached.length === 0;
+    if (cached.length !== territory.length) return false;
+    for (let i = 0; i < cached.length; i++) {
+      if (cached[i] !== territory[i]) return false;
+    }
+    return true;
+  }
+  const castles = overlay.castles;
+  if (!castles) return cached.length === 0;
+  if (cached.length !== castles.length) return false;
+  for (let i = 0; i < cached.length; i++) {
+    if (cached[i] !== castles[i]!.interior) return false;
+  }
+  return true;
 }
 
 function buildOwnerTables(
