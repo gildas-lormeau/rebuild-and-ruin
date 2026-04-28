@@ -386,7 +386,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   /** Single host-side `PhaseTransitionCtx` factory shared by every call
    *  site (advance-to-cannon, ceasefire, cannon-place-done, battle-done,
-   *  wall-build-done, plus the deferred castle-select-done /
+   *  round-end, plus the deferred castle-select-done /
    *  castle-reselect-done / game-over once they land here too).
    *
    *  Every hook any host-role mutate/postDisplay might need is populated.
@@ -815,8 +815,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.render();
     if (state.timer > 0) return false;
 
-    // --- End of phase: delegate to the wall-build-done transition ---
-    runTransition("wall-build-done", buildHostPhaseCtx());
+    // --- End of phase: delegate to the round-end transition ---
+    runTransition("round-end", buildHostPhaseCtx());
     return true;
   }
 

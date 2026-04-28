@@ -348,9 +348,9 @@ export function prepareCastleWallsForPlayer(
  *    - life penalties (`applyLifePenalties`)
  *
  *  Visual-only sweeps (isolated-wall removal, grunts in eliminated zones)
- *  are deferred to `finalizeBuildVisuals` so they reveal under the
+ *  are deferred to `finalizeRoundVisuals` so they reveal under the
  *  cannons banner rather than popping during the score overlay. */
-export function finalizeBuildPhase(state: GameState): {
+export function finalizeRound(state: GameState): {
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
 } {
@@ -358,7 +358,7 @@ export function finalizeBuildPhase(state: GameState): {
   return applyLifePenalties(state);
 }
 
-/** Phase B — visual-only mutations deferred from `finalizeBuildPhase`.
+/** Phase B — visual-only mutations deferred from `finalizeRound`.
  *  Called from the transition that fires the cannons banner (or the
  *  reselect / game-over flows) so the sweep reveals under the banner
  *  instead of during the score overlay.
@@ -370,7 +370,7 @@ export function finalizeBuildPhase(state: GameState): {
  *  that would consume RNG and desync every seed-dependent test. Territory
  *  mutations (grunt respawn, house destruction, bonus capture) already
  *  ran in Phase A via `finalizeTerritoryWithScoring`. */
-export function finalizeBuildVisuals(state: GameState): void {
+export function finalizeRoundVisuals(state: GameState): void {
   sweepAllPlayersWalls(state);
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);

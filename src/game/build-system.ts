@@ -220,7 +220,7 @@ export function recheckTerritory(state: GameState): void {
  *  - Awards territory/enclosure scoring points
  *  - Resolves pending tower revives (towerPendingRevive → alive if still enclosed)
  *  - Clears unenclosed pending revives
- *  Called exactly once at end of build phase from finalizeBuildPhase(). */
+ *  Called exactly once at end of build phase from finalizeRound(). */
 export function finalizeTerritoryWithScoring(state: GameState): void {
   // Pass 1: recompute ALL interiors (same rationale as recheckTerritory).
   for (const player of state.players) {

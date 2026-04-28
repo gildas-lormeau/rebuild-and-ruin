@@ -131,7 +131,7 @@ export interface OnlinePhaseTicks {
    *  + scores). The hook serializes the post-build player snapshot itself
    *  — the runtime does not need to know how to serialize players. */
   /** Host: broadcast the build-phase end phase-marker. Watcher runs
-   *  `finalizeBuildPhase` locally on receipt — no payload. */
+   *  `finalizeRound` locally on receipt — no payload. */
   broadcastBuildEnd?: () => void;
 
   // ── Per-controller crosshair fan-out ───────────────────────────────────
@@ -467,7 +467,7 @@ export interface RuntimeLifeLost {
    *  list of players who chose CONTINUE. Elimination + PoV auto-zoom
    *  side effects happen inside this flow; routing the next phase
    *  (game-over / reselect / continue) is the CALLER's responsibility
-   *  (see the WALL_BUILD_DONE postDisplay in the phase machine).
+   *  (see the ROUND_END postDisplay in the phase machine).
    *
    *  Returns true when a dialog was actually shown (so callers can
    *  apply early-arrived choices before the first tick — e.g. the

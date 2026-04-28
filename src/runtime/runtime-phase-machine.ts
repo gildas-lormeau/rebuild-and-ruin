@@ -10,7 +10,7 @@
  *     assertion is host-only because watcher state may briefly run ahead
  *     of host (when wire arrives mid-tick). Per-transition target phase
  *     lives in the docstring, not in a field, because several transitions
- *     don't setPhase themselves (`wall-build-done` stays in WALL_BUILD; the
+ *     don't setPhase themselves (`round-end` stays in WALL_BUILD; the
  *     continuation flips it).
  *   - `mutate`: a single function run on every peer. Role differences are
  *     encoded via optional `ctx` fields:
@@ -48,10 +48,10 @@ import {
   enterBattlePhase,
   enterBuildPhase,
   enterCannonPhase,
-  finalizeBuildPhase,
-  finalizeBuildVisuals,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
+  finalizeRound,
+  finalizeRoundVisuals,
   recheckTerritory,
   snapshotTerritory,
 } from "../game/index.ts";
@@ -91,7 +91,7 @@ type TransitionId =
   | "castle-select-done"
   | "castle-reselect-done"
   | "advance-to-cannon"
-  | "wall-build-done"
+  | "round-end"
   | "cannon-place-done"
   | "enter-modifier-reveal"
   | "enter-battle"
@@ -115,7 +115,7 @@ interface TransitionResult {
   readonly preScores?: readonly number[];
   /** Populated by the `life-lost-dialog` display step once the dialog
    *  resolves (or immediately, for the all-pre-resolved path). Read by
-   *  `WALL_BUILD_DONE`'s postDisplay to route via `resolveAfterLifeLost`.
+   *  `ROUND_END`'s postDisplay to route via `resolveAfterLifeLost`.
    *  Mutable because it's written AFTER the mutate fn returns. */
   continuing?: readonly ValidPlayerSlot[];
 }
@@ -229,14 +229,14 @@ export interface PhaseTransitionCtx {
   };
 
   /** Life-lost dialog hooks. Only required for transitions whose `display`
-   *  array contains a `life-lost-dialog` step (wall-build-done). Other
+   *  array contains a `life-lost-dialog` step (round-end). Other
    *  transitions may omit.
    *
    *  `show` drives the dialog to completion. It either resolves
    *  immediately (no entries needed input) or shows the modal and
    *  ticks it to resolution. Either way, `onResolved(continuing)` fires
    *  once with the list of players who chose CONTINUE. The step sets
-   *  `result.continuing` from this list; `WALL_BUILD_DONE`'s postDisplay
+   *  `result.continuing` from this list; `ROUND_END`'s postDisplay
    *  reads it and routes via `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
   readonly lifeLost?: {
     readonly show: (
@@ -245,7 +245,7 @@ export interface PhaseTransitionCtx {
       onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
     ) => boolean;
   };
-  /** Post-life-lost dispatch bundle. `WALL_BUILD_DONE`'s postDisplay
+  /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay
    *  runs `resolveAfterLifeLost` with these three handlers; host and
    *  watcher supply different implementations (host dispatches the
    *  next transition, watcher only sets Mode.STOPPED on game-over
@@ -263,7 +263,7 @@ export interface PhaseTransitionCtx {
    *  affected player after the score overlay, before the dialog shows. */
   readonly notifyLifeLost?: (pid: ValidPlayerSlot) => void;
   /** Finalize local controllers' build-phase bag state. Used by
-   *  `wall-build-done` host mutate (remote humans are skipped — their
+   *  `round-end` host mutate (remote humans are skipped — their
    *  controllers re-init via startBuildPhase at next round). */
   readonly finalizeLocalControllersBuildPhase?: () => void;
   /** End-of-battle loop: per local controller, clear fire targets and reset
@@ -320,7 +320,7 @@ export interface PhaseTransitionCtx {
     /** Phase-marker signal — watcher runs `enterBuildPhase` locally on
      *  receipt. No payload; both sides derive identical state. */
     readonly buildStart?: () => void;
-    /** Phase-marker signal — watcher runs `finalizeBuildPhase` locally
+    /** Phase-marker signal — watcher runs `finalizeRound` locally
      *  on receipt. No payload. */
     readonly buildEnd?: () => void;
   };
@@ -364,10 +364,10 @@ const EMPTY_TRANSITION_RESULT: TransitionResult = {
 const STEP_BANNER = "banner" as const;
 const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
-/** `wall-build-done` — end of WALL_BUILD.
+/** `round-end` — end of WALL_BUILD (round closes here, after the score is finalized).
  *
  *  Host: finalizes local controllers' bag state, then runs the engine's
- *  `finalizeBuildPhase` (wall sweep + territory finalize + life penalties
+ *  `finalizeRound` (wall sweep + territory finalize + life penalties
  *  + grunt sweep). Broadcasts the BUILD_END checkpoint so watchers replay.
  *
  *  Display: score-overlay animation → life-lost-dialog step. The dialog
@@ -383,23 +383,23 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  does NOT call `setPhase`: the next transition (castle-reselect-done
  *  / advance-to-cannon / round-limit-reached / last-player-standing)
  *  flips it. */
-const WALL_BUILD_DONE: Transition = {
-  id: "wall-build-done",
+const ROUND_END: Transition = {
+  id: "round-end",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
     ctx.finalizeLocalControllersBuildPhase?.();
-    // Capture pre-scores BEFORE finalizeBuildPhase mutates them via
+    // Capture pre-scores BEFORE finalizeRound mutates them via
     // territory + life-penalty point awards — score-overlay needs the
     // starting values for the delta animation.
     const preScores = ctx.state.players.map((player) => player.score);
     // Phase A only: scoring + life penalties. The visual wall sweep +
-    // dead-zone grunt sweep are deferred to `finalizeBuildVisuals`,
+    // dead-zone grunt sweep are deferred to `finalizeRoundVisuals`,
     // called from `advance-to-cannon` / `castle-reselect-done` /
     // game-over flows so the cannons banner reveals them.
-    // `applyLifePenalties` inside finalizeBuildPhase already runs
+    // `applyLifePenalties` inside finalizeRound already runs
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.
-    const { needsReselect, eliminated } = finalizeBuildPhase(ctx.state);
+    const { needsReselect, eliminated } = finalizeRound(ctx.state);
     ctx.scoreDelta.setPreScores?.(preScores);
     ctx.broadcast?.buildEnd?.();
     return {
@@ -606,17 +606,17 @@ const CASTLE_SELECT_DONE: Transition = {
  *  player lost a life and rebuilt their castle).
  *
  *  Differs from `castle-select-done` only in the prefix:
- *  `finalizeBuildVisuals` (Phase B visuals deferred from wall-build-done)
+ *  `finalizeRoundVisuals` (Phase B visuals deferred from round-end)
  *  + `finalizeReselectedPlayers` (zone reset protection) before
  *  `finalizeCastleConstruction`. Rest is identical. */
 const CASTLE_RESELECT_DONE: Transition = {
   id: "castle-reselect-done",
   from: Phase.CASTLE_RESELECT,
   mutate: (ctx) => {
-    // Phase B visuals (deferred from wall-build-done) + reselect-specific
+    // Phase B visuals (deferred from round-end) + reselect-specific
     // finalize + castle finalize, then enter cannon phase. All under the
     // cannons banner reveal.
-    finalizeBuildVisuals(ctx.state);
+    finalizeRoundVisuals(ctx.state);
     finalizeReselectedPlayers(ctx.state, ctx.reselectionPids ?? []);
     finalizeCastleConstruction(ctx.state);
     ctx.clearCastleBuildViewport?.();
@@ -632,8 +632,8 @@ const CASTLE_RESELECT_DONE: Transition = {
  *  dialog resolves with "continue" (no reselect, no game over).
  *
  *  Unlike `castle-select-done` / `castle-reselect-done`, this path has NO
- *  finalize prefix: `finalizeBuildPhase` already ran inside the preceding
- *  `wall-build-done` transition, so state is already post-sweep. The
+ *  finalize prefix: `finalizeRound` already ran inside the preceding
+ *  `round-end` transition, so state is already post-sweep. The
  *  mutate just flips the phase (via `enterCannonPhase`) and broadcasts.
  *
  *  Triggered from `routeLifeLostResolution`'s `onContinue` callback. */
@@ -641,9 +641,9 @@ const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
-    // Phase B visuals (deferred from wall-build-done) run under the
+    // Phase B visuals (deferred from round-end) run under the
     // cannons banner reveal, then cannon phase entry.
-    finalizeBuildVisuals(ctx.state);
+    finalizeRoundVisuals(ctx.state);
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
     return EMPTY_TRANSITION_RESULT;
@@ -779,7 +779,7 @@ const TRANSITIONS: readonly Transition[] = [
   CANNON_PLACE_DONE,
   ENTER_MODIFIER_REVEAL,
   ENTER_BATTLE,
-  WALL_BUILD_DONE,
+  ROUND_END,
   BATTLE_DONE,
   CEASEFIRE,
   ENTER_UPGRADE_PICK,

@@ -52,7 +52,7 @@ export function createBuildStartMessage() {
 }
 
 /** Create a CANNON_START phase-marker message. The watcher runs the
- *  source-phase prefix (`finalizeBuildVisuals` / `finalizeReselectedPlayers` /
+ *  source-phase prefix (`finalizeRoundVisuals` / `finalizeReselectedPlayers` /
  *  `finalizeCastleConstruction`, depending on which phase it's leaving) plus
  *  `enterCannonPhase` locally on receipt — see `CANNON_ENTRY_WATCHER_STEP`
  *  in `runtime-phase-machine.ts`. No payload: every cannon-entry mutation

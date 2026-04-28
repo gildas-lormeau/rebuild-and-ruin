@@ -59,10 +59,10 @@ export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
   enterBuildSkippingBattle,
-  finalizeBuildPhase,
-  finalizeBuildVisuals,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
+  finalizeRound,
+  finalizeRoundVisuals,
   prepareCastleWallsForPlayer,
 } from "./phase-setup.ts";
 export {

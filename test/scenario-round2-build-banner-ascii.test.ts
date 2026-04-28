@@ -4,7 +4,7 @@ import { BANNER_PLACE_CANNONS } from "../src/runtime/banner-messages.ts";
 
 /** Prints the last rendered frame before the round-2 "Place Cannons" banner
  *  fires — i.e. the pre-sweep scene captured as the banner's prev-scene
- *  right before finalizeBuildPhase deletes isolated walls and revives
+ *  right before finalizeRound deletes isolated walls and revives
  *  pending towers. */
 Deno.test("ascii: map just before round-2 Place Cannons banner", async () => {
   const sc = await createScenario({ seed: 42, rounds: 2, renderer: "ascii" });

@@ -29,7 +29,7 @@
  * ### Phase lifecycle terminology (three distinct terms, NOT interchangeable)
  *
  *   "done"     — query:    "is this phase finished?"  (isCannonPhaseDone checks slots/timer)
- *   "finalize" — action:   run end-of-phase cleanup   (finalizeBuildPhase sweeps + scores)
+ *   "finalize" — action:   run end-of-phase cleanup   (finalizeRound sweeps + scores)
  *   "ended"    — callback: signal that phase is over   (onBattlePhaseEnded notifies tick system)
  *
  * Use the term that matches the operation: query → done, cleanup → finalize, signal → ended.
@@ -37,7 +37,7 @@
  *
  * Finalize functions may have internal sub-steps that must NOT be called directly:
  *   finalizeCannonPhase() = flushCannons() + initCannons()  (see controller-types.ts)
- *   finalizeBuildPhase()  = wall sweep + territory scoring   (see build-system.ts)
+ *   finalizeRound()       = wall sweep + territory scoring   (see build-system.ts)
  * The composite function guarantees correct ordering; calling sub-steps individually
  * skips prerequisites (e.g. flush before init, sweep before score).
  */

@@ -194,8 +194,8 @@ Deno.test("dead-zone grunt sweep timing: present through battle+build, removed a
     }
     // (3) Sweep MUST NOT happen mid-build. Timer-based detection: if
     // state.timer > 0 at the sweep tick, we're still in active build
-    // (the timer would reach 0 before finalizeBuildPhase can run). A
-    // correct sweep happens when timer is 0 (finalizeBuildPhase has
+    // (the timer would reach 0 before finalizeRound can run). A
+    // correct sweep happens when timer is 0 (finalizeRound has
     // fired at end of active build; phase stays WALL_BUILD while the
     // post-build banner/UI plays before transition to CANNON_PLACE).
     const prevTimer = sweepPrevTimerByRound.get(r.round);
