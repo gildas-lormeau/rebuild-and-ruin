@@ -612,7 +612,9 @@ function buildStatusBar(
   const modifierId = view.modern?.activeModifier ?? null;
   const secs = Math.max(0, Math.ceil(view.timer) - 1);
   return {
-    round: `R${view.round}/${view.maxRounds}`,
+    round: Number.isFinite(view.maxRounds)
+      ? `R${view.round}/${view.maxRounds}`
+      : `R${view.round}`,
     phase: PHASE_STATUS_LABELS[view.phase],
     timer: view.timer > 0 ? `${secs}s` : "",
     modifier: modifierId ? modifierDef(modifierId).label : undefined,
