@@ -69,17 +69,10 @@ export function connect(onConnectError?: () => void): void {
     },
     onClose: () => {
       const mode = _rt.getMode();
+      const amHost = isHostInContext(_client.ctx.session);
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
-      _client.devLog(
-        // eslint-disable-next-line no-restricted-syntax -- diagnostic logging
-        `WebSocket closed (mode=${Mode[mode]} isHost=${_client.ctx.session.isHost})`,
-      );
-      if (
-        isHostInContext(_client.ctx.session) ||
-        mode === Mode.STOPPED ||
-        mode === Mode.LOBBY
-      )
-        return;
+      _client.devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${amHost})`);
+      if (amHost || mode === Mode.STOPPED || mode === Mode.LOBBY) return;
       if (_client.ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
         _client.ctx.reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift

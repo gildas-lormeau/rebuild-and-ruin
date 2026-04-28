@@ -35,7 +35,7 @@ import {
   sendMessage,
 } from "./online-session.ts";
 
-type ResetScope = "dedup" | "new-game" | "host-promotion";
+type ResetScope = "new-game" | "host-promotion";
 
 interface OnlineContext {
   readonly session: OnlineSession;
@@ -64,24 +64,22 @@ export interface OnlineClient {
 // ── Constants ──────────────────────────────────────────────────────
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
-/** Network reset scope — forces callers to declare intent, preventing
- *  accidental use of the wrong reset level. Each scope clears a different
- *  subset of networking state:
- *  - "dedup"     — mid-game phase transitions: clears dedup maps only
- *  - "new-game"  — INIT or full-state recovery: dedup + full watcher reset
- *  - "host-promotion" — host migration: dedup + watcher timing/AI (keeps
- *      remote crosshairs & phantoms the new host still needs)
+/** Network reset scope — forces callers to declare intent. `resetNetworking`
+ *  always clears dedup maps; the scope controls how presence is reset:
+ *  - "new-game"       — INIT or full-state recovery: full presence reset
+ *  - "host-promotion" — host migration: keeps remote crosshairs & phantoms
+ *      the new host still needs
  *
  *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
  *  phantom/aim messages. The pattern is: if shouldSend() -> send (map updated atomically).
  *  Sending without checking causes redundant network traffic; checking without
  *  resetting after state changes causes missed updates. */
-// ── Default instance ───────────────────────────────────────────────
-export const defaultClient = createOnlineClient();
 export const RESET_SCOPE_NEW_GAME = "new-game";
 export const RESET_SCOPE_HOST_PROMOTION = "host-promotion";
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
+// ── Default instance ───────────────────────────────────────────────
+export const defaultClient = createOnlineClient();
 
 function createOnlineClient(): OnlineClient {
   const context: OnlineContext = {
@@ -143,7 +141,7 @@ function createOnlineClient(): OnlineClient {
     destroy: () => {
       client.clearReconnect();
       resetSessionState(context.session);
-      client.resetNetworking("new-game");
+      client.resetNetworking(RESET_SCOPE_NEW_GAME);
     },
   };
   return client;

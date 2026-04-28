@@ -23,6 +23,7 @@ import {
   type ControllerIdentity,
   isAiAnimatable,
 } from "../shared/core/system-interfaces.ts";
+import { formatAimDedupKey } from "./online-session.ts";
 
 interface BroadcastDeps {
   lastSentAimTarget: DedupChannel;
@@ -44,7 +45,7 @@ export function broadcastLocalCrosshair(
 ): void {
   const target =
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
-  const key = makeCrosshairDedupKey(target);
+  const key = formatAimDedupKey(target.x, target.y);
   if (!deps.lastSentAimTarget.shouldSend(ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
@@ -85,13 +86,4 @@ export function extendWithRemoteCrosshairs(
     });
   }
   return [...crosshairs, ...remote];
-}
-
-/**
- * Build dedup key for crosshair network sends.
- * Crosshairs use DedupChannel's atomic shouldSend() mechanism (no array rebuild).
- * Contrast with phantoms in online-server-events.ts which use explicit filter+push.
- */
-function makeCrosshairDedupKey(target: { x: number; y: number }): string {
-  return `${Math.round(target.x)},${Math.round(target.y)}`;
 }

@@ -136,14 +136,21 @@ export function sendAimUpdate(
   playerId?: ValidPlayerSlot,
 ): void {
   const pid = playerId ?? (session.myPlayerId as ValidPlayerSlot);
-  const value = `${Math.round(x)},${Math.round(y)}`;
-  if (!dedup.aimTarget.shouldSend(pid, value)) return;
+  if (!dedup.aimTarget.shouldSend(pid, formatAimDedupKey(x, y))) return;
   sendMessage(session, {
     type: MESSAGE.AIM_UPDATE,
     playerId: pid,
     x,
     y,
   });
+}
+
+/** Build a dedup-channel key for aim/crosshair sends. Pixel-rounded so
+ *  sub-pixel jitter doesn't bust the dedup. Shared between sendAimUpdate
+ *  (the local-player path) and broadcastLocalCrosshair (the host-side
+ *  AI broadcast path) — both feed the same `dedup.aimTarget` channel. */
+export function formatAimDedupKey(x: number, y: number): string {
+  return `${Math.round(x)},${Math.round(y)}`;
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {

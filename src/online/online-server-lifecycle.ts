@@ -10,6 +10,7 @@ import {
   type FullStateMessage,
   type InitMessage,
   MESSAGE,
+  type RoomSettings,
   type ServerMessage,
 } from "../protocol/protocol.ts";
 import { isHostInContext } from "../runtime/runtime-tick-context.ts";
@@ -126,20 +127,12 @@ export async function handleServerLifecycleMessage(
 
   switch (msg.type) {
     case MESSAGE.ROOM_CREATED:
-      deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
-      deps.session.roomMaxRounds = msg.settings.maxRounds;
-      deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
-      deps.session.roomGameMode =
-        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_MODERN;
+      applyRoomSettings(deps.session, msg.settings);
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
     case MESSAGE.ROOM_JOINED:
-      deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
-      deps.session.roomMaxRounds = msg.settings.maxRounds;
-      deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
-      deps.session.roomGameMode =
-        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_MODERN;
+      applyRoomSettings(deps.session, msg.settings);
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.session.lobbyStartTime = performance.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {
@@ -248,4 +241,18 @@ export async function handleServerLifecycleMessage(
     default:
       return false;
   }
+}
+
+/** Copy room settings from a ROOM_CREATED / ROOM_JOINED payload onto the
+ *  session. Both messages carry the same `RoomSettings` shape and arrive at
+ *  the same point in the lobby flow, so this guarantees they stay in sync. */
+function applyRoomSettings(
+  session: HandleServerLifecycleDeps["session"],
+  settings: RoomSettings,
+): void {
+  session.roomWaitTimerSec = settings.waitTimerSec;
+  session.roomMaxRounds = settings.maxRounds;
+  session.roomCannonMaxHp = settings.cannonMaxHp;
+  session.roomGameMode =
+    (settings.gameMode as GameMode | undefined) ?? GAME_MODE_MODERN;
 }
