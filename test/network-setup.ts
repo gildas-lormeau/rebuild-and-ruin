@@ -140,18 +140,20 @@ async function buildWatcherRuntime(
   opts: ScenarioOptions,
 ): Promise<RuntimeBuild> {
   const sentMessages: GameMessage[] = [];
-  // Watcher must run regular AI for every slot — same strategy seed as the
-  // host advances RNG identically across peers, keeping selections in
-  // lockstep. `assertWireExercised` is the test's separate proof that
-  // the host's broadcasts actually reach the wire (the watcher would
-  // converge "trivially" via its own AI otherwise).
+  // Strip `assistedSlots` so the watcher installs the default (regular AI)
+  // controller for every slot. The watcher never *ticks* the assisted slot
+  // anyway (it sits in `remotePlayerSlots` below), but using a regular AI
+  // controller ensures no accidental broadcasts if the local-tick filter
+  // ever regresses.
   const watcherOpts: ScenarioOptions = { ...opts, assistedSlots: undefined };
   const base = buildHeadlessOptions(watcherOpts, sentMessages);
 
-  // `remotePlayerSlots` carries only remote-human slots — AI controllers
-  // are recomputed locally on every peer (project rule: wire =
-  // uncomputable inputs only). For pure-AI tests, no humans means empty.
-  const remoteHumans = new Set<ValidPlayerSlot>();
+  // `remotePlayerSlots` mirrors production: every slot driven by a remote
+  // human (or assisted-human in this test) sits here. `localControllers`
+  // skips these slots in the tick loop, so the wire is the only mutation
+  // path for them. For pure-AI tests this is empty — no remote humans,
+  // every slot ticks locally as deterministic AI.
+  const remoteHumans = new Set<ValidPlayerSlot>(opts.assistedSlots ?? []);
 
   const client = buildWatcherClient(remoteHumans);
   const headless = await createHeadlessRuntime({

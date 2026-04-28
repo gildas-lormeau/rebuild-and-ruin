@@ -167,27 +167,20 @@ for (const stress of STRESS_TRIPLES) {
   );
 }
 
-/** Sanity check: the host must have broadcast *something* meaningful
- *  during the run. Without this, both runtimes could "converge" trivially
- *  by each running the same deterministic AI locally on the same seed —
- *  the wire would never be exercised. */
+/** Sanity check: the host must have broadcast lifecycle checkpoints
+ *  during the run. Under clone-everywhere, AI placements are recomputed
+ *  locally on every peer (wire = uncomputable inputs only), so pure-AI
+ *  runs only emit lifecycle messages — that's the only host-side proof
+ *  that the wire was actually used. The assisted-human tests have their
+ *  own bespoke assertion for slot-specific human-input broadcasts. */
 function assertWireExercised(host: Scenario, label: string): void {
   const lifecycleTypes = new Set(["cannonStart", "battleStart", "buildStart"]);
   const lifecycle = host.sentMessages.filter((msg) =>
     lifecycleTypes.has((msg as { type: string }).type),
   );
-  const placements = host.sentMessages.filter(
-    (msg) =>
-      (msg as { type: string }).type === "opponentPiecePlaced" ||
-      (msg as { type: string }).type === "opponentCannonPlaced",
-  );
   assert(
     lifecycle.length > 0,
     `${label}: no lifecycle checkpoints broadcast — the wire wasn't exercised`,
-  );
-  assert(
-    placements.length > 0,
-    `${label}: no placement messages broadcast — the wire wasn't exercised`,
   );
 }
 
