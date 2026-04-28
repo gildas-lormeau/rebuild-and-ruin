@@ -133,11 +133,8 @@ export function finalizeCastleConstruction(state: GameState): void {
  *  (`enter-modifier-reveal` or `enter-battle`). `lastModifierId` was already
  *  saved in `finalizeBattle` (before the checkpoint). */
 export function prepareBattleState(state: GameState): ModifierDiff | null {
-  decayBurningPits(state);
-  sweepAllPlayersWalls(state);
+  preBattleSweep(state);
   recheckTerritory(state);
-  removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
-  clearActiveModifiers(state);
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
     if (state.modern!.activeModifier !== null) {
@@ -176,13 +173,10 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
  *  `cleanupBattleArtifacts` (which only mutates grunt fields, never the
  *  grunt set or walls) and `spawnIdleFirstBattleGrunts` (no-op on the
  *  ceasefire path since the upgrade gates at round ≥ 3 while idle-grunt
- *  spawning gates at round === 1). Nothing between sweepAllPlayersWalls
+ *  spawning gates at round === 1). Nothing between `preBattleSweep`
  *  and finalizeBattle's recheckTerritory reads `player.interior`. */
 export function enterBuildSkippingBattle(state: GameState): void {
-  decayBurningPits(state);
-  sweepAllPlayersWalls(state);
-  removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
-  clearActiveModifiers(state);
+  preBattleSweep(state);
   finalizeBattle(state);
   prepareNextRound(state);
 }
@@ -416,6 +410,23 @@ export function finalizeRoundVisuals(state: GameState): void {
   sweepAllPlayersWalls(state);
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
+}
+
+/** Shared pre-battle housekeeping run from both the real battle path
+ *  (`prepareBattleState`) and the ceasefire path (`enterBuildSkippingBattle`).
+ *  Decays burning pits, sweeps disconnected walls, removes bonus squares
+ *  covered by walls, and clears the previous round's active modifier.
+ *
+ *  Does NOT include `recheckTerritory` — callers handle that themselves.
+ *  `prepareBattleState` calls it right after this helper; `finalizeBattle`
+ *  (called by `enterBuildSkippingBattle`) calls it later. None of the
+ *  steps here mutate walls, towers, or the grunt set, so moving
+ *  `recheckTerritory` from inside this sequence to after it is RNG-neutral. */
+function preBattleSweep(state: GameState): void {
+  decayBurningPits(state);
+  sweepAllPlayersWalls(state);
+  removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
+  clearActiveModifiers(state);
 }
 
 /** Remove grunts sitting in any eliminated player's zone. resetZoneState
