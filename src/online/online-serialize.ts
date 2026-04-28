@@ -100,6 +100,7 @@ export function createFullStateMessage(
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     cannonLimits: [...state.cannonLimits],
+    cannonPlaceDone: [...state.cannonPlaceDone],
     salvageSlots: state.salvageSlots.some((slot) => slot > 0)
       ? [...state.salvageSlots]
       : undefined,
@@ -149,6 +150,7 @@ export function restoreFullStateSnapshot(
   state.maxRounds = msg.maxRounds;
   state.shotsFired = msg.shotsFired;
   state.cannonLimits = msg.cannonLimits;
+  state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerSlot[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
   state.playerZones = msg.playerZones;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
@@ -441,6 +443,8 @@ function validateFullState(
     return `players length ${msg.players.length} != ${playerCount}`;
   if (msg.cannonLimits.length !== playerCount)
     return `cannonLimits length ${msg.cannonLimits.length} != ${playerCount}`;
+  if (msg.cannonPlaceDone.some((id) => id < 0 || id >= playerCount))
+    return `cannonPlaceDone slot id out of bounds`;
   if (msg.playerZones.length !== playerCount)
     return `playerZones length ${msg.playerZones.length} != ${playerCount}`;
   if (msg.towerAlive.length !== towerCount)

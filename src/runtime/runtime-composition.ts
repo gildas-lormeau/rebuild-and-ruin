@@ -749,6 +749,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.network.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
     sendOpponentPhantom: (msg) =>
       config.network.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
+    sendOpponentCannonPhaseDone: (playerId) =>
+      config.network.send({
+        type: MESSAGE.OPPONENT_CANNON_PHASE_DONE,
+        playerId,
+      }),
     online: config.onlinePhaseTicks,
     render,
     onCameraReady: camera.onCameraReady,

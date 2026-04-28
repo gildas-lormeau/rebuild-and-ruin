@@ -185,6 +185,10 @@ export interface FullStateMessage {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   cannonLimits: number[];
+  /** Per-slot CANNON_PLACE done flags (slot ids of finished controllers).
+   *  Drives the phase-exit predicate so a peer joining mid-CANNON_PLACE
+   *  sees the same done set as the host. */
+  cannonPlaceDone: number[];
   salvageSlots?: number[];
   playerZones: number[];
   gameMode: string;
@@ -286,6 +290,17 @@ export interface OpponentTowerSelectedMessage {
   confirmed?: boolean;
 }
 
+/** A remote-driven slot has finished placing cannons (final placement may be
+ *  zero or more `OPPONENT_CANNON_PLACED` messages earlier this phase). The
+ *  watcher uses this to know when slot-N has stopped placing so the phase
+ *  exit predicate doesn't trigger before the host's final wire messages
+ *  arrive. Broadcast only for `kind: "human"` controllers — AI controllers
+ *  produce identical placements deterministically on every peer. */
+export interface OpponentCannonPhaseDoneMessage {
+  type: "opponentCannonPhaseDone";
+  playerId: ValidPlayerSlot;
+}
+
 /** Life-lost choice forwarded from a non-host client to the host. */
 export interface LifeLostChoiceForwardedMessage {
   type: "lifeLostChoice";
@@ -331,6 +346,7 @@ export type ServerMessage =
   | OpponentCannonPlacedMessage
   | OpponentCannonPhantomMessage
   | OpponentTowerSelectedMessage
+  | OpponentCannonPhaseDoneMessage
   // Battle events
   | CannonFiredMessage
   | WallDestroyedMessage
@@ -396,6 +412,7 @@ export const MESSAGE = {
   OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
   OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
   OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
+  OPPONENT_CANNON_PHASE_DONE: "opponentCannonPhaseDone",
   AIM_UPDATE: "aimUpdate",
   // Host migration
   HOST_LEFT: "hostLeft",

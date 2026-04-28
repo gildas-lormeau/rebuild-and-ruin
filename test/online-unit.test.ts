@@ -136,6 +136,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     towerAlive: [],
     burningPits: [],
     cannonLimits: [],
+    cannonPlaceDone: [],
     playerZones: [],
     towerPendingRevive: [],
     capturedCannons: [],

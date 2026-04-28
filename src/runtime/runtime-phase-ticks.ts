@@ -101,6 +101,9 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   sendOpponentCannonPhantom: (msg: CannonPhantomPayload) => void;
   sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
   sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
+  /** Broadcast "I'm done placing cannons" for a local human-kind slot.
+   *  No-op for local play; emits `OPPONENT_CANNON_PHASE_DONE` online. */
+  sendOpponentCannonPhaseDone: (playerId: ValidPlayerSlot) => void;
 
   /** Online coordination bag — see `OnlinePhaseTicks`. Undefined for local
    *  play; every field is independently optional within the bag itself. */
@@ -568,6 +571,22 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
       const phantom = ctrl.cannonTick(state, dt);
+      // Detect newly-done local controllers — mark in shared per-slot state
+      // and broadcast for human-kind so remote peers (whose `local` excludes
+      // this slot and so never observes its `isCannonPhaseDone`) can mirror
+      // the done flag and exit the phase in lockstep. AI controllers are
+      // deterministic across peers; their done-ness is already mirrored
+      // implicitly so no broadcast needed.
+      const max = state.cannonLimits[ctrl.playerId] ?? 0;
+      if (
+        !state.cannonPlaceDone.has(ctrl.playerId) &&
+        ctrl.isCannonPhaseDone(state, max)
+      ) {
+        state.cannonPlaceDone.add(ctrl.playerId);
+        if (isHuman(ctrl)) {
+          deps.sendOpponentCannonPhaseDone(ctrl.playerId);
+        }
+      }
       if (!phantom) continue;
       if (!isHuman(ctrl)) continue;
       if (
@@ -595,12 +614,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     deps.render();
 
-    const allDone = local.every((ctrl) => {
-      const player = state.players[ctrl.playerId]!;
-      if (isPlayerEliminated(player)) return true;
-      const max = state.cannonLimits[player.id] ?? 0;
-      return ctrl.isCannonPhaseDone(state, max);
-    });
+    // Exit predicate: every non-eliminated slot must be in `cannonPlaceDone`.
+    // Local slots flip the bit above; remote-driven slots flip it via the
+    // wire (`OPPONENT_CANNON_PHASE_DONE`). Same predicate runs on every
+    // peer — no `local`-subset early exit.
+    const allDone = state.players.every(
+      (player) =>
+        isPlayerEliminated(player) || state.cannonPlaceDone.has(player.id),
+    );
 
     if (state.timer > 0 && !allDone) return false;
 

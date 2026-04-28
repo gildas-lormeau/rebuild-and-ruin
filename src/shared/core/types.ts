@@ -100,6 +100,12 @@ export interface GameState {
    *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
    *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
   cannonLimits: number[];
+  /** Per-slot done flag for CANNON_PLACE — populated by:
+   *  (1) local controller's `isCannonPhaseDone` going true (mark + broadcast if human);
+   *  (2) wire `OPPONENT_CANNON_PHASE_DONE` from a remote-driven slot.
+   *  Phase exits when every non-eliminated slot is in this set, OR the timer hits 0.
+   *  Cleared on CANNON_PLACE entry (`enterCannonPlacePhase`). */
+  cannonPlaceDone: Set<ValidPlayerSlot>;
   /** Bonus cannon slots earned via Salvage upgrade (cannon kills during battle).
    *  Consumed by computeCannonLimitsForPhase at cannon phase start, then zeroed. */
   salvageSlots: number[];

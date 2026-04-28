@@ -270,6 +270,10 @@ export function tickBuildPhase(state: GameState, dt: number): BuildPhaseTick {
 function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
+  // Reset per-slot done tracking. Populated by local controllers' done
+  // detection + wire signal for remote-driven slots; consulted by the
+  // phase-exit predicate to wait for every active slot before advancing.
+  state.cannonPlaceDone.clear();
 }
 
 function createGameState(
@@ -325,6 +329,7 @@ function createGameState(
     reselectedPlayers: new Set(),
     playerZones: [],
     cannonLimits: [],
+    cannonPlaceDone: new Set(),
     salvageSlots: [],
     gameMode: GAME_MODE_CLASSIC,
     activeFeatures: EMPTY_FEATURES,

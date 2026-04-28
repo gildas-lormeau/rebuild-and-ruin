@@ -86,6 +86,11 @@ type PiecePlacedMsg = Extract<ServerMessage, { type: "opponentPiecePlaced" }>;
 
 type CannonPlacedMsg = Extract<ServerMessage, { type: "opponentCannonPlaced" }>;
 
+type CannonPhaseDoneMsg = Extract<
+  ServerMessage,
+  { type: "opponentCannonPhaseDone" }
+>;
+
 type CannonFiredMsg = Extract<ServerMessage, { type: "cannonFired" }>;
 
 type AimUpdateMsg = Extract<ServerMessage, { type: "aimUpdate" }>;
@@ -128,6 +133,8 @@ export function handleServerIncrementalMessage(
       return handlePiecePlaced(msg, state, deps);
     case MESSAGE.OPPONENT_CANNON_PLACED:
       return handleCannonPlaced(msg, state, deps);
+    case MESSAGE.OPPONENT_CANNON_PHASE_DONE:
+      return handleCannonPhaseDone(msg, state, deps);
     case MESSAGE.CANNON_FIRED:
       return handleCannonFired(msg, state, deps);
     case MESSAGE.AIM_UPDATE:
@@ -241,6 +248,21 @@ function handleCannonPlaced(
   }
   applyCannonPlacement(player, msg.row, msg.col, normalizedMode, state);
   consumeRapidEmplacement(player);
+  return APPLIED;
+}
+
+/** Mark a remote-driven slot as done placing cannons. The phase-exit
+ *  predicate in `tickCannonPhase` waits for `state.cannonPlaceDone` to cover
+ *  every non-eliminated slot, so without this signal the watcher would
+ *  exit CANNON_PLACE before the host's final placements arrived. */
+function handleCannonPhaseDone(
+  msg: CannonPhaseDoneMsg,
+  state: GameState | undefined,
+  deps: HandleServerIncrementalDeps,
+): HandleResult {
+  if (!isActivePlayer(state, msg.playerId)) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  state.cannonPlaceDone.add(msg.playerId);
   return APPLIED;
 }
 
