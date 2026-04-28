@@ -55,6 +55,7 @@ import {
   prepareNextRound,
   recheckTerritory,
   snapshotTerritory,
+  startNextRound,
 } from "../game/index.ts";
 import { setPhase } from "../game/phase-setup.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
@@ -401,6 +402,11 @@ const ROUND_END: Transition = {
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.
     const { needsReselect, eliminated } = finalizeRound(ctx.state);
+    // Round counter advances here, after the score is finalized — this is
+    // the moment the round officially ends. The score-delta animation that
+    // plays next reads pre/post score values it captured, not state.round,
+    // so it's safe to advance the counter before the animation begins.
+    startNextRound(ctx.state);
     ctx.scoreDelta.setPreScores?.(preScores);
     ctx.broadcast?.buildEnd?.();
     return {

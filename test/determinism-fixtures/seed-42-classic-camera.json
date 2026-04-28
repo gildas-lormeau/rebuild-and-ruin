@@ -15979,18 +15979,6 @@
       }
     },
     {
-      "type": "roundEnd",
-      "payload": {
-        "round": 1
-      }
-    },
-    {
-      "type": "roundStart",
-      "payload": {
-        "round": 2
-      }
-    },
-    {
       "type": "gruntSpawn",
       "payload": {
         "col": 30,
@@ -16002,14 +15990,14 @@
       "type": "phaseEnd",
       "payload": {
         "phase": "BATTLE",
-        "round": 2
+        "round": 1
       }
     },
     {
       "type": "phaseStart",
       "payload": {
         "phase": "WALL_BUILD",
-        "round": 2
+        "round": 1
       }
     },
     {
@@ -16017,7 +16005,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 2,
+        "round": 1,
         "subtitle": "Surround castles, repair walls",
         "text": "Build & Repair"
       }
@@ -17095,7 +17083,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 2,
+        "round": 1,
         "text": "Build & Repair"
       }
     },
@@ -17104,7 +17092,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 2,
+        "round": 1,
         "text": "Build & Repair"
       }
     },
@@ -26688,6 +26676,18 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "roundEnd",
+      "payload": {
+        "round": 1
+      }
+    },
+    {
+      "type": "roundStart",
+      "payload": {
+        "round": 2
       }
     },
     {
@@ -40033,18 +40033,6 @@
       }
     },
     {
-      "type": "roundEnd",
-      "payload": {
-        "round": 2
-      }
-    },
-    {
-      "type": "roundStart",
-      "payload": {
-        "round": 3
-      }
-    },
-    {
       "type": "gruntSpawn",
       "payload": {
         "col": 29,
@@ -40056,14 +40044,14 @@
       "type": "phaseEnd",
       "payload": {
         "phase": "BATTLE",
-        "round": 3
+        "round": 2
       }
     },
     {
       "type": "phaseStart",
       "payload": {
         "phase": "WALL_BUILD",
-        "round": 3
+        "round": 2
       }
     },
     {
@@ -40071,7 +40059,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 3,
+        "round": 2,
         "subtitle": "Surround castles, repair walls",
         "text": "Build & Repair"
       }
@@ -41143,7 +41131,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 3,
+        "round": 2,
         "text": "Build & Repair"
       }
     },
@@ -41152,7 +41140,7 @@
       "payload": {
         "bannerKind": "build",
         "phase": "WALL_BUILD",
-        "round": 3,
+        "round": 2,
         "text": "Build & Repair"
       }
     },
@@ -50744,6 +50732,18 @@
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "roundEnd",
+      "payload": {
+        "round": 2
+      }
+    },
+    {
+      "type": "roundStart",
+      "payload": {
+        "round": 3
       }
     },
     {

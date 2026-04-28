@@ -184,12 +184,13 @@ export function enterBuildSkippingBattle(state: GameState): void {
 /** Old-round housekeeping run after BATTLE ends (battle-done) or at ceasefire
  *  entry. Closes out battle artifacts (balloons, captured cannons, grunts),
  *  clears the fresh-castle grace period, snapshots `activeModifier` as
- *  `lastModifierId` for the next roll, and emits `ROUND_END` for the round
- *  being closed.
+ *  `lastModifierId` for the next roll.
  *
- *  Does NOT increment `state.round` and does NOT emit `ROUND_START` — that
- *  happens later, in `prepareNextRound`. Pair with `prepareNextRound` for
- *  the new-round seeding half. */
+ *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
+ *  build-phase score is computed) and does NOT increment `state.round`
+ *  (that happens at `round-end` via `startNextRound`). The round being
+ *  closed isn't actually finished here — it stays open through
+ *  UPGRADE_PICK and WALL_BUILD until the score is finalized. */
 export function finalizeBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
@@ -204,20 +205,21 @@ export function finalizeBattle(state: GameState): void {
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.lastModifierId = state.modern!.activeModifier;
   }
-  emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
 }
 
-/** New-round seeding run after `finalizeBattle`. Increments `state.round`,
- *  emits `ROUND_START`, and consumes RNG to spawn interbattle grunts,
- *  generate upgrade offers, replenish bonus squares, and init per-player
- *  piece bags. Order is load-bearing for online sync — the BUILD_START
- *  checkpoint is created after this completes, and host / watcher /
- *  headless must produce identical RNG sequences. Callers must init
- *  controllers afterwards (resetCannonFacings + startBuildPhase loop). */
+/** New-round seeding run after `finalizeBattle`. Consumes RNG to spawn
+ *  interbattle grunts, generate upgrade offers, replenish bonus squares,
+ *  and init per-player piece bags. Order is load-bearing for online sync —
+ *  the BUILD_START checkpoint is created after this completes, and host /
+ *  watcher / headless must produce identical RNG sequences. Callers must
+ *  init controllers afterwards (resetCannonFacings + startBuildPhase loop).
+ *
+ *  Does NOT increment `state.round` — that happens later, at the `round-end`
+ *  transition (after the build-phase score is finalized) via `startNextRound`.
+ *  Round-gated reads inside this function and the helpers it calls must use
+ *  `state.round + 1` (the upcoming round number) since seeding here is for
+ *  the round about to be played. */
 export function prepareNextRound(state: GameState): void {
-  state.round++;
-  emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
-
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
@@ -249,10 +251,21 @@ export function prepareNextRound(state: GameState): void {
   // controllers, so the per-controller path was host-only). `currentPiece`
   // is game state (read by AI strategy + human UI during BUILD), so it
   // belongs in the engine. Iterate in slot order for deterministic RNG.
+  // Seed with state.round + 1 (the round whose build is about to play out)
+  // since state.round itself doesn't advance until the round-end transition.
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    initPlayerBag(player, state.round, state.rng, useSmallPieces(player));
+    initPlayerBag(player, state.round + 1, state.rng, useSmallPieces(player));
   }
+}
+
+/** Increment `state.round` and emit `ROUND_START` for the new round.
+ *  Called from the `round-end` transition mutate, after `finalizeRound`
+ *  has computed the score and applied life penalties for the round
+ *  being closed. */
+export function startNextRound(state: GameState): void {
+  state.round++;
+  emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 }
 
 /**
@@ -365,6 +378,9 @@ export function prepareCastleWallsForPlayer(
  *      resolution (`finalizeTerritoryWithScoring`)
  *    - life penalties (`applyLifePenalties`)
  *
+ *  Emits `ROUND_END` after the score is computed — the round is officially
+ *  closed at this point. The counter advances in the next call (`startNextRound`).
+ *
  *  Visual-only sweeps (isolated-wall removal, grunts in eliminated zones)
  *  are deferred to `finalizeRoundVisuals` so they reveal under the
  *  cannons banner rather than popping during the score overlay. */
@@ -373,7 +389,9 @@ export function finalizeRound(state: GameState): {
   eliminated: ValidPlayerSlot[];
 } {
   finalizeTerritoryWithScoring(state);
-  return applyLifePenalties(state);
+  const result = applyLifePenalties(state);
+  emitGameEvent(state.bus, GAME_EVENT.ROUND_END, { round: state.round });
+  return result;
 }
 
 /** Phase B — visual-only mutations deferred from `finalizeRound`.

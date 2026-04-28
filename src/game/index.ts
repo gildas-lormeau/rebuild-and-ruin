@@ -65,6 +65,7 @@ export {
   finalizeRoundVisuals,
   prepareCastleWallsForPlayer,
   prepareNextRound,
+  startNextRound,
 } from "./phase-setup.ts";
 export {
   allSelectionsConfirmed,
