@@ -18,7 +18,7 @@ dust storm).
 | 1 | `src/shared/core/game-constants.ts` | Add string literal to `ModifierId` union + `MODIFIER_ID` map |
 | 2 | `src/shared/core/modifier-defs.ts` | Add pool entry (`weight`, `needsCheckpoint`, `tileMutationPrev`) + `MODIFIER_CONSUMERS` entry |
 | 3 | `src/game/modifiers/<name>.ts` | Create modifier file exporting a `ModifierImpl` object |
-| 4 | `src/game/modifiers/modifier-system.ts` | Import the impl and add entry to `MODIFIER_IMPLS` |
+| 4 | `src/game/modifier-system.ts` | Import the impl and add entry to `MODIFIER_IMPLS` |
 | 5 | `src/render/render-ui.ts` | Add banner color entry to `MODIFIER_COLORS` |
 | 6 | `.import-layers.json` | Register the new file (most modifiers land in "deep logic") |
 | 7 | *(if tile-mutating)* `src/shared/core/types.ts` | Add `fooTiles: Set<number> \| null` to `ModernState` + initial `null` in `createModernState()` |
@@ -37,58 +37,71 @@ Each modifier lives in its own file under `src/game/modifiers/`, exporting a
 `ModifierImpl` object. This mirrors the `src/game/upgrades/` layout.
 
 ```
-src/game/modifiers/
-  modifier-types.ts       — ModifierImpl interface + ModifierTileData
+src/game/
   modifier-system.ts      — MODIFIER_IMPLS registry, rollModifier, checkpoint orchestration
-  wildfire.ts             — wildfire impl + shared fire helpers (buildCanBurnPredicate, applyWildfireScar)
-  crumbling-walls.ts
-  grunt-surge.ts
-  frozen-river.ts
-  sinkhole.ts
-  high-tide.ts
-  dust-storm.ts           — impl + applyDustStormJitter (re-exported by modifier-system.ts)
-  rubble-clearing.ts
-  low-water.ts
-  dry-lightning.ts        — reuses wildfire's burn predicate + scar applicator
+  modifiers/
+    modifier-types.ts       — ModifierImpl discriminated union + ModifierTileData
+    fire.ts                 — wildfire + dry_lightning impls (shared burn predicate + scar applicator)
+    crumbling-walls.ts
+    grunt-surge.ts
+    frozen-river.ts
+    sinkhole.ts
+    high-tide.ts
+    dust-storm.ts           — impl + applyDustStormJitter (re-exported by modifier-system.ts)
+    rubble-clearing.ts
+    low-water.ts
+    fog-of-war.ts
+    frostbite.ts
 ```
 
 ### ModifierImpl interface
 
-Every modifier exports a `ModifierImpl` object from its file, then
-`modifier-system.ts` imports it into the `MODIFIER_IMPLS` map. The
-`satisfies Record<ModifierId, ModifierImpl>` check catches omissions at
-compile time.
+`ModifierImpl` is a discriminated union of three variants, tagged by the
+`lifecycle` field. Pick the variant that matches your modifier; the type
+checker enforces that the right hooks are present.
+
+| Lifecycle | Active for | Required hooks | Optional hooks | Examples |
+|-----------|------------|----------------|----------------|----------|
+| `"instant"` | apply at battle-start, no own state afterwards | `apply` | `skipsRecheck`, `fireRngDraws` | wildfire, dry_lightning, crumbling_walls, rubble_clearing, grunt_surge, dust_storm, fog_of_war |
+| `"permanent"` | forever (or until zone reset) | `apply`, `restore` | `zoneReset`, `skipsRecheck` | sinkhole |
+| `"round-scoped"` | this round's BATTLE → next CANNON_PLACE-done | `apply`, `clear` | `restore`, `zoneReset`, `skipsRecheck`, `fireRngDraws` | frozen_river, high_tide, low_water, frostbite |
+
+Pick the lifecycle by asking: does my effect leave any state behind that
+needs to be reverted? If no → `instant`. If state survives forever → `permanent`. If state should clear at next round's CANNON_PLACE-done →
+`round-scoped`.
 
 ```ts
-// src/game/modifiers/my-modifier.ts
+// src/game/modifiers/my-modifier.ts — round-scoped example
 export const myModifierImpl: ModifierImpl = {
+  lifecycle: "round-scoped",
   apply: (state: GameState) => ({
     changedTiles: [...applyMyModifier(state)],
     gruntsSpawned: 0,
   }),
-  // skipsRecheck omitted = recheckTerritory runs after apply (default).
-  // Set `skipsRecheck: true` ONLY if your modifier provably leaves walls
-  // and tile passability untouched (e.g. visual-only or grunt-spawn-only).
-  clear: clearMyModifier,      // optional — revert temporary state before next battle
-  zoneReset: resetMyModifierForZone,  // optional — revert tiles for an eliminated zone
-  restore: (state, data) => {  // optional — restore tile state from checkpoint
+  clear: clearMyModifier,             // REQUIRED for round-scoped
+  zoneReset: resetMyModifierForZone,  // optional — eliminated-zone cleanup
+  restore: (state, data) => {         // optional — needed if you carry checkpointable state
     state.modern!.myModifierTiles = data.myModifierTiles
       ? new Set(data.myModifierTiles)
       : null;
     reapplyMyModifierTiles(state);
   },
+  // skipsRecheck omitted = recheckTerritory runs after apply (default).
 };
 ```
 
 Then in `modifier-system.ts`:
 ```ts
-import { myModifierImpl } from "./my-modifier.ts";
+import { myModifierImpl } from "./modifiers/my-modifier.ts";
 
 const MODIFIER_IMPLS = {
   // ...existing entries...
   my_modifier: myModifierImpl,
 } as const satisfies Record<ModifierId, ModifierImpl>;
 ```
+
+**`lifecycle`** (REQUIRED, all variants) — the discriminator. The type
+system uses it to enforce the rest of the contract. Don't omit it.
 
 **`apply`** — called at battle start. Returns `{ changedTiles, gruntsSpawned }`
 for the reveal banner. Tile-mutating modifiers return the changed keys;
@@ -103,16 +116,23 @@ clearing). Forgetting to opt out wastes one recheck per battle (cheap);
 forgetting to opt IN under the old `needsRecheck` design silently desynced
 host vs watcher territory, which is why the default flipped.
 
-**`clear`** — idempotent function that reverts temporary state. Called before
-every battle start (not just when this modifier was active). Guard with a
-null check on your tile set.
+**`clear`** (REQUIRED on round-scoped, forbidden elsewhere) — idempotent
+function that reverts temporary state. Called from `prepareBattleState` at
+the end of every CANNON_PLACE phase, just before `rollModifier` (so the
+new modifier rolls against neutral terrain). Runs even if the previous
+round's modifier wasn't yours — guard with a null check on your tile set.
+The round-scoped lifecycle means each modifier is active from its own
+battle-start through the entire round, including UPGRADE_PICK + WALL_BUILD
++ the next round's CANNON_PLACE.
 
-**`zoneReset`** — reverts tiles belonging to a specific zone when a player is
-eliminated. Only needed for modifiers with `needsCheckpoint: true`.
+**`zoneReset`** (optional on permanent + round-scoped, forbidden on instant)
+— reverts tiles belonging to a specific zone when a player is eliminated.
+Only needed for modifiers with `needsCheckpoint: true`.
 
-**`restore`** — deserializes checkpoint data and re-applies tile mutations on
-a map regenerated from seed. Only needed for tile-mutating modifiers. Each
-modifier reads only its own field from `ModifierTileData`.
+**`restore`** (REQUIRED on permanent, optional on round-scoped, forbidden
+on instant) — deserializes checkpoint data and re-applies tile mutations
+on a map regenerated from seed. Each modifier reads only its own field
+from `ModifierTileData`.
 
 **`fireRngDraws`** — declares how many `state.rng.next()` calls your
 modifier performs **per cannon fire** while active. Default `0`. Only set
@@ -182,15 +202,21 @@ If your modifier mutates `map.tiles`, you need:
 The `lint:checkpoint-fields` lint verifies that every `ModernState` field
 appears in the serialization file.
 
-### Non-tile modifiers are simpler
+### Instant modifiers are simpler
 
-Modifiers like grunt surge, crumbling walls, and rubble clearing don't need
-checkpoint state, serialization, clear, or zoneReset. They just need:
+Modifiers like grunt surge, crumbling walls, rubble clearing, dust storm,
+fog of war, and the fire variants are `lifecycle: "instant"` — they fire
+once at battle-start and any side effects flow through normal game state
+(spawned grunts, destroyed walls, ignited burning pits). They need:
 1. The ID in `ModifierId` + `MODIFIER_ID`
-2. A pool entry in `modifier-defs.ts`
-3. A file in `src/game/modifiers/` exporting a `ModifierImpl`
-4. An import + entry in `MODIFIER_IMPLS` in `modifier-system.ts`
+2. A pool entry in `modifier-defs.ts` (`needsCheckpoint: false`)
+3. A file in `src/game/modifiers/` exporting a `ModifierImpl` with `lifecycle: "instant"`
+4. An import + entry in `MODIFIER_IMPLS` in `src/game/modifier-system.ts`
 5. A banner color in `render-ui.ts`
+
+The discriminated union forbids `clear`/`restore`/`zoneReset` on instant
+impls, so you can't accidentally write dead code that the dispatcher would
+never call.
 
 If the effect provably leaves walls and tile passability alone (visual-only
 like dust storm, or grunt-spawn-only like grunt surge), set
