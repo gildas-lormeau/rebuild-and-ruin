@@ -111,7 +111,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   online?: OnlinePhaseTicks;
 
   // Sibling systems / parent callbacks
-  render: () => void;
+  requestRender: () => void;
   /** Park a post-convergence callback — threaded through to
    *  `PhaseTransitionCtx` so `runTransition` can gate every mutate +
    *  display step on the camera reaching fullMapVp. See
@@ -487,7 +487,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       );
       if (flight.progress < 1) allDone = false;
     }
-    deps.render();
+    deps.requestRender();
     if (allDone) {
       battleAnim.flights = [];
       emitGameEvent(runtimeState.state.bus, GAME_EVENT.BALLOON_ANIM_END, {
@@ -613,7 +613,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // (`currentCannonPhantom`), written by the inbound network handler.
     // Render reads them via `buildCannonPhantomsUnion`.
 
-    deps.render();
+    deps.requestRender();
 
     // Exit predicate: every non-eliminated slot must be in `cannonPlaceDone`.
     // Local slots flip the bit above; remote-driven slots flip it via the
@@ -650,7 +650,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       dt,
       MODIFIER_REVEAL_TIMER,
     );
-    deps.render();
+    deps.requestRender();
     if (runtimeState.state.timer > 0) return false;
     resetAccum(runtimeState.accum, ACCUM_MODIFIER_REVEAL);
     runTransition("enter-battle", buildHostPhaseCtx());
@@ -672,7 +672,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ctrl.battleTick(runtimeState.state, dt);
     }
     syncCrosshairs(/* weaponsActive */ false, dt);
-    deps.render();
+    deps.requestRender();
   }
 
   function tickBattlePhase(dt: number): boolean {
@@ -710,7 +710,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Haptics and stats are handled by bus subscribers (onAny above / haptics subsystem).
 
     syncCrosshairs(weaponsActive, dt);
-    deps.render();
+    deps.requestRender();
 
     if (state.timer > 0 || state.cannonballs.length > 0) return false;
     // Safe margin: let impact flashes, ice-thaw, and wall-burn animations
@@ -757,7 +757,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickBuildPhase(dt: number): boolean {
     if (deps.scoreDelta.isActive()) {
-      deps.render();
+      deps.requestRender();
       return false;
     }
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
@@ -812,7 +812,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // diverge by one frame, drifting state-dependent RNG draws.
     tickGruntsIfDue(accum, dt, state, tickGrunts);
 
-    deps.render();
+    deps.requestRender();
     if (state.timer > 0) return false;
 
     // --- End of phase: delegate to the round-end transition ---

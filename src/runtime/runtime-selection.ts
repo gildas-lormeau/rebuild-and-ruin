@@ -74,7 +74,7 @@ interface SelectionSystemDeps {
   ) => void;
 
   // Sibling systems / parent callbacks
-  render: () => void;
+  requestRender: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). */
@@ -224,7 +224,7 @@ export function createSelectionSystem(
 
     deps.sendTowerSelected(pid, idx, false);
     syncSelectionOverlay();
-    deps.render();
+    deps.requestRender();
 
     // Auto-zoom to the highlighted tower on mobile (human player only, own zone)
     const human = deps.pointerPlayer();
@@ -274,7 +274,7 @@ export function createSelectionSystem(
     }
 
     syncSelectionOverlay();
-    deps.render();
+    deps.requestRender();
     // Both host and watcher run startPlayerCastleBuild — derives wall plan
     // locally via prepareCastleWallsForPlayer (consumes state.rng) and
     // queues animation. No wire payload: state.rng is in sync, so plans match.
@@ -308,7 +308,7 @@ export function createSelectionSystem(
     // Block selection until announcement finishes — same gate on every
     // peer so the AI tick count stays in lockstep across runtimes.
     if (accum.selectAnnouncement < SELECT_ANNOUNCEMENT_DURATION) {
-      deps.render();
+      deps.requestRender();
       return;
     }
     // First frame after announcement: sync overlay so cursor appears
@@ -348,7 +348,7 @@ export function createSelectionSystem(
       recheckTerritory(state);
     }
 
-    deps.render();
+    deps.requestRender();
 
     // Auto-confirm pending selections on timer expiry. Skip remote
     // humans — their owning peer runs the same auto-confirm and
@@ -433,7 +433,7 @@ export function createSelectionSystem(
 
   function tickCastleBuild(dt: number): void {
     if (tickAllCastleBuilds(dt)) recheckTerritory(runtimeState.state);
-    deps.render();
+    deps.requestRender();
     if (runtimeState.selection.castleBuilds.length === 0) {
       fireOnce(runtimeState.selection, "castleBuildOnDone");
     }

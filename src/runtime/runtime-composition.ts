@@ -235,6 +235,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const runtimeState = createRuntimeState();
+  /** Mark the next browser frame as needing a render. Tick handlers call
+   *  this instead of the real `render()`; `mainLoop` drains the flag once
+   *  per frame after the substep loop. Spiral-of-death prevention. */
+  const requestRender = (): void => {
+    runtimeState.renderDirty = true;
+  };
   const haptics = createHapticsSubsystem({
     getLevel: () => runtimeState.settings.haptics,
     getPovPlayerId: () => runtimeState.frameMeta.povPlayerId,
@@ -429,6 +435,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickCamera: () => tickCamera(),
     tickScoreDelta: (dt: number) => scoreDelta.tick(dt),
     render: () => render(),
+    requestRender,
     tickMode,
     onAfterFrame: () => {
       // Per-frame tick event — emitted in BOTH headless and E2E so tests
@@ -571,7 +578,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createBannerSystem({
       runtimeState,
       log: config.log,
-      render: () => render(),
+      requestRender,
       rendererCaptureScene: () => renderer.captureScene(),
       captureSceneOffscreen: () => captureSceneOffscreen(),
     });
@@ -596,7 +603,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     camera,
     syncSelectionOverlay: updateSelectionOverlay,
-    render: () => render(),
+    requestRender,
     pointerPlayer,
     startCannonPhase: () => phaseTicks.startCannonPhase(),
     enterCannonAfterCastleSelect: () =>
@@ -725,7 +732,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sendLifeLostChoice: (choice, playerId) =>
       config.network.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
     log: config.log,
-    render,
+    requestRender,
     panelPos: (pid) =>
       lifeLostPanelPos(selectRenderView(runtimeState.state), pid),
     applyEarlyChoices: config.onlineDialogDrains?.drainLifeLost,
@@ -738,7 +745,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const upgradePick: UpgradePickSystem = createUpgradePickSystem({
     runtimeState,
     log: config.log,
-    render,
+    requestRender,
     sendUpgradePick: (playerId, choice) =>
       config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
     applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
@@ -778,7 +785,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         playerId,
       }),
     online: config.onlinePhaseTicks,
-    render,
+    requestRender,
     onCameraReady: camera.onCameraReady,
     showBanner,
     hideBanner,

@@ -45,7 +45,7 @@ import {
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
-  readonly render: () => void;
+  readonly requestRender: () => void;
   readonly sendUpgradePick: (
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
@@ -175,7 +175,7 @@ export function createUpgradePickSystem(
         ),
     );
 
-    deps.render();
+    deps.requestRender();
 
     if (!allResolved) return;
 

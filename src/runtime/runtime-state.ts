@@ -123,6 +123,14 @@ export interface RuntimeState {
   lastTime: number;
   frameDt: number;
 
+  /** Set by tick handlers via `requestRender`; drained once per browser
+   *  frame at the end of `mainLoop`. Coalescing N substep renders into 1
+   *  prevents the spiral-of-death where heavy frames render multiple times
+   *  but only the last image is ever painted. The few sites that need a
+   *  synchronous render (game-over terminal frame, in-STOPPED-mode focus
+   *  toggles) bypass this flag via `forceRender`. */
+  renderDirty: boolean;
+
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
@@ -269,6 +277,7 @@ export function createRuntimeState(): RuntimeState {
     accum: createTimerAccums(),
     lastTime: 0,
     frameDt: DEFAULT_FRAME_DT,
+    renderDirty: false,
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
@@ -355,7 +364,7 @@ export function tickMainLoop(params: {
   readonly frame: { announcement?: string };
   readonly setQuitPending: (quitPending: boolean) => void;
   readonly setQuitTimer: (quitTimer: number) => void;
-  readonly render: () => void;
+  readonly requestRender: () => void;
   readonly tickMode: TickDispatch;
 }): boolean {
   const { dt, mode, frame, tickMode } = params;
@@ -374,7 +383,7 @@ export function tickMainLoop(params: {
   // Pause: keep rendering but skip all game ticks
   if (params.paused && isGameplayMode(mode)) {
     if (!frame.announcement) frame.announcement = "PAUSED";
-    params.render();
+    params.requestRender();
     return true;
   }
 

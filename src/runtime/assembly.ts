@@ -61,7 +61,15 @@ interface RuntimeLoopDeps {
   isMobileAutoZoom: () => boolean;
   tickCamera: () => void;
   tickScoreDelta: (dt: number) => void;
+  /** The real render entrypoint. Called once per browser frame from
+   *  `mainLoop`, and only when `runtimeState.renderDirty` is set — the
+   *  dirty flag is the dedup mechanism that prevents the spiral-of-death
+   *  (multiple substeps per browser frame each issuing their own render). */
   render: () => void;
+  /** Mark the frame as needing a render. Tick handlers call this instead
+   *  of `render` directly so that N substeps coalesce into a single render
+   *  per browser frame. */
+  requestRender: () => void;
   /** Single dispatcher invoked once per sim sub-step. Implemented as a
    *  switch + assertNever in the composition root so an unknown mode is
    *  a loud failure rather than a silent no-op. */
@@ -174,7 +182,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       setQuitTimer: (quitTimer: number) => {
         deps.runtimeState.quit.timer = quitTimer;
       },
-      render: deps.render,
+      requestRender: deps.requestRender,
       tickMode: deps.tickMode,
     });
   }
@@ -194,6 +202,16 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       }
       shouldContinue = runOneSubStep();
       if (!shouldContinue) break;
+    }
+
+    // Drain render-dirty once per browser frame. Tick handlers set the
+    // flag via `requestRender`; the actual render fires here, after all
+    // substeps have advanced state. Coalescing N substep renders into 1
+    // is the spiral-of-death fix — only the last image is ever painted
+    // by the browser anyway, so the wasted N-1 renders bought nothing.
+    if (deps.runtimeState.renderDirty) {
+      deps.runtimeState.renderDirty = false;
+      deps.render();
     }
 
     deps.onAfterFrame?.();

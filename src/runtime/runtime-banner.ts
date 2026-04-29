@@ -52,7 +52,7 @@ import {
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
-  readonly render: () => void;
+  readonly requestRender: () => void;
   /** Renderer A-snapshot — copies the current display's game area into a
    *  banner-owned bridge canvas and returns that canvas, or `undefined` in
    *  headless / pre-first-frame. Called inside `showBanner` once before
@@ -84,7 +84,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const {
     runtimeState,
     log,
-    render,
+    requestRender,
     rendererCaptureScene,
     captureSceneOffscreen,
   } = deps;
@@ -197,7 +197,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         if (callback) callback();
       }
     }
-    render();
+    requestRender();
   }
 
   return { showBanner, hideBanner, resetBannerState, tickBanner };

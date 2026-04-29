@@ -34,7 +34,7 @@ interface LifeLostSystemDeps {
   ) => void;
   log: (msg: string) => void;
 
-  render: () => void;
+  requestRender: () => void;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 
   /** Online-only drain for wire-arrived choices that landed before the
@@ -154,7 +154,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
         ),
     );
 
-    deps.render();
+    deps.requestRender();
 
     if (!dialogResolved) return;
 
