@@ -29,6 +29,7 @@ import type {
   ModifierTileData,
 } from "./modifiers/modifier-types.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
+import { sapperImpl } from "./modifiers/sapper.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";
 
 export { applyDustStormJitter } from "./modifiers/dust-storm.ts";
@@ -47,6 +48,7 @@ const MODIFIER_IMPLS = {
   dry_lightning: dryLightningImpl,
   fog_of_war: fogOfWarImpl,
   frostbite: frostbiteImpl,
+  sapper: sapperImpl,
 } as const satisfies Record<ModifierId, ModifierImpl>;
 /** Registry map for dispatching modifier lifecycle hooks by id. */
 export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(

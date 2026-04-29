@@ -148,6 +148,7 @@ const MODIFIER_COLORS: Record<
   dry_lightning: { title: "#ffe080", border: "#c0a030", pulseColor: "#f0d060" },
   fog_of_war: { title: "#c8d0d8", border: "#6c7480", pulseColor: "#a0a8b4" },
   frostbite: { title: "#b8e8ff", border: "#5098c8", pulseColor: "#88d0f0" },
+  sapper: { title: "#c89878", border: "#785838", pulseColor: "#a07050" },
 };
 
 /** Draw announcement text centered on screen. */

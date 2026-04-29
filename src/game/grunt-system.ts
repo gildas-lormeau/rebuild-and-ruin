@@ -216,6 +216,17 @@ export function gruntAttackTowers(
   if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE)
     return { towerEvents: [], wallEvents: [] };
 
+  // Sapper: re-flag any grunt that has moved adjacent to a wall since the
+  // last battle-start roll. Pure shared-state derivation — no RNG, no wire
+  // payload — so host and watcher compute identical flips.
+  if (state.modern?.activeModifier === MODIFIER_ID.SAPPER) {
+    for (const grunt of state.grunts) {
+      if (grunt.attackingWall) continue;
+      if (!canAttemptWallAttack(state, grunt, true)) continue;
+      grunt.attackingWall = true;
+    }
+  }
+
   const deadZones = getDeadZones(state);
   const events: TowerKilledMessage[] = [];
   const wallEvents: ImpactEvent[] = [];
@@ -344,12 +355,15 @@ export function updateGruntBlockedBattles(state: GameState): void {
  * have 1/4 chance to attack an adjacent wall.
  */
 /** attackingWall lifecycle: rollGruntWallAttacks (set) → gruntAttackTowers (execute) →
- *  updateGruntBlockedBattles (clear). All three run during BATTLE phase only. */
+ *  updateGruntBlockedBattles (clear). All three run during BATTLE phase only.
+ *  Sapper bypasses both the blocked-battles requirement and the random roll —
+ *  any grunt adjacent to a wall flips the flag. */
 export function rollGruntWallAttacks(state: GameState): void {
+  const sapperActive = state.modern?.activeModifier === MODIFIER_ID.SAPPER;
   for (const grunt of state.grunts) {
-    if (!canAttemptWallAttack(state, grunt)) continue;
+    if (!canAttemptWallAttack(state, grunt, sapperActive)) continue;
 
-    if (state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)) {
+    if (sapperActive || state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)) {
       grunt.attackingWall = true;
     }
   }
@@ -539,9 +553,13 @@ function minWaterDistance(state: GameState, row: number, col: number): number {
   return minWaterDist;
 }
 
-function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
+function canAttemptWallAttack(
+  state: GameState,
+  grunt: Grunt,
+  bypassBlockedRequirement: boolean,
+): boolean {
   return (
-    hasBlockedBattlesForWallAttack(grunt) &&
+    (bypassBlockedRequirement || hasBlockedBattlesForWallAttack(grunt)) &&
     getLiveTargetTower(state, grunt) !== null &&
     hasAdjacentWall(state, grunt.row, grunt.col)
   );

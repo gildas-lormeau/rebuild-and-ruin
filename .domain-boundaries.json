@@ -69,6 +69,7 @@
       "src/game/modifiers/modifier-types.ts",
       "src/game/modifier-system.ts",
       "src/game/modifiers/rubble-clearing.ts",
+      "src/game/modifiers/sapper.ts",
       "src/game/modifiers/sinkhole.ts",
       "src/game/game-engine.ts",
       "src/game/selection.ts",

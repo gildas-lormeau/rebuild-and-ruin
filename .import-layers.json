@@ -166,6 +166,7 @@
       "src/game/modifiers/high-tide.ts",
       "src/game/modifiers/low-water.ts",
       "src/game/modifiers/rubble-clearing.ts",
+      "src/game/modifiers/sapper.ts",
       "src/game/modifiers/sinkhole.ts",
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/ceasefire.ts",

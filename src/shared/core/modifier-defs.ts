@@ -181,6 +181,16 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     needsCheckpoint: true,
     tileMutationPrev: null,
   },
+  {
+    id: "sapper",
+    label: "Sapper",
+    description:
+      "Grunts attack any adjacent wall on sight — no blocked-rounds requirement, no random roll",
+    weight: 2,
+    implemented: true,
+    needsCheckpoint: false,
+    tileMutationPrev: null,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -230,6 +240,10 @@ export const MODIFIER_CONSUMERS = {
   frostbite: {
     impl: "src/game/modifiers/frostbite.ts",
     serialize: "src/online/online-serialize.ts",
+  },
+  sapper: {
+    impl: "src/game/modifiers/sapper.ts",
+    behavior: "src/game/grunt-system.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 
