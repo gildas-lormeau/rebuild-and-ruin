@@ -156,8 +156,8 @@ export interface FireBurstHost {
   flames: FlameDescriptor[];
   smoke: SmokePuff[];
   sparks: SparkMesh[];
-  flash: THREE.Mesh;
-  flashMaterial: THREE.MeshBasicMaterial;
+  /** Flash discs live in the manager's shared `FlashPool`; the host
+   *  contributes one per frame while `t < FLASH_DURATION`. */
   flashBaseRadius: number;
 }
 
@@ -182,6 +182,29 @@ interface FlamePool {
   dispose(): void;
 }
 
+/** Per-manager pool for flash-disc instances. Same instancing pattern as
+ *  the flame pool — shared `CircleGeometry`, per-instance matrix +
+ *  opacity (color is uniform via the material). The flash is the brief
+ *  bright burst at the start of each fire-burst (`t < FLASH_DURATION`). */
+interface FlashPool {
+  mesh: THREE.InstancedMesh;
+  beginFrame(): void;
+  append(matrix: THREE.Matrix4, opacity: number): void;
+  commitFrame(): void;
+  dispose(): void;
+}
+
+/** Bundle of every per-manager instanced pool used by the fire-burst
+ *  pipeline. Each manager owns one bundle; `animateFireBurst` appends
+ *  to whichever pools the host needs this frame. */
+interface BurstPools {
+  flame: FlamePool;
+  flash: FlashPool;
+  beginFrame(): void;
+  commitFrame(): void;
+  dispose(): void;
+}
+
 const SMOKE_COLOR = 0x303036;
 const SPARK_COLOR = 0xffd066;
 const FLASH_COLOR = 0xffffcc;
@@ -195,6 +218,9 @@ const SMOKE_TEXTURE_SIZE = 128;
  *  each ≈ 135) with headroom; overflow flames silently drop, which
  *  the eye never notices in a frame this dense. */
 const MAX_FLAMES = 256;
+/** Flash discs are 1 per host and only fire during the first 12% of
+ *  the burst's life — practical max is ~10 simultaneous. 32 covers it. */
+const MAX_FLASHES = 32;
 /** Default flame palette. Callers typically reuse this verbatim; the
  *  emissive intensities are scaled by a single multiplier through
  *  `makeFlameLayers` rather than authored per-caller. */
@@ -230,6 +256,10 @@ const flameScratchPos = new THREE.Vector3();
 const flameScratchQuat = new THREE.Quaternion();
 const flameScratchScale = new THREE.Vector3();
 const flameScratchColor = new THREE.Color();
+const flashScratchMatrix = new THREE.Matrix4();
+const flashScratchPos = new THREE.Vector3();
+const flashScratchScale = new THREE.Vector3();
+const flashScratchIdentityQuat = new THREE.Quaternion();
 
 let sharedFlameGeometry: THREE.LatheGeometry | undefined;
 let sharedSmokeTexture: THREE.CanvasTexture | undefined;
@@ -254,7 +284,7 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
   root.name = params.name;
   scene.add(root);
 
-  const flamePool = createFlamePool(root);
+  const pools = createBurstPools(root);
 
   const reconciler = createReconciler<T, FireBurstHost>({
     build: (entry) =>
@@ -268,19 +298,207 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
       ),
     dispose: (host) => disposeFireBurstHost(root, host),
     animate: (host, entry) =>
-      animateFireBurst(flamePool, host, entry.age, params.duration),
+      animateFireBurst(pools, host, entry.age, params.duration),
   });
 
   return {
     update(ctx) {
-      flamePool.beginFrame();
+      pools.beginFrame();
       reconciler.update(params.selectEntries(ctx) ?? []);
-      flamePool.commitFrame();
+      pools.commitFrame();
     },
     dispose() {
       reconciler.disposeAll();
-      flamePool.dispose();
+      pools.dispose();
       scene.remove(root);
+    },
+  };
+}
+
+/** Build the full bundle of per-manager pools the fire-burst pipeline
+ *  uses. Each manager calls this once at init, then `pools.beginFrame()`
+ *  / `pools.commitFrame()` brackets the per-frame reconciler.update,
+ *  and `pools.dispose()` tears everything down. */
+export function createBurstPools(parent: THREE.Group): BurstPools {
+  const flame = createFlamePool(parent);
+  const flash = createFlashPool(parent);
+  return {
+    flame,
+    flash,
+    beginFrame() {
+      flame.beginFrame();
+      flash.beginFrame();
+    },
+    commitFrame() {
+      flame.commitFrame();
+      flash.commitFrame();
+    },
+    dispose() {
+      flame.dispose();
+      flash.dispose();
+    },
+  };
+}
+
+/** Produce a flame-layer palette that scales the default emissive
+ *  intensities by a single multiplier. Cannon-burn wants ~1.15× the
+ *  wall-burn glow; wall-burn passes 1.0. */
+export function makeFlameLayers(
+  emissiveMultiplier: number,
+): readonly FlameLayer[] {
+  return DEFAULT_FLAME_LAYERS.map((layer) => ({
+    ...layer,
+    emissiveIntensity: layer.emissiveIntensity * emissiveMultiplier,
+  }));
+}
+
+/** Build a fire-burst host anchored at `(worldX, worldY, worldZ)`. The
+ *  caller owns `parent` — this function adds the host group to it and
+ *  returns handles for later animation / disposal. */
+export function createFireBurstHost(
+  parent: THREE.Group,
+  worldX: number,
+  worldY: number,
+  worldZ: number,
+  seed: number,
+  config: FireBurstConfig,
+): FireBurstHost {
+  ensureFireBurstResources();
+  const group = new THREE.Group();
+  group.position.set(worldX, worldY, worldZ);
+  parent.add(group);
+
+  const flames = buildFlames(seed, config);
+  const smoke = buildSmoke(group, seed, config);
+  const sparks = buildSparks(group, seed, config);
+
+  return {
+    group,
+    flames,
+    smoke,
+    sparks,
+    flashBaseRadius: config.flashBaseRadius,
+  };
+}
+
+/** Tear down a host's per-host resources and remove it from its parent.
+ *  Flames + flash have no per-host resources — they live in the
+ *  manager-shared pools and stop rendering as soon as the host is
+ *  dropped from the reconciler's entry list (no animate call → no
+ *  append → instance slot reused next frame). */
+export function disposeFireBurstHost(
+  parent: THREE.Group,
+  host: FireBurstHost,
+): void {
+  for (const puff of host.smoke) puff.material.dispose();
+  for (const spark of host.sparks) spark.material.dispose();
+  parent.remove(host.group);
+}
+
+/** Per-frame update. `age` is seconds since birth; `duration` is the
+ *  burst's nominal life. Sets group visibility, animates each
+ *  primitive, and updates the flash envelope. Flames + flash are
+ *  appended to the manager-shared `pools` — every flame and flash
+ *  across every active host on the same manager renders in two
+ *  instanced draws (one per primitive type) at `pools.commitFrame()`
+ *  time. Smoke + sparks remain per-host (Phase 2b). */
+export function animateFireBurst(
+  pools: BurstPools,
+  host: FireBurstHost,
+  age: number,
+  duration: number,
+): void {
+  const t = age / duration;
+  if (t >= 1) {
+    host.group.visible = false;
+    return;
+  }
+  host.group.visible = true;
+
+  const envelope = computeEnvelope(t);
+  animateFlames(
+    pools.flame,
+    host.flames,
+    host.group.position.x,
+    host.group.position.y,
+    host.group.position.z,
+    age,
+    envelope,
+  );
+  animateSmoke(host.smoke, age, t, duration);
+  animateSparks(host.sparks, age, t);
+
+  if (t < FLASH_DURATION) {
+    const flashT = t / FLASH_DURATION;
+    const flashOpacity = 1 - flashT;
+    const flashScale = host.flashBaseRadius * (1 + flashT * 0.6);
+    flashScratchPos.set(
+      host.group.position.x,
+      host.group.position.y + 0.02,
+      host.group.position.z,
+    );
+    flashScratchScale.set(flashScale, flashScale, flashScale);
+    flashScratchMatrix.compose(
+      flashScratchPos,
+      flashScratchIdentityQuat,
+      flashScratchScale,
+    );
+    pools.flash.append(flashScratchMatrix, flashOpacity);
+  }
+}
+
+/** Build a manager-shared flash pool. Same instancing shape as
+ *  `createFlamePool`, but uses the shared circle geometry, no
+ *  per-instance color (flash is uniformly bright cream), and a smaller
+ *  capacity (one flash per host, brief lifetime). */
+function createFlashPool(
+  parent: THREE.Group,
+  capacity: number = MAX_FLASHES,
+): FlashPool {
+  ensureFireBurstResources();
+  const geometry = sharedFlashGeometry!.clone();
+  const opacityArray = new Float32Array(capacity);
+  const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
+  opacityAttribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("instanceOpacity", opacityAttribute);
+
+  const material = new THREE.MeshBasicMaterial({
+    color: FLASH_COLOR,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+  });
+  material.onBeforeCompile = patchFlameInstanceOpacity;
+
+  const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+  mesh.name = "flashes";
+  mesh.count = 0;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  parent.add(mesh);
+
+  let cursor = 0;
+
+  return {
+    mesh,
+    beginFrame() {
+      cursor = 0;
+    },
+    append(matrix, opacity) {
+      if (cursor >= capacity) return;
+      mesh.setMatrixAt(cursor, matrix);
+      opacityArray[cursor] = opacity;
+      cursor++;
+    },
+    commitFrame() {
+      mesh.count = cursor;
+      mesh.instanceMatrix.needsUpdate = true;
+      opacityAttribute.needsUpdate = true;
+    },
+    dispose() {
+      parent.remove(mesh);
+      geometry.dispose();
+      material.dispose();
     },
   };
 }
@@ -295,7 +513,7 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
  *  (`<common>` for the varying, `<alphamap_fragment>` for the multiply
  *  — runs after `alphamap` so an alpha map combined with our opacity
  *  multiplies correctly even though flames don't currently use one). */
-export function createFlamePool(
+function createFlamePool(
   parent: THREE.Group,
   capacity: number = MAX_FLAMES,
 ): FlamePool {
@@ -354,116 +572,6 @@ export function createFlamePool(
       material.dispose();
     },
   };
-}
-
-/** Produce a flame-layer palette that scales the default emissive
- *  intensities by a single multiplier. Cannon-burn wants ~1.15× the
- *  wall-burn glow; wall-burn passes 1.0. */
-export function makeFlameLayers(
-  emissiveMultiplier: number,
-): readonly FlameLayer[] {
-  return DEFAULT_FLAME_LAYERS.map((layer) => ({
-    ...layer,
-    emissiveIntensity: layer.emissiveIntensity * emissiveMultiplier,
-  }));
-}
-
-/** Build a fire-burst host anchored at `(worldX, worldY, worldZ)`. The
- *  caller owns `parent` — this function adds the host group to it and
- *  returns handles for later animation / disposal. */
-export function createFireBurstHost(
-  parent: THREE.Group,
-  worldX: number,
-  worldY: number,
-  worldZ: number,
-  seed: number,
-  config: FireBurstConfig,
-): FireBurstHost {
-  ensureFireBurstResources();
-  const group = new THREE.Group();
-  group.position.set(worldX, worldY, worldZ);
-  parent.add(group);
-
-  const flames = buildFlames(seed, config);
-  const smoke = buildSmoke(group, seed, config);
-  const sparks = buildSparks(group, seed, config);
-  const flashMaterial = new THREE.MeshBasicMaterial({
-    color: FLASH_COLOR,
-    transparent: true,
-    opacity: 1,
-    depthWrite: false,
-  });
-  const flash = new THREE.Mesh(sharedFlashGeometry, flashMaterial);
-  flash.scale.setScalar(config.flashBaseRadius);
-  flash.position.y = 0.02;
-  group.add(flash);
-
-  return {
-    group,
-    flames,
-    smoke,
-    sparks,
-    flash,
-    flashMaterial,
-    flashBaseRadius: config.flashBaseRadius,
-  };
-}
-
-/** Tear down a host's per-host resources and remove it from its parent.
- *  Flames have no per-host resources — they live in the manager-shared
- *  `FlamePool` and stop rendering as soon as the host is dropped from
- *  the reconciler's entry list (no animate call → no append → instance
- *  slot reused next frame). */
-export function disposeFireBurstHost(
-  parent: THREE.Group,
-  host: FireBurstHost,
-): void {
-  for (const puff of host.smoke) puff.material.dispose();
-  for (const spark of host.sparks) spark.material.dispose();
-  host.flashMaterial.dispose();
-  parent.remove(host.group);
-}
-
-/** Per-frame update. `age` is seconds since birth; `duration` is the
- *  burst's nominal life. Sets group visibility, animates each
- *  primitive, and updates the flash envelope. Flames are appended to
- *  the manager-shared `pool` (one append per descriptor) — every flame
- *  across every active host on the same manager renders in a single
- *  instanced draw at `pool.commitFrame()` time. */
-export function animateFireBurst(
-  pool: FlamePool,
-  host: FireBurstHost,
-  age: number,
-  duration: number,
-): void {
-  const t = age / duration;
-  if (t >= 1) {
-    host.group.visible = false;
-    return;
-  }
-  host.group.visible = true;
-
-  const envelope = computeEnvelope(t);
-  animateFlames(
-    pool,
-    host.flames,
-    host.group.position.x,
-    host.group.position.y,
-    host.group.position.z,
-    age,
-    envelope,
-  );
-  animateSmoke(host.smoke, age, t, duration);
-  animateSparks(host.sparks, age, t);
-
-  if (t < FLASH_DURATION) {
-    const flashT = t / FLASH_DURATION;
-    host.flashMaterial.opacity = 1 - flashT;
-    host.flash.scale.setScalar(host.flashBaseRadius * (1 + flashT * 0.6));
-    host.flash.visible = true;
-  } else {
-    host.flash.visible = false;
-  }
 }
 
 /** Module-level shader patcher shared across every pool. Three.js's
