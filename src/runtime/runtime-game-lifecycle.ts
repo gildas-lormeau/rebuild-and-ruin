@@ -59,6 +59,11 @@ interface GameLifecycleDeps {
   readonly clearAllZoomState: () => void;
   readonly clearLobbyMap: () => void;
   readonly resetInputForLobby: () => void;
+  /** Hard-stop SFX (snare loop, welldone chain) + music (bg track,
+   *  fanfares) so the ESC / ✕ quit path doesn't leave audio ringing
+   *  under the lobby. The route-level exit (`runtime.shutdown`) shares
+   *  the same helper. */
+  readonly stopAudio: () => void;
 
   // Demo timer (all-AI auto-return to lobby)
   readonly clearDemoTimer: () => void;
@@ -107,6 +112,7 @@ interface LifecycleWiringDeps {
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };
   readonly input: { resetForLobby: (rs: RuntimeState) => void };
+  readonly stopAudio: () => void;
 
   // Game-over UI
   readonly hitTestGameOver: (
@@ -183,6 +189,14 @@ export function createGameLifecycle(
   }
 
   function returnToLobby(): void {
+    // ESC / ✕ / game-over Menu / demo auto-return all land here. The
+    // game state freezes mid-phase, so the state-derived snare loop
+    // has no way to detect that the game is over, and any in-flight
+    // fanfare would otherwise ring under the lobby. Route-level exits
+    // share the same helper via `runtime.shutdown`. The lobby's
+    // `showLobby` callback re-starts the title track immediately
+    // afterwards.
+    deps.stopAudio();
     // Clear stale per-phase pinch memory + viewport targets from the
     // game we just quit so the lobby's background demo doesn't snap to
     // the previous human's favourite zoom when it reaches that phase.
@@ -286,6 +300,7 @@ export function buildLifecycleDeps(
     },
     resetInputForLobby: () =>
       wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
+    stopAudio: wiringDeps.stopAudio,
 
     clearDemoTimer: () => {
       if (runtimeState.demoReturnTimer !== undefined) {

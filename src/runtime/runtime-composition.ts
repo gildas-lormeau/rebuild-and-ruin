@@ -270,6 +270,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // stinger's duration, so the fanfare lands cleanly after it.
     onFirstEnclosure: (playerId) => void music.playFanfare(playerId),
   });
+  // Single quit-cleanup hook. Both `runtime.shutdown` (route-level exit)
+  // and `lifecycle.returnToLobby` (in-app ESC / ✕ / game-over Menu) call
+  // this so the snare loop, welldone chain, and any in-flight fanfare
+  // stop the moment the user leaves the game — no leftover audio
+  // ringing under the lobby.
+  const stopAllAudio = (): void => {
+    sfx.stopAll();
+    music.stopAll();
+  };
   // The Sound modal (URL field + file pickers) lives in index.html. Headless
   // tests run without DOM — skip construction and pass a no-op opener so the
   // options screen still renders the row (it just won't open anything there).
@@ -681,6 +690,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input: {
         resetForLobby: (runtimeState) => input.resetForLobby(runtimeState),
       },
+      stopAudio: stopAllAudio,
       hitTestGameOver: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;
         if (!gameOver) return null;
@@ -1006,7 +1016,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     music: {
       activate: music.activate,
       startTitle: music.startTitle,
-      stopTitle: music.stopTitle,
     },
     sfx: { activate: sfx.activate },
 
@@ -1020,11 +1029,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // (runtime-lobby tickLobby, online initFromServer); this covers the
       // quit-back-to-menu paths so callers don't repeat the assignment.
       runtimeState.lobby.active = false;
-      // stopTitle clears `wantsTitle` and stops whatever bg track is
-      // active (the function name is historical — it stops any current
-      // bg source, not just the title screen).
-      void music.stopTitle();
-      sfx.stopAll();
+      stopAllAudio();
     },
 
     upgradePick,

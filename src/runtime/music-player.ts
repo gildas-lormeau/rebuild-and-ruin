@@ -68,8 +68,11 @@ export interface MusicSubsystem {
   /** Start the RXMI_TITLE.xmi track. Called from the lobby entry point so
    *  music covers the pre-game screen. Idempotent per instance. */
   startTitle(): Promise<void>;
-  /** Stop any active playback. Idempotent. */
-  stopTitle(): Promise<void>;
+  /** Hard-stop the bg track + every in-flight fanfare and clear the
+   *  caller's `wantsTitle` intent. Called on quit-to-menu so neither a
+   *  looped bg track nor a one-shot TETRIS fanfare outlives the game.
+   *  Mirrors sfx-player's `stopAll`. Idempotent. */
+  stopAll(): void;
   /** Play the one-shot tower-enclosure fanfare for a player. Picks a
    *  TETRIS sub-song by player slot (5/6/7 cycle). Plays through a fresh
    *  AudioBufferSourceNode so it overlaps any in-flight bg track for free. */
@@ -214,6 +217,13 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   // Track most recently asked to play; cleared by stopBg. Drives
   // tickPresentation's build-bg fade trigger and the setPaused restart hook.
   let bgPlaying: BgTrack | undefined;
+  // In-flight fanfare sources. Fanfares overlap the bg track on purpose
+  // (they're one-shots fired on tower-enclosure), so they're NOT cleared
+  // by stopBg. Tracked here so `stopAll` can silence them on quit-to-menu
+  // — without this, a fanfare fired right before ESC keeps ringing under
+  // the lobby. Auto-removed via the `ended` listener once the buffer
+  // plays through naturally.
+  const activeFanfareSources = new Set<AudioBufferSourceNode>();
 
   // AudioBuffers built from cached PCM during activate(). Bg tracks live
   // by track id, fanfares by player slot. Populated incrementally — each
@@ -418,10 +428,17 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     await playBg(BG_TRACK_TITLE);
   }
 
-  function stopTitle(): Promise<void> {
+  function stopAll(): void {
     wantsTitle = false;
-    stopBg(STOP_REASON_PHASE);
-    return Promise.resolve();
+    stopBg(STOP_REASON_DISPOSE);
+    for (const source of activeFanfareSources) {
+      try {
+        source.stop();
+      } catch {
+        // already ended — fine
+      }
+    }
+    activeFanfareSources.clear();
   }
 
   async function playFanfare(playerId: ValidPlayerSlot): Promise<void> {
@@ -439,6 +456,10 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       gain.gain.value = FANFARE_VOLUME;
       source.connect(gain);
       gain.connect(ctx.destination);
+      activeFanfareSources.add(source);
+      source.addEventListener("ended", () => {
+        activeFanfareSources.delete(source);
+      });
       source.start(0);
       deps.observer?.onPlay?.(`${FANFARE_TRACK}#slot${playerId}`);
     } catch (error) {
@@ -647,7 +668,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
   return {
     activate,
     startTitle: playTitle,
-    stopTitle,
+    stopAll,
     playFanfare,
     subscribeBus,
     tickPresentation,
