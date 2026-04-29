@@ -103,17 +103,25 @@ export interface FireBurstConfig {
   readonly flameLayers: readonly FlameLayer[];
 }
 
-export interface FlameMesh {
-  mesh: THREE.Mesh;
-  /** Unlit basic material — flames are emissive bright surfaces and
-   *  PBR's lighting math contributes nothing visible. Per-frame brightness
-   *  flicker (was `emissiveIntensity` modulation) is now applied as a
-   *  scalar multiply on the cached `baseColor`. */
-  material: THREE.MeshBasicMaterial;
+/** A single flame's per-instance state, decoupled from any specific
+ *  Mesh. The owning `FireBurstHost` collects descriptors at build time;
+ *  per frame, `animateFireBurst` composes `host worldPos × local
+ *  transform × scale animation` and appends one entry per flame to the
+ *  manager-shared `FlamePool`. No `THREE.Mesh` is created per flame —
+ *  every flame across every active host on a manager renders in a
+ *  single instanced draw. */
+export interface FlameDescriptor {
+  /** Local offset within the host group's frame. */
+  offsetX: number;
+  offsetY: number;
+  offsetZ: number;
+  /** Authored Y rotation per flame (was `mesh.rotation.y`). */
+  rotationY: number;
   baseRadius: number;
   baseHeight: number;
-  /** Pre-baked color = layer.emissive × layer.emissiveIntensity, clamped
-   *  in shader. Reused per frame as `material.color = baseColor × wob`. */
+  /** Pre-baked color = layer.emissive × layer.emissiveIntensity. The
+   *  per-frame crackle scalar is applied as a fresh `Color × wob` write
+   *  into the pool's per-instance color slot. */
   baseColor: THREE.Color;
   phase: number;
 }
@@ -143,12 +151,35 @@ export interface SparkMesh {
 
 export interface FireBurstHost {
   group: THREE.Group;
-  flames: FlameMesh[];
+  /** Flames live in the manager's shared `FlamePool` — only descriptors
+   *  are stored here. */
+  flames: FlameDescriptor[];
   smoke: SmokePuff[];
   sparks: SparkMesh[];
   flash: THREE.Mesh;
   flashMaterial: THREE.MeshBasicMaterial;
   flashBaseRadius: number;
+}
+
+/** Per-manager pool for flame instances. One `THREE.InstancedMesh` shared
+ *  across every active host on the same manager — `animateFireBurst`
+ *  appends one entry per flame each frame, advancing a cursor reset by
+ *  `beginFrame()`. Per-instance color carries the (baseColor × crackle)
+ *  product; per-instance opacity is plumbed through an `instanceOpacity`
+ *  attribute via a small `onBeforeCompile` patch on `MeshBasicMaterial`
+ *  (alpha is multiplied at fragment-output time). */
+interface FlamePool {
+  /** Owned by the caller — added under the manager's root group; freed
+   *  on `dispose()`. */
+  mesh: THREE.InstancedMesh;
+  beginFrame(): void;
+  /** Append one flame's transform + color + opacity to the next free
+   *  instance slot. No-ops when the pool is at capacity (extra flames
+   *  on rare overflow frames silently drop — capacity is sized for the
+   *  realistic peak in `MAX_FLAMES`). */
+  append(matrix: THREE.Matrix4, color: THREE.Color, opacity: number): void;
+  commitFrame(): void;
+  dispose(): void;
 }
 
 const SMOKE_COLOR = 0x303036;
@@ -159,6 +190,11 @@ const SPARK_GRAVITY = 15;
 const FLASH_DURATION = 0.12;
 const FLAME_PROFILE_SEGMENTS = 12;
 const SMOKE_TEXTURE_SIZE = 128;
+/** Per-pool hard cap on simultaneous flame instances. Sized for the
+ *  worst-case battle peak (e.g. 15 simultaneous bursts × ~9 flames
+ *  each ≈ 135) with headroom; overflow flames silently drop, which
+ *  the eye never notices in a frame this dense. */
+const MAX_FLAMES = 256;
 /** Default flame palette. Callers typically reuse this verbatim; the
  *  emissive intensities are scaled by a single multiplier through
  *  `makeFlameLayers` rather than authored per-caller. */
@@ -188,6 +224,12 @@ const DEFAULT_FLAME_LAYERS: readonly FlameLayer[] = [
     phaseOff: 2.4,
   },
 ] as const;
+const FLAME_Y_AXIS = new THREE.Vector3(0, 1, 0);
+const flameScratchMatrix = new THREE.Matrix4();
+const flameScratchPos = new THREE.Vector3();
+const flameScratchQuat = new THREE.Quaternion();
+const flameScratchScale = new THREE.Vector3();
+const flameScratchColor = new THREE.Color();
 
 let sharedFlameGeometry: THREE.LatheGeometry | undefined;
 let sharedSmokeTexture: THREE.CanvasTexture | undefined;
@@ -212,6 +254,8 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
   root.name = params.name;
   scene.add(root);
 
+  const flamePool = createFlamePool(root);
+
   const reconciler = createReconciler<T, FireBurstHost>({
     build: (entry) =>
       createFireBurstHost(
@@ -224,16 +268,90 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
       ),
     dispose: (host) => disposeFireBurstHost(root, host),
     animate: (host, entry) =>
-      animateFireBurst(host, entry.age, params.duration),
+      animateFireBurst(flamePool, host, entry.age, params.duration),
   });
 
   return {
     update(ctx) {
+      flamePool.beginFrame();
       reconciler.update(params.selectEntries(ctx) ?? []);
+      flamePool.commitFrame();
     },
     dispose() {
       reconciler.disposeAll();
+      flamePool.dispose();
       scene.remove(root);
+    },
+  };
+}
+
+/** Build a manager-shared flame pool. The pool's `InstancedMesh` is
+ *  parented under `parent` (typically the manager's root group) and
+ *  cleared on `dispose()`. The shared lathe geometry is cloned so the
+ *  pool can attach its own `instanceOpacity` attribute without mutating
+ *  the global. The fragment shader is patched to multiply final alpha
+ *  by `instanceOpacity` — three.js doesn't expose per-instance opacity
+ *  natively, so we plumb it through `onBeforeCompile` injection points
+ *  (`<common>` for the varying, `<alphamap_fragment>` for the multiply
+ *  — runs after `alphamap` so an alpha map combined with our opacity
+ *  multiplies correctly even though flames don't currently use one). */
+export function createFlamePool(
+  parent: THREE.Group,
+  capacity: number = MAX_FLAMES,
+): FlamePool {
+  ensureFireBurstResources();
+  const geometry = sharedFlameGeometry!.clone();
+  const opacityArray = new Float32Array(capacity);
+  const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
+  opacityAttribute.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("instanceOpacity", opacityAttribute);
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 1,
+    depthWrite: false,
+  });
+  material.onBeforeCompile = patchFlameInstanceOpacity;
+
+  const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+  mesh.name = "flames";
+  mesh.count = 0;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Pre-allocate instanceColor with DynamicDrawUsage so per-frame
+  // setColorAt writes don't trigger reallocation.
+  const colorArray = new Float32Array(capacity * 3);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(colorArray, 3);
+  mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+  // Bursts can be anywhere on the map; cheaper to render-then-cull than
+  // walk the (already small) instance bounds per frame.
+  mesh.frustumCulled = false;
+  parent.add(mesh);
+
+  let cursor = 0;
+
+  return {
+    mesh,
+    beginFrame() {
+      cursor = 0;
+    },
+    append(matrix, color, opacity) {
+      if (cursor >= capacity) return;
+      mesh.setMatrixAt(cursor, matrix);
+      mesh.setColorAt(cursor, color);
+      opacityArray[cursor] = opacity;
+      cursor++;
+    },
+    commitFrame() {
+      mesh.count = cursor;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      opacityAttribute.needsUpdate = true;
+    },
+    dispose() {
+      parent.remove(mesh);
+      geometry.dispose();
+      material.dispose();
     },
   };
 }
@@ -266,7 +384,7 @@ export function createFireBurstHost(
   group.position.set(worldX, worldY, worldZ);
   parent.add(group);
 
-  const flames = buildFlames(group, seed, config);
+  const flames = buildFlames(seed, config);
   const smoke = buildSmoke(group, seed, config);
   const sparks = buildSparks(group, seed, config);
   const flashMaterial = new THREE.MeshBasicMaterial({
@@ -291,12 +409,15 @@ export function createFireBurstHost(
   };
 }
 
-/** Tear down a host's per-host resources and remove it from its parent. */
+/** Tear down a host's per-host resources and remove it from its parent.
+ *  Flames have no per-host resources — they live in the manager-shared
+ *  `FlamePool` and stop rendering as soon as the host is dropped from
+ *  the reconciler's entry list (no animate call → no append → instance
+ *  slot reused next frame). */
 export function disposeFireBurstHost(
   parent: THREE.Group,
   host: FireBurstHost,
 ): void {
-  for (const flame of host.flames) flame.material.dispose();
   for (const puff of host.smoke) puff.material.dispose();
   for (const spark of host.sparks) spark.material.dispose();
   host.flashMaterial.dispose();
@@ -305,8 +426,12 @@ export function disposeFireBurstHost(
 
 /** Per-frame update. `age` is seconds since birth; `duration` is the
  *  burst's nominal life. Sets group visibility, animates each
- *  primitive, and updates the flash envelope. */
+ *  primitive, and updates the flash envelope. Flames are appended to
+ *  the manager-shared `pool` (one append per descriptor) — every flame
+ *  across every active host on the same manager renders in a single
+ *  instanced draw at `pool.commitFrame()` time. */
 export function animateFireBurst(
+  pool: FlamePool,
   host: FireBurstHost,
   age: number,
   duration: number,
@@ -319,7 +444,15 @@ export function animateFireBurst(
   host.group.visible = true;
 
   const envelope = computeEnvelope(t);
-  animateFlames(host.flames, age, envelope);
+  animateFlames(
+    pool,
+    host.flames,
+    host.group.position.x,
+    host.group.position.y,
+    host.group.position.z,
+    age,
+    envelope,
+  );
   animateSmoke(host.smoke, age, t, duration);
   animateSparks(host.sparks, age, t);
 
@@ -333,6 +466,32 @@ export function animateFireBurst(
   }
 }
 
+/** Module-level shader patcher shared across every pool. Three.js's
+ *  program cache keys on the patcher's function identity — defining it
+ *  inline per pool would compile a new program per pool. */
+function patchFlameInstanceOpacity(
+  shader: THREE.WebGLProgramParametersWithUniforms,
+): void {
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      "#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;",
+    )
+    .replace(
+      "#include <begin_vertex>",
+      "#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;",
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      "#include <common>\nvarying float vInstanceOpacity;",
+    )
+    .replace(
+      "#include <alphamap_fragment>",
+      "#include <alphamap_fragment>\ndiffuseColor.a *= vInstanceOpacity;",
+    );
+}
+
 function ensureFireBurstResources(): void {
   if (!sharedFlameGeometry) sharedFlameGeometry = buildFlameGeometry();
   if (!sharedSmokeTexture) sharedSmokeTexture = buildSmokeTexture();
@@ -342,12 +501,8 @@ function ensureFireBurstResources(): void {
   }
 }
 
-function buildFlames(
-  group: THREE.Group,
-  seed: number,
-  config: FireBurstConfig,
-): FlameMesh[] {
-  const flames: FlameMesh[] = [];
+function buildFlames(seed: number, config: FireBurstConfig): FlameDescriptor[] {
+  const flames: FlameDescriptor[] = [];
   const clusterMaxDist = config.halfSize * config.clusterSpread;
   for (let cluster = 0; cluster < config.clusterCount; cluster++) {
     const angle =
@@ -366,28 +521,21 @@ function buildFlames(
       config.flameWidthMulBase +
       pseudoRandom(seed, cluster, 19) * config.flameWidthMulRange;
     const phaseBase = pseudoRandom(seed, cluster, 23) * Math.PI * 2;
+    const rotationY = pseudoRandom(seed, cluster, 29) * Math.PI * 2;
     for (const layer of config.flameLayers) {
       const radius = layer.rRatio * config.halfSize * widthMul;
       const height = config.flameHeight * layer.hMul * heightMul;
-      // Bake `emissive × emissiveIntensity` into a single color. The
-      // shader will clamp on output, so values >1 are fine for the
-      // brightest flame layers.
+      // Bake `emissive × emissiveIntensity` into a single color; per-frame
+      // crackle is applied by the pool's animate path. WebGL clamps on
+      // output so values >1 saturate toward white.
       const baseColor = new THREE.Color(layer.emissive).multiplyScalar(
         layer.emissiveIntensity,
       );
-      const material = new THREE.MeshBasicMaterial({
-        color: baseColor.clone(),
-        transparent: true,
-        opacity: 1,
-      });
-      const mesh = new THREE.Mesh(sharedFlameGeometry, material);
-      mesh.scale.set(radius, height, radius);
-      mesh.position.set(offsetX, config.flameOriginY, offsetZ);
-      mesh.rotation.y = pseudoRandom(seed, cluster, 29) * Math.PI * 2;
-      group.add(mesh);
       flames.push({
-        mesh,
-        material,
+        offsetX,
+        offsetY: config.flameOriginY,
+        offsetZ,
+        rotationY,
         baseRadius: radius,
         baseHeight: height,
         baseColor,
@@ -503,8 +651,17 @@ function pseudoRandom(seed: number, index: number, salt: number): number {
   return mixed - Math.floor(mixed);
 }
 
+/** Compose host-world × flame-local × scale into the pool's next free
+ *  instance slot. Per-flame state (offsets, rotation, baseColor, phase)
+ *  lives on the descriptor; the per-frame envelope drives Y-scale +
+ *  opacity, the wob drives the brightness flicker that used to live on
+ *  `material.emissiveIntensity`. */
 function animateFlames(
-  flames: readonly FlameMesh[],
+  pool: FlamePool,
+  flames: readonly FlameDescriptor[],
+  hostX: number,
+  hostY: number,
+  hostZ: number,
   age: number,
   envelope: number,
 ): void {
@@ -514,19 +671,26 @@ function animateFlames(
       Math.sin(age * 37 + flame.phase * 2) * 0.5;
     const yScale = Math.max(0.05, envelope * (1 + wob * CRACKLE));
     const xzWob = 1 + wob * CRACKLE * 0.3;
-    flame.mesh.scale.set(
+    flameScratchPos.set(
+      hostX + flame.offsetX,
+      hostY + flame.offsetY,
+      hostZ + flame.offsetZ,
+    );
+    flameScratchQuat.setFromAxisAngle(FLAME_Y_AXIS, flame.rotationY);
+    flameScratchScale.set(
       flame.baseRadius * xzWob,
       flame.baseHeight * yScale,
       flame.baseRadius * xzWob,
     );
-    flame.material.opacity = envelope;
-    // Per-frame brightness flicker: scale the pre-baked emissive color
-    // by the same crackle envelope the PBR path applied to
-    // `emissiveIntensity`. WebGL clamps on output so values >1 saturate
-    // toward white, mimicking the over-bright PBR look.
-    flame.material.color
+    flameScratchMatrix.compose(
+      flameScratchPos,
+      flameScratchQuat,
+      flameScratchScale,
+    );
+    flameScratchColor
       .copy(flame.baseColor)
       .multiplyScalar(0.85 + wob * CRACKLE * 0.6);
+    pool.append(flameScratchMatrix, flameScratchColor, envelope);
   }
 }
 

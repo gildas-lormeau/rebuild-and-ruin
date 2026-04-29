@@ -24,6 +24,7 @@ import { ELEVATION_STACK } from "../elevation.ts";
 import {
   animateFireBurst,
   createFireBurstHost,
+  createFlamePool,
   disposeFireBurstHost,
   type EffectManager,
   type FireBurstConfig,
@@ -44,6 +45,8 @@ export function createCannonBurnsManager(
   root.name = "cannon-burns";
   scene.add(root);
 
+  const flamePool = createFlamePool(root);
+
   const reconciler = createReconciler<CannonDestroy, FireBurstHost>({
     build: (destroy) => {
       const footprintPx = destroy.size * TILE_SIZE;
@@ -58,15 +61,18 @@ export function createCannonBurnsManager(
     },
     dispose: (host) => disposeFireBurstHost(root, host),
     animate: (host, destroy) =>
-      animateFireBurst(host, destroy.age, CANNON_DESTROY_DURATION),
+      animateFireBurst(flamePool, host, destroy.age, CANNON_DESTROY_DURATION),
   });
 
   return {
     update(ctx) {
+      flamePool.beginFrame();
       reconciler.update(ctx.overlay?.battle?.cannonDestroys ?? []);
+      flamePool.commitFrame();
     },
     dispose() {
       reconciler.disposeAll();
+      flamePool.dispose();
       scene.remove(root);
     },
   };
