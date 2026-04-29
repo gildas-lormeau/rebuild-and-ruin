@@ -137,25 +137,6 @@ export type CreateBannerUiFn = (
   newScene?: SceneCapture,
 ) => BannerUi | undefined;
 
-export type CreateRenderSummaryMessageFn = (
-  params: RenderSummaryParams,
-) => string;
-
-export interface RenderSummaryParams {
-  phaseName: string;
-  timer: number;
-  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
-  piecePhantomsCount: number;
-  cannonPhantomsCount: number;
-  impactsCount: number;
-  cannonballsCount: number;
-  selectionHighlights?: Array<{
-    playerId: ValidPlayerSlot;
-    towerIdx: number;
-    confirmed?: boolean;
-  }>;
-}
-
 export type ComputeLobbyLayoutFn = (
   W: number,
   H: number,

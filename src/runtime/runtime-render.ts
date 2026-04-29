@@ -23,7 +23,6 @@ import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
-  CreateRenderSummaryMessageFn,
   Dpad,
   FloatingActions,
   QuitButton,
@@ -41,7 +40,6 @@ interface RenderSystemDeps {
   // Render-domain functions (injected from composition root, not imported directly)
   readonly createBannerUi: CreateBannerUiFn;
   readonly createOnlineOverlay: CreateOnlineOverlayFn;
-  readonly createRenderSummaryMessage: CreateRenderSummaryMessageFn;
 
   readonly drawFrame: (
     map: GameMap,
@@ -235,32 +233,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
   function render(): void {
     if (!isStateReady(runtimeState)) return;
-
-    // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
-    const chList = runtimeState.frame.crosshairs;
-    const selH = runtimeState.overlay.selection?.highlights;
-    // Both phantom kinds are owned by each controller
-    // (`currentBuildPhantoms` / `currentCannonPhantom`). Remote-controlled
-    // slots have their fields written by the inbound network handler.
-    let piecePhantomsCount = 0;
-    let cannonPhantomsCount = 0;
-    for (const ctrl of runtimeState.controllers) {
-      piecePhantomsCount += ctrl.currentBuildPhantoms.length;
-      if (ctrl.currentCannonPhantom) cannonPhantomsCount++;
-    }
-    deps.logThrottled(
-      "render-summary",
-      deps.createRenderSummaryMessage({
-        phaseName: Phase[runtimeState.state.phase],
-        timer: runtimeState.state.timer,
-        crosshairs: chList,
-        piecePhantomsCount,
-        cannonPhantomsCount,
-        impactsCount: runtimeState.battleAnim.impacts.length,
-        cannonballsCount: runtimeState.state.cannonballs.length,
-        selectionHighlights: selH,
-      }),
-    );
 
     // Refresh crosshairs from controller state when paused
     if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {

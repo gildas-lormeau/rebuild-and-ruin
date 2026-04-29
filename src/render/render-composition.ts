@@ -1,7 +1,6 @@
 import type {
   LobbyHit,
   OnlineOverlayParams,
-  RenderSummaryParams,
 } from "../runtime/runtime-contracts.ts";
 import type { BalloonFlight, Cannonball } from "../shared/core/battle-types.ts";
 import {
@@ -107,31 +106,6 @@ export const UPGRADE_CARD_GAP = 10;
 export const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
   (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
-
-export function createRenderSummaryMessage(
-  params: RenderSummaryParams,
-): string {
-  const {
-    phaseName,
-    timer,
-    crosshairs,
-    piecePhantomsCount,
-    cannonPhantomsCount,
-    impactsCount,
-    cannonballsCount,
-    selectionHighlights,
-  } = params;
-
-  const crosshairDetail = crosshairs
-    .map((c) => `P${c.playerId}(${Math.round(c.x)},${Math.round(c.y)})`)
-    .join(",");
-  const phantomCount = piecePhantomsCount + cannonPhantomsCount;
-  const selectionDetail = selectionHighlights
-    ? ` sel=[${selectionHighlights.map((h) => `P${h.playerId}:T${h.towerIdx}${h.confirmed ? "✓" : ""}`).join(",")}]`
-    : "";
-
-  return `render: phase=${phaseName} ch=${crosshairs.length}[${crosshairDetail}] phantoms=${phantomCount} impacts=${impactsCount} balls=${cannonballsCount} timer=${timer.toFixed(0)}${selectionDetail}`;
-}
 
 export function createBannerUi(
   active: boolean,

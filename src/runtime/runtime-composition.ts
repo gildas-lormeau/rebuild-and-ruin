@@ -54,7 +54,6 @@ import {
   computeLobbyLayout,
   createBannerUi,
   createOnlineOverlay,
-  createRenderSummaryMessage,
   gameOverButtonHitTest,
   handleLifeLostDialogClick,
   handleUpgradePickClick,
@@ -618,7 +617,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     timing,
     createBannerUi,
     createOnlineOverlay,
-    createRenderSummaryMessage,
     drawFrame: (map, overlay, viewport, now, skip3DScene) =>
       renderer.drawFrame(
         map,
