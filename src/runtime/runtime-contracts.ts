@@ -558,21 +558,26 @@ export interface RegisterOnlineInputDeps {
   // --- Direct touch state ---
   /**
    * Direct-touch state lifecycle:
-   *   - Enabled by: touch canvas on phantom tap (input-touch-canvas.ts)
-   *   - Disabled by: d-pad arrow press (input-touch-ui.ts), keyboard placement (input-keyboard.ts)
-   *   - Checked by: touch canvas to suppress tap-to-place when using d-pad
+   *   - Enabled by: touch canvas after a tap-to-place (input-touch-canvas.ts)
+   *   - Disabled by: d-pad arrow press (input-touch-ui.ts), keyboard placement
+   *     (input-keyboard.ts), leaving placement phase (input-touch-update.ts)
+   *   - Checked by: touch canvas to lock out further tap-to-place
    *
-   * When directTouchActive is true, floating action buttons are hidden and
-   * taps on the canvas directly confirm placement.
+   * When directTouchActive is true, the floating overlay buttons (confirm,
+   * rotate, …) are visible and tap-to-place on empty map is suppressed —
+   * the player commits via tap-on-piece (same as the overlay confirm
+   * button) or via the overlay buttons themselves. Drags reposition the
+   * piece but do not commit. This prevents accidental placements while
+   * reaching for an overlay button after the first tap-place.
    */
-  /** Enable or disable direct-touch mode (finger on screen = cursor follows touch).
-   *  Keyboard disables this when entering placement phase.
-   *  Touch canvas enables it when user touches during placement.
-   *  D-pad uses clearDirectTouch() (a shorthand for setDirectTouchActive(false)). */
+  /** Enable or disable direct-touch mode (overlay-driven placement).
+   *  Touch canvas enables it after the player's first tap-to-place.
+   *  Keyboard / d-pad disable it so the player can tap-to-place again. */
   setDirectTouchActive?: (active: boolean) => void;
   /** Whether the user is currently in direct-touch mode (floating buttons visible).
-   *  When true, tap-to-place on the canvas is suppressed (the floating confirm
-   *  button handles placement instead). Optional — absent on desktop. */
+   *  When true, tap-to-place on empty map is suppressed (commit via tap on
+   *  the piece itself or the floating confirm button instead).
+   *  Optional — absent on desktop. */
   isDirectTouchActive?: () => boolean;
 
   // --- Quit flow ---

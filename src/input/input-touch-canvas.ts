@@ -48,8 +48,10 @@ interface GestureState {
   touchStartX: number;
   touchStartY: number;
   touchStartTime: number;
-  /** Set when touchstart lands directly on the current phantom (tap confirms placement). */
-  shouldDirectlyPlaceOnTap: boolean;
+  /** True when touchstart landed on the current phantom. Lets a tap on the
+   *  piece itself confirm placement (like the overlay confirm button) even
+   *  when direct-touch is locked. */
+  startedOnPhantom: boolean;
   pinchActive: boolean;
   pinchStartDist: number;
   /** True once fingers moved apart during a pinch (distinguishes zoom from two-finger tap). */
@@ -106,7 +108,7 @@ function createGestureState(): GestureState {
     touchStartX: 0,
     touchStartY: 0,
     touchStartTime: 0,
-    shouldDirectlyPlaceOnTap: false,
+    startedOnPhantom: false,
     pinchActive: false,
     pinchStartDist: 0,
     pinchMoved: false,
@@ -121,7 +123,7 @@ function handleTouchStart(
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
-  gestureState.shouldDirectlyPlaceOnTap = false;
+  gestureState.startedOnPhantom = false;
   const { renderer, getState, getMode, coords } = deps;
 
   // Two-finger pinch start (minimum 2 fingers to distinguish from single-touch pan)
@@ -156,20 +158,26 @@ function handleTouchStart(
   const state = getState();
   if (!state || deps.lobby.isActive()) return;
 
-  // Tap-on-phantom: if the touch lands directly on the current phantom,
-  // skip cursor movement so the tap can confirm placement at touchend.
+  // Placement phases: when direct-touch is locked (after the player's first
+  // tap-place) or when the tap lands on the current phantom, skip the
+  // absolute cursor-move on touchstart. Pure taps stay inert; if the player
+  // then drags, touchmove falls through to absolute pointer-move (no anchor
+  // set), so the piece tracks the finger directly. The onPhantom flag is
+  // recorded so a tap on the piece itself still confirms placement (like
+  // the overlay confirm button) even after the lock kicks in.
   if (
     isPlacementPhase(state.phase) &&
     shouldHandleGameInput(getMode(), state)
   ) {
+    const locked = deps.isDirectTouchActive?.() ?? false;
     const tile = coords.pixelToTile(x, y);
-    let hit = false;
+    let onPhantom = false;
     deps.withPointerPlayer((human) => {
-      hit = isOnPhantom(human, state, tile.row, tile.col);
+      onPhantom = isOnPhantom(human, state, tile.row, tile.col);
     });
-    if (hit) {
-      gestureState.shouldDirectlyPlaceOnTap = true;
-      deps.setDirectTouchActive?.(true);
+    gestureState.startedOnPhantom = onPhantom;
+    if (locked || onPhantom) {
+      gestureState.dragAnchor = null;
       return;
     }
   }
@@ -317,12 +325,23 @@ function handleTouchEnd(
     );
   }
 
-  // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons
-  if (
-    tap &&
-    (gestureState.shouldDirectlyPlaceOnTap || !deps.isDirectTouchActive?.())
-  ) {
-    dispatchPlacement(state, deps);
+  // Build / Cannon placement on touch release. Two paths place a piece:
+  //  - Tap on the phantom itself: confirms placement (same effect as the
+  //    floating overlay confirm button). Works in both locked and unlocked
+  //    states so the player's "tap the piece to place it" muscle memory
+  //    survives the lockout.
+  //  - Tap elsewhere on the map while unlocked: places at the tapped tile.
+  //    Afterwards direct-touch locks, so subsequent taps near overlay
+  //    buttons can't accidentally trigger another placement.
+  // A locked tap on empty map is inert. Drag-end never commits — drags are
+  // for repositioning only; the player commits via tap-on-piece, the
+  // overlay confirm button, or the d-pad (which also clears the lock).
+  if (tap && isPlacementPhase(state.phase)) {
+    const locked = deps.isDirectTouchActive?.() ?? false;
+    if (gestureState.startedOnPhantom || !locked) {
+      dispatchPlacement(state, deps);
+      deps.setDirectTouchActive?.(true);
+    }
   }
 
   // Battle: always fire on touch release (tap or drag)
