@@ -18,6 +18,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import { recomputeMapZones } from "../zone-recompute.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const lowWaterImpl: ModifierImpl = {
@@ -27,17 +28,18 @@ export const lowWaterImpl: ModifierImpl = {
     gruntsSpawned: 0,
   }),
   clear: clearLowWater,
-  zoneReset: resetLowWaterTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {
     state.modern!.lowWaterTiles = data.lowWaterTiles
       ? new Set(data.lowWaterTiles)
       : null;
     reapplyLowWaterTiles(state);
+    recomputeMapZones(state);
   },
 };
 
 /** Re-apply low water tile mutations on a map regenerated from seed.
- *  Called during checkpoint restore and full-state recovery. Idempotent. */
+ *  Called from `restore` during checkpoint hydration. Idempotent.
+ *  `mapVersion` is bumped by the caller's `recomputeMapZones`. */
 function reapplyLowWaterTiles(state: GameState): void {
   const lowWater = state.modern?.lowWaterTiles;
   if (!lowWater || lowWater.size === 0) return;
@@ -46,7 +48,6 @@ function reapplyLowWaterTiles(state: GameState): void {
     const { r, c } = unpackTile(key);
     setGrass(tiles, r, c);
   }
-  state.map.mapVersion++;
 }
 
 /** Apply low water: erode one layer of bank tiles, preserving 2×2 water
@@ -96,7 +97,7 @@ function applyLowWater(state: GameState): ReadonlySet<number> {
   }
   if (converted.size === 0) return converted;
   modern.lowWaterTiles = converted;
-  state.map.mapVersion++;
+  recomputeMapZones(state);
   return converted;
 }
 
@@ -160,25 +161,5 @@ function clearLowWater(state: GameState): void {
     });
   }
   modern.lowWaterTiles = null;
-  state.map.mapVersion++;
-}
-
-/** Per-zone tile revert for low water (adjacent grass in zone → water). */
-function resetLowWaterTilesForZone(state: GameState, zone: number): void {
-  const lowWater = state.modern?.lowWaterTiles;
-  if (!lowWater) return;
-  for (const key of lowWater) {
-    const { r, c } = unpackTile(key);
-    const adjacentToZone = DIRS_4.some(([dr, dc]) => {
-      const nr = r + dr;
-      const nc = c + dc;
-      return state.map.zones[nr]?.[nc] === zone;
-    });
-    if (adjacentToZone) {
-      setWater(state.map.tiles, r, c);
-      lowWater.delete(key);
-    }
-  }
-  if (lowWater.size === 0) state.modern!.lowWaterTiles = null;
-  state.map.mapVersion++;
+  recomputeMapZones(state);
 }

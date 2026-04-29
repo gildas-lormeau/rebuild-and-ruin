@@ -372,10 +372,7 @@ export function planIceTrench(
     const nr = anchor.r + dr;
     const nc = anchor.c + dc;
     if (!inBounds(nr, nc)) continue;
-    if (
-      isGrass(state.map.tiles, nr, nc) &&
-      state.map.zones[nr]?.[nc] === playerZone
-    ) {
+    if (state.map.zones[nr]?.[nc] === playerZone) {
       inward = [-dr, -dc] as const;
       break;
     }

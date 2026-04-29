@@ -45,20 +45,21 @@ export interface InstantModifier extends ModifierImplBase {
   readonly lifecycle: "instant";
 }
 
-/** Permanent modifier: state survives forever (or until zone reset).
- *  `restore` is required because the watcher rebuilds the map from seed
- *  and must reapply the mutation. */
+/** Permanent modifier: tile-mutating state survives until the next modifier
+ *  rolls (or, for permanent map mutations, forever). `restore` is required
+ *  because the watcher rebuilds the map from seed and must reapply the
+ *  mutation. Modifiers are global — life loss / zone teardown does not
+ *  touch their state. */
 export interface PermanentModifier extends ModifierImplBase {
   readonly lifecycle: "permanent";
   /** Restore tile-mutating state from checkpoint data and re-apply tile
    *  mutations on a map regenerated from seed. */
   restore(state: GameState, data: ModifierTileData): void;
-  /** Revert modifier tiles belonging to a specific zone during zone reset. */
-  zoneReset?(state: GameState, zone: number): void;
 }
 
 /** Round-scoped modifier: active from this round's BATTLE through next
- *  CANNON_PLACE, cleared just before the next modifier rolls. */
+ *  CANNON_PLACE, cleared just before the next modifier rolls. Global —
+ *  life loss / zone teardown does not touch their state. */
 export interface RoundScopedModifier extends ModifierImplBase {
   readonly lifecycle: "round-scoped";
   /** Revert per-modifier state at next round's CANNON_PLACE-done.
@@ -69,8 +70,6 @@ export interface RoundScopedModifier extends ModifierImplBase {
    *  when the modifier carries serializable state (see `needsCheckpoint`
    *  in modifier-defs.ts). */
   restore?(state: GameState, data: ModifierTileData): void;
-  /** Revert modifier tiles belonging to a specific zone during zone reset. */
-  zoneReset?(state: GameState, zone: number): void;
 }
 
 /** Discriminated union of all modifier impls. The `lifecycle` field

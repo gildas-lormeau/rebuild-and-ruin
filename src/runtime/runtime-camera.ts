@@ -175,11 +175,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pendingVp: undefined,
   };
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
-  // Tile-rect of every zone, derived once per match from `state.map.zones`.
-  // Zones are immutable after map-build, so we cache by zoneId only — no
-  // wall-aware invalidation. Used for both auto-zoom centering and the
-  // pinch-on-own-zone check in BATTLE.
+  // Tile-rect of every zone, derived from `state.map.zones`. Tile-mutating
+  // modifiers (sinkhole, high-tide, low-water) recompute zones and bump
+  // `state.map.mapVersion`; we invalidate the cache when the version
+  // advances. Used for both auto-zoom centering and the pinch-on-own-zone
+  // check in BATTLE.
   const cachedZoneTileBounds = new Map<number, TileBounds>();
+  let cachedZoneTileBoundsMapVersion = -1;
 
   const fullMapVp: Viewport = {
     x: 0,
@@ -252,12 +254,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return enemyZones(state.players, state.playerZones, povPlayerId());
   }
 
-  /** Static tile-bounds of a zone, scanned once from `state.map.zones`.
-   *  Independent of walls — zones are immutable post-map-build. */
+  /** Tile-bounds of a zone, scanned from `state.map.zones`. Cache keyed
+   *  on `state.map.mapVersion` so tile-mutating modifiers invalidate it. */
   function computeZoneTileBounds(zoneId: number): TileBounds {
+    const state = deps.getState()!;
+    if (state.map.mapVersion !== cachedZoneTileBoundsMapVersion) {
+      cachedZoneTileBounds.clear();
+      cachedZoneTileBoundsMapVersion = state.map.mapVersion;
+    }
     const cached = cachedZoneTileBounds.get(zoneId);
     if (cached) return cached;
-    const state = deps.getState()!;
     const zones = state.map.zones;
     let minR = GRID_ROWS,
       maxR = 0,
@@ -1120,6 +1126,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     selectionZoom.pendingVp = undefined;
     lastBattleCrosshair = undefined;
     cachedZoneTileBounds.clear();
+    cachedZoneTileBoundsMapVersion = -1;
   }
 
   function resetCamera(): void {

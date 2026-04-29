@@ -1126,14 +1126,32 @@ function buildSinkholeClusters(
         patches: buildSinkholeTilePatches(sdf, W, map, r, c),
       };
     });
-    const seed = tiles[0]!;
-    const zone = map.zones[seed.row]?.[seed.col] ?? -1;
-    const sameZone = tiles.every(
-      (tile) => (map.zones[tile.row]?.[tile.col] ?? -1) === zone,
-    );
-    clusters.push({ zone: sameZone ? zone : -1, tiles });
+    // Sinkhole tiles are water (zone 0) post-recompute, so derive the
+    // owning zone from any adjacent grass tile. All cluster tiles touch
+    // the same zone (sinkhole eligibility forbids tiles that would
+    // bridge the river), so the first found wins.
+    const zone = adjacentZoneOfCluster(tiles, map, sinkholeTiles);
+    clusters.push({ zone, tiles });
   }
   return clusters;
+}
+
+function adjacentZoneOfCluster(
+  tiles: readonly SinkholeTilePatches[],
+  map: GameMap,
+  sinkholeTiles: ReadonlySet<number>,
+): number {
+  for (const tile of tiles) {
+    for (const [dr, dc] of DIRS_4) {
+      const nr = tile.row + dr;
+      const nc = tile.col + dc;
+      const neighborKey = packTile(nr, nc);
+      if (sinkholeTiles.has(neighborKey)) continue;
+      const zone = map.zones[nr]?.[nc];
+      if (zone !== undefined && zone > 0) return zone;
+    }
+  }
+  return -1;
 }
 
 /** Render every (phase × player) variant for a single sinkhole tile.

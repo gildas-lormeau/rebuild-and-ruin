@@ -71,6 +71,7 @@
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
       "src/game/modifiers/sinkhole.ts",
+      "src/game/zone-recompute.ts",
       "src/game/game-engine.ts",
       "src/game/selection.ts",
       "src/game/surface-elevation.ts",

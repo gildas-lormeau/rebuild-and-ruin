@@ -122,15 +122,3 @@ export function clearActiveModifiers(state: GameState): void {
     if (impl.lifecycle === "round-scoped") impl.clear(state);
   }
 }
-
-/** Revert modifier tiles belonging to a specific zone during zone reset.
- *  Instant impls have no zone-tied state. */
-export function resetModifierTilesForZone(
-  state: GameState,
-  zone: number,
-): void {
-  for (const impl of MODIFIER_REGISTRY.values()) {
-    if (impl.lifecycle === "instant") continue;
-    impl.zoneReset?.(state, zone);
-  }
-}

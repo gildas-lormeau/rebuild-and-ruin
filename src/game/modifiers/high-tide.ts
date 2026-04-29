@@ -17,7 +17,9 @@ import {
   setWater,
   unpackTile,
 } from "../../shared/core/spatial.ts";
+// (jscpd: high-tide imports are intentionally similar to low-water — same shape, mirror modifiers)
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import { recomputeMapZones } from "../zone-recompute.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const highTideImpl: ModifierImpl = {
@@ -27,17 +29,18 @@ export const highTideImpl: ModifierImpl = {
     gruntsSpawned: 0,
   }),
   clear: clearHighTide,
-  zoneReset: resetHighTideTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {
     state.modern!.highTideTiles = data.highTideTiles
       ? new Set(data.highTideTiles)
       : null;
     reapplyHighTideTiles(state);
+    recomputeMapZones(state);
   },
 };
 
 /** Re-apply high tide tile mutations on a map regenerated from seed.
- *  Called during checkpoint restore and full-state recovery. Idempotent. */
+ *  Called from `restore` during checkpoint hydration. Idempotent.
+ *  `mapVersion` is bumped by the caller's `recomputeMapZones`. */
 function reapplyHighTideTiles(state: GameState): void {
   const highTide = state.modern?.highTideTiles;
   if (!highTide || highTide.size === 0) return;
@@ -46,7 +49,6 @@ function reapplyHighTideTiles(state: GameState): void {
     const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
-  state.map.mapVersion++;
 }
 
 /** Apply high tide: flood grass tiles adjacent to water. */
@@ -108,7 +110,7 @@ function applyHighTide(state: GameState): ReadonlySet<number> {
     });
   }
   modern.highTideTiles = flooded;
-  state.map.mapVersion++;
+  recomputeMapZones(state);
   return flooded;
 }
 
@@ -123,20 +125,5 @@ function clearHighTide(state: GameState): void {
     setGrass(tiles, r, c);
   }
   modern.highTideTiles = null;
-  state.map.mapVersion++;
-}
-
-/** Per-zone tile revert for high tide (zones[r][c] === zone → grass). */
-function resetHighTideTilesForZone(state: GameState, zone: number): void {
-  const highTide = state.modern?.highTideTiles;
-  if (!highTide) return;
-  for (const key of highTide) {
-    const { r, c } = unpackTile(key);
-    if (state.map.zones[r]?.[c] === zone) {
-      setGrass(state.map.tiles, r, c);
-      highTide.delete(key);
-    }
-  }
-  if (highTide.size === 0) state.modern!.highTideTiles = null;
-  state.map.mapVersion++;
+  recomputeMapZones(state);
 }

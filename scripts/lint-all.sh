@@ -58,6 +58,7 @@ echo "lint:all: parallel checks..."
   run useless-guards    deno run -A scripts/lint-useless-guards.ts
   run if-chain          deno run -A scripts/lint-if-chain.ts
   run passthrough       deno run -A scripts/lint-passthrough-wrappers.ts
+  run tile-mutators     deno run -A scripts/lint-tile-mutators.ts
 ) &
 
 # Lane 5 — deno type-check + lint

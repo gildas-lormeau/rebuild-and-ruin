@@ -15,7 +15,6 @@
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { isGrass } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
@@ -136,12 +135,7 @@ function playerTerritoryRatio(
   let zoneGrassCount = 0;
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
-      if (
-        isGrass(state.map.tiles, row, col) &&
-        state.map.zones[row]![col] === zone
-      ) {
-        zoneGrassCount++;
-      }
+      if (state.map.zones[row]![col] === zone) zoneGrassCount++;
     }
   }
   return zoneGrassCount > 0 ? player.interior.size / zoneGrassCount : 0;

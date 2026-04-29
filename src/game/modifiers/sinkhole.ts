@@ -14,11 +14,11 @@ import {
   hasEnclosableMargin,
   isGrass,
   packTile,
-  setGrass,
   setWater,
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import { recomputeMapZones } from "../zone-recompute.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,
@@ -110,17 +110,19 @@ export const sinkholeImpl: ModifierImpl = {
     changedTiles: [...applySinkhole(state)],
     gruntsSpawned: 0,
   }),
-  zoneReset: resetSinkholeTilesForZone,
   restore: (state: GameState, data: ModifierTileData) => {
     state.modern!.sinkholeTiles = data.sinkholeTiles
       ? new Set(data.sinkholeTiles)
       : null;
     reapplySinkholeTiles(state);
+    recomputeMapZones(state);
   },
 };
 
 /** Re-apply sinkhole tile mutations on a map regenerated from seed.
- *  Called during checkpoint restore and full-state recovery. Idempotent. */
+ *  Called from `restore` during checkpoint hydration. Idempotent.
+ *  `mapVersion` is bumped by the caller's `recomputeMapZones` — don't
+ *  double-bump here. */
 function reapplySinkholeTiles(state: GameState): void {
   const sinkhole = state.modern?.sinkholeTiles;
   if (!sinkhole || sinkhole.size === 0) return;
@@ -129,22 +131,6 @@ function reapplySinkholeTiles(state: GameState): void {
     const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
-  state.map.mapVersion++;
-}
-
-/** Per-zone tile revert for sinkhole (zones[r][c] === zone → grass). */
-function resetSinkholeTilesForZone(state: GameState, zone: number): void {
-  const sinkhole = state.modern?.sinkholeTiles;
-  if (!sinkhole) return;
-  for (const key of sinkhole) {
-    const { r, c } = unpackTile(key);
-    if (state.map.zones[r]?.[c] === zone) {
-      setGrass(state.map.tiles, r, c);
-      sinkhole.delete(key);
-    }
-  }
-  if (sinkhole.size === 0) state.modern!.sinkholeTiles = null;
-  state.map.mapVersion++;
 }
 
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water. */
@@ -220,7 +206,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   if (!modern.sinkholeTiles) modern.sinkholeTiles = new Set();
   for (const key of allSunk) modern.sinkholeTiles.add(key);
 
-  state.map.mapVersion++;
+  recomputeMapZones(state);
   return allSunk;
 }
 

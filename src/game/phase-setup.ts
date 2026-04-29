@@ -52,6 +52,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
@@ -62,7 +63,12 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/core/player-types.ts";
-import { isBalloonCannon, packTile } from "../shared/core/spatial.ts";
+import {
+  isBalloonCannon,
+  isGrass,
+  packTile,
+  setGrass,
+} from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
@@ -98,7 +104,6 @@ import {
 import {
   clearActiveModifiers,
   MODIFIER_REGISTRY,
-  resetModifierTilesForZone,
   rollModifier,
 } from "./modifier-system.ts";
 import {
@@ -108,6 +113,7 @@ import {
   resetPlayerUpgrades,
   useSmallPieces,
 } from "./upgrade-system.ts";
+import { recomputeMapZones } from "./zone-recompute.ts";
 
 interface ScoreDelta {
   playerId: ValidPlayerSlot;
@@ -506,10 +512,20 @@ function applyLifePenalties(state: GameState): {
   return { needsReselect, eliminated };
 }
 
-/** Destructive teardown of a zone after player elimination: removes all grunts,
- *  houses, burning pits, and bonus squares in the zone; reverts sinkhole tiles
- *  back to grass; revives all towers in the zone. Not a simple "reset" — it
- *  permanently modifies game state for the eliminated zone. */
+/** Destructive teardown of a zone after a player loses a life or is
+ *  eliminated. Restores the zone's territory to its starting baseline so
+ *  the player can rebuild on neutral ground:
+ *    - clears grunts, houses, burning pits, bonus squares inside the zone
+ *    - revives the zone's towers
+ *    - forces every non-grass tile in the zone back to grass (sinkholes,
+ *      modifier-flooded tiles), drops those tiles from any modifier-owned
+ *      tracker (sinkholeTiles / highTideTiles / lowWaterTiles), then
+ *      recomputes `state.map.zones` so the restored grass folds back into
+ *      the player's zone topology
+ *
+ *  River-state outside the zone (frozen river, river-edge effects whose
+ *  tiles aren't owned by this zone) is untouched — modifiers are global
+ *  by definition; only their per-zone footprint goes away here. */
 function resetZoneState(state: GameState, zone: number): void {
   state.grunts = state.grunts.filter((grunt) => {
     if (state.map.zones[grunt.row]?.[grunt.col] === zone) return false;
@@ -526,22 +542,49 @@ function resetZoneState(state: GameState, zone: number): void {
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
-  resetModifierTilesForZone(state, zone);
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {
       state.towerAlive[towerIndex] = true;
     }
   }
+  restoreZoneGrass(state, zone);
+  recomputeMapZones(state);
 }
 
-/** Reset a player's board state (walls, interior, cannons, towers, castle) for a new round.
- *  The player remains in the game — only their placed objects are cleared.
- *  Contrast with eliminatePlayer which permanently removes the player.
- *  Called at the start of each build round (and during reselection with keepHomeTower). */
-function resetPlayerBoardState(
-  player: Player,
-  options?: { keepHomeTower?: boolean },
-): void {
+/** Force every non-grass tile inside `zone` back to grass and drop those
+ *  tile keys from each modifier's per-tile tracker so subsequent clears
+ *  don't try to revert them. */
+function restoreZoneGrass(state: GameState, zone: number): void {
+  const tiles = state.map.tiles;
+  const zones = state.map.zones;
+  const sinkholeTiles = state.modern?.sinkholeTiles;
+  const highTideTiles = state.modern?.highTideTiles;
+  const lowWaterTiles = state.modern?.lowWaterTiles;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (zones[r]![c] !== zone) continue;
+      if (!isGrass(tiles, r, c)) setGrass(tiles, r, c);
+      const key = packTile(r, c);
+      sinkholeTiles?.delete(key);
+      highTideTiles?.delete(key);
+      lowWaterTiles?.delete(key);
+    }
+  }
+  if (state.modern) {
+    if (sinkholeTiles && sinkholeTiles.size === 0)
+      state.modern.sinkholeTiles = null;
+    if (highTideTiles && highTideTiles.size === 0)
+      state.modern.highTideTiles = null;
+    if (lowWaterTiles && lowWaterTiles.size === 0)
+      state.modern.lowWaterTiles = null;
+  }
+}
+
+/** Reset a player's board state (walls, interior, cannons, towers,
+ *  castle, home tower) for a new round. The player remains in the game —
+ *  only their placed objects are cleared. Contrast with eliminatePlayer
+ *  which permanently removes the player. */
+function resetPlayerBoardState(player: Player): void {
   clearPlayerWalls(player);
   // clearPlayerWalls bumps wallsEpoch; sync interiorEpoch here so a remote-slot
   // receiver doesn't throw stale-interior before the rebuild's recheckTerritory
@@ -550,7 +593,7 @@ function resetPlayerBoardState(
   player.cannons = [];
   player.ownedTowers = [];
   player.castle = null;
-  if (!options?.keepHomeTower) player.homeTower = null;
+  player.homeTower = null;
 }
 
 /** Decay burning pits at battle start — pits created during a battle

@@ -538,6 +538,63 @@ function generateRiverAndZones(
   return floodFillZones(tiles);
 }
 
+/** Flood-fill grass tiles into connected-region IDs starting at 1 (water
+ *  stays at 0). Exported so post-modifier code can recompute zones after
+ *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`. */
+export function floodFillZones(tiles: readonly Tile[][]): {
+  zones: number[][];
+  regionSizes: Map<number, number>;
+} {
+  const zones: number[][] = Array.from({ length: GRID_ROWS }, () =>
+    new Array(GRID_COLS).fill(0),
+  );
+  let regionId = 0;
+  const regionSizes = new Map<number, number>();
+  // Reusable flat-index queue across all fills (cleared per region)
+  const queue: number[] = [];
+
+  const tryEnqueue = (r: number, c: number, rid: number): void => {
+    if (
+      r >= 0 &&
+      r < GRID_ROWS &&
+      c >= 0 &&
+      c < GRID_COLS &&
+      zones[r]![c] === 0 &&
+      isGrass(tiles, r, c)
+    ) {
+      zones[r]![c] = rid;
+      queue.push(packTile(r, c));
+    }
+  };
+
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
+
+      regionId++;
+      queue.length = 0;
+      zones[r]![c] = regionId;
+      queue.push(packTile(r, c));
+      let size = 0;
+      let head = 0;
+
+      while (head < queue.length) {
+        const idx = queue[head++]!;
+        const { r: cr, c: cc } = unpackTile(idx);
+        size++;
+        tryEnqueue(cr - 1, cc, regionId);
+        tryEnqueue(cr + 1, cc, regionId);
+        tryEnqueue(cr, cc - 1, regionId);
+        tryEnqueue(cr, cc + 1, regionId);
+      }
+
+      regionSizes.set(regionId, size);
+    }
+  }
+
+  return { zones, regionSizes };
+}
+
 function resetTilesToGrass(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -708,58 +765,4 @@ function removeIsolatedWater(tiles: readonly Tile[][]): void {
       }
     }
   }
-}
-
-function floodFillZones(tiles: readonly Tile[][]): {
-  zones: number[][];
-  regionSizes: Map<number, number>;
-} {
-  const zones: number[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(0),
-  );
-  let regionId = 0;
-  const regionSizes = new Map<number, number>();
-  // Reusable flat-index queue across all fills (cleared per region)
-  const queue: number[] = [];
-
-  const tryEnqueue = (r: number, c: number, rid: number): void => {
-    if (
-      r >= 0 &&
-      r < GRID_ROWS &&
-      c >= 0 &&
-      c < GRID_COLS &&
-      zones[r]![c] === 0 &&
-      isGrass(tiles, r, c)
-    ) {
-      zones[r]![c] = rid;
-      queue.push(packTile(r, c));
-    }
-  };
-
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
-
-      regionId++;
-      queue.length = 0;
-      zones[r]![c] = regionId;
-      queue.push(packTile(r, c));
-      let size = 0;
-      let head = 0;
-
-      while (head < queue.length) {
-        const idx = queue[head++]!;
-        const { r: cr, c: cc } = unpackTile(idx);
-        size++;
-        tryEnqueue(cr - 1, cc, regionId);
-        tryEnqueue(cr + 1, cc, regionId);
-        tryEnqueue(cr, cc - 1, regionId);
-        tryEnqueue(cr, cc + 1, regionId);
-      }
-
-      regionSizes.set(regionId, size);
-    }
-  }
-
-  return { zones, regionSizes };
 }
