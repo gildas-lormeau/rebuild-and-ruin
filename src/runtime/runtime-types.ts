@@ -84,8 +84,10 @@ import type {
   SfxObserver,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   LifeLostDialogState,
+  ResolvedChoice,
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
@@ -194,6 +196,27 @@ export interface OnlineActions {
   fire: (ctrl: BattleController, gameState: BattleViewState) => void;
 }
 
+/** Online-only drain hooks for wire-arrived dialog choices that landed
+ *  before the local sim made the dialog interactable. The session-side
+ *  queues (`earlyLifeLostChoices`, `earlyUpgradePickChoices`) accumulate
+ *  these in two windows:
+ *    - life-lost: the brief gap between host broadcast and the non-host
+ *      peer's local ROUND_END building the dialog.
+ *    - upgrade-pick: the banner-preview window where the dialog exists
+ *      for rendering but `Mode.UPGRADE_PICK` isn't active yet, so the
+ *      wire path's `getUpgradePickDialog` returns null.
+ *  Each drain is called once when the corresponding subsystem makes the
+ *  dialog interactable; it iterates its session queue, calls `apply` for
+ *  each pending entry, then clears the queue. */
+export interface OnlineDialogDrains {
+  drainLifeLost: (
+    apply: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => boolean,
+  ) => void;
+  drainUpgradePick: (
+    apply: (playerId: ValidPlayerSlot, choice: UpgradeId) => boolean,
+  ) => void;
+}
+
 /** Network seam for a single runtime instance ("machine"). NetworkApi is
  *  intentionally minimal — it covers the two transport primitives (`send`,
  *  `onMessage`) plus the read-only identity queries that tell sub-systems
@@ -290,6 +313,10 @@ export interface RuntimeConfig {
    *  See `OnlineActions`. When undefined, local fallbacks are installed
    *  in `assembly.ts:createRuntimeInputAdapters`. */
   onlineActions?: OnlineActions;
+  /** Online-only drain hooks for wire-arrived dialog choices that landed
+   *  before the local sim made the dialog interactable. See
+   *  `OnlineDialogDrains`. Undefined in local play. */
+  onlineDialogDrains?: OnlineDialogDrains;
   /** Online-only game-over broadcast hook. Fires once when the game ends,
    *  before the frame's gameOver payload is set. */
   onEndGame?: (winner: { id: number }, state: GameState) => void;
@@ -471,9 +498,11 @@ export interface RuntimeLifeLost {
    *  (game-over / reselect / continue) is the CALLER's responsibility
    *  (see the ROUND_END postDisplay in the phase machine).
    *
-   *  Returns true when a dialog was actually shown (so callers can
-   *  apply early-arrived choices before the first tick — e.g. the
-   *  online watcher's `earlyLifeLostChoices`). */
+   *  Wire-arrived choices that landed before the dialog was built are
+   *  drained inside `show()` via `OnlineDialogDrains.drainLifeLost`
+   *  (online wiring only).
+   *
+   *  Returns true when a dialog was actually shown. */
   show: (
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],

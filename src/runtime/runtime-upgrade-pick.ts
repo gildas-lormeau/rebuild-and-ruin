@@ -50,6 +50,18 @@ interface UpgradePickSystemDeps {
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
   ) => void;
+
+  /** Online-only drain for wire-arrived picks that landed during the
+   *  banner-preview window — the dialog exists for rendering but
+   *  Mode.UPGRADE_PICK isn't active yet, so the wire path queues them
+   *  in the session map. Called once inside `tryShow()` immediately
+   *  after Mode flips. The drain iterates its session-side queue,
+   *  calls `apply` for each entry, then clears the queue. The system
+   *  owns the find/validate/write of each entry.
+   *  Undefined in local play. */
+  readonly applyEarlyChoices?: (
+    apply: (playerId: ValidPlayerSlot, choice: UpgradeId) => boolean,
+  ) => void;
 }
 
 export interface UpgradePickSystem {
@@ -125,6 +137,17 @@ export function createUpgradePickSystem(
     deps.log(
       `upgrade pick: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
     );
+    deps.applyEarlyChoices?.((playerId, choice) => {
+      const entry = dialog.entries.find(
+        (candidate) =>
+          candidate.playerId === playerId &&
+          candidate.choice === null &&
+          candidate.offers.includes(choice),
+      );
+      if (!entry) return false;
+      entry.choice = choice;
+      return true;
+    });
     return true;
   }
 

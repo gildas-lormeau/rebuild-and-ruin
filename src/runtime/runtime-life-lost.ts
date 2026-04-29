@@ -36,12 +36,21 @@ interface LifeLostSystemDeps {
 
   render: () => void;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
+
+  /** Online-only drain for wire-arrived choices that landed before the
+   *  local sim built the dialog. Called once inside `show()` immediately
+   *  after the dialog is written to runtime state. The drain iterates
+   *  its session-side queue, calls `apply` for each entry, then clears
+   *  the queue. The system owns the find/validate/write of each entry.
+   *  Undefined in local play. */
+  applyEarlyChoices?: (
+    apply: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => boolean,
+  ) => void;
 }
 
-/** Callback signature used by every resolution path (immediate skip,
- *  dialog-tick on host, dialog-tick on watcher). Receives the list of
- *  players who chose CONTINUE; the caller (phase machine) routes the
- *  next transition based on it. */
+/** Callback signature used by every resolution path (immediate skip
+ *  or dialog-tick). Receives the list of players who chose CONTINUE;
+ *  the caller (phase machine) routes the next transition based on it. */
 type OnLifeLostResolved = (continuing: readonly ValidPlayerSlot[]) => void;
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
@@ -73,9 +82,11 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  shows the modal dialog and calls `onResolved(continuing)` once
    *  the dialog's tick loop resolves every entry.
    *
-   *  Returns true when a dialog was actually shown (so watcher-side
-   *  wiring can apply any early-arrived choices before the first
-   *  tick). */
+   *  Drains queued early-arrived wire choices (online only) before
+   *  returning, so the dialog's first tick observes them as if they
+   *  arrived after the dialog opened.
+   *
+   *  Returns true when a dialog was actually shown. */
   function show(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
@@ -105,17 +116,25 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     runtimeState.dialogs.lifeLost = dialog;
     pendingOnDone.set(onResolved);
     setMode(runtimeState, Mode.LIFE_LOST);
+    deps.applyEarlyChoices?.((playerId, choice) => {
+      const entry = dialog.entries.find(
+        (candidate) =>
+          candidate.playerId === playerId &&
+          candidate.choice === LifeLostChoice.PENDING,
+      );
+      if (!entry) return false;
+      entry.choice = choice;
+      return true;
+    });
     return true;
   }
 
   /**
    * Tick the life-lost dialog; when every entry is resolved, eliminate
    * abandoned players and fire the caller's onResolved callback with
-   * the continuing list. On the watcher-role, the callback's
-   * implementation is usually a no-op for the continue / reselect
-   * paths (server drives the next phase); the machine's postDisplay
-   * still runs the same resolve-branch logic so local game-over can
-   * flip Mode.STOPPED.
+   * the continuing list. The callback chain is synchronous: postDisplay
+   * runs inline, dispatches the next transition, and that transition's
+   * setMode call overwrites Mode.LIFE_LOST before any frame renders.
    */
   function tickLifeLostDialogSystem(dt: number) {
     const dialog = runtimeState.dialogs.lifeLost;
@@ -147,14 +166,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
     const continuing = continuingPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
-
-    // Watcher: flip to GAME — the server's next checkpoint drives what
-    // follows. Host: leave the mode alone; the runner's next step
-    // (another banner via `showBanner`, or the terminal postDisplay)
-    // sets the appropriate mode.
-    if (!runtimeState.frameMeta.hostAtFrameStart) {
-      setMode(runtimeState, Mode.GAME);
-    }
 
     pendingOnDone.fire(continuing);
   }
@@ -201,9 +212,11 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   return {
-    /** Read current dialog state. Used by watcher-mode to sync overlay display. */
+    /** Read current dialog state. Used by input-gate and remote-choice handlers
+     *  to check whether a dialog is active. */
     get: () => runtimeState.dialogs.lifeLost,
-    /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
+    /** Clear dialog state on session reset / host promote (only ever called
+     *  with null in production; the type permits a value for symmetry). */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
       if (dialog === null) pendingOnDone.clear();

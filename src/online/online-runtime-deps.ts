@@ -134,9 +134,11 @@ function buildIncrementalDeps() {
     finishReselection: () => _depsInit.runtime.selection.finishReselection(),
     finishSelection: () => _depsInit.runtime.selection.finish(),
     getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
-    // Only expose the dialog once Mode.UPGRADE_PICK is active — during the
-    // banner preview (prepare) the dialog exists for rendering but picks
-    // should still be buffered in earlyUpgradePickChoices.
+    // Only expose the dialog once Mode.UPGRADE_PICK is active — during
+    // the banner preview (prepare) the dialog exists for rendering but
+    // picks must still be buffered in earlyUpgradePickChoices. The
+    // buffered queue is drained inside `tryShow()` immediately after
+    // Mode flips, via `onlineDialogDrains.drainUpgradePick`.
     getUpgradePickDialog: () =>
       _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK
         ? _depsInit.runtime.runtimeState.dialogs.upgradePick

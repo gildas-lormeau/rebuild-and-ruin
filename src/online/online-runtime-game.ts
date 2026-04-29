@@ -20,6 +20,8 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isHuman } from "../shared/core/system-interfaces.ts";
+import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { canvas, worldCanvas } from "./online-dom.ts";
 import {
@@ -197,6 +199,30 @@ const runtime: GameRuntime = createGameRuntime({
     tryPlaceCannon: sendActions.tryPlaceCannon,
     tryPlacePiece: sendActions.tryPlacePiece,
     fire: sendActions.fire,
+  },
+  onlineDialogDrains: {
+    drainLifeLost: (apply) => {
+      const queue = ctx.session.earlyLifeLostChoices;
+      if (queue.size === 0) return;
+      for (const [pid, choice] of queue) {
+        const applied = apply(pid as ValidPlayerSlot, choice as ResolvedChoice);
+        devLog(
+          `drain life_lost queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
+        );
+      }
+      queue.clear();
+    },
+    drainUpgradePick: (apply) => {
+      const queue = ctx.session.earlyUpgradePickChoices;
+      if (queue.size === 0) return;
+      for (const [pid, choice] of queue) {
+        const applied = apply(pid as ValidPlayerSlot, choice as UpgradeId);
+        devLog(
+          `drain upgrade_pick queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
+        );
+      }
+      queue.clear();
+    },
   },
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);

@@ -719,6 +719,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     panelPos: (pid) =>
       lifeLostPanelPos(selectRenderView(runtimeState.state), pid),
+    applyEarlyChoices: config.onlineDialogDrains?.drainLifeLost,
   });
 
   // -------------------------------------------------------------------------
@@ -731,6 +732,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     sendUpgradePick: (playerId, choice) =>
       config.network.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice }),
+    applyEarlyChoices: config.onlineDialogDrains?.drainUpgradePick,
   });
 
   // -------------------------------------------------------------------------
