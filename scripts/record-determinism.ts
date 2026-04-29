@@ -84,6 +84,12 @@ async function run(): Promise<void> {
   const path = `${FIXTURES_DIR}/seed-${config.seed}-${config.mode}${suffix}.json`;
   await Deno.writeTextFile(path, `${JSON.stringify(fixture, null, 2)}\n`);
 
+  // `sc.state.round` here = state at the moment runGame stopped. Under the
+  // post-2026-04-29 round-numbering, state.round advances inside startNextRound
+  // at the round-end transition (i.e. after WALL_BUILD's score is finalized).
+  // So for a `rounds: N` recording, "final round" is N+1 — same display as
+  // pre-refactor, but recorded at WALL_BUILD-done of round N rather than at
+  // BATTLE-done of round N.
   console.log(
     `Wrote ${events.length} events to ${path} (final round=${sc.state.round})`,
   );

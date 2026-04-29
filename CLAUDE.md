@@ -63,10 +63,10 @@ Modern mode: UPGRADE_PICK between BATTLE and WALL_BUILD (from round 3).
 - `activeFeatures: ReadonlySet<FeatureId>` on GameState determines which subsystems are active
 - Three feature capabilities (`FeatureId` in `feature-defs.ts`):
   - **modifiers** — environmental effects (wildfire, crumbling walls, grunt surge, frozen river). Roll + apply in phase-setup.ts. State: activeModifier, lastModifierId, frozenTiles.
-  - **upgrades** — draft/pick system. Offer generation in enterBuildFromBattle, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
+  - **upgrades** — draft/pick system. Offer generation in prepareNextRound, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
   - **combos** — scoring streaks during battle. Init/clear in phase-setup.ts, scoring in combo-system.ts. State: comboTracker.
-- Modifier roll and upgrade offer generation happen in `enterBuildFromBattle()` using synced RNG (before BUILD_START checkpoint)
-- Upgrade effects (all reset after one round): Master Builder (+5s exclusive build time — locks opponents when 1 owner, no lockout when 2+), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
+- Upgrade offer generation happens in `prepareNextRound()` (battle-done) using synced RNG before the BUILD_START checkpoint; modifier roll happens in `prepareBattleState()` (cannon-place-done) before BATTLE_START.
+- Upgrade effects (all reset in `prepareNextRound` at the next battle-done — i.e. active through one closing WALL_BUILD plus one CANNON_PLACE + BATTLE): Master Builder (+5s exclusive build time — locks opponents when 1 owner, no lockout when 2+), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
 - Future features (tech tree, commanders) add new FeatureId values without forking existing if chains
 
 ### Extension point registries (pool pattern)

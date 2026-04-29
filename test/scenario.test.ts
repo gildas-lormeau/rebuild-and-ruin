@@ -168,8 +168,11 @@ Deno.test(
       assistedSlots: [1 as ValidPlayerSlot],
     });
 
-    // Round 1 auto-builds castles (WALL_BUILD skipped), so drive to round 2+
-    // to exercise the real build phase before checking message broadcasts.
+    // Round 1 auto-builds castles in CASTLE_SELECT. The first player-driven
+    // build phase is round 1's CLOSING WALL_BUILD (after BATTLE_1, before
+    // round-end). Wait until round 2 starts (i.e. round-end of round 1
+    // finalized) so the assisted slot's piece-placement broadcasts from
+    // round 1's WALL_BUILD have all been emitted before assertions.
     waitUntilRound(sc, 2, { timeoutMs: 120_000 });
     waitForPhase(sc, Phase.BATTLE, { timeoutMs: 120_000 });
 
