@@ -645,7 +645,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getTouch: () => touchHandles,
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
-    getContainerHeight: () => gameContainer.clientHeight,
+    // `clientHeight` is a layout-triggering DOM read; the per-frame render
+    // path calls `getContainerHeight` from inside multiple `render()` sites
+    // per sub-step, so a naive read crossed the JS↔DOM bridge dozens of
+    // times per browser frame. Cache the value and refresh via
+    // ResizeObserver — the container only resizes on window resize /
+    // orientation change, so steady-state reads become a closure variable
+    // lookup. ResizeObserver is unavailable in the deno test stub
+    // (test/stub-dom.ts pins clientHeight to a fixed value), so the
+    // observer is gated on its global presence; the headless path
+    // captures the initial value and never refreshes — fine because the
+    // stub's clientHeight is constant by design.
+    getContainerHeight: createCachedContainerHeight(gameContainer),
     updateTouchControls,
   });
 
@@ -1054,4 +1065,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     beginBattleTilt: camera.beginBattleTilt,
     engageAutoZoom: camera.engageAutoZoom,
   };
+}
+
+function createCachedContainerHeight(container: HTMLElement): () => number {
+  let cached = container.clientHeight;
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => {
+      cached = container.clientHeight;
+    });
+    observer.observe(container);
+  }
+  return () => cached;
 }
