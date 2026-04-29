@@ -408,7 +408,6 @@ function wireDpadArrows(
         e.preventDefault();
         e.stopPropagation();
         pressDown(btn);
-        deps.clearDirectTouch?.();
         // Emit once per physical press — avoids continuous vibration during
         // auto-repeat.
         deps.emitUiTap?.();

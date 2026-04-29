@@ -1,5 +1,4 @@
 import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
-import { isPlacementPhase } from "../shared/core/game-phase.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
   IS_TOUCH_DEVICE,
@@ -315,7 +314,6 @@ function handleKeyGame(
     if (!deps.isHuman(ctrl)) continue;
     const action = ctrl.matchKey(e.key);
     if (!action) continue;
-    if (isPlacementPhase(state.phase)) deps.setDirectTouchActive?.(false);
     if (dispatchGameAction(ctrl, action, state, deps.gameAction)) {
       e.preventDefault();
     }

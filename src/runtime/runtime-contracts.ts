@@ -349,10 +349,6 @@ export interface DpadDeps {
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
   getLeftHanded: () => boolean;
-  /** Clear direct-touch mode (equivalent to setDirectTouchActive(false)).
-   *  Named differently for brevity in the d-pad context where only clearing is needed.
-   *  See setDirectTouchActive in input.ts for the full setter. */
-  clearDirectTouch?: () => void;
   /** Shared game action deps (selection, placement, battle). */
   gameAction: GameActionDeps;
   /** Shared overlay action deps (options, life-lost, game-over). */
@@ -555,31 +551,6 @@ export interface RegisterOnlineInputDeps {
   // --- Battle networking ---
   maybeSendAimUpdate: (x: number, y: number) => void;
 
-  // --- Direct touch state ---
-  /**
-   * Direct-touch state lifecycle:
-   *   - Enabled by: touch canvas after a tap-to-place (input-touch-canvas.ts)
-   *   - Disabled by: d-pad arrow press (input-touch-ui.ts), keyboard placement
-   *     (input-keyboard.ts), leaving placement phase (input-touch-update.ts)
-   *   - Checked by: touch canvas to lock out further tap-to-place
-   *
-   * When directTouchActive is true, the floating overlay buttons (confirm,
-   * rotate, …) are visible and tap-to-place on empty map is suppressed —
-   * the player commits via tap-on-piece (same as the overlay confirm
-   * button) or via the overlay buttons themselves. Drags reposition the
-   * piece but do not commit. This prevents accidental placements while
-   * reaching for an overlay button after the first tap-place.
-   */
-  /** Enable or disable direct-touch mode (overlay-driven placement).
-   *  Touch canvas enables it after the player's first tap-to-place.
-   *  Keyboard / d-pad disable it so the player can tap-to-place again. */
-  setDirectTouchActive?: (active: boolean) => void;
-  /** Whether the user is currently in direct-touch mode (floating buttons visible).
-   *  When true, tap-to-place on empty map is suppressed (commit via tap on
-   *  the piece itself or the floating confirm button instead).
-   *  Optional — absent on desktop. */
-  isDirectTouchActive?: () => boolean;
-
   // --- Quit flow ---
   quit: {
     getPending: () => boolean;
@@ -644,8 +615,6 @@ export interface TouchControlsDeps {
     piecePhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
     cannonPhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
   };
-  directTouchActive: boolean;
-  clearDirectTouch: () => void;
   leftHanded: boolean;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;

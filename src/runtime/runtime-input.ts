@@ -273,7 +273,6 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
   function resetForLobby(runtimeState: RuntimeState): void {
     runtimeState.inputTracking.mouseJoinedSlot = null;
-    runtimeState.inputTracking.directTouchActive = false;
     touch.floatingActions?.update(false, 0, 0, false, false);
     touch.dpad?.update(null);
     touch.quitButton?.update(null);
@@ -331,10 +330,6 @@ function buildInputDeps(
     showLobby: deps.lifecycle.returnToLobby,
     rematch: deps.lifecycle.rematch,
     maybeSendAimUpdate: deps.actions.maybeSendAimUpdate ?? (() => {}),
-    setDirectTouchActive: (active) => {
-      runtimeState.inputTracking.directTouchActive = active;
-    },
-    isDirectTouchActive: () => runtimeState.inputTracking.directTouchActive,
     coords: coordsDeps,
     lobby: lobbyDeps,
     options: buildOptionsDeps(
@@ -550,9 +545,6 @@ function setupDpadAndActions(
       lobbyAction: () =>
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
       getLeftHanded: () => runtimeState.settings.leftHanded,
-      clearDirectTouch: () => {
-        runtimeState.inputTracking.directTouchActive = false;
-      },
       gameAction: inputDeps.gameAction,
       overlay: overlayActionDeps,
     },

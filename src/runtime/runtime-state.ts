@@ -73,8 +73,6 @@ export interface OptionsUIState {
 export interface InputTrackingState {
   /** Player slot joined by mouse/trackpad, or null if none joined yet. */
   mouseJoinedSlot: number | null;
-  /** True when the player is using direct touch on the canvas (not d-pad). */
-  directTouchActive: boolean;
 }
 
 export interface DialogRuntimeState {
@@ -245,7 +243,6 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.quit.timer = 0;
   runtimeState.quit.message = "";
   runtimeState.optionsUI.returnMode = null;
-  runtimeState.inputTracking.directTouchActive = false;
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
@@ -303,7 +300,7 @@ export function createRuntimeState(): RuntimeState {
       gameStats: [],
     },
 
-    inputTracking: { mouseJoinedSlot: null, directTouchActive: false },
+    inputTracking: { mouseJoinedSlot: null },
 
     demoReturnTimer: undefined,
     speedMultiplier: 1,

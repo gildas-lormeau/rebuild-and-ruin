@@ -158,28 +158,27 @@ function handleTouchStart(
   const state = getState();
   if (!state || deps.lobby.isActive()) return;
 
-  // Placement phases: when direct-touch is locked (after the player's first
-  // tap-place) or when the tap lands on the current phantom, skip the
-  // absolute cursor-move on touchstart. Pure taps stay inert; if the player
-  // then drags, touchmove falls through to absolute pointer-move (no anchor
-  // set), so the piece tracks the finger directly. The onPhantom flag is
-  // recorded so a tap on the piece itself still confirms placement (like
-  // the overlay confirm button) even after the lock kicks in.
+  // Placement phases: skip the absolute cursor-move on touchstart. Pure
+  // taps stay inert (the player commits via tap-on-piece or the overlay
+  // confirm button); if the player drags, touchmove falls through to
+  // absolute pointer-move (no anchor set), so the piece tracks the finger
+  // directly. The onPhantom flag is recorded so a tap on the piece itself
+  // confirms placement (same effect as the overlay confirm button).
   if (
     isPlacementPhase(state.phase) &&
     shouldHandleGameInput(getMode(), state)
   ) {
-    const locked = deps.isDirectTouchActive?.() ?? false;
     const tile = coords.pixelToTile(x, y);
-    let onPhantom = false;
     deps.withPointerPlayer((human) => {
-      onPhantom = isOnPhantom(human, state, tile.row, tile.col);
+      gestureState.startedOnPhantom = isOnPhantom(
+        human,
+        state,
+        tile.row,
+        tile.col,
+      );
     });
-    gestureState.startedOnPhantom = onPhantom;
-    if (locked || onPhantom) {
-      gestureState.dragAnchor = null;
-      return;
-    }
+    gestureState.dragAnchor = null;
+    return;
   }
 
   // Update cursor/crosshair position on touch down (skip during transitions —
@@ -325,23 +324,13 @@ function handleTouchEnd(
     );
   }
 
-  // Build / Cannon placement on touch release. Two paths place a piece:
-  //  - Tap on the phantom itself: confirms placement (same effect as the
-  //    floating overlay confirm button). Works in both locked and unlocked
-  //    states so the player's "tap the piece to place it" muscle memory
-  //    survives the lockout.
-  //  - Tap elsewhere on the map while unlocked: places at the tapped tile.
-  //    Afterwards direct-touch locks, so subsequent taps near overlay
-  //    buttons can't accidentally trigger another placement.
-  // A locked tap on empty map is inert. Drag-end never commits — drags are
-  // for repositioning only; the player commits via tap-on-piece, the
-  // overlay confirm button, or the d-pad (which also clears the lock).
-  if (tap && isPlacementPhase(state.phase)) {
-    const locked = deps.isDirectTouchActive?.() ?? false;
-    if (gestureState.startedOnPhantom || !locked) {
-      dispatchPlacement(state, deps);
-      deps.setDirectTouchActive?.(true);
-    }
+  // Build / Cannon placement: only tap-on-piece commits (same effect as
+  // the overlay confirm button). Tap on empty map is inert — the player
+  // repositions by dragging the piece (touchmove tracks the finger) and
+  // commits via tap-on-piece, the overlay confirm button, or the d-pad +
+  // a confirm key. Drag-end never commits.
+  if (tap && gestureState.startedOnPhantom && isPlacementPhase(state.phase)) {
+    dispatchPlacement(state, deps);
   }
 
   // Battle: always fire on touch release (tap or drag)

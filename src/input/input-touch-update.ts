@@ -193,13 +193,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const phase = deps.state.phase;
   const human = deps.pointerPlayer();
   const phantomValid = pointerPhantomValid(phase, human, deps.phantoms);
-  // Reset direct-touch flag when leaving placement phases so it doesn't
-  // carry over into the next placement phase.
-  if (!isPlacementPhase(phase) && deps.directTouchActive) {
-    deps.clearDirectTouch();
-  }
   const visible =
-    deps.directTouchActive &&
     human !== null &&
     deps.mode === Mode.GAME &&
     isPlacementPhase(phase) &&

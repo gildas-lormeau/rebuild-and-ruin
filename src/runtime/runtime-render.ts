@@ -287,10 +287,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       mode: runtimeState.mode,
       state: runtimeState.state,
       phantoms: runtimeState.overlay.phantoms ?? {},
-      directTouchActive: runtimeState.inputTracking.directTouchActive,
-      clearDirectTouch: () => {
-        runtimeState.inputTracking.directTouchActive = false;
-      },
       leftHanded: runtimeState.settings.leftHanded,
       pointerPlayer: deps.pointerPlayer,
       dpad: touch.dpad,
