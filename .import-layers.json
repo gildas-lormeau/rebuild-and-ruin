@@ -208,7 +208,6 @@
       "src/render/3d/entities/phantoms.ts",
       "src/render/3d/entities/pits.ts",
       "src/render/3d/entities/tower-labels.ts",
-      "src/render/3d/entities/towers.ts",
       "src/render/3d/terrain.ts",
       "src/runtime/runtime-contracts.ts",
       "src/shared/core/board-occupancy.ts"
@@ -237,6 +236,7 @@
       "src/render/3d/entities/debris.ts",
       "src/render/3d/entities/grunts.ts",
       "src/render/3d/entities/houses.ts",
+      "src/render/3d/entities/towers.ts",
       "src/render/3d/entities/walls.ts",
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
