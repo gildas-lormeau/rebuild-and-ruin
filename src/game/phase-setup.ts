@@ -221,16 +221,21 @@ export function finalizeBattle(state: GameState): void {
  *
  *  Does NOT increment `state.round` — that happens later, at the `round-end`
  *  transition (after the build-phase score is finalized) via `startNextRound`.
- *  Round-gated reads inside this function and the helpers it calls must use
- *  `state.round + 1` (the upcoming round number) since seeding here is for
- *  the round about to be played. */
+ *  Helpers that need to know the round they're seeding for receive
+ *  `upcomingRound` as an explicit parameter so the timing knowledge ("we're
+ *  called pre-increment") lives only in this function, not in every helper. */
 export function prepareNextRound(state: GameState): void {
+  const upcomingRound = state.round + 1;
+
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
-  spawnInterbattleGrunts(state);
+  spawnInterbattleGrunts(state, upcomingRound);
   if (hasFeature(state, FID.UPGRADES)) {
-    state.modern!.pendingUpgradeOffers = generateUpgradeOffers(state);
+    state.modern!.pendingUpgradeOffers = generateUpgradeOffers(
+      state,
+      upcomingRound,
+    );
   }
 
   replenishBonusSquares(state);
@@ -256,11 +261,9 @@ export function prepareNextRound(state: GameState): void {
   // controllers, so the per-controller path was host-only). `currentPiece`
   // is game state (read by AI strategy + human UI during BUILD), so it
   // belongs in the engine. Iterate in slot order for deterministic RNG.
-  // Seed with state.round + 1 (the round whose build is about to play out)
-  // since state.round itself doesn't advance until the round-end transition.
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    initPlayerBag(player, state.round + 1, state.rng, useSmallPieces(player));
+    initPlayerBag(player, upcomingRound, state.rng, useSmallPieces(player));
   }
 }
 

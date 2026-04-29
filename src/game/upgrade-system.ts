@@ -323,15 +323,16 @@ export function applyUpgradePicks(
 
 /** Generate upgrade offers for all alive players. Uses state.rng for determinism.
  *  Called from prepareNextRound so the RNG is consumed before the
- *  BUILD_START checkpoint is sent. Returns null if not applicable. */
+ *  BUILD_START checkpoint is sent. Returns null if not applicable.
+ *
+ *  `upcomingRound` is the round whose UPGRADE_PICK these offers will fill.
+ *  The caller passes `state.round + 1` because state.round doesn't advance
+ *  until the round-end transition. */
 export function generateUpgradeOffers(
   state: GameState,
+  upcomingRound: number,
 ): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
   if (!hasFeature(state, FID.UPGRADES)) return null;
-  // Called from prepareNextRound at battle-done, BEFORE state.round advances
-  // (the increment happens later, at the round-end transition). Compare the
-  // upcoming round (state.round + 1) against the gate constants.
-  const upcomingRound = state.round + 1;
   if (upcomingRound < UPGRADE_FIRST_ROUND) return null;
   // No upgrades for the final round — they'd only affect a single battle
   // before the game ends, wasting the pick interaction. `maxRounds` is

@@ -358,10 +358,14 @@ export function rollGruntWallAttacks(state: GameState): void {
 /** Spawn interbattle grunts on each player's zone (bank-first).
  *  PRECONDITION: interior must be fresh (recheckTerritory already called).
  *
- *  Called from prepareNextRound at battle-done, BEFORE state.round advances.
- *  The gate compares the upcoming round number against FIRST_GRUNT_SPAWN_ROUND. */
-export function spawnInterbattleGrunts(state: GameState): void {
-  if (state.round + 1 < FIRST_GRUNT_SPAWN_ROUND) return;
+ *  `upcomingRound` is the round whose battle these grunts will join. The
+ *  caller (prepareNextRound) passes `state.round + 1` because state.round
+ *  doesn't advance until the round-end transition. */
+export function spawnInterbattleGrunts(
+  state: GameState,
+  upcomingRound: number,
+): void {
+  if (upcomingRound < FIRST_GRUNT_SPAWN_ROUND) return;
 
   for (const player of state.players.filter(isPlayerSeated)) {
     let spawnCount = 0;
