@@ -166,7 +166,6 @@ export function createTerrain(): TerrainContext {
   function update(ctx: FrameCtx): void {
     const { overlay, map } = ctx;
     if (!map) return;
-    const frozen = overlay?.entities?.frozenTiles;
     const sinkholeTiles = overlay?.entities?.sinkholeTiles;
     const inBattle = !!overlay?.battle?.inBattle;
 
@@ -201,11 +200,12 @@ export function createTerrain(): TerrainContext {
           // interior-grass color so enclosed lakes read as part of the
           // castle interior (2D recolors the bank pixels per-pixel via
           // `drawSinkholeOverlays`; 3D approximates at tile resolution).
-          // Frozen tiles fall through to alpha=0 so the bitmap's ice
-          // rendering wins (texture + edge blend in render-map.ts).
-          const isFrozen = frozen?.has(key);
+          // Includes frozen sinkholes: enclosure ownership wins over ice
+          // so the checkered tint stays consistent across the territory.
+          // Frozen river tiles never have an interiorOwner (rivers connect
+          // to the map edge), so they still fall through to alpha=0 below.
           const sinkholeOwner =
-            !isFrozen && sinkholeTiles?.has(key) && interiorOwner !== undefined
+            sinkholeTiles?.has(key) && interiorOwner !== undefined
               ? interiorOwner
               : undefined;
           if (sinkholeOwner !== undefined) {
