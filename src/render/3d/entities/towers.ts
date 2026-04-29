@@ -1,35 +1,41 @@
 /**
- * 3D tower meshes — Phase 3 of the 3D renderer migration, with
- * per-variant InstancedMesh on top.
+ * 3D tower meshes — Phase 3 of the 3D renderer migration.
  *
  * Towers live on the `GameMap` (stable list, one entry per selectable
  * keep) and the overlay attaches per-frame ownership data:
  *
  *   • `overlay.entities.ownedTowers` — Map<towerIdx, playerId> for every
  *     tower a player has claimed (their original home tower + any
- *     secondary towers they've enclosed). Drives per-bucket tinting of
- *     flag, body, parapet, and pole-base sub-parts.
- *   • `overlay.entities.homeTowerIndices` — set of tower indices that
- *     are a player's *original* home tower. Selects `home_tower`
- *     geometry; other towers use `secondary_tower`.
+ *     secondary towers they've enclosed). Drives per-player tinting of
+ *     flag, roof, body, and parapets.
+ *   • `overlay.entities.homeTowerIndices` — set of tower indices that are
+ *     a player's *original* home tower. Selects `home_tower` geometry
+ *     (gate, corner flags, taller main flag); other towers use the
+ *     `secondary_tower` geometry even when claimed.
  *   • `overlay.entities.towerAlive` — boolean[] indexed by towerIdx.
- *     Dead towers are skipped here — the 3D `debris` entity manager
- *     renders their rubble piles under a separate layer flag.
+ *     Dead towers (false) are skipped here — the 3D `debris` entity
+ *     manager (see `./debris.ts`) renders their rubble piles under a
+ *     separate layer flag.
  *
- * Instancing approach: same `extract-and-instance` pattern as walls /
- * cannons / houses, but the bucket key is `(variantName, ownerId)`
- * — tinting is baked into the scratch (via `tintNamedMeshes`) before
- * extraction, so each unique (variant, owner) pair has its own bucket
- * with already-tinted materials. No per-instance color, no shader
- * tricks: the cost of distinguishing tints is one extra bucket per
- * (variant, owner) pair, materializing only when that pair is actually
- * present this frame.
+ * The 2D renderer draws towers inside `drawTowers` (render-towers.ts),
+ * picking one of three per-player baked sprites per tower. This
+ * manager builds a shared tower model and recolours named meshes per
+ * owner: "flag" uses the vivid `interiorLight` team tint, "body" and
+ * "parapet" use the muted `wall` stone tint. Roofs stay on their
+ * neutral pale palette (cool slate on home, warm terracotta on
+ * secondary) so the team identity reads via the flag and wall tone
+ * without a saturated roof. Captured secondary towers keep the
+ * sandstone geometry and pick up the tint on body + flag.
  *
- * Worst case: 2 variants × (4 player tints + 1 unowned) = 10 buckets ×
- * ~15 sub-parts/bucket = ~150 InstancedMeshes. Practically ~4-6 buckets
- * are active at once = ~60-90 InstancedMeshes. Down from ~180 unique
- * meshes pre-refactor (one Group per tower, each with its own mesh
- * tree).
+ * Update cadence: the set of towers only changes across castle-
+ * selection phases (ownership) and battle deaths. A small fingerprint
+ * of the (variant, ownerId, tower index) triples skips the rebuild on
+ * steady-state frames.
+ *
+ * Reconciliation is teardown+rebuild (dispose every mesh and material
+ * the manager owns, rebuild from scratch). Towers top out at 6 per
+ * map; this is well below the threshold where incremental
+ * reconciliation starts paying off.
  */
 
 import * as THREE from "three";
@@ -38,15 +44,7 @@ import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildTower, getTowerVariant } from "../sprites/tower-scene.ts";
-import { tintNamedMeshes } from "./entity-helpers.ts";
-import {
-  type BucketSubPart,
-  buildVariantBucket,
-  disposeAllBuckets,
-  ensureBucketCapacity,
-  fillBucket,
-  hideSubParts,
-} from "./instance-bucket.ts";
+import { disposeGroupSubtree, tintNamedMeshes } from "./entity-helpers.ts";
 
 export interface TowersManager {
   /** Reconcile tower meshes with the current overlay. Cheap no-op when
@@ -56,11 +54,6 @@ export interface TowersManager {
   dispose(): void;
 }
 
-interface TowerBucket {
-  subParts: BucketSubPart[];
-  capacity: number;
-}
-
 /** Tower-scene authors each turret in a ±1 frustum (2 world units wide)
  *  covering a 2-tile span. We want 2 cells = 2 game tiles, so we scale
  *  by TILE_SIZE — each authored 1 world unit becomes TILE_SIZE pixels. */
@@ -68,50 +61,100 @@ const TOWER_SCALE = TILE_SIZE;
 /** Tower footprint in tiles. Towers are 2×2 — anchor is the top-left
  *  tile, center sits one full tile inward on both axes. */
 const TOWER_CENTER_OFFSET = TILE_SIZE;
-/** Initial bucket capacity. Most player slots own 1-3 towers; pow-2
- *  growth handles outliers. */
-const INITIAL_CAPACITY = 4;
 
 export function createTowersManager(scene: THREE.Scene): TowersManager {
   const root = new THREE.Group();
   root.name = "towers";
   scene.add(root);
 
-  // One bucket per (variantName, ownerId) pair. Allocated lazily on
-  // first occurrence; the bucket map persists across signature changes
-  // so an owner who re-enters the field doesn't pay a fresh build.
-  const buckets = new Map<string, TowerBucket>();
+  // Materials we created (not shared with tower-scene's shared texture
+  // objects — only the player-tint flag materials we clone). Tracked so
+  // dispose() can free them.
   const ownedMaterials: THREE.Material[] = [];
   let lastSignature: string | undefined;
 
-  const hostMatrix = new THREE.Matrix4();
-  const instanceMatrix = new THREE.Matrix4();
-  const hostTranslation = new THREE.Vector3();
-  const hostScale = new THREE.Vector3(TOWER_SCALE, TOWER_SCALE, TOWER_SCALE);
-  const identityQuat = new THREE.Quaternion();
+  function buildAllTowers(
+    towers: readonly Tower[],
+    ownedTowers: ReadonlyMap<number, number> | undefined,
+    homeTowerIndices: ReadonlySet<number> | undefined,
+    aliveMask: readonly boolean[] | undefined,
+  ): void {
+    for (let i = 0; i < towers.length; i++) {
+      const tower = towers[i]!;
+      // Skip dead towers — the 3D debris manager (entities/debris.ts)
+      // renders their rubble under the separate `debris` layer flag.
+      // `towerAlive === undefined` (no battle state yet) means "all alive".
+      if (aliveMask && aliveMask[i] === false) continue;
 
-  function ensureBucket(
-    bucketKey: string,
-    variantName: string,
-    ownerId: ValidPlayerSlot | undefined,
-    required: number,
-  ): TowerBucket | undefined {
-    return ensureBucketCapacity(
-      buckets,
-      bucketKey,
-      required,
-      INITIAL_CAPACITY,
-      (capacity) =>
-        buildBucket(variantName, ownerId, capacity, root, ownedMaterials),
-    );
+      const ownerId = ownedTowers?.get(i);
+      const isHome = homeTowerIndices?.has(i) ?? false;
+      const variantName = isHome ? "home_tower" : "secondary_tower";
+      const variant = getTowerVariant(variantName);
+      if (!variant) continue;
+
+      const host = new THREE.Group();
+      buildTower(THREE, host, variant.params);
+
+      // Position at tower centre: (col + 1, row + 1) * TILE_SIZE.
+      host.position.set(
+        tower.col * TILE_SIZE + TOWER_CENTER_OFFSET,
+        0,
+        tower.row * TILE_SIZE + TOWER_CENTER_OFFSET,
+      );
+      host.scale.setScalar(TOWER_SCALE);
+
+      // Per-player tinting for home towers. Flags and roofs use the
+      // vivid `interiorLight` tint for instant team readability at the
+      // gameplay camera; stone body + parapets use the muted `wall`
+      // tint so the whole silhouette feels player-coloured without
+      // washing out the stonework.
+      if (ownerId !== undefined) {
+        tintNamedMeshes(
+          host,
+          "flag",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+        );
+        tintNamedMeshes(
+          host,
+          "body",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
+        );
+        tintNamedMeshes(
+          host,
+          "parapet",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
+        );
+        tintNamedMeshes(
+          host,
+          "pole_base",
+          ownerId as ValidPlayerSlot,
+          ownedMaterials,
+          "wall",
+        );
+      }
+
+      root.add(host);
+    }
+  }
+
+  function clear(): void {
+    // Dispose per-mesh geometry + owned tint materials. Shared
+    // texture/material objects owned by tower-scene are not touched —
+    // they're cached and re-used across rebuilds.
+    disposeGroupSubtree(root, ownedMaterials);
   }
 
   function update(ctx: FrameCtx): void {
+    const { overlay } = ctx;
     const towers = ctx.map?.towers;
-    const overlay = ctx.overlay;
     if (!towers || towers.length === 0) {
       if (lastSignature !== "") {
-        for (const bucket of buckets.values()) hideSubParts(bucket.subParts);
+        clear();
         lastSignature = "";
       }
       return;
@@ -120,97 +163,27 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
     const aliveMask = overlay?.entities?.towerAlive;
 
-    // Pre-bucket live towers by (variantName, ownerId).
-    const byBucket = new Map<string, Tower[]>();
-    const sigParts: string[] = [];
+    // Signature: tower index + variant + ownerId + alive bit. Rebuilds
+    // only when one of those changes.
+    const parts: string[] = [];
     for (let i = 0; i < towers.length; i++) {
       const alive = aliveMask ? aliveMask[i] !== false : true;
-      if (!alive) continue;
-      const tower = towers[i]!;
-      const ownerIdRaw = ownedTowers?.get(i);
-      const ownerId =
-        ownerIdRaw !== undefined ? (ownerIdRaw as ValidPlayerSlot) : undefined;
-      const isHome = homeTowerIndices?.has(i) ?? false;
-      const variantName = isHome ? "home_tower" : "secondary_tower";
-      const bucketKey = `${variantName}:${ownerId ?? "-"}`;
-      let list = byBucket.get(bucketKey);
-      if (!list) {
-        list = [];
-        byBucket.set(bucketKey, list);
-      }
-      list.push(tower);
-      sigParts.push(`${i}:${variantName}:${ownerId ?? "-"}`);
+      const ownerId = ownedTowers?.get(i);
+      const home = homeTowerIndices?.has(i) ? 1 : 0;
+      parts.push(`${i}:${ownerId ?? "-"}:${home}:${alive ? 1 : 0}`);
     }
-    const signature = sigParts.join(",");
+    const signature = parts.join(",");
     if (signature === lastSignature) return;
     lastSignature = signature;
 
-    // Hide buckets with no live towers this frame.
-    for (const [bucketKey, bucket] of buckets) {
-      if (!byBucket.has(bucketKey)) hideSubParts(bucket.subParts);
-    }
-
-    for (const [bucketKey, list] of byBucket) {
-      const colonIdx = bucketKey.indexOf(":");
-      const variantName = bucketKey.slice(0, colonIdx);
-      const ownerToken = bucketKey.slice(colonIdx + 1);
-      const ownerId =
-        ownerToken === "-"
-          ? undefined
-          : (Number(ownerToken) as ValidPlayerSlot);
-
-      const bucket = ensureBucket(bucketKey, variantName, ownerId, list.length);
-      if (!bucket) continue;
-
-      fillBucket(bucket, list, hostMatrix, instanceMatrix, (tower, matrix) => {
-        hostTranslation.set(
-          tower.col * TILE_SIZE + TOWER_CENTER_OFFSET,
-          0,
-          tower.row * TILE_SIZE + TOWER_CENTER_OFFSET,
-        );
-        matrix.compose(hostTranslation, identityQuat, hostScale);
-      });
-    }
+    clear();
+    buildAllTowers(towers, ownedTowers, homeTowerIndices, aliveMask);
   }
 
   function dispose(): void {
-    disposeAllBuckets(buckets, ownedMaterials);
+    clear();
     scene.remove(root);
   }
 
   return { update, dispose };
-}
-
-/** Build one bucket for the given (variantName, ownerId) pair. Tinting
- *  is baked into the scratch group (via `tintNamedMeshes`) before
- *  extraction, so the resulting `InstancedMesh`es already carry the
- *  player-tinted materials — no per-instance color writes needed. */
-function buildBucket(
-  variantName: string,
-  ownerId: ValidPlayerSlot | undefined,
-  capacity: number,
-  root: THREE.Group,
-  ownedMaterials: THREE.Material[],
-): TowerBucket | undefined {
-  const variant = getTowerVariant(variantName);
-  if (!variant) return undefined;
-  const subParts = buildVariantBucket({
-    capacity,
-    root,
-    ownedMaterials,
-    scratchBuilder: (scratch) => {
-      buildTower(THREE, scratch, variant.params);
-      if (ownerId !== undefined) {
-        // Same name+colorVariant pairs as the pre-refactor inline code.
-        // Materials cloned by tintNamedMeshes are pushed onto the shared
-        // ownedMaterials list, so dispose() reaches them.
-        tintNamedMeshes(scratch, "flag", ownerId, ownedMaterials);
-        tintNamedMeshes(scratch, "body", ownerId, ownedMaterials, "wall");
-        tintNamedMeshes(scratch, "parapet", ownerId, ownedMaterials, "wall");
-        tintNamedMeshes(scratch, "pole_base", ownerId, ownedMaterials, "wall");
-      }
-    },
-    namePrefix: `tower-${variantName}-${ownerId ?? "x"}`,
-  });
-  return { subParts, capacity };
 }
