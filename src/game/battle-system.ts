@@ -477,6 +477,7 @@ export function applyCannonFired(
     targetY: msg.targetY,
     speed: msg.speed,
     playerId: msg.playerId,
+    scoringPlayerId: msg.scoringPlayerId,
     launchX: msg.launchX,
     launchY: msg.launchY,
     launchAltitude: msg.launchAltitude,
@@ -1019,6 +1020,11 @@ function canFireCapturedCannon(
  * Returns events describing what should happen: wall destroyed, wall absorbed,
  * cannon damaged, etc. All state mutations happen in applyImpactEvent.
  *
+ * `incendiary` marks a heavy/center hit (super gun ball, mortar center tile):
+ *   • creates a burning pit on grass when a wall is destroyed (step 3)
+ *   • deals 2 HP — destroys reinforced walls outright, kills frostbite grunts
+ *     in one shot, takes 2 cannon HP, burns 2 rampart shield HP
+ *
  * Collector order matters — adding a new impact type:
  *   1. collectWallImpacts must run first (its `hitWall` return gates incendiary pit creation)
  *   2. collectCannonImpacts is independent
@@ -1044,9 +1050,16 @@ function computeImpact(
     row,
     col,
     shooterId,
+    incendiary,
   );
   // Step 2: cannons (independent)
-  const cannonEvents = collectCannonImpacts(state, row, col, shooterId);
+  const cannonEvents = collectCannonImpacts(
+    state,
+    row,
+    col,
+    shooterId,
+    incendiary,
+  );
 
   // Step 3: incendiary pit (depends on hitWall from step 1)
   const pitEvents: ImpactEvent[] =
@@ -1063,7 +1076,13 @@ function computeImpact(
 
   // Step 4: houses and grunts (independent — towers NOT damaged by cannonballs)
   const houseEvents = collectHouseImpacts(state, row, col);
-  const gruntEvents = collectGruntImpacts(state, row, col, shooterId);
+  const gruntEvents = collectGruntImpacts(
+    state,
+    row,
+    col,
+    shooterId,
+    incendiary,
+  );
 
   // Step 5: frozen water thaw (independent — modern mode only)
   const iceEvents = collectFrozenWaterImpacts(state, row, col);
@@ -1078,16 +1097,19 @@ function computeImpact(
   ];
 }
 
-/** Collect wall destruction events at a tile. Returns events and whether any wall was hit. */
+/** Collect wall destruction events at a tile. Returns events and whether any wall was hit.
+ *  `heavy` (super gun / mortar center): bypasses Reinforced Walls absorption,
+ *  consumes 2 rampart shield HP (destroys wall + drains shield when shield<2). */
 function collectWallImpacts(
   state: GameState,
   key: number,
   row: number,
   col: number,
   shooterId: ValidPlayerSlot,
+  heavy?: boolean,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
-  const result = resolveWallShield(state, row, col, key);
+  const result = resolveWallShield(state, row, col, key, heavy);
   if (result === null) return { events, hitWall: false };
   if (result.absorbed && result.kind === ShieldKind.Reinforced) {
     // Reinforced Walls: wall survives, no pit (hitWall stays false).
@@ -1107,6 +1129,16 @@ function collectWallImpacts(
     });
     return { events, hitWall: false };
   }
+  // Heavy hit blew through a shield<2 rampart: drain the shield to 0 alongside
+  // the wall destruction so the rampart's last point is properly spent.
+  if (!result.absorbed && result.rampartConsumed) {
+    events.push({
+      type: BATTLE_MESSAGE.WALL_SHIELDED,
+      playerId: result.playerId,
+      cannonIdx: result.rampartConsumed.cannonIdx,
+      newShieldHp: 0,
+    });
+  }
   events.push({
     type: BATTLE_MESSAGE.WALL_DESTROYED,
     row,
@@ -1117,14 +1149,17 @@ function collectWallImpacts(
   return { events, hitWall: true };
 }
 
-/** Collect cannon damage events at a tile. */
+/** Collect cannon damage events at a tile.
+ *  `heavy` (super gun / mortar center) deals 2 HP instead of 1. */
 function collectCannonImpacts(
   state: GameState,
   row: number,
   col: number,
   shooterId: ValidPlayerSlot,
+  heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
+  const damage = heavy ? 2 : 1;
   for (const player of state.players) {
     for (let cannonIdx = 0; cannonIdx < player.cannons.length; cannonIdx++) {
       const cannon = player.cannons[cannonIdx]!;
@@ -1135,7 +1170,7 @@ function collectCannonImpacts(
           type: BATTLE_MESSAGE.CANNON_DAMAGED,
           playerId: player.id,
           cannonIdx,
-          newHp: cannon.hp - 1,
+          newHp: Math.max(0, cannon.hp - damage),
           shooterId,
         });
       }
@@ -1174,12 +1209,15 @@ function collectHouseImpacts(
 /** Collect grunt kill events at a tile.
  *  Frostbite: a frosted grunt's first hit is absorbed (chip event marks the
  *  tile in `state.modern.chippedGrunts`); subsequent hits kill normally.
+ *  `heavy` (super gun / mortar center) deals 2 HP — bypasses the chip step
+ *  and kills frosted grunts in one shot.
  *  Conscription: killed grunts have a chance to respawn on a random enemy zone. */
 function collectGruntImpacts(
   state: GameState,
   row: number,
   col: number,
   shooterId: ValidPlayerSlot,
+  heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
   const frostbiteActive =
@@ -1187,7 +1225,11 @@ function collectGruntImpacts(
   for (const grunt of state.grunts) {
     if (!isAtTile(grunt, row, col)) continue;
     const tileKey = packTile(grunt.row, grunt.col);
-    if (frostbiteActive && !state.modern?.chippedGrunts?.has(tileKey)) {
+    if (
+      !heavy &&
+      frostbiteActive &&
+      !state.modern?.chippedGrunts?.has(tileKey)
+    ) {
       events.push({
         type: BATTLE_MESSAGE.GRUNT_CHIPPED,
         row: grunt.row,

@@ -45,7 +45,7 @@ const CANNON_MODE_POOL: readonly CannonModeDef[] = [
     id: CannonMode.SUPER,
     label: "Super Cannon",
     description:
-      "3×3 cannon, fires incendiary cannonballs that create burning pits",
+      "3×3 cannon, fires heavy incendiary cannonballs (2 HP) that create burning pits",
     size: 3,
     slotCost: 4,
     implemented: true,

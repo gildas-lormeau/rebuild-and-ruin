@@ -102,7 +102,8 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
   {
     id: "mortar",
     label: "Mortar",
-    description: "Slow cannon, 3×3 splash, creates burning pits",
+    description:
+      "Slow cannon, 3×3 splash (2 HP at center), creates burning pits",
     category: BATTLE,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,

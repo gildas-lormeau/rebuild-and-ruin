@@ -37,19 +37,30 @@ type WallShieldResult =
       cannonIdx: number;
       newShieldHp: number;
     }
-  | { absorbed: false; playerId: ValidPlayerSlot }
+  | {
+      absorbed: false;
+      playerId: ValidPlayerSlot;
+      // Heavy hit blew through a shield<2 rampart: wall is destroyed AND the
+      // rampart's last point of shield is consumed (drained to 0).
+      rampartConsumed?: { cannonIdx: number };
+    }
   | null;
 
-/** Look up whether the wall at (row, col) is protected. Pure — no mutation. */
+/** Look up whether the wall at (row, col) is protected. Pure — no mutation.
+ *
+ *  `heavy` marks a 2-HP impact (super gun ball / mortar center): bypasses
+ *  Reinforced Walls entirely, and consumes 2 shield HP from a rampart
+ *  (or destroys the wall + drains the shield when shield<2). */
 export function resolveWallShield(
   state: GameState,
   row: number,
   col: number,
   key: number,
+  heavy?: boolean,
 ): WallShieldResult {
   for (const player of state.players) {
     if (!player.walls.has(key)) continue;
-    if (shouldAbsorbWallHit(player, key)) {
+    if (!heavy && shouldAbsorbWallHit(player, key)) {
       return {
         absorbed: true,
         kind: ShieldKind.Reinforced,
@@ -59,12 +70,20 @@ export function resolveWallShield(
     }
     const rampart = findShieldingRampart(player, row, col);
     if (rampart) {
+      const shieldHp = rampart.cannon.shieldHp ?? 0;
+      if (heavy && shieldHp < 2) {
+        return {
+          absorbed: false,
+          playerId: player.id,
+          rampartConsumed: { cannonIdx: rampart.idx },
+        };
+      }
       return {
         absorbed: true,
         kind: ShieldKind.Rampart,
         playerId: player.id,
         cannonIdx: rampart.idx,
-        newShieldHp: (rampart.cannon.shieldHp ?? 0) - 1,
+        newShieldHp: shieldHp - (heavy ? 2 : 1),
       };
     }
     return { absorbed: false, playerId: player.id };

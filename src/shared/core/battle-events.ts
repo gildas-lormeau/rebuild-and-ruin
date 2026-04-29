@@ -14,6 +14,10 @@ export interface CannonFiredMessage {
   type: "cannonFired";
   playerId: ValidPlayerSlot;
   cannonIdx: number;
+  /** Set when fired through a captured-cannon path: the capturer who scores
+   *  for this ball's effects. `playerId` stays the original cannon owner so
+   *  watcher-side `canFireOwnCannon` lookups resolve against the right slot. */
+  scoringPlayerId?: ValidPlayerSlot;
   startX: number;
   startY: number;
   targetX: number;
@@ -147,8 +151,9 @@ export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
  *  them to `true` via the builder below). */
 type CannonFiredPayload = Omit<
   CannonFiredMessage,
-  "type" | "incendiary" | "mortar"
+  "type" | "incendiary" | "mortar" | "scoringPlayerId"
 > & {
+  scoringPlayerId?: ValidPlayerSlot;
   incendiary?: boolean;
   mortar?: boolean;
 };
@@ -265,6 +270,7 @@ export function createCannonFiredMsg(
     type: BATTLE_MESSAGE.CANNON_FIRED,
     playerId: ball.playerId,
     cannonIdx: ball.cannonIdx,
+    scoringPlayerId: ball.scoringPlayerId,
     startX: ball.startX,
     startY: ball.startY,
     targetX: ball.targetX,
