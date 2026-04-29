@@ -108,8 +108,9 @@ export function applyCheckpointModifierTiles(
 }
 
 /** Clear all modifier temporary state (frozen tiles, high tide, low water,
- *  frostbite chip). Called from `finalizeBattle` (battle-done) so the
- *  post-battle phases (UPGRADE_PICK, WALL_BUILD) see neutral terrain.
+ *  frostbite chip). Called from `prepareBattleState` (next round's
+ *  CANNON_PLACE-done, just before `rollModifier`) so each modifier is
+ *  active for one full round (its battle through next CANNON_PLACE).
  *  Permanent map mutations (sinkhole grass→water, wildfire scars,
  *  crumbling walls) live in impls without a `clear` hook and are
  *  intentionally untouched. Each clear function is idempotent. */

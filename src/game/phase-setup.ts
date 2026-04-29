@@ -127,20 +127,23 @@ export function finalizeCastleConstruction(state: GameState): void {
 
 /** Prepare battle state at the end of CANNON_PLACE, before the BATTLE_START
  *  checkpoint is broadcast. Runs post-cannon-place cleanup (pit decay, wall
- *  sweep, territory recheck), rolls the round's modifier, applies battle-start
- *  modifier effects, and primes battle fields (timer, cannonballs, combo
- *  tracker). Does NOT flip `state.phase` — that's owned by the phase machine
- *  (`enter-modifier-reveal` or `enter-battle`). `lastModifierId` was already
- *  saved in `finalizeBattle` (before the checkpoint).
+ *  sweep, territory recheck), clears the previous round's modifier, rolls
+ *  the round's modifier, applies battle-start modifier effects, and primes
+ *  battle fields (timer, cannonballs, combo tracker). Does NOT flip
+ *  `state.phase` — that's owned by the phase machine (`enter-modifier-reveal`
+ *  or `enter-battle`). `lastModifierId` was already saved in `finalizeBattle`
+ *  (before the checkpoint).
  *
- *  No `clearActiveModifiers` here — the previous round's battle-scoped
- *  modifier state (frozen tiles, high tide, low water, frostbite) was
- *  already cleared at battle-done by `finalizeBattle`. By the time this
- *  function runs, post-battle phases have seen neutral terrain and only
- *  permanent map mutations (sinkhole grass→water, wildfire scars) remain. */
+ *  Round-scoped: the previous round's modifier state (frozen tiles, high
+ *  tide, low water, frostbite chip) stays live through BATTLE → UPGRADE_PICK
+ *  → WALL_BUILD → next CANNON_PLACE, and is cleared HERE — just before the
+ *  modifier-reveal banner — so the new modifier rolls against neutral
+ *  terrain. `clearActiveModifiers` runs AFTER `recheckTerritory` to preserve
+ *  the RNG-draw ordering established by commit 349608a7. */
 export function prepareBattleState(state: GameState): ModifierDiff | null {
   preBattleSweep(state);
   recheckTerritory(state);
+  clearActiveModifiers(state);
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
     if (state.modern!.activeModifier !== null) {
@@ -172,28 +175,28 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
 }
 
 /** Ceasefire: skip battle entirely — do pre-battle housekeeping then go
- *  straight to build. `finalizeBattle` does the territory recheck + the
- *  battle-scoped modifier clear in that order, matching the post-battle
- *  path; nothing between `preBattleSweep` and `finalizeBattle`'s
- *  recheckTerritory reads `player.interior`. Skips modifiers, grunt
- *  attacks, and battle setup — the round had no battle. */
+ *  straight to build. Mirrors the post-battle path: `clearActiveModifiers`
+ *  runs before `finalizeBattle`'s `recheckTerritory` so any clear-driven
+ *  grunt mutation (frozen-river thaw kills grunts on water) settles before
+ *  enclosed-grunt respawn draws RNG. Skips modifier roll, grunt attacks,
+ *  and battle setup — the round had no battle. */
 export function enterBuildSkippingBattle(state: GameState): void {
   preBattleSweep(state);
+  clearActiveModifiers(state);
   finalizeBattle(state);
   prepareNextRound(state);
 }
 
 /** Old-round housekeeping run after BATTLE ends (battle-done) or at ceasefire
  *  entry. Closes out battle artifacts (balloons, captured cannons, grunts),
- *  clears battle-scoped modifier state (frozen-river thaw, high-tide /
- *  low-water revert, frostbite chip), clears the fresh-castle grace period,
- *  snapshots `activeModifier` as `lastModifierId` for the next roll.
+ *  clears the fresh-castle grace period, snapshots `activeModifier` as
+ *  `lastModifierId` for the next roll.
  *
- *  `clearActiveModifiers` is called AFTER `recheckTerritory` to preserve
- *  the RNG-draw ordering established by commit 349608a7: enclosed-grunt
- *  respawn (inside `recheckTerritory`) draws against the unmutated grunt
- *  list, so a future modifier with a more aggressive `.clear` that killed
- *  interior grunts wouldn't silently shift the RNG sequence.
+ *  Does NOT clear modifier state — round-scoped modifiers (frozen, high
+ *  tide, low water, frostbite chip) stay live through UPGRADE_PICK +
+ *  WALL_BUILD + next CANNON_PLACE and clear in `prepareBattleState` just
+ *  before the next roll. Permanent map mutations (sinkhole grass→water,
+ *  wildfire scars, crumbling walls) have no `clear` hook.
  *
  *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
  *  build-phase score is computed) and does NOT increment `state.round`
@@ -205,7 +208,6 @@ export function finalizeBattle(state: GameState): void {
   cleanupBattleArtifacts(state);
   spawnIdleFirstBattleGrunts(state);
   recheckTerritory(state);
-  clearActiveModifiers(state);
   // End of the protected battle — clear the fresh-castle grace period flag.
   for (const player of state.players) player.freshCastle = false;
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint

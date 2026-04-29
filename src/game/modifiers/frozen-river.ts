@@ -1,6 +1,9 @@
 /**
  * Frozen River modifier — freezes the entire river, allowing cross-zone grunt movement.
- * Lasts through battle + build phase; thaw kills grunts stranded on water.
+ * Round-scoped: lasts from this round's BATTLE through UPGRADE_PICK + WALL_BUILD +
+ * the next round's CANNON_PLACE, then thaws in `prepareBattleState`'s
+ * `clearActiveModifiers` call (just before the next modifier rolls).
+ * Thaw kills grunts stranded on water tiles.
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
