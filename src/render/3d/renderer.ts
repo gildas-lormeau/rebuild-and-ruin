@@ -70,6 +70,15 @@ export function createRender3d(
   let lastViewport: Viewport | undefined;
   let lastPitch = 0;
 
+  // Per-frame draw-call / triangle counts captured immediately after the
+  // scene render in `renderSceneToFBO`, before the blit pass overwrites
+  // them. `renderer.info.render.*` is reset on every `render()`, so the
+  // perf HUD can't read it after the blit (it would always show 1 call).
+  // Held across frames so banner frames (which skip the scene render)
+  // surface the last real gameplay cost instead of zero.
+  let lastSceneDrawCalls = 0;
+  let lastSceneTriangles = 0;
+
   // Banner prev-scene snapshot scratch canvases. Lazily created on first
   // capture; reused across phase transitions. The composite canvas matches
   // the display canvas dimensions (CANVAS_W × CANVAS_H) so the returned
@@ -220,6 +229,8 @@ export function createRender3d(
     ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
     ctx.renderer.clear();
     ctx.renderer.render(ctx.scene, ctx.camera);
+    lastSceneDrawCalls = ctx.renderer.info.render.calls;
+    lastSceneTriangles = ctx.renderer.info.render.triangles;
     ctx.renderer.setRenderTarget(null);
   }
 
@@ -275,8 +286,8 @@ export function createRender3d(
         const info = ctx.renderer.info;
         updatePerfHud(
           {
-            drawCalls: info.render.calls,
-            triangles: info.render.triangles,
+            drawCalls: lastSceneDrawCalls,
+            triangles: lastSceneTriangles,
             geometries: info.memory.geometries,
             textures: info.memory.textures,
             programs: info.programs?.length ?? 0,

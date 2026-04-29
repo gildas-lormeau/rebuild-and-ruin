@@ -52,10 +52,16 @@ export function updatePerfHud(stats: PerfStats, now: number): void {
   }
 
   overlay.textContent =
-    `${fps} FPS · calls ${stats.drawCalls} · ` +
-    `tri ${stats.triangles.toLocaleString()} · ` +
-    `geom ${stats.geometries} · tex ${stats.textures} · ` +
-    `shd ${stats.programs}`;
+    `${fps} FPS  calls ${formatCompact(stats.drawCalls)}  ` +
+    `tri ${formatCompact(stats.triangles)}  ` +
+    `geom ${formatCompact(stats.geometries)}  tex ${formatCompact(stats.textures)}  ` +
+    `shd ${formatCompact(stats.programs)}`;
+}
+
+function formatCompact(value: number): string {
+  if (value < 1000) return value.toString();
+  if (value < 1_000_000) return `${(value / 1000).toFixed(1)}K`;
+  return `${(value / 1_000_000).toFixed(1)}M`;
 }
 
 function createOverlay(): HTMLElement {
