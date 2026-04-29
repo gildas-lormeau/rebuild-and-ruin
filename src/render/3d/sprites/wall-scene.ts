@@ -28,6 +28,7 @@
  */
 
 import type * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   applyBoxWallUV,
   createMaterial,
@@ -437,18 +438,20 @@ function buildCell(
   // 1 = sides.
   const stoneSideMat = buildTexturedMaterial(three, STONE_MAIN);
   const wallTopMat = buildTexturedMaterial(three, WALL_TOP);
-  // Merlons: per-face array so top/bottom stay untextured while the
-  // four vertical faces get the textured material.
-  const merlonSideMat = buildTexturedMaterial(three, STONE_LIGHT);
+  // Merlons split into two single-material meshes per merlon:
+  //   - body (textured stone sides, original STONE_LIGHT spec)
+  //   - cap (plain bright untextured WALL_STONE_LIGHT) parented as a
+  //     child of the body so applyWallDamage's per-merlon transforms
+  //     (tilt, sink, remove-when-destroyed) carry the cap along
+  //     automatically without per-cap bookkeeping.
+  // Single material per mesh = one drawElements per merlon bucket
+  // (three.js skips per-group iteration). The end-of-buildCell merge
+  // collapses every merlon body + stump + rubble into one mesh and every
+  // surviving merlon cap into a second mesh. Two merged sub-parts for the
+  // merlon population vs ~30 individual sub-parts before, with the original
+  // textured-sides + bright-caps look preserved.
+  const merlonBodyMat = buildTexturedMaterial(three, STONE_LIGHT);
   const merlonCapMat = buildTexturedMaterial(three, WALL_STONE_LIGHT);
-  const merlonMatArray = [
-    merlonSideMat,
-    merlonSideMat,
-    merlonCapMat,
-    merlonCapMat,
-    merlonSideMat,
-    merlonSideMat,
-  ];
 
   // Base body via ExtrudeGeometry of a corner-aware Shape.
   const shape = makeCellShape(three, mask);
@@ -475,17 +478,46 @@ function buildCell(
   // Battlements on each open edge.
   for (const dir of CARDINALS) {
     if (mask & dir) continue;
-    placeMerlons(three, group, dir, mask, merlonMatArray, uOff, vOff, aoMat);
+    placeMerlons(
+      three,
+      group,
+      dir,
+      mask,
+      merlonBodyMat,
+      merlonCapMat,
+      uOff,
+      vOff,
+      aoMat,
+    );
   }
 
   // Corner merlons — one at each rounded outer corner, sitting at the
   // arc center so the merlon sits inside the wall's rounded footprint.
   // Fills the ±0.75 lattice slots that get clipped by the rounding.
-  placeCornerMerlons(three, group, mask, merlonMatArray, uOff, vOff, aoMat);
+  placeCornerMerlons(
+    three,
+    group,
+    mask,
+    merlonBodyMat,
+    merlonCapMat,
+    uOff,
+    vOff,
+    aoMat,
+  );
 
   if (damaged) {
-    applyWallDamage(three, group, mask, merlonSideMat);
+    applyWallDamage(three, group, mask, merlonBodyMat);
   }
+
+  // Collapse same-material child meshes into one merged mesh per material
+  // bucket. The wall scene authors each merlon / AO plane / stump / rubble
+  // chunk / scar as its own Mesh + BufferGeometry, and the entity manager
+  // builds one InstancedMesh per extracted sub-part — so a single variant
+  // can ship 30+ buckets even though the per-instance variation across
+  // walls of the same (mask, damaged) is zero. Merging here cuts the
+  // sub-part count to ~5 (body, merlons, AO, stumps+rubble, scars) which
+  // proportionally cuts draw calls and BufferGeometry allocations.
+  mergeByMaterial(three, group);
 
   return group;
 }
@@ -755,7 +787,8 @@ function placeCornerMerlons(
   three: typeof THREE,
   group: THREE.Group,
   mask: number,
-  mat: THREE.Material[],
+  bodyMat: THREE.Material,
+  capMat: THREE.Material,
   uOff: number,
   vOff: number,
   aoMat: THREE.Material,
@@ -772,9 +805,10 @@ function placeCornerMerlons(
     if ((mask & k.adj) !== 0) continue; // at least one adjacent cardinal is wall → square
     const geom = new three.BoxGeometry(M_S, M_H, M_S);
     applyBoxWallUV(geom, M_S, M_H, M_S, UV_DENSITY, uOff, vOff);
-    const merlon = new three.Mesh(geom, mat);
+    const merlon = new three.Mesh(geom, bodyMat);
     merlon.position.set(k.sx * c, yMerlon, k.sz * c);
     merlon.userData.merlon = true;
+    addMerlonCap(three, merlon, capMat);
     group.add(merlon);
     addMerlonAO(three, group, k.sx * c, k.sz * c, aoMat);
   }
@@ -855,7 +889,8 @@ function placeMerlons(
   group: THREE.Group,
   openDir: number,
   mask: number,
-  mat: THREE.Material[],
+  bodyMat: THREE.Material,
+  capMat: THREE.Material,
   uOff: number,
   vOff: number,
   aoMat: THREE.Material,
@@ -906,11 +941,12 @@ function placeMerlons(
     if (perp + M_S / 2 > perpEnd + eps) continue;
     const geom = new three.BoxGeometry(M_S, M_H, M_S);
     applyBoxWallUV(geom, M_S, M_H, M_S, UV_DENSITY, uOff, vOff);
-    const merlon = new three.Mesh(geom, mat);
+    const merlon = new three.Mesh(geom, bodyMat);
     const mx = perpAxis === "x" ? perp : openCoord;
     const mz = perpAxis === "x" ? openCoord : perp;
     merlon.position.set(mx, yMerlon, mz);
     merlon.userData.merlon = true;
+    addMerlonCap(three, merlon, capMat);
     group.add(merlon);
     addMerlonAO(three, group, mx, mz, aoMat);
   }
@@ -937,6 +973,26 @@ function addMerlonAO(
   group.add(plane);
 }
 
+/**
+ * Bright top cap for a merlon — a flat plane sitting on the merlon's
+ * top face. Parented to the merlon so applyWallDamage's per-merlon
+ * transforms (tilt, sink, remove-on-destroy) propagate automatically:
+ * a tilted merlon's cap tilts with it, a destroyed merlon takes its
+ * cap with it. Local coords: y = M_H/2 (top of merlon body) + epsilon
+ * to win z-fighting against the body's textured top face.
+ */
+function addMerlonCap(
+  three: typeof THREE,
+  merlon: THREE.Mesh,
+  capMat: THREE.Material,
+): void {
+  const geom = new three.PlaneGeometry(M_S, M_S);
+  geom.rotateX(-Math.PI / 2);
+  const cap = new three.Mesh(geom, capMat);
+  cap.position.set(0, M_H / 2 + 0.001, 0);
+  merlon.add(cap);
+}
+
 function parseGrid(input: string[] | number[][]): number[][] {
   // Accept either an array of strings ("##." → [1,1,0]) or already-parsed
   // 2D array of 0/1.
@@ -946,4 +1002,51 @@ function parseGrid(input: string[] | number[][]): number[][] {
     );
   }
   return input as number[][];
+}
+
+/**
+ * Bucket every descendant mesh under `group` by material identity
+ * (reference equality on the `material` property — so all merlon bodies
+ * share one bucket, all merlon caps share another, all AO planes a third,
+ * etc.) and merge each bucket's geometries into a single mesh. Each
+ * source mesh's `matrixWorld` is baked into the merged vertex positions
+ * so parented sub-meshes (e.g. caps that are children of merlons,
+ * inheriting any tilt applyWallDamage applied to the parent) merge with
+ * their effective world placement intact.
+ *
+ * Single-mesh buckets are left untouched (e.g. the body has its own
+ * unique multi-material array — kept as-is). All other buckets use
+ * `useGroups = false`: every input mesh has a single Material, so
+ * three.js skips group iteration when rendering the merged mesh and the
+ * merge is one drawElements per bucket.
+ */
+function mergeByMaterial(three: typeof THREE, group: THREE.Group): void {
+  group.updateMatrixWorld(true);
+  type Material = THREE.Material | THREE.Material[];
+  interface Bucket {
+    material: Material;
+    meshes: THREE.Mesh[];
+  }
+  const buckets: Bucket[] = [];
+  group.traverse((obj) => {
+    if (!(obj instanceof three.Mesh)) return;
+    const bucket = buckets.find((entry) => entry.material === obj.material);
+    if (bucket) bucket.meshes.push(obj);
+    else buckets.push({ material: obj.material, meshes: [obj] });
+  });
+
+  for (const bucket of buckets) {
+    if (bucket.meshes.length < 2) continue;
+    const baked = bucket.meshes.map((mesh) =>
+      mesh.geometry.clone().applyMatrix4(mesh.matrixWorld),
+    );
+    const merged = mergeGeometries(baked, false);
+    for (const geom of baked) geom.dispose();
+    const mergedMesh = new three.Mesh(merged, bucket.material);
+    for (const mesh of bucket.meshes) {
+      mesh.parent?.remove(mesh);
+      mesh.geometry.dispose();
+    }
+    group.add(mergedMesh);
+  }
 }
