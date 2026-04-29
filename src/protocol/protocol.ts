@@ -145,7 +145,9 @@ export interface BuildStartMessage {
 }
 
 /** End of build phase — phase-marker signal. Watcher runs
- *  `finalizeRound` locally on receipt; no payload. */
+ *  `finalizeRound` (score + life penalties + ROUND_END emit) followed by
+ *  `startNextRound` (state.round++ + ROUND_START emit) locally on receipt;
+ *  no payload. */
 export interface BuildEndMessage {
   type: "buildEnd";
 }

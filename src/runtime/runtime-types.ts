@@ -131,7 +131,9 @@ export interface OnlinePhaseTicks {
    *  + scores). The hook serializes the post-build player snapshot itself
    *  — the runtime does not need to know how to serialize players. */
   /** Host: broadcast the build-phase end phase-marker. Watcher runs
-   *  `finalizeRound` locally on receipt — no payload. */
+   *  `finalizeRound` followed by `startNextRound` locally on receipt
+   *  (score + life penalties + ROUND_END, then state.round++ + ROUND_START)
+   *  — no payload. */
   broadcastBuildEnd?: () => void;
 
   // ── Per-controller crosshair fan-out ───────────────────────────────────

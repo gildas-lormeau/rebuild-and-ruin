@@ -135,6 +135,7 @@ export function finalizeCastleConstruction(state: GameState): void {
 export function prepareBattleState(state: GameState): ModifierDiff | null {
   preBattleSweep(state);
   recheckTerritory(state);
+  clearActiveModifiers(state);
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
     if (state.modern!.activeModifier !== null) {
@@ -166,17 +167,21 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
 }
 
 /** Ceasefire: skip battle entirely — do pre-battle housekeeping then go straight to build.
- *  Performs the same cleanup as prepareBattleState (decay pits, sweep walls)
- *  but skips modifiers, grunt attacks, and battle setup.
+ *  Performs the same cleanup as prepareBattleState (decay pits, sweep walls,
+ *  clear active modifiers) but skips modifiers, grunt attacks, and battle setup.
  *
  *  No `recheckTerritory` here — `finalizeBattle` runs it after
  *  `cleanupBattleArtifacts` (which only mutates grunt fields, never the
  *  grunt set or walls) and `spawnIdleFirstBattleGrunts` (no-op on the
  *  ceasefire path since the upgrade gates at round ≥ 3 while idle-grunt
- *  spawning gates at round === 1). Nothing between `preBattleSweep`
- *  and finalizeBattle's recheckTerritory reads `player.interior`. */
+ *  spawning gates at round === 1). `clearActiveModifiers` may kill grunts
+ *  on water tiles (frozen-river thaw) but those grunts were never in
+ *  interior tiles, so finalizeBattle's recheckTerritory still draws the
+ *  same enclosed-grunt-respawn RNG. Nothing between `preBattleSweep` and
+ *  finalizeBattle's recheckTerritory reads `player.interior`. */
 export function enterBuildSkippingBattle(state: GameState): void {
   preBattleSweep(state);
+  clearActiveModifiers(state);
   finalizeBattle(state);
   prepareNextRound(state);
 }
@@ -415,18 +420,18 @@ export function finalizeRoundVisuals(state: GameState): void {
 /** Shared pre-battle housekeeping run from both the real battle path
  *  (`prepareBattleState`) and the ceasefire path (`enterBuildSkippingBattle`).
  *  Decays burning pits, sweeps disconnected walls, removes bonus squares
- *  covered by walls, and clears the previous round's active modifier.
+ *  covered by walls.
  *
- *  Does NOT include `recheckTerritory` — callers handle that themselves.
- *  `prepareBattleState` calls it right after this helper; `finalizeBattle`
- *  (called by `enterBuildSkippingBattle`) calls it later. None of the
- *  steps here mutate walls, towers, or the grunt set, so moving
- *  `recheckTerritory` from inside this sequence to after it is RNG-neutral. */
+ *  Does NOT include `clearActiveModifiers` or `recheckTerritory` — those
+ *  stay inline in callers because their relative ordering matters for RNG
+ *  consumption (clearFrozenRiver kills grunts on water tiles; placing it
+ *  before vs after recheckTerritory shifts the enclosed-grunt-respawn RNG
+ *  draws). The three steps here all leave walls, towers, and the grunt
+ *  set unchanged, so they're safe to bundle. */
 function preBattleSweep(state: GameState): void {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
-  clearActiveModifiers(state);
 }
 
 /** Remove grunts sitting in any eliminated player's zone. resetZoneState

@@ -77,7 +77,9 @@ export interface Player {
    *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via
    *  getProtectedCastleTiles. Cleared in finalizeBattle. */
   freshCastle: boolean;
-  /** Build-phase piece bag (deterministic from round + rng + smallPieces).
+  /** Build-phase piece bag (deterministic from upcomingRound + rng + smallPieces;
+   *  seeded with `state.round + 1` because initPlayerBag runs in prepareNextRound
+   *  at battle-done, before state.round advances at the round-end transition).
    *  Not serialized — regenerated on each peer at build-phase start. */
   bag: BagState | undefined;
   /** Current piece drawn from the bag (may be rotated by player input). */
