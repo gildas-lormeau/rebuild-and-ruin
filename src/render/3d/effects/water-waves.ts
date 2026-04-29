@@ -51,6 +51,12 @@ const WAVE_PHASE_OFFSET = 2.1;
 // Highlight / shadow colors (same channels as 2D); alpha is driven per-pixel.
 const WAVE_HIGHLIGHT_RGB = "140, 200, 255";
 const WAVE_SHADOW_RGB = "20, 60, 120";
+/** Minimum ms between full repaints. The wave animation uses high-frequency
+ *  sinusoids that read as "shimmer" — the human eye can't tell 60Hz from
+ *  ~12Hz at this density and alpha. Throttling cuts both the per-tile
+ *  fillRect work AND the GPU `texSubImage2D` re-upload of the entire
+ *  map-sized canvas to roughly 1/5 of their unthrottled cost. */
+const REPAINT_INTERVAL_MS = 80;
 
 export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
   const layer = createMapLayerCanvas(scene, {
@@ -61,6 +67,7 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
   mesh.visible = false;
 
   let lastDrawWasEmpty = true;
+  let lastPaintAt = -Infinity;
 
   function update(ctx: FrameCtx): void {
     const { overlay, map, now } = ctx;
@@ -73,6 +80,15 @@ export function createWaterWavesManager(scene: THREE.Scene): WaterWavesManager {
       mesh.visible = false;
       return;
     }
+
+    // Throttle the expensive paint+upload pair — the previous canvas stays
+    // on the GPU between repaints, so the mesh keeps showing the last frame
+    // until the throttle window elapses.
+    if (now - lastPaintAt < REPAINT_INTERVAL_MS) {
+      mesh.visible = true;
+      return;
+    }
+    lastPaintAt = now;
 
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     const time = now / 1000;

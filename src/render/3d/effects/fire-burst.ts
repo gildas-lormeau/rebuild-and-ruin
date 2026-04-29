@@ -105,10 +105,16 @@ export interface FireBurstConfig {
 
 export interface FlameMesh {
   mesh: THREE.Mesh;
-  material: THREE.MeshStandardMaterial;
+  /** Unlit basic material — flames are emissive bright surfaces and
+   *  PBR's lighting math contributes nothing visible. Per-frame brightness
+   *  flicker (was `emissiveIntensity` modulation) is now applied as a
+   *  scalar multiply on the cached `baseColor`. */
+  material: THREE.MeshBasicMaterial;
   baseRadius: number;
   baseHeight: number;
-  baseEmissive: number;
+  /** Pre-baked color = layer.emissive × layer.emissiveIntensity, clamped
+   *  in shader. Reused per frame as `material.color = baseColor × wob`. */
+  baseColor: THREE.Color;
   phase: number;
 }
 
@@ -363,10 +369,14 @@ function buildFlames(
     for (const layer of config.flameLayers) {
       const radius = layer.rRatio * config.halfSize * widthMul;
       const height = config.flameHeight * layer.hMul * heightMul;
-      const material = new THREE.MeshStandardMaterial({
-        color: layer.color,
-        emissive: layer.emissive,
-        emissiveIntensity: layer.emissiveIntensity,
+      // Bake `emissive × emissiveIntensity` into a single color. The
+      // shader will clamp on output, so values >1 are fine for the
+      // brightest flame layers.
+      const baseColor = new THREE.Color(layer.emissive).multiplyScalar(
+        layer.emissiveIntensity,
+      );
+      const material = new THREE.MeshBasicMaterial({
+        color: baseColor.clone(),
         transparent: true,
         opacity: 1,
       });
@@ -380,7 +390,7 @@ function buildFlames(
         material,
         baseRadius: radius,
         baseHeight: height,
-        baseEmissive: layer.emissiveIntensity,
+        baseColor,
         phase: phaseBase + layer.phaseOff,
       });
     }
@@ -510,8 +520,13 @@ function animateFlames(
       flame.baseRadius * xzWob,
     );
     flame.material.opacity = envelope;
-    flame.material.emissiveIntensity =
-      flame.baseEmissive * (0.85 + wob * CRACKLE * 0.6);
+    // Per-frame brightness flicker: scale the pre-baked emissive color
+    // by the same crackle envelope the PBR path applied to
+    // `emissiveIntensity`. WebGL clamps on output so values >1 saturate
+    // toward white, mimicking the over-bright PBR look.
+    flame.material.color
+      .copy(flame.baseColor)
+      .multiplyScalar(0.85 + wob * CRACKLE * 0.6);
   }
 }
 
