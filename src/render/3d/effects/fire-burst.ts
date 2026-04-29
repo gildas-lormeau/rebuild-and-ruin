@@ -27,7 +27,8 @@ import type { TilePos } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
-import { tileSeed, tileSignature } from "./helpers.ts";
+import { tileSeed } from "./helpers.ts";
+import { createReconciler } from "./reconciler.ts";
 
 /** Common shape every per-frame effect manager exposes — used by
  *  wall-burns, cannon-burns, and friends. */
@@ -205,45 +206,27 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
   root.name = params.name;
   scene.add(root);
 
-  const hosts: FireBurstHost[] = [];
-  let lastSignature: string | undefined;
-
-  function rebuild(entries: readonly T[]): void {
-    for (const host of hosts) disposeFireBurstHost(root, host);
-    hosts.length = 0;
-    for (const entry of entries) {
-      hosts.push(
-        createFireBurstHost(
-          root,
-          entry.col * TILE_SIZE + TILE_SIZE / 2,
-          ELEVATION_STACK.WALL_BURNS,
-          entry.row * TILE_SIZE + TILE_SIZE / 2,
-          tileSeed(entry.row, entry.col),
-          params.config,
-        ),
-      );
-    }
-  }
+  const reconciler = createReconciler<T, FireBurstHost>({
+    build: (entry) =>
+      createFireBurstHost(
+        root,
+        entry.col * TILE_SIZE + TILE_SIZE / 2,
+        ELEVATION_STACK.WALL_BURNS,
+        entry.row * TILE_SIZE + TILE_SIZE / 2,
+        tileSeed(entry.row, entry.col),
+        params.config,
+      ),
+    dispose: (host) => disposeFireBurstHost(root, host),
+    animate: (host, entry) =>
+      animateFireBurst(host, entry.age, params.duration),
+  });
 
   return {
     update(ctx) {
-      const entries = params.selectEntries(ctx) ?? [];
-      const signature = tileSignature(entries);
-      if (signature !== lastSignature) {
-        lastSignature = signature;
-        rebuild(entries);
-      }
-      if (entries.length === 0) return;
-      for (let i = 0; i < entries.length; i++) {
-        const host = hosts[i];
-        const entry = entries[i];
-        if (!host || !entry) continue;
-        animateFireBurst(host, entry.age, params.duration);
-      }
+      reconciler.update(params.selectEntries(ctx) ?? []);
     },
     dispose() {
-      for (const host of hosts) disposeFireBurstHost(root, host);
-      hosts.length = 0;
+      reconciler.disposeAll();
       scene.remove(root);
     },
   };

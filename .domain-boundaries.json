@@ -184,6 +184,7 @@
       "src/render/3d/effects/house-burns.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/layer-canvas.ts",
+      "src/render/3d/effects/reconciler.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/terrain-bitmap.ts",
       "src/render/3d/effects/thawing.ts",

@@ -31,13 +31,9 @@ import {
   makeFlameLayers,
 } from "./fire-burst.ts";
 import { tileSeed } from "./helpers.ts";
+import { createReconciler } from "./reconciler.ts";
 
 export type CannonBurnsManager = EffectManager;
-
-interface SizedHost {
-  host: FireBurstHost;
-  size: number;
-}
 
 const CANNON_FLAME_LAYERS = makeFlameLayers(1.15);
 
@@ -48,46 +44,29 @@ export function createCannonBurnsManager(
   root.name = "cannon-burns";
   scene.add(root);
 
-  const hosts: SizedHost[] = [];
-  let lastSignature: string | undefined;
-
-  function rebuild(destroys: readonly CannonDestroy[]): void {
-    for (const slot of hosts) disposeFireBurstHost(root, slot.host);
-    hosts.length = 0;
-    for (const destroy of destroys) {
+  const reconciler = createReconciler<CannonDestroy, FireBurstHost>({
+    build: (destroy) => {
       const footprintPx = destroy.size * TILE_SIZE;
-      const config = makeConfig(footprintPx);
-      const host = createFireBurstHost(
+      return createFireBurstHost(
         root,
         destroy.col * TILE_SIZE + footprintPx / 2,
         ELEVATION_STACK.WALL_BURNS,
         destroy.row * TILE_SIZE + footprintPx / 2,
         tileSeed(destroy.row, destroy.col),
-        config,
+        makeConfig(footprintPx),
       );
-      hosts.push({ host, size: destroy.size });
-    }
-  }
+    },
+    dispose: (host) => disposeFireBurstHost(root, host),
+    animate: (host, destroy) =>
+      animateFireBurst(host, destroy.age, CANNON_DESTROY_DURATION),
+  });
 
   return {
     update(ctx) {
-      const destroys = ctx.overlay?.battle?.cannonDestroys ?? [];
-      const signature = signatureOf(destroys);
-      if (signature !== lastSignature) {
-        lastSignature = signature;
-        rebuild(destroys);
-      }
-      if (destroys.length === 0) return;
-      for (let i = 0; i < destroys.length; i++) {
-        const slot = hosts[i];
-        const destroy = destroys[i];
-        if (!slot || !destroy) continue;
-        animateFireBurst(slot.host, destroy.age, CANNON_DESTROY_DURATION);
-      }
+      reconciler.update(ctx.overlay?.battle?.cannonDestroys ?? []);
     },
     dispose() {
-      for (const slot of hosts) disposeFireBurstHost(root, slot.host);
-      hosts.length = 0;
+      reconciler.disposeAll();
       scene.remove(root);
     },
   };
@@ -125,13 +104,4 @@ function makeConfig(footprintPx: number): FireBurstConfig {
     smokeScaleGrowth: 1.4,
     flameLayers: CANNON_FLAME_LAYERS,
   };
-}
-
-function signatureOf(destroys: readonly CannonDestroy[]): string {
-  if (destroys.length === 0) return "";
-  const parts: string[] = [];
-  for (const destroy of destroys) {
-    parts.push(`${destroy.col}:${destroy.row}:${destroy.size}`);
-  }
-  return parts.join("|");
 }

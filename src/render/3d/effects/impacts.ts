@@ -27,7 +27,8 @@ import { IMPACT_FLASH_DURATION } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
-import { createFlatDisc, tileSeed, tileSignature } from "./helpers.ts";
+import { createFlatDisc, tileSeed } from "./helpers.ts";
+import { createReconciler } from "./reconciler.ts";
 
 export interface ImpactsManager {
   /** Per-frame update. Cheap early-out when the impact set (positions)
@@ -101,9 +102,6 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
     sparkGeometry,
   ];
 
-  const hosts: ImpactHost[] = [];
-  let lastSignature: string | undefined;
-
   function buildHost(impact: Impact): ImpactHost {
     const group = new THREE.Group();
     const centerX = impact.col * TILE_SIZE + TILE_SIZE / 2;
@@ -172,20 +170,12 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
     };
   }
 
-  function clear(): void {
-    for (const host of hosts) {
-      host.coreMaterial.dispose();
-      host.ringMaterial.dispose();
-      host.smokeMaterial.dispose();
-      for (const material of host.sparkMaterials) material.dispose();
-      root.remove(host.group);
-    }
-    hosts.length = 0;
-  }
-
-  function rebuild(impacts: readonly Impact[]): void {
-    clear();
-    for (const impact of impacts) hosts.push(buildHost(impact));
+  function disposeHost(host: ImpactHost): void {
+    host.coreMaterial.dispose();
+    host.ringMaterial.dispose();
+    host.smokeMaterial.dispose();
+    for (const material of host.sparkMaterials) material.dispose();
+    root.remove(host.group);
   }
 
   function animateHost(host: ImpactHost, impact: Impact): void {
@@ -263,24 +253,18 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
     }
   }
 
+  const reconciler = createReconciler<Impact, ImpactHost>({
+    build: buildHost,
+    dispose: disposeHost,
+    animate: animateHost,
+  });
+
   function update(ctx: FrameCtx): void {
-    const { overlay } = ctx;
-    const impacts = overlay?.battle?.impacts ?? [];
-    const signature = tileSignature(impacts);
-    if (signature !== lastSignature) {
-      lastSignature = signature;
-      rebuild(impacts);
-    }
-    if (impacts.length === 0) return;
-    for (let i = 0; i < impacts.length; i++) {
-      const host = hosts[i];
-      if (!host) continue;
-      animateHost(host, impacts[i]!);
-    }
+    reconciler.update(ctx.overlay?.battle?.impacts ?? []);
   }
 
   function dispose(): void {
-    clear();
+    reconciler.disposeAll();
     for (const geometry of ownedGeometries) geometry.dispose();
     scene.remove(root);
   }
