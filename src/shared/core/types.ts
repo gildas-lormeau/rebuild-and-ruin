@@ -59,12 +59,11 @@ export interface GameState {
    *  battle — see battleCountdown. Remaining time in seconds (counts DOWN from
    *  phase max to 0).
    *
-   *  Host: computed by advancePhaseTimer() as `timer = max - elapsed`, where elapsed
-   *  is accumulated in TimerAccums per frame. This is the authoritative source.
-   *
-   *  Watcher: recomputed each frame as `timer = phaseDuration - (now - phaseStart)`,
-   *  using wall-clock time since the watcher doesn't run the host tick loop.
-   *  Both converge to the same value but the computation path differs by role.
+   *  Computed by advancePhaseTimer() as `timer = max - elapsed`, where elapsed is
+   *  accumulated in TimerAccums per frame. Every peer ticks identically; the host
+   *  is the authoritative source via FULL_STATE checkpoints, and `state.timer` is
+   *  the only field carried across the wire (both peers reconstruct accums from it
+   *  via `syncAccumulatorsFromTimer`).
    *
    *  Check `timer > 0` for "time left". Never write `timer -= dt` directly. */
   timer: number;

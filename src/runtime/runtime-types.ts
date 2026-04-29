@@ -99,43 +99,30 @@ export type { FrameContext } from "../shared/core/types.ts";
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
  *
  *  Every field is INDEPENDENTLY OPTIONAL — the runtime checks for presence
- *  and silently skips when missing. Tests can wire host-only or watcher-only
- *  subsets, and production wiring (online-runtime-game.ts) supplies all of
- *  them so a single instance can act as either role across host migration.
+ *  and silently skips when missing.
  *
- *  Role gating happens at the call site in runtime-phase-ticks.ts:
- *    - Host-only fields are guarded by `frameMeta.hostAtFrameStart`.
- *    - Watcher-only fields are guarded by its negation.
- *    - "Both" fields are called unconditionally.
- *  The hooks themselves do not branch on role, so the wiring closures stay
- *  pure with respect to host/watcher state and remain reusable across host
- *  promotion / demotion without any internal `isHost` checks.
+ *  Under clone-everywhere, every peer runs the same phase ticks locally
+ *  and dispatches transitions itself. The only role-gated fields are the
+ *  four `broadcast*` phase markers, gated by `frameMeta.hostAtFrameStart`
+ *  at the call site in `buildHostPhaseCtx` (runtime-phase-ticks.ts) — only
+ *  the host emits to the wire. Every other field is called unconditionally
+ *  on every peer (each self-gates by ownership where relevant).
  *
- *  When undefined on RuntimeConfig, the runtime runs in single-machine local
- *  mode (main.ts, test/runtime-headless.ts) and never invokes any of these. */
+ *  When undefined on RuntimeConfig, the runtime runs in single-machine
+ *  local mode (main.ts, test/runtime-headless.ts) and never invokes any
+ *  of these. */
 export interface OnlinePhaseTicks {
-  // ── Host-only: phase-transition checkpoint broadcasts ──────────────────
-  /** Host: broadcast the cannon-phase entry phase-marker. Watcher runs the
-   *  source-phase prefix + `enterCannonPhase` locally on receipt — no
-   *  payload. See `CANNON_ENTRY_WATCHER_STEP` in `runtime-phase-machine.ts`. */
+  // ── Host-only: phase-transition phase markers ──────────────────────────
+  // Each is a payload-less marker. Non-host peers receive but ignore them
+  // — every peer dispatches the matching transition from its own local
+  // tick, which means `state.rng` is consumed in lockstep by definition.
+  /** Host: broadcast the cannon-phase entry marker. */
   broadcastCannonStart?: () => void;
-  /** Host: broadcast the battle-phase entry checkpoint. Carries the
-   *  pre-`enterBattlePhase` RNG state so the watcher can run the same
-   *  setup (modifier roll, balloon resolution, grunt wall-attack roll)
-   *  locally. See `BattleStartData` in checkpoint-data.ts. */
+  /** Host: broadcast the battle-phase entry marker. */
   broadcastBattleStart?: () => void;
-  /** Host: broadcast the build-phase entry checkpoint to watchers. */
-  /** Host: broadcast the build-phase entry phase-marker. Watcher runs
-   *  `finalizeBattle` + `prepareNextRound` locally on receipt — no payload. See
-   *  `BuildStartData` in checkpoint-data.ts. */
+  /** Host: broadcast the build-phase entry marker. */
   broadcastBuildStart?: () => void;
-  /** Host: broadcast the end-of-build summary (lives lost + eliminations
-   *  + scores). The hook serializes the post-build player snapshot itself
-   *  — the runtime does not need to know how to serialize players. */
-  /** Host: broadcast the build-phase end phase-marker. Watcher runs
-   *  `finalizeRound` followed by `startNextRound` locally on receipt
-   *  (score + life penalties + ROUND_END, then state.round++ + ROUND_START)
-   *  — no payload. */
+  /** Host: broadcast the build-phase exit marker. */
   broadcastBuildEnd?: () => void;
 
   // ── Per-controller crosshair fan-out ───────────────────────────────────

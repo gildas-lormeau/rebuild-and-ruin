@@ -5,24 +5,17 @@
  * CANNON_PLACE, CANNON_PLACE → BATTLE, BATTLE → WALL_BUILD, reselect, game
  * over) is an entry in `TRANSITIONS`. Each entry declares:
  *
- *   - `from`: source phase asserted on host dispatch. `"*"` opts out of
- *     the guard (game-over transitions may fire from any phase). The
- *     assertion is host-only because watcher state may briefly run ahead
- *     of host (when wire arrives mid-tick). Per-transition target phase
- *     lives in the docstring, not in a field, because several transitions
- *     don't setPhase themselves (`round-end` stays in WALL_BUILD; the
- *     continuation flips it).
- *   - `mutate`: a single function run on every peer. Role differences are
- *     encoded via optional `ctx` fields:
- *       * `ctx.broadcast?.X?.()` is non-null only on the host (the only
- *         peer that emits to the wire).
- *       * Watcher-only UI cleanup hooks (`ctx.checkpoint?.applyX?.()`,
- *         `ctx.watcher?.X?.()`) are populated only on watcher ctx.
- *       * `ctx.incomingMsg` is set only on watcher when the transition
- *         was triggered by a wire message.
- *     The mutate calls every relevant hook optionally; whichever role is
- *     running, the irrelevant hooks no-op. Game-state mutation is
- *     identical on every peer.
+ *   - `from`: source phase guard, asserted on every peer because every
+ *     peer dispatches the transition from its own local tick. `"*"` opts
+ *     out (game-over transitions may fire from any phase). Per-transition
+ *     target phase lives in the docstring, not in a field, because several
+ *     transitions don't setPhase themselves (`round-end` stays in
+ *     WALL_BUILD; the continuation flips it).
+ *   - `mutate`: a single function run on every peer. Game-state mutation
+ *     is identical across peers; the only role-gated effect is wire
+ *     emission, expressed via `ctx.broadcast?.X?.()` — non-null only on
+ *     the host (the peer that emits to the wire). Every other ctx field
+ *     is uniform across peers.
  *   - `postMutate` (optional): shared sync that runs synchronously after
  *     `mutate` returns and BEFORE the first display step (e.g. rebuilding
  *     `battleAnim` snapshots from the freshly-mutated state).
@@ -31,7 +24,7 @@
  *     upgrade-pick).
  *   - `postDisplay` (optional): side-effects that complete the transition
  *     after the display steps (e.g. balloon-anim vs begin-battle). Same
- *     role-via-optional-hooks pattern as `mutate`.
+ *     uniform-across-peers shape as `mutate`.
  *
  * `runTransition(id, ctx)` executes the entry: runs `mutate`, runs
  * `postMutate`, walks the display steps in order, then runs `postDisplay`.
@@ -145,33 +138,27 @@ type DisplayStep =
   | { readonly kind: "score-overlay" }
   | { readonly kind: "life-lost-dialog" };
 
-/** Per-transition mutation. Same function runs on every peer (host or
- *  watcher) — role differences are encoded in optional `ctx` fields:
- *  `ctx.broadcast?.X?.()` is null on watcher (no wire emission); watcher-
- *  only UI cleanup hooks (`ctx.checkpoint?.applyX?.()`, `ctx.watcher?.X?.()`)
- *  are undefined on host. The mutate body calls every relevant hook
- *  optionally; whichever role is running, the irrelevant hooks no-op. */
+/** Per-transition mutation. Same function runs on every peer. Game-state
+ *  mutation is uniform; the only role-gated effect is wire emission via
+ *  `ctx.broadcast?.X?.()`, populated only on the host. */
 type MutateFn = (ctx: PhaseTransitionCtx) => TransitionResult;
 
 /** Shared post-mutation sync. Runs synchronously after `mutate` returns and
- *  BEFORE the first display step. Use for work that is genuinely identical
- *  between host and watcher (e.g. rebuilding `battleAnim` snapshots from the
- *  freshly-mutated state). Keeping it separate from `mutate` removes the
- *  duplicated trailing calls that every role-specific mutate would otherwise
- *  re-emit. */
+ *  BEFORE the first display step (e.g. rebuilding `battleAnim` snapshots
+ *  from the freshly-mutated state). Keeping it separate from `mutate`
+ *  removes duplicated trailing calls. */
 type PostMutateFn = (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
 
 /** Side-effects after the display steps complete. Same function runs on
- *  every peer; role differences are gated through optional ctx fields the
- *  way `mutate` does. */
+ *  every peer; the only role-gated effect is `ctx.broadcast?.X?.()`. */
 type PostDisplayFn = (ctx: PhaseTransitionCtx, r: TransitionResult) => void;
 
 interface Transition {
   readonly id: TransitionId;
-  /** Source phase asserted on host dispatch. A single `Phase` accepts
-   *  only that phase; a readonly array accepts any of the listed
-   *  phases (used by entry transitions like `enter-battle` that may be
-   *  dispatched from either CANNON_PLACE directly or from
+  /** Source phase asserted on every peer's dispatch. A single `Phase`
+   *  accepts only that phase; a readonly array accepts any of the
+   *  listed phases (used by entry transitions like `enter-battle` that
+   *  may be dispatched from either CANNON_PLACE directly or from
    *  MODIFIER_REVEAL after the modifier banner). `"*"` opts out of the
    *  guard entirely (game-over transitions may fire from any phase). */
   readonly from: Phase | readonly Phase[] | "*";
@@ -247,12 +234,11 @@ export interface PhaseTransitionCtx {
       onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
     ) => boolean;
   };
-  /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay
-   *  runs `resolveAfterLifeLost` with these three handlers; host and
-   *  watcher supply different implementations (host dispatches the
-   *  next transition, watcher only sets Mode.STOPPED on game-over
-   *  since the server drives continue/reselect). Optional so
-   *  transitions that don't include a life-lost-dialog step can omit. */
+  /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay runs
+   *  `resolveAfterLifeLost` with these three handlers — wired identically
+   *  on every peer (each handler dispatches the next transition or seeds
+   *  the reselect queue). Optional so transitions that don't include a
+   *  life-lost-dialog step can omit. */
   readonly lifeLostRoute?: {
     readonly onGameOver: (
       winner: { id: number },
@@ -368,18 +354,18 @@ const STEP_SCORE_OVERLAY = "score-overlay" as const;
 const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
 /** `round-end` — end of WALL_BUILD (round closes here, after the score is finalized).
  *
- *  Host: finalizes local controllers' bag state, then runs the engine's
- *  `finalizeRound` (wall sweep + territory finalize + life penalties
- *  + grunt sweep). Broadcasts the BUILD_END checkpoint so watchers replay.
+ *  Mutate (every peer): finalizes local controllers' bag state, then runs
+ *  the engine's `finalizeRound` (wall sweep + territory finalize + life
+ *  penalties + grunt sweep). The host additionally broadcasts the BUILD_END
+ *  checkpoint so non-host peers can use it as a sync marker.
  *
  *  Display: score-overlay animation → life-lost-dialog step. The dialog
  *  step writes `result.continuing` once resolved (or immediately, for
  *  the all-pre-resolved path) and hands control to postDisplay.
  *
  *  postDisplay: runs `resolveAfterLifeLost` with `ctx.lifeLostRoute`'s
- *  three handlers. Host dispatches the next transition (game-over /
- *  reselect / continue); watcher's handlers set Mode.STOPPED on
- *  game-over and no-op otherwise (server checkpoint drives the rest).
+ *  three handlers — every peer dispatches the next transition (game-over
+ *  / reselect / continue) identically.
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
  *  does NOT call `setPhase`: the next transition (castle-reselect-done
@@ -463,12 +449,10 @@ const BATTLE_DONE: Transition = {
 const CEASEFIRE: Transition = {
   id: "ceasefire",
   from: Phase.CANNON_PLACE,
-  // Today only the host dispatches `ceasefire` (host's `tickCannonPhase`
-  // checks `shouldSkipBattle`); watchers route through `battle-done` after
-  // receiving BUILD_START. Once watchers run the same tick path locally
-  // (clone-everywhere), they'll dispatch `ceasefire` themselves and need
-  // `ceasefireSkipBattle` wired in their ctx — until then, watcher ctx
-  // doesn't populate it and the optional-call no-ops if accidentally hit.
+  // Dispatched on every peer's local tick — `tickCannonPhase` checks
+  // `shouldSkipBattle` unconditionally and `ceasefireSkipBattle` is
+  // wired in the universal ctx. The host additionally broadcasts
+  // BUILD_START as a sync marker.
   mutate: (ctx) => {
     ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset?.();
@@ -659,8 +643,10 @@ const ADVANCE_TO_CANNON: Transition = {
 };
 /** `round-limit-reached` — the round counter went past `maxRounds`.
  *  The winner is whoever has the highest score among alive players.
- *  Host-only: watchers receive GAME_OVER via `handleGameOverTransition`,
- *  which writes the game-over frame directly and bypasses the machine. */
+ *  Dispatched on every peer's local tick; the host additionally
+ *  broadcasts GAME_OVER, which non-host peers consume in
+ *  `handleGameOverTransition` to paint the authoritative score frame
+ *  (idempotent with the locally-detected game-over). */
 const gameOverMutate: MutateFn = (ctx) => {
   if (!ctx.winner) {
     throw new Error(
@@ -679,8 +665,8 @@ const ROUND_LIMIT_REACHED: Transition = {
 /** `last-player-standing` — one or fewer players still alive.
  *  Same shape as `round-limit-reached`; kept as a distinct id because the
  *  trigger semantic differs, which is useful for telemetry / tests.
- *  Host-only — watchers receive GAME_OVER directly through
- *  `handleGameOverTransition` and bypass the machine. */
+ *  See `round-limit-reached` for the GAME_OVER wire / local-detection
+ *  interplay. */
 const LAST_PLAYER_STANDING: Transition = {
   id: "last-player-standing",
   from: "*",
@@ -689,14 +675,16 @@ const LAST_PLAYER_STANDING: Transition = {
 };
 /** `cannon-place-done` — CANNON_PLACE prep transition. Runs engine
  *  battle entry (`enterBattlePhase`: modifier roll, balloon resolution,
- *  post-modifier territory/wall snapshots) and broadcasts BATTLE_START.
- *  Does NOT flip the phase and shows no banner — `postDisplay` routes
- *  to `enter-modifier-reveal` (when a modifier was rolled) or straight
- *  to `enter-battle`, each of which owns setPhase + its own banner.
+ *  post-modifier territory/wall snapshots) on every peer; the host
+ *  additionally broadcasts BATTLE_START as a sync marker. Does NOT flip
+ *  the phase and shows no banner — `postDisplay` routes to
+ *  `enter-modifier-reveal` (when a modifier was rolled) or straight to
+ *  `enter-battle`, each of which owns setPhase + its own banner.
  *
- *  Both sides run `enterBattlePhase` locally — the wire just carries
- *  the host's pre-prep `state.rng` state so the watcher can resync
- *  before consuming RNG. See `BattleStartData`. */
+ *  RNG parity is load-bearing: every peer's `enterBattlePhase` consumes
+ *  `state.rng` in lockstep (modifier roll, balloon perturbation). The
+ *  BATTLE_START wire message is a payload-less phase marker — non-host
+ *  peers ignore it, having already advanced via their local tick. */
 const CANNON_PLACE_DONE: Transition = {
   id: "cannon-place-done",
   from: Phase.CANNON_PLACE,
@@ -873,9 +861,9 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
 /** Shared post-life-lost routing. Runs the win-condition check
  *  (`resolveAfterLifeLost`) against the continuing-player list written
  *  by the life-lost step, then dispatches one of three branches via
- *  `ctx.lifeLostRoute`. Host-role supplies handlers that fire the next
- *  transition; watcher-role supplies handlers that only flip
- *  Mode.STOPPED on game-over (the server drives reselect / continue). */
+ *  `ctx.lifeLostRoute`. The route handlers are wired identically on
+ *  every peer (game-over / reselect / continue all dispatch the next
+ *  transition locally). */
 function routeLifeLostResolution(
   ctx: PhaseTransitionCtx,
   result: TransitionResult,

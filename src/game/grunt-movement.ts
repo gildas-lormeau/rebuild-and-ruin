@@ -5,9 +5,9 @@
  * Extracted from grunt-system.ts so movement (the complex spatial logic)
  * is separated from lifecycle (spawn, respawn, attack tracking).
  *
- * External consumers: runtime-phase-ticks.ts, online-watcher-tick.ts
- * import tickGrunts from here. grunt-system.ts imports shared helpers
- * (adjacentLivingTowerIndex, getGruntTargetTower, etc.) for attack logic.
+ * External consumers: runtime-phase-ticks.ts imports tickGrunts from here.
+ * grunt-system.ts imports shared helpers (adjacentLivingTowerIndex,
+ * getGruntTargetTower, etc.) for attack logic.
  */
 
 import type { Grunt } from "../shared/core/battle-types.ts";
