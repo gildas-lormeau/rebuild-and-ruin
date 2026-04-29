@@ -28,6 +28,7 @@ export function createGruntSurgeImpl(
   ) => void,
 ): ModifierImpl {
   return {
+    lifecycle: "instant",
     apply: (state: GameState) => {
       const result = applyGruntSurge(state, spawnOnZone);
       return {

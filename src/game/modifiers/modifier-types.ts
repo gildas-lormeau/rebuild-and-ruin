@@ -3,15 +3,13 @@
 import type { GameState } from "../../shared/core/types.ts";
 
 /** Result shape returned by every modifier's apply function. */
-export interface ModifierApplyResult {
+interface ModifierApplyResult {
   readonly changedTiles: readonly number[];
   readonly gruntsSpawned: number;
 }
 
-/** Implementation hooks for a single modifier. Only `apply` is required;
- *  `clear` and `zoneReset` are needed only for modifiers that store
- *  temporary tile state (needsCheckpoint: true in the pool). */
-export interface ModifierImpl {
+/** Hooks shared across all lifecycle variants. */
+interface ModifierImplBase {
   /** Apply the modifier at battle start. */
   apply(state: GameState): ModifierApplyResult;
   /** Opt-out flag: set `true` ONLY when the modifier provably leaves
@@ -23,13 +21,6 @@ export interface ModifierImpl {
    *  recheck on a tile-mutating modifier would silently desync host vs
    *  watcher territory. Default-on closes that footgun. */
   skipsRecheck?: boolean;
-  /** Revert temporary state before the next battle. Idempotent. */
-  clear?: (state: GameState) => void;
-  /** Revert modifier tiles belonging to a specific zone during zone reset. */
-  zoneReset?: (state: GameState, zone: number) => void;
-  /** Restore tile-mutating state from checkpoint data and re-apply tile
-   *  mutations on a map regenerated from seed. */
-  restore?: (state: GameState, data: ModifierTileData) => void;
   /** Number of `state.rng.next()` calls this modifier performs per
    *  cannon fire while active. The host's local fire path (e.g.
    *  `applyDustStormJitter` inside `launchCannonball`) is responsible
@@ -47,6 +38,48 @@ export interface ModifierImpl {
    *  declared by: dust_storm (1 draw — the jitter angle). */
   fireRngDraws?: number;
 }
+
+/** Instant modifier: side effects flow through normal game state at
+ *  apply-time. No persistent modifier-owned state to clean up. */
+export interface InstantModifier extends ModifierImplBase {
+  readonly lifecycle: "instant";
+}
+
+/** Permanent modifier: state survives forever (or until zone reset).
+ *  `restore` is required because the watcher rebuilds the map from seed
+ *  and must reapply the mutation. */
+export interface PermanentModifier extends ModifierImplBase {
+  readonly lifecycle: "permanent";
+  /** Restore tile-mutating state from checkpoint data and re-apply tile
+   *  mutations on a map regenerated from seed. */
+  restore(state: GameState, data: ModifierTileData): void;
+  /** Revert modifier tiles belonging to a specific zone during zone reset. */
+  zoneReset?(state: GameState, zone: number): void;
+}
+
+/** Round-scoped modifier: active from this round's BATTLE through next
+ *  CANNON_PLACE, cleared just before the next modifier rolls. */
+export interface RoundScopedModifier extends ModifierImplBase {
+  readonly lifecycle: "round-scoped";
+  /** Revert per-modifier state at next round's CANNON_PLACE-done.
+   *  Idempotent. */
+  clear(state: GameState): void;
+  /** Restore tile-mutating state from checkpoint data and re-apply tile
+   *  mutations on a map regenerated from seed. Optional — only needed
+   *  when the modifier carries serializable state (see `needsCheckpoint`
+   *  in modifier-defs.ts). */
+  restore?(state: GameState, data: ModifierTileData): void;
+  /** Revert modifier tiles belonging to a specific zone during zone reset. */
+  zoneReset?(state: GameState, zone: number): void;
+}
+
+/** Discriminated union of all modifier impls. The `lifecycle` field
+ *  tags each variant and the type system enforces that the right hooks
+ *  are present (e.g. `clear` is required iff `lifecycle === "round-scoped"`). */
+export type ModifierImpl =
+  | InstantModifier
+  | PermanentModifier
+  | RoundScopedModifier;
 
 /** Checkpoint data shape — the subset of checkpoint fields this helper reads. */
 export interface ModifierTileData {

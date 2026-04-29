@@ -12,6 +12,7 @@ import type { ModifierImpl } from "./modifier-types.ts";
 /** Maximum trajectory jitter (degrees) applied by Dust Storm. */
 const DUST_STORM_JITTER_DEG = 15;
 export const dustStormImpl: ModifierImpl = {
+  lifecycle: "instant",
   apply: () => ({ changedTiles: [] as number[], gruntsSpawned: 0 }),
   // Trajectory jitter only — no map / wall mutation.
   skipsRecheck: true,

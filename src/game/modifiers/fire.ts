@@ -38,12 +38,14 @@ const WILDFIRE_MAIN_DIR_BIAS = 0.7;
 /** Wildfire: probability each spine-neighbor tile catches fire during fattening. */
 const WILDFIRE_FATTEN_CHANCE = 0.35;
 export const dryLightningImpl: ModifierImpl = {
+  lifecycle: "instant",
   apply: (state: GameState) => ({
     changedTiles: [...applyDryLightning(state)],
     gruntsSpawned: 0,
   }),
 };
 export const wildfireImpl: ModifierImpl = {
+  lifecycle: "instant",
   apply: (state: GameState) => ({
     changedTiles: [...applyWildfire(state)],
     gruntsSpawned: 0,

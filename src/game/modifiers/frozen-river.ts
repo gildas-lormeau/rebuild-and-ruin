@@ -13,6 +13,7 @@ import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const frozenRiverImpl: ModifierImpl = {
+  lifecycle: "round-scoped",
   apply: (state: GameState) => ({
     changedTiles: [...applyFrozenRiver(state)],
     gruntsSpawned: 0,

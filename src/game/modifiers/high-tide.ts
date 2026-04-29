@@ -21,6 +21,7 @@ import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const highTideImpl: ModifierImpl = {
+  lifecycle: "round-scoped",
   apply: (state: GameState) => ({
     changedTiles: [...applyHighTide(state)],
     gruntsSpawned: 0,

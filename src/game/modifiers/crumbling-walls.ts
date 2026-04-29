@@ -14,6 +14,7 @@ const CRUMBLE_FRACTION = 0.09;
 const CRUMBLE_MIN = 2;
 const CRUMBLE_MAX = 6;
 export const crumblingWallsImpl: ModifierImpl = {
+  lifecycle: "instant",
   apply: (state: GameState) => ({
     changedTiles: applyCrumblingWalls(state),
     gruntsSpawned: 0,

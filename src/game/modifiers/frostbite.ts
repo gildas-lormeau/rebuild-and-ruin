@@ -12,6 +12,7 @@ import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const frostbiteImpl: ModifierImpl = {
+  lifecycle: "round-scoped",
   apply: (state: GameState) => {
     if (state.modern) state.modern.chippedGrunts = new Set();
     return { changedTiles: [], gruntsSpawned: 0 };

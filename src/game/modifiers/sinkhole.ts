@@ -105,6 +105,7 @@ const SINKHOLE_SHAPES: ReadonlyMap<number, readonly SinkholeShape[]> = new Map([
   ],
 ]);
 export const sinkholeImpl: ModifierImpl = {
+  lifecycle: "permanent",
   apply: (state: GameState) => ({
     changedTiles: [...applySinkhole(state)],
     gruntsSpawned: 0,

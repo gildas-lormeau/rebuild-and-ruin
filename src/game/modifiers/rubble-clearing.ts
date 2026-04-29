@@ -12,6 +12,7 @@ import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 export const rubbleClearingImpl: ModifierImpl = {
+  lifecycle: "instant",
   apply: (state: GameState) => ({
     changedTiles: applyRubbleClearing(state),
     gruntsSpawned: 0,

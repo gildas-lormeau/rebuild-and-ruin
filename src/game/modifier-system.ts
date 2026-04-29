@@ -96,6 +96,7 @@ export function rollModifier(state: GameState): ModifierId | null {
  *  state.modern from the checkpoint, then re-mutates the map tiles (which
  *  are regenerated from seed and thus need the modifier tiles reapplied).
  *
+ *  Skips `instant` impls (they have no persistent state to restore).
  *  No-op if the modifiers feature is not active for this match. */
 export function applyCheckpointModifierTiles(
   state: GameState,
@@ -103,29 +104,31 @@ export function applyCheckpointModifierTiles(
 ): void {
   if (!hasFeature(state, FID.MODIFIERS)) return;
   for (const impl of MODIFIER_REGISTRY.values()) {
+    if (impl.lifecycle === "instant") continue;
     impl.restore?.(state, data);
   }
 }
 
-/** Clear all modifier temporary state (frozen tiles, high tide, low water,
- *  frostbite chip). Called from `prepareBattleState` (next round's
- *  CANNON_PLACE-done, just before `rollModifier`) so each modifier is
- *  active for one full round (its battle through next CANNON_PLACE).
- *  Permanent map mutations (sinkhole grass→water, wildfire scars,
- *  crumbling walls) live in impls without a `clear` hook and are
- *  intentionally untouched. Each clear function is idempotent. */
+/** Clear all round-scoped modifier state (frozen tiles, high tide, low
+ *  water, frostbite chip). Called from `prepareBattleState` (next round's
+ *  CANNON_PLACE-done, just before `rollModifier`) so each round-scoped
+ *  modifier is active for exactly one round (its battle through next
+ *  CANNON_PLACE). Instant + permanent modifiers are skipped — they have
+ *  no per-round state to clean up. Each clear function is idempotent. */
 export function clearActiveModifiers(state: GameState): void {
   for (const impl of MODIFIER_REGISTRY.values()) {
-    impl.clear?.(state);
+    if (impl.lifecycle === "round-scoped") impl.clear(state);
   }
 }
 
-/** Revert modifier tiles belonging to a specific zone during zone reset. */
+/** Revert modifier tiles belonging to a specific zone during zone reset.
+ *  Instant impls have no zone-tied state. */
 export function resetModifierTilesForZone(
   state: GameState,
   zone: number,
 ): void {
   for (const impl of MODIFIER_REGISTRY.values()) {
+    if (impl.lifecycle === "instant") continue;
     impl.zoneReset?.(state, zone);
   }
 }
