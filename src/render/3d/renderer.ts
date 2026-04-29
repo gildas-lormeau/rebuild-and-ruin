@@ -1,14 +1,14 @@
 /**
  * Three.js implementation of `RendererInterface`.
  *
- * Hybrid design (see docs/3d-renderer-migration.md): the 3D renderer owns
- * the WebGL context on `#world-canvas` AND delegates to the 2D canvas
- * renderer for everything it doesn't yet handle. In Phase 0 the 2D
- * renderer still draws the entire frame (terrain, sprites, UI) to the
- * overlay canvas; the WebGL canvas just clears transparent. Subsequent
- * phases progressively move work from the 2D path to the 3D path
- * (Phase 2 terrain, Phase 3 static entities, …). By the end the 2D
- * renderer only draws UI.
+ * Hybrid design: the 3D renderer owns the WebGL context on `#world-canvas`
+ * and renders all world content (terrain, walls, towers, cannons, grunts,
+ * houses, debris, cannonballs, balloons, pits, burns, impacts, crosshairs,
+ * phantoms, fog, water waves, sinkhole tint, bonus pulse — see scene.ts).
+ * The 2D canvas renderer overlays UI (timers, placement cursor, dialogs,
+ * modals, HUD) and replays banner snapshots. `drawFrame` renders both each
+ * tick; `captureScene` / `captureSceneOffscreen` composite the WebGL world
+ * canvas with the 2D UI canvas to produce banner prev/new-scene snapshots.
  */
 
 import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";
@@ -226,7 +226,7 @@ export function createRender3d(
   return {
     warmMapCache: (map) => {
       canvas2d.warmMapCache(map);
-      // Phase 2: ensure the terrain mesh is ready before the first frame. The
+      // Ensure the terrain mesh is ready before the first frame. The
       // geometry is fixed-size so the "build" step is cheap; `update` fills
       // in colors each frame.
       ctx.terrain.ensureBuilt(map);
@@ -239,10 +239,8 @@ export function createRender3d(
       pitch = 0,
       skip3DScene = false,
     ) => {
-      // Phase 2: render the WebGL scene (terrain mesh, driven by the runtime
-      // viewport) behind the 2D canvas. The 2D renderer still handles
-      // castles, entities, and UI; Phase 3+ progressively moves them off
-      // the 2D path.
+      // Render the WebGL scene (all world content) behind the 2D canvas;
+      // the 2D renderer paints UI/HUD overlays on top.
       //
       // `skip3DScene` short-circuits the whole 3D pipeline: during
       // banners, the 2D canvas composites a pre-captured scene snapshot

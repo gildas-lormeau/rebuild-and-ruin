@@ -136,10 +136,11 @@ export interface RenderMapDeps {
    *  canvas and translate game-area drawing down by the strip height.
    *  Construction-level flag (not per-frame) so the canvas size stays
    *  stable across every overlay (game, lobby, options, controls) —
-   *  otherwise aspect mismatches with the 3D worldCanvas's top strip
-   *  would letterbox the two canvases differently. Set by the 3D
-   *  renderer when it creates its 2D UI canvas; unset in pure 2D mode.
-   *  May later host the status-bar HUD (removed from 3D). */
+   *  otherwise aspect mismatches with the WebGL worldCanvas's top
+   *  strip would letterbox the two canvases differently. Set by
+   *  `createRender3d` when it creates the 2D UI canvas; tests that
+   *  exercise `createCanvasRenderer` directly leave it unset. Hosts
+   *  the status-bar HUD. */
   reserveTopStrip?: boolean;
 }
 
@@ -328,10 +329,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     | undefined;
   /** Pixel offset from the top of the display canvas to the top of the
    *  game area. Equal to `TOP_MARGIN_CANVAS_PX` when the renderer was
-   *  constructed with `deps.reserveTopStrip = true` (3D mode); 0
-   *  otherwise. Constant across frames — derived once from the
-   *  construction-time flag and referenced by `captureScene` so banner
-   *  snapshots cover the game area only, not the reserved strip. */
+   *  constructed with `deps.reserveTopStrip = true`; 0 otherwise.
+   *  Constant across frames — derived once from the construction-time
+   *  flag and referenced by `captureScene` so banner snapshots cover
+   *  the game area only, not the reserved strip. */
   const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
   /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
    *  Invalidated on any input ref change; held here so steady-state frames
@@ -411,10 +412,9 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     if (offscreenCtxCache?.canvas === canvas)
       return offscreenCtxCache.canvasCtx;
     if (visibleCtxCache?.canvas === canvas) return visibleCtxCache.canvasCtx;
-    // `alpha: true` (the default) so in 3D mode the regions where we skip
-    // the terrain layer remain transparent, letting the WebGL canvas below
-    // show through. 2D mode is unaffected because the terrain layer paints
-    // every pixel each frame, so no background shows through.
+    // `alpha: true` (the default) so the regions outside the 2D UI
+    // overlays remain transparent, letting the WebGL canvas below
+    // show through.
     const canvasCtx = canvas.getContext("2d")!;
     if (offscreenDisplay?.canvas === canvas) {
       offscreenCtxCache = { canvas, canvasCtx };
@@ -596,14 +596,14 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const W = MAP_PX_W;
     const H = MAP_PX_H;
 
-    // Top strip: reserved empty space ABOVE the game area. In 3D mode
-    // the runtime sets this flag unconditionally so tall wall meshes at
-    // row 0 have a tile of headroom under battle tilt. In 2D mode the
-    // flag is never set. Grows the canvas at the top; game-area
-    // drawing shifts down by TOP_STRIP_H via `ctx.translate` below so
-    // all existing map-coord draw code keeps working without per-call
-    // offsets. The status bar (when populated) paints into this same
-    // strip — same height by construction (TOP_MARGIN_CANVAS_PX === STATUSBAR_HEIGHT).
+    // Top strip: reserved empty space ABOVE the game area. The 3D
+    // renderer sets `reserveTopStrip` so tall wall meshes at row 0
+    // have a tile of headroom under battle tilt. Grows the canvas at
+    // the top; game-area drawing shifts down by TOP_STRIP_H via
+    // `ctx.translate` below so all existing map-coord draw code keeps
+    // working without per-call offsets. The status bar paints into this
+    // same strip — same height by construction
+    // (TOP_MARGIN_CANVAS_PX === STATUSBAR_HEIGHT).
     const TOP_STRIP_H = topStripH;
     const cw = CANVAS_W;
     const gameH = CANVAS_H;
@@ -618,45 +618,27 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const overlayCtx = getScene().ctx;
     overlayCtx.clearRect(0, 0, W, H);
     // Clear the main (display) canvas too. With `alpha: true` this resets
-    // the framebuffer to transparent, so in 3D mode the regions where we
-    // skip the terrain layer reveal the WebGL canvas below. In 2D mode the
-    // entire canvas is overdrawn with opaque terrain+UI pixels every frame,
-    // so the clear is a no-op on the visible result.
+    // the framebuffer to transparent so the regions outside the 2D UI
+    // overlays reveal the WebGL canvas below.
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Render layers (order is load-bearing — later layers draw on top):
+    // 2D draw pipeline. World content (terrain, walls, towers, cannons,
+    // grunts, houses, debris, cannonballs, balloons, pits, burns, impacts,
+    // crosshairs, phantoms, fog, water waves, sinkhole tint, bonus pulse)
+    // is rendered by the WebGL scene — see render/3d/scene.ts. What stays
+    // in 2D, in paint order:
     //
-    // Scene layers (drawn into offscreen canvas, affected by zoom viewport):
-    //   1. Terrain base         — grass/water/bank pixels (cached ImageData)
-    //   2. Water animation      — wave shimmer (battle only)
-    //   3. Frozen tiles         — ice overlay on frozen river
-    //   4. Castles              — wall tiles per player
-    //   4b. Sinkhole overlays   — recolor enclosed lake banks to match owner
-    //   5. Bonus squares        — flashing green diamonds
-    //   6. Houses               — settler tents/huts
-    //   7. Towers               — 2×2 tower sprites (alive/dead/pending)
-    //   8. Burning pits         — ember glow + sprites
-    //   9. Grunts               — directional tank sprites
-    //  10. Banner scenes        — new scene above / old scene below the sweep line (phase transitions)
-    //  11. Phantoms             — piece/cannon placement previews
-    //  12. Battle effects       — impacts, cannonballs, balloons, crosshairs, timer
-    //  13. Score deltas         — floating score change numbers
-    //  14. Modifier highlight   — full-width flash for modifier reveal
-    //  15. Banner               — phase transition banner overlay
-    //  16. Game over / dialogs  — life-lost, upgrade-pick overlays
-    //  17. Modal screens        — player select, options, controls (opaque, drawn last)
+    // Offscreen scene canvas (zoom-affected, blitted to display below):
+    //   - phase timer ring, placement-preview cursor, score deltas,
+    //     modifier-reveal flash
+    //   - banner chrome, game-over panel, life-lost / upgrade-pick dialogs
+    //   - full-screen modals: player select, options, controls
     //
-    // HUD layers (drawn at display resolution, NOT affected by zoom):
-    //  18. Combo floats + announcement text (scaled by SCALE)
-    //  19. Status bar (in reserved top safe margin, hidden in CASTLE_SELECT/BATTLE)
-
-    // Draw the new (target) scene — layers that change between phases.
-    //
-    // Terrain-group layers (grass/water pixels, water shimmer, frozen-ice
-    // overlay, sinkhole recoloring, bonus pulse, burning-pit glyphs) are
-    // grouped under the `terrain` flag. In 3D mode the WebGL canvas renders
-    // these and this flag is flipped off so the 2D canvas leaves those
-    // regions transparent; castles/entities/UI still render on 2D.
+    // Display canvas (post-blit, screen-relative):
+    //   - banner phase-transition snapshots (pre-captured world bitmaps
+    //     replayed during the sweep — clips disjoint by banner top/bottom)
+    //   - HUD text scaled by SCALE: combo floats, announcement
+    //   - status bar in the reserved top strip
     drawPhaseTimer(overlayCtx, map, overlay, now);
     drawSelectionCursor(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
