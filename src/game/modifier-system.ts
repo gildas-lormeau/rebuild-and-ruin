@@ -107,8 +107,12 @@ export function applyCheckpointModifierTiles(
   }
 }
 
-/** Clear all modifier temporary state (frozen tiles, high tide, low water).
- *  Called before each battle start. Each clear function is idempotent. */
+/** Clear all modifier temporary state (frozen tiles, high tide, low water,
+ *  frostbite chip). Called from `finalizeBattle` (battle-done) so the
+ *  post-battle phases (UPGRADE_PICK, WALL_BUILD) see neutral terrain.
+ *  Permanent map mutations (sinkhole grass→water, wildfire scars,
+ *  crumbling walls) live in impls without a `clear` hook and are
+ *  intentionally untouched. Each clear function is idempotent. */
 export function clearActiveModifiers(state: GameState): void {
   for (const impl of MODIFIER_REGISTRY.values()) {
     impl.clear?.(state);

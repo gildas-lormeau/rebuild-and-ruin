@@ -49,6 +49,24 @@ Deno.test("seed 546418: red encloses its sinkhole during the next build phase", 
   );
 
   dumpSinkholeState(sc, redZone, sinkholeEvent.round);
+
+  // Battle-scoped modifier state must be null/empty by the time WALL_BUILD
+  // runs — finalizeBattle clears frozen tiles, high tide / low water
+  // reverts, and frostbite chip at battle-done so the post-battle phases
+  // see neutral terrain. Permanent mutations (sinkhole tiles) persist.
+  const modern = sc.state.modern!;
+  assert(
+    modern.frozenTiles === null,
+    `expected frozenTiles=null in WALL_BUILD, got size=${modern.frozenTiles?.size}`,
+  );
+  assert(
+    modern.highTideTiles === null,
+    `expected highTideTiles=null in WALL_BUILD, got size=${modern.highTideTiles?.size}`,
+  );
+  assert(
+    modern.lowWaterTiles === null,
+    `expected lowWaterTiles=null in WALL_BUILD, got size=${modern.lowWaterTiles?.size}`,
+  );
 });
 
 function dumpSinkholeState(
