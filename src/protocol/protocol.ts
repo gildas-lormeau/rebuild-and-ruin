@@ -311,6 +311,14 @@ export interface OpponentTowerSelectedMessage {
   playerId: ValidPlayerSlot;
   towerIdx: number;
   confirmed?: boolean;
+  /** Lockstep apply tick: `senderSimTick + SAFETY`. Only set when
+   *  `confirmed=true` — highlight-only messages are cosmetic and apply
+   *  immediately on receipt. Both originator and receiver enqueue the
+   *  `confirmTowerSelection + startPlayerCastleBuild` work for this stamp,
+   *  so castle wall generation (which consumes `state.rng` via
+   *  `prepareCastleWallsForPlayer`) and `selectionStates.confirmed`
+   *  transitions fire at the same logical sim tick on every peer. */
+  applyAt?: number;
 }
 
 /** A remote-driven slot has finished placing cannons (final placement may be

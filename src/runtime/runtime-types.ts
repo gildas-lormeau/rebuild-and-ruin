@@ -451,6 +451,7 @@ export interface RuntimeSelection {
     pid: ValidPlayerSlot,
     isReselect?: boolean,
     source?: "local" | "network",
+    applyAt?: number,
   ) => boolean;
   allConfirmed: () => boolean;
   tick: (dt: number) => void;

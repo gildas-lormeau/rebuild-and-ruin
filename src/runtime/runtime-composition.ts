@@ -603,12 +603,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     timing,
     hostAtFrameStart: config.network.amHost,
-    sendTowerSelected: (pid, idx, confirmed) =>
+    sendTowerSelected: (pid, idx, confirmed, applyAt) =>
       config.network.send({
         type: MESSAGE.OPPONENT_TOWER_SELECTED,
         playerId: pid,
         towerIdx: idx,
         confirmed,
+        applyAt,
       }),
     sendSelectStart: (timer) =>
       config.network.send({ type: MESSAGE.SELECT_START, timer }),

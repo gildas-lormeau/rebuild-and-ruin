@@ -10,6 +10,7 @@ import {
   prepareCastleWallsForPlayer,
   recheckTerritory,
 } from "../game/index.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -60,6 +61,7 @@ interface SelectionSystemDeps {
     playerId: ValidPlayerSlot,
     towerIdx: number,
     confirmed: boolean,
+    applyAt?: number,
   ) => void;
   sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
@@ -245,11 +247,15 @@ export function createSelectionSystem(
    *  2. finishSelection (called separately by tickSelection when allConfirmed) —
    *     clears overlay state, finalizes castle construction, and advances to cannon phase.
    */
-  function confirmSelectionAndStartBuild(
+  /** Internal: actually commit the tower-selection (selectionStates +
+   *  state.rng-consuming castle-wall plan). Caller decides when this fires
+   *  — locally driven human confirmations and network-received confirms
+   *  defer this to the lockstep `applyAt`; AI / non-human local
+   *  confirmations apply immediately. */
+  function applyConfirmedSelection(
     pid: ValidPlayerSlot,
-    isReselect = false,
-    source: "local" | "network" = "local",
-  ): boolean {
+    isReselect: boolean,
+  ): void {
     const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
@@ -257,28 +263,66 @@ export function createSelectionSystem(
       isReselect,
       (row, col) => runtimeState.controllers[pid]!.centerOn(row, col),
     );
-    if (!result) return allSelectionsConfirmed(runtimeState.selection.states);
-
-    // Only locally-driven human confirmations broadcast to the network.
-    // - Local human auto-confirm / mouse confirm: source="local", sends to host.
-    // - AI selection: source="local" but isHuman=false, no send.
-    // - Network-received remote-human confirm (handleTowerSelected): source="network",
-    //   skip send (server already relayed; an echo would be redundant).
-    if (source === "local" && isHuman(runtimeState.controllers[pid]!)) {
-      deps.sendTowerSelected(pid, result.towerIdx, true);
-    }
-
+    if (!result) return;
     if (result.isReselect) {
       runtimeState.selection.reselectionPids.push(pid);
     }
-
     syncSelectionOverlay();
     deps.requestRender();
     // Both host and watcher run startPlayerCastleBuild — derives wall plan
     // locally via prepareCastleWallsForPlayer (consumes state.rng) and
-    // queues animation. No wire payload: state.rng is in sync, so plans match.
+    // queues animation. No wire payload: state.rng is in sync because the
+    // schedule fires at the same `applyAt` on every peer.
     startPlayerCastleBuild(pid);
-    return result.allDone;
+  }
+
+  function confirmSelectionAndStartBuild(
+    pid: ValidPlayerSlot,
+    isReselect = false,
+    source: "local" | "network" = "local",
+    applyAtFromWire?: number,
+  ): boolean {
+    const selectionState = runtimeState.selection.states.get(pid);
+    const allConfirmed = () =>
+      allSelectionsConfirmed(runtimeState.selection.states);
+    if (!selectionState || selectionState.confirmed) return allConfirmed();
+    if (selectionState.highlighted === undefined) return allConfirmed();
+
+    const ctrl = runtimeState.controllers[pid]!;
+    const isLocalHumanBroadcast = source === "local" && isHuman(ctrl);
+
+    // Lockstep: human-driven confirms (own peer broadcasts, other peers
+    // receive over wire) defer the apply to `applyAt` so castle-wall RNG
+    // consumption and `selectionStates.confirmed` transitions align across
+    // peers. Non-human local confirms (AI, timer-fallback for AI) keep the
+    // immediate-apply semantics — clone-everywhere already guarantees both
+    // peers run the same logic at the same simTick.
+    if (isLocalHumanBroadcast) {
+      const applyAt =
+        runtimeState.state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+      const towerIdx = selectionState.highlighted;
+      deps.sendTowerSelected(pid, towerIdx, true, applyAt);
+      runtimeState.actionSchedule.schedule({
+        applyAt,
+        playerId: pid,
+        apply: () => applyConfirmedSelection(pid, isReselect),
+      });
+      return false;
+    }
+
+    if (source === "network" && applyAtFromWire !== undefined) {
+      runtimeState.actionSchedule.schedule({
+        applyAt: applyAtFromWire,
+        playerId: pid,
+        apply: () => applyConfirmedSelection(pid, isReselect),
+      });
+      return false;
+    }
+
+    // Immediate apply: AI confirmations (no wire), and a defensive fallback
+    // for any caller that doesn't supply an `applyAt` for the network path.
+    applyConfirmedSelection(pid, isReselect);
+    return allConfirmed();
   }
 
   function allConfirmed(): boolean {

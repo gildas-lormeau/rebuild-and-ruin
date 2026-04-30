@@ -74,6 +74,7 @@ export interface HandleServerIncrementalDeps {
     playerId: ValidPlayerSlot,
     isReselect: boolean,
     source?: "local" | "network",
+    applyAt?: number,
   ) => void;
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
@@ -183,15 +184,19 @@ function handleTowerSelected(
   if (msg.confirmed) {
     const selectionState = deps.selectionStates.get(msg.playerId);
     if (selectionState && !selectionState.confirmed) {
-      // Both host and watcher run the same flow with source="network":
-      // confirmTowerSelection mutates selectionState + emits CASTLE_PLACED,
-      // and startPlayerCastleBuild consumes state.rng identically across
-      // peers. The "network" source skips sendTowerSelected (the server
-      // already relayed the message; an echo would be redundant).
+      // Lockstep: both host and watcher schedule
+      // `confirmTowerSelection + startPlayerCastleBuild` for the wire-
+      // supplied `applyAt`, so castle-wall RNG consumption fires at the
+      // same logical sim tick on every peer. The "network" source skips
+      // sendTowerSelected (the server already relayed the message; an
+      // echo would be redundant). When `applyAt` is missing (older wire
+      // shape, defensive), the immediate-apply fallback inside
+      // `confirmSelectionAndStartBuild` runs.
       deps.confirmSelectionAndStartBuild(
         msg.playerId,
         deps.isCastleReselectPhase(),
         "network",
+        msg.applyAt,
       );
     }
   }

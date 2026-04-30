@@ -146,8 +146,14 @@ function buildIncrementalDeps(
       playerId: ValidPlayerSlot,
       isReselect: boolean,
       source?: "local" | "network",
+      applyAt?: number,
     ) => {
-      init.runtime.selection.confirmAndStartBuild(playerId, isReselect, source);
+      init.runtime.selection.confirmAndStartBuild(
+        playerId,
+        isReselect,
+        source,
+        applyAt,
+      );
     },
     allSelectionsConfirmed: () => init.runtime.selection.allConfirmed(),
     finishReselection: () => init.runtime.selection.finishReselection(),
