@@ -354,8 +354,9 @@ export async function createHeadlessRuntime(
         ? buildHeadlessHostPhaseTicks((msg) => networkObserver?.sent?.(msg))
         : undefined),
     observers: hapticsObserver ? { haptics: hapticsObserver } : undefined,
-    // Headless has no place to apply tilt — keeping it off also keeps
-    // `PITCH_SETTLED` bus events out of the determinism event log.
+    // Headless has no place to apply tilt — `tickPitch` hard-zeros pitch
+    // when this is false, so the phase machine's pitch-gate takes the
+    // synchronous early-return path.
     cameraTiltEnabled: false,
     controllerFactory,
   });

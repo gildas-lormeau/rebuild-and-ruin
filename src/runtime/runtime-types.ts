@@ -393,6 +393,12 @@ export interface CameraSystem {
    *  `setMode(Mode.TRANSITION)` before the call. `captureScene()` called
    *  inside the callback reads full-map flat pixels. */
   onCameraReady: (onReady: () => void) => void;
+  /** Park a callback to fire on the next pitch-animation settle. Used by
+   *  the phase machine's battle-banner postDisplay to gate balloon-anim /
+   *  battle-mode entry behind the build→battle tilt-in. Caller-overwrite
+   *  semantics. Replaces the former `GAME_EVENT.PITCH_SETTLED` bus
+   *  subscription (runtime control flow must not depend on the bus). */
+  onPitchSettled: (callback: () => void) => void;
   /** Post-render hook — called by the render loop after drawFrame.
    *  Fires any pending `onCameraReady` callback when the viewport has
    *  converged to fullMapVp and pitch is settled. */
@@ -629,6 +635,10 @@ export interface GameRuntime {
    *  watcher's PhaseTransitionCtx (built outside this module) can gate
    *  its own runTransition on convergence. */
   onCameraReady: (onReady: () => void) => void;
+  /** Park a callback to fire on the next pitch-animation settle.
+   *  See `CameraSystem.onPitchSettled`. Exposed so the watcher's
+   *  PhaseTransitionCtx can gate balloon-anim entry on tilt-in. */
+  onPitchSettled: (callback: () => void) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

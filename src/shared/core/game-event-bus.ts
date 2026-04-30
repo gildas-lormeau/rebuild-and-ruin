@@ -158,15 +158,6 @@ export type LifecycleEvent =
    *  cannonballs whistle — short-trajectory shots whose travel time is
    *  below every variant's duration skip this event entirely. */
   | { type: "cannonballDescending"; variant: number }
-  /** Camera pitch animation has reached its target. Fires once each time
-   *  the easing completes — whether settling at the flat (pitch=0) or
-   *  tilted (battle 3/4 view) resting value. Subscribers include the
-   *  phase-ticks system (gates the battle-done banner capture on untilt
-   *  completion) and the phase machine (gates balloon-anim start on the
-   *  build→battle tilt-in). The carried `pitch` is the settled value in
-   *  radians so consumers can discriminate tilt vs untilt without
-   *  re-querying the camera. */
-  | { type: "pitchSettled"; pitch: number }
   /** Camera target changed at a discrete state transition: phase entry
    *  (per-phase memory restore or first-entry default), explicit zone
    *  command (E/H button → setCameraZone), or life-lost auto-engage.
@@ -361,7 +352,6 @@ const LIFECYCLE_EVENT = {
   UPGRADE_PICK_END: "upgradePickEnd",
   CANNONBALL_DESCENDING: "cannonballDescending",
   HOUSE_CRUSHED: "houseCrushed",
-  PITCH_SETTLED: "pitchSettled",
   CAMERA_TARGET: "cameraTarget",
 } as const;
 const ENTITY_EVENT = {

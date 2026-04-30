@@ -18,7 +18,6 @@ import {
 } from "../shared/core/game-constants.ts";
 import {
   type CameraTargetSource,
-  emitGameEvent,
   GAME_EVENT,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -74,8 +73,8 @@ interface CameraDeps {
   hasPointerPlayer: () => boolean;
   getFrameDt: () => number;
   /** Whether camera pitch animations run. `false` in headless (no renderer
-   *  to apply tilt, and `PITCH_SETTLED` events would pollute determinism
-   *  fixtures); `true` in the browser, where the 3D renderer renders tilt. */
+   *  to apply tilt); `true` in the browser, where the 3D renderer renders
+   *  tilt and the pitch animation drives `onPitchSettled` callbacks. */
   cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
@@ -107,10 +106,9 @@ interface CameraDeps {
  *  - `tilted`: settled at the battle 3/4 view pitch.
  *  - `untilting`: easing battle → flat (or from an interrupted tilt back down).
  *
- *  Call sites that need the settle edge subscribe to
- *  `GAME_EVENT.PITCH_SETTLED`. Call sites that already poll per tick
- *  (phase-ticks' untilt wait) read `getPitchState()` instead — no need
- *  to go through the bus for a value the camera already knows. */
+ *  Call sites that need the settle edge as a one-shot continuation
+ *  park a callback via `onPitchSettled(cb)`. Call sites that already
+ *  poll per tick (phase-ticks' untilt wait) read `getPitchState()`. */
 type PitchState = "flat" | "tilting" | "tilted" | "untilting";
 
 const CANVAS_SIZE = { w: CANVAS_W, h: CANVAS_H } as const;
@@ -198,6 +196,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // `unzoomForOverlays` whenever `frameCtx.shouldUnzoom` is set.
   let pendingUnzoomReady: (() => void) | undefined;
 
+  // Tilt-settle choreography — parked callback fired when `tickPitch`
+  // finishes the in-flight animation. Parked via `onPitchSettled`; the
+  // phase machine uses it to gate balloon-anim / battle-mode entry
+  // behind the build→battle tilt-in.
+  let pendingPitchSettled: (() => void) | undefined;
+
   // Pitch animation — targetPitch is re-set on phase-enter (see
   // handlePhaseChangeZoom); currentPitch eases toward target each tick
   // in tickCamera. Gated on `cameraTiltEnabled` — headless has no place
@@ -224,10 +228,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pitchState = next > 0 ? "tilting" : "untilting";
   }
 
-  function emitPitchSettled(pitch: number): void {
-    const state = deps.getState();
-    if (!state) return;
-    emitGameEvent(state.bus, GAME_EVENT.PITCH_SETTLED, { pitch });
+  function firePitchSettled(): void {
+    const callback = pendingPitchSettled;
+    pendingPitchSettled = undefined;
+    callback?.();
   }
 
   // --- Helpers ---
@@ -630,8 +634,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   /** Ease currentPitch toward targetPitch each frame. Hard-zero when tilt is
-   *  disabled (headless) so PITCH_SETTLED events don't pollute the determinism
-   *  event log. Emits `PITCH_SETTLED` on the frame the animation completes. */
+   *  disabled (headless) — no animation runs, so `onPitchSettled` parked
+   *  callbacks never fire there (callers should gate on `getPitchState()` first
+   *  and skip parking when state is already `flat`/`tilted`). */
   function tickPitch(): void {
     if (!deps.cameraTiltEnabled) {
       currentPitch = 0;
@@ -658,7 +663,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (pitchAnimElapsed >= PITCH_DURATION) {
       currentPitch = targetPitch;
       pitchState = targetPitch > 0 ? "tilted" : "flat";
-      emitPitchSettled(currentPitch);
+      firePitchSettled();
     }
   }
 
@@ -1087,6 +1092,23 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pendingUnzoomReady = onReady;
   }
 
+  /** Park a callback to fire on the next pitch-animation settle.
+   *
+   *  Used by the phase machine's battle-banner postDisplay (see
+   *  `proceedToBattleFromCtx`) to gate balloon-anim / battle-mode entry
+   *  behind the build→battle tilt-in. Callers are expected to check
+   *  `getPitchState()` first and only park this callback when pitch is
+   *  mid-animation (`tilting` / `untilting`); the callback is fired the
+   *  next time `tickPitch` reaches its target, regardless of which
+   *  target that is. `set` overwrites any prior pending callback.
+   *
+   *  Closure-stored deliberately — runtime control flow must not depend
+   *  on the event bus (see feedback_bus_observation_only). Replaces the
+   *  former `GAME_EVENT.PITCH_SETTLED` subscription. */
+  function onPitchSettled(callback: () => void): void {
+    pendingPitchSettled = callback;
+  }
+
   /** Post-render hook. Called by the render loop AFTER drawFrame so the
    *  parked `onReady` fires on the frame whose pixels reflect the
    *  full-map flat view — any `captureScene` inside the callback reads
@@ -1167,8 +1189,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   /** Current pitch state machine value. When tilt is disabled (headless)
-   *  always `"flat"` — pitch is hard-zeroed by `tickPitch`. Subscribers
-   *  that need the settle edge should listen for `GAME_EVENT.PITCH_SETTLED`
+   *  always `"flat"` — pitch is hard-zeroed by `tickPitch`. Sites that
+   *  need the settle edge as a one-shot continuation use `onPitchSettled`
    *  instead — this getter is for call sites that already poll per tick. */
   function getPitchState(): PitchState {
     if (!deps.cameraTiltEnabled) return "flat";
@@ -1301,6 +1323,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     onCameraReady,
+    onPitchSettled,
     onRenderedFrame,
     getCameraZone: () => cameraZone,
     setCameraZone,

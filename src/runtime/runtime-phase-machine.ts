@@ -267,6 +267,12 @@ export interface PhaseTransitionCtx {
    *  only `"tilting"` / `"untilting"` block. Optional so headless
    *  contexts that don't own a camera can skip wiring it. */
   readonly getPitchState?: () => "flat" | "tilting" | "tilted" | "untilting";
+  /** Park a callback to fire on the next pitch settle. `proceedToBattle`
+   *  uses it when `getPitchState` reports a mid-animation value, to
+   *  resume the balloon-anim / battle-mode handoff once the tilt has
+   *  finished. See `CameraSystem.onPitchSettled`. Optional alongside
+   *  `getPitchState` for the same reason — headless contexts skip both. */
+  readonly onPitchSettled?: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside
    *  `proceedToBattle`. Optional so headless / watcher-without-camera
    *  contexts can skip it (2D wiring also skips — the renderer has no
@@ -942,18 +948,15 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // Pitch gate: wait for the tilt we just requested (or any prior tilt
   // still in progress) to settle before we either start balloons or
   // flip to battle mode. `flat` / `tilted` are both "settled"; only
-  // `tilting` / `untilting` block. 2D mode always reports `flat`.
+  // `tilting` / `untilting` block. 2D mode always reports `flat`. The
+  // wait uses a closure-stored camera callback (`onPitchSettled`) — the
+  // event bus must not drive runtime control flow.
   const pitchState = ctx.getPitchState?.() ?? "flat";
   if (pitchState === "flat" || pitchState === "tilted") {
     proceed();
     return;
   }
-  const bus = ctx.state.bus;
-  const onPitchSettled = (): void => {
-    bus.off(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
-    proceed();
-  };
-  bus.on(GAME_EVENT.PITCH_SETTLED, onPitchSettled);
+  ctx.onPitchSettled?.(proceed);
 }
 
 /** Apply the resolved upgrade picks into state + recheck territory.
