@@ -15,6 +15,14 @@
  * - Contrast with online-runtime-game.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
  *
+ * MULTI-INSTANCE: `createMessageHandler(init)` returns a per-instance
+ * `(msg) => Promise<void>` closure that captures its own deps, with no
+ * shared module state. Production calls `initDeps(init)` (which delegates
+ * to `createMessageHandler` and stores the result), then registers
+ * `handleServerMessage` as a `network.onMessage` callback. Tests that
+ * need TWO peers in the same process (bidirectional pair) build two
+ * independent handlers via `createMessageHandler`.
+ *
  * ORDERING INVARIANT — initDeps() is the last of three init calls from
  * online-runtime-game.ts:initOnlineRuntime(). The required order is:
  *    1. initWs (online-runtime-ws.ts)
@@ -58,48 +66,58 @@ interface DepsInit {
   readonly client: OnlineClient;
 }
 
-// ── Late-bound state ───────────────────────────────────────────────
-// Pattern shared with online-runtime-promote.ts and online-runtime-ws.ts:
-//  1. Declare module-level `let _ref: Type` (no initial value)
-//  2. Export `initXxx(value)` that assigns _ref and builds any closures
-//  3. Guard with `if (!_ref) throw "called before initXxx()"` in public API
-// This avoids circular imports between the composition root (online-runtime-game.ts)
-// and domain modules. All three init functions are called once from createOnlineGame().
-let _depsInit: DepsInit;
-let _client: OnlineClient;
-let _lifecycleDeps: HandleServerLifecycleDeps;
-let _incrementalDeps: HandleServerIncrementalDeps;
+// ── Late-bound state (production singleton) ───────────────────────
+// Production has exactly one runtime + client per process, so a single
+// module-level handler is fine. The closure-returning factory below
+// supports multi-instance use cases (tests).
+let _handler: ((msg: ServerMessage) => Promise<void>) | undefined;
 
-/** Bind runtime-dependent values and build deps objects. Called once from
- *  online-runtime-game.ts after the GameRuntime is created. */
+/** Bind runtime-dependent values and build the singleton message
+ *  handler. Called once from online-runtime-game.ts. */
 export function initDeps(init: DepsInit): void {
-  _depsInit = init;
-  _client = init.client;
-  _lifecycleDeps = buildLifecycleDeps();
-  _incrementalDeps = buildIncrementalDeps();
+  _handler = createMessageHandler(init);
 }
 
 export async function handleServerMessage(msg: ServerMessage): Promise<void> {
-  if (!_depsInit)
+  if (!_handler)
     throw new Error("handleServerMessage() called before initDeps()");
-  _client.devLog(`received: ${msg.type}`);
-  if (await handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
-  const result = handleServerIncrementalMessage(msg, _incrementalDeps);
-  if (!result) _client.devLog(`unhandled incremental message: ${msg.type}`);
+  await _handler(msg);
+}
+
+/** Build a per-instance message handler closure. Each call returns an
+ *  independent handler with its own captured deps — no module-level
+ *  state, safe to use for multiple runtime+client pairs in the same
+ *  process. Production uses this via `initDeps`; tests that need two
+ *  peers (bidirectional pair) call it directly. */
+export function createMessageHandler(
+  init: DepsInit,
+): (msg: ServerMessage) => Promise<void> {
+  const client = init.client;
+  const lifecycleDeps = buildLifecycleDeps(init, client);
+  const incrementalDeps = buildIncrementalDeps(init, client);
+  return async (msg: ServerMessage): Promise<void> => {
+    client.devLog(`received: ${msg.type}`);
+    if (await handleServerLifecycleMessage(msg, lifecycleDeps)) return;
+    const result = handleServerIncrementalMessage(msg, incrementalDeps);
+    if (!result) client.devLog(`unhandled incremental message: ${msg.type}`);
+  };
 }
 
 /** Deps for server lifecycle messages (join, start, phase transitions, migration).
  *  Sub-objects group related concerns: session, lobby, ui, game, transitions, migration.
  *  Each sub-builder is a private function below — keeps this composer readable. */
-function buildLifecycleDeps() {
+function buildLifecycleDeps(
+  init: DepsInit,
+  client: OnlineClient,
+): HandleServerLifecycleDeps {
   return {
-    log: _client.devLog,
-    session: _client.ctx.session,
-    lobby: buildLobbyDeps(),
-    ui: buildUiDeps(),
-    game: buildGameDeps(),
-    transitions: buildTransitionDeps(),
-    migration: buildMigrationDeps(),
+    log: client.devLog,
+    session: client.ctx.session,
+    lobby: buildLobbyDeps(init),
+    ui: buildUiDeps(init, client),
+    game: buildGameDeps(init),
+    transitions: buildTransitionDeps(init),
+    migration: buildMigrationDeps(init),
   };
 }
 
@@ -108,78 +126,75 @@ function buildLifecycleDeps() {
  *  a different subset — nesting would force handlers to destructure multiple levels.
  *  Contrast with buildLifecycleDeps() which uses nested sub-objects because its
  *  consumers (lifecycle handler) always access one sub-group at a time. */
-function buildIncrementalDeps() {
+function buildIncrementalDeps(
+  init: DepsInit,
+  client: OnlineClient,
+): HandleServerIncrementalDeps {
   return {
-    log: _client.devLog,
-    session: _client.ctx.session,
-    presence: _client.ctx.presence,
-    getState: () => _depsInit.runtime.runtimeState.state,
-    getControllers: () => _depsInit.runtime.runtimeState.controllers,
-    selectionStates: _depsInit.runtime.selection.getStates(),
-    syncSelectionOverlay: () => _depsInit.runtime.selection.syncOverlay(),
+    log: client.devLog,
+    session: client.ctx.session,
+    presence: client.ctx.presence,
+    getState: () => init.runtime.runtimeState.state,
+    getControllers: () => init.runtime.runtimeState.controllers,
+    selectionStates: init.runtime.selection.getStates(),
+    syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
-      isReselectPhase(_depsInit.runtime.runtimeState.state.phase),
+      isReselectPhase(init.runtime.runtimeState.state.phase),
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
       isReselect: boolean,
       source?: "local" | "network",
     ) => {
-      _depsInit.runtime.selection.confirmAndStartBuild(
-        playerId,
-        isReselect,
-        source,
-      );
+      init.runtime.selection.confirmAndStartBuild(playerId, isReselect, source);
     },
-    allSelectionsConfirmed: () => _depsInit.runtime.selection.allConfirmed(),
-    finishReselection: () => _depsInit.runtime.selection.finishReselection(),
-    finishSelection: () => _depsInit.runtime.selection.finish(),
-    getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
+    allSelectionsConfirmed: () => init.runtime.selection.allConfirmed(),
+    finishReselection: () => init.runtime.selection.finishReselection(),
+    finishSelection: () => init.runtime.selection.finish(),
+    getLifeLostDialog: () => init.runtime.lifeLost.get(),
     // Only expose the dialog once Mode.UPGRADE_PICK is active — during
     // the banner preview (prepare) the dialog exists for rendering but
     // picks must still be buffered in earlyUpgradePickChoices. The
     // buffered queue is drained inside `tryShow()` immediately after
     // Mode flips, via `onlineDialogDrains.drainUpgradePick`.
     getUpgradePickDialog: () =>
-      _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK
-        ? _depsInit.runtime.runtimeState.dialogs.upgradePick
+      init.runtime.runtimeState.mode === Mode.UPGRADE_PICK
+        ? init.runtime.runtimeState.dialogs.upgradePick
         : null,
   };
 }
 
-function buildLobbyDeps() {
+function buildLobbyDeps(init: DepsInit) {
   return {
-    showWaitingRoom: _depsInit.showWaitingRoom,
+    showWaitingRoom: init.showWaitingRoom,
     get joined() {
-      return _depsInit.runtime.runtimeState.lobby.joined;
+      return init.runtime.runtimeState.lobby.joined;
     },
   };
 }
 
-function buildUiDeps() {
+function buildUiDeps(init: DepsInit, client: OnlineClient) {
   return {
-    getLifeLostDialog: () => _depsInit.runtime.lifeLost.get(),
+    getLifeLostDialog: () => init.runtime.lifeLost.get(),
     clearLifeLostDialog: () => {
-      _depsInit.runtime.lifeLost.set(null);
+      init.runtime.lifeLost.set(null);
     },
-    isLifeLostMode: () =>
-      _depsInit.runtime.runtimeState.mode === Mode.LIFE_LOST,
-    getUpgradePickDialog: () =>
-      _depsInit.runtime.runtimeState.dialogs.upgradePick,
+    isLifeLostMode: () => init.runtime.runtimeState.mode === Mode.LIFE_LOST,
+    getUpgradePickDialog: () => init.runtime.runtimeState.dialogs.upgradePick,
     clearUpgradePickDialog: () => {
       // Route through the subsystem boundary, matching the phase-transition
       // path (host: `runtime-composition.ts:clearUpgradePickDialog`,
       // watcher: `online-phase-transitions.ts:clearUpgradePickDialog`)
       // and the host-promotion path (`online-runtime-promote.ts`).
-      _depsInit.runtime.upgradePick.set(null);
+      init.runtime.upgradePick.set(null);
     },
     isUpgradePickMode: () =>
-      _depsInit.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
+      init.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
     setModeToGame: () => {
-      setMode(_depsInit.runtime.runtimeState, Mode.GAME);
+      setMode(init.runtime.runtimeState, Mode.GAME);
     },
     setAnnouncement: (text: string) => {
-      _client.ctx.presence.migrationBanner.text = text;
-      _client.ctx.presence.migrationBanner.timer =
+      client.ctx.presence.migrationBanner.text = text;
+      client.ctx.presence.migrationBanner.timer =
         MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,
@@ -187,25 +202,25 @@ function buildUiDeps() {
   };
 }
 
-function buildGameDeps() {
+function buildGameDeps(init: DepsInit) {
   return {
-    getState: () => _depsInit.runtime.runtimeState.state,
-    initFromServer: _depsInit.initFromServer,
-    enterTowerSelection: () => _depsInit.runtime.selection.enter(),
+    getState: () => init.runtime.runtimeState.state,
+    initFromServer: init.initFromServer,
+    enterTowerSelection: () => init.runtime.selection.enter(),
   };
 }
 
-function buildTransitionDeps() {
+function buildTransitionDeps(init: DepsInit) {
   return {
     onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, _depsInit.runtime),
+      handleGameOverTransition(msg, init.runtime),
   };
 }
 
-function buildMigrationDeps() {
+function buildMigrationDeps(init: DepsInit) {
   return {
     playerNames: PLAYER_NAMES,
     promoteToHost,
-    restoreFullState: _depsInit.restoreFullState,
+    restoreFullState: init.restoreFullState,
   };
 }
