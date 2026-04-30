@@ -21,8 +21,8 @@ import { tickBuild } from "../ai/ai-phase-build.ts";
 import { flushCannon, tickCannon } from "../ai/ai-phase-cannon.ts";
 import type { AiStrategy } from "../ai/ai-strategy.ts";
 import {
-  executePlaceCannon,
   scheduleCannonFire,
+  scheduleCannonPlacement,
   schedulePiecePlacement,
 } from "../game/index.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
@@ -119,13 +119,16 @@ export class AiAssistedHumanController
     _dt: number,
   ): CannonPlacementPreview | undefined {
     const executePlace = (intent: PlaceCannonIntent): boolean => {
-      const placed = executePlaceCannon(
+      const stamped = scheduleCannonPlacement({
+        schedule: this.schedule,
         state,
         intent,
-        this._cannonPhase.maxSlots,
-      );
-      if (placed) this.senders.sendCannonPlaced(intent);
-      return placed;
+        maxSlots: this._cannonPhase.maxSlots,
+        safetyTicks: this.safetyTicks,
+      });
+      if (!stamped) return false;
+      this.senders.sendCannonPlaced(stamped);
+      return true;
     };
     const result = tickCannon(this, this._cannonPhase, state, executePlace);
     this.currentCannonPhantom = result ?? undefined;
@@ -134,9 +137,16 @@ export class AiAssistedHumanController
 
   override flushCannons(state: GameState, maxSlots: number): void {
     const executePlace = (intent: PlaceCannonIntent): boolean => {
-      const placed = executePlaceCannon(state, intent, maxSlots);
-      if (placed) this.senders.sendCannonPlaced(intent);
-      return placed;
+      const stamped = scheduleCannonPlacement({
+        schedule: this.schedule,
+        state,
+        intent,
+        maxSlots,
+        safetyTicks: this.safetyTicks,
+      });
+      if (!stamped) return false;
+      this.senders.sendCannonPlaced(stamped);
+      return true;
     };
     flushCannon(this, this._cannonPhase, state, executePlace);
   }

@@ -69,6 +69,7 @@ export {
 } from "./phase-setup.ts";
 export {
   scheduleCannonFire,
+  scheduleCannonPlacement,
   schedulePiecePlacement,
 } from "./scheduled-actions.ts";
 export {

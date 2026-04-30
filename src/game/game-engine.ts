@@ -316,5 +316,6 @@ function createGameState(
     modern: null,
     simTick: 0,
     pendingCannonFires: new Set(),
+    pendingCannonSlotCost: players.map(() => 0),
   };
 }

@@ -288,6 +288,11 @@ export interface OpponentCannonPlacedMessage {
   row: number;
   col: number;
   mode: CannonMode;
+  /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
+   *  receiver enqueue with this stamp; the action schedule fires it at
+   *  the matching tick on every peer, so cannon-slot occupancy and the
+   *  consequent `cannonPlaceDone` checkpointing align. */
+  applyAt: number;
 }
 
 /** An opponent's phantom cannon position (for rendering ghost). */

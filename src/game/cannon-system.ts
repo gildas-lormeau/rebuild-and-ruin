@@ -78,6 +78,7 @@ export function autoPlaceRound1Cannons(
   state: GameViewState & {
     readonly burningPits: readonly BurningPit[];
     readonly cannonMaxHp: number;
+    readonly pendingCannonSlotCost: readonly number[];
     readonly round?: number;
   },
   playerId: ValidPlayerSlot,
@@ -130,6 +131,7 @@ export function placeCannon(
   state: GameViewState & {
     readonly burningPits: readonly BurningPit[];
     readonly cannonMaxHp: number;
+    readonly pendingCannonSlotCost: readonly number[];
   },
 ): boolean {
   if (isPlayerEliminated(player)) return false;
@@ -160,10 +162,19 @@ export function isCannonPlacementLegal(
   col: number,
   mode: CannonMode,
   maxCannons: number,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  state: GameViewState & {
+    readonly burningPits: readonly BurningPit[];
+    readonly pendingCannonSlotCost: readonly number[];
+  },
 ): boolean {
+  // Lockstep guard: include scheduled-but-not-yet-drained slot cost so the
+  // originator's AI doesn't plan past `maxCannons` during the SAFETY
+  // window between schedule and apply. See `state.pendingCannonSlotCost`.
+  const pendingCost = state.pendingCannonSlotCost[player.id] ?? 0;
   if (
-    cannonSlotsUsed(player) + effectivePlacementCost(player, mode) >
+    cannonSlotsUsed(player) +
+      pendingCost +
+      effectivePlacementCost(player, mode) >
     maxCannons
   )
     return false;
@@ -211,6 +222,7 @@ export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
   resetCannonFacings(state);
   state.timer = state.cannonPlaceTimer;
+  state.pendingCannonSlotCost.fill(0);
 }
 
 /**

@@ -22,11 +22,7 @@ import type {
   PixelPos,
   TilePos,
 } from "./geometry-types.ts";
-import type {
-  CannonPhantom,
-  CannonPlacedPayload,
-  PiecePhantom,
-} from "./phantom-types.ts";
+import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
@@ -59,13 +55,18 @@ export interface BuildViewState extends GameViewState {
   readonly grunts: readonly Grunt[];
 }
 
-/** Cannon-phase state slice.  7 fields. */
+/** Cannon-phase state slice.  8 fields. */
 export interface CannonViewState extends GameViewState {
   readonly cannonLimits: readonly number[];
   readonly capturedCannons: readonly CapturedCannon[];
   readonly burningPits: readonly BurningPit[];
   readonly cannonMaxHp: number;
   readonly gameMode: GameMode;
+  /** Per-player slot-cost counter for scheduled-but-not-yet-drained cannon
+   *  placements. See `GameState.pendingCannonSlotCost`. Read by
+   *  `isCannonPlacementLegal` to avoid double-placement during the
+   *  lockstep SAFETY window. */
+  readonly pendingCannonSlotCost: readonly number[];
 }
 
 /** Upgrade-pick dialog state slice.  4 fields on top of GameViewState.
@@ -118,8 +119,16 @@ export interface PlacePieceIntent {
   readonly col: number;
 }
 
-/** Intent to place a cannon — aliased to CannonPlacedPayload (same shape). */
-export type PlaceCannonIntent = CannonPlacedPayload;
+/** Intent to place a cannon — returned by CannonController.tryPlaceCannon
+ *  for the orchestrator to validate and either apply locally (offline) or
+ *  schedule + broadcast (online). Distinct from `CannonPlacedPayload`,
+ *  which carries the lockstep `applyAt` stamp added at schedule time. */
+export interface PlaceCannonIntent {
+  readonly playerId: ValidPlayerSlot;
+  readonly row: number;
+  readonly col: number;
+  readonly mode: CannonMode;
+}
 
 /** Visual preview of a piece the player is about to place (not yet committed to game state). */
 export type PiecePlacementPreview = PiecePhantom;

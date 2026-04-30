@@ -257,8 +257,17 @@ function handleCannonPlaced(
       return DROPPED;
     }
   }
-  applyCannonPlacement(player, msg.row, msg.col, normalizedMode, state);
-  consumeRapidEmplacement(player);
+  const { row, col, applyAt, playerId } = msg;
+  deps.schedule({
+    applyAt,
+    playerId,
+    apply: (drainState) => {
+      const drainPlayer = drainState.players[playerId];
+      if (!drainPlayer) return;
+      applyCannonPlacement(drainPlayer, row, col, normalizedMode, drainState);
+      consumeRapidEmplacement(drainPlayer);
+    },
+  });
   return APPLIED;
 }
 

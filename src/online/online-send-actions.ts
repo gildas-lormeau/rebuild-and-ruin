@@ -1,4 +1,8 @@
-import { scheduleCannonFire, schedulePiecePlacement } from "../game/index.ts";
+import {
+  scheduleCannonFire,
+  scheduleCannonPlacement,
+  schedulePiecePlacement,
+} from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import {
@@ -54,25 +58,30 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     return true;
   }
 
+  /** Lockstep cannon-place: validate now, broadcast with `applyAt`, schedule
+   *  the apply on this peer with the same `applyAt`. Receivers do the same
+   *  on wire receipt, so the cannon-push fires at the same logical tick on
+   *  every peer. */
   function tryPlaceCannon(
     ctrl: ControllerIdentity & CannonController & InputReceiver,
-    gameState: CannonViewState,
+    _gameState: CannonViewState,
     max: number,
   ): boolean {
-    const row = ctrl.cannonCursor.row;
-    const col = ctrl.cannonCursor.col;
-    const mode = ctrl.getCannonPlaceMode();
-    const placed = ctrl.tryPlaceCannon(gameState, max);
-    if (placed) {
-      send({
-        type: MESSAGE.OPPONENT_CANNON_PLACED,
+    const stamped = scheduleCannonPlacement({
+      schedule,
+      state: getState(),
+      intent: {
         playerId: ctrl.playerId,
-        row,
-        col,
-        mode,
-      });
-    }
-    return placed;
+        row: ctrl.cannonCursor.row,
+        col: ctrl.cannonCursor.col,
+        mode: ctrl.getCannonPlaceMode(),
+      },
+      maxSlots: max,
+      safetyTicks,
+    });
+    if (!stamped) return false;
+    send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...stamped });
+    return true;
   }
 
   /** Lockstep cannon fire: pin the trajectory now, broadcast with `applyAt`,

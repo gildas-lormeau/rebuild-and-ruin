@@ -140,6 +140,13 @@ export interface GameState {
    *  only called for slots the peer drives). Cleared on rematch and at
    *  battle-phase setup; not synced over the wire. */
   pendingCannonFires: Set<number>;
+  /** Per-player slot-cost counter for cannon placements scheduled on this
+   *  peer but not yet drained. Read by `isCannonPlacementLegal` so the
+   *  originator's AI strategy doesn't plan more cannons than `cannonLimits`
+   *  during the SAFETY window between schedule and apply. Per-peer
+   *  transient (same shape and rationale as `pendingCannonFires`). Cleared
+   *  on rematch and at cannon-phase setup; not synced over the wire. */
+  pendingCannonSlotCost: number[];
 }
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */
