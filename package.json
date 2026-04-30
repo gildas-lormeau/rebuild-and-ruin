@@ -63,6 +63,7 @@
     "lint:registries": "deno run -A scripts/lint-registries.ts",
     "lint:entry-placement": "deno run -A scripts/lint-entry-placement.ts",
     "lint:checkpoint-fields": "deno run -A scripts/lint-checkpoint-fields.ts",
+    "lint:applyat": "deno run -A scripts/lint-applyat.ts",
     "lint:test-timeouts": "deno run -A scripts/lint-test-timeouts.ts",
     "lint:raw-playwright": "deno run -A scripts/lint-raw-playwright.ts",
     "lint:all": "bash scripts/lint-all.sh",

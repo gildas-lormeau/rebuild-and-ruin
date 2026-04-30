@@ -49,6 +49,7 @@ echo "lint:all: parallel checks..."
   run entry-placement   deno run -A scripts/lint-entry-placement.ts
   run restricted        deno run -A scripts/lint-restricted-imports.ts
   run checkpoint-fields deno run -A scripts/lint-checkpoint-fields.ts
+  run applyat           deno run -A scripts/lint-applyat.ts
   run test-timeouts     deno run -A scripts/lint-test-timeouts.ts
   run raw-playwright    deno run -A scripts/lint-raw-playwright.ts
   run phase-transitions deno run -A scripts/lint-phase-transitions.ts
