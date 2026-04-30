@@ -92,7 +92,6 @@
     "tier": "types",
     "files": [
       "src/protocol/protocol.ts",
-      "src/runtime/runtime-battle-anim.ts",
       "src/shared/core/cannon-mode-defs.ts",
       "src/shared/core/phantom-types.ts",
       "src/shared/core/player-types.ts",
@@ -140,6 +139,7 @@
       "src/render/render-loupe.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/music-player.ts",
+      "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",

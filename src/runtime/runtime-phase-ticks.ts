@@ -16,7 +16,7 @@ import {
 } from "../game/index.ts";
 import {
   BATTLE_MESSAGE,
-  type BattleEvent,
+  type ImpactEvent,
 } from "../shared/core/battle-events.ts";
 import {
   ageImpacts,
@@ -30,11 +30,7 @@ import {
   IMPACT_FLASH_DURATION,
   MODIFIER_REVEAL_TIMER,
 } from "../shared/core/game-constants.ts";
-import {
-  emitGameEvent,
-  GAME_EVENT,
-  type GameEventBus,
-} from "../shared/core/game-event-bus.ts";
+import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import {
   type CannonPhantomPayload,
@@ -47,7 +43,6 @@ import {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { cannonSize } from "../shared/core/spatial.ts";
 import {
   type CannonController,
   isHuman,
@@ -227,16 +222,7 @@ export interface PhaseTicksSystem {
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
-  /** Subscribe the stats accumulator to the current `state.bus`. Idempotent
-   *  per-bus; safe (and required) to call after every new-game setState so
-   *  rematches rebind to the fresh bus. */
-  subscribeBusObservers: () => void;
 }
-
-/** Set of all battle event type strings — used to filter bus events. */
-const BATTLE_EVENT_TYPES: ReadonlySet<string> = new Set(
-  Object.values(BATTLE_MESSAGE),
-);
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
@@ -248,64 +234,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // `beginBattle` so it resets even when the battle-done transition is
   // bypassed (e.g. a game-over short-circuit).
   let rotationResetDone = false;
-
-  // -------------------------------------------------------------------------
-  // Bus → stats accumulator (observation subscriber)
-  //
-  // Each new game installs a fresh `state.bus`, so subscription must run
-  // AFTER setState. The caller invokes `subscribeBusObservers` from the
-  // bootstrap `onStateReady` hook; the bus-identity guard keeps it
-  // idempotent within a single game (extra calls are a no-op) and lets
-  // it resubscribe cleanly on rematch (new bus identity).
-  // -------------------------------------------------------------------------
-
-  let subscribedBus: GameEventBus | undefined;
-  function subscribeBusObservers(): void {
-    const bus = runtimeState.state.bus;
-    if (subscribedBus === bus) return;
-    subscribedBus = bus;
-    bus.onAny((type, event) => {
-      if (BATTLE_EVENT_TYPES.has(type)) {
-        accumulateBattleStats(
-          [event as BattleEvent],
-          runtimeState.scoreDisplay.gameStats,
-        );
-      }
-    });
-    bus.on(BATTLE_MESSAGE.WALL_DESTROYED, (event) => {
-      runtimeState.battleAnim.wallBurns.push({
-        row: event.row,
-        col: event.col,
-        age: 0,
-      });
-    });
-    bus.on(BATTLE_MESSAGE.CANNON_DAMAGED, (event) => {
-      if (event.newHp > 0) return;
-      const cannon =
-        runtimeState.state.players[event.playerId]?.cannons[event.cannonIdx];
-      if (!cannon) return;
-      runtimeState.battleAnim.cannonDestroys.push({
-        row: cannon.row,
-        col: cannon.col,
-        size: cannonSize(cannon.mode),
-        age: 0,
-      });
-    });
-    bus.on(BATTLE_MESSAGE.GRUNT_KILLED, (event) => {
-      runtimeState.battleAnim.gruntKills.push({
-        row: event.row,
-        col: event.col,
-        age: 0,
-      });
-    });
-    bus.on(BATTLE_MESSAGE.HOUSE_DESTROYED, (event) => {
-      runtimeState.battleAnim.houseDestroys.push({
-        row: event.row,
-        col: event.col,
-        age: 0,
-      });
-    });
-  }
 
   // -------------------------------------------------------------------------
   // Crosshairs
@@ -711,9 +639,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (weaponsActive) tickLocalBattleControllers(local, state, dt);
     const result = engineTickBattlePhase(state, dt);
 
-    recordBattleVisualEvents(result, battleAnim);
+    // Record visuals + stats from the same combat result, on every peer.
+    // The bus must not drive runtime-affecting state — battleAnim.*
+    // gates the battle-end transition, gameStats feeds the end-game UI.
+    recordBattleVisualEvents(result, battleAnim, state);
+    accumulateBattleStats(
+      result.impactEvents,
+      runtimeState.scoreDisplay.gameStats,
+    );
 
-    // Haptics and stats are handled by bus subscribers (onAny above / haptics subsystem).
+    // Haptics is handled by the haptics observer subsystem (bus subscriber).
 
     syncCrosshairs(weaponsActive, dt);
     deps.requestRender();
@@ -874,10 +809,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     online?.tickMigrationAnnouncement?.(dt);
   }
 
-  /** Accumulate per-player battle stats (walls destroyed, cannons killed) from battle events.
-   *  UI/stats concern — lives in runtime, not game domain. */
+  /** Accumulate per-player battle stats (walls destroyed, cannons killed) from
+   *  the engine's impact-event list. Driven from `result.impactEvents` on
+   *  every tick — never from a bus subscription, since `gameStats` is in
+   *  `runtimeState` and runtime state must not depend on the bus. */
   function accumulateBattleStats(
-    events: ReadonlyArray<BattleEvent>,
+    events: ReadonlyArray<ImpactEvent>,
     gameStats: readonly PlayerStats[],
   ): void {
     for (const evt of events) {
@@ -911,7 +848,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickBuildPhase,
     tickGame,
     syncCrosshairs,
-    subscribeBusObservers,
   };
 }
 

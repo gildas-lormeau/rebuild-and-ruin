@@ -558,10 +558,6 @@ export interface RuntimeLifecycle {
 export interface RuntimePhaseTicks {
   startCannonPhase: () => void;
   beginBattle: () => void;
-  /** Subscribe the runtime's stats accumulator to the current `state.bus`.
-   *  Must be called after each new-game `setState` so rematches rebind to
-   *  the fresh bus. */
-  subscribeBusObservers: () => void;
 }
 
 /** Narrow handle exposed to the app shell so the home-page "Play" button can

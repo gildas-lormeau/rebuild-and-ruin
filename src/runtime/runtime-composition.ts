@@ -688,7 +688,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
             onStateReady: () => {
-              phaseTicks.subscribeBusObservers();
               haptics.subscribeBus(runtimeState.state.bus);
               music.subscribeBus(runtimeState.state.bus);
               sfx.subscribeBus(runtimeState.state.bus);
@@ -1030,7 +1029,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     phaseTicks: {
       startCannonPhase: phaseTicks.startCannonPhase,
       beginBattle: phaseTicks.beginBattle,
-      subscribeBusObservers: phaseTicks.subscribeBusObservers,
     },
     music: {
       activate: music.activate,

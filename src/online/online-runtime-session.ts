@@ -121,7 +121,11 @@ export function createOnlineRuntimeSessionHelpers(
         deps.resetNetworkingForNewGame();
       },
       enterSelection: () => runtime.selection.enter(),
-      onStateReady: () => runtime.phaseTicks.subscribeBusObservers(),
+      onStateReady: () => {
+        // Watcher visuals + stats are populated from `result.impactEvents`
+        // inside `tickBattlePhase` (same code path as host) — no per-bus
+        // subscription needed here.
+      },
     });
   }
 
