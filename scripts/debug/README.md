@@ -30,6 +30,7 @@ debug continue [--session ID]
 debug step    [--session ID] [over|into|out]
 debug eval    [--session ID] <expr> [--frame N]
 debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+              [--partition-by <expr> --out <prefix>]   # one diffable file per partition
 debug stacks  [--session ID] [--format json]   # histogram of unique stacks
 debug stack   [--session ID] <hit#>            # full stack for one hit
 debug status  [--session ID]
@@ -217,6 +218,35 @@ $ debug trace --format table
 
 Combine with `--cond "state.round === 3 && event.row === 11"` to surface
 only the divergent event.
+
+### Per-peer diffable logs (the `diff` workflow)
+
+For parity-style investigations — "given two peers running the same
+code, find the FIRST event where they diverge" — a single interleaved
+trace is awkward to scan. `--partition-by <expr> --out <prefix>` writes
+one log file per unique value of `<expr>` (typically `state.debugTag`),
+each containing that peer's hits in arrival order, formatted so the two
+files are directly diffable:
+
+```sh
+$ debug capture src/game/battle-system.ts:660 \
+    state.debugTag  state.round  event.row  event.col  sid
+$ debug run
+$ debug trace --partition-by 'state.debugTag' --out /tmp/parity
+partitioned trace by state.debugTag:
+  /tmp/parity-host.log (1248 hits)
+  /tmp/parity-watcher.log (1248 hits)
+
+first-divergence diff:
+  diff /tmp/parity-host.log /tmp/parity-watcher.log
+```
+
+Each line has the form `file:line key=val key=val …` with sorted keys
+and the partition discriminator stripped (it's redundant within a
+partition). When both peers hit the same breakpoint the same number of
+times in lockstep, line N of each file represents the Nth equivalent
+event — so the first `<` / `>` line in `diff` is the first divergent
+event.
 
 ## Architecture
 

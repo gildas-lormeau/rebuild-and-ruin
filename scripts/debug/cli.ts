@@ -16,6 +16,7 @@
  *   debug step    [--session ID] [over|into|out]
  *   debug eval    [--session ID] <expr> [--frame N]
  *   debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+ *                 [--partition-by <expr> --out <prefix>]   # diffable per-partition logs
  *   debug stacks  [--session ID] [--format json]
  *   debug stack   [--session ID] <hit#>
  *   debug status  [--session ID]
@@ -343,11 +344,85 @@ async function cmdTrace(parsed: ParsedArgs): Promise<void> {
     hits: TraceHit[];
     total: number;
   };
+  // `--partition-by <expr> --out <prefix>` writes one file per unique
+  // value of <expr>, each containing that partition's hits in arrival
+  // order — formatted so two files can be `diff`d directly. Designed
+  // for multi-peer parity testing: partition by `state.debugTag` (or
+  // similar discriminator captured at every hit) and the Nth line of
+  // each peer's file represents the Nth equivalent event for that peer.
+  // First differing line in `diff` = first divergent event.
+  const partitionExpr = parsed.flags.get("partition-by");
+  const outPrefix = parsed.flags.get("out");
+  if (typeof partitionExpr === "string") {
+    if (typeof outPrefix !== "string") {
+      throw new Error("--partition-by requires --out <prefix>");
+    }
+    writePartitionedTrace(result.hits, partitionExpr, outPrefix);
+    return;
+  }
   if (parsed.flags.get("format") === "table") {
     const markStack = parsed.flags.get("mark-stack-changes") === true;
     printTrace(result.hits, { markStack });
   } else {
     console.log(JSON.stringify(result, null, 2));
+  }
+}
+
+/** Group hits by `<partitionExpr>` value, write one diffable file per
+ *  partition. Each line: `file:line <expr1>=<value1> ...` (sorted keys,
+ *  JSON-stable values; the partition discriminator is omitted since
+ *  it's redundant within a partition). LINES ARE SORTED within each
+ *  partition — different peers fire the same events in slightly
+ *  different temporal orders due to wire-vs-local timing, so unsorted
+ *  output makes `diff` dominated by ordering noise rather than real
+ *  content divergence. After sorting, identical events appear at the
+ *  same line in both files; every `diff` line is a real difference (a
+ *  field whose value differs, or an event present on only one peer).
+ *
+ *  Whatever expressions the user captured ARE the diff — the tool
+ *  doesn't filter, doesn't add fields. To remove a field from the
+ *  diff, don't capture it. */
+function writePartitionedTrace(
+  hits: TraceHit[],
+  partitionExpr: string,
+  outPrefix: string,
+): void {
+  const partitions = new Map<string, string[]>();
+  for (const h of hits) {
+    const partKey = formatValue(h.values[partitionExpr]);
+    let lines = partitions.get(partKey);
+    if (!lines) {
+      lines = [];
+      partitions.set(partKey, lines);
+    }
+    const exprs = Object.keys(h.values)
+      .filter((k) => k !== partitionExpr)
+      .sort();
+    const values = exprs
+      .map((e) => `${e}=${formatValue(h.values[e])}`)
+      .join(" ");
+    lines.push(`${h.file}:${h.line} ${values}`);
+  }
+  if (partitions.size === 0) {
+    console.log("(no captures)");
+    return;
+  }
+  const written: string[] = [];
+  for (const [partKey, lines] of partitions) {
+    lines.sort();
+    const safe = partKey.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${outPrefix}-${safe}.log`;
+    Deno.writeTextFileSync(path, lines.join("\n") + "\n");
+    written.push(`  ${path} (${lines.length} hits)`);
+  }
+  console.log(`partitioned trace by ${partitionExpr}:`);
+  for (const w of written) console.log(w);
+  if (partitions.size === 2) {
+    const [a, b] = [...partitions.keys()].sort();
+    const safeA = a.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeB = b.replace(/[^a-zA-Z0-9._-]/g, "_");
+    console.log(`\nfirst-divergence diff:`);
+    console.log(`  diff ${outPrefix}-${safeA}.log ${outPrefix}-${safeB}.log`);
   }
 }
 
