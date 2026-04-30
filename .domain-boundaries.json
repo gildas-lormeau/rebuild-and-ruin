@@ -1,6 +1,7 @@
 {
   "domains": {
     "shared": [
+      "src/shared/core/action-schedule.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/board-occupancy.ts",
@@ -55,6 +56,7 @@
       "src/game/game-over.ts",
       "src/game/map-generation.ts",
       "src/game/phase-setup.ts",
+      "src/game/scheduled-actions.ts",
       "src/game/combo-system.ts",
       "src/game/modifiers/crumbling-walls.ts",
       "src/game/modifiers/dust-storm.ts",

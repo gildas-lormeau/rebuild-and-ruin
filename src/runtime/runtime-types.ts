@@ -331,6 +331,17 @@ export interface RuntimeConfig {
    *  avoiding mid-game controller swaps. See `assistedSlots` in
    *  `test/runtime-headless.ts`. */
   controllerFactory?: ControllerFactory;
+
+  /** Per-runtime tunable buffer depth for the lockstep scheduled-actions
+   *  queue. Every wire-broadcast input is stamped with
+   *  `applyAt = senderSimTick + actionScheduleSafetyTicks` and applied at
+   *  that tick on every peer (originator + receivers). Must exceed the
+   *  worst-case wire latency (in sim ticks) between any two peers — if
+   *  a message arrives with `applyAt < currentSimTick` on the receiver,
+   *  it fires late and produces cross-peer divergence. Defaults via the
+   *  `DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS` constant in
+   *  `shared/core/action-schedule.ts` for local play (no wire). */
+  actionScheduleSafetyTicks?: number;
 }
 
 export interface CameraSystem {

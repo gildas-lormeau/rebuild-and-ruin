@@ -44,6 +44,10 @@ import {
   createGameRuntime,
   createLocalNetworkApi,
 } from "../src/runtime/runtime-composition.ts";
+import {
+  DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
+  type ScheduledAction,
+} from "../src/shared/core/action-schedule.ts";
 import { setMode } from "../src/runtime/runtime-state.ts";
 import { createStubElement } from "./stub-dom.ts";
 import type {
@@ -243,10 +247,21 @@ export async function createHeadlessRuntime(
     assistedSlots,
   } = opts;
 
+  // Forward-declared so the lobby callbacks (defined below the
+  // `createGameRuntime` call) and the assisted-controller factory's
+  // schedule closure can reach into the constructed runtime. The closures
+  // only fire after construction completes, so the holder is always
+  // populated by the time they're invoked.
+  const runtimeHolder: { current?: GameRuntime } = {};
+
   const controllerFactory =
     assistedSlots && assistedSlots.length > 0
-      ? buildAssistedControllerFactory(assistedSlots, (msg) =>
-          networkObserver?.sent?.(msg),
+      ? buildAssistedControllerFactory(
+          assistedSlots,
+          (msg) => networkObserver?.sent?.(msg),
+          () => (action) =>
+            runtimeHolder.current!.runtimeState.actionSchedule.schedule(action),
+          DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
         )
       : undefined;
 
@@ -284,12 +299,6 @@ export async function createHeadlessRuntime(
   > & { dispatchEvent(event: Event): boolean };
 
   // ── Runtime construction ──────────────────────────────────────────
-  // Forward-declared so the lobby callbacks (defined below the
-  // `createGameRuntime` call) can reach into the constructed runtime.
-  // The closures only fire after construction completes, so the holder
-  // is always populated by the time they're invoked.
-  const runtimeHolder: { current?: GameRuntime } = {};
-
   // Tracks every handler the runtime registers via `network.onMessage`.
   // Tests use `deliverNetworkMessage` (exposed on the HeadlessRuntime
   // return value) to deliver a fake peer message — same code path the
@@ -529,6 +538,8 @@ export async function createHeadlessRuntime(
 function buildAssistedControllerFactory(
   assistedSlots: readonly ValidPlayerSlot[],
   send: (msg: GameMessage) => void,
+  getSchedule: () => (action: ScheduledAction) => void,
+  safetyTicks: number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerSlot>(assistedSlots);
   return async (slot, isAi, keys, strategySeed, difficulty) => {
@@ -562,6 +573,8 @@ function buildAssistedControllerFactory(
         sendLifeLostChoice: (choice) =>
           send({ type: MESSAGE.LIFE_LOST_CHOICE, playerId: slot, choice }),
       },
+      schedule: (action) => getSchedule()(action),
+      safetyTicks,
     });
   };
 }

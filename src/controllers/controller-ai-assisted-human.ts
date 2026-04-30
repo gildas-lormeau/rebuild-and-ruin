@@ -23,8 +23,9 @@ import type { AiStrategy } from "../ai/ai-strategy.ts";
 import {
   executeCannonFire,
   executePlaceCannon,
-  executePlacePiece,
+  schedulePiecePlacement,
 } from "../game/index.ts";
+import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import { type Cannonball, CannonMode } from "../shared/core/battle-types.ts";
 import type {
   CannonPlacedPayload,
@@ -65,6 +66,13 @@ interface AssistedSenders {
 interface AssistedControllerOptions {
   strategy?: AiStrategy;
   senders: AssistedSenders;
+  /** Lockstep apply queue. Piece placements (state-mutating, RNG-consuming
+   *  via recheckTerritory) are scheduled with `applyAt = state.simTick +
+   *  safetyTicks` so receivers' wire-receipt enqueue lands at the same
+   *  logical tick on every peer. */
+  schedule: (action: ScheduledAction) => void;
+  /** Buffer depth in sim ticks. See `shared/core/action-schedule.ts`. */
+  safetyTicks: number;
 }
 
 export class AiAssistedHumanController
@@ -73,26 +81,30 @@ export class AiAssistedHumanController
 {
   override readonly kind = "human" as const;
   private readonly senders: AssistedSenders;
+  private readonly schedule: (action: ScheduledAction) => void;
+  private readonly safetyTicks: number;
 
   constructor(playerId: ValidPlayerSlot, opts: AssistedControllerOptions) {
     super(playerId, opts.strategy);
     this.senders = opts.senders;
+    this.schedule = opts.schedule;
+    this.safetyTicks = opts.safetyTicks;
   }
 
-  // ── Build phase: AI ticks; placement intents broadcast via senders.sendPiecePlaced ──
+  // ── Build phase: AI ticks; placements scheduled with lockstep applyAt ──
 
   override buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
     const executePlace = (intent: PlacePieceIntent): boolean => {
-      const placed = executePlacePiece(state, intent, this);
-      if (placed) {
-        this.senders.sendPiecePlaced({
-          playerId: intent.playerId,
-          row: intent.row,
-          col: intent.col,
-          offsets: intent.piece.offsets,
-        });
-      }
-      return placed;
+      const stamped = schedulePiecePlacement({
+        schedule: this.schedule,
+        state,
+        intent,
+        safetyTicks: this.safetyTicks,
+        clampBuildCursor: (piece) => this.clampBuildCursor(piece),
+      });
+      if (!stamped) return false;
+      this.senders.sendPiecePlaced(stamped);
+      return true;
     };
     const result = tickBuild(this, this._buildPhase, state, executePlace);
     this.currentBuildPhantoms = result;

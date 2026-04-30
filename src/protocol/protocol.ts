@@ -263,6 +263,12 @@ export interface OpponentPiecePlacedMessage {
   row: number;
   col: number;
   offsets: [number, number][];
+  /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
+   *  receiver enqueue with this stamp; the action schedule fires it at
+   *  the matching tick on every peer, so order-sensitive logic
+   *  (recheckTerritory → removeEnclosedGruntsAndRespawn) consumes RNG
+   *  identically across peers. */
+  applyAt: number;
 }
 
 /** An opponent's phantom piece position (for rendering ghost). */

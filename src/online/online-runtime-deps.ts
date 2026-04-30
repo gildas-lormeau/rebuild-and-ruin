@@ -135,6 +135,8 @@ function buildIncrementalDeps(
     session: client.ctx.session,
     presence: client.ctx.presence,
     getState: () => init.runtime.runtimeState.state,
+    schedule: (action) =>
+      init.runtime.runtimeState.actionSchedule.schedule(action),
     getControllers: () => init.runtime.runtimeState.controllers,
     selectionStates: init.runtime.selection.getStates(),
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),

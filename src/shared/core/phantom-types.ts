@@ -32,16 +32,27 @@ export interface CannonPhantomPayload extends CannonPlacedPayload {
   valid: boolean;
 }
 
-/** Network payload for a piece placement event. */
-export interface PiecePlacedPayload {
+/** Common positional fields shared between the placement event and the
+ *  preview phantom. Split out because the placement event carries an
+ *  `applyAt` lockstep stamp that the phantom (a render preview) does not. */
+interface PieceShapePayload {
   playerId: ValidPlayerSlot;
   row: number;
   col: number;
   offsets: [number, number][];
 }
 
-/** Network payload for a piece phantom (includes validity for coloring). */
-export interface PiecePhantomPayload extends PiecePlacedPayload {
+/** Network payload for a piece placement event. `applyAt` is the lockstep
+ *  apply tick: both originator and receiver enqueue with this stamp so the
+ *  apply (and its order-sensitive RNG-consuming `recheckTerritory` cascade)
+ *  fires at the same logical sim tick on every peer. */
+export interface PiecePlacedPayload extends PieceShapePayload {
+  applyAt: number;
+}
+
+/** Network payload for a piece phantom (includes validity for coloring).
+ *  Phantoms render only — they do not enqueue, so they carry no applyAt. */
+export interface PiecePhantomPayload extends PieceShapePayload {
   valid: boolean;
 }
 

@@ -138,8 +138,20 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // exists). This counter is the basis for `applyAt` stamps on the
     // scheduled-actions queue — every peer must increment in lockstep
     // for cross-peer determinism.
+    //
+    // Drain runs immediately after the increment, before any phase-tick
+    // logic. This is the single point where wire-broadcast actions
+    // mutate state on every peer — both originator and receiver enqueue
+    // with the same `applyAt`, the queue sorts by `(applyAt, playerId)`,
+    // and `applyPiecePlacement` (and friends) fire in identical order on
+    // every peer. RNG-consuming downstream logic (recheckTerritory →
+    // removeEnclosedGruntsAndRespawn) consumes state.rng identically.
     if (isStateReady(deps.runtimeState)) {
       deps.runtimeState.state.simTick++;
+      deps.runtimeState.actionSchedule.drainUpTo(
+        deps.runtimeState.state.simTick,
+        deps.runtimeState.state,
+      );
     }
 
     const pointer = deps.getPointerPlayer();

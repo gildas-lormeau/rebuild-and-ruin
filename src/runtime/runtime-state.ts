@@ -1,4 +1,8 @@
 import {
+  type ActionSchedule,
+  createActionSchedule,
+} from "../shared/core/action-schedule.ts";
+import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/core/battle-types.ts";
@@ -116,6 +120,12 @@ export interface RuntimeState {
   // Phase / selection
   selection: SelectionRuntimeState;
   dialogs: DialogRuntimeState;
+
+  /** Lockstep scheduled-actions queue — every wire-broadcast input that
+   *  mutates GameState is enqueued (on both originator and receiver) and
+   *  drained once per sim tick at the top of `runOneSubStep`. See
+   *  `runtime-action-schedule.ts`. */
+  actionSchedule: ActionSchedule;
 
   // Timers / accumulators
   accum: TimerAccums;
@@ -250,6 +260,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.quit.timer = 0;
   runtimeState.quit.message = "";
   runtimeState.optionsUI.returnMode = null;
+  runtimeState.actionSchedule.reset();
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
@@ -271,6 +282,7 @@ export function createRuntimeState(): RuntimeState {
       castleBuilds: [],
     },
     dialogs: { lifeLost: null, upgradePick: null },
+    actionSchedule: createActionSchedule(),
 
     accum: createTimerAccums(),
     lastTime: 0,

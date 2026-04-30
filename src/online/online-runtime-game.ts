@@ -13,6 +13,7 @@ import {
   tickPersistentAnnouncement,
 } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
@@ -88,10 +89,15 @@ const sessionHelpers = createOnlineRuntimeSessionHelpers({
 });
 // ── Send-on-success action wrappers ────────────────────────────────
 // `send` and `getState` are bound once here so individual call sites
-// (input dispatch, AI tick) don't have to plumb them through.
+// (input dispatch, AI tick) don't have to plumb them through. The
+// `runtime` reference is captured by closure — `runtime` itself is
+// declared a few lines below; only the closures invoked after
+// initialization actually deref it.
 const sendActions = createOnlineSendActions({
   send,
   getState: () => runtime.runtimeState.state,
+  schedule: (action) => runtime.runtimeState.actionSchedule.schedule(action),
+  safetyTicks: DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS,
 });
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({

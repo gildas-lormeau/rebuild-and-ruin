@@ -16,6 +16,7 @@ import {
   isHostInContext,
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
+import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
@@ -59,6 +60,10 @@ export interface HandleServerIncrementalDeps {
   >;
   presence: RemoteCrosshairTargets;
   getState: () => GameState | undefined;
+  /** Lockstep queue. State-mutating wire messages enqueue with the
+   *  originator-stamped `applyAt`; the action fires at the same logical
+   *  tick on every peer (originator and receivers). */
+  schedule: (action: ScheduledAction) => void;
   /** Per-slot controllers — phantom messages for remote-controlled slots
    *  write directly into `controllers[msg.playerId].current{Build,Cannon}Phantom(s)`. */
   getControllers: () => readonly PlayerController[];
@@ -210,9 +215,15 @@ function handlePiecePlaced(
     return DROPPED;
   }
   deps.log(
-    `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
+    `scheduling piece placement for P${msg.playerId} at applyAt=${msg.applyAt} (${msg.offsets.length} tiles)`,
   );
-  applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
+  const { playerId, offsets, row, col, applyAt } = msg;
+  deps.schedule({
+    applyAt,
+    playerId,
+    apply: (drainState) =>
+      applyPiecePlacement(drainState, playerId, offsets, row, col),
+  });
   return APPLIED;
 }
 
