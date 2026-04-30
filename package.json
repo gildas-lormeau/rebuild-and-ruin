@@ -18,6 +18,7 @@
     "test:haptics": "timeout 30 deno test --no-check test/haptics-observer.test.ts",
     "test:network": "timeout 30 deno test --no-check test/network-observer.test.ts",
     "test:network-vs-local": "timeout 120 deno test --no-check test/network-vs-local.test.ts",
+    "test:network-bidirectional": "timeout 120 deno test --no-check -A test/network-bidirectional.test.ts",
     "record-determinism": "deno run -A scripts/record-determinism.ts",
     "test:online": "timeout 10 deno test --no-check test/online-unit.test.ts",
     "test:relay": "deno test --allow-net test/online-relay.test.ts",
