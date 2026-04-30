@@ -61,6 +61,12 @@ interface RuntimeLoopDeps {
   isMobileAutoZoom: () => boolean;
   tickCamera: () => void;
   tickScoreDelta: (dt: number) => void;
+  /** Tick the cannon-facing animator (mode-independent, like score-delta).
+   *  Eased displayed facings live in the runtime so the battle-end gate
+   *  can poll `cannonAnimator.allSettled()` without depending on the
+   *  renderer — the renderer just reads displayed values via the setter
+   *  installed at composition time. */
+  tickCannonAnimator: (dt: number) => void;
   /** The real render entrypoint. Called once per browser frame from
    *  `mainLoop`, and only when `runtimeState.renderDirty` is set — the
    *  dirty flag is the dedup mechanism that prevents the spiral-of-death
@@ -167,6 +173,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
     deps.tickCamera();
     deps.tickScoreDelta(dt);
+    deps.tickCannonAnimator(dt);
 
     return tickMainLoop({
       dt,

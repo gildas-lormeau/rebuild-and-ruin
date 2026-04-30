@@ -103,6 +103,7 @@ import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import { createCannonAnimator } from "./runtime-cannon-animator.ts";
 import type { TimingApi, UIContext } from "./runtime-contracts.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
@@ -434,6 +435,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isMobileAutoZoom: () => camera.isMobileAutoZoom(),
     tickCamera: () => tickCamera(),
     tickScoreDelta: (dt: number) => scoreDelta.tick(dt),
+    tickCannonAnimator: (dt: number) => cannonAnimator.tick(dt),
     render: () => render(),
     requestRender,
     tickMode,
@@ -569,6 +571,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const scoreDelta = createScoreDeltaSystem({
     runtimeState,
   });
+
+  // -------------------------------------------------------------------------
+  // Cannon-facing animator — eased displayed rotations live in the runtime,
+  // not the renderer. Battle-end gate polls `allSettled()` to wait for the
+  // post-battle reset to ease before transitioning. The renderer reads
+  // displayed values through the setter installed below.
+  // -------------------------------------------------------------------------
+
+  const cannonAnimator = createCannonAnimator({ runtimeState });
+  renderer.setCannonFacingProvider?.(cannonAnimator.getDisplayed);
 
   // -------------------------------------------------------------------------
   // Banner sub-system (delegated to runtime-banner.ts)
@@ -822,7 +834,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     endGame: lifecycle.endGame,
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
-    isCannonRotationEasing: () => renderer.isCannonRotationEasing(),
+    cannonRotationSettled: () => cannonAnimator.allSettled(),
     beginBattleTilt: camera.beginBattleTilt,
     engageAutoZoom: camera.engageAutoZoom,
   });

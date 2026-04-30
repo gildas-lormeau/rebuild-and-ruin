@@ -181,11 +181,12 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  banner snapshot captures a flat scene — wait until `"flat"` (or
    *  fall through on the safety timeout). */
   getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
-  /** True while the renderer is still easing cannon facings toward
-   *  their targets. Gates battle-end so the post-battle
-   *  `resetCannonFacings` rotation completes before the camera
-   *  untilt begins — frame-synced instead of wall-clock timed. */
-  isCannonRotationEasing: () => boolean;
+  /** True when every cannon's eased displayed facing has converged to
+   *  its target. Gates battle-end so the post-battle `resetCannonFacings`
+   *  rotation completes before the camera untilt begins — frame-synced
+   *  instead of wall-clock timed. Sourced from
+   *  `runtime-cannon-animator.ts`'s `allSettled`. */
+  cannonRotationSettled: () => boolean;
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
   beginBattleTilt: () => void;
@@ -227,13 +228,6 @@ export interface PhaseTicksSystem {
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { runtimeState } = deps;
   const online = deps.online;
-
-  // True once the battle-end `resetCannonFacings` call has been made for
-  // this round. Prevents re-resetting on every tick while we wait for
-  // the renderer to finish easing. Cleared at the start of the next
-  // `beginBattle` so it resets even when the battle-done transition is
-  // bypassed (e.g. a game-over short-circuit).
-  let rotationResetDone = false;
 
   // -------------------------------------------------------------------------
   // Crosshairs
@@ -432,12 +426,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function beginBattle() {
-    // Reset the battle-end rotation-latch here, at the START of every new
-    // battle, so the flag is always clean on entry regardless of whether
-    // the previous battle's tick ran to the battle-done transition or
-    // was short-circuited (e.g. by a game-over path that skipped the
-    // end-of-tick clear).
-    rotationResetDone = false;
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     for (const ctrl of localControllers(
       runtimeState.controllers,
@@ -669,16 +657,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       return false;
 
     // Rotate cannons back to rest while the camera is still tilted. The
-    // facing reset happens once here (not in startBuildPhase) so the
-    // renderer sees `cannon.facing` change at this exact moment and
-    // eases the displayed rotation toward it. We hold the phase until
-    // the renderer reports the ease has settled — frame-synced, so a
-    // paused tab can't skip the animation.
-    if (!rotationResetDone) {
-      resetCannonFacings(state);
-      rotationResetDone = true;
-    }
-    if (deps.isCannonRotationEasing()) return false;
+    // call is idempotent (same defaultFacing → same cannon.facing every
+    // tick), so we don't need a "done it once" flag — the cannon-animator
+    // picks up the targets each tick and eases displayed → target. We
+    // hold the phase until `cannonRotationSettled()` returns true,
+    // frame-synced with the visual ease.
+    resetCannonFacings(state);
+    if (!deps.cannonRotationSettled()) return false;
 
     // Pre-banner untilt: trigger the camera to ease pitch → 0 and wait for
     // it to settle BEFORE the battle-done transition runs. Otherwise the
@@ -688,10 +673,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.beginUntilt();
     if (deps.getPitchState() !== "flat") return false;
 
-    // Battle ended — delegate to the battle-done transition. The
-    // `rotationResetDone` latch is cleared at the START of the next
-    // `beginBattle`, not here, so any path that skips this transition
-    // (e.g. game-over short-circuits) still gets a clean flag next round.
     runTransition("battle-done", buildHostPhaseCtx());
     return true;
   }

@@ -28,6 +28,7 @@ import type {
 import { createCanvasRenderer } from "../render-canvas.ts";
 import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
+import type { GetCannonFacing } from "./entities/cannons.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
 import { isPerfHudEnabled, updatePerfHud } from "./perf-hud.ts";
 import { createRender3dScene, type Render3dContext } from "./scene.ts";
@@ -36,6 +37,14 @@ export function createRender3d(
   worldCanvas: HTMLCanvasElement,
   uiCanvas: HTMLCanvasElement,
 ): RendererInterface {
+  // Closure-bound accessor — the runtime installs the cannon-animator's
+  // `getDisplayed` here via `setCannonFacingProvider` once composition is
+  // built. Default returns `undefined` so the cannons manager falls back
+  // to authoritative `cannon.facing` (no animation) until the runtime
+  // wires the real provider.
+  let cannonFacingProvider: GetCannonFacing = () => undefined;
+  const getCannonFacing: GetCannonFacing = (col, row) =>
+    cannonFacingProvider(col, row);
   // Delegate 2D work (including UI) to the existing canvas renderer.
   // `reserveTopStrip` is a construction-time flag: the 2D canvas is
   // sized with the extra strip for EVERY overlay (game, lobby, options,
@@ -60,6 +69,7 @@ export function createRender3d(
     worldCanvas,
     canvas2d.getTerrainBitmap,
     canvas2d.getSinkholeOverlayBitmap,
+    getCannonFacing,
   );
 
   // Cached viewport + pitch from the last `drawFrame`. Used by the
@@ -510,11 +520,6 @@ export function createRender3d(
       compositeUiSnapshot(offscreenCompositeCtx, uiSnapshot, targetW, targetH);
       return offscreenCompositeCanvas;
     },
-    // Runtime polls this between battle-end and camera untilt so the
-    // transition waits for the cannons' rotation-back-to-rest ease to
-    // complete — frame-synced instead of wall-clock timed. 2D path
-    // doesn't ease facings, so only the 3D manager contributes.
-    isCannonRotationEasing: () => ctx.cannons.isEasing(),
     eventTarget: canvas2d.eventTarget,
     container: canvas2d.container,
     // Loupe samples a WebGL+2D composite (not the 2D scene alone,
@@ -534,5 +539,8 @@ export function createRender3d(
           y: (centerY + cosPitch * (worldY - centerY)) * OFFSCREEN_SCALE,
         };
       }),
+    setCannonFacingProvider: (provider) => {
+      cannonFacingProvider = provider;
+    },
   };
 }

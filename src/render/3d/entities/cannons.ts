@@ -99,16 +99,17 @@ export interface CannonsManager {
   /** Reconcile live cannon meshes across every castle. Cheap no-op when
    *  the composite fingerprint hasn't changed since the last call. */
   update(ctx: FrameCtx): void;
-  /** True when any cannon's displayed facing hasn't yet caught up to its
-   *  target — i.e. the facing ease is in progress. The runtime's
-   *  battle-end transition polls this (via `RendererInterface`) so it
-   *  can wait until the post-battle `resetCannonFacings` rotation has
-   *  settled before starting the camera untilt, instead of relying on
-   *  a wall-clock duration that a paused tab would skip past. */
-  isEasing(): boolean;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
 }
+
+/** Eased displayed facing for the cannon at (col, row), or `undefined`
+ *  if no eased value is available yet. Supplied by the runtime's
+ *  cannon-animator (see `runtime-cannon-animator.ts`); the renderer
+ *  observes the eased value but doesn't own it — the runtime needs
+ *  to gate the battle-end transition on the ease completing, and
+ *  layering means runtime can't depend on renderer state. */
+export type GetCannonFacing = (col: number, row: number) => number | undefined;
 
 interface VariantBucket {
   readonly variant: VariantName;
@@ -148,11 +149,6 @@ interface BarrelState {
   targetPitch: number;
 }
 
-interface FacingState {
-  displayed: number;
-  target: number;
-}
-
 /** Cannon scenes are authored in a ±1 frustum covering a NORMAL_CANNON_SIZE
  *  tile span, so to make 1 authored unit = 1 game tile a 2×2 cannon uses
  *  scale = TILE_SIZE. Larger footprints (super_gun = 3×3) scale
@@ -182,18 +178,11 @@ const BARREL_EASE_DOWN_PER_SEC = 4;
  *  and its state entry is pruned from the map. Prevents infinite
  *  asymptotic easing from keeping the map populated forever. */
 const BARREL_REST_EPSILON = 1e-4;
-/** Ease rate per second for the yaw/facing animation. Tuned so a 180°
- *  flip settles in ~300 ms. The battle-end transition in
- *  `runtime-phase-ticks.ts` polls `CannonsManager.isEasing()` (via
- *  `RendererInterface.isCannonRotationEasing`) and waits frame-by-frame
- *  for this ease to finish before starting the camera untilt. */
-const FACING_EASE_PER_SEC = 12;
-/** Below this absolute delta (radians) between displayed and target the
- *  facing is considered settled; the state entry is pruned. Matches the
- *  barrel epsilon for the same reason. */
-const FACING_REST_EPSILON = 1e-4;
 
-export function createCannonsManager(scene: THREE.Scene): CannonsManager {
+export function createCannonsManager(
+  scene: THREE.Scene,
+  getCannonFacing: GetCannonFacing,
+): CannonsManager {
   const root = new THREE.Group();
   root.name = "cannons";
   scene.add(root);
@@ -211,12 +200,6 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
    *  frames so the ease progresses continuously. */
   const barrelStates = new Map<string, BarrelState>();
   let lastBarrelFrameTime: number | undefined;
-  /** Per-cannon displayed facing state, keyed by `${col}:${row}`. Created
-   *  lazily on the first frame we see a cannon, and eased toward the
-   *  current `cannon.facing` each frame so abrupt facing changes (e.g.
-   *  the battle-end reset to `defaultFacing`) render as a smooth rotation
-   *  rather than a snap. Entries are pruned once settled. */
-  const facingStates = new Map<string, FacingState>();
 
   // Scratch objects reused inside `update`.
   const hostMatrix = new THREE.Matrix4();
@@ -261,18 +244,15 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     lastBarrelFrameTime = now;
     applyFiringTargets(overlay);
     easeBarrelStates(easeDt);
-    applyFacingTargets(overlay);
-    easeFacingStates(easeDt);
 
-    const signature = computeSignature(overlay);
+    // Cannon facing easing lives in `runtime-cannon-animator.ts`; we just
+    // read displayed values through `getCannonFacing` when painting. The
+    // signature includes the displayed facing so the early-out still
+    // re-renders during the ease (signature changes each frame as
+    // displayed converges toward target).
+    const signature = computeSignature(overlay, getCannonFacing);
     const hasAnimatingBarrels = barrelStates.size > 0;
-    const hasAnimatingFacings = anyFacingEasing();
-    if (
-      signature === lastSignature &&
-      !hasAnimatingBarrels &&
-      !hasAnimatingFacings
-    )
-      return;
+    if (signature === lastSignature && !hasAnimatingBarrels) return;
     lastSignature = signature;
 
     if (!overlay?.castles || signature === "") {
@@ -331,9 +311,14 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
           // Rampart has no barrel and never rotates; every other variant
           // rotates by `-facing` on Y (game's CW convention vs three.js's
           // CCW-from-+Y). Non-rampart cannons use the eased displayed
-          // facing so abrupt state changes (battle-end reset, post-fire
-          // aim shifts) render as a rotation rather than a snap.
-          const facing = isRampart ? 0 : getDisplayedFacing(cannon);
+          // facing (owned by `runtime-cannon-animator.ts`) so abrupt
+          // state changes (battle-end reset, post-fire aim shifts) render
+          // as a rotation rather than a snap. Falls back to authoritative
+          // `cannon.facing` if the animator hasn't seeded an entry yet
+          // (race-free first frame).
+          const facing = isRampart
+            ? 0
+            : (getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0);
           hostQuaternion.setFromAxisAngle(yAxis, -facing);
           matrix.compose(hostTranslation, hostQuaternion, hostScale);
         },
@@ -422,69 +407,6 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     }
   }
 
-  /** Ensure every live cannon has a facing-state entry and set its target
-   *  to the current `cannon.facing`. A fresh entry snaps displayed to
-   *  target (first-frame appearances shouldn't animate in from 0). Keys
-   *  for cannons that no longer exist (destroyed, zone reset) are pruned
-   *  so the map stays bounded; settled entries are retained so an
-   *  abrupt target flip (e.g. battle-end reset) still eases from the
-   *  previous facing rather than snapping to a freshly-created entry. */
-  function applyFacingTargets(overlay: RenderOverlay | undefined): void {
-    const seen = new Set<string>();
-    if (overlay?.castles) {
-      for (const castle of overlay.castles) {
-        for (const cannon of castle.cannons) {
-          if (!isCannonAlive(cannon)) continue;
-          if (isBalloonCannon(cannon)) continue;
-          const key = cannonKeyFromPosition(cannon);
-          seen.add(key);
-          const target = cannon.facing ?? 0;
-          const state = facingStates.get(key);
-          if (state === undefined) {
-            facingStates.set(key, { displayed: target, target });
-          } else {
-            state.target = target;
-          }
-        }
-      }
-    }
-    for (const key of facingStates.keys()) {
-      if (!seen.has(key)) facingStates.delete(key);
-    }
-  }
-
-  /** Linear ease toward target, via the shortest angular path so a
-   *  ±π flip rotates the short way. Entries are retained even once
-   *  settled — see `applyFacingTargets` for why. */
-  function easeFacingStates(dt: number): void {
-    if (dt === 0) return;
-    const step = Math.min(1, FACING_EASE_PER_SEC * dt);
-    for (const state of facingStates.values()) {
-      const delta = shortestAngleDelta(state.displayed, state.target);
-      if (Math.abs(delta) < FACING_REST_EPSILON) {
-        state.displayed = state.target;
-      } else {
-        state.displayed += delta * step;
-      }
-    }
-  }
-
-  function getDisplayedFacing(cannon: Cannon): number {
-    const key = cannonKeyFromPosition(cannon);
-    return facingStates.get(key)?.displayed ?? cannon.facing ?? 0;
-  }
-
-  /** True if any cannon's displayed facing hasn't converged to its
-   *  target — i.e. an ease is in progress. The map always contains an
-   *  entry per live cannon (see `applyFacingTargets`), so `.size > 0`
-   *  would fail the steady-state early-out. */
-  function anyFacingEasing(): boolean {
-    for (const state of facingStates.values()) {
-      if (state.displayed !== state.target) return true;
-    }
-    return false;
-  }
-
   function getBarrelPitch(cannon: Cannon): number {
     const half = cannonSize(cannon.mode) / 2;
     const centerX = (cannon.col + half) * TILE_SIZE;
@@ -499,7 +421,7 @@ export function createCannonsManager(scene: THREE.Scene): CannonsManager {
     scene.remove(root);
   }
 
-  return { update, isEasing: anyFacingEasing, dispose };
+  return { update, dispose };
 }
 
 /** Pick a bucket key for the cannon. Mirrors the 2D path's switch. The
@@ -528,18 +450,24 @@ function selectVariant(cannon: Cannon, tier: 1 | 2 | 3): VariantName {
 /** Composite signature across every live cannon. Rebuilds only when one
  *  of the watched fields changes. `inBattle` is included because the
  *  base disc hides during battle; `cannonTier` so regular cannons swap
- *  to the matching tier sprite when the owning player loses a life. */
-function computeSignature(overlay: RenderOverlay | undefined): string {
+ *  to the matching tier sprite when the owning player loses a life.
+ *  Displayed facing (eased value from the runtime's cannon-animator) is
+ *  included so the early-out keeps re-rendering during a facing ease —
+ *  the displayed value changes each frame until it converges to target. */
+function computeSignature(
+  overlay: RenderOverlay | undefined,
+  getCannonFacing: GetCannonFacing,
+): string {
   if (!overlay?.castles) return "";
   const parts: string[] = [overlay.battle?.inBattle ? "b" : "p"];
   for (const castle of overlay.castles) {
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;
       if (isBalloonCannon(cannon)) continue;
+      const displayed =
+        getCannonFacing(cannon.col, cannon.row) ?? cannon.facing ?? 0;
       parts.push(
-        `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${
-          cannon.facing ?? 0
-        }:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}`,
+        `${castle.playerId}:${cannon.col}:${cannon.row}:${cannon.mode}:${displayed}:${cannon.mortar ? 1 : 0}:${cannon.shielded ? 1 : 0}:${castle.cannonTier}`,
       );
     }
   }
@@ -602,19 +530,4 @@ function isSettledAtZero(state: BarrelState): boolean {
     state.targetPitch === 0 &&
     Math.abs(state.currentPitch) < BARREL_REST_EPSILON
   );
-}
-
-/** Stable key for a cannon's facing-state entry. Cannons never share a
- *  footprint so (col, row) is unique per cannon. */
-function cannonKeyFromPosition(cannon: Cannon): string {
-  return `${cannon.col}:${cannon.row}`;
-}
-
-/** Signed shortest angular delta `target - from`, wrapped to `(-π, π]`
- *  so a flip across ±π rotates the short way. */
-function shortestAngleDelta(from: number, target: number): number {
-  const TAU = Math.PI * 2;
-  let delta = (((target - from) % TAU) + TAU) % TAU;
-  if (delta > Math.PI) delta -= TAU;
-  return delta;
 }

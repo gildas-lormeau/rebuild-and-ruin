@@ -82,6 +82,7 @@ import {
 import {
   type CannonsManager,
   createCannonsManager,
+  type GetCannonFacing,
 } from "./entities/cannons.ts";
 import { createDebrisManager, type DebrisManager } from "./entities/debris.ts";
 import { createGruntsManager, type GruntsManager } from "./entities/grunts.ts";
@@ -236,6 +237,7 @@ export function createRender3dScene(
   canvas: HTMLCanvasElement,
   getTerrainBitmap: GetTerrainBitmap,
   getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap,
+  getCannonFacing: GetCannonFacing,
 ): Render3dContext {
   const scene = new THREE.Scene();
 
@@ -253,7 +255,7 @@ export function createRender3dScene(
   const towerLabels = createTowerLabelsManager(scene);
   const houses = createHousesManager(scene);
   const debris = createDebrisManager(scene);
-  const cannons = createCannonsManager(scene);
+  const cannons = createCannonsManager(scene, getCannonFacing);
   const grunts = createGruntsManager(scene);
   const cannonballs = createCannonballsManager(scene);
   const pits = createPitsManager(scene);

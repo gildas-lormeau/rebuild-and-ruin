@@ -416,12 +416,13 @@ export interface RendererInterface {
     now: number,
     pitch?: number,
   ): HTMLCanvasElement | undefined;
-  /** True when the renderer is currently animating a cannon-facing ease
-   *  (e.g. the post-battle rotation back to `defaultFacing`). The runtime
-   *  polls this to gate the battle-end transition on the ease completing
-   *  — frame-synced with render, unlike a wall-clock timer. Renderers
-   *  that don't ease facings (2D, headless stubs) return `false`. */
-  isCannonRotationEasing(): boolean;
+  /** Install the runtime's cannon-facing accessor. Called once during
+   *  composition with the cannon-animator's `getDisplayed`; renderers
+   *  that ease cannon facings (3D) read displayed values through it,
+   *  renderers that don't (2D, headless stub) can omit this method. */
+  setCannonFacingProvider?(
+    fn: (col: number, row: number) => number | undefined,
+  ): void;
   /** The element that receives pointer/touch events and cursor-style changes. */
   eventTarget: HTMLElement;
   /** Container element — parent of the surface, holds touch panels and overlays. */

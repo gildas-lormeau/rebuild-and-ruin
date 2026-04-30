@@ -253,6 +253,7 @@
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-camera.ts",
+      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-upgrade-pick.ts",

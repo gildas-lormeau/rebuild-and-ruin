@@ -265,6 +265,7 @@
       "src/runtime/dev-console.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-bootstrap.ts",
+      "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
