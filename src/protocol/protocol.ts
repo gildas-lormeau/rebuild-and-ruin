@@ -186,6 +186,10 @@ export interface FullStateMessage {
   maxRounds: number;
   shotsFired: number;
   rngState: number;
+  /** Monotonic logical-tick counter (state.simTick). Carried so a peer
+   *  joining mid-game or a post-migration host picks up the
+   *  authoritative tick count for the lockstep action-queue. */
+  simTick: number;
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
   houses: SerializedHouse[];

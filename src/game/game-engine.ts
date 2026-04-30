@@ -314,5 +314,6 @@ function createGameState(
     gameMode: GAME_MODE_CLASSIC,
     activeFeatures: EMPTY_FEATURES,
     modern: null,
+    simTick: 0,
   };
 }

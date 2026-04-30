@@ -121,6 +121,15 @@ export interface GameState {
    *  null in classic mode — inner fields carry phase-specific nullability
    *  (e.g. frozenTiles is null between battles). */
   modern: ModernState | null;
+  /** Monotonic logical-tick counter advanced once per fixed simulation
+   *  tick on every peer. Drives the lockstep scheduled-actions queue:
+   *  every wire-broadcast input is stamped with `applyAt = senderSimTick
+   *  + SAFETY` and applied at the corresponding tick on every peer
+   *  (originator and receivers), so cross-peer event order is identical
+   *  regardless of wire-vs-local timing. Serialized in FULL_STATE so
+   *  late-joining watchers and post-migration hosts pick up at the
+   *  authoritative count. */
+  simTick: number;
 }
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */

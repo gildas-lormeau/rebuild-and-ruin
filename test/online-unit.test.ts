@@ -129,6 +129,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     maxRounds: 5,
     shotsFired: 2,
     rngState: 123,
+    simTick: 0,
     players: [],
     grunts: [],
     houses: [],

@@ -88,6 +88,7 @@ export function createFullStateMessage(
     maxRounds: state.maxRounds,
     shotsFired: state.shotsFired,
     rngState: state.rng.getState(),
+    simTick: state.simTick,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     houses: state.map.houses.map((h) => ({
@@ -149,6 +150,7 @@ export function restoreFullStateSnapshot(
   state.battleCountdown = msg.battleCountdown;
   state.maxRounds = msg.maxRounds;
   state.shotsFired = msg.shotsFired;
+  state.simTick = msg.simTick;
   state.cannonLimits = msg.cannonLimits;
   state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerSlot[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);

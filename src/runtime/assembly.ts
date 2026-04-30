@@ -132,6 +132,16 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.runtimeState.frameDt = dt;
     clearFrameData();
 
+    // Advance the game's logical-tick counter once per fixed sim tick on
+    // every peer. Gated on state-readiness so we only count ticks that
+    // map to actual gameplay (lobby + pre-init runs RAF before state
+    // exists). This counter is the basis for `applyAt` stamps on the
+    // scheduled-actions queue — every peer must increment in lockstep
+    // for cross-peer determinism.
+    if (isStateReady(deps.runtimeState)) {
+      deps.runtimeState.state.simTick++;
+    }
+
     const pointer = deps.getPointerPlayer();
     const myId = deps.myPlayerId();
     const humanId: ValidPlayerSlot | null = isActivePlayer(myId)
