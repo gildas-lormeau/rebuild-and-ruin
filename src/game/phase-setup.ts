@@ -64,10 +64,12 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
+  DIRS_4,
   isBalloonCannon,
   isGrass,
   packTile,
   setGrass,
+  unpackTile,
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
@@ -551,23 +553,47 @@ function resetZoneState(state: GameState, zone: number): void {
   recomputeMapZones(state);
 }
 
-/** Force every non-grass tile inside `zone` back to grass and drop those
- *  tile keys from each modifier's per-tile tracker so subsequent clears
- *  don't try to revert them. */
+/** Force every non-grass tile inside `zone`'s territory back to grass and
+ *  drop those tile keys from sinkhole / high-tide trackers.
+ *
+ *  Walks tower-anchored: BFS from one of the zone's towers, treating
+ *  grass AND modifier-flooded water (sinkhole, high-tide) as walkable,
+ *  stopping at original river. This catches sinkhole/high-tide tiles
+ *  even after a recompute dropped them out of the live zones array.
+ *
+ *  Low-water tiles are river state per the user's principle — they stay
+ *  grass and remain in the lowWaterTiles tracker so clearLowWater
+ *  reverts them at the next round's prepareBattleState. */
 function restoreZoneGrass(state: GameState, zone: number): void {
+  const anchor = state.map.towers.find((tower) => tower.zone === zone);
+  if (!anchor) return;
   const tiles = state.map.tiles;
-  const zones = state.map.zones;
   const sinkholeTiles = state.modern?.sinkholeTiles;
   const highTideTiles = state.modern?.highTideTiles;
-  const lowWaterTiles = state.modern?.lowWaterTiles;
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] !== zone) continue;
-      if (!isGrass(tiles, r, c)) setGrass(tiles, r, c);
-      const key = packTile(r, c);
+  const visited = new Set<number>();
+  const queue: number[] = [packTile(anchor.row, anchor.col)];
+  visited.add(queue[0]!);
+  while (queue.length > 0) {
+    const key = queue.shift()!;
+    const { r, c } = unpackTile(key);
+    if (!isGrass(tiles, r, c)) {
+      setGrass(tiles, r, c);
       sinkholeTiles?.delete(key);
       highTideTiles?.delete(key);
-      lowWaterTiles?.delete(key);
+    }
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (nr < 0 || nr >= GRID_ROWS || nc < 0 || nc >= GRID_COLS) continue;
+      const neighborKey = packTile(nr, nc);
+      if (visited.has(neighborKey)) continue;
+      const isWalkable =
+        isGrass(tiles, nr, nc) ||
+        sinkholeTiles?.has(neighborKey) === true ||
+        highTideTiles?.has(neighborKey) === true;
+      if (!isWalkable) continue;
+      visited.add(neighborKey);
+      queue.push(neighborKey);
     }
   }
   if (state.modern) {
@@ -575,8 +601,6 @@ function restoreZoneGrass(state: GameState, zone: number): void {
       state.modern.sinkholeTiles = null;
     if (highTideTiles && highTideTiles.size === 0)
       state.modern.highTideTiles = null;
-    if (lowWaterTiles && lowWaterTiles.size === 0)
-      state.modern.lowWaterTiles = null;
   }
 }
 
