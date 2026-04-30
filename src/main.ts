@@ -83,10 +83,8 @@ export function enterLocalLobby(): void {
  *  called from a user-gesture handler — the home-page "Play" button — otherwise
  *  browsers refuse to resume the AudioContext. No-op if the player hasn't
  *  dropped their Rampart files into IndexedDB yet. */
-export function activateMusic(): Promise<void> {
-  return Promise.all([runtime.music.activate(), runtime.sfx.activate()]).then(
-    () => {},
-  );
+export async function activateMusic(): Promise<void> {
+  await Promise.all([runtime.music.activate(), runtime.sfx.activate()]);
 }
 
 // Back-button / hash navigation away from /play: stop the active bg

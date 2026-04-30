@@ -238,10 +238,8 @@ const runtime: GameRuntime = createGameRuntime({
  *  flow — called from entry.ts on btn-online / btn-create-confirm /
  *  btn-join-confirm clicks so online games start with a running context.
  *  No-op if the player hasn't dropped their Rampart files into IDB. */
-export function activateAudio(): Promise<void> {
-  return Promise.all([runtime.music.activate(), runtime.sfx.activate()]).then(
-    () => {},
-  );
+export async function activateAudio(): Promise<void> {
+  await Promise.all([runtime.music.activate(), runtime.sfx.activate()]);
 }
 
 // ── Initialize dependent modules and register handlers ─────────────
