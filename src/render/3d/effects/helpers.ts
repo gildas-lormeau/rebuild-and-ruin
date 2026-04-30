@@ -33,8 +33,8 @@ export function tileSignature(
 /** Create a flat disc (CircleGeometry rotated into XZ) for
  *  ground-plane effects. Returned geometry is shared; call sites are
  *  expected to dispose it in their own dispose path. */
-export function createFlatDisc(segments: number): THREE.CircleGeometry {
-  const geometry = new THREE.CircleGeometry(1, segments);
+export function createFlatDisc(): THREE.CircleGeometry {
+  const geometry = new THREE.CircleGeometry(1, 24);
   geometry.rotateX(-Math.PI / 2);
   return geometry;
 }

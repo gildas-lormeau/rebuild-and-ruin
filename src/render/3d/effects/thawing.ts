@@ -62,7 +62,7 @@ export function createThawingManager(scene: THREE.Scene): ThawingManager {
   root.name = "thawing";
   scene.add(root);
 
-  const discGeometry = createFlatDisc(24);
+  const discGeometry = createFlatDisc();
   const rayGeometry = new THREE.PlaneGeometry(1, 1);
   rayGeometry.rotateX(-Math.PI / 2);
 

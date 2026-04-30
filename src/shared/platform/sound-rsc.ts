@@ -35,7 +35,7 @@ export function parseSoundRsc(bytes: Uint8Array): PcmSample[] {
   for (let i = 0; i < count; i += 1) {
     const dirOffset = 0x14 + i * 20;
     if (dirOffset + 20 > bytes.length) break;
-    const name = readName(bytes, dirOffset, 8);
+    const name = readName(bytes, dirOffset);
     const chunkOffset = view.getUint32(dirOffset + 12, true);
     const chunkSize = view.getUint32(dirOffset + 16, true);
     if (chunkOffset + chunkSize > bytes.length) continue;
@@ -88,9 +88,11 @@ function vocToPcm(
   return { sampleRate, pcm };
 }
 
-function readName(bytes: Uint8Array, offset: number, length: number): string {
+function readName(bytes: Uint8Array, offset: number): string {
+  // SOUND.RSC directory entries have a fixed 8-byte name field.
+  const NAME_LENGTH = 8;
   let end = offset;
-  while (end < offset + length && bytes[end] !== 0) end += 1;
+  while (end < offset + NAME_LENGTH && bytes[end] !== 0) end += 1;
   return readAscii(bytes, offset, end - offset);
 }
 

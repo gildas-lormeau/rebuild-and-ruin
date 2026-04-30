@@ -113,7 +113,7 @@ export function generateMap(seed?: number): GameMap {
     if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) continue;
 
     // Collect per-zone row bounds + centroid in a single grid scan
-    const top3 = topZoneIds(regionSizes, 3);
+    const top3 = topZoneIds(regionSizes);
     const zoneStats = collectZoneStats(zones, top3);
 
     // Reject if any zone has insufficient vertical height
@@ -367,7 +367,7 @@ function placeTowers(
   regionSizes: Map<number, number>,
   riverDist: readonly number[][],
 ): Tower[] {
-  const sortedRegions = topZoneIds(regionSizes, 3);
+  const sortedRegions = topZoneIds(regionSizes);
 
   const towers: Tower[] = [];
 
@@ -462,10 +462,10 @@ function findFarthestPosition(
   return bestPos;
 }
 
-function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {
+function topZoneIds(regionSizes: Map<number, number>): number[] {
   return [...regionSizes.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, count)
+    .slice(0, 3)
     .map(([id]) => id);
 }
 

@@ -26,7 +26,6 @@ import {
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
-import { fireOnce } from "../shared/platform/utils.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
@@ -435,7 +434,9 @@ export function createSelectionSystem(
     if (tickAllCastleBuilds(dt)) recheckTerritory(runtimeState.state);
     deps.requestRender();
     if (runtimeState.selection.castleBuilds.length === 0) {
-      fireOnce(runtimeState.selection, "castleBuildOnDone");
+      const onDone = runtimeState.selection.castleBuildOnDone;
+      runtimeState.selection.castleBuildOnDone = null;
+      onDone?.();
     }
   }
 

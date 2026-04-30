@@ -114,7 +114,7 @@ entirely, these files would still be valid.
   Environment detection.
 - **`rng.ts`** — `Rng` class (seeded deterministic RNG),
   `createSeededRng()`, `MAX_UINT32`.
-- **`utils.ts`** — `fireOnce()`, `assertNever()`, generic TS helpers.
+- **`utils.ts`** — `assertNever()`, generic TS helpers.
 - **`jsfxr.d.ts`** — Ambient type declaration for the `jsfxr` npm
   package.
 

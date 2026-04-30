@@ -213,14 +213,10 @@ export function hideRoomCodeOverlay(): void {
 }
 
 /** Populate the room-code overlay with a styled code badge and QR image. */
-export function buildRoomCodeOverlay(
-  code: string,
-  joinUrl: string,
-  doc: Document = document,
-): void {
+export function buildRoomCodeOverlay(code: string, joinUrl: string): void {
   roomCodeOverlay.style.display = "block";
   roomCodeOverlay.innerHTML = "";
-  const wrapper = doc.createElement("div");
+  const wrapper = document.createElement("div");
   Object.assign(wrapper.style, {
     position: "fixed",
     top: "12px",
@@ -238,7 +234,7 @@ export function buildRoomCodeOverlay(
     textAlign: "center",
   });
   wrapper.textContent = code;
-  const qrCanvas = renderQrCanvas(joinUrl, doc);
+  const qrCanvas = renderQrCanvas(joinUrl, document);
   if (qrCanvas) wrapper.appendChild(qrCanvas);
   roomCodeOverlay.appendChild(wrapper);
 }

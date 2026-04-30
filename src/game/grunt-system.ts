@@ -432,14 +432,11 @@ function addGrunt(state: GameState, row: number, col: number): void {
 
 /** Find spawn positions for grunts in an enemy's zone.
  *  Priority: bank (adjacent to water, waterDist=1) → edge (row/col 0 or max) → nothing.
- *  Within each tier, tiles closer to targetRow/targetCol are preferred.
- *  If targetRow/targetCol are not provided, uses the zone's alive towers as targets. */
+ *  Within each tier, tiles closer to the zone's nearest alive tower are preferred. */
 function findGruntSpawnPositions(
   state: GameState,
   enemy: Player,
   count: number,
-  targetRow?: number,
-  targetCol?: number,
 ): TilePos[] {
   const zone = enemy.homeTower?.zone;
   if (zone === undefined) return [];
@@ -458,19 +455,16 @@ function findGruntSpawnPositions(
     }
   }
 
-  // Determine sort target: explicit position or nearest alive tower center
-  let sortRow = targetRow;
-  let sortCol = targetCol;
-  if (sortRow === undefined || sortCol === undefined) {
-    const aliveTower = state.map.towers.find(
-      (tower) =>
-        tower.zone === zone &&
-        state.towerAlive[state.map.towers.indexOf(tower)],
-    );
-    if (aliveTower) {
-      sortRow = aliveTower.row + 1;
-      sortCol = aliveTower.col + 1;
-    }
+  // Sort by distance to nearest alive tower's center (2x2 → +1 offset)
+  let sortRow: number | undefined;
+  let sortCol: number | undefined;
+  const aliveTower = state.map.towers.find(
+    (tower) =>
+      tower.zone === zone && state.towerAlive[state.map.towers.indexOf(tower)],
+  );
+  if (aliveTower) {
+    sortRow = aliveTower.row + 1;
+    sortCol = aliveTower.col + 1;
   }
 
   // Sort each tier by distance to target (closest first)

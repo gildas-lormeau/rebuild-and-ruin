@@ -451,13 +451,10 @@ export function animateFireBurst(
  *  `createFlamePool`, but uses the shared circle geometry, no
  *  per-instance color (flash is uniformly bright cream), and a smaller
  *  capacity (one flash per host, brief lifetime). */
-function createFlashPool(
-  parent: THREE.Group,
-  capacity: number = MAX_FLASHES,
-): FlashPool {
+function createFlashPool(parent: THREE.Group): FlashPool {
   ensureFireBurstResources();
   const geometry = sharedFlashGeometry!.clone();
-  const opacityArray = new Float32Array(capacity);
+  const opacityArray = new Float32Array(MAX_FLASHES);
   const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
   opacityAttribute.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute("instanceOpacity", opacityAttribute);
@@ -470,7 +467,7 @@ function createFlashPool(
   });
   material.onBeforeCompile = patchFlameInstanceOpacity;
 
-  const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+  const mesh = new THREE.InstancedMesh(geometry, material, MAX_FLASHES);
   mesh.name = "flashes";
   mesh.count = 0;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -485,7 +482,7 @@ function createFlashPool(
       cursor = 0;
     },
     append(matrix, opacity) {
-      if (cursor >= capacity) return;
+      if (cursor >= MAX_FLASHES) return;
       mesh.setMatrixAt(cursor, matrix);
       opacityArray[cursor] = opacity;
       cursor++;
@@ -513,13 +510,10 @@ function createFlashPool(
  *  (`<common>` for the varying, `<alphamap_fragment>` for the multiply
  *  — runs after `alphamap` so an alpha map combined with our opacity
  *  multiplies correctly even though flames don't currently use one). */
-function createFlamePool(
-  parent: THREE.Group,
-  capacity: number = MAX_FLAMES,
-): FlamePool {
+function createFlamePool(parent: THREE.Group): FlamePool {
   ensureFireBurstResources();
   const geometry = sharedFlameGeometry!.clone();
-  const opacityArray = new Float32Array(capacity);
+  const opacityArray = new Float32Array(MAX_FLAMES);
   const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
   opacityAttribute.setUsage(THREE.DynamicDrawUsage);
   geometry.setAttribute("instanceOpacity", opacityAttribute);
@@ -532,13 +526,13 @@ function createFlamePool(
   });
   material.onBeforeCompile = patchFlameInstanceOpacity;
 
-  const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+  const mesh = new THREE.InstancedMesh(geometry, material, MAX_FLAMES);
   mesh.name = "flames";
   mesh.count = 0;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   // Pre-allocate instanceColor with DynamicDrawUsage so per-frame
   // setColorAt writes don't trigger reallocation.
-  const colorArray = new Float32Array(capacity * 3);
+  const colorArray = new Float32Array(MAX_FLAMES * 3);
   mesh.instanceColor = new THREE.InstancedBufferAttribute(colorArray, 3);
   mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
   // Bursts can be anywhere on the map; cheaper to render-then-cull than
@@ -554,7 +548,7 @@ function createFlamePool(
       cursor = 0;
     },
     append(matrix, color, opacity) {
-      if (cursor >= capacity) return;
+      if (cursor >= MAX_FLAMES) return;
       mesh.setMatrixAt(cursor, matrix);
       mesh.setColorAt(cursor, color);
       opacityArray[cursor] = opacity;

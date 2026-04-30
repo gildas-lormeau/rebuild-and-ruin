@@ -90,7 +90,7 @@ export function createImpactsManager(scene: THREE.Scene): ImpactsManager {
 
   // Geometry shared by every effect disc / ring / spark — the meshes scale
   // per-frame so we only need one instance of each primitive.
-  const discGeometry = createFlatDisc(24);
+  const discGeometry = createFlatDisc();
   const ringGeometry = new THREE.RingGeometry(0.9, 1.0, 32);
   ringGeometry.rotateX(-Math.PI / 2);
   const sparkGeometry = new THREE.PlaneGeometry(1, 1);

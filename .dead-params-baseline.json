@@ -1,0 +1,5 @@
+[
+  "src/render/3d/sprites/sprite-bounds.ts:fmtBound:limit",
+  "src/shared/platform/ail-to-wopl.ts:writeBankMeta:msb",
+  "src/shared/platform/xmi-to-smf.ts:xmidToSmf:division"
+]

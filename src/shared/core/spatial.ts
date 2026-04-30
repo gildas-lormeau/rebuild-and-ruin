@@ -165,7 +165,14 @@ export function isTowerEnclosed(
   tilePos: TilePos,
   outside: Set<number>,
 ): boolean {
-  return isSquareEnclosed(tilePos.row, tilePos.col, 2, outside);
+  for (let dr = 0; dr < 2; dr++) {
+    for (let dc = 0; dc < 2; dc++) {
+      if (outside.has(packTile(tilePos.row + dr, tilePos.col + dc))) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /**
@@ -591,20 +598,6 @@ function isTileInRect(
   col: number,
 ): boolean {
   return row >= top && row < top + size && col >= left && col < left + size;
-}
-
-function isSquareEnclosed(
-  top: number,
-  left: number,
-  size: number,
-  outside: Set<number>,
-): boolean {
-  for (let dr = 0; dr < size; dr++) {
-    for (let dc = 0; dc < size; dc++) {
-      if (outside.has(packTile(top + dr, left + dc))) return false;
-    }
-  }
-  return true;
 }
 
 function forEachSquareTile(

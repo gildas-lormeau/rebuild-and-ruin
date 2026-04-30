@@ -378,7 +378,7 @@ function computeCannonLimitsForPhase(state: GameState): void {
 }
 
 /**
- * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
+ * Find the nearest valid cannon placement within CANNON_SNAP_RADIUS tiles of (row, col).
  * Returns the snapped position, or undefined if nothing valid is nearby.
  */
 function findNearestValidCannonPlacement(
@@ -387,7 +387,6 @@ function findNearestValidCannonPlacement(
   col: number,
   mode: CannonMode,
   state: GameViewState & { readonly burningPits: readonly BurningPit[] },
-  maxRadius = CANNON_SNAP_RADIUS,
 ): { row: number; col: number } | undefined {
   // Check origin first — if valid, no snapping needed
   if (canPlaceCannon(player, row, col, mode, state)) {
@@ -395,8 +394,8 @@ function findNearestValidCannonPlacement(
   }
   let bestDist = Infinity;
   let best: { row: number; col: number } | undefined;
-  for (let dr = -maxRadius; dr <= maxRadius; dr++) {
-    for (let dc = -maxRadius; dc <= maxRadius; dc++) {
+  for (let dr = -CANNON_SNAP_RADIUS; dr <= CANNON_SNAP_RADIUS; dr++) {
+    for (let dc = -CANNON_SNAP_RADIUS; dc <= CANNON_SNAP_RADIUS; dc++) {
       if (dr === 0 && dc === 0) continue;
       const dist = dr * dr + dc * dc;
       if (dist >= bestDist) continue;
