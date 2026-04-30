@@ -74,6 +74,13 @@ const SWEEP: {
   { seed: 123, mode: "classic", rounds: 3 },
   { seed: 256, mode: "classic", rounds: 3 },
   { seed: 1024, mode: "classic", rounds: 3 },
+  // Modern needs ≥5 rounds to actually exercise upgrade-pick (which
+  // fires from round 3) across multiple cycles. Seeds match the modern
+  // entries in network-vs-local.test.ts.
+  { seed: 7, mode: "modern", rounds: 5 },
+  { seed: 42, mode: "modern", rounds: 5 },
+  { seed: 99, mode: "modern", rounds: 5 },
+  { seed: 256, mode: "modern", rounds: 5 },
 ];
 // ── Variant B: 3 humans (no AI) ───────────────────────────────────
 // Every slot is assisted-human, distributed across the two peers — host
@@ -265,7 +272,8 @@ function snapshotState(sc: Scenario): string {
   const players = s.players.map((p) =>
     `p${p.id}{l${p.lives}s${p.score}w${p.walls.size}c${p.cannons.length}t${p.ownedTowers.length}}`
   ).join(" ");
-  return `${s.phase} r${s.round} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
+  const rng = (s.rng.getState() >>> 0).toString(16).padStart(8, "0");
+  return `${s.phase} m${sc.mode()} r${s.round} rng=${rng} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
 }
 
 /** Verify a peer's local assisted slots actually fired during the run.

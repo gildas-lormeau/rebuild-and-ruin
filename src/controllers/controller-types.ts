@@ -8,7 +8,6 @@ import type {
 } from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { clearPlayerBag } from "../shared/core/player-types.ts";
 import {
   pxToTile,
   towerCenter,
@@ -144,14 +143,19 @@ export abstract class BaseController implements PlayerController {
   ): PiecePlacementPreview[];
 
   /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
-   *  Calls the hook, clears bag/piece, and drops any lingering build-phantom
-   *  snapshot so the render path doesn't keep drawing the last preview into
-   *  the cannon/battle phases. (Controller-owned state requires the clear to
-   *  be explicit; symmetric to finalizeCannonPhase.) */
+   *  Calls the hook and drops any lingering build-phantom snapshot so the render
+   *  path doesn't keep drawing the last preview into the cannon/battle phases.
+   *  (Controller-owned state requires the clear to be explicit; symmetric to
+   *  finalizeCannonPhase.)
+   *
+   *  NOTE: piece-bag clearing is NOT done here. Bags live on shared GameState
+   *  (`player.bag`), so they must be cleared on every peer at the same logical
+   *  sim tick — see `clearAllPlayerBags` invocation in `round-end.mutate`.
+   *  Doing it per-LOCAL-controller would cross-peer-asymmetrically clear bags,
+   *  letting a late-arriving piece-place drain on one peer (no-op) and not the
+   *  other (advance + potential RNG shuffle), drifting `state.rng`. */
   finalizeBuildPhase(state: BuildViewState): void {
     this.onFinalizeBuildPhase(state);
-    const player = state.players[this.playerId];
-    if (player) clearPlayerBag(player);
     this.currentBuildPhantoms = EMPTY_PIECE_PHANTOMS;
   }
 

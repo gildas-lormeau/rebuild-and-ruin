@@ -198,6 +198,18 @@ export interface ModernState {
    *  Generated in prepareNextRound using synced RNG, consumed by the upgrade pick dialog.
    *  null before UPGRADE_FIRST_ROUND. */
   pendingUpgradeOffers: Map<ValidPlayerSlot, UpgradeOfferTuple> | null;
+  /** Pre-computed AI upgrade pick per player, drawn from `state.rng` at
+   *  battle-done.mutate (right after `pendingUpgradeOffers` is generated)
+   *  so `state.rng` is consumed at a deterministic state-mutation point.
+   *  Without this, the AI brain's `state.rng.next()` fires lazily in
+   *  `tickAiUpgradePickEntry` at lock-in tick — and which peers tick which
+   *  slots is determined by `shouldAutoResolve`, which is asymmetric across
+   *  peers (host skips remote slots, non-host skips own slot). The
+   *  resulting RNG-draw counts differ cross-peer, drifting `state.rng`.
+   *  The dialog tick reads from this map instead of computing on-the-fly,
+   *  making the draw both deterministic and peer-symmetric.
+   *  null before UPGRADE_FIRST_ROUND or for non-modern modes. */
+  precomputedUpgradePicks: Map<ValidPlayerSlot, UpgradeId> | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
   frozenTiles: Set<number> | null;
@@ -322,6 +334,7 @@ function createModernState(): ModernState {
     masterBuilderOwners: null,
     comboTracker: null,
     pendingUpgradeOffers: null,
+    precomputedUpgradePicks: null,
     frozenTiles: null,
     sinkholeTiles: null,
     highTideTiles: null,

@@ -34,6 +34,7 @@
  * emitted from inside the mutate / display handlers.
  */
 
+import { precomputeAiUpgradePicks } from "../ai/ai-upgrade-pick.ts";
 import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
@@ -65,6 +66,7 @@ import {
 import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { clearAllPlayerBags } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -382,6 +384,13 @@ const ROUND_END: Transition = {
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
     ctx.finalizeLocalControllersBuildPhase?.();
+    // Clear bags on every peer at the same logical sim tick. Per-LOCAL
+    // controller bag clears (which `finalizeLocalControllersBuildPhase`
+    // used to do) drifted `state.rng`: late-arriving piece-place actions
+    // would drain on one peer (no-op against null bag) while the other
+    // peer advanced + potentially shuffled the bag (RNG draw). Symmetric
+    // clear here closes that window — see `clearAllPlayerBags` docstring.
+    clearAllPlayerBags(ctx.state);
     // Capture pre-scores BEFORE finalizeRound mutates them via
     // territory + life-penalty point awards — score-overlay needs the
     // starting values for the delta animation.
@@ -434,6 +443,13 @@ const BATTLE_DONE: Transition = {
     ctx.saveBattleCrosshair?.();
     finalizeBattle(ctx.state);
     prepareNextRound(ctx.state);
+    // Lockstep anchor for the AI upgrade-pick decision: drains
+    // `state.rng` once per alive player, here on every peer, so the
+    // dialog's runtime tick reads a precomputed value instead of
+    // calling `aiPickUpgrade` lazily at lock-in. See
+    // `ai/ai-upgrade-pick.ts` header for the asymmetry that motivated
+    // this anchor.
+    precomputeAiUpgradePicks(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -463,6 +479,10 @@ const CEASEFIRE: Transition = {
     ctx.log(`ceasefire: skipping battle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset?.();
     ctx.ceasefireSkipBattle?.();
+    // Same lockstep anchor as battle-done — `ceasefireSkipBattle` calls
+    // `enterBuildSkippingBattle` which runs `prepareNextRound`, so the
+    // upgrade offers exist by this point.
+    precomputeAiUpgradePicks(ctx.state);
     ctx.broadcast?.buildStart?.();
     return EMPTY_TRANSITION_RESULT;
   },

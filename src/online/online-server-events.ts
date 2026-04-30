@@ -212,13 +212,12 @@ function handlePiecePlaced(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  if (
-    isHostInContext(deps.session) &&
-    !canPlacePiece(state, msg.playerId, msg.offsets, msg.row, msg.col)
-  ) {
-    deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
-    return DROPPED;
-  }
+  // No validation at receive time — host's state at simTick=N+wireDelay
+  // differs from watcher's at simTick=N (originator's schedule tick), so
+  // a `canPlacePiece` check here would reject placements that the
+  // originator's apply (at applyAt=N+SAFETY) will accept against
+  // identical drain-time state. The validation moves into the `apply`
+  // closure, which runs at applyAt with cross-peer-identical state.
   deps.log(
     `scheduling piece placement for P${msg.playerId} at applyAt=${msg.applyAt} (${msg.offsets.length} tiles)`,
   );
@@ -226,8 +225,10 @@ function handlePiecePlaced(
   deps.schedule({
     applyAt,
     playerId,
-    apply: (drainState) =>
-      applyPiecePlacement(drainState, playerId, offsets, row, col),
+    apply: (drainState) => {
+      if (!canPlacePiece(drainState, playerId, offsets, row, col)) return;
+      applyPiecePlacement(drainState, playerId, offsets, row, col);
+    },
   });
   return APPLIED;
 }
@@ -244,24 +245,9 @@ function handleCannonPlaced(
   const player = state.players[msg.playerId];
   if (!player) return DROPPED;
   const normalizedMode = toCannonMode(msg.mode);
-  if (isHostInContext(deps.session)) {
-    const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
-    if (
-      !isCannonPlacementLegal(
-        player,
-        msg.row,
-        msg.col,
-        normalizedMode,
-        maxCannons,
-        state,
-      )
-    ) {
-      deps.log(
-        `cannon_placed: rejected invalid placement for P${msg.playerId}`,
-      );
-      return DROPPED;
-    }
-  }
+  // Validation moved into the apply closure — see `handlePiecePlaced`
+  // for the same rationale (lockstep state at applyAt vs receive-time
+  // state asymmetry).
   const { row, col, applyAt, playerId } = msg;
   deps.schedule({
     applyAt,
@@ -269,6 +255,18 @@ function handleCannonPlaced(
     apply: (drainState) => {
       const drainPlayer = drainState.players[playerId];
       if (!drainPlayer) return;
+      const maxCannons = drainState.cannonLimits[playerId] ?? 0;
+      if (
+        !isCannonPlacementLegal(
+          drainPlayer,
+          row,
+          col,
+          normalizedMode,
+          maxCannons,
+          drainState,
+        )
+      )
+        return;
       applyCannonPlacement(drainPlayer, row, col, normalizedMode, drainState);
       consumeRapidEmplacement(drainPlayer);
     },

@@ -183,6 +183,14 @@ export function restoreFullStateSnapshot(
           ]),
         )
       : null;
+    state.modern!.precomputedUpgradePicks = msg.precomputedUpgradePicks
+      ? new Map(
+          msg.precomputedUpgradePicks.map(([pid, choice]) => [
+            pid as ValidPlayerSlot,
+            choice as UpgradeId,
+          ]),
+        )
+      : null;
     state.modern!.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
     state.modern!.masterBuilderOwners = msg.masterBuilderOwners
       ? new Set(msg.masterBuilderOwners as ValidPlayerSlot[])
@@ -397,6 +405,9 @@ function serializeModernFields(state: GameState) {
   return {
     pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
       ? [...state.modern.pendingUpgradeOffers.entries()]
+      : null,
+    precomputedUpgradePicks: state.modern?.precomputedUpgradePicks
+      ? [...state.modern.precomputedUpgradePicks.entries()]
       : null,
     masterBuilderLockout: state.modern?.masterBuilderLockout ?? 0,
     masterBuilderOwners: state.modern?.masterBuilderOwners

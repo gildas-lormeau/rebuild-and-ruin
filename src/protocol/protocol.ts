@@ -210,6 +210,11 @@ export interface FullStateMessage {
   activeModifierChangedTiles: number[];
   lastModifierId: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
+  /** AI's precomputed upgrade pick per player, drawn from `state.rng` at
+   *  battle-done.mutate. Late-joiners and host-migration receivers need
+   *  this — they restore the post-precompute `state.rng` state, so they
+   *  can't recompute the picks themselves without drifting RNG. */
+  precomputedUpgradePicks?: [number, string][] | null;
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
   frozenTiles: number[] | null;

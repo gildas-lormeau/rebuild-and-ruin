@@ -88,6 +88,14 @@ export function schedulePiecePlacement(args: {
     applyAt,
     playerId,
     apply: (drainState) => {
+      // Re-validate at drain time — between schedule (simTick=N) and
+      // apply (simTick=N+SAFETY), other queued placements may have
+      // drained and changed the board (e.g., consumed grass tiles).
+      // The check must run at apply time on every peer (lockstep state)
+      // so the accept/reject decision matches across peers. The mirror
+      // check on the receiver path lives in
+      // `online-server-events.ts:handlePiecePlaced`'s apply closure.
+      if (!canPlacePiece(drainState, playerId, offsets, row, col)) return;
       applyPiecePlacement(drainState, playerId, offsets, row, col);
       clampBuildCursor(drainState.players[playerId]?.currentPiece);
     },
@@ -185,6 +193,22 @@ export function scheduleCannonPlacement(args: {
       );
       const drainPlayer = drainState.players[playerId];
       if (!drainPlayer) return;
+      // Re-validate at drain time — between schedule (simTick=N) and
+      // apply (simTick=N+SAFETY) other placements may have consumed
+      // tiles or cannon slots. Mirror check on the receiver path lives
+      // in `online-server-events.ts:handleCannonPlaced`'s apply closure.
+      const drainMaxCannons = drainState.cannonLimits[playerId] ?? maxSlots;
+      if (
+        !isCannonPlacementLegal(
+          drainPlayer,
+          row,
+          col,
+          mode,
+          drainMaxCannons,
+          drainState,
+        )
+      )
+        return;
       applyCannonPlacement(drainPlayer, row, col, mode, drainState);
       consumeRapidEmplacement(drainPlayer);
     },
