@@ -37,12 +37,13 @@ const lobbyElements = {
 const initDomLobby = () =>
   initLobbyUi({
     elements: lobbyElements,
-    connect: () =>
-      connect(() => {
+    connect: () => {
+      connect().catch(() => {
         const msg = "Connection failed \u2014 is the server running?";
         lobbyElements.createError.textContent = msg;
         lobbyElements.joinError.textContent = msg;
-      }),
+      });
+    },
     send: defaultClient.send,
     getSocket: () => defaultClient.ctx.session.socket,
     setIsHost: (value) => {

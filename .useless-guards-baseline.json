@@ -2,6 +2,6 @@
   "src/input/input-recorder.ts:167:?.",
   "src/online/online-runtime-deps.ts:83:!expr",
   "src/online/online-runtime-promote.ts:55:!expr",
-  "src/online/online-runtime-ws.ts:58:!expr",
+  "src/online/online-runtime-ws.ts:61:!expr",
   "src/shared/platform/platform.ts:31:?."
 ]

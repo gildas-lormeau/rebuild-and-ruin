@@ -44,8 +44,6 @@ const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 // ── Late-bound state ───────────────────────────────────────────────
 let _rt: WsRuntimeDeps;
 let _client: OnlineClient;
-/** Stashed from the first call so reconnect retries reuse it. */
-let _onConnectError: (() => void) | undefined;
 
 /** Bind runtime-dependent callbacks. Called once from online-runtime-game.ts
  *  after the GameRuntime is created. */
@@ -54,50 +52,67 @@ export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
   _client = client;
 }
 
-export function connect(onConnectError?: () => void): void {
+/** Open the WebSocket connection. Resolves on socket `open`, rejects on
+ *  `error` (the typical connect-failed-server-unreachable case). After the
+ *  Promise settles, ongoing socket events route through the handlers
+ *  registered in `connectWebSocket` — `onClose` drives reconnect, etc.
+ *  Reconnect attempts call this fire-and-forget via `void connect()`. */
+export function connect(): Promise<void> {
   if (!_rt) throw new Error("connect() called before initWs()");
-  if (onConnectError) _onConnectError = onConnectError;
-  const handlers = {
-    onMessage: async (msg: ServerMessage) => {
-      if (_client.isReconnecting()) {
+  return new Promise<void>((resolve, reject) => {
+    const handlers = {
+      onMessage: async (msg: ServerMessage) => {
+        if (_client.isReconnecting()) {
+          _client.devLog(
+            `reconnected after ${_client.ctx.reconnect.count} attempt(s)`,
+          );
+          _client.clearReconnect();
+        }
+        await _rt.deliverIncoming(msg);
+      },
+      onClose: () => {
+        const mode = _rt.getMode();
+        const amHost = isHostInContext(_client.ctx.session);
+        // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
         _client.devLog(
-          `reconnected after ${_client.ctx.reconnect.count} attempt(s)`,
+          `WebSocket closed (mode=${Mode[mode]} isHost=${amHost})`,
         );
-        _client.clearReconnect();
-      }
-      await _rt.deliverIncoming(msg);
-    },
-    onClose: () => {
-      const mode = _rt.getMode();
-      const amHost = isHostInContext(_client.ctx.session);
-      // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
-      _client.devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${amHost})`);
-      if (amHost || mode === Mode.STOPPED || mode === Mode.LOBBY) return;
-      if (_client.ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
-        _client.ctx.reconnect.count++;
-        // Exponential backoff: base × 2^(attempt-1) via bit-shift
-        const delay =
-          RECONNECT_BASE_DELAY_MS * (1 << (_client.ctx.reconnect.count - 1));
-        _rt.setAnnouncement(ANNOUNCEMENT_RECONNECTING);
-        _rt.render();
-        _client.devLog(
-          `reconnect attempt ${_client.ctx.reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
-        );
-        _client.ctx.reconnect.timer = setTimeout(() => {
-          _client.ctx.reconnect.timer = null;
-          connect();
-        }, delay);
-      } else {
-        _client.clearReconnect();
-        _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
-        _rt.render();
-        _rt.setMode(Mode.STOPPED);
-      }
-    },
-    onError: () => {
-      console.error("[online] WebSocket connection failed");
-      _onConnectError?.();
-    },
-  };
-  connectWebSocket(_client.ctx.session, computeWsUrl(), handlers);
+        if (amHost || mode === Mode.STOPPED || mode === Mode.LOBBY) return;
+        if (_client.ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
+          _client.ctx.reconnect.count++;
+          // Exponential backoff: base × 2^(attempt-1) via bit-shift
+          const delay =
+            RECONNECT_BASE_DELAY_MS * (1 << (_client.ctx.reconnect.count - 1));
+          _rt.setAnnouncement(ANNOUNCEMENT_RECONNECTING);
+          _rt.render();
+          _client.devLog(
+            `reconnect attempt ${_client.ctx.reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
+          );
+          _client.ctx.reconnect.timer = setTimeout(() => {
+            _client.ctx.reconnect.timer = null;
+            // Reconnect path — fire-and-forget; rejections are observed via
+            // the next `onClose` cycle or the announcement-disconnected fallback.
+            void connect().catch(() => {});
+          }, delay);
+        } else {
+          _client.clearReconnect();
+          _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
+          _rt.render();
+          _rt.setMode(Mode.STOPPED);
+        }
+      },
+      onError: () => {
+        console.error("[online] WebSocket connection failed");
+        reject(new Error("WebSocket connection failed"));
+      },
+    };
+    connectWebSocket(_client.ctx.session, computeWsUrl(), handlers);
+    const socket = _client.ctx.session.socket;
+    if (!socket) {
+      // Already connected (connectWebSocket bailed early via `isSocketDisconnected`).
+      resolve();
+      return;
+    }
+    socket.addEventListener("open", () => resolve(), { once: true });
+  });
 }
