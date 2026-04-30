@@ -91,7 +91,6 @@ export interface SelectionRuntimeState {
   reselectionPids: ValidPlayerSlot[];
   states: Map<number, SelectionState>;
   castleBuilds: CastleBuildState[];
-  castleBuildOnDone: (() => void) | null;
 }
 
 /** Mutable runtime state bag for the game loop.
@@ -270,7 +269,6 @@ export function createRuntimeState(): RuntimeState {
       reselectionPids: [],
       states: new Map(),
       castleBuilds: [],
-      castleBuildOnDone: null,
     },
     dialogs: { lifeLost: null, upgradePick: null },
 

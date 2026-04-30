@@ -433,11 +433,6 @@ export function createSelectionSystem(
   function tickCastleBuild(dt: number): void {
     if (tickAllCastleBuilds(dt)) recheckTerritory(runtimeState.state);
     deps.requestRender();
-    if (runtimeState.selection.castleBuilds.length === 0) {
-      const onDone = runtimeState.selection.castleBuildOnDone;
-      runtimeState.selection.castleBuildOnDone = null;
-      onDone?.();
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -509,7 +504,6 @@ export function createSelectionSystem(
     runtimeState.selection.reselectQueue = [];
     runtimeState.selection.reselectionPids = [];
     runtimeState.selection.castleBuilds = [];
-    runtimeState.selection.castleBuildOnDone = null;
     runtimeState.selection.states.clear();
   }
 

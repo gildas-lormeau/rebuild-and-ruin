@@ -223,9 +223,6 @@ export interface ActiveBannerState {
    *  consumers can discriminate without reading `phase` (which lies
    *  during the upgrade-pick flow) or matching text. */
   kind: BannerKind;
-  /** Fired once the sweep reaches 1. Nulled out as it fires, or when
-   *  a subsequent `showBanner` / `hideBanner` replaces this banner. */
-  callback: (() => void) | null;
   /** Pixel snapshot of the scene composited below the sweep line during
    *  animation — the old scene, captured before the phase mutation that
    *  the banner is announcing. Supplied by the caller (`showBanner` opts)

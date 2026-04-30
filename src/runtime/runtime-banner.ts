@@ -38,6 +38,7 @@
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
+import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
   type ActiveBannerState,
   type BannerShowOpts,
@@ -88,6 +89,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     rendererCaptureScene,
     captureSceneOffscreen,
   } = deps;
+
+  /** Fires once when the sweep reaches 1. `set` overwrites the prior pending
+   *  callback (used when one banner replaces another mid-sweep); `clear`
+   *  drops a pending callback without firing (used by hide/reset). Same
+   *  pattern as the three dialog sub-systems — see fire-once-slot.ts. */
+  const pendingOnDone = createFireOnceSlot();
 
   function showBanner(opts: BannerShowOpts) {
     assertStateReady(runtimeState);
@@ -142,11 +149,11 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       subtitle: opts.subtitle,
       kind: opts.kind,
       paletteKey: opts.paletteKey,
-      callback: opts.onDone,
       prevScene,
       newScene,
     };
     runtimeState.banner = next;
+    pendingOnDone.set(opts.onDone);
 
     // Restore Mode.TRANSITION so the banner tick runs — subsystem dialogs
     // (life-lost, upgrade-pick) leave mode on their terminal value when
@@ -174,10 +181,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       round: state.round,
     });
     runtimeState.banner = createBannerState();
+    pendingOnDone.clear();
   }
 
   function resetBannerState(): void {
     runtimeState.banner = createBannerState();
+    pendingOnDone.clear();
   }
 
   function tickBanner(dt: number) {
@@ -192,9 +201,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
           phase: runtimeState.state.phase,
           round: runtimeState.state.round,
         });
-        const callback = banner.callback;
-        banner.callback = null;
-        if (callback) callback();
+        pendingOnDone.fire();
       }
     }
     requestRender();
