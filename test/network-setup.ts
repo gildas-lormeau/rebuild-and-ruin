@@ -32,6 +32,7 @@
 import "./online-dom-shim.ts";
 import { type GameMessage, MESSAGE, type ServerMessage } from "../src/protocol/protocol.ts";
 import {
+  createMessageHandler,
   handleServerMessage,
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
@@ -80,6 +81,41 @@ interface RuntimeBuild {
   readonly sentMessages: GameMessage[];
 }
 
+/** Two-peer pair where BOTH peers drive a local assisted-human slot and
+ *  broadcast its actions to the other peer through the wire. Models the
+ *  real "2 humans on different machines" online setup, in contrast to
+ *  `createNetworkedPair` (one-way: only the host has assisted slots).
+ *
+ *  Each peer's `remotePlayerSlots` is the OTHER peer's assisted slots, so
+ *  neither peer ticks the other's local controllers — the wire is the only
+ *  mutation path for those slots.
+ *
+ *  The pump can simulate network latency by delaying message delivery for
+ *  `wireDelayFrames` simulation ticks. With delay = 0, this is equivalent
+ *  to a zero-RTT loopback. With delay > 0, fires from one peer arrive on
+ *  the other peer N frames later than they originated — the timing
+ *  asymmetry that exposes cross-peer fire-frame races. */
+export interface BidirectionalNetworkedPair {
+  readonly host: Scenario;
+  readonly watcher: Scenario;
+  /** Drain pending messages between peers, respecting `wireDelayFrames`.
+   *  Increments the internal frame counter on each call — call EXACTLY
+   *  once per pair of host/watcher ticks. */
+  readonly pump: () => Promise<void>;
+}
+
+export interface BidirectionalNetworkedPairOptions extends ScenarioOptions {
+  /** Slots driven by an assisted-human controller on the HOST runtime.
+   *  Their actions broadcast to the watcher via wire. */
+  readonly assistedSlotsHost: readonly ValidPlayerSlot[];
+  /** Slots driven by an assisted-human controller on the WATCHER runtime.
+   *  Their actions broadcast to the host via wire. */
+  readonly assistedSlotsWatcher: readonly ValidPlayerSlot[];
+  /** Number of simulation ticks each wire message is held before being
+   *  delivered. 0 = zero-RTT loopback. Defaults to 0. */
+  readonly wireDelayFrames?: number;
+}
+
 /** Dispatch target for `createScenario({ online: "host" | "watcher" })`.
  *  Delegates to the role-specific builder. */
 export async function createOnlineScenario(
@@ -114,6 +150,68 @@ export async function createNetworkedPair(
     for (const msg of pending) {
       await watcherBuild.scenario.deliverMessage(msg as ServerMessage);
     }
+  };
+
+  return {
+    host: hostBuild.scenario,
+    watcher: watcherBuild.scenario,
+    pump,
+  };
+}
+
+export async function createBidirectionalNetworkedPair(
+  opts: BidirectionalNetworkedPairOptions,
+): Promise<BidirectionalNetworkedPair> {
+  const hostAssisted = opts.assistedSlotsHost;
+  const watcherAssisted = opts.assistedSlotsWatcher;
+  const hostRemote = new Set<ValidPlayerSlot>(watcherAssisted);
+  const watcherRemote = new Set<ValidPlayerSlot>(hostAssisted);
+  const wireDelay = opts.wireDelayFrames ?? 0;
+
+  const hostBuild = await buildBidirectionalHost(opts, hostAssisted, hostRemote);
+  const watcherBuild = await buildBidirectionalWatcher(
+    opts,
+    watcherAssisted,
+    watcherRemote,
+  );
+
+  // Per-direction queue: each entry holds a pending message and the frame
+  // it became eligible for delivery (= origin frame + wireDelay).
+  interface Pending {
+    readonly msg: GameMessage;
+    readonly deliverAt: number;
+  }
+  const hostToWatcher: Pending[] = [];
+  const watcherToHost: Pending[] = [];
+  let hostForwarded = 0;
+  let watcherForwarded = 0;
+  let frame = 0;
+
+  const pump = async () => {
+    // Drain new outbound messages into the per-direction queues, stamped
+    // with their eligible-for-delivery frame.
+    const hostPending = hostBuild.sentMessages.slice(hostForwarded);
+    hostForwarded = hostBuild.sentMessages.length;
+    for (const msg of hostPending) {
+      hostToWatcher.push({ msg, deliverAt: frame + wireDelay });
+    }
+    const watcherPending = watcherBuild.sentMessages.slice(watcherForwarded);
+    watcherForwarded = watcherBuild.sentMessages.length;
+    for (const msg of watcherPending) {
+      watcherToHost.push({ msg, deliverAt: frame + wireDelay });
+    }
+
+    // Deliver everything that has come due. FIFO within each direction.
+    while (hostToWatcher.length > 0 && hostToWatcher[0]!.deliverAt <= frame) {
+      const pending = hostToWatcher.shift()!;
+      await watcherBuild.scenario.deliverMessage(pending.msg as ServerMessage);
+    }
+    while (watcherToHost.length > 0 && watcherToHost[0]!.deliverAt <= frame) {
+      const pending = watcherToHost.shift()!;
+      await hostBuild.scenario.deliverMessage(pending.msg as ServerMessage);
+    }
+
+    frame++;
   };
 
   return {
@@ -181,6 +279,50 @@ async function buildWatcherRuntime(
   return { scenario, headless, sentMessages };
 }
 
+/** Minimal `OnlineClient` for a watcher. The dispatcher reads
+ *  `ctx.session`, `ctx.dedup`, `ctx.presence`, and `devLog`; everything
+ *  else is a no-op stub. `session.isHost` stays `false` — this is a
+ *  pure watcher, never promoted. */
+function buildWatcherClient(
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+): OnlineClient {
+  return buildPeerClient(remotePlayerSlots, false);
+}
+
+async function buildBidirectionalHost(
+  opts: ScenarioOptions,
+  assistedSlots: readonly ValidPlayerSlot[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+): Promise<RuntimeBuild> {
+  const sentMessages: GameMessage[] = [];
+  const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
+  const base = buildHeadlessOptions(peerOpts, sentMessages);
+  const headless = await createHeadlessRuntime({
+    ...base,
+    hostMode: true,
+    remotePlayerSlots,
+    onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
+  });
+  headless.runtime.runtimeState.state.debugTag = "HOST";
+
+  // Host needs to receive the watcher's assisted-slot broadcasts.
+  // `createMessageHandler` returns a per-instance closure (not the
+  // singleton `handleServerMessage`) so two peers in the same process
+  // each dispatch into their OWN runtime — no module-state collision.
+  const client = buildPeerClient(remotePlayerSlots, true);
+  const handler = createMessageHandler({
+    runtime: headless.runtime,
+    initFromServer: () => Promise.resolve(),
+    restoreFullState: () => {},
+    showWaitingRoom: () => {},
+    client,
+  });
+  headless.subscribeNetworkMessage(handler);
+
+  const scenario = wrapHeadless(headless, sentMessages);
+  return { scenario, headless, sentMessages };
+}
+
 /** Host-side `OnlinePhaseTicks` with real broadcast emitters. Checkpoint
  *  messages (CANNON_START / BATTLE_START / BUILD_START / BUILD_END) fire
  *  through `send` (which the caller wires to `sentMessages.push`).
@@ -197,6 +339,37 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
   };
 }
 
+async function buildBidirectionalWatcher(
+  opts: ScenarioOptions,
+  assistedSlots: readonly ValidPlayerSlot[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+): Promise<RuntimeBuild> {
+  const sentMessages: GameMessage[] = [];
+  const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
+  const base = buildHeadlessOptions(peerOpts, sentMessages);
+  const headless = await createHeadlessRuntime({
+    ...base,
+    hostMode: false,
+    remotePlayerSlots,
+    onlinePhaseTicks: buildWatcherPhaseTicks(),
+    amHost: () => false,
+  });
+  headless.runtime.runtimeState.state.debugTag = "WATCHER";
+
+  const client = buildPeerClient(remotePlayerSlots, false);
+  const handler = createMessageHandler({
+    runtime: headless.runtime,
+    initFromServer: () => Promise.resolve(),
+    restoreFullState: () => {},
+    showWaitingRoom: () => {},
+    client,
+  });
+  headless.subscribeNetworkMessage(handler);
+
+  const scenario = wrapHeadless(headless, sentMessages);
+  return { scenario, headless, sentMessages };
+}
+
 /** Watcher-side `OnlinePhaseTicks` — clone-everywhere model means no
  *  separate watcher tick path, so this is just the cross-machine merging
  *  hooks. Broadcasts are unset because the watcher's `ctx.broadcast`
@@ -208,14 +381,20 @@ function buildWatcherPhaseTicks(): OnlinePhaseTicks {
   };
 }
 
-/** Minimal `OnlineClient` for a watcher. The dispatcher reads
- *  `ctx.session`, `ctx.dedup`, `ctx.presence`, and `devLog`; everything
- *  else is a no-op stub. `session.isHost` stays `false` — this is a
- *  pure watcher, never promoted. */
-function buildWatcherClient(
+/** Shared client builder for both host and watcher peers in a
+ *  bidirectional pair. `isHost` controls `session.isHost` so the
+ *  dispatcher's `isRemoteHumanAction` validation (host accepts only
+ *  remote-human-slot actions; watcher accepts everything) routes
+ *  correctly on each peer. */
+function buildPeerClient(
   remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  isHost: boolean,
 ): OnlineClient {
   const session: OnlineSession = createSession();
+  if (isHost) {
+    // eslint-disable-next-line no-restricted-syntax -- test session bootstrap
+    session.isHost = true;
+  }
   for (const slot of remotePlayerSlots) {
     session.remotePlayerSlots.add(slot);
   }
