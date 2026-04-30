@@ -299,8 +299,23 @@ function handleCannonFired(
     );
     return DROPPED;
   }
-  applyCannonFired(state, msg);
-  state.bus.emit(msg.type, msg);
+  if (msg.applyAt === undefined) {
+    deps.log(
+      `cannon_fired: missing applyAt for P${msg.playerId} — falling back to immediate apply`,
+    );
+    applyCannonFired(state, msg);
+    state.bus.emit(msg.type, msg);
+    return APPLIED;
+  }
+  const applyAt = msg.applyAt;
+  deps.schedule({
+    applyAt,
+    playerId: msg.playerId,
+    apply: (drainState) => {
+      applyCannonFired(drainState, msg);
+      drainState.bus.emit(msg.type, msg);
+    },
+  });
   return APPLIED;
 }
 

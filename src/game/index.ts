@@ -67,7 +67,10 @@ export {
   prepareNextRound,
   startNextRound,
 } from "./phase-setup.ts";
-export { schedulePiecePlacement } from "./scheduled-actions.ts";
+export {
+  scheduleCannonFire,
+  schedulePiecePlacement,
+} from "./scheduled-actions.ts";
 export {
   allSelectionsConfirmed,
   confirmTowerSelection,

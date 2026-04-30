@@ -553,12 +553,10 @@ function buildAssistedControllerFactory(
       { AiAssistedHumanController },
       { DefaultStrategy },
       { MESSAGE },
-      { createCannonFiredMsg },
     ] = await Promise.all([
       import("../src/controllers/controller-ai-assisted-human.ts"),
       import("../src/ai/ai-strategy.ts"),
       import("../src/protocol/protocol.ts"),
-      import("../src/shared/core/battle-events.ts"),
     ]);
     return new AiAssistedHumanController(slot, {
       strategy: new DefaultStrategy(undefined, strategySeed, difficulty),
@@ -567,7 +565,7 @@ function buildAssistedControllerFactory(
           send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),
         sendCannonPlaced: (payload) =>
           send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...payload }),
-        sendCannonFired: (ball) => send(createCannonFiredMsg(ball)),
+        sendCannonFired: (msg) => send(msg),
         sendUpgradePick: (choice) =>
           send({ type: MESSAGE.UPGRADE_PICK, playerId: slot, choice }),
         sendLifeLostChoice: (choice) =>

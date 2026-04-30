@@ -61,7 +61,10 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { altitudeAt, horizontalAt } from "../shared/core/trajectory.ts";
-import type { GameState } from "../shared/core/types.ts";
+import {
+  type GameState,
+  packPendingCannonFireKey,
+} from "../shared/core/types.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,
@@ -198,6 +201,7 @@ export function canPlayerFire(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
     readonly cannonballs: readonly Cannonball[];
+    readonly pendingCannonFires: ReadonlySet<number>;
   },
   playerId: ValidPlayerSlot,
 ): boolean {
@@ -407,6 +411,116 @@ export function fireNextReadyCannon(
   return { result, rotationIdx: result.combinedIdx };
 }
 
+/** Originator path for the lockstep scheduled-actions queue.
+ *
+ * Validates a cannon-fire intent, computes the ballistic trajectory (which
+ * mutates `cannon.facing` and consumes `state.rng` for active modifier
+ * jitter), and returns the would-be-fired ball plus the next rotation
+ * index — WITHOUT pushing the ball, bumping `state.shotsFired`, or
+ * emitting the bus event. Caller schedules `applyCannonFiredOriginator`
+ * for `applyAt = state.simTick + SAFETY` so the ball-push and shotsFired
+ * bump fire at the same logical tick on every peer (originator + receivers).
+ *
+ * Returns null when no cannon is ready (caller treats as a no-op — no
+ * enqueue, no broadcast).
+ */
+export function prepareCannonFireForLockstep(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  rotationIdx: number | undefined,
+  targetRow: number,
+  targetCol: number,
+): { ball: Cannonball; rotationIdx: number } | null {
+  const result = nextReadyCombined(state, playerId, rotationIdx);
+  if (!result) return null;
+  let ball: Cannonball;
+  if (result.type === "own") {
+    if (isPlayerEliminated(state.players[playerId])) return null;
+    if (!canFireOwnCannon(state, playerId, result.ownIdx)) return null;
+    const cannon = state.players[playerId]!.cannons[result.ownIdx]!;
+    ball = launchCannonball(
+      state,
+      cannon,
+      result.ownIdx,
+      playerId,
+      targetRow,
+      targetCol,
+    );
+    state.pendingCannonFires.add(
+      packPendingCannonFireKey(playerId, result.ownIdx),
+    );
+  } else {
+    if (!canFireCapturedCannon(state, result.captured)) return null;
+    ball = launchCannonball(
+      state,
+      result.captured.cannon,
+      result.captured.cannonIdx,
+      result.captured.victimId,
+      targetRow,
+      targetCol,
+      result.captured.capturerId,
+    );
+    // Captured-cannon fires use the victim's `(playerId, cannonIdx)` for
+    // pending tracking — matches the canFireCapturedCannon lookup which
+    // checks the captured cannon (not the capturer's slot).
+    state.pendingCannonFires.add(
+      packPendingCannonFireKey(
+        result.captured.victimId,
+        result.captured.cannonIdx,
+      ),
+    );
+  }
+  return { ball, rotationIdx: result.combinedIdx };
+}
+
+/** Originator-side apply for the lockstep scheduled-actions queue.
+ *
+ * Pushes the ball + bumps `state.shotsFired` + emits `CANNON_FIRED` on the
+ * local bus. Does NOT consume `state.rng` — the originator already drew
+ * during `prepareCannonFireForLockstep`. Receivers use `applyCannonFired`
+ * instead (which mirrors the RNG draw via `consumeFireRngForActiveModifier`).
+ *
+ * Both peers schedule for the same `applyAt`, so cross-peer ball-push,
+ * scoring, and bus-driven side effects (haptics, combo accrual) align.
+ */
+export function applyCannonFiredOriginator(
+  state: GameState,
+  msg: CannonFiredMessage,
+): void {
+  state.shotsFired++;
+  state.cannonballs.push({
+    cannonIdx: msg.cannonIdx,
+    startX: msg.startX,
+    startY: msg.startY,
+    x: msg.launchX,
+    y: msg.launchY,
+    targetX: msg.targetX,
+    targetY: msg.targetY,
+    speed: msg.speed,
+    playerId: msg.playerId,
+    scoringPlayerId: msg.scoringPlayerId,
+    launchX: msg.launchX,
+    launchY: msg.launchY,
+    launchAltitude: msg.launchAltitude,
+    impactX: msg.impactX,
+    impactY: msg.impactY,
+    impactRow: msg.impactRow,
+    impactCol: msg.impactCol,
+    impactAltitude: msg.impactAltitude,
+    vy0: msg.vy0,
+    flightTime: msg.flightTime,
+    elapsed: 0,
+    altitude: msg.launchAltitude,
+    incendiary: msg.incendiary,
+    mortar: msg.mortar,
+    whistleVariant: selectWhistleVariant(msg.flightTime),
+  });
+  state.pendingCannonFires.delete(
+    packPendingCannonFireKey(msg.playerId, msg.cannonIdx),
+  );
+  state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, msg);
+}
+
 /**
  * Round-robin through own cannons + captured cannons (captured appended at end).
  * Returns the next ready cannon after `after` in the combined index space, or null.
@@ -415,6 +529,7 @@ export function nextReadyCombined(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
     readonly cannonballs: readonly Cannonball[];
+    readonly pendingCannonFires: ReadonlySet<number>;
   },
   playerId: ValidPlayerSlot,
   after?: number,
@@ -819,9 +934,16 @@ function fireCannon(
   if (isPlayerEliminated(state.players[playerId])) return false;
   if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
-  launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
+  const ball = launchCannonball(
+    state,
+    cannon,
+    cannonIdx,
+    playerId,
+    targetRow,
+    targetCol,
+  );
+  state.cannonballs.push(ball);
   state.shotsFired++;
-  const ball = state.cannonballs[state.cannonballs.length - 1]!;
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
 }
@@ -833,6 +955,7 @@ export function canFireOwnCannon(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
     readonly cannonballs: readonly Cannonball[];
+    readonly pendingCannonFires: ReadonlySet<number>;
   },
   playerId: ValidPlayerSlot,
   cannonIdx: number,
@@ -852,6 +975,14 @@ export function canFireOwnCannon(
     return false;
   // Cannon must be inside enclosed territory
   if (!isCannonEnclosed(cannon, player)) return false;
+  // Lockstep guard: if a fire for this cannon is already enqueued on this
+  // peer (waiting for `applyAt`), treat the cannon as still in-flight so
+  // the originator's AI can't double-fire during the SAFETY window.
+  if (
+    state.pendingCannonFires.has(packPendingCannonFireKey(playerId, cannonIdx))
+  ) {
+    return false;
+  }
   // Check no ball in flight from this cannon
   return !state.cannonballs.some(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
@@ -874,7 +1005,7 @@ function fireCapturedCannon(
   targetCol: number,
 ): boolean {
   if (!canFireCapturedCannon(state, captured)) return false;
-  launchCannonball(
+  const ball = launchCannonball(
     state,
     captured.cannon,
     captured.cannonIdx,
@@ -883,8 +1014,8 @@ function fireCapturedCannon(
     targetCol,
     captured.capturerId,
   );
+  state.cannonballs.push(ball);
   state.shotsFired++;
-  const ball = state.cannonballs[state.cannonballs.length - 1]!;
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
 }
@@ -909,7 +1040,7 @@ function launchCannonball(
   targetRow: number,
   targetCol: number,
   scoringPlayerId?: ValidPlayerSlot,
-): void {
+): Cannonball {
   const { x: launchX, y: launchY } = cannonCenter(cannon);
   const initialAimX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
   const initialAimY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
@@ -952,7 +1083,7 @@ function launchCannonball(
   const impactCol = pxToTile(impactX);
 
   const whistleVariant = selectWhistleVariant(flightTime);
-  state.cannonballs.push({
+  return {
     cannonIdx,
     startX: launchX,
     startY: launchY,
@@ -978,7 +1109,7 @@ function launchCannonball(
     incendiary: isSuperCannon(cannon) ? true : undefined,
     mortar: isMortar || undefined,
     whistleVariant,
-  });
+  };
 }
 
 /** Pick a random whistle variant whose duration fits in the ball's total

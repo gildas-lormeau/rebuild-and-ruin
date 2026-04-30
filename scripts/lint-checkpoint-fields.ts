@@ -55,6 +55,8 @@ const GAME_STATE_EXCLUSIONS: Record<string, string> = {
     "configurable constant set at game start, never mutated — recovered from settings",
   reselectedPlayers:
     "transient flag cleared at cannon-phase setup; reselects are already reflected in the serialized phase + castle state",
+  pendingCannonFires:
+    "per-peer transient set tracking scheduled-but-not-yet-drained fires for `canFireOwnCannon`; differs across peers during the wire-delay window (only the local peer's own scheduled fires are observed) — never synced",
 };
 /** Modern-state fields that are intentionally not synced over the wire. */
 const MODERN_STATE_EXCLUSIONS: Record<string, string> = {

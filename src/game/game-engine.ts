@@ -315,5 +315,6 @@ function createGameState(
     activeFeatures: EMPTY_FEATURES,
     modern: null,
     simTick: 0,
+    pendingCannonFires: new Set(),
   };
 }

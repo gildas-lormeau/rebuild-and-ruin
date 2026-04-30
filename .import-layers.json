@@ -190,6 +190,7 @@
       "src/game/zone-recompute.ts",
       "src/online/online-host-crosshairs.ts",
       "src/online/online-host-promotion.ts",
+      "src/online/online-send-actions.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts",
       "src/render/3d/effects/bonus-squares.ts",
@@ -320,8 +321,7 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
-      "src/game/battle-system.ts",
-      "src/game/scheduled-actions.ts"
+      "src/game/battle-system.ts"
     ]
   },
   {
@@ -331,7 +331,7 @@
       "src/controllers/controller-ai.ts",
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
-      "src/online/online-send-actions.ts",
+      "src/game/scheduled-actions.ts",
       "src/online/online-server-events.ts"
     ]
   },

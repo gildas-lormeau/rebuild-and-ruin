@@ -21,12 +21,13 @@ import { tickBuild } from "../ai/ai-phase-build.ts";
 import { flushCannon, tickCannon } from "../ai/ai-phase-cannon.ts";
 import type { AiStrategy } from "../ai/ai-strategy.ts";
 import {
-  executeCannonFire,
   executePlaceCannon,
+  scheduleCannonFire,
   schedulePiecePlacement,
 } from "../game/index.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
-import { type Cannonball, CannonMode } from "../shared/core/battle-types.ts";
+import type { CannonFiredMessage } from "../shared/core/battle-events.ts";
+import { CannonMode } from "../shared/core/battle-types.ts";
 import type {
   CannonPlacedPayload,
   PiecePlacedPayload,
@@ -58,7 +59,7 @@ import { AiController } from "./controller-ai.ts";
 interface AssistedSenders {
   sendPiecePlaced: (payload: PiecePlacedPayload) => void;
   sendCannonPlaced: (payload: CannonPlacedPayload) => void;
-  sendCannonFired: (ball: Cannonball) => void;
+  sendCannonFired: (msg: CannonFiredMessage) => void;
   sendUpgradePick: (choice: UpgradeId) => void;
   sendLifeLostChoice: (choice: ResolvedChoice) => void;
 }
@@ -144,9 +145,16 @@ export class AiAssistedHumanController
 
   override battleTick(state: GameState, _dt: number): void {
     const executeFire = (intent: FireIntent): boolean => {
-      const ball = executeCannonFire(state, intent, this);
-      if (!ball) return false;
-      this.senders.sendCannonFired(ball);
+      const fired = scheduleCannonFire({
+        schedule: this.schedule,
+        state,
+        intent,
+        ctrl: this,
+        safetyTicks: this.safetyTicks,
+      });
+      if (!fired) return false;
+      this.cannonRotationIdx = fired.rotationIdx;
+      this.senders.sendCannonFired(fired.msg);
       return true;
     };
     tickBattle(this, this._battlePhase, state, executeFire);

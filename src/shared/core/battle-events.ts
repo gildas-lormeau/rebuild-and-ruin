@@ -7,16 +7,16 @@
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
 /** A cannon was fired (own or opponent). Client creates local cannonball.
- *  Carries the host-pinned ballistic trajectory so the watcher spawns an
- *  identical parametric flight and lands on the same tile — no state
- *  reads happen on the watcher side for physics. */
+ *  Carries the originator-pinned ballistic trajectory so receivers spawn an
+ *  identical parametric flight and land on the same tile — no state reads
+ *  happen on the receiver side for physics. */
 export interface CannonFiredMessage {
   type: "cannonFired";
   playerId: ValidPlayerSlot;
   cannonIdx: number;
   /** Set when fired through a captured-cannon path: the capturer who scores
    *  for this ball's effects. `playerId` stays the original cannon owner so
-   *  watcher-side `canFireOwnCannon` lookups resolve against the right slot. */
+   *  receiver-side `canFireOwnCannon` lookups resolve against the right slot. */
   scoringPlayerId?: ValidPlayerSlot;
   startX: number;
   startY: number;
@@ -35,6 +35,13 @@ export interface CannonFiredMessage {
   flightTime: number;
   incendiary?: true;
   mortar?: true;
+  /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
+   *  receiver enqueue the ball-push for this stamp; the action schedule
+   *  fires it at the matching tick on every peer, so cross-peer scoring,
+   *  conscription, and impact ordering line up. Optional during the step-3
+   *  rollout — local-only emits (bus replay, host fanout from
+   *  battle-system.ts) leave it undefined; the wire path always sets it. */
+  applyAt?: number;
 }
 
 /** A wall tile was destroyed by impact. */

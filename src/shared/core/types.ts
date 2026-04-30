@@ -130,6 +130,16 @@ export interface GameState {
    *  late-joining watchers and post-migration hosts pick up at the
    *  authoritative count. */
   simTick: number;
+  /** Cannons whose fire has been scheduled on this peer but not yet drained
+   *  (ball not yet pushed to `cannonballs`). Keyed by
+   *  `playerId * MAX_CANNON_SLOT_KEY + cannonIdx`. Read by `canFireOwnCannon`
+   *  so the originator's AI doesn't double-fire the same cannon during the
+   *  SAFETY window between schedule and apply. Per-peer transient: differs
+   *  across peers during the wire-delay window (only entries from the local
+   *  peer's own scheduled fires are observed, since `canFireOwnCannon` is
+   *  only called for slots the peer drives). Cleared on rematch and at
+   *  battle-phase setup; not synced over the wire. */
+  pendingCannonFires: Set<number>;
 }
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */
@@ -265,6 +275,20 @@ export interface FrameContext {
   readonly shouldUnzoom: boolean;
   /** Non-interactive transition — camera suppresses auto-zoom. */
   readonly isTransition: boolean;
+}
+
+/** Pack `(playerId, cannonIdx)` into a single number for the
+ *  `pendingCannonFires` Set. The multiplier is large enough to avoid
+ *  collisions across realistic per-player cannon counts. */
+const MAX_CANNON_SLOT_KEY = 256;
+
+/** Pack a `(playerId, cannonIdx)` pair into the key shape used by
+ *  `state.pendingCannonFires`. */
+export function packPendingCannonFireKey(
+  playerId: number,
+  cannonIdx: number,
+): number {
+  return playerId * MAX_CANNON_SLOT_KEY + cannonIdx;
 }
 
 /** Set gameMode, activeFeatures, and modern atomically — prevents divergence. */

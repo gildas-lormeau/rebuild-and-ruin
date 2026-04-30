@@ -79,7 +79,7 @@ export interface UpgradePickViewState extends GameViewState {
   readonly burningPits: readonly BurningPit[];
 }
 
-/** Battle-phase state slice.  14 fields.
+/** Battle-phase state slice.  15 fields.
  *  `modern` is an inline structural subset — only the fields the battle
  *  controller reads (frozenTiles, activeModifier).  Avoids importing
  *  ModernState from types.ts, preserving the coupling break. */
@@ -93,6 +93,10 @@ export interface BattleViewState extends GameViewState {
   readonly capturedCannons: readonly CapturedCannon[];
   readonly burningPits: readonly BurningPit[];
   readonly playerZones: readonly number[];
+  /** Cannons whose fire has been scheduled on this peer but not yet
+   *  drained. See `GameState.pendingCannonFires`. Read by `canFireOwnCannon`
+   *  to avoid double-fire during the lockstep SAFETY window. */
+  readonly pendingCannonFires: ReadonlySet<number>;
   readonly modern: {
     readonly frozenTiles: ReadonlySet<number> | null;
     readonly activeModifier: ModifierId | null;

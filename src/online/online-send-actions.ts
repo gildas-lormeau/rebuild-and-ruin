@@ -1,7 +1,6 @@
-import { executeCannonFire, schedulePiecePlacement } from "../game/index.ts";
+import { scheduleCannonFire, schedulePiecePlacement } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
-import { createCannonFiredMsg } from "../shared/core/battle-events.ts";
 import {
   type BattleController,
   type BattleViewState,
@@ -76,11 +75,23 @@ export function createOnlineSendActions(deps: OnlineSendActionsDeps) {
     return placed;
   }
 
+  /** Lockstep cannon fire: pin the trajectory now, broadcast with `applyAt`,
+   *  schedule the originator-side apply on this peer with the same `applyAt`.
+   *  Receivers do the same on wire receipt, so the ball-push, scoring, and
+   *  bus-driven side effects fire at the same logical tick on every peer. */
   function fire(ctrl: BattleController, gameState: BattleViewState): void {
     const intent = ctrl.fire(gameState);
     if (!intent) return;
-    const ball = executeCannonFire(getState(), intent, ctrl);
-    if (ball) send(createCannonFiredMsg(ball));
+    const fired = scheduleCannonFire({
+      schedule,
+      state: getState(),
+      intent,
+      ctrl,
+      safetyTicks,
+    });
+    if (!fired) return;
+    ctrl.cannonRotationIdx = fired.rotationIdx;
+    send(fired.msg);
   }
 
   return { tryPlacePiece, tryPlaceCannon, fire };

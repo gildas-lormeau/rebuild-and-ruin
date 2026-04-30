@@ -169,6 +169,7 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
+  state.pendingCannonFires.clear();
   onBattlePhaseStart(state, {
     filterActiveFiringCannons,
     isCannonEnclosed,
