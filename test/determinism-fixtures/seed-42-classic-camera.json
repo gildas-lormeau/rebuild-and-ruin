@@ -7,7 +7,7 @@
     "mobileZoomEnabled": true
   },
   "timeoutMs": 480000,
-  "eventCount": 8310,
+  "eventCount": 8309,
   "events": [
     {
       "type": "tick",
@@ -50699,15 +50699,9 @@
       }
     },
     {
-      "type": "roundStart",
-      "payload": {
-        "round": 3
-      }
-    },
-    {
       "type": "scoreOverlayStart",
       "payload": {
-        "round": 3
+        "round": 2
       }
     },
     {
@@ -51427,13 +51421,13 @@
     {
       "type": "scoreOverlayEnd",
       "payload": {
-        "round": 3
+        "round": 2
       }
     },
     {
       "type": "gameEnd",
       "payload": {
-        "round": 3,
+        "round": 2,
         "winner": 2
       }
     },

@@ -327,7 +327,7 @@ export function applyUpgradePicks(
  *
  *  `upcomingRound` is the round whose UPGRADE_PICK these offers will fill.
  *  The caller passes `state.round + 1` because state.round doesn't advance
- *  until the round-end transition. */
+ *  until `resolveAfterLifeLost` (postDisplay of round-end). */
 export function generateUpgradeOffers(
   state: GameState,
   upcomingRound: number,

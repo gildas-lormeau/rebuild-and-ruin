@@ -50,7 +50,7 @@ Read this before implementing features involving flood-fill, wall gaps, grunt mo
 ### Phase flow
 Round 1 (special): CASTLE_SELECT (auto-built walls) → CANNON_PLACE → BATTLE → WALL_BUILD (score finalized)
 Round N≥2: CANNON_PLACE → BATTLE → WALL_BUILD (score finalized) → loop
-A round closes at the end of WALL_BUILD when the score is displayed — this is where `state.round++` fires (in `startNextRound`, called from the `round-end` transition after `finalizeRound`). `state.round` during WALL_BUILD is the round being closed, not the upcoming one.
+A round closes at the end of WALL_BUILD when the score is displayed (`finalizeRound` emits `ROUND_END`). The `round-end` transition's mutate then peeks for game-over via `peekGameOverOutcome(state)` BEFORE the life-lost dialog displays — if the match is over, the popup is suppressed (its CONTINUE/ABANDON choice is moot), GAME_END fires from postDisplay (after the score overlay), and `state.round` is left at the closing-round value. Otherwise, `state.round++` + ROUND_START fire and the popup runs normally. **Winner tiebreak (round-limit branch) prefers more lives, then more score** — a player who lost a life this round can't outrank an opponent who didn't.
 CASTLE_RESELECT inserted between rounds when a player loses lives.
 Modern mode: UPGRADE_PICK between BATTLE and WALL_BUILD (from round 3).
 

@@ -51,12 +51,18 @@ export {
   tickBuildPhase,
 } from "./game-engine.ts";
 export type { GameOverReason } from "./game-over.ts";
-export { computeGameOutcome, eliminatePlayers } from "./game-over.ts";
+export {
+  eliminatePlayers,
+  emitGameEnd,
+  type GameOverOutcome,
+  peekGameOverOutcome,
+} from "./game-over.ts";
 export { tickGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {
   computeScoreDeltas,
+  emitRoundStart,
   enterBuildSkippingBattle,
   finalizeBattle,
   finalizeCastleConstruction,
@@ -65,7 +71,6 @@ export {
   finalizeRoundVisuals,
   prepareCastleWallsForPlayer,
   prepareNextRound,
-  startNextRound,
 } from "./phase-setup.ts";
 export {
   scheduleCannonFire,

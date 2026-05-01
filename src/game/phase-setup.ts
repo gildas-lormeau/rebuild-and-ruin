@@ -216,9 +216,10 @@ export function enterBuildSkippingBattle(state: GameState): void {
  *
  *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
  *  build-phase score is computed) and does NOT increment `state.round`
- *  (that happens at `round-end` via `startNextRound`). The round being
- *  closed isn't actually finished here — it stays open through
- *  UPGRADE_PICK and WALL_BUILD until the score is finalized. */
+ *  (that happens later, in `resolveAfterLifeLost`, after the life-lost
+ *  dialog resolves). The round being closed isn't actually finished
+ *  here — it stays open through UPGRADE_PICK and WALL_BUILD until the
+ *  score is finalized. */
 export function finalizeBattle(state: GameState): void {
   awardComboBonuses(state);
   cleanupBattleArtifacts(state);
@@ -242,9 +243,9 @@ export function finalizeBattle(state: GameState): void {
  *  watcher / headless must produce identical RNG sequences. Callers must
  *  init controllers afterwards (resetCannonFacings + startBuildPhase loop).
  *
- *  Does NOT increment `state.round` — that happens later, at the `round-end`
- *  transition (after the build-phase score is finalized) via `startNextRound`.
- *  Helpers that need to know the round they're seeding for receive
+ *  Does NOT increment `state.round` — that happens much later, in
+ *  `resolveAfterLifeLost`, after the life-lost dialog resolves. Helpers
+ *  that need to know the round they're seeding for receive
  *  `upcomingRound` as an explicit parameter so the timing knowledge ("we're
  *  called pre-increment") lives only in this function, not in every helper. */
 export function prepareNextRound(state: GameState): void {
@@ -290,12 +291,13 @@ export function prepareNextRound(state: GameState): void {
   }
 }
 
-/** Increment `state.round` and emit `ROUND_START` for the new round.
- *  Called from the `round-end` transition mutate, after `finalizeRound`
- *  has computed the score and applied life penalties for the round
- *  being closed. */
-export function startNextRound(state: GameState): void {
-  state.round++;
+/** Emit `ROUND_START` for the round the engine just rolled into.
+ *  `state.round` must already reflect the new round value — the increment
+ *  happens earlier in `resolveAfterLifeLost`, before the game-over /
+ *  continue branch is decided, so the round-limit check sees the same
+ *  counter the player will play next. Only fired on the continue /
+ *  reselect branches; the game-over branch suppresses it. */
+export function emitRoundStart(state: GameState): void {
   emitGameEvent(state.bus, GAME_EVENT.ROUND_START, { round: state.round });
 }
 
@@ -410,7 +412,8 @@ export function prepareCastleWallsForPlayer(
  *    - life penalties (`applyLifePenalties`)
  *
  *  Emits `ROUND_END` after the score is computed — the round is officially
- *  closed at this point. The counter advances in the next call (`startNextRound`).
+ *  closed at this point. The counter advances later, in `resolveAfterLifeLost`,
+ *  after the life-lost dialog resolves and before the game-over check.
  *
  *  Visual-only sweeps (isolated-wall removal, grunts in eliminated zones)
  *  are deferred to `finalizeRoundVisuals` so they reveal under the

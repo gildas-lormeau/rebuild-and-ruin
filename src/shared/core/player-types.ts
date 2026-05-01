@@ -79,7 +79,7 @@ export interface Player {
   freshCastle: boolean;
   /** Build-phase piece bag (deterministic from upcomingRound + rng + smallPieces;
    *  seeded with `state.round + 1` because initPlayerBag runs in prepareNextRound
-   *  at battle-done, before state.round advances at the round-end transition).
+   *  at battle-done, well before state.round advances in resolveAfterLifeLost).
    *  Not serialized — regenerated on each peer at build-phase start. */
   bag: BagState | undefined;
   /** Current piece drawn from the bag (may be rotated by player input). */

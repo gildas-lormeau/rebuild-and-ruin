@@ -1,69 +1,64 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { eliminatePlayer, isPlayerAlive } from "../shared/core/player-types.ts";
+import {
+  eliminatePlayer,
+  isPlayerAlive,
+  type Player,
+} from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 
 /** Reason a game-over fires — threaded into the phase machine's transition
  *  id so each path stays distinct in telemetry / tests / future divergence. */
 export type GameOverReason = "last-player-standing" | "round-limit-reached";
 
-/** Outcome of checking win conditions after a life-lost dialog resolves.
- *  `game-over` fires GAME_END and stops the match; `reselect` routes the
- *  continuing players to CASTLE_RESELECT; `continue` resumes normal play. */
-type GameOutcome =
-  | {
-      kind: "game-over";
-      winner: { id: ValidPlayerSlot };
-      reason: GameOverReason;
-    }
-  | { kind: "reselect"; continuing: readonly ValidPlayerSlot[] }
-  | { kind: "continue" };
+export interface GameOverOutcome {
+  winner: { id: ValidPlayerSlot };
+  reason: GameOverReason;
+}
 
-/** Compute the post-life-lost game outcome.
+/** Pure peek: does the just-closed round trigger game-over?
  *
- *  Side effect: emits `GAME_EVENT.GAME_END` with the winner when the match
- *  is over. Routing (onGameOver / onReselect / onContinue) is the caller's
- *  responsibility — this function only decides what happens and fires the
- *  event. Win rules:
- *    - `last-player-standing`: 0 or 1 alive players remain.
- *    - `round-limit-reached`: current round exceeded `state.maxRounds`.
- *    - Otherwise: reselect if any players continue, else plain continue.
- *  Winner is picked by highest score when more than one candidate exists. */
-export function computeGameOutcome(
-  state: GameState,
-  continuing: readonly ValidPlayerSlot[],
-): GameOutcome {
+ *  Called from the round-end transition's mutate, AFTER `applyLifePenalties`
+ *  and BEFORE the score / life-lost dialog displays. `state.round` is still
+ *  the closing round — the increment is deferred to the continue / reselect
+ *  branch so this comparison sees the round that just ended.
+ *
+ *  Win rules:
+ *    - `last-player-standing`: 0 or 1 alive players remain after life
+ *      penalties.
+ *    - `round-limit-reached`: closing round equals `state.maxRounds`
+ *      (we just played the final scheduled round).
+ *  Returns `null` when neither condition is met.
+ *
+ *  Winner is picked by **lives first, then score**. A player who lost a
+ *  life this round (lives reduced but still > 0) is "alive" but ranks
+ *  below players who didn't — so the score-only tiebreak no longer
+ *  hands the win to a life-losing leader over an opponent who was untouched.
+ *  No side effects: GAME_END is emitted by the caller at dispatch time
+ *  so the event lands AFTER the score overlay, not at decision time. */
+export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
   const alive = state.players.filter(isPlayerAlive);
   if (alive.length <= 1) {
-    const winner =
-      alive[0] ??
-      state.players.reduce((best, player) =>
-        player.score > best.score ? player : best,
-      );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
-      round: state.round,
-      winner: winner.id,
-    });
-    return { kind: "game-over", winner, reason: "last-player-standing" };
+    const winner = alive[0] ?? pickByLivesThenScore(state.players)!;
+    return { winner, reason: "last-player-standing" };
   }
-
-  if (state.round > state.maxRounds) {
-    const winner = alive.reduce(
-      (best, player) => (player.score > best.score ? player : best),
-      alive[0]!,
-    );
-    emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
-      round: state.round,
-      winner: winner.id,
-    });
-    return { kind: "game-over", winner, reason: "round-limit-reached" };
+  if (state.round >= state.maxRounds) {
+    return {
+      winner: pickByLivesThenScore(alive)!,
+      reason: "round-limit-reached",
+    };
   }
+  return null;
+}
 
-  if (continuing.length > 0) {
-    return { kind: "reselect", continuing };
-  }
-
-  return { kind: "continue" };
+/** Emit GAME_END for an outcome decided earlier by `peekGameOverOutcome`.
+ *  Split from the peek so the bus event fires at dispatch time (after the
+ *  score overlay), not at decision time (during the round-end mutate). */
+export function emitGameEnd(state: GameState, outcome: GameOverOutcome): void {
+  emitGameEvent(state.bus, GAME_EVENT.GAME_END, {
+    round: state.round,
+    winner: outcome.winner.id,
+  });
 }
 
 /** Eliminate the listed players and emit `PLAYER_ELIMINATED` for each.
@@ -83,4 +78,16 @@ export function eliminatePlayers(
       round: state.round,
     });
   }
+}
+
+/** Lives-then-score winner pick. More lives wins; ties broken by score;
+ *  remaining ties resolved by slot order (the reduce keeps `best` on
+ *  equality). Returns null only on an empty list. */
+function pickByLivesThenScore(candidates: readonly Player[]): Player | null {
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, player) => {
+    if (player.lives !== best.lives)
+      return player.lives > best.lives ? player : best;
+    return player.score > best.score ? player : best;
+  }, candidates[0]!);
 }

@@ -39,6 +39,8 @@ import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
   buildTimerBonus,
+  emitGameEnd,
+  emitRoundStart,
   enterBattlePhase,
   enterCannonPhase,
   finalizeBattle,
@@ -46,10 +48,11 @@ import {
   finalizeReselectedPlayers,
   finalizeRound,
   finalizeRoundVisuals,
+  type GameOverOutcome,
+  peekGameOverOutcome,
   prepareNextRound,
   recheckTerritory,
   snapshotTerritory,
-  startNextRound,
 } from "../game/index.ts";
 import { setPhase } from "../game/phase-setup.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
@@ -115,6 +118,10 @@ interface TransitionResult {
    *  `ROUND_END`'s postDisplay to route via `resolveAfterLifeLost`.
    *  Mutable because it's written AFTER the mutate fn returns. */
   continuing?: readonly ValidPlayerSlot[];
+  /** Set by `ROUND_END`'s mutate when `peekGameOverOutcome` detects the
+   *  match has ended. Causes the `life-lost-dialog` step to short-circuit
+   *  (no popup) and the postDisplay to fire `onGameOver` directly. */
+  readonly gameOverOutcome?: GameOverOutcome;
 }
 
 type DisplayStep =
@@ -403,13 +410,23 @@ const ROUND_END: Transition = {
     // `resetZoneState` for eliminated/reselect players — every peer
     // converges identically.
     const { needsReselect, eliminated } = finalizeRound(ctx.state);
-    // Round counter advances here, after the score is finalized — this is
-    // the moment the round officially ends. The score-delta animation that
-    // plays next reads pre/post score values it captured, not state.round,
-    // so it's safe to advance the counter before the animation begins.
-    startNextRound(ctx.state);
     ctx.scoreDelta.setPreScores?.(preScores);
     ctx.broadcast?.buildEnd?.();
+    // Decide game-over BEFORE the life-lost popup. The popup is just a
+    // continue/abandon prompt — its choice has no effect when the match
+    // is ending, so we suppress it on the game-over branch (the dialog
+    // step short-circuits when needsReselect + eliminated are both
+    // empty). The peek runs against the closing round (state.round not
+    // yet incremented) and the lives-then-score tiebreak so a player
+    // who lost a life this round can't outrank an opponent who didn't.
+    const gameOverOutcome = peekGameOverOutcome(ctx.state);
+    if (gameOverOutcome) {
+      return { ...EMPTY_TRANSITION_RESULT, preScores, gameOverOutcome };
+    }
+    // Game continues — advance the counter and emit ROUND_START so the
+    // life-lost popup (and everything after it) reads the new round.
+    ctx.state.round++;
+    emitRoundStart(ctx.state);
     return {
       ...EMPTY_TRANSITION_RESULT,
       needsReselect,
@@ -884,22 +901,35 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
   else runTransitionInline("enter-wall-build", ctx);
 }
 
-/** Shared post-life-lost routing. Runs the win-condition check
- *  (`resolveAfterLifeLost`) against the continuing-player list written
- *  by the life-lost step, then dispatches one of three branches via
- *  `ctx.lifeLostRoute`. The route handlers are wired identically on
- *  every peer (game-over / reselect / continue all dispatch the next
- *  transition locally). */
+/** Shared post-life-lost routing. Two branches:
+ *
+ *    1. `result.gameOverOutcome` set — the round-end mutate already
+ *       detected game-over via `peekGameOverOutcome`. The life-lost
+ *       popup was suppressed (its choice would be moot). Emit GAME_END
+ *       NOW (after the score overlay, not at decision time so SFX
+ *       observers fire in the right order) and dispatch onGameOver.
+ *    2. otherwise — the dialog populated `result.continuing`. Dispatch
+ *       continue/reselect via `resolveAfterLifeLost`.
+ *
+ *  Route handlers (`onGameOver` / `onReselect` / `onContinue`) are
+ *  wired identically on every peer, so each peer dispatches the next
+ *  transition locally. */
 function routeLifeLostResolution(
   ctx: PhaseTransitionCtx,
   result: TransitionResult,
 ): void {
   const route = ctx.lifeLostRoute;
   if (!route) return;
+  if (result.gameOverOutcome) {
+    emitGameEnd(ctx.state, result.gameOverOutcome);
+    route.onGameOver(
+      result.gameOverOutcome.winner,
+      result.gameOverOutcome.reason,
+    );
+    return;
+  }
   resolveAfterLifeLost({
-    state: ctx.state,
     continuing: result.continuing ?? [],
-    onGameOver: route.onGameOver,
     onReselect: route.onReselect,
     onContinue: route.onContinue,
   });

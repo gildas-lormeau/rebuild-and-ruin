@@ -374,7 +374,7 @@ export function rollGruntWallAttacks(state: GameState): void {
  *
  *  `upcomingRound` is the round whose battle these grunts will join. The
  *  caller (prepareNextRound) passes `state.round + 1` because state.round
- *  doesn't advance until the round-end transition. */
+ *  doesn't advance until `resolveAfterLifeLost` (postDisplay of round-end). */
 export function spawnInterbattleGrunts(
   state: GameState,
   upcomingRound: number,

@@ -145,15 +145,18 @@ export interface BuildStartMessage {
 }
 
 /** End of build phase — phase-marker signal. Also marks the round-end
- *  barrier under the post-2026-04-29 round-numbering: WALL_BUILD-end is when
- *  state.round++ fires (in `startNextRound`). The wire-message name stays
- *  `buildEnd` because that's still phase-accurate (the WALL_BUILD phase has
- *  ended) and renaming would churn every serializer / handler / online-compat
- *  check; semantically it's also the round-end barrier.
+ *  barrier under the post-2026-04-29 round-numbering: WALL_BUILD-end is
+ *  where the score is finalized and `ROUND_END` fires. The wire-message
+ *  name stays `buildEnd` because that's still phase-accurate (the
+ *  WALL_BUILD phase has ended) and renaming would churn every serializer /
+ *  handler / online-compat check; semantically it's also the round-end
+ *  barrier.
  *
  *  Watcher runs `finalizeRound` (score + life penalties + ROUND_END emit)
- *  followed by `startNextRound` (state.round++ + ROUND_START emit) locally
- *  on receipt; no payload. */
+ *  locally on receipt; no payload. The `state.round++` + ROUND_START emit
+ *  happen later, in `resolveAfterLifeLost` (postDisplay of round-end),
+ *  after the life-lost dialog resolves and before the game-over check —
+ *  every peer dispatches the same way. */
 export interface BuildEndMessage {
   type: "buildEnd";
 }

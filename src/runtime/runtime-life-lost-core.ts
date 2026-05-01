@@ -1,6 +1,5 @@
-import { computeGameOutcome, type GameOverReason } from "../game/index.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import { type GameState } from "../shared/core/types.ts";
+import type { GameState } from "../shared/core/types.ts";
 import {
   type AutoResolveDeps,
   LIFE_LOST_FOCUS_ABANDON,
@@ -20,9 +19,7 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
 }
 
 interface ResolveAfterLifeLostDeps {
-  state: GameState;
   continuing: readonly ValidPlayerSlot[];
-  onGameOver: (winner: { id: ValidPlayerSlot }, reason: GameOverReason) => void;
   onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
   onContinue: () => void;
 }
@@ -146,23 +143,15 @@ export function applyLifeLostChoice(
   entry.choice = choice;
 }
 
-/** Route the post-life-lost outcome to the phase machine's handlers.
- *
- *  Thin wrapper over `computeGameOutcome` from `game/game-over.ts` — game
- *  rules (win-check + GAME_END emit) live in the game domain; this file
- *  owns the dispatch from pure outcome → runtime callbacks. */
-export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
-  const { state, continuing, onGameOver, onReselect, onContinue } = deps;
-  const outcome = computeGameOutcome(state, continuing);
-  switch (outcome.kind) {
-    case "game-over":
-      onGameOver(outcome.winner, outcome.reason);
-      return true;
-    case "reselect":
-      onReselect(outcome.continuing);
-      return true;
-    case "continue":
-      onContinue();
-      return true;
-  }
+/** Dispatch the continue / reselect branch after the life-lost dialog
+ *  resolves. Game-over is no longer decided here — the round-end mutate
+ *  has already peeked the outcome via `peekGameOverOutcome` and routed
+ *  to `onGameOver` directly (skipping this dialog entirely when the
+ *  game is going to end). So by the time we get here, we know the game
+ *  continues; the only question is whether any player has to reselect
+ *  their castle. */
+export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): void {
+  const { continuing, onReselect, onContinue } = deps;
+  if (continuing.length > 0) onReselect(continuing);
+  else onContinue();
 }

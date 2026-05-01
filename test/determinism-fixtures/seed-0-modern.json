@@ -6,7 +6,7 @@
     "rounds": 5
   },
   "timeoutMs": 480000,
-  "eventCount": 19838,
+  "eventCount": 19837,
   "events": [
     {
       "type": "tick",
@@ -122487,15 +122487,9 @@
       }
     },
     {
-      "type": "roundStart",
-      "payload": {
-        "round": 6
-      }
-    },
-    {
       "type": "scoreOverlayStart",
       "payload": {
-        "round": 6
+        "round": 5
       }
     },
     {
@@ -123215,13 +123209,13 @@
     {
       "type": "scoreOverlayEnd",
       "payload": {
-        "round": 6
+        "round": 5
       }
     },
     {
       "type": "gameEnd",
       "payload": {
-        "round": 6,
+        "round": 5,
         "winner": 0
       }
     },
