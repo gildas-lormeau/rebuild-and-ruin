@@ -62,9 +62,9 @@ checker enforces that the right hooks are present.
 
 | Lifecycle | Active for | Required hooks | Optional hooks | Examples |
 |-----------|------------|----------------|----------------|----------|
-| `"instant"` | apply at battle-start, no own state afterwards | `apply` | `skipsRecheck`, `fireRngDraws` | wildfire, dry_lightning, crumbling_walls, rubble_clearing, grunt_surge, dust_storm, fog_of_war |
+| `"instant"` | apply at battle-start, no own state afterwards | `apply` | `skipsRecheck` | wildfire, dry_lightning, crumbling_walls, rubble_clearing, grunt_surge, dust_storm, fog_of_war |
 | `"permanent"` | forever (or until zone reset) | `apply`, `restore` | `zoneReset`, `skipsRecheck` | sinkhole |
-| `"round-scoped"` | this round's BATTLE → next CANNON_PLACE-done | `apply`, `clear` | `restore`, `zoneReset`, `skipsRecheck`, `fireRngDraws` | frozen_river, high_tide, low_water, frostbite |
+| `"round-scoped"` | this round's BATTLE → next CANNON_PLACE-done | `apply`, `clear` | `restore`, `zoneReset`, `skipsRecheck` | frozen_river, high_tide, low_water, frostbite |
 
 Pick the lifecycle by asking: does my effect leave any state behind that
 needs to be reverted? If no → `instant`. If state survives forever → `permanent`. If state should clear at next round's CANNON_PLACE-done →
@@ -134,52 +134,85 @@ on instant) — deserializes checkpoint data and re-applies tile mutations
 on a map regenerated from seed. Each modifier reads only its own field
 from `ModifierTileData`.
 
-**`fireRngDraws`** — declares how many `state.rng.next()` calls your
-modifier performs **per cannon fire** while active. Default `0`. Only set
-this if your modifier's host-side fire-time function (e.g. trajectory
-jitter, damage variance) draws `state.rng` inside `launchCannonball` — see
-the "RNG-mirror contract" subsection below. Currently declared by:
-`dust_storm` (1 draw — the jitter angle).
+**`fireRngDraws`** — escape hatch for declaring per-fire `state.rng`
+consumption. **Don't set this on new modifiers** — see the "Per-fire
+RNG draws" section below for why, and use the precompute-at-battle-start
+pattern instead. The field exists for hypothetical future modifiers
+whose per-fire draws genuinely can't be precomputed (state-dependent
+picks); none today.
 
-### RNG-mirror contract (modifiers that affect cannon fires)
+### Per-fire RNG draws (modifiers that affect cannon fires)
 
-If your modifier consumes `state.rng` **per cannon fire** (not per battle
-start, which is symmetric across peers via `apply`), you cross into a
-parity-sensitive corner. Read this before adding such an effect.
+Most modifiers draw `state.rng` only inside `apply` (battle-start),
+which is symmetric across peers because every peer runs `apply`
+identically at the same logical sim tick. **Per-fire** RNG draws
+(trajectory jitter, damage variance, etc.) are different — the lockstep
+cannon-fire schedule (commit `e4102cc9`) opens an 8-tick SAFETY window
+between an originator's fire-time function and the receiver's apply,
+and any `state.rng.next()` inside that window drifts cross-peer. So
+peer-symmetric per-fire effects need a specific pattern.
 
-The host's local fire path runs `launchCannonball`, which may call into
-your modifier's bespoke fire-time function (e.g. `applyDustStormJitter`)
-that consumes `state.rng`. The wire-applied path on a non-host peer
-(`applyCannonFired`) reuses the host's pre-computed impact values from the
-wire payload — it doesn't recompute trajectories. But it MUST consume the
-same number of `state.rng` draws to keep the shared RNG in lockstep across
-peers, otherwise `state.rng` drifts by one step per fire and the
-parity test (`test/network-vs-local.test.ts`) goes red.
+**Preferred pattern: precompute at battle-start.** Pre-draw a buffer
+of N values from `state.rng` inside `prepareBattleState` (right after
+`rollModifier`), store on `ModernState`, and index by
+`state.shotsFired` at fire time. Both peers populate from the same rng
+prefix at the same logical sim tick → identical buffers → no per-fire
+rng draws → SAFETY window stays rng-quiet. Same shape as
+`precomputedUpgradePicks` (commit `9e942a65`).
 
-The mechanism is registry-driven:
+Concretely (see `dust-storm.ts` for the canonical example):
 
-1. Set `fireRngDraws: N` on your `ModifierImpl` (where N is the exact
-   number of `state.rng.next()` calls your fire-time function performs).
-2. The host's `launchCannonball` calls into your fire-time function the
-   normal way (uses the drawn values to compute trajectory).
-3. The wire-applied `applyCannonFired` automatically calls
-   `consumeFireRngForActiveModifier(state)` — defined in
-   `modifier-system.ts` — which reads `fireRngDraws` from the registry
-   and consumes that many draws. The values are discarded; the wire
-   payload already has the post-effect physics.
+1. Add a `readonly number[]` field to `ModernState` (e.g.
+   `precomputedFooValues`). Empty array when your modifier isn't
+   active this round.
+2. Export a precompute helper from your modifier file:
+   ```ts
+   export function precomputeFooValues(state: GameState): void {
+     if (state.modern?.activeModifier !== MODIFIER_ID.FOO) {
+       state.modern!.precomputedFooValues = [];
+       return;
+     }
+     const buf = new Array<number>(BUFFER_SIZE);
+     for (let i = 0; i < BUFFER_SIZE; i++) buf[i] = state.rng.next();
+     state.modern!.precomputedFooValues = buf;
+   }
+   ```
+   Pick `BUFFER_SIZE` generously (1024 covers the worst-case
+   fires-per-battle by ~3×) and modulo at lookup time so an unexpected
+   overflow stays deterministic.
+3. Call your helper from `prepareBattleState` immediately after the
+   `rollModifier` block in `phase-setup.ts`. It runs on every peer at
+   the same simTick, so both peers' buffers come out identical.
+4. At fire time, look up by `state.shotsFired`:
+   ```ts
+   const value = buf[state.shotsFired % buf.length];
+   ```
+   `state.shotsFired` is bumped by both `applyCannonFiredOriginator`
+   and `applyCannonFired` at the lockstep apply tick, so both peers
+   read the same index for the same logical fire.
+5. Serialize the buffer in `online-serialize.ts` (alongside the existing
+   `precomputedUpgradePicks` block) — late-joiners and host-migration
+   receivers restore post-precompute `state.rng` and can't reroll the
+   buffer without drifting.
+6. The `lint:checkpoint-fields` lint enforces step 5.
 
-**Contract**: the actual RNG-draw count of your fire-time function MUST
-match `fireRngDraws`. If your code draws conditionally (e.g. dust storm
-skips the draw when `dist === 0`), either restructure to always draw
-exactly `fireRngDraws` times or document the edge case as unreachable in
-production. For dust storm, `dist === 0` would mean a cannon firing at
-its own position — impossible in normal play.
+**Fallback (`fireRngDraws`) is currently a footgun.** The
+`fireRngDraws` + `consumeFireRngForActiveModifier` mirror (commit
+`56774a50`) still exists in `modifier-types.ts` and
+`modifier-system.ts`, but under the lockstep cannon-fire schedule the
+originator draws at simTick=N (inside `prepareCannonFireForLockstep`)
+while the receiver mirrors at simTick=N+SAFETY (inside
+`applyCannonFired`). For 8 ticks per fire the peers' rng states
+diverge; any other rng-drawing battle code (e.g. `gruntAttackTowers`'s
+`state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)`) consumes off the divergent
+streams and drifts game state. Until/unless a future state-dependent
+modifier needs apply-time draws on both peers (which would also
+require deferring the originator's draw from schedule-time to
+apply-time — currently not wired), use precompute.
 
-**Most modifiers don't need this.** RNG draws inside `apply` (battle
-setup) are symmetric across peers because every peer runs `apply`
-identically — no wire involved. Only fire-time / impact-time / per-frame
-draws inside the host's local path that the wire-applied path bypasses
-need the mirror.
+**Most modifiers don't need either pattern.** RNG draws inside `apply`
+are symmetric across peers because every peer runs `apply` identically
+at the same logical sim tick — no wire involved.
 
 ### Pool entry fields
 

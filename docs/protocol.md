@@ -16,8 +16,10 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 - **Bare-marker phase checkpoints**: `buildStart`, `cannonStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (`enterBuildPhase`, source-prefix + `enterCannonPhase`, `finalizeBuildPhase`). Watcher and host produce byte-identical state from synced RNG.
 - **One RNG resync per round**: `battleStart` carries only `rngState` — the host's pre-`enterBattlePhase` RNG. The watcher applies `setState(rngState)` then runs the same setup locally (modifier roll, balloon resolution, grunt wall-attack flags, captured cannons, combo tracker). Drift over a full round is caught here as a defense-in-depth round-trip check.
 - **Events during phases**: incremental updates (piece placed, cannon fired, wall destroyed) streamed in real-time.
+- **Lockstep apply scheduling**: every state-mutating originator-driven message (`opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected` confirmed, `opponentCannonPhaseDone`, `cannonFired`) carries `applyAt = senderSimTick + SAFETY`. Both originator and receiver enqueue the apply for that tick; the queue drains at the top of each sim tick keyed off the shared `state.simTick` counter, so mutations and their RNG-consuming cascades fire at the same logical tick across peers — closing within-phase divergences (recheckTerritory grunt-respawn drift, AI cannon-fire grunt-spawn drift, castle-wall clumsy-builder drift) that wire delay would otherwise open.
 - **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
 - **Local execution**: build and cannon phases run locally on each client for zero-latency input. The host's local controllers broadcast their actions as incremental events; the watcher derives everything else from local engine fns.
+- **Precompute over per-fire RNG**: AI decisions and modifier effects whose RNG consumption can't be aligned to a deterministic state-mutation point are precomputed at battle-start and indexed by a lockstep counter at use time. Current users: `precomputedUpgradePicks` (drawn at battle-done, indexed by playerId at upgrade lock-in tick) and `precomputedDustStormJitters` (drawn at `prepareBattleState`, indexed by `state.shotsFired` at fire time). Both serialized in `fullState` for late-joiners.
 
 ## Connection Flow
 
@@ -107,15 +109,17 @@ The `SerializedPlayer` / `SerializedHouse` / `SerializedGrunt` / `SerializedBonu
 
 Streamed during gameplay phases. Battle impact events (`wallDestroyed` through `towerKilled`) are **host-only** — only the host can send them.
 
+Messages marked **(lockstep)** carry an `applyAt` field — see [Lockstep Apply Scheduling](#lockstep-apply-scheduling) below. The originator stamps `applyAt = state.simTick + SAFETY` and enqueues a local apply for that tick; receivers enqueue for the same tick. Validation runs inside the apply closure (not at receive time) so it sees cross-peer-identical state.
+
 | Message | Phase | Description |
 |---------|-------|-------------|
-| `opponentPiecePlaced` | WALL_BUILD | AI/remote player placed a wall piece |
-| `opponentPhantom` | WALL_BUILD | Ghost piece position (cursor preview) |
-| `opponentCannonPlaced` | CANNON_PLACE | **Human** player placed a cannon (AI placements derived locally on every peer — never sent over the wire) |
-| `opponentCannonPhantom` | CANNON_PLACE | Ghost cannon position |
-| `opponentCannonPhaseDone` | CANNON_PLACE | **Human** player finished placing cannons. Lets every peer's exit predicate (`allCannonPlaceDone`) wait for remote-driven slots before transitioning — without this, peers whose `localControllers` excluded the slot would early-exit while wire placements are still in flight. AI controllers are deterministic across peers and don't broadcast (their done-ness is implicit in `state.cannonPlaceDone` flipped by their local tick). |
-| `opponentTowerSelected` | SELECTION | **Human** player browsing/confirming tower (AI selections derived locally on every peer from synced `strategy.rng` — never sent over the wire) |
-| `cannonFired` | BATTLE | A cannon fired a cannonball |
+| `opponentPiecePlaced` | WALL_BUILD | **(lockstep)** AI/remote player placed a wall piece. `applyPiecePlacement` + the RNG-consuming `recheckTerritory` cascade fire at the same simTick on every peer. |
+| `opponentPhantom` | WALL_BUILD | Ghost piece position (cursor preview) — cosmetic, no `applyAt` |
+| `opponentCannonPlaced` | CANNON_PLACE | **(lockstep)** **Human** player placed a cannon. Originator reserves the slot via `state.pendingCannonSlotCost` so its AI strategy doesn't double-spend during the SAFETY window. AI placements derived locally on every peer — never sent over the wire. |
+| `opponentCannonPhantom` | CANNON_PLACE | Ghost cannon position — cosmetic, no `applyAt` |
+| `opponentCannonPhaseDone` | CANNON_PLACE | **(lockstep)** **Human** player finished placing cannons. Schedules `state.cannonPlaceDone.add(playerId)` for `applyAt` so the phase-exit predicate (`allCannonPlaceDone`) flips at identical sim ticks across peers. Originator marks via transient `state.pendingCannonPlaceDone` so the detect loop doesn't re-broadcast in the SAFETY window. AI controllers don't broadcast (clone-everywhere, lockstep already). |
+| `opponentTowerSelected` | SELECTION | **(lockstep when confirmed)** **Human** player browsing/confirming tower. Highlight-only messages (`confirmed: false`) are immediate; confirmation messages (`confirmed: true`) carry `applyAt` so castle-wall RNG consumption (`prepareCastleWallsForPlayer` — clumsy builders + ring ordering) fires at the same simTick on every peer. AI selections derived locally on every peer from synced `strategy.rng` — never sent over the wire. |
+| `cannonFired` | BATTLE | **(lockstep)** A cannon fired a cannonball. The ball-push, `state.shotsFired++`, and bus emit fire at `applyAt`. Originator tracks pending fires in `state.pendingCannonFires` so its AI doesn't double-fire the same cannon during the SAFETY window. |
 | `wallDestroyed` | BATTLE | A wall tile was destroyed (host-only) |
 | `cannonDamaged` | BATTLE | A cannon took damage (host-only) |
 | `gruntKilled` | BATTLE | A grunt was killed (host-only) |
@@ -134,6 +138,18 @@ The battle impact messages are grouped into type aliases in `src/shared/core/bat
 
 - **`ImpactEvent`** = `wallDestroyed` | `wallAbsorbed` | `wallShielded` | `cannonDamaged` | `houseDestroyed` | `gruntKilled` | `gruntChipped` | `gruntSpawned` | `pitCreated` | `iceThawed` — host-only effects from cannonball impacts and secondary consequences.
 - **`BattleEvent`** = `cannonFired` | `towerKilled` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.
+
+## Lockstep Apply Scheduling
+
+Every state-mutating wire message (the originator-driven ones — `cannonFired`, `opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected`, `opponentCannonPhaseDone`) carries an **`applyAt: number`** field stamping the sim tick at which both originator and receiver mutate state. The originator computes `applyAt = state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS` (8) and enqueues a local apply for that tick; the wire carries the same `applyAt`; the receiver enqueues for the same tick. The shared `state.simTick` counter advances once per fixed sim tick on every peer, and the action queue drains at the top of each tick — so the apply closure fires identically across peers.
+
+Why: the receiver picks up the message ~wireDelay ticks late. Without `applyAt`, the originator would mutate at simTick=N while the receiver mutates at simTick=N+wireDelay — opening a window where peers' `state.rng`, `cannonPlaceDone` set, etc. diverge. Anything that consumes those mid-window (per-tick rng draws, phase-exit predicates) drifts state. With `applyAt`, both peers apply at the same logical tick → SAFETY window stays state-quiet across peers.
+
+The `lint:applyat` script (`scripts/lint-applyat.ts`) statically asserts that every `applyAt` reference inside `online-server-events.ts` originates from `msg.applyAt` (object-literal field, variable-decl initializer, or destructure from `msg`) — locally-stamped values on the receiver path would defeat the lockstep guarantee.
+
+**Per-fire RNG draws (e.g. dust-storm jitter)** also need to stay rng-quiet across the SAFETY window. The pattern: precompute a buffer at `prepareBattleState` (right after `rollModifier`) on every peer, store on `ModernState` (e.g. `precomputedDustStormJitters: readonly number[]`), and index by a lockstep counter (`state.shotsFired`, bumped at apply on every peer) at fire time. Both peers populate from the same `state.rng` prefix at the same simTick → identical buffers → no per-fire rng draws → no SAFETY-window drift. See `docs/adding-modifiers-and-upgrades.md` § "Per-fire RNG draws" for the full pattern.
+
+The same precompute idea covers any AI decision drawn from `state.rng` whose lock-in tick differs across peers — e.g. `precomputedUpgradePicks` (drawn at battle-done, consumed when the upgrade dialog locks in).
 
 ## Game Phases
 
@@ -157,7 +173,7 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 | Message | Sender | Description |
 |---------|--------|-------------|
 | `hostLeft` | Server → All | `newHostPlayerId`, `disconnectedPlayerId`. `null` if no human available (watcher fallback). |
-| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for peer reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `cannonPlaceDone[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` so additions can't silently drift. |
+| `fullState` | New Host → All | Comprehensive snapshot sent after promotion for peer reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `simTick`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `activeModifierChangedTiles[]`, `lastModifierId`, `pendingUpgradeOffers?`, `precomputedUpgradePicks?`, `precomputedDustStormJitters?`, `masterBuilderLockout?`, `masterBuilderOwners?`, `frozenTiles`, `highTideTiles?`, `sinkholeTiles?`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `cannonPlaceDone[]`, `salvageSlots?`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `cannonballs[]`, `balloonFlights?`. The full shape lives in `FullStateMessage` in `src/protocol/protocol.ts` — the lint script `scripts/lint-checkpoint-fields.ts` enforces that every `GameState`/`ModernState` field is referenced in `online-serialize.ts` (or carries a documented exclusion reason for per-peer transient fields like `pendingCannonFires` / `pendingCannonSlotCost` / `pendingCannonPlaceDone`) so additions can't silently drift. |
 
 ## Anti-Cheat (Server-Side)
 
