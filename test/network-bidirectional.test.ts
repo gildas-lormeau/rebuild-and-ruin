@@ -118,9 +118,32 @@ for (const trial of SWEEP) {
         assistedSlotsWatcher: [1 as ValidPlayerSlot],
         wireDelayFrames: WIRE_DELAY_FRAMES,
       });
-      await runBidirectionalToEnd(pair.host, pair.watcher, pair.pump);
+      const dumpEnv = Deno.env.get("BIDIR_DUMP");
+      const dumpMode: SnapshotMode | null =
+        dumpEnv === "1" ? "phase" : dumpEnv === "2" ? "tick" : null;
+      const result = dumpMode
+        ? await runWithSnapshots(
+          pair.host,
+          pair.watcher,
+          pair.pump,
+          dumpMode,
+        )
+        : (await runBidirectionalToEnd(pair.host, pair.watcher, pair.pump),
+          null);
       assertWireFiredFor(pair.host, [0], "host", trial);
       assertWireFiredFor(pair.watcher, [1], "watcher", trial);
+      if (dumpMode && result) {
+        const tag = `2h1ai-d${WIRE_DELAY_FRAMES}-s${trial.seed}-${trial.mode}`;
+        Deno.writeTextFileSync(
+          `/tmp/bidir-host-${tag}.log`,
+          result.hostSnaps.join("\n") + "\n",
+        );
+        Deno.writeTextFileSync(
+          `/tmp/bidir-watcher-${tag}.log`,
+          result.watcherSnaps.join("\n") + "\n",
+        );
+        console.log(`dumped /tmp/bidir-{host,watcher}-${tag}.log`);
+      }
       assertPlayersConverge(
         snapshotPlayers(pair.watcher),
         snapshotPlayers(pair.host),
@@ -248,8 +271,19 @@ async function runWithSnapshots(
       return { hostSnaps, watcherSnaps };
     }
   }
+  // Write what we have before throwing so the agent can inspect the
+  // pre-hang state.
+  Deno.writeTextFileSync(
+    `/tmp/bidir-host-hang.log`,
+    hostSnaps.join("\n") + "\n",
+  );
+  Deno.writeTextFileSync(
+    `/tmp/bidir-watcher-hang.log`,
+    watcherSnaps.join("\n") + "\n",
+  );
   throw new Error(
-    `bidirectional run did not reach STOPPED within ${maxSteps} steps`,
+    `bidirectional run did not reach STOPPED within ${maxSteps} steps ` +
+      `(dumped /tmp/bidir-{host,watcher}-hang.log)`,
   );
 }
 
@@ -273,7 +307,7 @@ function snapshotState(sc: Scenario): string {
     `p${p.id}{l${p.lives}s${p.score}w${p.walls.size}c${p.cannons.length}t${p.ownedTowers.length}}`
   ).join(" ");
   const rng = (s.rng.getState() >>> 0).toString(16).padStart(8, "0");
-  return `${s.phase} m${sc.mode()} r${s.round} rng=${rng} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
+  return `${s.phase} m${sc.mode()} r${s.round} st=${s.simTick} rng=${rng} g=${s.grunts.length} b=${s.cannonballs.length} pits=${s.burningPits.length} ${players}`;
 }
 
 /** Verify a peer's local assisted slots actually fired during the run.

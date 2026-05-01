@@ -59,6 +59,8 @@ const GAME_STATE_EXCLUSIONS: Record<string, string> = {
     "per-peer transient set tracking scheduled-but-not-yet-drained fires for `canFireOwnCannon`; differs across peers during the wire-delay window (only the local peer's own scheduled fires are observed) — never synced",
   pendingCannonSlotCost:
     "per-peer transient counter tracking scheduled-but-not-yet-drained cannon-place slot cost for `isCannonPlacementLegal`; same shape and rationale as `pendingCannonFires` — never synced",
+  pendingCannonPlaceDone:
+    "per-peer transient marker tracking scheduled-but-not-yet-drained `cannonPlaceDone.add` so the originator's detect loop doesn't re-broadcast `OPPONENT_CANNON_PHASE_DONE` in the SAFETY window; same shape and rationale as `pendingCannonFires` — never synced",
 };
 /** Modern-state fields that are intentionally not synced over the wire. */
 const MODERN_STATE_EXCLUSIONS: Record<string, string> = {

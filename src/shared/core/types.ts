@@ -147,6 +147,14 @@ export interface GameState {
    *  transient (same shape and rationale as `pendingCannonFires`). Cleared
    *  on rematch and at cannon-phase setup; not synced over the wire. */
   pendingCannonSlotCost: number[];
+  /** Per-slot pending-broadcast marker for the cannon-phase-done lockstep
+   *  schedule. Set when the originator detects done and schedules the
+   *  `cannonPlaceDone.add` for `applyAt`; cleared on apply. Read by the
+   *  detect loop in `tickCannonPhase` so the originator doesn't re-broadcast
+   *  in the SAFETY window between schedule and apply. Per-peer transient
+   *  (only the originator ever populates it; receivers never need it).
+   *  Cleared on rematch and at cannon-phase setup. */
+  pendingCannonPlaceDone: Set<ValidPlayerSlot>;
 }
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */

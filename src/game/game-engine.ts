@@ -254,6 +254,7 @@ function enterCannonPlacePhase(state: GameState): void {
   // detection + wire signal for remote-driven slots; consulted by the
   // phase-exit predicate to wait for every active slot before advancing.
   state.cannonPlaceDone.clear();
+  state.pendingCannonPlaceDone.clear();
 }
 
 function createGameState(
@@ -317,5 +318,6 @@ function createGameState(
     simTick: 0,
     pendingCannonFires: new Set(),
     pendingCannonSlotCost: players.map(() => 0),
+    pendingCannonPlaceDone: new Set(),
   };
 }

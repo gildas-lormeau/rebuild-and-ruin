@@ -277,7 +277,14 @@ function handleCannonPlaced(
 /** Mark a remote-driven slot as done placing cannons. The phase-exit
  *  predicate in `tickCannonPhase` waits for `state.cannonPlaceDone` to cover
  *  every non-eliminated slot, so without this signal the watcher would
- *  exit CANNON_PLACE before the host's final placements arrived. */
+ *  exit CANNON_PLACE before the host's final placements arrived.
+ *
+ *  Lockstep `applyAt`: the originator stamps `applyAt = senderSimTick +
+ *  SAFETY` and schedules its own `cannonPlaceDone.add` for that tick;
+ *  this receiver schedules the same add for the same `applyAt`, so the
+ *  phase-exit predicate flips at identical sim ticks across peers. The
+ *  mirror schedule for the originator side lives in `runtime-phase-ticks
+ *  .ts:tickCannonPhase`'s broadcast block. */
 function handleCannonPhaseDone(
   msg: CannonPhaseDoneMsg,
   state: GameState | undefined,
@@ -285,7 +292,14 @@ function handleCannonPhaseDone(
 ): HandleResult {
   if (!isActivePlayer(state, msg.playerId)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  state.cannonPlaceDone.add(msg.playerId);
+  const playerId = msg.playerId;
+  deps.schedule({
+    applyAt: msg.applyAt,
+    playerId,
+    apply: (drainState) => {
+      drainState.cannonPlaceDone.add(playerId);
+    },
+  });
   return APPLIED;
 }
 

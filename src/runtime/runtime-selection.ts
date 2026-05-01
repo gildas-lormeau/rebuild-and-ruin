@@ -520,12 +520,16 @@ export function createSelectionSystem(
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
       setMode(runtimeState, Mode.SELECTION);
-      // Host fan-out: SELECT_START tells watchers to enter the reselect
-      // phase. Self-gates via `hostAtFrameStart` since the wire is the
-      // host's responsibility — watchers see this no-op and don't echo.
-      if (deps.hostAtFrameStart()) {
-        deps.sendSelectStart(SELECT_TIMER);
-      }
+      // No SELECT_START broadcast: every peer routes through
+      // `lifeLostRoute.onReselect` locally (see `runtime-composition.ts`),
+      // so watcher has already entered reselect. A wire-driven
+      // `enterTowerSelection` here would re-run `enterSelectionPhase` on
+      // the watcher — by then the local route's `enterReselectPhase` has
+      // assigned a default `homeTower` to the reselecting slot, so the
+      // reselect-detection (`anyHasHome && queue.length > 0`) flips to
+      // false on the receiver and falls through to the initial-select
+      // path, populating `selection.states` with every player and
+      // double-scheduling reselect confirms across slots.
     } else {
       finishReselection();
     }

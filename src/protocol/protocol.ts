@@ -331,10 +331,20 @@ export interface OpponentTowerSelectedMessage {
  *  watcher uses this to know when slot-N has stopped placing so the phase
  *  exit predicate doesn't trigger before the host's final wire messages
  *  arrive. Broadcast only for `kind: "human"` controllers — AI controllers
- *  produce identical placements deterministically on every peer. */
+ *  produce identical placements deterministically on every peer.
+ *
+ *  Lockstep `applyAt`: both originator and receiver schedule the
+ *  `state.cannonPlaceDone.add(playerId)` for the same logical sim tick,
+ *  so the phase-exit predicate (`allCannonPlaceDone`) fires at the same
+ *  simTick on every peer. Without `applyAt` the originator marks the
+ *  slot done at simTick=N while the receiver marks it at simTick=N+
+ *  wireDelay, opening a window where one peer exits CANNON_PLACE while
+ *  the other is still in it — drifting subsequent RNG draws (modifier
+ *  roll, AI upgrade-pick, grunt spawn) by exactly that gap. */
 export interface OpponentCannonPhaseDoneMessage {
   type: "opponentCannonPhaseDone";
   playerId: ValidPlayerSlot;
+  applyAt: number;
 }
 
 /** Life-lost choice forwarded from a non-host client to the host. */

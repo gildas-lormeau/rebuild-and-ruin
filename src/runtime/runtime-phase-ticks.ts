@@ -14,6 +14,7 @@ import {
   shouldSkipBattle,
   tickGrunts,
 } from "../game/index.ts";
+import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
   BATTLE_MESSAGE,
   type ImpactEvent,
@@ -98,8 +99,14 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   sendOpponentPiecePlaced: (msg: PiecePlacedPayload) => void;
   sendOpponentPhantom: (msg: PiecePhantomPayload) => void;
   /** Broadcast "I'm done placing cannons" for a local human-kind slot.
-   *  No-op for local play; emits `OPPONENT_CANNON_PHASE_DONE` online. */
-  sendOpponentCannonPhaseDone: (playerId: ValidPlayerSlot) => void;
+   *  No-op for local play; emits `OPPONENT_CANNON_PHASE_DONE` online with
+   *  the lockstep `applyAt` already stamped so the originator's local
+   *  enqueue and the receiver's wire-receipt enqueue land on the same
+   *  logical sim tick. */
+  sendOpponentCannonPhaseDone: (
+    playerId: ValidPlayerSlot,
+    applyAt: number,
+  ) => void;
 
   /** Online coordination bag — see `OnlinePhaseTicks`. Undefined for local
    *  play; every field is independently optional within the bag itself. */
@@ -503,11 +510,34 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       const max = state.cannonLimits[ctrl.playerId] ?? 0;
       if (
         !state.cannonPlaceDone.has(ctrl.playerId) &&
+        !state.pendingCannonPlaceDone.has(ctrl.playerId) &&
         ctrl.isCannonPhaseDone(state, max)
       ) {
-        state.cannonPlaceDone.add(ctrl.playerId);
         if (isHuman(ctrl)) {
-          deps.sendOpponentCannonPhaseDone(ctrl.playerId);
+          // Lockstep: schedule the `cannonPlaceDone.add` for `applyAt` on
+          // both originator and receiver so the phase-exit predicate
+          // (`allCannonPlaceDone`) flips on the same simTick everywhere.
+          // Without this, the originator marks done at simTick=N while
+          // the receiver only sees it at simTick=N+wireDelay, letting one
+          // peer exit CANNON_PLACE first and drift state.rng cross-peer
+          // through the post-cannon-place transition (modifier roll, AI
+          // upgrade-pick precompute, grunt spawn).
+          const playerId = ctrl.playerId;
+          const applyAt = state.simTick + DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS;
+          state.pendingCannonPlaceDone.add(playerId);
+          runtimeState.actionSchedule.schedule({
+            applyAt,
+            playerId,
+            apply: (drainState) => {
+              drainState.pendingCannonPlaceDone.delete(playerId);
+              drainState.cannonPlaceDone.add(playerId);
+            },
+          });
+          deps.sendOpponentCannonPhaseDone(playerId, applyAt);
+        } else {
+          // AI: clone-everywhere → both peers detect identically; immediate
+          // add stays in lockstep without scheduling.
+          state.cannonPlaceDone.add(ctrl.playerId);
         }
       }
       if (!phantom) continue;
