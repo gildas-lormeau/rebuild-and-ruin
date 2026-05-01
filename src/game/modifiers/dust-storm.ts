@@ -35,14 +35,13 @@ export const dustStormImpl: ModifierImpl = {
  *
  *  Why precompute: drawing rng at fire time created a SAFETY-window
  *  asymmetry under the lockstep cannon-fire schedule — the originator
- *  drew at simTick=N (during `prepareCannonFireForLockstep`) while the
- *  receiver mirrored at simTick=N+SAFETY (via
- *  `consumeFireRngForActiveModifier`). During those 8 ticks the peers'
- *  rng states diverged, and other rng-drawing battle code
- *  (e.g. `gruntAttackTowers`'s wall-attack roll) consumed off the
- *  divergent streams, drifting state cross-peer. Precomputing closes
- *  that window — fires consume from a frozen buffer, no rng draws at
- *  apply time on either peer. */
+ *  drew at simTick=N (inside `prepareCannonFireForLockstep`) while the
+ *  receiver only drew at simTick=N+SAFETY (in the wire-replay path).
+ *  During those 8 ticks the peers' rng states diverged, and other
+ *  rng-drawing battle code (e.g. `gruntAttackTowers`'s wall-attack
+ *  roll) consumed off the divergent streams, drifting state cross-peer.
+ *  Precomputing closes that window — fires read from a frozen buffer,
+ *  no rng draws at apply time on either peer. */
 export function precomputeDustStormJitters(state: GameState): void {
   if (state.modern?.activeModifier !== MODIFIER_ID.DUST_STORM) {
     state.modern!.precomputedDustStormJitters = [];

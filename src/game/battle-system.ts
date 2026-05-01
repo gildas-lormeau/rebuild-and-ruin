@@ -77,10 +77,7 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
-import {
-  applyDustStormJitter,
-  consumeFireRngForActiveModifier,
-} from "./modifier-system.ts";
+import { applyDustStormJitter } from "./modifier-system.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,
@@ -413,13 +410,16 @@ export function fireNextReadyCannon(
 
 /** Originator path for the lockstep scheduled-actions queue.
  *
- * Validates a cannon-fire intent, computes the ballistic trajectory (which
- * mutates `cannon.facing` and consumes `state.rng` for active modifier
- * jitter), and returns the would-be-fired ball plus the next rotation
- * index — WITHOUT pushing the ball, bumping `state.shotsFired`, or
- * emitting the bus event. Caller schedules `applyCannonFiredOriginator`
+ * Validates a cannon-fire intent, computes the ballistic trajectory and
+ * mutates `cannon.facing`, returns the would-be-fired ball plus the next
+ * rotation index — WITHOUT pushing the ball, bumping `state.shotsFired`,
+ * or emitting the bus event. Caller schedules `applyCannonFiredOriginator`
  * for `applyAt = state.simTick + SAFETY` so the ball-push and shotsFired
  * bump fire at the same logical tick on every peer (originator + receivers).
+ *
+ * No `state.rng` draws — modifier-driven jitter (e.g. dust-storm) reads
+ * from a precomputed buffer indexed by `state.shotsFired`, drawn at
+ * `prepareBattleState`. See `precomputeDustStormJitters`.
  *
  * Returns null when no cannon is ready (caller treats as a no-op — no
  * enqueue, no broadcast).
@@ -476,9 +476,8 @@ export function prepareCannonFireForLockstep(
 /** Originator-side apply for the lockstep scheduled-actions queue.
  *
  * Pushes the ball + bumps `state.shotsFired` + emits `CANNON_FIRED` on the
- * local bus. Does NOT consume `state.rng` — the originator already drew
- * during `prepareCannonFireForLockstep`. Receivers use `applyCannonFired`
- * instead (which mirrors the RNG draw via `consumeFireRngForActiveModifier`).
+ * local bus. Receivers use `applyCannonFired` instead — different bus
+ * emit shape, but identical state mutations.
  *
  * Both peers schedule for the same `applyAt`, so cross-peer ball-push,
  * scoring, and bus-driven side effects (haptics, combo accrual) align.
@@ -567,16 +566,10 @@ export function applyCannonFired(
   msg: CannonFiredMessage,
 ): void {
   // Mirror host's fireCannon: bump shotsFired so spawnIdleFirstBattleGrunts
-  // (round-1 punishment trigger) and any other shotsFired-gated logic fire
-  // identically on host and watcher.
+  // (round-1 punishment trigger) and any other shotsFired-gated logic
+  // (e.g. `precomputedDustStormJitters` lookup) fire identically on host
+  // and watcher.
   state.shotsFired++;
-  // Mirror the active modifier's per-fire `state.rng` consumption from
-  // the host's local fire path. Reads `ModifierImpl.fireRngDraws` from
-  // `MODIFIER_REGISTRY` and consumes the same number of `rng.next()` calls
-  // — the wire payload already carries the host's post-effect physics, so
-  // the values are discarded. No-op for modifiers that don't affect fires
-  // (default `fireRngDraws: 0`) or when no modifier is active.
-  consumeFireRngForActiveModifier(state);
   // Watcher picks its own whistle variant locally — SFX is decoupled
   // from `state.rng` (uses Math.random) so the watcher still emits the
   // descending-whistle event without needing the wire to carry it.

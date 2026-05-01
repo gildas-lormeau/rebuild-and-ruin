@@ -134,31 +134,23 @@ on instant) — deserializes checkpoint data and re-applies tile mutations
 on a map regenerated from seed. Each modifier reads only its own field
 from `ModifierTileData`.
 
-**`fireRngDraws`** — escape hatch for declaring per-fire `state.rng`
-consumption. **Don't set this on new modifiers** — see the "Per-fire
-RNG draws" section below for why, and use the precompute-at-battle-start
-pattern instead. The field exists for hypothetical future modifiers
-whose per-fire draws genuinely can't be precomputed (state-dependent
-picks); none today.
-
 ### Per-fire RNG draws (modifiers that affect cannon fires)
 
 Most modifiers draw `state.rng` only inside `apply` (battle-start),
 which is symmetric across peers because every peer runs `apply`
 identically at the same logical sim tick. **Per-fire** RNG draws
 (trajectory jitter, damage variance, etc.) are different — the lockstep
-cannon-fire schedule (commit `e4102cc9`) opens an 8-tick SAFETY window
-between an originator's fire-time function and the receiver's apply,
-and any `state.rng.next()` inside that window drifts cross-peer. So
-peer-symmetric per-fire effects need a specific pattern.
+cannon-fire schedule opens an 8-tick SAFETY window between an
+originator's fire-time function and the receiver's apply, and any
+`state.rng.next()` inside that window drifts cross-peer. Peer-symmetric
+per-fire effects need precompute-at-battle-start.
 
-**Preferred pattern: precompute at battle-start.** Pre-draw a buffer
-of N values from `state.rng` inside `prepareBattleState` (right after
-`rollModifier`), store on `ModernState`, and index by
-`state.shotsFired` at fire time. Both peers populate from the same rng
-prefix at the same logical sim tick → identical buffers → no per-fire
-rng draws → SAFETY window stays rng-quiet. Same shape as
-`precomputedUpgradePicks` (commit `9e942a65`).
+**Pattern: precompute at battle-start.** Pre-draw a buffer of N values
+from `state.rng` inside `prepareBattleState` (right after `rollModifier`),
+store on `ModernState`, and index by `state.shotsFired` at fire time.
+Both peers populate from the same rng prefix at the same logical sim
+tick → identical buffers → no per-fire rng draws → SAFETY window stays
+rng-quiet. Same shape as `precomputedUpgradePicks` (commit `9e942a65`).
 
 Concretely (see `dust-storm.ts` for the canonical example):
 
@@ -196,19 +188,12 @@ Concretely (see `dust-storm.ts` for the canonical example):
    buffer without drifting.
 6. The `lint:checkpoint-fields` lint enforces step 5.
 
-**Fallback (`fireRngDraws`) is currently a footgun.** The
-`fireRngDraws` + `consumeFireRngForActiveModifier` mirror (commit
-`56774a50`) still exists in `modifier-types.ts` and
-`modifier-system.ts`, but under the lockstep cannon-fire schedule the
-originator draws at simTick=N (inside `prepareCannonFireForLockstep`)
-while the receiver mirrors at simTick=N+SAFETY (inside
-`applyCannonFired`). For 8 ticks per fire the peers' rng states
-diverge; any other rng-drawing battle code (e.g. `gruntAttackTowers`'s
-`state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)`) consumes off the divergent
-streams and drifts game state. Until/unless a future state-dependent
-modifier needs apply-time draws on both peers (which would also
-require deferring the originator's draw from schedule-time to
-apply-time — currently not wired), use precompute.
+**State-dependent per-fire draws** (rng draws whose value depends on
+state-at-fire-time, e.g. "pick a random target among currently-visible
+ones") don't fit this pattern — the input set isn't knowable at
+battle-start. None today; the lockstep cannon-fire schedule would need
+to defer the originator's draw from schedule-time to apply-time on both
+peers if such a modifier is added. Cross that bridge when it arrives.
 
 **Most modifiers don't need either pattern.** RNG draws inside `apply`
 are symmetric across peers because every peer runs `apply` identically
