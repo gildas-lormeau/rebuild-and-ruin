@@ -66,10 +66,11 @@ export function ensureBucketCapacity<Key, Bucket extends CapacityBucket>(
   ) {
     return existing;
   }
-  const next = Math.max(
-    initialCapacity,
-    existing ? nextPowerOfTwo(required) : initialCapacity,
-  );
+  // Capacity must always satisfy `required` — power-of-two for clean
+  // grow steps, with `initialCapacity` as the floor so very small first
+  // allocations don't churn through 1→2→4→8 grows. New and grow paths
+  // share this so the first allocation can't end up under-sized.
+  const next = Math.max(initialCapacity, nextPowerOfTwo(required));
   if (existing) disposeSubParts(existing.subParts);
   const built = build(next);
   if (!built) return undefined;
