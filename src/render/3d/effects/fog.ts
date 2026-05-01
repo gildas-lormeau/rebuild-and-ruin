@@ -41,6 +41,10 @@ interface FogTile {
   row: number;
   col: number;
   seed: number;
+  /** Milliseconds after `revealStartMs` when this tile begins scaling in.
+   *  Computed from the tile's distance to the nearest reveal seed point so
+   *  the fog visibly rolls outward from a few cluster centers. */
+  revealDelayMs: number;
 }
 
 // Fog visual — mirror render-effects.ts constants.
@@ -57,6 +61,15 @@ const FOG_DRIFT_HZ = 0.6;
 const FOG_WAVE_MIN = 0.6;
 const FOG_WAVE_SPAN = 0.4;
 const INITIAL_CAPACITY = 64;
+// Reveal animation — clusters appear at scattered seed points and grow
+// outward, while the base material's global opacity ramps from 0 to full.
+// After the window completes, the base mesh locks to a static path (no
+// per-frame matrix writes) for the rest of the battle.
+const REVEAL_GLOBAL_DURATION_MS = 1400;
+const REVEAL_TILE_FADE_IN_MS = 380;
+const REVEAL_SEED_POINT_COUNT = 5;
+/** ms of staggered delay added per tile of distance from the nearest seed. */
+const REVEAL_DELAY_PER_UNIT_MS = 38;
 
 export function createFogManager(scene: THREE.Scene): FogManager {
   const root = new THREE.Group();
@@ -93,6 +106,10 @@ export function createFogManager(scene: THREE.Scene): FogManager {
   // Reused across frames so `dilateInto` doesn't allocate. `clear()` then refill.
   const keys = new Set<number>();
   let lastFingerprint = -1;
+  // Reveal state — null when fog is inactive or already locked to static.
+  let revealStartMs: number | undefined;
+  let revealLocked = true;
+  let lastFogActive = false;
 
   function ensureCapacity(required: number): void {
     if (baseMesh && bandMesh && required <= capacity) return;
@@ -136,12 +153,32 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     tiles.length = 0;
     for (const key of keys) {
       const { r, c } = unpackTile(key);
-      tiles.push({ row: r, col: c, seed: tileSeed(r, c) });
+      tiles.push({ row: r, col: c, seed: tileSeed(r, c), revealDelayMs: 0 });
+    }
+    // Per-tile reveal delay: distance to nearest seed point × per-unit ms.
+    // When the reveal is already locked (post-window or fog inactive), every
+    // tile is treated as instant so any rebuild-driven additions pop straight
+    // to full size.
+    if (revealLocked) {
+      for (const tile of tiles) tile.revealDelayMs = 0;
+    } else {
+      const seeds = pickRevealSeedPoints(tiles, REVEAL_SEED_POINT_COUNT);
+      for (const tile of tiles) {
+        let minDist = Infinity;
+        for (const seed of seeds) {
+          const dr = tile.row - seed.row;
+          const dc = tile.col - seed.col;
+          const dist = Math.hypot(dr, dc);
+          if (dist < minDist) minDist = dist;
+        }
+        tile.revealDelayMs = minDist * REVEAL_DELAY_PER_UNIT_MS;
+      }
     }
     ensureCapacity(tiles.length);
     if (!baseMesh) return;
-    // Base instance matrices are static — write once here, band fills
-    // positions per-frame in the animation loop.
+    // Write static (scale=1) matrices. The reveal animation in `update`
+    // overrides these per-frame while `revealStartMs !== undefined`; once the
+    // window completes, these stay in place for the rest of the battle.
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i]!;
       scratchMatrix.makeTranslation(
@@ -169,7 +206,21 @@ export function createFogManager(scene: THREE.Scene): FogManager {
         if (baseMesh) baseMesh.count = 0;
         if (bandMesh) bandMesh.count = 0;
       }
+      // Fog deactivated — arm the next activation to play the reveal again.
+      if (lastFogActive) {
+        revealStartMs = undefined;
+        revealLocked = true;
+        baseMaterial.opacity = FOG_BASE_ALPHA;
+        lastFogActive = false;
+      }
       return;
+    }
+
+    // Fog just turned on — start the reveal window.
+    if (!lastFogActive) {
+      revealStartMs = now;
+      revealLocked = false;
+      lastFogActive = true;
     }
 
     keys.clear();
@@ -186,10 +237,74 @@ export function createFogManager(scene: THREE.Scene): FogManager {
       rebuild();
     }
 
-    if (tiles.length === 0 || !bandMesh) return;
+    if (tiles.length === 0 || !bandMesh || !baseMesh) return;
+
+    // Reveal phase: scale each tile from 0 → 1 (with a small overshoot)
+    // staggered by `revealDelayMs`, while ramping the global base opacity
+    // from 0 → FOG_BASE_ALPHA over REVEAL_GLOBAL_DURATION_MS.
+    const revealElapsed =
+      revealStartMs !== undefined ? now - revealStartMs : Infinity;
+    const revealing = revealStartMs !== undefined;
+    if (revealing) {
+      const maxDelay = tiles.reduce(
+        (max, tile) => Math.max(max, tile.revealDelayMs),
+        0,
+      );
+      const revealDoneAt = Math.max(
+        REVEAL_GLOBAL_DURATION_MS,
+        maxDelay + REVEAL_TILE_FADE_IN_MS,
+      );
+      if (revealElapsed >= revealDoneAt) {
+        // Lock back to static: re-write base matrices at scale=1 once.
+        for (let i = 0; i < tiles.length; i++) {
+          const tile = tiles[i]!;
+          scratchMatrix.makeTranslation(
+            tile.col * TILE_SIZE + TILE_SIZE / 2,
+            ELEVATION_STACK.FOG,
+            tile.row * TILE_SIZE + TILE_SIZE / 2,
+          );
+          baseMesh.setMatrixAt(i, scratchMatrix);
+        }
+        baseMesh.instanceMatrix.needsUpdate = true;
+        baseMaterial.opacity = FOG_BASE_ALPHA;
+        revealStartMs = undefined;
+        revealLocked = true;
+      } else {
+        baseMaterial.opacity =
+          FOG_BASE_ALPHA *
+          Math.min(1, revealElapsed / REVEAL_GLOBAL_DURATION_MS);
+        for (let i = 0; i < tiles.length; i++) {
+          const tile = tiles[i]!;
+          const tileElapsed = revealElapsed - tile.revealDelayMs;
+          const scale =
+            tileElapsed <= 0
+              ? 0
+              : easeOutBack(Math.min(1, tileElapsed / REVEAL_TILE_FADE_IN_MS));
+          scratchMatrix.makeScale(scale, scale, scale);
+          scratchMatrix.setPosition(
+            tile.col * TILE_SIZE + TILE_SIZE / 2,
+            ELEVATION_STACK.FOG,
+            tile.row * TILE_SIZE + TILE_SIZE / 2,
+          );
+          baseMesh.setMatrixAt(i, scratchMatrix);
+        }
+        baseMesh.instanceMatrix.needsUpdate = true;
+      }
+    }
+
     const time = now / 1000;
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i]!;
+      // During reveal, the band shares the same per-tile scale as the base
+      // so it doesn't pop in ahead of (or out from under) its tile.
+      let scale = 1;
+      if (revealing && revealStartMs !== undefined) {
+        const tileElapsed = revealElapsed - tile.revealDelayMs;
+        scale =
+          tileElapsed <= 0
+            ? 0
+            : easeOutBack(Math.min(1, tileElapsed / REVEAL_TILE_FADE_IN_MS));
+      }
       const wave = Math.sin(time * FOG_DRIFT_HZ + tile.seed);
       const brightness = FOG_WAVE_MIN + Math.max(0, wave) * FOG_WAVE_SPAN;
       scratchColor.setHex(FOG_HIGHLIGHT_COLOR).multiplyScalar(brightness);
@@ -198,7 +313,8 @@ export function createFogManager(scene: THREE.Scene): FogManager {
       // that vertical offset onto Z.
       const bandOffset =
         (Math.sin(time + tile.seed) + 1) * 0.5 * (TILE_SIZE - 3);
-      scratchMatrix.makeTranslation(
+      scratchMatrix.makeScale(scale, scale, scale);
+      scratchMatrix.setPosition(
         tile.col * TILE_SIZE + TILE_SIZE / 2,
         ELEVATION_STACK.FOG + Z_FIGHT_MARGIN,
         tile.row * TILE_SIZE + 1 + bandOffset,
@@ -260,4 +376,57 @@ function nextPowerOfTwo(value: number): number {
   let power = 1;
   while (power < value) power <<= 1;
   return power;
+}
+
+/** Pick `n` reveal seed points spread across the fog footprint's bounding
+ *  box. For each fractional position along the diagonal, find the fog tile
+ *  closest to it. Deterministic from `tiles` order, which is itself derived
+ *  from the synced wall/interior sets — host and watcher pick the same
+ *  seeds, even though cosmetic divergence here would be tolerated. */
+function pickRevealSeedPoints(
+  tiles: readonly FogTile[],
+  count: number,
+): readonly { row: number; col: number }[] {
+  if (tiles.length === 0) return [];
+  if (tiles.length <= count)
+    return tiles.map((tile) => ({ row: tile.row, col: tile.col }));
+  let minRow = Infinity;
+  let maxRow = -Infinity;
+  let minCol = Infinity;
+  let maxCol = -Infinity;
+  for (const tile of tiles) {
+    if (tile.row < minRow) minRow = tile.row;
+    if (tile.row > maxRow) maxRow = tile.row;
+    if (tile.col < minCol) minCol = tile.col;
+    if (tile.col > maxCol) maxCol = tile.col;
+  }
+  const seeds: { row: number; col: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const fraction = (i + 0.5) / count;
+    // Anti-correlate row/col along the diagonal so seeds spread, not stack.
+    const targetRow = minRow + (maxRow - minRow) * fraction;
+    const targetCol = minCol + (maxCol - minCol) * (1 - fraction);
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let j = 0; j < tiles.length; j++) {
+      const dr = tiles[j]!.row - targetRow;
+      const dc = tiles[j]!.col - targetCol;
+      const dist = dr * dr + dc * dc;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = j;
+      }
+    }
+    seeds.push({ row: tiles[bestIdx]!.row, col: tiles[bestIdx]!.col });
+  }
+  return seeds;
+}
+
+/** easeOutBack with a small overshoot — gives a "puff" feel where each
+ *  tile briefly bulges past full size before settling. */
+function easeOutBack(t: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  const x = t - 1;
+  return 1 + c3 * x * x * x + c1 * x * x;
 }
