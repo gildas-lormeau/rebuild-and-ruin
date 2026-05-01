@@ -98,6 +98,7 @@ import {
   isCombosEnabled,
 } from "./combo-system.ts";
 import {
+  recomputeGruntTargetedWalls,
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
   spawnInterbattleGrunts,
@@ -227,6 +228,9 @@ export function finalizeBattle(state: GameState): void {
   recheckTerritory(state);
   // End of the protected battle — clear the fresh-castle grace period flag.
   for (const player of state.players) player.freshCastle = false;
+  // Reset per-battle grunt decisions — fresh `targetedWall` is recomputed
+  // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD).
+  for (const grunt of state.grunts) grunt.targetedWall = undefined;
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
   // Must happen here (not in prepareBattleState) so watchers see the same
@@ -415,9 +419,10 @@ export function prepareCastleWallsForPlayer(
  *  closed at this point. The counter advances later, in `resolveAfterLifeLost`,
  *  after the life-lost dialog resolves and before the game-over check.
  *
- *  Visual-only sweeps (isolated-wall removal, grunts in eliminated zones)
- *  are deferred to `finalizeRoundVisuals` so they reveal under the
- *  cannons banner rather than popping during the score overlay. */
+ *  Wall + grunt cleanup (isolated-wall removal, grunts in eliminated zones,
+ *  recompute targetedWall) is deferred to `finalizeRoundCleanup` so the
+ *  sweeps reveal under the cannons banner rather than popping during the
+ *  score overlay. */
 export function finalizeRound(state: GameState): {
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
@@ -428,10 +433,10 @@ export function finalizeRound(state: GameState): {
   return result;
 }
 
-/** Phase B — visual-only mutations deferred from `finalizeRound`.
+/** Phase B — wall + grunt cleanup deferred from `finalizeRound`.
  *  Called from the transition that fires the cannons banner (or the
- *  reselect / game-over flows) so the sweep reveals under the banner
- *  instead of during the score overlay.
+ *  reselect / game-over flows) so the sweeps reveal under the banner
+ *  instead of popping during the score overlay.
  *
  *  `recomputeAllTerritory` refreshes interior after the wall mutation to
  *  keep the `walls epoch == interior epoch` invariant that downstream
@@ -440,10 +445,11 @@ export function finalizeRound(state: GameState): {
  *  that would consume RNG and desync every seed-dependent test. Territory
  *  mutations (grunt respawn, house destruction, bonus capture) already
  *  ran in Phase A via `finalizeTerritoryWithScoring`. */
-export function finalizeRoundVisuals(state: GameState): void {
+export function finalizeRoundCleanup(state: GameState): void {
   sweepAllPlayersWalls(state);
   recomputeAllTerritory(state);
   sweepGruntsInDeadZones(state);
+  recomputeGruntTargetedWalls(state);
 }
 
 /** Shared pre-battle housekeeping run from both the real battle path

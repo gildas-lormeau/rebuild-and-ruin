@@ -69,7 +69,7 @@ export {
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   finalizeRound,
-  finalizeRoundVisuals,
+  finalizeRoundCleanup,
   prepareCastleWallsForPlayer,
   prepareNextRound,
 } from "./phase-setup.ts";

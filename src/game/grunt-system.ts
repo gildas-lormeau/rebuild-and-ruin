@@ -216,38 +216,23 @@ export function gruntAttackTowers(
   if (state.modern?.activeModifier === MODIFIER_ID.FROSTBITE)
     return { towerEvents: [], wallEvents: [] };
 
-  // Sapper: re-flag any grunt that has moved adjacent to a wall since the
-  // last battle-start roll. Pure shared-state derivation — no RNG, no wire
-  // payload — so host and watcher compute identical flips.
-  if (state.modern?.activeModifier === MODIFIER_ID.SAPPER) {
-    for (const grunt of state.grunts) {
-      if (grunt.attackingWall) continue;
-      if (!canAttemptWallAttack(state, grunt, true)) continue;
-      grunt.attackingWall = true;
-    }
-  }
-
   const deadZones = getDeadZones(state);
   const events: TowerKilledMessage[] = [];
   const wallEvents: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
-    // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
+    // Wall attack: executing decision made by rollGruntWallAttacks() at battle start.
+    // Target wall was picked at end-of-build (`recomputeGruntTargetedWalls`)
+    // and is cleared on destruction in applyImpactEvent — no per-tick repick
+    // since grunts don't move during battle.
     if (grunt.attackingWall) {
-      const target = getGruntTargetTower(state, grunt);
-      const bestWallKey = pickAdjacentWallKeyForAttack(
-        state,
-        grunt.row,
-        grunt.col,
-        target,
-      );
-      if (bestWallKey >= 0) {
+      if (grunt.targetedWall !== undefined) {
         if (tickGruntAttackTimer(grunt, dt)) {
           // Wall survives if a Reinforced Walls absorption or nearby allied
           // Rampart shields it; shield side effects applied directly (no bus
           // events — matches today's silent grunt wall removal).
           // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          const { r, c } = unpackTile(bestWallKey);
-          const result = resolveWallShield(state, r, c, bestWallKey);
+          const { r, c } = unpackTile(grunt.targetedWall);
+          const result = resolveWallShield(state, r, c, grunt.targetedWall);
           if (result?.absorbed) {
             applyWallShield(state, result);
           } else if (result) {
@@ -259,7 +244,14 @@ export function gruntAttackTowers(
             // `tickBattlePhase` via `wallEvents` for wire broadcast and
             // watcher-side `applyImpactEvent`.
             const owner = state.players[result.playerId];
-            if (owner) deletePlayerWallBattle(owner, bestWallKey);
+            if (owner) deletePlayerWallBattle(owner, grunt.targetedWall);
+            // Mirror applyImpactEvent: clear targetedWall on every grunt
+            // that was aiming at this wall (grunts don't move, no repick).
+            const destroyedKey = grunt.targetedWall;
+            for (const other of state.grunts) {
+              if (other.targetedWall === destroyedKey)
+                other.targetedWall = undefined;
+            }
             const event: ImpactEvent = {
               type: BATTLE_MESSAGE.WALL_DESTROYED,
               row: r,
@@ -273,7 +265,7 @@ export function gruntAttackTowers(
         }
         continue;
       }
-      // No wall found — stop wall attack
+      // No targeted wall — stop wall attack
       grunt.attackingWall = false;
     }
 
@@ -369,6 +361,18 @@ export function rollGruntWallAttacks(state: GameState): void {
   }
 }
 
+/** Recompute `targetedWall` for every grunt — the adjacent wall closest to
+ *  the grunt's target tower (or undefined if no eligible wall). Called once
+ *  at end-of-build in `finalizeRoundCleanup`, after wall sweep + dead-zone
+ *  grunt sweep. The cached value is read by the sapper reveal banner and by
+ *  `gruntAttackTowers`'s wall pick during battle. Cleared on the destroyed
+ *  wall in `applyImpactEvent`; cleared on all grunts in `finalizeBattle`. */
+export function recomputeGruntTargetedWalls(state: GameState): void {
+  for (const grunt of state.grunts) {
+    grunt.targetedWall = computeGruntTargetedWall(state, grunt);
+  }
+}
+
 /** Spawn interbattle grunts on each player's zone (bank-first).
  *  PRECONDITION: interior must be fresh (recheckTerritory already called).
  *
@@ -412,6 +416,26 @@ export function spawnGruntOnZone(
       placed: 0,
     });
   }
+}
+
+/** Pick the adjacent wall a grunt would attack — the one closest to its
+ *  target tower. Returns undefined if the grunt has no live target tower or
+ *  no adjacent wall. Bypasses the blocked-battles requirement (this is the
+ *  "stable answer" for the upcoming battle, regardless of whether a random
+ *  roll picks the grunt to actually attack). */
+function computeGruntTargetedWall(
+  state: GameState,
+  grunt: Grunt,
+): number | undefined {
+  if (!canAttemptWallAttack(state, grunt, true)) return undefined;
+  const target = getGruntTargetTower(state, grunt);
+  const wallKey = pickAdjacentWallKeyForAttack(
+    state,
+    grunt.row,
+    grunt.col,
+    target,
+  );
+  return wallKey >= 0 ? wallKey : undefined;
 }
 
 /** Add a grunt at (row, col). Validates position is in-bounds and on passable grass.

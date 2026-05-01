@@ -763,7 +763,13 @@ function applyImpactEvent(
       const player = state.players[event.playerId];
       if (player) {
         // See applyImpactEvent JSDoc above for the interior-staleness contract.
-        deletePlayerWallBattle(player, packTile(event.row, event.col));
+        const wallKey = packTile(event.row, event.col);
+        deletePlayerWallBattle(player, wallKey);
+        // Clear targetedWall on every grunt that was aiming at this wall —
+        // grunts don't move during battle, so no recompute (per design).
+        for (const grunt of state.grunts) {
+          if (grunt.targetedWall === wallKey) grunt.targetedWall = undefined;
+        }
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
           shooter.score +=

@@ -7,21 +7,22 @@
  * Reinforced Walls absorption + Rampart shielding still apply as normal.
  */
 
-import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 export const sapperImpl: ModifierImpl = {
   lifecycle: "instant",
   apply: (state: GameState) => {
-    // Pulse all wall tiles for seated players — those are the targets the
-    // sapper grunts will attack on sight.
-    const changedTiles: number[] = [];
-    for (const player of state.players) {
-      if (!isPlayerSeated(player)) continue;
-      for (const key of player.walls) changedTiles.push(key);
+    // Pulse only the walls grunts will actually attack — each grunt's
+    // `targetedWall` (the adjacent wall closest to its target tower,
+    // computed at end-of-build in `finalizeRoundCleanup`). Deduped via Set
+    // since multiple grunts can target the same wall.
+    const changedTiles = new Set<number>();
+    for (const grunt of state.grunts) {
+      if (grunt.targetedWall !== undefined)
+        changedTiles.add(grunt.targetedWall);
     }
-    return { changedTiles, gruntsSpawned: 0 };
+    return { changedTiles: [...changedTiles], gruntsSpawned: 0 };
   },
   skipsRecheck: true,
 };

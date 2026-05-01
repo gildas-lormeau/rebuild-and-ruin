@@ -13,6 +13,13 @@ export interface Grunt extends TilePos {
   blockedRounds: number;
   /** If true, this grunt is attacking a wall tile during battle (decided at battle start). */
   attackingWall?: boolean;
+  /** Tile key of the wall this grunt would attack — the adjacent wall closest
+   *  to its target tower. Computed once at end-of-build in `finalizeRoundCleanup`,
+   *  cleared when that wall is destroyed mid-battle (no recompute — grunts
+   *  don't move during battle), reset on every grunt at battle end. Read by
+   *  sapper's reveal banner and by `gruntAttackTowers`'s wall pick. Derived
+   *  from synced state — not serialized. */
+  targetedWall?: number;
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
 }

@@ -47,7 +47,7 @@ import {
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
   finalizeRound,
-  finalizeRoundVisuals,
+  finalizeRoundCleanup,
   type GameOverOutcome,
   peekGameOverOutcome,
   prepareNextRound,
@@ -402,8 +402,8 @@ const ROUND_END: Transition = {
     // territory + life-penalty point awards — score-overlay needs the
     // starting values for the delta animation.
     const preScores = ctx.state.players.map((player) => player.score);
-    // Phase A only: scoring + life penalties. The visual wall sweep +
-    // dead-zone grunt sweep are deferred to `finalizeRoundVisuals`,
+    // Phase A only: scoring + life penalties. The wall sweep, dead-zone
+    // grunt sweep, and targetedWall recompute are deferred to `finalizeRoundCleanup`,
     // called from `advance-to-cannon` / `castle-reselect-done` /
     // game-over flows so the cannons banner reveals them.
     // `applyLifePenalties` inside finalizeRound already runs
@@ -638,17 +638,17 @@ const CASTLE_SELECT_DONE: Transition = {
  *  player lost a life and rebuilt their castle).
  *
  *  Differs from `castle-select-done` only in the prefix:
- *  `finalizeRoundVisuals` (Phase B visuals deferred from round-end)
+ *  `finalizeRoundCleanup` (Phase B cleanup deferred from round-end)
  *  + `finalizeReselectedPlayers` (zone reset protection) before
  *  `finalizeCastleConstruction`. Rest is identical. */
 const CASTLE_RESELECT_DONE: Transition = {
   id: "castle-reselect-done",
   from: Phase.CASTLE_RESELECT,
   mutate: (ctx) => {
-    // Phase B visuals (deferred from round-end) + reselect-specific
+    // Phase B cleanup (deferred from round-end) + reselect-specific
     // finalize + castle finalize, then enter cannon phase. All under the
     // cannons banner reveal.
-    finalizeRoundVisuals(ctx.state);
+    finalizeRoundCleanup(ctx.state);
     finalizeReselectedPlayers(ctx.state, ctx.reselectionPids ?? []);
     finalizeCastleConstruction(ctx.state);
     ctx.clearCastleBuildViewport?.();
@@ -673,9 +673,9 @@ const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
   mutate: (ctx) => {
-    // Phase B visuals (deferred from round-end) run under the
+    // Phase B cleanup (deferred from round-end) runs under the
     // cannons banner reveal, then cannon phase entry.
-    finalizeRoundVisuals(ctx.state);
+    finalizeRoundCleanup(ctx.state);
     enterCannonPhase(ctx.state);
     ctx.broadcast?.cannonStart?.();
     return EMPTY_TRANSITION_RESULT;
