@@ -215,6 +215,12 @@ export interface FullStateMessage {
    *  this — they restore the post-precompute `state.rng` state, so they
    *  can't recompute the picks themselves without drifting RNG. */
   precomputedUpgradePicks?: [number, string][] | null;
+  /** Precomputed dust-storm jitter angles (radians), drawn from
+   *  `state.rng` at `prepareBattleState` when the rolled modifier is
+   *  dust-storm. Indexed by `state.shotsFired` at fire time on every
+   *  peer. Empty array when dust-storm isn't active this round. Same
+   *  late-joiner reasoning as `precomputedUpgradePicks`. */
+  precomputedDustStormJitters?: number[];
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
   frozenTiles: number[] | null;

@@ -108,6 +108,7 @@ import {
   MODIFIER_REGISTRY,
   rollModifier,
 } from "./modifier-system.ts";
+import { precomputeDustStormJitters } from "./modifiers/dust-storm.ts";
 import {
   generateUpgradeOffers,
   onBattlePhaseStart,
@@ -160,6 +161,12 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
         round: state.round,
       });
     }
+    // Precompute the dust-storm jitter buffer (no-op when the rolled
+    // modifier isn't dust-storm — clears the buffer to []). Anchors all
+    // dust-storm rng draws to a single deterministic state-mutation
+    // point, removing the per-fire schedule-vs-apply rng draw asymmetry
+    // that the lockstep cannon-fire schedule introduced.
+    precomputeDustStormJitters(state);
   }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);

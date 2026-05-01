@@ -234,6 +234,14 @@ export interface ModernState {
    *  reinforced-walls-style two-hit kill). Populated when frostbite is active;
    *  cleared between battles. null = no frostbite this round. */
   chippedGrunts: Set<number> | null;
+  /** Precomputed dust-storm jitter angles (radians) drawn from `state.rng` at
+   *  `prepareBattleState` when the rolled modifier is dust-storm. Indexed by
+   *  `state.shotsFired` at fire time so both peers compute identical jitter
+   *  without drawing rng during the lockstep SAFETY window. Empty array when
+   *  dust-storm isn't active this round (the lookup is gated by
+   *  `activeModifier === DUST_STORM`). Modulo'd if `shotsFired` exceeds the
+   *  buffer — deterministic across peers either way. */
+  precomputedDustStormJitters: readonly number[];
 }
 
 /** Player selection lobby state. */
@@ -348,5 +356,6 @@ function createModernState(): ModernState {
     highTideTiles: null,
     lowWaterTiles: null,
     chippedGrunts: null,
+    precomputedDustStormJitters: [],
   };
 }

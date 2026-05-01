@@ -172,6 +172,8 @@ export function restoreFullStateSnapshot(
       (msg.lastModifierId as NonNullable<
         GameState["modern"]
       >["lastModifierId"]) ?? null;
+    state.modern!.precomputedDustStormJitters =
+      (msg.precomputedDustStormJitters as readonly number[] | undefined) ?? [];
   }
   applyCheckpointModifierTiles(state, msg);
   if (hasFeature(state, FID.UPGRADES)) {
@@ -409,6 +411,9 @@ function serializeModernFields(state: GameState) {
     precomputedUpgradePicks: state.modern?.precomputedUpgradePicks
       ? [...state.modern.precomputedUpgradePicks.entries()]
       : null,
+    precomputedDustStormJitters: state.modern?.precomputedDustStormJitters
+      ? [...state.modern.precomputedDustStormJitters]
+      : [],
     masterBuilderLockout: state.modern?.masterBuilderLockout ?? 0,
     masterBuilderOwners: state.modern?.masterBuilderOwners
       ? [...state.modern.masterBuilderOwners]
