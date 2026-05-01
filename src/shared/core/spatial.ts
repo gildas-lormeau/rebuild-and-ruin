@@ -514,7 +514,6 @@ export function computeOutsideAfterAdd(
   for (let i = 0; i < newWallTiles.length; i++) {
     newOutside.delete(newWallTiles[i]!);
   }
-  // jscpd:ignore-start
   // Only baseline-outside neighbors of the new walls can lose their boundary
   // path — every other tile keeps its existing connection.
   const suspects: number[] = [];
@@ -522,6 +521,7 @@ export function computeOutsideAfterAdd(
     const tile = newWallTiles[i]!;
     const r = (tile / GRID_COLS) | 0;
     const c = tile - r * GRID_COLS;
+    // jscpd:ignore-start
     for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
       const dir = DIRS_8[dirIdx]!;
       const neighborR = r + dir[0];
@@ -536,6 +536,7 @@ export function computeOutsideAfterAdd(
       const neighborKey = neighborR * GRID_COLS + neighborC;
       if (newOutside.has(neighborKey)) suspects.push(neighborKey);
     }
+    // jscpd:ignore-end
   }
   // BFS each suspect's component through `newOutside`. If it touches the map
   // edge, it stays outside; otherwise the whole component is now trapped.
@@ -561,6 +562,7 @@ export function computeOutsideAfterAdd(
     while (queueR.length > 0) {
       const r = queueR.pop()!;
       const c = queueC.pop()!;
+      // jscpd:ignore-start
       for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
         const dir = DIRS_8[dirIdx]!;
         const neighborR = r + dir[0];
@@ -588,6 +590,7 @@ export function computeOutsideAfterAdd(
           reachesBoundary = true;
         }
       }
+      // jscpd:ignore-end
     }
     if (!reachesBoundary) {
       for (let t = 0; t < componentTiles.length; t++) {
@@ -595,7 +598,6 @@ export function computeOutsideAfterAdd(
       }
     }
   }
-  // jscpd:ignore-end
   return newOutside;
 }
 
