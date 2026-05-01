@@ -476,25 +476,14 @@ export function computeOutside(
   while (queueR.length > 0) {
     const r = queueR.pop()!;
     const c = queueC.pop()!;
-    for (let i = 0; i < 8; i++) {
-      const dir = DIRS_8[i]!;
-      const neighborR = r + dir[0];
-      const neighborC = c + dir[1];
-      if (
-        neighborR < 0 ||
-        neighborR >= GRID_ROWS ||
-        neighborC < 0 ||
-        neighborC >= GRID_COLS
-      )
-        continue;
-      const neighborKey = neighborR * GRID_COLS + neighborC;
-      if (outside.has(neighborKey)) continue;
-      if (walls.has(neighborKey)) continue;
-      if (hasExtra && extraBarriers.has(neighborKey)) continue;
+    forEachNeighbor8(r, c, (neighborR, neighborC, neighborKey) => {
+      if (outside.has(neighborKey)) return;
+      if (walls.has(neighborKey)) return;
+      if (hasExtra && extraBarriers.has(neighborKey)) return;
       outside.add(neighborKey);
       queueR.push(neighborR);
       queueC.push(neighborC);
-    }
+    });
   }
   return outside;
 }
@@ -521,22 +510,9 @@ export function computeOutsideAfterAdd(
     const tile = newWallTiles[i]!;
     const r = (tile / GRID_COLS) | 0;
     const c = tile - r * GRID_COLS;
-    // jscpd:ignore-start
-    for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
-      const dir = DIRS_8[dirIdx]!;
-      const neighborR = r + dir[0];
-      const neighborC = c + dir[1];
-      if (
-        neighborR < 0 ||
-        neighborR >= GRID_ROWS ||
-        neighborC < 0 ||
-        neighborC >= GRID_COLS
-      )
-        continue;
-      const neighborKey = neighborR * GRID_COLS + neighborC;
+    forEachNeighbor8(r, c, (_neighborR, _neighborC, neighborKey) => {
       if (newOutside.has(neighborKey)) suspects.push(neighborKey);
-    }
-    // jscpd:ignore-end
+    });
   }
   // BFS each suspect's component through `newOutside`. If it touches the map
   // edge, it stays outside; otherwise the whole component is now trapped.
@@ -547,50 +523,41 @@ export function computeOutsideAfterAdd(
     const seed = suspects[seedIdx]!;
     if (visited.has(seed)) continue;
     if (!newOutside.has(seed)) continue;
-    const componentTiles: number[] = [];
+    const componentTiles: number[] = [seed];
     const seedR = (seed / GRID_COLS) | 0;
     const seedC = seed - seedR * GRID_COLS;
-    let reachesBoundary =
-      seedR === 0 ||
-      seedR === GRID_ROWS - 1 ||
-      seedC === 0 ||
-      seedC === GRID_COLS - 1;
     visited.add(seed);
-    componentTiles.push(seed);
     queueR.push(seedR);
     queueC.push(seedC);
     while (queueR.length > 0) {
       const r = queueR.pop()!;
       const c = queueC.pop()!;
-      // jscpd:ignore-start
-      for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
-        const dir = DIRS_8[dirIdx]!;
-        const neighborR = r + dir[0];
-        const neighborC = c + dir[1];
-        if (
-          neighborR < 0 ||
-          neighborR >= GRID_ROWS ||
-          neighborC < 0 ||
-          neighborC >= GRID_COLS
-        )
-          continue;
-        const neighborKey = neighborR * GRID_COLS + neighborC;
-        if (visited.has(neighborKey)) continue;
-        if (!newOutside.has(neighborKey)) continue;
+      forEachNeighbor8(r, c, (neighborR, neighborC, neighborKey) => {
+        if (visited.has(neighborKey)) return;
+        if (!newOutside.has(neighborKey)) return;
         visited.add(neighborKey);
         componentTiles.push(neighborKey);
         queueR.push(neighborR);
         queueC.push(neighborC);
-        if (
-          neighborR === 0 ||
-          neighborR === GRID_ROWS - 1 ||
-          neighborC === 0 ||
-          neighborC === GRID_COLS - 1
-        ) {
-          reachesBoundary = true;
-        }
+      });
+    }
+    // Boundary check moved post-BFS: a component reaches the map edge iff any
+    // of its tiles is on the edge. Avoids closing the inner callback over a
+    // mutable `let` flag, which V8 can't optimize as well.
+    let reachesBoundary = false;
+    for (let t = 0; t < componentTiles.length; t++) {
+      const tile = componentTiles[t]!;
+      const tileR = (tile / GRID_COLS) | 0;
+      const tileC = tile - tileR * GRID_COLS;
+      if (
+        tileR === 0 ||
+        tileR === GRID_ROWS - 1 ||
+        tileC === 0 ||
+        tileC === GRID_COLS - 1
+      ) {
+        reachesBoundary = true;
+        break;
       }
-      // jscpd:ignore-end
     }
     if (!reachesBoundary) {
       for (let t = 0; t < componentTiles.length; t++) {
@@ -727,6 +694,30 @@ export function bestEnemyZone(
   }
   if (bestPid < 0) return null;
   return playerZones[bestPid] ?? null;
+}
+
+/** Visit all 8 in-bounds neighbors of (r, c). Passes neighbor (row, col, key)
+ *  to `visit`. Used by both `computeOutside` and `computeOutsideAfterAdd`
+ *  flood-fill kernels — keep the body tight, V8 inlines it at monomorphic
+ *  call sites. */
+function forEachNeighbor8(
+  r: number,
+  c: number,
+  visit: (neighborR: number, neighborC: number, neighborKey: number) => void,
+): void {
+  for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+    const dir = DIRS_8[dirIdx]!;
+    const neighborR = r + dir[0];
+    const neighborC = c + dir[1];
+    if (
+      neighborR < 0 ||
+      neighborR >= GRID_ROWS ||
+      neighborC < 0 ||
+      neighborC >= GRID_COLS
+    )
+      continue;
+    visit(neighborR, neighborC, neighborR * GRID_COLS + neighborC);
+  }
 }
 
 function isTileInRect(
