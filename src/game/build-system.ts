@@ -63,6 +63,17 @@ import {
 } from "./upgrade-system.ts";
 import { restorationCrewInstantRevive } from "./upgrades/restoration-crew.ts";
 
+/** Per-player invariants used by `canPlacePiece`. Build once via
+ *  `buildPlacementContext` outside a candidate loop and pass it into every
+ *  iteration to skip the upgrade-registry walks done per call. */
+interface PlacementContext {
+  readonly player: Player;
+  readonly zone: number | undefined;
+  readonly overlapAllowance: number;
+  readonly allowPitOverlap: boolean;
+  readonly allowGruntOverlap: boolean;
+}
+
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
   state: GameState,
@@ -84,7 +95,11 @@ export function placePiece(
  *  CONTRAST with canPlaceCannon() in cannon-system.ts:
  *    - Cannon: checks INTERIOR (enclosed territory) + owned towers only
  *    - Piece:  checks GRASS + zone + ALL towers (no interior check)
- *  Copying validation from one to the other produces wrong results. */
+ *  Copying validation from one to the other produces wrong results.
+ *
+ *  Hot-loop callers should pass a pre-built `PlacementContext` (skips
+ *  per-call upgrade-registry walks) and an `OccupancyCache` (skips per-tile
+ *  linear scans over walls / towers / cannons / grunts / pits). */
 export function canPlacePiece(
   state: GameViewState & {
     readonly grunts: readonly Grunt[];
@@ -96,13 +111,12 @@ export function canPlacePiece(
   col: number,
   excludeInterior?: ReadonlySet<number>,
   cache?: OccupancyCache,
+  ctx?: PlacementContext,
 ): boolean {
-  const player = state.players[playerId];
-  if (!player) return false;
-  const playerZone = player.homeTower?.zone;
-  const overlapAllowance = wallOverlapAllowance(player);
-  const allowPitOverlap = canPlaceOverBurningPit(player);
-  const allowGruntOverlap = canPlaceOverGrunt(state.players, player);
+  const placementCtx = ctx ?? buildPlacementContext(state, playerId);
+  if (!placementCtx) return false;
+  const { player, zone, overlapAllowance, allowPitOverlap, allowGruntOverlap } =
+    placementCtx;
   let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
@@ -110,35 +124,55 @@ export function canPlacePiece(
     if (!inBounds(r, c)) return false;
     if (!isGrass(state.map.tiles, r, c)) return false;
     // Must be within the player's zone
-    if (playerZone !== undefined && state.map.zones[r]![c] !== playerZone)
-      return false;
+    if (zone !== undefined && state.map.zones[r]![c] !== zone) return false;
     const key = packTile(r, c);
 
     // AI callers pass excludeInterior to prevent placing inside enclosed zones
     if (excludeInterior && excludeInterior.has(key)) return false;
 
-    if (hasWallAt(state, r, c)) {
-      if (player.walls.has(key) && wallOverlaps < overlapAllowance) {
+    if (player.walls.has(key)) {
+      if (wallOverlaps < overlapAllowance) {
         wallOverlaps++;
       } else {
         return false;
       }
+    } else if (cache ? cache.wallKeys.has(key) : hasWallAt(state, r, c)) {
+      // Enemy wall — never overlap-eligible.
+      return false;
     }
     if (cache) {
       if (cache.towerKeys.has(key)) return false;
       if (cache.cannonKeys.has(key)) return false;
       if (!allowGruntOverlap && cache.gruntKeys.has(key)) return false;
+      if (!allowPitOverlap && cache.pitKeys.has(key)) return false;
     } else {
       if (hasTowerAt(state, r, c)) return false;
       if (hasCannonAt(state, r, c)) return false;
       if (!allowGruntOverlap && hasGruntAt(state.grunts, r, c)) return false;
+      if (!allowPitOverlap && hasPitAt(state.burningPits, r, c)) return false;
     }
-
-    if (hasPitAt(state.burningPits, r, c) && !allowPitOverlap) return false;
 
     // Bonus squares CAN be covered (you lose the bonus) — no block here
   }
   return true;
+}
+
+/** Build a `PlacementContext` for the given player, or null if the slot is
+ *  unseated. Hoists the upgrade-registry walks (overlap allowance, pit /
+ *  grunt overlap permission) out of per-candidate loops. */
+export function buildPlacementContext(
+  state: GameViewState,
+  playerId: ValidPlayerSlot,
+): PlacementContext | null {
+  const player = state.players[playerId];
+  if (!player) return null;
+  return {
+    player,
+    zone: player.homeTower?.zone,
+    overlapAllowance: wallOverlapAllowance(player),
+    allowPitOverlap: canPlaceOverBurningPit(player),
+    allowGruntOverlap: canPlaceOverGrunt(state.players, player),
+  };
 }
 
 /** Apply a piece placement to the board. Marks walls dirty after mutation.

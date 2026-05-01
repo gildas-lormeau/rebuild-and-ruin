@@ -6,7 +6,8 @@
  * These are the helper functions it depends on.
  */
 
-import { canPlacePiece } from "../game/index.ts";
+import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
+import { buildOccupancyCache } from "../shared/core/board-occupancy.ts";
 import type { TileRect } from "../shared/core/geometry-types.ts";
 import {
   ALL_PIECE_SHAPES,
@@ -131,6 +132,9 @@ function canAnyRotationFillGap(
   state: BuildViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
+  const cache = buildOccupancyCache(state);
+  const placementCtx = buildPlacementContext(state, playerId);
+  if (!placementCtx) return false;
   for (const shape of pieces) {
     let rot = shape;
     for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
@@ -145,6 +149,8 @@ function canAnyRotationFillGap(
               gr - dr,
               gc - dc,
               adjusted,
+              cache,
+              placementCtx,
             )
           )
             return true;

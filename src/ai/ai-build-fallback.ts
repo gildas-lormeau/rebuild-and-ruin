@@ -10,7 +10,7 @@ import type { Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import {
-  computeOutside,
+  computeOutsideAfterAdd,
   isCannonTile,
   isGrass,
   isTowerTile,
@@ -154,8 +154,12 @@ export function createsSmallEnclosure(
   outside: ReadonlySet<number>,
   state: BuildViewState,
 ): boolean {
+  const candidateWallTiles: number[] = [];
+  for (const [dr, dc] of candidate.piece.offsets) {
+    candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
+  }
   const simulatedWalls = createSimulatedWalls(walls, candidate);
-  const simulatedOutside = computeOutside(simulatedWalls);
+  const simulatedOutside = computeOutsideAfterAdd(outside, candidateWallTiles);
   const visited = new Set<number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {

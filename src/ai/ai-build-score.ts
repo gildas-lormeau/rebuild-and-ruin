@@ -14,7 +14,7 @@ import type {
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
 import {
   CORNERS_2X2,
-  computeOutside,
+  computeOutsideAfterAdd,
   DIRS_4,
   isWater,
   packTile,
@@ -675,8 +675,15 @@ function computeCandidateEnv(
   fatBlocks: number,
   batchHasWallAdjacent: boolean,
 ): CandidateEnv {
+  const candidateWallTiles: number[] = [];
+  for (const [dr, dc] of candidate.piece.offsets) {
+    candidateWallTiles.push(packTile(candidate.row + dr, candidate.col + dc));
+  }
   const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
-  const simulatedOutside = computeOutside(simulatedWalls);
+  const simulatedOutside = computeOutsideAfterAdd(
+    ctx.outside,
+    candidateWallTiles,
+  );
   const rawGain = ctx.baselineOutside - simulatedOutside.size;
   const pieceTiles = candidate.piece.offsets.length;
   const usefulGain = rawGain - pieceTiles;

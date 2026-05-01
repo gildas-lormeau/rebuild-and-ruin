@@ -28,6 +28,11 @@ export interface OccupancyCache {
   readonly towerKeys: ReadonlySet<number>;
   readonly cannonKeys: ReadonlySet<number>;
   readonly gruntKeys: ReadonlySet<number>;
+  /** Union of every player's walls. Use for any-wall presence checks
+   *  (e.g. wall-overlap validation in `canPlacePiece`); for own-wall checks,
+   *  test `player.walls.has(key)` directly. */
+  readonly wallKeys: ReadonlySet<number>;
+  readonly pitKeys: ReadonlySet<number>;
 }
 
 /** Preset: tiles that block bonus square placement.
@@ -257,7 +262,10 @@ export function zoneOwnerIdAt(
 }
 
 export function buildOccupancyCache(
-  state: GameViewState & { readonly grunts: readonly Grunt[] },
+  state: GameViewState & {
+    readonly grunts: readonly Grunt[];
+    readonly burningPits: readonly BurningPit[];
+  },
 ): OccupancyCache {
   const towerKeys = new Set<number>();
   for (const tower of state.map.towers) {
@@ -273,7 +281,15 @@ export function buildOccupancyCache(
   for (const grunt of state.grunts) {
     gruntKeys.add(packTile(grunt.row, grunt.col));
   }
-  return { towerKeys, cannonKeys, gruntKeys };
+  const wallKeys = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) wallKeys.add(key);
+  }
+  const pitKeys = new Set<number>();
+  for (const pit of state.burningPits) {
+    pitKeys.add(packTile(pit.row, pit.col));
+  }
+  return { towerKeys, cannonKeys, gruntKeys, wallKeys, pitKeys };
 }
 
 /** Return a player's owned towers that are still alive. */

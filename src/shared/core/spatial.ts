@@ -432,34 +432,171 @@ export function computeOutside(
   extraBarriers?: ReadonlySet<number>,
 ): Set<number> {
   const outside = new Set<number>();
-  const queue: number[] = [];
-  const blocked = (key: number) =>
-    walls.has(key) || (extraBarriers !== undefined && extraBarriers.has(key));
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (isBoundaryTile(r, c)) {
-        const key = packTile(r, c);
-        if (!blocked(key)) {
-          outside.add(key);
-          queue.push(key);
-        }
+  // Parallel queues for r/c — avoids per-dequeue object allocation from unpackTile.
+  const queueR: number[] = [];
+  const queueC: number[] = [];
+  const hasExtra = extraBarriers !== undefined;
+  // Seed boundary tiles directly (4 edges) instead of scanning the full grid.
+  // Top + bottom rows.
+  for (let c = 0; c < GRID_COLS; c++) {
+    const topKey = c; // packTile(0, c)
+    if (!walls.has(topKey) && !(hasExtra && extraBarriers.has(topKey))) {
+      outside.add(topKey);
+      queueR.push(0);
+      queueC.push(c);
+    }
+    if (GRID_ROWS > 1) {
+      const botR = GRID_ROWS - 1;
+      const botKey = botR * GRID_COLS + c;
+      if (!walls.has(botKey) && !(hasExtra && extraBarriers.has(botKey))) {
+        outside.add(botKey);
+        queueR.push(botR);
+        queueC.push(c);
       }
     }
   }
-  while (queue.length > 0) {
-    const key = queue.pop()!;
-    const { r, c } = unpackTile(key);
-    for (const [dr, dc] of DIRS_8) {
-      const nr = r + dr,
-        nc = c + dc;
-      if (!inBounds(nr, nc)) continue;
-      const neighborKey = packTile(nr, nc);
-      if (outside.has(neighborKey) || blocked(neighborKey)) continue;
+  // Left + right columns (excluding corners — already covered above).
+  for (let r = 1; r < GRID_ROWS - 1; r++) {
+    const leftKey = r * GRID_COLS;
+    if (!walls.has(leftKey) && !(hasExtra && extraBarriers.has(leftKey))) {
+      outside.add(leftKey);
+      queueR.push(r);
+      queueC.push(0);
+    }
+    if (GRID_COLS > 1) {
+      const rightC = GRID_COLS - 1;
+      const rightKey = r * GRID_COLS + rightC;
+      if (!walls.has(rightKey) && !(hasExtra && extraBarriers.has(rightKey))) {
+        outside.add(rightKey);
+        queueR.push(r);
+        queueC.push(rightC);
+      }
+    }
+  }
+  while (queueR.length > 0) {
+    const r = queueR.pop()!;
+    const c = queueC.pop()!;
+    for (let i = 0; i < 8; i++) {
+      const dir = DIRS_8[i]!;
+      const neighborR = r + dir[0];
+      const neighborC = c + dir[1];
+      if (
+        neighborR < 0 ||
+        neighborR >= GRID_ROWS ||
+        neighborC < 0 ||
+        neighborC >= GRID_COLS
+      )
+        continue;
+      const neighborKey = neighborR * GRID_COLS + neighborC;
+      if (outside.has(neighborKey)) continue;
+      if (walls.has(neighborKey)) continue;
+      if (hasExtra && extraBarriers.has(neighborKey)) continue;
       outside.add(neighborKey);
-      queue.push(neighborKey);
+      queueR.push(neighborR);
+      queueC.push(neighborC);
     }
   }
   return outside;
+}
+
+/** Incrementally compute the outside set after adding new walls.
+ *  Equivalent to `computeOutside(baselineWalls ∪ newWallTiles)` but skips
+ *  re-flooding regions far from the added walls. Hot path for AI candidate
+ *  scoring, which evaluates many small wall additions against the same baseline.
+ *
+ *  Requires `baselineOutside === computeOutside(baselineWalls)` with no
+ *  `extraBarriers` — callers using extra barriers must keep using `computeOutside`. */
+export function computeOutsideAfterAdd(
+  baselineOutside: ReadonlySet<number>,
+  newWallTiles: readonly number[],
+): Set<number> {
+  const newOutside = new Set(baselineOutside);
+  for (let i = 0; i < newWallTiles.length; i++) {
+    newOutside.delete(newWallTiles[i]!);
+  }
+  // jscpd:ignore-start
+  // Only baseline-outside neighbors of the new walls can lose their boundary
+  // path — every other tile keeps its existing connection.
+  const suspects: number[] = [];
+  for (let i = 0; i < newWallTiles.length; i++) {
+    const tile = newWallTiles[i]!;
+    const r = (tile / GRID_COLS) | 0;
+    const c = tile - r * GRID_COLS;
+    for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+      const dir = DIRS_8[dirIdx]!;
+      const neighborR = r + dir[0];
+      const neighborC = c + dir[1];
+      if (
+        neighborR < 0 ||
+        neighborR >= GRID_ROWS ||
+        neighborC < 0 ||
+        neighborC >= GRID_COLS
+      )
+        continue;
+      const neighborKey = neighborR * GRID_COLS + neighborC;
+      if (newOutside.has(neighborKey)) suspects.push(neighborKey);
+    }
+  }
+  // BFS each suspect's component through `newOutside`. If it touches the map
+  // edge, it stays outside; otherwise the whole component is now trapped.
+  const visited = new Set<number>();
+  const queueR: number[] = [];
+  const queueC: number[] = [];
+  for (let seedIdx = 0; seedIdx < suspects.length; seedIdx++) {
+    const seed = suspects[seedIdx]!;
+    if (visited.has(seed)) continue;
+    if (!newOutside.has(seed)) continue;
+    const componentTiles: number[] = [];
+    const seedR = (seed / GRID_COLS) | 0;
+    const seedC = seed - seedR * GRID_COLS;
+    let reachesBoundary =
+      seedR === 0 ||
+      seedR === GRID_ROWS - 1 ||
+      seedC === 0 ||
+      seedC === GRID_COLS - 1;
+    visited.add(seed);
+    componentTiles.push(seed);
+    queueR.push(seedR);
+    queueC.push(seedC);
+    while (queueR.length > 0) {
+      const r = queueR.pop()!;
+      const c = queueC.pop()!;
+      for (let dirIdx = 0; dirIdx < 8; dirIdx++) {
+        const dir = DIRS_8[dirIdx]!;
+        const neighborR = r + dir[0];
+        const neighborC = c + dir[1];
+        if (
+          neighborR < 0 ||
+          neighborR >= GRID_ROWS ||
+          neighborC < 0 ||
+          neighborC >= GRID_COLS
+        )
+          continue;
+        const neighborKey = neighborR * GRID_COLS + neighborC;
+        if (visited.has(neighborKey)) continue;
+        if (!newOutside.has(neighborKey)) continue;
+        visited.add(neighborKey);
+        componentTiles.push(neighborKey);
+        queueR.push(neighborR);
+        queueC.push(neighborC);
+        if (
+          neighborR === 0 ||
+          neighborR === GRID_ROWS - 1 ||
+          neighborC === 0 ||
+          neighborC === GRID_COLS - 1
+        ) {
+          reachesBoundary = true;
+        }
+      }
+    }
+    if (!reachesBoundary) {
+      for (let t = 0; t < componentTiles.length; t++) {
+        newOutside.delete(componentTiles[t]!);
+      }
+    }
+  }
+  // jscpd:ignore-end
+  return newOutside;
 }
 
 /** True if (r,c) is within bounds and both values are integers (for validating untrusted input). */

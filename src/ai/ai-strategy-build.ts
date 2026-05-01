@@ -10,7 +10,7 @@
  * Castle rectangle and gap analysis live in ai-castle-rect.ts.
  */
 
-import { canPlacePiece } from "../game/index.ts";
+import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
 import {
   buildOccupancyCache,
   hasGruntAt,
@@ -433,6 +433,8 @@ function enumerateCandidates(
   interiorExcludingGaps: Set<number>,
 ): Candidate[] {
   const cache = buildOccupancyCache(state);
+  const placementCtx = buildPlacementContext(state, playerId);
+  if (!placementCtx) return [];
   const candidates: Candidate[] = [];
   let rotated = piece;
   for (let rotation = 0; rotation < 4; rotation++) {
@@ -447,6 +449,7 @@ function enumerateCandidates(
             c,
             interiorExcludingGaps,
             cache,
+            placementCtx,
           )
         )
           continue;

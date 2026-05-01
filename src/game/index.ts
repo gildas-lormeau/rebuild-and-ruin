@@ -14,6 +14,7 @@ export {
   tickBattlePhase,
 } from "./battle-system.ts";
 export {
+  buildPlacementContext,
   canPlacePiece,
   recheckTerritory,
   recomputeAllTerritory,
