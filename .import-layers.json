@@ -270,7 +270,6 @@
       "src/render/3d/effects/grunt-frost.ts",
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/lightning-burst.ts",
-      "src/render/3d/effects/rubble-cleared.ts",
       "src/render/3d/effects/spawn-burst.ts",
       "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/wall-threat.ts",

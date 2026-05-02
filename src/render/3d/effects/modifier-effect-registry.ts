@@ -27,7 +27,6 @@ import { createGroundCollapseManager } from "./ground-collapse.ts";
 import { createGruntFrostManager } from "./grunt-frost.ts";
 import { createIceFormationManager } from "./ice-formation.ts";
 import { createLightningBurstManager } from "./lightning-burst.ts";
-import { createRubbleClearedManager } from "./rubble-cleared.ts";
 import {
   createSinkholeOverlayManager,
   type GetSinkholeOverlayBitmap,
@@ -63,7 +62,9 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createSpawnBurstManager,
   createWildfireBurstManager,
   createLightningBurstManager,
-  createRubbleClearedManager,
+  // (rubble_clearing has no per-tile burst — the runtime-derived
+  // `overlay.battle.rubbleClearingFade` fades the actual entities out
+  // via the pit + debris managers instead.)
   // Persistent overlays (run while gating flag holds).
   createFogManager,
   (scene, deps) =>

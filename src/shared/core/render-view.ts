@@ -32,6 +32,8 @@ interface RenderModernSlice {
       readonly col: number;
       readonly row: number;
       readonly mode: CannonMode;
+      readonly mortar?: boolean;
+      readonly tier: 1 | 2 | 3;
     }[];
   } | null;
 }

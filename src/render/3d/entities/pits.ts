@@ -59,17 +59,38 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
   root.name = "pits";
   scene.add(root);
 
+  const liveRoot = new THREE.Group();
+  liveRoot.name = "pits-live";
+  root.add(liveRoot);
+  const heldRoot = new THREE.Group();
+  heldRoot.name = "pits-held";
+  root.add(heldRoot);
+
   // No per-pit tinted materials — pits are neutral hazards. Kept for
   // parity with the other managers so future owner-tinting (e.g. "your
   // mortar pits" UI hint) can plug in.
-  const ownedMaterials: THREE.Material[] = [];
-  let lastSignature: string | undefined;
+  const ownedLiveMaterials: THREE.Material[] = [];
+  const ownedHeldMaterials: THREE.Material[] = [];
+  // Held materials' baseline alpha — captured at build so per-frame
+  // fade can multiply against it without losing the variant's authored
+  // opacity (lava, embers, smoke layers all have different bases).
+  const heldMaterialBaseOpacity = new WeakMap<THREE.Material, number>();
+  let lastLiveSignature: string | undefined;
+  let lastHeldSignature: string | undefined;
+  let lastFade: number | undefined;
 
-  function clear(): void {
-    disposeGroupSubtree(root, ownedMaterials);
+  function clearLive(): void {
+    disposeGroupSubtree(liveRoot, ownedLiveMaterials);
+  }
+  function clearHeld(): void {
+    disposeGroupSubtree(heldRoot, ownedHeldMaterials);
   }
 
-  function buildAllPits(pits: readonly BurningPit[]): void {
+  function buildPits(
+    pits: readonly BurningPit[],
+    parent: THREE.Group,
+    materialSink: THREE.Material[],
+  ): void {
     for (const pit of pits) {
       const variantName = selectVariantName(pit.roundsLeft);
       const variant = getPitVariant(variantName);
@@ -82,24 +103,77 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
         pit.row * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
       );
       host.scale.setScalar(PIT_SCALE);
-      root.add(host);
+      // Capture the materials so the held branch can fade them; the live
+      // branch ignores the sink (kept for symmetry).
+      host.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return;
+        const mats = Array.isArray(obj.material)
+          ? obj.material
+          : [obj.material];
+        for (const mat of mats) materialSink.push(mat);
+      });
+      parent.add(host);
     }
+  }
+
+  function captureHeldBaseOpacity(): void {
+    heldRoot.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        if (heldMaterialBaseOpacity.has(mat)) continue;
+        heldMaterialBaseOpacity.set(mat, mat.opacity);
+        mat.transparent = true;
+      }
+    });
+  }
+
+  function applyHeldFade(fade: number): void {
+    heldRoot.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of mats) {
+        const base = heldMaterialBaseOpacity.get(mat) ?? mat.opacity;
+        mat.opacity = base * fade;
+      }
+    });
   }
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
-    const pits = overlay?.entities?.burningPits ?? [];
-    const signature = computeSignature(pits);
-    if (signature === lastSignature) return;
-    lastSignature = signature;
+    const livePits = overlay?.entities?.burningPits ?? [];
+    const heldPits = overlay?.battle?.heldRubblePits ?? [];
+    const fade = overlay?.battle?.rubbleClearingFade;
 
-    clear();
-    if (pits.length === 0) return;
-    buildAllPits(pits);
+    const liveSignature = computeSignature(livePits);
+    if (liveSignature !== lastLiveSignature) {
+      lastLiveSignature = liveSignature;
+      clearLive();
+      if (livePits.length > 0)
+        buildPits(livePits, liveRoot, ownedLiveMaterials);
+    }
+
+    const heldSignature = computeSignature(heldPits);
+    if (heldSignature !== lastHeldSignature) {
+      lastHeldSignature = heldSignature;
+      clearHeld();
+      if (heldPits.length > 0) {
+        buildPits(heldPits, heldRoot, ownedHeldMaterials);
+        captureHeldBaseOpacity();
+      }
+    }
+
+    if (fade !== lastFade && heldPits.length > 0) {
+      lastFade = fade;
+      applyHeldFade(fade ?? 1);
+    } else if (heldPits.length === 0) {
+      lastFade = undefined;
+    }
   }
 
   function dispose(): void {
-    clear();
+    clearLive();
+    clearHeld();
     scene.remove(root);
   }
 

@@ -197,7 +197,6 @@
       "src/render/3d/effects/modifier-reveal-burst.ts",
       "src/render/3d/effects/layer-canvas.ts",
       "src/render/3d/effects/reconciler.ts",
-      "src/render/3d/effects/rubble-cleared.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/spawn-burst.ts",
       "src/render/3d/effects/wall-crumble.ts",

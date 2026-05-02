@@ -255,6 +255,8 @@ export interface BattleOverlay {
     col: number;
     row: number;
     mode: CannonMode;
+    mortar?: boolean;
+    tier: 1 | 2 | 3;
   }[];
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */

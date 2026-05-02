@@ -9,7 +9,10 @@
 
 import type { CannonMode } from "../../shared/core/battle-types.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import {
+  cannonTier,
+  isPlayerEliminated,
+} from "../../shared/core/player-types.ts";
 import {
   cannonSize,
   isCannonAlive,
@@ -38,9 +41,12 @@ function applyRubbleClearing(state: GameState): readonly number[] {
     col: number;
     row: number;
     mode: CannonMode;
+    mortar?: boolean;
+    tier: 1 | 2 | 3;
   }[] = [];
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
+    const tier = cannonTier(player);
     for (const cannon of player.cannons) {
       if (isCannonAlive(cannon)) continue;
       heldDeadCannons.push({
@@ -48,6 +54,8 @@ function applyRubbleClearing(state: GameState): readonly number[] {
         col: cannon.col,
         row: cannon.row,
         mode: cannon.mode,
+        mortar: cannon.mortar,
+        tier,
       });
       const sz = cannonSize(cannon.mode);
       for (let dr = 0; dr < sz; dr++) {
