@@ -24,6 +24,7 @@ import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import type { ActiveBannerState } from "./runtime-contracts.ts";
+import { wavedRamp } from "./waved-ramp.ts";
 
 interface RubbleClearingRampState {
   /** When the ramp started (in `now()`-units), or undefined while
@@ -74,17 +75,12 @@ export function deriveRubbleClearingFade(
   const elapsed = now - state.rubbleClearingRampStartMs;
   if (elapsed >= RUBBLE_CLEARING_RAMP_DURATION_MS) return undefined;
 
-  const t = elapsed / RUBBLE_CLEARING_RAMP_DURATION_MS;
-  const baseRamp = 1 - t;
-  const amplitude = RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE * (1 - t);
-  const oscillation = Math.sin(
-    (elapsed / RUBBLE_CLEARING_WAVE_PERIOD_MS) * Math.PI * 2,
-  );
-  return clamp01(baseRamp + amplitude * oscillation);
-}
-
-function clamp01(value: number): number {
-  if (value < 0) return 0;
-  if (value > 1) return 1;
-  return value;
+  return wavedRamp({
+    elapsed,
+    durationMs: RUBBLE_CLEARING_RAMP_DURATION_MS,
+    start: 1,
+    end: 0,
+    wavePeriodMs: RUBBLE_CLEARING_WAVE_PERIOD_MS,
+    wavePeakAmplitude: RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE,
+  });
 }

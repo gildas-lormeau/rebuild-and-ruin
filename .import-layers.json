@@ -25,6 +25,7 @@
       "src/runtime/dialog-tick.ts",
       "src/runtime/fire-once-slot.ts",
       "src/runtime/music-assets.ts",
+      "src/runtime/waved-ramp.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/game-constants.ts",
       "src/shared/core/game-phase.ts",

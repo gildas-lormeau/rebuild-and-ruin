@@ -263,6 +263,7 @@
       "src/runtime/camera-projection.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/rubble-clearing-overlay.ts",
+      "src/runtime/waved-ramp.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
