@@ -228,6 +228,7 @@ export function createRender3d(
     ctx.crosshairs.update(frame);
     ctx.fog.update(frame);
     ctx.thawing.update(frame);
+    ctx.iceFormation.update(frame);
     ctx.terrainBitmap.update(frame);
     ctx.sinkholeOverlay.update(frame);
     ctx.bonusSquares.update(frame);

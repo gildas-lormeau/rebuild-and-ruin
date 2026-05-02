@@ -137,6 +137,7 @@ export function createBannerUi(
     paletteKey,
     prevScene,
     newScene,
+    progress,
   };
 }
 

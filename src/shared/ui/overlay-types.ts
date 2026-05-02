@@ -260,6 +260,11 @@ export interface BannerUi {
    *  mutation). Both snapshots are frozen for the duration of the
    *  sweep — the live renderer does not repaint world contents. */
   newScene?: SceneCapture;
+  /** Sweep progress in [0, 1]. Reaches 1 when the sweep finishes; stays
+   *  at 1 through the dwell until hideBanner. Read by post-banner
+   *  effects (e.g. modifier reveal animations) that wait for sweep
+   *  completion. */
+  progress: number;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */

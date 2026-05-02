@@ -197,6 +197,7 @@
       "src/render/3d/effects/crosshairs.ts",
       "src/render/3d/effects/fire-burst.ts",
       "src/render/3d/effects/fog.ts",
+      "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/terrain-bitmap.ts",

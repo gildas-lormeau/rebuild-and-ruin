@@ -46,6 +46,10 @@ import {
   type HouseBurnsManager,
 } from "./effects/house-burns.ts";
 import {
+  createIceFormationManager,
+  type IceFormationManager,
+} from "./effects/ice-formation.ts";
+import {
   createImpactsManager,
   type ImpactsManager,
 } from "./effects/impacts.ts";
@@ -192,6 +196,10 @@ export interface Render3dContext {
    *  `overlay.entities.thawingTiles`. Base frozen-tile ICE_COLOR is
    *  owned by `terrain` (Phase 2). */
   readonly thawing: ThawingManager;
+  /** Ice-formation reveal — post-banner animation for the `frozen_river`
+   *  modifier. Reads `overlay.ui.modifierReveal.tiles` and animates a
+   *  staggered freeze across them once `banner.progress >= 1`. */
+  readonly iceFormation: IceFormationManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -269,6 +277,7 @@ export function createRender3dScene(
   const crosshairs = createCrosshairsManager(scene);
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
+  const iceFormation = createIceFormationManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -369,6 +378,7 @@ export function createRender3dScene(
     crosshairs,
     fog,
     thawing,
+    iceFormation,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,

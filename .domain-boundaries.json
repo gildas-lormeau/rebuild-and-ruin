@@ -186,6 +186,7 @@
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/house-burns.ts",
+      "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/impacts.ts",
       "src/render/3d/effects/layer-canvas.ts",
       "src/render/3d/effects/reconciler.ts",
