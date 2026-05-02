@@ -171,6 +171,7 @@
       "src/render/3d/entities/entity-helpers.ts",
       "src/render/3d/entities/grunts.ts",
       "src/render/3d/entities/instance-bucket.ts",
+      "src/render/3d/entities/instance-modulation.ts",
       "src/render/3d/entities/houses.ts",
       "src/render/3d/entities/phantoms.ts",
       "src/render/3d/entities/pits.ts",

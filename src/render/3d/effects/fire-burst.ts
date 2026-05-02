@@ -26,6 +26,7 @@ import * as THREE from "three";
 import type { TilePos } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
+import { attachInstanceOpacity } from "../entities/instance-modulation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
 import { createReconciler } from "./reconciler.ts";
@@ -165,9 +166,9 @@ export interface FireBurstHost {
  *  across every active host on the same manager — `animateFireBurst`
  *  appends one entry per flame each frame, advancing a cursor reset by
  *  `beginFrame()`. Per-instance color carries the (baseColor × crackle)
- *  product; per-instance opacity is plumbed through an `instanceOpacity`
- *  attribute via a small `onBeforeCompile` patch on `MeshBasicMaterial`
- *  (alpha is multiplied at fragment-output time). */
+ *  product; per-instance opacity is plumbed through the shared
+ *  `attachInstanceOpacity` helper (alpha is multiplied at fragment-
+ *  output time via an `onBeforeCompile` patch). */
 interface FlamePool {
   /** Owned by the caller — added under the manager's root group; freed
    *  on `dispose()`. */
@@ -454,10 +455,6 @@ export function animateFireBurst(
 function createFlashPool(parent: THREE.Group): FlashPool {
   ensureFireBurstResources();
   const geometry = sharedFlashGeometry!.clone();
-  const opacityArray = new Float32Array(MAX_FLASHES);
-  const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
-  opacityAttribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute("instanceOpacity", opacityAttribute);
 
   const material = new THREE.MeshBasicMaterial({
     color: FLASH_COLOR,
@@ -465,7 +462,6 @@ function createFlashPool(parent: THREE.Group): FlashPool {
     opacity: 1,
     depthWrite: false,
   });
-  material.onBeforeCompile = patchFlameInstanceOpacity;
 
   const mesh = new THREE.InstancedMesh(geometry, material, MAX_FLASHES);
   mesh.name = "flashes";
@@ -473,6 +469,8 @@ function createFlashPool(parent: THREE.Group): FlashPool {
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   mesh.frustumCulled = false;
   parent.add(mesh);
+  const opacityAttribute = attachInstanceOpacity(mesh, MAX_FLASHES);
+  const opacityArray = opacityAttribute.array as Float32Array;
 
   let cursor = 0;
 
@@ -504,19 +502,11 @@ function createFlashPool(parent: THREE.Group): FlashPool {
  *  parented under `parent` (typically the manager's root group) and
  *  cleared on `dispose()`. The shared lathe geometry is cloned so the
  *  pool can attach its own `instanceOpacity` attribute without mutating
- *  the global. The fragment shader is patched to multiply final alpha
- *  by `instanceOpacity` — three.js doesn't expose per-instance opacity
- *  natively, so we plumb it through `onBeforeCompile` injection points
- *  (`<common>` for the varying, `<alphamap_fragment>` for the multiply
- *  — runs after `alphamap` so an alpha map combined with our opacity
- *  multiplies correctly even though flames don't currently use one). */
+ *  the global; per-instance opacity itself is plumbed through the
+ *  shared `attachInstanceOpacity` helper. */
 function createFlamePool(parent: THREE.Group): FlamePool {
   ensureFireBurstResources();
   const geometry = sharedFlameGeometry!.clone();
-  const opacityArray = new Float32Array(MAX_FLAMES);
-  const opacityAttribute = new THREE.InstancedBufferAttribute(opacityArray, 1);
-  opacityAttribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute("instanceOpacity", opacityAttribute);
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -524,7 +514,6 @@ function createFlamePool(parent: THREE.Group): FlamePool {
     opacity: 1,
     depthWrite: false,
   });
-  material.onBeforeCompile = patchFlameInstanceOpacity;
 
   const mesh = new THREE.InstancedMesh(geometry, material, MAX_FLAMES);
   mesh.name = "flames";
@@ -539,6 +528,8 @@ function createFlamePool(parent: THREE.Group): FlamePool {
   // walk the (already small) instance bounds per frame.
   mesh.frustumCulled = false;
   parent.add(mesh);
+  const opacityAttribute = attachInstanceOpacity(mesh, MAX_FLAMES);
+  const opacityArray = opacityAttribute.array as Float32Array;
 
   let cursor = 0;
 
@@ -566,32 +557,6 @@ function createFlamePool(parent: THREE.Group): FlamePool {
       material.dispose();
     },
   };
-}
-
-/** Module-level shader patcher shared across every pool. Three.js's
- *  program cache keys on the patcher's function identity — defining it
- *  inline per pool would compile a new program per pool. */
-function patchFlameInstanceOpacity(
-  shader: THREE.WebGLProgramParametersWithUniforms,
-): void {
-  shader.vertexShader = shader.vertexShader
-    .replace(
-      "#include <common>",
-      "#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;",
-    )
-    .replace(
-      "#include <begin_vertex>",
-      "#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;",
-    );
-  shader.fragmentShader = shader.fragmentShader
-    .replace(
-      "#include <common>",
-      "#include <common>\nvarying float vInstanceOpacity;",
-    )
-    .replace(
-      "#include <alphamap_fragment>",
-      "#include <alphamap_fragment>\ndiffuseColor.a *= vInstanceOpacity;",
-    );
 }
 
 function ensureFireBurstResources(): void {

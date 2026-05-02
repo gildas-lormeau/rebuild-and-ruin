@@ -13,6 +13,7 @@
       "src/protocol/routes.ts",
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/reconciler.ts",
+      "src/render/3d/entities/instance-modulation.ts",
       "src/render/3d/lights.ts",
       "src/render/3d/perf-hud.ts",
       "src/render/3d/pixel-snap.ts",
