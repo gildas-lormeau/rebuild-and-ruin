@@ -1,7 +1,7 @@
 /**
  * Registry of all per-modifier 3D effect managers.
  *
- * Three lifecycle shapes coexist in the same registry — each effect
+ * Four lifecycle shapes coexist in the same registry — each effect
  * owns its lifecycle internally via `update(ctx)`:
  *   - one-shot reveal bursts (gate on banner.swept + paletteKey,
  *     animate for ~1.1s, dispose hosts)
@@ -9,18 +9,25 @@
  *     continuously while active)
  *   - event-driven bursts (consume `overlay.entities.X[]` entries with
  *     `.age` fields, dispose when the set empties)
+ *   - service-driven effects (drive a service-style manager via deps,
+ *     own no meshes — the manager handles all rendering, the effect
+ *     owns the modifier/banner orchestration; e.g. fog-reveal)
  *
  * Adding a new modifier effect (any lifecycle): write the effect file,
- * add one entry here. No other touchpoints in scene.ts / renderer.ts.
+ * add one entry here. No other touchpoints in scene.ts / renderer.ts —
+ * unless the effect needs a service-style manager, in which case
+ * scene.ts wires the manager into `ModifierEffectDeps`.
  *
  * Factories take `(scene, deps)`. Most ignore `deps`; the few that need
  * shared dependencies (e.g. sinkhole overlay needs the
- * `getSinkholeOverlayBitmap` accessor) pluck what they want.
+ * `getSinkholeOverlayBitmap` accessor, fog-reveal needs the fog
+ * manager itself) pluck what they want.
  */
 
 import type * as THREE from "three";
 import type { EffectManager } from "./fire-burst.ts";
-import { createFogManager } from "./fog.ts";
+import type { FogManager } from "./fog.ts";
+import { createFogRevealManager } from "./fog-reveal.ts";
 import { createGrassEmergenceManager } from "./grass-emergence.ts";
 import { createGroundCollapseManager } from "./ground-collapse.ts";
 import { createGruntFrostManager } from "./grunt-frost.ts";
@@ -40,9 +47,15 @@ import { createWildfireBurstManager } from "./wildfire-burst.ts";
 
 /** Shared dependencies passed to every modifier-effect factory. Most
  *  factories ignore this; add fields here when a new factory needs
- *  scene-construction-time dependencies it can't read from `FrameCtx`. */
+ *  scene-construction-time dependencies it can't read from `FrameCtx`.
+ *
+ *  Service-style managers (fog, sinkhole) are constructed in scene.ts
+ *  outside this registry and exposed here so registry-side effects
+ *  (`fog-reveal.ts` etc.) can drive them via small APIs without owning
+ *  the rendering. */
 interface ModifierEffectDeps {
   readonly getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap;
+  readonly fogManager: FogManager;
 }
 
 type ModifierEffectFactory = (
@@ -64,9 +77,10 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createLightningBurstManager,
   createRubbleClearedManager,
   // Persistent overlays (run while gating flag holds).
-  createFogManager,
   (scene, deps) =>
     createSinkholeOverlayManager(scene, deps.getSinkholeOverlayBitmap),
+  // Service-driven effects (drive a manager via deps, no own meshes).
+  (_scene, deps) => createFogRevealManager(deps.fogManager),
   // Event-driven bursts (per-entry in overlay.entities.X[]).
   createThawingManager,
 ];

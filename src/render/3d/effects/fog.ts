@@ -28,13 +28,19 @@ import { ELEVATION_STACK, RENDER_ORDER, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
 
-interface FogManager {
+export interface FogManager {
   /** Per-frame update. Rebuilds the fog tile set only when castles'
    *  interior/wall composition changes; otherwise just re-drives the
    *  highlight band positions + brightness from `now`. */
   update(ctx: FrameCtx): void;
   /** Free GPU resources when the renderer is torn down. */
   dispose(): void;
+  /** Override fog opacity. `1` = no override (steady-state rendering),
+   *  `0` = fully invisible. Driven by external effects (e.g. fog-reveal
+   *  modifier ramp); the manager itself never mutates this — it stays
+   *  at whatever value the last caller set, so callers must release
+   *  back to `1` when done. */
+  setRevealOpacity(value: number): void;
 }
 
 interface FogTile {
@@ -218,7 +224,12 @@ export function createFogManager(scene: THREE.Scene): FogManager {
     scene.remove(root);
   }
 
-  return { update, dispose };
+  function setRevealOpacity(value: number): void {
+    baseMaterial.opacity = FOG_BASE_ALPHA * value;
+    bandMaterial.opacity = FOG_HIGHLIGHT_ALPHA * value;
+  }
+
+  return { update, dispose, setRevealOpacity };
 }
 
 /** Add to `out` every tile in the castle footprint (interior ∪ walls)

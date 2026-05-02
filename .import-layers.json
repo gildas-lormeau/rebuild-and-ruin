@@ -234,6 +234,7 @@
       "src/input/input-touch-update.ts",
       "src/online/online-runtime-ws.ts",
       "src/render/3d/effects/cannon-burns.ts",
+      "src/render/3d/effects/fog-reveal.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
       "src/render/3d/effects/modifier-reveal-burst.ts",
