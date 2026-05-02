@@ -38,6 +38,10 @@ import {
 } from "./effects/crosshairs.ts";
 import { createFogManager, type FogManager } from "./effects/fog.ts";
 import {
+  createGrassEmergenceManager,
+  type GrassEmergenceManager,
+} from "./effects/grass-emergence.ts";
+import {
   createGruntBurnsManager,
   type GruntBurnsManager,
 } from "./effects/grunt-burns.ts";
@@ -200,6 +204,9 @@ export interface Render3dContext {
    *  modifier. Reads `overlay.ui.modifierReveal.tiles` and animates a
    *  staggered freeze across them once `banner.progress >= 1`. */
   readonly iceFormation: IceFormationManager;
+  /** Grass-emergence reveal — post-banner animation for the `low_water`
+   *  modifier. Same pattern as `iceFormation`, green palette. */
+  readonly grassEmergence: GrassEmergenceManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -278,6 +285,7 @@ export function createRender3dScene(
   const fog = createFogManager(scene);
   const thawing = createThawingManager(scene);
   const iceFormation = createIceFormationManager(scene);
+  const grassEmergence = createGrassEmergenceManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -379,6 +387,7 @@ export function createRender3dScene(
     fog,
     thawing,
     iceFormation,
+    grassEmergence,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
