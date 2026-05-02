@@ -270,6 +270,7 @@
       "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/wall-threat.ts",
       "src/render/3d/effects/water-surge.ts",
+      "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
       "src/runtime/dev-console.ts",
       "src/runtime/runtime-banner.ts",

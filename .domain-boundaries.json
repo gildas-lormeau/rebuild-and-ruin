@@ -199,6 +199,7 @@
       "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/wall-threat.ts",
       "src/render/3d/effects/water-surge.ts",
+      "src/render/3d/effects/wildfire-burst.ts",
       "src/render/3d/effects/terrain-bitmap.ts",
       "src/render/3d/effects/thawing.ts",
       "src/render/3d/effects/wall-burns.ts",

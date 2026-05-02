@@ -104,6 +104,10 @@ import {
   type WaterWavesManager,
 } from "./effects/water-waves.ts";
 import {
+  createWildfireBurstManager,
+  type WildfireBurstManager,
+} from "./effects/wildfire-burst.ts";
+import {
   type BalloonsManager,
   createBalloonsManager,
 } from "./entities/balloons.ts";
@@ -250,6 +254,9 @@ export interface Render3dContext {
   /** Spawn-burst reveal — post-banner burst for the `grunt_surge`
    *  modifier. Red palette, highlights tiles where surge grunts spawned. */
   readonly spawnBurst: SpawnBurstManager;
+  /** Wildfire-burst reveal — post-banner burst for the `wildfire`
+   *  modifier. Orange palette, highlights burn-scar tiles. */
+  readonly wildfireBurst: WildfireBurstManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -335,6 +342,7 @@ export function createRender3dScene(
   const gruntFrost = createGruntFrostManager(scene);
   const wallCrumble = createWallCrumbleManager(scene);
   const spawnBurst = createSpawnBurstManager(scene);
+  const wildfireBurst = createWildfireBurstManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -443,6 +451,7 @@ export function createRender3dScene(
     gruntFrost,
     wallCrumble,
     spawnBurst,
+    wildfireBurst,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
