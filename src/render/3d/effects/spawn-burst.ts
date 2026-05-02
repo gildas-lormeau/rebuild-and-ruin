@@ -12,9 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type SpawnBurstManager = EffectManager;
-
-export function createSpawnBurstManager(scene: THREE.Scene): SpawnBurstManager {
+export function createSpawnBurstManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "spawn-burst",
     paletteKey: "grunt_surge",

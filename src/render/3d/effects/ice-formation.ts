@@ -12,11 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type IceFormationManager = EffectManager;
-
-export function createIceFormationManager(
-  scene: THREE.Scene,
-): IceFormationManager {
+export function createIceFormationManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "ice-formation",
     paletteKey: "frozen_river",

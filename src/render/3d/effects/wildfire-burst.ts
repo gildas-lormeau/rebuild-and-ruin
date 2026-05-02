@@ -13,11 +13,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type WildfireBurstManager = EffectManager;
-
-export function createWildfireBurstManager(
-  scene: THREE.Scene,
-): WildfireBurstManager {
+export function createWildfireBurstManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "wildfire-burst",
     paletteKey: "wildfire",

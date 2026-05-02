@@ -24,7 +24,7 @@ import { ELEVATION_STACK } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
-export interface SinkholeOverlayManager {
+interface SinkholeOverlayManager {
   /** Re-upload the sinkhole overlay texture when the 2D cache fingerprint
    *  has changed. No-op on steady-state frames (reference equality on
    *  the returned ImageData). Hides the mesh when there are no owned

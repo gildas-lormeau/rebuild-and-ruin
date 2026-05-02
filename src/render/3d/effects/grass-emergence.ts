@@ -12,11 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type GrassEmergenceManager = EffectManager;
-
-export function createGrassEmergenceManager(
-  scene: THREE.Scene,
-): GrassEmergenceManager {
+export function createGrassEmergenceManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "grass-emergence",
     paletteKey: "low_water",

@@ -36,85 +36,34 @@ import {
   type CrosshairsManager,
   createCrosshairsManager,
 } from "./effects/crosshairs.ts";
-import { createFogManager, type FogManager } from "./effects/fog.ts";
-import {
-  createGrassEmergenceManager,
-  type GrassEmergenceManager,
-} from "./effects/grass-emergence.ts";
-import {
-  createGroundCollapseManager,
-  type GroundCollapseManager,
-} from "./effects/ground-collapse.ts";
+import { type EffectManager } from "./effects/fire-burst.ts";
 import {
   createGruntBurnsManager,
   type GruntBurnsManager,
 } from "./effects/grunt-burns.ts";
 import {
-  createGruntFrostManager,
-  type GruntFrostManager,
-} from "./effects/grunt-frost.ts";
-import {
   createHouseBurnsManager,
   type HouseBurnsManager,
 } from "./effects/house-burns.ts";
 import {
-  createIceFormationManager,
-  type IceFormationManager,
-} from "./effects/ice-formation.ts";
-import {
   createImpactsManager,
   type ImpactsManager,
 } from "./effects/impacts.ts";
-import {
-  createLightningBurstManager,
-  type LightningBurstManager,
-} from "./effects/lightning-burst.ts";
-import {
-  createRubbleClearedManager,
-  type RubbleClearedManager,
-} from "./effects/rubble-cleared.ts";
-import {
-  createSinkholeOverlayManager,
-  type GetSinkholeOverlayBitmap,
-  type SinkholeOverlayManager,
-} from "./effects/sinkhole-overlay.ts";
-import {
-  createSpawnBurstManager,
-  type SpawnBurstManager,
-} from "./effects/spawn-burst.ts";
+import { MODIFIER_EFFECT_FACTORIES } from "./effects/modifier-effect-registry.ts";
+import { type GetSinkholeOverlayBitmap } from "./effects/sinkhole-overlay.ts";
 import {
   createTerrainBitmapManager,
   type GetTerrainBitmap,
   type TerrainBitmapManager,
 } from "./effects/terrain-bitmap.ts";
 import {
-  createThawingManager,
-  type ThawingManager,
-} from "./effects/thawing.ts";
-import {
   createWallBurnsManager,
   type WallBurnsManager,
 } from "./effects/wall-burns.ts";
 import {
-  createWallCrumbleManager,
-  type WallCrumbleManager,
-} from "./effects/wall-crumble.ts";
-import {
-  createWallThreatManager,
-  type WallThreatManager,
-} from "./effects/wall-threat.ts";
-import {
-  createWaterSurgeManager,
-  type WaterSurgeManager,
-} from "./effects/water-surge.ts";
-import {
   createWaterWavesManager,
   type WaterWavesManager,
 } from "./effects/water-waves.ts";
-import {
-  createWildfireBurstManager,
-  type WildfireBurstManager,
-} from "./effects/wildfire-burst.ts";
 import {
   type BalloonsManager,
   createBalloonsManager,
@@ -229,48 +178,13 @@ export interface Render3dContext {
    *  anchored at `overlay.battle.crosshairs[].x/y` (pixel units). Arm
    *  length / alpha pulse with the 2D-parity `cannonReady` timeline. */
   readonly crosshairs: CrosshairsManager;
-  /** Fog-of-war manager — Phase 6. One flat tile + drifting highlight
-   *  per fogged tile in `overlay.battle.fogOfWar` castle dilations. */
-  readonly fog: FogManager;
-  /** Thawing-tile manager — Phase 6. Fade + crack-burst animation on
-   *  `overlay.entities.thawingTiles`. Base frozen-tile ICE_COLOR is
-   *  owned by `terrain` (Phase 2). */
-  readonly thawing: ThawingManager;
-  /** Ice-formation reveal — post-banner animation for the `frozen_river`
-   *  modifier. Reads `overlay.ui.modifierReveal.tiles` and animates a
-   *  staggered freeze across them once `banner.progress >= 1`. */
-  readonly iceFormation: IceFormationManager;
-  /** Grass-emergence reveal — post-banner animation for the `low_water`
-   *  modifier. Same pattern as `iceFormation`, green palette. */
-  readonly grassEmergence: GrassEmergenceManager;
-  /** Water-surge reveal — post-banner animation for the `high_tide`
-   *  modifier. Same pattern as `iceFormation`, blue palette. */
-  readonly waterSurge: WaterSurgeManager;
-  /** Ground-collapse reveal — post-banner animation for the `sinkhole`
-   *  modifier. Same pattern as `iceFormation`, brown palette. */
-  readonly groundCollapse: GroundCollapseManager;
-  /** Wall-threat reveal — post-banner animation for the `sapper`
-   *  modifier. Same pattern as `iceFormation`, copper palette,
-   *  highlights wall tiles grunts will attack. */
-  readonly wallThreat: WallThreatManager;
-  /** Grunt-frost reveal — post-banner announcement burst for the
-   *  `frostbite` modifier. Highlights grunt tiles that just froze. */
-  readonly gruntFrost: GruntFrostManager;
-  /** Wall-crumble reveal — post-banner burst for the `crumbling_walls`
-   *  modifier. Tan palette, highlights the wall tiles that vanished. */
-  readonly wallCrumble: WallCrumbleManager;
-  /** Spawn-burst reveal — post-banner burst for the `grunt_surge`
-   *  modifier. Red palette, highlights tiles where surge grunts spawned. */
-  readonly spawnBurst: SpawnBurstManager;
-  /** Wildfire-burst reveal — post-banner burst for the `wildfire`
-   *  modifier. Orange palette, highlights burn-scar tiles. */
-  readonly wildfireBurst: WildfireBurstManager;
-  /** Lightning-burst reveal — post-banner burst for the `dry_lightning`
-   *  modifier. Yellow palette, highlights newly ignited tiles. */
-  readonly lightningBurst: LightningBurstManager;
-  /** Rubble-cleared reveal — post-banner burst for the `rubble_clearing`
-   *  modifier. Green palette, highlights cleared debris/pit tiles. */
-  readonly rubbleCleared: RubbleClearedManager;
+  /** All per-modifier 3D effects — one EffectManager per entry in
+   *  `MODIFIER_EFFECT_FACTORIES`. Mixes one-shot reveal bursts,
+   *  persistent overlays (fog, sinkhole owner bank tinting), and
+   *  event-driven bursts (thawing). Each owns its own lifecycle and
+   *  activation gating from `FrameCtx.overlay`. Adding a new modifier
+   *  effect (any lifecycle) touches only the registry, not this file. */
+  readonly modifierEffects: readonly EffectManager[];
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -282,11 +196,6 @@ export interface Render3dContext {
    *  Sits at ground plane Y=0; the terrain mesh at Y=0.01 composites
    *  overlay tiles (interiors, bonus, frozen, owned sinkholes) on top. */
   readonly terrainBitmap: TerrainBitmapManager;
-  /** Owned-sinkhole bank recoloring overlay — uploads the 2D renderer's
-   *  `getSinkholeOverlayBitmap` per-cluster owner-tinted patches as a
-   *  CanvasTexture on a plane above the terrain mesh. Parity with the
-   *  2D `drawSinkholeOverlays` bank-fade pass. */
-  readonly sinkholeOverlay: SinkholeOverlayManager;
   /** Flashing gold-disc bonus-square indicators. Rendered as flat
    *  circles on the ground plane outside of battle; pulse matches the
    *  2D `drawBonusSquares` alpha timeline. */
@@ -346,25 +255,11 @@ export function createRender3dScene(
   const gruntBurns = createGruntBurnsManager(scene);
   const houseBurns = createHouseBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
-  const fog = createFogManager(scene);
-  const thawing = createThawingManager(scene);
-  const iceFormation = createIceFormationManager(scene);
-  const grassEmergence = createGrassEmergenceManager(scene);
-  const waterSurge = createWaterSurgeManager(scene);
-  const groundCollapse = createGroundCollapseManager(scene);
-  const wallThreat = createWallThreatManager(scene);
-  const gruntFrost = createGruntFrostManager(scene);
-  const wallCrumble = createWallCrumbleManager(scene);
-  const spawnBurst = createSpawnBurstManager(scene);
-  const wildfireBurst = createWildfireBurstManager(scene);
-  const lightningBurst = createLightningBurstManager(scene);
-  const rubbleCleared = createRubbleClearedManager(scene);
+  const modifierEffects = MODIFIER_EFFECT_FACTORIES.map((factory) =>
+    factory(scene, { getSinkholeOverlayBitmap }),
+  );
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
-  const sinkholeOverlay = createSinkholeOverlayManager(
-    scene,
-    getSinkholeOverlayBitmap,
-  );
   const bonusSquares = createBonusSquaresManager(scene);
 
   const renderer = new THREE.WebGLRenderer({
@@ -457,22 +352,9 @@ export function createRender3dScene(
     gruntBurns,
     houseBurns,
     crosshairs,
-    fog,
-    thawing,
-    iceFormation,
-    grassEmergence,
-    waterSurge,
-    groundCollapse,
-    wallThreat,
-    gruntFrost,
-    wallCrumble,
-    spawnBurst,
-    wildfireBurst,
-    lightningBurst,
-    rubbleCleared,
+    modifierEffects,
     waterWaves,
     terrainBitmap,
-    sinkholeOverlay,
     bonusSquares,
   };
 }

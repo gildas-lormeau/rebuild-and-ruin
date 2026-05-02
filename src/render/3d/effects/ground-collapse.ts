@@ -12,11 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type GroundCollapseManager = EffectManager;
-
-export function createGroundCollapseManager(
-  scene: THREE.Scene,
-): GroundCollapseManager {
+export function createGroundCollapseManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "ground-collapse",
     paletteKey: "sinkhole",

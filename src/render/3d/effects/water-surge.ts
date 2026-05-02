@@ -12,9 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type WaterSurgeManager = EffectManager;
-
-export function createWaterSurgeManager(scene: THREE.Scene): WaterSurgeManager {
+export function createWaterSurgeManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "water-surge",
     paletteKey: "high_tide",

@@ -12,9 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type GruntFrostManager = EffectManager;
-
-export function createGruntFrostManager(scene: THREE.Scene): GruntFrostManager {
+export function createGruntFrostManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "grunt-frost",
     paletteKey: "frostbite",

@@ -29,7 +29,7 @@ import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { createFlatDisc, tileSeed } from "./helpers.ts";
 
-export interface ThawingManager {
+interface ThawingManager {
   /** Per-frame update. Rebuilds the mesh pool only when the thawing tile
    *  count changes; per-frame animation drives scale/opacity from the
    *  game's `age` field. */

@@ -28,7 +28,7 @@ import { ELEVATION_STACK, RENDER_ORDER, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { tileSeed } from "./helpers.ts";
 
-export interface FogManager {
+interface FogManager {
   /** Per-frame update. Rebuilds the fog tile set only when castles'
    *  interior/wall composition changes; otherwise just re-drives the
    *  highlight band positions + brightness from `now`. */

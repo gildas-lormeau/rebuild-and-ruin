@@ -12,11 +12,7 @@ import type * as THREE from "three";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
-export type WallCrumbleManager = EffectManager;
-
-export function createWallCrumbleManager(
-  scene: THREE.Scene,
-): WallCrumbleManager {
+export function createWallCrumbleManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "wall-crumble",
     paletteKey: "crumbling_walls",
