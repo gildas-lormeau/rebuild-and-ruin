@@ -212,10 +212,10 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       runtimeState.overlay.ui.scoreDeltaProgress = deps.scoreDeltaProgress();
     }
 
-    // Expose modifier-reveal dwell data when the phase is active. The
-    // renderer (`drawModifierRevealDwell`) reads from overlay.ui and
-    // never touches game state directly. Tiles + palette are persisted
-    // on `state.modern` at modifier-apply time by
+    // Expose modifier-reveal data when the phase is active. The 3D
+    // burst managers in src/render/3d/effects/ read from overlay.ui
+    // and never touch game state directly. Tiles + palette are
+    // persisted on `state.modern` at modifier-apply time by
     // `applyBattleStartModifiers` (host) / `applyBattleStartCheckpoint`
     // (watcher), so both roles produce identical overlay data.
     const modifier = runtimeState.state.modern?.activeModifier;
