@@ -3,7 +3,7 @@
  *
  * Three lifecycle shapes coexist in the same registry — each effect
  * owns its lifecycle internally via `update(ctx)`:
- *   - one-shot reveal bursts (gate on banner.progress + paletteKey,
+ *   - one-shot reveal bursts (gate on banner.swept + paletteKey,
  *     animate for ~1.1s, dispose hosts)
  *   - persistent overlays (gate on a state flag like fogOfWar, run
  *     continuously while active)

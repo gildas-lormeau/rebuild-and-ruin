@@ -265,6 +265,10 @@ export interface BannerUi {
    *  effects (e.g. modifier reveal animations) that wait for sweep
    *  completion. */
   progress: number;
+  /** Convenience flag: `progress >= 1`. True once the sweep has fully
+   *  revealed the new scene; stays true through the dwell. Effects that
+   *  only care about "has the sweep finished?" should read this. */
+  swept: boolean;
 }
 
 /** UI overlays — banners, announcements, game over, player select. */

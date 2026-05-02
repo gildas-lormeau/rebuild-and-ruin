@@ -8,8 +8,8 @@
  * roll across the affected tiles instead of snapping in uniformly.
  *
  * Triggered when `overlay.ui.modifierReveal.paletteKey === paletteKey`
- * AND the banner sweep has completed (`banner.progress >= 1`). Runs once
- * per modifier roll, then disposes all hosts.
+ * AND the banner sweep has completed (`banner.swept`). Runs once per
+ * modifier roll, then disposes all hosts.
  */
 
 import * as THREE from "three";
@@ -159,8 +159,7 @@ export function createModifierRevealBurstManager(
     lastPaletteKey = reveal.paletteKey;
 
     // Wait for banner sweep to complete before kicking the reveal.
-    const sweepDone = banner === undefined || banner.progress >= 1;
-    if (!sweepDone) return;
+    if (!(banner?.swept ?? true)) return;
 
     if (revealStartMs === undefined) {
       startReveal(ctx.now, reveal.tiles);

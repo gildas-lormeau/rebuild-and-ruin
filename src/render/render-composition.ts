@@ -138,6 +138,7 @@ export function createBannerUi(
     prevScene,
     newScene,
     progress,
+    swept: progress >= 1,
   };
 }
 
