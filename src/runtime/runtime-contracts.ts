@@ -205,6 +205,12 @@ export interface OnlineOverlayParams {
    *  flight. Threaded into `overlay.battle.fogRevealOpacity` so the fog
    *  manager can apply it to material alpha. */
   fogRevealOpacity?: number;
+  /** Rubble-clearing fade-out multiplier (1..0) computed runtime-side by
+   *  `deriveRubbleClearingFade`, or undefined outside the reveal window.
+   *  Threaded into `overlay.battle.rubbleClearingFade`; the pit + debris
+   *  managers also iterate `state.modern.rubbleClearingHeld` to render
+   *  the held entries that gameplay state has already dropped. */
+  rubbleClearingFade?: number;
 }
 
 /** Banner lifecycle state:

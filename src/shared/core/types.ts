@@ -7,6 +7,7 @@ import type { Mode } from "../ui/ui-mode.ts";
 import type {
   BurningPit,
   Cannonball,
+  CannonMode,
   CapturedCannon,
   Grunt,
 } from "./battle-types.ts";
@@ -242,6 +243,21 @@ export interface ModernState {
    *  `activeModifier === DUST_STORM`). Modulo'd if `shotsFired` exceeds the
    *  buffer — deterministic across peers either way. */
   precomputedDustStormJitters: readonly number[];
+  /** Pre-removal snapshot for the rubble_clearing modifier. Captured by
+   *  `rubbleClearingImpl.apply` BEFORE the live entities are filtered
+   *  out of `player.cannons` / `state.burningPits`, so the renderer can
+   *  fade them out post-banner via `overlay.battle.rubbleClearingFade`.
+   *  null when no rubble_clearing reveal is in flight; cleared at next
+   *  battle start. */
+  rubbleClearingHeld: {
+    pits: readonly BurningPit[];
+    deadCannons: readonly {
+      ownerId: ValidPlayerSlot;
+      col: number;
+      row: number;
+      mode: CannonMode;
+    }[];
+  } | null;
 }
 
 /** Player selection lobby state. */
@@ -357,5 +373,6 @@ function createModernState(): ModernState {
     lowWaterTiles: null,
     chippedGrunts: null,
     precomputedDustStormJitters: [],
+    rubbleClearingHeld: null,
   };
 }

@@ -247,6 +247,7 @@
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
       "src/runtime/fog-reveal-overlay.ts",
+      "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-state.ts"

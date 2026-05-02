@@ -2,6 +2,7 @@ import type {
   BurningPit,
   Cannon,
   CannonDestroy,
+  CannonMode,
   Crosshair,
   Grunt,
   GruntKill,
@@ -233,6 +234,28 @@ export interface BattleOverlay {
    *  Steady-state (no reveal in flight) is `undefined` — the manager
    *  treats undefined as 1 (no override). */
   fogRevealOpacity?: number;
+  /** Global opacity multiplier for held rubble-clearing entities (pits +
+   *  dead cannon debris) during the modifier reveal, in [0, 1]. `1` =
+   *  full opacity (snapshot capture); ramps to `0` (invisible) over the
+   *  post-banner window so the entities visibly fade out. `undefined`
+   *  outside the rubble_clearing reveal window. Pits and debris managers
+   *  also iterate `heldRubblePits` / `heldDeadCannons` to render the
+   *  entries that gameplay state has already dropped. */
+  rubbleClearingFade?: number;
+  /** Held burning pits to keep rendering during the rubble-clearing fade
+   *  even though gameplay state has dropped them. Read by the pit
+   *  manager alongside `entities.burningPits`; faded by
+   *  `rubbleClearingFade`. */
+  heldRubblePits?: readonly BurningPit[];
+  /** Held dead-cannon footprints for the rubble-clearing fade. Read by
+   *  the debris manager alongside the live `player.cannons` dead
+   *  entries; faded by `rubbleClearingFade`. */
+  heldDeadCannons?: readonly {
+    ownerId: ValidPlayerSlot;
+    col: number;
+    row: number;
+    mode: CannonMode;
+  }[];
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */
   frostbite?: boolean;

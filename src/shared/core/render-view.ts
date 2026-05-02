@@ -1,7 +1,13 @@
-import type { BurningPit, Cannonball, Grunt } from "./battle-types.ts";
+import type {
+  BurningPit,
+  Cannonball,
+  CannonMode,
+  Grunt,
+} from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
 import { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { ComboEvent, GameState } from "./types.ts";
 
@@ -15,6 +21,18 @@ interface RenderModernSlice {
   readonly masterBuilderLockout: number;
   readonly comboTracker: {
     readonly events: readonly ComboEvent[];
+  } | null;
+  /** Pre-removal snapshot for rubble_clearing — read by the overlay
+   *  composer to expose held entities to the pit + debris managers
+   *  during the modifier reveal fade. */
+  readonly rubbleClearingHeld: {
+    readonly pits: readonly BurningPit[];
+    readonly deadCannons: readonly {
+      readonly ownerId: ValidPlayerSlot;
+      readonly col: number;
+      readonly row: number;
+      readonly mode: CannonMode;
+    }[];
   } | null;
 }
 

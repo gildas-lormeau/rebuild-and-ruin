@@ -9,6 +9,7 @@
   "modifier:high_tide": 1,
   "modifier:low_water": 1,
   "modifier:rubble_clearing": 0,
+  "modifier:rubble_clearing_nonempty": 0,
   "modifier:sapper": 1,
   "modifier:sinkhole": 6,
   "modifier:sinkhole_then_high_tide": 9,

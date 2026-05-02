@@ -66,6 +66,8 @@ const GAME_STATE_EXCLUSIONS: Record<string, string> = {
 const MODERN_STATE_EXCLUSIONS: Record<string, string> = {
   comboTracker:
     "transient — created at battle start, cleared at battle end; scoring is already reflected in player.score",
+  rubbleClearingHeld:
+    "purely presentational — captured deterministically by `rubbleClearingImpl.apply` on every peer (same input state → same snapshot), drives the renderer's fade-out via `overlay.battle.rubbleClearingFade` for ~1.1s post-banner-sweep, then cleared at next prepareBattleState. Late-joining watchers may miss the fade animation but gameplay state is unaffected (the entities are already removed)",
 };
 
 main();

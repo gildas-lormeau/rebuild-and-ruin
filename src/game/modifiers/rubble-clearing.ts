@@ -1,7 +1,14 @@
 /**
  * Rubble Clearing modifier — removes all dead cannon debris and burning pits.
+ *
+ * Captures a pre-removal snapshot of the affected entities into
+ * `state.modern.rubbleClearingHeld` before mutating, so the renderer can
+ * fade them out post-banner via the runtime-derived
+ * `overlay.battle.rubbleClearingFade` multiplier.
  */
 
+import type { CannonMode } from "../../shared/core/battle-types.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import {
   cannonSize,
@@ -21,15 +28,27 @@ export const rubbleClearingImpl: ModifierImpl = {
   skipsRecheck: true,
 };
 
-/** Apply rubble clearing: remove all dead cannon debris and burning pits.
- *  Returns the tile keys of cleared positions for the reveal banner. */
+/** Apply rubble clearing: snapshot the entities being removed (for the
+ *  renderer's post-banner fade), then remove them. Returns the tile keys
+ *  of cleared positions for the reveal banner. */
 function applyRubbleClearing(state: GameState): readonly number[] {
   const cleared: number[] = [];
-  // Collect dead cannon tile positions before removal
+  const heldDeadCannons: {
+    ownerId: ValidPlayerSlot;
+    col: number;
+    row: number;
+    mode: CannonMode;
+  }[] = [];
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     for (const cannon of player.cannons) {
       if (isCannonAlive(cannon)) continue;
+      heldDeadCannons.push({
+        ownerId: player.id,
+        col: cannon.col,
+        row: cannon.row,
+        mode: cannon.mode,
+      });
       const sz = cannonSize(cannon.mode);
       for (let dr = 0; dr < sz; dr++) {
         for (let dc = 0; dc < sz; dc++) {
@@ -39,10 +58,17 @@ function applyRubbleClearing(state: GameState): readonly number[] {
     }
     player.cannons = player.cannons.filter(isCannonAlive);
   }
-  // Collect burning pit positions before removal
+  const heldPits = state.burningPits.map((pit) => ({ ...pit }));
   for (const pit of state.burningPits) {
     cleared.push(packTile(pit.row, pit.col));
   }
   state.burningPits.length = 0;
+
+  if (state.modern && (heldDeadCannons.length > 0 || heldPits.length > 0)) {
+    state.modern.rubbleClearingHeld = {
+      pits: heldPits,
+      deadCannons: heldDeadCannons,
+    };
+  }
   return cleared;
 }

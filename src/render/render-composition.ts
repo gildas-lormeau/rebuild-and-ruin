@@ -315,6 +315,7 @@ export function createOnlineOverlay(
     playerColors,
     getLifeLostPanelPos,
     fogRevealOpacity,
+    rubbleClearingFade,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
@@ -361,6 +362,15 @@ export function createOnlineOverlay(
         (inBattle || view.phase === Phase.MODIFIER_REVEAL) &&
         view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
       fogRevealOpacity,
+      rubbleClearingFade,
+      heldRubblePits:
+        rubbleClearingFade !== undefined
+          ? view.modern?.rubbleClearingHeld?.pits
+          : undefined,
+      heldDeadCannons:
+        rubbleClearingFade !== undefined
+          ? view.modern?.rubbleClearingHeld?.deadCannons
+          : undefined,
       // Frostbite tint follows the modifier's full lifetime: surviving
       // frosted grunts must keep reading as ice through the post-battle
       // banner and the next build/cannon phases. Clears when the next

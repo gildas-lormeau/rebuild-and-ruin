@@ -91,6 +91,16 @@ export const SEED_CONDITIONS: Readonly<Record<string, SeedCondition>> = {
     rounds: DEFAULT_ROUNDS,
     match: (sc) => latchModifierSequence(sc, "sinkhole", "high_tide"),
   },
+  // Rubble_clearing only does something visible when there are dead
+  // cannons or burning pits to clear. The default `modifier:rubble_clearing`
+  // condition latches on the first roll, which can land on an empty
+  // round; this variant waits for a roll with at least one held entity
+  // so the fade-out test has something to render.
+  "modifier:rubble_clearing_nonempty": {
+    mode: "modern",
+    rounds: DEFAULT_ROUNDS,
+    match: (sc) => latchRubbleClearingWithEntities(sc),
+  },
 };
 
 /** Latch a bus event fire behind a closure flag. Returns the poller. */
@@ -115,6 +125,26 @@ function latchModifierFired(
   let seen = false;
   sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
     if (ev.modifierId === modifierId) seen = true;
+  });
+  return () => seen;
+}
+
+/** Latch the first `rubble_clearing` apply that has at least one held
+ *  entity to clear (otherwise the fade-out has nothing to render).
+ *  `MODIFIER_APPLIED` fires at modifier-roll time, BEFORE
+ *  `applyBattleStartModifiers` populates `rubbleClearingHeld`, so we
+ *  poll the next TICK for the populated snapshot. */
+function latchRubbleClearingWithEntities(sc: Scenario): () => boolean {
+  let pendingCheck = false;
+  let seen = false;
+  sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
+    if (ev.modifierId === "rubble_clearing") pendingCheck = true;
+  });
+  sc.bus.on(GAME_EVENT.TICK, () => {
+    if (!pendingCheck || seen) return;
+    const held = sc.state.modern?.rubbleClearingHeld;
+    if (held && held.pits.length + held.deadCannons.length > 0) seen = true;
+    pendingCheck = false;
   });
   return () => seen;
 }
