@@ -217,6 +217,9 @@ export interface OnlineOverlayParams {
    *  the grunt manager lerps material colors against the cached
    *  authored color by this multiplier. */
   frostbiteRevealProgress?: number;
+  /** Crumbling-walls fade multiplier (1..0); threaded into
+   *  `overlay.battle.crumblingWallsFade`. */
+  crumblingWallsFade?: number;
 }
 
 /** Banner lifecycle state:

@@ -1,8 +1,11 @@
 /**
- * Crumbling Walls modifier — destroys a fraction of each player's outermost walls.
+ * Crumbling Walls modifier — destroys a fraction of each player's outermost
+ * walls. Pre-removal snapshot captured into `state.modern.crumblingWallsHeld`
+ * (see types.ts for the consumer chain).
  */
 
 import { getInterior } from "../../shared/core/player-interior.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { deletePlayerWallsBatch } from "../../shared/core/player-walls.ts";
 import { DIRS_4, packTile, unpackTile } from "../../shared/core/spatial.ts";
@@ -25,6 +28,11 @@ export const crumblingWallsImpl: ModifierImpl = {
  *  Returns the array of destroyed wall tile keys for the reveal banner. */
 function applyCrumblingWalls(state: GameState): readonly number[] {
   const destroyed: number[] = [];
+  const held: {
+    playerId: ValidPlayerSlot;
+    tileKey: number;
+    damaged: boolean;
+  }[] = [];
 
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
@@ -59,8 +67,19 @@ function applyCrumblingWalls(state: GameState): readonly number[] {
     // Shuffle and pick first `count`
     state.rng.shuffle(destructible);
     const batch = destructible.slice(0, count);
+    for (const tileKey of batch) {
+      held.push({
+        playerId: player.id,
+        tileKey,
+        damaged: player.damagedWalls.has(tileKey),
+      });
+    }
     deletePlayerWallsBatch(player, batch);
     destroyed.push(...batch);
+  }
+
+  if (state.modern && held.length > 0) {
+    state.modern.crumblingWallsHeld = held;
   }
   return destroyed;
 }

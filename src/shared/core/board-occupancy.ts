@@ -131,9 +131,22 @@ export function collectOccupiedTiles(
   return occupied;
 }
 
-/** Snapshot each player's wall set (independent copies). */
-export function snapshotAllWalls(state: GameViewState): Set<number>[] {
-  return state.players.map((player) => new Set(player.walls));
+/** Snapshot each player's wall set (independent copies). Optional `held`
+ *  unions per-player crumbled wall tile keys (from
+ *  `state.modern.crumblingWallsHeld`) so that battleWalls picks up the
+ *  crumbled tiles for the wall-debris pipeline — same end-of-round
+ *  behaviour as walls destroyed by grunt attacks during battle. */
+export function snapshotAllWalls(
+  state: GameViewState,
+  held?: readonly { playerId: ValidPlayerSlot; tileKey: number }[] | null,
+): Set<number>[] {
+  const sets = state.players.map((player) => new Set(player.walls));
+  if (held) {
+    for (const entry of held) {
+      sets[entry.playerId]?.add(entry.tileKey);
+    }
+  }
+  return sets;
 }
 
 export function collectAllWalls(state: GameViewState): Set<number> {

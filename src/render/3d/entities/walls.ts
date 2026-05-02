@@ -60,7 +60,9 @@ import {
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
+  writeBucketOpacities,
 } from "./instance-bucket.ts";
+import { attachInstanceOpacity } from "./instance-modulation.ts";
 
 export interface WallsManager {
   /** Reconcile wall meshes with the current overlay. Cheap no-op when
@@ -76,7 +78,17 @@ interface MaskBucket {
   /** One InstancedMesh per sub-part of the authored wall cell. Shape is
    *  constant for the bucket's lifetime; capacity grows by replacement. */
   subParts: BucketSubPart[];
+  /** Per-sub-part instance-opacity attribute (parallel to `subParts`). */
+  opacityAttrs: THREE.InstancedBufferAttribute[];
   capacity: number;
+}
+
+interface WallEntry {
+  readonly col: number;
+  readonly row: number;
+  /** Per-instance alpha multiplier in [0, 1]. Live walls = 1; held
+   *  crumbling-walls entries = the runtime-derived fade multiplier. */
+  readonly opacity: number;
 }
 
 /** Pack (mask, damaged) into a single 5-bit key — 4 bits for the mask
@@ -109,7 +121,15 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
   // All materials we own (cloned or owned from builder output) — freed
   // on dispose.
   const ownedMaterials: THREE.Material[] = [];
-  let lastSignature: string | undefined;
+  // Two-tier cache: structural signature gates the expensive bucket
+  // rebuild + matrix recompose; fade is tracked separately so the 1.1s
+  // crumbling-walls ramp only triggers a per-slot opacity rewrite per
+  // frame (skipping mask compute, ensureBucket, fillBucket).
+  // `lastByBucket` retains the per-bucket entry lists from the most
+  // recent structural rebuild — opacity-only frames walk these.
+  let lastStructuralSignature: string | undefined;
+  let lastFade = 1;
+  let lastByBucket: Map<number, WallEntry[]> = new Map();
 
   // Scratch objects reused inside `update`.
   const hostMatrix = new THREE.Matrix4();
@@ -139,68 +159,107 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
-    // Union all players' wall sets and compute a signature. Damaged
-    // tiles get a distinct suffix in the signature so rebuilds fire when
-    // a wall transitions intact → damaged mid-battle.
-    const keys: number[] = [];
+    // Held walls union into the mask-compute set ONLY while the fade
+    // is active, so live neighbours keep their merlons during the
+    // fade. Post-fade the debris manager carries the rubble.
+    const heldWalls = overlay?.battle?.heldDestroyedWalls;
+    const crumblingFade = overlay?.battle?.crumblingWallsFade;
+    const renderHeldWalls = heldWalls && crumblingFade !== undefined;
+    const fade = crumblingFade ?? 1;
+
+    const liveKeys: number[] = [];
     const damagedKeys = new Set<number>();
     if (overlay?.castles) {
       for (const castle of overlay.castles) {
-        for (const key of castle.walls) keys.push(key);
+        for (const key of castle.walls) liveKeys.push(key);
         if (castle.damagedWalls) {
           for (const key of castle.damagedWalls) damagedKeys.add(key);
         }
       }
     }
-    keys.sort((a, b) => a - b);
-    const damagedList = [...damagedKeys].sort((a, b) => a - b);
-    const signature = `${keys.join(",")}|${damagedList.join(",")}`;
-
-    if (signature === lastSignature) return;
-    lastSignature = signature;
-
-    if (keys.length === 0) {
-      // Hide all instances; keep buckets alive so common "walls come
-      // and go" churn doesn't thrash GPU buffers.
-      for (const bucket of buckets.values()) hideSubParts(bucket.subParts);
-      return;
-    }
-
-    // Collapse to Set for O(1) neighbour lookup when computing masks.
-    const wallSet = new Set<number>(keys);
-    // Pre-bucket walls by (mask, damaged) so we know capacity
-    // requirements up front.
-    const byBucket = new Map<number, Array<{ col: number; row: number }>>();
-    for (const key of wallSet) {
-      const { row, col } = unpackTileKey(key);
-      const mask = computeMask(wallSet, col, row);
-      const bucketKey = mask | (damagedKeys.has(key) ? DAMAGED_BIT : 0);
-      let list = byBucket.get(bucketKey);
-      if (!list) {
-        list = [];
-        byBucket.set(bucketKey, list);
+    const heldKeys: number[] = [];
+    const heldDamagedKeys = new Set<number>();
+    if (renderHeldWalls) {
+      for (const held of heldWalls) {
+        heldKeys.push(held.tileKey);
+        if (held.damaged) heldDamagedKeys.add(held.tileKey);
       }
-      list.push({ col, row });
     }
 
-    // Buckets with no live tiles this frame — zero their count so stale
-    // instances don't ghost-render.
-    for (const [bucketKey, bucket] of buckets) {
-      if (!byBucket.has(bucketKey)) hideSubParts(bucket.subParts);
+    liveKeys.sort((a, b) => a - b);
+    heldKeys.sort((a, b) => a - b);
+    const damagedList = [...damagedKeys].sort((a, b) => a - b);
+    const heldDamagedList = [...heldDamagedKeys].sort((a, b) => a - b);
+    const structuralSignature = `${liveKeys.join(",")}|${damagedList.join(",")}|${heldKeys.join(",")}|${heldDamagedList.join(",")}`;
+    const structuralChanged = structuralSignature !== lastStructuralSignature;
+    const fadeChanged = fade !== lastFade;
+    if (!structuralChanged && !fadeChanged) return;
+    lastFade = fade;
+
+    if (structuralChanged) {
+      lastStructuralSignature = structuralSignature;
+
+      if (liveKeys.length === 0 && heldKeys.length === 0) {
+        for (const bucket of buckets.values()) hideSubParts(bucket.subParts);
+        lastByBucket.clear();
+        return;
+      }
+
+      const wallSet = new Set<number>(liveKeys);
+      for (const key of heldKeys) wallSet.add(key);
+
+      const byBucket = new Map<number, WallEntry[]>();
+      const sources: ReadonlyArray<{
+        readonly keys: readonly number[];
+        readonly damagedSet: ReadonlySet<number>;
+        readonly opacity: number;
+      }> = [
+        { keys: liveKeys, damagedSet: damagedKeys, opacity: 1 },
+        { keys: heldKeys, damagedSet: heldDamagedKeys, opacity: fade },
+      ];
+      for (const source of sources) {
+        for (const key of source.keys) {
+          const { row, col } = unpackTileKey(key);
+          const mask = computeMask(wallSet, col, row);
+          const bucketKey =
+            mask | (source.damagedSet.has(key) ? DAMAGED_BIT : 0);
+          let list = byBucket.get(bucketKey);
+          if (!list) {
+            list = [];
+            byBucket.set(bucketKey, list);
+          }
+          list.push({ col, row, opacity: source.opacity });
+        }
+      }
+
+      for (const [bucketKey, bucket] of buckets) {
+        if (!byBucket.has(bucketKey)) hideSubParts(bucket.subParts);
+      }
+
+      for (const [bucketKey, list] of byBucket) {
+        const bucket = ensureBucket(bucketKey, list.length);
+        fillBucket(bucket, list, hostMatrix, instanceMatrix, (tile, matrix) => {
+          hostTranslation.set(
+            (tile.col + 0.5) * TILE_SIZE,
+            0,
+            (tile.row + 0.5) * TILE_SIZE,
+          );
+          matrix.compose(hostTranslation, identityQuat, hostScale);
+        });
+      }
+      lastByBucket = byBucket;
+    } else {
+      // Fade-only change: refresh held entries' opacity in place.
+      for (const list of lastByBucket.values()) {
+        for (let i = 0; i < list.length; i++) {
+          if (list[i]!.opacity !== 1) {
+            list[i] = { col: list[i]!.col, row: list[i]!.row, opacity: fade };
+          }
+        }
+      }
     }
 
-    // Write matrices for each live bucket.
-    for (const [bucketKey, list] of byBucket) {
-      const bucket = ensureBucket(bucketKey, list.length);
-      fillBucket(bucket, list, hostMatrix, instanceMatrix, (tile, matrix) => {
-        hostTranslation.set(
-          (tile.col + 0.5) * TILE_SIZE,
-          0,
-          (tile.row + 0.5) * TILE_SIZE,
-        );
-        matrix.compose(hostTranslation, identityQuat, hostScale);
-      });
-    }
+    writeBucketOpacities(buckets, lastByBucket);
   }
 
   function dispose(): void {
@@ -248,5 +307,11 @@ function buildBucket(
     },
     namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
   });
-  return { mask, damaged, subParts, capacity };
+  // Attach per-instance opacity so the crumbling-walls fade can write a
+  // 0..1 multiplier per slot. Live walls get 1 (no override); held walls
+  // get the runtime-derived fade each frame.
+  const opacityAttrs = subParts.map((part) =>
+    attachInstanceOpacity(part.instanced, capacity),
+  );
+  return { mask, damaged, subParts, opacityAttrs, capacity };
 }

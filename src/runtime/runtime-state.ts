@@ -156,6 +156,9 @@ export interface RuntimeState {
   /** Same shape as `fogRevealRampStartMs` but for the frostbite tint
    *  ramp. Set by `deriveFrostbiteRevealProgress`. */
   frostbiteRevealRampStartMs: number | undefined;
+  /** Same shape as `fogRevealRampStartMs` but for the crumbling_walls
+   *  fade-out. Set by `deriveCrumblingWallsFade`. */
+  crumblingWallsRampStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
@@ -307,6 +310,7 @@ export function createRuntimeState(): RuntimeState {
     fogRevealRampStartMs: undefined,
     rubbleClearingRampStartMs: undefined,
     frostbiteRevealRampStartMs: undefined,
+    crumblingWallsRampStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateReady` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

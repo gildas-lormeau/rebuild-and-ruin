@@ -952,7 +952,9 @@ function syncBattleAnim(
 ): void {
   clearBattleAnim(ctx);
   ctx.battle.setTerritory(snapshotTerritory(ctx.state.players));
-  ctx.battle.setWalls(snapshotAllWalls(ctx.state));
+  ctx.battle.setWalls(
+    snapshotAllWalls(ctx.state, ctx.state.modern?.crumblingWallsHeld),
+  );
   ctx.battle.setFlights(
     result.flights.map((flight) => ({ flight, progress: 0 })),
   );

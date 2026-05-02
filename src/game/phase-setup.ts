@@ -154,10 +154,14 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   preBattleSweep(state);
   recheckTerritory(state);
   clearActiveModifiers(state);
-  // Last round's rubble_clearing snapshot lives only for the duration
-  // of its modifier-reveal fade. Drop it before the next modifier rolls
-  // so the wire payload doesn't carry stale held entries.
-  if (state.modern) state.modern.rubbleClearingHeld = null;
+  // Last round's rubble_clearing + crumbling_walls snapshots live only
+  // for the duration of their modifier-reveal fades. Drop both before the
+  // next modifier rolls so the wire payload doesn't carry stale held
+  // entries.
+  if (state.modern) {
+    state.modern.rubbleClearingHeld = null;
+    state.modern.crumblingWallsHeld = null;
+  }
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
     if (state.modern!.activeModifier !== null) {

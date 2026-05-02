@@ -89,6 +89,7 @@ import {
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
+  writeBucketOpacities,
 } from "./instance-bucket.ts";
 import { attachInstanceOpacity } from "./instance-modulation.ts";
 
@@ -107,9 +108,7 @@ interface VariantBucket {
   /** One InstancedMesh per sub-part of the authored debris pile. Shape is
    *  constant for the bucket's lifetime; capacity grows by replacement. */
   subParts: BucketSubPart[];
-  /** Per-instance opacity attribute, one per sub-part (parallel to
-   *  `subParts`). Drives the rubble-clearing fade-out: held entries
-   *  get the runtime-derived multiplier, live entries stay at 1. */
+  /** Per-sub-part instance-opacity attribute (parallel to `subParts`). */
   opacityAttrs: THREE.InstancedBufferAttribute[];
   capacity: number;
 }
@@ -121,9 +120,9 @@ interface DebrisEntry {
   readonly centerPxZ: number;
   readonly scale: number;
   readonly ownerId: ValidPlayerSlot | undefined;
-  /** True for entries from `overlay.battle.heldDeadCannons` —
-   *  rendered with `rubbleClearingFade` opacity instead of full. */
-  readonly isHeld: boolean;
+  /** Per-instance alpha multiplier in [0, 1]. 1 for live entries;
+   *  held entries carry the runtime-derived fade multiplier. */
+  readonly opacity: number;
 }
 
 /** 2×2 debris (tower / cannon). The scene authors each pile inside a ±1
@@ -150,7 +149,13 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
   // with a per-owner tint in the shared material.
   const buckets = new Map<string, VariantBucket>();
   const ownedMaterials: THREE.Material[] = [];
-  let lastSignature: string | undefined;
+  // Two-tier cache: structural signature gates the expensive bucket
+  // rebuild + matrix recompose; fade values are tracked separately so
+  // the rubble-clearing + crumbling-walls ramps only trigger a per-slot
+  // opacity rewrite per frame (skipping ensureBucket + fillBucket).
+  let lastStructuralSignature: string | undefined;
+  let lastRubbleFade = 1;
+  let lastCrumblingFade: number | undefined;
 
   // Scratch objects reused inside `update`.
   const hostMatrix = new THREE.Matrix4();
@@ -180,6 +185,8 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     towers: readonly Tower[] | undefined,
   ): DebrisEntry[] {
     const entries: DebrisEntry[] = [];
+    const rubbleClearingFade = overlay.battle?.rubbleClearingFade ?? 1;
+    const crumblingWallsFade = overlay.battle?.crumblingWallsFade;
 
     // Wall debris: (playerId) × (tile in battleWalls but not in current walls).
     const battleWalls = overlay.battle?.battleWalls;
@@ -198,7 +205,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
             centerPxZ: (row + 0.5) * TILE_SIZE,
             scale: DEBRIS_SCALE_1X1,
             ownerId: undefined,
-            isHeld: false,
+            opacity: 1,
           });
         }
       }
@@ -224,7 +231,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
             centerPxZ: cannon.row * TILE_SIZE + offset,
             scale: DEBRIS_SCALE_2X2,
             ownerId: undefined,
-            isHeld: false,
+            opacity: 1,
           });
         }
       }
@@ -252,7 +259,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
           centerPxZ: tower.row * TILE_SIZE + TILE_2X2_CENTER_OFFSET,
           scale: DEBRIS_SCALE_2X2,
           ownerId,
-          isHeld: false,
+          opacity: 1,
         });
       }
     }
@@ -279,7 +286,29 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
           centerPxZ: held.row * TILE_SIZE + offset,
           scale: DEBRIS_SCALE_2X2,
           ownerId: undefined,
-          isHeld: true,
+          opacity: rubbleClearingFade,
+        });
+      }
+    }
+
+    // Crumbling-walls cross-fade: wall fades 1→0 in walls.ts, debris
+    // fades 0→1 here. Post-fade we render at full opacity until BATTLE
+    // entry, where battleWalls (with the held union) takes over.
+    const heldDestroyedWalls = overlay.battle?.heldDestroyedWalls;
+    if (heldDestroyedWalls) {
+      const debrisOpacity =
+        crumblingWallsFade !== undefined ? 1 - crumblingWallsFade : 1;
+      for (const held of heldDestroyedWalls) {
+        const { row, col } = unpackTileKey(held.tileKey);
+        const variantName = wallDebrisVariantName(col, row);
+        entries.push({
+          key: variantName,
+          variantName,
+          centerPxX: (col + 0.5) * TILE_SIZE,
+          centerPxZ: (row + 0.5) * TILE_SIZE,
+          scale: DEBRIS_SCALE_1X1,
+          ownerId: undefined,
+          opacity: debrisOpacity,
         });
       }
     }
@@ -290,20 +319,23 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
     const towers = ctx.map?.towers;
-    const signature = computeSignature(overlay, towers);
-    if (signature === lastSignature) return;
-    lastSignature = signature;
+    const rubbleFade = overlay?.battle?.rubbleClearingFade ?? 1;
+    const crumblingFade = overlay?.battle?.crumblingWallsFade;
+    const structuralSignature = computeStructuralSignature(overlay, towers);
+    const structuralChanged = structuralSignature !== lastStructuralSignature;
+    const fadeChanged =
+      rubbleFade !== lastRubbleFade || crumblingFade !== lastCrumblingFade;
+    if (!structuralChanged && !fadeChanged) return;
+    lastRubbleFade = rubbleFade;
+    lastCrumblingFade = crumblingFade;
 
-    if (!overlay || signature === "") {
-      // Hide all instances; keep buckets alive so common "debris comes
-      // and goes" churn doesn't thrash GPU buffers.
+    if (!overlay || structuralSignature === "") {
+      lastStructuralSignature = structuralSignature;
       for (const bucket of buckets.values()) hideSubParts(bucket.subParts);
       return;
     }
 
     const entries = collectEntries(overlay, towers);
-
-    // Pre-bucket entries by key so we know capacity requirements up front.
     const byKey = new Map<string, DebrisEntry[]>();
     for (const entry of entries) {
       let list = byKey.get(entry.key);
@@ -314,37 +346,39 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
       list.push(entry);
     }
 
-    // Keys that have a bucket but no live entries this frame — zero
-    // their count so stale instances don't ghost-render.
-    for (const [key, bucket] of buckets) {
-      if (!byKey.has(key)) hideSubParts(bucket.subParts);
-    }
+    if (structuralChanged) {
+      lastStructuralSignature = structuralSignature;
 
-    const fade = overlay.battle?.rubbleClearingFade ?? 1;
-    // Write matrices for each live bucket key, then per-slot opacity:
-    // live entries stay at 1, held entries get the fade multiplier.
-    for (const [key, list] of byKey) {
-      const first = list[0]!;
-      const bucket = ensureBucket(
-        key,
-        first.variantName,
-        first.ownerId,
-        list.length,
-      );
-      if (!bucket) continue;
-      fillBucket(bucket, list, hostMatrix, instanceMatrix, (entry, matrix) => {
-        hostTranslation.set(entry.centerPxX, 0, entry.centerPxZ);
-        scaleVec.setScalar(entry.scale);
-        matrix.compose(hostTranslation, identityQuat, scaleVec);
-      });
-      for (const attr of bucket.opacityAttrs) {
-        const data = attr.array as Float32Array;
-        for (let i = 0; i < list.length; i++) {
-          data[i] = list[i]!.isHeld ? fade : 1;
-        }
-        attr.needsUpdate = true;
+      for (const [key, bucket] of buckets) {
+        if (!byKey.has(key)) hideSubParts(bucket.subParts);
+      }
+
+      for (const [key, list] of byKey) {
+        const first = list[0]!;
+        const bucket = ensureBucket(
+          key,
+          first.variantName,
+          first.ownerId,
+          list.length,
+        );
+        if (!bucket) continue;
+        fillBucket(
+          bucket,
+          list,
+          hostMatrix,
+          instanceMatrix,
+          (entry, matrix) => {
+            hostTranslation.set(entry.centerPxX, 0, entry.centerPxZ);
+            scaleVec.setScalar(entry.scale);
+            matrix.compose(hostTranslation, identityQuat, scaleVec);
+          },
+        );
       }
     }
+
+    // Always write opacities — fade-only frames need this; structural
+    // rebuild also resets `attachInstanceOpacity`'s default-1 fill.
+    writeBucketOpacities(buckets, byKey);
   }
 
   function dispose(): void {
@@ -364,19 +398,16 @@ function wallDebrisVariantName(col: number, row: number): string {
   return (hashed & 1) === 0 ? "wall_debris_a" : "wall_debris_b";
 }
 
-/** Compute a composite signature across all three debris sources. Any
- *  change to any source invalidates the cache — cheap vs rebuilding
- *  potentially hundreds of rubble meshes every frame. */
-function computeSignature(
+/** Set membership across all debris sources, EXCLUDING per-frame fade
+ *  values. Drives the bucket-rebuild gate; fade values flow through
+ *  `entry.opacity` and are written separately on every frame regardless. */
+function computeStructuralSignature(
   overlay: RenderOverlay | undefined,
   towers: readonly Tower[] | undefined,
 ): string {
   if (!overlay) return "";
   const parts: string[] = [];
 
-  // Tower debris: indices of dead towers, plus their current owner
-  // (home vs secondary changes the variant, and the owner forks the
-  // home_tower_debris bucket for flag tinting).
   const aliveMask = overlay.entities?.towerAlive;
   const ownedTowers = overlay.entities?.ownedTowers;
   if (aliveMask && towers) {
@@ -387,7 +418,6 @@ function computeSignature(
     }
   }
 
-  // Cannon debris: (playerId, col, row, variant) per dead cannon.
   if (overlay.castles) {
     for (const castle of overlay.castles) {
       for (const cannon of castle.cannons) {
@@ -399,8 +429,6 @@ function computeSignature(
     }
   }
 
-  // Wall debris: every (playerId, key) that was in the original set
-  // but not in the current set. Sorted per-player for stability.
   const battleWalls = overlay.battle?.battleWalls;
   if (battleWalls && overlay.castles) {
     for (const castle of overlay.castles) {
@@ -416,10 +444,6 @@ function computeSignature(
     }
   }
 
-  // Held dead-cannon snapshot + fade multiplier. Position+variant change
-  // when held entries are added or removed; the fade value changes every
-  // frame during the ramp, so it must be in the signature so per-slot
-  // opacity gets re-written each frame.
   const held = overlay.battle?.heldDeadCannons;
   if (held && held.length > 0) {
     for (const cannon of held) {
@@ -428,8 +452,14 @@ function computeSignature(
       );
     }
   }
-  const fade = overlay.battle?.rubbleClearingFade;
-  if (fade !== undefined) parts.push(`f:${fade.toFixed(4)}`);
+
+  const heldDestroyedWalls = overlay.battle?.heldDestroyedWalls;
+  if (heldDestroyedWalls) {
+    const keys: number[] = [];
+    for (const held of heldDestroyedWalls) keys.push(held.tileKey);
+    keys.sort((low, high) => low - high);
+    parts.push(`cw:${keys.join(",")}`);
+  }
 
   return parts.join("|");
 }

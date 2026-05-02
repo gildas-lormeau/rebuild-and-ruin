@@ -40,6 +40,31 @@ interface CapacityBucket {
   capacity: number;
 }
 
+/** Write per-instance opacity into every sub-part's opacityAttr from
+ *  each entry's `.opacity`. Bucket-keyed pairs that have no matching
+ *  entry list are skipped. Used by walls + debris managers on every
+ *  frame their fade multipliers change. */
+export function writeBucketOpacities<
+  Key,
+  Bucket extends {
+    readonly opacityAttrs: readonly THREE.InstancedBufferAttribute[];
+  },
+  Entry extends { readonly opacity: number },
+>(
+  buckets: ReadonlyMap<Key, Bucket>,
+  byKey: ReadonlyMap<Key, readonly Entry[]>,
+): void {
+  for (const [key, list] of byKey) {
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    for (const attr of bucket.opacityAttrs) {
+      const data = attr.array as Float32Array;
+      for (let i = 0; i < list.length; i++) data[i] = list[i]!.opacity;
+      attr.needsUpdate = true;
+    }
+  }
+}
+
 /** Zero the live count of every sub-part so stale matrices don't render. */
 export function hideSubParts(subParts: readonly BucketSubPart[]): void {
   for (const part of subParts) part.instanced.count = 0;

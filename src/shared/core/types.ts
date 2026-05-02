@@ -264,6 +264,30 @@ export interface ModernState {
       tier: 1 | 2 | 3;
     }[];
   } | null;
+  /** Pre-removal snapshot for the crumbling_walls modifier. Captured by
+   *  `crumblingWallsImpl.apply` BEFORE `deletePlayerWallsBatch` removes
+   *  the walls from `player.walls`. Two consumers:
+   *
+   *   1. `snapshotAllWalls` unions held tile keys into the per-player
+   *      battle-walls snapshot at battle entry, so `battleWalls` includes
+   *      the crumbled tiles and the wall-debris pipeline renders rubble
+   *      on them for the rest of the battle (matches normal grunt-
+   *      destruction behaviour).
+   *   2. The renderer fades walls 1→0 + cross-fades wall-debris 0→1
+   *      during the post-banner reveal window via
+   *      `overlay.battle.crumblingWallsFade` + `heldDestroyedWalls`.
+   *
+   *  `damaged` is captured per wall so the wall manager picks the
+   *  matching (mask, damaged) geometry bucket for reinforced-wall
+   *  absorbed-hit state during the fade. null when no crumbling_walls
+   *  reveal is in flight; cleared at next battle start. */
+  crumblingWallsHeld:
+    | readonly {
+        playerId: ValidPlayerSlot;
+        tileKey: number;
+        damaged: boolean;
+      }[]
+    | null;
 }
 
 /** Player selection lobby state. */
@@ -380,5 +404,6 @@ function createModernState(): ModernState {
     chippedGrunts: null,
     precomputedDustStormJitters: [],
     rubbleClearingHeld: null,
+    crumblingWallsHeld: null,
   };
 }

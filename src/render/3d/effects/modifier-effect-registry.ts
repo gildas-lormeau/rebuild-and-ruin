@@ -32,7 +32,6 @@ import {
 } from "./sinkhole-overlay.ts";
 import { createSpawnBurstManager } from "./spawn-burst.ts";
 import { createThawingManager } from "./thawing.ts";
-import { createWallCrumbleManager } from "./wall-crumble.ts";
 import { createWallThreatManager } from "./wall-threat.ts";
 import { createWaterSurgeManager } from "./water-surge.ts";
 import { createWildfireBurstManager } from "./wildfire-burst.ts";
@@ -56,16 +55,12 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createWaterSurgeManager,
   createGroundCollapseManager,
   createWallThreatManager,
-  // (frostbite has no per-tile burst — the runtime-derived
-  // `overlay.battle.frostbiteRevealProgress` ramps the actual grunts'
-  // tint from 0 to 1 via the grunt manager instead.)
-  createWallCrumbleManager,
+  // (frostbite, rubble_clearing, crumbling_walls have no per-tile burst —
+  // their runtime-derived overlay multipliers drive the live entity
+  // managers directly. See `src/runtime/*-overlay.ts`.)
   createSpawnBurstManager,
   createWildfireBurstManager,
   createLightningBurstManager,
-  // (rubble_clearing has no per-tile burst — the runtime-derived
-  // `overlay.battle.rubbleClearingFade` fades the actual entities out
-  // via the pit + debris managers instead.)
   // Persistent overlays (run while gating flag holds).
   createFogManager,
   (scene, deps) =>

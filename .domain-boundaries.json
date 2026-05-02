@@ -198,7 +198,6 @@
       "src/render/3d/effects/reconciler.ts",
       "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/spawn-burst.ts",
-      "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/wall-threat.ts",
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
@@ -260,6 +259,7 @@
     "runtime": [
       "src/runtime/banner-messages.ts",
       "src/runtime/camera-projection.ts",
+      "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/frostbite-reveal-overlay.ts",
       "src/runtime/rubble-clearing-overlay.ts",

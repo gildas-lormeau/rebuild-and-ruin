@@ -317,6 +317,7 @@ export function createOnlineOverlay(
     fogRevealOpacity,
     rubbleClearingFade,
     frostbiteRevealProgress,
+    crumblingWallsFade,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
@@ -378,6 +379,16 @@ export function createOnlineOverlay(
       // banner and the next build/cannon phases. Clears when the next
       // prepareBattleState reassigns activeModifier.
       frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
+      crumblingWallsFade,
+      // Exposed for the whole MODIFIER_REVEAL phase. The walls manager
+      // renders held tiles only while `crumblingWallsFade` is in flight;
+      // the debris manager keeps the rubble visible through the fade
+      // and post-fade until BATTLE entry, where `snapshotAllWalls`
+      // unions the held set into `battleWalls` and takes over.
+      heldDestroyedWalls:
+        view.phase === Phase.MODIFIER_REVEAL
+          ? (view.modern?.crumblingWallsHeld ?? undefined)
+          : undefined,
     },
     phantoms: frame.phantoms,
     ui: {
