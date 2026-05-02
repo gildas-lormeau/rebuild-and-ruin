@@ -234,7 +234,6 @@
       "src/input/input-touch-update.ts",
       "src/online/online-runtime-ws.ts",
       "src/render/3d/effects/cannon-burns.ts",
-      "src/render/3d/effects/fog-reveal.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/house-burns.ts",
       "src/render/3d/effects/modifier-reveal-burst.ts",
@@ -247,6 +246,7 @@
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
+      "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-state.ts"

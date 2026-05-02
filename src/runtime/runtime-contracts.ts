@@ -200,6 +200,11 @@ export interface OnlineOverlayParams {
     px: number;
     py: number;
   };
+  /** Fog-of-war reveal opacity multiplier (0..1) computed runtime-side
+   *  by `deriveFogRevealOpacity`, or undefined when no reveal is in
+   *  flight. Threaded into `overlay.battle.fogRevealOpacity` so the fog
+   *  manager can apply it to material alpha. */
+  fogRevealOpacity?: number;
 }
 
 /** Banner lifecycle state:

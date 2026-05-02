@@ -227,6 +227,12 @@ export interface BattleOverlay {
    *  walls + interior with an animated fog layer so players must aim
    *  from memory. */
   fogOfWar?: boolean;
+  /** Opacity multiplier for the fog overlay during the modifier reveal,
+   *  in [0, 1]. Computed runtime-side in `deriveFogRevealOpacity` and
+   *  applied by the fog manager to its base + band material alphas.
+   *  Steady-state (no reveal in flight) is `undefined` — the manager
+   *  treats undefined as 1 (no override). */
+  fogRevealOpacity?: number;
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */
   frostbite?: boolean;

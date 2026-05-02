@@ -41,7 +41,7 @@
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
-import type { RenderObserver } from "../src/shared/ui/overlay-types.ts";
+import type { RenderObserver, RenderOverlay } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
 } from "../src/shared/core/system-interfaces.ts";
@@ -188,6 +188,13 @@ export interface Scenario extends Disposable {
    *  predicate or right after a `runUntil` call, never hold a reference
    *  across frames. Never mutate. */
   readonly banner: () => Readonly<BannerState>;
+  /** Current per-frame render overlay. Lives on `runtimeState`, not
+   *  `state`. Tests that need to observe overlay-derived values (fog
+   *  reveal opacity, modifier reveal flag, etc.) reach them through
+   *  this accessor. The returned object is the live overlay — read
+   *  fields right after a `tick()` call, never hold a reference across
+   *  frames. Never mutate. */
+  readonly overlay: () => Readonly<RenderOverlay>;
   /** Current simulated time (ms). */
   readonly now: () => number;
   /** Drive the game until `predicate` returns true. Throws
@@ -435,6 +442,7 @@ export function wrapHeadless(
     mode: () => headless.runtime.runtimeState.mode,
     lobbyActive: () => headless.runtime.runtimeState.lobby.active,
     banner: () => headless.runtime.runtimeState.banner,
+    overlay: () => headless.runtime.runtimeState.overlay,
     now: headless.now,
     runUntil: headless.runUntil,
     tick: headless.tick,

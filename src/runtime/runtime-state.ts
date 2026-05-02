@@ -143,6 +143,13 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
+  /** When the fog-of-war reveal's post-banner ramp started, in
+   *  `now()`-units, or undefined when no fog reveal ramp is in flight.
+   *  Set by `deriveFogRevealOpacity` the first frame the modifier reveal
+   *  banner is swept; cleared when the modifier flag goes off. The
+   *  multiplier formula uses `now - rampStartMs` to compute elapsed
+   *  ramp time. */
+  fogRevealRampStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
@@ -291,6 +298,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
+    fogRevealRampStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateReady` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

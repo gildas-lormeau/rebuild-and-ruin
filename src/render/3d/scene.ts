@@ -37,7 +37,6 @@ import {
   createCrosshairsManager,
 } from "./effects/crosshairs.ts";
 import { type EffectManager } from "./effects/fire-burst.ts";
-import { createFogManager } from "./effects/fog.ts";
 import {
   createGruntBurnsManager,
   type GruntBurnsManager,
@@ -256,17 +255,10 @@ export function createRender3dScene(
   const gruntBurns = createGruntBurnsManager(scene);
   const houseBurns = createHouseBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
-  // Service-style managers used by registry effects: created here so
-  // modifier effects can drive them via small APIs (`fogManager.set...`)
-  // without owning the rendering. Included alongside registry effects
-  // in `modifierEffects` so they're ticked + disposed uniformly.
-  const fog = createFogManager(scene);
-  const modifierEffects: readonly EffectManager[] = [
-    fog,
-    ...MODIFIER_EFFECT_FACTORIES.map((factory) =>
-      factory(scene, { getSinkholeOverlayBitmap, fogManager: fog }),
-    ),
-  ];
+  const modifierEffects: readonly EffectManager[] =
+    MODIFIER_EFFECT_FACTORIES.map((factory) =>
+      factory(scene, { getSinkholeOverlayBitmap }),
+    );
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const bonusSquares = createBonusSquaresManager(scene);

@@ -20,6 +20,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
+import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -186,6 +187,13 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // post-mutation scene.
     const inBattle = runtimeState.state.phase === Phase.BATTLE;
 
+    const fogRevealOpacity = deriveFogRevealOpacity({
+      view,
+      banner: runtimeState.banner,
+      now: deps.timing.now(),
+      state: runtimeState,
+    });
+
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
       view,
@@ -201,6 +209,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
+      fogRevealOpacity,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
