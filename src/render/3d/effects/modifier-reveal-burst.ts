@@ -40,6 +40,13 @@ interface ModifierRevealBurstConfig {
   readonly flashPeakOpacity: number;
   /** Max disc + flash radius (defaults to half a tile so visuals stay inside the tile). */
   readonly maxRadius?: number;
+  /** Per-tile delay producer. Defaults to seeded-random within
+   *  `staggerSpanMs` (the legacy "rolling" feel). Override to get a
+   *  directional wave, sequential strikes, etc. */
+  readonly computeDelays?: (
+    tiles: readonly number[],
+    staggerSpanMs: number,
+  ) => readonly number[];
 }
 
 interface BurstHost {
@@ -120,13 +127,16 @@ export function createModifierRevealBurstManager(
   function startReveal(now: number, tiles: readonly number[]): void {
     revealStartMs = now;
     ensurePool(tiles.length);
+    const delays = (config.computeDelays ?? seededRandomDelays)(
+      tiles,
+      config.staggerSpanMs,
+    );
     for (let i = 0; i < tiles.length; i++) {
       const key = tiles[i]!;
       const row = Math.floor(key / GRID_COLS);
       const col = key % GRID_COLS;
       const host = hosts[i]!;
-      host.delayMs =
-        ((tileSeed(row, col) >>> 0) % 1000) * (config.staggerSpanMs / 1000);
+      host.delayMs = delays[i]!;
       host.group.position.set(
         col * TILE_SIZE + TILE_SIZE / 2,
         ELEVATION_STACK.THAWING,
@@ -210,4 +220,17 @@ export function createModifierRevealBurstManager(
 
 function easeOutQuad(t: number): number {
   return 1 - (1 - t) * (1 - t);
+}
+
+function seededRandomDelays(
+  tiles: readonly number[],
+  staggerSpanMs: number,
+): readonly number[] {
+  const result: number[] = [];
+  for (const key of tiles) {
+    const row = Math.floor(key / GRID_COLS);
+    const col = key % GRID_COLS;
+    result.push(((tileSeed(row, col) >>> 0) % 1000) * (staggerSpanMs / 1000));
+  }
+  return result;
 }
