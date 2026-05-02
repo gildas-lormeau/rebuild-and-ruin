@@ -19,11 +19,11 @@ export function createWildfireBurstManager(scene: THREE.Scene): EffectManager {
     paletteKey: "wildfire",
     discColor: 0xff6414,
     flashColor: 0xffffff,
-    discDurationMs: 1100,
-    flashDurationMs: 200,
-    staggerSpanMs: 600,
-    discPeakOpacity: 0.7,
-    flashPeakOpacity: 0.5,
+    discDurationMs: 900,
+    flashDurationMs: 350,
+    staggerSpanMs: 900,
+    discPeakOpacity: 0.65,
+    flashPeakOpacity: 0.75,
     computeDelays: wildfireWaveDelays,
   });
 }
