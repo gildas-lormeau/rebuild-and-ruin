@@ -49,10 +49,13 @@ export const FOG_REVEAL_FLOOR = 0.2;
 /** Ramp duration after the banner sweep completes, in ms. */
 export const FOG_REVEAL_RAMP_DURATION_MS = 1100;
 /** Wave period for the rolling-in oscillation, in ms. */
-export const FOG_REVEAL_WAVE_PERIOD_MS = 380;
+export const FOG_REVEAL_WAVE_PERIOD_MS = 320;
 /** Peak wave amplitude at t=0; shrinks linearly to 0 as t→1 so the
- *  curve converges on the linear ramp at the end. */
-export const FOG_REVEAL_WAVE_PEAK_AMPLITUDE = 0.18;
+ *  curve converges on the linear ramp at the end. Tuned to give a
+ *  clearly-visible pulse — at this amplitude the wave occasionally
+ *  clips against 0 / 1 at the extremes, which reads as fog briefly
+ *  fully on / off rather than a soft drift. */
+export const FOG_REVEAL_WAVE_PEAK_AMPLITUDE = 0.3;
 
 export function deriveFogRevealOpacity(input: DeriveInput): number | undefined {
   const { view, banner, now, state } = input;

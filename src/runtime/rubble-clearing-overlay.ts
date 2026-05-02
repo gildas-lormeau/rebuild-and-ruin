@@ -43,10 +43,14 @@ interface DeriveInput {
 /** Ramp duration after the banner sweep completes, in ms. */
 export const RUBBLE_CLEARING_RAMP_DURATION_MS = 1100;
 /** Wave period for the crumbling oscillation, in ms. */
-export const RUBBLE_CLEARING_WAVE_PERIOD_MS = 380;
+export const RUBBLE_CLEARING_WAVE_PERIOD_MS = 320;
 /** Peak wave amplitude at t=0; shrinks linearly to 0 as t→1 so the
- *  curve converges on zero at the end. */
-export const RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE = 0.18;
+ *  curve converges on zero at the end. Tuned to give a clearly-
+ *  visible pulse — at this amplitude the wave occasionally clips
+ *  against 0 / 1 at the extremes, which reads as the rubble
+ *  briefly snapping back to full / fully gone rather than a soft
+ *  drift. */
+export const RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE = 0.3;
 
 export function deriveRubbleClearingFade(
   input: DeriveInput,
