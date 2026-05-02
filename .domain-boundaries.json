@@ -184,6 +184,7 @@
       "src/render/3d/effects/fire-burst.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/grass-emergence.ts",
+      "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/grunt-burns.ts",
       "src/render/3d/effects/helpers.ts",
       "src/render/3d/effects/house-burns.ts",

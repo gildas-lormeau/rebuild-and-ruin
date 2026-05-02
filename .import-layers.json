@@ -263,6 +263,7 @@
       "src/input/input-touch-ui.ts",
       "src/online/online-runtime-lobby.ts",
       "src/render/3d/effects/grass-emergence.ts",
+      "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/water-surge.ts",
       "src/render/render-ui.ts",

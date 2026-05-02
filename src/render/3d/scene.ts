@@ -42,6 +42,10 @@ import {
   type GrassEmergenceManager,
 } from "./effects/grass-emergence.ts";
 import {
+  createGroundCollapseManager,
+  type GroundCollapseManager,
+} from "./effects/ground-collapse.ts";
+import {
   createGruntBurnsManager,
   type GruntBurnsManager,
 } from "./effects/grunt-burns.ts";
@@ -214,6 +218,9 @@ export interface Render3dContext {
   /** Water-surge reveal — post-banner animation for the `high_tide`
    *  modifier. Same pattern as `iceFormation`, blue palette. */
   readonly waterSurge: WaterSurgeManager;
+  /** Ground-collapse reveal — post-banner animation for the `sinkhole`
+   *  modifier. Same pattern as `iceFormation`, brown palette. */
+  readonly groundCollapse: GroundCollapseManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -294,6 +301,7 @@ export function createRender3dScene(
   const iceFormation = createIceFormationManager(scene);
   const grassEmergence = createGrassEmergenceManager(scene);
   const waterSurge = createWaterSurgeManager(scene);
+  const groundCollapse = createGroundCollapseManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -397,6 +405,7 @@ export function createRender3dScene(
     iceFormation,
     grassEmergence,
     waterSurge,
+    groundCollapse,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
