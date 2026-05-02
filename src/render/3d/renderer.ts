@@ -237,6 +237,7 @@ export function createRender3d(
     ctx.wallCrumble.update(frame);
     ctx.spawnBurst.update(frame);
     ctx.wildfireBurst.update(frame);
+    ctx.lightningBurst.update(frame);
     ctx.terrainBitmap.update(frame);
     ctx.sinkholeOverlay.update(frame);
     ctx.bonusSquares.update(frame);

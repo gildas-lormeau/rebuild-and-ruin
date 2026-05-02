@@ -191,6 +191,7 @@
       "src/render/3d/effects/house-burns.ts",
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/impacts.ts",
+      "src/render/3d/effects/lightning-burst.ts",
       "src/render/3d/effects/modifier-reveal-burst.ts",
       "src/render/3d/effects/layer-canvas.ts",
       "src/render/3d/effects/reconciler.ts",

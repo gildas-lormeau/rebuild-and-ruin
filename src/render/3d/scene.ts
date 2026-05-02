@@ -66,6 +66,10 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import {
+  createLightningBurstManager,
+  type LightningBurstManager,
+} from "./effects/lightning-burst.ts";
+import {
   createSinkholeOverlayManager,
   type GetSinkholeOverlayBitmap,
   type SinkholeOverlayManager,
@@ -257,6 +261,9 @@ export interface Render3dContext {
   /** Wildfire-burst reveal — post-banner burst for the `wildfire`
    *  modifier. Orange palette, highlights burn-scar tiles. */
   readonly wildfireBurst: WildfireBurstManager;
+  /** Lightning-burst reveal — post-banner burst for the `dry_lightning`
+   *  modifier. Yellow palette, highlights newly ignited tiles. */
+  readonly lightningBurst: LightningBurstManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -343,6 +350,7 @@ export function createRender3dScene(
   const wallCrumble = createWallCrumbleManager(scene);
   const spawnBurst = createSpawnBurstManager(scene);
   const wildfireBurst = createWildfireBurstManager(scene);
+  const lightningBurst = createLightningBurstManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -452,6 +460,7 @@ export function createRender3dScene(
     wallCrumble,
     spawnBurst,
     wildfireBurst,
+    lightningBurst,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
