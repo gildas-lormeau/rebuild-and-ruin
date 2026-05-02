@@ -80,6 +80,10 @@ import {
   type WallBurnsManager,
 } from "./effects/wall-burns.ts";
 import {
+  createWallThreatManager,
+  type WallThreatManager,
+} from "./effects/wall-threat.ts";
+import {
   createWaterSurgeManager,
   type WaterSurgeManager,
 } from "./effects/water-surge.ts";
@@ -221,6 +225,10 @@ export interface Render3dContext {
   /** Ground-collapse reveal — post-banner animation for the `sinkhole`
    *  modifier. Same pattern as `iceFormation`, brown palette. */
   readonly groundCollapse: GroundCollapseManager;
+  /** Wall-threat reveal — post-banner animation for the `sapper`
+   *  modifier. Same pattern as `iceFormation`, copper palette,
+   *  highlights wall tiles grunts will attack. */
+  readonly wallThreat: WallThreatManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -302,6 +310,7 @@ export function createRender3dScene(
   const grassEmergence = createGrassEmergenceManager(scene);
   const waterSurge = createWaterSurgeManager(scene);
   const groundCollapse = createGroundCollapseManager(scene);
+  const wallThreat = createWallThreatManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -406,6 +415,7 @@ export function createRender3dScene(
     grassEmergence,
     waterSurge,
     groundCollapse,
+    wallThreat,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,

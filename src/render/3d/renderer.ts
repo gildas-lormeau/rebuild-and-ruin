@@ -232,6 +232,7 @@ export function createRender3d(
     ctx.grassEmergence.update(frame);
     ctx.waterSurge.update(frame);
     ctx.groundCollapse.update(frame);
+    ctx.wallThreat.update(frame);
     ctx.terrainBitmap.update(frame);
     ctx.sinkholeOverlay.update(frame);
     ctx.bonusSquares.update(frame);
