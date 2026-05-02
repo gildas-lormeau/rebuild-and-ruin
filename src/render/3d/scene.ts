@@ -50,6 +50,10 @@ import {
   type GruntBurnsManager,
 } from "./effects/grunt-burns.ts";
 import {
+  createGruntFrostManager,
+  type GruntFrostManager,
+} from "./effects/grunt-frost.ts";
+import {
   createHouseBurnsManager,
   type HouseBurnsManager,
 } from "./effects/house-burns.ts";
@@ -229,6 +233,9 @@ export interface Render3dContext {
    *  modifier. Same pattern as `iceFormation`, copper palette,
    *  highlights wall tiles grunts will attack. */
   readonly wallThreat: WallThreatManager;
+  /** Grunt-frost reveal — post-banner announcement burst for the
+   *  `frostbite` modifier. Highlights grunt tiles that just froze. */
+  readonly gruntFrost: GruntFrostManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -311,6 +318,7 @@ export function createRender3dScene(
   const waterSurge = createWaterSurgeManager(scene);
   const groundCollapse = createGroundCollapseManager(scene);
   const wallThreat = createWallThreatManager(scene);
+  const gruntFrost = createGruntFrostManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -416,6 +424,7 @@ export function createRender3dScene(
     waterSurge,
     groundCollapse,
     wallThreat,
+    gruntFrost,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
