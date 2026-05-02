@@ -71,6 +71,10 @@ import {
   type SinkholeOverlayManager,
 } from "./effects/sinkhole-overlay.ts";
 import {
+  createSpawnBurstManager,
+  type SpawnBurstManager,
+} from "./effects/spawn-burst.ts";
+import {
   createTerrainBitmapManager,
   type GetTerrainBitmap,
   type TerrainBitmapManager,
@@ -243,6 +247,9 @@ export interface Render3dContext {
   /** Wall-crumble reveal — post-banner burst for the `crumbling_walls`
    *  modifier. Tan palette, highlights the wall tiles that vanished. */
   readonly wallCrumble: WallCrumbleManager;
+  /** Spawn-burst reveal — post-banner burst for the `grunt_surge`
+   *  modifier. Red palette, highlights tiles where surge grunts spawned. */
+  readonly spawnBurst: SpawnBurstManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -327,6 +334,7 @@ export function createRender3dScene(
   const wallThreat = createWallThreatManager(scene);
   const gruntFrost = createGruntFrostManager(scene);
   const wallCrumble = createWallCrumbleManager(scene);
+  const spawnBurst = createSpawnBurstManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -434,6 +442,7 @@ export function createRender3dScene(
     wallThreat,
     gruntFrost,
     wallCrumble,
+    spawnBurst,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
