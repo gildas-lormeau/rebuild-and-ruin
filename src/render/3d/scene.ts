@@ -84,6 +84,10 @@ import {
   type WallBurnsManager,
 } from "./effects/wall-burns.ts";
 import {
+  createWallCrumbleManager,
+  type WallCrumbleManager,
+} from "./effects/wall-crumble.ts";
+import {
   createWallThreatManager,
   type WallThreatManager,
 } from "./effects/wall-threat.ts";
@@ -236,6 +240,9 @@ export interface Render3dContext {
   /** Grunt-frost reveal — post-banner announcement burst for the
    *  `frostbite` modifier. Highlights grunt tiles that just froze. */
   readonly gruntFrost: GruntFrostManager;
+  /** Wall-crumble reveal — post-banner burst for the `crumbling_walls`
+   *  modifier. Tan palette, highlights the wall tiles that vanished. */
+  readonly wallCrumble: WallCrumbleManager;
   /** Fine water-wave highlight overlay — polish pass paired with the
    *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
    *  pattern onto a shared canvas each frame and composites it over the
@@ -319,6 +326,7 @@ export function createRender3dScene(
   const groundCollapse = createGroundCollapseManager(scene);
   const wallThreat = createWallThreatManager(scene);
   const gruntFrost = createGruntFrostManager(scene);
+  const wallCrumble = createWallCrumbleManager(scene);
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const sinkholeOverlay = createSinkholeOverlayManager(
@@ -425,6 +433,7 @@ export function createRender3dScene(
     groundCollapse,
     wallThreat,
     gruntFrost,
+    wallCrumble,
     waterWaves,
     terrainBitmap,
     sinkholeOverlay,
