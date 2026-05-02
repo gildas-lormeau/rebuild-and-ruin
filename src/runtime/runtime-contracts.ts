@@ -211,6 +211,12 @@ export interface OnlineOverlayParams {
    *  managers also iterate `state.modern.rubbleClearingHeld` to render
    *  the held entries that gameplay state has already dropped. */
   rubbleClearingFade?: number;
+  /** Frostbite-reveal tint progress (0..1) computed runtime-side by
+   *  `deriveFrostbiteRevealProgress`, or undefined outside the reveal
+   *  window. Threaded into `overlay.battle.frostbiteRevealProgress`;
+   *  the grunt manager lerps material colors against the cached
+   *  authored color by this multiplier. */
+  frostbiteRevealProgress?: number;
 }
 
 /** Banner lifecycle state:

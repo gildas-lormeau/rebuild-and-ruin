@@ -258,6 +258,11 @@ export interface BattleOverlay {
     mortar?: boolean;
     tier: 1 | 2 | 3;
   }[];
+  /** Frostbite-reveal tint intensity in `[0, 1]` while the modifier
+   *  reveal is in flight. `0` = grunts at authored color, `1` = full
+   *  frostbite tint. `undefined` outside the reveal window — the
+   *  grunt manager falls back to the binary `frostbite` flag. */
+  frostbiteRevealProgress?: number;
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */
   frostbite?: boolean;

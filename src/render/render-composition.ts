@@ -316,6 +316,7 @@ export function createOnlineOverlay(
     getLifeLostPanelPos,
     fogRevealOpacity,
     rubbleClearingFade,
+    frostbiteRevealProgress,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
@@ -371,6 +372,7 @@ export function createOnlineOverlay(
         rubbleClearingFade !== undefined
           ? view.modern?.rubbleClearingHeld?.deadCannons
           : undefined,
+      frostbiteRevealProgress,
       // Frostbite tint follows the modifier's full lifetime: surviving
       // frosted grunts must keep reading as ice through the post-battle
       // banner and the next build/cannon phases. Clears when the next

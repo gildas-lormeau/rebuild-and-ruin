@@ -153,6 +153,9 @@ export interface RuntimeState {
   /** Same shape as `fogRevealRampStartMs` but for the rubble_clearing
    *  fade-out. Set by `deriveRubbleClearingFade`. */
   rubbleClearingRampStartMs: number | undefined;
+  /** Same shape as `fogRevealRampStartMs` but for the frostbite tint
+   *  ramp. Set by `deriveFrostbiteRevealProgress`. */
+  frostbiteRevealRampStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
@@ -303,6 +306,7 @@ export function createRuntimeState(): RuntimeState {
     banner: createBannerState(),
     fogRevealRampStartMs: undefined,
     rubbleClearingRampStartMs: undefined,
+    frostbiteRevealRampStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateReady` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

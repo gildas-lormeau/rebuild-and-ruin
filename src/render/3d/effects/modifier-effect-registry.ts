@@ -24,7 +24,6 @@ import type { EffectManager } from "./fire-burst.ts";
 import { createFogManager } from "./fog.ts";
 import { createGrassEmergenceManager } from "./grass-emergence.ts";
 import { createGroundCollapseManager } from "./ground-collapse.ts";
-import { createGruntFrostManager } from "./grunt-frost.ts";
 import { createIceFormationManager } from "./ice-formation.ts";
 import { createLightningBurstManager } from "./lightning-burst.ts";
 import {
@@ -57,7 +56,9 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createWaterSurgeManager,
   createGroundCollapseManager,
   createWallThreatManager,
-  createGruntFrostManager,
+  // (frostbite has no per-tile burst — the runtime-derived
+  // `overlay.battle.frostbiteRevealProgress` ramps the actual grunts'
+  // tint from 0 to 1 via the grunt manager instead.)
   createWallCrumbleManager,
   createSpawnBurstManager,
   createWildfireBurstManager,

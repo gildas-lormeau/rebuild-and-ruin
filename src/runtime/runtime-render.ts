@@ -21,6 +21,7 @@ import type {
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
+import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
 import { deriveRubbleClearingFade } from "./rubble-clearing-overlay.ts";
 import type {
   CreateBannerUiFn,
@@ -200,6 +201,12 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       now: deps.timing.now(),
       state: runtimeState,
     });
+    const frostbiteRevealProgress = deriveFrostbiteRevealProgress({
+      view,
+      banner: runtimeState.banner,
+      now: deps.timing.now(),
+      state: runtimeState,
+    });
 
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
@@ -218,6 +225,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
       fogRevealOpacity,
       rubbleClearingFade,
+      frostbiteRevealProgress,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

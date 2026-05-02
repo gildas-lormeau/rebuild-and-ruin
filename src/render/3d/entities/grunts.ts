@@ -92,8 +92,12 @@ const BASE_VARIANT_NAME = "grunt_n";
 const INITIAL_CAPACITY = 64;
 /** Pale-cyan ice tint applied to grunt materials when the Frostbite
  *  modifier is active for the round. Multiplied into each owned
- *  material's authored base color so all sub-parts read as ice cubes. */
-const FROSTBITE_TINT = 0x88d0f0;
+ *  material's authored base color so all sub-parts read as ice cubes.
+ *  Lerped against the original color by `applyFrostbiteTint` — the
+ *  intensity multiplier in `[0, 1]` drives the modifier-reveal
+ *  progressive freeze (`overlay.battle.frostbiteRevealProgress`). */
+const FROSTBITE_TINT_HEX = 0x88d0f0;
+const FROSTBITE_COLOR = /* @__PURE__ */ new THREE.Color(FROSTBITE_TINT_HEX);
 
 /** 3-step gradient texture for `MeshToonMaterial`. Pixel 0 = shadow,
  *  pixel 1 = mid, pixel 2 = lit. NearestFilter so steps are hard. The
@@ -113,7 +117,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   let subParts: BucketSubPart[] = [];
   let capacity = 0;
   let lastSignature: string | undefined;
-  let lastFrostbite = false;
+  let lastFrostbiteIntensity = 0;
 
   // Scratch objects re-used inside `update` to avoid per-frame
   // allocations. Not shared across managers — each closure owns its
@@ -152,11 +156,16 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     const { overlay } = ctx;
     const grunts = overlay?.entities?.grunts;
     const count = grunts?.length ?? 0;
-    const frostbite = overlay?.battle?.frostbite === true;
+    // Reveal-window override (`frostbiteRevealProgress` in [0, 1]) wins
+    // when present; outside the reveal window, fall back to the binary
+    // active flag (1 when frostbite is on, 0 otherwise).
+    const frostbiteIntensity =
+      overlay?.battle?.frostbiteRevealProgress ??
+      (overlay?.battle?.frostbite === true ? 1 : 0);
 
-    if (frostbite !== lastFrostbite) {
-      applyFrostbiteTint(ownedMaterials, frostbite);
-      lastFrostbite = frostbite;
+    if (frostbiteIntensity !== lastFrostbiteIntensity) {
+      applyFrostbiteTint(ownedMaterials, frostbiteIntensity);
+      lastFrostbiteIntensity = frostbiteIntensity;
     }
 
     const signature = computeSignature(grunts);
@@ -176,8 +185,8 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     // Capacity growth rebuilds materials from scratch — reapply any
     // active frostbite tint so the fresh materials don't render at
     // their authored color for one frame.
-    if (grewCapacity && frostbite) {
-      applyFrostbiteTint(ownedMaterials, true);
+    if (grewCapacity && frostbiteIntensity > 0) {
+      applyFrostbiteTint(ownedMaterials, frostbiteIntensity);
     }
 
     // Delegate the host×local compose + setMatrixAt loop to the shared
@@ -301,26 +310,31 @@ function getToonGradient(): THREE.DataTexture {
   return tex;
 }
 
-/** Tint or restore the shared grunt materials for the Frostbite modifier.
- *  Called only when the active state flips (or after capacity growth has
- *  swapped in a fresh material set). The original authored color is
- *  stashed on `material.userData.frostbiteOriginal` on first tint so
- *  subsequent restores can recover it without leaking source state. */
+/** Lerp grunt materials between their authored color and the
+ *  Frostbite tint by `intensity` in `[0, 1]`. Called when the
+ *  frostbite-tint intensity changes (modifier toggle, reveal-window
+ *  ramp, or capacity-growth re-apply). Materials that have never seen
+ *  frostbite cache their original color as a `Color` clone the first
+ *  time `intensity > 0`; subsequent calls (including back to 0) lerp
+ *  cleanly off the cached original without re-reading the mutated
+ *  `material.color`. */
 function applyFrostbiteTint(
   materials: readonly THREE.Material[],
-  active: boolean,
+  intensity: number,
 ): void {
   for (const material of materials) {
     if (!hasColor(material)) continue;
-    if (active) {
-      if (material.userData.frostbiteOriginal === undefined) {
-        material.userData.frostbiteOriginal = material.color.getHex();
-      }
-      material.color.setHex(FROSTBITE_TINT);
-    } else if (material.userData.frostbiteOriginal !== undefined) {
-      material.color.setHex(material.userData.frostbiteOriginal as number);
-      material.userData.frostbiteOriginal = undefined;
+    let original = material.userData.frostbiteOriginal as
+      | THREE.Color
+      | undefined;
+    if (original === undefined) {
+      // Skip caching for materials that haven't seen frostbite yet —
+      // saves a clone per material on every game without the modifier.
+      if (intensity === 0) continue;
+      original = material.color.clone();
+      material.userData.frostbiteOriginal = original;
     }
+    material.color.lerpColors(original, FROSTBITE_COLOR, intensity);
   }
 }
 
