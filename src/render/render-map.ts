@@ -44,8 +44,8 @@ import {
   drawComboFloats,
   drawGameOver,
   drawLifeLostDialog,
+  drawLobby,
   drawPhaseTimer,
-  drawPlayerSelect,
   drawScoreDeltas,
   drawSelectionCursor,
   drawStatusBar,
@@ -631,7 +631,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     //   - phase timer ring, placement-preview cursor, score deltas,
     //     modifier-reveal flash
     //   - banner chrome, game-over panel, life-lost / upgrade-pick dialogs
-    //   - full-screen modals: player select, options, controls
+    //   - full-screen modals: lobby, options, controls
     //
     // Display canvas (post-blit, screen-relative):
     //   - banner phase-transition snapshots (pre-captured world bitmaps
@@ -647,7 +647,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawUpgradePick(overlayCtx, W, H, overlay, now);
 
     // Full-screen modal screens (opaque — drawn last, on top of everything)
-    drawPlayerSelect(overlayCtx, W, H, overlay, now);
+    drawLobby(overlayCtx, W, H, overlay, now);
     drawOptionsScreen(overlayCtx, W, H, overlay, now);
     drawControlsScreen(overlayCtx, W, H, overlay, now);
 

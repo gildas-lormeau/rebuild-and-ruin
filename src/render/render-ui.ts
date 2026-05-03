@@ -585,16 +585,16 @@ export function drawUpgradePick(
   }
 }
 
-/** Draw the player selection lobby screen. */
-export function drawPlayerSelect(
+/** Draw the lobby screen. */
+export function drawLobby(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
   now: number = performance.now(),
 ): void {
-  if (!overlay?.ui?.playerSelect) return;
-  const selectData = overlay.ui.playerSelect;
+  if (!overlay?.ui?.lobby) return;
+  const lobby = overlay.ui.lobby;
   beginModalScreen(overlayCtx, W, H);
 
   overlayCtx.font = FONT_TITLE;
@@ -604,17 +604,17 @@ export function drawPlayerSelect(
   overlayCtx.fillStyle = TEXT_MUTED;
   overlayCtx.fillText("A Rampart Remake", W / 2, H * 0.1 + 20);
 
-  if (selectData.roomCode) {
+  if (lobby.roomCode) {
     overlayCtx.font = FONT_TIMER;
     overlayCtx.fillStyle = GOLD;
-    overlayCtx.fillText(`Room: ${selectData.roomCode}`, W / 2, H * 0.1 + 42);
+    overlayCtx.fillText(`Room: ${lobby.roomCode}`, W / 2, H * 0.1 + 42);
   }
 
-  const count = selectData.players.length;
+  const count = lobby.players.length;
   const { gap, rectW, rectH, rectY } = computeLobbyLayout(W, H, count);
 
   for (let i = 0; i < count; i++) {
-    const player = selectData.players[i]!;
+    const player = lobby.players[i]!;
     const c = player.color;
     const rx = gap + i * (rectW + gap);
 
@@ -676,7 +676,7 @@ export function drawPlayerSelect(
     }
   }
 
-  const secs = Math.ceil(selectData.timer);
+  const secs = Math.ceil(lobby.timer);
   overlayCtx.font = FONT_TIMER;
   overlayCtx.fillStyle = GOLD;
   overlayCtx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);

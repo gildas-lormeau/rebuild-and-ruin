@@ -164,7 +164,7 @@ export function createLobbyOverlay(frameCtx: UIContext): {
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
     ui: {
-      playerSelect: {
+      lobby: {
         players: PLAYER_NAMES.map((name, i) => ({
           name: `${name} Player`,
           color: getPlayerColor(i as ValidPlayerSlot).wall,

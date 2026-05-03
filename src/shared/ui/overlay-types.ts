@@ -393,7 +393,7 @@ export interface UIOverlay {
     cursor: number;
     readOnly: boolean;
   };
-  playerSelect?: {
+  lobby?: {
     players: {
       name: string;
       color: RGB;
