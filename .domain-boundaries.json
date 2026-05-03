@@ -261,6 +261,7 @@
       "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/frostbite-reveal-overlay.ts",
+      "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/sapper-reveal-overlay.ts",
       "src/runtime/waved-ramp.ts",

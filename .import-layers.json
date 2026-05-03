@@ -247,14 +247,10 @@
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
-      "src/runtime/crumbling-walls-overlay.ts",
-      "src/runtime/fog-reveal-overlay.ts",
-      "src/runtime/frostbite-reveal-overlay.ts",
-      "src/runtime/rubble-clearing-overlay.ts",
+      "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-state.ts",
-      "src/runtime/sapper-reveal-overlay.ts"
+      "src/runtime/runtime-state.ts"
     ]
   },
   {
@@ -277,17 +273,21 @@
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
+      "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/dev-console.ts",
+      "src/runtime/fog-reveal-overlay.ts",
+      "src/runtime/frostbite-reveal-overlay.ts",
+      "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts"
+      "src/runtime/runtime-upgrade-pick.ts",
+      "src/runtime/sapper-reveal-overlay.ts"
     ]
   },
   {
@@ -306,6 +306,7 @@
       "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
+      "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts"
     ]
   },
