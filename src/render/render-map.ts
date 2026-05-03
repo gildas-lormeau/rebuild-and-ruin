@@ -26,6 +26,7 @@ import {
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   DIRS_4,
+  isWater,
   packTile,
   playerByZone,
   pxToTile,
@@ -65,6 +66,11 @@ interface TerrainImageCache {
    *  enclosing-player color, so the right variant can be blitted on top of the
    *  base terrain at render time once we know the current owner. */
   sinkholeClusters?: SinkholeCluster[];
+  /** Packed `(row << 8) | col` tile coords of the nearest water-tile pixel for
+   *  every pixel — populated lazily on first `getNearestWaterTilePerPixel`
+   *  call. `NEAREST_WATER_NONE` sentinel marks cells that didn't receive any
+   *  water propagation (water-free map). Shape: `width * height`. */
+  nearestWaterTile?: Uint16Array;
 }
 
 /** A connected group of sinkhole tiles (4-cardinal connectivity).
@@ -184,6 +190,16 @@ interface RenderMap {
     map: GameMap,
     overlay: RenderOverlay | undefined,
   ) => ImageData | undefined;
+  /** Per-pixel packed `(row << 8) | col` tile coords of the nearest water-tile
+   *  pixel, derived from the SDF source-tracking. The 3D shader will sample
+   *  this so bank pixels in grass-tile neighbors of an owned sinkhole can look
+   *  up the owner via `tileData[nearestWater]`. `mapVersion`-keyed (the SDF
+   *  shape doesn't depend on territory or freeze state) — populated lazily on
+   *  first call. Returns `undefined` only when the cache hasn't been warmed
+   *  with `precomputeTerrainCache` (the 3D path warms it during init). Each
+   *  cell holds `NEAREST_WATER_NONE` when no water tile is reachable from
+   *  that pixel (water-free map). */
+  getNearestWaterTilePerPixel: (map: GameMap) => Uint16Array | undefined;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current display's game area into a banner-owned bridge
    *  canvas and return it (banner prev-scene A-snapshot). Returns
@@ -284,6 +300,10 @@ const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 // Transition width in pixels for ice→water blend at frozen tile boundaries.
 const ICE_BLEND_WIDTH = 4;
+/** Sentinel value for `getNearestWaterTilePerPixel` cells that didn't receive
+ *  any water-tile propagation (only happens on water-free maps, but exported
+ *  so shader/test consumers can compare without magic-numbering 0xFFFF). */
+export const NEAREST_WATER_NONE = 0xffff;
 
 export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   const observer = deps.observer;
@@ -388,10 +408,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const W = MAP_PX_W;
     const H = MAP_PX_H;
     const cache = getTerrainCache(map, W, H);
-    if (cache.normal && cache.battle) return;
+    if (cache.normal && cache.battle && cache.nearestWaterTile) return;
 
-    const sdf = computeSignedDistanceField(W, H, map);
+    // Allocate the nearest-water-tile output if not already cached so the SDF
+    // pass populates it on the same propagation run. Blur runs after, but only
+    // mutates the distance field — source coords are unaffected by blur.
+    const nearestWater = cache.nearestWaterTile ?? new Uint16Array(W * H);
+    const sdf = computeSignedDistanceField(W, H, map, nearestWater);
     blurSignedDistanceField(sdf, W, H);
+    cache.nearestWaterTile = nearestWater;
 
     if (!cache.normal) {
       const imgData = new ImageData(W, H);
@@ -403,6 +428,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       renderTerrainPixels(imgData, sdf, W, H, map, true, frozenTiles);
       cache.battle = imgData;
     }
+  }
+
+  function getNearestWaterTilePerPixel(map: GameMap): Uint16Array | undefined {
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    if (!cache.nearestWaterTile) precomputeTerrainCache(map);
+    return cache.nearestWaterTile;
   }
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -848,6 +879,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     precomputeTerrainCache,
     getTerrainBitmap,
     getSinkholeOverlayBitmap,
+    getNearestWaterTilePerPixel,
     sceneCanvas,
     captureScene,
     captureSceneOffscreen,
@@ -868,17 +900,28 @@ for (const w of WAVE_LO) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = -10;
 }
 
-/** Forward + backward SDF passes for water/grass boundary distances. */
+/** Forward + backward SDF passes for water/grass boundary distances.
+ *
+ *  When `nearestWaterOut` is supplied, also fills it with the packed tile
+ *  coords (`(row << 8) | col`) of the nearest water-tile pixel for every
+ *  pixel — the source of the chamfer propagation in the grass-side pass.
+ *  Pixels that didn't receive any water propagation (water-free maps) keep
+ *  the sentinel `NEAREST_WATER_NONE`. Used by the 3D shader to find the
+ *  owner of bank pixels that span into grass-tile neighbors. */
 function computeSignedDistanceField(
   W: number,
   H: number,
   map: GameMap,
+  nearestWaterOut?: Uint16Array,
 ): Float32Array {
   const distFromWater = initDistanceField(W, H, map, 1);
   propagateDistances(distFromWater, W, H);
 
   const distFromGrass = initDistanceField(W, H, map, 0);
-  propagateDistances(distFromGrass, W, H);
+  if (nearestWaterOut) {
+    initSourceField(nearestWaterOut, W, H, map);
+  }
+  propagateDistances(distFromGrass, W, H, nearestWaterOut);
 
   return combineSDF(distFromWater, distFromGrass, W * H);
 }
@@ -900,8 +943,39 @@ function initDistanceField(
   return dist;
 }
 
-/** Two-pass (forward + backward) distance propagation with orthogonal and diagonal steps. */
-function propagateDistances(dist: Float32Array, W: number, H: number): void {
+/** Initialize a source-tracking field paired with `initDistanceField(map, 0)`
+ *  — the grass-side propagation pass where water tiles are the seeds. Each
+ *  water-tile pixel gets its own tile coords as source; grass-tile pixels
+ *  start at the sentinel and inherit a source from their nearest seed during
+ *  `propagateDistances`. */
+function initSourceField(
+  out: Uint16Array,
+  W: number,
+  H: number,
+  map: GameMap,
+): void {
+  out.fill(NEAREST_WATER_NONE);
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const tr = pxToTile(py);
+      const tc = pxToTile(px);
+      if (isWater(map.tiles, tr, tc)) {
+        out[py * W + px] = (tr << 8) | tc;
+      }
+    }
+  }
+}
+
+/** Two-pass (forward + backward) distance propagation with orthogonal and
+ *  diagonal steps. When `source` is supplied, the source value of the winning
+ *  neighbor is copied alongside the relaxed distance so the final array
+ *  records which seed each pixel propagated from. */
+function propagateDistances(
+  dist: Float32Array,
+  W: number,
+  H: number,
+  source?: Uint16Array,
+): void {
   // Chamfer distance costs: ORTHO = 1 pixel step, DIAG ≈ √2 for diagonal steps.
   // This approximates Euclidean distance using a two-pass sequential scan.
   const ORTHO = 1.0;
@@ -912,15 +986,41 @@ function propagateDistances(dist: Float32Array, W: number, H: number): void {
       const i = py * W + px;
       if (dist[i] === 0) continue;
       let distance = dist[i]!;
-      if (py > 0)
-        distance = Math.min(distance, dist[(py - 1) * W + px]! + ORTHO);
-      if (px > 0)
-        distance = Math.min(distance, dist[py * W + (px - 1)]! + ORTHO);
-      if (py > 0 && px > 0)
-        distance = Math.min(distance, dist[(py - 1) * W + (px - 1)]! + DIAG);
-      if (py > 0 && px < W - 1)
-        distance = Math.min(distance, dist[(py - 1) * W + (px + 1)]! + DIAG);
+      let bestSource = source !== undefined ? source[i]! : 0;
+      if (py > 0) {
+        const neighborIdx = (py - 1) * W + px;
+        const cand = dist[neighborIdx]! + ORTHO;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (px > 0) {
+        const neighborIdx = py * W + (px - 1);
+        const cand = dist[neighborIdx]! + ORTHO;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (py > 0 && px > 0) {
+        const neighborIdx = (py - 1) * W + (px - 1);
+        const cand = dist[neighborIdx]! + DIAG;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (py > 0 && px < W - 1) {
+        const neighborIdx = (py - 1) * W + (px + 1);
+        const cand = dist[neighborIdx]! + DIAG;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
       dist[i] = distance;
+      if (source !== undefined) source[i] = bestSource;
     }
   }
   // Backward pass
@@ -929,15 +1029,41 @@ function propagateDistances(dist: Float32Array, W: number, H: number): void {
       const i = py * W + px;
       if (dist[i] === 0) continue;
       let distance = dist[i]!;
-      if (py < H - 1)
-        distance = Math.min(distance, dist[(py + 1) * W + px]! + ORTHO);
-      if (px < W - 1)
-        distance = Math.min(distance, dist[py * W + (px + 1)]! + ORTHO);
-      if (py < H - 1 && px < W - 1)
-        distance = Math.min(distance, dist[(py + 1) * W + (px + 1)]! + DIAG);
-      if (py < H - 1 && px > 0)
-        distance = Math.min(distance, dist[(py + 1) * W + (px - 1)]! + DIAG);
+      let bestSource = source !== undefined ? source[i]! : 0;
+      if (py < H - 1) {
+        const neighborIdx = (py + 1) * W + px;
+        const cand = dist[neighborIdx]! + ORTHO;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (px < W - 1) {
+        const neighborIdx = py * W + (px + 1);
+        const cand = dist[neighborIdx]! + ORTHO;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (py < H - 1 && px < W - 1) {
+        const neighborIdx = (py + 1) * W + (px + 1);
+        const cand = dist[neighborIdx]! + DIAG;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
+      if (py < H - 1 && px > 0) {
+        const neighborIdx = (py + 1) * W + (px - 1);
+        const cand = dist[neighborIdx]! + DIAG;
+        if (cand < distance) {
+          distance = cand;
+          if (source !== undefined) bestSource = source[neighborIdx]!;
+        }
+      }
       dist[i] = distance;
+      if (source !== undefined) source[i] = bestSource;
     }
   }
 }
