@@ -30,7 +30,6 @@ import {
   createSinkholeOverlayManager,
   type GetSinkholeOverlayBitmap,
 } from "./sinkhole-overlay.ts";
-import { createSpawnBurstManager } from "./spawn-burst.ts";
 import { createThawingManager } from "./thawing.ts";
 import { createWaterSurgeManager } from "./water-surge.ts";
 import { createWildfireBurstManager } from "./wildfire-burst.ts";
@@ -53,10 +52,10 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createGrassEmergenceManager,
   createWaterSurgeManager,
   createGroundCollapseManager,
-  // (frostbite, rubble_clearing, crumbling_walls, sapper have no per-tile
-  // burst — their runtime-derived overlay multipliers drive the live
-  // entity managers directly. See `src/runtime/*-overlay.ts`.)
-  createSpawnBurstManager,
+  // (frostbite, rubble_clearing, crumbling_walls, sapper, grunt_surge
+  // have no per-tile burst — their runtime-derived overlay multipliers
+  // drive the live entity managers directly. See
+  // `src/runtime/*-overlay.ts`.)
   createWildfireBurstManager,
   createLightningBurstManager,
   // Persistent overlays (run while gating flag holds).

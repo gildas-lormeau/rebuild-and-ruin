@@ -319,6 +319,7 @@ export function createOnlineOverlay(
     frostbiteRevealProgress,
     crumblingWallsFade,
     sapperRevealIntensity,
+    gruntSurgeRevealIntensity,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
@@ -394,6 +395,11 @@ export function createOnlineOverlay(
       sapperTargetedWalls:
         sapperRevealIntensity !== undefined
           ? collectSapperTargetedWalls(view)
+          : undefined,
+      gruntSurgeRevealIntensity,
+      gruntSurgeSpawnTiles:
+        gruntSurgeRevealIntensity !== undefined
+          ? view.modern?.activeModifierChangedTiles
           : undefined,
     },
     phantoms: frame.phantoms,

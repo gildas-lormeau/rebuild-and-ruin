@@ -223,6 +223,9 @@ export interface OnlineOverlayParams {
   /** Sapper-reveal tint pulse intensity (0..1); threaded into
    *  `overlay.battle.sapperRevealIntensity`. */
   sapperRevealIntensity?: number;
+  /** Grunt-surge tint pulse intensity (0..1); threaded into
+   *  `overlay.battle.gruntSurgeRevealIntensity`. */
+  gruntSurgeRevealIntensity?: number;
 }
 
 /** Banner lifecycle state:

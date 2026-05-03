@@ -56,7 +56,7 @@
 
 import * as THREE from "three";
 import type { Grunt } from "../../../shared/core/battle-types.ts";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildGrunt, getGruntVariant } from "../sprites/grunt-scene.ts";
 import {
@@ -64,6 +64,7 @@ import {
   fillBucket,
   nextPowerOfTwo,
 } from "./instance-bucket.ts";
+import { attachInstanceTint } from "./instance-modulation.ts";
 
 export interface GruntsManager {
   /** Reconcile grunt instance matrices with the overlay. Cheap no-op
@@ -98,6 +99,12 @@ const INITIAL_CAPACITY = 64;
  *  progressive freeze (`overlay.battle.frostbiteRevealProgress`). */
 const FROSTBITE_TINT_HEX = 0x88d0f0;
 const FROSTBITE_COLOR = /* @__PURE__ */ new THREE.Color(FROSTBITE_TINT_HEX);
+/** Red tint applied per-instance to fresh surge grunts during the
+ *  `grunt_surge` modifier reveal. Lerped against the (possibly
+ *  frostbite-tinted) base color via the per-instance tint shader patch
+ *  in `attachInstanceTint`. */
+const GRUNT_SURGE_TINT_HEX = 0xdc3232;
+const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
 
 /** 3-step gradient texture for `MeshToonMaterial`. Pixel 0 = shadow,
  *  pixel 1 = mid, pixel 2 = lit. NearestFilter so steps are hard. The
@@ -115,9 +122,16 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   // cube) can mutate `.color` against a stashed `userData` baseline.
   const ownedMaterials: THREE.Material[] = [];
   let subParts: BucketSubPart[] = [];
+  /** Per-instance grunt-surge tint attribute (one per sub-part).
+   *  Defaults to 0 (no tint) — written each frame the surge ramp is
+   *  in flight, with surge intensity at slot indices whose grunt
+   *  occupies a tile in `gruntSurgeSpawnTiles`. */
+  let surgeTintAttrs: THREE.InstancedBufferAttribute[] = [];
   let capacity = 0;
   let lastSignature: string | undefined;
   let lastFrostbiteIntensity = 0;
+  let lastSurgeIntensity = 0;
+  let lastSurgeTilesSig = "";
 
   // Scratch objects re-used inside `update` to avoid per-frame
   // allocations. Not shared across managers — each closure owns its
@@ -137,6 +151,12 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     const next = Math.max(INITIAL_CAPACITY, nextPowerOfTwo(required));
     disposeSubParts();
     subParts = buildSubParts(next, root, ownedMaterials);
+    surgeTintAttrs = subParts.map(
+      (part) =>
+        attachInstanceTint(part.instanced, next, GRUNT_SURGE_TINT_HEX, {
+          keepOpaque: true,
+        }).tint,
+    );
     capacity = next;
   }
 
@@ -147,6 +167,7 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
       part.instanced.dispose();
     }
     subParts = [];
+    surgeTintAttrs = [];
     capacity = 0;
     for (const mat of ownedMaterials) mat.dispose();
     ownedMaterials.length = 0;
@@ -168,9 +189,20 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
       lastFrostbiteIntensity = frostbiteIntensity;
     }
 
+    const surgeIntensity = overlay?.battle?.gruntSurgeRevealIntensity ?? 0;
+    const spawnTilesRaw = overlay?.battle?.gruntSurgeSpawnTiles;
+    const spawnTiles: ReadonlySet<number> =
+      spawnTilesRaw && surgeIntensity > 0
+        ? new Set(spawnTilesRaw)
+        : EMPTY_KEY_SET;
+    const surgeTilesSig =
+      spawnTiles.size === 0 ? "" : [...spawnTiles].join(",");
+    const surgeChanged =
+      surgeIntensity !== lastSurgeIntensity ||
+      surgeTilesSig !== lastSurgeTilesSig;
+
     const signature = computeSignature(grunts);
-    if (signature === lastSignature) return;
-    lastSignature = signature;
+    if (signature === lastSignature && !surgeChanged) return;
 
     if (count === 0) {
       // Hide all instances by clamping count to zero — keep the
@@ -208,6 +240,23 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
         matrix.compose(hostTranslation, hostQuaternion, hostScale);
       },
     );
+
+    // Per-instance grunt-surge tint: fresh-spawn grunts at tiles in
+    // `gruntSurgeSpawnTiles` lerp toward red by `surgeIntensity`.
+    // Stable across MODIFIER_REVEAL (grunts don't move pre-battle).
+    if (surgeChanged || grewCapacity) {
+      for (const attr of surgeTintAttrs) {
+        const data = attr.array as Float32Array;
+        for (let i = 0; i < count; i++) {
+          const grunt = grunts![i]!;
+          const tileKey = grunt.row * GRID_COLS + grunt.col;
+          data[i] = spawnTiles.has(tileKey) ? surgeIntensity : 0;
+        }
+        attr.needsUpdate = true;
+      }
+      lastSurgeIntensity = surgeIntensity;
+      lastSurgeTilesSig = surgeTilesSig;
+    }
   }
 
   function dispose(): void {

@@ -23,6 +23,7 @@ import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { deriveCrumblingWallsFade } from "./crumbling-walls-overlay.ts";
 import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
 import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
+import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
 import { deriveRubbleClearingFade } from "./rubble-clearing-overlay.ts";
 import type {
   CreateBannerUiFn,
@@ -221,6 +222,12 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       now: deps.timing.now(),
       state: runtimeState,
     });
+    const gruntSurgeRevealIntensity = deriveGruntSurgeRevealIntensity({
+      view,
+      banner: runtimeState.banner,
+      now: deps.timing.now(),
+      state: runtimeState,
+    });
 
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
@@ -242,6 +249,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       frostbiteRevealProgress,
       crumblingWallsFade,
       sapperRevealIntensity,
+      gruntSurgeRevealIntensity,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

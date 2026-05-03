@@ -162,6 +162,9 @@ export interface RuntimeState {
   /** Same shape as `fogRevealRampStartMs` but for the sapper threat-tint
    *  pulse. Set by `deriveSapperRevealIntensity`. */
   sapperRevealRampStartMs: number | undefined;
+  /** Same shape as `fogRevealRampStartMs` but for the grunt-surge
+   *  fresh-grunt tint pulse. Set by `deriveGruntSurgeRevealIntensity`. */
+  gruntSurgeRevealRampStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
@@ -315,6 +318,7 @@ export function createRuntimeState(): RuntimeState {
     frostbiteRevealRampStartMs: undefined,
     crumblingWallsRampStartMs: undefined,
     sapperRevealRampStartMs: undefined,
+    gruntSurgeRevealRampStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateReady` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

@@ -292,6 +292,15 @@ export interface BattleOverlay {
    *  Exposed alongside `sapperRevealIntensity` so the walls manager
    *  knows which slots to tint. Undefined outside the reveal. */
   sapperTargetedWalls?: readonly number[];
+  /** Grunt-surge fresh-grunt tint mix factor [0, 1] during the
+   *  modifier reveal — grunts whose tile is in `gruntSurgeSpawnTiles`
+   *  lerp toward red by this amount. Undefined outside the reveal. */
+  gruntSurgeRevealIntensity?: number;
+  /** Tile keys where surge grunts spawned this round. Exposed
+   *  alongside `gruntSurgeRevealIntensity` so the grunt manager knows
+   *  which slots to tint. Stable across the MODIFIER_REVEAL phase
+   *  (grunts don't move pre-battle). */
+  gruntSurgeSpawnTiles?: readonly number[];
 }
 
 /** Banner sweep UI — shared shape returned by `createBannerUi` and

@@ -16,6 +16,12 @@ import type { ComboEvent, GameState } from "./types.ts";
  *  masterBuilderOwners, etc. */
 interface RenderModernSlice {
   readonly activeModifier: ModifierId | null;
+  /** Tile keys mutated by the active modifier — populated by each
+   *  modifier's `apply` and persisted on `state.modern` for the
+   *  current MODIFIER_REVEAL window. Read by render-composition to
+   *  thread per-modifier "which tiles were affected" into the overlay
+   *  (e.g. grunt-surge spawn tiles). */
+  readonly activeModifierChangedTiles: readonly number[];
   readonly frozenTiles: ReadonlySet<number> | null;
   readonly sinkholeTiles: ReadonlySet<number> | null;
   readonly masterBuilderLockout: number;

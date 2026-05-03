@@ -51,11 +51,18 @@ export function attachInstanceOpacity(
 /** Same as `attachInstanceOpacity` plus an `instanceTint` float
  *  attribute that lerps `diffuseColor.rgb` toward the per-material
  *  `tintHex` uniform. Per-instance tint defaults to 0 (no tint).
- *  Callers write opacity + tint floats per slot to drive both. */
+ *  Callers write opacity + tint floats per slot to drive both.
+ *
+ *  `keepOpaque: true` skips forcing `material.transparent = true`. Use
+ *  for entities that never fade (opacity stays at 1) — three.js's
+ *  `OPAQUE` define wipes our `diffuseColor.a *= vInstanceOpacity`
+ *  patch but the tint patch still composes, and the material renders
+ *  through the opaque pass (no z-sorting cost). */
 export function attachInstanceTint(
   mesh: THREE.InstancedMesh,
   capacity: number,
   tintHex: number,
+  options?: { keepOpaque?: boolean },
 ): {
   opacity: THREE.InstancedBufferAttribute;
   tint: THREE.InstancedBufferAttribute;
@@ -67,7 +74,7 @@ export function attachInstanceTint(
 
   const tintColor = new THREE.Color(tintHex);
   for (const material of materialsOf(mesh)) {
-    material.transparent = true;
+    if (!options?.keepOpaque) material.transparent = true;
     material.customProgramCacheKey = tintProgramCacheKey;
     material.onBeforeCompile = (shader) => {
       shader.uniforms.instanceTintColor = { value: tintColor };
