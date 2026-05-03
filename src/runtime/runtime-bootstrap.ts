@@ -120,10 +120,17 @@ export async function bootstrapNewGameFromSettings(
   runtimeState.settings.seedMode = SEED_RANDOM;
   runtimeState.settings.gameMode = config.gameMode;
 
+  // Transfer map ownership from lobby to game. In-game mutations (sinkhole
+  // grass→water, high-tide flips, spawned houses) land on `state.map`; if the
+  // lobby still held the same reference, those mutations would leak into the
+  // next game (rematch reads `existingMap` before any reset can fire).
+  const existingMap = runtimeState.lobby.map ?? undefined;
+  runtimeState.lobby.map = null;
+
   await bootstrapGame({
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
-    existingMap: runtimeState.lobby.map ?? undefined,
+    existingMap,
     ...config,
     log,
     clearFrameData: deps.clearFrameData,

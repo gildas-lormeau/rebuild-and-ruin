@@ -95,10 +95,15 @@ export function createOnlineRuntimeSessionHelpers(
     const keyBindings = Array.from({ length: playerCount }, (_, index) =>
       index === deps.session.myPlayerId ? settings.keyBindings[0] : undefined,
     );
+    // Transfer map ownership from lobby to game — see runtime-bootstrap.ts
+    // for the full rationale (in-game tile/house mutations would leak into a
+    // rematch via the cached lobby reference otherwise).
+    const existingMap = runtime.runtimeState.lobby.map ?? undefined;
+    runtime.runtimeState.lobby.map = null;
     await bootstrapGame({
       seed: msg.seed,
       maxPlayers: playerCount,
-      existingMap: runtime.runtimeState.lobby.map ?? undefined,
+      existingMap,
       maxRounds: msg.settings.maxRounds,
       cannonMaxHp: msg.settings.cannonMaxHp,
       buildTimer: msg.settings.buildTimer,
