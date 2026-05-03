@@ -13,10 +13,6 @@
  *
  * Adding a new modifier effect (any lifecycle): write the effect file,
  * add one entry here. No other touchpoints in scene.ts / renderer.ts.
- *
- * Factories take `(scene, deps)`. Most ignore `deps`; the few that need
- * shared dependencies (e.g. sinkhole overlay needs the
- * `getSinkholeOverlayBitmap` accessor) pluck what they want.
  */
 
 import type * as THREE from "three";
@@ -26,26 +22,12 @@ import { createGrassEmergenceManager } from "./grass-emergence.ts";
 import { createGroundCollapseManager } from "./ground-collapse.ts";
 import { createIceFormationManager } from "./ice-formation.ts";
 import { createLightningBurstManager } from "./lightning-burst.ts";
-import {
-  createSinkholeOverlayManager,
-  type GetSinkholeOverlayBitmap,
-} from "./sinkhole-overlay.ts";
 import { createThawingManager } from "./thawing.ts";
 import { createWallCrumbleManager } from "./wall-crumble.ts";
 import { createWaterSurgeManager } from "./water-surge.ts";
 import { createWildfireBurstManager } from "./wildfire-burst.ts";
 
-/** Shared dependencies passed to every modifier-effect factory. Most
- *  factories ignore this; add fields here when a new factory needs
- *  scene-construction-time dependencies it can't read from `FrameCtx`. */
-interface ModifierEffectDeps {
-  readonly getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap;
-}
-
-type ModifierEffectFactory = (
-  scene: THREE.Scene,
-  deps: ModifierEffectDeps,
-) => EffectManager;
+type ModifierEffectFactory = (scene: THREE.Scene) => EffectManager;
 
 export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // One-shot reveal bursts (post-banner, ~1.1s window).
@@ -59,7 +41,10 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // on the existing entity managers (grunts.ts / walls.ts / debris.ts /
   // pits.ts). See `src/runtime/*-overlay.ts` for the derive functions.
   // crumbling_walls layers BOTH: the cross-fade (overlay-driven) AND a
-  // disc-burst on the destroyed wall tiles for visibility.)
+  // disc-burst on the destroyed wall tiles for visibility.
+  // Owned-sinkhole bank tinting is now a fragment-shader override on the
+  // terrain mesh — see `terrain.ts` + `effects/terrain-sdf-texture.ts` +
+  // `effects/terrain-tile-data.ts`. No registry entry needed.)
   createWildfireBurstManager,
   createLightningBurstManager,
   // Persistent overlays (run while gating flag holds). fog_of_war
@@ -67,8 +52,6 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // multiplier), but via this dedicated manager rather than an
   // existing entity one.
   createFogManager,
-  (scene, deps) =>
-    createSinkholeOverlayManager(scene, deps.getSinkholeOverlayBitmap),
   // Event-driven bursts (per-entry in overlay.entities.X[]).
   createThawingManager,
 ];

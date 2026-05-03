@@ -613,3 +613,41 @@ export function interiorOwnersFromOverlay(
   }
   return owners;
 }
+
+/** Snapshot the per-player interior Set references that owner-derived
+ *  rendering depends on. Battle reads `battleAnim.territory[pid]`,
+ *  peacetime reads each castle's `interior`. Paired with `interiorRefsMatch`
+ *  for an allocation-free steady-state cache hit on subsequent frames. */
+export function snapshotInteriorRefs(
+  overlay: RenderOverlay,
+  inBattle: boolean,
+): ReadonlyArray<ReadonlySet<number>> {
+  if (inBattle) return overlay.battle?.battleTerritory?.slice() ?? [];
+  return overlay.castles?.map((castle) => castle.interior) ?? [];
+}
+
+/** Element-wise reference-compare a cached `snapshotInteriorRefs` result
+ *  against the live overlay refs. No allocation — fast steady-state path
+ *  for cache invalidation in renderers that key on territory changes. */
+export function interiorRefsMatch(
+  cached: ReadonlyArray<ReadonlySet<number>>,
+  overlay: RenderOverlay,
+  inBattle: boolean,
+): boolean {
+  if (inBattle) {
+    const territory = overlay.battle?.battleTerritory;
+    if (!territory) return cached.length === 0;
+    if (cached.length !== territory.length) return false;
+    for (let i = 0; i < cached.length; i++) {
+      if (cached[i] !== territory[i]) return false;
+    }
+    return true;
+  }
+  const castles = overlay.castles;
+  if (!castles) return cached.length === 0;
+  if (cached.length !== castles.length) return false;
+  for (let i = 0; i < cached.length; i++) {
+    if (cached[i] !== castles[i]!.interior) return false;
+  }
+  return true;
+}

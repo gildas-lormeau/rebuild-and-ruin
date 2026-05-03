@@ -50,12 +50,20 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import { MODIFIER_EFFECT_FACTORIES } from "./effects/modifier-effect-registry.ts";
-import { type GetSinkholeOverlayBitmap } from "./effects/sinkhole-overlay.ts";
 import {
   createTerrainBitmapManager,
   type GetTerrainBitmap,
   type TerrainBitmapManager,
 } from "./effects/terrain-bitmap.ts";
+import {
+  createTerrainSdfTextureManager,
+  type GetBlurredSdf,
+  type TerrainSdfTextureManager,
+} from "./effects/terrain-sdf-texture.ts";
+import {
+  createTerrainTileDataManager,
+  type TerrainTileDataManager,
+} from "./effects/terrain-tile-data.ts";
 import {
   createWallBurnsManager,
   type WallBurnsManager,
@@ -196,6 +204,17 @@ export interface Render3dContext {
    *  Sits at ground plane Y=0; the terrain mesh at Y=0.01 composites
    *  overlay tiles (interiors, bonus, frozen, owned sinkholes) on top. */
   readonly terrainBitmap: TerrainBitmapManager;
+  /** SDF DataTexture (R32F, MAP_PX × MAP_PX) the terrain mesh's shader
+   *  samples for the per-pixel grass→bank→water gradient inside owned-
+   *  sinkhole tiles. Rebuilt on `mapVersion` change (freeze/thaw, sinkhole
+   *  modifier mutation); sourced from the 2D renderer's cached blurred SDF. */
+  readonly terrainSdfTexture: TerrainSdfTextureManager;
+  /** Per-tile owner + flag DataTexture (RGBA8, GRID × GRID) the terrain
+   *  shader looks up to gate the bank-gradient override. Refreshed only
+   *  when interior refs / sinkhole tiles / frozen tiles / battle flag
+   *  change — same fingerprint shape the 2D second-plane sinkhole overlay
+   *  relied on. */
+  readonly terrainTileData: TerrainTileDataManager;
   /** Flashing gold-disc bonus-square indicators. Rendered as flat
    *  circles on the ground plane outside of battle; pulse matches the
    *  2D `drawBonusSquares` alpha timeline. */
@@ -224,7 +243,7 @@ export interface Render3dContext {
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
   getTerrainBitmap: GetTerrainBitmap,
-  getSinkholeOverlayBitmap: GetSinkholeOverlayBitmap,
+  getBlurredSdf: GetBlurredSdf,
   getCannonFacing: GetCannonFacing,
 ): Render3dContext {
   const scene = new THREE.Scene();
@@ -235,7 +254,12 @@ export function createRender3dScene(
     scene.add(light);
   }
 
-  const terrain = createTerrain();
+  const terrainSdfTexture = createTerrainSdfTextureManager(getBlurredSdf);
+  const terrainTileData = createTerrainTileDataManager();
+  const terrain = createTerrain({
+    sdfTexture: terrainSdfTexture.texture,
+    tileDataTexture: terrainTileData.texture,
+  });
   scene.add(terrain.mesh);
 
   const walls = createWallsManager(scene);
@@ -256,9 +280,7 @@ export function createRender3dScene(
   const houseBurns = createHouseBurnsManager(scene);
   const crosshairs = createCrosshairsManager(scene);
   const modifierEffects: readonly EffectManager[] =
-    MODIFIER_EFFECT_FACTORIES.map((factory) =>
-      factory(scene, { getSinkholeOverlayBitmap }),
-    );
+    MODIFIER_EFFECT_FACTORIES.map((factory) => factory(scene));
   const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const bonusSquares = createBonusSquaresManager(scene);
@@ -356,6 +378,8 @@ export function createRender3dScene(
     modifierEffects,
     waterWaves,
     terrainBitmap,
+    terrainSdfTexture,
+    terrainTileData,
     bonusSquares,
   };
 }

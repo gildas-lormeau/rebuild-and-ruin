@@ -68,7 +68,7 @@ export function createRender3d(
   const ctx: Render3dContext = createRender3dScene(
     worldCanvas,
     canvas2d.getTerrainBitmap,
-    canvas2d.getSinkholeOverlayBitmap,
+    canvas2d.getBlurredSdf,
     getCannonFacing,
   );
 
@@ -207,7 +207,9 @@ export function createRender3d(
     pitch: number,
   ): void {
     ctx.terrain.ensureBuilt(map);
+    ctx.terrainSdfTexture.ensureBuilt(map);
     const frame: FrameCtx = { overlay, map, now, pitch };
+    ctx.terrainTileData.update(frame);
     ctx.terrain.update(frame);
     ctx.walls.update(frame);
     ctx.towers.update(frame);
@@ -247,8 +249,10 @@ export function createRender3d(
       canvas2d.warmMapCache(map);
       // Ensure the terrain mesh is ready before the first frame. The
       // geometry is fixed-size so the "build" step is cheap; `update` fills
-      // in colors each frame.
+      // in colors each frame. The SDF texture is uploaded here too so the
+      // first frame's shader sample doesn't read the placeholder.
       ctx.terrain.ensureBuilt(map);
+      ctx.terrainSdfTexture.ensureBuilt(map);
     },
     drawFrame: (
       map,

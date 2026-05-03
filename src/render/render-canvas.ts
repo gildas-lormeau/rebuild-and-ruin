@@ -9,10 +9,7 @@
  */
 
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import type {
-  RendererInterface,
-  RenderOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import { clientToCanvas, computeLetterboxLayout } from "./render-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
@@ -33,15 +30,12 @@ interface CanvasRenderer extends RendererInterface {
     inBattle: boolean,
     frozenTiles?: ReadonlySet<number>,
   ): ImageData;
-  /** Owner-tinted sinkhole bank overlay ImageData for `(map, overlay)`,
-   *  or `undefined` when no enclosed sinkhole cluster needs recoloring.
-   *  The 3D renderer uploads this as a CanvasTexture on a plane above
-   *  the terrain mesh so pixel-grain bank gradient wins over the
-   *  mesh's tile-grain owner tint. */
-  getSinkholeOverlayBitmap(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-  ): ImageData | undefined;
+  /** Blurred signed-distance field for `map` — positive in water,
+   *  negative in grass. The 3D terrain shader uploads this as an R32F
+   *  DataTexture so the per-pixel grass→bank→water gradient inside
+   *  owned-sinkhole tiles can be computed in GLSL instead of consuming
+   *  a CPU-baked second-plane overlay. */
+  getBlurredSdf(map: GameMap): Float32Array | undefined;
 }
 
 export function createCanvasRenderer(
@@ -89,6 +83,6 @@ export function createCanvasRenderer(
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
     sceneCanvas: renderMap.sceneCanvas,
     getTerrainBitmap: renderMap.getTerrainBitmap,
-    getSinkholeOverlayBitmap: renderMap.getSinkholeOverlayBitmap,
+    getBlurredSdf: renderMap.getBlurredSdf,
   };
 }

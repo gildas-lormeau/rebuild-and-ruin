@@ -23,21 +23,11 @@ import {
   TILE_SIZE,
   TOP_MARGIN_CANVAS_PX,
 } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import {
-  DIRS_4,
-  isWater,
-  packTile,
-  playerByZone,
-  pxToTile,
-  unpackTile,
-} from "../shared/core/spatial.ts";
-import {
-  interiorOwnersFromOverlay,
-  type RenderObserver,
-  type RenderOverlay,
+import { isWater, pxToTile } from "../shared/core/spatial.ts";
+import type {
+  RenderObserver,
+  RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
-import { getPlayerColor, MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import type { RGB } from "../shared/ui/theme.ts";
 import {
   drawAnnouncement,
@@ -60,69 +50,21 @@ interface TerrainImageCache {
   mapVersion: number;
   normal?: ImageData;
   battle?: ImageData;
-  /** One entry per connected sinkhole cluster (built from sinkholeTiles set
-   *  the first time the cache is rebuilt with sinkholes present). Each cluster
-   *  carries per-tile patches: 16×16 ImageData rendered with each possible
-   *  enclosing-player color, so the right variant can be blitted on top of the
-   *  base terrain at render time once we know the current owner. */
-  sinkholeClusters?: SinkholeCluster[];
   /** Packed `(row << 8) | col` tile coords of the nearest water-tile pixel for
    *  every pixel — populated lazily on first `getNearestWaterTilePerPixel`
    *  call. `NEAREST_WATER_NONE` sentinel marks cells that didn't receive any
    *  water propagation (water-free map). Shape: `width * height`. */
   nearestWaterTile?: Uint16Array;
   /** Blurred signed distance field (positive in water, negative in grass,
-   *  smoothed by the box-blur passes). Reused as a CanvasTexture upload by
-   *  the 3D terrain shader so per-pixel bank gradients can be computed in
-   *  GLSL instead of baked into the bitmap and a second-plane overlay.
-   *  Shape: `width * height`. */
+   *  smoothed by the box-blur passes). Uploaded by the 3D terrain shader as
+   *  an R32F DataTexture so the per-pixel bank gradient inside owned-sinkhole
+   *  tiles can be computed in GLSL. Shape: `width * height`. */
   blurredSdf?: Float32Array;
-}
-
-/** A connected group of sinkhole tiles (4-cardinal connectivity).
- *  `zone` is the map zone every tile in the cluster belongs to — clusters
- *  cannot straddle zones today (zones are isolated by rivers, sinkhole
- *  modifier places only within one active zone). Resolves the owner
- *  without scanning every cluster tile. If a future zone-touching modifier
- *  breaks the invariant, `zone` is set to -1 and the cluster renders
- *  unowned — `playerByZone(playerZones, -1)` returns undefined. */
-interface SinkholeCluster {
-  zone: number;
-  tiles: SinkholeTilePatches[];
-}
-
-/** Per-tile precomputed bank/water bitmaps, one per (phase × owner) variant.
- *  Variant key is built by `variantId(inBattle, playerId)`. */
-interface SinkholeTilePatches {
-  row: number;
-  col: number;
-  patches: Map<string, ImageData>;
 }
 
 interface OffscreenPair {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
-}
-
-/** Cached sinkhole-overlay ImageData for the 3D renderer's upload path.
- *  Bitmap output depends only on cluster shape (`map`+`mapVersion`+
- *  `sinkholeTiles`), the inBattle patch variant, and owner data per
- *  player. Owner data is captured as `interiorRefs` — the per-player
- *  interior Set references in player-id order. Those refs are stable
- *  across frames (mutated in place during battle, reassigned only by
- *  `markInteriorFresh` after a wall change), so element-wise reference
- *  equality skips the rebuild on steady-state frames. The previous
- *  `castles` array-ref check missed because `buildCastleOverlay`
- *  allocates a new array every frame, forcing a per-frame bitmap
- *  rebuild even when nothing actually changed. */
-interface SinkholeOverlayCache {
-  map: GameMap;
-  mapVersion: number;
-  inBattle: boolean;
-  sinkholeTiles: ReadonlySet<number>;
-  interiorRefs: ReadonlyArray<ReadonlySet<number>>;
-  image: ImageData;
-  hasContent: boolean;
 }
 
 /** Construction-time deps for `createRenderMap`. Both fields are optional —
@@ -185,26 +127,14 @@ interface RenderMap {
     inBattle: boolean,
     frozenTiles?: ReadonlySet<number>,
   ) => ImageData;
-  /** Return a MAP_PX_W × MAP_PX_H ImageData containing only the owner-tinted
-   *  sinkhole bank patches (transparent elsewhere), or `undefined` when no
-   *  enclosed sinkhole cluster exists for the current overlay. The 3D
-   *  renderer uploads this as a CanvasTexture on a plane that sits above
-   *  the terrain mesh so the tile-grain mesh tint is overdrawn by the
-   *  pixel-grain bank gradient. Cached on overlay-ref fingerprint so
-   *  steady-state frames skip the rebuild. */
-  getSinkholeOverlayBitmap: (
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-  ) => ImageData | undefined;
   /** Per-pixel packed `(row << 8) | col` tile coords of the nearest water-tile
-   *  pixel, derived from the SDF source-tracking. The 3D shader will sample
-   *  this so bank pixels in grass-tile neighbors of an owned sinkhole can look
-   *  up the owner via `tileData[nearestWater]`. `mapVersion`-keyed (the SDF
-   *  shape doesn't depend on territory or freeze state) — populated lazily on
-   *  first call. Returns `undefined` only when the cache hasn't been warmed
-   *  with `precomputeTerrainCache` (the 3D path warms it during init). Each
-   *  cell holds `NEAREST_WATER_NONE` when no water tile is reachable from
-   *  that pixel (water-free map). */
+   *  pixel, derived from the SDF source-tracking. Available for future
+   *  shader effects that need to spread an effect from water tiles into
+   *  surrounding grass (the current owned-sinkhole bank gradient is fully
+   *  contained within the water tile, so it doesn't consume this).
+   *  `mapVersion`-keyed; populated lazily on first call. Each cell holds
+   *  `NEAREST_WATER_NONE` when no water tile is reachable from that pixel
+   *  (water-free map). */
   getNearestWaterTilePerPixel: (map: GameMap) => Uint16Array | undefined;
   /** Blurred signed-distance field for `map` — positive in water, negative in
    *  grass, magnitude = pixel distance from the water/grass boundary. Used by
@@ -259,10 +189,6 @@ const ICE_COLOR: RGB = [165, 210, 230];
 // frozen river fill (replaces WATER_COLOR for frozen tiles)
 const BANK_COLOR: RGB = [139, 58, 26];
 // river bank / shoreline
-// Cobblestone sprite stone-gray base — must mirror scripts/generate-sprites.html
-// drawCobblestone(): final color = COBBLESTONE_BASE + interiorLight * tint factor.
-const COBBLESTONE_BASE: RGB = [90, 85, 80];
-const COBBLESTONE_TINT_FACTOR = 0.15;
 // Grass blade texture pattern (local pixel offsets within a 16x16 tile)
 const BLADE_DARK: [number, number][] = [
   [2, 1],
@@ -365,10 +291,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  flag and referenced by `captureScene` so banner snapshots cover
    *  the game area only, not the reserved strip. */
   const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
-  /** Cached owner-tinted sinkhole overlay ImageData for the 3D upload path.
-   *  Invalidated on any input ref change; held here so steady-state frames
-   *  skip the per-pixel rebuild and the texture upload that follows. */
-  let sinkholeOverlayCache: SinkholeOverlayCache | undefined;
 
   // Per-instance terrain cache. Was previously a module-level WeakMap, which
   // meant `precomputeTerrainCache` (the module export) and every `RenderMap`
@@ -413,32 +335,33 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  render of each doesn't stall the frame. Call during game init.
    *  `frozenTiles` is baked into the bitmap when present — `mapVersion`
    *  bumps on freeze/thaw invalidate the cache. */
-  function precomputeTerrainCache(
-    map: GameMap,
-    frozenTiles?: ReadonlySet<number>,
-  ): void {
+  /** Compute + cache the blurred SDF and the nearest-water-tile array.
+   *  Independent of `frozenTiles` (the SDF shape depends only on the map's
+   *  tile geometry), so this can safely run before the 3D-side accessors
+   *  (`getBlurredSdf`, `getNearestWaterTilePerPixel`) without prejudicing
+   *  the bitmap-bake side, which still needs the latest `frozenTiles`. */
+  function ensureTerrainSdfCache(map: GameMap): void {
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    if (cache.blurredSdf && cache.nearestWaterTile) return;
     const W = MAP_PX_W;
     const H = MAP_PX_H;
-    const cache = getTerrainCache(map, W, H);
-    if (
-      cache.normal &&
-      cache.battle &&
-      cache.nearestWaterTile &&
-      cache.blurredSdf
-    )
-      return;
-
-    // Allocate the nearest-water-tile output if not already cached so the SDF
-    // pass populates it on the same propagation run. Blur runs after, but only
-    // mutates the distance field — source coords are unaffected by blur. The
-    // blurred SDF is then cached alongside (the 3D terrain shader uploads it
-    // as a CanvasTexture).
     const nearestWater = cache.nearestWaterTile ?? new Uint16Array(W * H);
     const sdf = computeSignedDistanceField(W, H, map, nearestWater);
     blurSignedDistanceField(sdf, W, H);
     cache.nearestWaterTile = nearestWater;
     cache.blurredSdf = sdf;
+  }
 
+  function precomputeTerrainCache(
+    map: GameMap,
+    frozenTiles?: ReadonlySet<number>,
+  ): void {
+    ensureTerrainSdfCache(map);
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    if (cache.normal && cache.battle) return;
+    const sdf = cache.blurredSdf!;
+    const W = MAP_PX_W;
+    const H = MAP_PX_H;
     if (!cache.normal) {
       const imgData = new ImageData(W, H);
       renderTerrainPixels(imgData, sdf, W, H, map, false, frozenTiles);
@@ -452,15 +375,13 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
   }
 
   function getNearestWaterTilePerPixel(map: GameMap): Uint16Array | undefined {
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    if (!cache.nearestWaterTile) precomputeTerrainCache(map);
-    return cache.nearestWaterTile;
+    ensureTerrainSdfCache(map);
+    return getTerrainCache(map, MAP_PX_W, MAP_PX_H).nearestWaterTile;
   }
 
   function getBlurredSdf(map: GameMap): Float32Array | undefined {
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    if (!cache.blurredSdf) precomputeTerrainCache(map);
-    return cache.blurredSdf;
+    ensureTerrainSdfCache(map);
+    return getTerrainCache(map, MAP_PX_W, MAP_PX_H).blurredSdf;
   }
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -528,38 +449,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
       bannerBCapture = { canvas, ctx };
     }
     return bannerBCapture;
-  }
-
-  /** Copy `src` pixels into `dst` at (dx, dy). Used by the sinkhole-overlay
-   *  bitmap builder to accumulate 16×16 tile patches into a MAP_PX_W ×
-   *  MAP_PX_H transparent canvas without routing through a display context.
-   *  `dst` is mutable ImageData; out-of-bounds pixels are skipped. */
-  function blitImageDataIntoImageData(
-    dst: ImageData,
-    src: ImageData,
-    dx: number,
-    dy: number,
-  ): void {
-    const dstWidth = dst.width;
-    const dstHeight = dst.height;
-    const srcWidth = src.width;
-    const srcHeight = src.height;
-    const dstData = dst.data;
-    const srcData = src.data;
-    for (let sy = 0; sy < srcHeight; sy++) {
-      const ty = dy + sy;
-      if (ty < 0 || ty >= dstHeight) continue;
-      for (let sx = 0; sx < srcWidth; sx++) {
-        const tx = dx + sx;
-        if (tx < 0 || tx >= dstWidth) continue;
-        const srcIdx = (sy * srcWidth + sx) * 4;
-        const dstIdx = (ty * dstWidth + tx) * 4;
-        dstData[dstIdx] = srcData[srcIdx]!;
-        dstData[dstIdx + 1] = srcData[srcIdx + 1]!;
-        dstData[dstIdx + 2] = srcData[srcIdx + 2]!;
-        dstData[dstIdx + 3] = srcData[srcIdx + 3]!;
-      }
-    }
   }
 
   function ensureOffscreenSize(width: number, height: number): void {
@@ -838,74 +727,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return inBattle ? cache.battle! : cache.normal!;
   }
 
-  function getSinkholeOverlayBitmap(
-    map: GameMap,
-    overlay: RenderOverlay | undefined,
-  ): ImageData | undefined {
-    const sinkholeTiles = overlay?.entities?.sinkholeTiles;
-    if (!sinkholeTiles || sinkholeTiles.size === 0) {
-      sinkholeOverlayCache = undefined;
-      return undefined;
-    }
-    const inBattle = !!overlay.battle?.inBattle;
-    if (
-      sinkholeOverlayCache &&
-      sinkholeOverlayCache.map === map &&
-      sinkholeOverlayCache.mapVersion === map.mapVersion &&
-      sinkholeOverlayCache.inBattle === inBattle &&
-      sinkholeOverlayCache.sinkholeTiles === sinkholeTiles &&
-      interiorRefsMatch(sinkholeOverlayCache.interiorRefs, overlay, inBattle)
-    ) {
-      return sinkholeOverlayCache.hasContent
-        ? sinkholeOverlayCache.image
-        : undefined;
-    }
-    ensureSinkholeClusters(map, sinkholeTiles);
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    const image = new ImageData(MAP_PX_W, MAP_PX_H);
-    let hasContent = false;
-    const blit = (img: ImageData, dx: number, dy: number): void => {
-      blitImageDataIntoImageData(image, img, dx, dy);
-      hasContent = true;
-    };
-    drawSinkholeOverlays(cache, blit, overlay);
-    sinkholeOverlayCache = {
-      map,
-      mapVersion: map.mapVersion,
-      inBattle,
-      sinkholeTiles,
-      interiorRefs: snapshotInteriorRefs(overlay, inBattle),
-      image,
-      hasContent,
-    };
-    return hasContent ? image : undefined;
-  }
-
-  /** Populate `cache.sinkholeClusters` lazily on first use. The cache is
-   *  reset on every `mapVersion` bump (via `getTerrainCache`), and the
-   *  sinkhole modifier always bumps mapVersion when changing tiles, so
-   *  the rebuilt clusters always match the current `sinkholeTiles` set. */
-  function ensureSinkholeClusters(
-    map: GameMap,
-    sinkholeTiles: ReadonlySet<number>,
-  ): void {
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    if (cache.sinkholeClusters) return;
-    const sdf = computeSignedDistanceField(MAP_PX_W, MAP_PX_H, map);
-    blurSignedDistanceField(sdf, MAP_PX_W, MAP_PX_H);
-    cache.sinkholeClusters = buildSinkholeClusters(
-      sdf,
-      MAP_PX_W,
-      map,
-      sinkholeTiles,
-    );
-  }
-
   return {
     drawMap,
     precomputeTerrainCache,
     getTerrainBitmap,
-    getSinkholeOverlayBitmap,
     getNearestWaterTilePerPixel,
     getBlurredSdf,
     sceneCanvas,
@@ -1235,202 +1060,6 @@ function grassBaseColor(tr: number, tc: number, inBattle: boolean): RGB {
       : GRASS_LIGHT;
 }
 
-/** Build the cluster + per-tile-variant table from the current sinkhole set.
- *  Called once per terrain-cache rebuild (mapVersion bump). For each cluster
- *  we precompute one 16×16 ImageData per (phase × player) combination so the
- *  draw pass can blit the right variant once it knows who currently encloses
- *  the lake (which may change as walls go up during WALL_BUILD). */
-function buildSinkholeClusters(
-  sdf: Float32Array,
-  W: number,
-  map: GameMap,
-  sinkholeTiles: ReadonlySet<number>,
-): SinkholeCluster[] {
-  const clusters: SinkholeCluster[] = [];
-  const visited = new Set<number>();
-  for (const seedKey of sinkholeTiles) {
-    if (visited.has(seedKey)) continue;
-    // BFS by 4-cardinal connectivity to gather one connected cluster.
-    const tileKeys: number[] = [];
-    const queue = [seedKey];
-    visited.add(seedKey);
-    while (queue.length > 0) {
-      const tileKey = queue.shift()!;
-      tileKeys.push(tileKey);
-      const { r, c } = unpackTile(tileKey);
-      for (const [dr, dc] of DIRS_4) {
-        const neighborKey = packTile(r + dr, c + dc);
-        if (!sinkholeTiles.has(neighborKey)) continue;
-        if (visited.has(neighborKey)) continue;
-        visited.add(neighborKey);
-        queue.push(neighborKey);
-      }
-    }
-    const tiles: SinkholeTilePatches[] = tileKeys.map((tileKey) => {
-      const { r, c } = unpackTile(tileKey);
-      return {
-        row: r,
-        col: c,
-        patches: buildSinkholeTilePatches(sdf, W, map, r, c),
-      };
-    });
-    // Sinkhole tiles are water (zone 0) post-recompute, so derive the
-    // owning zone from any adjacent grass tile. All cluster tiles touch
-    // the same zone (sinkhole eligibility forbids tiles that would
-    // bridge the river), so the first found wins.
-    const zone = adjacentZoneOfCluster(tiles, map, sinkholeTiles);
-    clusters.push({ zone, tiles });
-  }
-  return clusters;
-}
-
-function adjacentZoneOfCluster(
-  tiles: readonly SinkholeTilePatches[],
-  map: GameMap,
-  sinkholeTiles: ReadonlySet<number>,
-): number {
-  for (const tile of tiles) {
-    for (const [dr, dc] of DIRS_4) {
-      const nr = tile.row + dr;
-      const nc = tile.col + dc;
-      const neighborKey = packTile(nr, nc);
-      if (sinkholeTiles.has(neighborKey)) continue;
-      const zone = map.zones[nr]?.[nc];
-      if (zone !== undefined && zone > 0) return zone;
-    }
-  }
-  return -1;
-}
-
-/** Render every (phase × player) variant for a single sinkhole tile.
- *  Each patch is a 16×16 ImageData that exactly replaces the base terrain on
- *  that tile, with the bank gradient blending into the player's interior or
- *  cobblestone color instead of grass green. */
-function buildSinkholeTilePatches(
-  sdf: Float32Array,
-  W: number,
-  map: GameMap,
-  tileRow: number,
-  tileCol: number,
-): Map<string, ImageData> {
-  const patches = new Map<string, ImageData>();
-  const isWaterTile = tileAt(map, tileRow, tileCol) === 1;
-  // Loop index bounded by MAX_PLAYERS — safe ValidPlayerSlot cast.
-  for (let raw = 0; raw < MAX_PLAYERS; raw++) {
-    const playerId = raw as unknown as ValidPlayerSlot;
-    for (const inBattle of [false, true] as const) {
-      const grassBase = ownerGrassBase(playerId, tileRow, tileCol, inBattle);
-      patches.set(
-        variantId(inBattle, playerId),
-        renderSinkholeTilePatch(
-          sdf,
-          W,
-          tileRow,
-          tileCol,
-          inBattle,
-          isWaterTile,
-          grassBase,
-        ),
-      );
-    }
-  }
-  return patches;
-}
-
-/** Pick the "grass" base color the bank gradient should fade INTO when the
- *  sinkhole is enclosed by `playerId`. The sinkhole tile occupies (tileRow,
- *  tileCol) itself, so its patch must use the SAME interior shade that
- *  `drawCastleInterior` would render at that position — otherwise the
- *  checker square at that position is the wrong color and the pattern
- *  breaks across the sinkhole tile. In battle, cobblestone is uniform per
- *  player so parity is ignored. */
-function ownerGrassBase(
-  playerId: ValidPlayerSlot,
-  tileRow: number,
-  tileCol: number,
-  inBattle: boolean,
-): RGB {
-  const colors = getPlayerColor(playerId);
-  if (inBattle) return cobblestoneBaseColor(colors.interiorLight);
-  // Match drawCastleInterior: interior_light is rendered at (r+c)%2 === 0.
-  const isLight = (tileRow + tileCol) % 2 === 0;
-  return isLight ? colors.interiorLight : colors.interiorDark;
-}
-
-/** Mirror of the cobblestone sprite's base fill — see scripts/generate-sprites.html
- *  drawCobblestone(). The sprite tints a stone-gray base with the player's
- *  interiorLight color; we reproduce that base so the lake bank fades into a
- *  matching gray instead of green during battle. */
-function cobblestoneBaseColor(interiorLight: RGB): RGB {
-  return [
-    Math.floor(
-      COBBLESTONE_BASE[0] + interiorLight[0] * COBBLESTONE_TINT_FACTOR,
-    ),
-    Math.floor(
-      COBBLESTONE_BASE[1] + interiorLight[1] * COBBLESTONE_TINT_FACTOR,
-    ),
-    Math.floor(
-      COBBLESTONE_BASE[2] + interiorLight[2] * COBBLESTONE_TINT_FACTOR,
-    ),
-  ];
-}
-
-/** Render a single 16×16 sinkhole-tile patch with a custom grass base color.
- *  Reuses the same SDF distance values as the base terrain — only the grass
- *  color the bank gradient blends INTO changes per variant.
- *
- *  Grass-side pixels (distance < GRASS_TO_BANK_DIST) are transparent: the
- *  terrain mesh at Y=0.01 already paints the owner's tinted cobble / checker
- *  on the tile, and layering an opaque grass fill on top here would override
- *  that tint with a duplicate (and in battle, off-shade) copy. The patch only
- *  owns the bank→water gradient; alpha fades in across the grass→bank
- *  transition so the bank band has no hard inner edge. */
-function renderSinkholeTilePatch(
-  sdf: Float32Array,
-  W: number,
-  tileRow: number,
-  tileCol: number,
-  inBattle: boolean,
-  isWaterTile: boolean,
-  grassBase: RGB,
-): ImageData {
-  const patch = new ImageData(TILE_SIZE, TILE_SIZE);
-  const data = patch.data;
-  const tileX0 = tileCol * TILE_SIZE;
-  const tileY0 = tileRow * TILE_SIZE;
-  for (let ly = 0; ly < TILE_SIZE; ly++) {
-    for (let lx = 0; lx < TILE_SIZE; lx++) {
-      const px = tileX0 + lx;
-      const py = tileY0 + ly;
-      const distance = sdf[py * W + px]!;
-      const grass = texturedColor(GRASS_TEX, grassBase, inBattle, lx, ly);
-      const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
-      const color = selectTerrainColor(isWaterTile, distance, grass, water);
-      const alpha = sinkholePatchAlpha(isWaterTile, distance);
-      const idx = (ly * TILE_SIZE + lx) * 4;
-      data[idx] = color[0];
-      data[idx + 1] = color[1];
-      data[idx + 2] = color[2];
-      data[idx + 3] = alpha;
-    }
-  }
-  return patch;
-}
-
-/** Per-pixel alpha for `renderSinkholeTilePatch`. Transparent in the grass
- *  region (mesh owns the tint), ramps up across the grass→bank transition,
- *  opaque from the bank band onward. */
-function sinkholePatchAlpha(isWater: boolean, distance: number): number {
-  if (!isWater) return 0;
-  if (distance < GRASS_TO_BANK_DIST) return 0;
-  if (distance < GRASS_TO_BANK_DIST + TRANSITION_WIDTH) {
-    return Math.round(
-      255 * smoothClamp((distance - GRASS_TO_BANK_DIST) / TRANSITION_WIDTH),
-    );
-  }
-  return 255;
-}
-
 /** Apply a per-pixel texture offset to a base color, only in battle mode. */
 function texturedColor(
   tex: ArrayLike<number>,
@@ -1471,96 +1100,6 @@ function selectTerrainColor(
       smoothClamp((distance - BANK_TO_WATER_DIST) / TRANSITION_WIDTH),
     );
   return water;
-}
-
-/** Recolor the bank pixels of every owned sinkhole tile so they blend into
- *  the surrounding interior/cobblestone color instead of the green that the
- *  base terrain bitmap painted. Unowned sinkholes are left untouched (the
- *  base bitmap already renders them correctly against grass). */
-function drawSinkholeOverlays(
-  cache: TerrainImageCache,
-  blit: (img: ImageData, dx: number, dy: number) => void,
-  overlay?: RenderOverlay,
-): void {
-  if (!overlay?.entities?.sinkholeTiles) return;
-  if (overlay.entities.sinkholeTiles.size === 0) return;
-  if (!cache.sinkholeClusters) return;
-  const playerZones = overlay.playerZones;
-  if (!playerZones) return;
-  const inBattle = !!overlay.battle?.inBattle;
-  const interiorOwners = interiorOwnersFromOverlay(overlay);
-  for (const cluster of cache.sinkholeClusters) {
-    const owner = findSinkholeOwner(cluster, interiorOwners, playerZones);
-    if (owner === undefined) continue;
-    const key = variantId(inBattle, owner);
-    for (const tile of cluster.tiles) {
-      const patch = tile.patches.get(key);
-      if (!patch) continue;
-      blit(patch, tile.col * TILE_SIZE, tile.row * TILE_SIZE);
-    }
-  }
-}
-
-/** Variant cache key — `n0`/`b1`/etc. (phase × player). */
-function variantId(inBattle: boolean, playerId: ValidPlayerSlot): string {
-  return `${inBattle ? "b" : "n"}${playerId}`;
-}
-
-/** Snapshot the per-player interior Set references that the bitmap
- *  output depends on. Battle reads `battleAnim.territory[pid]`,
- *  peacetime reads each castle's `interior`. The snapshot is element-
- *  wise reference-compared against the cached version on subsequent
- *  frames — same refs ⇒ no wall change ⇒ cache hit. */
-function snapshotInteriorRefs(
-  overlay: RenderOverlay,
-  inBattle: boolean,
-): ReadonlyArray<ReadonlySet<number>> {
-  if (inBattle) return overlay.battle?.battleTerritory?.slice() ?? [];
-  return overlay.castles?.map((castle) => castle.interior) ?? [];
-}
-
-/** Element-wise reference compare without materializing a fresh array. */
-function interiorRefsMatch(
-  cached: ReadonlyArray<ReadonlySet<number>>,
-  overlay: RenderOverlay,
-  inBattle: boolean,
-): boolean {
-  if (inBattle) {
-    const territory = overlay.battle?.battleTerritory;
-    if (!territory) return cached.length === 0;
-    if (cached.length !== territory.length) return false;
-    for (let i = 0; i < cached.length; i++) {
-      if (cached[i] !== territory[i]) return false;
-    }
-    return true;
-  }
-  const castles = overlay.castles;
-  if (!castles) return cached.length === 0;
-  if (cached.length !== castles.length) return false;
-  for (let i = 0; i < cached.length; i++) {
-    if (cached[i] !== castles[i]!.interior) return false;
-  }
-  return true;
-}
-
-/** Decide which player encloses a sinkhole cluster, if any. The cluster's
- *  zone uniquely identifies the only player who could possibly own it
- *  (zones are river-isolated — at most one player per zone). Checking
- *  the seed tile alone is sufficient: `computeOutside` propagates
- *  outside-ness through water without barriers, so all cluster tiles
- *  share the same enclosure status (a wall ring around the cluster
- *  encloses every tile; a gap exposes every tile). */
-function findSinkholeOwner(
-  cluster: SinkholeCluster,
-  interiorOwners: ReadonlyMap<number, ValidPlayerSlot>,
-  playerZones: readonly number[],
-): ValidPlayerSlot | undefined {
-  const pid = playerByZone(playerZones, cluster.zone);
-  if (pid === undefined) return undefined;
-  const seed = cluster.tiles[0];
-  if (!seed) return undefined;
-  const owner = interiorOwners.get(packTile(seed.row, seed.col));
-  return owner === pid ? owner : undefined;
 }
 
 function tileAt(map: GameMap, r: number, c: number): number {

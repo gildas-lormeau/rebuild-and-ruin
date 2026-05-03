@@ -63,8 +63,9 @@ const CROSSHAIR_MARGIN_Y = 2;
 const CROSSHAIR_MIN_Y = TILE_SIZE / 2;
 /** Y-layer stack for ground-plane meshes, from bottom up. The order
  *  fixes composition (raw grass/water in the bitmap → terrain mesh
- *  adds interior/frozen/owned-sinkhole tints → sinkhole bank recolour
- *  → water-wave highlights → bonus pickups → crosshairs → fog).
+ *  adds interior tints + the per-pixel owned-sinkhole bank gradient
+ *  via its fragment-shader patch → water-wave highlights → bonus
+ *  pickups → crosshairs → fog).
  *
  *  FOG is an exception: it must render ABOVE the tallest standing
  *  geometry so fogged castles actually look fogged — towers peak at
@@ -76,7 +77,6 @@ const CROSSHAIR_MIN_Y = TILE_SIZE / 2;
 export const ELEVATION_STACK = {
   TERRAIN_BITMAP: 0,
   TERRAIN_MESH: 0.01,
-  SINKHOLE_OVERLAY: 0.02,
   WATER_WAVES: 0.1,
   BONUS_DISCS: 0.3,
   PIECE_PHANTOM: 0.5,

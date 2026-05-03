@@ -76,6 +76,7 @@
     "files": [
       "src/entry.ts",
       "src/render/3d/camera.ts",
+      "src/render/3d/effects/terrain-sdf-texture.ts",
       "src/render/3d/sprites/cannon-scene.ts",
       "src/render/3d/sprites/debris-scene.ts",
       "src/render/3d/sprites/house-scene.ts",
@@ -200,8 +201,8 @@
       "src/render/3d/effects/fire-burst.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/impacts.ts",
-      "src/render/3d/effects/sinkhole-overlay.ts",
       "src/render/3d/effects/terrain-bitmap.ts",
+      "src/render/3d/effects/terrain-tile-data.ts",
       "src/render/3d/effects/thawing.ts",
       "src/render/3d/effects/water-waves.ts",
       "src/render/3d/entities/balloons.ts",
