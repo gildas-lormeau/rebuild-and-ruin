@@ -76,6 +76,55 @@ Deno.test(
 );
 
 Deno.test(
+  "getBlurredSdf: shape and sign convention match the 2D bake",
+  () => {
+    const renderMap = makeRenderMap();
+    const map = makeAllGrassMap();
+    // One water tile in the middle of an otherwise-grass map.
+    const waterRow = 14;
+    const waterCol = 22;
+    map.tiles[waterRow]![waterCol] = Tile.Water;
+    const sdf = renderMap.getBlurredSdf(map)!;
+    assertEquals(sdf.length, MAP_PX_W * MAP_PX_H);
+    // Center of the water tile should have a positive SDF (water side).
+    const waterCenter = tileCenter(waterRow, waterCol);
+    const waterSdf = sdf[pixelIndex(waterCenter.px, waterCenter.py)]!;
+    if (waterSdf <= 0) {
+      throw new Error(
+        `expected positive SDF at water-tile center (${waterCenter.px}, ${waterCenter.py}), got ${waterSdf}`,
+      );
+    }
+    // Pixel far from the water tile should have a strongly negative SDF
+    // (deep grass — magnitude is the chamfer distance to the water tile,
+    // softened by the box blur).
+    const farPx = 2 * TILE_SIZE + TILE_SIZE / 2;
+    const farPy = 2 * TILE_SIZE + TILE_SIZE / 2;
+    const farSdf = sdf[pixelIndex(farPx, farPy)]!;
+    if (farSdf >= -10) {
+      throw new Error(
+        `expected SDF deeply negative at far-grass pixel (${farPx}, ${farPy}), got ${farSdf}`,
+      );
+    }
+  },
+);
+
+Deno.test(
+  "getBlurredSdf: subsequent calls return the cached array reference",
+  () => {
+    const renderMap = makeRenderMap();
+    const map = makeAllGrassMap();
+    map.tiles[10]![20] = Tile.Water;
+    const first = renderMap.getBlurredSdf(map);
+    const second = renderMap.getBlurredSdf(map);
+    if (first !== second) {
+      throw new Error(
+        "expected getBlurredSdf to return the same Float32Array reference on cache hit",
+      );
+    }
+  },
+);
+
+Deno.test(
   "getNearestWaterTilePerPixel: two distant water tiles, closer tile wins",
   () => {
     const renderMap = makeRenderMap();

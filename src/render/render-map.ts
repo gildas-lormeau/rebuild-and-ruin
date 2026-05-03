@@ -71,6 +71,12 @@ interface TerrainImageCache {
    *  call. `NEAREST_WATER_NONE` sentinel marks cells that didn't receive any
    *  water propagation (water-free map). Shape: `width * height`. */
   nearestWaterTile?: Uint16Array;
+  /** Blurred signed distance field (positive in water, negative in grass,
+   *  smoothed by the box-blur passes). Reused as a CanvasTexture upload by
+   *  the 3D terrain shader so per-pixel bank gradients can be computed in
+   *  GLSL instead of baked into the bitmap and a second-plane overlay.
+   *  Shape: `width * height`. */
+  blurredSdf?: Float32Array;
 }
 
 /** A connected group of sinkhole tiles (4-cardinal connectivity).
@@ -200,6 +206,12 @@ interface RenderMap {
    *  cell holds `NEAREST_WATER_NONE` when no water tile is reachable from
    *  that pixel (water-free map). */
   getNearestWaterTilePerPixel: (map: GameMap) => Uint16Array | undefined;
+  /** Blurred signed-distance field for `map` — positive in water, negative in
+   *  grass, magnitude = pixel distance from the water/grass boundary. Used by
+   *  the 3D terrain shader to compute the grass→bank→water gradient
+   *  per-fragment instead of baking it into the bitmap and a second-plane
+   *  sinkhole overlay. `mapVersion`-keyed; populated lazily on first call. */
+  getBlurredSdf: (map: GameMap) => Float32Array | undefined;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current display's game area into a banner-owned bridge
    *  canvas and return it (banner prev-scene A-snapshot). Returns
@@ -408,15 +420,24 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const W = MAP_PX_W;
     const H = MAP_PX_H;
     const cache = getTerrainCache(map, W, H);
-    if (cache.normal && cache.battle && cache.nearestWaterTile) return;
+    if (
+      cache.normal &&
+      cache.battle &&
+      cache.nearestWaterTile &&
+      cache.blurredSdf
+    )
+      return;
 
     // Allocate the nearest-water-tile output if not already cached so the SDF
     // pass populates it on the same propagation run. Blur runs after, but only
-    // mutates the distance field — source coords are unaffected by blur.
+    // mutates the distance field — source coords are unaffected by blur. The
+    // blurred SDF is then cached alongside (the 3D terrain shader uploads it
+    // as a CanvasTexture).
     const nearestWater = cache.nearestWaterTile ?? new Uint16Array(W * H);
     const sdf = computeSignedDistanceField(W, H, map, nearestWater);
     blurSignedDistanceField(sdf, W, H);
     cache.nearestWaterTile = nearestWater;
+    cache.blurredSdf = sdf;
 
     if (!cache.normal) {
       const imgData = new ImageData(W, H);
@@ -434,6 +455,12 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
     if (!cache.nearestWaterTile) precomputeTerrainCache(map);
     return cache.nearestWaterTile;
+  }
+
+  function getBlurredSdf(map: GameMap): Float32Array | undefined {
+    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
+    if (!cache.blurredSdf) precomputeTerrainCache(map);
+    return cache.blurredSdf;
   }
 
   function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -880,6 +907,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     getTerrainBitmap,
     getSinkholeOverlayBitmap,
     getNearestWaterTilePerPixel,
+    getBlurredSdf,
     sceneCanvas,
     captureScene,
     captureSceneOffscreen,
