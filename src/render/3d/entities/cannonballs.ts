@@ -77,6 +77,12 @@ const CANNONBALL_SCALE = TILE_SIZE / 2;
  *  apex contour is approximated by sin(progress·π) since the renderer
  *  doesn't carry the trajectory's true peak; close enough for fattening. */
 const SCALE_APEX_BONUS = 2 / 3;
+/** Tumble cadence — different periods per axis so the spin reads as
+ *  chaotic tumbling rather than a uniform rotation. Each ball gets a
+ *  position-derived phase offset so simultaneously-fired balls don't
+ *  spin in lock-step. */
+const TUMBLE_PERIOD_X_MS = 1200;
+const TUMBLE_PERIOD_Y_MS = 800;
 
 export function createCannonballsManager(
   scene: THREE.Scene,
@@ -108,11 +114,17 @@ export function createCannonballsManager(
     }
   }
 
-  function positionHosts(balls: readonly OverlayCannonball[]): void {
+  function positionHosts(
+    balls: readonly OverlayCannonball[],
+    now: number,
+  ): void {
     // The ball set fingerprint ensures host count matches ball count.
     // Walk in parallel — index i of root.children matches index i of
     // the overlay array.
     const hosts = root.children;
+    const TWO_PI = Math.PI * 2;
+    const tumbleX = (now / TUMBLE_PERIOD_X_MS) * TWO_PI;
+    const tumbleY = (now / TUMBLE_PERIOD_Y_MS) * TWO_PI;
     for (let i = 0; i < balls.length; i++) {
       const ball = balls[i]!;
       const host = hosts[i];
@@ -122,6 +134,12 @@ export function createCannonballsManager(
       // for the muzzle exit height, the parabolic arc, and the target
       // surface elevation at impact. No fake-arc, no muzzle-fade hack.
       host.position.set(ball.x, ball.altitude, ball.y);
+      // Tumble: position-derived phase offset desyncs identical balls.
+      // Iron is a plain sphere so rotation has no visible effect; the
+      // mortar's equatorial band and the fire ball's offset flame puffs
+      // both pick up the spin and read as motion.
+      const phaseOffset = ball.x * 0.013 + ball.y * 0.017;
+      host.rotation.set(tumbleX + phaseOffset, tumbleY + phaseOffset, 0);
       const arc = Math.sin(ball.progress * Math.PI);
       host.scale.setScalar(CANNONBALL_SCALE * (1 + arc * SCALE_APEX_BONUS));
     }
@@ -137,7 +155,7 @@ export function createCannonballsManager(
       if (balls.length === 0) return;
       buildAllCannonballs(balls);
     }
-    if (balls.length > 0) positionHosts(balls);
+    if (balls.length > 0) positionHosts(balls, ctx.now);
   }
 
   function dispose(): void {
