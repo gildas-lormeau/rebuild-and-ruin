@@ -71,6 +71,13 @@ export function createModifierRevealBurstManager(
   const hosts: BurstHost[] = [];
   let revealStartMs: number | undefined;
   let lastPaletteKey: string | undefined;
+  // True once the burst has played to completion for the active
+  // paletteKey. Stays latched until the paletteKey changes (modifier
+  // ends or a different one rolls), preventing the burst from
+  // re-firing every frame for the rest of MODIFIER_REVEAL — otherwise
+  // the next banner's `prevScene` snapshot catches a mid-cycle frame
+  // and the discs appear frozen during its sweep.
+  let released = false;
 
   function buildHost(): BurstHost {
     const group = new THREE.Group();
@@ -154,9 +161,13 @@ export function createModifierRevealBurstManager(
     if (reveal?.paletteKey !== config.paletteKey) {
       if (lastPaletteKey === config.paletteKey) reset();
       lastPaletteKey = reveal?.paletteKey;
+      released = false;
       return;
     }
     lastPaletteKey = reveal.paletteKey;
+
+    // One-shot: don't re-fire after the burst has completed once.
+    if (released) return;
 
     // Wait for banner sweep to complete before kicking the reveal.
     if (!(banner?.swept ?? true)) return;
@@ -204,7 +215,10 @@ export function createModifierRevealBurstManager(
       }
     }
 
-    if (allDone) reset();
+    if (allDone) {
+      reset();
+      released = true;
+    }
   }
 
   function dispose(): void {
