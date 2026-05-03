@@ -370,6 +370,8 @@ export function buildPit(
 
   // Lava disc — bright emissive layer sitting at the bottom of the
   // hole, visible through the inner opening. Shrinks/cools with state.
+  // Tagged `isLava` so the pits manager can find these meshes and pulse
+  // their color + emissive per-frame (slow breathing).
   if (params.lava) {
     const lava = new three.Mesh(
       new three.CircleGeometry(params.lava.radius, 24),
@@ -377,6 +379,7 @@ export function buildPit(
     );
     lava.rotation.x = -Math.PI / 2;
     lava.position.set(innerOff[0], 0.007, innerOff[1]);
+    lava.userData.isLava = true;
     scene.add(lava);
   }
 
@@ -390,6 +393,7 @@ export function buildPit(
       );
       splat.rotation.x = -Math.PI / 2;
       splat.position.set(splatter.pos[0], 0.008, splatter.pos[1]);
+      splat.userData.isLava = true;
       scene.add(splat);
     }
   }

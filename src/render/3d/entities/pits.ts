@@ -53,6 +53,17 @@ const PIT_SCALE = TILE_SIZE / 2;
 /** 1×1 pits anchor at their single tile; center sits half a tile
  *  inward (identical to the grunts manager convention). */
 const TILE_1X1_CENTER_OFFSET = TILE_SIZE / 2;
+/** Slow lava-pulse cadence (full sine cycle). 2200 ms reads as a calm
+ *  breathing rhythm — fast enough to feel alive, slow enough not to
+ *  distract from gameplay. */
+const LAVA_PULSE_PERIOD_MS = 2200;
+/** Multiplier oscillates between `CENTER - AMPLITUDE` and `CENTER +
+ *  AMPLITUDE`. Centered at 0.65 with ±0.35 = visible dim→bright breath
+ *  without clipping the brightest peaks. Applied to BOTH base `color`
+ *  and `emissive` so the pulse shows regardless of how strongly the
+ *  scene lighting saturates the diffuse channel. */
+const LAVA_PULSE_CENTER = 0.65;
+const LAVA_PULSE_AMPLITUDE = 0.35;
 
 export function createPitsManager(scene: THREE.Scene): PitsManager {
   const root = new THREE.Group();
@@ -75,21 +86,33 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
   // fade can multiply against it without losing the variant's authored
   // opacity (lava, embers, smoke layers all have different bases).
   const heldMaterialBaseOpacity = new WeakMap<THREE.Material, number>();
+  // Lava materials per branch + per-material captured base color and
+  // emissive (so we modulate against the variant's authored hue, not a
+  // hard-coded value). Phase offset is derived from the pit's tile
+  // position so dense clusters don't all pulse in lock-step.
+  const liveLavaMaterials: THREE.MeshStandardMaterial[] = [];
+  const heldLavaMaterials: THREE.MeshStandardMaterial[] = [];
+  const lavaPhaseOffsetMs = new WeakMap<THREE.Material, number>();
+  const lavaBaseColor = new WeakMap<THREE.Material, THREE.Color>();
+  const lavaBaseEmissive = new WeakMap<THREE.Material, THREE.Color>();
   let lastLiveSignature: string | undefined;
   let lastHeldSignature: string | undefined;
   let lastFade: number | undefined;
 
   function clearLive(): void {
     disposeGroupSubtree(liveRoot, ownedLiveMaterials);
+    liveLavaMaterials.length = 0;
   }
   function clearHeld(): void {
     disposeGroupSubtree(heldRoot, ownedHeldMaterials);
+    heldLavaMaterials.length = 0;
   }
 
   function buildPits(
     pits: readonly BurningPit[],
     parent: THREE.Group,
     materialSink: THREE.Material[],
+    lavaSink: THREE.MeshStandardMaterial[],
   ): void {
     for (const pit of pits) {
       const variantName = selectVariantName(pit.roundsLeft);
@@ -103,17 +126,65 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
         pit.row * TILE_SIZE + TILE_1X1_CENTER_OFFSET,
       );
       host.scale.setScalar(PIT_SCALE);
+      const phaseOffsetMs = (pit.col * 7 + pit.row * 13) % LAVA_PULSE_PERIOD_MS;
       // Capture the materials so the held branch can fade them; the live
-      // branch ignores the sink (kept for symmetry).
+      // branch ignores the sink (kept for symmetry). Lava-tagged meshes
+      // also feed `lavaSink` for the per-frame color+emissive pulse.
       host.traverse((obj) => {
         if (!(obj instanceof THREE.Mesh)) return;
         const mats = Array.isArray(obj.material)
           ? obj.material
           : [obj.material];
-        for (const mat of mats) materialSink.push(mat);
+        const isLava = obj.userData.isLava === true;
+        for (const mat of mats) {
+          materialSink.push(mat);
+          if (isLava && mat instanceof THREE.MeshStandardMaterial) {
+            if (!lavaPhaseOffsetMs.has(mat)) {
+              lavaSink.push(mat);
+              lavaPhaseOffsetMs.set(mat, phaseOffsetMs);
+              lavaBaseColor.set(mat, mat.color.clone());
+              lavaBaseEmissive.set(mat, mat.emissive.clone());
+            }
+          }
+        }
       });
       parent.add(host);
     }
+  }
+
+  let pulsedAtLastFrame = false;
+  function resetLavaToBase(mat: THREE.MeshStandardMaterial): void {
+    const baseColor = lavaBaseColor.get(mat);
+    const baseEmissive = lavaBaseEmissive.get(mat);
+    if (baseColor) mat.color.copy(baseColor);
+    if (baseEmissive) mat.emissive.copy(baseEmissive);
+  }
+  function applyLavaPulse(now: number, inBattle: boolean): void {
+    if (liveLavaMaterials.length === 0 && heldLavaMaterials.length === 0)
+      return;
+    // Outside battle, restore the authored color/emissive once and skip
+    // the per-frame work. Pits are quiet during build/cannon-place.
+    if (!inBattle) {
+      if (pulsedAtLastFrame) {
+        for (const mat of liveLavaMaterials) resetLavaToBase(mat);
+        for (const mat of heldLavaMaterials) resetLavaToBase(mat);
+        pulsedAtLastFrame = false;
+      }
+      return;
+    }
+    pulsedAtLastFrame = true;
+    const TWO_PI = Math.PI * 2;
+    const pulseOne = (mat: THREE.MeshStandardMaterial): void => {
+      const offset = lavaPhaseOffsetMs.get(mat) ?? 0;
+      const phase = ((now + offset) / LAVA_PULSE_PERIOD_MS) * TWO_PI;
+      const mult = LAVA_PULSE_CENTER + LAVA_PULSE_AMPLITUDE * Math.sin(phase);
+      const baseColor = lavaBaseColor.get(mat);
+      const baseEmissive = lavaBaseEmissive.get(mat);
+      if (baseColor) mat.color.copy(baseColor).multiplyScalar(mult);
+      if (baseEmissive) mat.emissive.copy(baseEmissive).multiplyScalar(mult);
+    };
+    for (const mat of liveLavaMaterials) pulseOne(mat);
+    for (const mat of heldLavaMaterials) pulseOne(mat);
   }
 
   function captureHeldBaseOpacity(): void {
@@ -150,7 +221,7 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
       lastLiveSignature = liveSignature;
       clearLive();
       if (livePits.length > 0)
-        buildPits(livePits, liveRoot, ownedLiveMaterials);
+        buildPits(livePits, liveRoot, ownedLiveMaterials, liveLavaMaterials);
     }
 
     const heldSignature = computeSignature(heldPits);
@@ -158,7 +229,7 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
       lastHeldSignature = heldSignature;
       clearHeld();
       if (heldPits.length > 0) {
-        buildPits(heldPits, heldRoot, ownedHeldMaterials);
+        buildPits(heldPits, heldRoot, ownedHeldMaterials, heldLavaMaterials);
         captureHeldBaseOpacity();
       }
     }
@@ -169,6 +240,8 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
     } else if (heldPits.length === 0) {
       lastFade = undefined;
     }
+
+    applyLavaPulse(ctx.now, overlay?.battle?.inBattle === true);
   }
 
   function dispose(): void {
