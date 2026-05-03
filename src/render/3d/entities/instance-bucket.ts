@@ -40,26 +40,23 @@ interface CapacityBucket {
   capacity: number;
 }
 
-/** Write per-instance opacity into every sub-part's opacityAttr from
- *  each entry's `.opacity`. Bucket-keyed pairs that have no matching
- *  entry list are skipped. Used by walls + debris managers on every
- *  frame their fade multipliers change. */
-export function writeBucketOpacities<
-  Key,
-  Bucket extends {
-    readonly opacityAttrs: readonly THREE.InstancedBufferAttribute[];
-  },
-  Entry extends { readonly opacity: number },
->(
+/** Write a per-instance float into every sub-part attribute returned
+ *  by `getAttrs`. Bucket-keyed pairs that have no matching entry list
+ *  are skipped. Used by walls + debris managers to push per-instance
+ *  opacity (and on walls, also tint) every frame their multipliers
+ *  change. */
+export function writeBucketAttribute<Key, Bucket, Entry>(
   buckets: ReadonlyMap<Key, Bucket>,
   byKey: ReadonlyMap<Key, readonly Entry[]>,
+  getAttrs: (bucket: Bucket) => readonly THREE.InstancedBufferAttribute[],
+  getValue: (entry: Entry) => number,
 ): void {
   for (const [key, list] of byKey) {
     const bucket = buckets.get(key);
     if (!bucket) continue;
-    for (const attr of bucket.opacityAttrs) {
+    for (const attr of getAttrs(bucket)) {
       const data = attr.array as Float32Array;
-      for (let i = 0; i < list.length; i++) data[i] = list[i]!.opacity;
+      for (let i = 0; i < list.length; i++) data[i] = getValue(list[i]!);
       attr.needsUpdate = true;
     }
   }

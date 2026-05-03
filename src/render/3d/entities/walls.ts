@@ -60,9 +60,9 @@ import {
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
-  writeBucketOpacities,
+  writeBucketAttribute,
 } from "./instance-bucket.ts";
-import { attachInstanceOpacity } from "./instance-modulation.ts";
+import { attachInstanceTint } from "./instance-modulation.ts";
 
 export interface WallsManager {
   /** Reconcile wall meshes with the current overlay. Cheap no-op when
@@ -80,17 +80,29 @@ interface MaskBucket {
   subParts: BucketSubPart[];
   /** Per-sub-part instance-opacity attribute (parallel to `subParts`). */
   opacityAttrs: THREE.InstancedBufferAttribute[];
+  /** Per-sub-part instance-tint attribute (parallel to `subParts`).
+   *  Mix factor in [0, 1] toward the bucket's `instanceTintColor`
+   *  uniform (copper for sapper-targeted walls). */
+  tintAttrs: THREE.InstancedBufferAttribute[];
   capacity: number;
 }
 
 interface WallEntry {
   readonly col: number;
   readonly row: number;
+  readonly tileKey: number;
   /** Per-instance alpha multiplier in [0, 1]. Live walls = 1; held
    *  crumbling-walls entries = the runtime-derived fade multiplier. */
   readonly opacity: number;
+  /** Per-instance tint mix in [0, 1]. 0 for non-targeted walls;
+   *  sapper-targeted walls = the runtime-derived pulse intensity. */
+  readonly tint: number;
 }
 
+/** Copper-brown tint for sapper-targeted walls — matches the legacy
+ *  `wall-threat` disc color (`createWallThreatManager` palette). */
+const SAPPER_TINT_HEX = 0xa07050;
+const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
 /** Pack (mask, damaged) into a single 5-bit key — 4 bits for the mask
  *  (0-15) plus one bit for the reinforced-wall absorbed-hit state. Used
  *  as the bucket map key so damaged walls get their own geometry (the
@@ -129,6 +141,8 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
   // recent structural rebuild — opacity-only frames walk these.
   let lastStructuralSignature: string | undefined;
   let lastFade = 1;
+  let lastSapperIntensity = 0;
+  let lastSapperTargetedSig = "";
   let lastByBucket: Map<number, WallEntry[]> = new Map();
 
   // Scratch objects reused inside `update`.
@@ -166,6 +180,16 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     const crumblingFade = overlay?.battle?.crumblingWallsFade;
     const renderHeldWalls = heldWalls && crumblingFade !== undefined;
     const fade = crumblingFade ?? 1;
+    const sapperIntensity = overlay?.battle?.sapperRevealIntensity ?? 0;
+    const sapperTargetedRaw = overlay?.battle?.sapperTargetedWalls;
+    const sapperTargeted: ReadonlySet<number> =
+      sapperTargetedRaw && sapperIntensity > 0
+        ? new Set(sapperTargetedRaw)
+        : EMPTY_KEY_SET;
+    const sapperTargetedSig =
+      sapperTargeted.size === 0
+        ? ""
+        : [...sapperTargeted].sort((a, b) => a - b).join(",");
 
     const liveKeys: number[] = [];
     const damagedKeys = new Set<number>();
@@ -193,10 +217,20 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     const structuralSignature = `${liveKeys.join(",")}|${damagedList.join(",")}|${heldKeys.join(",")}|${heldDamagedList.join(",")}`;
     const structuralChanged = structuralSignature !== lastStructuralSignature;
     const fadeChanged = fade !== lastFade;
-    if (!structuralChanged && !fadeChanged) return;
+    const sapperTargetedChanged = sapperTargetedSig !== lastSapperTargetedSig;
+    const sapperIntensityChanged = sapperIntensity !== lastSapperIntensity;
+    if (
+      !structuralChanged &&
+      !fadeChanged &&
+      !sapperTargetedChanged &&
+      !sapperIntensityChanged
+    )
+      return;
     lastFade = fade;
+    lastSapperIntensity = sapperIntensity;
+    lastSapperTargetedSig = sapperTargetedSig;
 
-    if (structuralChanged) {
+    if (structuralChanged || sapperTargetedChanged) {
       lastStructuralSignature = structuralSignature;
 
       if (liveKeys.length === 0 && heldKeys.length === 0) {
@@ -228,7 +262,14 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
             list = [];
             byBucket.set(bucketKey, list);
           }
-          list.push({ col, row, opacity: source.opacity });
+          const tint = sapperTargeted.has(key) ? sapperIntensity : 0;
+          list.push({
+            col,
+            row,
+            tileKey: key,
+            opacity: source.opacity,
+            tint,
+          });
         }
       }
 
@@ -249,17 +290,32 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       }
       lastByBucket = byBucket;
     } else {
-      // Fade-only change: refresh held entries' opacity in place.
+      // Fade-only / sapper-intensity-only change: refresh per-entry
+      // opacity + tint in place; structural buckets unchanged.
       for (const list of lastByBucket.values()) {
         for (let i = 0; i < list.length; i++) {
-          if (list[i]!.opacity !== 1) {
-            list[i] = { col: list[i]!.col, row: list[i]!.row, opacity: fade };
+          const entry = list[i]!;
+          const opacity = entry.opacity !== 1 ? fade : 1;
+          const tint = sapperTargeted.has(entry.tileKey) ? sapperIntensity : 0;
+          if (opacity !== entry.opacity || tint !== entry.tint) {
+            list[i] = { ...entry, opacity, tint };
           }
         }
       }
     }
 
-    writeBucketOpacities(buckets, lastByBucket);
+    writeBucketAttribute(
+      buckets,
+      lastByBucket,
+      (bucket) => bucket.opacityAttrs,
+      (entry) => entry.opacity,
+    );
+    writeBucketAttribute(
+      buckets,
+      lastByBucket,
+      (bucket) => bucket.tintAttrs,
+      (entry) => entry.tint,
+    );
   }
 
   function dispose(): void {
@@ -307,11 +363,19 @@ function buildBucket(
     },
     namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
   });
-  // Attach per-instance opacity so the crumbling-walls fade can write a
-  // 0..1 multiplier per slot. Live walls get 1 (no override); held walls
-  // get the runtime-derived fade each frame.
-  const opacityAttrs = subParts.map((part) =>
-    attachInstanceOpacity(part.instanced, capacity),
-  );
-  return { mask, damaged, subParts, opacityAttrs, capacity };
+  // Per-instance opacity (crumbling-walls fade) + tint (sapper threat
+  // pulse). Both default to no-op (opacity=1, tint=0); the manager
+  // writes per slot when a multiplier is in flight.
+  const opacityAttrs: THREE.InstancedBufferAttribute[] = [];
+  const tintAttrs: THREE.InstancedBufferAttribute[] = [];
+  for (const part of subParts) {
+    const { opacity, tint } = attachInstanceTint(
+      part.instanced,
+      capacity,
+      SAPPER_TINT_HEX,
+    );
+    opacityAttrs.push(opacity);
+    tintAttrs.push(tint);
+  }
+  return { mask, damaged, subParts, opacityAttrs, tintAttrs, capacity };
 }

@@ -318,6 +318,7 @@ export function createOnlineOverlay(
     rubbleClearingFade,
     frostbiteRevealProgress,
     crumblingWallsFade,
+    sapperRevealIntensity,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
@@ -388,6 +389,11 @@ export function createOnlineOverlay(
       heldDestroyedWalls:
         view.phase === Phase.MODIFIER_REVEAL
           ? (view.modern?.crumblingWallsHeld ?? undefined)
+          : undefined,
+      sapperRevealIntensity,
+      sapperTargetedWalls:
+        sapperRevealIntensity !== undefined
+          ? collectSapperTargetedWalls(view)
           : undefined,
     },
     phantoms: frame.phantoms,
@@ -804,4 +810,12 @@ function formatComboText(event: ComboEvent): string {
   const label = COMBO_LABELS[event.kind];
   const streak = event.streak > 1 ? ` x${event.streak}` : "";
   return `${label}${streak}! +${event.bonus}`;
+}
+
+function collectSapperTargetedWalls(view: RenderView): readonly number[] {
+  const targeted = new Set<number>();
+  for (const grunt of view.grunts) {
+    if (grunt.targetedWall !== undefined) targeted.add(grunt.targetedWall);
+  }
+  return [...targeted];
 }

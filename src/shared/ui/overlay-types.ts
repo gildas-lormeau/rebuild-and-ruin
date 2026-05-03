@@ -284,6 +284,14 @@ export interface BattleOverlay {
     tileKey: number;
     damaged: boolean;
   }[];
+  /** Sapper threat-tint mix factor [0, 1] during the modifier reveal —
+   *  walls in `sapperTargetedWalls` lerp toward copper by this amount.
+   *  Undefined outside the reveal window. */
+  sapperRevealIntensity?: number;
+  /** Wall tile keys grunts will attack this battle (sapper modifier).
+   *  Exposed alongside `sapperRevealIntensity` so the walls manager
+   *  knows which slots to tint. Undefined outside the reveal. */
+  sapperTargetedWalls?: readonly number[];
 }
 
 /** Banner sweep UI — shared shape returned by `createBannerUi` and

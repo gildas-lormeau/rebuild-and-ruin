@@ -35,6 +35,7 @@ import type {
   ZoomButton,
 } from "./runtime-contracts.ts";
 import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { deriveSapperRevealIntensity } from "./sapper-reveal-overlay.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -214,6 +215,12 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       now: deps.timing.now(),
       state: runtimeState,
     });
+    const sapperRevealIntensity = deriveSapperRevealIntensity({
+      view,
+      banner: runtimeState.banner,
+      now: deps.timing.now(),
+      state: runtimeState,
+    });
 
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
@@ -234,6 +241,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       rubbleClearingFade,
       frostbiteRevealProgress,
       crumblingWallsFade,
+      sapperRevealIntensity,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

@@ -253,7 +253,8 @@
       "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
-      "src/runtime/runtime-state.ts"
+      "src/runtime/runtime-state.ts",
+      "src/runtime/sapper-reveal-overlay.ts"
     ]
   },
   {
@@ -273,7 +274,6 @@
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/lightning-burst.ts",
       "src/render/3d/effects/spawn-burst.ts",
-      "src/render/3d/effects/wall-threat.ts",
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",

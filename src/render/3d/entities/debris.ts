@@ -89,7 +89,7 @@ import {
   ensureBucketCapacity,
   fillBucket,
   hideSubParts,
-  writeBucketOpacities,
+  writeBucketAttribute,
 } from "./instance-bucket.ts";
 import { attachInstanceOpacity } from "./instance-modulation.ts";
 
@@ -378,7 +378,12 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
 
     // Always write opacities — fade-only frames need this; structural
     // rebuild also resets `attachInstanceOpacity`'s default-1 fill.
-    writeBucketOpacities(buckets, byKey);
+    writeBucketAttribute(
+      buckets,
+      byKey,
+      (bucket) => bucket.opacityAttrs,
+      (entry) => entry.opacity,
+    );
   }
 
   function dispose(): void {
