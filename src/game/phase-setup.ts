@@ -164,12 +164,6 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   }
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
-    if (state.modern!.activeModifier !== null) {
-      emitGameEvent(state.bus, GAME_EVENT.MODIFIER_APPLIED, {
-        modifierId: state.modern!.activeModifier,
-        round: state.round,
-      });
-    }
     // Precompute the dust-storm jitter buffer (no-op when the rolled
     // modifier isn't dust-storm — clears the buffer to []). Anchors all
     // dust-storm rng draws to a single deterministic state-mutation
@@ -178,6 +172,15 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
     precomputeDustStormJitters(state);
   }
   const diff = applyBattleStartModifiers(state);
+  // Emit AFTER apply so consumers can read post-apply state.modern.*Held
+  // (rubble pits, dead cannons, destroyed walls, etc.) directly from
+  // the event handler without having to defer to the next tick.
+  if (state.modern?.activeModifier) {
+    emitGameEvent(state.bus, GAME_EVENT.MODIFIER_APPLIED, {
+      modifierId: state.modern.activeModifier,
+      round: state.round,
+    });
+  }
   rollGruntWallAttacks(state);
   // Phase flip is owned by the phase machine: `enter-modifier-reveal`
   // (when a modifier was rolled) or `enter-battle` runs `setPhase`.

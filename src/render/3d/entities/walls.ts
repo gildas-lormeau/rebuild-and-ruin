@@ -99,8 +99,8 @@ interface WallEntry {
   readonly tint: number;
 }
 
-/** Copper-brown tint for sapper-targeted walls — matches the legacy
- *  `wall-threat` disc color (`createWallThreatManager` palette). */
+/** Copper-brown tint for sapper-targeted walls — matches the
+ *  `sapper` palette pulseColor used by the reveal banner chrome. */
 const SAPPER_TINT_HEX = 0xa07050;
 const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
 /** Pack (mask, damaged) into a single 5-bit key — 4 bits for the mask

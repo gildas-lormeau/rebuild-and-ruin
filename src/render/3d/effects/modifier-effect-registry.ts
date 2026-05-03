@@ -53,12 +53,16 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createWaterSurgeManager,
   createGroundCollapseManager,
   // (frostbite, rubble_clearing, crumbling_walls, sapper, grunt_surge
-  // have no per-tile burst — their runtime-derived overlay multipliers
-  // drive the live entity managers directly. See
-  // `src/runtime/*-overlay.ts`.)
+  // have NO factory entry here — their runtime-derived overlay
+  // multipliers piggyback on the existing entity managers
+  // (grunts.ts / walls.ts / debris.ts / pits.ts). See
+  // `src/runtime/*-overlay.ts` for the derive functions.)
   createWildfireBurstManager,
   createLightningBurstManager,
-  // Persistent overlays (run while gating flag holds).
+  // Persistent overlays (run while gating flag holds). fog_of_war
+  // is also overlay-driven (`overlay.battle.fogRevealOpacity` is the
+  // multiplier), but via this dedicated manager rather than an
+  // existing entity one.
   createFogManager,
   (scene, deps) =>
     createSinkholeOverlayManager(scene, deps.getSinkholeOverlayBitmap),

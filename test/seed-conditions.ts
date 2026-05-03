@@ -131,20 +131,14 @@ function latchModifierFired(
 
 /** Latch the first `rubble_clearing` apply that has at least one held
  *  entity to clear (otherwise the fade-out has nothing to render).
- *  `MODIFIER_APPLIED` fires at modifier-roll time, BEFORE
- *  `applyBattleStartModifiers` populates `rubbleClearingHeld`, so we
- *  poll the next TICK for the populated snapshot. */
+ *  `MODIFIER_APPLIED` now fires AFTER `applyBattleStartModifiers`, so
+ *  `state.modern.rubbleClearingHeld` is populated at event time. */
 function latchRubbleClearingWithEntities(sc: Scenario): () => boolean {
-  let pendingCheck = false;
   let seen = false;
   sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
-    if (ev.modifierId === "rubble_clearing") pendingCheck = true;
-  });
-  sc.bus.on(GAME_EVENT.TICK, () => {
-    if (!pendingCheck || seen) return;
+    if (ev.modifierId !== "rubble_clearing") return;
     const held = sc.state.modern?.rubbleClearingHeld;
     if (held && held.pits.length + held.deadCannons.length > 0) seen = true;
-    pendingCheck = false;
   });
   return () => seen;
 }

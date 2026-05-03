@@ -283,6 +283,12 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.quit.message = "";
   runtimeState.optionsUI.returnMode = null;
   runtimeState.actionSchedule.reset();
+  runtimeState.fogRevealRampStartMs = undefined;
+  runtimeState.rubbleClearingRampStartMs = undefined;
+  runtimeState.frostbiteRevealRampStartMs = undefined;
+  runtimeState.crumblingWallsRampStartMs = undefined;
+  runtimeState.sapperRevealRampStartMs = undefined;
+  runtimeState.gruntSurgeRevealRampStartMs = undefined;
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:

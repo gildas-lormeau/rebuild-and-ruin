@@ -44,9 +44,8 @@ Deno.test("rubble_clearing fade: opacity multiplier per tick after banner", asyn
   sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
     if (ev.modifierId === "rubble_clearing") rubbleApplied = true;
   });
-  // MODIFIER_APPLIED fires at modifier-roll time, BEFORE apply()
-  // populates `rubbleClearingHeld`. Snapshot the held counts at the
-  // banner sweep — by then apply() has run and the held set is in place.
+  // Snapshot the held counts at the banner sweep so the test
+  // observes the same overlay shape the renderer sees.
   sc.bus.on(GAME_EVENT.BANNER_SWEEP_END, (ev) => {
     if (
       rubbleApplied &&

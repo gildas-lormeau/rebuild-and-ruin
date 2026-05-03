@@ -367,6 +367,10 @@ export function createOnlineOverlay(
         view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
       fogRevealOpacity,
       rubbleClearingFade,
+      // Held rubble entries gate on the fade ramp directly — they fade
+      // out and stay gone (no bridge needed; gameplay state already
+      // dropped them). Contrast with `heldDestroyedWalls` below, which
+      // bridges to BATTLE entry so the cross-fading debris persists.
       heldRubblePits:
         rubbleClearingFade !== undefined
           ? view.modern?.rubbleClearingHeld?.pits

@@ -247,8 +247,9 @@ export interface ModernState {
    *  `rubbleClearingImpl.apply` BEFORE the live entities are filtered
    *  out of `player.cannons` / `state.burningPits`, so the renderer can
    *  fade them out post-banner via `overlay.battle.rubbleClearingFade`.
-   *  null when no rubble_clearing reveal is in flight; cleared at next
-   *  battle start. */
+   *  null when no rubble_clearing reveal is in flight; cleared at the
+   *  NEXT round's `prepareBattleState` (so the held set persists
+   *  through battle, wall-build, and the next cannon-place phase). */
   rubbleClearingHeld: {
     pits: readonly BurningPit[];
     deadCannons: readonly {
@@ -280,7 +281,9 @@ export interface ModernState {
    *  `damaged` is captured per wall so the wall manager picks the
    *  matching (mask, damaged) geometry bucket for reinforced-wall
    *  absorbed-hit state during the fade. null when no crumbling_walls
-   *  reveal is in flight; cleared at next battle start. */
+   *  reveal is in flight; cleared at the NEXT round's
+   *  `prepareBattleState` (so the held set persists through battle,
+   *  wall-build, and the next cannon-place phase). */
   crumblingWallsHeld:
     | readonly {
         playerId: ValidPlayerSlot;
