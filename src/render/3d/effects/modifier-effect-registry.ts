@@ -31,6 +31,7 @@ import {
   type GetSinkholeOverlayBitmap,
 } from "./sinkhole-overlay.ts";
 import { createThawingManager } from "./thawing.ts";
+import { createWallCrumbleManager } from "./wall-crumble.ts";
 import { createWaterSurgeManager } from "./water-surge.ts";
 import { createWildfireBurstManager } from "./wildfire-burst.ts";
 
@@ -52,11 +53,13 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createGrassEmergenceManager,
   createWaterSurgeManager,
   createGroundCollapseManager,
-  // (frostbite, rubble_clearing, crumbling_walls, sapper, grunt_surge
-  // have NO factory entry here — their runtime-derived overlay
-  // multipliers piggyback on the existing entity managers
-  // (grunts.ts / walls.ts / debris.ts / pits.ts). See
-  // `src/runtime/*-overlay.ts` for the derive functions.)
+  createWallCrumbleManager,
+  // (frostbite, rubble_clearing, sapper, grunt_surge have NO factory
+  // entry here — their runtime-derived overlay multipliers piggyback
+  // on the existing entity managers (grunts.ts / walls.ts / debris.ts /
+  // pits.ts). See `src/runtime/*-overlay.ts` for the derive functions.
+  // crumbling_walls layers BOTH: the cross-fade (overlay-driven) AND a
+  // disc-burst on the destroyed wall tiles for visibility.)
   createWildfireBurstManager,
   createLightningBurstManager,
   // Persistent overlays (run while gating flag holds). fog_of_war

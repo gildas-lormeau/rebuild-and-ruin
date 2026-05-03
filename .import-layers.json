@@ -269,6 +269,7 @@
       "src/render/3d/effects/ground-collapse.ts",
       "src/render/3d/effects/ice-formation.ts",
       "src/render/3d/effects/lightning-burst.ts",
+      "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",

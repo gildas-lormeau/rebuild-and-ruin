@@ -202,6 +202,7 @@
       "src/render/3d/effects/terrain-bitmap.ts",
       "src/render/3d/effects/thawing.ts",
       "src/render/3d/effects/wall-burns.ts",
+      "src/render/3d/effects/wall-crumble.ts",
       "src/render/3d/effects/water-waves.ts",
       "src/render/3d/sprites/sprite-bounds.ts",
       "src/render/3d/sprites/sprite-kit.ts",
