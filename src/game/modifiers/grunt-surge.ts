@@ -5,7 +5,6 @@
  * (grunt-system.ts), so it's injected by modifier-system.ts via applyGruntSurge.
  */
 
-import { FIRST_GRUNT_SPAWN_ROUND } from "../../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { packTile } from "../../shared/core/spatial.ts";
@@ -52,8 +51,6 @@ function applyGruntSurge(
     count: number,
   ) => void,
 ): { count: number; spawnTiles: number[] } {
-  if (state.round < FIRST_GRUNT_SPAWN_ROUND)
-    return { count: 0, spawnTiles: [] };
   const gruntsBefore = state.grunts.length;
   const extraCount = state.rng.int(
     GRUNT_SURGE_COUNT_MIN,
