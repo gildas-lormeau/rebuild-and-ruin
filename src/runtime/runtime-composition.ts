@@ -81,7 +81,6 @@ import {
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
-import { cannonSize } from "../shared/core/spatial.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import type {
@@ -447,42 +446,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const ch = h.getCrosshair();
       return { x: ch.x, y: ch.y };
     },
-    getPointerPlayerPhantomTileBounds: () => {
+    getPointerPlayerPhantoms: () => {
       const ctrl = pointerPlayer();
       if (!ctrl) return null;
-      const phase = runtimeState.frameMeta.phase;
-      if (phase === Phase.WALL_BUILD) {
-        const phantoms = ctrl.currentBuildPhantoms;
-        if (phantoms.length === 0) return null;
-        let minR = Infinity,
-          maxR = -Infinity,
-          minC = Infinity,
-          maxC = -Infinity;
-        for (const phantom of phantoms) {
-          for (const [dr, dc] of phantom.offsets) {
-            const r = phantom.row + dr;
-            const c = phantom.col + dc;
-            if (r < minR) minR = r;
-            if (r > maxR) maxR = r;
-            if (c < minC) minC = c;
-            if (c > maxC) maxC = c;
-          }
-        }
-        if (!Number.isFinite(minR)) return null;
-        return { minR, maxR, minC, maxC };
-      }
-      if (phase === Phase.CANNON_PLACE) {
-        const phantom = ctrl.currentCannonPhantom;
-        if (!phantom) return null;
-        const size = cannonSize(phantom.mode);
-        return {
-          minR: phantom.row,
-          maxR: phantom.row + size - 1,
-          minC: phantom.col,
-          maxC: phantom.col + size - 1,
-        };
-      }
-      return null;
+      return {
+        buildPhantoms: ctrl.currentBuildPhantoms,
+        cannonPhantom: ctrl.currentCannonPhantom,
+      };
     },
     getOverlay: () => runtimeState.overlay,
     pickElevatedHit,

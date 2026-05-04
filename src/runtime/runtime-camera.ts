@@ -38,10 +38,15 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/core/grid.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   battleTargetPosition,
   bestEnemyZone,
+  cannonSize,
   enemyZones,
   playerByZone,
   pxToTile,
@@ -78,10 +83,14 @@ interface CameraDeps {
   cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
-  /** Tile-space bounding box of the pointer player's active phantom, or
-   *  null when no phantom is being placed. Used to pan the pinch viewport
-   *  during BUILD/CANNON_PLACE so the preview stays on-screen. */
-  getPointerPlayerPhantomTileBounds?: () => TileBounds | null;
+  /** Pointer player's active phantoms — raw shapes only. The camera derives
+   *  the tile-space bounding box from these when it needs to edge-pan
+   *  during BUILD/CANNON_PLACE so the preview stays on-screen. Returns null
+   *  when there is no pointer player. */
+  getPointerPlayerPhantoms?: () => {
+    buildPhantoms: readonly PiecePhantom[];
+    cannonPhantom: CannonPhantom | undefined;
+  } | null;
   /** Latest rendered overlay — source of elevated-geometry heights for the
    *  battle ray pick. Optional for headless runs (no tilt → pickHitWorld
    *  short-circuits before reading it). */
@@ -510,11 +519,48 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Pixel speed at the very edge of the viewport (depth = 1). */
   const EDGE_PAN_MAX_SPEED = 200;
 
+  /** Tile-space bounding box of the pointer player's active phantom in
+   *  BUILD or CANNON_PLACE — null when no phantom is being placed. */
+  function pointerPhantomTileBounds(phase: Phase): TileBounds | null {
+    const phantoms = deps.getPointerPlayerPhantoms?.();
+    if (!phantoms) return null;
+    if (phase === Phase.WALL_BUILD) {
+      if (phantoms.buildPhantoms.length === 0) return null;
+      let minR = Infinity;
+      let maxR = -Infinity;
+      let minC = Infinity;
+      let maxC = -Infinity;
+      for (const phantom of phantoms.buildPhantoms) {
+        for (const [dr, dc] of phantom.offsets) {
+          const r = phantom.row + dr;
+          const c = phantom.col + dc;
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+          if (c < minC) minC = c;
+          if (c > maxC) maxC = c;
+        }
+      }
+      return Number.isFinite(minR) ? { minR, maxR, minC, maxC } : null;
+    }
+    if (phase === Phase.CANNON_PLACE) {
+      const cannon = phantoms.cannonPhantom;
+      if (!cannon) return null;
+      const size = cannonSize(cannon.mode);
+      return {
+        minR: cannon.row,
+        maxR: cannon.row + size - 1,
+        minC: cannon.col,
+        maxC: cannon.col + size - 1,
+      };
+    }
+    return null;
+  }
+
   function focusBoundsForEdgePan(
     phase: Phase,
   ): { minX: number; minY: number; maxX: number; maxY: number } | null {
     if (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) {
-      const tile = deps.getPointerPlayerPhantomTileBounds?.();
+      const tile = pointerPhantomTileBounds(phase);
       if (!tile) return null;
       return {
         minX: tile.minC * TILE_SIZE,
