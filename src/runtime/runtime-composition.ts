@@ -26,7 +26,6 @@
 import {
   executeCannonFire,
   executePlacePiece,
-  generateMap,
   snapshotTerritory,
 } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
@@ -87,11 +86,7 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
-import {
-  computeGameSeed,
-  MAX_SEED_LENGTH,
-  SEED_CUSTOM,
-} from "../shared/ui/player-config.ts";
+import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
@@ -274,26 +269,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     quitButton: null,
     loupeHandle: null,
   };
-
-  /** Refresh lobby seed + map preview when the seed changed *or* no map
-   *  preview exists yet. The second condition covers first-entry bootstrap
-   *  when `computeGameSeed()` happens to match the initial `lobby.seed = 0`
-   *  (user picked seed "0" via localStorage) — without the null check, the
-   *  seed-equality branch skips map generation and `lobby.map` stays null
-   *  through the first lobby render, crashing `drawMap`. */
-  function refreshLobbySeed(): void {
-    const newSeed = computeGameSeed(runtimeState.settings);
-    if (
-      newSeed !== runtimeState.lobby.seed ||
-      runtimeState.lobby.map === null
-    ) {
-      runtimeState.lobby.seed = newSeed;
-      config.log(`[lobby] seed: ${newSeed}`);
-      const map = generateMap(newSeed);
-      runtimeState.lobby.map = map;
-      renderer.warmMapCache(map);
-    }
-  }
 
   // -------------------------------------------------------------------------
   // Frame/timing helpers
@@ -795,7 +770,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       touchHandles.dpad?.update(enabled ? Phase.WALL_BUILD : null),
     setDpadLeftHanded: (left: boolean) =>
       touchHandles.dpad?.setLeftHanded(left),
-    refreshLobbySeed,
+    refreshLobbySeed: () => lobby.refreshSeed(),
     isOnline,
     remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
@@ -820,7 +795,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     uiCtx,
     renderFrame,
-    refreshLobbySeed,
+    warmMapCache: renderer.warmMapCache,
+    log: config.log,
     showOptions: options.showOptions,
     isOnline,
     onTickLobbyExpired: config.onTickLobbyExpired,

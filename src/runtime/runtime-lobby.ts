@@ -1,3 +1,4 @@
+import { generateMap } from "../game/index.ts";
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
@@ -11,7 +12,11 @@ import {
   IS_TOUCH_DEVICE,
 } from "../shared/platform/platform.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
-import { type KeyBindings, MAX_PLAYERS } from "../shared/ui/player-config.ts";
+import {
+  computeGameSeed,
+  type KeyBindings,
+  MAX_PLAYERS,
+} from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type {
   ComputeLobbyLayoutFn,
@@ -30,7 +35,8 @@ interface LobbySystemDeps {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ) => void;
-  refreshLobbySeed: () => void;
+  warmMapCache: (map: GameMap) => void;
+  log: (msg: string) => void;
   showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void | Promise<void>;
@@ -55,6 +61,11 @@ interface LobbySystem {
   show: () => void;
   /** Mark a slot joined and re-render the lobby preview. */
   markJoined: (pid: ValidPlayerSlot) => void;
+  /** Recompute `lobby.seed` from settings and regenerate the map preview
+   *  when either the seed changed or no preview exists yet. Called from
+   *  the options screen on close (settings may have changed) and from
+   *  `renderLobby` on first lobby entry (map slot still null). */
+  refreshSeed: () => void;
 }
 
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
@@ -69,8 +80,28 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     return cachedConfirmKeys;
   }
 
+  /** Refresh lobby seed + map preview when the seed changed *or* no map
+   *  preview exists yet. The second condition covers first-entry bootstrap
+   *  when `computeGameSeed()` happens to match the initial `lobby.seed = 0`
+   *  (user picked seed "0" via localStorage) — without the null check, the
+   *  seed-equality branch skips map generation and `lobby.map` stays null
+   *  through the first lobby render, crashing `drawMap`. */
+  function refreshSeed(): void {
+    const newSeed = computeGameSeed(runtimeState.settings);
+    if (
+      newSeed !== runtimeState.lobby.seed ||
+      runtimeState.lobby.map === null
+    ) {
+      runtimeState.lobby.seed = newSeed;
+      deps.log(`[lobby] seed: ${newSeed}`);
+      const map = generateMap(newSeed);
+      runtimeState.lobby.map = map;
+      deps.warmMapCache(map);
+    }
+  }
+
   function renderLobby(): void {
-    if (!runtimeState.lobby.map) deps.refreshLobbySeed();
+    if (!runtimeState.lobby.map) refreshSeed();
     const { map, overlay } = deps.createLobbyOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
@@ -185,6 +216,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     cursorAt,
     show,
     markJoined,
+    refreshSeed,
   };
 }
 
