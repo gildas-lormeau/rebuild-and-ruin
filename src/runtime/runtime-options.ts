@@ -62,7 +62,7 @@ interface OptionsSystemDeps {
   getSoundReady: () => boolean;
   /** Re-apply music + SFX mute state from `settings.soundEnabled` (and tab
    *  visibility). Called when the Sound row toggles. */
-  applyAudioState: () => void;
+  applyMute: () => void;
   seedField: SeedField;
 
   // Render-domain functions (injected from composition root)
@@ -132,7 +132,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       }
       runtimeState.settings.soundEnabled = !runtimeState.settings.soundEnabled;
       saveSettings(runtimeState.settings);
-      deps.applyAudioState();
+      deps.applyMute();
       return;
     }
     deps.cycleOption(

@@ -301,6 +301,7 @@
       "src/render/3d/effects/modifier-effect-registry.ts",
       "src/render/render-map.ts",
       "src/runtime/assembly.ts",
+      "src/runtime/runtime-audio.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",

@@ -260,6 +260,21 @@ export function isPaused(runtimeState: RuntimeState): boolean {
   return runtimeState.pausedBy !== "none";
 }
 
+/** React to a tab-visibility change. Sets `pausedBy = "visibility"` when the
+ *  tab hides AND nothing else holds the pause; clears it on return only if
+ *  the current reason is still `"visibility"` (never overrides a user pause).
+ *  Audio mute is a separate concern — the caller re-applies it after this. */
+export function setVisibilityHidden(
+  runtimeState: RuntimeState,
+  hidden: boolean,
+): void {
+  if (hidden && runtimeState.pausedBy === "none") {
+    runtimeState.pausedBy = "visibility";
+  } else if (!hidden && runtimeState.pausedBy === "visibility") {
+    runtimeState.pausedBy = "none";
+  }
+}
+
 /** Reset frame timing to avoid a large dt spike on the next tick.
  *  Call when resuming the loop after a gap (mode transition, options screen).
  *  `now` is the current frame timestamp from the injected `TimingApi.now()`. */

@@ -97,8 +97,7 @@ import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
-import { loadStoredAssets, type MusicAssets } from "./music-assets.ts";
-import { createMusicSubsystem } from "./music-player.ts";
+import { createAudioOrchestrator } from "./runtime-audio.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
@@ -132,6 +131,7 @@ import {
   isStateReady,
   safeState,
   setMode,
+  setVisibilityHidden,
 } from "./runtime-state.ts";
 import type {
   GameRuntime,
@@ -142,8 +142,6 @@ import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
-import { createSfxSubsystem } from "./sfx-player.ts";
-import { createSoundModal } from "./sound-modal.ts";
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
@@ -247,99 +245,27 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPovPlayerId: () => runtimeState.frameMeta.povPlayerId,
     observer: config.observers?.haptics,
   });
-  // Music assets are loaded asynchronously from IndexedDB (null until ready / if
-  // the player hasn't dropped Rampart files into the settings dialog). The
-  // subsystem reads the slot live on every `activate()` / `subscribeBus()`, so
-  // files loaded later automatically take effect on the next game.
-  let musicAssets: MusicAssets | undefined;
-  const musicAssetsReady = loadStoredAssets()
-    .then((assets) => {
-      musicAssets = assets;
-    })
-    .catch((error) => {
-      console.error("[music] loadStoredAssets failed:", error);
-    });
-  const music = createMusicSubsystem({
-    observer: config.observers?.music,
-  });
-  // SFX lives in a separate AudioContext from the music synth — Web Audio
-  // natively polyphonic via BufferSource-per-trigger, so fast-firing events
-  // (wallPlaced on each brick) overlap cleanly. Silent until SOUND.RSC is
-  // loaded into IDB; bus subscription is re-established on every new game.
-  const sfx = createSfxSubsystem({
-    getAssets: () => musicAssets,
-    assetsReady: musicAssetsReady,
-    observer: config.observers?.sfx,
-    getState: () => safeState(runtimeState),
-    // First tower enclosure of a phase → player-specific fanfare sub-song.
-    // SFX has already played elechit1 and delayed the callback by the
-    // stinger's duration, so the fanfare lands cleanly after it.
-    onFirstEnclosure: (playerId) => void music.playFanfare(playerId),
-  });
-  // Single quit-cleanup hook. Both `runtime.shutdown` (route-level exit)
-  // and `lifecycle.returnToLobby` (in-app ESC / ✕ / game-over Menu) call
-  // this so the snare loop, welldone chain, and any in-flight fanfare
-  // stop the moment the user leaves the game — no leftover audio
-  // ringing under the lobby.
-  const stopAllAudio = (): void => {
-    sfx.stopAll();
-    music.stopAll();
-  };
-  // The Sound modal (URL field + file pickers) lives in index.html. Headless
-  // tests run without DOM — skip construction and pass a no-op opener so the
-  // options screen still renders the row (it just won't open anything there).
-  const soundModal =
-    typeof document !== "undefined" && document.getElementById("sound-modal")
-      ? createSoundModal()
-      : undefined;
-  // Synchronous close hook: kicks off `music.activate()` inside the close
-  // click so `new AudioContext()` and `ctx.resume()` happen within the
-  // transient user-activation window. Without this, the post-IDB-await
-  // resume is silently denied on browsers that consume gesture state
-  // across awaits — music plays into a suspended context and stays silent
-  // until the next user interaction (e.g. toggling soundEnabled).
-  soundModal?.setOnCloseSync(() => {
-    void music.activate();
-  });
-  soundModal?.setOnClose((assets) => {
-    musicAssets = assets;
-    // SOUND.RSC bytes may have changed — drop the cached sample map so the
-    // next SFX event reparses. Music doesn't need an equivalent because
-    // music-player loads XMI data on synth init and a rematch rebuilds it.
-    sfx.refreshSamples();
-    // If assets were just loaded and the lobby is showing the title screen,
-    // kick off playback. Safe to call repeatedly — the subsystem is idempotent
-    // and no-ops when already playing or when assets are still missing.
-    if (assets && runtimeState.mode === Mode.LOBBY) {
-      void music.startTitle();
-    }
-    // Re-apply mute state in case the user just removed/added assets while
-    // soundEnabled was toggled to a non-default value.
-    applyAudioState();
+  const audio = createAudioOrchestrator({
+    runtimeState,
+    observers: config.observers,
   });
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
   // keeps looping on Web Audio — not acceptable for a single ~30s title track
-  // playing for hours on a stale tab. The `pausedBy` discriminant on
-  // runtimeState ensures reopening a manually-paused game stays paused:
-  // we only claim the pause when nothing else holds it, and on return we
-  // only release it if the current reason is still "visibility" (never
-  // overriding a user pause). Initial call also covers the dev hot-reload
-  // case of starting in a hidden tab.
-  function applyAudioState(): void {
-    const hidden = typeof document !== "undefined" && document.hidden;
-    if (hidden && runtimeState.pausedBy === "none") {
-      runtimeState.pausedBy = "visibility";
-    } else if (!hidden && runtimeState.pausedBy === "visibility") {
-      runtimeState.pausedBy = "none";
-    }
-    const silenced = hidden || !runtimeState.settings.soundEnabled;
-    void music.setPaused(silenced);
-    void sfx.setPaused(silenced);
+  // playing for hours on a stale tab. The visibility-pause rule lives in
+  // `setVisibilityHidden` (preserves user-initiated pauses); audio mute lives
+  // in `audio.applyMute`. Initial call also covers the dev hot-reload case of
+  // starting in a hidden tab.
+  function syncVisibility(): void {
+    setVisibilityHidden(
+      runtimeState,
+      typeof document !== "undefined" && document.hidden,
+    );
+    audio.applyMute();
   }
-  applyAudioState();
+  syncVisibility();
   if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", applyAudioState);
+    document.addEventListener("visibilitychange", syncVisibility);
   }
 
   // Touch handles created early — render, options, and lifecycle read them
@@ -452,8 +378,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         // and music both diff GameState-derived signals (countdown-active,
         // build-bg decrescendo threshold) against last frame to issue
         // start/stop/ramp cues.
-        sfx.tickPresentation(runtimeState.state);
-        music.tickPresentation(runtimeState.state);
+        audio.sfx.tickPresentation(runtimeState.state);
+        audio.music.tickPresentation(runtimeState.state);
       }
       if (IS_DEV) {
         exposeE2EBridge({
@@ -466,7 +392,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           // `captureOn` PNG capture needs the HTMLCanvasElement surface.
           canvas: renderer.eventTarget as HTMLCanvasElement,
         });
-        exposeDevConsole(runtimeState, timing, music);
+        exposeDevConsole(runtimeState, timing, audio.music);
       }
     },
   });
@@ -702,8 +628,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             enterSelection: selection.enter,
             onStateReady: () => {
               haptics.subscribeBus(runtimeState.state.bus);
-              music.subscribeBus(runtimeState.state.bus);
-              sfx.subscribeBus(runtimeState.state.bus);
+              audio.music.subscribeBus(runtimeState.state.bus);
+              audio.sfx.subscribeBus(runtimeState.state.bus);
             },
             controllerFactory: config.controllerFactory,
           },
@@ -718,7 +644,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input: {
         resetForLobby: (runtimeState) => input.resetForLobby(runtimeState),
       },
-      stopAudio: stopAllAudio,
+      stopAudio: audio.stopAll,
       hitTestGameOver: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;
         if (!gameOver) return null;
@@ -878,7 +804,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getFrame: () => runtimeState.frame,
     getLobbyRemaining: config.getLobbyRemaining,
     isOnline,
-    getSoundReady: () => musicAssets !== undefined,
+    getSoundReady: audio.getSoundReady,
   };
   const inputAdapters = createRuntimeInputAdapters({
     config,
@@ -906,9 +832,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline,
     remotePlayerSlots: config.network.remotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
-    showSoundModal: () => soundModal?.show(),
-    getSoundReady: () => musicAssets !== undefined,
-    applyAudioState,
+    showSoundModal: audio.showSoundModal,
+    getSoundReady: audio.getSoundReady,
+    applyMute: audio.applyMute,
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;
       runtimeState.settings.seed = digits;
@@ -1045,10 +971,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       beginBattle: phaseTicks.beginBattle,
     },
     music: {
-      activate: music.activate,
-      startTitle: music.startTitle,
+      activate: audio.music.activate,
+      startTitle: audio.music.startTitle,
     },
-    sfx: { activate: sfx.activate },
+    sfx: { activate: audio.sfx.activate },
 
     // Shared quit-to-menu cleanup. Called from both local (main.ts) and
     // online (online-runtime-game.ts GAME_EXIT_EVENT, plus the imperative
@@ -1060,7 +986,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // (runtime-lobby tickLobby, online initFromServer); this covers the
       // quit-back-to-menu paths so callers don't repeat the assignment.
       runtimeState.lobby.active = false;
-      stopAllAudio();
+      audio.stopAll();
     },
 
     upgradePick,

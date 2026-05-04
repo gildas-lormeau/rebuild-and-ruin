@@ -40,7 +40,7 @@ import {
 import { type PcmSample, parseSoundRsc } from "../shared/platform/sound-rsc.ts";
 import type { MusicAssets } from "./music-assets.ts";
 
-interface SfxSubsystem {
+export interface SfxSubsystem {
   /** Prime the AudioContext inside a user-gesture handler. Safe to call
    *  repeatedly; later calls are no-ops. */
   activate(): Promise<void>;
