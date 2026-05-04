@@ -101,7 +101,7 @@ nav.dpad {
       3,
       var(--dpad-btn-size)
     );
-  gap: 1vmin;
+  gap: 3vmin;
 
   button {
     border-radius: 1vmin;
