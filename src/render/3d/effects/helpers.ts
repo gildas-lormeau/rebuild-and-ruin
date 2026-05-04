@@ -1,9 +1,8 @@
 /**
  * Shared math + geometry helpers for the 3D renderer's effects cluster.
- * Factored out of bonus-squares, impacts, fog, thawing, water-waves — the
- * sinusoidal pulse, per-tile seed hash, tile-set fingerprint, and flat
- * XZ-oriented disc geometry were all repeated verbatim across those
- * modules.
+ * Factored out of bonus-squares, impacts, fog, thawing — the sinusoidal
+ * pulse, per-tile seed hash, tile-set fingerprint, and flat XZ-oriented
+ * disc geometry were all repeated verbatim across those modules.
  */
 
 import * as THREE from "three";

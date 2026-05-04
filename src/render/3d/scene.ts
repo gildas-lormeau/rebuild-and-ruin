@@ -69,10 +69,6 @@ import {
   type WallBurnsManager,
 } from "./effects/wall-burns.ts";
 import {
-  createWaterWavesManager,
-  type WaterWavesManager,
-} from "./effects/water-waves.ts";
-import {
   type BalloonsManager,
   createBalloonsManager,
 } from "./entities/balloons.ts";
@@ -193,11 +189,6 @@ export interface Render3dContext {
    *  activation gating from `FrameCtx.overlay`. Adding a new modifier
    *  effect (any lifecycle) touches only the registry, not this file. */
   readonly modifierEffects: readonly EffectManager[];
-  /** Fine water-wave highlight overlay — polish pass paired with the
-   *  terrain mesh's per-tile shimmer. Paints the 2D `drawWaterAnimation`
-   *  pattern onto a shared canvas each frame and composites it over the
-   *  terrain. Only active during battle. */
-  readonly waterWaves: WaterWavesManager;
   /** Terrain bitmap overlay — uploads the 2D renderer's baked terrain
    *  ImageData (grass + water + SDF bank) as a CanvasTexture so water /
    *  grass / shoreline visuals stay pixel-identical across backends.
@@ -281,7 +272,6 @@ export function createRender3dScene(
   const crosshairs = createCrosshairsManager(scene);
   const modifierEffects: readonly EffectManager[] =
     MODIFIER_EFFECT_FACTORIES.map((factory) => factory(scene));
-  const waterWaves = createWaterWavesManager(scene);
   const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const bonusSquares = createBonusSquaresManager(scene);
 
@@ -376,7 +366,6 @@ export function createRender3dScene(
     houseBurns,
     crosshairs,
     modifierEffects,
-    waterWaves,
     terrainBitmap,
     terrainSdfTexture,
     terrainTileData,

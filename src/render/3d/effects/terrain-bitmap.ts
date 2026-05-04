@@ -1,35 +1,24 @@
 /**
- * 3D terrain bitmap overlay — uploads the 2D renderer's baked terrain
- * ImageData as a CanvasTexture so grass / water / bank visuals stay
- * pixel-identical across 2D and 3D.
+ * 3D terrain bitmap base layer — uploads the 2D renderer's baked terrain
+ * ImageData (grass + water + SDF bank + frozen ice + grass-blade noise +
+ * battle wave texture) as a CanvasTexture on a flat plane at Y=0 so 3D
+ * terrain visuals stay pixel-identical with the 2D bake.
  *
  * The 2D path renders terrain per-pixel via an SDF (smooth water/grass
- * transitions with a red-brown bank band) into an `ImageData` cache
- * keyed by `(map, inBattle)`. The 3D terrain mesh previously painted
- * per-tile uniform grass/water colors, which butted together at tile
- * boundaries with hard edges; a separate bank overlay couldn't fully
- * hide the transition. Swapping in the 2D bitmap delivers the same
- * anti-aliased shoreline without porting the SDF math.
- *
- * Design:
- *   - Reused offscreen canvas sized MAP_PX_W × MAP_PX_H with a
- *     CanvasTexture (NearestFilter, no mipmaps, default flipY=true
- *     matching water-waves).
- *   - Flat PlaneGeometry rotated -π/2 on X, positioned at ground plane
- *     Y=0. Terrain mesh lifts to Y=0.01 — its opaque pixels (castle
- *     interiors, bonus squares, frozen tiles, sinkhole owner tints)
- *     cover the bitmap, while transparent pixels at raw grass/water
- *     tiles let the bitmap show through.
- *   - Rebake gated by fingerprint `(mapVersion, inBattle)`. Calls the
- *     injected `getTerrainBitmap` to fetch the 2D cache entry and
- *     `putImageData` it onto the offscreen canvas.
+ * transitions with a red-brown bank band) into an `ImageData` cache keyed
+ * by `(map, inBattle)`. This module fronts that cache for the 3D scene:
+ * fingerprint on `(mapVersion, inBattle)`, fetch the cached ImageData,
+ * `putImageData` it onto a reused offscreen canvas, flag the texture
+ * dirty. The terrain mesh sits at Y=ELEVATION_STACK.TERRAIN_MESH (0.01)
+ * — its opaque pixels (castle interiors etc.) cover this base, while
+ * transparent pixels at raw grass/water tiles let the bitmap show through.
  */
 
-import type * as THREE from "three";
+import * as THREE from "three";
 import type { GameMap } from "../../../shared/core/geometry-types.ts";
+import { MAP_PX_H, MAP_PX_W } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
-import { createMapLayerCanvas, disposeMapLayerCanvas } from "./layer-canvas.ts";
 
 export interface TerrainBitmapManager {
   /** Rebake the terrain texture when the fingerprint
@@ -50,12 +39,36 @@ export function createTerrainBitmapManager(
   scene: THREE.Scene,
   getTerrainBitmap: GetTerrainBitmap,
 ): TerrainBitmapManager {
-  const layer = createMapLayerCanvas(scene, {
-    yLift: ELEVATION_STACK.TERRAIN_BITMAP,
+  // Map-sized offscreen canvas + sRGB-tagged CanvasTexture + flat plane
+  // mesh at the ground plane. NearestFilter preserves the pixel-art look;
+  // sRGB tag makes three.js convert canvas bytes correctly through the
+  // PBR pipeline. `rotateX(-π/2)` + default `flipY=true` aligns canvas
+  // row 0 with world Z=0 (map north).
+  const canvas = document.createElement("canvas");
+  canvas.width = MAP_PX_W;
+  canvas.height = MAP_PX_H;
+  const canvasCtx = canvas.getContext("2d", { willReadFrequently: false })!;
+  canvasCtx.imageSmoothingEnabled = false;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const geometry = new THREE.PlaneGeometry(MAP_PX_W, MAP_PX_H);
+  geometry.rotateX(-Math.PI / 2);
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
     transparent: false,
+    depthWrite: true,
   });
-  const { ctx: canvasCtx, texture, mesh } = layer;
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(MAP_PX_W / 2, ELEVATION_STACK.TERRAIN_BITMAP, MAP_PX_H / 2);
   mesh.visible = false;
+  scene.add(mesh);
 
   let bakedVersion: number | undefined;
   let bakedInBattle: boolean | undefined;
@@ -84,7 +97,10 @@ export function createTerrainBitmapManager(
   }
 
   function dispose(): void {
-    disposeMapLayerCanvas(scene, layer);
+    scene.remove(mesh);
+    geometry.dispose();
+    material.dispose();
+    texture.dispose();
   }
 
   return { update, dispose };

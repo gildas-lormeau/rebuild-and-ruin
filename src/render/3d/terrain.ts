@@ -1,48 +1,41 @@
 /**
  * 3D terrain overlay mesh for the world renderer.
  *
- * Phase 2 of the 3D renderer migration (see docs/3d-renderer-migration.md).
- * Renders only the per-tile OVERLAY visuals — castle interiors, bonus
- * squares, frozen tiles, owned sinkhole tints — as a single
- * `BufferGeometry` of `GRID_ROWS * GRID_COLS` RGBA-vertex-colored quads.
- * Raw grass / water / bank pixels come from the 2D `getTerrainBitmap`
- * texture uploaded by `effects/terrain-bitmap.ts` and sitting at Y=0;
- * this mesh sits at Y=0.01 and outputs alpha=0 on raw grass/water tiles
- * so the bitmap shows through, alpha=1 on overlay tiles so it covers.
+ * One `BufferGeometry` of `GRID_ROWS * GRID_COLS` RGBA-vertex-colored quads
+ * sitting at Y=ELEVATION_STACK.TERRAIN_MESH (just above the terrain bitmap
+ * plane at Y=0). Vertex colors paint per-tile overlays (castle interiors at
+ * alpha=1); raw grass/water tiles output alpha=0 so the underlying bitmap
+ * shows through. A fragment-shader patch added via `onBeforeCompile` then
+ * does per-pixel work on top:
  *
- * Design:
- *   - One quad per tile (4 verts), placed in the XZ plane at Y=0 (camera looks
- *     straight down -Y). Quad (r, c) spans world rect
- *     `[c*TILE_SIZE, (c+1)*TILE_SIZE] × [r*TILE_SIZE, (r+1)*TILE_SIZE]`.
- *   - Geometry is rebuilt only when `map.mapVersion` changes (matches the 2D
- *     renderer's `WeakMap<GameMap, ImageData>` cache policy, but cheaper — we
- *     rebuild the tiny buffer, never precompute a pixel grid).
- *   - Per-frame `update(overlay, now)` rewrites the color attribute so water
- *     can shimmer, bonus squares can pulse, and burning pits / frozen tiles
- *     respond to state changes without rebuilding geometry.
+ *   - Owned-sinkhole tiles: replaces the diffuse with the SDF-driven
+ *     grass→bank→water gradient, owner-tinted. Replaces the previous
+ *     CPU-baked `effects/sinkhole-overlay.ts` second-plane CanvasTexture.
+ *   - Open-water pixels in battle: layers the drifting wave highlights
+ *     that used to live in `effects/water-waves.ts`, gated per-fragment
+ *     on the SDF so bank-zone pixels stay clean (the 2D code's per-tile
+ *     "all 4 cardinal neighbors are water" check is now an SDF-aware
+ *     per-pixel `d > BANK_WATER_DIST + BANK_TRANSITION` test).
  *
- * Color parity: base RGB values mirror the 2D renderer's tile palette in
- * `render-map.ts` (GRASS_DARK/LIGHT/BATTLE) and the
- * `bonus_square` / `burning_pit_*` sprites in `scripts/generate-sprites.html`.
- * Water shimmer uses the same period/phase math as `drawWaterAnimation` in
- * `render-effects.ts`, reduced to a per-tile amplitude modulation on the
- * WATER_COLOR base (Phase 2 doesn't draw the fine wave highlights — the 2D
- * layer handles those until a future polish pass).
+ * Both per-pixel passes share the same SDF + tile-data DataTextures
+ * (created by `effects/terrain-sdf-texture.ts` + `effects/terrain-tile-data.ts`).
  *
- * Per-tile owner tinting (added after Phase 6):
+ * Per-tile vertex-color responsibilities:
  *   - Castle interiors: 2-shade checkered tint from the owning player's
  *     `interiorLight`/`interiorDark` palette, swapped to a uniform
  *     cobblestone-tinted-gray during battle. Sourced from the same
  *     `castle.interior` / `overlay.battle.battleTerritory` sets the 2D
  *     `drawCastleInterior` reads; the 2D `interiors` layer is flipped off
  *     in 3D mode so the mesh owns the visual outright.
- *   - Sinkhole banks: enclosed sinkhole tiles (water tiles inside a
- *     player's interior) are tinted with the owner's interior color, so
- *     owned lakes visually belong to the castle. This is a tile-grain
- *     approximation of the 2D per-pixel `drawSinkholeOverlays` bank fade.
  *   - Battle grass: out-of-interior grass tiles use GRASS_BATTLE during
  *     battle (flat darkened green), mirroring the 2D `grassBaseColor`
  *     battle branch.
+ *   - Everything else (raw grass, water, owned-sinkhole water tiles):
+ *     alpha=0; the bitmap or shader patch owns the visual.
+ *
+ * Color parity: base RGB values mirror the 2D renderer's tile palette in
+ * `render-map.ts` (GRASS_DARK/LIGHT/BATTLE) and the
+ * `bonus_square` / `burning_pit_*` sprites in `scripts/generate-sprites.html`.
  */
 
 import * as THREE from "three";
@@ -102,6 +95,12 @@ const COBBLESTONE_TINT_FACTOR = 0.13;
 const BANK_COLOR_SRGB: RGB = [139, 58, 26];
 const WATER_COLOR_SRGB: RGB = [40, 104, 176];
 const ICE_COLOR_SRGB: RGB = [165, 210, 230];
+// Wave-overlay highlight + shadow stops — mirror the (now-deleted)
+// effects/water-waves.ts CanvasTexture pass. The shader paints the same
+// drifting 1-px highlight + 1-px shadow per layer per fragment, gated on
+// the SDF-aware open-water threshold below so bank pixels stay clean.
+const WAVE_HIGHLIGHT_SRGB: RGB = [140, 200, 255];
+const WAVE_SHADOW_SRGB: RGB = [20, 60, 120];
 // SDF-distance thresholds (units = pixels in the blurred SDF). Same numbers
 // as `render-map.ts`'s `GRASS_TO_BANK_DIST` / `BANK_TO_WATER_DIST` /
 // `TRANSITION_WIDTH` — kept here as GLSL string constants so the shader
@@ -109,7 +108,10 @@ const ICE_COLOR_SRGB: RGB = [165, 210, 230];
 const GLSL_GRASS_TO_BANK_DIST = "2.0";
 const GLSL_BANK_TO_WATER_DIST = "4.0";
 const GLSL_TRANSITION_WIDTH = "1.5";
-const TERRAIN_PROGRAM_KEY = "terrain-sinkhole-shader-v1";
+// Bumped on every shader-source change — three.js dedupes programs by this
+// key and reuses the cached one if it matches, so a stale key would silently
+// keep the previous shader running after edits (HMR or otherwise).
+const TERRAIN_PROGRAM_KEY = "terrain-sinkhole-waves-shader-v5";
 
 export function createTerrain(deps: TerrainDeps): TerrainContext {
   const tileCount = GRID_ROWS * GRID_COLS;
@@ -182,6 +184,8 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
   const bankColorLinear = sRGBVecToLinear(BANK_COLOR_SRGB);
   const waterColorLinear = sRGBVecToLinear(WATER_COLOR_SRGB);
   const iceColorLinear = sRGBVecToLinear(ICE_COLOR_SRGB);
+  const waveHighlightLinear = sRGBVecToLinear(WAVE_HIGHLIGHT_SRGB);
+  const waveShadowLinear = sRGBVecToLinear(WAVE_SHADOW_SRGB);
   const cobblestoneUniforms = palette.map(({ light }) =>
     sRGBVecToLinear(cobblestoneBaseColor(light)),
   );
@@ -201,7 +205,10 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
     bankColorLinear: { value: bankColorLinear },
     waterColorLinear: { value: waterColorLinear },
     iceColorLinear: { value: iceColorLinear },
+    waveHighlightLinear: { value: waveHighlightLinear },
+    waveShadowLinear: { value: waveShadowLinear },
     inBattle: { value: false },
+    wavesTimeSec: { value: 0 },
   };
 
   material.customProgramCacheKey = terrainProgramCacheKey;
@@ -227,10 +234,11 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
   }
 
   function update(ctx: FrameCtx): void {
-    const { overlay, map } = ctx;
+    const { overlay, map, now } = ctx;
     if (!map) return;
     const inBattle = !!overlay?.battle?.inBattle;
     shaderUniforms.inBattle.value = inBattle;
+    shaderUniforms.wavesTimeSec.value = now / 1000;
 
     const interiorOwners = interiorOwnersFromOverlay(overlay);
 
@@ -433,6 +441,7 @@ vTerrainUv = vec2(position.x, position.z) / mapPxSize;`,
 varying vec2 vTerrainUv;
 uniform sampler2D sdfTex;
 uniform sampler2D tileDataTex;
+uniform vec2 mapPxSize;
 uniform vec2 gridSize;
 uniform vec3 interiorLightLinear[${MAX_PLAYERS}];
 uniform vec3 interiorDarkLinear[${MAX_PLAYERS}];
@@ -440,7 +449,10 @@ uniform vec3 cobblestoneLinear[${MAX_PLAYERS}];
 uniform vec3 bankColorLinear;
 uniform vec3 waterColorLinear;
 uniform vec3 iceColorLinear;
+uniform vec3 waveHighlightLinear;
+uniform vec3 waveShadowLinear;
 uniform bool inBattle;
+uniform float wavesTimeSec;
 
 const float BANK_GRASS_DIST = ${GLSL_GRASS_TO_BANK_DIST};
 const float BANK_WATER_DIST = ${GLSL_BANK_TO_WATER_DIST};
@@ -474,6 +486,59 @@ vec3 selectBankColor(float distance, vec3 grass, vec3 water) {
     return mix(bankColorLinear, water, t);
   }
   return water;
+}
+
+// Three drifting 1-px highlight + 1-px shadow lines per tile, deterministic
+// in (time, row, col, layer). Mirrors the (now-deleted) 2D drawWaterAnimation
+// inner loop. Caller gates per-fragment on the SDF-aware open-water threshold
+// so bank-zone pixels stay clean — that's the per-pixel replacement for the
+// 2D code's per-tile "all 4 neighbors are water" exclusion. Both the bitmap-painted
+// bank gradient (unowned sinkholes / regular water) and the shader-painted
+// owner-bank gradient land OUTSIDE this gate, so the wave overlay never
+// stacks on top of bank colors.
+// Returns the final fragment color (premultiplied-alpha rgba) for the wave
+// overlay. The terrain mesh's vertex-color alpha is 0 on water tiles so the
+// underlying terrain bitmap shows through; we have to OWN the alpha here
+// (modifying only .rgb leaves the fragment transparent and invisible).
+// Non-wave fragments return the original color unchanged.
+vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
+  vec4 result = base;
+  int worldXInt = int(floor(worldPx.x));
+  int worldYInt = int(floor(worldPx.y));
+  int tileX0 = tileRC.y * 16;
+  int tileY0 = tileRC.x * 16;
+  for (int layer = 0; layer < 3; layer++) {
+    // Vertical bob + length/alpha pulse — the original 2D drawWaterAnimation
+    // formula. waveY oscillates over the 13-pixel inner band of the tile.
+    float phase = wavesTimeSec * (0.8 + float(layer) * 0.3)
+                + float(tileRC.x) * (0.5 + float(layer) * 0.2)
+                + float(tileRC.y) * (0.3 + float(layer) * 0.15)
+                + float(layer) * 2.1;
+    float wave = sin(phase) * 0.5 + 0.5;
+    int waveY = tileY0 + 1 + int(floor(wave * 13.0));
+    int waveLen = 3 + int(floor(wave * 4.0));
+    // Horizontal drift — a second sine on a different frequency so each
+    // layer slides across the tile independently of its vertical bob.
+    // Range chosen so the wave segment stays inside the tile interior
+    // (waveX in [tileX0+1, tileX0+1+(12-waveLen)]).
+    float xPhase = wavesTimeSec * (0.6 + float(layer) * 0.25)
+                 + float(tileRC.x) * 0.37
+                 + float(tileRC.y) * 0.41
+                 + float(layer) * 1.7;
+    float xWave = sin(xPhase) * 0.5 + 0.5;
+    int xRange = 12 - waveLen;
+    int waveX = tileX0 + 1 + int(floor(xWave * float(xRange)));
+    // Alpha doubled vs the 2D's 0.06..0.15 — lifts the 1-pixel highlight
+    // above the bitmap's static WAVE_TEX pattern noise floor without
+    // overpowering the underlying water color.
+    float alpha = (0.06 + wave * 0.09) * 2.0;
+    if (worldYInt == waveY && worldXInt >= waveX && worldXInt < waveX + waveLen) {
+      result = mix(result, vec4(waveHighlightLinear, 1.0), alpha);
+    } else if (worldYInt == waveY + 1 && worldXInt >= waveX && worldXInt < waveX + waveLen) {
+      result = mix(result, vec4(waveShadowLinear, 1.0), alpha * 0.5);
+    }
+  }
+  return result;
 }`,
     )
     .replace(
@@ -490,6 +555,7 @@ vec3 selectBankColor(float distance, vec3 grass, vec3 water) {
   int flags = int(tileData.g * 255.0 + 0.5);
   bool isSinkhole = (flags / FLAG_SINKHOLE - (flags / (FLAG_SINKHOLE * 2)) * 2) == 1;
   bool isFrozen = (flags / FLAG_FROZEN - (flags / (FLAG_FROZEN * 2)) * 2) == 1;
+  float d = texture2D(sdfTex, vTerrainUv).r;
   // Gate on the CURRENT tile being an owned sinkhole, NOT on the SDF
   // sign. After the box-blur on the chamfer distance, corner pixels of
   // a 2x2 sinkhole can dip slightly negative; selectBankColor below
@@ -497,11 +563,19 @@ vec3 selectBankColor(float distance, vec3 grass, vec3 water) {
   // matches the 2D renderSinkholeTilePatch behavior — paint the whole
   // water tile, let the bank math decide grass / bank / water per pixel.
   if (ownerId >= 0 && isSinkhole) {
-    float d = texture2D(sdfTex, vTerrainUv).r;
     vec3 grass = ownerGrassLinear(ownerId, tileRC);
     vec3 water = isFrozen ? iceColorLinear : waterColorLinear;
     vec3 color = selectBankColor(d, grass, water);
     diffuseColor = vec4(color, 1.0);
+  } else if (inBattle && !isSinkhole && !isFrozen
+             && d > BANK_WATER_DIST + BANK_TRANSITION) {
+    // Open-water wave overlay — replaces effects/water-waves.ts. The
+    // d > BANK_WATER_DIST + BANK_TRANSITION gate is the SDF-aware
+    // per-pixel equivalent of the 2D code per-tile "all 4 neighbors are
+    // water" check; bank-edge water tiles now get waves on their interior
+    // pixels (closer to a continuous open-water look).
+    vec2 worldPx = vTerrainUv * mapPxSize;
+    diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
   }
 }`,
     );

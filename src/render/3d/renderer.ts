@@ -231,7 +231,6 @@ export function createRender3d(
     for (const eff of ctx.modifierEffects) eff.update(frame);
     ctx.terrainBitmap.update(frame);
     ctx.bonusSquares.update(frame);
-    ctx.waterWaves.update(frame);
     updateCameraFromViewport(ctx.camera, viewport, pitch);
     lastViewport = viewport ?? undefined;
     lastPitch = pitch;
