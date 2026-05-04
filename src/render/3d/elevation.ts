@@ -61,11 +61,10 @@ const CROSSHAIR_MARGIN_Y = 2;
  *  pointing at empty grass, water, or pits. Taller targets push
  *  through this floor naturally. */
 const CROSSHAIR_MIN_Y = TILE_SIZE / 2;
-/** Y-layer stack for ground-plane meshes, from bottom up. The order
- *  fixes composition (raw grass/water in the bitmap → terrain mesh
- *  adds interior tints + the per-pixel owned-sinkhole bank gradient
- *  via its fragment-shader patch → water-wave highlights → bonus
- *  pickups → crosshairs → fog).
+/** Y-layer stack for ground-plane meshes, from bottom up. The terrain
+ *  mesh paints raw grass / water / bank / ice / interior tints / owned-
+ *  sinkhole gradient / open-water wave highlights itself via a
+ *  fragment-shader patch; effects compose above it.
  *
  *  FOG is an exception: it must render ABOVE the tallest standing
  *  geometry so fogged castles actually look fogged — towers peak at
@@ -75,9 +74,7 @@ const CROSSHAIR_MIN_Y = TILE_SIZE / 2;
  *  on purpose — derived-from-geometry is fragile when new entity
  *  variants land with different heights. */
 export const ELEVATION_STACK = {
-  TERRAIN_BITMAP: 0,
   TERRAIN_MESH: 0.01,
-  WATER_WAVES: 0.1,
   BONUS_DISCS: 0.3,
   PIECE_PHANTOM: 0.5,
   IMPACTS: 0.5,

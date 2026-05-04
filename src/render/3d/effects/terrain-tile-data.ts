@@ -34,6 +34,7 @@ export interface TerrainTileDataManager {
 }
 
 interface TileDataFingerprint {
+  mapVersion: number;
   interiorRefs: ReadonlyArray<ReadonlySet<number>>;
   sinkholeTiles: ReadonlySet<number> | undefined;
   frozenTiles: ReadonlySet<number> | undefined;
@@ -63,13 +64,20 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
 
   function update(ctx: FrameCtx): void {
     const overlay = ctx.overlay;
-    if (!overlay) return;
+    const map = ctx.map;
+    if (!overlay || !map) return;
     const inBattle = !!overlay.battle?.inBattle;
     const sinkholeTiles = overlay.entities?.sinkholeTiles;
     const frozenTiles = overlay.entities?.frozenTiles;
 
+    // `mapVersion` covers in-place mutations of frozenTiles / sinkholeTiles
+    // (see ICE_THAWED in battle-system.ts — `frozenTiles.delete()` keeps
+    // the same Set reference but bumps mapVersion). Without this, ref
+    // equality alone would let a thawed-mid-battle tile keep showing as
+    // ice until the next phase replaced the Set wholesale.
     if (
       lastFingerprint &&
+      lastFingerprint.mapVersion === map.mapVersion &&
       lastFingerprint.inBattle === inBattle &&
       lastFingerprint.sinkholeTiles === sinkholeTiles &&
       lastFingerprint.frozenTiles === frozenTiles &&
@@ -95,6 +103,7 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     }
     texture.needsUpdate = true;
     lastFingerprint = {
+      mapVersion: map.mapVersion,
       interiorRefs: snapshotInteriorRefs(overlay, inBattle),
       sinkholeTiles,
       frozenTiles,

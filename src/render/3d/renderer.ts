@@ -67,7 +67,6 @@ export function createRender3d(
 
   const ctx: Render3dContext = createRender3dScene(
     worldCanvas,
-    canvas2d.getTerrainBitmap,
     canvas2d.getBlurredSdf,
     getCannonFacing,
   );
@@ -229,7 +228,6 @@ export function createRender3d(
     ctx.houseBurns.update(frame);
     ctx.crosshairs.update(frame);
     for (const eff of ctx.modifierEffects) eff.update(frame);
-    ctx.terrainBitmap.update(frame);
     ctx.bonusSquares.update(frame);
     updateCameraFromViewport(ctx.camera, viewport, pitch);
     lastViewport = viewport ?? undefined;

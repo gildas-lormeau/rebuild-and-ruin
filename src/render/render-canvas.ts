@@ -22,19 +22,11 @@ import { createRenderMap, type RenderMapDeps } from "./render-map.ts";
 interface CanvasRenderer extends RendererInterface {
   /** Internal offscreen scene canvas — the 2D-drawn pre-blit buffer. */
   sceneCanvas(): HTMLCanvasElement;
-  /** Baked terrain bitmap (grass + water + bank + frozen ice) for `map`.
-   *  The 3D renderer uploads this as a CanvasTexture so water/grass/ice
-   *  visuals stay pixel-identical across backends. */
-  getTerrainBitmap(
-    map: GameMap,
-    inBattle: boolean,
-    frozenTiles?: ReadonlySet<number>,
-  ): ImageData;
   /** Blurred signed-distance field for `map` — positive in water,
    *  negative in grass. The 3D terrain shader uploads this as an R32F
-   *  DataTexture so the per-pixel grass→bank→water gradient inside
-   *  owned-sinkhole tiles can be computed in GLSL instead of consuming
-   *  a CPU-baked second-plane overlay. */
+   *  DataTexture so the per-pixel grass→bank→water gradient (default
+   *  branch + owned-sinkhole branch) can be computed in GLSL instead of
+   *  consuming any CPU-baked terrain bitmap. */
   getBlurredSdf(map: GameMap): Float32Array | undefined;
 }
 
@@ -82,7 +74,6 @@ export function createCanvasRenderer(
     container,
     createLoupe: (c) => createLoupe(c, renderMap.sceneCanvas),
     sceneCanvas: renderMap.sceneCanvas,
-    getTerrainBitmap: renderMap.getTerrainBitmap,
     getBlurredSdf: renderMap.getBlurredSdf,
   };
 }

@@ -50,11 +50,7 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import { MODIFIER_EFFECT_FACTORIES } from "./effects/modifier-effect-registry.ts";
-import {
-  createTerrainBitmapManager,
-  type GetTerrainBitmap,
-  type TerrainBitmapManager,
-} from "./effects/terrain-bitmap.ts";
+import { createGrassPatternTexture } from "./effects/terrain-pattern-textures.ts";
 import {
   createTerrainSdfTextureManager,
   type GetBlurredSdf,
@@ -189,16 +185,11 @@ export interface Render3dContext {
    *  activation gating from `FrameCtx.overlay`. Adding a new modifier
    *  effect (any lifecycle) touches only the registry, not this file. */
   readonly modifierEffects: readonly EffectManager[];
-  /** Terrain bitmap overlay — uploads the 2D renderer's baked terrain
-   *  ImageData (grass + water + SDF bank) as a CanvasTexture so water /
-   *  grass / shoreline visuals stay pixel-identical across backends.
-   *  Sits at ground plane Y=0; the terrain mesh at Y=0.01 composites
-   *  overlay tiles (interiors, bonus, frozen, owned sinkholes) on top. */
-  readonly terrainBitmap: TerrainBitmapManager;
   /** SDF DataTexture (R32F, MAP_PX × MAP_PX) the terrain mesh's shader
-   *  samples for the per-pixel grass→bank→water gradient inside owned-
-   *  sinkhole tiles. Rebuilt on `mapVersion` change (freeze/thaw, sinkhole
-   *  modifier mutation); sourced from the 2D renderer's cached blurred SDF. */
+   *  samples for the per-pixel grass→bank→water gradient (default branch
+   *  + owned-sinkhole branch). Rebuilt on `mapVersion` change (freeze/thaw,
+   *  sinkhole modifier mutation); sourced from the 2D renderer's cached
+   *  blurred SDF. */
   readonly terrainSdfTexture: TerrainSdfTextureManager;
   /** Per-tile owner + flag DataTexture (RGBA8, GRID × GRID) the terrain
    *  shader looks up to gate the bank-gradient override. Refreshed only
@@ -233,7 +224,6 @@ export interface Render3dContext {
 /** Build the scene graph used by `createRender3d`. */
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
-  getTerrainBitmap: GetTerrainBitmap,
   getBlurredSdf: GetBlurredSdf,
   getCannonFacing: GetCannonFacing,
 ): Render3dContext {
@@ -247,9 +237,11 @@ export function createRender3dScene(
 
   const terrainSdfTexture = createTerrainSdfTextureManager(getBlurredSdf);
   const terrainTileData = createTerrainTileDataManager();
+  const grassPatternTexture = createGrassPatternTexture();
   const terrain = createTerrain({
     sdfTexture: terrainSdfTexture.texture,
     tileDataTexture: terrainTileData.texture,
+    grassPatternTexture,
   });
   scene.add(terrain.mesh);
 
@@ -272,7 +264,6 @@ export function createRender3dScene(
   const crosshairs = createCrosshairsManager(scene);
   const modifierEffects: readonly EffectManager[] =
     MODIFIER_EFFECT_FACTORIES.map((factory) => factory(scene));
-  const terrainBitmap = createTerrainBitmapManager(scene, getTerrainBitmap);
   const bonusSquares = createBonusSquaresManager(scene);
 
   const renderer = new THREE.WebGLRenderer({
@@ -366,7 +357,6 @@ export function createRender3dScene(
     houseBurns,
     crosshairs,
     modifierEffects,
-    terrainBitmap,
     terrainSdfTexture,
     terrainTileData,
     bonusSquares,

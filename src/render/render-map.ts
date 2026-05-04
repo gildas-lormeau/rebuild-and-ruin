@@ -14,21 +14,17 @@ import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
-  GRID_COLS,
-  GRID_ROWS,
   MAP_PX_H,
   MAP_PX_W,
   OFFSCREEN_SCALE,
   SCALE,
-  TILE_SIZE,
   TOP_MARGIN_CANVAS_PX,
 } from "../shared/core/grid.ts";
-import { isWater, pxToTile } from "../shared/core/spatial.ts";
+import { isGrass, isWater, pxToTile } from "../shared/core/spatial.ts";
 import type {
   RenderObserver,
   RenderOverlay,
 } from "../shared/ui/overlay-types.ts";
-import type { RGB } from "../shared/ui/theme.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -48,8 +44,6 @@ interface TerrainImageCache {
   width: number;
   height: number;
   mapVersion: number;
-  normal?: ImageData;
-  battle?: ImageData;
   /** Packed `(row << 8) | col` tile coords of the nearest water-tile pixel for
    *  every pixel — populated lazily on first `getNearestWaterTilePerPixel`
    *  call. `NEAREST_WATER_NONE` sentinel marks cells that didn't receive any
@@ -57,8 +51,8 @@ interface TerrainImageCache {
   nearestWaterTile?: Uint16Array;
   /** Blurred signed distance field (positive in water, negative in grass,
    *  smoothed by the box-blur passes). Uploaded by the 3D terrain shader as
-   *  an R32F DataTexture so the per-pixel bank gradient inside owned-sinkhole
-   *  tiles can be computed in GLSL. Shape: `width * height`. */
+   *  an R32F DataTexture so the per-pixel grass→bank→water gradient can be
+   *  computed in GLSL. Shape: `width * height`. */
   blurredSdf?: Float32Array;
 }
 
@@ -108,39 +102,23 @@ interface RenderMap {
     viewport?: Viewport | null,
     now?: number,
   ) => void;
-  /** Pre-compute terrain bitmaps for `map` so the first frame doesn't stall.
-   *  Per-renderer-instance: each `createRenderMap` owns its own cache, so
-   *  warming a map for one renderer doesn't affect another.
-   *  `frozenTiles` participates in the bake — when the frozen-river modifier
-   *  fires, `state.map.mapVersion` bumps and the cache re-bakes with ice. */
-  precomputeTerrainCache: (
-    map: GameMap,
-    frozenTiles?: ReadonlySet<number>,
-  ) => void;
-  /** Return the baked terrain bitmap (grass + water + bank + checkerboard
-   *  noise + frozen ice) for `map` in either peacetime or battle palette.
-   *  Populates the cache on first call via `precomputeTerrainCache`. The 3D
-   *  renderer uploads this as a CanvasTexture so water/grass/bank/ice
-   *  visuals stay pixel-identical across 2D and 3D. */
-  getTerrainBitmap: (
-    map: GameMap,
-    inBattle: boolean,
-    frozenTiles?: ReadonlySet<number>,
-  ) => ImageData;
+  /** Pre-compute the SDF + nearest-water tracking for `map` so the first
+   *  frame doesn't stall. Per-renderer-instance: each `createRenderMap`
+   *  owns its own cache, so warming a map for one renderer doesn't affect
+   *  another. `mapVersion` bumps (e.g. freeze/thaw, sinkhole modifier
+   *  mutation) invalidate the cache. */
+  precomputeTerrainCache: (map: GameMap) => void;
   /** Per-pixel packed `(row << 8) | col` tile coords of the nearest water-tile
-   *  pixel, derived from the SDF source-tracking. Available for future
-   *  shader effects that need to spread an effect from water tiles into
-   *  surrounding grass (the current owned-sinkhole bank gradient is fully
-   *  contained within the water tile, so it doesn't consume this).
-   *  `mapVersion`-keyed; populated lazily on first call. Each cell holds
-   *  `NEAREST_WATER_NONE` when no water tile is reachable from that pixel
-   *  (water-free map). */
+   *  pixel, derived from the SDF source-tracking. Available for shader
+   *  effects that need to spread an effect from water tiles into
+   *  surrounding grass. `mapVersion`-keyed; populated lazily on first call.
+   *  Each cell holds `NEAREST_WATER_NONE` when no water tile is reachable
+   *  from that pixel (water-free map). */
   getNearestWaterTilePerPixel: (map: GameMap) => Uint16Array | undefined;
   /** Blurred signed-distance field for `map` — positive in water, negative in
    *  grass, magnitude = pixel distance from the water/grass boundary. Used by
    *  the 3D terrain shader to compute the grass→bank→water gradient
-   *  per-fragment instead of baking it into the bitmap and a second-plane
-   *  sinkhole overlay. `mapVersion`-keyed; populated lazily on first call. */
+   *  per-fragment. `mapVersion`-keyed; populated lazily on first call. */
   getBlurredSdf: (map: GameMap) => Float32Array | undefined;
   sceneCanvas: () => HTMLCanvasElement;
   /** Capture the current display's game area into a banner-owned bridge
@@ -162,82 +140,10 @@ interface RenderMap {
   ) => HTMLCanvasElement | undefined;
 }
 
-// Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
-// GRASS_TO_BANK_DIST: start bank texture blend at this distance from water edge
-// BANK_TO_WATER_DIST: complete transition to water texture at this distance
-// TRANSITION_WIDTH: smoothstep blend width (larger = softer edge)
-// Tuned so a 4-tile sinkhole cluster (raw peak distance ~8-9 px, down to
-// ~5-6 px after the radius-2 blur) still reaches the water zone at its
-// deepest point instead of rendering entirely as bank.
-const GRASS_TO_BANK_DIST = 2;
-const BANK_TO_WATER_DIST = 4;
-const TRANSITION_WIDTH = 1.5;
-// Tile fill colors — RGB tuples fed into ImageData pixel arrays.
-const GRASS_DARK: RGB = [45, 140, 45];
-// checkerboard dark square
-const GRASS_LIGHT: RGB = [51, 153, 51];
-// checkerboard light square
-const GRASS_BATTLE: RGB = [
-  // darkened 85% of light grass during battle phase
-  Math.floor(51 * 0.85),
-  Math.floor(153 * 0.85),
-  Math.floor(51 * 0.85),
-];
-const WATER_COLOR: RGB = [40, 104, 176];
-// river fill
-const ICE_COLOR: RGB = [165, 210, 230];
-// frozen river fill (replaces WATER_COLOR for frozen tiles)
-const BANK_COLOR: RGB = [139, 58, 26];
-// river bank / shoreline
-// Grass blade texture pattern (local pixel offsets within a 16x16 tile)
-const BLADE_DARK: [number, number][] = [
-  [2, 1],
-  [7, 3],
-  [12, 0],
-  [4, 6],
-  [10, 7],
-  [1, 10],
-  [8, 11],
-  [14, 9],
-  [5, 13],
-  [11, 14],
-  [2, 2],
-  [7, 4],
-  [12, 1],
-  [4, 7],
-  [10, 8],
-  [1, 11],
-  [8, 12],
-  [14, 10],
-  [5, 14],
-  [11, 15],
-];
-const BLADE_LIGHT: [number, number][] = [
-  [3, 4],
-  [9, 2],
-  [13, 6],
-  [6, 9],
-  [0, 13],
-  [11, 12],
-];
-// Water wave texture offsets
-const WAVE_HI: { x: number; y: number; w: number }[] = [
-  { x: 1, y: 3, w: 5 },
-  { x: 9, y: 7, w: 4 },
-  { x: 3, y: 11, w: 6 },
-  { x: 11, y: 14, w: 3 },
-];
-const WAVE_LO: { x: number; y: number; w: number }[] = [
-  { x: 1, y: 4, w: 5 },
-  { x: 9, y: 8, w: 4 },
-  { x: 3, y: 12, w: 6 },
-  { x: 11, y: 15, w: 3 },
-];
-// Precomputed per-pixel texture offsets (built once, reused every frame)
-const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
-const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
-// Transition width in pixels for ice→water blend at frozen tile boundaries.
-const ICE_BLEND_WIDTH = 4;
+// Chamfer distance costs: ORTHO = 1 pixel step, DIAG ≈ √2 for diagonal steps.
+// This approximates Euclidean distance using a sequential scan.
+const CHAMFER_ORTHO = 1.0;
+const CHAMFER_DIAG = 1.414;
 /** Sentinel value for `getNearestWaterTilePerPixel` cells that didn't receive
  *  any water-tile propagation (only happens on water-free maps, but exported
  *  so shader/test consumers can compare without magic-numbering 0xFFFF). */
@@ -292,20 +198,9 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
    *  the game area only, not the reserved strip. */
   const topStripH = deps.reserveTopStrip ? TOP_MARGIN_CANVAS_PX : 0;
 
-  // Per-instance terrain cache. Was previously a module-level WeakMap, which
-  // meant `precomputeTerrainCache` (the module export) and every `RenderMap`
-  // instance shared the same cache state. The doc-comment on this factory
-  // promised "each call owns its own scene/banner/cache state, so multiple
-  // test scenarios in the same file remain isolated" — but the terrain cache
-  // didn't honor that promise. Now it does: the WeakMap lives in this
-  // closure, `getTerrainCache` reads/writes it, and the new
-  // `precomputeTerrainCache` method on the returned `RenderMap` shape
-  // replaces the module export so production callers also share state per
-  // renderer instance.
-  //
-  // The WeakMap key is still `GameMap`, so a fresh map gets a fresh entry —
-  // production never re-uses a map across renderer instances (each game
-  // generates its own), so the same-renderer hot path stays cache-warm.
+  // Per-instance terrain SDF cache. The WeakMap is keyed by GameMap so
+  // each game gets a fresh entry, and lives in this closure so multiple
+  // test scenarios in the same file remain isolated.
   const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
 
   function getTerrainCache(
@@ -331,15 +226,10 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return next;
   }
 
-  /** Pre-compute both terrain variants (normal + battle) so the first
-   *  render of each doesn't stall the frame. Call during game init.
-   *  `frozenTiles` is baked into the bitmap when present — `mapVersion`
-   *  bumps on freeze/thaw invalidate the cache. */
   /** Compute + cache the blurred SDF and the nearest-water-tile array.
-   *  Independent of `frozenTiles` (the SDF shape depends only on the map's
-   *  tile geometry), so this can safely run before the 3D-side accessors
-   *  (`getBlurredSdf`, `getNearestWaterTilePerPixel`) without prejudicing
-   *  the bitmap-bake side, which still needs the latest `frozenTiles`. */
+   *  The SDF shape depends only on the map's tile geometry, so it's keyed
+   *  purely by `mapVersion` — freeze/thaw bumps mapVersion and invalidates
+   *  the cache. */
   function ensureTerrainSdfCache(map: GameMap): void {
     const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
     if (cache.blurredSdf && cache.nearestWaterTile) return;
@@ -350,28 +240,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     blurSignedDistanceField(sdf, W, H);
     cache.nearestWaterTile = nearestWater;
     cache.blurredSdf = sdf;
-  }
-
-  function precomputeTerrainCache(
-    map: GameMap,
-    frozenTiles?: ReadonlySet<number>,
-  ): void {
-    ensureTerrainSdfCache(map);
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    if (cache.normal && cache.battle) return;
-    const sdf = cache.blurredSdf!;
-    const W = MAP_PX_W;
-    const H = MAP_PX_H;
-    if (!cache.normal) {
-      const imgData = new ImageData(W, H);
-      renderTerrainPixels(imgData, sdf, W, H, map, false, frozenTiles);
-      cache.normal = imgData;
-    }
-    if (!cache.battle) {
-      const imgData = new ImageData(W, H);
-      renderTerrainPixels(imgData, sdf, W, H, map, true, frozenTiles);
-      cache.battle = imgData;
-    }
   }
 
   function getNearestWaterTilePerPixel(map: GameMap): Uint16Array | undefined {
@@ -717,40 +585,15 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     return bridge;
   }
 
-  function getTerrainBitmap(
-    map: GameMap,
-    inBattle: boolean,
-    frozenTiles?: ReadonlySet<number>,
-  ): ImageData {
-    precomputeTerrainCache(map, frozenTiles);
-    const cache = getTerrainCache(map, MAP_PX_W, MAP_PX_H);
-    return inBattle ? cache.battle! : cache.normal!;
-  }
-
   return {
     drawMap,
-    precomputeTerrainCache,
-    getTerrainBitmap,
+    precomputeTerrainCache: ensureTerrainSdfCache,
     getNearestWaterTilePerPixel,
     getBlurredSdf,
     sceneCanvas,
     captureScene,
     captureSceneOffscreen,
   };
-}
-
-// Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
-// Values are signed: negative = darker, positive = lighter (added to base RGB).
-for (const [lx, ly] of BLADE_DARK) GRASS_TEX[ly * TILE_SIZE + lx] = -12;
-
-for (const [lx, ly] of BLADE_LIGHT) GRASS_TEX[ly * TILE_SIZE + lx] = 10;
-
-for (const w of WAVE_HI) {
-  for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = 15;
-}
-
-for (const w of WAVE_LO) {
-  for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = -10;
 }
 
 /** Forward + backward SDF passes for water/grass boundary distances.
@@ -767,10 +610,10 @@ function computeSignedDistanceField(
   map: GameMap,
   nearestWaterOut?: Uint16Array,
 ): Float32Array {
-  const distFromWater = initDistanceField(W, H, map, 1);
+  const distFromWater = initDistanceField(W, H, map, isWater);
   propagateDistances(distFromWater, W, H);
 
-  const distFromGrass = initDistanceField(W, H, map, 0);
+  const distFromGrass = initDistanceField(W, H, map, isGrass);
   if (nearestWaterOut) {
     initSourceField(nearestWaterOut, W, H, map);
   }
@@ -779,18 +622,28 @@ function computeSignedDistanceField(
   return combineSDF(distFromWater, distFromGrass, W * H);
 }
 
-/** Initialize a distance field: INF where tile matches `seedTile`, 0 elsewhere. */
+/** Initialize a distance field: INF where the seed predicate matches the
+ *  tile under each pixel, 0 elsewhere. */
 function initDistanceField(
   W: number,
   H: number,
   map: GameMap,
-  seedTile: number,
+  seedTilePredicate: (
+    tiles: GameMap["tiles"],
+    row: number,
+    col: number,
+  ) => boolean,
 ): Float32Array {
   const dist = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      dist[py * W + px] =
-        tileAt(map, pxToTile(py), pxToTile(px)) === seedTile ? 1e9 : 0;
+      dist[py * W + px] = seedTilePredicate(
+        map.tiles,
+        pxToTile(py),
+        pxToTile(px),
+      )
+        ? 1e9
+        : 0;
     }
   }
   return dist;
@@ -829,92 +682,81 @@ function propagateDistances(
   H: number,
   source?: Uint16Array,
 ): void {
-  // Chamfer distance costs: ORTHO = 1 pixel step, DIAG ≈ √2 for diagonal steps.
-  // This approximates Euclidean distance using a two-pass sequential scan.
-  const ORTHO = 1.0;
-  const DIAG = 1.414;
-  // Forward pass
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
+  // Forward pass: top + left + both diagonals from the previous row are
+  // already-visited. Backward pass: bottom + right + both diagonals from
+  // the next row. (rowOffset, colOffset) flips between (-1, -1) and (+1, +1).
+  pixelPass(dist, W, H, source, 0, H, 1, 0, W, 1, -1, -1);
+  pixelPass(dist, W, H, source, H - 1, -1, -1, W - 1, -1, -1, 1, 1);
+}
+
+/** Single forward-or-backward chamfer pass over `dist`. Hoisted to module
+ *  scope so the inner relax doesn't allocate any closures per pixel. The
+ *  four already-visited neighbors are the previous-row's same-column
+ *  cardinal and both diagonals (left + right) plus the same-row's
+ *  previous-column cardinal — a fixed pattern derived from
+ *  `(rowOffset, colOffset)`. */
+function pixelPass(
+  dist: Float32Array,
+  W: number,
+  H: number,
+  source: Uint16Array | undefined,
+  pyStart: number,
+  pyEnd: number,
+  pyStep: number,
+  pxStart: number,
+  pxEnd: number,
+  pxStep: number,
+  rowOffset: number,
+  colOffset: number,
+): void {
+  for (let py = pyStart; py !== pyEnd; py += pyStep) {
+    for (let px = pxStart; px !== pxEnd; px += pxStep) {
       const i = py * W + px;
       if (dist[i] === 0) continue;
       let distance = dist[i]!;
       let bestSource = source !== undefined ? source[i]! : 0;
-      if (py > 0) {
-        const neighborIdx = (py - 1) * W + px;
-        const cand = dist[neighborIdx]! + ORTHO;
+      const prevRow = py + rowOffset;
+      const prevCol = px + colOffset;
+      const oppCol = px - colOffset;
+      const prevRowInBounds = prevRow >= 0 && prevRow < H;
+      const prevColInBounds = prevCol >= 0 && prevCol < W;
+      const oppColInBounds = oppCol >= 0 && oppCol < W;
+
+      // Relax against the four already-visited neighbors. Inlined (rather
+      // than extracted into a closure) so the inner loop allocates nothing.
+      if (prevRowInBounds) {
+        const neighborIdx = prevRow * W + px;
+        const cand = dist[neighborIdx]! + CHAMFER_ORTHO;
         if (cand < distance) {
           distance = cand;
           if (source !== undefined) bestSource = source[neighborIdx]!;
         }
       }
-      if (px > 0) {
-        const neighborIdx = py * W + (px - 1);
-        const cand = dist[neighborIdx]! + ORTHO;
+      if (prevColInBounds) {
+        const neighborIdx = py * W + prevCol;
+        const cand = dist[neighborIdx]! + CHAMFER_ORTHO;
         if (cand < distance) {
           distance = cand;
           if (source !== undefined) bestSource = source[neighborIdx]!;
         }
       }
-      if (py > 0 && px > 0) {
-        const neighborIdx = (py - 1) * W + (px - 1);
-        const cand = dist[neighborIdx]! + DIAG;
+      if (prevRowInBounds && prevColInBounds) {
+        const neighborIdx = prevRow * W + prevCol;
+        const cand = dist[neighborIdx]! + CHAMFER_DIAG;
         if (cand < distance) {
           distance = cand;
           if (source !== undefined) bestSource = source[neighborIdx]!;
         }
       }
-      if (py > 0 && px < W - 1) {
-        const neighborIdx = (py - 1) * W + (px + 1);
-        const cand = dist[neighborIdx]! + DIAG;
+      if (prevRowInBounds && oppColInBounds) {
+        const neighborIdx = prevRow * W + oppCol;
+        const cand = dist[neighborIdx]! + CHAMFER_DIAG;
         if (cand < distance) {
           distance = cand;
           if (source !== undefined) bestSource = source[neighborIdx]!;
         }
       }
-      dist[i] = distance;
-      if (source !== undefined) source[i] = bestSource;
-    }
-  }
-  // Backward pass
-  for (let py = H - 1; py >= 0; py--) {
-    for (let px = W - 1; px >= 0; px--) {
-      const i = py * W + px;
-      if (dist[i] === 0) continue;
-      let distance = dist[i]!;
-      let bestSource = source !== undefined ? source[i]! : 0;
-      if (py < H - 1) {
-        const neighborIdx = (py + 1) * W + px;
-        const cand = dist[neighborIdx]! + ORTHO;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
-      }
-      if (px < W - 1) {
-        const neighborIdx = py * W + (px + 1);
-        const cand = dist[neighborIdx]! + ORTHO;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
-      }
-      if (py < H - 1 && px < W - 1) {
-        const neighborIdx = (py + 1) * W + (px + 1);
-        const cand = dist[neighborIdx]! + DIAG;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
-      }
-      if (py < H - 1 && px > 0) {
-        const neighborIdx = (py + 1) * W + (px - 1);
-        const cand = dist[neighborIdx]! + DIAG;
-        if (cand < distance) {
-          distance = cand;
-          if (source !== undefined) bestSource = source[neighborIdx]!;
-        }
-      }
+
       dist[i] = distance;
       if (source !== undefined) source[i] = bestSource;
     }
@@ -980,177 +822,4 @@ function blurSignedDistanceField(
     boxBlurH(sdf, tmp);
     boxBlurV(tmp, sdf);
   }
-}
-
-/**
- * Paint grass/bank/water pixels into an ImageData buffer using the SDF.
- *
- * For each pixel: resolve tile coordinates, apply per-tile texture offsets to
- * the grass/water base colors, then blend between grass → bank → water based
- * on the signed-distance value at that pixel.
- */
-function renderTerrainPixels(
-  imgData: ImageData,
-  sdf: Float32Array,
-  W: number,
-  H: number,
-  map: GameMap,
-  inBattle: boolean,
-  frozenTiles?: ReadonlySet<number>,
-): void {
-  const data = imgData.data;
-
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      const distance = sdf[py * W + px]!;
-
-      // Map pixel back to tile grid and local offset within that tile
-      const tr = pxToTile(py);
-      const tc = pxToTile(px);
-      const lx = px - tc * TILE_SIZE;
-      const ly = py - tr * TILE_SIZE;
-
-      // Apply per-tile texture detail to base colors
-      const grass = texturedColor(
-        GRASS_TEX,
-        grassBaseColor(tr, tc, inBattle),
-        inBattle,
-        lx,
-        ly,
-      );
-      // Use ice color for frozen water tiles — bank transitions adapt automatically.
-      // At ice/water tile boundaries, blend ICE_COLOR → WATER_COLOR over a few
-      // pixels so thawed tiles don't produce hard squared edges.
-      const tileKey = tr * GRID_COLS + tc;
-      const tileIsFrozen = frozenTiles?.has(tileKey);
-      let waterBase: RGB = WATER_COLOR;
-      if (tileIsFrozen) {
-        const iceBlend = iceEdgeBlend(frozenTiles!, tr, tc, lx, ly);
-        waterBase =
-          iceBlend < 1 ? lerp3(WATER_COLOR, ICE_COLOR, iceBlend) : ICE_COLOR;
-      }
-      // Frozen tiles render as smooth ice — skip the wave texture that
-      // brightens/darkens battle-mode water along WAVE_HI / WAVE_LO.
-      const water = tileIsFrozen
-        ? waterBase
-        : texturedColor(WATER_TEX, waterBase, inBattle, lx, ly);
-
-      // Blend grass → bank → water based on SDF distance
-      const color = selectTerrainColor(
-        tileAt(map, tr, tc) === 1,
-        distance,
-        grass,
-        water,
-      );
-
-      const idx = (py * W + px) * 4;
-      data[idx] = color[0];
-      data[idx + 1] = color[1];
-      data[idx + 2] = color[2];
-      data[idx + 3] = 255;
-    }
-  }
-}
-
-function grassBaseColor(tr: number, tc: number, inBattle: boolean): RGB {
-  return inBattle
-    ? GRASS_BATTLE
-    : (tr + tc) % 2 === 0
-      ? GRASS_DARK
-      : GRASS_LIGHT;
-}
-
-/** Apply a per-pixel texture offset to a base color, only in battle mode. */
-function texturedColor(
-  tex: ArrayLike<number>,
-  base: RGB,
-  inBattle: boolean,
-  lx: number,
-  ly: number,
-): RGB {
-  const offset = inBattle ? tex[ly * TILE_SIZE + lx]! : 0;
-  if (offset === 0) return base;
-  return [
-    Math.max(0, Math.min(255, base[0] + offset)),
-    Math.max(0, Math.min(255, base[1] + offset)),
-    Math.max(0, Math.min(255, base[2] + offset)),
-  ];
-}
-
-/** Pick terrain color based on SDF distance from water/grass boundary. */
-function selectTerrainColor(
-  isWater: boolean,
-  distance: number,
-  grass: RGB,
-  water: RGB,
-): RGB {
-  if (!isWater) return grass;
-  if (distance < GRASS_TO_BANK_DIST) return grass;
-  if (distance < GRASS_TO_BANK_DIST + TRANSITION_WIDTH)
-    return lerp3(
-      grass,
-      BANK_COLOR,
-      smoothClamp((distance - GRASS_TO_BANK_DIST) / TRANSITION_WIDTH),
-    );
-  if (distance < BANK_TO_WATER_DIST) return BANK_COLOR;
-  if (distance < BANK_TO_WATER_DIST + TRANSITION_WIDTH)
-    return lerp3(
-      BANK_COLOR,
-      water,
-      smoothClamp((distance - BANK_TO_WATER_DIST) / TRANSITION_WIDTH),
-    );
-  return water;
-}
-
-function tileAt(map: GameMap, r: number, c: number): number {
-  if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
-  return map.tiles[r]![c]!;
-}
-
-function lerp3(a: RGB, b: RGB, interpolationFactor: number): RGB {
-  return [
-    a[0] + (b[0] - a[0]) * interpolationFactor,
-    a[1] + (b[1] - a[1]) * interpolationFactor,
-    a[2] + (b[2] - a[2]) * interpolationFactor,
-  ];
-}
-
-/** For a pixel inside a frozen tile, return 0–1 indicating how "icy" it is.
- *  1 = fully ice (interior), 0 = fully water (right at a non-frozen neighbor edge).
- *  Checks cardinal neighbors — if any is water but not frozen, the pixel
- *  fades toward water over ICE_BLEND_WIDTH pixels from that edge. */
-function iceEdgeBlend(
-  frozenTiles: ReadonlySet<number>,
-  tr: number,
-  tc: number,
-  lx: number,
-  ly: number,
-): number {
-  const top = !frozenTiles.has((tr - 1) * GRID_COLS + tc);
-  const bot = !frozenTiles.has((tr + 1) * GRID_COLS + tc);
-  const lft = !frozenTiles.has(tr * GRID_COLS + tc - 1);
-  const rgt = !frozenTiles.has(tr * GRID_COLS + tc + 1);
-  const ey = TILE_SIZE - 1 - ly; // distance to bottom edge
-  const ex = TILE_SIZE - 1 - lx; // distance to right edge
-
-  // Cardinal edge distances
-  let minDist = ICE_BLEND_WIDTH;
-  if (top) minDist = Math.min(minDist, ly);
-  if (bot) minDist = Math.min(minDist, ey);
-  if (lft) minDist = Math.min(minDist, lx);
-  if (rgt) minDist = Math.min(minDist, ex);
-
-  // Diagonal corner distances — use Euclidean distance to the corner point
-  // so the blend rounds off instead of forming a small square.
-  if (top && lft) minDist = Math.min(minDist, Math.sqrt(lx * lx + ly * ly));
-  if (top && rgt) minDist = Math.min(minDist, Math.sqrt(ex * ex + ly * ly));
-  if (bot && lft) minDist = Math.min(minDist, Math.sqrt(lx * lx + ey * ey));
-  if (bot && rgt) minDist = Math.min(minDist, Math.sqrt(ex * ex + ey * ey));
-
-  return smoothClamp(minDist / ICE_BLEND_WIDTH);
-}
-
-function smoothClamp(interpolationFactor: number): number {
-  const c = Math.max(0, Math.min(1, interpolationFactor));
-  return c * c * (3 - 2 * c);
 }
