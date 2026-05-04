@@ -99,6 +99,10 @@ import { exposeDevConsole } from "./dev-console.ts";
 import { createAudioOrchestrator } from "./runtime-audio.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
+import {
+  createCachedContainerHeight,
+  createVisibilityListener,
+} from "./runtime-browser-dom.ts";
 import { createBrowserTimingApi } from "./runtime-browser-timing.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createCannonAnimator } from "./runtime-cannon-animator.ts";
@@ -251,21 +255,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
   // keeps looping on Web Audio — not acceptable for a single ~30s title track
-  // playing for hours on a stale tab. The visibility-pause rule lives in
-  // `setVisibilityHidden` (preserves user-initiated pauses); audio mute lives
-  // in `audio.applyMute`. Initial call also covers the dev hot-reload case of
-  // starting in a hidden tab.
-  function syncVisibility(): void {
-    setVisibilityHidden(
-      runtimeState,
-      typeof document !== "undefined" && document.hidden,
-    );
-    audio.applyMute();
-  }
-  syncVisibility();
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", syncVisibility);
-  }
+  // playing for hours on a stale tab. Visibility-pause (`pausedBy` invariant)
+  // and audio mute are independent reactions to the same input.
+  createVisibilityListener({
+    onChange: (hidden) => {
+      setVisibilityHidden(runtimeState, hidden);
+      audio.applyMute();
+    },
+  });
 
   // Touch handles created early — render, options, and lifecycle read them
   // via closure. Populated once by createInputSystem(), then frozen (see below).
@@ -982,15 +979,4 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     beginBattleTilt: camera.beginBattleTilt,
     engageAutoZoom: camera.engageAutoZoom,
   };
-}
-
-function createCachedContainerHeight(container: HTMLElement): () => number {
-  let cached = container.clientHeight;
-  if (typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(() => {
-      cached = container.clientHeight;
-    });
-    observer.observe(container);
-  }
-  return () => cached;
 }
