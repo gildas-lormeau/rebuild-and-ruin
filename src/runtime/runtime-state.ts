@@ -85,10 +85,6 @@ export interface DialogRuntimeState {
 }
 
 export interface SelectionRuntimeState {
-  /** Players awaiting reselection UI (queued by life-lost resolution).
-   *  Drained one-by-one as each player's selection dialog completes.
-   *  Set in runtime-life-lost, consumed in runtime-selection. */
-  reselectQueue: ValidPlayerSlot[];
   states: Map<number, SelectionState>;
   castleBuilds: CastleBuildState[];
 }
@@ -325,7 +321,6 @@ export function createRuntimeState(): RuntimeState {
     controllers: [],
 
     selection: {
-      reselectQueue: [],
       states: new Map(),
       castleBuilds: [],
     },

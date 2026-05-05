@@ -56,9 +56,11 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
   this is the authoritative answer alongside `src/shared/core/types.ts`.
 - **`phase-entry.ts`** — One `enter*Phase` helper per phase
   (`enterCannonPhase`, `enterBattlePhase`, `enterWallBuildPhase`,
-  `enterReselectPhase`, etc.). Each is the single way to flip
+  `enterSelectionPhase`, etc.). Each is the single way to flip
   `state.phase` to its target value. Also owns `prepareBattle`
   (modifier roll + balloon resolution in RNG-load-bearing order).
+  `enterSelectionPhase` covers both the initial cycle (round 1, all
+  players) and the reselect cycle (round > 1, optional `pids` arg).
 - **`phase-setup.ts`** — Multi-step transition recipes:
   `prepareBattleState`, `prepareNextRound`, `finalizeRound`,
   `finalizeBattle`, `finalizeRoundCleanup`, `finalizeCastleConstruction`,

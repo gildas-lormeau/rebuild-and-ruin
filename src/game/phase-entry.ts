@@ -121,11 +121,15 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
   return { playerInit };
 }
 
-/** Enter CASTLE_SELECT for the initial-selection cycle (round 1):
- *  flip the phase flag, clear any stale per-player selection tracking,
- *  initialize each active player's selection entry, and start the
- *  selection timer. The reselect-cycle counterpart (round > 1, only the
- *  queued players participate) is `enterReselectPhase`.
+/** Enter CASTLE_SELECT: flip the phase flag, clear any stale per-player
+ *  selection tracking, initialize a selection entry for each participating
+ *  player, and start the selection timer.
+ *
+ *  `pids` selects the cycle type:
+ *  - omitted → initial cycle (round 1): every slot in `state.players`.
+ *  - provided → reselect cycle (round > 1): only the queued players who
+ *    lost a life. The cycle type is derived from `state.round` by
+ *    consumers — the phase tag is the same in both cases.
  *
  *  Note: `selectionStates` is a runtime-owned Map (not part of GameState)
  *  because it's transient UI-tracking state that only exists during the
@@ -133,33 +137,12 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
 export function enterSelectionPhase(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
+  pids?: readonly ValidPlayerSlot[],
 ): void {
   setPhase(state, Phase.CASTLE_SELECT);
   selectionStates.clear();
-  for (let i = 0; i < state.players.length; i++) {
-    const pid = i as ValidPlayerSlot;
-    const zone = state.playerZones[i] ?? 0;
-    initTowerSelection(state, selectionStates, pid, zone);
-  }
-  initSelectionTimer(state);
-}
-
-/** Enter CASTLE_SELECT for the reselect cycle (round > 1, players who
- *  lost a life). Flips the phase flag, clears any stale per-player
- *  selection tracking, initializes a fresh selection entry for each
- *  player in the reselect queue, and starts the selection timer.
- *
- *  The cycle type (initial vs reselect) is derived from `state.round`
- *  by consumers — the phase tag is the same as `enterSelectionPhase`. */
-export function enterReselectPhase(
-  state: GameState,
-  selectionStates: Map<number, SelectionState>,
-  reselectQueue: readonly ValidPlayerSlot[],
-): void {
-  setPhase(state, Phase.CASTLE_SELECT);
-  state.timer = 0;
-  selectionStates.clear();
-  for (const pid of reselectQueue) {
+  const slots = pids ?? state.players.map((_, i) => i as ValidPlayerSlot);
+  for (const pid of slots) {
     const zone = state.playerZones[pid] ?? 0;
     initTowerSelection(state, selectionStates, pid, zone);
   }

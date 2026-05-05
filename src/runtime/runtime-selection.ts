@@ -1,7 +1,6 @@
 import {
   allSelectionsConfirmed,
   confirmTowerSelection,
-  enterReselectPhase,
   enterSelectionPhase,
   finishSelectionPhase,
   highlightTowerSelection,
@@ -129,8 +128,7 @@ export function createSelectionSystem(
       else queue.push(i as ValidPlayerSlot);
     }
     if (anyHasHome && queue.length > 0) {
-      runtimeState.selection.reselectQueue = queue;
-      startReselection();
+      startReselection(queue);
       return;
     }
 
@@ -399,9 +397,6 @@ export function createSelectionSystem(
     )
       return;
     resetOverlaySelection();
-    // No-op in the initial cycle (queue is always empty in round 1);
-    // load-bearing in the reselect cycle (round > 1).
-    runtimeState.selection.reselectQueue.length = 0;
     // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
     // finalizeFreshCastles + finalizeCastleConstruction +
     // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
@@ -458,25 +453,21 @@ export function createSelectionSystem(
   // Reselection
   // -------------------------------------------------------------------------
 
-  function startReselection() {
+  function startReselection(queue: readonly ValidPlayerSlot[]) {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state } = runtimeState;
     resetSelectionState();
 
     // Engine: set CASTLE_SELECT phase (reselect cycle), init selection
     // state for queued players, set timer.
-    enterReselectPhase(
-      state,
-      runtimeState.selection.states,
-      runtimeState.selection.reselectQueue,
-    );
+    enterSelectionPhase(state, runtimeState.selection.states, queue);
 
     // Runtime: per-player controller (selectReplacementTower) + camera
     // setup loop. Drive every non-remote-human slot in the queue —
     // AI players auto-confirm via selectionTick(); own local human
     // needs UI interaction. Remote humans (other peers' input) handled
     // on their owning peer.
-    for (const pid of runtimeState.selection.reselectQueue) {
+    for (const pid of queue) {
       if (isRemotePlayer(pid, remotePlayerSlots)) continue;
       const zone = state.playerZones[pid] ?? 0;
       runtimeState.controllers[pid]!.selectReplacementTower(state, zone);
@@ -491,30 +482,30 @@ export function createSelectionSystem(
       }
     }
 
-    if (runtimeState.selection.reselectQueue.length > 0) {
+    if (queue.length > 0) {
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, ACCUM_SELECT);
       setMode(runtimeState, Mode.SELECTION);
       // No SELECT_START broadcast: every peer routes through
       // `lifeLostRoute.onReselect` locally (see `runtime-composition.ts`),
       // so watcher has already entered reselect. A wire-driven
-      // `enterTowerSelection` here would re-run `enterSelectionPhase` on
-      // the watcher — by then the local route's `enterReselectPhase` has
-      // assigned a default `homeTower` to the reselecting slot, so the
-      // reselect-detection (`anyHasHome && queue.length > 0`) flips to
-      // false on the receiver and falls through to the initial-select
-      // path, populating `selection.states` with every player and
-      // double-scheduling reselect confirms across slots.
+      // `enterTowerSelection` here would re-run the initial-cycle branch
+      // on the watcher — by then the local route's reselect-cycle
+      // `enterSelectionPhase` has assigned a default `homeTower` to the
+      // reselecting slot, so the reselect-detection
+      // (`anyHasHome && queue.length > 0`) flips to false on the receiver
+      // and falls through to the initial-select path, populating
+      // `selection.states` with every player and double-scheduling
+      // reselect confirms across slots.
     } else {
       finishSelection();
     }
   }
 
-  /** Full reset for game restart / rematch. Clears all selection, reselection,
-   *  and castle-build state. Distinct from resetSelectionState() which only
+  /** Full reset for game restart / rematch. Clears all selection and
+   *  castle-build state. Distinct from resetSelectionState() which only
    *  clears per-round selection tracking for the next selection phase. */
   function reset(): void {
-    runtimeState.selection.reselectQueue = [];
     runtimeState.selection.castleBuilds = [];
     runtimeState.selection.states.clear();
   }

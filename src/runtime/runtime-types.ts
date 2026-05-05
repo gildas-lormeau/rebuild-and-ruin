@@ -458,7 +458,7 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
-  startReselection: () => void;
+  startReselection: (queue: readonly ValidPlayerSlot[]) => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
 }

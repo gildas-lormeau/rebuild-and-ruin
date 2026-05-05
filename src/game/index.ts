@@ -53,7 +53,6 @@ export {
   enterBattlePhase,
   enterCannonPhase,
   enterModifierRevealPhase,
-  enterReselectPhase,
   enterSelectionPhase,
   enterUpgradePickPhase,
   enterWallBuildPhase,
