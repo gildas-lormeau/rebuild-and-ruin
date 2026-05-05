@@ -7,7 +7,7 @@
     "mobileZoomEnabled": true
   },
   "timeoutMs": 480000,
-  "eventCount": 8309,
+  "eventCount": 8308,
   "events": [
     {
       "type": "tick",
@@ -51429,12 +51429,6 @@
       "payload": {
         "round": 2,
         "winner": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     }
   ]

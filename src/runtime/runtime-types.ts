@@ -55,7 +55,10 @@
  *
  * For code that MAY run before init (render, input), use:
  *   - `safeState(runtimeState)` → GameState | undefined
- *   - `isStateReady(runtimeState)` → boolean guard
+ *   - `isStateInstalled(runtimeState)` → bootstrap-only guard (sticky-once)
+ *   - `isSessionLive(runtimeState)` → live-session guard (state installed AND
+ *     in a gameplay mode). Use this for per-tick gameplay-derived work that
+ *     must stop at `returnToLobby`.
  */
 
 import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";

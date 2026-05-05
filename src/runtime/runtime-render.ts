@@ -35,7 +35,11 @@ import type {
   TouchControlsDeps,
   ZoomButton,
 } from "./runtime-contracts.ts";
-import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
+import {
+  isPaused,
+  isStateInstalled,
+  type RuntimeState,
+} from "./runtime-state.ts";
 import { deriveSapperRevealIntensity } from "./sapper-reveal-overlay.ts";
 
 interface RenderSystemDeps {
@@ -281,7 +285,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   }
 
   function render(): void {
-    if (!isStateReady(runtimeState)) return;
+    if (!isStateInstalled(runtimeState)) return;
 
     // Refresh crosshairs from controller state when paused
     if (runtimeState.frameMeta.inBattle && isPaused(runtimeState)) {
@@ -323,7 +327,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   }
 
   function captureSceneOffscreen(): HTMLCanvasElement | undefined {
-    if (!isStateReady(runtimeState)) return undefined;
+    if (!isStateInstalled(runtimeState)) return undefined;
     // Rebuild overlay so the capture reflects the post-mutation state —
     // callers (banner system) typically mutate state between the A and B
     // captures without running a live `render()` in between.

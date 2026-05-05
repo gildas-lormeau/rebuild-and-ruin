@@ -126,7 +126,7 @@ import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   createRuntimeState,
   isPaused,
-  isStateReady,
+  isSessionLive,
   safeState,
   setMode,
   setVisibilityHidden,
@@ -337,10 +337,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     requestRender,
     tickMode,
     onAfterFrame: () => {
-      // Per-frame tick event — emitted in BOTH headless and E2E so tests
-      // can subscribe consistently across runtimes. Gated on state-ready
-      // so it does not fire during the lobby.
-      if (isStateReady(runtimeState)) {
+      // Per-frame tick event + presentational derivations. Gated on
+      // `isSessionLive` (state installed AND in a gameplay mode), NOT on
+      // `isStateInstalled` alone — after `returnToLobby`, the prior
+      // GameState lingers as a frozen object. Reading it as if it were
+      // live restarts the snare-roll loop (countdown trigger sees a
+      // fresh rising edge against frozen `phase=WALL_BUILD, timer=3`)
+      // and burns CPU on cannon/score animations during the lobby.
+      if (isSessionLive(runtimeState)) {
         runtimeState.state.bus.emit(GAME_EVENT.TICK, {
           type: GAME_EVENT.TICK,
           dt: runtimeState.frameDt,

@@ -99,21 +99,32 @@ export interface SelectionRuntimeState {
 
 /** Mutable runtime state bag for the game loop.
  *
- *  READINESS GUARD: `state` and `frameMeta` are typed as their real types but
+ *  READINESS GUARDS: `state` and `frameMeta` are typed as their real types but
  *  hold placeholder values until `startGame()` / the first mainLoop tick runs.
- *  Access them only after checking `isStateReady(runtimeState)` (or via
- *  `safeState`/`assertStateReady`). Both become safe together — once state is
- *  assigned, the next tick populates `frameMeta`. Tick-path code that runs
- *  only after `startGame()` can read them directly.
+ *  Two predicates carve up the lifecycle:
+ *
+ *  - `isStateInstalled(runtimeState)` — sticky-once-true. The bootstrap-only
+ *    guard for paths that legitimately read frozen state outside an active
+ *    session (game-over render, dev console, E2E bridge).
+ *  - `isSessionLive(runtimeState)` — true only while a game session is in
+ *    progress (any gameplay mode AND state installed). The right guard for
+ *    every per-tick presentational signal, animator, or state-derived
+ *    computation that should stop when the player returns to the lobby
+ *    (state lingers as a frozen object after `returnToLobby`, but no longer
+ *    represents a live game — reading it as if it did is the class of bug
+ *    that produced the snare-loop-restart and lobby-map-shadowing issues).
+ *
  *  All other fields are safe to access immediately after createRuntimeState(). */
 export interface RuntimeState {
   // Core game
-  /** Guarded by `stateReady` — only read after `isStateReady(runtimeState)`. */
+  /** Guarded by `stateInstalled` — only read after `isStateInstalled(...)` or
+   *  (preferably, for live-session paths) `isSessionLive(...)`. */
   state: GameState;
   /** True once `state` has been assigned a real GameState (startGame or online
    *  init). Flipped once, never reset: `returnToLobby` leaves the prior
-   *  GameState in place until the next bootstrap overwrites it. */
-  stateReady: boolean;
+   *  GameState in place until the next bootstrap overwrites it. This is the
+   *  bootstrap predicate, NOT a session predicate — see `isSessionLive`. */
+  stateInstalled: boolean;
   overlay: RenderOverlay;
   controllers: PlayerController[];
 
@@ -167,7 +178,7 @@ export interface RuntimeState {
   gruntSurgeRevealRampStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
-   *  rules as `state`: check `isStateReady(runtimeState)` before accessing. */
+   *  rules as `state`: check `isStateInstalled(runtimeState)` before accessing. */
   frameMeta: FrameContext;
   frame: FrameData;
   lobby: LobbyState;
@@ -307,14 +318,14 @@ export function resetTransientState(runtimeState: RuntimeState): void {
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
- *  read them only when `isStateReady(runtimeState)` returns true.
+ *  read them only when `isStateInstalled(runtimeState)` returns true.
  *  All other fields are safe to access immediately. */
 export function createRuntimeState(): RuntimeState {
   return {
     // Placeholder until startGame() assigns a real GameState (see
-    // `setRuntimeGameState`). Guarded by `stateReady`.
+    // `setRuntimeGameState`). Guarded by `stateInstalled`.
     state: null as unknown as GameState,
-    stateReady: false,
+    stateInstalled: false,
     overlay: { selection: { highlighted: null, selected: null } },
     controllers: [],
 
@@ -341,7 +352,7 @@ export function createRuntimeState(): RuntimeState {
     sapperRevealRampStartMs: undefined,
     gruntSurgeRevealRampStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
-    // Guarded by `stateReady` (same lifecycle as `state`).
+    // Guarded by `stateInstalled` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,
     frame: { crosshairs: [] },
     lobby: {
@@ -378,37 +389,52 @@ export function createRuntimeState(): RuntimeState {
 
 /** Return game state or a safe empty fallback. Use in code paths that run during
  *  lobby or transitions (render, input) where state may not exist yet.
- *  Contrast with assertStateReady() which throws if state is missing. */
+ *  Contrast with assertStateInstalled() which throws if state is missing. */
 export function safeState(runtimeState: RuntimeState): GameState | undefined {
-  return isStateReady(runtimeState) ? runtimeState.state : undefined;
+  return isStateInstalled(runtimeState) ? runtimeState.state : undefined;
 }
 
 /** Assert that game state exists and return it. Use in tick/game-logic code paths
  *  that must not run before startGame(). Throws if state is missing.
  *  Contrast with safeState() which returns a fallback instead of throwing. */
-export function assertStateReady(runtimeState: RuntimeState): GameState {
-  if (!isStateReady(runtimeState)) {
+export function assertStateInstalled(runtimeState: RuntimeState): GameState {
+  if (!isStateInstalled(runtimeState)) {
     throw new Error("runtimeState.state accessed before initialization");
   }
   return runtimeState.state;
 }
 
-/** Returns true when `runtimeState.state` has been assigned a real GameState.
- *  `frameMeta` is populated on the first mainLoop tick after the assignment,
- *  so tick-path code that runs under this guard can also safely read it. */
-export function isStateReady(runtimeState: RuntimeState): boolean {
-  return runtimeState.stateReady;
+/** Sticky-once-true bootstrap predicate — true when `state` has been assigned
+ *  a real GameState at any point. Stays true after `returnToLobby` (the prior
+ *  GameState lingers as a frozen object). `frameMeta` is populated on the
+ *  first mainLoop tick after install, so tick-path code under this guard can
+ *  also read it. Use ONLY for paths that legitimately read frozen state
+ *  outside an active session — game-over render, dev console, E2E bridge.
+ *  For per-tick gameplay-derived work, use `isSessionLive`. */
+export function isStateInstalled(runtimeState: RuntimeState): boolean {
+  return runtimeState.stateInstalled;
+}
+
+/** True when a game session is currently in progress: state is installed AND
+ *  the runtime is in a gameplay mode. The right guard for every per-tick
+ *  presentational signal, animator, or state-derived computation that should
+ *  stop when the player returns to the lobby. After `returnToLobby` the
+ *  `state` object lingers (frozen mid-game), but `mode` flips to `LOBBY` so
+ *  this predicate goes false — preventing the class of bug that produced the
+ *  snare-loop-restart and lobby-map-shadowing issues. */
+export function isSessionLive(runtimeState: RuntimeState): boolean {
+  return runtimeState.stateInstalled && isGameplayMode(runtimeState.mode);
 }
 
 /** Install the live GameState on the runtime. Single mutation point for the
- *  `state` field — keeps the readiness flag in sync. Call from `startGame`
+ *  `state` field — keeps the install flag in sync. Call from `startGame`
  *  (local bootstrap) and the online InitMessage handler. */
 export function setRuntimeGameState(
   runtimeState: RuntimeState,
   state: GameState,
 ): void {
   runtimeState.state = state;
-  runtimeState.stateReady = true;
+  runtimeState.stateInstalled = true;
 }
 
 /** Run the main loop tick: quit countdown, pause check, mode dispatch.

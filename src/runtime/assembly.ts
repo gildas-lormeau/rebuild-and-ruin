@@ -22,7 +22,7 @@ import type { TimingApi } from "./runtime-contracts.ts";
 import {
   computeFrameContext,
   isPaused,
-  isStateReady,
+  isSessionLive,
   type RuntimeState,
   tickMainLoop,
 } from "./runtime-state.ts";
@@ -133,11 +133,12 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     clearFrameData();
 
     // Advance the game's logical-tick counter once per fixed sim tick on
-    // every peer. Gated on state-readiness so we only count ticks that
-    // map to actual gameplay (lobby + pre-init runs RAF before state
-    // exists). This counter is the basis for `applyAt` stamps on the
-    // scheduled-actions queue — every peer must increment in lockstep
-    // for cross-peer determinism.
+    // every peer. Gated on `isSessionLive` so we only count ticks that
+    // map to actual gameplay — lobby/pre-init runs RAF before state
+    // exists, and post-`returnToLobby` runs RAF against a frozen state
+    // we must not touch. This counter is the basis for `applyAt` stamps
+    // on the scheduled-actions queue — every peer must increment in
+    // lockstep for cross-peer determinism.
     //
     // Drain runs immediately after the increment, before any phase-tick
     // logic. This is the single point where wire-broadcast actions
@@ -146,7 +147,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     // and `applyPiecePlacement` (and friends) fire in identical order on
     // every peer. RNG-consuming downstream logic (recheckTerritory →
     // removeEnclosedGruntsAndRespawn) consumes state.rng identically.
-    if (isStateReady(deps.runtimeState)) {
+    if (isSessionLive(deps.runtimeState)) {
       deps.runtimeState.state.simTick++;
       deps.runtimeState.actionSchedule.drainUpTo(
         deps.runtimeState.state.simTick,
@@ -163,14 +164,11 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       pointer !== null &&
       deps.runtimeState.selection.reselectionPids.includes(pointer.playerId);
 
+    const sessionLive = isSessionLive(deps.runtimeState);
     deps.runtimeState.frameMeta = computeFrameContext({
       mode: deps.runtimeState.mode,
-      phase: isStateReady(deps.runtimeState)
-        ? deps.runtimeState.state.phase
-        : Phase.CASTLE_SELECT,
-      timer: isStateReady(deps.runtimeState)
-        ? deps.runtimeState.state.timer
-        : 0,
+      phase: sessionLive ? deps.runtimeState.state.phase : Phase.CASTLE_SELECT,
+      timer: sessionLive ? deps.runtimeState.state.timer : 0,
       paused: isPaused(deps.runtimeState),
       quitPending: deps.runtimeState.quit.pending,
       hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
@@ -284,7 +282,7 @@ function computeHumanCastleConfirmed(
   humanIsReselecting: boolean,
 ): boolean {
   if (humanId === null) return false;
-  if (!isStateReady(runtimeState)) return false;
+  if (!isSessionLive(runtimeState)) return false;
   const state = runtimeState.state;
   if (state.phase === Phase.CASTLE_RESELECT) {
     if (!humanIsReselecting) return false;
@@ -303,7 +301,7 @@ function computeHumanCannonsComplete(
   humanId: ValidPlayerSlot | null,
 ): boolean {
   if (humanId === null) return false;
-  if (!isStateReady(runtimeState)) return false;
+  if (!isSessionLive(runtimeState)) return false;
   const state = runtimeState.state;
   if (state.phase !== Phase.CANNON_PLACE) return false;
   const player = state.players[humanId];

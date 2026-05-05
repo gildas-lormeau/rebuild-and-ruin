@@ -31,7 +31,7 @@ import type {
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
-  assertStateReady,
+  assertStateInstalled,
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
@@ -118,7 +118,7 @@ export function createUpgradePickSystem(
   }
 
   function prepare(): boolean {
-    assertStateReady(runtimeState);
+    assertStateInstalled(runtimeState);
     const dialog = ensureDialog();
     if (!dialog) return false;
     deps.log(
@@ -128,7 +128,7 @@ export function createUpgradePickSystem(
   }
 
   function tryShow(onDone: () => void): boolean {
-    assertStateReady(runtimeState);
+    assertStateInstalled(runtimeState);
     const dialog = ensureDialog();
     if (!dialog) return false;
 

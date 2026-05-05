@@ -33,7 +33,7 @@ import {
   type MapLayer,
   type TileInspection,
 } from "./dev-console-grid.ts";
-import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { isStateInstalled, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 
 export interface E2EBannerSnapshot {
@@ -312,15 +312,15 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       worldToClient,
       tileToClient: makeTileToClient(worldToClient),
       gameState: () =>
-        isStateReady(deps.runtimeState)
+        isStateInstalled(deps.runtimeState)
           ? serializeGameState(deps.runtimeState.state)
           : null,
       asciiSnapshot: (opts) =>
-        isStateReady(deps.runtimeState)
+        isStateInstalled(deps.runtimeState)
           ? renderAscii(deps.runtimeState.state, opts)
           : null,
       tileAt: (row, col) =>
-        isStateReady(deps.runtimeState)
+        isStateInstalled(deps.runtimeState)
           ? inspectTile(deps.runtimeState.state, row, col)
           : null,
       targeting: { enemyCannons: [], enemyTargets: [] },
@@ -372,7 +372,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 }
 
 function subscribeBus(ref: E2EBridge, deps: E2EBridgeDeps): void {
-  if (!isStateReady(deps.runtimeState)) return;
+  if (!isStateInstalled(deps.runtimeState)) return;
   const bus = deps.runtimeState.state.bus;
   // Re-subscribe when the bus instance changes — new game = new bus.
   // The previous subscription dangles harmlessly (its bus is GC'd with
@@ -425,7 +425,7 @@ function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
 
   // --- Core ---
   ref.mode = Mode[runtimeState.mode] as keyof typeof Mode;
-  const ready = isStateReady(runtimeState);
+  const ready = isStateInstalled(runtimeState);
   ref.phase = ready ? runtimeState.state.phase : "";
   ref.lobbyActive = runtimeState.lobby.active;
   ref.round = ready ? runtimeState.state.round : 0;

@@ -234,10 +234,18 @@ and call it from `runtime-phase-ticks.ts`.
   `runtime-composition.ts` via the deps bag.
 
 - **`runtimeState.state` holds a placeholder before the game starts.**
-  Use `safeState(runtimeState)` (returns `GameState | undefined`) or
-  `isStateReady(runtimeState)` (boolean guard) for code that runs
-  before `startGame()` — notably render, input, lobby. Writers assign
-  via `setRuntimeGameState` so the readiness flag stays in sync.
+  Two predicates carve the lifecycle:
+  - `isStateInstalled(runtimeState)` — sticky-once-true bootstrap guard.
+    Use only for paths that legitimately read frozen state outside an
+    active session (game-over render, dev console, E2E bridge).
+  - `isSessionLive(runtimeState)` — true only while a game session is
+    in progress (state installed AND in a gameplay mode). The right
+    guard for every per-tick presentational signal, animator, or
+    state-derived computation that should stop at `returnToLobby`.
+
+  `safeState(runtimeState)` returns `GameState | undefined` for the
+  bootstrap meaning. Writers assign via `setRuntimeGameState` so
+  `stateInstalled` stays in sync.
 
 - **`runtimeState.frameMeta` is populated by `computeFrameContext` inside
   `mainLoop`.** Code that runs before the first main-loop tick will see

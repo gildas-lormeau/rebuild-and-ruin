@@ -16,7 +16,7 @@
  */
 
 import { isBalloonCannon, isCannonAlive } from "../shared/core/spatial.ts";
-import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
 
 interface FacingState {
   displayed: number;
@@ -59,7 +59,7 @@ export function createCannonAnimator(deps: CannonAnimatorDeps): CannonAnimator {
 
   return {
     tick(dt) {
-      if (!isStateReady(runtimeState)) return;
+      if (!isSessionLive(runtimeState)) return;
       // Sync targets from current game state. Mirrors the live-cannon
       // filter used by `buildCastleOverlay` so the animator's set of
       // tracked cannons matches what the renderer will paint.

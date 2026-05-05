@@ -397,7 +397,7 @@ export async function createHeadlessRuntime(
   // `frameMeta` is initialized by `computeFrameContext` inside `mainLoop`.
   // startGame() indirectly touches frameMeta via resetUIState → render,
   // so we need one mainLoop tick (mode=LOBBY, state=sentinel but gated
-  // by `isStateReady`) to hydrate frameMeta before calling startGame.
+  // by `isStateInstalled`) to hydrate frameMeta before calling startGame.
   setMode(runtime.runtimeState, Mode.LOBBY);
   runtime.runtimeState.lastTime = clock;
   // Advance clock by one full simulation tick (≈17ms at 60fps) so the

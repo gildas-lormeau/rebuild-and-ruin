@@ -6,7 +6,7 @@
     "rounds": 5
   },
   "timeoutMs": 480000,
-  "eventCount": 21344,
+  "eventCount": 21343,
   "events": [
     {
       "type": "tick",
@@ -132272,12 +132272,6 @@
       "payload": {
         "round": 5,
         "winner": 2
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     }
   ]

@@ -13,7 +13,11 @@ import {
 } from "./dev-console-grid.ts";
 import type { MusicSubsystem } from "./music-player.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
-import { isPaused, isStateReady, type RuntimeState } from "./runtime-state.ts";
+import {
+  isPaused,
+  isStateInstalled,
+  type RuntimeState,
+} from "./runtime-state.ts";
 
 type DebugBgTrackId =
   | "title"
@@ -77,7 +81,7 @@ export function exposeDevConsole(
   if (win.__dev) return;
 
   function requireState(): GameState | undefined {
-    if (!isStateReady(runtimeState)) {
+    if (!isStateInstalled(runtimeState)) {
       console.log("Game not started yet.");
       return undefined;
     }

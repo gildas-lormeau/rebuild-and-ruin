@@ -178,9 +178,9 @@ export function createLobbyOverlay(frameCtx: UIContext): {
     },
   };
   // The lobby always renders its own preview map. `state.map` is alive after
-  // the first game ends (`stateReady` never resets) and would otherwise shadow
-  // the freshly-regenerated lobby map with the just-played game's mutated
-  // tiles (sinkholes, high-tide flips, spawned houses).
+  // the first game ends (`stateInstalled` is sticky-once and never resets) and
+  // would otherwise shadow the freshly-regenerated lobby map with the just-
+  // played game's mutated tiles (sinkholes, high-tide flips, spawned houses).
   return { map: frameCtx.lobby.map!, overlay };
 }
 

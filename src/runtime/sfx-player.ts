@@ -613,7 +613,15 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     }
     activeSources.clear();
     snareSource = undefined;
-    lastSignals = { countdownActive: false };
+    // NB: `lastSignals` is intentionally NOT reset here. `stopAll` runs on
+    // quit-to-menu (`returnToLobby` / `runtime.shutdown`), where the prior
+    // `state` lingers as a frozen object — `tickPresentation` is gated on
+    // `isSessionLive` upstream, so it won't run during the lobby. Resetting
+    // the edge memory would re-arm a phantom rising edge for any path that
+    // briefly bypasses the gate (e.g. a future re-entry into a gameplay
+    // mode without a fresh `subscribeBus`). The legitimate reset lives in
+    // `unbindCurrentBus`, which fires on rematch where `state` really is
+    // about to be replaced.
   }
 
   async function setPaused(next: boolean): Promise<void> {

@@ -45,7 +45,7 @@ import {
   createBannerState,
 } from "./runtime-contracts.ts";
 import {
-  assertStateReady,
+  assertStateInstalled,
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
@@ -97,7 +97,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   const pendingOnDone = createFireOnceSlot();
 
   function showBanner(opts: BannerShowOpts) {
-    assertStateReady(runtimeState);
+    assertStateInstalled(runtimeState);
     // Two-snapshot model — captured entirely inside `showBanner` so each
     // banner owns its own pair of snapshots:
     //   - `prevScene` (A) = current display pixels at the moment

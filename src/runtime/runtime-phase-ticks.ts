@@ -60,7 +60,7 @@ import {
   runTransition,
 } from "./runtime-phase-machine.ts";
 import {
-  assertStateReady,
+  assertStateInstalled,
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
@@ -782,7 +782,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  the full game from synced state + RNG; the wire only carries
    *  uncomputable inputs (human input). */
   function tickGame(dt: number) {
-    assertStateReady(runtimeState);
+    assertStateInstalled(runtimeState);
     // Age and filter impact flashes regardless of phase
     ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
 

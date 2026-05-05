@@ -14,7 +14,7 @@ import {
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { WithPointerPlayer } from "./runtime-contracts.ts";
-import { isStateReady, type RuntimeState } from "./runtime-state.ts";
+import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
 
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
@@ -44,7 +44,7 @@ export function createPointerPlayerLookup(
 
   function pointerPlayer(): (PlayerController & InputReceiver) | null {
     if (cached !== undefined) return cached;
-    if (!isStateReady(runtimeState) || runtimeState.lobby.active) {
+    if (!isSessionLive(runtimeState)) {
       return (cached = null);
     }
     // Prefer the player who joined via mouse/trackpad
@@ -65,7 +65,7 @@ export function createPointerPlayerLookup(
   }
 
   function hasPointerPlayer(): boolean {
-    if (!isStateReady(runtimeState) || runtimeState.lobby.active) return false;
+    if (!isSessionLive(runtimeState)) return false;
     return runtimeState.controllers.some(isEligibleHuman);
   }
 
