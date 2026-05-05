@@ -1263,9 +1263,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Park the desired selection-zoom target tile. Always deferred to the
    *  camera tick: handleSelectionZoom consumes it once
    *  `frameCtx.isSelectionReady` becomes true (within ≤1 frame if the
-   *  announcement has already finished). */
+   *  announcement has already finished).
+   *
+   *  Does NOT gate on `mobileAutoZoomActive()` here — this is called from
+   *  `enterTowerSelection` during bootstrap, BEFORE `setMode(SELECTION)`
+   *  flips, so `isSessionLive` (and therefore `hasPointerPlayer`) is still
+   *  false at this exact moment. Gate at consume time instead. */
   function setSelectionViewport(towerRow: number, towerCol: number): void {
-    if (!mobileAutoZoomActive()) return;
     selectionTargetVp = { row: towerRow, col: towerCol };
   }
 
