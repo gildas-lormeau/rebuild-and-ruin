@@ -1,6 +1,9 @@
 export enum Phase {
+  /** Castle selection — players pick (or rebuild) their home tower. Used
+   *  for both round 1's initial selection (every active player) and any
+   *  mid-game reselect cycle (round > 1, only the players who lost a life).
+   *  Consumers that need to distinguish the two cycles read `state.round`. */
   CASTLE_SELECT = "CASTLE_SELECT",
-  CASTLE_RESELECT = "CASTLE_RESELECT",
   WALL_BUILD = "WALL_BUILD",
   CANNON_PLACE = "CANNON_PLACE",
   /** Transient display phase: modern-mode modifier banner announces the
@@ -18,12 +21,7 @@ export enum Phase {
 
 /** True if the phase is castle selection (initial or reselect). */
 export function isSelectionPhase(phase: Phase): boolean {
-  return phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
-}
-
-/** True if the phase is castle reselection specifically (not initial selection). */
-export function isReselectPhase(phase: Phase): boolean {
-  return phase === Phase.CASTLE_RESELECT;
+  return phase === Phase.CASTLE_SELECT;
 }
 
 /** True if the phase has a countdown timer (placement phases + battle). */

@@ -92,8 +92,8 @@ export interface GameState {
    *  Separate from timer. 0 = battle active. */
   battleCountdown: number;
   /** Players who built (or rebuilt) a fresh castle this round. Populated as
-   *  each player confirms a tower selection (initial or reselect); drained at
-   *  cannon-phase setup. Drives the "fresh castle" cannon-budget formula
+   *  each player confirms a tower selection; drained at cannon-phase setup. Drives the "fresh castle"
+   *  cannon-budget formula
    *  (`cannonSlotsForRound`) and the per-zone modifier grace period
    *  (`finalizeFreshCastles` sets `player.freshCastle = true`). */
   freshCastlePlayers: Set<number>;

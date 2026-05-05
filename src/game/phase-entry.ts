@@ -62,16 +62,6 @@ interface CannonPhaseEntry {
   playerInit: readonly (PlayerCannonInit | null)[];
 }
 
-/** Flip the phase flag to CASTLE_RESELECT and zero the timer.
- *  Narrow primitive — does NOT init per-player selection state.
- *  Use `enterReselectPhase` for the full enter-with-init when starting
- *  a reselection round; this helper exists for the rare case where the
- *  flag needs flipping in isolation (mid-game watcher join). */
-export function setReselectPhase(state: GameState): void {
-  setPhase(state, Phase.CASTLE_RESELECT);
-  state.timer = 0;
-}
-
 /** Pre-battle setup: roll the modifier and resolve balloon flights in
  *  RNG-load-bearing order. Returns the data the caller needs to react
  *  (banner palette, balloon animation, online broadcast). Does NOT flip
@@ -131,15 +121,11 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
   return { playerInit };
 }
 
-/** Enter the CASTLE_SELECT / CASTLE_RESELECT phase: clear any stale
- *  per-player selection tracking, initialize each active player's
- *  selection entry (with a default highlight on their zone's first tower
- *  or their current home tower), and start the selection timer.
- *
- *  Replaces the runtime's manual sequence of `selectionStates.clear()` +
- *  per-player `initTowerSelection` loop + `initSelectionTimer`. The
- *  engine owns the order; the runtime runs its own per-player camera +
- *  controller setup loop afterwards.
+/** Enter CASTLE_SELECT for the initial-selection cycle (round 1):
+ *  flip the phase flag, clear any stale per-player selection tracking,
+ *  initialize each active player's selection entry, and start the
+ *  selection timer. The reselect-cycle counterpart (round > 1, only the
+ *  queued players participate) is `enterReselectPhase`.
  *
  *  Note: `selectionStates` is a runtime-owned Map (not part of GameState)
  *  because it's transient UI-tracking state that only exists during the
@@ -148,6 +134,7 @@ export function enterSelectionPhase(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
 ): void {
+  setPhase(state, Phase.CASTLE_SELECT);
   selectionStates.clear();
   for (let i = 0; i < state.players.length; i++) {
     const pid = i as ValidPlayerSlot;
@@ -157,23 +144,19 @@ export function enterSelectionPhase(
   initSelectionTimer(state);
 }
 
-/** Enter the CASTLE_RESELECT phase for players who lost a life. Sets the
- *  phase flag, clears any stale per-player selection tracking, initializes
- *  a fresh selection entry for each player in the reselect queue (with a
- *  default highlight on their zone's first tower), and starts the
- *  selection timer.
+/** Enter CASTLE_SELECT for the reselect cycle (round > 1, players who
+ *  lost a life). Flips the phase flag, clears any stale per-player
+ *  selection tracking, initializes a fresh selection entry for each
+ *  player in the reselect queue, and starts the selection timer.
  *
- *  Replaces the runtime's manual sequence of `setReselectPhase` +
- *  `selectionStates.clear()` + per-player init via `processReselectionQueue`
- *  callback + `initSelectionTimer`. The engine owns the order; the runtime
- *  runs its own per-player controller (`selectReplacementTower`) + camera
- *  setup loop afterwards. */
+ *  The cycle type (initial vs reselect) is derived from `state.round`
+ *  by consumers — the phase tag is the same as `enterSelectionPhase`. */
 export function enterReselectPhase(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   reselectQueue: readonly ValidPlayerSlot[],
 ): void {
-  setPhase(state, Phase.CASTLE_RESELECT);
+  setPhase(state, Phase.CASTLE_SELECT);
   state.timer = 0;
   selectionStates.clear();
   for (const pid of reselectQueue) {

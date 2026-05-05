@@ -1,7 +1,6 @@
 import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
-  isReselectPhase,
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
@@ -73,7 +72,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
         worldCoords.wx,
         worldCoords.wy,
         state,
-        isReselectPhase(state.phase),
+        state.round > 1,
         deps,
       );
     } else if (isPlacementPhase(state.phase)) {

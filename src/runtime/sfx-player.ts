@@ -114,8 +114,8 @@ type SfxEventMap = {
   readonly [K in keyof GameEventMap]?: SfxMapping<K>;
 };
 
-/** Phases whose countdown triggers the snare-roll: initial castle select
- *  and wall-build. Reselect, cannon-place, and battle are skipped. */
+/** Phases whose countdown triggers the snare-roll: castle selection (initial
+ *  or reselect) and wall-build. Cannon-place and battle are skipped. */
 const COUNTDOWN_SNARE_PHASES: ReadonlySet<Phase> = new Set([
   Phase.CASTLE_SELECT,
   Phase.WALL_BUILD,
@@ -134,7 +134,6 @@ const COUNTDOWN_SNARE_RAW_SEC = 6.72;
  *  enclosures, so they're excluded from the pre-seed check. */
 const FANFARE_PHASES: ReadonlySet<Phase> = new Set([
   Phase.CASTLE_SELECT,
-  Phase.CASTLE_RESELECT,
   Phase.WALL_BUILD,
 ]);
 /** Crescendo applied to the looping snare when it starts — snarerl1 is a
@@ -252,11 +251,12 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   // depend on AudioContext existing.
   const nextAllowedMsBySample = new Map<string, number>();
   // Players who've already triggered their fanfare in the current build /
-  // select phase. Cleared on every `phaseStart` event — CASTLE_SELECT,
-  // WALL_BUILD, and CASTLE_RESELECT each get a fresh first-enclosure.
-  // When entering WALL_BUILD, players who already hold ≥ 1 enclosed alive
-  // tower get pre-added so additional enclosures in that phase stay
-  // silent — the fanfare is an intro cue, not a repeat-landmark cue.
+  // select phase. Cleared on every `phaseStart` event — CASTLE_SELECT
+  // (initial or reselect cycle) and WALL_BUILD each get a fresh
+  // first-enclosure. When entering WALL_BUILD, players who already hold
+  // ≥ 1 enclosed alive tower get pre-added so additional enclosures in
+  // that phase stay silent — the fanfare is an intro cue, not a
+  // repeat-landmark cue.
   const fanfarePlayedThisPhase = new Set<ValidPlayerSlot>();
   // Phase from the previous tick — used in tickPresentation to detect
   // entries into WALL_BUILD for the fanfare pre-seed.
@@ -540,11 +540,11 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
 
   function tickPresentation(state: GameState): void {
     if (disposed || paused) return;
-    // Entering an enclosure-producing phase (CASTLE_SELECT,
-    // CASTLE_RESELECT, WALL_BUILD): pre-add players who already hold at
-    // least one enclosed alive tower. This suppresses the fanfare for
+    // Entering an enclosure-producing phase (CASTLE_SELECT — initial or
+    // reselect cycle — or WALL_BUILD): pre-add players who already hold
+    // at least one enclosed alive tower. This suppresses the fanfare for
     // players who were already established before the phase began. In
-    // SELECT/RESELECT the condition naturally evaluates to false for
+    // CASTLE_SELECT the condition naturally evaluates to false for
     // everyone (no enclosed towers yet), so the gate is uniform — no
     // special casing per phase.
     if (state.phase !== lastPhase) {

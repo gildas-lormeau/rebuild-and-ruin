@@ -70,7 +70,7 @@ interface RenderViewShared {
 }
 
 export interface SelectionRenderView extends RenderViewShared {
-  readonly phase: Phase.CASTLE_SELECT | Phase.CASTLE_RESELECT;
+  readonly phase: Phase.CASTLE_SELECT;
 }
 
 export interface BuildRenderView extends RenderViewShared {
@@ -113,7 +113,6 @@ export type RenderView =
 export function selectRenderView(state: GameState): RenderView {
   switch (state.phase) {
     case Phase.CASTLE_SELECT:
-    case Phase.CASTLE_RESELECT:
       return state as SelectionRenderView;
     case Phase.WALL_BUILD:
       return state as BuildRenderView;

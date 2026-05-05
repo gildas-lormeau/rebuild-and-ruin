@@ -284,11 +284,10 @@ function computeHumanCastleConfirmed(
   if (humanId === null) return false;
   if (!isSessionLive(runtimeState)) return false;
   const state = runtimeState.state;
-  if (state.phase === Phase.CASTLE_RESELECT) {
-    if (!humanIsReselecting) return false;
-  } else if (state.phase !== Phase.CASTLE_SELECT) {
-    return false;
-  }
+  if (state.phase !== Phase.CASTLE_SELECT) return false;
+  // Reselect cycle (round > 1): only the queued reselectors can build.
+  // Initial selection (round === 1): every active human can build.
+  if (state.round > 1 && !humanIsReselecting) return false;
   const player = state.players[humanId];
   return player != null && player.castle !== null;
 }

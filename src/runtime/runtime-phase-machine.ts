@@ -621,7 +621,7 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
  *  just a phase-advance marker. */
 const CASTLE_DONE: Transition = {
   id: "castle-done",
-  from: [Phase.CASTLE_SELECT, Phase.CASTLE_RESELECT],
+  from: Phase.CASTLE_SELECT,
   mutate: (ctx) => {
     if (ctx.state.round > 1) finalizeRoundCleanup(ctx.state);
     finalizeFreshCastles(ctx.state);

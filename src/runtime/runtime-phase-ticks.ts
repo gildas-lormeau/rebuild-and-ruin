@@ -806,9 +806,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         break;
       case Phase.UPGRADE_PICK:
       case Phase.CASTLE_SELECT:
-      case Phase.CASTLE_RESELECT:
         // UPGRADE_PICK runs in Mode.UPGRADE_PICK (not Mode.GAME);
-        // castle-select phases run in Mode.SELECTION / CASTLE_BUILD.
+        // castle-select runs in Mode.SELECTION / CASTLE_BUILD.
         // tickGame never reaches these branches while those phases
         // are active. Explicit no-ops for exhaustiveness.
         break;

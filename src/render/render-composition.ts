@@ -84,7 +84,6 @@ const COMBO_LABELS: Record<ComboEvent["kind"], string> = {
 };
 const PHASE_STATUS_LABELS: Record<Phase, string> = {
   [Phase.CASTLE_SELECT]: "Castle",
-  [Phase.CASTLE_RESELECT]: "Reselect",
   [Phase.WALL_BUILD]: "Build",
   [Phase.CANNON_PLACE]: "Cannons",
   [Phase.MODIFIER_REVEAL]: "Reveal",

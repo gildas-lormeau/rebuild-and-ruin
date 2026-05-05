@@ -58,7 +58,6 @@ export {
   enterUpgradePickPhase,
   enterWallBuildPhase,
   prepareBattle,
-  setReselectPhase,
 } from "./phase-entry.ts";
 export {
   computeScoreDeltas,

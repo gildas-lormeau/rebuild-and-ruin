@@ -8,7 +8,6 @@ import {
   isSelectionComplete,
   prepareCastleWallsForPlayer,
   recheckTerritory,
-  setReselectPhase,
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
@@ -16,11 +15,8 @@ import {
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "../shared/core/game-constants.ts";
-import { isReselectPhase, Phase } from "../shared/core/game-phase.ts";
-import {
-  isActivePlayer,
-  type ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import { Phase } from "../shared/core/game-phase.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -116,8 +112,7 @@ export function createSelectionSystem(
 
   function enterTowerSelection(): void {
     const { state } = runtimeState;
-    const { myPlayerId, remotePlayerSlots } = runtimeState.frameMeta;
-    const isHost = deps.hostAtFrameStart();
+    const { remotePlayerSlots } = runtimeState.frameMeta;
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
@@ -144,18 +139,9 @@ export function createSelectionSystem(
 
     resetSelectionState();
 
-    // Non-host active player joining mid-game (state.phase isn't
-    // CASTLE_SELECT yet) needs to flip into the reselect phase locally.
-    // Host never reaches this branch — it's the source of truth and
-    // already in CASTLE_SELECT when this runs.
-    if (!isHost && isActivePlayer(myPlayerId)) {
-      const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
-      if (needsCastleReselect && !isReselectPhase(state.phase)) {
-        setReselectPhase(state);
-      }
-    }
-
-    // Engine owns selection-state init + timer.
+    // Engine owns phase flip + selection-state init + timer. Watchers
+    // joining mid-game (whose local phase may still reflect a prior
+    // round's WALL_BUILD) get their phase flipped here too.
     enterSelectionPhase(state, runtimeState.selection.states);
 
     // Per-player runtime setup: drive non-remote-human slots (AI + own
@@ -362,7 +348,7 @@ export function createSelectionSystem(
     // deterministically, so each peer derives identical homeTower
     // sequences without wire chatter. Remote-human selections come in via
     // OPPONENT_TOWER_SELECTED from the input handler on the owning peer.
-    const isReselect = isReselectPhase(state.phase);
+    const isReselect = state.round > 1;
     for (const [rawPid, selectionState] of selection.states) {
       const pid = rawPid as ValidPlayerSlot;
       if (selectionState.confirmed) continue;

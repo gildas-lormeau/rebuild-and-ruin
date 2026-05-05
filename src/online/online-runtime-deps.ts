@@ -40,7 +40,6 @@ import type {
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
-import { isReselectPhase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -140,8 +139,7 @@ function buildIncrementalDeps(
     getControllers: () => init.runtime.runtimeState.controllers,
     selectionStates: init.runtime.selection.getStates(),
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () =>
-      isReselectPhase(init.runtime.runtimeState.state.phase),
+    isCastleReselectPhase: () => init.runtime.runtimeState.state.round > 1,
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
       isReselect: boolean,

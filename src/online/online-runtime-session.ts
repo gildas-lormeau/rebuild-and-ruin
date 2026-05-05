@@ -163,9 +163,7 @@ export function createOnlineRuntimeSessionHelpers(
 }
 
 function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
-  if (phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT) {
-    return Mode.SELECTION;
-  }
+  if (phase === Phase.CASTLE_SELECT) return Mode.SELECTION;
   if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
   return Mode.GAME;
 }

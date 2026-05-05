@@ -19,7 +19,6 @@
 import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
-  isReselectPhase,
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
@@ -314,14 +313,7 @@ function handleTouchEnd(
   // Selection: first tap highlights, second tap on same tower confirms
   if (tap && isSelectionPhase(state.phase)) {
     const w = coords.screenToWorld(x, y);
-    dispatchTowerSelect(
-      w.wx,
-      w.wy,
-      state,
-      isReselectPhase(state.phase),
-      deps,
-      true,
-    );
+    dispatchTowerSelect(w.wx, w.wy, state, state.round > 1, deps, true);
   }
 
   // Build / Cannon placement: only tap-on-piece commits (same effect as

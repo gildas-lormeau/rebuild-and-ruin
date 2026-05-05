@@ -35,7 +35,6 @@ import type {
 } from "../runtime/runtime-contracts.ts";
 import {
   isPlacementPhase,
-  isReselectPhase,
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
@@ -351,10 +350,7 @@ export function dispatchGameAction(
       return true;
     }
     if (action === Action.CONFIRM) {
-      deps.confirmSelectionAndStartBuild(
-        ctrl.playerId,
-        isReselectPhase(state.phase),
-      );
+      deps.confirmSelectionAndStartBuild(ctrl.playerId, state.round > 1);
       return true;
     }
     return false;

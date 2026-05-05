@@ -744,7 +744,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     notTransition: boolean,
   ): void {
     if (state.phase === lastAutoZoomPhase || !notTransition) return;
-    if (state.phase === Phase.CASTLE_RESELECT) {
+    // Re-arm the one-shot selection zoom when re-entering CASTLE_SELECT for
+    // a reselect cycle (round > 1). The latch is sticky after round 1's
+    // initial selection completes; without re-arming, the deferred-zoom
+    // dance during the reselect's "Select your home castle" announcement
+    // would skip and the camera would jump immediately.
+    if (state.phase === Phase.CASTLE_SELECT && state.round > 1) {
       selectionZoom.applied = false;
     }
     applyPhaseCameraOnEnter(state);
@@ -845,8 +850,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   /** Auto-zoom to selection after announcement finishes — handles the
-   *  CASTLE_SELECT / CASTLE_RESELECT viewport (selectionZoom.pendingVp set
-   *  by setSelectionViewport while the announcement is still showing). */
+   *  CASTLE_SELECT viewport (selectionZoom.pendingVp set by
+   *  setSelectionViewport while the announcement is still showing). */
   function handleSelectionZoom(
     _state: GameState,
     frameCtx: FrameContext,

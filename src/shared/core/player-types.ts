@@ -166,8 +166,8 @@ export function cannonTier(player: { readonly lives: number }): 1 | 2 | 3 {
   return 1;
 }
 
-/** Set a player's home tower. Called during selection / reselection
- *  phase when a player picks or changes their highlighted tower.
+/** Set a player's home tower. Called during selection phase when a player
+ *  picks or changes their highlighted tower.
  *
  *  Deliberately does NOT touch `ownedTowers` — that list is derived
  *  state, maintained by `updateOwnedTowers` in build-system.ts via the
