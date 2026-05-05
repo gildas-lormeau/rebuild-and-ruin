@@ -48,7 +48,7 @@ Deno.test(
     assertGreater(
       counts.get(MESSAGE.CANNON_START) ?? 0,
       0,
-      "expected host to broadcast CANNON_START on castle-select-done",
+      "expected host to broadcast CANNON_START on castle-done",
     );
     assertGreater(
       counts.get(MESSAGE.BATTLE_START) ?? 0,

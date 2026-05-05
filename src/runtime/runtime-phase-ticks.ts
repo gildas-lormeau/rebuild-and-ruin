@@ -208,14 +208,14 @@ export interface PhaseTicksSystem {
    *  path). The mutate runs `enterCannonPhase` only — castle finalize was
    *  already done by an earlier transition. */
   startCannonPhase: () => void;
-  /** Dispatch the `castle-select-done` transition: round-1 / initial
-   *  castle selection is complete; the mutate finalizes castle
-   *  construction (spawn houses + bonus squares) and enters cannon phase. */
+  /** Dispatch the `castle-done` transition for round-1 / initial castle
+   *  selection. The mutate runs `finalizeFreshCastles` +
+   *  `finalizeCastleConstruction` + `enterCannonPhase`. */
   enterCannonAfterCastleSelect: () => void;
-  /** Dispatch the `castle-reselect-done` transition: a player who lost a
-   *  life finished re-selecting; the mutate runs `finalizeRoundCleanup` +
-   *  `finalizeFreshCastles` (which reads `state.freshCastlePlayers`), then
-   *  finalize castle construction + enter cannon. */
+  /** Dispatch the `castle-done` transition after a player who lost a life
+   *  finished reselecting. The mutate runs `finalizeRoundCleanup` (Phase B
+   *  cleanup deferred from round-end) + `finalizeFreshCastles` +
+   *  `finalizeCastleConstruction` + `enterCannonPhase`. */
   enterCannonAfterCastleReselect: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
@@ -286,11 +286,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function enterCannonAfterCastleSelect() {
-    runTransition("castle-select-done", buildHostPhaseCtx());
+    runTransition("castle-done", buildHostPhaseCtx());
   }
 
   function enterCannonAfterCastleReselect() {
-    runTransition("castle-reselect-done", buildHostPhaseCtx());
+    runTransition("castle-done", buildHostPhaseCtx());
   }
 
   function dispatchGameOver(winner: { id: number }, reason: GameOverReason) {
@@ -315,8 +315,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   /** Single host-side `PhaseTransitionCtx` factory shared by every call
    *  site (advance-to-cannon, ceasefire, cannon-place-done, battle-done,
-   *  round-end, plus the deferred castle-select-done /
-   *  castle-reselect-done / game-over once they land here too).
+   *  round-end, plus the deferred castle-done / game-over once they land
+   *  here too).
    *
    *  Every hook any host-role mutate/postDisplay might need is populated.
    *  Hooks the active transition doesn't read are inert — the cost of

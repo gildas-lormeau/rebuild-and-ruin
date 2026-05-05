@@ -88,8 +88,7 @@ import { resolveAfterLifeLost } from "./runtime-life-lost-core.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 type TransitionId =
-  | "castle-select-done"
-  | "castle-reselect-done"
+  | "castle-done"
   | "advance-to-cannon"
   | "round-end"
   | "cannon-place-done"
@@ -380,8 +379,8 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  / reselect / continue) identically.
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
- *  does NOT enter a new phase: the next transition (castle-reselect-done
- *  / advance-to-cannon / round-limit-reached / last-player-standing)
+ *  does NOT enter a new phase: the next transition (castle-done /
+ *  advance-to-cannon / round-limit-reached / last-player-standing)
  *  flips it. */
 const ROUND_END: Transition = {
   id: "round-end",
@@ -401,7 +400,7 @@ const ROUND_END: Transition = {
     const preScores = ctx.state.players.map((player) => player.score);
     // Phase A only: scoring + life penalties. The wall sweep, dead-zone
     // grunt sweep, and targetedWall recompute are deferred to `finalizeRoundCleanup`,
-    // called from `advance-to-cannon` / `castle-reselect-done` /
+    // called from `advance-to-cannon` / `castle-done` (round > 1) /
     // game-over flows so the cannons banner reveals them.
     // `applyLifePenalties` inside finalizeRound already runs
     // `resetZoneState` for eliminated/reselect players — every peer
@@ -586,9 +585,9 @@ const ENTER_WALL_BUILD: Transition = {
   },
 };
 /** Shared cannon-entry postDisplay for every transition that enters
- *  CANNON_PLACE (`castle-select-done`, `castle-reselect-done`,
- *  `advance-to-cannon`). Initializes local cannon controllers
- *  (placeCannons + cursor + startCannonPhase) and flips to Mode.GAME. */
+ *  CANNON_PLACE (`castle-done`, `advance-to-cannon`). Initializes local
+ *  cannon controllers (placeCannons + cursor + startCannonPhase) and
+ *  flips to Mode.GAME. */
 const cannonEntryPostDisplay: PostDisplayFn = (ctx) => {
   ctx.initLocalCannonControllers?.();
   ctx.setMode(Mode.GAME);
@@ -601,47 +600,30 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
     subtitle: BANNER_PLACE_CANNONS_SUB,
   },
 ];
-/** `castle-select-done` — CASTLE_SELECT → CANNON_PLACE (round 1 / initial).
+/** `castle-done` — CASTLE_SELECT | CASTLE_RESELECT → CANNON_PLACE.
  *
- *  `finalizeFreshCastles` snapshots the new castle walls + flags every
- *  freshly-built zone for the modifier grace period (no-op in round 1
- *  classic mode where modifiers don't roll, but load-bearing the moment
- *  they do). `finalizeCastleConstruction` then claims territory and
- *  spawns houses / bonus squares; `enterCannonPhase` sets the phase +
- *  computes cannon limits + returns per-player init data. Host broadcasts
- *  CANNON_START so watchers can apply the checkpoint. Watchers run the
- *  same body locally — derived state matches byte-for-byte from synced
- *  state + RNG so no wire payload is needed; the broadcast is just a
- *  phase-advance marker. */
-const CASTLE_SELECT_DONE: Transition = {
-  id: "castle-select-done",
-  from: Phase.CASTLE_SELECT,
-  mutate: (ctx) => {
-    finalizeFreshCastles(ctx.state);
-    finalizeCastleConstruction(ctx.state);
-    ctx.clearCastleBuildViewport?.();
-    enterCannonPhase(ctx.state);
-    ctx.broadcast?.cannonStart?.();
-    return EMPTY_TRANSITION_RESULT;
-  },
-  postMutate: clearBattleAnim,
-  display: cannonEntryDisplay,
-  postDisplay: cannonEntryPostDisplay,
-};
-/** `castle-reselect-done` — CASTLE_RESELECT → CANNON_PLACE (after a
- *  player lost a life and rebuilt their castle).
+ *  Fires at the end of every castle-build cycle: round 1's initial selection
+ *  and any mid-game reselection after a life loss. Body order:
+ *    1. `finalizeRoundCleanup` (round > 1 only) — Phase B cleanup deferred
+ *       from the prior round-end, lands here so the wall + grunt sweeps
+ *       reveal under the cannons banner instead of popping during the score
+ *       overlay. Round 1 has no prior round-end to defer from.
+ *    2. `finalizeFreshCastles` — snapshots new castle walls + flags each
+ *       zone for the modifier grace period (drives off `state.freshCastlePlayers`).
+ *    3. `finalizeCastleConstruction` — claims territory + spawns houses /
+ *       bonus squares.
+ *    4. `enterCannonPhase` — sets the phase + computes cannon limits +
+ *       returns per-player init data.
  *
- *  Differs from `castle-select-done` only in the prefix:
- *  `finalizeRoundCleanup` (Phase B cleanup deferred from round-end)
- *  before the shared finalize/enter-cannon suffix. */
-const CASTLE_RESELECT_DONE: Transition = {
-  id: "castle-reselect-done",
-  from: Phase.CASTLE_RESELECT,
+ *  Host broadcasts CANNON_START so watchers can apply the checkpoint.
+ *  Watchers run the same body locally — derived state matches byte-for-byte
+ *  from synced state + RNG so no wire payload is needed; the broadcast is
+ *  just a phase-advance marker. */
+const CASTLE_DONE: Transition = {
+  id: "castle-done",
+  from: [Phase.CASTLE_SELECT, Phase.CASTLE_RESELECT],
   mutate: (ctx) => {
-    // Phase B cleanup (deferred from round-end) + fresh-castle finalize
-    // + castle finalize, then enter cannon phase. All under the cannons
-    // banner reveal.
-    finalizeRoundCleanup(ctx.state);
+    if (ctx.state.round > 1) finalizeRoundCleanup(ctx.state);
     finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
     ctx.clearCastleBuildViewport?.();
@@ -656,10 +638,11 @@ const CASTLE_RESELECT_DONE: Transition = {
 /** `advance-to-cannon` — WALL_BUILD → CANNON_PLACE after the life-lost
  *  dialog resolves with "continue" (no reselect, no game over).
  *
- *  Unlike `castle-select-done` / `castle-reselect-done`, this path has NO
- *  finalize prefix: `finalizeRound` already ran inside the preceding
- *  `round-end` transition, so state is already post-sweep. The
- *  mutate just flips the phase (via `enterCannonPhase`) and broadcasts.
+ *  Unlike `castle-done`, this path has no fresh-castle prefix: there's no
+ *  new castle to finalize and `finalizeRound` already ran inside the
+ *  preceding `round-end` transition. The mutate runs `finalizeRoundCleanup`
+ *  (Phase B sweeps) under the cannons banner, flips the phase via
+ *  `enterCannonPhase`, and broadcasts.
  *
  *  Triggered from `routeLifeLostResolution`'s `onContinue` callback. */
 const ADVANCE_TO_CANNON: Transition = {
@@ -813,8 +796,7 @@ const TRANSITIONS: readonly Transition[] = [
   ENTER_UPGRADE_PICK,
   UPGRADE_PICK_DONE,
   ENTER_WALL_BUILD,
-  CASTLE_SELECT_DONE,
-  CASTLE_RESELECT_DONE,
+  CASTLE_DONE,
   ADVANCE_TO_CANNON,
   ROUND_LIMIT_REACHED,
   LAST_PLAYER_STANDING,
@@ -954,7 +936,7 @@ function syncBattleAnim(
 
 /** Shared post-mutation sync for EXITING a battle (battle-done, ceasefire)
  *  or entering the cannon phase after a completed battle / build cycle
- *  (castle-select-done, castle-reselect-done, advance-to-cannon): clear
+ *  (castle-done, advance-to-cannon): clear
  *  any lingering battle-anim visuals (impact flashes + thaw flashes) so
  *  the next phase renders against a clean slate. Every battleAnim reset
  *  in the phase machine goes through this hook so the authoritative clear

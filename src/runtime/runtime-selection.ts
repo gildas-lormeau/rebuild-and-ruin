@@ -80,10 +80,10 @@ interface SelectionSystemDeps {
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). */
   startCannonPhase: () => void;
-  /** Dispatch the `castle-select-done` transition (round-1 / initial). */
+  /** Dispatch the `castle-done` transition for round-1 / initial selection. */
   enterCannonAfterCastleSelect: () => void;
-  /** Dispatch the `castle-reselect-done` transition (after a player who
-   *  lost a life rebuilt their castle). */
+  /** Dispatch the `castle-done` transition after a player who lost a life
+   *  rebuilt their castle. */
   enterCannonAfterCastleReselect: () => void;
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
