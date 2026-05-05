@@ -14,7 +14,7 @@ Host ──WebSocket──> Server (relay) ──WebSocket──> Players / Watc
 ### Key Principles
 - **Deterministic from seed**: all clients derive the map, towers, zones, and houses from the seed. The `init` message only carries the seed + settings — no map data.
 - **Bare-marker phase checkpoints**: `buildStart`, `cannonStart`, `buildEnd` carry no payload. The watcher runs the same engine fn locally on receipt (`enterBuildPhase`, source-prefix + `enterCannonPhase`, `finalizeBuildPhase`). Watcher and host produce byte-identical state from synced RNG.
-- **One RNG resync per round**: `battleStart` carries only `rngState` — the host's pre-`enterBattlePhase` RNG. The watcher applies `setState(rngState)` then runs the same setup locally (modifier roll, balloon resolution, grunt wall-attack flags, captured cannons, combo tracker). Drift over a full round is caught here as a defense-in-depth round-trip check.
+- **One RNG resync per round**: `battleStart` carries only `rngState` — the host's pre-`prepareBattle` RNG. The watcher applies `setState(rngState)` then runs the same setup locally (modifier roll, balloon resolution, grunt wall-attack flags, captured cannons, combo tracker). Drift over a full round is caught here as a defense-in-depth round-trip check.
 - **Events during phases**: incremental updates (piece placed, cannon fired, wall destroyed) streamed in real-time.
 - **Lockstep apply scheduling**: every state-mutating originator-driven message (`opponentPiecePlaced`, `opponentCannonPlaced`, `opponentTowerSelected` confirmed, `opponentCannonPhaseDone`, `cannonFired`) carries `applyAt = senderSimTick + SAFETY`. Both originator and receiver enqueue the apply for that tick; the queue drains at the top of each sim tick keyed off the shared `state.simTick` counter, so mutations and their RNG-consuming cascades fire at the same logical tick across peers — closing within-phase divergences (recheckTerritory grunt-respawn drift, AI cannon-fire grunt-spawn drift, castle-wall clumsy-builder drift) that wire delay would otherwise open.
 - **Local AI on every peer**: AI selections, castle wall plans, modifier tiles, bonus square placement, and grunt spawns all advance from `state.rng`. Watchers run the same code paths as host — no wire payload needed for any of these.
@@ -85,14 +85,14 @@ Sent inside `createRoom`, `roomCreated`, and `roomJoined`:
 
 ### Host → All (Phase Transitions / Checkpoints)
 
-Bare-marker checkpoints carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. The only payload-carrying checkpoint is `battleStart`, which ships the host's pre-`enterBattlePhase` `rngState` so the watcher can resync once per round.
+Bare-marker checkpoints carry only `{ type }` — the watcher runs the matching engine fn locally on receipt, deriving every mutation from synced state + RNG. The only payload-carrying checkpoint is `battleStart`, which ships the host's pre-`prepareBattle` `rngState` so the watcher can resync once per round.
 
 | Message | When | Payload | Watcher action |
 |---------|------|---------|----------------|
 | `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) | Bootstrap from seed |
 | `selectStart` | Tower selection begins | `timer` | Run `enterTowerSelection` |
 | `cannonStart` | CASTLE_SELECT / CASTLE_RESELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeBuildVisuals` / `finalizeReselectedPlayers` / `finalizeCastleConstruction`) + `enterCannonPhase` |
-| `battleStart` | CANNON_PLACE → BATTLE | `rngState` (host's pre-`enterBattlePhase` RNG) | `state.rng.setState(rngState)` then `enterBattlePhase` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) |
+| `battleStart` | CANNON_PLACE → BATTLE | `rngState` (host's pre-`prepareBattle` RNG) | `state.rng.setState(rngState)` then `prepareBattle` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) |
 | `buildStart` | BATTLE → WALL_BUILD | _none_ | `enterBuildPhase` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
 | `buildEnd` | End of build phase | _none_ | `finalizeBuildPhase` (territory finalize, life penalties, score) |
 | `gameOver` | Game ends | `winner`, `scores[]` | Render terminal frame |
@@ -193,7 +193,7 @@ Per watcher, ~1 KB/s average. 100 rooms × 3 players ≈ 3 Mbps combined. Domina
 
 Watchers receive the same messages as players. They:
 1. Run the same engine fn locally at each phase-marker checkpoint (`enterBuildPhase`, `enterCannonPhase`, `finalizeBuildPhase`, etc.) — derive every state mutation from synced RNG instead of reading wire payloads
-2. Resync RNG once per round at `battleStart` before running `enterBattlePhase`
+2. Resync RNG once per round at `battleStart` before running `prepareBattle`
 3. Apply incremental events (piece placed, cannon placed, cannon fired, wall destroyed, etc.) as they arrive
 4. Interpolate crosshair positions from `aimUpdate` messages
 5. Tick grunts locally (deterministic movement from shared state)

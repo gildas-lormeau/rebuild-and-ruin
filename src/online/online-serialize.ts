@@ -64,7 +64,7 @@ export function createCannonStartMessage() {
 }
 
 /** Create a BATTLE_START phase-marker message. The watcher runs
- *  `enterBattlePhase` locally on receipt — every battle-start mutation
+ *  `prepareBattle` locally on receipt — every battle-start mutation
  *  (modifier tiles, captured cannons, grunt wall-attack flags, balloon
  *  flights, combo tracker) is derived locally on both sides from synced
  *  state + RNG. No payload: clone-everywhere model means RNG advances in

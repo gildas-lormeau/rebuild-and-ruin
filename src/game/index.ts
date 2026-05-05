@@ -45,8 +45,12 @@ export {
   createGameFromSeed,
   enterBattlePhase,
   enterCannonPhase,
+  enterModifierRevealPhase,
   enterReselectPhase,
   enterSelectionPhase,
+  enterUpgradePickPhase,
+  enterWallBuildPhase,
+  prepareBattle,
   setReselectPhase,
 } from "./game-engine.ts";
 export type { GameOverOutcome, GameOverReason } from "./game-over.ts";

@@ -281,9 +281,10 @@ export function onBuildPhaseStart(state: GameState): void {
 
 /** Phase-boundary hook: run battle-start upgrade elections (Mortar picks
  *  one cannon to fire mortar shots, Shield Battery shields cannons inside
- *  the home region). Must be called after setPhase(BATTLE) and before any
- *  RNG-consuming code in the battle-start sequence — the order is part of
- *  the determinism contract. */
+ *  the home region). Called from `prepareBattle`'s setup, before any
+ *  later RNG-consuming code in the battle-start sequence — the order is
+ *  part of the determinism contract. (state.phase is still CANNON_PLACE
+ *  at this point; the flip to BATTLE happens later via `enterBattlePhase`.) */
 export function onBattlePhaseStart(
   state: GameState,
   deps: BattleStartCannonDeps,

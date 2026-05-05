@@ -182,9 +182,9 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
     });
   }
   rollGruntWallAttacks(state);
-  // Phase flip is owned by the phase machine: `enter-modifier-reveal`
-  // (when a modifier was rolled) or `enter-battle` runs `setPhase`.
-  // state.phase stays on CANNON_PLACE until then.
+  // Phase flip happens later — `enter-modifier-reveal` (when a modifier
+  // was rolled) or `enter-battle` calls the matching game/ enter*Phase
+  // helper. state.phase stays on CANNON_PLACE until then.
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
@@ -278,10 +278,10 @@ export function prepareNextRound(state: GameState): void {
   }
 
   replenishBonusSquares(state);
-  // Phase flip is owned by the phase machine (`battle-done` /
-  // `ceasefire` / `enter-wall-build` mutates). Engine-level setup runs
-  // here but state.phase stays on BATTLE until the machine's mutate
-  // runs `setPhase(state, Phase.WALL_BUILD)`.
+  // Phase flip happens later — `enter-wall-build` (dispatched by the
+  // phase machine after `battle-done` / `ceasefire`) calls
+  // `enterWallBuildPhase`. Engine-level setup runs here but state.phase
+  // stays on BATTLE until that mutate fires.
 
   // Upgrade-effect setup for the new build phase (Master Builder owners +
   // lockout, plus any future hooks wired into onBuildPhaseStart).

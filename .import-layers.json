@@ -285,6 +285,7 @@
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
+      "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-upgrade-pick.ts",
@@ -308,6 +309,7 @@
       "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-life-lost.ts",
+      "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-selection.ts"
     ]
@@ -327,6 +329,7 @@
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
+      "src/game/battle-system.ts",
       "src/game/build-system.ts",
       "src/game/modifier-system.ts",
       "src/render/3d/renderer.ts"
@@ -340,7 +343,11 @@
       "src/ai/ai-phase-build.ts",
       "src/ai/ai-phase-cannon.ts",
       "src/ai/ai-phase-select.ts",
-      "src/game/battle-system.ts"
+      "src/game/game-actions.ts",
+      "src/game/phase-setup.ts",
+      "src/game/scheduled-actions.ts",
+      "src/online/online-server-events.ts",
+      "src/runtime/runtime-composition.ts"
     ]
   },
   {
@@ -348,10 +355,9 @@
     "tier": "assembly",
     "files": [
       "src/controllers/controller-ai.ts",
-      "src/game/game-actions.ts",
-      "src/game/phase-setup.ts",
-      "src/game/scheduled-actions.ts",
-      "src/online/online-server-events.ts"
+      "src/game/game-engine.ts",
+      "src/main.ts",
+      "src/online/online-serialize.ts"
     ]
   },
   {
@@ -359,38 +365,26 @@
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
-      "src/game/game-engine.ts",
-      "src/online/online-serialize.ts",
-      "src/runtime/runtime-phase-machine.ts"
+      "src/online/online-runtime-promote.ts",
+      "src/online/online-runtime-session.ts"
     ]
   },
   {
     "name": "session & runtime lifecycle",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-promote.ts",
-      "src/online/online-runtime-session.ts",
-      "src/runtime/runtime-phase-ticks.ts"
+      "src/online/online-runtime-deps.ts"
     ]
   },
   {
     "name": "app wiring",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-deps.ts",
-      "src/runtime/runtime-composition.ts"
-    ]
-  },
-  {
-    "name": "app entry",
-    "tier": "roots",
-    "files": [
-      "src/main.ts",
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "online client entry",
+    "name": "app entry",
     "tier": "roots",
     "files": [
       "src/online-client.ts"

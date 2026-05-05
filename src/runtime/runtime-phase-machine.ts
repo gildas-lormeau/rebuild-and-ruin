@@ -9,8 +9,9 @@
  *     peer dispatches the transition from its own local tick. `"*"` opts
  *     out (game-over transitions may fire from any phase). Per-transition
  *     target phase lives in the docstring, not in a field, because several
- *     transitions don't setPhase themselves (`round-end` stays in
- *     WALL_BUILD; the continuation flips it).
+ *     transitions don't enter a new phase themselves (`round-end` stays in
+ *     WALL_BUILD; the continuation flips it). Phase entry is owned by
+ *     game/ (`enter*Phase` helpers); the runtime only orchestrates them.
  *   - `mutate`: a single function run on every peer. Game-state mutation
  *     is identical across peers; the only role-gated effect is wire
  *     emission, expressed via `ctx.broadcast?.X?.()` — non-null only on
@@ -38,11 +39,13 @@ import { precomputeAiUpgradePicks } from "../ai/ai-upgrade-pick.ts";
 import type { GameOverReason } from "../game/index.ts";
 import {
   applyUpgradePicks,
-  buildTimerBonus,
   emitGameEnd,
   emitRoundStart,
   enterBattlePhase,
   enterCannonPhase,
+  enterModifierRevealPhase,
+  enterUpgradePickPhase,
+  enterWallBuildPhase,
   finalizeBattle,
   finalizeCastleConstruction,
   finalizeReselectedPlayers,
@@ -50,17 +53,14 @@ import {
   finalizeRoundCleanup,
   type GameOverOutcome,
   peekGameOverOutcome,
+  prepareBattle,
   prepareNextRound,
   recheckTerritory,
   snapshotTerritory,
 } from "../game/index.ts";
-import { setPhase } from "../game/phase-setup.ts";
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
-import {
-  MODIFIER_REVEAL_TIMER,
-  type ModifierDiff,
-} from "../shared/core/game-constants.ts";
+import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import {
   type BannerKind,
   emitGameEvent,
@@ -317,7 +317,7 @@ export interface PhaseTransitionCtx {
 
   readonly broadcast?: {
     readonly cannonStart?: () => void;
-    /** Phase-marker signal — watcher runs `enterBattlePhase` locally on
+    /** Phase-marker signal — watcher runs `prepareBattle` locally on
      *  receipt. No payload. */
     readonly battleStart?: () => void;
     /** Phase-marker signal — watcher runs `finalizeBattle` + `prepareNextRound`
@@ -383,7 +383,7 @@ const STEP_LIFE_LOST_DIALOG = "life-lost-dialog" as const;
  *  / reselect / continue) identically.
  *
  *  The `to` phase is nominally CANNON_PLACE but this transition itself
- *  does NOT call `setPhase`: the next transition (castle-reselect-done
+ *  does NOT enter a new phase: the next transition (castle-reselect-done
  *  / advance-to-cannon / round-limit-reached / last-player-standing)
  *  flips it. */
 const ROUND_END: Transition = {
@@ -444,7 +444,7 @@ const ROUND_END: Transition = {
  *  spawn, upgrade offer generation, piece bag init). Broadcasts BUILD_START.
  *  Does NOT flip the phase and shows no banner — `postDisplay` routes to
  *  `enter-upgrade-pick` (when offers were generated) or `enter-wall-build`,
- *  each of which owns setPhase + its own banner.
+ *  each of which delegates the phase entry to game/ + shows its own banner.
  *
  *  Both sides run `finalizeBattle` + `prepareNextRound` locally — the wire signal is just
  *  a marker telling the watcher when to dispatch this transition.
@@ -519,7 +519,7 @@ const ENTER_UPGRADE_PICK: Transition = {
   id: "enter-upgrade-pick",
   from: [Phase.BATTLE, Phase.CANNON_PLACE],
   mutate: (ctx) => {
-    setPhase(ctx.state, Phase.UPGRADE_PICK);
+    enterUpgradePickPhase(ctx.state);
     ctx.upgradePick?.prepare();
     return EMPTY_TRANSITION_RESULT;
   },
@@ -568,16 +568,9 @@ const ENTER_WALL_BUILD: Transition = {
   id: "enter-wall-build",
   from: [Phase.BATTLE, Phase.CANNON_PLACE, Phase.UPGRADE_PICK],
   mutate: (ctx) => {
-    setPhase(ctx.state, Phase.WALL_BUILD);
-    // Anchor the phase timer here — AFTER `applyUpgradePicks` (which
-    // runs in `upgrade-pick-done.mutate`) and `resetPlayerUpgrades`
-    // (which runs in `prepareNextRound`) have settled the upgrade
-    // set for this round. Setting it earlier (e.g. in
-    // `prepareNextRound`) reflects the PREVIOUS round's upgrades
-    // and diverges Double Time / Master Builder bonuses from what the
-    // build phase actually plays out with — host vs watcher would
-    // disagree on phase length.
-    ctx.state.timer = ctx.state.buildTimer + buildTimerBonus(ctx.state);
+    // Phase flip + entry-time timer anchor (timer must reflect THIS round's
+    // upgrade set — see `enterWallBuildPhase` JSDoc for the parity story).
+    enterWallBuildPhase(ctx.state);
     // Per-controller startBuildPhase + scoreDelta reset/capturePreScores
     // + clearImpacts + accumulator resets. Same on every peer.
     ctx.startBuildPhaseLocal?.();
@@ -717,14 +710,14 @@ const LAST_PLAYER_STANDING: Transition = {
   display: [],
 };
 /** `cannon-place-done` — CANNON_PLACE prep transition. Runs engine
- *  battle entry (`enterBattlePhase`: modifier roll, balloon resolution,
+ *  battle setup (`prepareBattle`: modifier roll, balloon resolution,
  *  post-modifier territory/wall snapshots) on every peer; the host
  *  additionally broadcasts BATTLE_START as a sync marker. Does NOT flip
  *  the phase and shows no banner — `postDisplay` routes to
  *  `enter-modifier-reveal` (when a modifier was rolled) or straight to
- *  `enter-battle`, each of which owns setPhase + its own banner.
+ *  `enter-battle`, each of which delegates the phase entry to game/.
  *
- *  RNG parity is load-bearing: every peer's `enterBattlePhase` consumes
+ *  RNG parity is load-bearing: every peer's `prepareBattle` consumes
  *  `state.rng` in lockstep (modifier roll, balloon perturbation). The
  *  BATTLE_START wire message is a payload-less phase marker — non-host
  *  peers ignore it, having already advanced via their local tick. */
@@ -734,7 +727,7 @@ const CANNON_PLACE_DONE: Transition = {
   mutate: (ctx) => {
     ctx.log(`startBattle (round=${ctx.state.round})`);
     ctx.scoreDelta.reset();
-    const entry = enterBattlePhase(ctx.state);
+    const entry = prepareBattle(ctx.state);
     ctx.broadcast?.battleStart?.();
     return { modifierDiff: entry.modifierDiff, flights: entry.flights };
   },
@@ -742,8 +735,8 @@ const CANNON_PLACE_DONE: Transition = {
   display: [],
   postDisplay: routeCannonPlaceDone,
 };
-/** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Flips the phase,
- *  primes `state.timer` with `MODIFIER_REVEAL_TIMER` so the phase
+/** `enter-modifier-reveal` — MODIFIER_REVEAL entry. Delegates the phase
+ *  flip + dwell-timer prime to `enterModifierRevealPhase` so the phase
  *  behaves like every other timed phase, and shows the modifier-reveal
  *  banner. `tickModifierRevealPhase` counts `state.timer` down and
  *  dispatches `enter-battle` when it reaches 0 — the same pattern as
@@ -761,8 +754,7 @@ const ENTER_MODIFIER_REVEAL: Transition = {
   id: "enter-modifier-reveal",
   from: Phase.CANNON_PLACE,
   mutate: (ctx) => {
-    setPhase(ctx.state, Phase.MODIFIER_REVEAL);
-    ctx.state.timer = MODIFIER_REVEAL_TIMER;
+    enterModifierRevealPhase(ctx.state);
     return EMPTY_TRANSITION_RESULT;
   },
   display: [
@@ -795,7 +787,7 @@ const ENTER_BATTLE: Transition = {
   id: "enter-battle",
   from: [Phase.CANNON_PLACE, Phase.MODIFIER_REVEAL],
   mutate: (ctx) => {
-    setPhase(ctx.state, Phase.BATTLE);
+    enterBattlePhase(ctx.state);
     return EMPTY_TRANSITION_RESULT;
   },
   // syncBattleAnim already ran inside `cannon-place-done`'s postMutate
@@ -892,7 +884,7 @@ function routeCannonPlaceDone(
 
 /** Post-battle / ceasefire prep transitions don't flip the phase — the
  *  following `enter-upgrade-pick` or `enter-wall-build` entry transition
- *  owns `setPhase`. Route based on whether modern-mode upgrade offers
+ *  owns the phase entry. Route based on whether modern-mode upgrade offers
  *  were generated. Uses `runTransitionInline` for the same reason as
  *  `routeCannonPlaceDone`. */
 function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {

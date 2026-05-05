@@ -247,7 +247,7 @@ for them so tests can drive them via injected messages.
 - **Phase markers are bare triggers.** `BUILD_START` / `BUILD_END` /
   `CANNON_START` / `BATTLE_START` all carry no payload — every peer
   runs the matching engine fn (`enterBuildPhase` / `finalizeBuildPhase` /
-  source-prefix + `enterCannonPhase` / `enterBattlePhase`) locally
+  source-prefix + `enterCannonPhase` / `prepareBattle`) locally
   from its own tick. The clone-everywhere model means RNG advances
   in lockstep across peers, so no resync payload is needed. The wire
   marker only exists so a watcher can acknowledge receipt and stay

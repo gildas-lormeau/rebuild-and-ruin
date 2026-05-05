@@ -133,7 +133,7 @@ export interface CannonStartMessage {
 }
 
 /** Start of battle — phase-marker signal. Watcher runs
- *  `enterBattlePhase` locally on receipt; no payload. */
+ *  `prepareBattle` locally on receipt; no payload. */
 export interface BattleStartMessage {
   type: "battleStart";
 }
