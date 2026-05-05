@@ -58,7 +58,7 @@ export {
   type GameOverOutcome,
   peekGameOverOutcome,
 } from "./game-over.ts";
-export { tickGrunts } from "./grunt-movement.ts";
+export { moveGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {

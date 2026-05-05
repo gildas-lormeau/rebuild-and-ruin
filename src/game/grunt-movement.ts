@@ -5,7 +5,7 @@
  * Extracted from grunt-system.ts so movement (the complex spatial logic)
  * is separated from lifecycle (spawn, respawn, attack tracking).
  *
- * External consumers: runtime-phase-ticks.ts imports tickGrunts from here.
+ * External consumers: runtime-phase-ticks.ts imports moveGrunts from here.
  * grunt-system.ts imports shared helpers (adjacentLivingTowerIndex,
  * getGruntTargetTower, etc.) for attack logic.
  */
@@ -51,7 +51,7 @@ const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
  * Enforced by the single call site in this function; no external API exposes
  * lock+move separately.
  */
-export function tickGrunts(state: GameState): boolean {
+export function moveGrunts(state: GameState): boolean {
   // Frostbite: grunts spawn as immobile ice cubes for the entire battle.
   // Skip both target-lock and movement so they keep whatever facing they
   // were spawned with and never advance.
@@ -266,7 +266,7 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
     const nc = grunt.col + dc;
     if (!inBounds(nr, nc)) continue;
 
-    // Skip impassable tiles (but towers are checked separately in tickGrunts)
+    // Skip impassable tiles (but towers are checked separately in moveGrunts)
     if (!isGruntPassableTile(state, nr, nc)) continue;
 
     const newDist = towerDist(nr, nc);

@@ -7,12 +7,12 @@ import {
   tickBattlePhase as engineTickBattlePhase,
   tickBuildPhase as engineTickBuildPhase,
   enterBuildSkippingBattle,
+  moveGrunts,
   nextReadyCombined,
   prepareControllerCannonPhase,
   resetCannonFacings,
   setBattleCountdown,
   shouldSkipBattle,
-  tickGrunts,
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
@@ -762,7 +762,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // wire-received placements before its own `tickGruntsIfDue` (see
     // online-watcher-tick.ts); the host must mirror that order or grunts
     // diverge by one frame, drifting state-dependent RNG draws.
-    tickGruntsIfDue(accum, dt, state, tickGrunts);
+    tickGruntsIfDue(accum, dt, state, moveGrunts);
 
     deps.requestRender();
     if (state.timer > 0) return false;

@@ -17,7 +17,7 @@
  * 2. **TICK** (main game loop) — Deterministic per-frame simulation:
  *    cannonball physics, grunt movement, battle timers, phase countdowns.
  *    Runs exactly once per frame.
- *    Examples: tickCannonballs, tickGrunts, advancePhaseTimer.
+ *    Examples: tickCannonballs, moveGrunts, advancePhaseTimer.
  *
  * 3. **CHECKPOINT** (phase transitions) — Full state reset from host
  *    checkpoint. Replaces entire subsystem state. Runs at most once per
@@ -152,18 +152,18 @@ export function advancePhaseTimer<K extends string>(
   state.timer = Math.max(0, max - elapsed);
 }
 
-/** Advance grunt accumulator and tick grunts when the interval elapses.
+/** Advance grunt accumulator and step grunts when the interval elapses.
  *  Shared between host (tickHostBuildPhase) and watcher to prevent interval drift. */
 export function tickGruntsIfDue(
   accum: { grunt: number },
   dt: number,
   state: GameState,
-  tickGrunts: (state: GameState) => void,
+  moveGrunts: (state: GameState) => void,
 ): void {
   accum.grunt += dt;
   if (accum.grunt >= GRUNT_TICK_INTERVAL) {
     accum.grunt -= GRUNT_TICK_INTERVAL;
-    tickGrunts(state);
+    moveGrunts(state);
   }
 }
 
