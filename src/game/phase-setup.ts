@@ -235,7 +235,7 @@ export function finalizeBattle(state: GameState): void {
   spawnIdleFirstBattleGrunts(state);
   recheckTerritory(state);
   // End of the protected battle — clear the fresh-castle grace period flag.
-  for (const player of state.players) player.freshCastle = false;
+  for (const player of state.players) player.inGracePeriod = false;
   // Reset per-battle grunt decisions — fresh `targetedWall` is recomputed
   // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD).
   for (const grunt of state.grunts) grunt.targetedWall = undefined;
@@ -332,7 +332,7 @@ export function setPhase(state: GameState, phase: Phase): void {
 
 /** Finalize game state for players who built a fresh castle this round.
  *  Snapshots castle walls for debris-sweep protection. The
- *  `player.freshCastle` flag is set at confirm-time (in `confirmTowerSelection`)
+ *  `player.inGracePeriod` flag is set at confirm-time (in `confirmTowerSelection`)
  *  and cleared in `finalizeBattle`, so this function just iterates flagged
  *  players and snapshots wall tiles. Round 1's auto-built castle and a
  *  mid-game reselected castle are treated identically. */
@@ -340,7 +340,7 @@ export function finalizeFreshCastles(state: GameState): void {
   // The castle build animation already placed walls (including clumsy extras)
   // via addPlayerWall. Don't rebuild — just do cleanup.
   for (const player of state.players) {
-    if (!player.freshCastle) continue;
+    if (!player.inGracePeriod) continue;
     if (!player.homeTower) continue;
     // Protect animated walls from debris sweep
     player.castleWallTiles = new Set(player.walls);

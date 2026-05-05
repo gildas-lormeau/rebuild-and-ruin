@@ -76,7 +76,7 @@ export interface Player {
    *  Modifiers still apply to this player's zone, but tile-placing effects
    *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via
    *  getProtectedCastleTiles. Cleared in finalizeBattle. */
-  freshCastle: boolean;
+  inGracePeriod: boolean;
   /** Build-phase piece bag (deterministic from upcomingRound + rng + smallPieces;
    *  seeded with `state.round + 1` because initPlayerBag runs in prepareNextRound
    *  at battle-done, well before state.round advances in resolveAfterLifeLost).

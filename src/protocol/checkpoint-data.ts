@@ -67,7 +67,7 @@ export interface SerializedPlayer {
   damagedWalls?: number[];
   /** True during the grace-period battle after a fresh castle build
    *  (round 1 auto-build or mid-game reselect). */
-  freshCastle?: boolean;
+  inGracePeriod?: boolean;
 }
 
 export interface SerializedBurningPit {

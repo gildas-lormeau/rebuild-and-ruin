@@ -1,8 +1,8 @@
 /** Fresh-castle protection helpers for modifier targeting.
  *
  *  A player whose castle was just (re)built gets one battle of protection for
- *  the castle itself — `player.freshCastle` is set in `finalizeFreshCastles`
- *  and cleared in finalizeBattle at end of the protected battle. The
+ *  the castle itself — `player.inGracePeriod` is set in `confirmTowerSelection`
+ *  and cleared in `finalizeBattle` at end of the protected battle. The
  *  protection is tile-scoped (2x2 tower + castle-wall ring), not zone-scoped:
  *  modifiers still apply to the fresh player's zone, they just can't land on
  *  the castle footprint itself. Grunt surges still spawn, crumbling walls
@@ -32,7 +32,7 @@ export function getProtectedCastleTiles(state: GameState): ReadonlySet<number> {
   const protectedTiles = new Set<number>();
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    if (!player.freshCastle) continue;
+    if (!player.inGracePeriod) continue;
     for (const key of player.castleWallTiles) protectedTiles.add(key);
     const { row, col } = player.homeTower;
     for (let dr = 0; dr < TOWER_SIZE; dr++) {

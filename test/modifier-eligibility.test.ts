@@ -17,19 +17,19 @@ import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
 import { packTile } from "../src/shared/core/spatial.ts";
 import { createScenario } from "./scenario.ts";
 
-Deno.test("protected-tiles: empty when no player has freshCastle", async () => {
+Deno.test("protected-tiles: empty when no player is inGracePeriod", async () => {
   const sc = await createScenario({ seed: 42 });
   for (const player of sc.state.players) {
-    assertEquals(player.freshCastle, false);
+    assertEquals(player.inGracePeriod, false);
   }
   assertEquals(getProtectedCastleTiles(sc.state).size, 0);
 });
 
-Deno.test("protected-tiles: freshCastle contributes tower + castle walls", async () => {
+Deno.test("protected-tiles: inGracePeriod contributes tower + castle walls", async () => {
   const sc = await createScenario({ seed: 42 });
   const target = sc.state.players.find((p) => !!p.homeTower && !p.eliminated);
   assert(target, "need at least one seated player");
-  target.freshCastle = true;
+  target.inGracePeriod = true;
   target.castleWallTiles = new Set(target.walls);
   const tower = target.homeTower!;
 
@@ -59,7 +59,7 @@ Deno.test("applyFireScar throws if scar touches a protected tile", async () => {
   const sc = await createScenario({ seed: 42 });
   const target = sc.state.players.find((p) => !!p.homeTower && !p.eliminated);
   assert(target, "need at least one seated player");
-  target.freshCastle = true;
+  target.inGracePeriod = true;
   const tower = target.homeTower!;
   const scar = new Set<number>([packTile(tower.row, tower.col)]);
   assertThrows(

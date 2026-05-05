@@ -114,7 +114,7 @@ function dumpSinkholeState(
 
   console.log("=== Red player ===");
   console.log(
-    `id=${red.id} lives=${red.lives} score=${red.score} eliminated=${red.eliminated} freshCastle=${red.freshCastle}`,
+    `id=${red.id} lives=${red.lives} score=${red.score} eliminated=${red.eliminated} inGracePeriod=${red.inGracePeriod}`,
   );
   console.log(
     `homeTower=(${red.homeTower!.row},${red.homeTower!.col}) idx=${red.homeTower!.index} zone=${redZone}`,

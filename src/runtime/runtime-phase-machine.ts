@@ -435,7 +435,7 @@ const ROUND_END: Transition = {
 };
 /** `battle-done` — BATTLE prep transition. Runs engine post-battle
  *  housekeeping in two halves: `finalizeBattle` (combo bonuses, battle
- *  cleanup, freshCastle clear, lastModifierId snapshot, ROUND_END emit)
+ *  cleanup, inGracePeriod clear, lastModifierId snapshot, ROUND_END emit)
  *  followed by `prepareNextRound` (round increment, ROUND_START, grunt
  *  spawn, upgrade offer generation, piece bag init). Broadcasts BUILD_START.
  *  Does NOT flip the phase and shows no banner — `postDisplay` routes to
@@ -609,7 +609,7 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
  *       reveal under the cannons banner instead of popping during the score
  *       overlay. Round 1 has no prior round-end to defer from.
  *    2. `finalizeFreshCastles` — snapshots new castle walls for fresh-castle
- *       players (drives off `player.freshCastle`, set at confirm-time).
+ *       players (drives off `player.inGracePeriod`, set at confirm-time).
  *    3. `finalizeCastleConstruction` — claims territory + spawns houses /
  *       bonus squares.
  *    4. `enterCannonPhase` — sets the phase + computes cannon limits +

@@ -100,7 +100,7 @@ function createGameState(
       castleWallTiles: new Set(),
       upgrades: new Map(),
       damagedWalls: new Set(),
-      freshCastle: false,
+      inGracePeriod: false,
       bag: undefined,
       currentPiece: undefined,
     });

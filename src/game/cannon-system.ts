@@ -497,7 +497,7 @@ function cannonSlotsForRound(
 ): number {
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
-  if (player.freshCastle) {
+  if (player.inGracePeriod) {
     // Fresh castle: compensate for lost lives (zero in round 1), capped at MAX_CANNON_LIMIT_ON_RESELECT
     newSlots = Math.min(
       state.firstRoundCannons + (STARTING_LIVES - player.lives),
