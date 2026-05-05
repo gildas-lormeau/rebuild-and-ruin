@@ -450,8 +450,15 @@ export function pickTarget(
   rng: Rng = state.rng,
 ): StrategicPixelPos | null {
   const rand = () => rng.next();
-  // Second half of battle: 1/4 chance to switch to the other enemy
-  const secondHalf = state.timer <= BATTLE_SECOND_HALF_TIMER;
+  // Second half of battle: 1/4 chance to switch to the other enemy.
+  // Gated on `battleCountdown <= 0` so the check only fires once battle
+  // is actually running. During the countdown (battleCountdown > 0),
+  // pickTarget is also called from `tickCountdown`, but `state.timer`
+  // still reflects the prior phase's value (≈ 0 in modern-with-modifier
+  // because MODIFIER_REVEAL decayed it; BATTLE_TIMER in classic) — both
+  // paths must agree, and only post-countdown is "second half" meaningful.
+  const secondHalf =
+    state.battleCountdown <= 0 && state.timer <= BATTLE_SECOND_HALF_TIMER;
   const switchTarget =
     secondHalf &&
     focusFirePlayerId != null &&
