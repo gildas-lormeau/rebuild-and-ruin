@@ -47,10 +47,7 @@ import {
   sweepIsolatedWalls,
 } from "../shared/core/board-occupancy.ts";
 import { FID } from "../shared/core/feature-defs.ts";
-import {
-  BATTLE_TIMER,
-  type ModifierDiff,
-} from "../shared/core/game-constants.ts";
+import { type ModifierDiff } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
@@ -183,10 +180,9 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
     });
   }
   rollGruntWallAttacks(state);
-  // Phase flip happens later — `enter-modifier-reveal` (when a modifier
-  // was rolled) or `enter-battle` calls the matching game/ enter*Phase
-  // helper. state.phase stays on CANNON_PLACE until then.
-  state.timer = BATTLE_TIMER;
+  // Phase flip + state.timer prime happen later — `enter-modifier-reveal`
+  // (when a modifier was rolled) or `enter-battle` calls the matching
+  // game/ enter*Phase helper. state.phase stays on CANNON_PLACE until then.
   state.cannonballs = [];
   state.shotsFired = 0;
   state.pendingCannonFires.clear();

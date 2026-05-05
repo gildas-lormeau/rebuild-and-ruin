@@ -20,6 +20,7 @@
 
 import type { BalloonFlight } from "../shared/core/battle-types.ts";
 import {
+  BATTLE_TIMER,
   MODIFIER_REVEAL_TIMER,
   type ModifierDiff,
 } from "../shared/core/game-constants.ts";
@@ -81,12 +82,15 @@ export function enterModifierRevealPhase(state: GameState): void {
   state.timer = MODIFIER_REVEAL_TIMER;
 }
 
-/** Flip to BATTLE. No timer prime — `tickBattlePhase`'s first frame
- *  re-anchors `state.timer` from `accum.battle` against `BATTLE_TIMER`,
- *  and `prepareBattle` (run earlier in the same chain) already set the
- *  cannon-place-display value defensively. */
+/** Flip to BATTLE and prime the battle timer. The prime matters during
+ *  the countdown: AI's `pickTarget` reads `state.timer` to detect "second
+ *  half of battle", and without this prime modern-with-modifier would
+ *  enter countdown with `state.timer ≈ 0` (decayed by MODIFIER_REVEAL).
+ *  `tickBattlePhase`'s first frame re-anchors against BATTLE_TIMER from
+ *  `accum.battle` once weapons go active. */
 export function enterBattlePhase(state: GameState): void {
   setPhase(state, Phase.BATTLE);
+  state.timer = BATTLE_TIMER;
 }
 
 /** Flip to UPGRADE_PICK. The pick UI prepare hook is runtime-side and
