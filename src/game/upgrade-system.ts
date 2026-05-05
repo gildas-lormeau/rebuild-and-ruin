@@ -294,7 +294,7 @@ export function onBattlePhaseStart(
 }
 
 /** Per-frame hook: advance upgrade-effect timers during the build phase.
- *  Called from the engine's tickBuildPhase entry point. */
+ *  Called from the runtime's per-frame build-phase tick. */
 export function tickBuildUpgrades(state: GameState, dt: number): void {
   for (const impl of UPGRADE_REGISTRY.values()) {
     impl.tickBuild?.(state, dt);

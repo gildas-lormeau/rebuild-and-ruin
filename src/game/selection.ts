@@ -86,30 +86,10 @@ export function confirmTowerSelection(
   };
 }
 
-export function allSelectionsConfirmed(
-  selectionStates: Map<number, SelectionState>,
-): boolean {
-  for (const [, selectionState] of selectionStates) {
-    if (!selectionState.confirmed) return false;
-  }
-  return true;
-}
-
 /** Set the game timer for the selection phase. Keeps timer initialization
  *  inside the game domain instead of runtime directly mutating state.timer. */
 export function initSelectionTimer(state: GameState): void {
   state.timer = SELECT_TIMER;
-}
-
-/** True when every player with a home tower has non-empty territory (or is eliminated).
- *  Game-rule check used by the selection tick to decide when castle builds are done. */
-export function allPlayersHaveTerritory(state: GameState): boolean {
-  return state.players.every(
-    (player) =>
-      !player.homeTower ||
-      getInterior(player).size > 0 ||
-      isPlayerEliminated(player),
-  );
 }
 
 /** Clear selection state if in CASTLE_SELECT phase. Returns true if cleared. */
@@ -120,6 +100,39 @@ export function finishSelectionPhase(
   if (state.phase !== Phase.CASTLE_SELECT) return false;
   selectionStates.clear();
   return true;
+}
+
+/** True when the selection phase is ready to advance: every player has
+ *  confirmed their tower AND every player with a home tower has claimed
+ *  territory (castle build animation complete). Callers typically also
+ *  check runtime-specific conditions (castle build queue empty). */
+export function isSelectionComplete(
+  state: GameState,
+  selectionStates: Map<number, SelectionState>,
+): boolean {
+  return (
+    allSelectionsConfirmed(selectionStates) && allPlayersHaveTerritory(state)
+  );
+}
+
+export function allSelectionsConfirmed(
+  selectionStates: Map<number, SelectionState>,
+): boolean {
+  for (const [, selectionState] of selectionStates) {
+    if (!selectionState.confirmed) return false;
+  }
+  return true;
+}
+
+/** True when every player with a home tower has non-empty territory (or is eliminated).
+ *  Game-rule check used by the selection tick to decide when castle builds are done. */
+function allPlayersHaveTerritory(state: GameState): boolean {
+  return state.players.every(
+    (player) =>
+      !player.homeTower ||
+      getInterior(player).size > 0 ||
+      isPlayerEliminated(player),
+  );
 }
 
 /** True when a selection exists and is not yet confirmed — the player can still change it. */

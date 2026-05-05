@@ -47,13 +47,7 @@ import {
 } from "./cannon-system.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
-import {
-  allPlayersHaveTerritory,
-  allSelectionsConfirmed,
-  initSelectionTimer,
-  initTowerSelection,
-} from "./selection.ts";
-import { buildTimerBonus, tickBuildUpgrades } from "./upgrade-system.ts";
+import { initSelectionTimer, initTowerSelection } from "./selection.ts";
 
 /** Result of `enterBattlePhase` — what the caller needs to wire up the
  *  modifier-reveal banner, balloon animation, and online broadcast.
@@ -80,16 +74,6 @@ interface PlayerCannonInit {
  *  Index = playerId; null entries are eliminated players or empty slots. */
 interface CannonPhaseEntry {
   playerInit: readonly (PlayerCannonInit | null)[];
-}
-
-/** Result of `tickBuildPhase` — per-frame engine summary the runtime needs
- *  to drive its outer build coordinator (timer advance, controller ticks,
- *  rendering). The engine has already advanced any internal lockout timers
- *  by the time this is returned. */
-interface BuildPhaseTick {
-  /** Effective max for the build phase timer in seconds. Already includes
-   *  any active upgrade bonuses (e.g. Master Builder). */
-  timerMax: number;
 }
 
 /** Create a game from a seed: generate map, pick zones, create state.
@@ -193,19 +177,6 @@ export function enterSelectionPhase(
   initSelectionTimer(state);
 }
 
-/** True when the selection phase is ready to advance: every player has
- *  confirmed their tower AND every player with a home tower has claimed
- *  territory (castle build animation complete). Callers typically also
- *  check runtime-specific conditions (castle build queue empty). */
-export function isSelectionComplete(
-  state: GameState,
-  selectionStates: Map<number, SelectionState>,
-): boolean {
-  return (
-    allSelectionsConfirmed(selectionStates) && allPlayersHaveTerritory(state)
-  );
-}
-
 /** Enter the CASTLE_RESELECT phase for players who lost a life. Sets the
  *  phase flag, clears any stale per-player selection tracking, initializes
  *  a fresh selection entry for each player in the reselect queue (with a
@@ -230,17 +201,6 @@ export function enterReselectPhase(
     initTowerSelection(state, selectionStates, pid, zone);
   }
   initSelectionTimer(state);
-}
-
-/** Per-frame WALL_BUILD engine tick. Advances upgrade-effect timers and
- *  reports the effective phase timer max so the runtime can keep its
- *  accumulator-based timer in sync.
- *
- *  Pure engine territory: no controller ticks, no rendering, no networking.
- *  The runtime's outer build coordinator wraps this with those concerns. */
-export function tickBuildPhase(state: GameState, dt: number): BuildPhaseTick {
-  tickBuildUpgrades(state, dt);
-  return { timerMax: state.buildTimer + buildTimerBonus(state) };
 }
 
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and

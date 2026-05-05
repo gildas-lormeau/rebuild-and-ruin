@@ -2,10 +2,10 @@ import type { GameOverReason } from "../game/index.ts";
 import {
   advanceBattleCountdown,
   allCannonPlaceDone,
+  buildTimerBonus,
   canBuildThisFrame,
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
-  tickBuildPhase as engineTickBuildPhase,
   enterBuildSkippingBattle,
   moveGrunts,
   nextReadyCombined,
@@ -13,6 +13,7 @@ import {
   resetCannonFacings,
   setBattleCountdown,
   shouldSkipBattle,
+  tickBuildUpgrades,
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
@@ -716,8 +717,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const { state, accum } = runtimeState;
     const local = localControllers(runtimeState.controllers, remotePlayerSlots);
 
-    // --- Engine tick (advances upgrade-effect timers, returns timer max) ---
-    const { timerMax } = engineTickBuildPhase(state, dt);
+    // --- Engine tick (advance upgrade-effect timers; timerMax includes any active upgrade bonus) ---
+    tickBuildUpgrades(state, dt);
+    const timerMax = state.buildTimer + buildTimerBonus(state);
     advancePhaseTimer(accum, "build", state, dt, timerMax);
 
     // --- PASS 1: Tick local controllers, broadcast own-human's piece phantom ---

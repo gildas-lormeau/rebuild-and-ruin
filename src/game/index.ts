@@ -48,14 +48,11 @@ export {
   enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
-  isSelectionComplete,
-  tickBuildPhase,
 } from "./game-engine.ts";
-export type { GameOverReason } from "./game-over.ts";
+export type { GameOverOutcome, GameOverReason } from "./game-over.ts";
 export {
   eliminatePlayers,
   emitGameEnd,
-  type GameOverOutcome,
   peekGameOverOutcome,
 } from "./game-over.ts";
 export { moveGrunts } from "./grunt-movement.ts";
@@ -83,11 +80,13 @@ export {
   confirmTowerSelection,
   finishSelectionPhase,
   highlightTowerSelection,
+  isSelectionComplete,
 } from "./selection.ts";
 export {
   applyUpgradePicks,
   buildTimerBonus,
   canBuildThisFrame,
   shouldSkipBattle,
+  tickBuildUpgrades,
 } from "./upgrade-system.ts";
 export { consumeRapidEmplacement } from "./upgrades/rapid-emplacement.ts";
