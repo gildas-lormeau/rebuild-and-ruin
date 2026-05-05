@@ -64,7 +64,6 @@ export interface HandleServerIncrementalDeps {
   getControllers: () => readonly PlayerController[];
   selectionStates: Map<number, SelectionState>;
   syncSelectionOverlay: () => void;
-  isCastleReselectPhase: () => boolean;
   confirmSelectionAndStartBuild: (
     playerId: ValidPlayerSlot,
     isReselect: boolean,
@@ -189,7 +188,7 @@ function handleTowerSelected(
       // `confirmSelectionAndStartBuild` runs.
       deps.confirmSelectionAndStartBuild(
         msg.playerId,
-        deps.isCastleReselectPhase(),
+        state.round > 1,
         "network",
         msg.applyAt,
       );

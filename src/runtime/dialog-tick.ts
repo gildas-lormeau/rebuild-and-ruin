@@ -20,9 +20,10 @@
  * done, OR timer fallback resolves the rest". The storage differs per
  * phase but the contract is identical:
  *
- *   • SELECT / RESELECT — per-slot `selection.states[pid].confirmed`
- *     (Map). Predicate: `allSelectionsConfirmed` (game/selection.ts).
- *     Wire: `OPPONENT_TOWER_SELECTED confirmed:true`. Timer fallback:
+ *   • CASTLE_SELECT (initial or reselect cycle) — per-slot
+ *     `selection.states[pid].confirmed` (Map). Predicate:
+ *     `allSelectionsConfirmed` (game/selection.ts). Wire:
+ *     `OPPONENT_TOWER_SELECTED confirmed:true`. Timer fallback:
  *     auto-confirm.
  *   • CANNON_PLACE — `state.cannonPlaceDone: Set<ValidPlayerSlot>`.
  *     Predicate: `allCannonPlaceDone` (game/cannon-system.ts). Wire:

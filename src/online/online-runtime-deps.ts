@@ -139,7 +139,6 @@ function buildIncrementalDeps(
     getControllers: () => init.runtime.runtimeState.controllers,
     selectionStates: init.runtime.selection.getStates(),
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () => init.runtime.runtimeState.state.round > 1,
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
       isReselect: boolean,

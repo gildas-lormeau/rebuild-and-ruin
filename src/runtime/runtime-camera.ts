@@ -757,7 +757,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   /** Maps a Phase to its per-phase camera slot, or null when the phase has
-   *  no per-phase camera memory (selection / reselect / modifier-reveal). */
+   *  no per-phase camera memory (selection / modifier-reveal). */
   function phaseSlot(phase: Phase): "build" | "cannon" | "battle" | null {
     if (phase === Phase.WALL_BUILD) return "build";
     if (phase === Phase.CANNON_PLACE) return "cannon";
