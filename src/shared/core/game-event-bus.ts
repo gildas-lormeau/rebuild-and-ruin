@@ -195,10 +195,6 @@ export type EntityEvent =
       playerId: ValidPlayerSlot;
       row: number;
       col: number;
-      /** True when a player is re-picking their starting castle after losing
-       *  all enclosing walls — consumers (music) that only care about the
-       *  initial selection can filter on `isReselect=false`. */
-      isReselect: boolean;
     }
   | {
       type: "wallPlaced";

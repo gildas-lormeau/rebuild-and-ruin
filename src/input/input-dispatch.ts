@@ -193,7 +193,6 @@ export function dispatchTowerSelect(
   wx: number,
   wy: number,
   state: GameState,
-  isReselect: boolean,
   deps: {
     withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
@@ -221,7 +220,7 @@ export function dispatchTowerSelect(
         alreadyHighlighted &&
         (!requireSecondTapToConfirm || selectionState.towerAlreadyHighlighted)
       ) {
-        gameAction.confirmSelectionAndStartBuild(human.playerId, isReselect);
+        gameAction.confirmSelectionAndStartBuild(human.playerId);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
         selectionState.towerAlreadyHighlighted = alreadyHighlighted;
@@ -350,7 +349,7 @@ export function dispatchGameAction(
       return true;
     }
     if (action === Action.CONFIRM) {
-      deps.confirmSelectionAndStartBuild(ctrl.playerId, state.round > 1);
+      deps.confirmSelectionAndStartBuild(ctrl.playerId);
       return true;
     }
     return false;

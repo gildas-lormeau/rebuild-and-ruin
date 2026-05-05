@@ -519,10 +519,9 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     };
 
     // Stop the title track the moment any player confirms their starting
-    // castle. Ignore `isReselect` — after a mid-game castle reselect the
-    // title isn't playing anyway.
-    bind(GAME_EVENT.CASTLE_PLACED, (event) => {
-      if (event.isReselect) return;
+    // castle. After a mid-game reselect the title isn't playing anyway,
+    // so the no-op stop is harmless.
+    bind(GAME_EVENT.CASTLE_PLACED, () => {
       wantsTitle = false;
       stopBg(STOP_REASON_PHASE);
     });

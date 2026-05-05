@@ -66,7 +66,6 @@ export interface HandleServerIncrementalDeps {
   syncSelectionOverlay: () => void;
   confirmSelectionAndStartBuild: (
     playerId: ValidPlayerSlot,
-    isReselect: boolean,
     source?: "local" | "network",
     applyAt?: number,
   ) => void;
@@ -186,12 +185,7 @@ function handleTowerSelected(
       // echo would be redundant). When `applyAt` is missing (older wire
       // shape, defensive), the immediate-apply fallback inside
       // `confirmSelectionAndStartBuild` runs.
-      deps.confirmSelectionAndStartBuild(
-        msg.playerId,
-        state.round > 1,
-        "network",
-        msg.applyAt,
-      );
+      deps.confirmSelectionAndStartBuild(msg.playerId, "network", msg.applyAt);
     }
   }
   return APPLIED;

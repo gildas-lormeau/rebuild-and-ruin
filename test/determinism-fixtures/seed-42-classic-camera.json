@@ -1135,7 +1135,6 @@
       "type": "castlePlaced",
       "payload": {
         "col": 28,
-        "isReselect": false,
         "playerId": 1,
         "row": 21
       }
@@ -1296,7 +1295,6 @@
       "type": "castlePlaced",
       "payload": {
         "col": 3,
-        "isReselect": false,
         "playerId": 0,
         "row": 23
       }
@@ -1780,7 +1778,6 @@
       "type": "castlePlaced",
       "payload": {
         "col": 30,
-        "isReselect": false,
         "playerId": 2,
         "row": 5
       }

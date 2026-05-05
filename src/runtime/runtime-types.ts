@@ -450,7 +450,6 @@ export interface RuntimeSelection {
   highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
   confirmAndStartBuild: (
     pid: ValidPlayerSlot,
-    isReselect?: boolean,
     source?: "local" | "network",
     applyAt?: number,
   ) => boolean;

@@ -233,15 +233,11 @@ export function createSelectionSystem(
    *  — locally driven human confirmations and network-received confirms
    *  defer this to the lockstep `applyAt`; AI / non-human local
    *  confirmations apply immediately. */
-  function applyConfirmedSelection(
-    pid: ValidPlayerSlot,
-    isReselect: boolean,
-  ): void {
+  function applyConfirmedSelection(pid: ValidPlayerSlot): void {
     const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
       pid,
-      isReselect,
       (row, col) => runtimeState.controllers[pid]!.centerOn(row, col),
     );
     if (!result) return;
@@ -256,7 +252,6 @@ export function createSelectionSystem(
 
   function confirmSelectionAndStartBuild(
     pid: ValidPlayerSlot,
-    isReselect = false,
     source: "local" | "network" = "local",
     applyAtFromWire?: number,
   ): boolean {
@@ -283,7 +278,7 @@ export function createSelectionSystem(
       runtimeState.actionSchedule.schedule({
         applyAt,
         playerId: pid,
-        apply: () => applyConfirmedSelection(pid, isReselect),
+        apply: () => applyConfirmedSelection(pid),
       });
       return false;
     }
@@ -292,14 +287,14 @@ export function createSelectionSystem(
       runtimeState.actionSchedule.schedule({
         applyAt: applyAtFromWire,
         playerId: pid,
-        apply: () => applyConfirmedSelection(pid, isReselect),
+        apply: () => applyConfirmedSelection(pid),
       });
       return false;
     }
 
     // Immediate apply: AI confirmations (no wire), and a defensive fallback
     // for any caller that doesn't supply an `applyAt` for the network path.
-    applyConfirmedSelection(pid, isReselect);
+    applyConfirmedSelection(pid);
     return allConfirmed();
   }
 
@@ -342,7 +337,6 @@ export function createSelectionSystem(
     // deterministically, so each peer derives identical homeTower
     // sequences without wire chatter. Remote-human selections come in via
     // OPPONENT_TOWER_SELECTED from the input handler on the owning peer.
-    const isReselect = state.round > 1;
     for (const [rawPid, selectionState] of selection.states) {
       const pid = rawPid as ValidPlayerSlot;
       if (selectionState.confirmed) continue;
@@ -351,7 +345,7 @@ export function createSelectionSystem(
       const ctrl = runtimeState.controllers[pid]!;
       const towerBefore = state.players[pid]!.homeTower;
       if (ctrl.selectionTick(dt, state)) {
-        confirmSelectionAndStartBuild(pid, isReselect);
+        confirmSelectionAndStartBuild(pid);
         continue;
       }
 
@@ -379,7 +373,7 @@ export function createSelectionSystem(
         if (selectionState.confirmed) continue;
         const pid = rawPid as ValidPlayerSlot;
         if (isRemotePlayer(pid, remotePlayerSlots)) continue;
-        confirmSelectionAndStartBuild(pid, isReselect);
+        confirmSelectionAndStartBuild(pid);
       }
     }
 
@@ -390,7 +384,7 @@ export function createSelectionSystem(
       selection.castleBuilds.length === 0 &&
       isSelectionComplete(state, selection.states)
     ) {
-      if (isReselect) finishReselection();
+      if (state.round > 1) finishReselection();
       else finishSelection();
     }
   }

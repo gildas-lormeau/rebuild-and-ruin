@@ -131,10 +131,7 @@ interface InputSystemDeps {
   };
   readonly selection: {
     highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
-    confirmAndStartBuild: (
-      pid: ValidPlayerSlot,
-      isReselect?: boolean,
-    ) => boolean;
+    confirmAndStartBuild: (pid: ValidPlayerSlot) => boolean;
     isReady: () => boolean;
   };
   readonly camera: Pick<

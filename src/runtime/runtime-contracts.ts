@@ -571,10 +571,7 @@ export interface GameActionDeps {
     zone: number,
     pid: ValidPlayerSlot,
   ) => void;
-  confirmSelectionAndStartBuild: (
-    pid: ValidPlayerSlot,
-    isReselect?: boolean,
-  ) => boolean;
+  confirmSelectionAndStartBuild: (pid: ValidPlayerSlot) => boolean;
   isSelectionReady?: () => boolean;
   tryPlacePiece: (
     ctrl: PlayerController & InputReceiver,

@@ -141,16 +141,10 @@ function buildIncrementalDeps(
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
     confirmSelectionAndStartBuild: (
       playerId: ValidPlayerSlot,
-      isReselect: boolean,
       source?: "local" | "network",
       applyAt?: number,
     ) => {
-      init.runtime.selection.confirmAndStartBuild(
-        playerId,
-        isReselect,
-        source,
-        applyAt,
-      );
+      init.runtime.selection.confirmAndStartBuild(playerId, source, applyAt);
     },
     allSelectionsConfirmed: () => init.runtime.selection.allConfirmed(),
     finishReselection: () => init.runtime.selection.finishReselection(),

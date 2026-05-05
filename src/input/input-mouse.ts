@@ -68,13 +68,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
 
     if (isSelectionPhase(state.phase)) {
       const worldCoords = coords.screenToWorld(x, y);
-      dispatchTowerSelect(
-        worldCoords.wx,
-        worldCoords.wy,
-        state,
-        state.round > 1,
-        deps,
-      );
+      dispatchTowerSelect(worldCoords.wx, worldCoords.wy, state, deps);
     } else if (isPlacementPhase(state.phase)) {
       dispatchPlacement(state, deps);
     } else {
