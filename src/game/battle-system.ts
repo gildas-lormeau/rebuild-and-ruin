@@ -77,7 +77,7 @@ import {
   tickComboTracking,
 } from "./combo-system.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
-import { applyDustStormJitter } from "./modifier-system.ts";
+import { applyDustStormJitter } from "./modifiers/dust-storm.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,

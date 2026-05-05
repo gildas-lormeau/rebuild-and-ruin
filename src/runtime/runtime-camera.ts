@@ -52,7 +52,7 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
-import { type GameState } from "../shared/core/types.ts";
+import type { FrameContext, GameState } from "../shared/core/types.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
@@ -61,7 +61,7 @@ import {
   screenToWorld as projectScreenToWorld,
   worldToScreen as projectWorldToScreen,
 } from "./camera-projection.ts";
-import type { CameraSystem, FrameContext } from "./runtime-types.ts";
+import type { CameraSystem } from "./runtime-types.ts";
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
  *  can change during host migration. Other sub-systems destructure runtimeState directly. */

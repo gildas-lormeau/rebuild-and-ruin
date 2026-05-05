@@ -94,8 +94,6 @@ import type { RendererInterface } from "../shared/ui/overlay-types.ts";
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
-export type { FrameContext } from "../shared/core/types.ts";
-
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
  *
  *  Every field is INDEPENDENTLY OPTIONAL — the runtime checks for presence

@@ -32,8 +32,6 @@ import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
 import { sapperImpl } from "./modifiers/sapper.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";
 
-export { applyDustStormJitter } from "./modifiers/dust-storm.ts";
-
 /** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
 const MODIFIER_IMPLS = {
   wildfire: wildfireImpl,
