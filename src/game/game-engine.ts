@@ -116,7 +116,12 @@ export function applyGameConfig(
   );
 }
 
-export function enterCastleReselectPhase(state: GameState): void {
+/** Flip the phase flag to CASTLE_RESELECT and zero the timer.
+ *  Narrow primitive — does NOT init per-player selection state.
+ *  Use `enterReselectPhase` for the full enter-with-init when starting
+ *  a reselection round; this helper exists for the rare case where the
+ *  flag needs flipping in isolation (mid-game watcher join). */
+export function setReselectPhase(state: GameState): void {
   setPhase(state, Phase.CASTLE_RESELECT);
   state.timer = 0;
 }
@@ -183,7 +188,7 @@ export function enterSelectionPhase(
  *  default highlight on their zone's first tower), and starts the
  *  selection timer.
  *
- *  Replaces the runtime's manual sequence of `enterCastleReselectPhase` +
+ *  Replaces the runtime's manual sequence of `setReselectPhase` +
  *  `selectionStates.clear()` + per-player init via `processReselectionQueue`
  *  callback + `initSelectionTimer`. The engine owns the order; the runtime
  *  runs its own per-player controller (`selectReplacementTower`) + camera

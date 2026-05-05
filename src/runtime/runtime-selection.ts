@@ -1,7 +1,6 @@
 import {
   allSelectionsConfirmed,
   confirmTowerSelection,
-  enterCastleReselectPhase,
   enterReselectPhase,
   enterSelectionPhase,
   finishSelectionPhase,
@@ -9,6 +8,7 @@ import {
   isSelectionComplete,
   prepareCastleWallsForPlayer,
   recheckTerritory,
+  setReselectPhase,
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
@@ -153,7 +153,7 @@ export function createSelectionSystem(
     if (!isHost && isActivePlayer(myPlayerId)) {
       const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
       if (needsCastleReselect && !isReselectPhase(state.phase)) {
-        enterCastleReselectPhase(state);
+        setReselectPhase(state);
       }
     }
 
