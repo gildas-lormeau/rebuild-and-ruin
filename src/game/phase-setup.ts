@@ -334,8 +334,8 @@ export function setPhase(state: GameState, phase: Phase): void {
   });
 }
 
-/** Finalize game state for reselected players — protect walls from debris
- *  sweep and destroy houses under rebuilt castle walls.
+/** Finalize game state for reselected players — snapshot castle walls for
+ *  debris-sweep protection and flag the zone for the modifier grace period.
  *  Runtime caller is responsible for clearing its own selection/overlay state. */
 export function finalizeReselectedPlayers(
   state: GameState,
@@ -351,13 +351,6 @@ export function finalizeReselectedPlayers(
     player.castleWallTiles = new Set(player.walls);
     // Grace period: skip modifiers on this player's zone for the upcoming battle.
     player.freshCastle = true;
-    // Destroy houses under rebuilt castle walls
-    for (const house of state.map.houses) {
-      if (!house.alive) continue;
-      if (player.walls.has(packTile(house.row, house.col))) {
-        house.alive = false;
-      }
-    }
   }
 }
 
