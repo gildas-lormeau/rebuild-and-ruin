@@ -89,10 +89,6 @@ export interface SelectionRuntimeState {
    *  Drained one-by-one as each player's selection dialog completes.
    *  Set in runtime-life-lost, consumed in runtime-selection. */
   reselectQueue: ValidPlayerSlot[];
-  /** Snapshot of player IDs currently in the reselection flow (copied from
-   *  reselectQueue at reselection start). Used by camera/render to know which
-   *  players are reselecting. Cleared when reselection completes. */
-  reselectionPids: ValidPlayerSlot[];
   states: Map<number, SelectionState>;
   castleBuilds: CastleBuildState[];
 }
@@ -238,7 +234,6 @@ interface FrameContextInputs {
   quitPending: boolean;
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
-  humanIsReselecting: boolean;
   hasPointerPlayer: boolean;
   pointerPlayerId: ValidPlayerSlot | null;
   myPlayerId: PlayerSlotId;
@@ -331,7 +326,6 @@ export function createRuntimeState(): RuntimeState {
 
     selection: {
       reselectQueue: [],
-      reselectionPids: [],
       states: new Map(),
       castleBuilds: [],
     },
@@ -488,7 +482,6 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     quitPending,
     hasLifeLostDialog,
     isSelectionReady,
-    humanIsReselecting,
     hasPointerPlayer,
     pointerPlayerId,
     myPlayerId,
@@ -532,7 +525,6 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     quitPending,
     hasLifeLostDialog,
     isSelectionReady,
-    humanIsReselecting,
     hasPointerPlayer,
     uiBlocking,
     phaseEnding,

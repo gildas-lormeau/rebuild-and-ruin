@@ -92,15 +92,14 @@ export function createSelectionSystem(
   const { runtimeState } = deps;
 
   /** Clear all selection tracking state — call before entering a new selection
-   *  round (initial selection or reselection). Resets selectionStates map,
-   *  reselectionPids, and overlay selection display. Banner prev-scene
-   *  snapshots no longer need explicit clearing here: they live on
-   *  `runtimeState.banner` which is reset to a fresh struct when the banner
-   *  ends (`runtime-banner.ts`), so by the time a selection reset runs the
-   *  prevScene field is already undefined. */
+   *  round (initial selection or reselection). Resets selectionStates map and
+   *  overlay selection display. Banner prev-scene snapshots no longer need
+   *  explicit clearing here: they live on `runtimeState.banner` which is
+   *  reset to a fresh struct when the banner ends (`runtime-banner.ts`), so
+   *  by the time a selection reset runs the prevScene field is already
+   *  undefined. */
   function resetSelectionState(): void {
     runtimeState.selection.states.clear();
-    runtimeState.selection.reselectionPids = [];
     resetOverlaySelection();
   }
 
@@ -246,9 +245,6 @@ export function createSelectionSystem(
       (row, col) => runtimeState.controllers[pid]!.centerOn(row, col),
     );
     if (!result) return;
-    if (result.isReselect) {
-      runtimeState.selection.reselectionPids.push(pid);
-    }
     syncSelectionOverlay();
     deps.requestRender();
     // Both host and watcher run startPlayerCastleBuild — derives wall plan
@@ -533,7 +529,6 @@ export function createSelectionSystem(
    *  clears per-round selection tracking for the next selection phase. */
   function reset(): void {
     runtimeState.selection.reselectQueue = [];
-    runtimeState.selection.reselectionPids = [];
     runtimeState.selection.castleBuilds = [];
     runtimeState.selection.states.clear();
   }

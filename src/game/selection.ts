@@ -57,9 +57,8 @@ export function highlightTowerSelection(
  *  is an initial select or a reselect — round 1's auto-built castle and a
  *  mid-game reselected castle are both freshly built this round, and downstream
  *  consumers (cannon-budget, modifier grace) treat them the same way. The
- *  `isReselect` flag is still threaded for runtime-side bookkeeping (the
- *  reselection-only `reselectionPids` queue) and the `CASTLE_PLACED` event
- *  payload (for SFX / observers). */
+ *  `isReselect` flag is still threaded for the `CASTLE_PLACED` event payload
+ *  (consumed by SFX / observers). */
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,

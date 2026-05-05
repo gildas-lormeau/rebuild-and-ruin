@@ -346,8 +346,6 @@ export interface FrameContext {
   readonly quitPending: boolean;
   readonly hasLifeLostDialog: boolean;
   readonly isSelectionReady: boolean;
-  /** True when the local human player is in the reselect queue. */
-  readonly humanIsReselecting: boolean;
 
   // Player presence
   /** True when a local human player exists and is not eliminated.

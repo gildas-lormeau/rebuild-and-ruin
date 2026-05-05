@@ -160,9 +160,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     const humanId: ValidPlayerSlot | null = isActivePlayer(myId)
       ? myId
       : (pointer?.playerId ?? null);
-    const humanIsReselecting =
-      pointer !== null &&
-      deps.runtimeState.selection.reselectionPids.includes(pointer.playerId);
 
     const sessionLive = isSessionLive(deps.runtimeState);
     deps.runtimeState.frameMeta = computeFrameContext({
@@ -173,7 +170,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       quitPending: deps.runtimeState.quit.pending,
       hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
       isSelectionReady: deps.isSelectionReady(),
-      humanIsReselecting,
       hasPointerPlayer: pointer !== null,
       pointerPlayerId: pointer?.playerId ?? null,
       myPlayerId: myId,
@@ -187,7 +183,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       humanCastleConfirmed: computeHumanCastleConfirmed(
         deps.runtimeState,
         humanId,
-        humanIsReselecting,
       ),
     });
 
@@ -279,15 +274,15 @@ export function createRuntimeInputAdapters(params: {
 function computeHumanCastleConfirmed(
   runtimeState: RuntimeState,
   humanId: ValidPlayerSlot | null,
-  humanIsReselecting: boolean,
 ): boolean {
   if (humanId === null) return false;
   if (!isSessionLive(runtimeState)) return false;
   const state = runtimeState.state;
   if (state.phase !== Phase.CASTLE_SELECT) return false;
-  // Reselect cycle (round > 1): only the queued reselectors can build.
-  // Initial selection (round === 1): every active human can build.
-  if (state.round > 1 && !humanIsReselecting) return false;
+  // Reselect cycle (round > 1): only the freshly-confirmed reselectors qualify
+  // (state.freshCastlePlayers tracks confirmations this round). Initial
+  // selection (round === 1): every active human qualifies — skip the gate.
+  if (state.round > 1 && !state.freshCastlePlayers.has(humanId)) return false;
   const player = state.players[humanId];
   return player != null && player.castle !== null;
 }
