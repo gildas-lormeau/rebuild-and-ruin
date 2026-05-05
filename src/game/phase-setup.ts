@@ -5,8 +5,9 @@
  * wall sweeping, territory claiming, life penalties, castle construction,
  * cannon limits, grunt spawning, and battle cleanup.
  *
- * game-engine.ts keeps the state machine (nextPhase switch) and state factory;
- * it imports the enter* functions from here.
+ * phase-entry.ts owns the per-phase `enter*Phase` helpers (which call
+ * `setPhase` and prime entry-time timers); it imports the multi-step
+ * recipes from here.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Phase-entry vs start-phase contract — canonical source (applies to every
@@ -414,12 +415,6 @@ export function prepareCastleWallsForPlayer(
   return { playerId: player.id, tiles: ordered };
 }
 
-/**
- * Complete the build phase using the canonical gameplay rules.
- * Owns wall sweeping, territory/tower revival, and the life check.
- * Exported for game-engine.ts finishBuildPhase composition only —
- * not a public API; game-engine.ts is the canonical caller.
- */
 /** Phase A of end-of-build finalization — state mutations that the score
  *  overlay and life-lost dialog depend on:
  *    - territory + scoring + tower revival + enclosed house/grunt/bonus

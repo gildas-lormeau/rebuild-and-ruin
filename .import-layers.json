@@ -160,6 +160,7 @@
     "files": [
       "server/server.ts",
       "src/controllers/controller-human.ts",
+      "src/game/game-init.ts",
       "src/game/modifiers/crumbling-walls.ts",
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/fire.ts",
@@ -355,7 +356,7 @@
     "tier": "assembly",
     "files": [
       "src/controllers/controller-ai.ts",
-      "src/game/game-engine.ts",
+      "src/game/phase-entry.ts",
       "src/main.ts",
       "src/online/online-serialize.ts"
     ]

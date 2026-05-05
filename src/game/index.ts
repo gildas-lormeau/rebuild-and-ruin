@@ -39,19 +39,7 @@ export {
   executePlaceCannon,
   executePlacePiece,
 } from "./game-actions.ts";
-export {
-  applyGameConfig,
-  createGameFromSeed,
-  enterBattlePhase,
-  enterCannonPhase,
-  enterModifierRevealPhase,
-  enterReselectPhase,
-  enterSelectionPhase,
-  enterUpgradePickPhase,
-  enterWallBuildPhase,
-  prepareBattle,
-  setReselectPhase,
-} from "./game-engine.ts";
+export { applyGameConfig, createGameFromSeed } from "./game-init.ts";
 export type { GameOverOutcome, GameOverReason } from "./game-over.ts";
 export {
   eliminatePlayers,
@@ -61,6 +49,17 @@ export {
 export { moveGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
+export {
+  enterBattlePhase,
+  enterCannonPhase,
+  enterModifierRevealPhase,
+  enterReselectPhase,
+  enterSelectionPhase,
+  enterUpgradePickPhase,
+  enterWallBuildPhase,
+  prepareBattle,
+  setReselectPhase,
+} from "./phase-entry.ts";
 export {
   computeScoreDeltas,
   emitRoundStart,

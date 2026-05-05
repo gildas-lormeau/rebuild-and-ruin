@@ -15,43 +15,56 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
 
 ## Read these first (in order)
 
-1. **[game-engine.ts](./game-engine.ts)** — State machine + state
-   factory. Documents the phase order (`CASTLE_SELECT → WALL_BUILD →
-   CANNON_PLACE → BATTLE → loop`) and the state initialization
-   primitives. **Start here for the "what phase does what" mental
-   model.**
+1. **[game-init.ts](./game-init.ts)** — Match-lifecycle setup:
+   `createGameFromSeed` (map gen + zone pick + state factory) and
+   `applyGameConfig` (per-match timers / mode). Run once per match
+   from `runtime-bootstrap.ts`.
 
-2. **[phase-setup.ts](./phase-setup.ts)** — Phase transition recipes.
+2. **[phase-entry.ts](./phase-entry.ts)** — Per-phase entry helpers
+   (`enterCannonPhase`, `enterBattlePhase`, `enterWallBuildPhase`, …).
+   Each helper is the single way to flip `state.phase` to its target
+   value. Documents the phase order (`CASTLE_SELECT → WALL_BUILD →
+   CANNON_PLACE → BATTLE → loop`). **Start here for the "what phase
+   does what" mental model.**
+
+3. **[phase-setup.ts](./phase-setup.ts)** — Phase transition recipes.
    The multi-step sequences that run when entering/leaving a phase
    (e.g., `prepareBattleState` rolls modifiers, initializes
    combos, snapshots castles, and emits events). This is where you
    look when a bug happens "between phases."
 
-3. **[battle-system.ts](./battle-system.ts)** — Cannon firing,
+4. **[battle-system.ts](./battle-system.ts)** — Cannon firing,
    cannonball physics, impact events, balloon capture. The hot path
    during BATTLE phase.
 
-4. **[build-system.ts](./build-system.ts)** — Piece placement,
+5. **[build-system.ts](./build-system.ts)** — Piece placement,
    territory claim via flood-fill, wall sweep rules. The hot path
    during WALL_BUILD phase. Also contains `finalizeTerritoryWithScoring()`
    which is where end-of-build scoring happens.
 
-5. **[grunt-system.ts](./grunt-system.ts)** + **[grunt-movement.ts](./grunt-movement.ts)**
+6. **[grunt-system.ts](./grunt-system.ts)** + **[grunt-movement.ts](./grunt-movement.ts)**
    — Grunt spawn/tick/target-lock + 4-directional pathfinding. The
    "when should the tower die?" logic.
 
 ## File categories
 
-### State machine + factory
-- **`game-engine.ts`** — `createGameState()`, the canonical state
-  factory. Initializes all default fields including the event bus, the
-  empty entity overlay, and the modern-state slot. When you need to
-  see "what fields does GameState have?", this is the authoritative
-  answer alongside `src/shared/core/types.ts`.
-- **`phase-setup.ts`** — `prepareBattleState`,
-  `enterBuildFromBattle`, `enterCannonFromBuild`, etc. — one per
-  transition. Also owns `applyBattleStartModifiers()`,
-  `awardComboBonuses()`, `resetZoneState()`.
+### Match init + phase entry + transitions
+- **`game-init.ts`** — `createGameFromSeed`, `applyGameConfig`, and
+  the private `createGameState` factory. Initializes all default
+  GameState fields (event bus, empty entity overlay, modern-state
+  slot). When you need to see "what fields does GameState have?",
+  this is the authoritative answer alongside `src/shared/core/types.ts`.
+- **`phase-entry.ts`** — One `enter*Phase` helper per phase
+  (`enterCannonPhase`, `enterBattlePhase`, `enterWallBuildPhase`,
+  `enterReselectPhase`, etc.). Each is the single way to flip
+  `state.phase` to its target value. Also owns `prepareBattle`
+  (modifier roll + balloon resolution in RNG-load-bearing order).
+- **`phase-setup.ts`** — Multi-step transition recipes:
+  `prepareBattleState`, `prepareNextRound`, `finalizeRound`,
+  `finalizeBattle`, `finalizeRoundCleanup`, `finalizeCastleConstruction`,
+  etc. Also owns `applyBattleStartModifiers()`, `awardComboBonuses()`,
+  `resetZoneState()`. The `enter*Phase` helpers in `phase-entry.ts`
+  call into here for the heavy lifting.
 
 ### Per-phase systems
 - **`build-system.ts`** — Wall/piece placement, territory flood-fill,

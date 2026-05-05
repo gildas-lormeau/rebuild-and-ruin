@@ -629,7 +629,7 @@ sufficient for LLM agents to follow correctly.
     game/phase-setup.ts module header documents the three-step pattern
     (enterXPhase mutates phase+timer, prepareXPhase computes derived state,
     startXPhase initializes controllers). Host uses all three, watcher skips
-    prepare. game/game-engine.ts:enterCannonPlacePhase points at phase-setup
+    prepare. game/phase-entry.ts:enterCannonPlacePhase points at phase-setup
     rather than restating the contract.
 
 103. **SERVER_ONLY_PHASE is disjoint from Phase enum — compile-time enforced** —
