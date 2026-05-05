@@ -403,7 +403,7 @@ function applyDefaultFacings(state: GameViewState): void {
   }
 }
 
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+/** Compute cannon limits for the upcoming cannon phase, store in state, and drain the fresh-castle marker. */
 function computeCannonLimitsForPhase(state: GameState): void {
   state.cannonLimits = state.players.map((player, idx) => {
     const base = cannonSlotsForRound(player, state);
@@ -411,7 +411,7 @@ function computeCannonLimitsForPhase(state: GameState): void {
     return base + cannonSlotsBonus(player) + salvage;
   });
   state.salvageSlots = state.players.map(() => 0);
-  state.reselectedPlayers.clear();
+  state.freshCastlePlayers.clear();
 }
 
 /**
@@ -483,28 +483,28 @@ export function canPlaceCannon(
 
 /**
  * Compute the total cannon slot limit for a player this round.
- * Three paths: reselection (fixed budget based on lives lost),
- * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
+ * Two paths: fresh-castle (firstRoundCannons + 1 per lost life, capped) for
+ * any player who built a fresh castle this round — covers both round-1
+ * auto-build (lives === STARTING_LIVES, so the formula collapses to
+ * firstRoundCannons) and mid-game reselect; or normal (tower-based: 2 for
+ * home + 1 per other) for steady-state rounds.
  */
 function cannonSlotsForRound(
   player: Player,
   state: {
-    readonly reselectedPlayers: ReadonlySet<number>;
+    readonly freshCastlePlayers: ReadonlySet<number>;
     readonly firstRoundCannons: number;
-    readonly round: number;
     readonly towerAlive: readonly boolean[];
   },
 ): number {
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
-  if (state.reselectedPlayers.has(player.id)) {
-    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
+  if (state.freshCastlePlayers.has(player.id)) {
+    // Fresh castle: compensate for lost lives (zero in round 1), capped at MAX_CANNON_LIMIT_ON_RESELECT
     newSlots = Math.min(
       state.firstRoundCannons + (STARTING_LIVES - player.lives),
       MAX_CANNON_LIMIT_ON_RESELECT,
     );
-  } else if (state.round === 1) {
-    newSlots = state.firstRoundCannons;
   } else {
     const aliveTowers = filterAliveOwnedTowers(player, state);
     const ownsHome =

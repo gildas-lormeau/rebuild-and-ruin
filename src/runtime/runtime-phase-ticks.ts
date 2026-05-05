@@ -213,11 +213,10 @@ export interface PhaseTicksSystem {
    *  construction (spawn houses + bonus squares) and enters cannon phase. */
   enterCannonAfterCastleSelect: () => void;
   /** Dispatch the `castle-reselect-done` transition: a player who lost a
-   *  life finished re-selecting; the mutate runs `finalizeReselectedPlayers`
-   *  with the given pids, then finalize castle construction + enter cannon. */
-  enterCannonAfterCastleReselect: (
-    reselectionPids: readonly ValidPlayerSlot[],
-  ) => void;
+   *  life finished re-selecting; the mutate runs `finalizeRoundCleanup` +
+   *  `finalizeFreshCastles` (which reads `state.freshCastlePlayers`), then
+   *  finalize castle construction + enter cannon. */
+  enterCannonAfterCastleReselect: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
   dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
@@ -290,13 +289,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     runTransition("castle-select-done", buildHostPhaseCtx());
   }
 
-  function enterCannonAfterCastleReselect(
-    reselectionPids: readonly ValidPlayerSlot[],
-  ) {
-    runTransition("castle-reselect-done", {
-      ...buildHostPhaseCtx(),
-      reselectionPids,
-    });
+  function enterCannonAfterCastleReselect() {
+    runTransition("castle-reselect-done", buildHostPhaseCtx());
   }
 
   function dispatchGameOver(winner: { id: number }, reason: GameOverReason) {

@@ -128,7 +128,7 @@ function createGameState(
     capturedCannons: [],
     bonusSquares: [],
     battleCountdown: 0,
-    reselectedPlayers: new Set(),
+    freshCastlePlayers: new Set(),
     playerZones: [],
     cannonLimits: [],
     cannonPlaceDone: new Set(),

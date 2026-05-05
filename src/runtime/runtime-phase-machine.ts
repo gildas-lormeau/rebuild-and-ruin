@@ -48,7 +48,7 @@ import {
   enterWallBuildPhase,
   finalizeBattle,
   finalizeCastleConstruction,
-  finalizeReselectedPlayers,
+  finalizeFreshCastles,
   finalizeRound,
   finalizeRoundCleanup,
   type GameOverOutcome,
@@ -340,9 +340,6 @@ export interface PhaseTransitionCtx {
    *  populated `state.cannonLimits` / facings, so the work is idempotent
    *  and the entry struct doesn't need to thread through ctx. */
   readonly initLocalCannonControllers?: () => void;
-  /** Players returned from the reselection queue. Used by
-   *  `castle-reselect-done` mutate to call `finalizeReselectedPlayers`. */
-  readonly reselectionPids?: readonly ValidPlayerSlot[];
 
   // ── Game-over hooks ──
 
@@ -606,17 +603,21 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
 ];
 /** `castle-select-done` — CASTLE_SELECT → CANNON_PLACE (round 1 / initial).
  *
- *  `finalizeCastleConstruction` claims territory and spawns houses /
- *  bonus squares; `enterCannonPhase` sets the phase + computes cannon
- *  limits + returns per-player init data. Host broadcasts CANNON_START
- *  so watchers can apply the checkpoint. Watchers run the same body
- *  locally — derived state matches byte-for-byte from synced state +
- *  RNG so no wire payload is needed; the broadcast is just a phase-
- *  advance marker. */
+ *  `finalizeFreshCastles` snapshots the new castle walls + flags every
+ *  freshly-built zone for the modifier grace period (no-op in round 1
+ *  classic mode where modifiers don't roll, but load-bearing the moment
+ *  they do). `finalizeCastleConstruction` then claims territory and
+ *  spawns houses / bonus squares; `enterCannonPhase` sets the phase +
+ *  computes cannon limits + returns per-player init data. Host broadcasts
+ *  CANNON_START so watchers can apply the checkpoint. Watchers run the
+ *  same body locally — derived state matches byte-for-byte from synced
+ *  state + RNG so no wire payload is needed; the broadcast is just a
+ *  phase-advance marker. */
 const CASTLE_SELECT_DONE: Transition = {
   id: "castle-select-done",
   from: Phase.CASTLE_SELECT,
   mutate: (ctx) => {
+    finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
     ctx.clearCastleBuildViewport?.();
     enterCannonPhase(ctx.state);
@@ -632,17 +633,16 @@ const CASTLE_SELECT_DONE: Transition = {
  *
  *  Differs from `castle-select-done` only in the prefix:
  *  `finalizeRoundCleanup` (Phase B cleanup deferred from round-end)
- *  + `finalizeReselectedPlayers` (zone reset protection) before
- *  `finalizeCastleConstruction`. Rest is identical. */
+ *  before the shared finalize/enter-cannon suffix. */
 const CASTLE_RESELECT_DONE: Transition = {
   id: "castle-reselect-done",
   from: Phase.CASTLE_RESELECT,
   mutate: (ctx) => {
-    // Phase B cleanup (deferred from round-end) + reselect-specific
-    // finalize + castle finalize, then enter cannon phase. All under the
-    // cannons banner reveal.
+    // Phase B cleanup (deferred from round-end) + fresh-castle finalize
+    // + castle finalize, then enter cannon phase. All under the cannons
+    // banner reveal.
     finalizeRoundCleanup(ctx.state);
-    finalizeReselectedPlayers(ctx.state, ctx.reselectionPids ?? []);
+    finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
     ctx.clearCastleBuildViewport?.();
     enterCannonPhase(ctx.state);

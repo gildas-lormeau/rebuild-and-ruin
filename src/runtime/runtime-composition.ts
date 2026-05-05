@@ -493,8 +493,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     startCannonPhase: () => phaseTicks.startCannonPhase(),
     enterCannonAfterCastleSelect: () =>
       phaseTicks.enterCannonAfterCastleSelect(),
-    enterCannonAfterCastleReselect: (pids) =>
-      phaseTicks.enterCannonAfterCastleReselect(pids),
+    enterCannonAfterCastleReselect: () =>
+      phaseTicks.enterCannonAfterCastleReselect(),
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },

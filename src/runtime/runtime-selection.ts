@@ -84,9 +84,7 @@ interface SelectionSystemDeps {
   enterCannonAfterCastleSelect: () => void;
   /** Dispatch the `castle-reselect-done` transition (after a player who
    *  lost a life rebuilt their castle). */
-  enterCannonAfterCastleReselect: (
-    reselectionPids: readonly ValidPlayerSlot[],
-  ) => void;
+  enterCannonAfterCastleReselect: () => void;
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
    * if the runtime is currently stopped (e.g. online mode starting from DOM lobby).
@@ -539,10 +537,10 @@ export function createSelectionSystem(
     runtimeState.selection.states.clear();
     resetOverlaySelection();
     runtimeState.selection.reselectQueue.length = 0;
-    // Castle-reselect-done's mutate handles finalizeReselectedPlayers +
-    // finalizeCastleConstruction + clearCastleBuildViewport + enterCannonPhase
-    // + cannon-start broadcast — we just hand it the pids.
-    deps.enterCannonAfterCastleReselect(runtimeState.selection.reselectionPids);
+    // Castle-reselect-done's mutate handles finalizeRoundCleanup +
+    // finalizeFreshCastles + finalizeCastleConstruction + clearCastleBuildViewport
+    // + enterCannonPhase + cannon-start broadcast.
+    deps.enterCannonAfterCastleReselect();
   }
 
   /** Full reset for game restart / rematch. Clears all selection, reselection,

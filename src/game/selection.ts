@@ -53,8 +53,13 @@ export function highlightTowerSelection(
 
 /** Confirm a player's tower selection. Returns null if already confirmed,
  *  otherwise returns the confirmed tower index and whether all players are done.
- *  When `isReselect`, also records the player in `state.reselectedPlayers`
- *  (consumed by cannon-system at end of cannon phase). */
+ *  Records the player in `state.freshCastlePlayers` regardless of whether this
+ *  is an initial select or a reselect — round 1's auto-built castle and a
+ *  mid-game reselected castle are both freshly built this round, and downstream
+ *  consumers (cannon-budget, modifier grace) treat them the same way. The
+ *  `isReselect` flag is still threaded for runtime-side bookkeeping (the
+ *  reselection-only `reselectionPids` queue) and the `CASTLE_PLACED` event
+ *  payload (for SFX / observers). */
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -66,7 +71,7 @@ export function confirmTowerSelection(
   if (!isSelectionPending(selectionState)) return null;
   selectionState.confirmed = true;
 
-  if (isReselect) state.reselectedPlayers.add(playerId);
+  state.freshCastlePlayers.add(playerId);
 
   const player = state.players[playerId]!;
   if (player.homeTower) {

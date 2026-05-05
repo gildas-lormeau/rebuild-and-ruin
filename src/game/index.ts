@@ -66,7 +66,7 @@ export {
   enterBuildSkippingBattle,
   finalizeBattle,
   finalizeCastleConstruction,
-  finalizeReselectedPlayers,
+  finalizeFreshCastles,
   finalizeRound,
   finalizeRoundCleanup,
   prepareCastleWallsForPlayer,
