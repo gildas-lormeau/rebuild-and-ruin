@@ -403,7 +403,7 @@ function applyDefaultFacings(state: GameViewState): void {
   }
 }
 
-/** Compute cannon limits for the upcoming cannon phase, store in state, and drain the fresh-castle marker. */
+/** Compute cannon limits for the upcoming cannon phase and store in state. */
 function computeCannonLimitsForPhase(state: GameState): void {
   state.cannonLimits = state.players.map((player, idx) => {
     const base = cannonSlotsForRound(player, state);
@@ -411,7 +411,6 @@ function computeCannonLimitsForPhase(state: GameState): void {
     return base + cannonSlotsBonus(player) + salvage;
   });
   state.salvageSlots = state.players.map(() => 0);
-  state.freshCastlePlayers.clear();
 }
 
 /**

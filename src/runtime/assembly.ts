@@ -279,12 +279,11 @@ function computeHumanCastleConfirmed(
   if (!isSessionLive(runtimeState)) return false;
   const state = runtimeState.state;
   if (state.phase !== Phase.CASTLE_SELECT) return false;
-  // Reselect cycle (round > 1): only the freshly-confirmed reselectors qualify
-  // (state.freshCastlePlayers tracks confirmations this round). Initial
-  // selection (round === 1): every active human qualifies — skip the gate.
-  if (state.round > 1 && !state.freshCastlePlayers.has(humanId)) return false;
+  // `player.freshCastle` flips true at confirm-time (set by
+  // `confirmTowerSelection`, cleared in `finalizeBattle`), covering both the
+  // round-1 initial selection and the mid-game reselect cycle.
   const player = state.players[humanId];
-  return player != null && player.castle !== null;
+  return player != null && player.freshCastle && player.castle !== null;
 }
 
 /** True when this client's human has filled their cannon-slot quota. Used to

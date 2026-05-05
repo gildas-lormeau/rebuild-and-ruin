@@ -331,21 +331,19 @@ export function setPhase(state: GameState, phase: Phase): void {
 }
 
 /** Finalize game state for players who built a fresh castle this round.
- *  Snapshots castle walls for debris-sweep protection and flags the zone
- *  for the modifier grace period. Drives off `state.freshCastlePlayers`,
- *  which is populated by `confirmTowerSelection` for both initial selection
- *  and reselection — round 1's auto-built castle and a mid-game reselected
- *  castle are treated identically. */
+ *  Snapshots castle walls for debris-sweep protection. The
+ *  `player.freshCastle` flag is set at confirm-time (in `confirmTowerSelection`)
+ *  and cleared in `finalizeBattle`, so this function just iterates flagged
+ *  players and snapshots wall tiles. Round 1's auto-built castle and a
+ *  mid-game reselected castle are treated identically. */
 export function finalizeFreshCastles(state: GameState): void {
   // The castle build animation already placed walls (including clumsy extras)
   // via addPlayerWall. Don't rebuild — just do cleanup.
-  for (const pid of state.freshCastlePlayers) {
-    const player = state.players[pid as ValidPlayerSlot]!;
+  for (const player of state.players) {
+    if (!player.freshCastle) continue;
     if (!player.homeTower) continue;
     // Protect animated walls from debris sweep
     player.castleWallTiles = new Set(player.walls);
-    // Grace period: skip modifiers on this player's zone for the upcoming battle.
-    player.freshCastle = true;
   }
 }
 

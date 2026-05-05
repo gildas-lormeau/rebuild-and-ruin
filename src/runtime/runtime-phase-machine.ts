@@ -608,8 +608,8 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
  *       from the prior round-end, lands here so the wall + grunt sweeps
  *       reveal under the cannons banner instead of popping during the score
  *       overlay. Round 1 has no prior round-end to defer from.
- *    2. `finalizeFreshCastles` — snapshots new castle walls + flags each
- *       zone for the modifier grace period (drives off `state.freshCastlePlayers`).
+ *    2. `finalizeFreshCastles` — snapshots new castle walls for fresh-castle
+ *       players (drives off `player.freshCastle`, set at confirm-time).
  *    3. `finalizeCastleConstruction` — claims territory + spawns houses /
  *       bonus squares.
  *    4. `enterCannonPhase` — sets the phase + computes cannon limits +

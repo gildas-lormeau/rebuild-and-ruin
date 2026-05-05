@@ -53,11 +53,12 @@ export function highlightTowerSelection(
 
 /** Confirm a player's tower selection. Returns null if already confirmed,
  *  otherwise returns the confirmed tower index and whether all players are done.
- *  Records the player in `state.freshCastlePlayers` — round 1's auto-built
- *  castle and a mid-game reselected castle are both freshly built this round,
- *  and downstream consumers (cannon-budget, modifier grace) treat them the
+ *  Sets `player.freshCastle = true` — round 1's auto-built castle and a
+ *  mid-game reselected castle are both freshly built this round, and
+ *  downstream consumers (cannon-budget, modifier grace) treat them the
  *  same way. The cycle type (initial vs reselect) is derived from
- *  `state.round > 1` by consumers that care. */
+ *  `state.round > 1` by consumers that care. The flag is cleared in
+ *  `finalizeBattle`. */
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -68,9 +69,8 @@ export function confirmTowerSelection(
   if (!isSelectionPending(selectionState)) return null;
   selectionState.confirmed = true;
 
-  state.freshCastlePlayers.add(playerId);
-
   const player = state.players[playerId]!;
+  player.freshCastle = true;
   if (player.homeTower) {
     onConfirmed?.(player.homeTower.row, player.homeTower.col);
     emitGameEvent(state.bus, GAME_EVENT.CASTLE_PLACED, {
