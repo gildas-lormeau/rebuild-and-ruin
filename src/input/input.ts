@@ -12,7 +12,7 @@
  * Use `isInteractiveMode(mode)` to check if gameplay interaction is allowed.
  *
  * **Phase** (`state.phase`, `Phase` enum) — gameplay state within GAME mode.
- * Values: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE, CASTLE_RESELECT.
+ * Values: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE.
  * Controls which game actions are valid and which tick functions run.
  *
  * They are independent: Mode gates top-level input routing; Phase gates

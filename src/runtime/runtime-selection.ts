@@ -76,11 +76,9 @@ interface SelectionSystemDeps {
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). */
   startCannonPhase: () => void;
-  /** Dispatch the `castle-done` transition for round-1 / initial selection. */
-  enterCannonAfterCastleSelect: () => void;
-  /** Dispatch the `castle-done` transition after a player who lost a life
-   *  rebuilt their castle. */
-  enterCannonAfterCastleReselect: () => void;
+  /** Dispatch the `castle-done` transition. Called from both the round-1
+   *  initial-selection path and the reselect-cycle finish path. */
+  enterCannonAfterCastle: () => void;
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
    * if the runtime is currently stopped (e.g. online mode starting from DOM lobby).
@@ -412,9 +410,10 @@ export function createSelectionSystem(
     )
       return;
     resetOverlaySelection();
-    // Castle-select-done's mutate handles finalizeCastleConstruction +
-    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
-    deps.enterCannonAfterCastleSelect();
+    // castle-done's mutate handles finalizeFreshCastles +
+    // finalizeCastleConstruction + clearCastleBuildViewport + enterCannonPhase
+    // + cannon-start broadcast.
+    deps.enterCannonAfterCastle();
   }
 
   /** Derive a player's castle-wall plan and queue the build animation.
@@ -472,8 +471,8 @@ export function createSelectionSystem(
     const { state } = runtimeState;
     resetSelectionState();
 
-    // Engine: set CASTLE_RESELECT phase, init selection state for queued
-    // players, set timer.
+    // Engine: set CASTLE_SELECT phase (reselect cycle), init selection
+    // state for queued players, set timer.
     enterReselectPhase(
       state,
       runtimeState.selection.states,
@@ -523,10 +522,10 @@ export function createSelectionSystem(
     runtimeState.selection.states.clear();
     resetOverlaySelection();
     runtimeState.selection.reselectQueue.length = 0;
-    // Castle-reselect-done's mutate handles finalizeRoundCleanup +
-    // finalizeFreshCastles + finalizeCastleConstruction + clearCastleBuildViewport
-    // + enterCannonPhase + cannon-start broadcast.
-    deps.enterCannonAfterCastleReselect();
+    // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
+    // finalizeFreshCastles + finalizeCastleConstruction +
+    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
+    deps.enterCannonAfterCastle();
   }
 
   /** Full reset for game restart / rematch. Clears all selection, reselection,

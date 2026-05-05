@@ -208,15 +208,11 @@ export interface PhaseTicksSystem {
    *  path). The mutate runs `enterCannonPhase` only — castle finalize was
    *  already done by an earlier transition. */
   startCannonPhase: () => void;
-  /** Dispatch the `castle-done` transition for round-1 / initial castle
-   *  selection. The mutate runs `finalizeFreshCastles` +
-   *  `finalizeCastleConstruction` + `enterCannonPhase`. */
-  enterCannonAfterCastleSelect: () => void;
-  /** Dispatch the `castle-done` transition after a player who lost a life
-   *  finished reselecting. The mutate runs `finalizeRoundCleanup` (Phase B
-   *  cleanup deferred from round-end) + `finalizeFreshCastles` +
-   *  `finalizeCastleConstruction` + `enterCannonPhase`. */
-  enterCannonAfterCastleReselect: () => void;
+  /** Dispatch the `castle-done` transition. Used by both the round-1
+   *  initial-selection path and the reselect cycle (round > 1). The mutate
+   *  runs `finalizeRoundCleanup` (round > 1 only) + `finalizeFreshCastles`
+   *  + `finalizeCastleConstruction` + `enterCannonPhase`. */
+  enterCannonAfterCastle: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
   dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
@@ -285,11 +281,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     runTransition("advance-to-cannon", buildHostPhaseCtx());
   }
 
-  function enterCannonAfterCastleSelect() {
-    runTransition("castle-done", buildHostPhaseCtx());
-  }
-
-  function enterCannonAfterCastleReselect() {
+  function enterCannonAfterCastle() {
     runTransition("castle-done", buildHostPhaseCtx());
   }
 
@@ -841,8 +833,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   return {
     startCannonPhase,
-    enterCannonAfterCastleSelect,
-    enterCannonAfterCastleReselect,
+    enterCannonAfterCastle,
     dispatchGameOver,
     startBattle,
     tickBalloonAnim,

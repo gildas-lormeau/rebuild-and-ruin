@@ -53,7 +53,7 @@ type PhaseServerDisjoint = [PhaseServerOverlap] extends [never] ? true : false;
 
 /** Phase values the server tracks for message gating.
  *  Includes all gameplay Phase enum values (CASTLE_SELECT, WALL_BUILD,
- *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals.
+ *  CANNON_PLACE, BATTLE) plus server-only string literals.
  *  When adding a new phase: if it's part of game logic, add to the Phase enum
  *  in shared/core/game-phase.ts; if it's server/UI-only, add to SERVER_ONLY_PHASE. */
 const SERVER_ONLY_PHASE = {

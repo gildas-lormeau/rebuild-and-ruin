@@ -67,7 +67,7 @@ export function rebuildControllersForPhase(
       } else if (state.phase === Phase.BATTLE) {
         ctrl.initBattleState(state);
       }
-      // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
+      // CASTLE_SELECT (initial or reselect cycle) — AI driven by selection system
       return ctrl;
     }),
   );

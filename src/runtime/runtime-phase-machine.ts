@@ -600,7 +600,7 @@ const cannonEntryDisplay: readonly DisplayStep[] = [
     subtitle: BANNER_PLACE_CANNONS_SUB,
   },
 ];
-/** `castle-done` — CASTLE_SELECT | CASTLE_RESELECT → CANNON_PLACE.
+/** `castle-done` — CASTLE_SELECT → CANNON_PLACE.
  *
  *  Fires at the end of every castle-build cycle: round 1's initial selection
  *  and any mid-game reselection after a life loss. Body order:

@@ -91,7 +91,7 @@ Bare-marker checkpoints carry only `{ type }` — the watcher runs the matching 
 |---------|------|---------|----------------|
 | `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) | Bootstrap from seed |
 | `selectStart` | Tower selection begins | `timer` | Run `enterTowerSelection` |
-| `cannonStart` | CASTLE_SELECT / CASTLE_RESELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeBuildVisuals` / `finalizeReselectedPlayers` / `finalizeCastleConstruction`) + `enterCannonPhase` |
+| `cannonStart` | CASTLE_SELECT / WALL_BUILD → CANNON_PLACE | _none_ | Source-phase prefix (`finalizeRoundCleanup` for `round > 1` / `finalizeFreshCastles` / `finalizeCastleConstruction`) + `enterCannonPhase` |
 | `battleStart` | CANNON_PLACE → BATTLE | `rngState` (host's pre-`prepareBattle` RNG) | `state.rng.setState(rngState)` then `prepareBattle` (modifier roll, balloon resolution, grunt wall-attack flags, combo tracker) |
 | `buildStart` | BATTLE → WALL_BUILD | _none_ | `enterBuildPhase` (combo bonuses, battle cleanup, grunt spawn, upgrade offers, modifier rotation, round increment, piece bag init) |
 | `buildEnd` | End of build phase | _none_ | `finalizeBuildPhase` (territory finalize, life penalties, score) |
@@ -156,11 +156,11 @@ The same precompute idea covers any AI decision drawn from `state.rng` whose loc
 ```
 CASTLE_SELECT ──> CANNON_PLACE ──> BATTLE ──> WALL_BUILD ──┐
       ↑                                                     │
-      └──── (life lost → CASTLE_RESELECT) ──────────────────┘
+      └──── (life lost → CASTLE_SELECT reselect cycle) ─────┘
       └──── (no reselect) ──> CANNON_PLACE ──> ...
 ```
 
-Castle wall construction is animated inline during `CASTLE_SELECT` / `CASTLE_RESELECT` — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
+The reselect cycle re-enters CASTLE_SELECT (same phase tag) — only the players who lost a life participate. Cycle type is derived from `state.round` (1 vs >1), not a separate phase value. Castle wall construction is animated inline during `CASTLE_SELECT` (initial or reselect) — every peer derives wall plans locally via `prepareCastleWallsForPlayer` (consumes `state.rng` for clumsy builders + ring ordering) on each tower confirmation. No separate `CASTLE_BUILD` phase, no `castleWalls` wire message.
 
 Modern mode inserts an upgrade draft/pick between battle end and build banner (from round 3). Upgrade offers are generated locally on every peer inside `enterBuildFromBattle` (synced RNG); players respond with `upgradePick` messages, which the host applies and re-broadcasts.
 

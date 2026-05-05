@@ -82,7 +82,7 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 |------|-----------|
 | **Match** | A complete game from lobby to game-over. Settings (rounds, difficulty, mode) are immutable. |
 | **Round** | One cycle through build → cannon → battle. The game lasts 3/5/8/12 rounds or "to the death." |
-| **Phase** | A discrete game state: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE, or CASTLE_RESELECT. |
+| **Phase** | A discrete game state: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, or BATTLE. CASTLE_SELECT is re-entered between rounds when a player loses lives (reselect cycle); the cycle type is derived from `state.round` (1 vs >1), not a separate phase tag. |
 | **Phase Timer** | A countdown timer governing phase duration (e.g., 25s build, 15s cannon, 10s battle). Difficulty-scaled. |
 | **Battle Countdown** | A 6-second pre-battle sequence (Ready 3s + Aim 2s + Fire! 1s) before combat begins. |
 | **Banner** | A 3-second visual sweep between phases announcing the next phase. |
@@ -175,7 +175,7 @@ WALL_BUILD
   System → Checks if each player encloses at least one tower
     - No tower enclosed → player loses a life
     - 0 lives → LIFE_LOST_DIALOG
-  → CANNON_PLACE (or CASTLE_RESELECT if any player needs reselection)
+  → CANNON_PLACE (or CASTLE_SELECT for a reselect cycle if any player needs reselection)
 
 CANNON_PLACE
   System → Computes cannon slot limits (based on owned towers)
@@ -218,14 +218,14 @@ BATTLE
     System → Resets one-round upgrades (reinforced walls, damaged walls)
   → WALL_BUILD (next round) or GAME_OVER (if max rounds reached)
 
-CASTLE_RESELECT (after life loss)
+CASTLE_SELECT (reselect cycle, after life loss; round > 1)
   Player who lost life → Selects a new tower
   System → Builds new castle walls
   → Return to normal phase flow
 
 LIFE_LOST_DIALOG
   System → Presents continue/forfeit choice (auto-resolves after 10s)
-  Player → Chooses to continue (→ CASTLE_RESELECT) or forfeit (→ eliminated)
+  Player → Chooses to continue (→ CASTLE_SELECT reselect cycle) or forfeit (→ eliminated)
 
 UPGRADE_PICK (modern mode, round 3+)
   System → Generates 3 upgrade offers per player (weighted random, no dupes)

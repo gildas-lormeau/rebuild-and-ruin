@@ -166,7 +166,7 @@ export function drawPhaseTimer(
 }
 
 /** Draw the corner-bracket selection cursor(s) around towers during
- *  CASTLE_SELECT / CASTLE_RESELECT. Rendered on the 2D overlay regardless
+ *  CASTLE_SELECT (initial or reselect cycle). Rendered on the 2D overlay regardless
  *  of whether the 3D renderer is drawing live tower meshes — castle
  *  selection is a top-down phase, so the 2D bracket aligns perfectly on
  *  top of the 3D towers. */
