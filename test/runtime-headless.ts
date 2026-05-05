@@ -138,7 +138,7 @@ interface HeadlessRuntimeOptions {
    *  exercised. Used by the network-vs-local parity test to prove host →
    *  watcher convergence under the assisted-human code path. The factory
    *  is wired at bootstrap so the assisted controller is the SLOT 1
-   *  controller from the first `selectInitialTower` call onward — no
+   *  controller from the first `selectTower` call onward — no
    *  mid-game swap, no asymmetric RNG advance. */
   assistedSlots?: readonly ValidPlayerSlot[];
 }

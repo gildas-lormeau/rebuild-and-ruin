@@ -138,7 +138,7 @@ export interface ScenarioOptions {
    *  outcome flows through `network.send`, producing wire messages on
    *  `sentMessages`. Used by the network-vs-local parity test to validate
    *  per-action wire formats end-to-end. The factory wires the assisted
-   *  controller at bootstrap, so the slot's first `selectInitialTower` runs
+   *  controller at bootstrap, so the slot's first `selectTower` runs
    *  on the assisted controller (no mid-game swap, no asymmetric RNG
    *  advance vs. a watcher peer). */
   assistedSlots?: readonly ValidPlayerSlot[];

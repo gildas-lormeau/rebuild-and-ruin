@@ -60,12 +60,8 @@ export class HumanController extends BaseController implements InputReceiver {
     this.keyMap = buildKeyMap(keys);
   }
 
-  selectInitialTower(_state: GameViewState, _zone: number): void {
+  selectTower(_state: GameViewState, _zone: number): void {
     // Human selects via UI — selectionTick() drives confirmation
-  }
-
-  selectReplacementTower(_state: GameViewState, _zone: number): void {
-    // Same as selectInitialTower — human reselects via UI
   }
 
   placeCannons(state: CannonViewState, _maxSlots: number): void {

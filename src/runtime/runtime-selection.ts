@@ -149,7 +149,7 @@ export function createSelectionSystem(
       const zone = state.playerZones[i]!;
       const ctrl = runtimeState.controllers[i]!;
       if (!isRemotePlayer(pid, remotePlayerSlots)) {
-        ctrl.selectInitialTower(state, zone);
+        ctrl.selectTower(state, zone);
       }
       if (isHuman(ctrl)) {
         const player = state.players[pid];
@@ -462,15 +462,15 @@ export function createSelectionSystem(
     // state for queued players, set timer.
     enterSelectionPhase(state, runtimeState.selection.states, queue);
 
-    // Runtime: per-player controller (selectReplacementTower) + camera
-    // setup loop. Drive every non-remote-human slot in the queue —
-    // AI players auto-confirm via selectionTick(); own local human
-    // needs UI interaction. Remote humans (other peers' input) handled
-    // on their owning peer.
+    // Runtime: per-player controller (selectTower) + camera setup loop.
+    // Drive every non-remote-human slot in the queue — AI players
+    // auto-confirm via selectionTick(); own local human needs UI
+    // interaction. Remote humans (other peers' input) handled on their
+    // owning peer.
     for (const pid of queue) {
       if (isRemotePlayer(pid, remotePlayerSlots)) continue;
       const zone = state.playerZones[pid] ?? 0;
-      runtimeState.controllers[pid]!.selectReplacementTower(state, zone);
+      runtimeState.controllers[pid]!.selectTower(state, zone);
       if (isHuman(runtimeState.controllers[pid]!)) {
         const player = state.players[pid];
         if (player?.homeTower) {

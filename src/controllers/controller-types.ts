@@ -97,9 +97,7 @@ export abstract class BaseController implements PlayerController {
 
   updateBindings(_keys: KeyBindings): void {}
   /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
-  abstract selectInitialTower(state: GameViewState, zone: number): void;
-  /** Pick a tower for reselection. Same contract as selectInitialTower. */
-  abstract selectReplacementTower(state: GameViewState, zone: number): void;
+  abstract selectTower(state: GameViewState, zone: number): void;
   /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
   abstract placeCannons(state: CannonViewState, maxSlots: number): void;
   /** Whether the player has placed all their cannons (slots exhausted or timer expired). */
