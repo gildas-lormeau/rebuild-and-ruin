@@ -47,7 +47,7 @@
     ]
   },
   {
-    "name": "foundational types & local entry",
+    "name": "foundational types",
     "tier": "types",
     "files": [
       "src/online/online-config.ts",
@@ -72,7 +72,7 @@
     ]
   },
   {
-    "name": "derived types",
+    "name": "derived types & local entry",
     "tier": "types",
     "files": [
       "src/entry.ts",
@@ -333,7 +333,7 @@
     ]
   },
   {
-    "name": "phase orchestration & app entry",
+    "name": "phase orchestration",
     "tier": "assembly",
     "files": [
       "src/ai/ai-phase-battle.ts",
@@ -382,7 +382,7 @@
     ]
   },
   {
-    "name": "online composition root",
+    "name": "app entry",
     "tier": "roots",
     "files": [
       "src/main.ts",
@@ -390,7 +390,8 @@
     ]
   },
   {
-    "name": "layer 18",
+    "name": "online client entry",
+    "tier": "roots",
     "files": [
       "src/online-client.ts"
     ]

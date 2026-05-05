@@ -33,8 +33,8 @@ Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `s
 
 ### Module layers (19 groups in 5 tiers, `.import-layers.json`)
 Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
-L0 leaf modules → L1 foundational types & local entry → L2 derived types → L3 wire format & config types → L4 core game state & server stubs → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration & app entry → L13 wiring → L14 composition roots → L15 session & runtime lifecycle → L16 app wiring → L17 online composition root → L18 online client entry. Imports must flow downward (higher layer imports lower).
-Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L16, `online-client.ts` at L18).
+L0 leaf modules → L1 foundational types → L2 derived types & local entry → L3 wire format & config types → L4 core game state & server stubs → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration → L13 wiring → L14 composition roots → L15 session & runtime lifecycle → L16 app wiring → L17 app entry → L18 online client entry. Imports must flow downward (higher layer imports lower).
+Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L17, `online-client.ts` at L18).
 
 ### Type file organization (L1–L4)
 - `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
