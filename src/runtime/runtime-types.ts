@@ -445,9 +445,9 @@ export interface CameraSystem {
 
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
-  /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (auto-detect
-   *  reselect from state); pass an explicit queue for the lifeLostRoute
-   *  reselect path. */
+  /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (bootstrap
+   *  path: round 1 / watcher SELECT_START); pass an explicit queue for
+   *  the lifeLostRoute reselect cycle. */
   enter: (queue?: readonly ValidPlayerSlot[]) => void;
   syncOverlay: () => void;
   highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
@@ -457,6 +457,7 @@ export interface RuntimeSelection {
     applyAt?: number,
   ) => boolean;
   allConfirmed: () => boolean;
+  isReady: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;
   advanceToCannonPhase: () => void;

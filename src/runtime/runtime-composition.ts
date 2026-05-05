@@ -70,7 +70,6 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
-import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
@@ -328,7 +327,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     remotePlayerSlots: config.network.remotePlayerSlots,
     getPointerPlayer: () => pointerPlayer(),
     clearHumanCache: () => clearHumanCache(),
-    isSelectionReady,
+    isSelectionReady: () => selection.isReady(),
     isMobileAutoZoom: () => camera.isMobileAutoZoom(),
     tickCamera: () => tickCamera(),
     tickScoreDelta: (dt: number) => scoreDelta.tick(dt),
@@ -382,14 +381,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     viewport?: Viewport | null,
   ): void {
     renderer.drawFrame(map, overlay, viewport, timing.now(), camera.getPitch());
-  }
-
-  /** True once the selection announcement has finished playing and input is unblocked.
-   *  Guard pattern: `if (!isSelectionReady()) return;` blocks input during announcement. */
-  function isSelectionReady(): boolean {
-    return (
-      runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION
-    );
   }
 
   // -------------------------------------------------------------------------
@@ -846,7 +837,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     options,
     lifeLost,
     upgradePick,
-    selection: { ...selection, isReady: isSelectionReady },
+    selection,
     camera,
     emitUiTap: () => {
       const state = safeState(runtimeState);

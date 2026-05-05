@@ -106,42 +106,21 @@ export function createSelectionSystem(
   // Tower selection helpers
   // -------------------------------------------------------------------------
 
-  /** Enter CASTLE_SELECT for the initial cycle (omit `explicitQueue`) or
-   *  the reselect cycle (pass the list of players who lost a life).
-   *
-   *  Two entry shapes:
-   *  - No arg: bootstrap (round 1) and watcher SELECT_START. Auto-detect
-   *    inspects state — if some active players have a homeTower and some
-   *    don't, the reselect cycle wins; otherwise it's the initial cycle.
-   *    Reselect-via-auto-detect only ticks the queued slots; re-running
-   *    the full initial path would re-init every AI's selection and
-   *    advance strategy.rng for slots that didn't reselect, drifting
-   *    state vs other peers.
-   *  - Explicit queue: lifeLostRoute.onReselect — the queue is already
-   *    computed by the life-lost dialog; pass it through directly. */
-  function enterTowerSelection(
-    explicitQueue?: readonly ValidPlayerSlot[],
-  ): void {
+  /** Enter CASTLE_SELECT for the initial cycle (omit `cycleQueue`) or the
+   *  reselect cycle (pass the list of players who lost a life). Initial
+   *  cycle = bootstrap path: runs once at game start (round 1) and on
+   *  watcher SELECT_START. Reselect cycle = mid-game; the queue is
+   *  precomputed by the life-lost dialog. */
+  function enterTowerSelection(cycleQueue?: readonly ValidPlayerSlot[]): void {
     const { state } = runtimeState;
     const { remotePlayerSlots } = runtimeState.frameMeta;
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
     );
+    setMode(runtimeState, Mode.SELECTION);
 
-    let cycleQueue: readonly ValidPlayerSlot[] | undefined = explicitQueue;
-    if (cycleQueue === undefined) {
-      const detected: ValidPlayerSlot[] = [];
-      let anyHasHome = false;
-      for (let i = 0; i < state.players.length; i++) {
-        const player = state.players[i];
-        if (!player || player.eliminated) continue;
-        if (player.homeTower) anyHasHome = true;
-        else detected.push(i as ValidPlayerSlot);
-      }
-      if (anyHasHome && detected.length > 0) cycleQueue = detected;
-    }
-    const isReselect = cycleQueue !== undefined;
+    const isBootstrap = cycleQueue === undefined;
     const slots: readonly ValidPlayerSlot[] =
       cycleQueue ?? state.players.map((_, i) => i as ValidPlayerSlot);
 
@@ -174,30 +153,19 @@ export function createSelectionSystem(
       }
     }
 
-    // Initial-cycle-only: wipe overlay before syncSelectionOverlay reads
-    // it, so the new pass starts from a known-empty state. The reselect
-    // cycle is mid-session and keeps the running overlay.
-    if (!isReselect) {
-      runtimeState.overlay = {
-        selection: { highlighted: null, selected: null },
-      };
-    }
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
-    setMode(runtimeState, Mode.SELECTION);
-    // Initial-cycle-only first-frame setup: re-anchor frame timing + tick.
+    // Bootstrap-only first-frame setup: re-anchor frame timing + tick.
     // The reselect cycle inherits the running frame loop.
-    if (!isReselect) {
+    if (isBootstrap) {
       resetFrameTiming(runtimeState, deps.timing.now());
       deps.requestFrame();
     }
   }
 
   function syncSelectionOverlay(): void {
-    const announcementDone =
-      runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
     const visible = new Set<number>();
-    if (announcementDone) {
+    if (isReady()) {
       for (const ctrl of runtimeState.controllers) {
         if (isHuman(ctrl)) visible.add(ctrl.playerId);
       }
@@ -206,6 +174,12 @@ export function createSelectionSystem(
       runtimeState.overlay,
       runtimeState.selection.states,
       visible,
+    );
+  }
+
+  function isReady(): boolean {
+    return (
+      runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION
     );
   }
 
@@ -490,6 +464,7 @@ export function createSelectionSystem(
     highlight: highlightTowerForPlayer,
     confirmAndStartBuild: confirmSelectionAndStartBuild,
     allConfirmed,
+    isReady,
     tick: tickSelection,
     finish: finishSelection,
     advanceToCannonPhase: () => {
