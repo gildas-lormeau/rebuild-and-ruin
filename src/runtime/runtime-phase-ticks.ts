@@ -209,9 +209,11 @@ export interface PhaseTicksSystem {
    *  already done by an earlier transition. */
   dispatchAdvanceToCannon: () => void;
   /** Dispatch the `castle-done` transition. Used by both the round-1
-   *  initial-selection path and the reselect cycle (round > 1). The mutate
-   *  runs `finalizeRoundCleanup` (round > 1 only) + `finalizeFreshCastles`
-   *  + `finalizeCastleConstruction` + `enterCannonPhase`. */
+   *  initial-selection path and the reselect cycle. The mutate runs
+   *  `finalizeRoundCleanup` (gated on `round > 1` because round 1 has no
+   *  prior round to clean up after — cleanup-deferral, not cycle-type) +
+   *  `finalizeFreshCastles` + `finalizeCastleConstruction` +
+   *  `enterCannonPhase`. */
   dispatchCastleDone: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */

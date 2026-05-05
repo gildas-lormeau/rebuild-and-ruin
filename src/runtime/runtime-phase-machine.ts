@@ -623,6 +623,9 @@ const CASTLE_DONE: Transition = {
   id: "castle-done",
   from: Phase.CASTLE_SELECT,
   mutate: (ctx) => {
+    // Phase B cleanup is deferred from the prior round's `round-end`; round 1
+    // has no prior round to clean up. The gate is cleanup-deferral, not
+    // initial-vs-reselect cycle type — both cycles run the rest unconditionally.
     if (ctx.state.round > 1) finalizeRoundCleanup(ctx.state);
     finalizeFreshCastles(ctx.state);
     finalizeCastleConstruction(ctx.state);
