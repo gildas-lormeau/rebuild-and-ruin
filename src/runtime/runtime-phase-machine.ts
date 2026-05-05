@@ -417,8 +417,8 @@ const ROUND_END: Transition = {
     // is ending, so we suppress it on the game-over branch (the dialog
     // step short-circuits when needsReselect + eliminated are both
     // empty). The peek runs against the closing round (state.round not
-    // yet incremented) and the lives-then-score tiebreak so a player
-    // who lost a life this round can't outrank an opponent who didn't.
+    // yet incremented). Tiebreak is score-only among alive players;
+    // eliminated players (lives = 0) are filtered out before the compare.
     const gameOverOutcome = peekGameOverOutcome(ctx.state);
     if (gameOverOutcome) {
       return { ...EMPTY_TRANSITION_RESULT, preScores, gameOverOutcome };

@@ -30,21 +30,20 @@ export interface GameOverOutcome {
  *      (we just played the final scheduled round).
  *  Returns `null` when neither condition is met.
  *
- *  Winner is picked by **lives first, then score**. A player who lost a
- *  life this round (lives reduced but still > 0) is "alive" but ranks
- *  below players who didn't — so the score-only tiebreak no longer
- *  hands the win to a life-losing leader over an opponent who was untouched.
- *  No side effects: GAME_END is emitted by the caller at dispatch time
- *  so the event lands AFTER the score overlay, not at decision time. */
+ *  Eligibility is binary — eliminated players (no lives left) cannot win
+ *  while any non-eliminated player exists. Among alive candidates, **score
+ *  is the only tiebreak**; how many lives each has remaining doesn't matter.
+ *  No side effects: GAME_END is emitted by the caller at dispatch time so
+ *  the event lands AFTER the score overlay, not at decision time. */
 export function peekGameOverOutcome(state: GameState): GameOverOutcome | null {
   const alive = state.players.filter(isPlayerAlive);
   if (alive.length <= 1) {
-    const winner = alive[0] ?? pickByLivesThenScore(state.players)!;
+    const winner = alive[0] ?? pickByScore(state.players)!;
     return { winner, reason: "last-player-standing" };
   }
   if (state.round >= state.maxRounds) {
     return {
-      winner: pickByLivesThenScore(alive)!,
+      winner: pickByScore(alive)!,
       reason: "round-limit-reached",
     };
   }
@@ -80,14 +79,14 @@ export function eliminatePlayers(
   }
 }
 
-/** Lives-then-score winner pick. More lives wins; ties broken by score;
- *  remaining ties resolved by slot order (the reduce keeps `best` on
- *  equality). Returns null only on an empty list. */
-function pickByLivesThenScore(candidates: readonly Player[]): Player | null {
+/** Highest-score winner pick. Ties resolved by slot order (the reduce keeps
+ *  `best` on equality). Caller is responsible for filtering candidates by
+ *  eligibility (alive vs eliminated) — this helper does not look at lives.
+ *  Returns null only on an empty list. */
+function pickByScore(candidates: readonly Player[]): Player | null {
   if (candidates.length === 0) return null;
-  return candidates.reduce((best, player) => {
-    if (player.lives !== best.lives)
-      return player.lives > best.lives ? player : best;
-    return player.score > best.score ? player : best;
-  }, candidates[0]!);
+  return candidates.reduce(
+    (best, player) => (player.score > best.score ? player : best),
+    candidates[0]!,
+  );
 }
