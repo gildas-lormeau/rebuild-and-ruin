@@ -79,6 +79,13 @@ export interface UpgradeImpl {
   ) => ConscriptionRespawnTarget | null;
   /** Side effects after a cannon kill (e.g. salvage slots). */
   onCannonKilled?: (state: GameState, shooterId: ValidPlayerSlot) => void;
+  /** Side effects after a cannon is placed (e.g. consume one-shot upgrades).
+   *  Runs from both originator (synchronous + scheduled drain) and receiver
+   *  (scheduled drain) paths via `applyCannonAtDrain` / `placeCannon`.
+   *  Player-only signature (no state) so callers with the narrow
+   *  `CannonViewState` shape can dispatch without a cast. Widen if a future
+   *  consumer needs state — none today. */
+  onCannonPlaced?: (player: Player) => void;
 
   /* ── Query hooks (aggregated by dispatchers) ───────────────── */
 

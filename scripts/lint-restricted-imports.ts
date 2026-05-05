@@ -132,19 +132,12 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
       "applyTowerKilled",
     ]),
     "../game/build-system.ts": new Set(["applyPiecePlacement"]),
-    "../game/cannon-system.ts": new Set(["applyCannonPlacement"]),
+    "../game/cannon-system.ts": new Set(["applyCannonAtDrain"]),
   },
   "src/online/online-phase-transitions.ts": {
     "../game/phase-setup.ts": new Set(["setPhase"]),
   },
   "src/online/online-serialize.ts": {
-    "../game/phase-setup.ts": new Set(["setPhase"]),
-  },
-  "src/runtime/runtime-phase-machine.ts": {
-    // Machine transitions call setPhase directly inside watcher mutate fns
-    // (post-checkpoint phase flip) — the symbol belongs to the
-    // network-state-conformance primitive set, same rationale as the
-    // online-phase-transitions.ts / online-serialize.ts exemptions.
     "../game/phase-setup.ts": new Set(["setPhase"]),
   },
 };

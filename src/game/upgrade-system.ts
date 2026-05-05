@@ -222,6 +222,14 @@ export function onPiecePlaced(
   }
 }
 
+/** Post-placement hook: run upgrade-driven side effects triggered by a
+ *  just-placed cannon (e.g. Rapid Emplacement consuming itself). */
+export function onCannonPlaced(player: Player): void {
+  for (const impl of UPGRADE_REGISTRY.values()) {
+    impl.onCannonPlaced?.(player);
+  }
+}
+
 /** Post-impact hook: run any follow-up impacts triggered by upgrades.
  *  Battle-system supplies `applyBounce`, which owns computeImpact +
  *  applyImpactEvent + emit machinery; the upgrade file owns the

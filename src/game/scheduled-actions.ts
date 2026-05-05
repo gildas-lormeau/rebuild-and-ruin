@@ -37,11 +37,10 @@ import {
 } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePiece } from "./build-system.ts";
 import {
-  applyCannonPlacement,
+  applyCannonAtDrain,
   effectivePlacementCost,
   isCannonPlacementLegal,
 } from "./cannon-system.ts";
-import { consumeRapidEmplacement } from "./upgrades/rapid-emplacement.ts";
 
 /** Stamped placement returned by `schedulePiecePlacement` — caller spreads
  *  it into the wire message so both originator and receiver enqueue with
@@ -145,9 +144,9 @@ export function scheduleCannonFire(args: {
 /** Originator-side cannon-place scheduler. Validates against `cannonLimits`
  *  + spatial rules now (so an invalid placement never enqueues nor
  *  broadcasts), and enqueues the apply for `applyAt`. Both originator and
- *  receiver call `applyCannonPlacement` + `consumeRapidEmplacement` at the
- *  same logical tick, so cannon-slot occupancy and the consequent
- *  `cannonPlaceDone` checkpointing align across peers.
+ *  receiver run `applyCannonAtDrain` (re-validate + apply + post-place
+ *  upgrade hooks) at the same logical tick, so cannon-slot occupancy and
+ *  the consequent `cannonPlaceDone` checkpointing align across peers.
  *
  *  Returns the stamped wire payload, or null when validation fails. */
 export function scheduleCannonPlacement(args: {
@@ -187,30 +186,18 @@ export function scheduleCannonPlacement(args: {
     applyAt,
     playerId,
     apply: (drainState) => {
+      // Release the slot-cost reservation BEFORE the placement (the apply
+      // re-runs `isCannonPlacementLegal`, which sums actual + pending — if
+      // we leave the reservation in place, the player's own placement
+      // double-counts against itself).
       drainState.pendingCannonSlotCost[playerId] = Math.max(
         0,
         (drainState.pendingCannonSlotCost[playerId] ?? 0) - cost,
       );
-      const drainPlayer = drainState.players[playerId];
-      if (!drainPlayer) return;
-      // Re-validate at drain time — between schedule (simTick=N) and
-      // apply (simTick=N+SAFETY) other placements may have consumed
-      // tiles or cannon slots. Mirror check on the receiver path lives
-      // in `online-server-events.ts:handleCannonPlaced`'s apply closure.
-      const drainMaxCannons = drainState.cannonLimits[playerId] ?? maxSlots;
-      if (
-        !isCannonPlacementLegal(
-          drainPlayer,
-          row,
-          col,
-          mode,
-          drainMaxCannons,
-          drainState,
-        )
-      )
-        return;
-      applyCannonPlacement(drainPlayer, row, col, mode, drainState);
-      consumeRapidEmplacement(drainPlayer);
+      // Drain-time apply (re-validates against drain-time state, applies
+      // placement, runs post-place upgrade hooks). Mirrored on the receiver
+      // path in `online-server-events.ts:handleCannonPlaced`.
+      applyCannonAtDrain(drainState, playerId, row, col, mode);
     },
   });
   return { playerId, row, col, mode, applyAt };

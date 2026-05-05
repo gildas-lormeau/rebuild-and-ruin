@@ -51,11 +51,8 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
-import { cannonSlotsBonus } from "./upgrade-system.ts";
-import {
-  consumeRapidEmplacement,
-  rapidEmplacementDiscount,
-} from "./upgrades/rapid-emplacement.ts";
+import { cannonSlotsBonus, onCannonPlaced } from "./upgrade-system.ts";
+import { rapidEmplacementDiscount } from "./upgrades/rapid-emplacement.ts";
 
 export { isCannonEnclosed };
 
@@ -138,13 +135,53 @@ export function placeCannon(
   if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
     return false;
   applyCannonPlacement(player, row, col, mode, state);
-  consumeRapidEmplacement(player);
+  onCannonPlaced(player);
   emitGameEvent(state.bus, GAME_EVENT.CANNON_PLACED, {
     playerId: player.id,
     row,
     col,
     cannonIdx: player.cannons.length - 1,
   });
+  return true;
+}
+
+/** True when every non-eliminated slot has flagged itself done with the
+ *  CANNON_PLACE phase. Mirrors `allSelectionsConfirmed` (game/selection.ts)
+ *  for the cannon phase: same shape, different storage (a Set on
+ *  GameState rather than a Map of per-slot states). Used by
+ *  `tickCannonPhase` as the early-exit predicate; the timer-fallback
+ *  path bypasses this check (unfinished slots are discarded — see
+ *  the project rule for cannon-phase timer expiry). */
+export function allCannonPlaceDone(state: GameState): boolean {
+  return state.players.every(
+    (player) =>
+      isPlayerEliminated(player) || state.cannonPlaceDone.has(player.id),
+  );
+}
+
+/** Drain-time cannon placement: re-validates against `applyAt` state (which
+ *  may differ from schedule-time state — other placements may have consumed
+ *  tiles or slots in the SAFETY window) and runs the full placement effect
+ *  (apply + post-place upgrade hooks). Both the originator
+ *  (`scheduled-actions.ts`) and receiver (`online-server-events.ts`) paths
+ *  call this so the apply body lives in one place. The synchronous local
+ *  `placeCannon` path is separate because it also emits the CANNON_PLACED
+ *  bus event — scheduled placements don't (no observer needs that signal at
+ *  drain time today). */
+export function applyCannonAtDrain(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  row: number,
+  col: number,
+  mode: CannonMode,
+): boolean {
+  const player = state.players[playerId];
+  if (!player) return false;
+  const maxCannons = state.cannonLimits[playerId] ?? 0;
+  if (!isCannonPlacementLegal(player, row, col, mode, maxCannons, state))
+    return false;
+  applyCannonPlacement(player, row, col, mode, state);
+  onCannonPlaced(player);
   return true;
 }
 
@@ -179,39 +216,6 @@ export function isCannonPlacementLegal(
   )
     return false;
   return canPlaceCannon(player, row, col, mode, state);
-}
-
-/** True when every non-eliminated slot has flagged itself done with the
- *  CANNON_PLACE phase. Mirrors `allSelectionsConfirmed` (game/selection.ts)
- *  for the cannon phase: same shape, different storage (a Set on
- *  GameState rather than a Map of per-slot states). Used by
- *  `tickCannonPhase` as the early-exit predicate; the timer-fallback
- *  path bypasses this check (unfinished slots are discarded — see
- *  the project rule for cannon-phase timer expiry). */
-export function allCannonPlaceDone(state: GameState): boolean {
-  return state.players.every(
-    (player) =>
-      isPlayerEliminated(player) || state.cannonPlaceDone.has(player.id),
-  );
-}
-
-/** Apply cannon placement (no validation). Used by host and watcher. */
-export function applyCannonPlacement(
-  player: Player,
-  row: number,
-  col: number,
-  mode: CannonMode,
-  state: { readonly cannonMaxHp: number },
-): void {
-  if (isPlayerEliminated(player)) return;
-  player.cannons.push({
-    row,
-    col,
-    hp: state.cannonMaxHp,
-    mode,
-    facing: player.defaultFacing,
-    shieldHp: mode === CannonMode.RAMPART ? RAMPART_SHIELD_HP : undefined,
-  });
 }
 
 /** Prepare state for cannon phase: compute limits, recompute default facings
@@ -326,6 +330,27 @@ export function effectivePlacementCost(
   mode: CannonMode,
 ): number {
   return Math.max(1, cannonSlotCost(mode) - rapidEmplacementDiscount(player));
+}
+
+/** Apply cannon placement (no validation). Internal helper — external
+ *  callers go through `placeCannon` (synchronous + bus event) or
+ *  `applyCannonAtDrain` (scheduled drain + post-place upgrade hooks). */
+function applyCannonPlacement(
+  player: Player,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  state: { readonly cannonMaxHp: number },
+): void {
+  if (isPlayerEliminated(player)) return;
+  player.cannons.push({
+    row,
+    col,
+    hp: state.cannonMaxHp,
+    mode,
+    facing: player.defaultFacing,
+    shieldHp: mode === CannonMode.RAMPART ? RAMPART_SHIELD_HP : undefined,
+  });
 }
 
 /** Find the first legal cannon placement in interior-iteration order, or

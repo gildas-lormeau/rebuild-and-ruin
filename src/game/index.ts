@@ -29,7 +29,6 @@ export {
   filterActiveFiringCannons,
   hasAnyCannonPlacement,
   isCannonEnclosed,
-  isCannonPlacementLegal,
   placeCannon,
   prepareControllerCannonPhase,
   resetCannonFacings,
@@ -93,4 +92,3 @@ export {
   shouldSkipBattle,
   tickBuildUpgrades,
 } from "./upgrade-system.ts";
-export { consumeRapidEmplacement } from "./upgrades/rapid-emplacement.ts";

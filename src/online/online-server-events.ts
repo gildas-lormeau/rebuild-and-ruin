@@ -4,13 +4,8 @@
 
 import { applyCannonFired } from "../game/battle-system.ts";
 import { applyPiecePlacement } from "../game/build-system.ts";
-import { applyCannonPlacement } from "../game/cannon-system.ts";
-import {
-  canPlacePiece,
-  consumeRapidEmplacement,
-  highlightTowerSelection,
-  isCannonPlacementLegal,
-} from "../game/index.ts";
+import { applyCannonAtDrain } from "../game/cannon-system.ts";
+import { canPlacePiece, highlightTowerSelection } from "../game/index.ts";
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";
 import {
   isHostInContext,
@@ -247,28 +242,13 @@ function handleCannonPlaced(
   const normalizedMode = toCannonMode(msg.mode);
   // Validation moved into the apply closure — see `handlePiecePlaced`
   // for the same rationale (lockstep state at applyAt vs receive-time
-  // state asymmetry).
+  // state asymmetry). `applyCannonAtDrain` re-validates internally.
   const { row, col, applyAt, playerId } = msg;
   deps.schedule({
     applyAt,
     playerId,
     apply: (drainState) => {
-      const drainPlayer = drainState.players[playerId];
-      if (!drainPlayer) return;
-      const maxCannons = drainState.cannonLimits[playerId] ?? 0;
-      if (
-        !isCannonPlacementLegal(
-          drainPlayer,
-          row,
-          col,
-          normalizedMode,
-          maxCannons,
-          drainState,
-        )
-      )
-        return;
-      applyCannonPlacement(drainPlayer, row, col, normalizedMode, drainState);
-      consumeRapidEmplacement(drainPlayer);
+      applyCannonAtDrain(drainState, playerId, row, col, normalizedMode);
     },
   });
   return APPLIED;
