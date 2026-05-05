@@ -8,9 +8,10 @@
  *
  * 2. Non-game files must go through `src/game/index.ts` (the barrel) rather than
  *    deep-importing from specific `src/game/*.ts` files. A narrow allowlist exists
- *    for network-replay primitives in `online-server-events.ts` — symbols that
- *    apply authoritative server events to watcher state and are intentionally
- *    kept out of the public game surface.
+ *    for network-state-conformance primitives in three online/ files
+ *    (`online-server-events.ts`, `online-phase-transitions.ts`, `online-serialize.ts`)
+ *    — symbols that apply authoritative server events / checkpoints to watcher
+ *    state and are intentionally kept out of the public game surface.
  *
  * 3. `UID` must only be imported as a value in `src/game/upgrades/**` (the per-
  *    upgrade files) and `src/ai/ai-upgrade-pick.ts` (the AI pick strategy). All

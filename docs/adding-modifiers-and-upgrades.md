@@ -381,9 +381,12 @@ Some upgrades have effects that don't fit the registry dispatch:
   stay as named exports alongside the impl.
 - **`restorationCrewInstantRevive()`** — called by `build-system.ts` during
   end-of-build tower revival. Direct export alongside an empty impl.
-- **`rapidEmplacementDiscount()` / `consumeRapidEmplacement()`** — called
-  by `cannon-system.ts` during placement. Direct exports alongside an empty
-  impl.
+- **`rapidEmplacementDiscount()`** — called by `cannon-system.ts` to compute
+  the slot-cost discount before placement validation. Direct export alongside
+  the impl. The matching consume step is registry-driven (the impl wires
+  `onCannonPlaced` to delete the upgrade from the player after a successful
+  placement); call sites use `applyCannonAtDrain` / `placeCannon` which
+  dispatch the hook automatically.
 
 For new upgrades, prefer using the registry hooks. Only use direct exports
 when your effect involves cross-upgrade interaction or is called from a
