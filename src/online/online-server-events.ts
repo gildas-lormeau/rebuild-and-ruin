@@ -70,8 +70,6 @@ export interface HandleServerIncrementalDeps {
     applyAt?: number,
   ) => void;
   allSelectionsConfirmed: () => boolean;
-  finishReselection: () => void;
-  finishSelection: () => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
 }

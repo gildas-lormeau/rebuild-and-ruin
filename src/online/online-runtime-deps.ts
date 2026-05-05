@@ -147,8 +147,6 @@ function buildIncrementalDeps(
       init.runtime.selection.confirmAndStartBuild(playerId, source, applyAt);
     },
     allSelectionsConfirmed: () => init.runtime.selection.allConfirmed(),
-    finishReselection: () => init.runtime.selection.finishReselection(),
-    finishSelection: () => init.runtime.selection.finish(),
     getLifeLostDialog: () => init.runtime.lifeLost.get(),
     // Only expose the dialog once Mode.UPGRADE_PICK is active — during
     // the banner preview (prepare) the dialog exists for rendering but

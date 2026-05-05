@@ -459,7 +459,6 @@ export interface RuntimeSelection {
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
   startReselection: () => void;
-  finishReselection: () => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
 }

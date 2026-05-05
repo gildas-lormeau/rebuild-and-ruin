@@ -384,8 +384,7 @@ export function createSelectionSystem(
       selection.castleBuilds.length === 0 &&
       isSelectionComplete(state, selection.states)
     ) {
-      if (state.round > 1) finishReselection();
-      else finishSelection();
+      finishSelection();
     }
   }
 
@@ -400,9 +399,12 @@ export function createSelectionSystem(
     )
       return;
     resetOverlaySelection();
-    // castle-done's mutate handles finalizeFreshCastles +
-    // finalizeCastleConstruction + clearCastleBuildViewport + enterCannonPhase
-    // + cannon-start broadcast.
+    // No-op in the initial cycle (queue is always empty in round 1);
+    // load-bearing in the reselect cycle (round > 1).
+    runtimeState.selection.reselectQueue.length = 0;
+    // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
+    // finalizeFreshCastles + finalizeCastleConstruction +
+    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
     deps.enterCannonAfterCastle();
   }
 
@@ -504,18 +506,8 @@ export function createSelectionSystem(
       // path, populating `selection.states` with every player and
       // double-scheduling reselect confirms across slots.
     } else {
-      finishReselection();
+      finishSelection();
     }
-  }
-
-  function finishReselection() {
-    runtimeState.selection.states.clear();
-    resetOverlaySelection();
-    runtimeState.selection.reselectQueue.length = 0;
-    // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
-    // finalizeFreshCastles + finalizeCastleConstruction +
-    // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
-    deps.enterCannonAfterCastle();
   }
 
   /** Full reset for game restart / rematch. Clears all selection, reselection,
@@ -548,7 +540,6 @@ export function createSelectionSystem(
     },
     tickCastleBuild,
     startReselection,
-    finishReselection,
     reset,
   };
 }
