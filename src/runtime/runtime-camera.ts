@@ -181,6 +181,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     applied: false,
     pendingVp: undefined,
   };
+  /** Re-arm the deferred selection-zoom one-shot. Fires on CASTLE_SELECT
+   *  entry and on full reset. Without re-arming between cycles, the latch
+   *  stays sticky after round 1 and a subsequent reselect would skip the
+   *  deferred dance. */
+  function resetSelectionZoomLatch(): void {
+    selectionZoom.applied = false;
+    selectionZoom.pendingVp = undefined;
+  }
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
   // Tile-rect of every zone, derived from `state.map.zones`. Tile-mutating
   // modifiers (sinkhole, high-tide, low-water) recompute zones and bump
@@ -744,14 +752,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     notTransition: boolean,
   ): void {
     if (state.phase === lastAutoZoomPhase || !notTransition) return;
-    // Re-arm the one-shot selection zoom when re-entering CASTLE_SELECT for
-    // a reselect cycle (round > 1). The latch is sticky after round 1's
-    // initial selection completes; without re-arming, the deferred-zoom
-    // dance during the reselect's "Select your home castle" announcement
-    // would skip and the camera would jump immediately.
-    if (state.phase === Phase.CASTLE_SELECT && state.round > 1) {
-      selectionZoom.applied = false;
-    }
+    if (state.phase === Phase.CASTLE_SELECT) resetSelectionZoomLatch();
     applyPhaseCameraOnEnter(state);
     lastAutoZoomPhase = state.phase;
   }
@@ -1195,8 +1196,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     phaseCamera.battle = undefined;
     lastBattleCrosshairZone = undefined;
     lastAutoZoomPhase = undefined;
-    selectionZoom.applied = false;
-    selectionZoom.pendingVp = undefined;
+    resetSelectionZoomLatch();
     lastBattleCrosshair = undefined;
     cachedZoneTileBounds.clear();
     cachedZoneTileBoundsMapVersion = -1;
