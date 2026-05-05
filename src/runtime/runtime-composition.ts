@@ -680,7 +680,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lifeLostRoute: {
       onGameOver: (winner, reason) =>
         phaseTicks.dispatchGameOver(winner, reason),
-      onReselect: (continuing) => selection.startReselection(continuing),
+      onReselect: (continuing) => selection.enter(continuing),
       onContinue: selection.advanceToCannonPhase,
     },
     scoreDelta,

@@ -445,7 +445,10 @@ export interface CameraSystem {
 
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
-  enter: () => void;
+  /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (auto-detect
+   *  reselect from state); pass an explicit queue for the lifeLostRoute
+   *  reselect path. */
+  enter: (queue?: readonly ValidPlayerSlot[]) => void;
   syncOverlay: () => void;
   highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
   confirmAndStartBuild: (
@@ -458,7 +461,6 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
-  startReselection: (queue: readonly ValidPlayerSlot[]) => void;
   /** Full reset for game restart / rematch. */
   reset: () => void;
 }

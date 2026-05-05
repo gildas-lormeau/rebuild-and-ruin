@@ -106,7 +106,22 @@ export function createSelectionSystem(
   // Tower selection helpers
   // -------------------------------------------------------------------------
 
-  function enterTowerSelection(): void {
+  /** Enter CASTLE_SELECT for the initial cycle (omit `explicitQueue`) or
+   *  the reselect cycle (pass the list of players who lost a life).
+   *
+   *  Two entry shapes:
+   *  - No arg: bootstrap (round 1) and watcher SELECT_START. Auto-detect
+   *    inspects state — if some active players have a homeTower and some
+   *    don't, the reselect cycle wins; otherwise it's the initial cycle.
+   *    Reselect-via-auto-detect only ticks the queued slots; re-running
+   *    the full initial path would re-init every AI's selection and
+   *    advance strategy.rng for slots that didn't reselect, drifting
+   *    state vs other peers.
+   *  - Explicit queue: lifeLostRoute.onReselect — the queue is already
+   *    computed by the life-lost dialog; pass it through directly. */
+  function enterTowerSelection(
+    explicitQueue?: readonly ValidPlayerSlot[],
+  ): void {
     const { state } = runtimeState;
     const { remotePlayerSlots } = runtimeState.frameMeta;
 
@@ -114,40 +129,38 @@ export function createSelectionSystem(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
     );
 
-    // SELECT_START / local entry: detect reselection by inspecting state
-    // (some active players have a homeTower, some don't). Reselection only
-    // ticks the queued slot — re-running the full enterSelectionPhase here
-    // would re-init every AI's selection and advance strategy.rng for
-    // slots that didn't actually reselect, drifting state vs other peers.
-    const queue: ValidPlayerSlot[] = [];
-    let anyHasHome = false;
-    for (let i = 0; i < state.players.length; i++) {
-      const player = state.players[i];
-      if (!player || player.eliminated) continue;
-      if (player.homeTower) anyHasHome = true;
-      else queue.push(i as ValidPlayerSlot);
+    let cycleQueue: readonly ValidPlayerSlot[] | undefined = explicitQueue;
+    if (cycleQueue === undefined) {
+      const detected: ValidPlayerSlot[] = [];
+      let anyHasHome = false;
+      for (let i = 0; i < state.players.length; i++) {
+        const player = state.players[i];
+        if (!player || player.eliminated) continue;
+        if (player.homeTower) anyHasHome = true;
+        else detected.push(i as ValidPlayerSlot);
+      }
+      if (anyHasHome && detected.length > 0) cycleQueue = detected;
     }
-    if (anyHasHome && queue.length > 0) {
-      startReselection(queue);
-      return;
-    }
+    const isReselect = cycleQueue !== undefined;
+    const slots: readonly ValidPlayerSlot[] =
+      cycleQueue ?? state.players.map((_, i) => i as ValidPlayerSlot);
 
     resetSelectionState();
 
     // Engine owns phase flip + selection-state init + timer. Watchers
     // joining mid-game (whose local phase may still reflect a prior
-    // round's WALL_BUILD) get their phase flipped here too.
-    enterSelectionPhase(state, runtimeState.selection.states);
+    // round's WALL_BUILD) get their phase flipped here too. The reselect
+    // cycle passes the queue so only those players get a selection state.
+    enterSelectionPhase(state, runtimeState.selection.states, cycleQueue);
 
     // Per-player runtime setup: drive non-remote-human slots (AI + own
     // local human). AI selection ticks deterministically from
     // `strategy.rng`, so every peer derives identical `homeTower`
     // sequences without wire chatter. Remote humans (other peers' input)
     // come in via OPPONENT_TOWER_SELECTED.
-    for (let i = 0; i < state.players.length; i++) {
-      const pid = i as ValidPlayerSlot;
-      const zone = state.playerZones[i]!;
-      const ctrl = runtimeState.controllers[i]!;
+    for (const pid of slots) {
+      const zone = state.playerZones[pid] ?? 0;
+      const ctrl = runtimeState.controllers[pid]!;
       if (!isRemotePlayer(pid, remotePlayerSlots)) {
         ctrl.selectTower(state, zone);
       }
@@ -161,14 +174,23 @@ export function createSelectionSystem(
       }
     }
 
-    runtimeState.overlay = {
-      selection: { highlighted: null, selected: null },
-    };
+    // Initial-cycle-only: wipe overlay before syncSelectionOverlay reads
+    // it, so the new pass starts from a known-empty state. The reselect
+    // cycle is mid-session and keeps the running overlay.
+    if (!isReselect) {
+      runtimeState.overlay = {
+        selection: { highlighted: null, selected: null },
+      };
+    }
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
     setMode(runtimeState, Mode.SELECTION);
-    resetFrameTiming(runtimeState, deps.timing.now());
-    deps.requestFrame();
+    // Initial-cycle-only first-frame setup: re-anchor frame timing + tick.
+    // The reselect cycle inherits the running frame loop.
+    if (!isReselect) {
+      resetFrameTiming(runtimeState, deps.timing.now());
+      deps.requestFrame();
+    }
   }
 
   function syncSelectionOverlay(): void {
@@ -449,59 +471,6 @@ export function createSelectionSystem(
     deps.requestRender();
   }
 
-  // -------------------------------------------------------------------------
-  // Reselection
-  // -------------------------------------------------------------------------
-
-  function startReselection(queue: readonly ValidPlayerSlot[]) {
-    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
-    const { state } = runtimeState;
-    resetSelectionState();
-
-    // Engine: set CASTLE_SELECT phase (reselect cycle), init selection
-    // state for queued players, set timer.
-    enterSelectionPhase(state, runtimeState.selection.states, queue);
-
-    // Runtime: per-player controller (selectTower) + camera setup loop.
-    // Drive every non-remote-human slot in the queue — AI players
-    // auto-confirm via selectionTick(); own local human needs UI
-    // interaction. Remote humans (other peers' input) handled on their
-    // owning peer.
-    for (const pid of queue) {
-      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
-      const zone = state.playerZones[pid] ?? 0;
-      runtimeState.controllers[pid]!.selectTower(state, zone);
-      if (isHuman(runtimeState.controllers[pid]!)) {
-        const player = state.players[pid];
-        if (player?.homeTower) {
-          deps.camera.setSelectionViewport(
-            player.homeTower.row,
-            player.homeTower.col,
-          );
-        }
-      }
-    }
-
-    if (queue.length > 0) {
-      syncSelectionOverlay();
-      resetAccum(runtimeState.accum, ACCUM_SELECT);
-      setMode(runtimeState, Mode.SELECTION);
-      // No SELECT_START broadcast: every peer routes through
-      // `lifeLostRoute.onReselect` locally (see `runtime-composition.ts`),
-      // so watcher has already entered reselect. A wire-driven
-      // `enterTowerSelection` here would re-run the initial-cycle branch
-      // on the watcher — by then the local route's reselect-cycle
-      // `enterSelectionPhase` has assigned a default `homeTower` to the
-      // reselecting slot, so the reselect-detection
-      // (`anyHasHome && queue.length > 0`) flips to false on the receiver
-      // and falls through to the initial-select path, populating
-      // `selection.states` with every player and double-scheduling
-      // reselect confirms across slots.
-    } else {
-      finishSelection();
-    }
-  }
-
   /** Full reset for game restart / rematch. Clears all selection and
    *  castle-build state. Distinct from resetSelectionState() which only
    *  clears per-round selection tracking for the next selection phase. */
@@ -530,7 +499,6 @@ export function createSelectionSystem(
       deps.startCannonPhase();
     },
     tickCastleBuild,
-    startReselection,
     reset,
   };
 }
