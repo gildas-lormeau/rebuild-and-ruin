@@ -481,8 +481,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     syncSelectionOverlay: updateSelectionOverlay,
     requestRender,
     pointerPlayer,
-    startCannonPhase: () => phaseTicks.startCannonPhase(),
-    enterCannonAfterCastle: () => phaseTicks.enterCannonAfterCastle(),
+    dispatchAdvanceToCannon: () => phaseTicks.dispatchAdvanceToCannon(),
+    dispatchCastleDone: () => phaseTicks.dispatchCastleDone(),
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
     },
@@ -672,7 +672,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onGameOver: (winner, reason) =>
         phaseTicks.dispatchGameOver(winner, reason),
       onReselect: (continuing) => selection.enter(continuing),
-      onContinue: selection.advanceToCannonPhase,
+      onAdvance: selection.advanceToCannonPhase,
     },
     scoreDelta,
     saveBattleCrosshair: IS_TOUCH_DEVICE
@@ -899,7 +899,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       finalizeGameOver: lifecycle.finalizeGameOver,
     },
     phaseTicks: {
-      startCannonPhase: phaseTicks.startCannonPhase,
+      dispatchAdvanceToCannon: phaseTicks.dispatchAdvanceToCannon,
       beginBattle: phaseTicks.beginBattle,
     },
     music: {

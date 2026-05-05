@@ -253,7 +253,7 @@ export interface PhaseTransitionCtx {
       reason: GameOverReason,
     ) => void;
     readonly onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
-    readonly onContinue: () => void;
+    readonly onAdvance: () => void;
   };
   /** Notify a local controller that its player lost a life. Called per
    *  affected player after the score overlay, before the dialog shows. */
@@ -644,7 +644,7 @@ const CASTLE_DONE: Transition = {
  *  (Phase B sweeps) under the cannons banner, flips the phase via
  *  `enterCannonPhase`, and broadcasts.
  *
- *  Triggered from `routeLifeLostResolution`'s `onContinue` callback. */
+ *  Triggered from `routeLifeLostResolution`'s `onAdvance` callback. */
 const ADVANCE_TO_CANNON: Transition = {
   id: "advance-to-cannon",
   from: Phase.WALL_BUILD,
@@ -885,7 +885,7 @@ function routePostBattleToBuild(ctx: PhaseTransitionCtx): void {
  *    2. otherwise — the dialog populated `result.continuing`. Dispatch
  *       continue/reselect via `resolveAfterLifeLost`.
  *
- *  Route handlers (`onGameOver` / `onReselect` / `onContinue`) are
+ *  Route handlers (`onGameOver` / `onReselect` / `onAdvance`) are
  *  wired identically on every peer, so each peer dispatches the next
  *  transition locally. */
 function routeLifeLostResolution(
@@ -905,7 +905,7 @@ function routeLifeLostResolution(
   resolveAfterLifeLost({
     continuing: result.continuing ?? [],
     onReselect: route.onReselect,
-    onContinue: route.onContinue,
+    onAdvance: route.onAdvance,
   });
 }
 

@@ -139,13 +139,13 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   lifeLost: Pick<RuntimeLifeLost, "show">;
   /** Handlers called after the life-lost dialog resolves. `onGameOver`
    *  dispatches the game-over transition; `onReselect` seeds the
-   *  reselect queue and enters the castle-reselect flow; `onContinue`
+   *  reselect queue and enters the castle-reselect flow; `onAdvance`
    *  dispatches `advance-to-cannon`. Host-only — watcher path builds
    *  its own route bundle in `online-phase-transitions.ts`. */
   lifeLostRoute: {
     onGameOver: (winner: { id: number }, reason: GameOverReason) => void;
     onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
-    onContinue: () => void;
+    onAdvance: () => void;
   };
   scoreDelta: {
     capturePreScores: () => void;
@@ -207,12 +207,12 @@ export interface PhaseTicksSystem {
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). The mutate runs `enterCannonPhase` only — castle finalize was
    *  already done by an earlier transition. */
-  startCannonPhase: () => void;
+  dispatchAdvanceToCannon: () => void;
   /** Dispatch the `castle-done` transition. Used by both the round-1
    *  initial-selection path and the reselect cycle (round > 1). The mutate
    *  runs `finalizeRoundCleanup` (round > 1 only) + `finalizeFreshCastles`
    *  + `finalizeCastleConstruction` + `enterCannonPhase`. */
-  enterCannonAfterCastle: () => void;
+  dispatchCastleDone: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
   dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
@@ -277,11 +277,11 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Cannon phase
   // -------------------------------------------------------------------------
 
-  function startCannonPhase() {
+  function dispatchAdvanceToCannon() {
     runTransition("advance-to-cannon", buildHostPhaseCtx());
   }
 
-  function enterCannonAfterCastle() {
+  function dispatchCastleDone() {
     runTransition("castle-done", buildHostPhaseCtx());
   }
 
@@ -832,8 +832,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   return {
-    startCannonPhase,
-    enterCannonAfterCastle,
+    dispatchAdvanceToCannon,
+    dispatchCastleDone,
     dispatchGameOver,
     startBattle,
     tickBalloonAnim,

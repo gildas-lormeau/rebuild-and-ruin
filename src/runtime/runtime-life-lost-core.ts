@@ -21,7 +21,7 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
 interface ResolveAfterLifeLostDeps {
   continuing: readonly ValidPlayerSlot[];
   onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
-  onContinue: () => void;
+  onAdvance: () => void;
 }
 
 /** Per-entry auto-resolve tick. Dispatched by the runtime to the owning
@@ -151,7 +151,7 @@ export function applyLifeLostChoice(
  *  continues; the only question is whether any player has to reselect
  *  their castle. */
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): void {
-  const { continuing, onReselect, onContinue } = deps;
+  const { continuing, onReselect, onAdvance } = deps;
   if (continuing.length > 0) onReselect(continuing);
-  else onContinue();
+  else onAdvance();
 }

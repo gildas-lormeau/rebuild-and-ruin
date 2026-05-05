@@ -570,7 +570,7 @@ export interface RuntimeLifecycle {
 }
 
 export interface RuntimePhaseTicks {
-  startCannonPhase: () => void;
+  dispatchAdvanceToCannon: () => void;
   beginBattle: () => void;
 }
 

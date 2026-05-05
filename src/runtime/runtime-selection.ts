@@ -74,10 +74,10 @@ interface SelectionSystemDeps {
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). */
-  startCannonPhase: () => void;
+  dispatchAdvanceToCannon: () => void;
   /** Dispatch the `castle-done` transition. Called from both the round-1
    *  initial-selection path and the reselect-cycle finish path. */
-  enterCannonAfterCastle: () => void;
+  dispatchCastleDone: () => void;
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
    * if the runtime is currently stopped (e.g. online mode starting from DOM lobby).
@@ -396,7 +396,7 @@ export function createSelectionSystem(
     // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
     // finalizeFreshCastles + finalizeCastleConstruction +
     // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.
-    deps.enterCannonAfterCastle();
+    deps.dispatchCastleDone();
   }
 
   /** Derive a player's castle-wall plan and queue the build animation.
@@ -468,10 +468,10 @@ export function createSelectionSystem(
     tick: tickSelection,
     finish: finishSelection,
     advanceToCannonPhase: () => {
-      // enterCannonPhase (inside startCannonPhase → runTransition) handles
-      // the phase flip + banner + setMode(GAME) via the transition's
-      // postDisplay.
-      deps.startCannonPhase();
+      // enterCannonPhase (inside dispatchAdvanceToCannon → runTransition)
+      // handles the phase flip + banner + setMode(GAME) via the
+      // transition's postDisplay.
+      deps.dispatchAdvanceToCannon();
     },
     tickCastleBuild,
     reset,

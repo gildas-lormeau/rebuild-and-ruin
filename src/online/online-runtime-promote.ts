@@ -100,7 +100,7 @@ function clearAnimationState(mode: Mode): string | null {
     case Mode.CASTLE_BUILD:
       _runtime.runtimeState.selection.castleBuilds = [];
       skipCastleBuildAnimation(_runtime.runtimeState.state);
-      _runtime.phaseTicks.startCannonPhase();
+      _runtime.phaseTicks.dispatchAdvanceToCannon();
       return "Skipped castle build animation → cannon phase";
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
