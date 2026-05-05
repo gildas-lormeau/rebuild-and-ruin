@@ -175,20 +175,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     battle: PhaseCameraSnapshot | undefined;
   } = { build: undefined, cannon: undefined, battle: undefined };
 
-  // Selection zoom lifecycle — tracks the one-time deferred zoom to the
-  // player's home tower after the "Select your castle" announcement finishes
-  const selectionZoom: { applied: boolean; pendingVp: TilePos | undefined } = {
-    applied: false,
-    pendingVp: undefined,
-  };
-  /** Re-arm the deferred selection-zoom one-shot. Fires on CASTLE_SELECT
-   *  entry and on full reset. Without re-arming between cycles, the latch
-   *  stays sticky after round 1 and a subsequent reselect would skip the
-   *  deferred dance. */
-  function resetSelectionZoomLatch(): void {
-    selectionZoom.applied = false;
-    selectionZoom.pendingVp = undefined;
-  }
+  // Pending selection-zoom target — the tile the camera should center on
+  // when the "Select your home castle" announcement finishes. Set by
+  // setSelectionViewport, consumed by handleSelectionZoom (gated on
+  // frameCtx.isSelectionReady). One-shot is intrinsic: consume = clear.
+  let selectionTargetVp: TilePos | undefined;
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
   // Tile-rect of every zone, derived from `state.map.zones`. Tile-mutating
   // modifiers (sinkhole, high-tide, low-water) recompute zones and bump
@@ -743,16 +734,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     castleBuildVp = undefined;
   }
 
-  /** Track per-phase entries: re-arm reselect's selection-zoom flag, and
-   *  drive per-phase camera memory (applyPhaseCameraOnEnter restores or
-   *  defaults the zoom for the new phase). */
+  /** Drive per-phase camera memory on phase entry — applyPhaseCameraOnEnter
+   *  restores or defaults the zoom for the new phase (BUILD/CANNON/BATTLE).
+   *  CASTLE_SELECT has no per-phase memory; its deferred zoom is handled
+   *  by handleSelectionZoom (via setSelectionViewport's pending target). */
   function handlePhaseChangeZoom(
     state: GameState,
     _frameCtx: FrameContext,
     notTransition: boolean,
   ): void {
     if (state.phase === lastAutoZoomPhase || !notTransition) return;
-    if (state.phase === Phase.CASTLE_SELECT) resetSelectionZoomLatch();
     applyPhaseCameraOnEnter(state);
     lastAutoZoomPhase = state.phase;
   }
@@ -850,33 +841,31 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
   }
 
-  /** Auto-zoom to selection after announcement finishes — handles the
-   *  CASTLE_SELECT viewport (selectionZoom.pendingVp set by
-   *  setSelectionViewport while the announcement is still showing). */
+  /** Consume the pending selection-zoom target once the "Select your home
+   *  castle" announcement finishes. Mirrors pattern A (per-phase
+   *  applyPhaseCameraOnEnter): single state slot, single apply site,
+   *  one-shot via consume. The data IS the latch — no separate boolean. */
   function handleSelectionZoom(
     _state: GameState,
     frameCtx: FrameContext,
   ): void {
-    if (
-      frameCtx.mode !== Mode.SELECTION ||
-      selectionZoom.applied ||
-      !frameCtx.isSelectionReady
-    )
+    if (frameCtx.mode !== Mode.SELECTION) return;
+    if (!frameCtx.isSelectionReady) return;
+    if (!selectionTargetVp) return;
+    if (!mobileAutoZoomActive()) {
+      selectionTargetVp = undefined;
       return;
-    selectionZoom.applied = true;
-    if (!mobileAutoZoomActive()) return;
-    if (selectionZoom.pendingVp) {
-      castleBuildVp = fitTileBoundsToViewport(
-        {
-          minR: selectionZoom.pendingVp.row,
-          maxR: selectionZoom.pendingVp.row + 1,
-          minC: selectionZoom.pendingVp.col,
-          maxC: selectionZoom.pendingVp.col + 1,
-        },
-        ZONE_PAD_SELECTION,
-      );
-      selectionZoom.pendingVp = undefined;
     }
+    castleBuildVp = fitTileBoundsToViewport(
+      {
+        minR: selectionTargetVp.row,
+        maxR: selectionTargetVp.row + 1,
+        minC: selectionTargetVp.col,
+        maxC: selectionTargetVp.col + 1,
+      },
+      ZONE_PAD_SELECTION,
+    );
+    selectionTargetVp = undefined;
   }
 
   // --- Viewport lerp ---
@@ -1196,7 +1185,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     phaseCamera.battle = undefined;
     lastBattleCrosshairZone = undefined;
     lastAutoZoomPhase = undefined;
-    resetSelectionZoomLatch();
+    selectionTargetVp = undefined;
     lastBattleCrosshair = undefined;
     cachedZoneTileBounds.clear();
     cachedZoneTileBoundsMapVersion = -1;
@@ -1271,24 +1260,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     emitCameraTarget(source);
   }
 
-  /** Zoom around a tower during selection (5 tiles around for context). */
+  /** Park the desired selection-zoom target tile. Always deferred to the
+   *  camera tick: handleSelectionZoom consumes it once
+   *  `frameCtx.isSelectionReady` becomes true (within ≤1 frame if the
+   *  announcement has already finished). */
   function setSelectionViewport(towerRow: number, towerCol: number): void {
     if (!mobileAutoZoomActive()) return;
-    // Block until the "Select your home castle" banner delay has elapsed
-    if (!selectionZoom.applied || lastAutoZoomPhase === undefined) {
-      selectionZoom.pendingVp = { row: towerRow, col: towerCol };
-      return;
-    }
-    selectionZoom.pendingVp = undefined;
-    castleBuildVp = fitTileBoundsToViewport(
-      {
-        minR: towerRow,
-        maxR: towerRow + 1,
-        minC: towerCol,
-        maxC: towerCol + 1,
-      },
-      ZONE_PAD_SELECTION,
-    );
+    selectionTargetVp = { row: towerRow, col: towerCol };
   }
 
   function setCastleBuildViewport(
