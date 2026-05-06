@@ -105,12 +105,12 @@ export function shouldSkipBattle(state: GameState): boolean {
 
 /** Whether this player is allowed to build this frame.
  *  Aggregates every upgrade that can gate a player's build tick. */
-export function canBuildThisFrame(
+export function canPlayerBuild(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): boolean {
   for (const impl of UPGRADE_REGISTRY.values()) {
-    if (impl.canBuildThisFrame && !impl.canBuildThisFrame(state, playerId))
+    if (impl.canPlayerBuild && !impl.canPlayerBuild(state, playerId))
       return false;
   }
   return true;

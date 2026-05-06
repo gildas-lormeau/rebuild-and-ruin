@@ -27,7 +27,7 @@
  * mouse handler without the suppression check causes ghost clicks.
  */
 
-import { canBuildThisFrame } from "../game/index.ts";
+import { canPlayerBuild } from "../game/index.ts";
 import type {
   GameActionDeps,
   OverlayActionDeps,
@@ -474,8 +474,7 @@ function dispatchPlacementAction(
   // Build-phase gate: allow cursor movement but block placement + rotation
   // when an upgrade forbids building this frame (e.g. Master Builder lockout).
   const locked =
-    state.phase === Phase.WALL_BUILD &&
-    !canBuildThisFrame(state, ctrl.playerId);
+    state.phase === Phase.WALL_BUILD && !canPlayerBuild(state, ctrl.playerId);
   if (isMovementAction(action)) {
     dispatchMoveForCtrl(ctrl, action, state);
     return true;
@@ -506,7 +505,7 @@ export function dispatchPlacementConfirm(
   >,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
-    if (!canBuildThisFrame(state, ctrl.playerId)) return;
+    if (!canPlayerBuild(state, ctrl.playerId)) return;
     const placed = deps.tryPlacePiece(ctrl, state);
     if (placed) deps.onPiecePlaced?.();
     else deps.onPieceFailed?.();

@@ -80,7 +80,7 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
 - **`battle-system.ts`** — Cannon firing, cannonball physics
   (`advanceCannonball`), impact event application
   (`applyImpactEvent`), balloon capture rules, wall shield logic,
-  `nextReadyCombined()` for controller fire dispatch.
+  `nextReadyCannon()` for controller fire dispatch.
 - **`grunt-system.ts`** — Grunt spawning, respawning, blocked-state
   tracking, tower-kill detection. See **[docs/spatial-algorithms.md](../../docs/spatial-algorithms.md)**
   for the flood-fill / pathfinding rules (non-obvious and load-bearing).

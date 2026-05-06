@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { aimCannons, nextReadyCombined } from "../game/index.ts";
+import { aimCannons, nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
@@ -132,7 +132,7 @@ export function tickBattle(
   state: BattleViewState,
   executeFire: ExecuteFireFn,
 ): void {
-  if (!nextReadyCombined(state, host.playerId)) return;
+  if (!nextReadyCannon(state, host.playerId)) return;
 
   const aimAt = phase.crosshairTarget ?? host.crosshair;
   aimCannons(state, host.playerId, aimAt.x, aimAt.y);

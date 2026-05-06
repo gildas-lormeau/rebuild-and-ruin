@@ -92,7 +92,7 @@ export interface UpgradeImpl {
   /** True → skip battle this round (boolean OR). */
   shouldSkipBattle?: (state: GameState) => boolean;
   /** False → block this player's build tick (boolean AND). */
-  canBuildThisFrame?: (state: GameState, playerId: ValidPlayerSlot) => boolean;
+  canPlayerBuild?: (state: GameState, playerId: ValidPlayerSlot) => boolean;
   /** Extra build seconds (additive). */
   buildTimerBonus?: (state: GameState) => number;
   /** True → wall survives this hit (boolean OR). */

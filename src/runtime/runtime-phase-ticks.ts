@@ -3,12 +3,12 @@ import {
   advanceBattleCountdown,
   allCannonPlaceDone,
   buildTimerBonus,
-  canBuildThisFrame,
+  canPlayerBuild,
   emitBattleCeaseIfTimerCrossed,
   tickBattlePhase as engineTickBattlePhase,
   enterBuildSkippingBattle,
   moveGrunts,
-  nextReadyCombined,
+  nextReadyCannon,
   prepareControllerCannonPhase,
   resetCannonFacings,
   setBattleCountdown,
@@ -245,7 +245,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     for (const ctrl of controllers) {
       if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
-      const readyCannon = nextReadyCombined(state, ctrl.playerId);
+      const readyCannon = nextReadyCannon(state, ctrl.playerId);
       const anyReloading =
         !readyCannon &&
         state.cannonballs.some(
@@ -718,7 +718,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // preview) is sent — the phantom hook self-gates by ownership.
     for (const ctrl of local) {
       if (isPlayerEliminated(state.players[ctrl.playerId])) continue;
-      if (!canBuildThisFrame(state, ctrl.playerId)) continue;
+      if (!canPlayerBuild(state, ctrl.playerId)) continue;
       const phantoms = ctrl.buildTick(state, dt);
 
       if (!isHuman(ctrl)) continue;

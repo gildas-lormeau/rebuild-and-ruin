@@ -8,7 +8,7 @@ export {
   canPlayerFire,
   emitBattleCeaseIfTimerCrossed,
   fireNextReadyCannon,
-  nextReadyCombined,
+  nextReadyCannon,
   setBattleCountdown,
   snapshotTerritory,
   tickBattlePhase,
@@ -85,7 +85,7 @@ export {
 export {
   applyUpgradePicks,
   buildTimerBonus,
-  canBuildThisFrame,
+  canPlayerBuild,
   shouldSkipBattle,
   tickBuildUpgrades,
 } from "./upgrade-system.ts";

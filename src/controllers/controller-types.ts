@@ -1,4 +1,4 @@
-import { autoPlaceRound1Cannons, nextReadyCombined } from "../game/index.ts";
+import { autoPlaceRound1Cannons, nextReadyCannon } from "../game/index.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
@@ -291,7 +291,7 @@ export abstract class BaseController implements PlayerController {
     if (state.timer <= 0 || state.battleCountdown > 0) return null;
     const targetRow = pxToTile(this.crosshair.y);
     const targetCol = pxToTile(this.crosshair.x);
-    if (!nextReadyCombined(state, this.playerId, this.cannonRotationIdx))
+    if (!nextReadyCannon(state, this.playerId, this.cannonRotationIdx))
       return null;
     return { playerId: this.playerId, targetRow, targetCol };
   }

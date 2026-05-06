@@ -4,7 +4,7 @@
  * Hooks implemented:
  *   - onBuildPhaseStart — configure masterBuilderOwners + masterBuilderLockout
  *   - tickBuild         — decrement the lockout timer each frame
- *   - canBuildThisFrame — locked-out players cannot build
+ *   - canPlayerBuild    — locked-out players cannot build
  *   - buildTimerBonus   — +N seconds while any player owns MB
  *
  * Wired through src/game/upgrade-system.ts. Do NOT call these directly from
@@ -26,7 +26,7 @@ const MASTER_BUILDER_BONUS_SECONDS = 5;
 export const masterBuilderImpl: UpgradeImpl = {
   onBuildPhaseStart,
   tickBuild,
-  canBuildThisFrame,
+  canPlayerBuild,
   buildTimerBonus,
 };
 
@@ -59,10 +59,7 @@ function tickBuild(state: GameState, dt: number): void {
 /** Whether this player is allowed to build this frame under Master Builder.
  *  Returns true unless exactly one player owns MB, the lockout is still
  *  running, and this player is not the owner. */
-function canBuildThisFrame(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
+function canPlayerBuild(state: GameState, playerId: ValidPlayerSlot): boolean {
   if (!hasFeature(state, FID.UPGRADES)) return true;
   const modern = state.modern;
   if (!modern || modern.masterBuilderLockout <= 0) return true;

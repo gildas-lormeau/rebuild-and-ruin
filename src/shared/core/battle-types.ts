@@ -149,7 +149,7 @@ export interface CapturedCannon {
   capturerId: ValidPlayerSlot;
 }
 
-/** Result from nextReadyCombined — either an own cannon or a captured one. */
+/** Result from nextReadyCannon — either an own cannon or a captured one. */
 export type CombinedCannonResult =
   | { type: "own"; combinedIdx: number; ownIdx: number }
   | { type: "captured"; combinedIdx: number; captured: CapturedCannon };

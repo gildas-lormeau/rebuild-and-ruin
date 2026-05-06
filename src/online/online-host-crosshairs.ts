@@ -10,7 +10,7 @@
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 
-import { nextReadyCombined } from "../game/index.ts";
+import { nextReadyCannon } from "../game/index.ts";
 import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
 import { isRemotePlayer } from "../runtime/runtime-tick-context.ts";
@@ -82,7 +82,7 @@ export function extendWithRemoteCrosshairs(
       x: visualPos.x,
       y: visualPos.y,
       playerId: pid,
-      cannonReady: !!nextReadyCombined(state, pid),
+      cannonReady: !!nextReadyCannon(state, pid),
     });
   }
   return [...crosshairs, ...remote];

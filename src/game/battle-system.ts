@@ -202,7 +202,7 @@ export function canPlayerFire(
   },
   playerId: ValidPlayerSlot,
 ): boolean {
-  if (nextReadyCombined(state, playerId)) return true;
+  if (nextReadyCannon(state, playerId)) return true;
   return state.cannonballs.some(
     (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
   );
@@ -387,7 +387,7 @@ export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
 
 /**
  * Fire the next ready cannon in round-robin order and return the result.
- * Combines nextReadyCombined lookup + fire dispatch into a single call.
+ * Combines nextReadyCannon lookup + fire dispatch into a single call.
  * @param rotationIdx — current round-robin position (null = start from 0)
  * @returns fired result with updated rotation index, or null if no cannon ready.
  */
@@ -398,7 +398,7 @@ export function fireNextReadyCannon(
   targetRow: number,
   targetCol: number,
 ): { result: CombinedCannonResult; rotationIdx: number } | null {
-  const result = nextReadyCombined(state, playerId, rotationIdx);
+  const result = nextReadyCannon(state, playerId, rotationIdx);
   if (!result) return null;
   if (result.type === "own") {
     fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
@@ -431,7 +431,7 @@ export function prepareCannonFireForLockstep(
   targetRow: number,
   targetCol: number,
 ): { ball: Cannonball; rotationIdx: number } | null {
-  const result = nextReadyCombined(state, playerId, rotationIdx);
+  const result = nextReadyCannon(state, playerId, rotationIdx);
   if (!result) return null;
   let ball: Cannonball;
   if (result.type === "own") {
@@ -524,7 +524,7 @@ export function applyCannonFiredOriginator(
  * Round-robin through own cannons + captured cannons (captured appended at end).
  * Returns the next ready cannon after `after` in the combined index space, or null.
  */
-export function nextReadyCombined(
+export function nextReadyCannon(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
     readonly cannonballs: readonly Cannonball[];

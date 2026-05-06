@@ -362,7 +362,7 @@ implementation — your `onPick` receives only the state and the picking player.
 | Hook | Aggregation | Example upgrades |
 |------|-------------|------------------|
 | `shouldSkipBattle(state)` | boolean OR | ceasefire |
-| `canBuildThisFrame(state, playerId)` | boolean AND | master builder |
+| `canPlayerBuild(state, playerId)` | boolean AND | master builder |
 | `buildTimerBonus(state)` | additive sum | master builder, double time |
 | `shouldAbsorbWallHit(player, tileKey)` | boolean OR | reinforced walls |
 | `territoryScoreMult(player)` | multiplicative | territorial ambition |
