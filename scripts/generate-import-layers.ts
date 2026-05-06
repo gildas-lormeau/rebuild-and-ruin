@@ -64,7 +64,19 @@ const groupMap = new Map<number, string[]>();
 // that still exist at the same index
 const existingNames = new Map<number, string>();
 const existingTiers = new Map<number, string>();
+const existingFiles = new Map<number, Set<string>>();
 const outputGroups: LayerGroup[] = [];
+// Membership-diff warnings — the layer linter only catches *upward* edges, so
+// a refactor can shuffle files between groups without violating anything while
+// silently invalidating preserved group names. Flag every layer whose file set
+// changed so the agent can re-read the name in `layer-graph-cleanup.md` Step 6.
+const driftedLayers: Array<{
+  layer: number;
+  name: string;
+  added: string[];
+  removed: string[];
+  fileCount: number;
+}> = [];
 
 let maxLayer = -1;
 let pad = 1;
@@ -268,6 +280,7 @@ if (fs.existsSync(LAYER_FILE)) {
     for (let i = 0; i < existing.length; i++) {
       existingNames.set(i, existing[i]!.name);
       if (existing[i]!.tier) existingTiers.set(i, existing[i]!.tier!);
+      existingFiles.set(i, new Set(existing[i]!.files));
     }
   } catch {
     /* ignore parse errors */
@@ -295,6 +308,46 @@ for (let l = 0; l <= maxLayer; l++) {
   for (const f of g.files) {
     console.log(`      ${f}`);
   }
+}
+
+for (let l = 0; l <= maxLayer; l++) {
+  const oldFiles = existingFiles.get(l);
+  if (!oldFiles) continue; // brand-new layer — placeholder name signals the need
+  const newFiles = new Set(outputGroups[l]!.files);
+  const added: string[] = [];
+  const removed: string[] = [];
+  for (const f of newFiles) if (!oldFiles.has(f)) added.push(f);
+  for (const f of oldFiles) if (!newFiles.has(f)) removed.push(f);
+  if (added.length === 0 && removed.length === 0) continue;
+  driftedLayers.push({
+    layer: l,
+    name: outputGroups[l]!.name,
+    added: added.sort(),
+    removed: removed.sort(),
+    fileCount: newFiles.size,
+  });
+}
+
+if (driftedLayers.length > 0) {
+  console.log(
+    `\n⚠ Layer name review suggested — ${driftedLayers.length} group(s) had membership changes:`,
+  );
+  for (const d of driftedLayers) {
+    const delta: string[] = [];
+    if (d.added.length > 0) delta.push(`+${d.added.length}`);
+    if (d.removed.length > 0) delta.push(`-${d.removed.length}`);
+    console.log(
+      `\n  L${d.layer} "${d.name}": ${delta.join(" ")} (now ${d.fileCount} file${d.fileCount === 1 ? "" : "s"})`,
+    );
+    for (const f of d.added) console.log(`      + ${f}`);
+    for (const f of d.removed) console.log(`      - ${f}`);
+  }
+  console.log(
+    `\n  Names are preserved across regen. Verify each flagged name still describes its`,
+  );
+  console.log(
+    `  contents. See skills/layer-graph-cleanup.md → "Name drift after refactors".`,
+  );
 }
 
 if (!printOnly) {
