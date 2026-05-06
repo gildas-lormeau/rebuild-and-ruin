@@ -352,7 +352,7 @@
     ]
   },
   {
-    "name": "wiring",
+    "name": "wiring & local entry",
     "tier": "assembly",
     "files": [
       "src/controllers/controller-ai.ts",
@@ -371,21 +371,21 @@
     ]
   },
   {
-    "name": "session & runtime lifecycle",
+    "name": "online deps wiring",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts"
     ]
   },
   {
-    "name": "app wiring",
+    "name": "online runtime composition",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "app entry",
+    "name": "online client entry",
     "tier": "roots",
     "files": [
       "src/online-client.ts"

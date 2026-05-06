@@ -56,7 +56,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Current architecture:** See `.import-layers.json` for the full layer map (group names, tier assignments, file lists). See `.domain-boundaries.json` for domain membership and allowed cross-domain imports.
 
-Groups are named by role/abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Each group has a `tier` field for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
+Groups are named by role/abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Each group has a `tier` field for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L17).
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
 

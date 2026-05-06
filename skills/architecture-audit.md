@@ -28,12 +28,12 @@ and `.domain-boundaries.json` for domain membership and allowed cross-domain imp
 
 Groups are named by role/abstraction level, not by domain — files from any domain land at their
 minimum import-depth layer. Each group has a `tier` field: **types** (L0–L4), **logic** (L5–L6),
-**systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L18). Phase 1 audits by domain
+**systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L17). Phase 1 audits by domain
 (vertical coherence), Phase 2 audits by tier (horizontal consistency across domains).
 
 **Reading order.** `.import-layers.json` is an array where **array index = layer number**: the
-*first* entry is L0 (leaves, no deps), the *last* entry is L18 (top — `online-client.ts`).
-Imports flow **downward by number** (L18 may import from L0, never the reverse). When tracing
+*first* entry is L0 (leaves, no deps), the *last* entry is L17 (top — `online-client.ts`).
+Imports flow **downward by number** (L17 may import from L0, never the reverse). When tracing
 from an entry point, scroll to the bottom of the file first; when tracing a dependency chain
 toward leaves, scroll up. Layer numbers are mechanical (`layer(f) = 1 + max(layer(dep))`), not
 semantic — a file's layer is determined by its deepest import, not by what "feels" architectural.
@@ -146,7 +146,7 @@ Tier focus guidance:
 - **logic** (L5–L6): algorithm patterns, guard conventions, helper usage across game/, ai/, render/
 - **systems** (L7–L9): deps destructuring, lifecycle conventions, handler patterns across runtime/, input/, render/, online/
 - **assembly** (L10–L13): phase transition patterns, controller wiring, orchestration across ai/, game/, runtime/, online/
-- **roots** (L14–L18): local/online parity, bootstrap conventions, composition root patterns
+- **roots** (L14–L17): local/online parity, bootstrap conventions, composition root patterns
 
 ### Phase 3: Triage
 
