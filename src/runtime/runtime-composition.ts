@@ -366,7 +366,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           // `captureOn` PNG capture needs the HTMLCanvasElement surface.
           canvas: renderer.eventTarget as HTMLCanvasElement,
         });
-        exposeDevConsole(runtimeState, timing, audio.music);
+        exposeDevConsole(runtimeState, audio.music);
       }
     },
   });
@@ -464,7 +464,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection = createSelectionSystem({
     runtimeState,
-    timing,
     hostAtFrameStart: config.network.amHost,
     sendTowerSelected: (pid, idx, confirmed, applyAt) =>
       config.network.send({
@@ -483,9 +482,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pointerPlayer,
     dispatchAdvanceToCannon: () => phaseTicks.dispatchAdvanceToCannon(),
     dispatchCastleDone: () => phaseTicks.dispatchCastleDone(),
-    requestFrame: () => {
-      if (runtimeState.mode === Mode.STOPPED) timing.requestFrame(mainLoop);
-    },
   });
 
   // -------------------------------------------------------------------------
@@ -550,7 +546,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config,
       timing,
       render,
-      requestMainLoop: () => timing.requestFrame(mainLoop),
       bootstrapNewGame: () =>
         bootstrapNewGameFromSettings(
           runtimeState,
@@ -752,7 +747,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
   const optionsDeps = {
     runtimeState,
-    timing,
     uiCtx,
     renderFrame,
     updateDpad: (enabled: boolean) =>
@@ -878,6 +872,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
   // Return the runtime object
   // -------------------------------------------------------------------------
+  // Kick the frame loop. This is the single rAF site for the runtime —
+  // `mainLoop` self-schedules unconditionally from here on, so no other
+  // path needs to "restart" it (returnToLobby, rematch, route re-entry,
+  // online room re-entry all keep using the same running loop). Headless
+  // tests inject `requestFrame: () => {}` and drive `mainLoop` manually
+  // via `tick()` (see test/runtime-headless.ts), so this call is a safe
+  // no-op there.
+  timing.requestFrame(mainLoop);
 
   return {
     runtimeState,

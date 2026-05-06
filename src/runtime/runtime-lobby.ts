@@ -56,8 +56,8 @@ interface LobbySystem {
   cursorAt: (canvasX: number, canvasY: number) => string;
   /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
    *  quit + options state, render once, flip mode to LOBBY. The host's
-   *  `RuntimeConfig.showLobby` callback wraps this with any platform
-   *  extras (browser: requestFrame, music, frame-timing reset). */
+   *  `RuntimeConfig.showLobby` callback wraps this with platform extras
+   *  (browser: title music). */
   show: () => void;
   /** Mark a slot joined and re-render the lobby preview. */
   markJoined: (pid: ValidPlayerSlot) => void;

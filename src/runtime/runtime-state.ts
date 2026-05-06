@@ -277,16 +277,6 @@ export function setVisibilityHidden(
   }
 }
 
-/** Reset frame timing to avoid a large dt spike on the next tick.
- *  Call when resuming the loop after a gap (mode transition, options screen).
- *  `now` is the current frame timestamp from the injected `TimingApi.now()`. */
-export function resetFrameTiming(
-  runtimeState: RuntimeState,
-  now: number,
-): void {
-  runtimeState.lastTime = now;
-}
-
 /** Reset transient RuntimeState fields between games (restart / rematch).
  * Does NOT reset subsystem-owned state (selection, camera, sound, etc.)
  * or settings — those are the caller's responsibility. */
@@ -427,7 +417,7 @@ export function setRuntimeGameState(
 }
 
 /** Run the main loop tick: quit countdown, pause check, mode dispatch.
- *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
+ *  No-ops in `Mode.STOPPED` (no active session). */
 export function tickMainLoop(params: {
   readonly dt: number;
   readonly mode: Mode;
@@ -440,7 +430,7 @@ export function tickMainLoop(params: {
   readonly setQuitTimer: (quitTimer: number) => void;
   readonly requestRender: () => void;
   readonly tickMode: TickDispatch;
-}): boolean {
+}): void {
   const { dt, mode, frame, tickMode } = params;
 
   // Tick ESC-to-quit countdown
@@ -458,14 +448,12 @@ export function tickMainLoop(params: {
   if (params.paused && isGameplayMode(mode)) {
     if (!frame.announcement) frame.announcement = "PAUSED";
     params.requestRender();
-    return true;
+    return;
   }
 
-  if (mode === Mode.STOPPED) return false;
+  if (mode === Mode.STOPPED) return;
 
   tickMode(mode, dt);
-
-  return true;
 }
 
 export function computeFrameContext(inputs: FrameContextInputs): FrameContext {

@@ -71,7 +71,6 @@ interface GameLifecycleDeps {
 
   // Rendering / navigation
   readonly render: () => void;
-  readonly requestMainLoop: () => void;
   readonly showLobby: () => void;
 
   // Game-over interaction
@@ -101,7 +100,6 @@ interface LifecycleWiringDeps {
    *  `globalThis.clearTimeout` access in the demo-return timer. */
   readonly timing: TimingApi;
   readonly render: () => void;
-  readonly requestMainLoop: () => void;
   readonly bootstrapNewGame: () => void | Promise<void>;
 
   // Subsystems needed for reset/cleanup
@@ -183,9 +181,6 @@ export function createGameLifecycle(
     deps.clearDemoTimer();
     deps.clearGameOver();
     await startGame();
-    // startGame() → enterTowerSelection() already sets mode=SELECTION and
-    // lastTime, but its requestFrame guard skips rAF when mode ≠ STOPPED.
-    deps.requestMainLoop();
   }
 
   function returnToLobby(): void {
@@ -313,7 +308,6 @@ export function buildLifecycleDeps(
     },
 
     render: wiringDeps.render,
-    requestMainLoop: wiringDeps.requestMainLoop,
     showLobby: config.showLobby,
 
     hitTestGameOver: wiringDeps.hitTestGameOver,

@@ -37,9 +37,8 @@ import type { OnlineSession } from "./online-session.ts";
 interface OnlineRuntimeSessionDeps {
   getRuntime: () => GameRuntime;
   session: OnlineSession;
-  /** Injected timing primitives — replaces bare `performance.now()` /
-   *  `requestAnimationFrame` access. Same `TimingApi` instance the runtime
-   *  receives via `RuntimeConfig.timing`. */
+  /** Injected timing primitives — replaces bare `performance.now()` access.
+   *  Same `TimingApi` instance the runtime receives via `RuntimeConfig.timing`. */
   timing: TimingApi;
   resetNetworkingForNewGame: () => void;
   destroyClient: () => void;
@@ -74,11 +73,8 @@ export function createOnlineRuntimeSessionHelpers(
     lobby.map = generateMap(seed);
     lobby.joined = new Array(MAX_PLAYERS).fill(false);
     lobby.active = true;
-    const time = deps.timing.now();
-    deps.session.lobbyStartTime = time;
+    deps.session.lobbyStartTime = deps.timing.now();
     setMode(runtime.runtimeState, Mode.LOBBY);
-    runtime.runtimeState.lastTime = time;
-    deps.timing.requestFrame(runtime.mainLoop);
     runtime.warmMapCache(lobby.map);
   }
 

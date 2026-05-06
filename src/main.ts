@@ -16,7 +16,7 @@ import {
   createLocalNetworkApi,
   noopNetworkSend,
 } from "./runtime/runtime-composition.ts";
-import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
+import { setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/core/game-constants.ts";
 import { IS_DEV } from "./shared/platform/platform.ts";
 import { Mode } from "./shared/ui/ui-mode.ts";
@@ -94,8 +94,6 @@ document.addEventListener(GAME_EXIT_EVENT, runtime.shutdown);
 
 function showLobby(): void {
   runtime.lobby.show();
-  resetFrameTiming(runtime.runtimeState, timing.now());
-  timing.requestFrame(runtime.mainLoop);
   // Title music: harmless redundant call on first entry (startTitle is
   // idempotent — it's also kicked off earlier in enterLocalLobby before
   // the atlas is ready). Load-bearing for post-game returns — the

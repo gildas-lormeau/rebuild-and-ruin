@@ -54,6 +54,7 @@ echo "lint:all: parallel checks..."
   run raw-playwright    deno run -A scripts/lint-raw-playwright.ts
   run phase-transitions deno run -A scripts/lint-phase-transitions.ts
   run typeof            deno run -A scripts/lint-typeof.ts
+  run raf-mainloop      deno run -A scripts/lint-raf-mainloop.ts
   run null-init         deno run -A scripts/lint-null-init.ts
   run registries        deno run -A scripts/lint-registries.ts
   run useless-guards    deno run -A scripts/lint-useless-guards.ts

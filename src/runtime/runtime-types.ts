@@ -538,8 +538,8 @@ export interface RuntimeLobby {
   /** Runtime-internal lobby reset: clear joined/active/timer/map, clear
    *  quit + options state, render once, flip mode to LOBBY. Hosts call
    *  this from their `RuntimeConfig.showLobby` callback and add their
-   *  own platform extras (browser: requestFrame, music start, frame-
-   *  timing reset). Headless tests bind `showLobby` straight to this. */
+   *  own platform extras (browser: title music start). Headless tests
+   *  bind `showLobby` straight to this. */
   show: () => void;
   /** Mark a slot joined and re-render the lobby. */
   markJoined: (pid: ValidPlayerSlot) => void;

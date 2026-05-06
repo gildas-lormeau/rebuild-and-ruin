@@ -29,12 +29,7 @@ import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./runtime-castle-build.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
-import {
-  type RuntimeState,
-  resetFrameTiming,
-  setMode,
-} from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 import {
   ACCUM_SELECT,
   isRemotePlayer,
@@ -45,9 +40,6 @@ import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
-  /** Injected timing primitives — replaces bare `performance.now()` access
-   *  needed by `resetFrameTiming` after a mode transition. */
-  timing: TimingApi;
   /** True when this client is the host (drives castle wall generation + broadcasts). */
   hostAtFrameStart: () => boolean;
 
@@ -78,11 +70,6 @@ interface SelectionSystemDeps {
   /** Dispatch the `castle-done` transition. Called from both the round-1
    *  initial-selection path and the reselect-cycle finish path. */
   dispatchCastleDone: () => void;
-  /**
-   * Called once during enterTowerSelection — kicks off the animation loop
-   * if the runtime is currently stopped (e.g. online mode starting from DOM lobby).
-   */
-  requestFrame: () => void;
 }
 
 export function createSelectionSystem(
@@ -120,7 +107,6 @@ export function createSelectionSystem(
     );
     setMode(runtimeState, Mode.SELECTION);
 
-    const isBootstrap = cycleQueue === undefined;
     const slots: readonly ValidPlayerSlot[] =
       cycleQueue ?? state.players.map((_, i) => i as ValidPlayerSlot);
 
@@ -155,12 +141,6 @@ export function createSelectionSystem(
 
     syncSelectionOverlay();
     resetAccum(runtimeState.accum, ACCUM_SELECT);
-    // Bootstrap-only first-frame setup: re-anchor frame timing + tick.
-    // The reselect cycle inherits the running frame loop.
-    if (isBootstrap) {
-      resetFrameTiming(runtimeState, deps.timing.now());
-      deps.requestFrame();
-    }
   }
 
   function syncSelectionOverlay(): void {

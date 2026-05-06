@@ -12,12 +12,7 @@ import {
   zoneBounds,
 } from "./dev-console-grid.ts";
 import type { MusicSubsystem } from "./music-player.ts";
-import type { TimingApi } from "./runtime-contracts.ts";
-import {
-  isPaused,
-  isStateInstalled,
-  type RuntimeState,
-} from "./runtime-state.ts";
+import { isStateInstalled, type RuntimeState } from "./runtime-state.ts";
 
 type DebugBgTrackId =
   | "title"
@@ -41,8 +36,6 @@ interface DevConsole {
   mapText: (opts?: MapTextOptions) => string;
   speed: (multiplier?: number) => number;
   fixedStep: (ms?: number | false) => void;
-  pause: () => void;
-  step: () => void;
   perfHud: (on?: boolean) => boolean;
   /** TEMP DEBUG — play any bg track on demand. Useful for auditioning the
    *  music render path (jaws stinger tail, fanfare release, etc.) without
@@ -65,14 +58,9 @@ const PLAYER_LABEL: Record<number, string> = { 0: "R", 1: "B", 2: "G" };
 
 /** Attach `window.__dev` once (dev-only, guarded by IS_DEV at call site).
  *  The console object closes over runtimeState but reads it on-demand —
- *  no stale snapshots are retained between invocations.
- *
- *  `timing` is passed so the `step()` command schedules its next-frame
- *  callback through the injected TimingApi instead of reaching for the
- *  global `requestAnimationFrame`. */
+ *  no stale snapshots are retained between invocations. */
 export function exposeDevConsole(
   runtimeState: RuntimeState,
-  timing: TimingApi,
   music: MusicSubsystem,
 ): void {
   if (typeof window === "undefined") return;
@@ -132,12 +120,12 @@ export function exposeDevConsole(
 
     speed(multiplier?: number): number {
       if (multiplier !== undefined) {
-        // Clamp to integer in [1, 16]. Slow-mo (< 1) is not supported —
-        // use __dev.pause() to freeze. Cap at 16 because the speed-up
-        // mechanism is sub-stepping (each real frame runs N normal-sized
-        // game ticks instead of one inflated tick), so values > 16 just
-        // burn CPU without producing perceptibly faster gameplay — the
-        // browser still has to render each visible frame.
+        // Clamp to integer in [1, 16]. Slow-mo (< 1) is not supported.
+        // Cap at 16 because the speed-up mechanism is sub-stepping (each
+        // real frame runs N normal-sized game ticks instead of one
+        // inflated tick), so values > 16 just burn CPU without producing
+        // perceptibly faster gameplay — the browser still has to render
+        // each visible frame.
         const clamped = Math.min(16, Math.max(1, Math.floor(multiplier)));
         if (clamped !== multiplier) {
           console.log(`Speed clamped to ${clamped}× (range: 1..16, integer).`);
@@ -186,22 +174,6 @@ export function exposeDevConsole(
             : "Fixed step: off (variable rAF timing)",
         );
       }
-    },
-
-    pause() {
-      runtimeState.pausedBy = isPaused(runtimeState) ? "none" : "user";
-      console.log(isPaused(runtimeState) ? "Paused" : "Resumed");
-    },
-
-    step() {
-      if (!isPaused(runtimeState)) {
-        console.log("Not paused — use __dev.pause() first.");
-        return;
-      }
-      runtimeState.pausedBy = "none";
-      timing.requestFrame(() => {
-        runtimeState.pausedBy = "user";
-      });
     },
 
     perfHud(on?: boolean): boolean {
@@ -253,7 +225,7 @@ function printHelp(): void {
   __dev.speed(3)           3× speed (integer in 1..16)
   Note: speed-up runs the game-tick path N times per real frame with
   normal-sized dt — preserves determinism and collision boundaries.
-  Slow-mo is not supported; use __dev.pause() to freeze.
+  Slow-mo is not supported.
 
 %cFixed Step%c
   __dev.fixedStep()        Show current fixed-step state
@@ -261,10 +233,6 @@ function printHelp(): void {
   __dev.fixedStep(false)   Disable (use variable rAF timing)
   Auto-enabled when a custom seed is set. Makes browser simulation
   match headless tests so seeds reproduce across environments.
-
-%cPause%c
-  __dev.pause()            Toggle pause
-  __dev.step()             Advance one frame (while paused)
 
 %cPerf HUD%c
   __dev.perfHud()          Toggle fixed-corner FPS + draw-call HUD
@@ -280,8 +248,6 @@ function printHelp(): void {
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
-    RESET_CSS,
-    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,

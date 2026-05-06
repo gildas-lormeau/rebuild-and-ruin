@@ -125,9 +125,8 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   const simAccum = new SimTickAccumulator();
 
   /** Run the per-tick logic once with a fixed dt (SIM_TICK_DT). Extracted
-   *  from `mainLoop` so we can call it N times per real frame. Returns
-   *  false when the loop should stop scheduling further frames. */
-  function runOneSubStep(): boolean {
+   *  from `mainLoop` so we can call it N times per real frame. */
+  function runOneSubStep(): void {
     const dt = SIM_TICK_DT;
     deps.runtimeState.frameDt = dt;
     clearFrameData();
@@ -190,7 +189,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.tickScoreDelta(dt);
     deps.tickCannonAnimator(dt);
 
-    return tickMainLoop({
+    tickMainLoop({
       dt,
       mode: deps.runtimeState.mode,
       paused: isPaused(deps.runtimeState),
@@ -216,14 +215,13 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     const simDt = realDt * deps.runtimeState.speedMultiplier;
     const ticks = Math.min(simAccum.drain(simDt), MAX_TICKS_PER_FRAME);
 
-    let shouldContinue = true;
     for (let i = 0; i < ticks; i++) {
-      if (deps.runtimeState.mode === Mode.STOPPED) {
-        shouldContinue = false;
-        break;
-      }
-      shouldContinue = runOneSubStep();
-      if (!shouldContinue) break;
+      // Skip substep work when no session is installed (initial state,
+      // post-game-over, online disconnect). The loop itself keeps
+      // self-scheduling so a fresh game can resume tick work without
+      // anyone needing to "kick" the loop back on.
+      if (deps.runtimeState.mode === Mode.STOPPED) break;
+      runOneSubStep();
     }
 
     // Drain render-dirty once per browser frame. Tick handlers set the
@@ -237,9 +235,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     }
 
     deps.onAfterFrame?.();
-    if (shouldContinue && deps.runtimeState.mode !== Mode.STOPPED) {
-      deps.timing.requestFrame(mainLoop);
-    }
+    deps.timing.requestFrame(mainLoop);
   }
 
   return { clearFrameData, mainLoop };
