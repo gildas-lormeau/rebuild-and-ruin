@@ -23,7 +23,10 @@
  *
  * Options:
  *   --print         Print layer map to stdout without writing to disk
- *   --server        Include server/ files in the analysis
+ *   --no-server     Exclude server/ files from the analysis (default: included).
+ *                   Forgetting `--server` used to silently strip server/ entries
+ *                   on regen, so the safe default is now "include" — opt out
+ *                   only if you specifically want a src/-only view.
  */
 
 import fs from "node:fs";
@@ -46,7 +49,7 @@ interface ImportEdge {
 const args = process.argv.slice(2);
 const checkMode = args.includes("--check");
 const printOnly = args.includes("--print");
-const includeServer = args.includes("--server");
+const includeServer = !args.includes("--no-server");
 const LAYER_FILE = ".import-layers.json";
 const project = new Project({
   tsConfigFilePath: "tsconfig.json",
@@ -150,7 +153,7 @@ if (checkMode) {
     console.error(`\n✗ ${missing.length} file(s) not in ${LAYER_FILE}:`);
     for (const f of missing.sort()) console.error(`  ${f}`);
     console.error(
-      `\nRun: deno run -A scripts/generate-import-layers.ts${includeServer ? " --server" : ""}`,
+      `\nRun: deno run -A scripts/generate-import-layers.ts${includeServer ? "" : " --no-server"}`,
     );
     process.exit(1);
   }

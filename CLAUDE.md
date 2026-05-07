@@ -8,7 +8,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Build: `npm run build` (runs `tsc --noEmit && vite build` — always use this, never `npx vite build` alone)
 - Format: `npm run format` (biome on src/ and server/); `npm run format:check` for CI; 2-space indent
 - Lint: `npm run lint:all` — format:check, biome, knip, madge, jscpd (min-lines 15), lint:literals (baseline-aware), lint:typeof
-- Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
+- Layer linter: `deno run -A scripts/generate-import-layers.ts --check`; use `/import-hygiene` skill for full audit
 - Layer classification audit: `deno run -A scripts/audit-layer-classification.ts` finds files whose declared layer-group disagrees with header self-claims, name conventions, or imported-domain spread. Pair with `scripts/audit-layer-pins.ts <file...>` to see which import "pins" a file at its current layer. Use the `/layer-graph-cleanup` skill for the full workflow.
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.readonly-literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
@@ -117,7 +117,7 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 - ESLint enforces min 2-char identifiers. When fixing a 1-letter name, choose an expressive name (e.g. `player`, `tower`), never a 2-letter abbreviation (`pl`, `tw`).
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
 - Always check `.import-layers.json` before placing new code in a file. Array index = layer number (L0 leaves → L17 entry points). Imports flow downward by number.
-- After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts --server` to assign it a layer, then review the diff. The pre-commit `--check` fails if any file is missing from the map — the fix is always to regenerate, never to hand-assign (the generator computes the layer from imports).
+- After adding a **new file**, run `deno run -A scripts/generate-import-layers.ts` to assign it a layer, then review the diff. The pre-commit `--check` fails if any file is missing from the map — the fix is always to regenerate, never to hand-assign (the generator computes the layer from imports).
 - Use `npx biome check --write <files>` for import sorting, never reorder manually
 - Prefer spatial helpers (`isWater`, `isGrass`, `waterKeys`) over importing Tile enum directly
 - Check existing helpers (`npm run export-search`) before inlining logic; create new helpers when a pattern appears 2+ times

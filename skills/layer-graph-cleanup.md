@@ -139,7 +139,7 @@ createControllerForSlot: makeXFactory(myId, keyBinding)
 
 ```bash
 npx tsc --noEmit
-deno run -A scripts/generate-import-layers.ts --check --server
+deno run -A scripts/generate-import-layers.ts --check
 deno run -A scripts/layer-graph.ts   # regenerate to confirm the edge is gone
 ```
 
@@ -252,7 +252,7 @@ The diff against declared domains then surfaces *runtime* coupling drift, not ty
 
 The systematic workflow for a clean architecture session:
 
-1. `deno run -A scripts/generate-import-layers.ts --check --server` — fix any formal violations first
+1. `deno run -A scripts/generate-import-layers.ts --check` — fix any formal violations first
 2. `deno run -A scripts/layer-graph.ts` — read the collapsed graph, fix suspicious edges (Steps 1–6)
 3. `deno run -A scripts/architecture-health.ts` — read the health report:
    - Fix the highest Pain points by extracting widely-used exports into dedicated modules

@@ -50,7 +50,7 @@
     "find-literals": "deno run -A scripts/find-duplicate-literals.ts",
     "lint:deno": "deno check src server/*.ts test/*.ts",
     "lint:deno-lint": "deno lint src test/ server/",
-    "lint:layers": "deno run -A scripts/generate-import-layers.ts --check --server",
+    "lint:layers": "deno run -A scripts/generate-import-layers.ts --check",
     "lint:lateral": "deno run -A scripts/lint-lateral-imports.ts",
     "lint:imports": "deno run -A scripts/merge-imports.ts --check",
     "lint:architecture": "deno run -A scripts/lint-architecture.ts",
