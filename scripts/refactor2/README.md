@@ -301,3 +301,15 @@ scripts/refactor2/
     cmd-change.ts        change type (annotation rewrites for fields, params, props)
     cmd-fix.ts           fix assignability (diagnostic-driven assertion insertion)
 ```
+
+## Known limitations / follow-ups
+
+Logged from the first real-tree run of `change type` + `fix assignability` (the `ValidPlayerSlot` completion migration on 2026-05-07). Each item has a concrete trigger condition — pick up when the next migration surfaces the same friction.
+
+- **`change type` ignores `--include` / `--exclude`.** The standard flag parser accepts them, but `cmd-change.ts` doesn't filter targets through them. With `--params-named X --from-type Y`, a sentinel-using file (e.g. `dev-console-grid.ts` storing `-1` as a "no owner" marker in a `playerId: number` slot) gets matched along with the real leaks; the workaround is `git checkout --` on that file post-run. **Fix:** honor `flags.include` / `flags.exclude` against each target's `file` in `resolveParamsNamed` and `resolveMemberTargets`. Trigger: any migration where >1 file should be scoped out.
+
+- **`--import-from` matches module paths literally, not by resolution.** Files at different relative depths import the same module via different specifiers (`./player-slot.ts` vs `../shared/core/player-slot.ts`); the literal-string match misses the second form and would add a duplicate import. **Fix:** accept `--import-from <abs-path>` (or `<file>#Symbol` form), and per source file compute the relative specifier via ts-morph's resolution + dedupe against existing imports by *resolved module*, not text. Trigger: any migration touching files across multiple directories where the new type isn't already imported everywhere.
+
+- **No address form for parameters inside intersection types.** Sites like `ctrl: CannonController & { readonly playerId: number }` look like a type-only assertion that the controller exposes a `playerId` field, but the inner `number` is a leak. `change type` has no selector for "type-literal property inside an intersection at parameter position." Hand-edited these (2 sites in `runtime-phase-ticks.ts`). **Fix:** add `change type-literal-prop <PropName> --to <T> --in-context parameter` or extend `--params-named` to recurse into intersection members. Trigger: a migration finds >5 intersection-type leaks and the manual edit cost dominates.
+
+- **Manifest mode (`apply`) doesn't yet accept `change.type`.** Multi-step type migrations still need separate verb invocations rather than one atomic manifest pass. **Fix:** add a `change.type` op variant to `ManifestOp` in `lib/types.ts` and wire it through `cmd-apply.ts`. Trigger: a migration that wants to retype + immediately `fix assignability` as one rolled-back-on-failure unit.
