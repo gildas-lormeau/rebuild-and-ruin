@@ -71,7 +71,7 @@ import {
   type LifeLostEntry,
   type UpgradePickEntry,
 } from "../shared/ui/interaction-types.ts";
-import { BaseController } from "./controller-types.ts";
+import { BaseController } from "./controller-base.ts";
 
 // Compile-time guarantee: AiController structurally satisfies every phase
 // module's Host interface. Adding a required field/method to any Host without

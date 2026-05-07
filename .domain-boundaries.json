@@ -127,7 +127,7 @@
       "src/ai/ai-phase-battle.ts"
     ],
     "controllers": [
-      "src/controllers/controller-types.ts",
+      "src/controllers/controller-base.ts",
       "src/controllers/controller-human.ts",
       "src/controllers/controller-ai.ts",
       "src/controllers/controller-ai-assisted-human.ts",
@@ -273,6 +273,7 @@
       "src/runtime/runtime-bootstrap.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-tick-consumers.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-cannon-animator.ts",
       "src/runtime/runtime-e2e-bridge.ts",

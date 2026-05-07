@@ -3,11 +3,14 @@
  *
  * This is the ONE file in `src/runtime/` allowed to cross the runtime
  * purity contract. Every other runtime/ file imports only from shared/,
- * game/, and player/ (for controller factories), so the runtime domain
- * stays headless-testable. This file is the wiring seam where input,
- * render, ai, player, and game subsystems assemble into a GameRuntime
- * handle — its "roots" tier classification in .import-layers.json
- * exempts it from typeOnlyFrom restrictions (see lint-domain-boundaries.ts).
+ * game/, and controllers/ (for controller factories), so the runtime
+ * domain stays headless-testable. This file is the wiring seam where
+ * input, render, ai, controllers, and game subsystems assemble into a
+ * GameRuntime handle — `scripts/lint-architecture-non-runtime.ts`
+ * hardcodes this file as an allowed importer for the input/render/online
+ * subsystem rules, which is what enforces the "only this file" rule.
+ * (The .import-layers.json group it sits in is determined mechanically
+ * by its deepest dep, currently `src/render/3d/renderer.ts`.)
  *
  * When adding new runtime code: if it needs input/render/ai/online
  * imports, it almost certainly belongs here (or in a subsystem factory

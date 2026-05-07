@@ -33,7 +33,7 @@ import {
 } from "../shared/core/system-interfaces.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
-import { BaseController } from "./controller-types.ts";
+import { BaseController } from "./controller-base.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */
 const CROSSHAIR_SPRINT_MULTIPLIER = 2;

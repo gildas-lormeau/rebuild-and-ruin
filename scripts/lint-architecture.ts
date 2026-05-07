@@ -34,6 +34,7 @@ const EXEMPT = new Set([
   "runtime-state.ts",
   "runtime-contracts.ts", // UI deps-object contracts (formerly shared/ui/ui-contracts.ts)
   "runtime-tick-context.ts", // shared tick state primitives, not a factory sub-system
+  "runtime-tick-consumers.ts", // ONLINE_PHASE_TICKS_CONSUMERS registry, not a factory sub-system
 
   "runtime-bootstrap.ts",
   "runtime-browser-timing.ts", // entry-level TimingApi factory, not a sub-system
