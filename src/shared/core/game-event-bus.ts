@@ -160,7 +160,7 @@ export type LifecycleEvent =
   | { type: "cannonballDescending"; variant: number }
   /** Camera target changed at a discrete state transition: phase entry
    *  (per-phase memory restore or first-entry default), explicit zone
-   *  command (E/H button → setCameraZone), or life-lost auto-engage.
+   *  command (zone-cycle button → setCameraZone), or life-lost auto-engage.
    *  Continuous motion (edge-pan, tap-nudge animation, pinch updates)
    *  does NOT emit this event — only the moments where the player's
    *  intended camera target changes. `kind` discriminates between a

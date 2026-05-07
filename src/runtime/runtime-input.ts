@@ -25,10 +25,9 @@ import { OPT_CONTROLS, OPT_SOUND } from "../shared/ui/settings-defs.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type {
   CreateDpadFn,
-  CreateEnemyZoomButtonFn,
   CreateFloatingActionsFn,
-  CreateHomeZoomButtonFn,
   CreateQuitButtonFn,
+  CreateZoneCycleButtonFn,
   DispatchPointerMoveFn,
   FloatingActionsHandle,
   RegisterKeyboardHandlersFn,
@@ -42,7 +41,7 @@ import type { CameraSystem, NetworkApi } from "./runtime-types.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
 
-type ZoomButtonHandle = ReturnType<CreateHomeZoomButtonFn>;
+type ZoomButtonHandle = ReturnType<CreateZoneCycleButtonFn>;
 
 type QuitButtonHandle = ReturnType<CreateQuitButtonFn>;
 
@@ -145,7 +144,7 @@ interface InputSystemDeps {
     | "centerCameraOnTap"
     | "povPlayerId"
     | "getEnemyZones"
-    | "getCameraZone"
+    | "getViewedZone"
     | "setCameraZone"
     | "enableMobileZoom"
   >;
@@ -166,8 +165,7 @@ interface InputSystemDeps {
   readonly touchFactories: {
     readonly createDpad: CreateDpadFn;
     readonly createQuitButton: CreateQuitButtonFn;
-    readonly createHomeZoomButton: CreateHomeZoomButtonFn;
-    readonly createEnemyZoomButton: CreateEnemyZoomButtonFn;
+    readonly createZoneCycleButton: CreateZoneCycleButtonFn;
     readonly createFloatingActions: CreateFloatingActionsFn;
   };
 
@@ -203,8 +201,7 @@ type PlaceCannonFn = (
 export interface TouchHandles {
   readonly dpad: DpadHandle | null;
   readonly floatingActions: FloatingActionsHandle | null;
-  readonly homeZoomButton: ZoomButtonHandle | null;
-  readonly enemyZoomButton: ZoomButtonHandle | null;
+  readonly zoneCycleButton: ZoomButtonHandle | null;
   readonly quitButton: QuitButtonHandle | null;
   readonly loupeHandle: LoupeHandle | null;
 }
@@ -273,8 +270,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     touch.floatingActions?.update(false, 0, 0, false, false);
     touch.dpad?.update(null);
     touch.quitButton?.update(null);
-    touch.homeZoomButton?.update(false);
-    touch.enemyZoomButton?.update(false);
+    touch.zoneCycleButton?.update(false);
     touch.loupeHandle?.update(false, 0, 0);
   }
 
@@ -632,25 +628,20 @@ function setupZoomButtons(
     gameContainer,
   );
   touch.quitButton.update(null); // initial state: hidden
-  touch.homeZoomButton = deps.touchFactories.createHomeZoomButton(
+  touch.zoneCycleButton = deps.touchFactories.createZoneCycleButton(
     zoomDeps,
     gameContainer,
   );
-  touch.enemyZoomButton = deps.touchFactories.createEnemyZoomButton(
-    zoomDeps,
-    gameContainer,
-  );
-  touch.homeZoomButton.update(false); // initial state: disabled
-  touch.enemyZoomButton.update(false);
+  touch.zoneCycleButton.update(false); // initial state: disabled
 }
 
-/** Build zoom button deps for touch controls (home/enemy zone zoom). */
+/** Build zone-cycle button deps for touch controls. */
 function buildZoomDeps(deps: InputSystemDeps) {
   const { runtimeState, camera } = deps;
   const pointerPlayer = deps.pointerPlayer;
   return {
     getState: () => safeState(runtimeState),
-    getCameraZone: camera.getCameraZone,
+    getViewedZone: camera.getViewedZone,
     setCameraZone: camera.setCameraZone,
     povPlayerId: camera.povPlayerId,
     getEnemyZones: camera.getEnemyZones,

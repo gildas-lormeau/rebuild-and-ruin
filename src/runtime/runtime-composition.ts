@@ -35,10 +35,9 @@ import { createSeedField } from "../input/input-seed-field.ts";
 import { registerTouchHandlers } from "../input/input-touch-canvas.ts";
 import {
   createDpad,
-  createEnemyZoomButton,
   createFloatingActions,
-  createHomeZoomButton,
   createQuitButton,
+  createZoneCycleButton,
 } from "../input/input-touch-ui.ts";
 import { updateTouchControls } from "../input/input-touch-update.ts";
 import {
@@ -263,8 +262,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const touchHandles: TouchHandles = {
     dpad: null,
     floatingActions: null,
-    homeZoomButton: null,
-    enemyZoomButton: null,
+    zoneCycleButton: null,
     quitButton: null,
     loupeHandle: null,
   };
@@ -851,8 +849,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     touchFactories: {
       createDpad,
       createQuitButton,
-      createHomeZoomButton,
-      createEnemyZoomButton,
+      createZoneCycleButton,
       createFloatingActions,
     },
     lifecycle: {

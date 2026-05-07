@@ -62,8 +62,7 @@ export const LOBBY_RECT_Y_RATIO = 0.27;
 export const LOBBY_RECT_Y_RATIO_TOUCH = 0.18;
 // Zoom button tinting
 export const ZOOM_BUTTON_ALPHA = 0.85;
-export const TOUCH_ZOOM_HOME_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;
-export const TOUCH_ZOOM_ENEMY_BG = `rgba(100, 50, 50, ${ZOOM_BUTTON_ALPHA})`;
+export const TOUCH_ZOOM_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;
 /** Pure white — used for focused button text and primary overlay labels. */
 export const TEXT_WHITE = "#fff";
 /** Muted gold for status bar round/phase/timer text. */

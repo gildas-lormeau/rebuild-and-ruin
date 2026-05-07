@@ -84,16 +84,6 @@ body {
   border-color: #9a5a5a;
 }
 
-[data-action="zoom-home"] {
-  background: #3a5a7a;
-  border-color: #5a7a9a;
-}
-
-[data-action="zoom-enemy"] {
-  background: #7a3a5a;
-  border-color: #9a5a7a;
-}
-
 /* D-pad */
 nav.dpad {
   display: grid;
@@ -453,12 +443,8 @@ body.is-portrait {
       display: contents;
     }
 
-    .controls [data-action="zoom-enemy"] {
+    .controls [data-action="zoom-zone"] {
       grid-area: 1 / 2;
-    }
-
-    .controls [data-action="zoom-home"] {
-      grid-area: 2 / 1;
     }
 
     .controls [data-action="confirm"] {

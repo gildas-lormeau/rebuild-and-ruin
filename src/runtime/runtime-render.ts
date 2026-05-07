@@ -96,8 +96,7 @@ interface RenderSystemDeps {
   readonly getTouch: () => {
     dpad: Dpad | null;
     floatingActions: FloatingActions | null;
-    homeZoomButton: ZoomButton | null;
-    enemyZoomButton: ZoomButton | null;
+    zoneCycleButton: ZoomButton | null;
     quitButton: QuitButton | null;
     loupeHandle: LoupeHandle | null;
   };
@@ -316,8 +315,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       pointerPlayer: deps.pointerPlayer,
       dpad: touch.dpad,
       floatingActions: touch.floatingActions,
-      homeZoomButton: touch.homeZoomButton,
-      enemyZoomButton: touch.enemyZoomButton,
+      zoneCycleButton: touch.zoneCycleButton,
       quitButton: touch.quitButton,
       loupeHandle: touch.loupeHandle,
       worldToScreen: deps.worldToScreen,

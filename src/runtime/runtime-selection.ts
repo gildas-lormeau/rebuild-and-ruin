@@ -392,7 +392,7 @@ export function createSelectionSystem(
     runtimeState.selection.castleBuilds.push(createCastleBuildState([plan]));
     // Only zoom to the human player's castle build
     if (human && playerId === human.playerId) {
-      deps.camera.setCastleBuildViewport([plan]);
+      deps.camera.setCastleBuildViewport(playerId);
     }
   }
 

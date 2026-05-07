@@ -19,12 +19,7 @@ import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
 import { playerByZone } from "../shared/core/spatial.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
-import {
-  rgb,
-  TOUCH_ZOOM_ENEMY_BG,
-  TOUCH_ZOOM_HOME_BG,
-  ZOOM_BUTTON_ALPHA,
-} from "../shared/ui/theme.ts";
+import { rgb, TOUCH_ZOOM_BG, ZOOM_BUTTON_ALPHA } from "../shared/ui/theme.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {
@@ -142,107 +137,62 @@ export function createQuitButton(
   };
 }
 
-/** Toggle between my zone (zoomed) and full map. */
-export function createHomeZoomButton(
+/** Cycle through all zones (own + opponents) in order. */
+export function createZoneCycleButton(
   deps: ZoomButtonDeps,
   container: HTMLElement,
 ): {
   update: (active?: boolean) => void;
 } {
-  const buttons = queryAll(container, "zoom-home");
+  const buttons = queryAll(container, "zoom-zone");
 
   function getMyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
     const pid = deps.povPlayerId();
-    if (pid < 0) return null;
-    return state.playerZones[pid] ?? null;
+    return pid >= 0 ? (state.playerZones[pid] ?? null) : null;
   }
 
-  function toggle() {
-    const current = deps.getCameraZone();
+  function getCycle(): number[] {
     const myZone = getMyZone();
-    if (current === undefined) {
-      // Unzoomed → zoom to own zone + move cursor home
-      deps.aimAtZone?.(myZone!);
-      deps.setCameraZone(myZone ?? undefined);
-    } else if (current === myZone) {
-      // On own zone → unzoom
-      deps.setCameraZone(undefined);
-    } else {
-      // On enemy zone → move cursor to own home tower (camera follows)
-      deps.aimAtZone?.(myZone!);
-      deps.setCameraZone(myZone ?? undefined);
-    }
-    updateLabel();
+    const enemies = deps.getEnemyZones();
+    return myZone !== null ? [myZone, ...enemies] : enemies;
   }
 
-  function updateLabel() {
-    const current = deps.getCameraZone();
-    const myZone = getMyZone();
-    const isHome = current === myZone && myZone !== null;
-    const background = zoomButtonBg(
-      isHome ? -1 : deps.povPlayerId(),
-      TOUCH_ZOOM_HOME_BG,
-    );
-    for (const btn of buttons) btn.style.background = background;
+  /** Resolve the zone the player is conceptually "looking at": the camera's
+   *  reported viewed zone (explicit zone target, or the zone at a pinch
+   *  viewport's center), falling back to the player's home zone when the
+   *  camera is on full map / over a river / mid-CASTLE_SELECT. So a pinch
+   *  on enemy B previews enemy C as the next cycle step, and an unzoomed
+   *  view previews enemy 1 (cycling out from home). */
+  function effectiveCurrentZone(): number | undefined {
+    return deps.getViewedZone() ?? getMyZone() ?? undefined;
   }
 
-  for (const btn of buttons) {
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle();
-      },
-      { passive: false },
-    );
-    btn.addEventListener(CLICK_EVENT, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggle();
-    });
+  function nextZone(): number | undefined {
+    const zones = getCycle();
+    if (zones.length === 0) return undefined;
+    const current = effectiveCurrentZone();
+    const idx = current !== undefined ? zones.indexOf(current) : -1;
+    return zones[(idx + 1) % zones.length];
   }
-
-  return {
-    update(active = true) {
-      for (const btn of buttons) btn.classList.toggle(CLS_DISABLED, !active);
-      if (active) updateLabel();
-    },
-  };
-}
-
-/** Cycle through opponent zones. */
-export function createEnemyZoomButton(
-  deps: ZoomButtonDeps,
-  container: HTMLElement,
-): {
-  update: (active?: boolean) => void;
-} {
-  const buttons = queryAll(container, "zoom-enemy");
-  const getEnemyZones = deps.getEnemyZones;
 
   function cycle() {
-    const enemyZones = getEnemyZones();
-    if (enemyZones.length === 0) return;
-    const current = deps.getCameraZone();
-    const idx = current !== undefined ? enemyZones.indexOf(current) : -1;
-    const next = enemyZones[(idx + 1) % enemyZones.length]!;
+    const next = nextZone();
+    if (next === undefined) return;
     deps.aimAtZone?.(next);
     deps.setCameraZone(next);
     updateLabel();
   }
 
   function updateLabel() {
-    const zone = deps.getCameraZone();
+    const next = nextZone();
     const state = deps.getState();
     const pid =
-      zone !== undefined && state
-        ? (playerByZone(state.playerZones, zone) ?? -1)
+      next !== undefined && state
+        ? (playerByZone(state.playerZones, next) ?? -1)
         : -1;
-    const isActive = zone !== undefined && getEnemyZones().includes(zone);
-    const background = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
+    const background = zoomButtonBg(pid, TOUCH_ZOOM_BG);
     for (const btn of buttons) btn.style.background = background;
   }
 
@@ -265,7 +215,15 @@ export function createEnemyZoomButton(
 
   return {
     update(active = true) {
-      for (const btn of buttons) btn.classList.toggle(CLS_DISABLED, !active);
+      for (const btn of buttons) {
+        btn.classList.toggle(CLS_DISABLED, !active);
+        if (active) {
+          btn.style.color = "";
+        } else {
+          btn.style.background = "";
+          btn.style.color = "transparent";
+        }
+      }
       if (active) updateLabel();
     },
   };

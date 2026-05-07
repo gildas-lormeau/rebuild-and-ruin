@@ -395,7 +395,11 @@ export interface CameraSystem {
 
   // Zoom state
   getCameraZone: () => number | undefined;
-  setCameraZone: (zone: number | undefined) => void;
+  /** The zone the user is visually looking at — explicit zone target if set,
+   *  otherwise the zone at the pinch viewport center, or undefined when on
+   *  full map / over a river. Drives the touch zone-cycle button preview. */
+  getViewedZone: () => number | undefined;
+  setCameraZone: (zone: number) => void;
 
   // Lifecycle commands
   /** Park a callback to fire on the first frame where the viewport has
@@ -422,9 +426,7 @@ export interface CameraSystem {
 
   // Castle build viewport
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  setCastleBuildViewport: (
-    wallPlans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
-  ) => void;
+  setCastleBuildViewport: (playerId: ValidPlayerSlot) => void;
   clearCastleBuildViewport: () => void;
 
   // Mobile zoom

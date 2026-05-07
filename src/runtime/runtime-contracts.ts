@@ -371,8 +371,12 @@ export interface QuitButtonDeps {
 
 export interface ZoomButtonDeps {
   getState: () => GameState | undefined;
-  getCameraZone: () => number | undefined;
-  setCameraZone: (zone: number | undefined) => void;
+  /** The zone the user is visually looking at right now — explicit zone
+   *  target, or the zone at a pinch viewport center, or undefined when
+   *  the camera is on full map / over a river. Used to base the cycle's
+   *  "next zone" preview on the actually-visible zone. */
+  getViewedZone: () => number | undefined;
+  setCameraZone: (zone: number) => void;
   povPlayerId: () => number;
   getEnemyZones: () => number[];
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
@@ -411,7 +415,7 @@ export type CreateDpadFn = (
   setConfirmValid: (valid: boolean) => void;
 };
 
-export type CreateEnemyZoomButtonFn = (
+export type CreateZoneCycleButtonFn = (
   deps: ZoomButtonDeps,
   container: HTMLElement,
 ) => { update: (active?: boolean) => void };
@@ -420,11 +424,6 @@ export type CreateFloatingActionsFn = (
   deps: FloatingActionsDeps,
   element: HTMLElement,
 ) => FloatingActionsHandle;
-
-export type CreateHomeZoomButtonFn = (
-  deps: ZoomButtonDeps,
-  container: HTMLElement,
-) => { update: (active?: boolean) => void };
 
 export type CreateQuitButtonFn = (
   deps: QuitButtonDeps,
@@ -620,8 +619,7 @@ export interface TouchControlsDeps {
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
   floatingActions: FloatingActions | null;
-  homeZoomButton: ZoomButton | null;
-  enemyZoomButton: ZoomButton | null;
+  zoneCycleButton: ZoomButton | null;
   quitButton: QuitButton | null;
   loupeHandle: LoupeHandle | null;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };

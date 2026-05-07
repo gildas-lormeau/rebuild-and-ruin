@@ -54,7 +54,9 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     confirm: INTERACTIVE,
     rotate: false,
     placementValidity: false,
-    zoom: INTERACTIVE,
+    // Castle-frame lock owns the viewport during tower selection — Z would
+    // only queue a zone that can't take effect until the lock clears.
+    zoom: false,
     quit: true,
   },
   [Mode.TRANSITION]: {
@@ -78,7 +80,8 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     confirm: false,
     rotate: false,
     placementValidity: false,
-    zoom: INTERACTIVE,
+    // Castle-frame lock owns the viewport during the auto-build animation.
+    zoom: false,
     quit: true,
   },
   [Mode.LIFE_LOST]: {
@@ -183,8 +186,7 @@ function updateButtons(deps: TouchControlsDeps): void {
   }
 
   // Zoom, quit
-  deps.homeZoomButton?.update(on(buttonStates.zoom));
-  deps.enemyZoomButton?.update(on(buttonStates.zoom));
+  deps.zoneCycleButton?.update(on(buttonStates.zoom));
   deps.quitButton?.update(buttonStates.quit ? deps.state.phase : null);
 }
 
