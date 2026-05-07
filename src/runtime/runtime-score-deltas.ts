@@ -6,8 +6,9 @@
  * upgrade-pick is **tick scope**: the timer ticks mode-independently
  * — driven unconditionally from the main loop, counting down during
  * banner/castle-build animations. The completion callback itself is
- * stored in the same shared `FireOnceSlot` shape as the other two
- * sub-systems. See docs/dialog-completion-patterns.md.
+ * stored in the same shared `FireOnceSlot` shape as the other three
+ * sub-systems (life-lost, upgrade-pick, banner-sweep). See
+ * docs/dialog-completion-patterns.md.
  */
 
 import { computeScoreDeltas } from "../game/index.ts";
