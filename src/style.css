@@ -416,14 +416,14 @@ body.is-portrait {
     flex-shrink: 0;
 
     .dpad {
-      align-self: end;
+      align-self: center;
     }
 
     .controls {
       display: grid;
       grid-template: repeat(3, var(--btn-size)) / repeat(3, var(--btn-size));
       gap: 1vmin;
-      align-self: end;
+      align-self: center;
     }
 
     .controls .zoom-group,
