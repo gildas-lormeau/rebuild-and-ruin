@@ -33,6 +33,9 @@ import {
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";
 const CLICK_EVENT = "click";
+/** Fraction of the dpad radius treated as a center dead-zone — touches
+ *  within it produce no direction (suppresses jitter near the origin). */
+const DPAD_DEAD_ZONE = 0.15;
 
 /**
  * Wire touch controls inside the game container.
@@ -53,7 +56,7 @@ export function createDpad(
   const btnsRotate = queryAll(container, "rotate");
 
   const { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp } =
-    wireDpadArrows(deps, container);
+    wireDpadCircle(deps, container);
 
   wireActionButtons(btnsAction, () => handleDpadAction(deps));
   wireRotateButtons(
@@ -317,13 +320,18 @@ function handleDpadAction(deps: DpadDeps): void {
   });
 }
 
-/** Wire d-pad arrow buttons with context-dependent behavior:
- *  - PLACEMENT PHASES: key-repeat (short initial delay, fast repeat interval)
- *  - BATTLE: hold-to-move (battleKeyDown on touchstart, battleKeyUp on touchend)
- *  Phase is checked live via isBattlePhase() on each touch, not at wiring time.
- *  repeatTimer is a closure variable shared across all four arrow buttons.
- *  Returns handles needed by the parent for phase updates and rotate wiring. */
-function wireDpadArrows(
+/** Wire the circular touch d-pad with context-dependent behavior:
+ *  - PLACEMENT PHASES: key-repeat (short initial delay, fast repeat interval).
+ *    Touch position snaps to one cardinal Action via axis comparison;
+ *    drag re-decodes the cardinal as the finger crosses the diagonal.
+ *  - BATTLE: continuous unit-vector aiming via setDpadVector (drift in any
+ *    direction the finger points; magnitude scales with distance from
+ *    center, capped at 1).
+ *  Phase is checked live via isBattlePhase() on each event, not at wiring
+ *  time. A single touch is tracked per element via pointerId to ignore
+ *  multi-finger interactions. Returns handles needed by the parent for
+ *  phase updates and rotate wiring. */
+function wireDpadCircle(
   deps: DpadDeps,
   container: HTMLElement,
 ): {
@@ -332,10 +340,7 @@ function wireDpadArrows(
   battleKeyDown: (action: Action) => void;
   battleKeyUp: (action: Action) => void;
 } {
-  const btnsUp = queryAll(container, "up");
-  const btnsDown = queryAll(container, "down");
-  const btnsLeft = queryAll(container, "left");
-  const btnsRight = queryAll(container, "right");
+  const dpads = Array.from(container.querySelectorAll<HTMLElement>(".dpad"));
 
   const { startRepeat, stopRepeat } = createKeyRepeatController(fireDirection);
 
@@ -360,45 +365,119 @@ function wireDpadArrows(
     deps.withPointerPlayer((human) => human.handleKeyUp(action));
   }
 
-  function wireArrow(btn: HTMLButtonElement, action: Action) {
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressDown(btn);
-        // Emit once per physical press — avoids continuous vibration during
-        // auto-repeat.
-        deps.emitUiTap?.();
-        if (isBattlePhase()) battleKeyDown(action);
-        else startRepeat(action);
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressUp(btn);
-        if (isBattlePhase()) battleKeyUp(action);
-        else stopRepeat();
-      },
-      { passive: false },
-    );
-    btn.addEventListener("touchcancel", () => {
-      pressUp(btn);
-      if (isBattlePhase()) battleKeyUp(action);
-      else stopRepeat();
-    });
+  function setVector(vec: { x: number; y: number }) {
+    deps.withPointerPlayer((human) => human.setDpadVector(vec.x, vec.y));
   }
 
-  for (const btn of btnsUp) wireArrow(btn, Action.UP);
-  for (const btn of btnsDown) wireArrow(btn, Action.DOWN);
-  for (const btn of btnsLeft) wireArrow(btn, Action.LEFT);
-  for (const btn of btnsRight) wireArrow(btn, Action.RIGHT);
+  function clearVector() {
+    deps.withPointerPlayer((human) => human.clearDpadVector());
+  }
+
+  for (const dpad of dpads) wireDpadElement(dpad);
+
+  function wireDpadElement(dpad: HTMLElement): void {
+    let activeTouchId: number | undefined;
+    let lastCardinal: Action | undefined;
+
+    function onStart(e: TouchEvent) {
+      if (activeTouchId !== undefined) return;
+      const touch = e.changedTouches[0];
+      if (!touch) return;
+      e.preventDefault();
+      e.stopPropagation();
+      activeTouchId = touch.identifier;
+      pressDown(dpad);
+      // Emit once per physical press — avoids continuous vibration during
+      // touchmove sector crossings or analog aim drift.
+      deps.emitUiTap?.();
+      const vec = computeDpadVector(dpad, touch);
+      if (isBattlePhase()) {
+        if (vec !== undefined) setVector(vec);
+      } else if (vec !== undefined) {
+        const cardinal = vectorToCardinal(vec);
+        lastCardinal = cardinal;
+        startRepeat(cardinal);
+      }
+    }
+
+    function onMove(e: TouchEvent) {
+      if (activeTouchId === undefined) return;
+      const touch = findTouch(e.changedTouches, activeTouchId);
+      if (!touch) return;
+      e.preventDefault();
+      const vec = computeDpadVector(dpad, touch);
+      if (isBattlePhase()) {
+        if (vec === undefined) clearVector();
+        else setVector(vec);
+      } else if (vec === undefined) {
+        if (lastCardinal !== undefined) {
+          stopRepeat();
+          lastCardinal = undefined;
+        }
+      } else {
+        const cardinal = vectorToCardinal(vec);
+        if (cardinal !== lastCardinal) {
+          stopRepeat();
+          lastCardinal = cardinal;
+          startRepeat(cardinal);
+        }
+      }
+    }
+
+    function onRelease(e: TouchEvent) {
+      if (activeTouchId === undefined) return;
+      const touch = findTouch(e.changedTouches, activeTouchId);
+      if (!touch) return;
+      e.preventDefault();
+      activeTouchId = undefined;
+      lastCardinal = undefined;
+      pressUp(dpad);
+      clearVector();
+      stopRepeat();
+    }
+
+    dpad.addEventListener("touchstart", onStart, { passive: false });
+    dpad.addEventListener("touchmove", onMove, { passive: false });
+    dpad.addEventListener("touchend", onRelease, { passive: false });
+    dpad.addEventListener("touchcancel", onRelease);
+  }
 
   return { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp };
+}
+
+/** Compute a unit vector from the d-pad element's center to the touch
+ *  point. Returns undefined inside the dead-zone. Magnitude is capped at
+ *  1 (touches outside the visible circle still produce full speed). */
+function computeDpadVector(
+  element: HTMLElement,
+  touch: Touch,
+): { x: number; y: number } | undefined {
+  const rect = element.getBoundingClientRect();
+  const radius = Math.min(rect.width, rect.height) / 2;
+  if (radius <= 0) return undefined;
+  const dx = touch.clientX - (rect.left + rect.width / 2);
+  const dy = touch.clientY - (rect.top + rect.height / 2);
+  const dist = Math.hypot(dx, dy);
+  if (dist < radius * DPAD_DEAD_ZONE) return undefined;
+  const scale = Math.min(1, dist / radius);
+  return { x: (dx / dist) * scale, y: (dy / dist) * scale };
+}
+
+/** Snap a unit vector to the nearest cardinal Action (used outside BATTLE).
+ *  The longer-magnitude axis wins so a 30°-from-vertical drag still reads as
+ *  UP/DOWN, matching how players expect a "mostly vertical" stick to behave. */
+function vectorToCardinal(vec: { x: number; y: number }): Action {
+  if (Math.abs(vec.x) > Math.abs(vec.y)) {
+    return vec.x > 0 ? Action.RIGHT : Action.LEFT;
+  }
+  return vec.y > 0 ? Action.DOWN : Action.UP;
+}
+
+function findTouch(touches: TouchList, identifier: number): Touch | undefined {
+  for (let i = 0; i < touches.length; i++) {
+    if (touches[i]?.identifier === identifier) return touches[i];
+  }
+  return undefined;
 }
 
 /** Encapsulate key-repeat timing: short initial delay for responsiveness,

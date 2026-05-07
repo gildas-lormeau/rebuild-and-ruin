@@ -84,44 +84,32 @@ body {
   border-color: #9a5a5a;
 }
 
-/* D-pad */
-nav.dpad {
-  display: grid;
-  grid-template: repeat(3, var(--dpad-btn-size)) / repeat(
-      3,
-      var(--dpad-btn-size)
-    );
-  gap: 3vmin;
-
-  button {
-    border-radius: 1vmin;
-    background: #3a4a5e;
-    border: 2px solid #5a6a7e;
-    color: #c0d0e0;
-    font-size: min(24px, 3.75vmin);
-    font-weight: bold;
-    display: grid;
-    place-items: center;
-    transition:
-      opacity 0.25s ease-out,
-      transform 0.25s ease-out;
-  }
-
-  .up {
-    grid-area: 1 / 2;
-  }
-
-  .left {
-    grid-area: 2 / 1;
-  }
-
-  .right {
-    grid-area: 2 / 3;
-  }
-
-  .down {
-    grid-area: 3 / 2;
-  }
+/* D-pad: single circular touch surface. Bounding box stays at 3×3 dpad-btn
+   cells (matching the prior 4-button grid) so the surrounding portrait /
+   landscape layout keeps its dimensions. */
+.dpad {
+  width: calc(var(--dpad-btn-size) * 3);
+  height: calc(var(--dpad-btn-size) * 3);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at center,
+    #4a5b72 0%,
+    #2e3a4a 70%,
+    #1f2734 100%
+  );
+  border: 2px solid #5a6a7e;
+  color: #c0d0e0;
+  touch-action: none;
+  transition:
+    opacity 0.25s ease-out,
+    transform 0.25s ease-out;
+  /* Cardinal hint glyphs at N/E/S/W via background, no children needed. */
+  background-image:
+    radial-gradient(circle at 50% 12%, #c0d0e0 0 1.2vmin, transparent 1.4vmin),
+    radial-gradient(circle at 88% 50%, #c0d0e0 0 1.2vmin, transparent 1.4vmin),
+    radial-gradient(circle at 50% 88%, #c0d0e0 0 1.2vmin, transparent 1.4vmin),
+    radial-gradient(circle at 12% 50%, #c0d0e0 0 1.2vmin, transparent 1.4vmin),
+    radial-gradient(circle at center, #4a5b72 0%, #2e3a4a 70%, #1f2734 100%);
 }
 
 /* Loupe */
