@@ -208,12 +208,13 @@ export interface PhaseTransitionCtx {
    *  (so postDisplay hooks run against a clean screen). Banner steps
    *  never need this — `showBanner` overwrites cleanly. */
   readonly hideBanner: () => void;
-  /** Park a post-convergence callback. `runTransition` sets
-   *  `Mode.TRANSITION` (which drives `shouldUnzoom` true) then calls
-   *  this; the callback fires on the first fullMapVp + flat-pitch frame
-   *  so every mutate + display step runs against a full-map viewport.
-   *  See `CameraSystem.onCameraReady`. */
-  readonly onCameraReady: (onReady: () => void) => void;
+  /** Run `cb` once the camera has converged to fullMapVp with pitch
+   *  flat. `runTransition` sets `Mode.TRANSITION` (which drives
+   *  `shouldUnzoom` true) then calls this; `cb` fires on the first
+   *  fullMapVp + flat-pitch frame so every mutate + display step runs
+   *  against a full-map viewport. Fires synchronously when both already
+   *  hold. See `CameraSystem.awaitCameraFlat`. */
+  readonly awaitCameraFlat: (callback: () => void) => void;
   readonly setMode: (m: Mode) => void;
   readonly log: (msg: string) => void;
 
@@ -268,19 +269,14 @@ export interface PhaseTransitionCtx {
   /** Save the human player's crosshair position so it can be restored at
    *  the start of the next battle (touch UX). Host-only, no-op otherwise. */
   readonly saveBattleCrosshair?: () => void;
-  /** Camera pitch state machine — used by `proceedToBattle` to hold the
-   *  balloon-anim start until the build→battle tilt completes (otherwise
-   *  the drops play under a still-flattening camera). `"flat"` /
-   *  `"tilted"` are both "don't wait" (2D mode also reports `"flat"`);
-   *  only `"tilting"` / `"untilting"` block. Optional so headless
-   *  contexts that don't own a camera can skip wiring it. */
-  readonly getPitchState?: () => "flat" | "tilting" | "tilted" | "untilting";
-  /** Park a callback to fire on the next pitch settle. `proceedToBattle`
-   *  uses it when `getPitchState` reports a mid-animation value, to
-   *  resume the balloon-anim / battle-mode handoff once the tilt has
-   *  finished. See `CameraSystem.onPitchSettled`. Optional alongside
-   *  `getPitchState` for the same reason — headless contexts skip both. */
-  readonly onPitchSettled?: (callback: () => void) => void;
+  /** Run `cb` once the in-flight pitch animation completes (in either
+   *  direction). `proceedToBattle` uses it to hold balloon-anim start
+   *  until the build→battle tilt completes. Fires synchronously when
+   *  pitch is already settled (including headless `cameraTiltEnabled` =
+   *  false), so callers don't need a separate gate. See
+   *  `CameraSystem.awaitPitchSettled`. Optional so headless contexts
+   *  that don't own a camera can skip wiring it. */
+  readonly awaitPitchSettled?: (callback: () => void) => void;
   /** Start the build→battle tilt at battle-banner end. Called inside
    *  `proceedToBattle`. Optional so headless / watcher-without-camera
    *  contexts can skip it (2D wiring also skips — the renderer has no
@@ -832,10 +828,11 @@ export function runTransition(id: TransitionId, ctx: PhaseTransitionCtx): void {
 
   // Mode.TRANSITION held for the entire transition; postDisplay flips to
   // the terminal mode. isTransition → shouldUnzoom drives the flatten;
-  // onCameraReady parks the callback until the camera has converged.
+  // awaitCameraFlat fires `executeTransition` once the camera has
+  // converged (synchronously if it's already at fullMap + flat pitch).
   ctx.setMode(Mode.TRANSITION);
 
-  ctx.onCameraReady(() => {
+  ctx.awaitCameraFlat(() => {
     executeTransition(transition, ctx);
   });
 }
@@ -952,7 +949,7 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // Spec: `battle banner → tilt → balloons (skip if none) → ready → zoom`.
   // Tilt begins here (at battle-banner end) so it plays UNZOOMED, before
   // anything else. The phase machine has already reached fullMapVp via
-  // `onCameraReady`, and `handlePhaseChangeZoom` no longer implicitly
+  // `awaitCameraFlat`, and `handlePhaseChangeZoom` no longer implicitly
   // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
   // back to GAME inside `battle.begin`, which also starts the "ready"
   // countdown, so the zoom lerp and "ready" cue start together.
@@ -975,17 +972,14 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   };
 
   // Pitch gate: wait for the tilt we just requested (or any prior tilt
-  // still in progress) to settle before we either start balloons or
-  // flip to battle mode. `flat` / `tilted` are both "settled"; only
-  // `tilting` / `untilting` block. 2D mode always reports `flat`. The
-  // wait uses a closure-stored camera callback (`onPitchSettled`) — the
-  // event bus must not drive runtime control flow.
-  const pitchState = ctx.getPitchState?.() ?? "flat";
-  if (pitchState === "flat" || pitchState === "tilted") {
-    proceed();
-    return;
-  }
-  ctx.onPitchSettled?.(proceed);
+  // still in progress) to settle before we either start balloons or flip
+  // to battle mode. `awaitPitchSettled` fires `proceed` synchronously if
+  // pitch is already settled (or headless), so this single call covers
+  // both the mid-animation and already-done cases. Closure-stored
+  // callback (not Promise) — runtime ticks synchronously this frame on
+  // settle and a microtask hop would break mock-clock determinism.
+  if (ctx.awaitPitchSettled) ctx.awaitPitchSettled(proceed);
+  else proceed();
 }
 
 /** Apply the resolved upgrade picks into state + recheck territory.
@@ -1036,7 +1030,7 @@ function runPickerModalThenDispatch(ctx: PhaseTransitionCtx): void {
   if (!picker.tryShow(afterPicks)) afterPicks();
 }
 
-/** Run a transition synchronously, bypassing the `onCameraReady` wait.
+/** Run a transition synchronously, bypassing the `awaitCameraFlat` wait.
  *  Used ONLY when dispatched from inside another transition's
  *  `postDisplay`: the outer transition already unzoomed the camera and
  *  the unzoom state hasn't changed between then and now. Parks the
@@ -1204,7 +1198,7 @@ function runLifeLostDialogStep(
   }
   // Spec: `max time of build phase → scores → zoom → life lost popup`.
   // The score overlay just finished unzoomed (runTransition's
-  // setMode(TRANSITION) + onCameraReady gated display on fullMapVp).
+  // setMode(TRANSITION) + awaitCameraFlat gated display on fullMapVp).
   // Re-engage auto-zoom so the popup appears over the pov player's zone.
   ctx.engageAutoZoom?.();
   emitGameEvent(ctx.state.bus, GAME_EVENT.LIFE_LOST_DIALOG_SHOW, {

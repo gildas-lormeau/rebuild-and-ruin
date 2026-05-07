@@ -402,21 +402,23 @@ export interface CameraSystem {
   setCameraZone: (zone: number) => void;
 
   // Lifecycle commands
-  /** Park a callback to fire on the first frame where the viewport has
-   *  converged to fullMapVp AND pitch settled at 0. Does NOT trigger the
-   *  unzoom itself — `unzoomForOverlays` (driven by `shouldUnzoom`,
-   *  which includes `isTransition`) owns the flatten. Pair with
-   *  `setMode(Mode.TRANSITION)` before the call. `captureScene()` called
-   *  inside the callback reads full-map flat pixels. */
-  onCameraReady: (onReady: () => void) => void;
-  /** Park a callback to fire on the next pitch-animation settle. Used by
-   *  the phase machine's battle-banner postDisplay to gate balloon-anim /
-   *  battle-mode entry behind the build→battle tilt-in. Caller-overwrite
-   *  semantics. Replaces the former `GAME_EVENT.PITCH_SETTLED` bus
-   *  subscription (runtime control flow must not depend on the bus). */
-  onPitchSettled: (callback: () => void) => void;
+  /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
+   *  0. Fires synchronously when both already hold. Flattens the pitch
+   *  target as part of the call. Does NOT trigger the viewport unzoom —
+   *  `unzoomForOverlays` (driven by `shouldUnzoom`, which includes
+   *  `isTransition`) owns that. Pair with `setMode(Mode.TRANSITION)`
+   *  before the call. `captureScene()` called inside `cb` reads full-map
+   *  flat pixels. */
+  awaitCameraFlat: (callback: () => void) => void;
+  /** Run `cb` once the in-flight pitch animation completes (in either
+   *  direction — `flat` and `tilted` both count as settled). Fires
+   *  synchronously when pitch is already settled, including the headless
+   *  `cameraTiltEnabled === false` case. Used by the phase machine's
+   *  battle-banner postDisplay to gate balloon-anim / battle-mode entry
+   *  behind the build→battle tilt-in. Caller-overwrite semantics. */
+  awaitPitchSettled: (callback: () => void) => void;
   /** Post-render hook — called by the render loop after drawFrame.
-   *  Fires any pending `onCameraReady` callback when the viewport has
+   *  Fires any pending `awaitCameraFlat` callback when the viewport has
    *  converged to fullMapVp and pitch is settled. */
   onRenderedFrame: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
@@ -642,15 +644,16 @@ export interface GameRuntime {
    *  sweep completion — it sits in its `swept` state until a caller
    *  hides it or a new `showBanner` overwrites it. */
   hideBanner: () => void;
-  /** Park a callback to fire when the camera has converged to fullMapVp
-   *  with pitch flat. See `CameraSystem.onCameraReady`. Exposed so the
-   *  watcher's PhaseTransitionCtx (built outside this module) can gate
-   *  its own runTransition on convergence. */
-  onCameraReady: (onReady: () => void) => void;
-  /** Park a callback to fire on the next pitch-animation settle.
-   *  See `CameraSystem.onPitchSettled`. Exposed so the watcher's
-   *  PhaseTransitionCtx can gate balloon-anim entry on tilt-in. */
-  onPitchSettled: (callback: () => void) => void;
+  /** Run `cb` once the camera has converged to fullMapVp with pitch flat.
+   *  See `CameraSystem.awaitCameraFlat`. Exposed so the watcher's
+   *  PhaseTransitionCtx (built outside this module) can gate its own
+   *  runTransition on convergence. */
+  awaitCameraFlat: (callback: () => void) => void;
+  /** Run `cb` once the in-flight pitch animation completes (in either
+   *  direction). See `CameraSystem.awaitPitchSettled`. Exposed so the
+   *  watcher's PhaseTransitionCtx can gate balloon-anim entry on
+   *  tilt-in. */
+  awaitPitchSettled: (callback: () => void) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */

@@ -79,7 +79,7 @@ interface CameraDeps {
   getFrameDt: () => number;
   /** Whether camera pitch animations run. `false` in headless (no renderer
    *  to apply tilt); `true` in the browser, where the 3D renderer renders
-   *  tilt and the pitch animation drives `onPitchSettled` callbacks. */
+   *  tilt and the pitch animation drives `awaitPitchSettled` callbacks. */
   cameraTiltEnabled: boolean;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
@@ -116,7 +116,7 @@ interface CameraDeps {
  *  - `untilting`: easing battle → flat (or from an interrupted tilt back down).
  *
  *  Call sites that need the settle edge as a one-shot continuation
- *  park a callback via `onPitchSettled(cb)`. Call sites that already
+ *  park a callback via `awaitPitchSettled(cb)`. Call sites that already
  *  poll per tick (phase-ticks' untilt wait) read `getPitchState()`. */
 type PitchState = "flat" | "tilting" | "tilted" | "untilting";
 
@@ -226,13 +226,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // Pre-transition unzoom choreography — parked callback fired by the
   // post-render hook once drawFrame has rendered a full-map flat frame.
-  // Parked via `onCameraReady`; the flatten itself runs in
+  // Parked via `awaitCameraFlat`; the flatten itself runs in
   // `unzoomForOverlays` whenever `frameCtx.shouldUnzoom` is set.
   let pendingUnzoomReady: (() => void) | undefined;
 
   // Tilt-settle choreography — parked callback fired when `tickPitch`
-  // finishes the in-flight animation. Parked via `onPitchSettled`; the
-  // phase machine uses it to gate balloon-anim / battle-mode entry
+  // finishes the in-flight animation. Parked via `awaitPitchSettled`;
+  // the phase machine uses it to gate balloon-anim / battle-mode entry
   // behind the build→battle tilt-in.
   let pendingPitchSettled: (() => void) | undefined;
 
@@ -821,9 +821,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   /** Ease currentPitch toward targetPitch each frame. Hard-zero when tilt is
-   *  disabled (headless) — no animation runs, so `onPitchSettled` parked
-   *  callbacks never fire there (callers should gate on `getPitchState()` first
-   *  and skip parking when state is already `flat`/`tilted`). */
+   *  disabled (headless) — no animation runs, so `tickPitch` never invokes
+   *  the parked callback. `awaitPitchSettled` handles this by firing
+   *  synchronously when pitch is already settled (including the headless
+   *  always-flat case), so callers don't need to pre-check. */
   function tickPitch(): void {
     if (!deps.cameraTiltEnabled) {
       currentPitch = 0;
@@ -858,7 +859,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  Triggers: UI overlays (paused / quit / life-lost), mobile human-done
    *  predicates, phase-ending on desktop, and phase transitions.
    *
-   *  Does NOT touch pitch — that's `onCameraReady`'s job. Pitch flatten
+   *  Does NOT touch pitch — that's `awaitCameraFlat`'s job. Pitch flatten
    *  is coupled to "a display chain is about to run" (banner capture
    *  needs a flat scene), not to every transition frame, so flattening
    *  here would fight `beginBattleTilt` (which runs in BALLOON_ANIM /
@@ -1237,13 +1238,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Lifecycle commands ---
 
-  /** Park `onReady` to fire the first frame whose drawFrame ran at
-   *  fullMapVp AND pitch settled at 0. Callers (the phase machine's
-   *  `runTransition`) wait for that callback before running mutate +
-   *  display, which guarantees the banner's prev-scene capture reads a
-   *  full-map-rendered, flat pre-mutation frame.
+  /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
+   *  0. Callers (the phase machine's `runTransition`) wait for this before
+   *  running mutate + display, which guarantees the banner's prev-scene
+   *  capture reads a full-map-rendered, flat pre-mutation frame. Fires
+   *  synchronously when both conditions already hold.
    *
-   *  Flattens the pitch target as part of the request — battle→build
+   *  Flattens the pitch target as part of the call — battle→build
    *  transitions need the banner to capture a flat scene, and this is
    *  the one point where we know "a display chain is about to run"
    *  (after postDisplay, `beginBattleTilt` may re-tilt and we must not
@@ -1252,25 +1253,40 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  Viewport flatten is separate, driven by `unzoomForOverlays` on
    *  `frameCtx.shouldUnzoom` (which includes `isTransition`, so
    *  `setMode(Mode.TRANSITION)` before this call drives convergence). */
-  function onCameraReady(onReady: () => void): void {
+  function awaitCameraFlat(callback: () => void): void {
     setPitchTarget(0);
-    pendingUnzoomReady = onReady;
+    // Already flat (viewport at fullMap AND pitch at 0)? Fire synchronously
+    // — the runtime ticks on a mock clock in tests, so deferring would
+    // change replay timing.
+    if (lastVp === undefined && currentPitch === 0 && targetPitch === 0) {
+      callback();
+      return;
+    }
+    pendingUnzoomReady = callback;
   }
 
-  /** Park a callback to fire on the next pitch-animation settle.
+  /** Run `cb` once the in-flight pitch animation completes (in either
+   *  direction — `flat` or `tilted` both count as settled). Fires
+   *  synchronously when the pitch is already settled, including the
+   *  headless / `cameraTiltEnabled === false` case where `getPitchState()`
+   *  always reports `"flat"` and `tickPitch` never invokes the parked
+   *  callback. Without the sync-fire path, headless callers would hang.
    *
    *  Used by the phase machine's battle-banner postDisplay (see
    *  `proceedToBattleFromCtx`) to gate balloon-anim / battle-mode entry
-   *  behind the build→battle tilt-in. Callers are expected to check
-   *  `getPitchState()` first and only park this callback when pitch is
-   *  mid-animation (`tilting` / `untilting`); the callback is fired the
-   *  next time `tickPitch` reaches its target, regardless of which
-   *  target that is. `set` overwrites any prior pending callback.
+   *  behind the build→battle tilt-in. `set` overwrites any prior pending
+   *  callback.
    *
-   *  Closure-stored deliberately — runtime control flow must not depend
-   *  on the event bus (see feedback_bus_observation_only). Replaces the
-   *  former `GAME_EVENT.PITCH_SETTLED` subscription. */
-  function onPitchSettled(callback: () => void): void {
+   *  Closure-stored callbacks (not Promises) because the runtime ticks
+   *  synchronously this frame when an animation completes — `Promise.then`
+   *  would defer to a microtask the runtime can't schedule, breaking
+   *  mock-clock determinism. */
+  function awaitPitchSettled(callback: () => void): void {
+    const state = getPitchState();
+    if (state === "flat" || state === "tilted") {
+      callback();
+      return;
+    }
     pendingPitchSettled = callback;
   }
 
@@ -1347,7 +1363,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Current pitch state machine value. When tilt is disabled (headless)
    *  always `"flat"` — pitch is hard-zeroed by `tickPitch`. Sites that
-   *  need the settle edge as a one-shot continuation use `onPitchSettled`
+   *  need the settle edge as a one-shot continuation use `awaitPitchSettled`
    *  instead — this getter is for call sites that already poll per tick. */
   function getPitchState(): PitchState {
     if (!deps.cameraTiltEnabled) return "flat";
@@ -1466,8 +1482,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getMyZone,
     getBestEnemyZone,
     getEnemyZones,
-    onCameraReady,
-    onPitchSettled,
+    awaitCameraFlat,
+    awaitPitchSettled,
     onRenderedFrame,
     getCameraZone: getZoneTarget,
     getViewedZone,

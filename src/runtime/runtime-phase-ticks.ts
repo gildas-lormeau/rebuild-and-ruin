@@ -115,16 +115,16 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
 
   // Sibling systems / parent callbacks
   requestRender: () => void;
-  /** Park a post-convergence callback — threaded through to
-   *  `PhaseTransitionCtx` so `runTransition` can gate every mutate +
-   *  display step on the camera reaching fullMapVp. See
-   *  `CameraSystem.onCameraReady`. */
-  onCameraReady: (onReady: () => void) => void;
-  /** Park a pitch-settle callback — threaded through to
-   *  `PhaseTransitionCtx` so `proceedToBattle`'s postDisplay can gate
-   *  balloon-anim entry on the build→battle tilt-in completing.
-   *  See `CameraSystem.onPitchSettled`. */
-  onPitchSettled: (callback: () => void) => void;
+  /** Run `cb` after the camera has converged to fullMapVp with pitch
+   *  flat — threaded through to `PhaseTransitionCtx` so `runTransition`
+   *  can gate every mutate + display step on convergence. See
+   *  `CameraSystem.awaitCameraFlat`. */
+  awaitCameraFlat: (callback: () => void) => void;
+  /** Run `cb` after the in-flight pitch animation completes — threaded
+   *  through to `PhaseTransitionCtx` so `proceedToBattle`'s postDisplay
+   *  can gate balloon-anim entry on the build→battle tilt-in completing.
+   *  See `CameraSystem.awaitPitchSettled`. */
+  awaitPitchSettled: (callback: () => void) => void;
   /** Show a full-screen banner. `onDone` fires once when the sweep
    *  completes. Sequencing banners is the phase machine's job — each
    *  display step invokes its own `showBanner` in the display sequence;
@@ -326,7 +326,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       timing: deps.timing,
       showBanner: deps.showBanner,
       hideBanner: deps.hideBanner,
-      onCameraReady: deps.onCameraReady,
+      awaitCameraFlat: deps.awaitCameraFlat,
       setMode: (mode) => setMode(runtimeState, mode),
       log: deps.log,
       scoreDelta: deps.scoreDelta,
@@ -371,8 +371,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         for (const ctrl of local) ctrl.endBattle();
       },
       saveBattleCrosshair: deps.saveBattleCrosshair,
-      getPitchState: deps.getPitchState,
-      onPitchSettled: deps.onPitchSettled,
+      awaitPitchSettled: deps.awaitPitchSettled,
       beginBattleTilt: deps.beginBattleTilt,
       engageAutoZoom: deps.engageAutoZoom,
       lifeLost: {

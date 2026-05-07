@@ -7,7 +7,7 @@
     "mobileZoomEnabled": true
   },
   "timeoutMs": 480000,
-  "eventCount": 8308,
+  "eventCount": 8307,
   "events": [
     {
       "type": "tick",
@@ -28470,12 +28470,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerSweepEnd",
       "payload": {
         "bannerKind": "cannon-place",
@@ -37462,18 +37456,18 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "cannonDamaged",
       "payload": {
         "cannonIdx": 2,
         "newHp": 0,
         "playerId": 0,
         "shooterId": 1
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -38527,15 +38521,15 @@
       }
     },
     {
-      "type": "battleCease",
-      "payload": {
-        "round": 2
-      }
-    },
-    {
       "type": "tick",
       "payload": {
         "dt": 0.016666666666666666
+      }
+    },
+    {
+      "type": "battleCease",
+      "payload": {
+        "round": 2
       }
     },
     {
@@ -44892,6 +44886,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 1,
@@ -44900,12 +44900,6 @@
           1113,
           1070
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -50492,6 +50486,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 2,
@@ -50501,12 +50501,6 @@
           104,
           149
         ]
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {

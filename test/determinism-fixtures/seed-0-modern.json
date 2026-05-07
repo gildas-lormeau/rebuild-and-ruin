@@ -6,7 +6,7 @@
     "rounds": 2
   },
   "timeoutMs": 480000,
-  "eventCount": 8210,
+  "eventCount": 8209,
   "events": [
     {
       "type": "tick",
@@ -28626,12 +28626,6 @@
       }
     },
     {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
-      }
-    },
-    {
       "type": "bannerSweepEnd",
       "payload": {
         "bannerKind": "cannon-place",
@@ -30891,6 +30885,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "phaseEnd",
       "payload": {
         "phase": "CANNON_PLACE",
@@ -30912,12 +30912,6 @@
         "round": 2,
         "subtitle": "Shoot at enemy walls",
         "text": "Prepare for Battle"
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
@@ -44584,6 +44578,12 @@
       }
     },
     {
+      "type": "tick",
+      "payload": {
+        "dt": 0.016666666666666666
+      }
+    },
+    {
       "type": "wallPlaced",
       "payload": {
         "playerId": 0,
@@ -44607,12 +44607,6 @@
         "col": 23,
         "row": 25,
         "victimPlayerId": 0
-      }
-    },
-    {
-      "type": "tick",
-      "payload": {
-        "dt": 0.016666666666666666
       }
     },
     {
