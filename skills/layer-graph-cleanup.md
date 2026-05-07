@@ -27,6 +27,29 @@ Implications for this workflow:
 - Periodically to detect coupling drift (pain points increasing, domain mismatches appearing)
 - When a new architectural boundary is desired (e.g., "input should not know about render")
 
+## Step 0 — Surface candidates with the audit scripts
+
+Before reading the graph, get a ranked list of files whose declared layer-group looks suspicious:
+
+```bash
+deno run -A scripts/audit-layer-classification.ts
+```
+
+Three independent signals flag a file:
+- **HEADER** — leading docstring self-claims a tier/role (e.g. `'roots' tier`, "composition root", "leaf module") that disagrees with the JSON tier
+- **NAME** — filename convention disagrees with tier (e.g. `*-composition.ts` outside roots/assembly; `*-types.ts` with value exports — annotated as misnamed; `*-types.ts` with only type exports at non-types tier — annotated as a system limitation)
+- **IMPORTS** — domain spread implies a wiring/composition shape (≥2 of input/render/online, or ≥5 distinct domains) at types/logic/systems tiers
+
+Files are ranked by signal count. Pure-types files at non-types tiers are explicitly labelled as a layer-system limitation rather than a misnamed file (the layer system can't represent "deeper types" — every L5+ group has a non-types tier).
+
+For any flagged file, find which import is pinning its layer:
+
+```bash
+deno run -A scripts/audit-layer-pins.ts src/runtime/foo.ts src/render/bar.ts
+```
+
+This lists the file's imports annotated by `(layer, group, tier)`, sorted deepest-first. The top entry is the pin — moving the file to a different layer requires changing this dep. Without arguments the script runs against a default candidate set (the current open audit findings).
+
 ## Step 1 — Generate the collapsed graph
 
 ```bash
