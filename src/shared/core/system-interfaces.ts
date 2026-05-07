@@ -411,6 +411,17 @@ export interface InputReceiver {
   /** Release a held key (battle). */
   handleKeyUp(action: Action): void;
 
+  /** Set the analog d-pad vector for continuous crosshair aiming (touch
+   *  circle pad). Components are expected to be in [-1, 1]; magnitude
+   *  ≤ 1 acts as a fractional speed scale. While set, takes precedence
+   *  over `heldActions` in the crosshair update — keyboard cardinals
+   *  are ignored until `clearDpadVector()` is called. */
+  setDpadVector(x: number, y: number): void;
+
+  /** Release the analog d-pad vector (touchend / touchcancel / phase
+   *  exit). Crosshair movement falls back to `heldActions`. */
+  clearDpadVector(): void;
+
   /** Rotate the current build piece clockwise. */
   rotatePiece(state: BuildViewState): void;
 

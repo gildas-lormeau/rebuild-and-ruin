@@ -49,6 +49,11 @@ export class HumanController extends BaseController implements InputReceiver {
   private modern = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
+  /** Analog d-pad vector for continuous crosshair aiming (touch circle pad).
+   *  When set, takes precedence over `heldActions` cardinals in
+   *  `moveCrosshairFromInput`. Components are unit-vector by convention; the
+   *  touch handler normalizes (with a center dead-zone) before writing. */
+  private dpadVector: { x: number; y: number } | undefined;
 
   constructor(playerId: ValidPlayerSlot, keys: KeyBindings) {
     super(playerId);
@@ -237,11 +242,22 @@ export class HumanController extends BaseController implements InputReceiver {
    *  AI uses tile-step movement (Manhattan, one axis at a time with jitter).
    *  Do NOT copy between controller-human.ts and controller-ai.ts. */
   private moveCrosshairFromInput(dt: number): void {
-    if (this.heldActions.size === 0) return;
+    if (this.dpadVector === undefined && this.heldActions.size === 0) return;
     const speed =
       CROSSHAIR_SPEED *
       (this.heldActions.has(Action.ROTATE) ? CROSSHAIR_SPRINT_MULTIPLIER : 1) *
       dt;
+    if (this.dpadVector !== undefined) {
+      this.crosshair.x = Math.max(
+        0,
+        Math.min(MAP_PX_W, this.crosshair.x + this.dpadVector.x * speed),
+      );
+      this.crosshair.y = Math.max(
+        0,
+        Math.min(MAP_PX_H, this.crosshair.y + this.dpadVector.y * speed),
+      );
+      return;
+    }
     if (this.heldActions.has(Action.UP))
       this.crosshair.y = Math.max(0, this.crosshair.y - speed);
     if (this.heldActions.has(Action.DOWN))
@@ -355,6 +371,14 @@ export class HumanController extends BaseController implements InputReceiver {
     this.heldActions.delete(action);
   }
 
+  setDpadVector(x: number, y: number): void {
+    this.dpadVector = { x, y };
+  }
+
+  clearDpadVector(): void {
+    this.dpadVector = undefined;
+  }
+
   getCannonPlaceMode(): CannonMode {
     return this.cannonPlaceMode;
   }
@@ -366,12 +390,14 @@ export class HumanController extends BaseController implements InputReceiver {
 
   override endBattle(): void {
     this.heldActions.clear();
+    this.dpadVector = undefined;
   }
 
   override onLifeLost(): void {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
+    this.dpadVector = undefined;
   }
 
   /** Reset state for new game. */
@@ -379,6 +405,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.reset();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
+    this.dpadVector = undefined;
   }
 }
 

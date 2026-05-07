@@ -223,6 +223,8 @@ export class AiAssistedHumanController
   }
   handleKeyDown(_action: Action): void {}
   handleKeyUp(_action: Action): void {}
+  setDpadVector(_x: number, _y: number): void {}
+  clearDpadVector(): void {}
   rotatePiece(_state: BuildViewState): void {}
   tryPlacePiece(_state: BuildViewState): null {
     return null;
