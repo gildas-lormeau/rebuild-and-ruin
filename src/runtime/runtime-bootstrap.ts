@@ -30,49 +30,20 @@ import {
 } from "../shared/ui/settings-defs.ts";
 import { type RuntimeState, setRuntimeGameState } from "./runtime-state.ts";
 
-interface InitGameDeps {
-  seed: number;
-  maxPlayers: number;
-  /** Reuse an existing map (e.g. from lobby) to avoid regeneration and keep terrain cache warm. */
-  existingMap?: GameMap;
-  /** Game settings to apply after state creation. */
-  maxRounds: number;
-  cannonMaxHp: number;
-  buildTimer: number;
-  cannonPlaceTimer: number;
-  firstRoundCannons: number;
-  /** Game mode: "classic" or "modern". */
-  gameMode: GameMode;
-  /** Which slots are human (true = human, false/missing = AI). */
-  humanSlots: readonly boolean[];
-  /** Per-slot key bindings (only used for human slots). */
-  keyBindings: readonly (KeyBindings | undefined)[];
-  /** AI difficulty level (0=Easy, 1=Normal, 2=Hard, 3=Very Hard). */
-  difficulty?: number;
-  log: (msg: string) => void;
-  clearFrameData: () => void;
-  setState: (nextState: GameState) => void;
-  setControllers: (nextControllers: readonly PlayerController[]) => void;
-  resetUIState: () => void;
+interface BootstrapFromSettingsDeps {
+  readonly clearFrameData: () => void;
+  readonly resetUIState: () => void;
   /** Called after state + controllers are ready. Enters tower selection. */
-  enterSelection: () => void;
+  readonly enterSelection: () => void;
   /** Called immediately after `setState`, before controllers are created.
    *  Hook for any subscription that needs to bind to the fresh `state.bus`
    *  (sound / haptics / stats observers). Required because each game gets
    *  a new bus and the previous game's subscription is discarded with it. */
-  onStateReady: () => void;
+  readonly onStateReady: () => void;
   /** Optional override for per-slot controller construction. When unset
    *  (production path), `createController` is used. Tests inject a wrapper
    *  to install `AiAssistedHumanController` for selected slots from
    *  bootstrap onward — see `assistedSlots` in `test/runtime-headless.ts`. */
-  controllerFactory?: ControllerFactory;
-}
-
-interface BootstrapFromSettingsDeps {
-  readonly clearFrameData: () => void;
-  readonly resetUIState: () => void;
-  readonly enterSelection: () => void;
-  readonly onStateReady: () => void;
   readonly controllerFactory?: ControllerFactory;
 }
 
@@ -84,7 +55,24 @@ interface ResolvedGameConfig {
   buildTimer: number;
   cannonPlaceTimer: number;
   firstRoundCannons: number;
+  /** Game mode: "classic" or "modern". */
   gameMode: GameMode;
+}
+
+interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
+  seed: number;
+  maxPlayers: number;
+  /** Reuse an existing map (e.g. from lobby) to avoid regeneration and keep terrain cache warm. */
+  existingMap?: GameMap;
+  /** Which slots are human (true = human, false/missing = AI). */
+  humanSlots: readonly boolean[];
+  /** Per-slot key bindings (only used for human slots). */
+  keyBindings: readonly (KeyBindings | undefined)[];
+  /** AI difficulty level (0=Easy, 1=Normal, 2=Hard, 3=Very Hard). */
+  difficulty?: number;
+  log: (msg: string) => void;
+  setState: (nextState: GameState) => void;
+  setControllers: (nextControllers: readonly PlayerController[]) => void;
 }
 
 /** Create an AI-only controller (no key bindings). Used during initial game

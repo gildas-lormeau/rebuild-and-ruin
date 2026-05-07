@@ -1,24 +1,6 @@
 import { CannonMode } from "./battle-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
-/** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
-export type CannonPhantom = {
-  row: number;
-  col: number;
-  valid: boolean;
-  mode: CannonMode;
-  playerId: ValidPlayerSlot;
-};
-
-/** Remote piece phantom. `valid` controls placement coloring (green = valid, dark gray = invalid). */
-export type PiecePhantom = {
-  offsets: [number, number][];
-  row: number;
-  col: number;
-  playerId: ValidPlayerSlot;
-  valid: boolean;
-};
-
 /** Common positional fields shared between the cannon placement event and
  *  the preview phantom. Split out because the placement event carries an
  *  `applyAt` lockstep stamp that the phantom (a render preview) does not. */
@@ -36,11 +18,15 @@ export interface CannonPlacedPayload extends CannonShapePayload {
   applyAt: number;
 }
 
-/** Network payload for a cannon phantom (includes validity for coloring).
- *  Phantoms render only — they do not enqueue, so they carry no applyAt. */
-export interface CannonPhantomPayload extends CannonShapePayload {
+/** Cannon phantom (placement preview). `valid` controls placement coloring
+ *  (green/red). Used in-memory by controllers/renderers and on the wire —
+ *  phantoms render only, so they carry no `applyAt`. */
+export interface CannonPhantom extends CannonShapePayload {
   valid: boolean;
 }
+
+/** Wire alias — same shape as the in-memory phantom. */
+export type CannonPhantomPayload = CannonPhantom;
 
 /** Common positional fields shared between the placement event and the
  *  preview phantom. Split out because the placement event carries an
@@ -60,11 +46,16 @@ export interface PiecePlacedPayload extends PieceShapePayload {
   applyAt: number;
 }
 
-/** Network payload for a piece phantom (includes validity for coloring).
- *  Phantoms render only — they do not enqueue, so they carry no applyAt. */
-export interface PiecePhantomPayload extends PieceShapePayload {
+/** Piece phantom (placement preview). `valid` controls placement coloring
+ *  (green = valid, dark gray = invalid). Used in-memory by controllers/
+ *  renderers and on the wire — phantoms render only, so they carry no
+ *  `applyAt`. */
+export interface PiecePhantom extends PieceShapePayload {
   valid: boolean;
 }
+
+/** Wire alias — same shape as the in-memory phantom. */
+export type PiecePhantomPayload = PiecePhantom;
 
 /** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.
  *  Use `shouldSend()` to check + update atomically; `clear()` on reset. */

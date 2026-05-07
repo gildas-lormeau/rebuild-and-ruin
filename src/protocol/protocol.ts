@@ -18,8 +18,13 @@ import {
   type WallDestroyedMessage,
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
-import type { CannonMode } from "../shared/core/battle-types.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
+import type {
+  CannonPhantomPayload,
+  CannonPlacedPayload,
+  PiecePhantomPayload,
+  PiecePlacedPayload,
+} from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
@@ -270,53 +275,29 @@ export interface FullStateMessage {
   }[];
 }
 
-/** An opponent (AI) placed a wall piece. */
-export interface OpponentPiecePlacedMessage {
+/** An opponent (AI) placed a wall piece. The inherited `applyAt` lockstep
+ *  tick fires the action schedule at the matching tick on every peer, so
+ *  the order-sensitive `recheckTerritory → removeEnclosedGruntsAndRespawn`
+ *  cascade consumes RNG identically across peers. */
+export interface OpponentPiecePlacedMessage extends PiecePlacedPayload {
   type: "opponentPiecePlaced";
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  offsets: [number, number][];
-  /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
-   *  receiver enqueue with this stamp; the action schedule fires it at
-   *  the matching tick on every peer, so order-sensitive logic
-   *  (recheckTerritory → removeEnclosedGruntsAndRespawn) consumes RNG
-   *  identically across peers. */
-  applyAt: number;
 }
 
 /** An opponent's phantom piece position (for rendering ghost). */
-export interface OpponentPhantomMessage {
+export interface OpponentPhantomMessage extends PiecePhantomPayload {
   type: "opponentPhantom";
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  offsets: [number, number][];
-  valid: boolean;
 }
 
-/** An opponent (AI) placed a cannon. */
-export interface OpponentCannonPlacedMessage {
+/** An opponent (AI) placed a cannon. The inherited `applyAt` lockstep tick
+ *  aligns cannon-slot occupancy and the consequent `cannonPlaceDone`
+ *  checkpointing across peers. */
+export interface OpponentCannonPlacedMessage extends CannonPlacedPayload {
   type: "opponentCannonPlaced";
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  mode: CannonMode;
-  /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
-   *  receiver enqueue with this stamp; the action schedule fires it at
-   *  the matching tick on every peer, so cannon-slot occupancy and the
-   *  consequent `cannonPlaceDone` checkpointing align. */
-  applyAt: number;
 }
 
 /** An opponent's phantom cannon position (for rendering ghost). */
-export interface OpponentCannonPhantomMessage {
+export interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
   type: "opponentCannonPhantom";
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  mode: CannonMode;
-  valid: boolean;
 }
 
 /** An opponent confirmed their tower selection. */

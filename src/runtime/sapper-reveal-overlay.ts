@@ -12,21 +12,16 @@
  */
 
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
-import type { RenderView } from "../shared/core/render-view.ts";
 import {
   deriveModifierRamp,
   type ModifierRampContext,
 } from "./modifier-reveal-ramp.ts";
-import type { ActiveBannerState } from "./runtime-contracts.ts";
 
 interface SapperRevealRampState {
   sapperRevealRampStartMs: number | undefined;
 }
 
 interface DeriveInput extends ModifierRampContext {
-  readonly view: Pick<RenderView, "phase" | "modern">;
-  readonly banner: ActiveBannerState | { status: "hidden" };
-  readonly now: number;
   readonly state: SapperRevealRampState;
 }
 

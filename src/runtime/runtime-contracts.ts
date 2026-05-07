@@ -34,6 +34,7 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type {
+  BannerContent,
   BannerUi,
   GameOverOverlay,
   LoupeHandle,
@@ -241,15 +242,9 @@ export interface OnlineOverlayParams {
  *    is only visible for the tick window between sweep-end and that
  *    terminal hide.
  */
-export interface ActiveBannerState {
+export interface ActiveBannerState extends BannerContent {
   status: "sweeping" | "swept";
   progress: number;
-  text: string;
-  subtitle?: string;
-  /** Identity of this banner. Banner events carry this field so
-   *  consumers can discriminate without reading `phase` (which lies
-   *  during the upgrade-pick flow) or matching text. */
-  kind: BannerKind;
   /** Pixel snapshot of the scene composited below the sweep line during
    *  animation — the old scene, captured before the phase mutation that
    *  the banner is announcing. Supplied by the caller (`showBanner` opts)
@@ -261,13 +256,6 @@ export interface ActiveBannerState {
    *  snapshots are frozen for the duration of the sweep; the live
    *  renderer does not repaint world contents during a banner. */
   newScene?: SceneCapture;
-  /** Opaque accent-palette key for the banner chrome. Indexed by the
-   *  renderer into its own palette table. `undefined` = default palette.
-   *  Banner-system-agnostic: the value happens to coincide with a
-   *  `ModifierId` for the modifier-reveal banner today, but the banner
-   *  system doesn't know that — callers just pass a string key that
-   *  the renderer recognizes. */
-  paletteKey?: string;
 }
 
 /** Banner state is a discriminated union: `hidden` carries no fields
@@ -631,18 +619,8 @@ export interface TouchControlsDeps {
 /** Callback signature for showing phase-transition banners. */
 export type BannerShow = (opts: BannerShowOpts) => void;
 
-export interface BannerShowOpts {
-  readonly text: string;
+export interface BannerShowOpts extends BannerContent {
   readonly onDone: () => void;
-  /** Banner identity — threaded onto every BANNER_* event so consumers
-   *  (music, SFX, tests) can discriminate without reading `phase` (which
-   *  lies during the upgrade-pick flow) or matching text. */
-  readonly kind: BannerKind;
-  readonly subtitle?: string;
-  /** Opaque accent-palette key for the banner chrome (title + border
-   *  colors). The renderer indexes this into its own palette table —
-   *  the banner system treats it as a string. */
-  readonly paletteKey?: string;
 }
 
 /** Injected timing primitives. Production callers (main.ts, online-runtime-game.ts)

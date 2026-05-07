@@ -13,12 +13,10 @@
  */
 
 import { MODIFIER_ID } from "../shared/core/game-constants.ts";
-import type { RenderView } from "../shared/core/render-view.ts";
 import {
   deriveModifierRamp,
   type ModifierRampContext,
 } from "./modifier-reveal-ramp.ts";
-import type { ActiveBannerState } from "./runtime-contracts.ts";
 import { wavedRamp } from "./waved-ramp.ts";
 
 interface FogRevealRampState {
@@ -28,9 +26,6 @@ interface FogRevealRampState {
 }
 
 interface DeriveInput extends ModifierRampContext {
-  readonly view: Pick<RenderView, "phase" | "modern">;
-  readonly banner: ActiveBannerState | { status: "hidden" };
-  readonly now: number;
   /** Holder for cross-frame ramp-start state. Mutated. */
   readonly state: FogRevealRampState;
 }

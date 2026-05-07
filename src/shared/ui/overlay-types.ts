@@ -304,12 +304,27 @@ export interface BattleOverlay {
   gruntSurgeSpawnTiles?: readonly number[];
 }
 
-/** Banner sweep UI — shared shape returned by `createBannerUi` and
- *  used verbatim as `UIOverlay.banner`. */
-export interface BannerUi {
+/** Display content carried by a banner unchanged across its three layers
+ *  (request → runtime state → render output). Each layer extends this with
+ *  layer-specific extras (caller adds `onDone`; runtime adds animation
+ *  state; renderer adds geometry). */
+export interface BannerContent {
+  /** Banner identity — threaded onto every BANNER_* event so consumers
+   *  (music, SFX, tests) can discriminate without reading `phase` (which
+   *  lies during the upgrade-pick flow) or matching text. */
   kind: BannerKind;
   text: string;
   subtitle?: string;
+  /** Opaque accent-palette key. The renderer indexes this into its
+   *  palette table to recolor the banner chrome (border + title).
+   *  Undefined = default palette. The banner system treats this as an
+   *  uninterpreted string. */
+  paletteKey?: string;
+}
+
+/** Banner sweep UI — shared shape returned by `createBannerUi` and
+ *  used verbatim as `UIOverlay.banner`. */
+export interface BannerUi extends BannerContent {
   /** Top edge of the banner strip (map-pixel coords, integer-rounded
    *  by `createBannerUi`). Consumers that need to clip above the
    *  sweep line use this. */
@@ -318,11 +333,6 @@ export interface BannerUi {
    *  by `createBannerUi`). Consumers that need to clip below the
    *  sweep line use this. */
   bottom: number;
-  /** Opaque accent-palette key. The renderer indexes this into its
-   *  palette table to recolor the banner chrome (border + title).
-   *  Undefined = default palette. The banner system treats this as an
-   *  uninterpreted string. */
-  paletteKey?: string;
   /** Pixel snapshot of the scene composited below the sweep line
    *  during the banner animation (the old scene, captured before the
    *  phase mutation that the banner is announcing). */

@@ -30,6 +30,7 @@ import {
 import type {
   CameraSystem,
   RuntimeConfig,
+  RuntimeLifecycle,
   RuntimeLifeLost,
   RuntimeSelection,
   RuntimeUpgradePick,
@@ -82,15 +83,10 @@ interface GameLifecycleDeps {
   readonly isTouchDevice: boolean;
 }
 
-interface GameLifecycleSystem {
-  resetUIState: () => void;
-  startGame: () => Promise<void>;
+interface GameLifecycleSystem extends RuntimeLifecycle {
   endGame: (winner: { id: number }) => void;
-  rematch: () => void | Promise<void>;
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
-  teardownSession: () => void;
-  finalizeGameOver: (setFrame: () => void) => void;
 }
 
 interface LifecycleWiringDeps {
