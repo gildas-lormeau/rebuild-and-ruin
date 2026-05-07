@@ -33,6 +33,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { CannonViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import { traitLookup } from "./ai-constants.ts";
 
@@ -98,7 +99,7 @@ const RAMPART_SLOT_THRESHOLD = 4;
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
 export function autoSelectTower(
   map: GameMap,
-  zone: number,
+  zone: ZoneId,
   rng: Rng,
   spatialAwareness = 2,
 ): Tower | null {

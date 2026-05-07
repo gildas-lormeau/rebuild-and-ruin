@@ -22,6 +22,7 @@ import {
   isHuman,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { IS_DEV } from "../shared/platform/platform.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import {
@@ -117,7 +118,7 @@ export interface E2EBridgeSnapshot {
    *  Reset tests verify these match across quit / rematch boundaries;
    *  multi-phase tests can check zoom engagement at specific phases. */
   camera: {
-    cameraZone: number | undefined;
+    cameraZone: ZoneId | undefined;
     pitch: number;
     pitchState: "flat" | "tilting" | "tilted" | "untilting";
     hasViewport: boolean;
@@ -236,7 +237,7 @@ interface E2EBridgeDeps {
   camera: {
     worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
     getViewport: () => Viewport | undefined;
-    getCameraZone: () => number | undefined;
+    getCameraZone: () => ZoneId | undefined;
     getPitch: () => number;
     getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
     isMobileAutoZoom: () => boolean;

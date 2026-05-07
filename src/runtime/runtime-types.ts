@@ -88,6 +88,7 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type {
   LifeLostDialogState,
   ResolvedChoice,
@@ -389,17 +390,17 @@ export interface CameraSystem {
 
   // Zone queries
   povPlayerId: () => number;
-  getMyZone: () => number | null;
-  getBestEnemyZone: () => number | null;
-  getEnemyZones: () => number[];
+  getMyZone: () => ZoneId | null;
+  getBestEnemyZone: () => ZoneId | null;
+  getEnemyZones: () => ZoneId[];
 
   // Zoom state
-  getCameraZone: () => number | undefined;
+  getCameraZone: () => ZoneId | undefined;
   /** The zone the user is visually looking at — explicit zone target if set,
    *  otherwise the zone at the pinch viewport center, or undefined when on
    *  full map / over a river. Drives the touch zone-cycle button preview. */
-  getViewedZone: () => number | undefined;
-  setCameraZone: (zone: number) => void;
+  getViewedZone: () => ZoneId | undefined;
+  setCameraZone: (zone: ZoneId) => void;
 
   // Lifecycle commands
   /** Run `cb` once the next-rendered frame is at fullMap AND pitch is at
@@ -454,7 +455,7 @@ export interface RuntimeSelection {
    *  the lifeLostRoute reselect cycle. */
   enter: (queue?: readonly ValidPlayerSlot[]) => void;
   syncOverlay: () => void;
-  highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
+  highlight: (idx: number, zone: ZoneId, pid: ValidPlayerSlot) => void;
   confirmAndStartBuild: (
     pid: ValidPlayerSlot,
     source?: "local" | "network",

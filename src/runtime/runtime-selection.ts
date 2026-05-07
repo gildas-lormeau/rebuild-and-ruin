@@ -22,6 +22,7 @@ import {
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { BANNER_SELECT } from "./banner-messages.ts";
@@ -124,7 +125,8 @@ export function createSelectionSystem(
     // sequences without wire chatter. Remote humans (other peers' input)
     // come in via OPPONENT_TOWER_SELECTED.
     for (const pid of slots) {
-      const zone = state.playerZones[pid] ?? 0;
+      const zone = state.playerZones[pid];
+      if (zone === undefined) continue;
       const ctrl = runtimeState.controllers[pid]!;
       if (!isRemotePlayer(pid, remotePlayerSlots)) {
         ctrl.selectTower(state, zone);
@@ -166,7 +168,7 @@ export function createSelectionSystem(
   /** Highlight a tower for a player's selection UI. */
   function highlightTowerForPlayer(
     idx: number,
-    zone: number,
+    zone: ZoneId,
     pid: ValidPlayerSlot,
   ): void {
     const changed = highlightTowerSelection(

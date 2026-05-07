@@ -20,6 +20,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";
@@ -248,7 +249,7 @@ export function buildGrid(
   return grid;
 }
 
-export function zoneBounds(state: GameState, zone: number): Rect | undefined {
+export function zoneBounds(state: GameState, zone: ZoneId): Rect | undefined {
   let minRow = GRID_ROWS;
   let maxRow = 0;
   let minCol = GRID_COLS;

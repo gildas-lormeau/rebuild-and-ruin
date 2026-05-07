@@ -17,6 +17,7 @@ import type {
 } from "../runtime/runtime-contracts.ts";
 import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
 import { playerByZone } from "../shared/core/spatial.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
 import { rgb, TOUCH_ZOOM_BG, ZOOM_BUTTON_ALPHA } from "../shared/ui/theme.ts";
@@ -146,14 +147,14 @@ export function createZoneCycleButton(
 } {
   const buttons = queryAll(container, "zoom-zone");
 
-  function getMyZone(): number | null {
+  function getMyZone(): ZoneId | null {
     const state = deps.getState();
     if (!state) return null;
     const pid = deps.povPlayerId();
     return pid >= 0 ? (state.playerZones[pid] ?? null) : null;
   }
 
-  function getCycle(): number[] {
+  function getCycle(): ZoneId[] {
     const myZone = getMyZone();
     const enemies = deps.getEnemyZones();
     return myZone !== null ? [myZone, ...enemies] : enemies;
@@ -165,11 +166,11 @@ export function createZoneCycleButton(
    *  camera is on full map / over a river / mid-CASTLE_SELECT. So a pinch
    *  on enemy B previews enemy C as the next cycle step, and an unzoomed
    *  view previews enemy 1 (cycling out from home). */
-  function effectiveCurrentZone(): number | undefined {
+  function effectiveCurrentZone(): ZoneId | undefined {
     return deps.getViewedZone() ?? getMyZone() ?? undefined;
   }
 
-  function nextZone(): number | undefined {
+  function nextZone(): ZoneId | undefined {
     const zones = getCycle();
     if (zones.length === 0) return undefined;
     const current = effectiveCurrentZone();

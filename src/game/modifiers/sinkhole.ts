@@ -18,6 +18,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import {
   getActiveZones,
@@ -214,7 +215,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
  *  given size in the target zone. */
 function findValidShapePlacements(
   state: GameState,
-  zone: number,
+  zone: ZoneId,
   size: number,
 ): ShapePlacement[] {
   const canSink = buildCanSinkPredicate(state, zone);

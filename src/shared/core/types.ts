@@ -27,6 +27,7 @@ import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
+import type { ZoneId } from "./zone-id.ts";
 
 export interface GameState {
   /** Optional runtime-instance label for cross-runtime debugging.
@@ -92,7 +93,7 @@ export interface GameState {
    *  Separate from timer. 0 = battle active. */
   battleCountdown: number;
   /** Zone index assigned to each player (indexed by player id). Set at game start. */
-  playerZones: number[];
+  playerZones: ZoneId[];
   /** Cannon slot limits per player for the current cannon phase.
    *  Computed by computeCannonLimitsForPhase at CANNON_PLACE start.
    *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.

@@ -65,6 +65,7 @@ import {
   type PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,
@@ -183,7 +184,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Selection phase
   // -----------------------------------------------------------------------
 
-  override selectTower(state: GameState, zone: number): void {
+  override selectTower(state: GameState, zone: ZoneId): void {
     initSelection(this, this.selectionPhase, state, zone);
   }
 

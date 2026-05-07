@@ -12,6 +12,7 @@
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { floodFillZones } from "./map-generation.ts";
 
 export function recomputeMapZones(state: GameState): void {
@@ -19,7 +20,7 @@ export function recomputeMapZones(state: GameState): void {
 
   // Anchor each raw region back to the tower's prior zone ID so cached
   // `tower.zone` and `state.playerZones[pid]` stay valid.
-  const remap = new Map<number, number>();
+  const remap = new Map<number, ZoneId>();
   let nextId = 0;
   for (const tower of state.map.towers) {
     const rawId = rawZones[tower.row]?.[tower.col] ?? 0;
@@ -36,7 +37,7 @@ export function recomputeMapZones(state: GameState): void {
     for (let c = 0; c < GRID_COLS; c++) {
       const rawId = row[c]!;
       if (rawId === 0 || remap.has(rawId)) continue;
-      remap.set(rawId, ++nextId);
+      remap.set(rawId, ++nextId as ZoneId);
     }
   }
 

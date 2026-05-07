@@ -1,4 +1,5 @@
 import type { Tile } from "./grid.ts";
+import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
 export interface TilePos {
   row: number;
@@ -24,7 +25,7 @@ export interface WorldPos {
 }
 
 export interface Tower extends TilePos {
-  zone: number;
+  zone: ZoneId;
   /** Index into the GameMap.towers array (stable after generation). */
   index: number;
 }
@@ -40,7 +41,7 @@ export interface Castle {
 }
 
 export interface House extends TilePos {
-  zone: number;
+  zone: ZoneId;
   alive: boolean;
 }
 
@@ -48,7 +49,7 @@ export interface GameMap {
   tiles: Tile[][];
   towers: Tower[];
   houses: House[];
-  zones: number[][];
+  zones: ZoneCell[][];
   junction: PixelPos;
   exits: PixelPos[];
   /** Bumped when tiles are mutated in place (e.g., sinkhole).
@@ -73,5 +74,5 @@ export interface TileBounds {
 }
 
 export interface BonusSquare extends TilePos {
-  zone: number;
+  zone: ZoneId;
 }

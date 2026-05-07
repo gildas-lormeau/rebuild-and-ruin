@@ -10,6 +10,7 @@ import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { ComboEvent, GameState } from "./types.ts";
+import type { ZoneId } from "./zone-id.ts";
 
 /** Narrowed slice of ModernState read by the render layer.
  *  Includes only what overlay builders need — no pending upgrade offers,
@@ -65,7 +66,7 @@ interface RenderViewShared {
   readonly towerAlive: readonly boolean[];
   readonly burningPits: readonly BurningPit[];
   readonly bonusSquares: readonly BonusSquare[];
-  readonly playerZones: readonly number[];
+  readonly playerZones: readonly ZoneId[];
   readonly modern: RenderModernSlice | null;
 }
 

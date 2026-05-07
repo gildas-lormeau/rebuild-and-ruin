@@ -9,6 +9,7 @@ import {
   isHuman,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import {
@@ -129,7 +130,7 @@ interface InputSystemDeps {
     pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
   };
   readonly selection: {
-    highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
+    highlight: (idx: number, zone: ZoneId, pid: ValidPlayerSlot) => void;
     confirmAndStartBuild: (pid: ValidPlayerSlot) => boolean;
     isReady: () => boolean;
   };
@@ -645,7 +646,7 @@ function buildZoomDeps(deps: InputSystemDeps) {
     setCameraZone: camera.setCameraZone,
     povPlayerId: camera.povPlayerId,
     getEnemyZones: camera.getEnemyZones,
-    aimAtZone: (zone: number) => {
+    aimAtZone: (zone: ZoneId) => {
       const state = safeState(runtimeState);
       if (!state) return;
       const px = zoneTowerCenterPx(state.playerZones, state.players, zone);

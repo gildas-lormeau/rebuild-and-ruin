@@ -22,6 +22,7 @@ import {
   unpackTile,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import type { ZoneId } from "../../shared/core/zone-id.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,
@@ -129,7 +130,7 @@ export function applyFireScar(
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.
  *  Retries with a new seed if the walk gets stuck (e.g., boxed in by water/towers). */
-function generateWildfireScar(state: GameState, zone: number): Set<number> {
+function generateWildfireScar(state: GameState, zone: ZoneId): Set<number> {
   const canBurn = buildCanBurnPredicate(state, zone);
 
   // Collect seed candidates (interior tiles only — skip map border)

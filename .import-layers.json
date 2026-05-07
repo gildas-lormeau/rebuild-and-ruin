@@ -34,6 +34,7 @@
       "src/shared/core/player-slot.ts",
       "src/shared/core/trajectory.ts",
       "src/shared/core/upgrade-defs.ts",
+      "src/shared/core/zone-id.ts",
       "src/shared/platform/ail-to-wopl.ts",
       "src/shared/platform/platform.ts",
       "src/shared/platform/rng.ts",

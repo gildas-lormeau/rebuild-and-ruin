@@ -25,6 +25,7 @@ import type {
 } from "../core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../core/player-slot.ts";
 import type { FreshInterior } from "../core/player-types.ts";
+import type { ZoneId } from "../core/zone-id.ts";
 import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
 
@@ -427,7 +428,7 @@ export interface RenderOverlay {
    *  game start). Renderers use `playerByZone()` to resolve a tile's zone
    *  to its owning player slot — encodes the river-isolation invariant
    *  that each zone has at most one player. */
-  playerZones?: readonly number[];
+  playerZones?: readonly ZoneId[];
 }
 
 /**

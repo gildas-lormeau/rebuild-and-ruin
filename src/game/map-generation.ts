@@ -23,6 +23,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
+import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 
 interface ZoneStats {
@@ -184,7 +185,7 @@ export function generateMap(seed?: number): GameMap {
 export function topZonesBySize(
   map: GameMap,
   count: number,
-): { zone: number; count: number }[] {
+): { zone: ZoneId; count: number }[] {
   const counts = new Map<number, number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -197,7 +198,7 @@ export function topZonesBySize(
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, count)
-    .map(([zone, count]) => ({ zone, count }));
+    .map(([zone, count]) => ({ zone: zone as ZoneId, count }));
 }
 
 /** Pack a freshly generated map into a `GameMap`. Extracted so the
@@ -214,7 +215,7 @@ function buildMapResult(
     tiles,
     towers,
     houses: [],
-    zones,
+    zones: zones as ZoneCell[][],
     junction,
     exits,
     mapVersion: nextMapVersion(),
@@ -371,7 +372,8 @@ function placeTowers(
 
   const towers: Tower[] = [];
 
-  for (const zoneId of sortedRegions) {
+  for (const rawZoneId of sortedRegions) {
+    const zoneId = rawZoneId as ZoneId;
     // Collect all valid positions in this zone
     const validPositions: [number, number][] = [];
     for (let r = 0; r < GRID_ROWS - 1; r++) {

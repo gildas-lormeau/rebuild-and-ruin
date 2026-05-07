@@ -35,6 +35,7 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import { type GameState, setGameMode } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 
@@ -44,7 +45,7 @@ export function createGameFromSeed(
   seed: number,
   maxPlayers: number,
   existingMap?: GameMap,
-): { map: GameMap; state: GameState; zones: number[]; playerCount: number } {
+): { map: GameMap; state: GameState; zones: ZoneId[]; playerCount: number } {
   const map = existingMap ?? generateMap(seed);
   const zones = topZonesBySize(map, maxPlayers).map(({ zone }) => zone);
   const playerCount = Math.min(zones.length, maxPlayers);

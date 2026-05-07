@@ -25,6 +25,7 @@ import type {
   UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type {
   LifeLostEntry,
@@ -97,7 +98,7 @@ export abstract class BaseController implements PlayerController {
 
   updateBindings(_keys: KeyBindings): void {}
   /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
-  abstract selectTower(state: GameViewState, zone: number): void;
+  abstract selectTower(state: GameViewState, zone: ZoneId): void;
   /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
   abstract placeCannons(state: CannonViewState, maxSlots: number): void;
   /** Whether the player has placed all their cannons (slots exhausted or timer expired). */

@@ -25,6 +25,7 @@ import type {
   LobbyState,
   SelectionState,
 } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Action } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,
@@ -375,12 +376,12 @@ export interface ZoomButtonDeps {
    *  target, or the zone at a pinch viewport center, or undefined when
    *  the camera is on full map / over a river. Used to base the cycle's
    *  "next zone" preview on the actually-visible zone. */
-  getViewedZone: () => number | undefined;
-  setCameraZone: (zone: number) => void;
+  getViewedZone: () => ZoneId | undefined;
+  setCameraZone: (zone: ZoneId) => void;
   povPlayerId: () => number;
-  getEnemyZones: () => number[];
+  getEnemyZones: () => ZoneId[];
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
-  aimAtZone?: (zone: number) => void;
+  aimAtZone?: (zone: ZoneId) => void;
 }
 
 export interface FloatingActionsDeps {
@@ -567,7 +568,7 @@ export interface GameActionDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (
     idx: number,
-    zone: number,
+    zone: ZoneId,
     pid: ValidPlayerSlot,
   ) => void;
   confirmSelectionAndStartBuild: (pid: ValidPlayerSlot) => boolean;

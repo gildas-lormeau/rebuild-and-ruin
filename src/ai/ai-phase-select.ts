@@ -8,6 +8,7 @@
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { selectPlayerTower } from "../shared/core/player-types.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 
@@ -50,7 +51,7 @@ export function initSelection(
   host: SelectionHost,
   phase: SelectionPhase,
   state: GameViewState,
-  zone: number,
+  zone: ZoneId,
 ): void {
   const player = state.players[host.playerId];
   if (!player) return;

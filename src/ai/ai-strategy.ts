@@ -39,6 +39,7 @@ import type {
   CannonViewState,
   GameViewState,
 } from "../shared/core/system-interfaces.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
@@ -79,7 +80,7 @@ export interface AiStrategy {
   readonly rng: Rng;
 
   /** Pick a home tower for the AI player. Returns the chosen tower or null. */
-  chooseBestTower(map: GameMap, zone: number): Tower | null;
+  chooseBestTower(map: GameMap, zone: ZoneId): Tower | null;
 
   /** Pick the best placement for the current piece. */
   pickPlacement(
@@ -367,7 +368,7 @@ export class DefaultStrategy implements AiStrategy {
   // Tower selection
   // -----------------------------------------------------------------------
 
-  chooseBestTower(map: GameMap, zone: number): Tower | null {
+  chooseBestTower(map: GameMap, zone: ZoneId): Tower | null {
     return autoSelectTower(map, zone, this.rng, this.spatialAwareness);
   }
 

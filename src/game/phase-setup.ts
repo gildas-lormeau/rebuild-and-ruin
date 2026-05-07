@@ -70,6 +70,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
@@ -537,7 +538,7 @@ function applyLifePenalties(state: GameState): {
  *  River-state outside the zone (frozen river, river-edge effects whose
  *  tiles aren't owned by this zone) is untouched — modifiers are global
  *  by definition; only their per-zone footprint goes away here. */
-function resetZoneState(state: GameState, zone: number): void {
+function resetZoneState(state: GameState, zone: ZoneId): void {
   state.grunts = state.grunts.filter((grunt) => {
     if (state.map.zones[grunt.row]?.[grunt.col] === zone) return false;
     // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
@@ -573,7 +574,7 @@ function resetZoneState(state: GameState, zone: number): void {
  *  Low-water tiles are river state per the user's principle — they stay
  *  grass and remain in the lowWaterTiles tracker so clearLowWater
  *  reverts them at the next round's prepareBattleState. */
-function restoreZoneGrass(state: GameState, zone: number): void {
+function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   const anchor = state.map.towers.find((tower) => tower.zone === zone);
   if (!anchor) return;
   const tiles = state.map.tiles;

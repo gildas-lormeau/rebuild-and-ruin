@@ -51,8 +51,10 @@ import {
   playerByZone,
   pxToTile,
   unpackTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { FrameContext, GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui/ui-mode.ts";
 import {
@@ -160,7 +162,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // User-driven camera target. Single union — exactly one kind at a time.
   type UserTarget =
     | { readonly kind: "fullMap" }
-    | { readonly kind: "zone"; readonly zone: number }
+    | { readonly kind: "zone"; readonly zone: ZoneId }
     | { readonly kind: "pinch"; readonly viewport: Viewport };
   const FULL_MAP_TARGET: UserTarget = { kind: "fullMap" };
   let target: UserTarget = FULL_MAP_TARGET;
@@ -270,7 +272,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Target accessors ---
 
-  function getZoneTarget(): number | undefined {
+  function getZoneTarget(): ZoneId | undefined {
     return target.kind === "zone" ? target.zone : undefined;
   }
 
@@ -286,7 +288,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  undefined when the viewport center is over a river / letterbox tile,
    *  or when the camera is at full map. (Zone 0 is the water sentinel from
    *  `floodFillZones` — player zones start at 1.) */
-  function getViewedZone(): number | undefined {
+  function getViewedZone(): ZoneId | undefined {
     if (target.kind === "zone") return target.zone;
     if (target.kind === "pinch") {
       const state = deps.getState();
@@ -297,8 +299,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
         return undefined;
       }
-      const zoneId = state.map.zones[row]?.[col];
-      return zoneId !== undefined && zoneId > 0 ? zoneId : undefined;
+      return zoneAt(state.map, row, col);
     }
     return undefined;
   }
@@ -351,19 +352,19 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return deps.getCtx().povPlayerId;
   }
 
-  function getMyZone(): number | null {
+  function getMyZone(): ZoneId | null {
     const state = deps.getState();
     if (!state) return null;
     return state.playerZones[povPlayerId()] ?? null;
   }
 
-  function getBestEnemyZone(): number | null {
+  function getBestEnemyZone(): ZoneId | null {
     const state = deps.getState();
     if (!state) return null;
     return bestEnemyZone(state.players, state.playerZones, povPlayerId());
   }
 
-  function getEnemyZones(): number[] {
+  function getEnemyZones(): ZoneId[] {
     const state = deps.getState();
     if (!state) return [];
     return enemyZones(state.players, state.playerZones, povPlayerId());
@@ -371,7 +372,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Tile-bounds of a zone, scanned from `state.map.zones`. Cache keyed
    *  on `state.map.mapVersion` so tile-mutating modifiers invalidate it. */
-  function computeZoneTileBounds(zoneId: number): TileBounds {
+  function computeZoneTileBounds(zoneId: ZoneId): TileBounds {
     const state = deps.getState()!;
     if (state.map.mapVersion !== cachedZoneTileBoundsMapVersion) {
       cachedZoneTileBounds.clear();
@@ -405,7 +406,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  tower bounding box). Falls back to the home tower alone when the
    *  player has no walls yet, then to the zone's static tile center when
    *  the zone has no occupant. */
-  function computeZoneViewport(zoneId: number): Viewport {
+  function computeZoneViewport(zoneId: ZoneId): Viewport {
     const center = castleCenterPx(zoneId);
     const w = MAP_PX_W * ZONE_AUTO_ZOOM_RATIO;
     const h = MAP_PX_H * ZONE_AUTO_ZOOM_RATIO;
@@ -418,7 +419,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  box of walls + home tower (best for the zone-cycle use case so the
    *  whole castle area frames symmetrically). Falls back to the home tower
    *  when there are no walls, then to the zone's static tile-rect center. */
-  function castleCenterPx(zoneId: number): { x: number; y: number } {
+  function castleCenterPx(zoneId: ZoneId): { x: number; y: number } {
     const state = deps.getState();
     const pid = state ? playerByZone(state.playerZones, zoneId) : undefined;
     const player = pid !== undefined ? state!.players[pid] : undefined;
@@ -638,14 +639,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  the crosshair is missing, off-grid, or over a river / letterbox tile.
    *  (Zone 0 is the water sentinel from `floodFillZones` — player zones
    *  start at 1, so a 0 result means "no zone" and is mapped to null.) */
-  function currentCrosshairZone(state: GameState): number | null {
+  function currentCrosshairZone(state: GameState): ZoneId | null {
     const ch = deps.getPointerPlayerCrosshair?.();
     if (!ch) return null;
     const row = pxToTile(ch.y);
     const col = pxToTile(ch.x);
     if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return null;
-    const zoneId = state.map.zones[row]?.[col];
-    return zoneId !== undefined && zoneId > 0 ? zoneId : null;
+    return zoneAt(state.map, row, col) ?? null;
   }
 
   // --- Edge-pan ---
@@ -1370,7 +1370,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return pitchState;
   }
 
-  function setCameraZone(zone: number): void {
+  function setCameraZone(zone: ZoneId): void {
     setCameraZoneInternal(zone, "userZone");
   }
 
@@ -1384,7 +1384,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  zone-cycle button during castle selection thus updates the button
    *  color without disturbing the tower frame.) */
   function setCameraZoneInternal(
-    zone: number,
+    zone: ZoneId,
     source: CameraTargetSource,
   ): void {
     setTargetAndEmit({ kind: "zone", zone }, source);

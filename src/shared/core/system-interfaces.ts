@@ -27,6 +27,7 @@ import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
+import type { ZoneId } from "./zone-id.ts";
 
 /** Minimal game-state slice used in controller method signatures.
  *  Breaks the coupling chain: consumers of controller interfaces no longer
@@ -93,7 +94,7 @@ export interface BattleViewState extends GameViewState {
   readonly cannonMaxHp: number;
   readonly capturedCannons: readonly CapturedCannon[];
   readonly burningPits: readonly BurningPit[];
-  readonly playerZones: readonly number[];
+  readonly playerZones: readonly ZoneId[];
   /** Cannons whose fire has been scheduled on this peer but not yet
    *  drained. See `GameState.pendingCannonFires`. Read by `canFireOwnCannon`
    *  to avoid double-fire during the lockstep SAFETY window. */
@@ -162,7 +163,7 @@ export interface SelectionController {
    *  the player picks a new home tower because their previous territory
    *  was destroyed). Initiates async selection — use selectionTick() to
    *  advance. */
-  selectTower(state: GameViewState, zone: number): void;
+  selectTower(state: GameViewState, zone: ZoneId): void;
 
   /** Tick during selection phase.
    *  Returns true when the player has confirmed their tower choice (AI auto-confirms

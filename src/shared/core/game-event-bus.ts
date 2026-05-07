@@ -14,6 +14,7 @@ import type { Phase } from "./game-phase.ts";
 import type { Viewport } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
+import type { ZoneId } from "./zone-id.ts";
 
 /** Identity of the banner being shown — carried on every BANNER_START /
  *  BANNER_SWEEP_END / BANNER_HIDDEN / BANNER_REPLACED event. Consumers
@@ -171,7 +172,7 @@ export type LifecycleEvent =
       | {
           type: "cameraTarget";
           kind: "zone";
-          zone: number;
+          zone: ZoneId;
           source: CameraTargetSource;
         }
       | {

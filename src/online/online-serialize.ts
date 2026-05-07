@@ -34,6 +34,7 @@ import {
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { toCannonMode } from "./online-types.ts";
 
@@ -154,7 +155,7 @@ export function restoreFullStateSnapshot(
   state.cannonLimits = msg.cannonLimits;
   state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerSlot[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
-  state.playerZones = msg.playerZones;
+  state.playerZones = msg.playerZones as ZoneId[];
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
   setGameMode(
@@ -206,7 +207,7 @@ export function restoreFullStateSnapshot(
   state.bonusSquares = msg.bonusSquares.map((bonus) => ({
     row: bonus.row,
     col: bonus.col,
-    zone: bonus.zone,
+    zone: bonus.zone as ZoneId,
   }));
 
   // Restore RNG internal state
@@ -265,7 +266,7 @@ function applyHousesCheckpoint(
   state.map.houses = houses.map((h) => ({
     row: h.row,
     col: h.col,
-    zone: h.zone,
+    zone: h.zone as ZoneId,
     alive: h.alive,
   }));
 }

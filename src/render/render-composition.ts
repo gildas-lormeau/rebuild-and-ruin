@@ -265,8 +265,11 @@ export function lifeLostPanelPos(
   view: RenderView,
   playerId: ValidPlayerSlot,
 ): { px: number; py: number } {
-  const zone = view.playerZones[playerId] ?? 0;
-  const zoneTowers = view.map.towers.filter((tower) => tower.zone === zone);
+  const zone = view.playerZones[playerId];
+  const zoneTowers =
+    zone === undefined
+      ? []
+      : view.map.towers.filter((tower) => tower.zone === zone);
   // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
   const cx =
     zoneTowers.length > 0

@@ -52,6 +52,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {
@@ -363,7 +364,7 @@ function recomputeTerritoryFromWalls(state: GameState, player: Player): void {
 function findBonusSpawnCandidates(
   tiles: readonly (readonly Tile[])[],
   zones: readonly (readonly number[])[],
-  zoneId: number,
+  zoneId: ZoneId,
   occupied: ReadonlySet<number>,
   enclosed: ReadonlySet<number>,
 ): [number, number][] {

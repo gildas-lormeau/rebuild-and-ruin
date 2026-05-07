@@ -147,7 +147,8 @@ export function enterSelectionPhase(
   selectionStates.clear();
   const slots = pids ?? state.players.map((_, i) => i as ValidPlayerSlot);
   for (const pid of slots) {
-    const zone = state.playerZones[pid] ?? 0;
+    const zone = state.playerZones[pid];
+    if (zone === undefined) continue;
     initTowerSelection(state, selectionStates, pid, zone);
   }
   initSelectionTimer(state);

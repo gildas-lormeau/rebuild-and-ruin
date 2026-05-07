@@ -23,9 +23,10 @@ import {
 } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
-import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import type { GameMap, PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { isPlayerEliminated } from "./player-types.ts";
+import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
 /** 90° angle step (π/2 radians) — used for 4-direction snapping. */
 export const FACING_90_STEP = Math.PI / 2;
@@ -146,9 +147,9 @@ export function towerCenter(tilePos: TilePos): {
 /** Pixel center of the home tower owned by the player in `zone`, or null
  *  if no player occupies that zone or the player has no tower. */
 export function zoneTowerCenterPx(
-  playerZones: readonly number[],
+  playerZones: readonly ZoneId[],
   players: readonly ({ homeTower: Tower | null } | null | undefined)[],
-  zone: number,
+  zone: ZoneId,
 ): PixelPos | null {
   const pid = playerByZone(playerZones, zone);
   const tower = pid !== undefined ? players[pid]?.homeTower : null;
@@ -306,7 +307,7 @@ export function findNearestTower(
   towers: readonly Tower[],
   currentIdx: number,
   direction: Action,
-  zone?: number,
+  zone?: ZoneId,
 ): number {
   const current = towers[currentIdx]!;
   let bestIdx = currentIdx;
@@ -593,10 +594,10 @@ export function isAtTile(obj: TilePos, row: number, col: number): boolean {
 /** Return the distinct zones of all non-eliminated enemies. */
 export function enemyZones(
   players: readonly { eliminated: boolean }[],
-  playerZones: readonly number[],
+  playerZones: readonly ZoneId[],
   myPid: number,
-): number[] {
-  const zones: number[] = [];
+): ZoneId[] {
+  const zones: ZoneId[] = [];
   for (let i = 0; i < players.length; i++) {
     if (i === myPid || isPlayerEliminated(players[i])) continue;
     const zone = playerZones[i];
@@ -620,8 +621,8 @@ export function battleTargetPosition(
     score: number;
     homeTower: TilePos | null;
   }[],
-  playerZones: readonly number[],
-  zones: readonly (readonly number[])[],
+  playerZones: readonly ZoneId[],
+  zones: readonly (readonly ZoneCell[])[],
   myPid: number,
   lastPos: { x: number; y: number } | undefined,
 ): { x: number; y: number } | null {
@@ -630,7 +631,7 @@ export function battleTargetPosition(
     const row = pxToTile(lastPos.y);
     const col = pxToTile(lastPos.x);
     const zone = zones[row]?.[col];
-    if (zone !== undefined) {
+    if (zone !== undefined && zone !== 0) {
       const pid = playerByZone(playerZones, zone);
       if (
         pid !== undefined &&
@@ -656,11 +657,24 @@ export function battleTargetPosition(
  *  zones are exclusive: at most one player per zone (river isolation).
  *  Use this in place of `playerZones.indexOf(zone)`. */
 export function playerByZone(
-  playerZones: readonly number[],
-  zone: number,
+  playerZones: readonly ZoneId[],
+  zone: ZoneId,
 ): number | undefined {
   const pid = playerZones.indexOf(zone);
   return pid >= 0 ? pid : undefined;
+}
+
+/** Boundary helper: read a cell from `map.zones` and return it as a `ZoneId`,
+ *  or `undefined` for out-of-bounds and water cells (the `0` sentinel).
+ *  All grid reads should go through this so the water sentinel cannot leak
+ *  into APIs expecting a validated zone id. */
+export function zoneAt(
+  map: GameMap,
+  row: number,
+  col: number,
+): ZoneId | undefined {
+  const cell = map.zones[row]?.[col];
+  return cell === undefined || cell === 0 ? undefined : cell;
 }
 
 /** Pixel center of a tower footprint. */
@@ -680,9 +694,9 @@ export function pxToTile(px: number): number {
 /** Return the zone of the highest-scoring non-eliminated enemy, or null. */
 export function bestEnemyZone(
   players: readonly { eliminated: boolean; score: number }[],
-  playerZones: readonly number[],
+  playerZones: readonly ZoneId[],
   myPid: number,
-): number | null {
+): ZoneId | null {
   let bestPid = -1;
   let bestScore = -1;
   for (let i = 0; i < players.length; i++) {

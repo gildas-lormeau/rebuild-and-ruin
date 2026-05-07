@@ -24,6 +24,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
@@ -385,7 +386,7 @@ export function orderCastleWallsForAnimation(
  * Appends new houses to state.map.houses.
  * Private — only called internally during castle finalization.
  */
-function spawnHousesInZone(state: GameState, zoneId: number): void {
+function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
   const { tiles, towers, zones } = state.map;
   const towerTiles = buildTowerTileSet(towers);
 
@@ -453,7 +454,7 @@ function isValidHousePos(
   towerTiles: Set<number>,
   r: number,
   c: number,
-  zoneId: number,
+  zoneId: ZoneId,
 ): boolean {
   if (!isGrass(tiles, r, c)) return false;
   if (zones[r]![c] !== zoneId) return false;

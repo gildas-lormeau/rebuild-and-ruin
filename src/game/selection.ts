@@ -8,12 +8,13 @@ import {
   selectPlayerTower,
 } from "../shared/core/player-types.ts";
 import { type GameState, type SelectionState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 
 export function initTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   playerId: ValidPlayerSlot,
-  zone: number,
+  zone: ZoneId,
 ): void {
   const player = state.players[playerId]!;
   const towerIdx = player.homeTower
@@ -35,7 +36,7 @@ export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   idx: number,
-  zone: number,
+  zone: ZoneId,
   playerId: ValidPlayerSlot,
 ): boolean {
   const tower = state.map.towers[idx];
@@ -142,7 +143,7 @@ function isSelectionPending(
   return state !== undefined && !state.confirmed;
 }
 
-function zoneTowerIndices(state: GameState, zone: number): number[] {
+function zoneTowerIndices(state: GameState, zone: ZoneId): number[] {
   return state.map.towers
     .map((tower, i) => ({ tower, i }))
     .filter(({ tower }) => tower.zone === zone)

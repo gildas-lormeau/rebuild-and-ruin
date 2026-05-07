@@ -212,7 +212,8 @@ export function dispatchTowerSelect(
   deps.withPointerPlayer((human) => {
     const selectionState = gameAction.getSelectionStates().get(human.playerId);
     if (!selectionState) return;
-    const zone = state.playerZones[human.playerId] ?? 0;
+    const zone = state.playerZones[human.playerId];
+    if (zone === undefined) return;
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== undefined && state.map.towers[idx]?.zone === zone) {
       const alreadyHighlighted = selectionState.highlighted === idx;
@@ -338,7 +339,8 @@ export function dispatchGameAction(
     const selectionState = deps.getSelectionStates().get(ctrl.playerId);
     if (!selectionState) return false;
     if (isMovementAction(action)) {
-      const zone = state.playerZones[ctrl.playerId] ?? 0;
+      const zone = state.playerZones[ctrl.playerId];
+      if (zone === undefined) return false;
       const next = findNearestTower(
         state.map.towers,
         selectionState.highlighted,
@@ -398,7 +400,8 @@ export function dispatchPointerMove(
         .getSelectionStates()
         .get(human.playerId);
       if (!selectionState) return;
-      const zone = state.playerZones[human.playerId] ?? 0;
+      const zone = state.playerZones[human.playerId];
+      if (zone === undefined) return;
       const w = coords.screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
       if (

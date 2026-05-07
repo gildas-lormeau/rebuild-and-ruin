@@ -1,6 +1,7 @@
 import { isPerfHudEnabled, setPerfHudEnabled } from "../render/3d/perf-hud.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import {
   buildGrid,
   buildLegend,
@@ -103,7 +104,8 @@ export function exposeDevConsole(
         legend = true,
       } = opts;
       const grid = buildGrid(state, layer, player);
-      const crop = zone !== undefined ? zoneBounds(state, zone) : undefined;
+      const crop =
+        zone !== undefined ? zoneBounds(state, zone as ZoneId) : undefined;
       if (zone !== undefined && !crop) return "";
       const text = renderPlainGrid(
         grid,
