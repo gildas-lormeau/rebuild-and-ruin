@@ -93,7 +93,7 @@
     ]
   },
   {
-    "name": "wire format & config types",
+    "name": "wire payloads & shared definitions",
     "tier": "types",
     "files": [
       "src/shared/core/cannon-mode-defs.ts",
@@ -103,7 +103,7 @@
     ]
   },
   {
-    "name": "core game state & server stubs",
+    "name": "core state & adjacent types",
     "tier": "types",
     "files": [
       "src/online/online-types.ts",

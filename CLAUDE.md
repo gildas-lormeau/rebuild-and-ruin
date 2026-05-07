@@ -33,7 +33,7 @@ Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `s
 
 ### Module layers (18 groups in 5 tiers, `.import-layers.json`)
 Each layer group has a `tier` for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L17).
-L0 leaf modules → L1 foundational types → L2 derived types & local entry → L3 wire format & config types → L4 core game state & server stubs → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration → L13 wiring & local entry → L14 composition roots → L15 online deps wiring → L16 online runtime composition → L17 online client entry. Imports must flow downward (higher layer imports lower).
+L0 leaf modules → L1 foundational types → L2 derived types & local entry → L3 wire payloads & shared definitions → L4 core state & adjacent types → L5 first logic → L6 upgrades, modifiers & runtime contracts → L7 cross-domain handlers → L8 subsystems → L9 system implementations → L10 mid-depth assembly → L11 system composition → L12 phase orchestration → L13 wiring & local entry → L14 composition roots → L15 online deps wiring → L16 online runtime composition → L17 online client entry. Imports must flow downward (higher layer imports lower).
 Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L2, `main.ts` at L13, `online-client.ts` at L17).
 
 ### Type file organization (L1–L4)
