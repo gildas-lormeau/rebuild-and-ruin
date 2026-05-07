@@ -151,9 +151,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   //
   // updateViewport() lerps currentVp toward the resolved target each tick.
 
-  // Platform & session flags
+  // Platform flag — true on touch devices (set by `enableMobileZoom`,
+  // called from input setup). Gates every auto-zoom code path via
+  // `mobileAutoZoomActive`. Survives `resetCamera` (session-level, not
+  // per-game) since the platform doesn't change between matches.
   let mobileZoomEnabled = false;
-  let zoomActivated = false;
 
   // User-driven camera target. Single union — exactly one kind at a time.
   type UserTarget =
@@ -313,40 +315,32 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (target.kind === "pinch") return target.viewport;
     const viewport: Viewport = { x: seed.x, y: seed.y, w: seed.w, h: seed.h };
     target = { kind: "pinch", viewport };
-    zoomActivated = true;
     return viewport;
   }
 
   // --- Target writers ---
-  //
-  // `zoomActivated` is the session arm flag — once true, it stays true until
-  // `resetCamera` re-arms it on a fresh match. These setters intentionally
-  // do NOT touch `zoomActivated`; arming is an orthogonal concern, set
-  // explicitly at the user-input sites (zone-cycle button, pinch start,
-  // tap-nudge, follow-crosshair, life-lost, phase-entry default).
 
   /** Set the user-driven target without side effects beyond the assignment.
    *  Used by silent paths (overlay-unzoom, overlay-restore, river-pan,
    *  pinch-update, pinch-out snap, clearAll). Does not emit a CAMERA_TARGET
-   *  event and does not touch `zoomActivated` or `tapNudge`. The optional
-   *  `transient` flag marks river-pan-style writes whose viewport should
-   *  not be persisted to per-phase memory. */
+   *  event and does not touch `tapNudge`. The optional `transient` flag
+   *  marks river-pan-style writes whose viewport should not be persisted
+   *  to per-phase memory. */
   function setTargetSilent(next: UserTarget, transient = false): void {
     target = next;
     targetIsTransient = transient;
   }
 
-  /** Set the user-driven target, arm auto-zoom, clear any in-flight tap-nudge
-   *  animation, and emit a CAMERA_TARGET event. The single entry point for
-   *  explicit "go-to" commands (button, follow-crosshair, life-lost,
-   *  phase-entry default). Always called with a non-fullMap target. */
+  /** Set the user-driven target, clear any in-flight tap-nudge animation,
+   *  and emit a CAMERA_TARGET event. The single entry point for explicit
+   *  "go-to" commands (button, follow-crosshair, life-lost, phase-entry
+   *  default). Always called with a non-fullMap target. */
   function setTargetAndEmit(
     next: UserTarget,
     source: CameraTargetSource,
   ): void {
     target = next;
     targetIsTransient = false;
-    zoomActivated = true;
     tapNudge = undefined;
     emitCameraTarget(source);
   }
@@ -546,12 +540,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Single source of truth for "is mobile auto-zoom active right now?".
    *  By definition auto-zoom only applies when a human player owns the
    *  pointer on a touch device — all-AI rematch / lobby demo / spectator
-   *  must read as inactive even when `mobileZoomEnabled` / `zoomActivated`
-   *  are still latched from a prior session. Every read site (predicate,
-   *  per-frame tick, viewport selection, follow-crosshair, etc.) routes
-   *  through here so the invariant lives in one place. */
+   *  must read as inactive even when `mobileZoomEnabled` is still latched
+   *  from a prior session. Every read site (predicate, per-frame tick,
+   *  viewport selection, follow-crosshair, etc.) routes through here so
+   *  the invariant lives in one place. */
   function mobileAutoZoomActive(): boolean {
-    return mobileZoomEnabled && zoomActivated && deps.hasPointerPlayer();
+    return mobileZoomEnabled && deps.hasPointerPlayer();
   }
 
   function tickCamera(): void {
@@ -1180,7 +1174,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       kind: "pinch",
       viewport: { x, y, w: newW, h: newH },
     });
-    zoomActivated = true;
     currentVp.x = x;
     currentVp.y = y;
     currentVp.w = newW;
@@ -1301,11 +1294,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Clear every camera-target / tracking field. Used by both `teardownSession`
    *  (game-over / quit-to-lobby) and `resetCamera` (rematch bootstrap). The
    *  goal is "no field can leak across game boundaries". The platform flag
-   *  (`mobileZoomEnabled`) and the session-arm flag (`zoomActivated`) survive
-   *  — `resetCamera` owns re-arming. The rendered-frame state (`currentVp`,
-   *  `currentPitch`) also survives because clearing it on quit would
-   *  jump-cut the visible viewport mid-transition; on rematch we want the
-   *  snap, so `resetCamera` does it explicitly. */
+   *  (`mobileZoomEnabled`) survives because it reflects the device, not the
+   *  session. The rendered-frame state (`currentVp`, `currentPitch`) also
+   *  survives because clearing it on quit would jump-cut the visible
+   *  viewport mid-transition; on rematch we want the snap, so
+   *  `resetCamera` does it explicitly. */
   function clearAllZoomState(): void {
     setTargetSilent(FULL_MAP_TARGET);
     tapNudge = undefined;
@@ -1323,8 +1316,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function resetCamera(): void {
     clearAllZoomState();
-    // Re-arm auto-zoom for the next match.
-    zoomActivated = mobileZoomEnabled;
     // Snap viewport to full map so there's no lerp animation on game start
     currentVp.x = fullMapVp.x;
     currentVp.y = fullMapVp.y;
@@ -1410,7 +1401,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function enableMobileZoom(): void {
     mobileZoomEnabled = true;
-    zoomActivated = true;
   }
 
   /** Snap the camera to the pov player's home zone before the life-lost
