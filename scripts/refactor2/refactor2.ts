@@ -30,6 +30,8 @@ const CATEGORIES = [
   "query",
   "apply",
   "compose",
+  "change",
+  "fix",
 ] as const;
 const LOADERS: Record<Category, () => Promise<HandlerModule>> = {
   rename: () => import("./lib/cmd-rename.ts") as Promise<HandlerModule>,
@@ -41,6 +43,8 @@ const LOADERS: Record<Category, () => Promise<HandlerModule>> = {
   query: () => import("./lib/cmd-query.ts") as Promise<HandlerModule>,
   apply: () => import("./lib/cmd-apply.ts") as Promise<HandlerModule>,
   compose: () => import("./lib/cmd-compose.ts") as Promise<HandlerModule>,
+  change: () => import("./lib/cmd-change.ts") as Promise<HandlerModule>,
+  fix: () => import("./lib/cmd-fix.ts") as Promise<HandlerModule>,
 };
 
 if (import.meta.main) {
@@ -144,6 +148,8 @@ Categories:
   query    symbol | exports | refs | callsites | cross-domain | surface | blast
   apply    <manifest.json>
   compose  extract | decouple | collapse
+  change   type
+  fix      assignability
 
 Flags:
   --dry-run            Print changes, don't write

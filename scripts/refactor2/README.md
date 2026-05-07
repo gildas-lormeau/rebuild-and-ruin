@@ -35,6 +35,8 @@ refactor query <kind> <args>
 | `query`   | `symbol`, `exports`, `refs`, `callsites`, `cross-domain`, `surface` | `find-symbol`, `list-*`, `compute-public-surface`    |
 | `apply`   | (takes manifest)                            | `bulk-redirect` generalized                                                   |
 | `compose` | `extract`, `decouple`, `collapse`           | composed intent verbs (agent-original; no V1 equivalent)                      |
+| `change`  | `type`                                      | type-annotation rewrite (agent-original; no V1 equivalent)                    |
+| `fix`     | `assignability`                             | diagnostic-driven assertion insertion (agent-original; no V1 equivalent)      |
 
 ## Canonical examples
 
@@ -97,6 +99,43 @@ refactor compose extract src/game/new-module.ts --symbols A,B,C --from src/game/
 refactor compose decouple ai runtime             # list cross-domain violations
 refactor compose decouple ai runtime --apply     # propose a fix manifest (advisory)
 refactor compose collapse barrel src/game/index.ts
+```
+
+### Change (type-annotation rewrites)
+
+```
+refactor change type Tower.zone --to ZoneId
+refactor change type Tower.zone House.zone BonusSquare.zone --to ZoneId
+refactor change type --params-named zone --from-type number --to ZoneId
+refactor change type Tower.zone --to ZoneId --import-from src/shared/core/branded-ids.ts --import-type
+```
+
+Rewrites the type annotation on:
+
+- **Interface / type-alias / class properties** via positional `Type.member` (one or many).
+- **Function and method parameters by name** via `--params-named <name>` with optional `--from-type <type>` filter.
+
+Optional `--import-from <path>` adds the new type's import (extracts the leading PascalCase token from `--to`); pair with `--import-type` for a type-only import. Idempotent: re-running with the type already applied exits `3` with `E_ALREADY_DONE`. Property assignment writes/reads do not need changing — they continue to type-check as long as both sides are now branded.
+
+### Fix (diagnostic-driven assertion insertion)
+
+```
+refactor fix assignability --helper asZoneId --target ZoneId
+refactor fix assignability --cast ZoneId --target ZoneId
+refactor fix assignability --helper asZoneId --target ZoneId --max-passes 5 --dry-run
+```
+
+After a `change type` (or any other type-tightening) leaves assignability errors, this verb walks TS diagnostics codes 2322 and 2345, picks the ones whose expected type is `--target`, and wraps each offending expression with `--helper <fn>(...)` or `(... as <type>)`. Re-runs to fixpoint up to `--max-passes` (default 10).
+
+- Span correction: when TS reports the diagnostic on an object-literal property name (`{ zone: 0 }`), the verb redirects the wrap onto the initializer (`zone: asZoneId(0)`) rather than mangling the name.
+- Branded alias chain handling: TS message chains expand branded types (`type 'ZoneId'` then `type '{ readonly __brand: ... }'`); the verb matches the surface-level `is not assignable to … type 'X'`, not the expanded form.
+- Bails with non-zero exit if a pass makes no progress — those errors are not wrap-fixable; check `--target` and inspect the listed diagnostics.
+
+Typical pairing:
+
+```
+refactor change type Tower.zone --to ZoneId --import-from src/shared/core/branded-ids.ts --import-type
+refactor fix assignability --helper asZoneId --target ZoneId
 ```
 
 ### Apply (manifest-driven)
@@ -259,4 +298,6 @@ scripts/refactor2/
     cmd-query.ts         query symbol/exports/refs/callsites/cross-domain/surface/blast
     cmd-apply.ts         apply manifest runner
     cmd-compose.ts       compose extract/decouple/collapse (intent verbs)
+    cmd-change.ts        change type (annotation rewrites for fields, params, props)
+    cmd-fix.ts           fix assignability (diagnostic-driven assertion insertion)
 ```
