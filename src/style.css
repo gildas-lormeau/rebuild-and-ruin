@@ -57,8 +57,7 @@ body {
   border: 2px solid #666;
   background: #3a3a5e;
   color: #ccc;
-  font-size: min(24px, 3.85vmin);
-  font-weight: bold;
+  font-size: min(24px, 5vmin);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -334,8 +333,8 @@ body.is-portrait {
   --dpad-btn-size: min(72px, 11.25vmin);
 
   .floating-actions .btn-round {
-    width: min(72px, 11.25vmin);
-    height: min(72px, 11.25vmin);
+    width: min(72px, 12.5vmin);
+    height: min(72px, 12.5vmin);
   }
 
   .portrait-bottom .btn-round {
@@ -422,7 +421,6 @@ body.is-portrait {
     .controls {
       display: grid;
       grid-template: repeat(3, var(--btn-size)) / repeat(3, var(--btn-size));
-      gap: 1vmin;
       align-self: center;
     }
 
