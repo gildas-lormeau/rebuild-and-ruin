@@ -14,6 +14,7 @@
  * different intermediate states on different peers, producing divergence.
  */
 
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState } from "./types.ts";
 
 export interface ScheduledAction {
@@ -23,7 +24,7 @@ export interface ScheduledAction {
   /** Within-tick ordering tiebreaker. Conventionally the player slot id
    *  whose input produced this action — guarantees a total order across
    *  peers regardless of wire arrival order. */
-  playerId: number;
+  playerId: ValidPlayerSlot;
   /** Mutates state. Called exactly once when the action fires. */
   apply: (state: GameState) => void;
 }

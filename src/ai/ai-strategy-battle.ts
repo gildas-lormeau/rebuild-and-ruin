@@ -746,7 +746,7 @@ function collectEnemyTargets(
 }
 
 /** Stable numeric key for shotCounts: survives cannon object replacement. */
-function shotCountKey(playerId: number, cannonIdx: number): number {
+function shotCountKey(playerId: ValidPlayerSlot, cannonIdx: number): number {
   return (playerId << 8) | cannonIdx;
 }
 

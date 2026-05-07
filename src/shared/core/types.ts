@@ -366,7 +366,7 @@ const MAX_CANNON_SLOT_KEY = 256;
 /** Pack a `(playerId, cannonIdx)` pair into the key shape used by
  *  `state.pendingCannonFires`. */
 export function packPendingCannonFireKey(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   cannonIdx: number,
 ): number {
   return playerId * MAX_CANNON_SLOT_KEY + cannonIdx;

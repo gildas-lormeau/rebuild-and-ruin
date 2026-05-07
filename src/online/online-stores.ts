@@ -50,7 +50,7 @@ interface OnlineContext {
 export interface OnlineClient {
   readonly ctx: OnlineContext;
   send(msg: GameMessage): void;
-  maybeSendAimUpdate(x: number, y: number, playerId?: number): void;
+  maybeSendAimUpdate(x: number, y: number, playerId?: ValidPlayerSlot): void;
   resetNetworking(scope: ResetScope): void;
   clearReconnect(): void;
   devLog(msg: string): void;
@@ -106,13 +106,7 @@ function createOnlineClient(): OnlineClient {
     ctx: context,
     send: (msg) => sendMessage(context.session, msg),
     maybeSendAimUpdate: (x, y, playerId?) =>
-      sendAimUpdate(
-        context.session,
-        context.dedup,
-        x,
-        y,
-        playerId as ValidPlayerSlot | undefined,
-      ),
+      sendAimUpdate(context.session, context.dedup, x, y, playerId),
     resetNetworking: (scope) => {
       resetDedupMaps(context.dedup);
       if (scope === "new-game") {
