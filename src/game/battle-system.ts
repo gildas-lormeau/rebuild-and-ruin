@@ -75,7 +75,7 @@ import {
   COMBO_WALL,
   scoreImpactCombo,
   tickComboTracking,
-} from "./combo-system.ts";
+} from "./combos.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifiers/dust-storm.ts";
 import {

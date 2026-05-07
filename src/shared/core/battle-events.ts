@@ -199,7 +199,7 @@ export const BATTLE_EVENT_CONSUMERS = {
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     orchestrator: "src/game/battle-system.ts",
-    combo: "src/game/combo-system.ts",
+    combo: "src/game/combos.ts",
   },
   cannonDamaged: {
     stateApply: "src/game/battle-system.ts",
@@ -207,13 +207,13 @@ export const BATTLE_EVENT_CONSUMERS = {
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
     orchestrator: "src/game/battle-system.ts",
-    combo: "src/game/combo-system.ts",
+    combo: "src/game/combos.ts",
   },
   gruntKilled: {
     stateApply: "src/game/battle-system.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
-    combo: "src/game/combo-system.ts",
+    combo: "src/game/combos.ts",
   },
   gruntChipped: {
     stateApply: "src/game/battle-system.ts",

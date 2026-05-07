@@ -228,12 +228,10 @@ function nameSignal(
       why: `name "${base}" implies composition root`,
     };
   }
-  if (/-bootstrap\.ts$/.test(base)) {
-    return {
-      tiers: new Set(["roots", "assembly"]),
-      why: `name "${base}" implies bootstrap/root`,
-    };
-  }
+  // -bootstrap intentionally NOT flagged: helper functions called by the
+  // composition root are also commonly named *-bootstrap (e.g. runtime-bootstrap
+  // is a sub-system invoked from runtime-composition). The "-composition" suffix
+  // is the stronger signal for roots-tier files.
   if (/-(types|defs|pool|interfaces)\.ts$/.test(base)) {
     if (!onlyTypeExports) {
       return {

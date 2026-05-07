@@ -62,7 +62,7 @@ const rules: BoundaryRule[] = [
     name: "render-subsystems",
     matchesImported: (file) =>
       file.startsWith("src/render/render-") &&
-      file !== "src/render/render-composition.ts" &&
+      file !== "src/render/render-ui-overlays.ts" &&
       file !== "src/render/render-canvas.ts" &&
       file !== "src/render/render-layout.ts",
     isAllowedImporter: (file) =>

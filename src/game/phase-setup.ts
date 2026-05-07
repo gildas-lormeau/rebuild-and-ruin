@@ -95,7 +95,7 @@ import {
   comboDemolitionBonus,
   createComboTracker,
   isCombosEnabled,
-} from "./combo-system.ts";
+} from "./combos.ts";
 import {
   recomputeGruntTargetedWalls,
   rollGruntWallAttacks,

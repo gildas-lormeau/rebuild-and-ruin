@@ -61,7 +61,7 @@ import {
   lifeLostPanelPos,
   lobbyClickHitTest,
   updateSelectionOverlay,
-} from "../render/render-composition.ts";
+} from "../render/render-ui-overlays.ts";
 import {
   createControlsOverlay,
   createLobbyOverlay,

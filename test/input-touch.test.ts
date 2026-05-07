@@ -13,7 +13,7 @@
  */
 
 import { assert, assertEquals, assertGreater } from "@std/assert";
-import { computeLobbyLayout } from "../src/render/render-composition.ts";
+import { computeLobbyLayout } from "../src/render/render-ui-overlays.ts";
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_TIMER,

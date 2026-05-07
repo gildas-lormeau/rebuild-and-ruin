@@ -79,7 +79,7 @@ import {
   UPGRADE_NAME_H,
   UPGRADE_ROW_GAP,
   UPGRADE_ROW_W,
-} from "./render-composition.ts";
+} from "./render-ui-overlays.ts";
 import {
   BG_BANNER,
   BG_OVERLAY,

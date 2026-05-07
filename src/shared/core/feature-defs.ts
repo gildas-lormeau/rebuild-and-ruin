@@ -89,8 +89,8 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:detectIceThaw": "src/game/battle-system.ts",
     "stateAccess:activeModifier": "src/runtime/runtime-phase-ticks.ts",
     "serialize:fullState": "src/online/online-serialize.ts",
-    "render:modifierLabel": "src/render/render-composition.ts",
-    "render:frozenTiles": "src/render/render-composition.ts",
+    "render:modifierLabel": "src/render/render-ui-overlays.ts",
+    "render:frozenTiles": "src/render/render-ui-overlays.ts",
     "render:bannerPrevScene": "src/render/render-map.ts",
     "ai:frozenAwareness": "src/ai/ai-strategy-battle.ts",
     "ai:modifierThresholds": "src/ai/ai-strategy-battle.ts",
@@ -108,12 +108,12 @@ export const FEATURE_CONSUMERS = {
     "render:lockoutTimer": "src/runtime/runtime-render.ts",
   },
   combos: {
-    "gate:isCombosEnabled": "src/game/combo-system.ts",
+    "gate:isCombosEnabled": "src/game/combos.ts",
     "gate:prepareBattleState": "src/game/phase-setup.ts",
-    "stateAccess:scoreImpactCombo": "src/game/combo-system.ts",
-    "stateAccess:tickComboTracking": "src/game/combo-system.ts",
+    "stateAccess:scoreImpactCombo": "src/game/combos.ts",
+    "stateAccess:tickComboTracking": "src/game/combos.ts",
     "stateAccess:awardComboBonuses": "src/game/phase-setup.ts",
-    "render:comboEvents": "src/render/render-composition.ts",
+    "render:comboEvents": "src/render/render-ui-overlays.ts",
   },
 } as const satisfies Record<FeatureId, Readonly<Record<string, string>>>;
 
