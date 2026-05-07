@@ -170,6 +170,14 @@ body {
   pointer-events: none;
 }
 
+/* Faded while the player is using the d-pad in BUILD/CANNON_PLACE — keeps
+   the contextual rotate/confirm visible without obscuring the gameplay
+   under the cursor. Cleared on touch of a piece/cannon or of the floating
+   buttons themselves. */
+.floating-actions.visible.faded {
+  opacity: 0.3;
+}
+
 /* ===== Game container ===== */
 #game-container {
   display: none;

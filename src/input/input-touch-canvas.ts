@@ -176,6 +176,9 @@ function handleTouchStart(
         tile.col,
       );
     });
+    if (gestureState.startedOnPhantom) {
+      document.getElementById("floating-actions")?.classList.remove("faded");
+    }
     gestureState.dragAnchor = null;
     return;
   }

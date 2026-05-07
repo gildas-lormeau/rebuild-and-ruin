@@ -15,7 +15,11 @@ import type {
   QuitButtonDeps,
   ZoomButtonDeps,
 } from "../runtime/runtime-contracts.ts";
-import { isSelectionPhase, Phase } from "../shared/core/game-phase.ts";
+import {
+  isPlacementPhase,
+  isSelectionPhase,
+  Phase,
+} from "../shared/core/game-phase.ts";
 import { playerByZone } from "../shared/core/spatial.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
@@ -32,7 +36,9 @@ import {
 
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";
+const CLS_FADED = "faded";
 const CLICK_EVENT = "click";
+const FLOATING_ACTIONS_ID = "floating-actions";
 /** Fraction of the dpad radius treated as a center dead-zone — touches
  *  within it produce no direction (suppresses jitter near the origin). */
 const DPAD_DEAD_ZONE = 0.15;
@@ -279,10 +285,21 @@ export function createFloatingActions(
     wireDragOrTap(btn, handler, deps.onDrag);
   }
 
+  // Capture phase so we run before the buttons' own touchstart handlers
+  // call stopPropagation — restoring opacity the instant a finger lands.
+  element.addEventListener(
+    "touchstart",
+    () => element.classList.remove(CLS_FADED),
+    { capture: true, passive: true },
+  );
+
   return {
     update(visible, x, y, nearTop, leftHanded) {
       element.classList.toggle("visible", visible);
-      if (!visible) return;
+      if (!visible) {
+        element.classList.remove(CLS_FADED);
+        return;
+      }
       const h = element.offsetHeight;
       const gap = h * 0.25;
       let left: number;
@@ -393,10 +410,20 @@ function wireDpadCircle(
       const vec = computeDpadVector(dpad, touch);
       if (isBattlePhase()) {
         if (vec !== undefined) setVector(vec);
-      } else if (vec !== undefined) {
-        const cardinal = vectorToCardinal(vec);
-        lastCardinal = cardinal;
-        startRepeat(cardinal);
+      } else {
+        const phase = deps.getState()?.phase;
+        if (phase !== undefined && isPlacementPhase(phase)) {
+          // Dim the floating rotate/confirm so they don't obscure the
+          // gameplay under the cursor while navigating with the d-pad.
+          document
+            .getElementById(FLOATING_ACTIONS_ID)
+            ?.classList.add(CLS_FADED);
+        }
+        if (vec !== undefined) {
+          const cardinal = vectorToCardinal(vec);
+          lastCardinal = cardinal;
+          startRepeat(cardinal);
+        }
       }
     }
 
