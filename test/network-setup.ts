@@ -230,6 +230,10 @@ async function buildHostRuntime(opts: ScenarioOptions): Promise<RuntimeBuild> {
     onlinePhaseTicks: buildHostPhaseTicks((msg) => sentMessages.push(msg)),
   });
   headless.runtime.runtimeState.state.debugTag = "HOST";
+  // DEBUG: tag the canonical state.rng instance so capture points inside
+  // Rng.next() can filter+partition by peer via `this.tag`.
+  // deno-lint-ignore no-explicit-any
+  (headless.runtime.runtimeState.state.rng as any).tag = "HOST";
   const scenario = wrapHeadless(headless, sentMessages);
   return { scenario, headless, sentMessages };
 }
@@ -265,6 +269,10 @@ async function buildWatcherRuntime(
     amHost: () => false,
   });
   headless.runtime.runtimeState.state.debugTag = "WATCHER";
+  // DEBUG: tag the canonical state.rng instance so capture points inside
+  // Rng.next() can filter+partition by peer via `this.tag`.
+  // deno-lint-ignore no-explicit-any
+  (headless.runtime.runtimeState.state.rng as any).tag = "WATCHER";
 
   initDeps({
     runtime: headless.runtime,

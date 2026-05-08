@@ -1,3 +1,4 @@
+#!/usr/bin/env -S deno run -A
 /**
  * CLI for the per-session debugger daemon.
  *
@@ -16,7 +17,7 @@
  *   debug step    [--session ID] [over|into|out]
  *   debug eval    [--session ID] <expr> [--frame N]
  *   debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
- *                 [--partition-by <expr> --out <prefix>]   # diffable per-partition logs
+ *                 [--partition-by <expr> --out <prefix> [--sort] [--with-caller]]   # diffable per-partition logs
  *   debug stacks  [--session ID] [--format json]
  *   debug stack   [--session ID] <hit#>
  *   debug status  [--session ID]
@@ -86,6 +87,16 @@ const dispatch: Record<string, (p: ParsedArgs) => Promise<void>> = {
   list: () => cmdList(),
 };
 const fn = dispatch[subcommand];
+// Repo root = two dirs up from cli.ts (scripts/debug/cli.ts → repo root).
+// Computed once at load so frame-URL → repo-relative conversion is a
+// pure string strip with no per-hit filesystem calls. The daemon already
+// snapshots frames inline with each pause event (free, no CDP round-trip),
+// so embedding caller in the trace adds zero latency on the hot path —
+// we just reach into hit.frames[1] (frames[0] is the bp itself).
+const REPO_ROOT = new URL("../../", import.meta.url).pathname.replace(
+  /\/$/,
+  "",
+);
 
 function parseArgs(args: string[]): ParsedArgs {
   const flags = new Map<string, string | boolean>();
@@ -350,14 +361,29 @@ async function cmdTrace(parsed: ParsedArgs): Promise<void> {
   // for multi-peer parity testing: partition by `state.debugTag` (or
   // similar discriminator captured at every hit) and the Nth line of
   // each peer's file represents the Nth equivalent event for that peer.
-  // First differing line in `diff` = first divergent event.
+  // First differing line in `diff` = first divergent event. Add `--sort`
+  // for set-style diffing (lines sorted per partition; `diff` reports the
+  // symmetric difference regardless of arrival order). Add `--with-caller`
+  // to embed the immediate caller frame (one frame above the bp) on each
+  // line — turns "this draw N differs from the other side's draw N"
+  // questions into a single-pass diagnosis (different caller? different
+  // phase? same caller, different inputs?) without round-tripping through
+  // `debug stack <hit#>` for each side.
   const partitionExpr = parsed.flags.get("partition-by");
   const outPrefix = parsed.flags.get("out");
   if (typeof partitionExpr === "string") {
     if (typeof outPrefix !== "string") {
       throw new Error("--partition-by requires --out <prefix>");
     }
-    writePartitionedTrace(result.hits, partitionExpr, outPrefix);
+    const sortLines = parsed.flags.get("sort") === true;
+    const withCaller = parsed.flags.get("with-caller") === true;
+    writePartitionedTrace(
+      result.hits,
+      partitionExpr,
+      outPrefix,
+      sortLines,
+      withCaller,
+    );
     return;
   }
   if (parsed.flags.get("format") === "table") {
@@ -369,23 +395,42 @@ async function cmdTrace(parsed: ParsedArgs): Promise<void> {
 }
 
 /** Group hits by `<partitionExpr>` value, write one diffable file per
- *  partition. Each line: `file:line <expr1>=<value1> ...` (sorted keys,
- *  JSON-stable values; the partition discriminator is omitted since
- *  it's redundant within a partition). LINES ARE SORTED within each
- *  partition — different peers fire the same events in slightly
- *  different temporal orders due to wire-vs-local timing, so unsorted
- *  output makes `diff` dominated by ordering noise rather than real
- *  content divergence. After sorting, identical events appear at the
- *  same line in both files; every `diff` line is a real difference (a
- *  field whose value differs, or an event present on only one peer).
+ *  partition. Each line: `file:line [caller=<file>:<line>] <expr1>=<value1> ...`
+ *  (sorted user keys, JSON-stable values; the partition discriminator
+ *  is omitted since it's redundant within a partition). LINES PRESERVE
+ *  ARRIVAL ORDER within each partition — when both peers hit the same
+ *  breakpoint the same number of times in lockstep, line N of each
+ *  file is the Nth equivalent event, so the first `<` / `>` line in
+ *  `diff` is the chronologically first divergent event. That's the
+ *  whole point of the workflow.
+ *
+ *  Pass `--sort` for set-style diffing instead: lines are sorted
+ *  alphabetically per partition, so `diff` reports the symmetric
+ *  difference of values regardless of when each side produced them.
+ *  Useful when the same code path fires in slightly different temporal
+ *  orders across peers (async timing, wire-vs-local) and you only care
+ *  whether the same set of events occurred — not when. The default is
+ *  arrival order; users who want set-mode opt in.
+ *
+ *  Pass `--with-caller` to embed the immediate caller frame (the
+ *  function that called the function holding the bp) on each line as
+ *  `caller=<repo-relative-file>:<line>`. The frame data is already
+ *  captured per-hit by the daemon (zero extra CDP traffic — same data
+ *  powers `debug stack <hit#>`), so this flag is free at trace time.
+ *  Placed as a fixed token immediately after `file:line`, BEFORE the
+ *  alphabetized user keys, because it's a meta-field that contextualizes
+ *  the hit rather than a captured value — sorting it among user keys
+ *  would scatter it depending on which other names the user picked.
  *
  *  Whatever expressions the user captured ARE the diff — the tool
- *  doesn't filter, doesn't add fields. To remove a field from the
- *  diff, don't capture it. */
+ *  doesn't filter, doesn't add fields beyond the opt-in `caller`. To
+ *  remove a captured field from the diff, don't capture it. */
 function writePartitionedTrace(
   hits: TraceHit[],
   partitionExpr: string,
   outPrefix: string,
+  sortLines: boolean,
+  withCaller: boolean,
 ): void {
   const partitions = new Map<string, string[]>();
   for (const h of hits) {
@@ -401,7 +446,13 @@ function writePartitionedTrace(
     const values = exprs
       .map((e) => `${e}=${formatValue(h.values[e])}`)
       .join(" ");
-    lines.push(`${h.file}:${h.line} ${values}`);
+    // Default-mode line shape preserved exactly: `file:line <space> <values>`
+    // (trailing space when no other captures exist beyond the partition
+    // discriminator — kept as-is so prior diffs remain byte-identical).
+    // With `--with-caller` we insert ` caller=<file>:<line>` between
+    // `file:line` and the user keys; the values may still be empty.
+    const callerToken = withCaller ? ` caller=${formatCaller(h)}` : "";
+    lines.push(`${h.file}:${h.line}${callerToken} ${values}`);
   }
   if (partitions.size === 0) {
     console.log("(no captures)");
@@ -409,7 +460,7 @@ function writePartitionedTrace(
   }
   const written: string[] = [];
   for (const [partKey, lines] of partitions) {
-    lines.sort();
+    if (sortLines) lines.sort();
     const safe = partKey.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${outPrefix}-${safe}.log`;
     Deno.writeTextFileSync(path, lines.join("\n") + "\n");
@@ -532,6 +583,28 @@ function formatValue(v: unknown): string {
   }
 }
 
+function formatCaller(h: TraceHit): string {
+  const callerFrame = h.frames?.[1];
+  if (!callerFrame || !callerFrame.url) return "<unknown>";
+  return `${frameUrlToRepoRelative(callerFrame.url)}:${callerFrame.line}`;
+}
+
+function frameUrlToRepoRelative(url: string): string {
+  // Frame URLs from CDP are file:// URLs. Strip the scheme + repo prefix
+  // (handling macOS's /private/tmp realpath quirk) so the token reads as
+  // `caller=src/foo.ts:42` — same shape as the user-supplied bp paths
+  // already shown in `file:line` at the start of every line. Built-ins,
+  // node:internal, data: URIs and other non-file URLs fall through to
+  // <unknown>.
+  if (!url.startsWith("file://")) return "<unknown>";
+  let path = url.slice("file://".length);
+  if (path.startsWith("/private")) path = path.slice("/private".length);
+  let root = REPO_ROOT;
+  if (root.startsWith("/private")) root = root.slice("/private".length);
+  if (path.startsWith(root + "/")) return path.slice(root.length + 1);
+  return path; // outside repo (npm dep, deno cache, etc.) — keep absolute
+}
+
 async function cmdStatus(parsed: ParsedArgs): Promise<void> {
   const result = await sendIpc(parsed.session, "status");
   console.log(JSON.stringify(result, null, 2));
@@ -652,6 +725,7 @@ function usage(): never {
   step    [--session ID] [over|into|out]
   eval    [--session ID] <expr> [--frame N]
   trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
+          [--partition-by <expr> --out <prefix> [--sort] [--with-caller]]
   stacks  [--session ID] [--format json]                         # histogram of unique stacks across hits
   stack   [--session ID] <hit#>                                  # full call stack for one hit
   status  [--session ID]

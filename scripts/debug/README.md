@@ -30,7 +30,7 @@ debug continue [--session ID]
 debug step    [--session ID] [over|into|out]
 debug eval    [--session ID] <expr> [--frame N]
 debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
-              [--partition-by <expr> --out <prefix>]   # one diffable file per partition
+              [--partition-by <expr> --out <prefix> [--sort] [--with-caller]]   # one diffable file per partition
 debug stacks  [--session ID] [--format json]   # histogram of unique stacks
 debug stack   [--session ID] <hit#>            # full stack for one hit
 debug status  [--session ID]
@@ -247,6 +247,50 @@ partition). When both peers hit the same breakpoint the same number of
 times in lockstep, line N of each file represents the Nth equivalent
 event — so the first `<` / `>` line in `diff` is the first divergent
 event.
+
+Pass `--sort` if you want set-style diffing instead: lines are sorted
+alphabetically per partition, so `diff` reports the symmetric difference
+of values regardless of when each side produced them. Useful when the
+same code path fires in slightly different temporal orders across peers
+(async timing, wire-vs-local) and you only care whether the same set of
+events occurred. The default is arrival order, which is what the
+"first divergent event" workflow above relies on.
+
+#### `--with-caller`: which call site fired this hit?
+
+When two peers diverge at draw N of an RNG, the next question is always
+"is it the same caller on both sides, with different inputs — or a
+*different* caller entirely?" Without it you'd run `debug stack <hit#>`
+twice, once per peer. With `--with-caller`, the immediate caller frame
+(one frame above the bp) is embedded as a `caller=<file>:<line>` token
+on each line, immediately after `file:line` and before the alphabetized
+captured values:
+
+```sh
+$ debug capture src/shared/platform/rng.ts:36 'this.tag' 'sid'
+$ debug run
+$ debug trace --partition-by 'this.tag' --out /tmp/parity --with-caller
+$ diff /tmp/parity-HOST.log /tmp/parity-WATCHER.log | head -2
+142c142
+< src/shared/platform/rng.ts:36 caller=src/ai/ai-strategy.ts:88 sid=42
+---
+> src/shared/platform/rng.ts:36 caller=src/ai/ai-upgrade-pick.ts:21 sid=42
+```
+
+Same bp, same `sid`, *different caller* — host took the strategy path
+where watcher took the upgrade-pick path. One pass of `diff` answers
+the call-site question that previously required `debug stack` round
+trips. The flag is opt-in (default behavior unchanged); reach for it
+whenever a divergence is "same code, different context" rather than
+"same context, different value".
+
+Frame data is already snapshotted per hit by the daemon (it powers
+`debug stack <hit#>`), so `--with-caller` is free at trace time — no
+extra CDP round-trips, no extra latency on the capture-hit hot path.
+The token is sorted as a fixed prefix (not alphabetized into the user
+keys) so its position is stable regardless of which expressions you
+captured. Built-in / unmapped frames render as `caller=<unknown>`
+rather than failing.
 
 ## Architecture
 

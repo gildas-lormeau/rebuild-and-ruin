@@ -90,6 +90,13 @@ interface PendingCapture {
   condition?: string;
 }
 
+interface PendingBp {
+  fallbackBpId: string;
+  file: string;
+  line: number;
+  condition?: string;
+}
+
 interface Session {
   id: string;
   dir: string;
@@ -101,6 +108,7 @@ interface Session {
   scriptsLog: Deno.FsFile;
   captures: Map<string, Capture>;
   pendingCaptures: PendingCapture[];
+  pendingBps: PendingBp[];
   hits: CaptureHit[];
   paused: PausedState | null;
   exited: boolean;
@@ -164,6 +172,7 @@ async function main(): Promise<void> {
     scriptsLog,
     captures: new Map(),
     pendingCaptures: [],
+    pendingBps: [],
     hits: [],
     paused: null,
     exited: false,
@@ -258,13 +267,18 @@ async function main(): Promise<void> {
     } catch {
       // closed
     }
-    // Re-resolve any pending captures that may now be bindable. Lazily
-    // imported modules (e.g. AI controllers loaded on demand) often parse
-    // long after the post-import init pause, so the one-shot retry there
-    // misses them. retryPendingCaptures is a no-op for unbindable entries.
+    // Re-resolve any pending captures / bps that may now be bindable.
+    // Lazily imported modules (e.g. AI controllers loaded on demand) often
+    // parse long after the post-import init pause, so the one-shot retry
+    // there misses them. retryPending* are no-ops for unbindable entries.
     if (session.pendingCaptures.length > 0) {
       void retryPendingCaptures(session).catch((e) =>
         console.error(`scriptParsed-retry failed: ${(e as Error).message}`),
+      );
+    }
+    if (session.pendingBps.length > 0) {
+      void retryPendingBps(session).catch((e) =>
+        console.error(`scriptParsed-bp-retry failed: ${(e as Error).message}`),
       );
     }
   });
@@ -412,7 +426,7 @@ async function handlePaused(
     // Snapshot the top frames once per pause; reused for every capture-bp
     // that fired in this stop. Frames are already in the pause event — no
     // extra CDP calls. MAX_FRAMES caps per-hit memory for hot paths.
-    const frames = extractFrames(rawFrames, MAX_FRAMES);
+    const frames = extractFrames(rawFrames, MAX_FRAMES, session);
     for (const bpId of captureBps) {
       const cap = session.captures.get(bpId);
       if (!cap) continue;
@@ -480,7 +494,18 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
       const line = p.line as number;
       const condition = p.condition as string | undefined;
       const set = await setBpResolved(session, file, line, condition);
+      // Same retry mechanism as setCapture: V8's source-map handling for
+      // urlRegex bps is unreliable for TS, so an empty-locations urlRegex
+      // result is queued for rebind via scriptId once the script parses.
       const pending = set.via === "urlRegex" && set.locations.length === 0;
+      if (pending) {
+        session.pendingBps.push({
+          fallbackBpId: set.bpId,
+          file,
+          line,
+          condition,
+        });
+      }
       return {
         bpId: set.bpId,
         locations: set.locations,
@@ -564,6 +589,25 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
         session.pendingCaptures = session.pendingCaptures.filter(
           (pc) => !(realPathSafe(pc.file) === wantAbs && pc.line === line),
         );
+        // Also clean up pending bps at this file:line — and remove their
+        // V8-side urlRegex placeholders so they don't keep firing into a
+        // void after the user thought they were gone.
+        const matchingPendingBps = session.pendingBps.filter(
+          (pb) => realPathSafe(pb.file) === wantAbs && pb.line === line,
+        );
+        for (const pb of matchingPendingBps) {
+          try {
+            await cdp().send("Debugger.removeBreakpoint", {
+              breakpointId: pb.fallbackBpId,
+            });
+          } catch {
+            // already gone
+          }
+          removed.push(pb.fallbackBpId);
+        }
+        session.pendingBps = session.pendingBps.filter(
+          (pb) => !(realPathSafe(pb.file) === wantAbs && pb.line === line),
+        );
         if (removed.length > 0) {
           return { removed, count: removed.length, mode: "fileLine" };
         }
@@ -592,6 +636,12 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
         const retried = await retryPendingCaptures(session);
         notes.push(
           `retried ${retried.bound} pending captures (${retried.stillPending} still pending)`,
+        );
+      }
+      if (session.paused && session.pendingBps.length > 0) {
+        const retried = await retryPendingBps(session);
+        notes.push(
+          `retried ${retried.bound} pending bps (${retried.stillPending} still pending)`,
         );
       }
       if (session.paused) {
@@ -696,6 +746,60 @@ function makeHandlers(session: Session): Record<string, IpcHandler> {
       return { ok: true };
     },
   };
+}
+
+async function retryPendingBps(
+  session: Session,
+): Promise<{ bound: number; stillPending: number }> {
+  const cdp = session.cdp;
+  if (!cdp) return { bound: 0, stillPending: session.pendingBps.length };
+  const remaining: PendingBp[] = [];
+  let bound = 0;
+  for (const pb of session.pendingBps) {
+    const sourceUrl = `file://${realPathSafe(pb.file)}`;
+    const canResolve =
+      session.sourceMaps.resolve(sourceUrl, pb.line - 1) !== null ||
+      findScriptForFile(session, pb.file) !== null;
+    if (!canResolve) {
+      remaining.push(pb);
+      continue;
+    }
+    let result: BpResult;
+    try {
+      result = await setBpResolved(session, pb.file, pb.line, pb.condition);
+    } catch (e) {
+      console.error(
+        `retryPendingBps: ${pb.file}:${pb.line} → ${(e as Error).message}`,
+      );
+      remaining.push(pb);
+      continue;
+    }
+    if (result.via === "urlRegex" && result.locations.length === 0) {
+      try {
+        await cdp.send("Debugger.removeBreakpoint", {
+          breakpointId: result.bpId,
+        });
+      } catch {
+        // already gone
+      }
+      remaining.push(pb);
+      continue;
+    }
+    // Drop the urlRegex placeholder bp from before.
+    try {
+      await cdp.send("Debugger.removeBreakpoint", {
+        breakpointId: pb.fallbackBpId,
+      });
+    } catch {
+      // already gone
+    }
+    console.log(
+      `retry bound bp ${pb.file}:${pb.line} via=${result.via} bpId=${result.bpId} locations=${JSON.stringify(result.locations)}`,
+    );
+    bound++;
+  }
+  session.pendingBps = remaining;
+  return { bound, stillPending: remaining.length };
 }
 
 async function retryPendingCaptures(
@@ -872,12 +976,27 @@ function diagnoseBp(
 function extractFrames(
   rawFrames: Array<Record<string, unknown>>,
   max: number,
+  session?: Session,
 ): FrameInfo[] {
   return rawFrames.slice(0, max).map((f) => {
-    const loc = (f.location as { lineNumber?: number }) ?? {};
+    const loc =
+      (f.location as { lineNumber?: number; scriptId?: string }) ?? {};
+    // CDP's CallFrame.url is sometimes empty under Deno even when the
+    // script has a known URL. Fall back to the daemon's scriptsById map
+    // (populated from every Debugger.scriptParsed) to fill it in. The
+    // url here is the JS-or-TS URL the runtime sees — for source-mapped
+    // TS modules under Deno that's already the .ts file path, since
+    // Deno announces TS scripts directly with their TS URL.
+    const inlineUrl = (f.url as string) || "";
+    const scriptId = loc.scriptId;
+    const url =
+      inlineUrl ||
+      (session && scriptId
+        ? (session.scriptsById.get(scriptId)?.url ?? "")
+        : "");
     return {
       name: (f.functionName as string) || "<anonymous>",
-      url: (f.url as string) || "",
+      url,
       line: (loc.lineNumber ?? 0) + 1,
     };
   });

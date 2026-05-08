@@ -15,6 +15,7 @@
  * Usage: deno run -A scripts/reorder-file.ts <path> [--dry-run] [--debug]
  */
 
+import process from "node:process";
 import {
   type Node,
   Project,
@@ -23,47 +24,155 @@ import {
   SyntaxKind,
   VariableDeclarationKind,
 } from "ts-morph";
-import process from "node:process";
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
+const enum Cat {
+  Import = 0,
+  Type = 1,
+  Const = 2, // const declarations (data + arrow fns)
+  Let = 3, // let/var declarations (mutable state)
+  Fn = 4, // function declarations only (hoisted)
+}
 
 const cliArgs = process.argv.slice(2);
 const dryRun = cliArgs.includes("--dry-run");
 const debug = cliArgs.includes("--debug");
 const filePath = cliArgs.find((a) => !a.startsWith("--"));
+const CAT_NAMES = ["Import", "Type", "Const", "Let", "Fn"];
+/** Matches `// ----------` or `// ==========` separator lines. */
+const SEP_RE = /^\/\/\s*[-=]{10,}\s*$/;
+const project = new Project({
+  tsConfigFilePath: "tsconfig.json",
+  skipAddingFilesFromTsConfig: true,
+});
+const sourceFile = project.addSourceFileAtPath(filePath);
+const originalText = sourceFile.getFullText();
+
+// Run up to 2 passes to guarantee idempotency.
+// The first pass may shift trivia boundaries; the second pass stabilizes them.
+let current = originalText;
 
 if (!filePath) {
-  console.error("Usage: deno run -A scripts/reorder-file.ts <path> [--dry-run] [--debug]");
+  console.error(
+    "Usage: deno run -A scripts/reorder-file.ts <path> [--dry-run] [--debug]",
+  );
   process.exit(1);
 }
 
-// ---------------------------------------------------------------------------
-// Categories
-// ---------------------------------------------------------------------------
+console.log(`Reordering: ${filePath}`);
 
-const enum Cat {
-  Import = 0,
-  Type = 1,
-  Const = 2,  // const declarations (data + arrow fns)
-  Let = 3,    // let/var declarations (mutable state)
-  Fn = 4,     // function declarations only (hoisted)
+for (let pass = 1; pass <= 2; pass++) {
+  const sf =
+    pass === 1
+      ? sourceFile
+      : project.createSourceFile("__temp__.ts", current, { overwrite: true });
+  const result = reorderFile(sf);
+  if (result === current) break;
+  current = result;
 }
 
-const CAT_NAMES = ["Import", "Type", "Const", "Let", "Fn"];
+function reorderFile(sf: SourceFile): string {
+  const stmts = sf.getStatements();
+  if (stmts.length === 0) return sf.getFullText();
 
-// ---------------------------------------------------------------------------
-// Classification helpers
-// ---------------------------------------------------------------------------
+  const header = extractFileHeader(sf);
+  const firstStmt = stmts[0]!;
 
-function isExported(stmt: Statement): boolean {
-  return stmt.getText().trimStart().startsWith("export ");
+  // Bucket by category
+  const buckets: Record<Cat, Statement[]> = {
+    [Cat.Import]: [],
+    [Cat.Type]: [],
+    [Cat.Const]: [],
+    [Cat.Let]: [],
+    [Cat.Fn]: [],
+  };
+  for (const s of stmts) buckets[classify(s)]!.push(s);
+
+  if (debug) {
+    console.log(`  Header: ${header.text ? "yes" : "none"}`);
+    for (const [cat, list] of Object.entries(buckets)) {
+      const names = list.map((s) => getName(s) ?? "?").join(", ");
+      console.log(
+        `  ${CAT_NAMES[Number(cat)]}: ${list.length}${names ? ` (${names})` : ""}`,
+      );
+    }
+  }
+
+  // Sort within categories
+  const sortedConsts = sortDepsFirst(buckets[Cat.Const]!);
+  const sortedLets = sortDepsFirst(buckets[Cat.Let]!);
+  const sortedFns = topoSortCallersFirst(buckets[Cat.Fn]!);
+
+  if (debug) {
+    if (sortedConsts.length > 0)
+      console.log(
+        `  Const order: ${sortedConsts.map((c) => getName(c) ?? "?").join(" → ")}`,
+      );
+    if (sortedLets.length > 0)
+      console.log(
+        `  Let order: ${sortedLets.map((c) => getName(c) ?? "?").join(" → ")}`,
+      );
+    if (sortedFns.length > 0)
+      console.log(
+        `  Fn order: ${sortedFns.map((f) => getName(f) ?? "?").join(" → ")}`,
+      );
+  }
+
+  // Split imports from re-exports (biome wants a blank line between them)
+  const imports = buckets[Cat.Import]!.filter(
+    (s) => !s.isKind(SyntaxKind.ExportDeclaration),
+  );
+  const reExports = buckets[Cat.Import]!.filter((s) =>
+    s.isKind(SyntaxKind.ExportDeclaration),
+  );
+
+  // Assemble sections
+  const sections: Statement[][] = [
+    imports,
+    reExports,
+    buckets[Cat.Type]!,
+    sortedConsts,
+    sortedLets,
+    sortedFns,
+  ];
+
+  // Sections that get blank lines between each statement
+  const spacedSections = new Set([buckets[Cat.Type]!, sortedFns]);
+
+  const parts: string[] = [];
+  if (header.text) parts.push(header.text + "\n");
+
+  let prevSection = false;
+  for (const section of sections) {
+    if (section.length === 0) continue;
+    if (prevSection) parts.push("\n"); // blank line between sections
+    const spaced = spacedSections.has(section);
+    let first = true;
+    for (const stmt of section) {
+      const skip =
+        stmt === firstStmt && header.endPos > 0 ? header.endPos : undefined;
+      const text = extractOwnText(stmt, skip);
+      // Blank line between statements in types/consts/functions sections
+      const sep = spaced && !first ? "\n\n" : "\n";
+      parts.push(sep + text);
+      first = false;
+    }
+    prevSection = true;
+  }
+
+  let result = parts.join("");
+  result = result.replace(/\n{3,}/g, "\n\n"); // collapse 3+ newlines to 2
+  result = result.replace(/^\n+/, ""); // no leading blank lines
+  if (!result.endsWith("\n")) result += "\n";
+  return result;
 }
 
 function classify(stmt: Statement): Cat {
   const k = stmt.getKind();
-  if (k === SyntaxKind.ImportDeclaration || k === SyntaxKind.ImportEqualsDeclaration) return Cat.Import;
+  if (
+    k === SyntaxKind.ImportDeclaration ||
+    k === SyntaxKind.ImportEqualsDeclaration
+  )
+    return Cat.Import;
   if (k === SyntaxKind.ExportDeclaration) return Cat.Import; // re-exports
   if (
     k === SyntaxKind.TypeAliasDeclaration ||
@@ -81,45 +190,6 @@ function classify(stmt: Statement): Cat {
   }
   return Cat.Fn; // fallback (export default, etc.)
 }
-
-// ---------------------------------------------------------------------------
-// Name extraction
-// ---------------------------------------------------------------------------
-
-function getName(stmt: Statement): string | undefined {
-  if (stmt.isKind(SyntaxKind.FunctionDeclaration)) return stmt.getName();
-  if (stmt.isKind(SyntaxKind.VariableStatement)) {
-    const decls = stmt.getDeclarationList().getDeclarations();
-    if (decls.length === 1) return decls[0]!.getName();
-  }
-  if (
-    stmt.isKind(SyntaxKind.TypeAliasDeclaration) ||
-    stmt.isKind(SyntaxKind.InterfaceDeclaration) ||
-    stmt.isKind(SyntaxKind.EnumDeclaration)
-  ) {
-    return (stmt as { getName(): string }).getName();
-  }
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Reference collection
-// ---------------------------------------------------------------------------
-
-function collectRefs(node: Node): Set<string> {
-  const names = new Set<string>();
-  node.forEachDescendant((child) => {
-    if (child.isKind(SyntaxKind.Identifier)) names.add(child.getText());
-  });
-  return names;
-}
-
-// ---------------------------------------------------------------------------
-// Text extraction — preserves JSDoc, strips section separators
-// ---------------------------------------------------------------------------
-
-/** Matches `// ----------` or `// ==========` separator lines. */
-const SEP_RE = /^\/\/\s*[-=]{10,}\s*$/;
 
 /**
  * Extract a statement's text with its directly-attached comment (JSDoc or `//`).
@@ -170,37 +240,27 @@ function extractFileHeader(sf: SourceFile): { text: string; endPos: number } {
 
   const firstStart = stmts[0]!.getStart();
   const before = sf.getFullText().slice(0, firstStart);
-  const trimmed = before.trim();
 
-  if (!trimmed || !(trimmed.startsWith("/*") || trimmed.startsWith("//"))) {
-    return { text: "", endPos: 0 };
+  // Optional `#!` shebang on the first line — preserved verbatim ahead of any header.
+  let shebang = "";
+  let rest = before;
+  if (rest.startsWith("#!")) {
+    const nl = rest.indexOf("\n");
+    shebang = nl === -1 ? rest : rest.slice(0, nl);
+    rest = nl === -1 ? "" : rest.slice(nl + 1);
   }
 
-  const headerEnd = before.indexOf(trimmed) + trimmed.length;
-  return { text: trimmed, endPos: headerEnd };
-}
+  const trimmed = rest.trim();
+  const hasComment = trimmed.startsWith("/*") || trimmed.startsWith("//");
+  if (!shebang && !hasComment) return { text: "", endPos: 0 };
 
-// ---------------------------------------------------------------------------
-// Topological sort — Kahn's algorithm
-// ---------------------------------------------------------------------------
-
-function buildEdges(stmts: Statement[]): Set<number>[] {
-  const nameToIdx = new Map<string, number>();
-  for (let i = 0; i < stmts.length; i++) {
-    const n = getName(stmts[i]!);
-    if (n) nameToIdx.set(n, i);
-  }
-  const edges: Set<number>[] = stmts.map(() => new Set());
-  for (let i = 0; i < stmts.length; i++) {
-    const refs = collectRefs(stmts[i]!);
-    const self = getName(stmts[i]!);
-    for (const ref of refs) {
-      if (ref === self) continue;
-      const t = nameToIdx.get(ref);
-      if (t !== undefined && t !== i) edges[i]!.add(t);
-    }
-  }
-  return edges;
+  const text =
+    shebang && hasComment ? `${shebang}\n${trimmed}` : shebang || trimmed;
+  const tail = hasComment ? trimmed : "";
+  const headerEnd = tail
+    ? before.indexOf(tail, shebang.length) + tail.length
+    : shebang.length;
+  return { text, endPos: headerEnd };
 }
 
 /**
@@ -291,122 +351,51 @@ function sortDepsFirst(stmts: Statement[]): Statement[] {
   return result.map((i) => stmts[i]!);
 }
 
-// ---------------------------------------------------------------------------
-// Main reorder
-// ---------------------------------------------------------------------------
-
-function reorderFile(sf: SourceFile): string {
-  const stmts = sf.getStatements();
-  if (stmts.length === 0) return sf.getFullText();
-
-  const header = extractFileHeader(sf);
-  const firstStmt = stmts[0]!;
-
-  // Bucket by category
-  const buckets: Record<Cat, Statement[]> = {
-    [Cat.Import]: [],
-    [Cat.Type]: [],
-    [Cat.Const]: [],
-    [Cat.Let]: [],
-    [Cat.Fn]: [],
-  };
-  for (const s of stmts) buckets[classify(s)]!.push(s);
-
-  if (debug) {
-    console.log(`  Header: ${header.text ? "yes" : "none"}`);
-    for (const [cat, list] of Object.entries(buckets)) {
-      const names = list.map((s) => getName(s) ?? "?").join(", ");
-      console.log(`  ${CAT_NAMES[Number(cat)]}: ${list.length}${names ? ` (${names})` : ""}`);
-    }
-  }
-
-  // Sort within categories
-  const sortedConsts = sortDepsFirst(buckets[Cat.Const]!);
-  const sortedLets = sortDepsFirst(buckets[Cat.Let]!);
-  const sortedFns = topoSortCallersFirst(buckets[Cat.Fn]!);
-
-  if (debug) {
-    if (sortedConsts.length > 0)
-      console.log(`  Const order: ${sortedConsts.map((c) => getName(c) ?? "?").join(" → ")}`);
-    if (sortedLets.length > 0)
-      console.log(`  Let order: ${sortedLets.map((c) => getName(c) ?? "?").join(" → ")}`);
-    if (sortedFns.length > 0)
-      console.log(`  Fn order: ${sortedFns.map((f) => getName(f) ?? "?").join(" → ")}`);
-  }
-
-  // Split imports from re-exports (biome wants a blank line between them)
-  const imports = buckets[Cat.Import]!.filter(
-    (s) => !s.isKind(SyntaxKind.ExportDeclaration),
-  );
-  const reExports = buckets[Cat.Import]!.filter((s) =>
-    s.isKind(SyntaxKind.ExportDeclaration),
-  );
-
-  // Assemble sections
-  const sections: Statement[][] = [
-    imports,
-    reExports,
-    buckets[Cat.Type]!,
-    sortedConsts,
-    sortedLets,
-    sortedFns,
-  ];
-
-  // Sections that get blank lines between each statement
-  const spacedSections = new Set([
-    buckets[Cat.Type]!,
-    sortedFns,
-  ]);
-
-  const parts: string[] = [];
-  if (header.text) parts.push(header.text + "\n");
-
-  let prevSection = false;
-  for (const section of sections) {
-    if (section.length === 0) continue;
-    if (prevSection) parts.push("\n"); // blank line between sections
-    const spaced = spacedSections.has(section);
-    let first = true;
-    for (const stmt of section) {
-      const skip = stmt === firstStmt && header.endPos > 0 ? header.endPos : undefined;
-      const text = extractOwnText(stmt, skip);
-      // Blank line between statements in types/consts/functions sections
-      const sep = spaced && !first ? "\n\n" : "\n";
-      parts.push(sep + text);
-      first = false;
-    }
-    prevSection = true;
-  }
-
-  let result = parts.join("");
-  result = result.replace(/\n{3,}/g, "\n\n"); // collapse 3+ newlines to 2
-  result = result.replace(/^\n+/, "");         // no leading blank lines
-  if (!result.endsWith("\n")) result += "\n";
-  return result;
+function isExported(stmt: Statement): boolean {
+  return stmt.getText().trimStart().startsWith("export ");
 }
 
-// ---------------------------------------------------------------------------
-// Run
-// ---------------------------------------------------------------------------
+function buildEdges(stmts: Statement[]): Set<number>[] {
+  const nameToIdx = new Map<string, number>();
+  for (let i = 0; i < stmts.length; i++) {
+    const n = getName(stmts[i]!);
+    if (n) nameToIdx.set(n, i);
+  }
+  const edges: Set<number>[] = stmts.map(() => new Set());
+  for (let i = 0; i < stmts.length; i++) {
+    const refs = collectRefs(stmts[i]!);
+    const self = getName(stmts[i]!);
+    for (const ref of refs) {
+      if (ref === self) continue;
+      const t = nameToIdx.get(ref);
+      if (t !== undefined && t !== i) edges[i]!.add(t);
+    }
+  }
+  return edges;
+}
 
-const project = new Project({
-  tsConfigFilePath: "tsconfig.json",
-  skipAddingFilesFromTsConfig: true,
-});
+function getName(stmt: Statement): string | undefined {
+  if (stmt.isKind(SyntaxKind.FunctionDeclaration)) return stmt.getName();
+  if (stmt.isKind(SyntaxKind.VariableStatement)) {
+    const decls = stmt.getDeclarationList().getDeclarations();
+    if (decls.length === 1) return decls[0]!.getName();
+  }
+  if (
+    stmt.isKind(SyntaxKind.TypeAliasDeclaration) ||
+    stmt.isKind(SyntaxKind.InterfaceDeclaration) ||
+    stmt.isKind(SyntaxKind.EnumDeclaration)
+  ) {
+    return (stmt as { getName(): string }).getName();
+  }
+  return undefined;
+}
 
-const sourceFile = project.addSourceFileAtPath(filePath);
-const originalText = sourceFile.getFullText();
-
-console.log(`Reordering: ${filePath}`);
-
-// Run up to 2 passes to guarantee idempotency.
-// The first pass may shift trivia boundaries; the second pass stabilizes them.
-let current = originalText;
-for (let pass = 1; pass <= 2; pass++) {
-  const sf = pass === 1 ? sourceFile : project.createSourceFile("__temp__.ts", current, { overwrite: true });
-  const result = reorderFile(sf);
-  if (result === current) break;
-  current = result;
+function collectRefs(node: Node): Set<string> {
+  const names = new Set<string>();
+  node.forEachDescendant((child) => {
+    if (child.isKind(SyntaxKind.Identifier)) names.add(child.getText());
+  });
+  return names;
 }
 
 if (current === originalText) {
@@ -421,6 +410,9 @@ if (dryRun) {
 }
 
 sourceFile.replaceWithText(current);
+
 sourceFile.saveSync();
+
 console.log("  Saved.");
+
 console.log("  Run: npm run build && npx biome check --write " + filePath);
