@@ -64,6 +64,18 @@ interface SelectionSystemDeps {
 
   // Sibling systems / parent callbacks
   requestRender: () => void;
+  /** Drain a pending `requestRender` to the visible canvas synchronously.
+   *  Called inside `finishSelection` immediately before `dispatchCastleDone`
+   *  so the auto-build's final wall (placed earlier in the same tick via
+   *  `tickAllCastleBuilds`, with `requestRender()` queued) reaches the
+   *  visible canvas BEFORE the transition's mutate runs. The banner system
+   *  then captures its A-snapshot from a canvas that already shows every
+   *  pre-mutation wall — without this flush, the snapshot is one frame
+   *  stale and the sweep reveals a castle missing its last wall on the
+   *  pre-side. Must run before mutate, not before A-capture: flushing
+   *  inside `showBanner` (after mutate) would paint the post-mutation
+   *  scene onto the visible canvas, defeating the offscreen-B model. */
+  flushPendingRender: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   /** Dispatch the `advance-to-cannon` transition (post-life-lost continue
    *  path). */
@@ -375,6 +387,16 @@ export function createSelectionSystem(
     )
       return;
     resetOverlaySelection();
+    // Flush any pending requestRender from this tick BEFORE dispatching
+    // the transition. The auto-build's final wall was placed in this same
+    // tick (see `tickAllCastleBuilds` above) with `requestRender()` queued
+    // for the next mainLoop drain — but the transition's mutate +
+    // showBanner would otherwise run synchronously inside this tick, with
+    // the A-snapshot taken from a canvas that doesn't yet show the last
+    // wall. Flushing here paints the pre-mutation state to the visible
+    // canvas first; the banner's offscreen-B model is preserved because
+    // the mutate hasn't run yet.
+    deps.flushPendingRender();
     // castle-done's mutate handles finalizeRoundCleanup (round > 1) +
     // finalizeFreshCastles + finalizeCastleConstruction +
     // clearCastleBuildViewport + enterCannonPhase + cannon-start broadcast.

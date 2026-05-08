@@ -480,6 +480,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera,
     syncSelectionOverlay: updateSelectionOverlay,
     requestRender,
+    // Forward-reference `render` (destructured below from
+    // `createRenderSystem`) — the closure isn't called until a tick fires
+    // `finishSelection`, by which point composition has finished and
+    // `render` is bound. Same pattern as `captureSceneOffscreen` for the
+    // banner system.
+    flushPendingRender: () => {
+      if (!runtimeState.renderDirty) return;
+      runtimeState.renderDirty = false;
+      render();
+    },
     pointerPlayer,
     dispatchAdvanceToCannon: () => phaseTicks.dispatchAdvanceToCannon(),
     dispatchCastleDone: () => phaseTicks.dispatchCastleDone(),
