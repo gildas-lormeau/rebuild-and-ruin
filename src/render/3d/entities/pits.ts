@@ -32,6 +32,7 @@
 
 import * as THREE from "three";
 import type { BurningPit } from "../../../shared/core/battle-types.ts";
+import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildPit, getPitVariant } from "../sprites/pit-scene.ts";
@@ -241,7 +242,7 @@ export function createPitsManager(scene: THREE.Scene): PitsManager {
       lastFade = undefined;
     }
 
-    applyLavaPulse(ctx.now, overlay?.battle?.inBattle === true);
+    applyLavaPulse(ctx.now, overlay?.phase === Phase.BATTLE);
   }
 
   function dispose(): void {

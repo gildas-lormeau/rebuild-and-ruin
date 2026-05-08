@@ -12,7 +12,7 @@ import type {
   WallBurn,
 } from "../core/battle-types.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
-import type { Phase } from "../core/game-phase.ts";
+import { Phase } from "../core/game-phase.ts";
 import type {
   GameMap,
   House,
@@ -212,9 +212,6 @@ export interface OverlayBalloon {
 
 /** Battle phase — projectiles, effects, territory state. */
 export interface BattleOverlay {
-  /** True when battle visuals should render (battle phase or banner with battle snapshot).
-   *  Use this instead of duck-typing `!!battleTerritory`. */
-  inBattle?: boolean;
   cannonballs?: readonly OverlayCannonball[];
   crosshairs?: readonly Crosshair[];
   impacts?: readonly Impact[];
@@ -624,8 +621,8 @@ export function interiorOwnersFromOverlay(
 ): Map<number, ValidPlayerSlot> {
   const owners = new Map<number, ValidPlayerSlot>();
   if (!overlay) return owners;
-  if (overlay.battle?.inBattle) {
-    const territories = overlay.battle.battleTerritory;
+  if (overlay.phase === Phase.BATTLE) {
+    const territories = overlay.battle?.battleTerritory;
     if (territories) {
       for (let pid = 0; pid < territories.length; pid++) {
         const territory = territories[pid];

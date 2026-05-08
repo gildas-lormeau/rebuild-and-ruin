@@ -350,7 +350,6 @@ export function createOnlineOverlay(
       sinkholeTiles: view.modern?.sinkholeTiles ?? undefined,
     },
     battle: {
-      inBattle: !!battleTerritory,
       battleTerritory,
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),

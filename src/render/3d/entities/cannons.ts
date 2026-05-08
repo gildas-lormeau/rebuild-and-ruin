@@ -66,6 +66,7 @@
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
+import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   cannonSize,
@@ -284,7 +285,7 @@ export function createCannonsManager(
       if (!byVariant.has(variant)) hideSubParts(bucket.subParts);
     }
 
-    const inBattle = !!overlay?.battle?.inBattle;
+    const inBattle = overlay?.phase === Phase.BATTLE;
 
     // Write matrices for each live variant.
     for (const [variant, list] of byVariant) {
@@ -459,7 +460,7 @@ function computeSignature(
   getCannonFacing: GetCannonFacing,
 ): string {
   if (!overlay?.castles) return "";
-  const parts: string[] = [overlay.battle?.inBattle ? "b" : "p"];
+  const parts: string[] = [overlay.phase === Phase.BATTLE ? "b" : "p"];
   for (const castle of overlay.castles) {
     for (const cannon of castle.cannons) {
       if (!isCannonAlive(cannon)) continue;

@@ -39,6 +39,7 @@
  */
 
 import * as THREE from "three";
+import { Phase } from "../../shared/core/game-phase.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
@@ -241,7 +242,7 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
     // terrain. Overlay is always defined during gameplay; this guards
     // against pre-first-frame / teardown ticks.
     if (!map || !overlay) return;
-    const inBattle = !!overlay.battle?.inBattle;
+    const inBattle = overlay.phase === Phase.BATTLE;
     shaderUniforms.inBattle.value = inBattle;
     shaderUniforms.wavesTimeSec.value = now / 1000;
 

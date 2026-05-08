@@ -13,6 +13,7 @@
  */
 
 import * as THREE from "three";
+import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import {
@@ -104,7 +105,7 @@ export function createTowerLabelsManager(
     const towers = map?.towers;
     const ownedTowers = overlay?.entities?.ownedTowers;
     const homeTowerIndices = overlay?.entities?.homeTowerIndices;
-    const inBattle = !!overlay?.battle?.inBattle;
+    const inBattle = overlay?.phase === Phase.BATTLE;
 
     if (!inBattle || !towers || !ownedTowers || !homeTowerIndices) {
       for (const sprite of sprites.values()) sprite.visible = false;

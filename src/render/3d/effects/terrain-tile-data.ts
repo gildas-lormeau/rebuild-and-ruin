@@ -16,6 +16,7 @@
  */
 
 import * as THREE from "three";
+import { Phase } from "../../../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../../../shared/core/grid.ts";
 import {
   interiorOwnersFromOverlay,
@@ -66,7 +67,7 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     const overlay = ctx.overlay;
     const map = ctx.map;
     if (!overlay || !map) return;
-    const inBattle = !!overlay.battle?.inBattle;
+    const inBattle = overlay.phase === Phase.BATTLE;
     const sinkholeTiles = overlay.entities?.sinkholeTiles;
     const frozenTiles = overlay.entities?.frozenTiles;
 

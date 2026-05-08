@@ -10,6 +10,7 @@
  */
 
 import * as THREE from "three";
+import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK, RENDER_ORDER } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -107,7 +108,7 @@ export function createBonusSquaresManager(
 
   function update(ctx: FrameCtx): void {
     const { overlay, now } = ctx;
-    const inBattle = !!overlay?.battle?.inBattle;
+    const inBattle = overlay?.phase === Phase.BATTLE;
     const tiles = inBattle ? undefined : overlay?.entities?.bonusSquares;
     reconcile(tiles);
     if (activeCount === 0) {
