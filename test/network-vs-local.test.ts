@@ -35,6 +35,7 @@ import { createScenario, type Scenario } from "./scenario.ts";
 import { createNetworkedPair } from "./network-setup.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { PieceShape } from "../src/shared/core/pieces.ts";
 
 interface PlayerSnapshot {
   readonly id: number;
@@ -43,6 +44,13 @@ interface PlayerSnapshot {
   readonly cannons: number;
   readonly ownedTowers: number;
   readonly score: number;
+  readonly currentPiece: PieceShape | undefined;
+  readonly bagQueueLen: number | null;
+}
+
+interface StateSnapshot {
+  readonly rngState: number;
+  readonly players: readonly PlayerSnapshot[];
 }
 
 // Parameterized stress — a handful of (seed, mode, rounds) triples to
@@ -81,7 +89,7 @@ Deno.test(
     // Local baseline.
     const local = await createScenario({ seed, mode, rounds });
     local.runGame();
-    const localPlayers = snapshotPlayers(local);
+    const localSnap = snapshotState(local);
     assertEquals(local.mode(), Mode.STOPPED);
 
     // Networked run.
@@ -92,13 +100,13 @@ Deno.test(
     });
     await runNetworkedToEnd(host, watcher, pump);
 
-    const hostPlayers = snapshotPlayers(host);
-    const watcherPlayers = snapshotPlayers(watcher);
+    const hostSnap = snapshotState(host);
+    const watcherSnap = snapshotState(watcher);
 
     // Host should match local (deterministic AI, same seed).
-    assertPlayersConverge(hostPlayers, localPlayers, "host vs local");
+    assertStateConverges(hostSnap, localSnap, "host vs local");
     // Watcher should match host (network layer faithful).
-    assertPlayersConverge(watcherPlayers, hostPlayers, "watcher vs host");
+    assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
 
     assertEquals(
       watcher.state.round,
@@ -119,7 +127,7 @@ Deno.test(
 
     const local = await createScenario({ seed, mode, rounds });
     local.runGame();
-    const localPlayers = snapshotPlayers(local);
+    const localSnap = snapshotState(local);
 
     const { host, watcher, pump } = await createNetworkedPair({
       seed,
@@ -128,11 +136,11 @@ Deno.test(
     });
     await runNetworkedToEnd(host, watcher, pump);
 
-    const hostPlayers = snapshotPlayers(host);
-    const watcherPlayers = snapshotPlayers(watcher);
+    const hostSnap = snapshotState(host);
+    const watcherSnap = snapshotState(watcher);
 
-    assertPlayersConverge(hostPlayers, localPlayers, "host vs local");
-    assertPlayersConverge(watcherPlayers, hostPlayers, "watcher vs host");
+    assertStateConverges(hostSnap, localSnap, "host vs local");
+    assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
 
     assertWireExercised(host, "modern pure AI");
   },
@@ -156,12 +164,12 @@ for (const stress of STRESS_TRIPLES) {
       });
       await runNetworkedToEnd(host, watcher, pump);
 
-      const hostPlayers = snapshotPlayers(host);
-      const watcherPlayers = snapshotPlayers(watcher);
-      const localPlayers = snapshotPlayers(local);
+      const hostSnap = snapshotState(host);
+      const watcherSnap = snapshotState(watcher);
+      const localSnap = snapshotState(local);
 
-      assertPlayersConverge(hostPlayers, localPlayers, "host vs local");
-      assertPlayersConverge(watcherPlayers, hostPlayers, "watcher vs host");
+      assertStateConverges(hostSnap, localSnap, "host vs local");
+      assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
       assertWireExercised(host, `stress seed=${stress.seed} ${stress.mode}`);
     },
   );
@@ -201,7 +209,7 @@ Deno.test(
       assistedSlots: [assistedSlot],
     });
     local.runGame();
-    const localPlayers = snapshotPlayers(local);
+    const localSnap = snapshotState(local);
 
     // Networked — host runs the assisted controller, broadcasts flow to
     // the watcher through `pump()`. The watcher runs regular AI for every
@@ -215,11 +223,11 @@ Deno.test(
     });
     await runNetworkedToEnd(host, watcher, pump);
 
-    const hostPlayers = snapshotPlayers(host);
-    const watcherPlayers = snapshotPlayers(watcher);
+    const hostSnap = snapshotState(host);
+    const watcherSnap = snapshotState(watcher);
 
-    assertPlayersConverge(hostPlayers, localPlayers, "host vs local");
-    assertPlayersConverge(watcherPlayers, hostPlayers, "watcher vs host");
+    assertStateConverges(hostSnap, localSnap, "host vs local");
+    assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
 
     // The assisted slot must actually have broadcast something — if its
     // placements never reached the wire, the watcher would still
@@ -264,12 +272,12 @@ for (const stress of ASSISTED_STRESS) {
       });
       await runNetworkedToEnd(host, watcher, pump);
 
-      const hostPlayers = snapshotPlayers(host);
-      const watcherPlayers = snapshotPlayers(watcher);
-      const localPlayers = snapshotPlayers(local);
+      const hostSnap = snapshotState(host);
+      const watcherSnap = snapshotState(watcher);
+      const localSnap = snapshotState(local);
 
-      assertPlayersConverge(hostPlayers, localPlayers, "host vs local");
-      assertPlayersConverge(watcherPlayers, hostPlayers, "watcher vs host");
+      assertStateConverges(hostSnap, localSnap, "host vs local");
+      assertStateConverges(watcherSnap, hostSnap, "watcher vs host");
     },
   );
 }
@@ -295,6 +303,13 @@ async function runNetworkedToEnd(
   );
 }
 
+function snapshotState(sc: Scenario): StateSnapshot {
+  return {
+    rngState: sc.state.rng.getState(),
+    players: snapshotPlayers(sc),
+  };
+}
+
 function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
   return sc.state.players.map((player) => ({
     id: player.id,
@@ -303,7 +318,24 @@ function snapshotPlayers(sc: Scenario): PlayerSnapshot[] {
     cannons: player.cannons.length,
     ownedTowers: player.ownedTowers.length,
     score: player.score,
+    currentPiece: player.currentPiece,
+    bagQueueLen: player.bag ? player.bag.queue.length : null,
   }));
+}
+
+function assertStateConverges(
+  actual: StateSnapshot,
+  expected: StateSnapshot,
+  label: string,
+): void {
+  assertEquals(
+    actual.rngState,
+    expected.rngState,
+    `${label}: state.rng position diverged ` +
+      `(actual=${actual.rngState} expected=${expected.rngState}) — ` +
+      `parity break, downstream stochastic outcomes will desync`,
+  );
+  assertPlayersConverge(actual.players, expected.players, label);
 }
 
 function assertPlayersConverge(

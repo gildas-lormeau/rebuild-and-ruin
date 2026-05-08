@@ -212,6 +212,8 @@ function handlePiecePlaced(
     applyAt,
     playerId,
     apply: (drainState) => {
+      // Build-end gate — see scheduled-actions.ts for rationale.
+      if (!drainState.players[playerId]?.bag) return;
       if (!canPlacePiece(drainState, playerId, offsets, row, col)) return;
       applyPiecePlacement(drainState, playerId, offsets, row, col);
     },

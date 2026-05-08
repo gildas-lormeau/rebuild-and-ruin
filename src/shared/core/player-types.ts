@@ -102,8 +102,10 @@ export function initPlayerBag(
  *  callers advance only after verified placement, never speculatively). */
 export function advancePlayerBag(player: Player, _placed: true): void {
   if (!player.bag) {
-    console.warn("advancePlayerBag called with null bag — likely a desync");
-    return;
+    throw new Error(
+      `advancePlayerBag: player ${player.id} bag is null — late-arriving ` +
+        `placement after clearAllPlayerBags. state.rng will drift cross-peer.`,
+    );
   }
   player.currentPiece = nextPiece(player.bag);
 }

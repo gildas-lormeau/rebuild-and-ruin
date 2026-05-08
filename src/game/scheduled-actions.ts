@@ -94,6 +94,12 @@ export function schedulePiecePlacement(args: {
       // so the accept/reject decision matches across peers. The mirror
       // check on the receiver path lives in
       // `online-server-events.ts:handlePiecePlaced`'s apply closure.
+      // Build-end gate: if `clearAllPlayerBags` has run at end-of-build
+      // before this scheduled apply drains, the player's bag is null
+      // and `applyPiecePlacement` would throw. Both peers see the same
+      // bag=null transition (it's set in `ROUND_END.mutate`), so the
+      // skip is symmetric and `state.rng` stays in lockstep.
+      if (!drainState.players[playerId]?.bag) return;
       if (!canPlacePiece(drainState, playerId, offsets, row, col)) return;
       applyPiecePlacement(drainState, playerId, offsets, row, col);
       clampBuildCursor(drainState.players[playerId]?.currentPiece);
