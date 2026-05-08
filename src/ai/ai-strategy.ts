@@ -12,6 +12,10 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
+import type {
+  AiPersonality,
+  ArchetypeId,
+} from "../shared/core/ai-personality.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import {
   DIFFICULTY_EASY,
@@ -154,8 +158,6 @@ export interface AiStrategy {
   cursorSkill: 1 | 2 | 3;
 }
 
-type ArchetypeType = (typeof Archetype)[keyof typeof Archetype];
-
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
   spatialAwareness: [number, number]; // [lo, hi] for 1–3
@@ -212,7 +214,7 @@ const Archetype = {
  * - BALANCED:    All traits at midpoint. The "average" AI — competent but
  *                not specialized. Used as the baseline for difficulty tuning.
  */
-const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
+const ARCHETYPE_PROFILES: Record<ArchetypeId, ArchetypeProfile> = {
   [Archetype.BUILDER]: {
     buildSkill: [3, 4],
     spatialAwareness: [2, 3],
@@ -284,6 +286,41 @@ export const CHAIN = {
   ICE_TRENCH: "ice_trench",
 } as const;
 
+/** Roll an `AiPersonality` from `rng`, honoring difficulty bias.
+ *  Difficulty biases trait rolls within archetype ranges:
+ *    Easy(0):      lo end minus 1 (floor 1) — noticeably weaker than archetype baseline
+ *    Normal(1):    always lo end of range — competent but beatable
+ *    Hard(2):      roll uniformly in [lo, hi] — original behavior, varied and strong
+ *    Very Hard(3): hi end plus 1 (capped) — exceeds archetype limits */
+export function rollPersonality(
+  rng: Rng,
+  archetype?: ArchetypeId,
+  difficulty: number = DIFFICULTY_NORMAL,
+): AiPersonality {
+  const chosen = archetype ?? rng.pick(ARCHETYPE_LIST);
+  const profile = ARCHETYPE_PROFILES[chosen];
+  const bias = (range: [number, number], cap: number): number => {
+    if (difficulty <= DIFFICULTY_EASY) return Math.max(1, range[0] - 1);
+    if (difficulty === DIFFICULTY_NORMAL) return range[0];
+    if (difficulty === DIFFICULTY_HARD) return rng.int(...range);
+    if (difficulty >= DIFFICULTY_VERY_HARD) return Math.min(cap, range[1] + 1);
+    return rng.int(...range);
+  };
+  return {
+    archetype: chosen,
+    buildSkill: bias(profile.buildSkill, 5) as 1 | 2 | 3 | 4 | 5,
+    spatialAwareness: bias(profile.spatialAwareness, 3) as 1 | 2 | 3,
+    aggressiveness: bias(profile.aggressiveness, 3) as 1 | 2 | 3,
+    defensiveness: bias(profile.defensiveness, 3) as 1 | 2 | 3,
+    battleTactics: bias(profile.battleTactics, 3) as 1 | 2 | 3,
+    cursorSkill: bias(profile.cursorSkill, 3) as 1 | 2 | 3,
+    thinkingSpeed: bias(profile.thinkingSpeed, 3) as 1 | 2 | 3,
+    caresAboutHouses: rng.bool(profile.caresAboutHouses),
+    caresAboutBonuses: rng.bool(profile.caresAboutBonuses),
+    bankHugging: rng.bool(profile.bankHugging),
+  };
+}
+
 export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting.
    *  Keyed by (playerId << 8 | cannonIdx) to survive checkpoint cannon replacement. */
@@ -303,7 +340,7 @@ export class DefaultStrategy implements AiStrategy {
   /** Seeded PRNG — log rng.seed to reproduce this AI's behavior. */
   readonly rng: Rng;
   /** The archetype that shaped this AI's personality. */
-  readonly archetype: ArchetypeType;
+  readonly archetype: ArchetypeId;
   bankHugging: boolean;
   private caresAboutHouses: boolean;
   private caresAboutBonuses: boolean;
@@ -316,43 +353,31 @@ export class DefaultStrategy implements AiStrategy {
   private spatialAwareness: 1 | 2 | 3;
 
   /**
-   * @param archetype — force a specific archetype, or undefined to roll randomly
-   * @param seed — PRNG seed for reproducibility
-   * @param difficulty — DIFFICULTY_EASY..DIFFICULTY_VERY_HARD; clamps trait ranges
+   * @param rng — RNG used only for runtime decision rolls (focus-fire, ice
+   *   trench, demolition probability, etc.) and animation timing. Pure-AI
+   *   initial-bootstrap controllers share `state.rng` (every peer ticks
+   *   them in lockstep). Promotion-time pure-AI and AssistedHuman
+   *   controllers use a private `new Rng(seed)` because their construction
+   *   or animation runs asymmetrically across peers.
+   * @param personality — pre-rolled archetype + traits. Rolling at bootstrap
+   *   (instead of inside this constructor) lets pure-AI safely use
+   *   `state.rng` as `rng` here without contaminating the shared RNG with
+   *   construction-time draws that differ between host and watcher when
+   *   one peer has an AssistedHuman variant for the same slot.
    */
-  constructor(
-    archetype?: ArchetypeType,
-    seed?: number,
-    difficulty: number = DIFFICULTY_NORMAL,
-  ) {
-    this.rng = new Rng(seed);
-    this.archetype = archetype ?? rollArchetype(this.rng);
-    const profile = ARCHETYPE_PROFILES[this.archetype];
-
-    // Difficulty biases trait rolls within archetype ranges:
-    //   Easy(0):      lo end minus 1 (floor 1) — noticeably weaker than archetype baseline
-    //   Normal(1):    always lo end of range — competent but beatable
-    //   Hard(2):      roll uniformly in [lo, hi] — original behavior, varied and strong
-    //   Very Hard(3): hi end plus 1 (capped) — exceeds archetype limits
-    const bias = (range: [number, number], cap: number): number => {
-      if (difficulty <= DIFFICULTY_EASY) return Math.max(1, range[0] - 1);
-      if (difficulty === DIFFICULTY_NORMAL) return range[0];
-      if (difficulty === DIFFICULTY_HARD) return this.rng.int(...range);
-      if (difficulty >= DIFFICULTY_VERY_HARD)
-        return Math.min(cap, range[1] + 1);
-      return this.rng.int(...range);
-    };
-
-    this.buildSkill = bias(profile.buildSkill, 5) as 1 | 2 | 3 | 4 | 5;
-    this.spatialAwareness = bias(profile.spatialAwareness, 3) as 1 | 2 | 3;
-    this.aggressiveness = bias(profile.aggressiveness, 3) as 1 | 2 | 3;
-    this.defensiveness = bias(profile.defensiveness, 3) as 1 | 2 | 3;
-    this.battleTactics = bias(profile.battleTactics, 3) as 1 | 2 | 3;
-    this.cursorSkill = bias(profile.cursorSkill, 3) as 1 | 2 | 3;
-    this.thinkingSpeed = bias(profile.thinkingSpeed, 3) as 1 | 2 | 3;
-    this.caresAboutHouses = this.rng.bool(profile.caresAboutHouses);
-    this.caresAboutBonuses = this.rng.bool(profile.caresAboutBonuses);
-    this.bankHugging = this.rng.bool(profile.bankHugging);
+  constructor(rng: Rng, personality: AiPersonality) {
+    this.rng = rng;
+    this.archetype = personality.archetype;
+    this.buildSkill = personality.buildSkill;
+    this.spatialAwareness = personality.spatialAwareness;
+    this.aggressiveness = personality.aggressiveness;
+    this.defensiveness = personality.defensiveness;
+    this.battleTactics = personality.battleTactics;
+    this.cursorSkill = personality.cursorSkill;
+    this.thinkingSpeed = personality.thinkingSpeed;
+    this.caresAboutHouses = personality.caresAboutHouses;
+    this.caresAboutBonuses = personality.caresAboutBonuses;
+    this.bankHugging = personality.bankHugging;
   }
 
   /** Castle ring margin for secondary towers (derived from aggressiveness). */
@@ -597,9 +622,9 @@ export class DefaultStrategy implements AiStrategy {
       this.focusFirePlayerId,
       this.shotCounts,
       this.battleTargetMemory,
+      this.rng,
       wallsOnly,
       this.battleTactics,
-      this.rng,
     );
   }
 
@@ -637,8 +662,4 @@ export function pickPlacementStandalone(
     piece,
     cursorPos ? { cursorPos } : undefined,
   );
-}
-
-function rollArchetype(rng: Rng): ArchetypeType {
-  return rng.pick(ARCHETYPE_LIST);
 }

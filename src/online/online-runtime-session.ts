@@ -23,6 +23,7 @@ import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { pageOnline } from "./online-dom.ts";
@@ -70,7 +71,7 @@ export function createOnlineRuntimeSessionHelpers(
     deps.container.classList.add(GAME_CONTAINER_ACTIVE);
     lobby.seed = seed;
     deps.log(`[online] seed: ${seed}`);
-    lobby.map = generateMap(seed);
+    lobby.map = generateMap(new Rng(seed));
     lobby.joined = new Array(MAX_PLAYERS).fill(false);
     lobby.active = true;
     deps.session.lobbyStartTime = deps.timing.now();
@@ -91,15 +92,9 @@ export function createOnlineRuntimeSessionHelpers(
     const keyBindings = Array.from({ length: playerCount }, (_, index) =>
       index === deps.session.myPlayerId ? settings.keyBindings[0] : undefined,
     );
-    // Transfer map ownership from lobby to game — see runtime-bootstrap.ts
-    // for the full rationale (in-game tile/house mutations would leak into a
-    // rematch via the cached lobby reference otherwise).
-    const existingMap = runtime.runtimeState.lobby.map ?? undefined;
-    runtime.runtimeState.lobby.map = null;
     await bootstrapGame({
       seed: msg.seed,
       maxPlayers: playerCount,
-      existingMap,
       maxRounds: msg.settings.maxRounds,
       cannonMaxHp: msg.settings.cannonMaxHp,
       buildTimer: msg.settings.buildTimer,

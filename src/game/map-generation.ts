@@ -24,7 +24,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
-import { Rng } from "../shared/platform/rng.ts";
+import type { Rng } from "../shared/platform/rng.ts";
 
 interface ZoneStats {
   minRow: number;
@@ -83,9 +83,7 @@ const EDGE_LEFT = 3;
  *  stamp in place; starting a fresh map bumps beyond any of those. */
 let nextMapVersionCounter = 1;
 
-export function generateMap(seed?: number): GameMap {
-  const rng = new Rng(seed ?? Date.now());
-
+export function generateMap(rng: Rng): GameMap {
   const tiles: Tile[][] = Array.from({ length: GRID_ROWS }, () =>
     new Array(GRID_COLS).fill(Tile.Grass),
   );
@@ -174,7 +172,7 @@ export function generateMap(seed?: number): GameMap {
   throw new Error(
     `generateMap: failed to place ${TOWERS_PER_ZONE * 3} towers after ${
       GENERATION_MAX_ATTEMPTS + GENERATION_FALLBACK_ATTEMPTS
-    } attempts (seed=${seed ?? "time"})`,
+    } attempts (seed=${rng.seed})`,
   );
 }
 

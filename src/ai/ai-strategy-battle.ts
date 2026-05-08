@@ -445,9 +445,9 @@ export function pickTarget(
   focusFirePlayerId: ValidPlayerSlot | undefined,
   shotCounts: Map<number, number>,
   targetMemory: BattleTargetMemory,
+  rng: Rng,
   wallsOnly?: boolean,
   battleTactics = 2,
-  rng: Rng = state.rng,
 ): StrategicPixelPos | null {
   const rand = () => rng.next();
   // Second half of battle: 1/4 chance to switch to the other enemy.

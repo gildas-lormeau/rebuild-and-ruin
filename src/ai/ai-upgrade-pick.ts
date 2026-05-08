@@ -165,6 +165,10 @@ function aiPickUpgrade(
   if (!playerHasThickWalls(state, playerId)) excluded.add(UID.DEMOLITION);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
+  // lint:allow-state-rng -- aiPickUpgrade is invoked from
+  // precomputeAiUpgradePicks at battle-done.mutate, which fires symmetrically
+  // on every peer; drawing from state.rng here is required for the
+  // precomputed picks to agree across host and watchers.
   return pool[Math.floor(state.rng.next() * pool.length)]!;
 }
 

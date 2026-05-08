@@ -39,17 +39,18 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Rng } from "../shared/platform/rng.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 
-/** Create a game from a seed: generate map, pick zones, create state.
- *  Pass an existing map to reuse it (avoids regeneration + keeps terrain cache warm). */
+/** Create a game from a seed: construct state.rng, generate map (advancing
+ *  state.rng), pick zones, build state. Map generation shares state.rng so
+ *  there's only one persistent stochastic source per game. */
 export function createGameFromSeed(
   seed: number,
   maxPlayers: number,
-  existingMap?: GameMap,
 ): { map: GameMap; state: GameState; zones: ZoneId[]; playerCount: number } {
-  const map = existingMap ?? generateMap(seed);
+  const rng = new Rng(seed);
+  const map = generateMap(rng);
   const zones = topZonesBySize(map, maxPlayers).map(({ zone }) => zone);
   const playerCount = Math.min(zones.length, maxPlayers);
-  const state = createGameState(map, playerCount, seed);
+  const state = createGameState(map, playerCount, rng);
   state.playerZones = zones.slice();
   return { map, state, zones, playerCount };
 }
@@ -82,7 +83,7 @@ export function applyGameConfig(
 function createGameState(
   map: GameMap,
   playerCount: number,
-  seed?: number,
+  rng: Rng,
 ): GameState {
   const players: Player[] = [];
   for (let i = 0; i < playerCount; i++) {
@@ -108,7 +109,7 @@ function createGameState(
   }
 
   return {
-    rng: new Rng(seed),
+    rng,
     map,
     bus: createGameEventBus(),
     phase: Phase.CASTLE_SELECT,

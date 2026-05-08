@@ -45,7 +45,7 @@ import {
   type SelectionHost,
   tickSelection,
 } from "../ai/ai-phase-select.ts";
-import { type AiStrategy, DefaultStrategy } from "../ai/ai-strategy.ts";
+import type { AiStrategy } from "../ai/ai-strategy.ts";
 import { tickAiUpgradePickEntry } from "../ai/ai-upgrade-pick.ts";
 import {
   executePlaceCannon,
@@ -108,10 +108,9 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Fixed perpendicular jitter offset (tiles), set once per movement. */
   private tileJitterOffset = 0;
 
-  constructor(playerId: ValidPlayerSlot, strategy?: AiStrategy) {
+  constructor(playerId: ValidPlayerSlot, strategy: AiStrategy) {
     super(playerId);
-    this.strategy = strategy ?? new DefaultStrategy();
-    this._battlePhase.orbitAngle = this.strategy.rng.next() * Math.PI * 2;
+    this.strategy = strategy;
   }
 
   // -----------------------------------------------------------------------
@@ -255,6 +254,11 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   protected override onResetBattle(state?: GameState): void {
+    // Re-roll orbit each battle. Fires only for local controllers (the
+    // template runs on `localControllers(...)` per phase-ticks), so remote
+    // placeholders never draw — host/watcher stay in lockstep regardless
+    // of which controller variant landed at the slot.
+    this._battlePhase.orbitAngle = this.strategy.rng.next() * Math.PI * 2;
     initBattle(this, this._battlePhase, state);
   }
 

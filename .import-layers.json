@@ -27,6 +27,7 @@
       "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
       "src/runtime/waved-ramp.ts",
+      "src/shared/core/ai-personality.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/game-constants.ts",
       "src/shared/core/game-phase.ts",
@@ -194,7 +195,6 @@
       "src/game/upgrades/territorial-ambition.ts",
       "src/game/zone-recompute.ts",
       "src/online/online-host-crosshairs.ts",
-      "src/online/online-host-promotion.ts",
       "src/online/online-send-actions.ts",
       "src/online/online-server-lifecycle.ts",
       "src/online/online-stores.ts",
@@ -349,6 +349,7 @@
       "src/game/game-actions.ts",
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",
+      "src/online/online-host-promotion.ts",
       "src/online/online-server-events.ts",
       "src/runtime/runtime-composition.ts"
     ]

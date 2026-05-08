@@ -11,6 +11,7 @@ import {
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../shared/platform/platform.ts";
+import { Rng } from "../shared/platform/rng.ts";
 import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   computeGameSeed,
@@ -94,7 +95,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     ) {
       runtimeState.lobby.seed = newSeed;
       deps.log(`[lobby] seed: ${newSeed}`);
-      const map = generateMap(newSeed);
+      const map = generateMap(new Rng(newSeed));
       runtimeState.lobby.map = map;
       deps.warmMapCache(map);
     }

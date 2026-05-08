@@ -3,20 +3,20 @@ import {
   ensureAiModulesLoaded,
 } from "../controllers/controller-factory.ts";
 import { applyGameConfig, createGameFromSeed } from "../game/index.ts";
+import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/core/game-constants.ts";
-import type { GameMap } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   ControllerFactory,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import { MAX_UINT32 } from "../shared/platform/rng.ts";
+import { MAX_UINT32, type Rng } from "../shared/platform/rng.ts";
 import {
   type GameSettings,
   type KeyBindings,
@@ -62,8 +62,6 @@ interface ResolvedGameConfig {
 interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
   seed: number;
   maxPlayers: number;
-  /** Reuse an existing map (e.g. from lobby) to avoid regeneration and keep terrain cache warm. */
-  existingMap?: GameMap;
   /** Which slots are human (true = human, false/missing = AI). */
   humanSlots: readonly boolean[];
   /** Per-slot key bindings (only used for human slots). */
@@ -75,14 +73,17 @@ interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
   setControllers: (nextControllers: readonly PlayerController[]) => void;
 }
 
-/** Create an AI-only controller (no key bindings). Used during initial game
- *  setup and host promotion to rebuild controllers for vacant slots. */
+/** Create an AI-only controller (no key bindings). Used during host promotion
+ *  to rebuild controllers for vacant slots — receives a private RNG and a
+ *  pre-rolled personality because promotion-time construction runs only on
+ *  the new host (asymmetric across peers, so it must not draw from
+ *  `state.rng`). Initial-bootstrap pure-AI calls the factory directly. */
 export function createAiController(
   id: ValidPlayerSlot,
-  seed: number,
-  difficulty?: number,
+  rng: Rng,
+  personality: AiPersonality,
 ): Promise<PlayerController> {
-  return createController(id, true, undefined, seed, difficulty);
+  return createController(id, true, undefined, rng, undefined, personality);
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
@@ -108,17 +109,9 @@ export async function bootstrapNewGameFromSettings(
   runtimeState.settings.seedMode = SEED_RANDOM;
   runtimeState.settings.gameMode = config.gameMode;
 
-  // Transfer map ownership from lobby to game. In-game mutations (sinkhole
-  // grass→water, high-tide flips, spawned houses) land on `state.map`; if the
-  // lobby still held the same reference, those mutations would leak into the
-  // next game (rematch reads `existingMap` before any reset can fire).
-  const existingMap = runtimeState.lobby.map ?? undefined;
-  runtimeState.lobby.map = null;
-
   await bootstrapGame({
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
-    existingMap,
     ...config,
     log,
     clearFrameData: deps.clearFrameData,
@@ -144,11 +137,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   deps.resetUIState();
   deps.clearFrameData();
 
-  const { state, playerCount } = createGameFromSeed(
-    deps.seed,
-    deps.maxPlayers,
-    deps.existingMap,
-  );
+  const { state, playerCount } = createGameFromSeed(deps.seed, deps.maxPlayers);
   applyGameConfig(state, {
     maxRounds: deps.maxRounds,
     cannonMaxHp: deps.cannonMaxHp,
@@ -168,29 +157,42 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   if (hasAi) await ensureAiModulesLoaded();
 
   // AI strategy seeding contract (initial host path):
-  //   Each AI controller pulls one uint32 from the shared game RNG in
-  //   player-index order. This advances state.rng before castle selection,
-  //   which is captured in every determinism fixture — changing the formula
-  //   here re-rolls those fixtures.
+  //   Every peer rolls one personality + one private seed per AI slot in
+  //   player order, drawing from `state.rng` symmetrically. Personality is
+  //   pre-rolled here (rather than inside `DefaultStrategy`'s constructor)
+  //   so the factory can hand it to the strategy without any further RNG
+  //   draws — that keeps the construction phase free of strategy-side
+  //   state.rng consumption, which would otherwise differ between host and
+  //   watcher when one peer installs an AssistedHuman variant for a slot
+  //   the other treats as plain pure-AI.
   //
-  //   The host-promotion path in online-host-promotion.ts derives a seed
-  //   from (baseSeed, round, slot) without touching state.rng instead,
-  //   because a promoted host doesn't know what the original host pulled at
-  //   init time. The two formulas are intentionally different: post-promotion
-  //   AI identity is NOT preserved from the pre-promotion host. If you ever
-  //   need identity preservation across promotion, checkpoint the strategy
-  //   seeds into SerializedPlayer and restore them on rebuild.
+  //   Pure-AI factories use `state.rng` for runtime decision draws (every
+  //   peer ticks pure-AI in lockstep). AssistedHuman factories use the
+  //   per-slot privateSeed to construct a private `new Rng(seed)` because
+  //   their animation runs only on the slot-owning peer.
+  //
+  //   The host-promotion path in online-host-promotion.ts uses a private
+  //   `new Rng(deriveAiStrategySeed(...))` instead, because a promoted host
+  //   constructs AI controllers asymmetrically (only on the new host). Post-
+  //   promotion AI identity is NOT preserved from the pre-promotion host.
+  //   If you ever need identity preservation across promotion, checkpoint
+  //   the strategy seeds into SerializedPlayer and restore them on rebuild.
   const factory = deps.controllerFactory ?? createController;
+  const aiStrategy = hasAi ? await import("../ai/ai-strategy.ts") : null;
   const nextControllers = await Promise.all(
     Array.from({ length: playerCount }, (_, i) => {
       const isAi = !deps.humanSlots[i];
-      const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
+      const privateSeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
+      const personality = isAi
+        ? aiStrategy!.rollPersonality(state.rng, undefined, deps.difficulty)
+        : undefined;
       return factory(
         i as ValidPlayerSlot,
         isAi,
         deps.keyBindings[i],
-        strategySeed,
-        isAi ? deps.difficulty : undefined,
+        isAi ? state.rng : undefined,
+        privateSeed,
+        personality,
       );
     }),
   );

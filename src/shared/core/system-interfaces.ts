@@ -5,6 +5,7 @@ import type {
   UpgradePickEntry,
 } from "../ui/interaction-types.ts";
 import type { KeyBindings } from "../ui/player-config.ts";
+import type { AiPersonality } from "./ai-personality.ts";
 import {
   type BurningPit,
   type Cannonball,
@@ -391,13 +392,24 @@ export interface PlayerController
  *  default `createController` (controller-factory.ts); tests inject a custom
  *  factory to install variants like `AiAssistedHumanController` from
  *  bootstrap onward, avoiding mid-game controller swaps that would advance
- *  RNG asymmetrically across host/watcher. */
+ *  RNG asymmetrically across host/watcher.
+ *
+ *  Personality is rolled at bootstrap (drawing from `state.rng` symmetrically
+ *  on every peer) and handed to the factory pre-rolled, so the strategy
+ *  constructor doesn't draw any RNG. Pure-AI factories then use `sharedRng`
+ *  (typically `state.rng`) for runtime decision draws — symmetric across
+ *  peers because every peer ticks pure-AI slots in lockstep. AssistedHuman
+ *  factories use `privateSeed` to construct a private `new Rng(privateSeed)`
+ *  because their animation runs only on the slot-owning peer. Both are
+ *  passed to every AI slot regardless of variant so all peers consume
+ *  `state.rng` identically at bootstrap. */
 export type ControllerFactory = (
   slot: ValidPlayerSlot,
   isAi: boolean,
   keys: KeyBindings | undefined,
-  strategySeed: number | undefined,
-  difficulty: number | undefined,
+  sharedRng: Rng | undefined,
+  privateSeed: number | undefined,
+  personality: AiPersonality | undefined,
 ) => Promise<PlayerController>;
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */

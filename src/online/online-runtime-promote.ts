@@ -61,8 +61,8 @@ export async function promoteToHost(): Promise<void> {
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
     _client.ctx.session.myPlayerId,
-    (id, seed) =>
-      createAiController(id, seed, _runtime.runtimeState.settings.difficulty),
+    (id, rng, personality) => createAiController(id, rng, personality),
+    _runtime.runtimeState.settings.difficulty,
   );
   syncAccumulatorsFromTimer(
     _runtime.runtimeState.state,

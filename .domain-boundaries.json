@@ -2,6 +2,7 @@
   "domains": {
     "shared": [
       "src/shared/core/action-schedule.ts",
+      "src/shared/core/ai-personality.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/board-occupancy.ts",

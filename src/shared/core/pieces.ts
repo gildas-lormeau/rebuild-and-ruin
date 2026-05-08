@@ -227,13 +227,13 @@ export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
 
 export function createBag(
   round: number,
-  rng?: Rng,
+  rng: Rng,
   smallPieces?: boolean,
 ): BagState {
   return {
     round,
     queue: [],
-    rng: rng ?? new Rng(),
+    rng,
     smallPieces: !!smallPieces,
   };
 }

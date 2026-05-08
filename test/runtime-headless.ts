@@ -15,6 +15,7 @@
  */
 
 import { generateMap } from "../src/game/index.ts";
+import { Rng } from "../src/shared/platform/rng.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
@@ -391,7 +392,7 @@ export async function createHeadlessRuntime(
   runtime.runtimeState.settings.seedMode = SEED_CUSTOM;
   runtime.runtimeState.settings.gameMode = gameMode;
   runtime.runtimeState.lobby.seed = seed;
-  runtime.runtimeState.lobby.map = generateMap(seed);
+  runtime.runtimeState.lobby.map = generateMap(new Rng(seed));
 
   // ── Sentinel warm-up ──────────────────────────────────────────────
   // `frameMeta` is initialized by `computeFrameContext` inside `mainLoop`.
@@ -542,13 +543,33 @@ function buildAssistedControllerFactory(
   safetyTicks: number,
 ): ControllerFactory {
   const assistedSet = new Set<ValidPlayerSlot>(assistedSlots);
-  return async (slot, isAi, keys, strategySeed, difficulty) => {
+  return async (slot, isAi, keys, sharedRng, privateSeed, personality) => {
     if (!isAi || !assistedSet.has(slot)) {
       const { createController } = await import(
         "../src/controllers/controller-factory.ts"
       );
-      return createController(slot, isAi, keys, strategySeed, difficulty);
+      return createController(
+        slot,
+        isAi,
+        keys,
+        sharedRng,
+        privateSeed,
+        personality,
+      );
     }
+    if (privateSeed === undefined) {
+      throw new Error("privateSeed required for assisted-human controller");
+    }
+    if (!personality) {
+      throw new Error("personality required for assisted-human controller");
+    }
+    // Assisted-human animation runs only on the slot-owning peer, so we
+    // construct a private RNG from the bootstrap-supplied per-slot seed.
+    // Reusing the shared `state.rng` here would drift across peers — the
+    // watcher installs a plain pure-AI factory for the same slot, so its
+    // strategy.rng-side draws would land on state.rng while the host's
+    // assisted-human draws would land on this private RNG.
+    const privateRng = new Rng(privateSeed);
     const [
       { AiAssistedHumanController },
       { DefaultStrategy },
@@ -559,7 +580,7 @@ function buildAssistedControllerFactory(
       import("../src/protocol/protocol.ts"),
     ]);
     return new AiAssistedHumanController(slot, {
-      strategy: new DefaultStrategy(undefined, strategySeed, difficulty),
+      strategy: new DefaultStrategy(privateRng, personality),
       senders: {
         sendPiecePlaced: (payload) =>
           send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...payload }),

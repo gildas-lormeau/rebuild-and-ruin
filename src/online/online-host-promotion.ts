@@ -3,12 +3,14 @@
  * accumulator sync during host migration.
  */
 
+import { rollPersonality } from "../ai/ai-strategy.ts";
 import {
   buildTimerBonus,
   enterCannonPhase,
   finalizeCastleConstruction,
 } from "../game/index.ts";
 import type { MutableAccums } from "../runtime/runtime-tick-context.ts";
+import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type {
@@ -18,6 +20,7 @@ import type {
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { Rng } from "../shared/platform/rng.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;
@@ -34,8 +37,10 @@ export function rebuildControllersForPhase(
   myPlayerId: PlayerSlotId,
   createAiController: (
     id: ValidPlayerSlot,
-    seed: number,
+    rng: Rng,
+    personality: AiPersonality,
   ) => Promise<PlayerController>,
+  difficulty: number | undefined,
 ): Promise<PlayerController[]> {
   return Promise.all(
     controllers.map(async (existing, i) => {
@@ -44,12 +49,22 @@ export function rebuildControllersForPhase(
       if (!player || isPlayerEliminated(player)) return existing;
 
       const pid = i as ValidPlayerSlot;
-      const strategySeed = deriveAiStrategySeed(
-        state.rng.seed,
-        state.round,
-        pid,
+      const strategyRng = new Rng(
+        deriveAiStrategySeed(state.rng.seed, state.round, pid),
       );
-      const ctrl = await createAiController(pid, strategySeed);
+      // Roll personality from a separate, deterministic Rng. We must NOT
+      // touch state.rng here — promotion-time construction runs only on
+      // the new host, so any state.rng draw would drift the watcher's
+      // canonical sequence.
+      const personalityRng = new Rng(
+        deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid),
+      );
+      const personality = rollPersonality(
+        personalityRng,
+        undefined,
+        difficulty,
+      );
+      const ctrl = await createAiController(pid, strategyRng, personality);
 
       // Initialize AI for the current phase
       if (state.phase === Phase.WALL_BUILD) {

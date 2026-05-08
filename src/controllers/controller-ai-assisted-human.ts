@@ -65,7 +65,7 @@ interface AssistedSenders {
 }
 
 interface AssistedControllerOptions {
-  strategy?: AiStrategy;
+  strategy: AiStrategy;
   senders: AssistedSenders;
   /** Lockstep apply queue. Piece placements (state-mutating, RNG-consuming
    *  via recheckTerritory) are scheduled with `applyAt = state.simTick +

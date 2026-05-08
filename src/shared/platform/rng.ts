@@ -15,8 +15,8 @@ export class Rng {
   /** The seed this Rng was created with. Log it to reproduce a game. */
   readonly seed: number;
 
-  constructor(seed?: number) {
-    this.seed = seed ?? (Math.random() * 0x100000000) >>> 0;
+  constructor(seed: number) {
+    this.seed = seed;
     this.state = this.seed;
   }
 

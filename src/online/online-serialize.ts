@@ -35,7 +35,6 @@ import {
 } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import { Rng } from "../shared/platform/rng.ts";
 import { toCannonMode } from "./online-types.ts";
 
 interface FullStateResult {
@@ -210,10 +209,10 @@ export function restoreFullStateSnapshot(
     zone: bonus.zone as ZoneId,
   }));
 
-  // Restore RNG internal state
-  const rng = new Rng(0);
-  rng.setState(msg.rngState);
-  state.rng = rng;
+  // Restore RNG internal state in place — preserves the single per-game
+  // Rng instance held by callers (piece bags, AI strategies of pure-AI
+  // initial-bootstrap controllers).
+  state.rng.setState(msg.rngState);
 
   // Reuse existing checkpoint helpers
   applyPlayersCheckpoint(state, msg.players);

@@ -90,7 +90,7 @@ export interface Player {
 export function initPlayerBag(
   player: Player,
   round: number,
-  rng?: Rng,
+  rng: Rng,
   smallPieces?: boolean,
 ): void {
   player.bag = createBag(round, rng, smallPieces);

@@ -98,8 +98,10 @@ export function createBattlePhase(): BattlePhase {
   };
 }
 
-/** Reset battle state for life-lost / new-game. Does NOT reset orbitAngle
- *  (it persists across battles for natural variation). */
+/** Reset battle state for life-lost / new-game. Leaves orbitAngle alone
+ *  here — `AiController.onResetBattle` re-seeds it from `strategy.rng` at
+ *  the start of every local-controller battle (so host/watcher stay in
+ *  lockstep regardless of which controller variant lands at each slot). */
 export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
   phase.state = { step: STEP.IDLE };
   phase.crosshairTarget = null;
