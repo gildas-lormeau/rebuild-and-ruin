@@ -65,6 +65,7 @@ interface TerrainDeps {
   readonly sdfTexture: THREE.DataTexture;
   readonly tileDataTexture: THREE.DataTexture;
   readonly grassPatternTexture: THREE.DataTexture;
+  readonly cobblestonePatternTexture: THREE.DataTexture;
 }
 
 export interface TerrainContext {
@@ -192,6 +193,7 @@ export function createTerrain(deps: TerrainDeps): TerrainContext {
     sdfTex: { value: deps.sdfTexture },
     tileDataTex: { value: deps.tileDataTexture },
     grassPatternTex: { value: deps.grassPatternTexture },
+    cobblestonePatternTex: { value: deps.cobblestonePatternTexture },
     mapPxSize: { value: new THREE.Vector2(MAP_PX_W, MAP_PX_H) },
     gridSize: { value: new THREE.Vector2(GRID_COLS, GRID_ROWS) },
     interiorLightLinear: {
@@ -434,6 +436,7 @@ varying vec2 vTerrainUv;
 uniform sampler2D sdfTex;
 uniform sampler2D tileDataTex;
 uniform sampler2D grassPatternTex;
+uniform sampler2D cobblestonePatternTex;
 uniform vec2 mapPxSize;
 uniform vec2 gridSize;
 uniform vec3 interiorLightLinear[${MAX_PLAYERS}];
@@ -491,18 +494,20 @@ vec3 defaultGrassLinear(ivec2 tileRC) {
   return isLight ? grassDarkLinear : grassLightLinear;
 }
 
-// Sample the per-pixel grass-blade offset (signed sRGB-byte fraction) and
-// apply it to a linear grass color via a sRGB round-trip. Mirrors the
-// original CPU-bake's texturedColor() byte-add-and-clamp behavior.
-vec3 applyGrassPattern(vec3 grass, vec2 worldPx) {
+// Sample a per-pixel pattern offset (signed sRGB-byte fraction) and apply
+// it to a linear color via a sRGB round-trip. Mirrors the original CPU-bake's
+// texturedColor() byte-add-and-clamp behavior. Used for both the grass-blade
+// pattern (raw grass tiles in battle) and the cobblestone pattern (owned
+// interiors in battle).
+vec3 applyPatternOffset(vec3 base, vec2 worldPx, sampler2D patternTex) {
   ivec2 inTile = ivec2(int(floor(worldPx.x)) - (int(floor(worldPx.x)) / 16) * 16,
                        int(floor(worldPx.y)) - (int(floor(worldPx.y)) / 16) * 16);
   float offset = texture2D(
-    grassPatternTex,
+    patternTex,
     (vec2(inTile) + 0.5) / vec2(16.0)
   ).r;
-  if (offset == 0.0) return grass;
-  vec3 srgb = linearToSrgbVec(grass) + vec3(offset);
+  if (offset == 0.0) return base;
+  vec3 srgb = linearToSrgbVec(base) + vec3(offset);
   srgb = clamp(srgb, 0.0, 1.0);
   return srgbToLinearVec(srgb);
 }
@@ -603,9 +608,11 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
       "#include <alphamap_fragment>",
       `#include <alphamap_fragment>
 {
+  vec2 worldPx = vTerrainUv * mapPxSize;
   // Branch on the vertex-color alpha: alpha=1 means an interior tile,
-  // diffuseColor already has the player tint baked in by <color_fragment>;
-  // alpha=0 means a raw terrain tile, this patch paints it from scratch.
+  // diffuseColor already has the player tint baked in by <color_fragment>
+  // (cobblestone-tinted-gray during battle); alpha=0 means a raw terrain
+  // tile, this patch paints it from scratch.
   if (vColor.a < 0.5) {
     ivec2 tileRC = ivec2(
       int(floor(vTerrainUv.y * gridSize.y)),
@@ -618,14 +625,15 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     bool isSinkhole = isFlagSet(flags, FLAG_SINKHOLE);
     bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
     float d = texture2D(sdfTex, vTerrainUv).r;
-    vec2 worldPx = vTerrainUv * mapPxSize;
 
     vec3 grass;
     vec3 water;
-    if (ownerId >= 0 && isSinkhole) {
+    bool ownedSinkhole = ownerId >= 0 && isSinkhole;
+    if (ownedSinkhole) {
       // Owned-sinkhole gradient (was effects/sinkhole-overlay.ts). Paint
       // the whole water tile, let the bank math decide grass / bank /
       // water per pixel — matches the historical renderSinkholeTilePatch.
+      // ownerGrassLinear returns the cobblestone color in battle.
       grass = ownerGrassLinear(ownerId, tileRC);
       water = isFrozen ? iceColorLinear : waterColorLinear;
     } else {
@@ -635,7 +643,12 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
         : waterColorLinear;
     }
     if (inBattle) {
-      grass = applyGrassPattern(grass, worldPx);
+      // Owned-sinkhole interiors get the cobblestone pattern (matching
+      // the interior-tile branch below); everything else gets the
+      // grass-blade pattern.
+      grass = ownedSinkhole
+        ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
+        : applyPatternOffset(grass, worldPx, grassPatternTex);
     }
     vec3 terrainColor = selectBankColor(d, grass, water);
     diffuseColor = vec4(terrainColor, 1.0);
@@ -648,6 +661,13 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
         && d > BANK_WATER_DIST + BANK_TRANSITION) {
       diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
     }
+  } else if (inBattle) {
+    // Interior tile in battle — vertex color is the cobblestone-tinted-gray
+    // base. Stamp the mortar / highlights / shadows / specks pattern on
+    // top to reproduce the 2D drawCobblestone() look.
+    diffuseColor.rgb = applyPatternOffset(
+      diffuseColor.rgb, worldPx, cobblestonePatternTex
+    );
   }
 }`,
     );

@@ -51,7 +51,10 @@ import {
   type ImpactsManager,
 } from "./effects/impacts.ts";
 import { MODIFIER_EFFECT_FACTORIES } from "./effects/modifier-effect-registry.ts";
-import { createGrassPatternTexture } from "./effects/terrain-pattern-textures.ts";
+import {
+  createCobblestonePatternTexture,
+  createGrassPatternTexture,
+} from "./effects/terrain-pattern-textures.ts";
 import {
   createTerrainSdfTextureManager,
   type GetBlurredSdf,
@@ -271,10 +274,12 @@ export function createRender3dScene(
   const terrainSdfTexture = createTerrainSdfTextureManager(getBlurredSdf);
   const terrainTileData = createTerrainTileDataManager();
   const grassPatternTexture = createGrassPatternTexture();
+  const cobblestonePatternTexture = createCobblestonePatternTexture();
   const terrain = createTerrain({
     sdfTexture: terrainSdfTexture.texture,
     tileDataTexture: terrainTileData.texture,
     grassPatternTexture,
+    cobblestonePatternTexture,
   });
   scene.add(terrain.mesh);
   // Terrain itself uses `MeshBasicMaterial` (unlit), which CANNOT
