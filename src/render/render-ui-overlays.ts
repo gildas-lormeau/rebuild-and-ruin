@@ -347,7 +347,6 @@ export function createOnlineOverlay(
       frozenTiles: view.modern?.frozenTiles ?? undefined,
       thawingTiles:
         battleAnim.thawing.length > 0 ? battleAnim.thawing : undefined,
-      sinkholeTiles: view.modern?.sinkholeTiles ?? undefined,
     },
     battle: {
       battleTerritory,

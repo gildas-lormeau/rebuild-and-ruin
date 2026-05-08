@@ -1,18 +1,20 @@
 /**
  * 3D terrain tile-data texture — per-tile metadata (`GRID_COLS × GRID_ROWS`
  * RGBA8) the terrain shader samples to find each fragment's owning player
- * and the sinkhole/frozen flags that gate the per-pixel bank-gradient
- * override.
+ * and the frozen flag that gates the per-pixel ice-gradient override. The
+ * owner channel alone gates the owner-tinted bank gradient — every owned
+ * water tile (sinkhole, high-tide flooded, naturally enclosed bay, …)
+ * paints the same way.
  *
  * Channels:
  *   - R: ownerId+1 (0 = unowned, 1..MAX_PLAYERS = player)
- *   - G: flag bits (`FLAG_SINKHOLE`, `FLAG_FROZEN`)
+ *   - G: flag bits (`FLAG_FROZEN`; bit 0 reserved)
  *   - B/A: reserved
  *
- * Refreshed only when the per-player interior Set references / sinkhole
- * tiles / frozen tiles / battle-mode flag change — fingerprint piggybacks
- * on the same `interiorRefsMatch` check the previous 2D second-plane
- * sinkhole overlay relied on.
+ * Refreshed only when the per-player interior Set references / frozen
+ * tiles / battle-mode flag change — fingerprint piggybacks on the same
+ * `interiorRefsMatch` check the previous 2D second-plane sinkhole overlay
+ * relied on.
  */
 
 import * as THREE from "three";
@@ -37,14 +39,12 @@ export interface TerrainTileDataManager {
 interface TileDataFingerprint {
   mapVersion: number;
   interiorRefs: ReadonlyArray<ReadonlySet<number>>;
-  sinkholeTiles: ReadonlySet<number> | undefined;
   frozenTiles: ReadonlySet<number> | undefined;
   inBattle: boolean;
 }
 
 /** Bit masks for the G channel. Kept in sync with the GLSL constants in
- *  `terrain.ts`'s shader patch. */
-const FLAG_SINKHOLE = 1;
+ *  `terrain.ts`'s shader patch. Bit 0 is reserved. */
 const FLAG_FROZEN = 2;
 
 export function createTerrainTileDataManager(): TerrainTileDataManager {
@@ -68,19 +68,17 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     const map = ctx.map;
     if (!overlay || !map) return;
     const inBattle = overlay.phase === Phase.BATTLE;
-    const sinkholeTiles = overlay.entities?.sinkholeTiles;
     const frozenTiles = overlay.entities?.frozenTiles;
 
-    // `mapVersion` covers in-place mutations of frozenTiles / sinkholeTiles
-    // (see ICE_THAWED in battle-system.ts — `frozenTiles.delete()` keeps
-    // the same Set reference but bumps mapVersion). Without this, ref
-    // equality alone would let a thawed-mid-battle tile keep showing as
-    // ice until the next phase replaced the Set wholesale.
+    // `mapVersion` covers in-place mutations of frozenTiles (see ICE_THAWED
+    // in battle-system.ts — `frozenTiles.delete()` keeps the same Set
+    // reference but bumps mapVersion). Without this, ref equality alone
+    // would let a thawed-mid-battle tile keep showing as ice until the
+    // next phase replaced the Set wholesale.
     if (
       lastFingerprint &&
       lastFingerprint.mapVersion === map.mapVersion &&
       lastFingerprint.inBattle === inBattle &&
-      lastFingerprint.sinkholeTiles === sinkholeTiles &&
       lastFingerprint.frozenTiles === frozenTiles &&
       interiorRefsMatch(lastFingerprint.interiorRefs, overlay, inBattle)
     ) {
@@ -93,7 +91,6 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
         const tileIdx = row * GRID_COLS + col;
         const owner = interiorOwners.get(tileIdx);
         let flags = 0;
-        if (sinkholeTiles?.has(tileIdx)) flags |= FLAG_SINKHOLE;
         if (frozenTiles?.has(tileIdx)) flags |= FLAG_FROZEN;
         const dataIdx = tileIdx * 4;
         data[dataIdx] = owner !== undefined ? owner + 1 : 0;
@@ -106,7 +103,6 @@ export function createTerrainTileDataManager(): TerrainTileDataManager {
     lastFingerprint = {
       mapVersion: map.mapVersion,
       interiorRefs: snapshotInteriorRefs(overlay, inBattle),
-      sinkholeTiles,
       frozenTiles,
       inBattle,
     };

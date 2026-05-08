@@ -160,8 +160,6 @@ export interface EntityOverlay {
   frozenTiles?: ReadonlySet<number>;
   /** Recently thawed tiles — drives the crack-and-fade break animation. */
   thawingTiles?: readonly ThawingTile[];
-  /** Sinkhole tiles for rendering dark pool overlay. */
-  sinkholeTiles?: ReadonlySet<number>;
 }
 
 /** Build/cannon phase — piece and cannon placement previews.

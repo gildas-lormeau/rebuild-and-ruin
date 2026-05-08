@@ -12,8 +12,10 @@
  *     bitmap that used to sit on a separate plane below this mesh
  *     (`effects/terrain-bitmap.ts`, deleted alongside `renderTerrainPixels`
  *     and the `GRASS_TEX` / `WATER_TEX` lookup tables in `render-map.ts`).
- *   - Owned-sinkhole branch: replaces the diffuse with the SDF-driven
- *     grass→bank→water gradient, owner-tinted (was `effects/sinkhole-overlay.ts`).
+ *   - Owned-water branch: any water tile inside an owned interior
+ *     (sinkhole, high-tide flooded, naturally enclosed bay) replaces the
+ *     diffuse with the SDF-driven grass→bank→water gradient, owner-tinted
+ *     (was `effects/sinkhole-overlay.ts`).
  *   - Open-water + battle: layers the drifting wave highlights on top of
  *     the flat water color (was `effects/water-waves.ts`). The flat-blue
  *     water in non-battle phases is the deliberate look — no static wave
@@ -401,9 +403,9 @@ function terrainProgramCacheKey(): string {
  *  pass paints every non-interior pixel itself: the default branch
  *  reproduces the historical CPU bake (grass / bank / water / ice via the
  *  blurred SDF, plus a 16×16 grass-blade pattern texture in battle), the
- *  owned-sinkhole branch swaps the grass terminus for the owner-tinted
- *  color, and the open-water branch in battle layers drifting wave
- *  highlights on top.
+ *  owned-water branch (any water tile inside an owned interior) swaps the
+ *  grass terminus for the owner-tinted color, and the open-water branch in
+ *  battle layers drifting wave highlights on top.
  *
  *  Vertex side: derive `vTerrainUv = position.xz / mapPxSize` so the
  *  fragment can sample the SDF + tile-data textures without three.js's
@@ -457,7 +459,6 @@ const float BANK_GRASS_DIST = ${GLSL_GRASS_TO_BANK_DIST};
 const float BANK_WATER_DIST = ${GLSL_BANK_TO_WATER_DIST};
 const float BANK_TRANSITION = ${GLSL_TRANSITION_WIDTH};
 const float ICE_BLEND_WIDTH = ${GLSL_ICE_BLEND_WIDTH};
-const int FLAG_SINKHOLE = 1;
 const int FLAG_FROZEN = 2;
 
 bool isFlagSet(int flags, int mask) {
@@ -622,17 +623,18 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     vec4 tileData = texture2D(tileDataTex, tileUv);
     int ownerId = int(tileData.r * 255.0 + 0.5) - 1;
     int flags = int(tileData.g * 255.0 + 0.5);
-    bool isSinkhole = isFlagSet(flags, FLAG_SINKHOLE);
     bool isFrozen = isFlagSet(flags, FLAG_FROZEN);
     float d = texture2D(sdfTex, vTerrainUv).r;
 
     vec3 grass;
     vec3 water;
-    bool ownedSinkhole = ownerId >= 0 && isSinkhole;
-    if (ownedSinkhole) {
-      // Owned-sinkhole gradient (was effects/sinkhole-overlay.ts). Paint
-      // the whole water tile, let the bank math decide grass / bank /
-      // water per pixel — matches the historical renderSinkholeTilePatch.
+    bool ownedWater = ownerId >= 0;
+    if (ownedWater) {
+      // Owned-water bank gradient (was effects/sinkhole-overlay.ts, and
+      // formerly gated on a per-tile sinkhole flag). Now any water tile
+      // inside an owned interior — sinkhole, high-tide flooded, or a
+      // naturally enclosed bay — paints with the player's grass terminus
+      // so the SDF bank transition matches the surrounding territory.
       // ownerGrassLinear returns the cobblestone color in battle.
       grass = ownerGrassLinear(ownerId, tileRC);
       water = isFrozen ? iceColorLinear : waterColorLinear;
@@ -643,10 +645,10 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
         : waterColorLinear;
     }
     if (inBattle) {
-      // Owned-sinkhole interiors get the cobblestone pattern (matching
-      // the interior-tile branch below); everything else gets the
-      // grass-blade pattern.
-      grass = ownedSinkhole
+      // Owned-water bank gets the cobblestone pattern (matching the
+      // interior-tile branch below); everything else gets the grass-blade
+      // pattern.
+      grass = ownedWater
         ? applyPatternOffset(grass, worldPx, cobblestonePatternTex)
         : applyPatternOffset(grass, worldPx, grassPatternTex);
     }
@@ -657,7 +659,10 @@ vec4 applyWaveOverlay(vec4 base, ivec2 tileRC, vec2 worldPx) {
     // is the per-pixel equivalent of the 2D code's per-tile "all 4
     // neighbors are water" check, so bank-edge water tiles get waves on
     // their interior pixels for a more continuous open-water look.
-    if (inBattle && !isSinkhole && !isFrozen
+    // Suppressed on owned-water tiles (the small enclosed pool look —
+    // sinkholes, enclosed high-tide, bays — doesn't suit the drifting
+    // wave effect, which was tuned for the open river).
+    if (inBattle && !ownedWater && !isFrozen
         && d > BANK_WATER_DIST + BANK_TRANSITION) {
       diffuseColor = applyWaveOverlay(diffuseColor, tileRC, worldPx);
     }

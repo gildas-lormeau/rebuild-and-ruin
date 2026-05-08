@@ -24,7 +24,6 @@ interface RenderModernSlice {
    *  (e.g. grunt-surge spawn tiles). */
   readonly activeModifierChangedTiles: readonly number[];
   readonly frozenTiles: ReadonlySet<number> | null;
-  readonly sinkholeTiles: ReadonlySet<number> | null;
   readonly masterBuilderLockout: number;
   readonly comboTracker: {
     readonly events: readonly ComboEvent[];
