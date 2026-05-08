@@ -72,6 +72,7 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
+import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
@@ -381,7 +382,28 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void {
-    renderer.drawFrame(map, overlay, viewport, timing.now(), camera.getPitch());
+    renderer.drawFrame(
+      map,
+      overlay,
+      viewport,
+      timing.now(),
+      camera.getPitch(),
+      false,
+      computeSunT(),
+      camera.getPitchMax(),
+    );
+  }
+
+  /** Returns the sun-arc parameter the 3D renderer expects: `[0, 1]`
+   *  as battle progresses (`1 − timer / BATTLE_TIMER`), or `undefined`
+   *  in every other phase (which puts the lighting rig back into the
+   *  pre-feature "no shadow, full ambient" stance). State may not be
+   *  installed yet during early frames, hence the optional chain. */
+  function computeSunT(): number | undefined {
+    const state = runtimeState.state;
+    if (!state || state.phase !== Phase.BATTLE) return undefined;
+    const elapsed = BATTLE_TIMER - state.timer;
+    return Math.min(Math.max(elapsed / BATTLE_TIMER, 0), 1);
   }
 
   // -------------------------------------------------------------------------
@@ -512,6 +534,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         now,
         camera.getPitch(),
         skip3DScene,
+        computeSunT(),
+        camera.getPitchMax(),
       ),
     captureSceneOffscreen: (map, overlay, viewport, now) =>
       renderer.captureSceneOffscreen(
@@ -520,6 +544,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         viewport,
         now,
         camera.getPitch(),
+        computeSunT(),
+        camera.getPitchMax(),
       ),
     onRenderedFrame: camera.onRenderedFrame,
     logThrottled: config.logThrottled,

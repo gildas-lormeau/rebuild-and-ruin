@@ -1,38 +1,210 @@
 /**
  * Scene lighting for the 3D world renderer.
  *
- * Palette-tuned for the sprite designs' muted-stone / warm-grass look
- * (see `src/render/3d/sprites/sprite-materials.mjs`). A hemispheric
- * light provides ambient fill — sky a desaturated warm cream, ground
- * a cool khaki — plus a subtle directional light to give vertical
- * geometry a readable shaded side. No shadow maps (pixel-art aesthetic;
- * shadows would fight the tile grid).
+ * The rig has two visible "stances" the renderer lerps between via a
+ * single `blend ∈ [0, 1]` factor:
+ *
+ *   • blend = 0 (camera flat): the prior pre-feature look. Ambient at
+ *     full strength preserves the authored sprite palette byte-for-
+ *     byte, low-intensity directional adds subtle vertical shading,
+ *     shadow casting OFF. Non-battle phases (and the start/end of the
+ *     camera's tilt animation) sit at this stance.
+ *   • blend = 1 (camera fully tilted into the 3D battle view): ambient
+ *     drops, directional rises, shadow casting ON — cast shadows from
+ *     entities visibly darken the ground. The sun's direction is
+ *     rewritten each frame from a `sunT ∈ [0, 1]` parameter (battle-
+ *     elapsed / battle-duration), so shadows sweep across the 10-second
+ *     battle from dawn-east through near-zenith to dusk-west.
+ *
+ * The `blend` factor is computed by the renderer from camera `pitch`
+ * (`pitch / pitchMax`, clamped) so the lighting fades in lockstep with
+ * the camera-tilt animation around battle entry / exit, not with the
+ * battle timer directly.
+ *
+ * `setSunBlend(...)` lerps intensities + shadow casting from `blend`;
+ * `updateSunDirection(...)` lerps the sun's position between the
+ * inactive direction and the battle-arc direction along the same
+ * `blend`. Both are pure functions of their inputs (no time, no RNG,
+ * no per-peer state), so two peers on the same camera pitch + battle
+ * timer see identical lighting — parity-safe.
  */
 
 import * as THREE from "three";
+import { MAP_PX_H, MAP_PX_W } from "../../shared/core/grid.ts";
 
-/** Build the world-renderer light rig. Returned as an array so the caller
- *  can `scene.add(...createWorldLights())` without worrying about count.
- *
- *  Goal: colors should read at their authored sRGB values, matching the
- *  2D canvas palette. A full-strength white ambient light achieves this
- *  — with `MeshStandardMaterial(roughness=1, metalness=0)` the lit
- *  output is just `baseColor × ambient`, so intensity = 1.0 means
- *  on-screen color == authored color. A tiny directional sun adds a
- *  subtle face-differentiation cue without desaturating (pure white,
- *  low intensity; hemisphere light is avoided because its sky/ground
- *  color blending tints side-facing surfaces and reduces saturation). */
-export function createWorldLights(): THREE.Light[] {
-  // Pure white ambient at full intensity — preserves authored colors
-  // byte-for-byte on flat-facing surfaces.
-  const ambient = new THREE.AmbientLight(0xffffff, 1.0);
+interface WorldLights {
+  readonly ambient: THREE.AmbientLight;
+  readonly sun: THREE.DirectionalLight;
+}
 
-  // Directional sun, pure white, low intensity. Adds a soft shading
-  // gradient so walls/towers don't look completely flat, without
-  // shifting the palette.
-  const sun = new THREE.DirectionalLight(0xffffff, 0.2);
-  sun.position.set(-0.6, 1, -0.4);
+/** Distance from the sun to the map center along the sun-direction
+ *  vector. Doesn't change the directional light's parallel rays; only
+ *  affects where the orthographic shadow camera sits along that
+ *  direction. */
+const SUN_DISTANCE = 1000;
+/** Half-extents of the shadow camera's orthographic frustum. Sized to
+ *  comfortably cover the whole map plus the long shadows cast when the
+ *  sun is near the horizon (battle start / battle end). */
+const SHADOW_HALF_W = MAP_PX_W;
+const SHADOW_HALF_H = MAP_PX_H;
+/** Shadow map resolution. 1024 is the mobile-friendly sweet spot for
+ *  this map size. */
+const SHADOW_MAP_SIZE = 1024;
+/** Ambient intensity when the sun is active during battle. Reduced
+ *  from the inactive 1.0 so the directional contribution can produce
+ *  visible shadow contrast. */
+const ACTIVE_AMBIENT = 0.7;
+/** Directional intensity when the sun is active during battle. */
+const ACTIVE_SUN = 0.6;
+/** Inactive intensities — match the prior "no shadows" lighting so
+ *  non-battle phases look identical to before this feature landed. */
+const INACTIVE_AMBIENT = 1.0;
+const INACTIVE_SUN = 0.2;
+/** Sun direction vector when the rig is fully inactive (camera flat,
+ *  no shadows). Matches the pre-feature directional position so non-
+ *  battle phases retain the original side-shading on tall entities,
+ *  with the sun coming from upper-left-back. `updateSunDirection`
+ *  lerps from this toward the battle-arc direction as the camera
+ *  tilts in, and back to it as the camera tilts out — no snap at the
+ *  battle phase boundary. */
+const INACTIVE_SUN_DIRECTION = { x: -0.6, y: 1, z: -0.4 } as const;
+/** Peak opacity of the ground shadow overlay when the sun is fully
+ *  active. The renderer scales this by the same blend factor so
+ *  shadow darkness fades in lockstep with the lighting. Exposed so
+ *  the overlay's authored opacity stays a single source of truth. */
+export const SHADOW_OVERLAY_PEAK_OPACITY = 0.45;
+
+export function createWorldLights(): WorldLights {
+  const ambient = new THREE.AmbientLight(0xffffff, INACTIVE_AMBIENT);
+
+  // Directional sun. Shadow camera + bias settings live here; intensity
+  // and shadow casting are blended each frame by `setSunBlend`.
+  const sun = new THREE.DirectionalLight(0xffffff, INACTIVE_SUN);
+  sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+  sun.shadow.camera.left = -SHADOW_HALF_W;
+  sun.shadow.camera.right = SHADOW_HALF_W;
+  sun.shadow.camera.top = SHADOW_HALF_H;
+  sun.shadow.camera.bottom = -SHADOW_HALF_H;
+  sun.shadow.camera.near = 0;
+  sun.shadow.camera.far = SUN_DISTANCE * 2;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.normalBias = 0.5;
+
+  // Anchor the sun's target at the map center so changes to the sun's
+  // position rotate the light direction around the map center, not the
+  // world origin. The target must be added to the scene by the caller
+  // for three.js to update its world matrix.
+  sun.target.position.set(MAP_PX_W / 2, 0, MAP_PX_H / 2);
+
+  // Default to the inactive stance — `setSunBlend` lerps this on as
+  // the camera tilts into the 3D battle view. Initial position uses
+  // `INACTIVE_SUN_DIRECTION` (preserves the pre-feature side-shading
+  // on tall entities); `updateSunDirection` lerps it toward the
+  // battle arc as the camera tilts in, and back to it as the camera
+  // tilts out, so non-battle phases never inherit a stale battle-end
+  // direction.
   sun.castShadow = false;
+  positionSun(
+    sun,
+    INACTIVE_SUN_DIRECTION.x,
+    INACTIVE_SUN_DIRECTION.y,
+    INACTIVE_SUN_DIRECTION.z,
+  );
 
-  return [ambient, sun];
+  return { ambient, sun };
+}
+
+/** Blend the sun rig between inactive (factor = 0, non-battle look)
+ *  and fully active (factor = 1, peak shadow contrast). Continuous so
+ *  the renderer can smoothly fade lighting + shadows in/out around the
+ *  battle phase boundaries instead of popping. `castShadow` flips off
+ *  only at factor === 0 — any non-zero blend keeps the shadow map
+ *  rendering so the ground overlay's per-pixel opacity can darken
+ *  partial shadows correctly. */
+export function setSunBlend(
+  ambient: THREE.AmbientLight,
+  sun: THREE.DirectionalLight,
+  factor: number,
+): void {
+  const blend = Math.min(Math.max(factor, 0), 1);
+  ambient.intensity =
+    INACTIVE_AMBIENT + (ACTIVE_AMBIENT - INACTIVE_AMBIENT) * blend;
+  sun.intensity = INACTIVE_SUN + (ACTIVE_SUN - INACTIVE_SUN) * blend;
+  sun.castShadow = blend > 0;
+}
+
+/** Position the sun for the current frame as a lerp between the
+ *  inactive direction (camera flat, no shadows) and the battle-arc
+ *  direction `sunDirectionFromT(sunT)` (camera fully tilted into the
+ *  3D view). The lerp factor is `blend`, which the renderer derives
+ *  from camera pitch — so the sun direction smoothly transitions
+ *  alongside the tilt animation, with no snap at the BATTLE phase
+ *  boundary. When `sunT` is `undefined` (every non-battle phase) the
+ *  direction collapses to the inactive position regardless of blend.
+ *
+ *  Pure function of inputs (no `now`, no RNG, no per-peer state) so
+ *  two peers on the same camera pitch + battle timer see identical
+ *  lighting — parity-safe. */
+export function updateSunDirection(
+  sun: THREE.DirectionalLight,
+  sunT: number | undefined,
+  blend: number,
+): void {
+  const inactive = INACTIVE_SUN_DIRECTION;
+  if (sunT === undefined) {
+    positionSun(sun, inactive.x, inactive.y, inactive.z);
+    return;
+  }
+  const active = sunDirectionFromT(sunT);
+  const t = Math.min(Math.max(blend, 0), 1);
+  positionSun(
+    sun,
+    inactive.x + (active.x - inactive.x) * t,
+    inactive.y + (active.y - inactive.y) * t,
+    inactive.z + (active.z - inactive.z) * t,
+  );
+}
+
+/** Unit-ish (un-normalized) direction vector from the map center to
+ *  the sun for the given `t ∈ [0, 1]`. Exposed so the light-debug
+ *  visualizer can sample the same path the runtime uses, without
+ *  duplicating the parameterization.
+ *
+ *  Shadow-length tradeoff drives the elevation floor: walls are ~26 px
+ *  tall and tower geometry ~32 px. Shadow length is `height /
+ *  tan(elevation)`. With floor = 0.3 (asin ≈ 16°) shadows reached 5+
+ *  tiles at the horizons, which read as "exaggerated time-lapse" on a
+ *  10s battle. Floor = 0.85 (combined with X amplitude ±1 and Z bias
+ *  −0.25) puts the actual elevation at ~40° at the horizons, capping
+ *  shadows around 2 tiles for towers and 1.5 tiles for walls. */
+export function sunDirectionFromT(t: number): {
+  x: number;
+  y: number;
+  z: number;
+} {
+  const clampedT = Math.min(Math.max(t, 0), 1);
+  // Azimuth: π at t=0 (sun visible at -X), 0 at t=1 (sun at +X).
+  const azimuth = Math.PI * (1 - clampedT);
+  // Elevation: 0.85 at the horizons, 1.55 at the zenith. `sin(t·π)` is
+  // the natural arc shape; the floor is what we tune for shadow
+  // length.
+  const elevation = 0.85 + 0.7 * Math.sin(clampedT * Math.PI);
+  // Mild Z bias so even at noon shadows lean slightly down-screen
+  // (pure overhead light reads as "no shadow" — kills depth cues).
+  return { x: Math.cos(azimuth), y: elevation, z: -0.25 };
+}
+
+function positionSun(
+  sun: THREE.DirectionalLight,
+  dirX: number,
+  dirY: number,
+  dirZ: number,
+): void {
+  const length = Math.hypot(dirX, dirY, dirZ);
+  const target = sun.target.position;
+  sun.position.set(
+    target.x + (dirX / length) * SUN_DISTANCE,
+    target.y + (dirY / length) * SUN_DISTANCE,
+    target.z + (dirZ / length) * SUN_DISTANCE,
+  );
 }

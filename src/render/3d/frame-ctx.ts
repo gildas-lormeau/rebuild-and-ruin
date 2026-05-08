@@ -26,4 +26,10 @@ export interface FrameCtx {
   readonly map: GameMap | undefined;
   readonly now: number;
   readonly pitch: number;
+  /** Battle-progress sun parameter ∈ [0, 1]. Defined only during the
+   *  BATTLE phase (the runtime computes it as `1 − state.timer /
+   *  BATTLE_TIMER`); `undefined` in every other phase, which switches
+   *  the lighting rig to its "inactive / no shadow" stance. Drives the
+   *  directional sun's arc — see `updateSunDirection` in `lights.ts`. */
+  readonly sunT: number | undefined;
 }

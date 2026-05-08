@@ -1,3 +1,7 @@
+import {
+  isLightDebugEnabled,
+  setLightDebugEnabled,
+} from "../render/3d/light-debug.ts";
 import { isPerfHudEnabled, setPerfHudEnabled } from "../render/3d/perf-hud.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -38,6 +42,7 @@ interface DevConsole {
   speed: (multiplier?: number) => number;
   fixedStep: (ms?: number | false) => void;
   perfHud: (on?: boolean) => boolean;
+  lightDebug: (on?: boolean) => boolean;
   /** TEMP DEBUG — play any bg track on demand. Useful for auditioning the
    *  music render path (jaws stinger tail, fanfare release, etc.) without
    *  driving the game to the right phase. */
@@ -187,6 +192,17 @@ export function exposeDevConsole(
       return next;
     },
 
+    lightDebug(on?: boolean): boolean {
+      // Cross-domain call into render/ is allowed here: dev-only, attached
+      // via window.__dev, never invoked on any production code path.
+      const next = on ?? !isLightDebugEnabled();
+      setLightDebugEnabled(next);
+      console.log(
+        `Light debug ${next ? "on" : "off"} (sun arc dome + shadow frustum + HUD)`,
+      );
+      return next;
+    },
+
     async playBg(trackId: DebugBgTrackId): Promise<void> {
       await music.debugPlayBg(trackId);
       console.log(
@@ -241,6 +257,12 @@ function printHelp(): void {
   __dev.perfHud(true)      Show  __dev.perfHud(false)  Hide
   3D renderer only. Reads three.js renderer.info counters per frame.
 
+%cLight Debug%c
+  __dev.lightDebug()       Toggle sun-arc dome + shadow frustum + HUD
+  __dev.lightDebug(true)   Show  __dev.lightDebug(false)  Hide
+  Yellow arc shows full sun path; orange dot is current position.
+  Wireframe box shows shadow camera coverage. HUD reads sunT live.
+
 %cMusic (TEMP DEBUG)%c
   __dev.playBg("jaws")     Audition any bg track on demand. Bypasses bus.
   Track ids: "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws"
@@ -250,6 +272,8 @@ function printHelp(): void {
   C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball
   mapText walls: r/b/g  cannons: R/B/G  territory: :`,
     "font-weight:bold;font-size:14px",
+    RESET_CSS,
+    HEADING_CSS,
     RESET_CSS,
     HEADING_CSS,
     RESET_CSS,

@@ -472,6 +472,19 @@ export interface RendererInterface {
      *  would be fully occluded anyway. The 2D-only renderer ignores
      *  this flag (nothing to skip). */
     skip3DScene?: boolean,
+    /** Battle-progress sun parameter ∈ [0, 1] when the active phase is
+     *  BATTLE; `undefined` otherwise. Drives the sun's direction arc
+     *  (dawn-east → near-zenith → dusk-west) via `updateSunDirection`
+     *  in `lights.ts`. The shadow show/hide intensity is driven by
+     *  camera pitch, not by this parameter. 2D and headless renderers
+     *  ignore this. */
+    sunT?: number,
+    /** Maximum pitch (radians) the camera reaches when fully tilted.
+     *  3D renderer normalizes the per-frame `pitch` into a tilt-
+     *  progress factor `pitch / pitchMax` ∈ [0, 1], used for the sun-
+     *  rig fade-in/out around the camera's tilt animation. 2D and
+     *  headless renderers ignore this. */
+    pitchMax?: number,
   ): void;
   /** Pre-compute terrain image caches so the first render of a new map
    *  doesn't stall the frame. Call after generating/receiving a map. */
@@ -506,6 +519,10 @@ export interface RendererInterface {
     viewport: Viewport | null | undefined,
     now: number,
     pitch?: number,
+    /** Battle-progress sun parameter. See `drawFrame` `sunT`. */
+    sunT?: number,
+    /** Camera max-pitch in radians. See `drawFrame` `pitchMax`. */
+    pitchMax?: number,
   ): HTMLCanvasElement | undefined;
   /** Install the runtime's cannon-facing accessor. Called once during
    *  composition with the cannon-animator's `getDisplayed`; renderers

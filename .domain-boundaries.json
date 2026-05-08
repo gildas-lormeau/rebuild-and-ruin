@@ -162,6 +162,7 @@
       "src/render/3d/renderer.ts",
       "src/render/3d/scene.ts",
       "src/render/3d/camera.ts",
+      "src/render/3d/light-debug.ts",
       "src/render/3d/lights.ts",
       "src/render/3d/pixel-snap.ts",
       "src/render/3d/terrain.ts",

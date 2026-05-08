@@ -23,6 +23,7 @@
  */
 
 import * as THREE from "three";
+import { MAP_PX_H, MAP_PX_W } from "../../shared/core/grid.ts";
 import { createMapCamera } from "./camera.ts";
 import {
   type BonusSquaresManager,
@@ -201,6 +202,21 @@ export interface Render3dContext {
    *  circles on the ground plane outside of battle; pulse matches the
    *  2D `drawBonusSquares` alpha timeline. */
   readonly bonusSquares: BonusSquaresManager;
+  /** Ambient light. Exposed so the per-frame renderer can lerp its
+   *  intensity between battle (lower, to let shadows show) and non-
+   *  battle (full strength, palette-preserving) — see `setSunBlend`
+   *  in `lights.ts`. */
+  readonly ambient: THREE.AmbientLight;
+  /** Directional sun light. Exposed so the per-frame renderer can
+   *  arc its position from `sunT` (battle elapsed) and toggle shadow
+   *  casting on/off — see `setSunBlend` and `updateSunDirection` in
+   *  `lights.ts`. */
+  readonly sun: THREE.DirectionalLight;
+  /** Shadow-only overlay plane that sits coplanar with the terrain
+   *  and renders projected shadows. Exposed so the renderer can fade
+   *  its opacity in lockstep with the lighting intensity blend, giving
+   *  a smooth show/hide at battle entry / exit. */
+  readonly groundShadowOverlay: THREE.Mesh;
   /** Off-screen framebuffer the scene is rendered into on each frame.
    *  Readable via `renderer.readRenderTargetPixels` whenever the banner
    *  system wants a snapshot (outside the rAF tick). Replaces the old
@@ -221,6 +237,18 @@ export interface Render3dContext {
   readonly blitCamera: THREE.OrthographicCamera;
 }
 
+const SHADOW_CASTER_GROUPS: ReadonlySet<string> = new Set([
+  "walls",
+  "towers",
+  "houses",
+  "cannons",
+  "balloons",
+  "debris",
+  "grunts",
+  "cannonballs",
+]);
+const SHADOW_RECEIVER_GROUPS: ReadonlySet<string> = new Set(["pits"]);
+
 /** Build the scene graph used by `createRender3d`. */
 export function createRender3dScene(
   canvas: HTMLCanvasElement,
@@ -231,9 +259,14 @@ export function createRender3dScene(
 
   const camera = createMapCamera();
 
-  for (const light of createWorldLights()) {
-    scene.add(light);
-  }
+  const { ambient, sun } = createWorldLights();
+  scene.add(ambient);
+  scene.add(sun);
+  // Three.js only updates a directional light's `target.matrixWorld`
+  // when the target is part of the scene graph. Without this, the sun's
+  // direction (computed from position − target.position) silently uses
+  // the target's identity transform, defeating the per-round rotation.
+  scene.add(sun.target);
 
   const terrainSdfTexture = createTerrainSdfTextureManager(getBlurredSdf);
   const terrainTileData = createTerrainTileDataManager();
@@ -244,6 +277,16 @@ export function createRender3dScene(
     grassPatternTexture,
   });
   scene.add(terrain.mesh);
+  // Terrain itself uses `MeshBasicMaterial` (unlit), which CANNOT
+  // receive shadows — its fragment shader has no lighting math at all.
+  // We therefore layer a separate `ShadowMaterial` plane on top of the
+  // terrain that renders only shadow contribution (transparent
+  // everywhere except where shadows fall). The terrain stays fully in
+  // charge of color / SDF / pattern; this overlay just darkens the
+  // pixels where the shadow map says occlusion happened. One extra
+  // draw call per frame.
+  const groundShadowOverlay = createGroundShadowOverlay();
+  scene.add(groundShadowOverlay);
 
   const walls = createWallsManager(scene);
   const towers = createTowersManager(scene);
@@ -273,6 +316,15 @@ export function createRender3dScene(
   });
   renderer.setClearColor(0x000000, 0);
   renderer.autoClear = false;
+  // Enable shadow casting from the directional sun. PCFSoftShadowMap
+  // gives a small percentage-closer filter pass for soft edges — the
+  // alternative `BasicShadowMap` produces very stair-stepped shadow
+  // boundaries that fight the pixel-art tile grid even harder than the
+  // softened version. Cost on the integrated GPUs the game targets is
+  // dominated by the shadow-map render pass itself, not the filter
+  // kernel.
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // FBO that mirrors the on-screen render each frame. Capture reads
   // back from here via `renderer.readRenderTargetPixels` — works
@@ -335,6 +387,9 @@ export function createRender3dScene(
     scene,
     camera,
     renderer,
+    ambient,
+    sun,
+    groundShadowOverlay,
     captureTarget,
     blitScene,
     blitCamera,
@@ -361,4 +416,86 @@ export function createRender3dScene(
     terrainTileData,
     bonusSquares,
   };
+}
+
+/** Mark every mesh under a recognized "solid entity" group as a shadow
+ *  caster + receiver, and meshes under "ground-flat" groups as
+ *  receivers only. Idempotent and cheap (a single scene traverse with
+ *  early skips per top-level group), so the renderer can call it every
+ *  frame without bookkeeping which managers rebuilt their meshes. New
+ *  groups (added by future entity managers) are silently skipped — add
+ *  the group name to `SHADOW_CASTER_GROUPS` or `SHADOW_RECEIVER_GROUPS`
+ *  to opt them in. Effects (impacts, burns, fog, modifier-reveal,
+ *  crosshairs, phantoms, labels, bonus pulses) are intentionally
+ *  excluded: they're flat billboards or particle emitters whose
+ *  silhouettes don't read sensibly when projected onto the ground. */
+export function applyShadowFlags(scene: THREE.Scene): void {
+  for (const child of scene.children) {
+    if (!(child instanceof THREE.Group)) continue;
+    if (SHADOW_CASTER_GROUPS.has(child.name)) {
+      child.traverse(markCastAndReceive);
+    } else if (SHADOW_RECEIVER_GROUPS.has(child.name)) {
+      child.traverse(markReceiveOnly);
+    }
+  }
+}
+
+/** Build the shadow-only overlay plane that sits on the ground plane
+ *  and shows projected shadows from every caster. The terrain mesh
+ *  itself is unlit (`MeshBasicMaterial`) so it can't receive shadows;
+ *  this plane uses `ShadowMaterial`, which renders nothing where the
+ *  shadow map says "lit" and a translucent dark patch where the shadow
+ *  map says "occluded". `polygonOffset` keeps it from z-fighting with
+ *  the coplanar terrain mesh. Sized to the full map; covers the same
+ *  XZ extent as the terrain. */
+function createGroundShadowOverlay(): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(MAP_PX_W, MAP_PX_H);
+  // PlaneGeometry is authored in the XY plane facing +Z; rotate so it
+  // lies flat on the ground (XZ plane facing +Y).
+  geometry.rotateX(-Math.PI / 2);
+  const material = new THREE.ShadowMaterial({
+    // Opacity is rewritten every frame by the renderer (faded between
+    // 0 and `SHADOW_OVERLAY_PEAK_OPACITY` based on the battle blend
+    // factor), so the initial value just controls the pre-first-frame
+    // look — start at 0 so any frame rendered before the runtime
+    // installs state is shadow-free.
+    opacity: 0,
+    transparent: true,
+    // Don't contribute to the depth buffer. Without this, the overlay
+    // (drawn in the transparent pass before higher-Y debris because
+    // it's further from the camera) writes its depth and competes
+    // with thin transparent surfaces sitting just above ground —
+    // notably the wall-debris base plate at world Y≈0.08 that fills
+    // the tile so grass doesn't show through gaps in the rubble. With
+    // depthWrite off, the overlay just alpha-blends onto whatever the
+    // opaque pass already drew (terrain) and never blocks subsequent
+    // transparent geometry.
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(MAP_PX_W / 2, 0, MAP_PX_H / 2);
+  mesh.receiveShadow = true;
+  // The shadow overlay is NOT a regular entity group — name it
+  // explicitly so anyone walking the scene tree understands its role.
+  // `applyShadowFlags` skips non-Group scene children, so this Mesh's
+  // `castShadow` stays at its default (false) — the overlay must not
+  // contribute to the shadow map itself.
+  mesh.name = "ground-shadow-overlay";
+  return mesh;
+}
+
+function markCastAndReceive(obj: THREE.Object3D): void {
+  if ((obj as THREE.Mesh).isMesh) {
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  }
+}
+
+function markReceiveOnly(obj: THREE.Object3D): void {
+  if ((obj as THREE.Mesh).isMesh) {
+    obj.receiveShadow = true;
+  }
 }

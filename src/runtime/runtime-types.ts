@@ -356,6 +356,12 @@ export interface CameraSystem {
   /** Current camera pitch in radians (animated on phase transitions). 3D mode
    *  only — 2D mode always returns 0. */
   getPitch: () => number;
+  /** Maximum pitch the camera reaches when fully tilted into the 3D
+   *  battle view. Constant for the lifetime of the runtime; exposed so
+   *  the renderer can normalize `getPitch()` into a `[0, 1]` tilt
+   *  progress without duplicating the constant cross-domain. 2D mode
+   *  returns 0. */
+  getPitchMax: () => number;
   /** Request an immediate pitch=0 ease. Idempotent. Used for "untilt
    *  without unzoom" (pitch only). The transition path already flattens
    *  pitch via `unzoomForOverlays` on `shouldUnzoom`. */

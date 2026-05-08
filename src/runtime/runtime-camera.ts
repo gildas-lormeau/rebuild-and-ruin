@@ -1467,6 +1467,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     updateViewport,
     getViewport,
     getPitch: () => currentPitch,
+    getPitchMax: () => TILT_BATTLE_PITCH,
     beginUntilt,
     beginBattleTilt,
     getPitchState,

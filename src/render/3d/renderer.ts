@@ -30,8 +30,18 @@ import { createLoupe } from "../render-loupe.ts";
 import { updateCameraFromViewport } from "./camera.ts";
 import type { GetCannonFacing } from "./entities/cannons.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
+import { updateLightDebug } from "./light-debug.ts";
+import {
+  SHADOW_OVERLAY_PEAK_OPACITY,
+  setSunBlend,
+  updateSunDirection,
+} from "./lights.ts";
 import { isPerfHudEnabled, updatePerfHud } from "./perf-hud.ts";
-import { createRender3dScene, type Render3dContext } from "./scene.ts";
+import {
+  applyShadowFlags,
+  createRender3dScene,
+  type Render3dContext,
+} from "./scene.ts";
 
 export function createRender3d(
   worldCanvas: HTMLCanvasElement,
@@ -204,10 +214,12 @@ export function createRender3d(
     viewport: Viewport | null | undefined,
     now: number,
     pitch: number,
+    sunT: number | undefined,
+    pitchMax: number,
   ): void {
     ctx.terrain.ensureBuilt(map);
     ctx.terrainSdfTexture.ensureBuilt(map);
-    const frame: FrameCtx = { overlay, map, now, pitch };
+    const frame: FrameCtx = { overlay, map, now, pitch, sunT };
     ctx.terrainTileData.update(frame);
     ctx.terrain.update(frame);
     ctx.walls.update(frame);
@@ -232,6 +244,30 @@ export function createRender3d(
     updateCameraFromViewport(ctx.camera, viewport, pitch);
     lastViewport = viewport ?? undefined;
     lastPitch = pitch;
+    // Per-frame light + shadow refresh. `setSunBlend` lerps ambient/
+    // directional intensities + shadow casting between non-battle and
+    // full-battle stances using a `blend` factor derived from camera
+    // `pitch`. Tying the blend to the camera tilt animation (rather
+    // than to `sunT` directly) means shadows ease in/out smoothly as
+    // the camera leans into / out of the 3D battle view, instead of
+    // popping at the phase boundary. `updateSunDirection` lerps the
+    // sun's position the same way: between the inactive direction
+    // (camera flat) and the battle-arc direction (camera fully
+    // tilted), so non-battle phases never inherit a stale battle-end
+    // direction. All inputs are pure functions of state (no `now`,
+    // no RNG, no per-peer state) — peers on the same pitch + timer
+    // see identical lighting (parity-safe). `applyShadowFlags` is
+    // idempotent over the scene tree, so running it every frame is
+    // cheaper than wiring per-manager change notifications and lets
+    // newly-built meshes pick up flags on the next frame.
+    const blend = sunBlendFromPitch(pitch, pitchMax);
+    setSunBlend(ctx.ambient, ctx.sun, blend);
+    updateSunDirection(ctx.sun, sunT, blend);
+    const overlayMaterial = ctx.groundShadowOverlay
+      .material as THREE.ShadowMaterial;
+    overlayMaterial.opacity = SHADOW_OVERLAY_PEAK_OPACITY * blend;
+    applyShadowFlags(ctx.scene);
+    updateLightDebug(ctx.scene, ctx.ambient, ctx.sun, sunT, blend);
     ctx.renderer.setRenderTarget(ctx.captureTarget);
     ctx.renderer.setViewport(0, 0, worldCanvas.width, worldCanvas.height);
     ctx.renderer.clear();
@@ -258,6 +294,13 @@ export function createRender3d(
       now,
       pitch = 0,
       skip3DScene = false,
+      sunT,
+      // Default to 0 so callers that don't plumb the camera's max
+      // pitch get the "no shadows" stance from `sunBlendFromPitch`,
+      // matching the 2D / headless branch. The runtime always passes
+      // `camera.getPitchMax()` from composition — `runtime-camera.ts`
+      // is the single source of truth for the actual value.
+      pitchMax = 0,
     ) => {
       // Render the WebGL scene (all world content) behind the 2D canvas;
       // the 2D renderer paints UI/HUD overlays on top.
@@ -286,7 +329,7 @@ export function createRender3d(
         // stripWorld`) is simply out of frustum and leaves the top rows
         // at the clear color; tall walls at row 0 project *into* the
         // strip under tilt, which is the whole purpose of the strip.
-        renderSceneToFBO(map, overlay, viewport, now, pitch);
+        renderSceneToFBO(map, overlay, viewport, now, pitch, sunT, pitchMax);
         ctx.renderer.clear();
         ctx.renderer.render(ctx.blitScene, ctx.blitCamera);
       }
@@ -394,7 +437,16 @@ export function createRender3d(
     // post-mutation scene before the banner's progressive reveal reaches
     // it. Returns undefined when the 2D path hasn't rendered a frame yet
     // (matches the `captureScene` contract).
-    captureSceneOffscreen: (map, overlay, viewport, now, pitch = 0) => {
+    captureSceneOffscreen: (
+      map,
+      overlay,
+      viewport,
+      now,
+      pitch = 0,
+      sunT,
+      // Default 0 = "no shadows" stance — see drawFrame above.
+      pitchMax = 0,
+    ) => {
       const uiSnapshot = canvas2d.captureSceneOffscreen(
         map,
         overlay,
@@ -409,7 +461,7 @@ export function createRender3d(
       // them through an ImageData bridge below (browsers interpret
       // ImageData as straight alpha, so premultiplication must be
       // undone — see the per-pixel unpremultiply loop).
-      renderSceneToFBO(map, overlay, viewport, now, pitch);
+      renderSceneToFBO(map, overlay, viewport, now, pitch, sunT, pitchMax);
       const fboW = worldCanvas.width;
       const fboH = worldCanvas.height;
       const byteLen = fboW * fboH * 4;
@@ -542,4 +594,26 @@ export function createRender3d(
       cannonFacingProvider = provider;
     },
   };
+}
+
+/** Camera `pitch` (radians, 0 = flat, increasing = tilted toward the
+ *  3D battle view) → blend factor ∈ [0, 1] that drives the lighting +
+ *  shadow-overlay fade. `0` is the flat non-battle look (no shadows);
+ *  `1` is fully tilted into the 3D view (full-strength sun + peak
+ *  shadow opacity).
+ *
+ *  Linear ratio of `pitch / pitchMax`, clamped. The camera's pitch
+ *  animation already applies a cubic ease-out (see
+ *  `runtime-camera.ts`), so layering a second easing curve here would
+ *  double-ease the fade. Linear keeps the curve identical to the
+ *  camera's animation, which is the source of truth for "tilt
+ *  progress".
+ *
+ *  `pitchMax` comes from the runtime camera's `getPitchMax()` so the
+ *  fully-tilted target stays a single source of truth. A zero
+ *  `pitchMax` (2D mode, headless) returns 0, matching the "no
+ *  shadows" stance. */
+function sunBlendFromPitch(pitch: number, pitchMax: number): number {
+  if (pitchMax <= 0) return 0;
+  return Math.min(Math.max(pitch / pitchMax, 0), 1);
 }
