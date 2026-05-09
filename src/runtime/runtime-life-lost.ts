@@ -11,7 +11,6 @@ import {
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
   abandonedPlayers,
   applyLifeLostChoice,
@@ -72,10 +71,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /** Set when a dialog is shown; cleared once resolution fires. The
    *  tick loop reads it to invoke the caller's onResolved callback.
-   *  Shared `FireOnceSlot` shape — same storage pattern as score-delta
-   *  and upgrade-pick. Tick is gated on Mode.LIFE_LOST (the only axis
-   *  that actually differs). See docs/dialog-completion-patterns.md. */
-  const pendingOnDone = createFireOnceSlot<[readonly ValidPlayerSlot[]]>();
+   *  Tick is gated on Mode.LIFE_LOST. */
+  let onResolvedCb:
+    | ((continuing: readonly ValidPlayerSlot[]) => void)
+    | undefined;
 
   /** Drive the life-lost flow to completion. Either resolves
    *  immediately (nothing to show) and calls `onResolved([])`, or
@@ -114,7 +113,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       return false;
     }
     runtimeState.dialogs.lifeLost = dialog;
-    pendingOnDone.set(onResolved);
+    onResolvedCb = onResolved;
     setMode(runtimeState, Mode.LIFE_LOST);
     deps.applyEarlyChoices?.((playerId, choice) => {
       const entry = dialog.entries.find(
@@ -167,7 +166,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const continuing = continuingPlayers(dialog);
     runtimeState.dialogs.lifeLost = null;
 
-    pendingOnDone.fire(continuing);
+    const callback = onResolvedCb;
+    onResolvedCb = undefined;
+    callback?.(continuing);
   }
 
   function toggleFocus(playerId: ValidPlayerSlot): void {
@@ -219,7 +220,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
      *  with null in production; the type permits a value for symmetry). */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.dialogs.lifeLost = dialog;
-      if (dialog === null) pendingOnDone.clear();
+      if (dialog === null) onResolvedCb = undefined;
     },
     show,
     tick: tickLifeLostDialogSystem,

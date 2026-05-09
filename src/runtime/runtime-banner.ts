@@ -10,7 +10,6 @@
 import { BANNER_DURATION } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { createFireOnceSlot } from "./fire-once-slot.ts";
 import {
   type ActiveBannerState,
   type BannerShowOpts,
@@ -54,9 +53,10 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     captureSceneOffscreen,
   } = deps;
 
-  // Fires once when progress reaches 1. `set` overwrites a pending
-  // callback (banner-replaces-banner); `clear` drops without firing.
-  const pendingOnDone = createFireOnceSlot();
+  // onDone fires when progress reaches 1; null-before-call ordering
+  // lets a re-entrant showBanner survive (its `onDone = newCb` runs
+  // inside the fire path).
+  let onDone: (() => void) | undefined;
 
   function showBanner(opts: BannerShowOpts) {
     assertStateInstalled(runtimeState);
@@ -98,7 +98,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       newScene,
     };
     runtimeState.banner = next;
-    pendingOnDone.set(opts.onDone);
+    onDone = opts.onDone;
 
     // Subsystem dialogs (life-lost, upgrade-pick) leave mode on their
     // terminal value; restoring TRANSITION is what makes tickBanner run.
@@ -125,12 +125,12 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       round: state.round,
     });
     runtimeState.banner = createBannerState();
-    pendingOnDone.clear();
+    onDone = undefined;
   }
 
   function resetBannerState(): void {
     runtimeState.banner = createBannerState();
-    pendingOnDone.clear();
+    onDone = undefined;
   }
 
   function tickBanner(dt: number) {
@@ -144,7 +144,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
           phase: runtimeState.state.phase,
           round: runtimeState.state.round,
         });
-        pendingOnDone.fire();
+        const callback = onDone;
+        onDone = undefined;
+        callback?.();
       }
     }
     requestRender();

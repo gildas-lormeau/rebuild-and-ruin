@@ -459,18 +459,15 @@ export interface RuntimeSelection {
 }
 
 /**
- * Dialog/animation completion callback — all three dialog sub-systems
- * (ScoreDelta / LifeLost / UpgradePick) share one shape: a closure-scoped
- * `FireOnceSlot` (see fire-once-slot.ts). The axis that genuinely differs
- * is **tick scope**:
+ * Dialog/animation completion callbacks — each sub-system stores its
+ * "fire once when done" callback in a closure-local `let cb |
+ * undefined`. Tick scope is what actually differs:
  *
  * | System       | Tick scope                                     |
  * |--------------|------------------------------------------------|
  * | ScoreDelta   | Mode-independent (runs during banner animations) |
  * | LifeLost     | Gated on Mode.LIFE_LOST                        |
  * | UpgradePick  | Gated on Mode.UPGRADE_PICK                     |
- *
- * See docs/dialog-completion-patterns.md for details.
  */
 export interface RuntimeLifeLost {
   /** Read current dialog state. Used by watcher-mode to sync overlay display. */

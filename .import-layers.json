@@ -21,7 +21,6 @@
       "src/render/render-layout.ts",
       "src/runtime/banner-messages.ts",
       "src/runtime/dialog-tick.ts",
-      "src/runtime/fire-once-slot.ts",
       "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
