@@ -25,18 +25,17 @@
 
 import * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
-import { cells, findVariant, measureVariantBoundsY } from "./sprite-kit.ts";
+import {
+  type BoxShapeParams,
+  cells,
+  findVariant,
+  measureVariantBoundsY,
+} from "./sprite-kit.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
 export type WindowSide = "+x" | "-x" | "+z" | "-z";
 
-export interface BodyParams {
-  width: number;
-  depth: number;
-  height: number;
-  yBase?: number;
-  material: TexturedSpec;
-}
+export type BodyParams = BoxShapeParams<TexturedSpec>;
 
 export interface RoofParams {
   /** X extent of the roof footprint. Overhang past body width reads as
@@ -274,7 +273,7 @@ export function buildHouse(
   scene: THREE.Scene | THREE.Group,
   params: HouseParams,
 ): void {
-  const yBase = params.body.yBase ?? 0;
+  const yBase = params.body.yBase;
 
   // Body — square stone box.
   const body = new three.Mesh(
@@ -373,12 +372,12 @@ export function roofPlacement(params: HouseParams): RoofPlacement {
 }
 
 export function bodyTopY(params: HouseParams): number {
-  return (params.body.yBase ?? 0) + params.body.height;
+  return params.body.yBase + params.body.height;
 }
 
 export function doorPlacement(params: HouseParams): DoorPlacement | null {
   if (!params.door) return null;
-  const yBase = params.body.yBase ?? 0;
+  const yBase = params.body.yBase;
   const x = params.door.xOffset ?? 0;
   return {
     width: params.door.width,
@@ -394,7 +393,7 @@ export function doorPlacement(params: HouseParams): DoorPlacement | null {
  */
 export function windowPlacements(params: HouseParams): WindowPlacement[] {
   if (!params.windows || params.windows.length === 0) return [];
-  const yBase = params.body.yBase ?? 0;
+  const yBase = params.body.yBase;
   const halfW = params.body.width / 2;
   const halfD = params.body.depth / 2;
   const bodyMidY = yBase + params.body.height / 2;

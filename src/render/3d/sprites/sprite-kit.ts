@@ -33,6 +33,17 @@ export interface MaterialSpec {
   side?: MaterialSide;
 }
 
+/** Shared shape for the box-shaped primitive that grunt hulls, house bodies,
+ *  and rampart cores all use. Generic over the material spec because house
+ *  bodies use the textured variant. */
+export interface BoxShapeParams<M extends MaterialSpec = MaterialSpec> {
+  width: number;
+  depth: number;
+  height: number;
+  yBase: number;
+  material: M;
+}
+
 // World authoring scale: 1 cell = 0.125 world units. Sprite grids,
 // tower/house layouts and cannon bounds are all authored in cells so
 // downsampling to the target canvas size stays pixel-aligned.

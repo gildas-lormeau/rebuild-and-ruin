@@ -25,6 +25,7 @@
 import * as THREE from "three";
 import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
+  type BoxShapeParams,
   cells,
   createMaterial,
   findVariant,
@@ -32,13 +33,7 @@ import {
   measureVariantBoundsY,
 } from "./sprite-kit.ts";
 
-export interface HullParams {
-  width: number;
-  depth: number;
-  height: number;
-  yBase?: number;
-  material: MaterialSpec;
-}
+export type HullParams = BoxShapeParams;
 
 export interface TracksParams {
   width: number;
@@ -237,7 +232,7 @@ export function buildGrunt(
     ),
     createMaterial(params.hull.material),
   );
-  hull.position.set(0, (params.hull.yBase ?? 0) + params.hull.height / 2, 0);
+  hull.position.set(0, params.hull.yBase + params.hull.height / 2, 0);
   group.add(hull);
 
   // Two tracks (left, right). Each = central box + 2 cylindrical end
@@ -352,7 +347,7 @@ export function turretCenter(
 }
 
 export function hullTopY(params: GruntParams): number {
-  return (params.hull.yBase ?? 0) + params.hull.height;
+  return params.hull.yBase + params.hull.height;
 }
 
 function gruntParams(yawDegrees: number): GruntParams {

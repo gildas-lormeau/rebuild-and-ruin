@@ -23,6 +23,7 @@ import * as THREE from "three";
 import type { StakesParams } from "./balloon-scene.ts";
 import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
+  type BoxShapeParams,
   cells,
   createMaterial,
   findVariant,
@@ -31,13 +32,7 @@ import {
 } from "./sprite-kit.ts";
 import { BAND_GREEN } from "./sprite-materials.ts";
 
-export interface CoreParams {
-  width: number;
-  depth: number;
-  height: number;
-  yBase: number;
-  material: MaterialSpec;
-}
+export type CoreParams = BoxShapeParams;
 
 export interface TopParams {
   width: number;
