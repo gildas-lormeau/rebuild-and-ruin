@@ -477,7 +477,7 @@ function serializeGrunts(state: GameState) {
 
 function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
   return {
-    ...gruntWireFields(grunt),
+    ...grunt,
     blockedRounds: grunt.blockedRounds ?? 0,
   };
 }
