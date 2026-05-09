@@ -281,6 +281,17 @@ function classifyPropertyAccessRead(pae: Node): RefKind {
   ) {
     return "read-guarded";
   }
+  // `obj.foo?.bar` — `foo`'s parent PAE (`obj.foo`) has no `?.` itself, but
+  // the grandparent PAE (`obj.foo?.bar`) carries the optional chain to the
+  // next access. Same pattern for `obj.foo?.bar.baz`, `obj.foo?.bar?.()`, etc.
+  if (
+    paeParent?.isKind(SyntaxKind.PropertyAccessExpression) &&
+    paeParent
+      .asKindOrThrow(SyntaxKind.PropertyAccessExpression)
+      .hasQuestionDotToken()
+  ) {
+    return "read-guarded";
+  }
 
   let cursor: Node = pae;
   for (let depth = 0; depth < 6; depth++) {
