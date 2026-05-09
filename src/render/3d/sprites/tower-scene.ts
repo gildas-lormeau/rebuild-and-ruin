@@ -77,10 +77,6 @@ export interface CornerFlagSpec {
 }
 
 export interface ParapetClipSideSpec {
-  xMin?: number;
-  xMax?: number;
-  zMin?: number;
-  zMax?: number;
   exclude?: { lo: number; hi: number }[];
 }
 
@@ -1083,18 +1079,6 @@ export function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
   const halfD = roof.depth / 2;
   const out: ParapetPlacement[] = [];
 
-  const clamp1d = (
-    lo: number,
-    hi: number,
-    clipLo: number | undefined,
-    clipHi: number | undefined,
-  ): { lo: number; hi: number } | null => {
-    const newLo = clipLo === undefined ? lo : Math.max(lo, clipLo);
-    const newHi = clipHi === undefined ? hi : Math.min(hi, clipHi);
-    if (newHi - newLo <= 1e-6) return null;
-    return { lo: newLo, hi: newHi };
-  };
-
   const splitIntoMerlons = (
     lo: number,
     hi: number,
@@ -1155,52 +1139,40 @@ export function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
   };
 
   if (!skip.has("N")) {
-    const c = clip.N ?? {};
-    const span = clamp1d(turret.x - halfW, turret.x + halfW, c.xMin, c.xMax);
-    if (span)
-      addAlongX(
-        "N",
-        span.lo,
-        span.hi,
-        turret.z - halfD + p.thickness / 2,
-        c.exclude,
-      );
+    addAlongX(
+      "N",
+      turret.x - halfW,
+      turret.x + halfW,
+      turret.z - halfD + p.thickness / 2,
+      clip.N?.exclude,
+    );
   }
   if (!skip.has("S")) {
-    const c = clip.S ?? {};
-    const span = clamp1d(turret.x - halfW, turret.x + halfW, c.xMin, c.xMax);
-    if (span)
-      addAlongX(
-        "S",
-        span.lo,
-        span.hi,
-        turret.z + halfD - p.thickness / 2,
-        c.exclude,
-      );
+    addAlongX(
+      "S",
+      turret.x - halfW,
+      turret.x + halfW,
+      turret.z + halfD - p.thickness / 2,
+      clip.S?.exclude,
+    );
   }
   if (!skip.has("W")) {
-    const c = clip.W ?? {};
-    const span = clamp1d(turret.z - halfD, turret.z + halfD, c.zMin, c.zMax);
-    if (span)
-      addAlongZ(
-        "W",
-        span.lo,
-        span.hi,
-        turret.x - halfW + p.thickness / 2,
-        c.exclude,
-      );
+    addAlongZ(
+      "W",
+      turret.z - halfD,
+      turret.z + halfD,
+      turret.x - halfW + p.thickness / 2,
+      clip.W?.exclude,
+    );
   }
   if (!skip.has("E")) {
-    const c = clip.E ?? {};
-    const span = clamp1d(turret.z - halfD, turret.z + halfD, c.zMin, c.zMax);
-    if (span)
-      addAlongZ(
-        "E",
-        span.lo,
-        span.hi,
-        turret.x + halfW - p.thickness / 2,
-        c.exclude,
-      );
+    addAlongZ(
+      "E",
+      turret.z - halfD,
+      turret.z + halfD,
+      turret.x + halfW - p.thickness / 2,
+      clip.E?.exclude,
+    );
   }
   return out;
 }
