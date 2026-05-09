@@ -73,98 +73,66 @@ export function scoreImpactCombo(
   if (sid === undefined) return 0;
   const tracker = state.modern?.comboTracker;
   if (!tracker) return 0;
+  const playerState = tracker.players[sid];
+  if (!playerState) return 0;
   const battleTime = BATTLE_TIMER - state.timer;
+
   switch (kind) {
-    case COMBO_WALL:
-      return comboOnWallDestroyed(tracker, sid, battleTime);
-    case COMBO_CANNON:
-      return comboOnCannonKill(tracker, sid);
-    case COMBO_GRUNT:
-      return comboOnGruntKill(tracker, sid, battleTime);
+    case COMBO_WALL: {
+      playerState.wallsDestroyedThisRound++;
+      if (battleTime - playerState.lastWallHitTime <= STREAK_WINDOW) {
+        playerState.wallStreak++;
+      } else {
+        playerState.wallStreak = 1;
+      }
+      playerState.lastWallHitTime = battleTime;
+      if (playerState.wallStreak >= WALL_STREAK_MIN) {
+        tracker.events.push({
+          kind: COMBO_WALL,
+          streak: playerState.wallStreak,
+          bonus: WALL_STREAK_BONUS,
+          age: 0,
+          playerId: sid,
+        });
+        return WALL_STREAK_BONUS;
+      }
+      return 0;
+    }
+    case COMBO_CANNON: {
+      tracker.events.push({
+        kind: COMBO_CANNON,
+        streak: 1,
+        bonus: CANNON_KILL_BONUS,
+        age: 0,
+        playerId: sid,
+      });
+      return CANNON_KILL_BONUS;
+    }
+    case COMBO_GRUNT: {
+      if (battleTime - playerState.lastGruntKillTime <= STREAK_WINDOW) {
+        playerState.gruntStreak++;
+      } else {
+        playerState.gruntStreak = 1;
+      }
+      playerState.lastGruntKillTime = battleTime;
+      if (playerState.gruntStreak >= GRUNT_STREAK_MIN) {
+        tracker.events.push({
+          kind: COMBO_GRUNT,
+          streak: playerState.gruntStreak,
+          bonus: GRUNT_STREAK_BONUS,
+          age: 0,
+          playerId: sid,
+        });
+        return GRUNT_STREAK_BONUS;
+      }
+      return 0;
+    }
   }
 }
 
 /** Facade: age combo events by dt seconds. No-op in classic mode. */
 export function tickComboTracking(state: GameState, dt: number): void {
   if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
-}
-
-/** Process an impact event for combo tracking. Returns bonus score to add.
- *  `battleTime` is elapsed seconds since battle start (monotonic). */
-function comboOnWallDestroyed(
-  tracker: ComboTracker,
-  shooterId: ValidPlayerSlot,
-  battleTime: number,
-): number {
-  const playerState = tracker.players[shooterId];
-  if (!playerState) return 0;
-
-  playerState.wallsDestroyedThisRound++;
-
-  // Check if within streak window
-  if (battleTime - playerState.lastWallHitTime <= STREAK_WINDOW) {
-    playerState.wallStreak++;
-  } else {
-    playerState.wallStreak = 1;
-  }
-  playerState.lastWallHitTime = battleTime;
-
-  // Wall streak bonus
-  if (playerState.wallStreak >= WALL_STREAK_MIN) {
-    tracker.events.push({
-      kind: COMBO_WALL,
-      streak: playerState.wallStreak,
-      bonus: WALL_STREAK_BONUS,
-      age: 0,
-      playerId: shooterId,
-    });
-    return WALL_STREAK_BONUS;
-  }
-  return 0;
-}
-
-function comboOnCannonKill(
-  tracker: ComboTracker,
-  shooterId: ValidPlayerSlot,
-): number {
-  const playerState = tracker.players[shooterId];
-  if (!playerState) return 0;
-  tracker.events.push({
-    kind: COMBO_CANNON,
-    streak: 1,
-    bonus: CANNON_KILL_BONUS,
-    age: 0,
-    playerId: shooterId,
-  });
-  return CANNON_KILL_BONUS;
-}
-
-function comboOnGruntKill(
-  tracker: ComboTracker,
-  shooterId: ValidPlayerSlot,
-  battleTime: number,
-): number {
-  const playerState = tracker.players[shooterId];
-  if (!playerState) return 0;
-
-  if (battleTime - playerState.lastGruntKillTime <= STREAK_WINDOW) {
-    playerState.gruntStreak++;
-  } else {
-    playerState.gruntStreak = 1;
-  }
-  playerState.lastGruntKillTime = battleTime;
-
-  if (playerState.gruntStreak >= GRUNT_STREAK_MIN) {
-    tracker.events.push({
-      kind: COMBO_GRUNT,
-      streak: playerState.gruntStreak,
-      bonus: GRUNT_STREAK_BONUS,
-      age: 0,
-      playerId: shooterId,
-    });
-    return GRUNT_STREAK_BONUS;
-  }
-  return 0;
 }
 
 /** Age combo events by dt seconds, remove expired ones (> 2s). */

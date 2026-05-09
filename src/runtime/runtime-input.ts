@@ -513,7 +513,6 @@ function buildGameActionDeps(
     getSelectionStates: () => runtimeState.selection.states,
     highlightTowerForPlayer: selection.highlight,
     confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
-    isSelectionReady: selection.isReady,
     tryPlaceCannon: placeCannon,
     tryPlacePiece: placePiece,
     fire,

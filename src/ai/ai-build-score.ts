@@ -56,7 +56,7 @@ const DIFFICULTY_MULTIPLIER = 3;
 const POCKET_DELTA_PENALTY = 3;
 /** Score penalty for each house or bonus square tile covered by a placement. */
 const OBSTACLE_HIT_PENALTY = 8;
-/** Discard pieces if fewer free interior tiles remain (territory is full). */
+/** Distance threshold (tiles) within which an unowned zone tower contributes a proximity bonus. */
 const TOWER_PROXIMITY_RANGE = 8;
 /** Score bonus per tile of proximity to an unowned zone tower (guides expansion). */
 const TOWER_PROXIMITY_FACTOR = 0.3;

@@ -557,7 +557,6 @@ export interface GameActionDeps {
     pid: ValidPlayerSlot,
   ) => void;
   confirmSelectionAndStartBuild: (pid: ValidPlayerSlot) => boolean;
-  isSelectionReady?: () => boolean;
   tryPlacePiece: (
     ctrl: PlayerController & InputReceiver,
     state: BuildViewState,
@@ -582,7 +581,7 @@ export interface PointerMoveDeps {
   };
   gameAction: Pick<
     GameActionDeps,
-    "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
+    "getSelectionStates" | "highlightTowerForPlayer"
   >;
   maybeSendAimUpdate: (x: number, y: number) => void;
 }

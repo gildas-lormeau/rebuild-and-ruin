@@ -11,13 +11,6 @@
  * (via `withPointerPlayer`). Keyboard input loops over ALL controllers
  * to support local multiplayer with distinct key bindings.
  *
- * ### Selection-confirmed guard convention
- *
- * The selection system self-guards: highlightTowerSelection() and
- * confirmTowerSelection() both early-return when already confirmed.
- * Caller-side `isSelectionPending()` checks are redundant safety nets
- * but kept for defense-in-depth.
- *
  * ### Touch-suppression pairing
  *
  * Mobile browsers fire synthetic click events after touchend.
@@ -202,13 +195,11 @@ export function dispatchTowerSelect(
       | "getSelectionStates"
       | "highlightTowerForPlayer"
       | "confirmSelectionAndStartBuild"
-      | "isSelectionReady"
     >;
   },
   requireSecondTapToConfirm = false,
 ): void {
   const { gameAction } = deps;
-  if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
   deps.withPointerPlayer((human) => {
     const selectionState = gameAction.getSelectionStates().get(human.playerId);
     if (!selectionState) return;
@@ -331,7 +322,6 @@ export function dispatchGameAction(
   if (isPlayerEliminated(state.players[ctrl.playerId])) return false;
 
   if (isSelectionPhase(state.phase)) {
-    if (deps.isSelectionReady && !deps.isSelectionReady()) return false;
     const selectionState = deps.getSelectionStates().get(ctrl.playerId);
     if (!selectionState) return false;
     if (isMovementAction(action)) {
@@ -387,9 +377,6 @@ export function dispatchPointerMove(
   deps: PointerMoveDeps,
 ): void {
   const { coords, gameAction, maybeSendAimUpdate } = deps;
-  if (isSelectionPhase(state.phase)) {
-    if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
-  }
   deps.withPointerPlayer((human) => {
     if (isSelectionPhase(state.phase)) {
       const selectionState = gameAction
