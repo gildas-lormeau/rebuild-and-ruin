@@ -3,7 +3,7 @@
  * L0 (leaf modules) so every layer can import.
  */
 
-/** Unique identifier for a player upgrade. */
+import type { PoolDef } from "./pool-def.ts";
 
 export type UpgradeId =
   | "mortar"
@@ -32,10 +32,7 @@ export type UpgradeId =
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
-interface UpgradeDef {
-  readonly id: UpgradeId;
-  readonly label: string;
-  readonly description: string;
+interface UpgradeDef extends PoolDef<UpgradeId> {
   readonly category: UpgradeCategory;
   /** Weight for draft pool selection (higher = more likely to appear). */
   readonly weight: number;
@@ -44,10 +41,6 @@ interface UpgradeDef {
   /** Whether the effect applies to all players when any single player picks it.
    *  When false, only the player who picked it benefits. */
   readonly global: boolean;
-  /** Whether gameplay code exists for this upgrade.
-   *  Unimplemented upgrades are kept in the pool type system but excluded
-   *  from draft offers so players never pick a no-op upgrade. */
-  readonly implemented: boolean;
 }
 
 /** Compile-time exhaustiveness check: every UpgradeId must appear in UPGRADE_POOL.

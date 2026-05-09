@@ -12,15 +12,11 @@
  */
 
 import type { ModifierId } from "./game-constants.ts";
+import type { PoolDef } from "./pool-def.ts";
 
-interface ModifierDef {
-  readonly id: ModifierId;
-  readonly label: string;
-  readonly description: string;
+interface ModifierDef extends PoolDef<ModifierId> {
   /** Pool weight for random selection (higher = more likely). */
   readonly weight: number;
-  /** Whether gameplay code exists for this modifier. */
-  readonly implemented: boolean;
   /** Whether this modifier stores tile state that must be serialized in
    *  checkpoints, restored via reapply on join/reconnect, and reverted
    *  on zone reset. When true, ensure matching entries in:

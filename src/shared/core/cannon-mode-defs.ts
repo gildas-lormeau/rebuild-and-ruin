@@ -11,17 +11,13 @@
  */
 
 import { CannonMode } from "./battle-types.ts";
+import type { PoolDef } from "./pool-def.ts";
 
-interface CannonModeDef {
-  readonly id: CannonMode;
-  readonly label: string;
-  readonly description: string;
+interface CannonModeDef extends PoolDef<CannonMode> {
   /** Footprint size in tiles (e.g. 2 for 2×2, 3 for 3×3). */
   readonly size: number;
   /** Cannon slots consumed when placing this mode. */
   readonly slotCost: number;
-  /** Whether gameplay code exists for this mode. */
-  readonly implemented: boolean;
   /** Whether this mode is only available in modern game mode. */
   readonly modernOnly?: boolean;
 }

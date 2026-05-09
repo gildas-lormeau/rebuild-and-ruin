@@ -7,37 +7,13 @@
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ BoltParams@src/render/3d/sprites/balloon-scene.ts"
     },
     {
-      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
-    },
-    {
-      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
     },
     {
       "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
-      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
-    },
-    {
-      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
-      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
-    },
-    {
-      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
-    },
-    {
-      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
-    },
-    {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
-    },
-    {
-      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
@@ -61,15 +37,6 @@
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
     },
     {
-      "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayBalloon@src/shared/ui/overlay-types.ts"
-    },
-    {
-      "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
-    },
-    {
-      "pair": "CannonFiredMessage@src/shared/core/battle-events.ts ↔ Cannonball@src/shared/core/battle-types.ts"
-    },
-    {
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
@@ -85,18 +52,6 @@
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
     },
     {
-      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
-      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
-    },
-    {
-      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
-    },
-    {
-      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
       "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
     },
     {
@@ -110,18 +65,6 @@
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
-    },
-    {
-      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
-    },
-    {
-      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
-    },
-    {
-      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
-    },
-    {
-      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
       "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"

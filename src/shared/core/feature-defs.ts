@@ -12,17 +12,11 @@
  *      catch a missing guard, but the failing gameplay + tests will
  */
 
-/** Identifier for a composable game feature capability. */
+import type { PoolDef } from "./pool-def.ts";
 
 export type FeatureId = "modifiers" | "upgrades" | "combos";
 
-interface FeatureDef {
-  readonly id: FeatureId;
-  readonly label: string;
-  readonly description: string;
-  /** Whether gameplay code exists for this feature. */
-  readonly implemented: boolean;
-}
+type FeatureDef = PoolDef<FeatureId>;
 
 /** Compile-time exhaustiveness: every FeatureId must appear in the pool.
  *  Adding a FeatureId without a matching pool entry causes a type error. */
