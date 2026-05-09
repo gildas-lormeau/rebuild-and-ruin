@@ -1,8 +1,8 @@
 /**
- * Detect null/undefined guards that can never trigger because the type
- * system already guarantees the expression is non-nullable.
+ * Detect guards that can never trigger because the type system already
+ * proves the result. Two classes:
  *
- * Catches patterns like:
+ * Null/undefined guards on non-nullable types:
  *   - `if (!expr) return` where expr's type excludes null/undefined
  *   - `if (expr === null)` where expr can't be null
  *   - `if (expr === undefined)` where expr can't be undefined
@@ -10,10 +10,21 @@
  *   - `expr ?? fallback` where expr is non-nullable
  *   - `expr?.prop` where expr is non-nullable
  *
+ * Literal-compare against a value the type can't hold:
+ *   - `expr === false` where expr is `true | undefined`
+ *   - `expr !== "foo"` where expr is `"bar" | "baz"`
+ *   - `expr === 5` where expr is `1 | 2 | 3`
+ *
+ * The literal-compare class catches the cascading dead branches that
+ * appear after a type is narrowed (e.g. `Cannon.mortar` from
+ * `?: boolean` to `?: true` makes any `=== false` check unreachable).
+ *
  * Skips:
  *   - Files listed in boundary allowlist (network validation, deserialization)
  *   - Conditions involving `.length`, numeric comparisons (not null guards)
  *   - Type assertions / `as` casts (intentionally loosening types)
+ *   - Wide-primitive types (`string`, `number`, `boolean`) — every literal
+ *     of the right primitive is reachable, so no enforcement
  *
  * Usage:
  *   deno run -A scripts/lint-useless-guards.ts [options]
@@ -90,6 +101,21 @@ function main(): void {
           });
         }
         return;
+      }
+
+      // ── Pattern 4: expr === <literal> / expr !== <literal> ──
+      // Wherever it appears (if-test, ternary cond, assignment, etc.).
+      // Nullish-literal compares are handled by checkCondition above; this
+      // pass focuses on boolean / string / number literal compares whose
+      // result is statically determined by the type union.
+      if (Node.isBinaryExpression(node)) {
+        const op = node.getOperatorToken().getKind();
+        if (
+          op === SyntaxKind.EqualsEqualsEqualsToken ||
+          op === SyntaxKind.ExclamationEqualsEqualsToken
+        ) {
+          checkLiteralCompare(node, relPath, guards);
+        }
       }
 
       // ── Pattern 3: expr?.prop (optional chain on non-nullable) ──
@@ -270,6 +296,145 @@ function checkNullGuardExpr(
       resolvedType: exprType.getText(),
     });
   }
+}
+
+/** Check `expr === <literal>` / `expr !== <literal>` where the literal
+ *  isn't reachable in expr's type. Skips nullish literals (handled by
+ *  checkCondition) and wide primitives (every literal is reachable). */
+function checkLiteralCompare(cond: Node, file: string, out: Guard[]): void {
+  if (!Node.isBinaryExpression(cond)) return;
+  const left = cond.getLeft();
+  const right = cond.getRight();
+  const leftType = left.getType();
+  const rightType = right.getType();
+  const leftLit = isComparableLiteral(leftType);
+  const rightLit = isComparableLiteral(rightType);
+  // Exactly one side must be a literal — comparisons between two literals
+  // or two non-literals aren't this pattern.
+  if (leftLit === rightLit) return;
+  const litType = rightLit ? rightType : leftType;
+  const exprSide = rightLit ? left : right;
+  const exprType = exprSide.getType();
+  // Nullish literals: `null` is special-cased to `undefined | null`-like
+  // semantics in checkCondition; skip to avoid duplicate flagging.
+  if (litType.isNull() || litType.isUndefined()) return;
+  if (isAnyOrUnknown(exprType)) return;
+  // Skip when expr's type accepts the litType's whole primitive — every
+  // literal of that primitive is reachable so no enforcement is possible.
+  // ts-morph expands `boolean` into `true | false` internally, so we
+  // detect this by checking for a wide-primitive member alongside any
+  // literal members.
+  if (acceptsAnyOfPrimitive(exprType, litType)) return;
+  // The actual check: can the literal value match any reachable value
+  // of expr's type? Compares by underlying VALUE not by nominal type so
+  // string-valued enums (`CannonMode.BALLOON` ≠ `"balloon"` nominally,
+  // but they share the runtime value) don't false-positive.
+  if (litCanMatchExprValues(exprType, litType)) return;
+  const op = cond.getOperatorToken().getKind();
+  const operator = op === SyntaxKind.EqualsEqualsEqualsToken ? "===" : "!==";
+  out.push({
+    file,
+    line: cond.getStartLineNumber(),
+    snippet: truncate(cond.getText(), 80),
+    pattern: `${operator} ${litType.getText()}`,
+    exprText: truncate(exprSide.getText(), 40),
+    resolvedType: exprType.getText(),
+  });
+}
+
+/** True when `type` is a literal type the lint can compare against —
+ *  boolean/string/number literals only. Wide primitives and complex
+ *  types return false. */
+function isComparableLiteral(type: Type): boolean {
+  return (
+    type.isBooleanLiteral() || type.isStringLiteral() || type.isNumberLiteral()
+  );
+}
+
+/** True when `litType`'s value matches any literal member of `exprType`,
+ *  comparing by underlying value rather than nominal type. Handles
+ *  string-valued enums where `CannonMode.BALLOON` and `"balloon"` are
+ *  distinct nominal types but share the same runtime value. */
+function litCanMatchExprValues(exprType: Type, litType: Type): boolean {
+  const litValue = literalValueOf(litType);
+  if (litValue === undefined) return false;
+  return walkUnion(exprType, (member) => literalValueOf(member) === litValue);
+}
+
+/** Extract the runtime value of a literal type. ts-morph's
+ *  `getLiteralValue()` covers string + number literals but not booleans;
+ *  for booleans we fall back to the type's text. Returns undefined for
+ *  non-literal types. */
+function literalValueOf(type: Type): boolean | string | number | undefined {
+  if (type.isBooleanLiteral()) {
+    const text = type.getText();
+    if (text === "true") return true;
+    if (text === "false") return false;
+    return undefined;
+  }
+  if (type.isStringLiteral() || type.isNumberLiteral()) {
+    return type.getLiteralValue();
+  }
+  return undefined;
+}
+
+function walkUnion(type: Type, visit: (member: Type) => boolean): boolean {
+  if (type.isUnion()) {
+    return type.getUnionTypes().some((member) => walkUnion(member, visit));
+  }
+  return visit(type);
+}
+
+/** True when `exprType` accepts every literal of `litType`'s primitive —
+ *  e.g. `boolean | "interactive"` accepts every boolean literal because
+ *  it contains the wide `boolean`. Detection is needed because ts-morph
+ *  expands top-level `boolean` into a `true | false` union; the only
+ *  reliable signal that a wide primitive is reachable is BOTH literal
+ *  endpoints (sawTrue + sawFalse) or the explicit primitive type. */
+function acceptsAnyOfPrimitive(exprType: Type, litType: Type): boolean {
+  if (litType.isBooleanLiteral()) return acceptsAnyBoolean(exprType);
+  if (litType.isStringLiteral()) return acceptsAnyString(exprType);
+  if (litType.isNumberLiteral()) return acceptsAnyNumber(exprType);
+  return false;
+}
+
+function acceptsAnyBoolean(type: Type): boolean {
+  if (isWideBoolean(type)) return true;
+  if (!type.isUnion()) return false;
+  let sawTrue = false;
+  let sawFalse = false;
+  for (const member of type.getUnionTypes()) {
+    if (isWideBoolean(member)) return true;
+    if (member.isBooleanLiteral()) {
+      if (member.getText() === "true") sawTrue = true;
+      else if (member.getText() === "false") sawFalse = true;
+    }
+  }
+  return sawTrue && sawFalse;
+}
+
+function acceptsAnyString(type: Type): boolean {
+  if (isWideString(type)) return true;
+  if (!type.isUnion()) return false;
+  return type.getUnionTypes().some(isWideString);
+}
+
+function acceptsAnyNumber(type: Type): boolean {
+  if (isWideNumber(type)) return true;
+  if (!type.isUnion()) return false;
+  return type.getUnionTypes().some(isWideNumber);
+}
+
+function isWideBoolean(type: Type): boolean {
+  return type.isBoolean() && !type.isBooleanLiteral();
+}
+
+function isWideString(type: Type): boolean {
+  return type.isString() && !type.isStringLiteral();
+}
+
+function isWideNumber(type: Type): boolean {
+  return type.isNumber() && !type.isNumberLiteral();
 }
 
 function isNullableType(type: Type): boolean {
