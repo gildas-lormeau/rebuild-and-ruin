@@ -9,11 +9,18 @@
  * the type alias's own declaration), and reports members with no
  * observed value-position usage.
  *
- * Findings are grouped:
- *   dead   0 occurrences anywhere outside the type def — safe to remove
- *   rare   1-2 occurrences — manual review (often a single test fixture
- *          or a recent addition not yet wired up)
- *   active 3+ occurrences — hidden by default, --include-active to surface
+ * Each occurrence is classified as a producer (passes/writes the value:
+ * `f("a")`, `return "a"`, `{ k: "a" }`, `obj["a"] = …`, Identifier-keyed
+ * Record entries) or a consumer (branches on it: `x === "a"`, `case "a":`,
+ * `Map.has("a")`, `obj["a"]` lookup). Members are bucketed by
+ * (producerCount, consumerCount):
+ *   dead          (0, 0)   no use anywhere — safe to remove
+ *   cascade-dead  (0, ≥1)  defensive code references a member nothing
+ *                          produces; both the arm AND the defensive code
+ *                          can go (this is the dispatch-incompleteness
+ *                          symptom surfaced from the type-alias side)
+ *   rare          (1-2, *) low-producer; manual review
+ *   active        (≥3, *)  hidden by default, --include-active to surface
  *
  * Output is JSON for automation. Flags:
  *   --report               human-readable summary
@@ -50,10 +57,12 @@
  *    would falsely classify as dead. Cost: a member whose value happens
  *    to match a common key name (`id`, `title`, `name`) gets suppressed
  *    by unrelated objects, lowering precision but reducing FPs.
- *  - Producers (writes, args, returns) and consumers (===, switch case)
- *    aren't distinguished. A member referenced only by `if (x === "c")`
- *    with no producer is reported "active" here even though the arm is
- *    dead in practice; that's the cascade case, deferred.
+ *  - Producer/consumer classification is one parent-step deep and biases
+ *    toward producer when uncertain. ArrayLiteralExpression children
+ *    syntactically count as producers, so members used only in
+ *    `[...].includes(x)` lookup tables suppress instead of cascade-deading
+ *    — chosen trade-off (no false cascade-dead findings on table-driven
+ *    code; cost: dead members hidden inside such arrays).
  *  - Members whose value is a common English word ("none", "all", "default")
  *    rack up unrelated occurrences. Trust the dead bucket; review rare
  *    by hand.
@@ -74,15 +83,18 @@ interface OccurrenceSite {
   file: string;
   line: number;
   snippet: string;
+  position: "producer" | "consumer";
 }
 
-type Classification = "dead" | "rare" | "active";
+type Classification = "dead" | "cascade-dead" | "rare" | "active";
 
 interface MemberFinding {
   value: string;
-  occurrenceCount: number;
+  producerCount: number;
+  consumerCount: number;
   classification: Classification;
-  occurrences: OccurrenceSite[];
+  producers: OccurrenceSite[];
+  consumers: OccurrenceSite[];
 }
 
 interface UnionFinding {
@@ -101,6 +113,7 @@ interface ExcludeRange {
   endLine: number;
 }
 
+const LOOKUP_METHODS = new Set(["has", "get", "delete", "includes", "indexOf"]);
 const RARE_MAX = 2;
 const REGISTRY_FILE_RE = /-defs\.ts$/;
 const args = process.argv.slice(2);
@@ -157,7 +170,9 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
-unions.sort((unionA, unionB) => deadCount(unionB) - deadCount(unionA));
+unions.sort(
+  (unionA, unionB) => actionableCount(unionB) - actionableCount(unionA),
+);
 
 if (wantReport) {
   printReport(unions);
@@ -180,6 +195,7 @@ function indexLiteral(
     file: path.relative(process.cwd(), lit.getSourceFile().getFilePath()),
     line: lit.getStartLineNumber(),
     snippet: trimSnippet(parent ? parent.getText() : lit.getText()),
+    position: classifyPosition(lit),
   });
 }
 
@@ -196,7 +212,54 @@ function indexIdentifierKey(nameNode: Node, host: Node): void {
     file: path.relative(process.cwd(), host.getSourceFile().getFilePath()),
     line: host.getStartLineNumber(),
     snippet: trimSnippet(host.getText()),
+    position: "producer",
   });
+}
+
+/** Walk one parent step to decide if this literal node is at a position
+ *  that produces a value of its type (passed as data, written to a slot)
+ *  vs consumes it (compared, branched on, looked up by key). When unsure,
+ *  bias toward producer so we don't falsely mark a member cascade-dead. */
+function classifyPosition(
+  lit: StringLiteral | NoSubstitutionTemplateLiteral,
+): "producer" | "consumer" {
+  const parent = lit.getParent();
+  if (!parent) return "producer";
+
+  if (parent.isKind(SyntaxKind.BinaryExpression)) {
+    const bin = parent.asKindOrThrow(SyntaxKind.BinaryExpression);
+    const op = bin.getOperatorToken().getKind();
+    if (
+      op === SyntaxKind.EqualsEqualsEqualsToken ||
+      op === SyntaxKind.ExclamationEqualsEqualsToken ||
+      op === SyntaxKind.EqualsEqualsToken ||
+      op === SyntaxKind.ExclamationEqualsToken
+    ) {
+      return "consumer";
+    }
+  }
+
+  if (parent.isKind(SyntaxKind.CaseClause)) return "consumer";
+
+  if (parent.isKind(SyntaxKind.ElementAccessExpression)) {
+    const access = parent.asKindOrThrow(SyntaxKind.ElementAccessExpression);
+    if (access.getArgumentExpression() === lit) return "consumer";
+  }
+
+  if (parent.isKind(SyntaxKind.CallExpression)) {
+    const call = parent.asKindOrThrow(SyntaxKind.CallExpression);
+    if (call.getArguments().includes(lit)) {
+      const callee = call.getExpression();
+      if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
+        const methodName = callee
+          .asKindOrThrow(SyntaxKind.PropertyAccessExpression)
+          .getName();
+        if (LOOKUP_METHODS.has(methodName)) return "consumer";
+      }
+    }
+  }
+
+  return "producer";
 }
 
 function analyzeTypeAlias(ta: TypeAliasDeclaration): UnionFinding | null {
@@ -223,11 +286,15 @@ function analyzeTypeAlias(ta: TypeAliasDeclaration): UnionFinding | null {
   const memberFindings: MemberFinding[] = memberValues.map((value) => {
     const allSites = occurrences.get(value) ?? [];
     const sites = filterByExcludeRanges(allSites, excludeRanges);
+    const producers = sites.filter((site) => site.position === "producer");
+    const consumers = sites.filter((site) => site.position === "consumer");
     return {
       value,
-      occurrenceCount: sites.length,
-      classification: classify(sites.length),
-      occurrences: sites.slice(0, 5),
+      producerCount: producers.length,
+      consumerCount: consumers.length,
+      classification: classify(producers.length, consumers.length),
+      producers: producers.slice(0, 5),
+      consumers: consumers.slice(0, 5),
     };
   });
 
@@ -338,9 +405,10 @@ function sourceIsArrayLiteralConst(def: Node): boolean {
   return init.isKind(SyntaxKind.ArrayLiteralExpression);
 }
 
-function classify(count: number): Classification {
-  if (count === 0) return "dead";
-  if (count <= RARE_MAX) return "rare";
+function classify(producers: number, consumers: number): Classification {
+  if (producers === 0 && consumers === 0) return "dead";
+  if (producers === 0) return "cascade-dead";
+  if (producers <= RARE_MAX) return "rare";
   return "active";
 }
 
@@ -350,62 +418,82 @@ function trimSnippet(text: string): string {
 
 function printReport(items: UnionFinding[]): void {
   let totalDead = 0;
+  let totalCascade = 0;
   let totalRare = 0;
   for (const union of items) {
     for (const member of union.members) {
       if (member.classification === "dead") totalDead++;
+      if (member.classification === "cascade-dead") totalCascade++;
       if (member.classification === "rare") totalRare++;
     }
   }
 
-  const unionsWithDead = items.filter((union) => deadCount(union) > 0);
+  const unionsWithCascade = items.filter(
+    (union) => memberCount(union, "cascade-dead") > 0,
+  );
   console.log(
-    `\n=== unions with dead members (${unionsWithDead.length} types, ${totalDead} dead arms) ===`,
+    `\n=== cascade-dead arms (${unionsWithCascade.length} types, ${totalCascade} arms) — defensive code consumes a member nothing produces ===`,
+  );
+  for (const union of unionsWithCascade) {
+    console.log(
+      `\n  ${union.type}  ${union.file}:${union.line}  [${union.origin}]`,
+    );
+    for (const member of union.members) {
+      if (member.classification !== "cascade-dead") continue;
+      console.log(
+        `      [cascade-dead] "${member.value}"  (0 producers, ${member.consumerCount} consumers)`,
+      );
+      for (const site of member.consumers.slice(0, 3)) {
+        console.log(`            ${site.file}:${site.line}  ${site.snippet}`);
+      }
+    }
+  }
+
+  const unionsWithDead = items.filter(
+    (union) => memberCount(union, "dead") > 0,
+  );
+  console.log(
+    `\n=== fully dead arms (${unionsWithDead.length} types, ${totalDead} arms) — no producer, no consumer ===`,
   );
   for (const union of unionsWithDead) {
     console.log(
       `\n  ${union.type}  ${union.file}:${union.line}  [${union.origin}]`,
     );
     for (const member of union.members) {
-      if (member.classification === "active" && !includeActive) continue;
-      if (member.classification === "rare" && !includeRare) continue;
-      const tag = member.classification.padEnd(6);
-      console.log(
-        `      [${tag}] "${member.value}"  (${member.occurrenceCount} occurrences)`,
-      );
-      for (const site of member.occurrences.slice(0, 3)) {
-        console.log(`            ${site.file}:${site.line}  ${site.snippet}`);
-      }
+      if (member.classification !== "dead") continue;
+      console.log(`      [dead] "${member.value}"`);
     }
   }
 
   if (includeRare || includeActive) {
-    const otherUnions = items.filter((union) => deadCount(union) === 0);
     console.log(
-      `\n=== unions with no dead members (${otherUnions.length} types, ${totalRare} rare arms) ===`,
+      `\n=== other (${totalRare} rare-producer arms across all types) ===`,
     );
-    for (const union of otherUnions) {
-      const rares = union.members.filter(
-        (member) => member.classification === "rare",
-      );
-      if (rares.length === 0 && !includeActive) continue;
+    for (const union of items) {
+      const interesting = union.members.filter((member) => {
+        if (member.classification === "rare") return includeRare;
+        if (member.classification === "active") return includeActive;
+        return false;
+      });
+      if (interesting.length === 0) continue;
       console.log(`  ${union.type}  ${union.file}:${union.line}`);
-      for (const member of union.members) {
-        if (member.classification === "active" && !includeActive) continue;
-        if (member.classification === "rare" && !includeRare) continue;
+      for (const member of interesting) {
         console.log(
-          `      [${member.classification.padEnd(6)}] "${member.value}"  (${member.occurrenceCount})`,
+          `      [${member.classification.padEnd(13)}] "${member.value}"  (${member.producerCount} producers, ${member.consumerCount} consumers)`,
         );
       }
     }
   }
 
   console.log(
-    `\nTotal candidate types: ${items.length}  →  with dead arms: ${unionsWithDead.length}, dead arms: ${totalDead}, rare arms: ${totalRare}`,
+    `\nTotal candidate types: ${items.length}  →  cascade-dead: ${totalCascade}, fully dead: ${totalDead}, rare-producer: ${totalRare}`,
   );
 }
 
-function deadCount(union: UnionFinding): number {
-  return union.members.filter((member) => member.classification === "dead")
-    .length;
+function actionableCount(union: UnionFinding): number {
+  return memberCount(union, "cascade-dead") + memberCount(union, "dead");
+}
+
+function memberCount(union: UnionFinding, cls: Classification): number {
+  return union.members.filter((member) => member.classification === cls).length;
 }
