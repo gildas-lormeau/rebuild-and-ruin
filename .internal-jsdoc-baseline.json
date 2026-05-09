@@ -188,6 +188,6 @@
   "src/shared/platform/sound-rsc.ts:1:FILE_HEADER_WALL:<file header>",
   "src/shared/platform/xmi-to-smf.ts:1:FILE_HEADER_WALL:<file header>",
   "src/shared/ui/interaction-types.ts:4:RESTATES_NAME:LifeLostChoice",
-  "src/shared/ui/overlay-types.ts:84:RESTATES_NAME:UpgradePickPlayerEntry",
+  "src/shared/ui/overlay-types.ts:85:RESTATES_NAME:UpgradePickPlayerEntry",
   "src/shared/ui/ui-mode.ts:1:FILE_HEADER_WALL:<file header>"
 ]

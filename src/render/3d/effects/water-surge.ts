@@ -9,13 +9,14 @@
  */
 
 import type * as THREE from "three";
+import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
 export function createWaterSurgeManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "water-surge",
-    paletteKey: "high_tide",
+    modifierId: MODIFIER_ID.HIGH_TIDE,
     discColor: 0x3c8cf0,
     flashColor: 0xffffff,
     discDurationMs: 1100,

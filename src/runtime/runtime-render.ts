@@ -255,18 +255,17 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
     // Expose modifier-reveal data when the phase is active. The 3D
     // burst managers in src/render/3d/effects/ read from overlay.ui
-    // and never touch game state directly. Tiles + palette are
-    // persisted on `state.modern` at modifier-apply time by
-    // `applyBattleStartModifiers` (host) / `applyBattleStartCheckpoint`
-    // (watcher), so both roles produce identical overlay data.
+    // and never touch game state directly. `revealTimeMs` is the only
+    // banner-derived value here; it comes from `revealTimeFor`, which
+    // owns the single banner read for reveal timing.
     const modifier = runtimeState.state.modern?.activeModifier;
-    if (
-      runtimeState.state.phase === Phase.MODIFIER_REVEAL &&
-      modifier &&
-      runtimeState.overlay.ui
-    ) {
+    const revealTimeMs = modifier
+      ? revealTimeFor(runtimeState, modifier, nowMs)
+      : undefined;
+    if (modifier && revealTimeMs !== undefined && runtimeState.overlay.ui) {
       runtimeState.overlay.ui.modifierReveal = {
-        paletteKey: modifier,
+        modifierId: modifier,
+        revealTimeMs,
         tiles: runtimeState.state.modern!.activeModifierChangedTiles,
       };
     }

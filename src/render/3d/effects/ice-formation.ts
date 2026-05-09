@@ -9,13 +9,14 @@
  */
 
 import type * as THREE from "three";
+import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
 export function createIceFormationManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "ice-formation",
-    paletteKey: "frozen_river",
+    modifierId: MODIFIER_ID.FROZEN_RIVER,
     discColor: 0xc0e0ff,
     flashColor: 0xffffff,
     discDurationMs: 1100,

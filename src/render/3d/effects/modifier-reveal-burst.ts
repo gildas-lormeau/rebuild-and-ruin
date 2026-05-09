@@ -1,18 +1,16 @@
 /**
- * Shared 3D modifier-reveal burst pattern.
- *
- * Many modifier reveals share the same shape: each affected tile gets a
- * colored disc that scales 0 → max with easeOutQuad and an opacity that
- * peaks at midpoint then fades, plus a brief flash ring at the tile's
- * stagger start. Per-tile delay is seed-derived so the effect appears to
- * roll across the affected tiles instead of snapping in uniformly.
- *
- * Triggered when `overlay.ui.modifierReveal.paletteKey === paletteKey`
- * AND the banner sweep has completed (`banner.swept`). Runs once per
- * modifier roll, then disposes all hosts.
+ * Shared 3D modifier-reveal burst pattern. Each affected tile gets a colored
+ * disc that scales 0 → max with easeOutQuad and an opacity that peaks at
+ * midpoint then fades, plus a brief flash ring at the tile's stagger start.
+ * Per-tile delay is seed-derived so the effect rolls across affected tiles
+ * instead of snapping in uniformly. Triggered when the active modifier
+ * matches `config.modifierId` and `revealTimeMs` is defined; the runtime
+ * holds `revealTimeMs === 0` during the snapshot window so the per-tile
+ * `tileElapsed = revealTimeMs - delayMs` is non-positive then (no draws).
  */
 
 import * as THREE from "three";
+import type { ModifierId } from "../../../shared/core/game-constants.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -22,8 +20,9 @@ import { createFlatDisc, tileSeed } from "./helpers.ts";
 interface ModifierRevealBurstConfig {
   /** Group name in the scene graph (debug visibility). */
   readonly name: string;
-  /** ModifierId to gate on (matches `overlay.ui.modifierReveal.paletteKey`). */
-  readonly paletteKey: string;
+  /** ModifierId this burst belongs to. The manager activates only when
+   *  the active reveal matches. */
+  readonly modifierId: ModifierId;
   /** Disc tint hex. Peaks at `discPeakOpacity` then fades. */
   readonly discColor: number;
   /** Brief flash-ring tint hex (typically white). */
@@ -69,15 +68,6 @@ export function createModifierRevealBurstManager(
 
   const discGeometry = createFlatDisc();
   const hosts: BurstHost[] = [];
-  let revealStartMs: number | undefined;
-  let lastPaletteKey: string | undefined;
-  // True once the burst has played to completion for the active
-  // paletteKey. Stays latched until the paletteKey changes (modifier
-  // ends or a different one rolls), preventing the burst from
-  // re-firing every frame for the rest of MODIFIER_REVEAL — otherwise
-  // the next banner's `prevScene` snapshot catches a mid-cycle frame
-  // and the discs appear frozen during its sweep.
-  let released = false;
 
   function buildHost(): BurstHost {
     const group = new THREE.Group();
@@ -126,24 +116,22 @@ export function createModifierRevealBurstManager(
   }
 
   function reset(): void {
-    revealStartMs = undefined;
     for (const host of hosts) disposeHost(host);
     hosts.length = 0;
   }
 
-  function startReveal(now: number, tiles: readonly number[]): void {
-    revealStartMs = now;
+  function startReveal(tiles: readonly number[]): void {
     ensurePool(tiles.length);
     const delays = (config.computeDelays ?? seededRandomDelays)(
       tiles,
       config.staggerSpanMs,
     );
-    for (let i = 0; i < tiles.length; i++) {
-      const key = tiles[i]!;
+    for (let idx = 0; idx < tiles.length; idx++) {
+      const key = tiles[idx]!;
       const row = Math.floor(key / GRID_COLS);
       const col = key % GRID_COLS;
-      const host = hosts[i]!;
-      host.delayMs = delays[i]!;
+      const host = hosts[idx]!;
+      host.delayMs = delays[idx]!;
       host.group.position.set(
         col * TILE_SIZE + TILE_SIZE / 2,
         ELEVATION_STACK.THAWING,
@@ -154,70 +142,45 @@ export function createModifierRevealBurstManager(
 
   function update(ctx: FrameCtx): void {
     const reveal = ctx.overlay?.ui?.modifierReveal;
-    const banner = ctx.overlay?.ui?.banner;
-
-    // Only react to our modifier. When the modifier flips off (phase
-    // leaves MODIFIER_REVEAL or a different modifier rolls), reset.
-    if (reveal?.paletteKey !== config.paletteKey) {
-      if (lastPaletteKey === config.paletteKey) reset();
-      lastPaletteKey = reveal?.paletteKey;
-      released = false;
+    if (reveal?.modifierId !== config.modifierId) {
+      if (hosts.length > 0) reset();
       return;
     }
-    lastPaletteKey = reveal.paletteKey;
 
-    // One-shot: don't re-fire after the burst has completed once.
-    if (released) return;
+    const elapsed = reveal.revealTimeMs;
+    if (hosts.length === 0) startReveal(reveal.tiles);
 
-    // Wait for banner sweep to complete before kicking the reveal.
-    if (!(banner?.swept ?? true)) return;
-
-    if (revealStartMs === undefined) {
-      startReveal(ctx.now, reveal.tiles);
-    }
-
-    const elapsed = ctx.now - revealStartMs!;
-    let allDone = true;
-    for (let i = 0; i < hosts.length; i++) {
-      const host = hosts[i]!;
+    for (let idx = 0; idx < hosts.length; idx++) {
+      const host = hosts[idx]!;
       const tileElapsed = elapsed - host.delayMs;
 
-      if (tileElapsed >= config.discDurationMs) {
-        host.discMesh.visible = false;
-        host.flashMesh.visible = false;
-        continue;
-      }
-      allDone = false;
-
-      if (tileElapsed <= 0) {
+      if (tileElapsed <= 0 || tileElapsed >= config.discDurationMs) {
         host.discMesh.visible = false;
         host.flashMesh.visible = false;
         continue;
       }
 
       // Disc: grows + opacity peaks at midpoint, fades to zero.
-      const t = tileElapsed / config.discDurationMs;
-      const radius = maxRadius * easeOutQuad(t);
-      const opacity = (t < 0.5 ? t * 2 : (1 - t) * 2) * config.discPeakOpacity;
+      const progress = tileElapsed / config.discDurationMs;
+      const radius = maxRadius * easeOutQuad(progress);
+      const opacity =
+        (progress < 0.5 ? progress * 2 : (1 - progress) * 2) *
+        config.discPeakOpacity;
       host.discMaterial.opacity = opacity;
       host.discMesh.scale.set(radius, 1, radius);
       host.discMesh.visible = true;
 
       // Flash ring: brief expanding burst at tile start.
       if (tileElapsed < config.flashDurationMs) {
-        const flashT = tileElapsed / config.flashDurationMs;
-        const flashRadius = maxRadius * flashT;
-        host.flashMaterial.opacity = (1 - flashT) * config.flashPeakOpacity;
+        const flashProgress = tileElapsed / config.flashDurationMs;
+        const flashRadius = maxRadius * flashProgress;
+        host.flashMaterial.opacity =
+          (1 - flashProgress) * config.flashPeakOpacity;
         host.flashMesh.scale.set(flashRadius, 1, flashRadius);
         host.flashMesh.visible = true;
       } else {
         host.flashMesh.visible = false;
       }
-    }
-
-    if (allDone) {
-      reset();
-      released = true;
     }
   }
 
@@ -231,8 +194,8 @@ export function createModifierRevealBurstManager(
   return { update, dispose };
 }
 
-function easeOutQuad(t: number): number {
-  return 1 - (1 - t) * (1 - t);
+function easeOutQuad(progress: number): number {
+  return 1 - (1 - progress) * (1 - progress);
 }
 
 function seededRandomDelays(

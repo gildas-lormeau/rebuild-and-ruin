@@ -11,6 +11,7 @@ import type {
   ThawingTile,
   WallBurn,
 } from "../core/battle-types.ts";
+import type { ModifierId } from "../core/game-constants.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
 import { Phase } from "../core/game-phase.ts";
 import type { GameMap, TilePos, Viewport } from "../core/geometry-types.ts";
@@ -350,11 +351,15 @@ export interface UIOverlay {
   banner?: BannerUi;
   /** Active modifier's reveal data — drives the pulsing tile overlay
    *  during the `MODIFIER_REVEAL` dwell phase. Populated by
-   *  `refreshOverlay` from `state.modern` when the phase is active;
-   *  undefined otherwise. */
+   *  `refreshOverlay` from `state.modern` + `revealTimeFor` when the
+   *  phase is active; undefined otherwise. */
   modifierReveal?: {
-    /** Opaque key for `MODIFIER_COLORS` palette lookup in render-ui. */
-    paletteKey: string;
+    /** Active modifier id — burst managers gate on this. */
+    modifierId: ModifierId;
+    /** Reveal time in ms — `0` during the snapshot window, `>0` during
+     *  the playing window. See `modifier-reveal-time.ts`. The single
+     *  banner-aware site computes this; consumers see only the number. */
+    revealTimeMs: number;
     /** Tile keys (row * GRID_COLS + col) the modifier touched. */
     tiles: readonly number[];
   };

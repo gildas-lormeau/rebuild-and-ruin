@@ -9,13 +9,14 @@
  */
 
 import type * as THREE from "three";
+import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { type EffectManager } from "./fire-burst.ts";
 import { createModifierRevealBurstManager } from "./modifier-reveal-burst.ts";
 
 export function createWallCrumbleManager(scene: THREE.Scene): EffectManager {
   return createModifierRevealBurstManager(scene, {
     name: "wall-crumble",
-    paletteKey: "crumbling_walls",
+    modifierId: MODIFIER_ID.CRUMBLING_WALLS,
     discColor: 0xa07030,
     flashColor: 0xffffff,
     discDurationMs: 1100,
