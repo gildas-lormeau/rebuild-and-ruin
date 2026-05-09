@@ -22,7 +22,9 @@
  *                       a wire DTO that should embed an existing checkpoint
  *                       slice via intersection. Asymmetric: neither side is
  *                       canonical; cleanup is "extract a third interface".
- *   --update-baseline   Write current overlap + shared-subset pairs to baseline
+ *   --update-baseline   Write current overlap + shared-subset pairs to baseline.
+ *                       Implies `--test --shared-subset 3` so the baseline
+ *                       matches the scope the lint check runs at.
  *   --json              Output as JSON
  */
 
@@ -109,7 +111,6 @@ interface LayerGroup {
 
 const args = process.argv.slice(2);
 const includeServer = args.includes("--server");
-const includeTest = args.includes("--test");
 const jsonOutput = args.includes("--json");
 const exactOnly = args.includes("--exact-only");
 const updateBaseline = args.includes("--update-baseline");
@@ -118,12 +119,18 @@ const minFields = minFieldsIdx >= 0 ? Number(args[minFieldsIdx + 1]) : 3;
 const overlapIdx = args.indexOf("--overlap");
 const overlapThreshold = overlapIdx >= 0 ? Number(args[overlapIdx + 1]) : 0.8;
 const sharedSubsetIdx = args.indexOf("--shared-subset");
-const sharedSubsetEnabled = sharedSubsetIdx >= 0;
+// `--update-baseline` implies the scope the lint check runs at
+// (`--test --shared-subset 3` per scripts/lint-all.sh) so the written
+// baseline always matches what enforcement sees. Without this, running
+// `--update-baseline` alone preserves stale shared-subset entries and
+// drops test-file findings, leaving the lint failing.
+const includeTest = args.includes("--test") || updateBaseline;
+const sharedSubsetEnabled = sharedSubsetIdx >= 0 || updateBaseline;
 /** Minimum shared field-name count to flag a pair. ModifierTileData ↔
  *  FullStateMessage shares 3 fields, so 3 is the lowest meaningful default;
  *  raise via `--shared-subset N` if the noise floor is too high. */
 const sharedSubsetMinShared =
-  sharedSubsetEnabled && args[sharedSubsetIdx + 1]
+  sharedSubsetIdx >= 0 && args[sharedSubsetIdx + 1]
     ? Number(args[sharedSubsetIdx + 1])
     : 3;
 /** Fraction of shared field names whose loose types must match. Below this,
