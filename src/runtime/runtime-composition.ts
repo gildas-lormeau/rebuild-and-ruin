@@ -26,11 +26,7 @@
  * host + watcher), test/runtime-headless.ts (tests).
  */
 
-import {
-  executeCannonFire,
-  executePlacePiece,
-  snapshotTerritory,
-} from "../game/index.ts";
+import { executeCannonFire, executePlacePiece } from "../game/index.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
@@ -963,25 +959,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
 
     upgradePick,
-    scoreDelta: {
-      show: scoreDelta.show,
-      setPreScores: scoreDelta.setPreScores,
-    },
 
     // Cross-cutting orchestration
     mainLoop,
     clearFrameData,
     render,
-    rendererCaptureScene: () => renderer.captureScene(),
-    showBanner,
     hideBanner,
-    awaitCameraFlat: camera.awaitCameraFlat,
-    awaitPitchSettled: camera.awaitPitchSettled,
-    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
-    aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),
-    networkSend: config.network.send,
-    getPitchState: camera.getPitchState,
-    beginBattleTilt: camera.beginBattleTilt,
   };
 }

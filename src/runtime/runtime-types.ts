@@ -95,7 +95,7 @@ import type {
   UpgradePickDialogState,
 } from "../shared/ui/interaction-types.ts";
 import type { RendererInterface } from "../shared/ui/overlay-types.ts";
-import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
+import type { TimingApi } from "./runtime-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 /** Online-only per-frame coordination consumed by runtime-phase-ticks.ts.
@@ -487,15 +487,6 @@ export interface RuntimeSelection {
  *
  * See docs/dialog-completion-patterns.md for details.
  */
-export interface RuntimeScoreDelta {
-  /** Show animated score deltas after build phase. `onDone` is invoked exactly once
-   *  when the animation finishes (or immediately if there are no deltas to show).
-   *  Timer ticks mode-independently (during banner/castle-build). */
-  show: (onDone: () => void) => void;
-  /** Set pre-scores directly (online watcher receives them from host). */
-  setPreScores: (scores: readonly number[]) => void;
-}
-
 export interface RuntimeLifeLost {
   /** Read current dialog state. Used by watcher-mode to sync overlay display. */
   get: () => LifeLostDialogState | null;
@@ -527,17 +518,8 @@ export interface RuntimeLifeLost {
 }
 
 export interface RuntimeUpgradePick {
-  /** Read current dialog state. Used by watcher-mode to sync overlay display. */
-  get: () => UpgradePickDialogState | null;
   /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
   set: (dialog: UpgradePickDialogState | null) => void;
-  /** Show upgrade pick dialog. Returns false if no offers (dialog skipped).
-   *  `onDone` stored in a local closure — single path (resume build-phase banner). */
-  tryShow: (onDone: () => void) => boolean;
-  tick: (dt: number) => void;
-  /** Pre-create dialog for progressive reveal during banner sweep (upgrade-pick only).
-   *  Does NOT activate Mode.UPGRADE_PICK — call tryShow() after the banner ends. */
-  prepare: () => boolean;
 }
 
 export interface RuntimeLobby {
@@ -611,7 +593,6 @@ export interface GameRuntime {
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
   upgradePick: RuntimeUpgradePick;
-  scoreDelta: RuntimeScoreDelta;
   lobby: RuntimeLobby;
   lifecycle: RuntimeLifecycle;
   phaseTicks: RuntimePhaseTicks;
@@ -632,46 +613,10 @@ export interface GameRuntime {
   mainLoop: (now: number) => void;
   clearFrameData: () => void;
   render: () => void;
-  /** Renderer scene capture — exposed so the watcher's PhaseTransitionCtx
-   *  (built outside this module) can snapshot the old scene before a
-   *  mutation. The banner system owns the matching new-scene capture. */
-  rendererCaptureScene: () => HTMLCanvasElement | undefined;
-
-  /** Show a full-screen banner. The banner system owns scene capture
-   *  (called as the first operation of `showBanner` itself), so
-   *  callers don't thread a prev-scene. `onDone` is invoked exactly
-   *  once when the sweep (and optional hold) completes. See
-   *  `BannerShow` in runtime-contracts for the full opts. */
-  showBanner: BannerShow;
   /** Hide the current banner. The banner no longer auto-dismisses on
    *  sweep completion — it sits in its `swept` state until a caller
    *  hides it or a new `showBanner` overwrites it. */
   hideBanner: () => void;
-  /** Run `cb` once the camera has converged to fullMapVp with pitch flat.
-   *  See `CameraSystem.awaitCameraFlat`. Exposed so the watcher's
-   *  PhaseTransitionCtx (built outside this module) can gate its own
-   *  runTransition on convergence. */
-  awaitCameraFlat: (callback: () => void) => void;
-  /** Run `cb` once the in-flight pitch animation completes (in either
-   *  direction). See `CameraSystem.awaitPitchSettled`. Exposed so the
-   *  watcher's PhaseTransitionCtx can gate balloon-anim entry on
-   *  tilt-in. */
-  awaitPitchSettled: (callback: () => void) => void;
-  snapshotTerritory: () => Set<number>[];
-  aimAtEnemyCastle: () => void;
   /** Pre-warm the terrain render cache for a map (avoids first-frame stall). */
   warmMapCache: (map: GameMap) => void;
-
-  /** Outbound network send — same callback every production broadcast flows
-   *  through. Exposed so tests (and any other consumer constructing their
-   *  own controllers) can wire into the runtime's broadcast pipeline
-   *  without rebuilding the NetworkApi. */
-  networkSend: NetworkApi["send"];
-  /** Camera pitch-state getter exposed so the watcher phase-transition
-   *  ctx (built outside this module) can gate balloon-anim start on
-   *  tilt-in. Host ctx reads the same value via its phase-ticks deps. */
-  getPitchState: () => "flat" | "tilting" | "tilted" | "untilting";
-  /** Start the build→battle tilt. Called from `proceedToBattle` so the
-   *  watcher plays the same tilt-before-balloons sequence as the host. */
-  beginBattleTilt: () => void;
 }

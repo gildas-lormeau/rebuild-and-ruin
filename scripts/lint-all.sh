@@ -64,6 +64,7 @@ echo "lint:all: parallel checks..."
   run passthrough       deno run -A scripts/lint-passthrough-wrappers.ts
   run tile-mutators     deno run -A scripts/lint-tile-mutators.ts
   run dead-params       deno run -A scripts/lint-dead-params.ts --min-callers=1
+  run unused-iface      deno run -A scripts/lint-unused-interface-fields.ts
 ) &
 
 # Lane 5 — deno type-check + lint
