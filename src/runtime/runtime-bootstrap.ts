@@ -67,7 +67,7 @@ interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
   /** Per-slot key bindings (only used for human slots). */
   keyBindings: readonly (KeyBindings | undefined)[];
   /** AI difficulty level (0=Easy, 1=Normal, 2=Hard, 3=Very Hard). */
-  difficulty?: number;
+  difficulty: number;
   log: (msg: string) => void;
   setState: (nextState: GameState) => void;
   setControllers: (nextControllers: readonly PlayerController[]) => void;

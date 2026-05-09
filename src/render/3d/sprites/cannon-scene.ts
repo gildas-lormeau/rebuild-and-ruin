@@ -120,7 +120,7 @@ export interface DecorationSpec {
   name?: string;
   shape: DecorationShape;
   dims: DecorationDims;
-  attachTo?: "scene" | "barrel";
+  attachTo: "scene" | "barrel";
   pos: readonly [number, number, number];
   rot?: readonly [number, number, number];
   scale?: readonly [number, number, number];
