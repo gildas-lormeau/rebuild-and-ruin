@@ -529,6 +529,12 @@
       "pair": "DoorPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
     },
     {
+      "pair": "E2EScenarioOptions@test/e2e-scenario.ts ↔ HeadlessRuntimeOptions@test/runtime-headless.ts"
+    },
+    {
+      "pair": "E2EScenarioOptions@test/e2e-scenario.ts ↔ ScenarioOptions@test/scenario.ts"
+    },
+    {
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ GameState@src/shared/core/types.ts"
     },
     {
@@ -583,6 +589,9 @@
       "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
     },
     {
+      "pair": "GameState@src/shared/core/types.ts ↔ Sample@test/dead-zone-grunt-cleanup.test.ts"
+    },
+    {
       "pair": "GameState@src/shared/core/types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
@@ -608,6 +617,12 @@
     },
     {
       "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "HeadlessRuntime@test/runtime-headless.ts ↔ Scenario@test/scenario.ts"
+    },
+    {
+      "pair": "HeadlessRuntimeOptions@test/runtime-headless.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
       "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
@@ -725,6 +740,9 @@
     },
     {
       "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "PlayerSnapshot@test/network-bidirectional.test.ts ↔ PlayerSnapshot@test/network-vs-local.test.ts"
     },
     {
       "pair": "PoleParams@src/render/3d/sprites/tower-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"

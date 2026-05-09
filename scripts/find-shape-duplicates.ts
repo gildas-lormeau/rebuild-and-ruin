@@ -524,22 +524,29 @@ if (sharedSubsetEnabled) {
 }
 
 if (updateBaseline) {
-  const overlapEntries: BaselineEntry[] = overlapDuplicates.map((dup) => ({
-    pair: pairKey(dup.entries[0], dup.entries[1]),
-  }));
+  // Each detection class is gated by a flag (--exact-only skips overlap;
+  // --shared-subset enables shared-subset). When a class is skipped, its
+  // findings array is empty — but that doesn't mean the user wants to
+  // CLEAR that section of the baseline. Preserve unchanged sections by
+  // reading the prior baseline and only rewriting the sections whose
+  // detection actually ran.
+  const prior = loadBaseline();
+  const overlapEntries: BaselineEntry[] = exactOnly
+    ? [...prior.overlaps].map((pair) => ({ pair }))
+    : overlapDuplicates.map((dup) => ({
+        pair: pairKey(dup.entries[0], dup.entries[1]),
+      }));
   overlapEntries.sort((en1, en2) => en1.pair.localeCompare(en2.pair));
+  // Inline matches always run (no flag gates them).
   const inlineEntries: InlineBaselineEntry[] = inlineMatches.map((match) => ({
     key: inlineKey(match),
   }));
   inlineEntries.sort((en1, en2) => en1.key.localeCompare(en2.key));
-  // Preserve any existing sharedSubsets baseline when the user didn't run
-  // with --shared-subset; otherwise rewrite from the current findings.
-  const existingSharedSubsets = loadBaseline().sharedSubsets;
   const sharedSubsetEntries: SharedSubsetBaselineEntry[] = sharedSubsetEnabled
     ? sharedSubsets.map((ss) => ({
         pair: pairKey(ss.entries[0], ss.entries[1]),
       }))
-    : [...existingSharedSubsets].map((pair) => ({ pair }));
+    : [...prior.sharedSubsets].map((pair) => ({ pair }));
   sharedSubsetEntries.sort((en1, en2) => en1.pair.localeCompare(en2.pair));
   const baselineFile: BaselineFile = {
     overlaps: overlapEntries,
