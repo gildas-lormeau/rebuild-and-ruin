@@ -131,7 +131,6 @@
   "src/runtime/music-synth-loader.ts:1:FILE_HEADER_WALL:<file header>",
   "src/runtime/rubble-clearing-overlay.ts:1:FILE_HEADER_WALL:<file header>",
   "src/runtime/runtime-audio.ts:1:FILE_HEADER_WALL:<file header>",
-  "src/runtime/runtime-banner.ts:1:FILE_HEADER_WALL:<file header>",
   "src/runtime/runtime-battle-anim.ts:1:FILE_HEADER_WALL:<file header>",
   "src/runtime/runtime-browser-dom.ts:1:FILE_HEADER_WALL:<file header>",
   "src/runtime/runtime-cannon-animator.ts:1:FILE_HEADER_WALL:<file header>",
