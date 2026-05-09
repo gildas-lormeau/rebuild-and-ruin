@@ -79,6 +79,7 @@
     "refactor": "deno run -A scripts/refactor.ts",
     "refactor2": "deno run -A scripts/refactor2/refactor2.ts",
     "audit:optional": "deno run -A scripts/audit-optional-properties.ts",
+    "audit:bool-narrow": "deno run -A scripts/audit-boolean-narrowing.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
   },
