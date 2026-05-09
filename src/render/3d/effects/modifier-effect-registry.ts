@@ -3,8 +3,8 @@
  *
  * Three lifecycle shapes coexist in the same registry — each effect
  * owns its lifecycle internally via `update(ctx)`:
- *   - one-shot reveal bursts (gate on banner.swept + paletteKey,
- *     animate for ~1.1s, dispose hosts)
+ *   - one-shot reveal bursts (gate on `overlay.ui.modifierReveal.modifierId`,
+ *     animate from `revealTimeMs`, dispose hosts on modifier change)
  *   - persistent overlays (gate on a state flag, render continuously
  *     while active; fog reads `overlay.battle.fogRevealOpacity` for
  *     the runtime-driven progressive reveal)
