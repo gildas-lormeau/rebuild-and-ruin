@@ -19,7 +19,7 @@ interface CannonModeDef extends PoolDef<CannonMode> {
   /** Cannon slots consumed when placing this mode. */
   readonly slotCost: number;
   /** Whether this mode is only available in modern game mode. */
-  readonly modernOnly?: boolean;
+  readonly modernOnly?: true;
 }
 
 /** Compile-time exhaustiveness: every CannonMode value must appear in the pool. */

@@ -81,7 +81,7 @@ export interface RenderMapDeps {
    *  `createRender3d` when it creates the 2D UI canvas; tests that
    *  exercise `createCanvasRenderer` directly leave it unset. Hosts
    *  the status-bar HUD. */
-  reserveTopStrip?: boolean;
+  reserveTopStrip?: true;
 }
 
 /** Per-renderer instance returned by `createRenderMap`. Holds the closure

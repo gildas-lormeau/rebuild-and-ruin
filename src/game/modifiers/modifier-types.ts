@@ -20,7 +20,7 @@ interface ModifierImplBase {
    *  opt out is harmless (one extra recheck); forgetting to opt IN to a
    *  recheck on a tile-mutating modifier would silently desync host vs
    *  watcher territory. Default-on closes that footgun. */
-  skipsRecheck?: boolean;
+  skipsRecheck?: true;
 }
 
 /** Instant modifier: side effects flow through normal game state at

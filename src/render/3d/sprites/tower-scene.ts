@@ -93,7 +93,7 @@ export interface ParapetParams {
   height: number;
   thickness: number;
   material: MaterialSpec;
-  merlons?: boolean;
+  merlons?: true;
   skipSides?: ParapetSide[];
   clip?: ParapetClipSpec;
 }
