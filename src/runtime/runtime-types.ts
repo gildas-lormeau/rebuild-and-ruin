@@ -369,7 +369,7 @@ export interface CameraSystem {
   /** Start the build→battle tilt animation. Called explicitly at
    *  battle-banner end so the tilt plays unzoomed, before balloons /
    *  "ready" / auto-zoom into the battle zone. 2D mode: no-op. */
-  beginBattleTilt: () => void;
+  beginTilt: () => void;
   /** Pitch-animation state machine value. `"flat"` / `"tilted"` are
    *  resting states; `"tilting"` / `"untilting"` indicate an in-progress
    *  ease. 2D mode always returns `"flat"`. Subscribers that want the

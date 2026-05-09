@@ -197,7 +197,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
   cannonRotationSettled: () => boolean;
   /** Start the build→battle tilt. Called from `proceedToBattle` at
    *  battle-banner end. */
-  beginBattleTilt: () => void;
+  beginTilt: () => void;
 }
 
 export interface PhaseTicksSystem {
@@ -369,7 +369,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       saveBattleCrosshair: deps.saveBattleCrosshair,
       awaitPitchSettled: deps.awaitPitchSettled,
-      beginBattleTilt: deps.beginBattleTilt,
+      beginTilt: deps.beginTilt,
       lifeLost: {
         show: deps.lifeLost.show,
       },

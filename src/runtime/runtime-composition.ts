@@ -722,7 +722,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     beginUntilt: camera.beginUntilt,
     getPitchState: camera.getPitchState,
     cannonRotationSettled: () => cannonAnimator.allSettled(),
-    beginBattleTilt: camera.beginBattleTilt,
+    beginTilt: camera.beginTilt,
   });
 
   // -------------------------------------------------------------------------

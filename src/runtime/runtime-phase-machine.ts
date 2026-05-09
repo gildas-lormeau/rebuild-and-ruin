@@ -281,7 +281,7 @@ export interface PhaseTransitionCtx {
    *  `proceedToBattle`. Optional so headless / watcher-without-camera
    *  contexts can skip it (2D wiring also skips — the renderer has no
    *  tilt axis). */
-  readonly beginBattleTilt?: () => void;
+  readonly beginTilt?: () => void;
   /** Host-only per-frame setup when WALL_BUILD begins: score-delta reset,
    *  cannon facing reset, per-controller startBuildPhase, clear impacts,
    *  accumulator resets. Called from `battle-done` postDisplay, after the
@@ -949,7 +949,7 @@ function proceedToBattleFromCtx(ctx: PhaseTransitionCtx): void {
   // engages the tilt / auto-zoom — auto-zoom re-engages when mode flips
   // back to GAME inside `battle.begin`, which also starts the "ready"
   // countdown, so the zoom lerp and "ready" cue start together.
-  ctx.beginBattleTilt?.();
+  ctx.beginTilt?.();
 
   // Flights were stashed into runtimeState.battleAnim.flights by
   // `cannon-place-done`'s `syncBattleAnim` postMutate. We only need to

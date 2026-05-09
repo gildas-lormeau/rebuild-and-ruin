@@ -785,7 +785,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  Does NOT touch pitch — that's `awaitCameraFlat`'s job. Pitch flatten
    *  is coupled to "a display chain is about to run" (banner capture
    *  needs a flat scene), not to every transition frame, so flattening
-   *  here would fight `beginBattleTilt` (which runs in BALLOON_ANIM /
+   *  here would fight `beginTilt` (which runs in BALLOON_ANIM /
    *  BANNER postDisplay, where isTransition is still true). */
   function unzoomForOverlays(_state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.shouldUnzoom) return;
@@ -1141,7 +1141,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  Flattens the pitch target as part of the call — battle→build
    *  transitions need the banner to capture a flat scene, and this is
    *  the one point where we know "a display chain is about to run"
-   *  (after postDisplay, `beginBattleTilt` may re-tilt and we must not
+   *  (after postDisplay, `beginTilt` may re-tilt and we must not
    *  undo that from the overlay-unzoom path).
    *
    *  Viewport flatten is separate, driven by `unzoomForOverlays` on
@@ -1247,7 +1247,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  BEFORE balloons / "ready" / auto-zoom into the battle zone.
    *  2D mode: no-op — `tickPitch` hard-zeros pitch when the renderer
    *  isn't 3d, so the target we set here is overwritten next tick. */
-  function beginBattleTilt(): void {
+  function beginTilt(): void {
     setPitchTarget(TILT_BATTLE_PITCH);
   }
 
@@ -1347,7 +1347,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getPitch: () => currentPitch,
     getPitchMax: () => TILT_BATTLE_PITCH,
     beginUntilt,
-    beginBattleTilt,
+    beginTilt,
     getPitchState,
     screenToWorld,
     pickHitWorld,
