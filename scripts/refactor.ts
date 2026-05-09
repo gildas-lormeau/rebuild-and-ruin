@@ -398,6 +398,34 @@ switch (command) {
     foldConstant(file, name, value);
     break;
   }
+  case "drop-optional": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const typeName =
+      flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[1];
+    const prop = flagMap.get("prop") ?? flagMap.get("name") ?? commandArgs[2];
+    if (!file || !typeName || !prop) {
+      console.error(
+        "Usage: drop-optional <file> <typeName> <prop> [--dry-run]",
+      );
+      process.exit(1);
+    }
+    dropOptional(file, typeName, prop);
+    break;
+  }
+  case "remove-property": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const typeName =
+      flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[1];
+    const prop = flagMap.get("prop") ?? flagMap.get("name") ?? commandArgs[2];
+    if (!file || !typeName || !prop) {
+      console.error(
+        "Usage: remove-property <file> <typeName> <prop> [--dry-run]",
+      );
+      process.exit(1);
+    }
+    removeProperty(file, typeName, prop);
+    break;
+  }
   case "inline-param": {
     const file = flagMap.get("file") ?? commandArgs[0];
     const fn = flagMap.get("fn") ?? flagMap.get("function") ?? commandArgs[1];
@@ -653,6 +681,142 @@ function removeExport(filePath: string, symbolName: string): void {
   console.log(
     `✅ Removed "${symbolName}" — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
   );
+}
+
+function dropOptional(
+  filePath: string,
+  typeName: string,
+  propName: string,
+): void {
+  const project = createProject();
+  addAllSources(project);
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+
+  const member = findInterfaceMember(sf, typeName, propName);
+  if (!member) {
+    console.error(
+      `❌ Property "${propName}" not found on type "${typeName}" in ${filePath}`,
+    );
+    process.exit(1);
+  }
+  if (!member.hasQuestionToken()) {
+    console.error(
+      `❌ ${typeName}.${propName} is not optional (no '?' token to drop)`,
+    );
+    process.exit(1);
+  }
+
+  member.setHasQuestionToken(false);
+  const changedFiles = saveChanges(project);
+  console.log(
+    `✅ Dropped optional from ${typeName}.${propName} — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
+  );
+}
+
+function removeProperty(
+  filePath: string,
+  typeName: string,
+  propName: string,
+): void {
+  const project = createProject();
+  addAllSources(project);
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+
+  const member = findInterfaceMember(sf, typeName, propName);
+  if (!member) {
+    console.error(
+      `❌ Property "${propName}" not found on type "${typeName}" in ${filePath}`,
+    );
+    process.exit(1);
+  }
+
+  const declId = member.getNameNode();
+  if (!declId.isKind(SyntaxKind.Identifier)) {
+    console.error(
+      `❌ Cannot resolve identifier for ${typeName}.${propName} (computed/string-literal name)`,
+    );
+    process.exit(1);
+  }
+  const declPath = sf.getFilePath();
+  const declLine = declId.getStartLineNumber();
+
+  interface Blocker {
+    file: string;
+    line: number;
+    kind: string;
+  }
+  const blockers: Blocker[] = [];
+  for (const ref of declId
+    .asKindOrThrow(SyntaxKind.Identifier)
+    .findReferencesAsNodes()) {
+    const refSf = ref.getSourceFile();
+    const refPath = refSf.getFilePath();
+    const line = ref.getStartLineNumber();
+    if (refPath === declPath && line === declLine) continue;
+    blockers.push({
+      file: path.relative(process.cwd(), refPath),
+      line,
+      kind: classifyReferenceKind(ref),
+    });
+  }
+
+  if (blockers.length > 0) {
+    console.error(
+      `❌ ${typeName}.${propName} has ${blockers.length} reference(s) — remove them first:`,
+    );
+    blockers.sort(
+      (aa, bb) => aa.file.localeCompare(bb.file) || aa.line - bb.line,
+    );
+    for (const b of blockers) {
+      console.error(`   ${b.file}:${b.line}  [${b.kind}]`);
+    }
+    process.exit(1);
+  }
+
+  member.remove();
+  const changedFiles = saveChanges(project);
+  console.log(
+    `✅ Removed ${typeName}.${propName} — ${changedFiles} file(s) ${dryRun ? "would change" : "changed"}`,
+  );
+}
+
+/** Find a property or method signature on an interface or `type X = { ... }`
+ *  alias (including intersection-type members) declared in `sf`. */
+function findInterfaceMember(
+  sf: SourceFile,
+  typeName: string,
+  propName: string,
+):
+  | import("ts-morph").PropertySignature
+  | import("ts-morph").MethodSignature
+  | undefined {
+  for (const iface of sf.getInterfaces()) {
+    if (iface.getName() !== typeName) continue;
+    const prop = iface.getProperty(propName);
+    if (prop) return prop;
+    const method = iface.getMethod(propName);
+    if (method) return method;
+  }
+  for (const alias of sf.getTypeAliases()) {
+    if (alias.getName() !== typeName) continue;
+    const typeNode = alias.getTypeNode();
+    if (!typeNode) continue;
+    const literals: import("ts-morph").TypeLiteralNode[] = [];
+    if (typeNode.isKind(SyntaxKind.TypeLiteral)) {
+      literals.push(typeNode);
+    } else if (typeNode.isKind(SyntaxKind.IntersectionType)) {
+      for (const member of typeNode.getTypeNodes()) {
+        if (member.isKind(SyntaxKind.TypeLiteral)) literals.push(member);
+      }
+    }
+    for (const lit of literals) {
+      const prop = lit.getProperty(propName);
+      if (prop) return prop;
+      const method = lit.getMethod(propName);
+      if (method) return method;
+    }
+  }
+  return undefined;
 }
 
 /** Classify what a reference identifier is doing at its use site. */
@@ -3665,6 +3829,8 @@ Commands:
   add-reexport   <barrelFile> <sourceFile> <symbol>  Append (idempotent) a re-export to a barrel file
   list-callsites <file> <symbol>               Every reference to <symbol> (imports + local calls), grouped by file
   remove-export  <file> <name>                 Delete an exported declaration + every import of it (errors if still referenced)
+  drop-optional  <file> <typeName> <prop>      Remove the '?' token from an interface/type-literal property or method signature
+  remove-property <file> <typeName> <prop>     Delete a property/method from an interface or type alias (errors with caller list if any reference remains)
   fold-constant  <file> <name> <true|false>    Fold if/ternary/&&/|| branches whose truthiness is determined by <name> (handles bare name, this.<name>, obj.<name>)
   inline-param   <file> <fn> <param> <true|false>  Inline a fn parameter as a constant, fold dead body branches; --drop-param also removes it from signature + call sites
 
@@ -3695,6 +3861,8 @@ Examples:
   deno run -A scripts/refactor.ts add-reexport src/game/index.ts src/game/build-system.ts canPlacePiece
   deno run -A scripts/refactor.ts list-callsites src/render/render-map.ts drawTerrain
   deno run -A scripts/refactor.ts remove-export src/render/render-map.ts drawTerrain --dry-run
+  deno run -A scripts/refactor.ts drop-optional src/runtime/runtime-contracts.ts ActiveBannerState prevScene --dry-run
+  deno run -A scripts/refactor.ts remove-property src/render/3d/entities/cannons.ts Cannon hp --dry-run
   deno run -A scripts/refactor.ts fold-constant src/render/renderer.ts terrainLayerEnabled false --dry-run
   deno run -A scripts/refactor.ts inline-param src/render/render-map.ts drawCastles drawWalls false --drop-param --dry-run`);
 }
