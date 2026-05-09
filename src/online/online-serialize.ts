@@ -119,10 +119,7 @@ export function createFullStateMessage(
       capturerId: captured.capturerId,
       cannonIdx: captured.cannonIdx,
     })),
-    cannonballs: state.cannonballs.map((b) => ({
-      ...copyCannonballCore(b),
-      incendiary: b.incendiary ? true : undefined,
-    })),
+    cannonballs: state.cannonballs.map((b) => copyCannonballCore(b)),
     balloonFlights:
       flights && flights.length > 0
         ? flights.map((balloonFlight) => ({
@@ -556,17 +553,14 @@ function restoreCannonballs(state: GameState, msg: FullStateMessage): void {
       `[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`,
     );
   }
-  state.cannonballs = validBalls.map((b) => ({
-    ...copyCannonballCore(b),
-    incendiary: b.incendiary ?? false,
-  }));
+  state.cannonballs = validBalls.map((b) => copyCannonballCore(b));
 }
 
 /** Copy the positional/kinematic fields shared by all cannonball
  *  representations — includes the full pinned ballistic trajectory so
  *  full-state checkpoints restore in-flight balls with identical
  *  arc + impact on host and watcher. */
-function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
+function copyCannonballCore(b: Cannonball): Cannonball {
   return {
     cannonIdx: b.cannonIdx,
     startX: b.startX,
@@ -590,5 +584,6 @@ function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
     flightTime: b.flightTime,
     elapsed: b.elapsed,
     altitude: b.altitude,
+    incendiary: b.incendiary,
   };
 }

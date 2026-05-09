@@ -154,9 +154,6 @@
       "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
     },
     {
-      "pair": "AimUpdateMessage@src/protocol/protocol.ts ↔ Cannonball@src/shared/core/battle-types.ts"
-    },
-    {
       "pair": "AimUpdateMessage@src/protocol/protocol.ts ↔ Crosshair@src/shared/core/battle-types.ts"
     },
     {
@@ -334,9 +331,6 @@
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
-      "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayBalloon@src/shared/ui/overlay-types.ts"
-    },
-    {
       "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
     },
     {
@@ -359,9 +353,6 @@
     },
     {
       "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
-    },
-    {
-      "pair": "CannonFiredMessage@src/shared/core/battle-events.ts ↔ Cannonball@src/shared/core/battle-types.ts"
     },
     {
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"

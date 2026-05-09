@@ -6,14 +6,15 @@
 
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
-/** A cannon was fired (own or opponent). Client creates local cannonball.
- *  Carries the originator-pinned ballistic trajectory so receivers spawn an
- *  identical parametric flight and land on the same tile — no state reads
- *  happen on the receiver side for physics. */
-export interface CannonFiredMessage {
-  type: "cannonFired";
-  playerId: ValidPlayerSlot;
+/** Originator-pinned trajectory parameters for a cannonball. Computed at
+ *  fire time and frozen — every peer that re-runs the parametric flight
+ *  must see the same values. Both the runtime `Cannonball` (with its
+ *  per-tick mutable cursor: x/y/elapsed/altitude) and the wire-format
+ *  `CannonFiredMessage` (with type tag + applyAt) extend this so the 20
+ *  shared trajectory fields live in one place. */
+export interface BallisticTrajectory {
   cannonIdx: number;
+  playerId: ValidPlayerSlot;
   /** Set when fired through a captured-cannon path: the capturer who scores
    *  for this ball's effects. `playerId` stays the original cannon owner so
    *  receiver-side `canFireOwnCannon` lookups resolve against the right slot. */
@@ -35,6 +36,14 @@ export interface CannonFiredMessage {
   flightTime: number;
   incendiary?: true;
   mortar?: true;
+}
+
+/** A cannon was fired (own or opponent). Client creates local cannonball.
+ *  Carries the originator-pinned ballistic trajectory so receivers spawn an
+ *  identical parametric flight and land on the same tile — no state reads
+ *  happen on the receiver side for physics. */
+export interface CannonFiredMessage extends BallisticTrajectory {
+  type: "cannonFired";
   /** Lockstep apply tick: `senderSimTick + SAFETY`. Both originator and
    *  receiver enqueue the ball-push for this stamp; the action schedule
    *  fires it at the matching tick on every peer, so cross-peer scoring,

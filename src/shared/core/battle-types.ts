@@ -1,3 +1,4 @@
+import type { BallisticTrajectory } from "./battle-events.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
@@ -55,74 +56,22 @@ export interface Cannon extends TilePos {
   balloonCapturerIds?: number[];
 }
 
-export interface Cannonball {
-  /** Which cannon fired this ball (index into player.cannons). */
-  cannonIdx: number;
-  /** Start position in pixels (cannon center). Kept for renderer-side
-   *  debug / back-compat; physics uses `launchX` / `launchY`. */
-  startX: number;
-  startY: number;
+/** A live cannonball: the originator-pinned trajectory plus the per-tick
+ *  cursor (current position, elapsed time, current altitude) and SFX
+ *  bookkeeping. Trajectory fields live on BallisticTrajectory so the wire
+ *  format stays in lockstep — see CannonFiredMessage. */
+export interface Cannonball extends BallisticTrajectory {
   /** Current position in pixels (sub-tile precision). Derived each
    *  tick from the parametric trajectory — never the primary source of
    *  truth, but exposed here so overlays/checkpoints can read it
    *  without recomputing. */
   x: number;
   y: number;
-  /** Aim point in pixels. This is where the shooter was pointing; the
-   *  pinned impact (`impactX` / `impactY`) may differ if the ball
-   *  clipped an obstacle along the way. */
-  targetX: number;
-  targetY: number;
-  /** Horizontal speed in pixels per second. */
-  speed: number;
-  /** Launch point (muzzle tip) in pixels. Anchors the parametric
-   *  horizontal interpolation. */
-  launchX: number;
-  launchY: number;
-  /** Launch altitude in world units. Top of the muzzle at fire time. */
-  launchAltitude: number;
-  /** Pinned impact point in pixels — where the ball actually lands.
-   *  Chosen at fire time by host surface sampling; frozen thereafter
-   *  and shipped on `CannonFiredMessage` so the watcher reaches the
-   *  same endpoint deterministically. */
-  impactX: number;
-  impactY: number;
-  /** Impact tile coords — derived from `impactX`/`impactY` at fire
-   *  time and pinned so the damage resolver reads the same cell on
-   *  both sides (mortars splash around this center). */
-  impactRow: number;
-  impactCol: number;
-  /** Pinned target altitude at the impact point. */
-  impactAltitude: number;
-  /** Initial vertical velocity (world-units/sec). Solved at fire time
-   *  so altitude(flightTime) = impactAltitude. */
-  vy0: number;
-  /** Total seconds from launch to impact. */
-  flightTime: number;
   /** Seconds elapsed since launch. Advanced by dt every tick. */
   elapsed: number;
   /** Current altitude in world units. Recomputed each tick from the
    *  parametric trajectory (cache — renderer reads it directly). */
   altitude: number;
-  /** Owner player id — the player whose cannon fired this ball.
-   *  Used for in-flight tracking (index into this player's cannons array).
-   *  NOT necessarily who gets scoring credit — see scoringPlayerId. */
-  playerId: ValidPlayerSlot;
-  /** Player who receives scoring credit for this cannonball's impacts.
-   *  Set to capturerId when this cannon was captured by a propaganda balloon.
-   *  When undefined, defaults to playerId (normal cannon fire).
-   *  Always use: `const shooter = ball.scoringPlayerId ?? ball.playerId`
-   *
-   *  Key distinction: playerId = cannon owner, scoringPlayerId = point receiver.
-   *  They differ only when a cannon was captured by a balloon.
-   *
-   *  Typed as ValidPlayerSlot (not raw number) to match playerId — every
-   *  producer already passes a branded slot id. */
-  scoringPlayerId?: ValidPlayerSlot;
-  /** If true, leaves a burning pit on impact (fired from super gun). */
-  incendiary?: boolean;
-  /** If true, this is a mortar round — 3×3 splash damage + burning pit at center. */
-  mortar?: boolean;
   /** Set once after the descent-whistle bus event has fired for this ball.
    *  Prevents the SFX from retriggering every frame while the ball is in
    *  the trigger window. Undefined on fresh balls (not yet whistled). */

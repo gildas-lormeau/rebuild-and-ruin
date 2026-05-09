@@ -5,6 +5,7 @@
 
 import {
   BATTLE_MESSAGE,
+  type BallisticTrajectory,
   type CannonDamagedMessage,
   type CannonFiredMessage,
   type GruntChippedMessage,
@@ -240,31 +241,14 @@ export interface FullStateMessage {
     capturerId: number;
     cannonIdx: number;
   }[];
-  cannonballs: {
-    cannonIdx: number;
-    startX: number;
-    startY: number;
+  cannonballs: (BallisticTrajectory & {
+    /** Current parametric cursor — needed so a checkpoint restores
+     *  in-flight balls at the right position/altitude on the watcher. */
     x: number;
     y: number;
-    targetX: number;
-    targetY: number;
-    speed: number;
-    playerId: ValidPlayerSlot;
-    scoringPlayerId?: ValidPlayerSlot;
-    incendiary?: boolean;
-    launchX: number;
-    launchY: number;
-    launchAltitude: number;
-    impactX: number;
-    impactY: number;
-    impactRow: number;
-    impactCol: number;
-    impactAltitude: number;
-    vy0: number;
-    flightTime: number;
     elapsed: number;
     altitude: number;
-  }[];
+  })[];
   /** In-flight balloon animations (present only during BALLOON_ANIM mode). */
   balloonFlights?: {
     startX: number;
