@@ -41,9 +41,16 @@
  * Heuristic limitations:
  *  - Top-level `type X = ...` aliases only. Inline unions
  *    (`function f(mode: "a" | "b")`) are not covered.
- *  - "Occurrence" = any string-literal node outside a LiteralType ancestor
- *    (and outside the source const's statement range, for typeof-derived).
- *    Producers (writes, args, returns) and consumers (===, switch case)
+ *  - "Occurrence" = any string-literal node outside a LiteralType ancestor,
+ *    or any Identifier-named property key (`{ title: 1 }`,
+ *    `{ title }` shorthand) whose text matches the member value. The
+ *    Identifier-key pass catches Record-literal producers
+ *    (`Record<T, V> = { a: ..., b: ... }`) that the StringLiteral pass
+ *    misses — without it, every union member used only as a Record key
+ *    would falsely classify as dead. Cost: a member whose value happens
+ *    to match a common key name (`id`, `title`, `name`) gets suppressed
+ *    by unrelated objects, lowering precision but reducing FPs.
+ *  - Producers (writes, args, returns) and consumers (===, switch case)
  *    aren't distinguished. A member referenced only by `if (x === "c")`
  *    with no producer is reported "active" here even though the arm is
  *    dead in practice; that's the cascade case, deferred.
@@ -128,6 +135,16 @@ for (const sf of project.getSourceFiles()) {
   )) {
     indexLiteral(lit);
   }
+  for (const propAssign of sf.getDescendantsOfKind(
+    SyntaxKind.PropertyAssignment,
+  )) {
+    indexIdentifierKey(propAssign.getNameNode(), propAssign);
+  }
+  for (const shorthand of sf.getDescendantsOfKind(
+    SyntaxKind.ShorthandPropertyAssignment,
+  )) {
+    indexIdentifierKey(shorthand.getNameNode(), shorthand);
+  }
 }
 
 for (const sf of project.getSourceFiles()) {
@@ -163,6 +180,22 @@ function indexLiteral(
     file: path.relative(process.cwd(), lit.getSourceFile().getFilePath()),
     line: lit.getStartLineNumber(),
     snippet: trimSnippet(parent ? parent.getText() : lit.getText()),
+  });
+}
+
+function indexIdentifierKey(nameNode: Node, host: Node): void {
+  if (!Node.isIdentifier(nameNode)) return;
+  if (nameNode.getFirstAncestorByKind(SyntaxKind.LiteralType)) return;
+  const value = nameNode.getText();
+  let entry = occurrences.get(value);
+  if (!entry) {
+    entry = [];
+    occurrences.set(value, entry);
+  }
+  entry.push({
+    file: path.relative(process.cwd(), host.getSourceFile().getFilePath()),
+    line: host.getStartLineNumber(),
+    snippet: trimSnippet(host.getText()),
   });
 }
 
