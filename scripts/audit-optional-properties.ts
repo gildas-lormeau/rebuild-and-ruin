@@ -26,6 +26,7 @@ import path from "node:path";
 import {
   type InterfaceDeclaration,
   type MethodSignature,
+  type Node,
   type ObjectLiteralExpression,
   Project,
   type PropertySignature,
@@ -123,6 +124,14 @@ function main(): void {
   // type, map back to the declaration node(s). Per-container literal lists are
   // the input to the construction-site omission check.
   const literalsByContainer = new Map<Container, ObjectLiteralExpression[]>();
+  const recordLiteral = (c: Container, obj: ObjectLiteralExpression): void => {
+    let arr = literalsByContainer.get(c);
+    if (!arr) {
+      arr = [];
+      literalsByContainer.set(c, arr);
+    }
+    arr.push(obj);
+  };
   for (const sf of project.getSourceFiles()) {
     for (const obj of sf.getDescendantsOfKind(
       SyntaxKind.ObjectLiteralExpression,
@@ -130,12 +139,44 @@ function main(): void {
       const ctxType = obj.getContextualType();
       if (!ctxType) continue;
       for (const c of resolveContainersFromType(ctxType, containersBySymbol)) {
-        let arr = literalsByContainer.get(c);
-        if (!arr) {
-          arr = [];
-          literalsByContainer.set(c, arr);
+        recordLiteral(c, obj);
+      }
+    }
+  }
+
+  // Phase 2.5: chase no-return-type-annotation factory chains. Pattern: a
+  // function returns an object literal but has no return-type annotation,
+  // so `getContextualType()` on the literal sees only the literal's own
+  // inferred type, not the interface the callers eventually pass it to.
+  //
+  // Real example: `buildZoomDeps()` returns `{ aimAtZone: ..., ... }`; the
+  // result lands in `const zoomDeps = buildZoomDeps(...)` (no annotation),
+  // then later `createZoneCycleButton(zoomDeps, ...)` consumes it as a
+  // `ZoomButtonDeps`. Neither Phase 2's literal walk nor a "call-result
+  // contextual type" check catches this — the constraint lives at the
+  // *argument-passing* site, two hops from the literal.
+  //
+  // Walk every CallExpression's arguments. When an arg's contextual type
+  // resolves to a tracked container AND the arg is an identifier whose
+  // declaration is `const x = factoryCall()`, walk the factory's body for
+  // `return <literal>` and credit those literals to the container.
+  for (const sf of project.getSourceFiles()) {
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      for (const arg of call.getArguments()) {
+        // `getArguments()` returns `Node[]` in ts-morph; getContextualType is
+        // an Expression method. Spread args (`...x`) are non-Expression and
+        // bail here naturally.
+        const argExpr = arg as unknown as { getContextualType?: () => Type };
+        const argCtxType = argExpr.getContextualType?.();
+        if (!argCtxType) continue;
+        const containers = resolveContainersFromType(
+          argCtxType,
+          containersBySymbol,
+        );
+        if (containers.length === 0) continue;
+        for (const literal of literalsBehindArgument(arg)) {
+          for (const c of containers) recordLiteral(c, literal);
         }
-        arr.push(obj);
       }
     }
   }
@@ -223,6 +264,110 @@ function auditContainer(
   for (const prop of properties) {
     out.push(buildItem(containerName, prop, literals, identCountByName));
   }
+}
+
+/** For a CallExpression argument typed as a tracked container, find every
+ *  object literal that ultimately flows into it. Handles three shapes:
+ *    1. arg IS the literal: `f({...})`
+ *    2. arg is a factory call: `f(buildDeps())` — walk callee's returns
+ *    3. arg is a const-bound identifier: `const x = buildDeps(); f(x)` —
+ *       resolve x, recurse if its initializer is a factory call
+ *
+ *  Stops at nested function boundaries so a returned closure's own returns
+ *  aren't credited to the outer call's contextual type. */
+function literalsBehindArgument(arg: Node): ObjectLiteralExpression[] {
+  if (arg.isKind(SyntaxKind.ObjectLiteralExpression)) {
+    return [arg.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)];
+  }
+  if (arg.isKind(SyntaxKind.CallExpression)) {
+    return returnedLiteralsOfCall(arg);
+  }
+  if (arg.isKind(SyntaxKind.Identifier)) {
+    const sym = arg.getSymbol();
+    if (!sym) return [];
+    for (const decl of sym.getDeclarations()) {
+      if (!decl.isKind(SyntaxKind.VariableDeclaration)) continue;
+      const init = decl
+        .asKindOrThrow(SyntaxKind.VariableDeclaration)
+        .getInitializer();
+      if (!init) continue;
+      // Only chase pure function calls — bail on anything else (other
+      // identifiers, expressions, etc.) to keep recursion bounded and avoid
+      // chasing through reassigns we don't model.
+      if (init.isKind(SyntaxKind.CallExpression)) {
+        return returnedLiteralsOfCall(init);
+      }
+      if (init.isKind(SyntaxKind.ObjectLiteralExpression)) {
+        return [init.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)];
+      }
+    }
+  }
+  return [];
+}
+
+/** Walk a CallExpression's callee body for `return <ObjectLiteral>` and
+ *  arrow concise-body `() => <ObjectLiteral>`. */
+function returnedLiteralsOfCall(call: Node): ObjectLiteralExpression[] {
+  if (!call.isKind(SyntaxKind.CallExpression)) return [];
+  const calleeSym = call
+    .asKindOrThrow(SyntaxKind.CallExpression)
+    .getExpression()
+    .getSymbol();
+  if (!calleeSym) return [];
+  const out: ObjectLiteralExpression[] = [];
+  for (const decl of calleeSym.getDeclarations()) {
+    const body = getCalleeBody(decl);
+    if (!body) continue;
+    if (body.isKind(SyntaxKind.ObjectLiteralExpression)) {
+      out.push(body.asKindOrThrow(SyntaxKind.ObjectLiteralExpression));
+      continue;
+    }
+    for (const ret of body.getDescendantsOfKind(SyntaxKind.ReturnStatement)) {
+      const enclosingFn = ret.getFirstAncestor(
+        (n) =>
+          n.isKind(SyntaxKind.FunctionDeclaration) ||
+          n.isKind(SyntaxKind.FunctionExpression) ||
+          n.isKind(SyntaxKind.ArrowFunction) ||
+          n.isKind(SyntaxKind.MethodDeclaration),
+      );
+      if (enclosingFn !== decl) continue;
+      const expr = ret.getExpression();
+      if (expr?.isKind(SyntaxKind.ObjectLiteralExpression)) {
+        out.push(expr.asKindOrThrow(SyntaxKind.ObjectLiteralExpression));
+      }
+    }
+  }
+  return out;
+}
+
+/** Extract the body node of a callable declaration, handling the four
+ *  shapes: function declaration, function expression, arrow function, and
+ *  method declaration. Returns the Block (statements) for the first three
+ *  and either the Block or the concise expression for arrow functions.
+ *  `null` for ambient declarations or anything we don't try to resolve. */
+function getCalleeBody(decl: Node): Node | null {
+  if (
+    decl.isKind(SyntaxKind.FunctionDeclaration) ||
+    decl.isKind(SyntaxKind.FunctionExpression) ||
+    decl.isKind(SyntaxKind.MethodDeclaration)
+  ) {
+    return decl.getBody() ?? null;
+  }
+  if (decl.isKind(SyntaxKind.ArrowFunction)) {
+    return decl.getBody();
+  }
+  // const f = () => ({...}) — declarations land on VariableDeclaration; recurse
+  // into the initializer.
+  if (decl.isKind(SyntaxKind.VariableDeclaration)) {
+    const init = decl.getInitializer();
+    if (
+      init?.isKind(SyntaxKind.ArrowFunction) ||
+      init?.isKind(SyntaxKind.FunctionExpression)
+    ) {
+      return getCalleeBody(init);
+    }
+  }
+  return null;
 }
 
 /** Walk a contextual type and resolve every tracked container it points at,
