@@ -60,8 +60,6 @@ export interface BandsParams {
   material: MaterialSpec;
 }
 
-export type SupportsKind = "cheeks" | "stack";
-
 export interface BevelSpec {
   size?: number;
   thickness?: number;
