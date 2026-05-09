@@ -121,6 +121,61 @@ const TARGET_INTERFACES: readonly Target[] = [
     file: "src/online/online-server-events.ts",
     interface: "HandleServerIncrementalDeps",
   },
+  // Game-domain extension contracts: each impl provides whichever hooks
+  // it needs and the runtime dispatches via the registry. A hook that
+  // grows stale (no dispatcher invokes it any more) leaves every impl
+  // exporting a dead method.
+  { file: "src/game/upgrades/upgrade-types.ts", interface: "UpgradeImpl" },
+  {
+    file: "src/game/upgrades/upgrade-types.ts",
+    interface: "BattleStartCannonDeps",
+  },
+  {
+    file: "src/game/modifiers/modifier-types.ts",
+    interface: "InstantModifier",
+  },
+  {
+    file: "src/game/modifiers/modifier-types.ts",
+    interface: "PermanentModifier",
+  },
+  {
+    file: "src/game/modifiers/modifier-types.ts",
+    interface: "RoundScopedModifier",
+  },
+  // Controller / observer contracts: same shape — impls subscribe to a
+  // subset of hooks; runtime dispatches.
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "SelectionController",
+  },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "BuildController",
+  },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "CannonController",
+  },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "BattleController",
+  },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "UpgradePickController",
+  },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "LifeLostController",
+  },
+  { file: "src/shared/core/system-interfaces.ts", interface: "InputReceiver" },
+  { file: "src/shared/core/system-interfaces.ts", interface: "AiAnimatable" },
+  {
+    file: "src/shared/core/system-interfaces.ts",
+    interface: "HapticsObserver",
+  },
+  { file: "src/shared/core/system-interfaces.ts", interface: "MusicObserver" },
+  { file: "src/shared/core/system-interfaces.ts", interface: "SfxObserver" },
 ];
 
 main();
