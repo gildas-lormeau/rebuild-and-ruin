@@ -22,6 +22,7 @@
       "src/runtime/banner-messages.ts",
       "src/runtime/dialog-tick.ts",
       "src/runtime/fire-once-slot.ts",
+      "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/music-assets.ts",
       "src/runtime/runtime-browser-dom.ts",
       "src/runtime/waved-ramp.ts",
@@ -60,7 +61,13 @@
       "src/render/3d/sprites/pit-scene.ts",
       "src/render/3d/sprites/sprite-materials.ts",
       "src/render/3d/sprites/sprite-textures.ts",
+      "src/runtime/crumbling-walls-overlay.ts",
+      "src/runtime/fog-reveal-overlay.ts",
+      "src/runtime/frostbite-reveal-overlay.ts",
+      "src/runtime/grunt-surge-reveal-overlay.ts",
       "src/runtime/music-synth-loader.ts",
+      "src/runtime/rubble-clearing-overlay.ts",
+      "src/runtime/sapper-reveal-overlay.ts",
       "src/runtime/sound-modal.ts",
       "src/shared/core/battle-events.ts",
       "src/shared/core/elevation-constants.ts",
@@ -250,7 +257,6 @@
       "src/render/render-ui-overlays.ts",
       "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
-      "src/runtime/modifier-reveal-ramp.ts",
       "src/runtime/runtime-browser-timing.ts",
       "src/runtime/runtime-castle-build.ts",
       "src/runtime/runtime-state.ts"
@@ -276,12 +282,8 @@
       "src/render/3d/effects/water-surge.ts",
       "src/render/3d/effects/wildfire-burst.ts",
       "src/render/render-ui.ts",
-      "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/dev-console.ts",
-      "src/runtime/fog-reveal-overlay.ts",
-      "src/runtime/frostbite-reveal-overlay.ts",
-      "src/runtime/grunt-surge-reveal-overlay.ts",
-      "src/runtime/rubble-clearing-overlay.ts",
+      "src/runtime/modifier-reveal-time.ts",
       "src/runtime/runtime-audio.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-bootstrap.ts",
@@ -292,8 +294,7 @@
       "src/runtime/runtime-phase-machine.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-upgrade-pick.ts",
-      "src/runtime/sapper-reveal-overlay.ts"
+      "src/runtime/runtime-upgrade-pick.ts"
     ]
   },
   {

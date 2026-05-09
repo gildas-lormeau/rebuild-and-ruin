@@ -5,6 +5,7 @@
  * Extracted from runtime-composition.ts to reduce composition-root fan-out.
  */
 
+import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import type {
@@ -24,6 +25,10 @@ import { deriveCrumblingWallsFade } from "./crumbling-walls-overlay.ts";
 import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
 import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
 import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
+import {
+  revealTimeFor,
+  tickModifierRevealClock,
+} from "./modifier-reveal-time.ts";
 import { deriveRubbleClearingFade } from "./rubble-clearing-overlay.ts";
 import type {
   CreateBannerUiFn,
@@ -195,42 +200,26 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     // post-mutation scene.
     const inBattle = runtimeState.state.phase === Phase.BATTLE;
 
-    const fogRevealOpacity = deriveFogRevealOpacity({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
-    const rubbleClearingFade = deriveRubbleClearingFade({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
-    const frostbiteRevealProgress = deriveFrostbiteRevealProgress({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
-    const crumblingWallsFade = deriveCrumblingWallsFade({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
-    const sapperRevealIntensity = deriveSapperRevealIntensity({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
-    const gruntSurgeRevealIntensity = deriveGruntSurgeRevealIntensity({
-      view,
-      banner: runtimeState.banner,
-      now: deps.timing.now(),
-      state: runtimeState,
-    });
+    const nowMs = deps.timing.now();
+    tickModifierRevealClock(runtimeState, nowMs);
+    const fogRevealOpacity = deriveFogRevealOpacity(
+      revealTimeFor(runtimeState, MODIFIER_ID.FOG_OF_WAR, nowMs),
+    );
+    const rubbleClearingFade = deriveRubbleClearingFade(
+      revealTimeFor(runtimeState, MODIFIER_ID.RUBBLE_CLEARING, nowMs),
+    );
+    const frostbiteRevealProgress = deriveFrostbiteRevealProgress(
+      revealTimeFor(runtimeState, MODIFIER_ID.FROSTBITE, nowMs),
+    );
+    const crumblingWallsFade = deriveCrumblingWallsFade(
+      revealTimeFor(runtimeState, MODIFIER_ID.CRUMBLING_WALLS, nowMs),
+    );
+    const sapperRevealIntensity = deriveSapperRevealIntensity(
+      revealTimeFor(runtimeState, MODIFIER_ID.SAPPER, nowMs),
+    );
+    const gruntSurgeRevealIntensity = deriveGruntSurgeRevealIntensity(
+      revealTimeFor(runtimeState, MODIFIER_ID.GRUNT_SURGE, nowMs),
+    );
 
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,

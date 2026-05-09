@@ -8,23 +8,11 @@
  * pulse red instead of standing in with floating discs.
  *
  * Curve: bell envelope `sin(t * π)` modulated by a fast pulse wave
- * (same shape as sapper's threat tint). State machine + sweep gating
- * live in `deriveModifierRamp`.
+ * (same shape as sapper's threat tint). Time gating lives in
+ * `deriveModifierRamp` driven by `revealTimeMs`.
  */
 
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
-import {
-  deriveModifierRamp,
-  type ModifierRampContext,
-} from "./modifier-reveal-ramp.ts";
-
-interface GruntSurgeRevealRampState {
-  gruntSurgeRevealRampStartMs: number | undefined;
-}
-
-interface DeriveInput extends ModifierRampContext {
-  readonly state: GruntSurgeRevealRampState;
-}
+import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
 
 export const GRUNT_SURGE_REVEAL_RAMP_DURATION_MS = 1100;
 export const GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS = 280;
@@ -32,24 +20,19 @@ export const GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS = 280;
 export const GRUNT_SURGE_REVEAL_PEAK_INTENSITY = 0.85;
 
 export function deriveGruntSurgeRevealIntensity(
-  input: DeriveInput,
+  revealTimeMs: number | undefined,
 ): number | undefined {
-  return deriveModifierRamp(input, {
-    modifierId: MODIFIER_ID.GRUNT_SURGE,
-    getRampStartMs: () => input.state.gruntSurgeRevealRampStartMs,
-    setRampStartMs: (value) => {
-      input.state.gruntSurgeRevealRampStartMs = value;
-    },
-    sweepValue: 0,
+  return deriveModifierRamp({
+    revealTimeMs,
     durationMs: GRUNT_SURGE_REVEAL_RAMP_DURATION_MS,
-    compute: (elapsed) => {
-      const t = elapsed / GRUNT_SURGE_REVEAL_RAMP_DURATION_MS;
-      const envelope = Math.sin(t * Math.PI);
+    compute: (elapsedMs) => {
+      const progress = elapsedMs / GRUNT_SURGE_REVEAL_RAMP_DURATION_MS;
+      const envelope = Math.sin(progress * Math.PI);
       const pulse =
         0.5 +
         0.5 *
           Math.sin(
-            (elapsed / GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS) * Math.PI * 2,
+            (elapsedMs / GRUNT_SURGE_REVEAL_PULSE_PERIOD_MS) * Math.PI * 2,
           );
       return GRUNT_SURGE_REVEAL_PEAK_INTENSITY * envelope * pulse;
     },

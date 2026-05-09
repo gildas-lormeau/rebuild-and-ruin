@@ -267,6 +267,7 @@
       "src/runtime/frostbite-reveal-overlay.ts",
       "src/runtime/grunt-surge-reveal-overlay.ts",
       "src/runtime/modifier-reveal-ramp.ts",
+      "src/runtime/modifier-reveal-time.ts",
       "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/sapper-reveal-overlay.ts",
       "src/runtime/waved-ramp.ts",

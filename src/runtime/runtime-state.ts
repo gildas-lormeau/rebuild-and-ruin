@@ -146,28 +146,13 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
-  /** When the fog-of-war reveal's post-banner ramp started, in
-   *  `now()`-units, or undefined when no fog reveal ramp is in flight.
-   *  Set by `deriveFogRevealOpacity` the first frame the modifier reveal
-   *  banner is swept; cleared when the modifier flag goes off. The
-   *  multiplier formula uses `now - rampStartMs` to compute elapsed
-   *  ramp time. */
-  fogRevealRampStartMs: number | undefined;
-  /** Same shape as `fogRevealRampStartMs` but for the rubble_clearing
-   *  fade-out. Set by `deriveRubbleClearingFade`. */
-  rubbleClearingRampStartMs: number | undefined;
-  /** Same shape as `fogRevealRampStartMs` but for the frostbite tint
-   *  ramp. Set by `deriveFrostbiteRevealProgress`. */
-  frostbiteRevealRampStartMs: number | undefined;
-  /** Same shape as `fogRevealRampStartMs` but for the crumbling_walls
-   *  fade-out. Set by `deriveCrumblingWallsFade`. */
-  crumblingWallsRampStartMs: number | undefined;
-  /** Same shape as `fogRevealRampStartMs` but for the sapper threat-tint
-   *  pulse. Set by `deriveSapperRevealIntensity`. */
-  sapperRevealRampStartMs: number | undefined;
-  /** Same shape as `fogRevealRampStartMs` but for the grunt-surge
-   *  fresh-grunt tint pulse. Set by `deriveGruntSurgeRevealIntensity`. */
-  gruntSurgeRevealRampStartMs: number | undefined;
+  /** When the active modifier-reveal entered its post-sweep window, in
+   *  `now()`-units, or undefined while the banner is mid-sweep / no reveal
+   *  is active. Owned by `tickModifierRevealClock`; consumed by
+   *  `revealTimeFor` so per-modifier effects receive a `revealTimeMs`
+   *  number without seeing banner state directly. One field for all
+   *  modifiers because only one modifier is ever revealing at a time. */
+  modifierRevealPlayStartMs: number | undefined;
   /** Per-frame context (dt, mode, etc.). Populated by `computeFrameContext`
    *  on every mainLoop tick. Holds a placeholder until the first tick — same
    *  rules as `state`: check `isStateInstalled(runtimeState)` before accessing. */
@@ -295,12 +280,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.quit.message = "";
   runtimeState.optionsUI.returnMode = null;
   runtimeState.actionSchedule.reset();
-  runtimeState.fogRevealRampStartMs = undefined;
-  runtimeState.rubbleClearingRampStartMs = undefined;
-  runtimeState.frostbiteRevealRampStartMs = undefined;
-  runtimeState.crumblingWallsRampStartMs = undefined;
-  runtimeState.sapperRevealRampStartMs = undefined;
-  runtimeState.gruntSurgeRevealRampStartMs = undefined;
+  runtimeState.modifierRevealPlayStartMs = undefined;
 }
 
 /** Create initial runtime state. `state` and `frameMeta` are not yet valid:
@@ -329,12 +309,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
-    fogRevealRampStartMs: undefined,
-    rubbleClearingRampStartMs: undefined,
-    frostbiteRevealRampStartMs: undefined,
-    crumblingWallsRampStartMs: undefined,
-    sapperRevealRampStartMs: undefined,
-    gruntSurgeRevealRampStartMs: undefined,
+    modifierRevealPlayStartMs: undefined,
     // Placeholder until the first mainLoop tick populates frame context.
     // Guarded by `stateInstalled` (same lifecycle as `state`).
     frameMeta: null as unknown as FrameContext,

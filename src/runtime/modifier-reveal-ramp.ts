@@ -1,81 +1,37 @@
 /**
- * Shared state machine for runtime-side modifier-reveal multipliers.
+ * Shared driver for runtime-side modifier-reveal ramps.
  *
- * Every overlay-driven modifier reveal (fog, rubble_clearing, frostbite,
- * crumbling_walls, sapper, ...) computes a per-frame `[0, 1]` value
- * with the same idempotent shape:
+ * Per-modifier overlay files (fog, rubble_clearing, frostbite, crumbling
+ * walls, sapper, grunt_surge, ...) declare a curve `compute(elapsedMs)` and
+ * a `durationMs` budget. This helper turns the runtime-supplied
+ * `revealTimeMs` (see `modifier-reveal-time.ts` — the single banner-aware
+ * site) into a per-frame value:
  *
- *   not in this modifier's reveal → undefined (release; clear ramp)
- *   reveal + sweeping             → sweepValue (snapshot capture)
- *   reveal + swept, fresh         → set rampStart=now; return cfg.compute(0)
- *                                   (or sweepValue at t=0 if compute(0) ≠ that)
- *   reveal + ramping              → cfg.compute(elapsed)
- *   reveal + ramp done            → undefined (release; manager pins or
- *                                   falls back to its steady-state path)
+ *   revealTimeMs === undefined  → undefined  (release; manager pins or
+ *                                              falls back to steady state)
+ *   revealTimeMs === 0          → compute(0) (snapshot capture window)
+ *   0 < revealTimeMs < duration → compute(revealTimeMs)
+ *   revealTimeMs >= duration    → undefined
  *
- * Per-modifier files now hold just (modifierId, sweepValue, durationMs,
- * compute, rampStart accessor pair) and delegate the gating to this
- * helper. The accessor pair is two closures rather than a key+state
- * pattern so the cross-frame ramp-start field stays strongly typed on
- * RuntimeState.
+ * Continuity guarantee: the snapshot frame and the first playing frame
+ * both call `compute(0)`, so the rendered value is identical across the
+ * sweep boundary by construction. There is no separate "sweep value" to
+ * drift from `compute(0)`.
+ *
+ * This file imports nothing about the banner.
  */
 
-import type { ModifierId } from "../shared/core/game-constants.ts";
-import { Phase } from "../shared/core/game-phase.ts";
-import type { RenderView } from "../shared/core/render-view.ts";
-import type { ActiveBannerState } from "./runtime-contracts.ts";
-
-/** Ambient inputs every per-modifier derive function gets from
- *  `refreshOverlay` — same shape across all five overlays. */
-export interface ModifierRampContext {
-  readonly view: Pick<RenderView, "phase" | "modern">;
-  readonly banner: ActiveBannerState | { status: "hidden" };
-  readonly now: number;
-}
-
 interface ModifierRampConfig {
-  readonly modifierId: ModifierId;
-  /** Read the cross-frame ramp-start timestamp (in `now()`-units). */
-  readonly getRampStartMs: () => number | undefined;
-  /** Mutate the cross-frame ramp-start timestamp (undefined to clear). */
-  readonly setRampStartMs: (value: number | undefined) => void;
-  /** Value returned during the banner-sweep window (snapshot capture). */
-  readonly sweepValue: number;
-  /** Total ramp duration in ms; helper releases (returns undefined) once
-   *  `now - rampStart >= durationMs`. */
+  readonly revealTimeMs: number | undefined;
   readonly durationMs: number;
-  /** Curve evaluated each post-sweep frame. Receives `elapsed` in ms
-   *  measured from the first post-sweep frame. */
-  readonly compute: (elapsed: number) => number;
+  readonly compute: (elapsedMs: number) => number;
 }
 
 export function deriveModifierRamp(
-  ctx: ModifierRampContext,
   cfg: ModifierRampConfig,
 ): number | undefined {
-  const isReveal =
-    ctx.view.phase === Phase.MODIFIER_REVEAL &&
-    ctx.view.modern?.activeModifier === cfg.modifierId;
-
-  if (!isReveal) {
-    cfg.setRampStartMs(undefined);
-    return undefined;
-  }
-
-  // "past sweep" includes both `swept` (still on screen, dwelling) AND
-  // `hidden` (the banner's onDone callback may hideBanner immediately
-  // after sweep — phase stays MODIFIER_REVEAL, banner does not).
-  if (ctx.banner.status === "sweeping") {
-    cfg.setRampStartMs(undefined);
-    return cfg.sweepValue;
-  }
-
-  let startMs = cfg.getRampStartMs();
-  if (startMs === undefined) {
-    startMs = ctx.now;
-    cfg.setRampStartMs(startMs);
-  }
-  const elapsed = ctx.now - startMs;
+  const elapsed = cfg.revealTimeMs;
+  if (elapsed === undefined) return undefined;
   if (elapsed >= cfg.durationMs) return undefined;
   return cfg.compute(elapsed);
 }

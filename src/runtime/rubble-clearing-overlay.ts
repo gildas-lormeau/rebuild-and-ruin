@@ -5,25 +5,13 @@
  * themselves come from `state.modern.rubbleClearingHeld`, captured by
  * `rubbleClearingImpl.apply` before the gameplay-state mutation.
  *
- * State machine + sweep gating live in `deriveModifierRamp`. The wave
- * on the ramp gives the fade a "rubble crumbling away" feel — multiple
+ * Time gating lives in `deriveModifierRamp` driven by `revealTimeMs`. The
+ * wave on the ramp gives the fade a "rubble crumbling away" feel — multiple
  * swells converging on zero rather than a monotonic slider.
  */
 
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
-import {
-  deriveModifierRamp,
-  type ModifierRampContext,
-} from "./modifier-reveal-ramp.ts";
+import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
 import { wavedRamp } from "./waved-ramp.ts";
-
-interface RubbleClearingRampState {
-  rubbleClearingRampStartMs: number | undefined;
-}
-
-interface DeriveInput extends ModifierRampContext {
-  readonly state: RubbleClearingRampState;
-}
 
 export const RUBBLE_CLEARING_RAMP_DURATION_MS = 1100;
 export const RUBBLE_CLEARING_WAVE_PERIOD_MS = 320;
@@ -34,19 +22,14 @@ export const RUBBLE_CLEARING_WAVE_PERIOD_MS = 320;
 export const RUBBLE_CLEARING_WAVE_PEAK_AMPLITUDE = 0.3;
 
 export function deriveRubbleClearingFade(
-  input: DeriveInput,
+  revealTimeMs: number | undefined,
 ): number | undefined {
-  return deriveModifierRamp(input, {
-    modifierId: MODIFIER_ID.RUBBLE_CLEARING,
-    getRampStartMs: () => input.state.rubbleClearingRampStartMs,
-    setRampStartMs: (value) => {
-      input.state.rubbleClearingRampStartMs = value;
-    },
-    sweepValue: 1,
+  return deriveModifierRamp({
+    revealTimeMs,
     durationMs: RUBBLE_CLEARING_RAMP_DURATION_MS,
-    compute: (elapsed) =>
+    compute: (elapsedMs) =>
       wavedRamp({
-        elapsed,
+        elapsed: elapsedMs,
         durationMs: RUBBLE_CLEARING_RAMP_DURATION_MS,
         start: 1,
         end: 0,

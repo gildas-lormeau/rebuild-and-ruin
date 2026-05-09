@@ -8,22 +8,11 @@
  *
  * Curve: bell envelope `sin(t * π)` modulated by a fast pulse wave so
  * the targeted walls flash a few times within a smooth peak-and-fade
- * window. State machine + sweep gating live in `deriveModifierRamp`.
+ * window. Time gating lives in `deriveModifierRamp` driven by
+ * `revealTimeMs`.
  */
 
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
-import {
-  deriveModifierRamp,
-  type ModifierRampContext,
-} from "./modifier-reveal-ramp.ts";
-
-interface SapperRevealRampState {
-  sapperRevealRampStartMs: number | undefined;
-}
-
-interface DeriveInput extends ModifierRampContext {
-  readonly state: SapperRevealRampState;
-}
+import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";
 
 export const SAPPER_REVEAL_RAMP_DURATION_MS = 1100;
 export const SAPPER_REVEAL_PULSE_PERIOD_MS = 280;
@@ -31,22 +20,18 @@ export const SAPPER_REVEAL_PULSE_PERIOD_MS = 280;
 export const SAPPER_REVEAL_PEAK_INTENSITY = 0.85;
 
 export function deriveSapperRevealIntensity(
-  input: DeriveInput,
+  revealTimeMs: number | undefined,
 ): number | undefined {
-  return deriveModifierRamp(input, {
-    modifierId: MODIFIER_ID.SAPPER,
-    getRampStartMs: () => input.state.sapperRevealRampStartMs,
-    setRampStartMs: (value) => {
-      input.state.sapperRevealRampStartMs = value;
-    },
-    sweepValue: 0,
+  return deriveModifierRamp({
+    revealTimeMs,
     durationMs: SAPPER_REVEAL_RAMP_DURATION_MS,
-    compute: (elapsed) => {
-      const t = elapsed / SAPPER_REVEAL_RAMP_DURATION_MS;
-      const envelope = Math.sin(t * Math.PI);
+    compute: (elapsedMs) => {
+      const progress = elapsedMs / SAPPER_REVEAL_RAMP_DURATION_MS;
+      const envelope = Math.sin(progress * Math.PI);
       const pulse =
         0.5 +
-        0.5 * Math.sin((elapsed / SAPPER_REVEAL_PULSE_PERIOD_MS) * Math.PI * 2);
+        0.5 *
+          Math.sin((elapsedMs / SAPPER_REVEAL_PULSE_PERIOD_MS) * Math.PI * 2);
       return SAPPER_REVEAL_PEAK_INTENSITY * envelope * pulse;
     },
   });
