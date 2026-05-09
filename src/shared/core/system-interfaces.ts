@@ -484,7 +484,6 @@ export interface HapticsObserver {
 export interface MusicObserver {
   onPlay?(track: string): void;
   onStop?(reason: "phase" | "rematch" | "dispose"): void;
-  onInitError?(error: unknown): void;
 }
 
 /** Test observer for the SFX (PCM sample) subsystem. Captures playSample()

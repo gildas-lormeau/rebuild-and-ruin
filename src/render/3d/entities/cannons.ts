@@ -140,9 +140,6 @@ interface Cannon {
   readonly row: number;
   readonly mode: CannonMode;
   readonly facing?: number;
-  readonly mortar?: boolean;
-  readonly hp?: number;
-  readonly shielded?: boolean;
 }
 
 interface BarrelState {
