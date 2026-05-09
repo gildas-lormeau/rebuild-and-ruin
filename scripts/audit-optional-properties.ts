@@ -47,6 +47,7 @@ type Classification =
   | "suspicious-dead"
   | "read-only"
   | "write-only"
+  | "suspicious-write-only"
   | "fake-optional"
   | "ambiguous-fake"
   | "truly-optional";
@@ -99,6 +100,7 @@ const CLASS_ORDER: Classification[] = [
   "fake-optional",
   "ambiguous-fake",
   "suspicious-dead",
+  "suspicious-write-only",
   "truly-optional",
 ];
 
@@ -192,6 +194,7 @@ function main(): void {
     dead: 0,
     "suspicious-dead": 0,
     "write-only": 0,
+    "suspicious-write-only": 0,
     "read-only": 0,
     "fake-optional": 0,
     "ambiguous-fake": 0,
@@ -277,7 +280,12 @@ function buildItem(
   // -1 to discount the declaration's own identifier; clamp to 0 to defend
   // against weird cases (computed names, etc. that wouldn't show as Identifier).
   const stringMatches = Math.max(0, (identCountByName.get(propName) ?? 0) - 1);
-  const classification = classify(stats, omittedAt, stringMatches);
+  const classification = classify(
+    stats,
+    omittedAt,
+    stringMatches,
+    literals.length,
+  );
   return {
     interface: containerName,
     property: propName,
@@ -340,17 +348,27 @@ function classify(
   stats: RefStats,
   omittedAt: number,
   stringMatches: number,
+  constructionSites: number,
 ): Classification {
   const reads = stats.guardedReads + stats.unguardedReads;
-  if (stats.assigns === 0 && reads === 0) {
-    // 0 symbol references, but identifiers with this name appear elsewhere —
-    // ts-morph likely missed references through structural / contextual typing
-    // (e.g. wire DTO assigned via object literal, or read through a sibling
-    // type with the same shape).
-    return stringMatches > 0 ? "suspicious-dead" : "dead";
+  // Construction-site literals that set the field count as "assigns" the
+  // symbol-search may have missed. Real example: `FullStateMessage.*` wire
+  // fields populated via a contextually-typed literal in `online-serialize.ts`
+  // — ts-morph misses the assigns, but the literal IS visible to us through
+  // `getContextualType()`.
+  const settingSites = Math.max(0, constructionSites - omittedAt);
+  const effectiveAssigns = Math.max(stats.assigns, settingSites);
+  // Identifier matches that the symbol-search didn't account for. Gross
+  // `stringMatches` includes the assigns/reads we already counted, so the
+  // suspicion signal is whatever's *left* once those are netted out.
+  const unaccountedMatches = Math.max(0, stringMatches - stats.assigns - reads);
+  if (effectiveAssigns === 0 && reads === 0) {
+    return unaccountedMatches > 0 ? "suspicious-dead" : "dead";
   }
-  if (stats.assigns === 0 && reads > 0) return "read-only";
-  if (stats.assigns > 0 && reads === 0) return "write-only";
+  if (effectiveAssigns === 0 && reads > 0) return "read-only";
+  if (effectiveAssigns > 0 && reads === 0) {
+    return unaccountedMatches > 0 ? "suspicious-write-only" : "write-only";
+  }
   if (stats.guardedReads > 0) return "truly-optional";
   // Fake-optional pattern (no consumer defends), but if any construction site
   // omits the field, dropping `?` would be a hard tsc error — surface as a
@@ -370,6 +388,8 @@ function rationaleFor(
       return `0 symbol references but ${ctx.stringMatches} identifier match(es) with this name elsewhere — ts-morph likely missed references through structural / contextual typing; verify before deleting`;
     case "write-only":
       return `${s.assigns} assigns, 0 reads; declared but never observed`;
+    case "suspicious-write-only":
+      return `${s.assigns} symbol-resolved assigns, 0 reads, but ${ctx.stringMatches} identifier match(es) elsewhere — likely read through a structurally-compatible sibling type; verify before treating as dead-write`;
     case "read-only":
       return `${s.guardedReads + s.unguardedReads} reads, 0 assigns; always undefined at runtime`;
     case "fake-optional":
