@@ -243,9 +243,13 @@ function classifyRef(node: Node): RefKind {
   if (parent.isKind(SyntaxKind.ShorthandPropertyAssignment)) return "assign";
 
   if (parent.isKind(SyntaxKind.BindingElement)) {
-    const be = parent.asKindOrThrow(SyntaxKind.BindingElement);
-    if (be.getInitializer()) return "read-guarded";
-    return "read-unguarded";
+    // Destructuring is type-propagation, not a value-level read: `const { x } =
+    // obj` makes a local of type `T | undefined` (or `T` with a default), and
+    // TypeScript's strict-null-checks enforce undefined-safety at the leaf use.
+    // Treating destructure as guarded avoids classifying legitimate
+    // "optional-pass-through" plumbing as fake-optional. False-negative on
+    // "fake" is preferred over flagging real optionals.
+    return "read-guarded";
   }
 
   if (parent.isKind(SyntaxKind.PropertyAccessExpression)) {
