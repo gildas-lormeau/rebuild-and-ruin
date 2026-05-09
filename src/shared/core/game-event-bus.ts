@@ -258,7 +258,6 @@ export type InteractionEvent = { type: "uiTap" };
  *  test-side filtering. Drives no game logic. */
 export type CameraTargetSource =
   | "phaseEnter"
-  | "phaseEnterDefault"
   | "userZone"
   | "userPinch"
   | "lifeLostHold"
