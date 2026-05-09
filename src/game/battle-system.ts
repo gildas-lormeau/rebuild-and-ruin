@@ -1106,7 +1106,7 @@ function launchCannonball(
     elapsed: 0,
     altitude: launchAltitude,
     incendiary: isSuperCannon(cannon) ? true : undefined,
-    mortar: isMortar || undefined,
+    mortar: cannon.mortar,
     whistleVariant,
   };
 }

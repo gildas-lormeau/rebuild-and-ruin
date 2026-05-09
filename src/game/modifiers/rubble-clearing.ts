@@ -41,7 +41,7 @@ function applyRubbleClearing(state: GameState): readonly number[] {
     col: number;
     row: number;
     mode: CannonMode;
-    mortar?: boolean;
+    mortar?: true;
     tier: 1 | 2 | 3;
   }[] = [];
   for (const player of state.players) {

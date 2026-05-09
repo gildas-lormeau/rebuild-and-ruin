@@ -478,7 +478,7 @@ function computeStructuralSignature(
 function cannonDebrisVariantName(
   cannon: {
     mode: CannonMode;
-    mortar?: boolean;
+    mortar?: true;
   },
   tier: 1 | 2 | 3,
 ): string {

@@ -69,7 +69,7 @@ export function unpackTileKey(key: number): { row: number; col: number } {
  *  consumer. */
 export function cannonKind(cannon: {
   mode: CannonMode;
-  mortar?: boolean;
+  mortar?: true;
 }): CannonKind {
   if (isBalloonCannon(cannon)) return "balloon";
   if (isRampartCannon(cannon)) return "rampart";

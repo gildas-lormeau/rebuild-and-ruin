@@ -162,17 +162,8 @@ export type ImpactEvent =
  *  Discriminated on `type` (BATTLE_MESSAGE.* string literal). */
 export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
 
-/** Launch payload — every CannonFiredMessage field except `type`.
- *  Accepts `boolean` for the optional flags (the wire message narrows
- *  them to `true` via the builder below). */
-type CannonFiredPayload = Omit<
-  CannonFiredMessage,
-  "type" | "incendiary" | "mortar" | "scoringPlayerId"
-> & {
-  scoringPlayerId?: ValidPlayerSlot;
-  incendiary?: boolean;
-  mortar?: boolean;
-};
+/** Launch payload — every CannonFiredMessage field except the `type` tag. */
+type CannonFiredPayload = Omit<CannonFiredMessage, "type">;
 
 export const BATTLE_MESSAGE = {
   CANNON_FIRED: "cannonFired",
@@ -302,7 +293,7 @@ export function createCannonFiredMsg(
     impactAltitude: ball.impactAltitude,
     vy0: ball.vy0,
     flightTime: ball.flightTime,
-    incendiary: ball.incendiary ? true : undefined,
-    mortar: ball.mortar ? true : undefined,
+    incendiary: ball.incendiary,
+    mortar: ball.mortar,
   };
 }

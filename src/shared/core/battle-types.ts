@@ -41,9 +41,9 @@ export interface Cannon extends TilePos {
   /** Facing angle in radians (snapped to 45° increments). 0 = up. */
   facing?: number;
   /** True when this cannon is the elected mortar for the current battle round. */
-  mortar?: boolean;
+  mortar?: true;
   /** True when this cannon is shielded (immune to damage) for the current battle round. */
-  shielded?: boolean;
+  shielded?: true;
   /** Shield HP pool for rampart mode. Decremented when rampart absorbs a nearby wall hit.
    *  Separate from `hp` (direct-hit durability). Only used for RAMPART cannons. */
   shieldHp?: number;

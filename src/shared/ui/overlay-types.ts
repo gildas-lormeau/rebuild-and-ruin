@@ -188,8 +188,8 @@ export interface OverlayCannonball {
    *  directly each tick from the pinned trajectory — the renderer reads
    *  it rather than faking a sin-based arc. */
   altitude: number;
-  incendiary?: boolean;
-  mortar?: boolean;
+  incendiary?: true;
+  mortar?: true;
 }
 
 /** Propaganda balloon flight — overlay payload with animation progress. */
@@ -244,7 +244,7 @@ export interface BattleOverlay {
     col: number;
     row: number;
     mode: CannonMode;
-    mortar?: boolean;
+    mortar?: true;
     tier: 1 | 2 | 3;
   }[];
   /** Frostbite-reveal tint intensity in `[0, 1]` while the modifier

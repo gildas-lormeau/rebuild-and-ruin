@@ -37,6 +37,9 @@
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
     },
     {
+      "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
+    },
+    {
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
@@ -79,6 +82,9 @@
       "pair": "PitCreatedMessage@src/shared/core/battle-events.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
     },
     {
+      "pair": "PlayerSnapshot@test/network-bidirectional.test.ts ↔ PlayerSnapshot@test/network-vs-local.test.ts"
+    },
+    {
       "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
     },
     {
@@ -110,6 +116,9 @@
     },
     {
       "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+    },
+    {
+      "pair": "BallisticTrajectory@src/shared/core/battle-events.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
     },
     {
       "pair": "BallParams@src/render/3d/sprites/cannonball-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
@@ -274,6 +283,9 @@
       "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
     },
     {
+      "pair": "Cannon@src/shared/core/battle-types.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
+    },
+    {
       "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
     },
     {
@@ -299,15 +311,6 @@
     },
     {
       "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
-    },
-    {
-      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ FeatureDef@src/shared/core/feature-defs.ts"
-    },
-    {
-      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ ModifierDef@src/shared/core/modifier-defs.ts"
-    },
-    {
-      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
     },
     {
       "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
@@ -427,12 +430,6 @@
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
-      "pair": "FeatureDef@src/shared/core/feature-defs.ts ↔ ModifierDef@src/shared/core/modifier-defs.ts"
-    },
-    {
-      "pair": "FeatureDef@src/shared/core/feature-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
-    },
-    {
       "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
     },
     {
@@ -524,9 +521,6 @@
     },
     {
       "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"
-    },
-    {
-      "pair": "ModifierDef@src/shared/core/modifier-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
     },
     {
       "pair": "MusicSubsystem@src/runtime/music-player.ts ↔ SfxSubsystem@src/runtime/sfx-player.ts"

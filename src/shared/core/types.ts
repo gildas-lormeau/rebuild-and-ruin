@@ -258,7 +258,7 @@ export interface ModernState {
       mode: CannonMode;
       /** Mortar flag at capture time — drives debris-variant choice
        *  (mortar_debris vs tier_n_debris). */
-      mortar?: boolean;
+      mortar?: true;
       /** Owner's cannon tier at capture time — drives the
        *  tier_n_debris variant for non-special cannons. */
       tier: 1 | 2 | 3;
