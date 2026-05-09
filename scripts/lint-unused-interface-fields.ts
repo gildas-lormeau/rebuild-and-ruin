@@ -86,6 +86,41 @@ const TARGET_INTERFACES: readonly Target[] = [
   { file: "src/runtime/runtime-types.ts", interface: "OnlineActions" },
   { file: "src/runtime/runtime-types.ts", interface: "OnlineDialogDrains" },
   { file: "src/runtime/runtime-types.ts", interface: "NetworkApi" },
+  // Per-subsystem dep-injection contracts (XxxDeps) and system handles.
+  // Each one is a candidate to grow stale as call sites change shape.
+  { file: "src/runtime/runtime-phase-ticks.ts", interface: "PhaseTicksSystem" },
+  {
+    file: "src/runtime/runtime-upgrade-pick.ts",
+    interface: "UpgradePickSystem",
+  },
+  { file: "src/runtime/runtime-contracts.ts", interface: "OverlayActionDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "DpadDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "QuitButtonDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "ZoomButtonDeps" },
+  {
+    file: "src/runtime/runtime-contracts.ts",
+    interface: "FloatingActionsDeps",
+  },
+  {
+    file: "src/runtime/runtime-contracts.ts",
+    interface: "FloatingActionsHandle",
+  },
+  {
+    file: "src/runtime/runtime-contracts.ts",
+    interface: "RegisterOnlineInputDeps",
+  },
+  { file: "src/runtime/runtime-contracts.ts", interface: "GameActionDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "PointerMoveDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "TouchControlsDeps" },
+  { file: "src/runtime/runtime-contracts.ts", interface: "TimingApi" },
+  {
+    file: "src/online/online-server-lifecycle.ts",
+    interface: "HandleServerLifecycleDeps",
+  },
+  {
+    file: "src/online/online-server-events.ts",
+    interface: "HandleServerIncrementalDeps",
+  },
 ];
 
 main();

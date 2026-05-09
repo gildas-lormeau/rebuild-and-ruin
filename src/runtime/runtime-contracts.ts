@@ -386,9 +386,6 @@ export interface FloatingActionsDeps {
     max: number,
   ) => boolean;
   onPieceRotated?: () => void;
-  onPiecePlaced?: () => void;
-  onPieceFailed?: () => void;
-  onCannonPlaced?: () => void;
   /** Emit a `uiTap` bus event — see `DpadDeps.emitUiTap`. */
   emitUiTap?: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
