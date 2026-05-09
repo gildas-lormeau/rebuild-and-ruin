@@ -147,9 +147,7 @@ function analyzeField(sig: PropertySignature, container: string): Finding {
 }
 
 /** If `ref` is the name-position of an assignment, return the value node
- *  written; otherwise null. Reads, type references, and shorthand assigns
- *  (which we can't statically narrow without analyzing the local) all
- *  return null. */
+ *  written; otherwise null. Type references and reads return null. */
 function writeValueOf(ref: Node): Node | null {
   const parent = ref.getParent();
   if (!parent) return null;
@@ -158,6 +156,13 @@ function writeValueOf(ref: Node): Node | null {
     const propAssign = parent.asKindOrThrow(SyntaxKind.PropertyAssignment);
     if (propAssign.getNameNode() !== ref) return null;
     return propAssign.getInitializer() ?? null;
+  }
+
+  // Shorthand: `{ damaged }` — the ref node IS the value node. Its type
+  // is the local's type (boolean parameter, narrow flag, etc.), so the
+  // existing classifyValue path resolves correctly.
+  if (parent.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
+    return ref;
   }
 
   if (parent.isKind(SyntaxKind.PropertyAccessExpression)) {
