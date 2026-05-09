@@ -82,6 +82,7 @@ const CLASS_ORDER: Classification[] = [
   "ambiguous-fake",
   "suspicious-dead",
   "suspicious-write-only",
+  "suspicious-read-only",
   "truly-optional",
 ];
 
@@ -177,6 +178,7 @@ function main(): void {
     "write-only": 0,
     "suspicious-write-only": 0,
     "read-only": 0,
+    "suspicious-read-only": 0,
     "fake-optional": 0,
     "ambiguous-fake": 0,
     "truly-optional": 0,
@@ -341,6 +343,8 @@ function rationaleFor(
       return `${s.assigns} symbol-resolved assigns, 0 reads, but ${ctx.stringMatches} identifier match(es) elsewhere — likely read through a structurally-compatible sibling type; verify before treating as dead-write`;
     case "read-only":
       return `${s.guardedReads + s.unguardedReads} reads, 0 assigns; always undefined at runtime`;
+    case "suspicious-read-only":
+      return `${s.guardedReads + s.unguardedReads} reads, 0 symbol-resolved assigns, but ${ctx.stringMatches} identifier match(es) elsewhere — likely assigned through a structurally-typed factory whose contextual type doesn't resolve back to the interface; verify before treating as never-assigned`;
     case "fake-optional":
       return `${s.unguardedReads} reads (none defended), ${ctx.constructionSites} construction site(s) all set the field; safe to drop \`?\``;
     case "ambiguous-fake": {

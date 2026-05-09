@@ -298,6 +298,17 @@ Deno.test("classifyProperty: 0 assigns + reads = read-only", () => {
   assertEquals(classifyProperty(stats(0, 0, 1), 0, 1, 0), "read-only");
 });
 
+Deno.test("classifyProperty: 0 assigns + reads + extra ident matches = suspicious-read-only", () => {
+  // Real example: ZoomButtonDeps.aimAtZone — assigned in `buildZoomDeps`'s
+  // returned literal but the function has no return-type annotation, so the
+  // contextual type doesn't resolve and ts-morph misses the assign.
+  // 1 read accounted, 2 stringMatches → 1 unaccounted (the missed assign).
+  assertEquals(
+    classifyProperty(stats(0, 0, 1), 0, 2, 0),
+    "suspicious-read-only",
+  );
+});
+
 Deno.test("classifyProperty: assigns + guarded reads = truly-optional", () => {
   assertEquals(classifyProperty(stats(1, 1, 0), 0, 2, 1), "truly-optional");
 });

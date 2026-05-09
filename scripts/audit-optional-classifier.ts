@@ -26,6 +26,7 @@ export type Classification =
   | "dead"
   | "suspicious-dead"
   | "read-only"
+  | "suspicious-read-only"
   | "write-only"
   | "suspicious-write-only"
   | "fake-optional"
@@ -72,7 +73,14 @@ export function classifyProperty(
   if (effectiveAssigns === 0 && reads === 0) {
     return unaccountedMatches > 0 ? "suspicious-dead" : "dead";
   }
-  if (effectiveAssigns === 0 && reads > 0) return "read-only";
+  if (effectiveAssigns === 0 && reads > 0) {
+    // Same demotion pattern as suspicious-write-only: identifier matches the
+    // symbol-search didn't account for likely indicate an assign through a
+    // structurally-typed sibling/literal (e.g. `ZoomButtonDeps.aimAtZone` set
+    // by a no-return-type-annotation factory whose contextual type doesn't
+    // resolve back to the interface).
+    return unaccountedMatches > 0 ? "suspicious-read-only" : "read-only";
+  }
   if (effectiveAssigns > 0 && reads === 0) {
     return unaccountedMatches > 0 ? "suspicious-write-only" : "write-only";
   }
