@@ -267,6 +267,17 @@ function classifyPropertyAccessRead(pae: Node): RefKind {
     return "read-guarded";
   }
 
+  // `obj.method?.()` — the `?.` token sits on the CallExpression parent of the
+  // PropertyAccessExpression, not on the PAE itself, so the check above misses
+  // this very common defensive pattern.
+  const paeParent = pae.getParent();
+  if (
+    paeParent?.isKind(SyntaxKind.CallExpression) &&
+    paeParent.asKindOrThrow(SyntaxKind.CallExpression).hasQuestionDotToken()
+  ) {
+    return "read-guarded";
+  }
+
   let cursor: Node = pae;
   for (let depth = 0; depth < 6; depth++) {
     const p = cursor.getParent();
@@ -318,6 +329,15 @@ function classifyPropertyAccessRead(pae: Node): RefKind {
     }
 
     if (p.isKind(SyntaxKind.PrefixUnaryExpression)) {
+      // `!obj.x` is essentially always defensive — `!` only makes sense when
+      // the operand can be falsy, so the negation itself is a guard signal.
+      // (Walking up to find an enclosing if/while is too narrow: it misses
+      // `if (cond || !obj.x) return;`, `cond && !obj.x ? ...`, `return !obj.x`,
+      // etc., which are all defensive uses.)
+      const unary = p.asKindOrThrow(SyntaxKind.PrefixUnaryExpression);
+      if (unary.getOperatorToken() === SyntaxKind.ExclamationToken) {
+        return "read-guarded";
+      }
       cursor = p;
       continue;
     }
