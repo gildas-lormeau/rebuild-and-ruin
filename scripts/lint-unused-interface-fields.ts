@@ -142,6 +142,20 @@ const TARGET_INTERFACES: readonly Target[] = [
     file: "src/game/modifiers/modifier-types.ts",
     interface: "RoundScopedModifier",
   },
+  // Bus / scheduling primitives shared across runtime + game.
+  { file: "src/shared/core/game-event-bus.ts", interface: "GameEventBus" },
+  { file: "src/shared/core/action-schedule.ts", interface: "ActionSchedule" },
+  // Audio sub-systems: factory return types orchestrated by GameRuntime.
+  { file: "src/runtime/music-player.ts", interface: "MusicSubsystem" },
+  { file: "src/runtime/sfx-player.ts", interface: "SfxSubsystem" },
+  // Online composition root + battle-phase lifecycle facade.
+  { file: "src/online/online-stores.ts", interface: "OnlineClient" },
+  {
+    file: "src/runtime/runtime-phase-machine.ts",
+    interface: "BattleLifecycle",
+  },
+  // AI strategy — extension contract, multiple implementations.
+  { file: "src/ai/ai-strategy.ts", interface: "AiStrategy" },
   // Controller / observer contracts: same shape — impls subscribe to a
   // subset of hooks; runtime dispatches.
   {

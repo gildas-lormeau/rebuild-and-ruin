@@ -97,9 +97,6 @@ export interface AiStrategy {
   /** Called at the end of the build phase — assess home tower status. */
   assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void;
 
-  /** Whether home tower was not enclosed at the end of last build phase. */
-  readonly homeWasBroken: boolean;
-
   /** Initialize per-phase cannon-placement context — pre-rolls the
    *  probabilistic super/rampart/balloon decisions so subsequent
    *  per-cannon queries are deterministic. Called once at phase start. */
@@ -383,10 +380,6 @@ export class DefaultStrategy implements AiStrategy {
   /** Castle ring margin for secondary towers (derived from aggressiveness). */
   private get castleMargin(): 2 | 3 {
     return this.aggressiveness >= 3 ? 3 : 2;
-  }
-
-  get homeWasBroken(): boolean {
-    return this._homeWasBroken;
   }
 
   // -----------------------------------------------------------------------
