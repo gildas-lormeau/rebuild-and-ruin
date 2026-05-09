@@ -25,7 +25,7 @@ import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { GameMap, PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
-import { isPlayerEliminated } from "./player-types.ts";
+import { isPlayerEliminated, type Player } from "./player-types.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
 /** 90° angle step (π/2 radians) — used for 4-direction snapping. */
@@ -606,11 +606,6 @@ export function enemyZones(
   return zones;
 }
 
-/** Convert a packed tile key back to row/column coordinates. */
-export function unpackTile(key: number): { r: number; c: number } {
-  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
-}
-
 /** Compute the crosshair target for battle start (touch devices).
  *  - If `lastPos` targets a living enemy, return it.
  *  - Otherwise aim at the best enemy's home tower.
@@ -652,18 +647,6 @@ export function battleTargetPosition(
   return towerCenterPx(tower);
 }
 
-/** Return the player slot whose zone matches `zone`, or `undefined` if no
- *  player is assigned to that zone. Encodes the data-model invariant that
- *  zones are exclusive: at most one player per zone (river isolation).
- *  Use this in place of `playerZones.indexOf(zone)`. */
-export function playerByZone(
-  playerZones: readonly ZoneId[],
-  zone: ZoneId,
-): number | undefined {
-  const pid = playerZones.indexOf(zone);
-  return pid >= 0 ? pid : undefined;
-}
-
 /** Boundary helper: read a cell from `map.zones` and return it as a `ZoneId`,
  *  or `undefined` for out-of-bounds and water cells (the `0` sentinel).
  *  All grid reads should go through this so the water sentinel cannot leak
@@ -675,6 +658,92 @@ export function zoneAt(
 ): ZoneId | undefined {
   const cell = map.zones[row]?.[col];
   return cell === undefined || cell === 0 ? undefined : cell;
+}
+
+/** Pixel center of the castle owned by the player in `zoneId`: bounding
+ *  box of (walls ∪ home tower). Falls back to home tower alone when the
+ *  player has no walls yet, then to the zone's static tile-rect center
+ *  when the zone has no occupant (e.g. eliminated player path).
+ *
+ *  Single source of truth for "where is this player's castle" — used by
+ *  the camera (auto-zoom viewport center) and by overlay panel anchoring
+ *  (life-lost popup) so both line up under a zoomed viewport. */
+export function castleCenterPx(
+  players: readonly Player[],
+  playerZones: readonly ZoneId[],
+  mapZones: readonly (readonly ZoneCell[])[],
+  zoneId: ZoneId,
+): PixelPos {
+  const pid = playerByZone(playerZones, zoneId);
+  const player = pid !== undefined ? players[pid] : undefined;
+  if (player) {
+    let minR = Number.POSITIVE_INFINITY;
+    let maxR = Number.NEGATIVE_INFINITY;
+    let minC = Number.POSITIVE_INFINITY;
+    let maxC = Number.NEGATIVE_INFINITY;
+    let any = false;
+    if (player.walls.size > 0) {
+      for (const key of player.walls) {
+        const { r, c } = unpackTile(key);
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+        any = true;
+      }
+    }
+    if (player.homeTower) {
+      const tower = player.homeTower;
+      // 2x2 tower footprint extends to (row+1, col+1) inclusive.
+      if (tower.row < minR) minR = tower.row;
+      if (tower.row + 1 > maxR) maxR = tower.row + 1;
+      if (tower.col < minC) minC = tower.col;
+      if (tower.col + 1 > maxC) maxC = tower.col + 1;
+      any = true;
+    }
+    if (any) {
+      return {
+        x: ((minC + maxC + 1) * TILE_SIZE) / 2,
+        y: ((minR + maxR + 1) * TILE_SIZE) / 2,
+      };
+    }
+  }
+  let minR = GRID_ROWS;
+  let maxR = 0;
+  let minC = GRID_COLS;
+  let maxC = 0;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    const row = mapZones[r]!;
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (row[c] === zoneId) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+  }
+  return {
+    x: ((minC + maxC + 1) * TILE_SIZE) / 2,
+    y: ((minR + maxR + 1) * TILE_SIZE) / 2,
+  };
+}
+
+/** Convert a packed tile key back to row/column coordinates. */
+export function unpackTile(key: number): { r: number; c: number } {
+  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+}
+
+/** Return the player slot whose zone matches `zone`, or `undefined` if no
+ *  player is assigned to that zone. Encodes the data-model invariant that
+ *  zones are exclusive: at most one player per zone (river isolation).
+ *  Use this in place of `playerZones.indexOf(zone)`. */
+export function playerByZone(
+  playerZones: readonly ZoneId[],
+  zone: ZoneId,
+): number | undefined {
+  const pid = playerZones.indexOf(zone);
+  return pid >= 0 ? pid : undefined;
 }
 
 /** Pixel center of a tower footprint. */

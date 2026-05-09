@@ -16,12 +16,12 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   SCALE,
-  TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
+import { castleCenterPx } from "../shared/core/spatial.ts";
 import { type ComboEvent, type SelectionState } from "../shared/core/types.ts";
 import { UPGRADE_POOL } from "../shared/core/upgrade-defs.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -167,15 +167,14 @@ export function updateSelectionOverlay(
 export function handleLifeLostDialogClick(params: {
   view: RenderView;
   lifeLostDialog: LifeLostDialogState;
-  /** Canvas-pixel X coordinate (divided by SCALE internally for game-space hit testing). */
-  screenX: number;
-  /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
-  screenY: number;
+  /** World-pixel X coordinate (caller passes camera.screenToWorld output, so
+   *  the hit-test stays correct when the camera is zoomed to a viewport —
+   *  e.g. while a local player is choosing CONTINUE/ABANDON). */
+  gameX: number;
+  /** World-pixel Y coordinate. See gameX. */
+  gameY: number;
 }): { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null {
-  const { view, lifeLostDialog, screenX, screenY } = params;
-
-  const gameX = screenX / SCALE;
-  const gameY = screenY / SCALE;
+  const { view, lifeLostDialog, gameX, gameY } = params;
 
   for (const entry of lifeLostDialog.entries) {
     if (entry.choice !== LifeLostChoice.PENDING) continue;
@@ -258,42 +257,29 @@ export function handleUpgradePickClick(params: {
   return null;
 }
 
-/** Position the life-lost dialog panel centered over the player's zone towers.
- *  Falls back to the map center if no zone towers exist.
- *  Result is clamped to keep the panel 2px inside the tile-space edges. */
+/** Position the life-lost dialog panel at the same anchor the camera uses
+ *  for that zone's auto-zoom (wall + home-tower bounding-box center, via
+ *  `castleCenterPx`). Sharing the anchor keeps the panel screen-centered
+ *  under the zoomed viewport. Falls back to the map center when the
+ *  player has no zone (eliminated, no homeTower, no walls). Clamped 2px
+ *  inside the tile-space edges so it never crosses the map boundary. */
 export function lifeLostPanelPos(
   view: RenderView,
   playerId: ValidPlayerSlot,
 ): { px: number; py: number } {
   const zone = view.playerZones[playerId];
-  const zoneTowers =
+  const center =
     zone === undefined
-      ? []
-      : view.map.towers.filter((tower) => tower.zone === zone);
-  // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
-  const cx =
-    zoneTowers.length > 0
-      ? (zoneTowers.reduce((sum, tower) => sum + tower.col, 0) /
-          zoneTowers.length +
-          1) *
-        TILE_SIZE
-      : MAP_PX_W / 2;
-  const cy =
-    zoneTowers.length > 0
-      ? (zoneTowers.reduce((sum, tower) => sum + tower.row, 0) /
-          zoneTowers.length +
-          1) *
-        TILE_SIZE
-      : MAP_PX_H / 2;
-
+      ? { x: MAP_PX_W / 2, y: MAP_PX_H / 2 }
+      : castleCenterPx(view.players, view.playerZones, view.map.zones, zone);
   return {
     px: Math.max(
       2,
-      Math.min(MAP_PX_W - PANEL_W - 2, Math.round(cx - PANEL_W / 2)),
+      Math.min(MAP_PX_W - PANEL_W - 2, Math.round(center.x - PANEL_W / 2)),
     ),
     py: Math.max(
       2,
-      Math.min(MAP_PX_H - PANEL_H - 2, Math.round(cy - PANEL_H / 2)),
+      Math.min(MAP_PX_H - PANEL_H - 2, Math.round(center.y - PANEL_H / 2)),
     ),
   };
 }

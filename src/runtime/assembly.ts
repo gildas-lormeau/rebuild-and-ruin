@@ -17,6 +17,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/core/system-interfaces.ts";
+import { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
 import {
@@ -159,6 +160,20 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     const humanId: ValidPlayerSlot | null = isActivePlayer(myId)
       ? myId
       : (pointer?.playerId ?? null);
+    // Mirrors the povPlayerId derivation inside computeFrameContext:
+    // online → myId, local → pointer slot, demo → 0. Keeps the dialog
+    // membership check off the lifeLost types tier (interaction-types
+    // is a leaf, runtime-state shouldn't import it) by computing here.
+    const povSlot: ValidPlayerSlot = isActivePlayer(myId)
+      ? myId
+      : ((pointer?.playerId ?? 0) as ValidPlayerSlot);
+    const lifeLostDialog = deps.runtimeState.dialogs.lifeLost;
+    const lifeLostLocalPending =
+      lifeLostDialog !== null &&
+      lifeLostDialog.entries.some(
+        (entry) =>
+          entry.playerId === povSlot && entry.choice === LifeLostChoice.PENDING,
+      );
 
     const sessionLive = isSessionLive(deps.runtimeState);
     deps.runtimeState.frameMeta = computeFrameContext({
@@ -167,7 +182,8 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       timer: sessionLive ? deps.runtimeState.state.timer : 0,
       paused: isPaused(deps.runtimeState),
       quitPending: deps.runtimeState.quit.pending,
-      hasLifeLostDialog: deps.runtimeState.dialogs.lifeLost !== null,
+      hasLifeLostDialog: lifeLostDialog !== null,
+      lifeLostLocalPending,
       isSelectionReady: deps.isSelectionReady(),
       hasPointerPlayer: pointer !== null,
       pointerPlayerId: pointer?.playerId ?? null,

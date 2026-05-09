@@ -440,10 +440,6 @@ export interface CameraSystem {
 
   // Mobile zoom
   enableMobileZoom: () => void;
-  /** Re-engage the current phase's auto-zoom. Used at life-lost popup
-   *  time (spec: `scores → zoom → life lost popup`). No-op when
-   *  auto-zoom is disabled. */
-  engageAutoZoom: () => void;
   isMobileAutoZoom: () => boolean;
 
   // Touch battle targeting
@@ -678,7 +674,4 @@ export interface GameRuntime {
   /** Start the build→battle tilt. Called from `proceedToBattle` so the
    *  watcher plays the same tilt-before-balloons sequence as the host. */
   beginBattleTilt: () => void;
-  /** Re-engage the current phase's auto-zoom. Forwarded to the
-   *  watcher's life-lost display step. */
-  engageAutoZoom: () => void;
 }

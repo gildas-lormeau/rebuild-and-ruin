@@ -48,7 +48,7 @@ const FIXTURES = [
   "seed-0-modern.json",
   // Camera-determinism fixture: same headless run as seed-42-classic but
   // with mobileZoomEnabled=true so CAMERA_TARGET events are emitted at
-  // every phase entry / explicit zone command / engageAutoZoom / follow-
+  // every phase entry / explicit zone command / holdLifeLostZoom / follow-
   // crosshair trigger. Catches drift in the camera v2 phase-transition
   // and per-phase-memory paths.
   "seed-42-classic-camera.json",

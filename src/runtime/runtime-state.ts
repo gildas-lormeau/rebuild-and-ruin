@@ -229,6 +229,11 @@ interface FrameContextInputs {
   paused: boolean;
   quitPending: boolean;
   hasLifeLostDialog: boolean;
+  /** True iff the life-lost dialog is open AND the local pov player has an
+   *  unresolved entry. Drives the keep-zoom-on-local-zone branch in the
+   *  camera. Computed by the caller (assembly) so this layer doesn't depend
+   *  on dialog internals. */
+  lifeLostLocalPending: boolean;
   isSelectionReady: boolean;
   hasPointerPlayer: boolean;
   pointerPlayerId: ValidPlayerSlot | null;
@@ -464,6 +469,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     paused,
     quitPending,
     hasLifeLostDialog,
+    lifeLostLocalPending,
     isSelectionReady,
     hasPointerPlayer,
     pointerPlayerId,
@@ -476,6 +482,10 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   } = inputs;
 
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
+  // The local player has an unresolved life-lost entry: the camera should
+  // hold their home zone instead of unzooming. Gated on mobileAutoZoom — on
+  // desktop the popup sits over a fullMap view as before.
+  const lifeLostKeepZoom = mobileAutoZoom && lifeLostLocalPending;
 
   const phaseEnding =
     !mobileAutoZoom &&
@@ -486,7 +496,9 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   const inBattle = phase === Phase.BATTLE;
   const isTransition = isTransitionMode(mode);
   const shouldUnzoom =
-    uiBlocking ||
+    paused ||
+    quitPending ||
+    (hasLifeLostDialog && !lifeLostKeepZoom) ||
     phaseEnding ||
     isTransition ||
     (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
@@ -512,6 +524,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     uiBlocking,
     phaseEnding,
     shouldUnzoom,
+    lifeLostKeepZoom,
     isTransition,
   };
 }

@@ -727,7 +727,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPitchState: camera.getPitchState,
     cannonRotationSettled: () => cannonAnimator.allSettled(),
     beginBattleTilt: camera.beginBattleTilt,
-    engageAutoZoom: camera.engageAutoZoom,
   });
 
   // -------------------------------------------------------------------------
@@ -842,11 +841,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     hitTests: {
       lifeLostDialogClick: (screenX, screenY) => {
         if (!runtimeState.dialogs.lifeLost) return null;
+        // Route through the camera so the inverse viewport transform applies
+        // when zoomed in (lifeLostKeepZoom = true). Without this the hit-test
+        // assumes a fullMap viewport and misses on every tap/click.
+        const { wx, wy } = camera.screenToWorld(screenX, screenY);
         return handleLifeLostDialogClick({
           view: selectRenderView(runtimeState.state),
           lifeLostDialog: runtimeState.dialogs.lifeLost,
-          screenX,
-          screenY,
+          gameX: wx,
+          gameY: wy,
         });
       },
       upgradePickClick: (screenX, screenY) => {
@@ -980,6 +983,5 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     networkSend: config.network.send,
     getPitchState: camera.getPitchState,
     beginBattleTilt: camera.beginBattleTilt,
-    engageAutoZoom: camera.engageAutoZoom,
   };
 }

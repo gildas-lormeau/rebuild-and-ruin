@@ -47,10 +47,9 @@ import {
   battleTargetPosition,
   bestEnemyZone,
   cannonSize,
+  castleCenterPx as castleCenterPxShared,
   enemyZones,
-  playerByZone,
   pxToTile,
-  unpackTile,
   zoneAt,
 } from "../shared/core/spatial.ts";
 import type { FrameContext, GameState } from "../shared/core/types.ts";
@@ -209,14 +208,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // frameCtx.isSelectionReady). One-shot is intrinsic: consume = clear.
   let selectionTargetVp: TilePos | undefined;
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
-  // Tile-rect of every zone, derived from `state.map.zones`. Tile-mutating
-  // modifiers (sinkhole, high-tide, low-water) recompute zones and bump
-  // `state.map.mapVersion`; we invalidate the cache when the version
-  // advances. Used for both auto-zoom centering and the pinch-on-own-zone
-  // check in BATTLE.
-  const cachedZoneTileBounds = new Map<number, TileBounds>();
-  let cachedZoneTileBoundsMapVersion = -1;
-
   const fullMapVp: Viewport = {
     x: 0,
     y: 0,
@@ -370,37 +361,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return enemyZones(state.players, state.playerZones, povPlayerId());
   }
 
-  /** Tile-bounds of a zone, scanned from `state.map.zones`. Cache keyed
-   *  on `state.map.mapVersion` so tile-mutating modifiers invalidate it. */
-  function computeZoneTileBounds(zoneId: ZoneId): TileBounds {
-    const state = deps.getState()!;
-    if (state.map.mapVersion !== cachedZoneTileBoundsMapVersion) {
-      cachedZoneTileBounds.clear();
-      cachedZoneTileBoundsMapVersion = state.map.mapVersion;
-    }
-    const cached = cachedZoneTileBounds.get(zoneId);
-    if (cached) return cached;
-    const zones = state.map.zones;
-    let minR = GRID_ROWS,
-      maxR = 0,
-      minC = GRID_COLS,
-      maxC = 0;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      const row = zones[r]!;
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (row[c] === zoneId) {
-          if (r < minR) minR = r;
-          if (r > maxR) maxR = r;
-          if (c < minC) minC = c;
-          if (c > maxC) maxC = c;
-        }
-      }
-    }
-    const bounds: TileBounds = { minR, maxR, minC, maxC };
-    cachedZoneTileBounds.set(zoneId, bounds);
-    return bounds;
-  }
-
   /** Auto-zoom viewport for a zone: fixed size (ZONE_AUTO_ZOOM_RATIO of map),
    *  centered on the geometric center of the player's castle (walls + home
    *  tower bounding box). Falls back to the home tower alone when the
@@ -415,51 +375,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return { x, y, w, h };
   }
 
-  /** Pixel center of the castle owned by the player in `zoneId`: bounding
-   *  box of walls + home tower (best for the zone-cycle use case so the
-   *  whole castle area frames symmetrically). Falls back to the home tower
-   *  when there are no walls, then to the zone's static tile-rect center. */
+  /** Pixel center of the player's castle in `zoneId` — wraps the shared
+   *  `castleCenterPx` helper with the camera's `state` access. Same anchor
+   *  is used by the life-lost popup so the panel sits at the viewport
+   *  center under the auto-zoom. */
   function castleCenterPx(zoneId: ZoneId): { x: number; y: number } {
-    const state = deps.getState();
-    const pid = state ? playerByZone(state.playerZones, zoneId) : undefined;
-    const player = pid !== undefined ? state!.players[pid] : undefined;
-    if (player) {
-      let minR = Number.POSITIVE_INFINITY;
-      let maxR = Number.NEGATIVE_INFINITY;
-      let minC = Number.POSITIVE_INFINITY;
-      let maxC = Number.NEGATIVE_INFINITY;
-      let any = false;
-      if (player.walls.size > 0) {
-        for (const key of player.walls) {
-          const { r, c } = unpackTile(key);
-          if (r < minR) minR = r;
-          if (r > maxR) maxR = r;
-          if (c < minC) minC = c;
-          if (c > maxC) maxC = c;
-          any = true;
-        }
-      }
-      if (player.homeTower) {
-        const t = player.homeTower;
-        // 2x2 tower footprint extends to (row+1, col+1) inclusive.
-        if (t.row < minR) minR = t.row;
-        if (t.row + 1 > maxR) maxR = t.row + 1;
-        if (t.col < minC) minC = t.col;
-        if (t.col + 1 > maxC) maxC = t.col + 1;
-        any = true;
-      }
-      if (any) {
-        return {
-          x: ((minC + maxC + 1) * TILE_SIZE) / 2,
-          y: ((minR + maxR + 1) * TILE_SIZE) / 2,
-        };
-      }
-    }
-    const bounds = computeZoneTileBounds(zoneId);
-    return {
-      x: ((bounds.minC + bounds.maxC + 1) * TILE_SIZE) / 2,
-      y: ((bounds.minR + bounds.maxR + 1) * TILE_SIZE) / 2,
-    };
+    const state = deps.getState()!;
+    return castleCenterPxShared(
+      state.players,
+      state.playerZones,
+      state.map.zones,
+      zoneId,
+    );
   }
 
   /** Frame the precomputed ideal castle ring (one tile outside the castle's
@@ -482,7 +409,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Camera target events ---
   //
   // Discrete-transition emit: phase entry / per-phase restore, explicit
-  // zone command (zone-cycle button), engageAutoZoom (life-lost),
+  // zone command (zone-cycle button), holdLifeLostZoom (life-lost),
   // follow-crosshair, pinch-end. Continuous motion (edge-pan, tap-nudge
   // animation, mid-pinch updates) does NOT emit — only the moments where
   // the player's intended target changes. Gated on `mobileZoomEnabled` so
@@ -533,7 +460,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // the user `target` is recorded into per-phase memory each frame and
   // restored on phase re-entry (zone or pinch identity preserved). The
   // zone kind is only ever installed by the touch zone-cycle button or
-  // by the battle crosshair-follow / life-lost engageAutoZoom paths
+  // by the battle crosshair-follow / life-lost holdLifeLostZoom paths
   // (explicit user navigation), never by phase transitions directly.
 
   // --- Per-frame tick ---
@@ -554,6 +481,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (!state) return;
     const frameCtx = deps.getCtx();
 
+    holdLifeLostZoom(state, frameCtx);
     unzoomForOverlays(state, frameCtx);
     restoreCameraAfterOverlay(state, frameCtx);
     handleSelectionZoom(state, frameCtx);
@@ -564,6 +492,22 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     tickTapNudge();
     recordCameraForPhase(state, frameCtx);
     tickPitch();
+  }
+
+  /** Snap to the local pov player's home zone while they have an unresolved
+   *  life-lost entry. Runs before `unzoomForOverlays` — `lifeLostKeepZoom`
+   *  also gates `shouldUnzoom` off in `computeFrameContext`, so the
+   *  overlay-unzoom path won't fight us. The zone is set silently to keep
+   *  the touch zone-cycle button color in sync without firing a user-target
+   *  event (the popup-driven snap isn't user intent). Idempotent across
+   *  frames: a no-op once the target already matches the local zone. */
+  function holdLifeLostZoom(_state: GameState, frameCtx: FrameContext): void {
+    if (!frameCtx.lifeLostKeepZoom) return;
+    if (!mobileAutoZoomActive()) return;
+    const myZone = getMyZone();
+    if (myZone === null) return;
+    if (target.kind === "zone" && target.zone === myZone) return;
+    setCameraZoneInternal(myZone, "lifeLostHold");
   }
 
   /** When the battle crosshair crosses into a different zone, snap the camera
@@ -937,12 +881,23 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  pinch is transient (river-pan visibility-keeping pan, not user
    *  intent — the slot keeps the last meaningful value so re-entry
    *  restores a real anchor). The castle-frame override is intentionally
-   *  not memorable — it lives only while the matching mode is active. */
+   *  not memorable — it lives only while the matching mode is active.
+   *
+   *  Also skipped while `lifeLostKeepZoom` holds the camera at the local
+   *  player's zone: that snap is system-imposed, not the user's chosen
+   *  build-phase target, so memorizing it would clobber the pinch / zone
+   *  the player set during the just-ended WALL_BUILD. */
   function recordCameraForPhase(
     state: GameState,
     frameCtx: FrameContext,
   ): void {
-    if (frameCtx.shouldUnzoom || frameCtx.isTransition) return;
+    if (
+      frameCtx.shouldUnzoom ||
+      frameCtx.isTransition ||
+      frameCtx.lifeLostKeepZoom
+    ) {
+      return;
+    }
     const slot = phaseSlot(state.phase);
     if (!slot) return;
     if (target.kind === "pinch") {
@@ -1326,8 +1281,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     lastAutoZoomPhase = undefined;
     selectionTargetVp = undefined;
     lastBattleCrosshair = undefined;
-    cachedZoneTileBounds.clear();
-    cachedZoneTileBoundsMapVersion = -1;
   }
 
   function resetCamera(): void {
@@ -1374,7 +1327,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setCameraZoneInternal(zone, "userZone");
   }
 
-  /** Internal setter that lets sub-systems (engageAutoZoom, follow-crosshair)
+  /** Internal setter that lets sub-systems (holdLifeLostZoom, follow-crosshair)
    *  attribute the source on the emitted CAMERA_TARGET event. The public
    *  `setCameraZone` is reserved for the zone-cycle button path.
    *
@@ -1417,18 +1370,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function enableMobileZoom(): void {
     mobileZoomEnabled = true;
-  }
-
-  /** Snap the camera to the pov player's home zone before the life-lost
-   *  popup opens (spec sequence: scores → zoom → life-lost popup). Called
-   *  by the phase machine at life-loss time. No-op when mobile auto-zoom
-   *  is disabled. The home-zone snap goes through `setCameraZoneInternal`
-   *  so the touch zone-cycle button color reflects the active state. */
-  function engageAutoZoom(): void {
-    if (!mobileAutoZoomActive()) return;
-    const myZone = getMyZone();
-    if (myZone === null) return;
-    setCameraZoneInternal(myZone, "engageAutoZoom");
   }
 
   // --- Touch battle targeting ---
@@ -1495,7 +1436,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setCastleBuildViewport,
     clearCastleBuildViewport,
     enableMobileZoom,
-    engageAutoZoom,
     isMobileAutoZoom: mobileAutoZoomActive,
     computeBattleTarget,
     saveBattleCrosshair,

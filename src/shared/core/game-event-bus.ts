@@ -261,7 +261,7 @@ export type CameraTargetSource =
   | "phaseEnterDefault"
   | "userZone"
   | "userPinch"
-  | "engageAutoZoom"
+  | "lifeLostHold"
   | "followCrosshair";
 
 /** All game events across all categories. */

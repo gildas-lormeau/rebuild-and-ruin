@@ -354,6 +354,14 @@ export interface FrameContext {
   readonly phaseEnding: boolean;
   /** Camera should unzoom (uiBlocking OR phaseEnding). */
   readonly shouldUnzoom: boolean;
+  /** Life-lost dialog is open AND the local pov player has an unresolved
+   *  entry. While true, the camera holds the local player's home zone
+   *  (overrides the standard `hasLifeLostDialog → unzoom` behavior) so
+   *  the popup sits over their territory while they pick CONTINUE/ABANDON.
+   *  Flips false the moment their entry resolves, even if the dialog stays
+   *  open for other players — at which point the normal overlay-unzoom
+   *  takes over and the camera snaps to fullMap. */
+  readonly lifeLostKeepZoom: boolean;
   /** Non-interactive transition — camera suppresses auto-zoom. */
   readonly isTransition: boolean;
 }
