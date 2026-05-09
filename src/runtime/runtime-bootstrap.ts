@@ -184,7 +184,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
       const isAi = !deps.humanSlots[i];
       const privateSeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
       const personality = isAi
-        ? aiStrategy!.rollPersonality(state.rng, undefined, deps.difficulty)
+        ? aiStrategy!.rollPersonality(state.rng, deps.difficulty)
         : undefined;
       return factory(
         i as ValidPlayerSlot,

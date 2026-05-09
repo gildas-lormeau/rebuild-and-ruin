@@ -291,10 +291,9 @@ export const CHAIN = {
  *    Very Hard(3): hi end plus 1 (capped) — exceeds archetype limits */
 export function rollPersonality(
   rng: Rng,
-  archetype?: ArchetypeId,
   difficulty: number = DIFFICULTY_NORMAL,
 ): AiPersonality {
-  const chosen = archetype ?? rng.pick(ARCHETYPE_LIST);
+  const chosen = rng.pick(ARCHETYPE_LIST);
   const profile = ARCHETYPE_PROFILES[chosen];
   const bias = (range: [number, number], cap: number): number => {
     if (difficulty <= DIFFICULTY_EASY) return Math.max(1, range[0] - 1);

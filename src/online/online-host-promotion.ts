@@ -59,11 +59,7 @@ export function rebuildControllersForPhase(
       const personalityRng = new Rng(
         deriveAiStrategySeed(state.rng.seed ^ 1, state.round, pid),
       );
-      const personality = rollPersonality(
-        personalityRng,
-        undefined,
-        difficulty,
-      );
+      const personality = rollPersonality(personalityRng, difficulty);
       const ctrl = await createAiController(pid, strategyRng, personality);
 
       // Initialize AI for the current phase
