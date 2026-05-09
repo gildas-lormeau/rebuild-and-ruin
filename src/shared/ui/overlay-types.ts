@@ -13,12 +13,7 @@ import type {
 } from "../core/battle-types.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
 import { Phase } from "../core/game-phase.ts";
-import type {
-  GameMap,
-  House,
-  TilePos,
-  Viewport,
-} from "../core/geometry-types.ts";
+import type { GameMap, TilePos, Viewport } from "../core/geometry-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
@@ -143,7 +138,6 @@ export interface SelectionOverlay {
 
 /** Map entities — present in all phases. */
 export interface EntityOverlay {
-  houses?: readonly House[];
   grunts?: readonly Grunt[];
   towerAlive?: readonly boolean[];
   burningPits?: readonly BurningPit[];

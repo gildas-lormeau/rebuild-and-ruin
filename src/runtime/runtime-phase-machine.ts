@@ -111,7 +111,6 @@ interface TransitionResult {
   readonly flights: readonly BalloonFlight[];
   readonly needsReselect?: readonly ValidPlayerSlot[];
   readonly eliminated?: readonly ValidPlayerSlot[];
-  readonly preScores?: readonly number[];
   /** Populated by the `life-lost-dialog` display step once the dialog
    *  resolves (or immediately, for the all-pre-resolved path). Read by
    *  `ROUND_END`'s postDisplay to route via `resolveAfterLifeLost`.
@@ -409,7 +408,7 @@ const ROUND_END: Transition = {
     // eliminated players (lives = 0) are filtered out before the compare.
     const gameOverOutcome = peekGameOverOutcome(ctx.state);
     if (gameOverOutcome) {
-      return { ...EMPTY_TRANSITION_RESULT, preScores, gameOverOutcome };
+      return { ...EMPTY_TRANSITION_RESULT, gameOverOutcome };
     }
     // Game continues — advance the counter and emit ROUND_START so the
     // life-lost popup (and everything after it) reads the new round.
@@ -419,7 +418,6 @@ const ROUND_END: Transition = {
       ...EMPTY_TRANSITION_RESULT,
       needsReselect,
       eliminated,
-      preScores,
     };
   },
   display: [{ kind: STEP_SCORE_OVERLAY }, { kind: STEP_LIFE_LOST_DIALOG }],

@@ -108,7 +108,6 @@ export function createOptionsOverlay(frameCtx: UIContext): {
     castles,
     entities: state
       ? {
-          houses: state.map.houses,
           towerAlive: state.towerAlive,
           burningPits: state.burningPits,
         }

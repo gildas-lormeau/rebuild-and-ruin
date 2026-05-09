@@ -321,7 +321,6 @@ export function createOnlineOverlay(
     selection: previousSelection,
     castles: buildCastleOverlay(view),
     entities: {
-      houses: view.map.houses,
       grunts: view.grunts,
       towerAlive: view.towerAlive,
       burningPits: view.burningPits,
