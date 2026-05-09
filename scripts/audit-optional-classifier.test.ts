@@ -203,6 +203,71 @@ Deno.test("classifier: parenthesized (obj.foo) preserves guard analysis", () => 
   assertEquals(kinds, ["read-guarded"]);
 });
 
+Deno.test("classifier: const alias + !local guard counts as guarded", () => {
+  const kinds = classifyAllRefs(`
+    interface Foo { foo?: { bar: number } }
+    declare const obj: Foo;
+    function f() {
+      const local = obj.foo;
+      if (!local) return;
+      console.log(local.bar);
+    }
+  `);
+  assertEquals(kinds, ["read-guarded"]);
+});
+
+Deno.test("classifier: const alias + if (local) guard counts as guarded", () => {
+  const kinds = classifyAllRefs(`
+    interface Foo { foo?: string }
+    declare const obj: Foo;
+    function f() {
+      const local = obj.foo;
+      if (local) console.log(local);
+    }
+  `);
+  assertEquals(kinds, ["read-guarded"]);
+});
+
+Deno.test("classifier: const alias + local === undefined counts as guarded", () => {
+  const kinds = classifyAllRefs(`
+    interface Foo { foo?: string }
+    declare const obj: Foo;
+    function f() {
+      const local = obj.foo;
+      if (local === undefined) return;
+      console.log(local);
+    }
+  `);
+  assertEquals(kinds, ["read-guarded"]);
+});
+
+Deno.test("classifier: const alias with no defensive use stays unguarded", () => {
+  const kinds = classifyAllRefs(`
+    interface Foo { foo?: string }
+    declare const obj: Foo;
+    function f() {
+      const local = obj.foo;
+      console.log(local);
+    }
+  `);
+  assertEquals(kinds, ["read-unguarded"]);
+});
+
+Deno.test("classifier: const alias with destructured RHS skips alias check", () => {
+  // \`const { x } = obj.foo\` — the binding is a pattern, not a name; we don't
+  // try to track per-field guards. Still classifies as unguarded since no
+  // direct guard pattern wraps obj.foo.
+  const kinds = classifyAllRefs(`
+    interface Foo { foo?: { x: number } }
+    declare const obj: Foo;
+    function f() {
+      const { x } = obj.foo!;
+      console.log(x);
+    }
+  `);
+  assertEquals(kinds, ["read-unguarded"]);
+});
+
 /** Spin up an in-memory project, find references to `Foo.foo`, classify each
  *  non-declaration reference. Returns the list of RefKinds in source order
  *  so a single test can assert "the patterns in this file all classify as X".

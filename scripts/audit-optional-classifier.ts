@@ -163,5 +163,93 @@ function classifyPropertyAccessRead(pae: Node): RefKind {
     break;
   }
 
+  // `const route = ctx.lifeLostRoute; if (!route) return;` — the read of
+  // `ctx.lifeLostRoute` is itself unguarded, but the local alias has a guard.
+  // Walk local's references for defensive patterns before declaring this
+  // unguarded. Only applied at fall-through so the cheap checks above shortcut.
+  if (
+    pae.isKind(SyntaxKind.PropertyAccessExpression) &&
+    isAliasedAndDefended(pae)
+  ) {
+    return "read-guarded";
+  }
   return "read-unguarded";
+}
+
+/** Detect the `const local = obj.foo; ...if (!local) ...` pattern. The PAE
+ *  must be the initializer of a single-name variable declaration; if any
+ *  reference of the local is itself in a guard context, the property access
+ *  is effectively defended. Skips destructuring (the binding-pattern path is
+ *  already handled as guarded by `classifyRef`). */
+function isAliasedAndDefended(pae: Node): boolean {
+  const parent = pae.getParent();
+  if (!parent?.isKind(SyntaxKind.VariableDeclaration)) return false;
+  const decl = parent.asKindOrThrow(SyntaxKind.VariableDeclaration);
+  if (decl.getInitializer() !== pae) return false;
+  const nameNode = decl.getNameNode();
+  if (!nameNode.isKind(SyntaxKind.Identifier)) return false;
+  const localId = nameNode.asKindOrThrow(SyntaxKind.Identifier);
+  for (const ref of localId.findReferencesAsNodes()) {
+    if (ref === localId) continue;
+    if (isReferenceDefensive(ref)) return true;
+  }
+  return false;
+}
+
+/** Same family of guard patterns as `classifyPropertyAccessRead`, but applied
+ *  to a plain Identifier reference (not a PAE). Used by the alias check. */
+function isReferenceDefensive(ref: Node): boolean {
+  const parent = ref.getParent();
+  if (!parent) return false;
+  if (parent.isKind(SyntaxKind.PrefixUnaryExpression)) {
+    const u = parent.asKindOrThrow(SyntaxKind.PrefixUnaryExpression);
+    if (u.getOperatorToken() === SyntaxKind.ExclamationToken) return true;
+  }
+  if (parent.isKind(SyntaxKind.IfStatement)) {
+    if (parent.asKindOrThrow(SyntaxKind.IfStatement).getExpression() === ref) {
+      return true;
+    }
+  }
+  if (parent.isKind(SyntaxKind.WhileStatement)) {
+    if (
+      parent.asKindOrThrow(SyntaxKind.WhileStatement).getExpression() === ref
+    ) {
+      return true;
+    }
+  }
+  if (parent.isKind(SyntaxKind.ConditionalExpression)) {
+    if (
+      parent.asKindOrThrow(SyntaxKind.ConditionalExpression).getCondition() ===
+      ref
+    ) {
+      return true;
+    }
+  }
+  if (parent.isKind(SyntaxKind.TypeOfExpression)) return true;
+  if (parent.isKind(SyntaxKind.BinaryExpression)) {
+    const be = parent.asKindOrThrow(SyntaxKind.BinaryExpression);
+    const op = be.getOperatorToken().getKind();
+    if (op === SyntaxKind.QuestionQuestionToken && be.getLeft() === ref) {
+      return true;
+    }
+    if (
+      (op === SyntaxKind.BarBarToken ||
+        op === SyntaxKind.AmpersandAmpersandToken) &&
+      be.getLeft() === ref
+    ) {
+      return true;
+    }
+    const guardOps = new Set<number>([
+      SyntaxKind.EqualsEqualsEqualsToken,
+      SyntaxKind.ExclamationEqualsEqualsToken,
+      SyntaxKind.EqualsEqualsToken,
+      SyntaxKind.ExclamationEqualsToken,
+    ]);
+    if (guardOps.has(op)) {
+      const other = be.getLeft() === ref ? be.getRight() : be.getLeft();
+      const text = other.getText();
+      if (text === "undefined" || text === "null") return true;
+    }
+  }
+  return false;
 }
