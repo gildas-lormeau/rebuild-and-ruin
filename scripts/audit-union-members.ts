@@ -25,11 +25,24 @@
  *                          forward-looking IDs whose dead arms are
  *                          intentional per CLAUDE.md)
  *
+ * Two origin shapes detected:
+ *   direct           `type X = "a" | "b" | "c"`
+ *   typeof-derived   `type X = typeof X_LIST[number]` etc. Resolved via
+ *                    the type checker; the source const's statement range
+ *                    is excluded from occurrence counting so the
+ *                    literal-list declaration doesn't count as a use.
+ *                    Only array-literal sources (`["a", "b"] as const`)
+ *                    are accepted; object-literal and enum sources are
+ *                    skipped wholesale, because consumers reach members
+ *                    via property/enum access (`OBJ.A`, `Enum.A`) so the
+ *                    bare literal never appears at use sites and every
+ *                    member would falsely classify as dead.
+ *
  * Heuristic limitations:
- *  - Top-level `type X = ...` aliases only. typeof-derived unions
- *    (`type X = typeof X_LIST[number]`) and inline unions
+ *  - Top-level `type X = ...` aliases only. Inline unions
  *    (`function f(mode: "a" | "b")`) are not covered.
- *  - "Occurrence" = any string-literal node outside a LiteralType ancestor.
+ *  - "Occurrence" = any string-literal node outside a LiteralType ancestor
+ *    (and outside the source const's statement range, for typeof-derived).
  *    Producers (writes, args, returns) and consumers (===, switch case)
  *    aren't distinguished. A member referenced only by `if (x === "c")`
  *    with no producer is reported "active" here even though the arm is
@@ -42,6 +55,7 @@
 import path from "node:path";
 import process from "node:process";
 import {
+  Node,
   type NoSubstitutionTemplateLiteral,
   Project,
   type StringLiteral,
@@ -68,9 +82,16 @@ interface UnionFinding {
   type: string;
   file: string;
   line: number;
+  origin: "direct" | "typeof-derived";
   memberCount: number;
   members: MemberFinding[];
   isRegistry: boolean;
+}
+
+interface ExcludeRange {
+  file: string;
+  startLine: number;
+  endLine: number;
 }
 
 const RARE_MAX = 2;
@@ -146,10 +167,52 @@ function indexLiteral(
 }
 
 function analyzeTypeAlias(ta: TypeAliasDeclaration): UnionFinding | null {
+  let memberValues: string[] | null;
+  let origin: "direct" | "typeof-derived";
+  let excludeRanges: ExcludeRange[];
+
+  memberValues = extractDirectStringUnion(ta);
+  if (memberValues) {
+    origin = "direct";
+    excludeRanges = [];
+  } else {
+    const resolved = resolveTypeofDerived(ta);
+    if (!resolved) return null;
+    memberValues = resolved.members;
+    origin = "typeof-derived";
+    excludeRanges = resolved.excludeRanges;
+  }
+  if (memberValues.length < 2) return null;
+
+  const file = path.relative(process.cwd(), ta.getSourceFile().getFilePath());
+  const isRegistry = REGISTRY_FILE_RE.test(file);
+
+  const memberFindings: MemberFinding[] = memberValues.map((value) => {
+    const allSites = occurrences.get(value) ?? [];
+    const sites = filterByExcludeRanges(allSites, excludeRanges);
+    return {
+      value,
+      occurrenceCount: sites.length,
+      classification: classify(sites.length),
+      occurrences: sites.slice(0, 5),
+    };
+  });
+
+  return {
+    type: ta.getName(),
+    file,
+    line: ta.getStartLineNumber(),
+    origin,
+    memberCount: memberValues.length,
+    members: memberFindings,
+    isRegistry,
+  };
+}
+
+function extractDirectStringUnion(ta: TypeAliasDeclaration): string[] | null {
   const node = ta.getTypeNode();
   if (!node?.isKind(SyntaxKind.UnionType)) return null;
   const union = node.asKindOrThrow(SyntaxKind.UnionType);
-
   const memberValues: string[] = [];
   for (const memberType of union.getTypeNodes()) {
     if (!memberType.isKind(SyntaxKind.LiteralType)) return null;
@@ -167,29 +230,79 @@ function analyzeTypeAlias(ta: TypeAliasDeclaration): UnionFinding | null {
       | NoSubstitutionTemplateLiteral;
     memberValues.push(literal.getLiteralText());
   }
-  if (memberValues.length < 2) return null;
+  return memberValues;
+}
 
-  const file = path.relative(process.cwd(), ta.getSourceFile().getFilePath());
-  const isRegistry = REGISTRY_FILE_RE.test(file);
+function resolveTypeofDerived(
+  ta: TypeAliasDeclaration,
+): { members: string[]; excludeRanges: ExcludeRange[] } | null {
+  const typeNode = ta.getTypeNode();
+  if (!typeNode) return null;
+  const typeQueries = typeNode.getDescendantsOfKind(SyntaxKind.TypeQuery);
+  if (typeQueries.length === 0) return null;
 
-  const memberFindings: MemberFinding[] = memberValues.map((value) => {
-    const sites = occurrences.get(value) ?? [];
-    return {
-      value,
-      occurrenceCount: sites.length,
-      classification: classify(sites.length),
-      occurrences: sites.slice(0, 5),
-    };
-  });
+  const type = ta.getType();
+  if (!type.isUnion()) return null;
+  const members: string[] = [];
+  for (const unionMember of type.getUnionTypes()) {
+    if (!unionMember.isStringLiteral()) return null;
+    const value = unionMember.getLiteralValue();
+    if (typeof value !== "string") return null;
+    members.push(value);
+  }
 
-  return {
-    type: ta.getName(),
-    file,
-    line: ta.getStartLineNumber(),
-    memberCount: memberValues.length,
-    members: memberFindings,
-    isRegistry,
-  };
+  const excludeRanges: ExcludeRange[] = [];
+  for (const tq of typeQueries) {
+    const exprName = tq.getExprName();
+    if (!Node.isIdentifier(exprName)) continue;
+    for (const def of exprName.getDefinitionNodes()) {
+      // Only array-literal sources (`["a", "b"] as const`) survive.
+      // Object-literal sources have consumers reach members via
+      // property-access (`OBJ.A`), enum sources via member-access
+      // (`Enum.A`). Bare-literal use is rare for those, so
+      // literal-counting produces false-positive "dead" findings on
+      // every member. Whitelist arrays; skip everything else.
+      if (!sourceIsArrayLiteralConst(def)) return null;
+      const stmt =
+        def.getFirstAncestorByKind(SyntaxKind.VariableStatement) ?? def;
+      excludeRanges.push({
+        file: path.relative(process.cwd(), stmt.getSourceFile().getFilePath()),
+        startLine: stmt.getStartLineNumber(),
+        endLine: stmt.getEndLineNumber(),
+      });
+    }
+  }
+
+  return { members, excludeRanges };
+}
+
+function filterByExcludeRanges(
+  sites: OccurrenceSite[],
+  ranges: ExcludeRange[],
+): OccurrenceSite[] {
+  if (ranges.length === 0) return sites;
+  return sites.filter(
+    (site) =>
+      !ranges.some(
+        (range) =>
+          range.file === site.file &&
+          site.line >= range.startLine &&
+          site.line <= range.endLine,
+      ),
+  );
+}
+
+function sourceIsArrayLiteralConst(def: Node): boolean {
+  const varDecl = Node.isVariableDeclaration(def)
+    ? def
+    : def.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  if (!varDecl) return false;
+  let init = varDecl.getInitializer();
+  if (!init) return false;
+  if (init.isKind(SyntaxKind.AsExpression)) {
+    init = init.asKindOrThrow(SyntaxKind.AsExpression).getExpression();
+  }
+  return init.isKind(SyntaxKind.ArrayLiteralExpression);
 }
 
 function classify(count: number): Classification {
@@ -217,7 +330,9 @@ function printReport(items: UnionFinding[]): void {
     `\n=== unions with dead members (${unionsWithDead.length} types, ${totalDead} dead arms) ===`,
   );
   for (const union of unionsWithDead) {
-    console.log(`\n  ${union.type}  ${union.file}:${union.line}`);
+    console.log(
+      `\n  ${union.type}  ${union.file}:${union.line}  [${union.origin}]`,
+    );
     for (const member of union.members) {
       if (member.classification === "active" && !includeActive) continue;
       if (member.classification === "rare" && !includeRare) continue;
