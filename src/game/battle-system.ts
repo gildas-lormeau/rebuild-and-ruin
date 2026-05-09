@@ -476,8 +476,9 @@ export function prepareCannonFireForLockstep(
 /** Originator-side apply for the lockstep scheduled-actions queue.
  *
  * Pushes the ball + bumps `state.shotsFired` + emits `CANNON_FIRED` on the
- * local bus. Receivers use `applyCannonFired` instead — different bus
- * emit shape, but identical state mutations.
+ * local bus, then clears the pending-fire entry so the cannon can be
+ * scheduled again. Receivers use `applyCannonFired` instead — same
+ * cannonball push, no bus emit, no pending-fires bookkeeping.
  *
  * Both peers schedule for the same `applyAt`, so cross-peer ball-push,
  * scoring, and bus-driven side effects (haptics, combo accrual) align.
@@ -486,34 +487,7 @@ export function applyCannonFiredOriginator(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
-  state.shotsFired++;
-  state.cannonballs.push({
-    cannonIdx: msg.cannonIdx,
-    startX: msg.startX,
-    startY: msg.startY,
-    x: msg.launchX,
-    y: msg.launchY,
-    targetX: msg.targetX,
-    targetY: msg.targetY,
-    speed: msg.speed,
-    playerId: msg.playerId,
-    scoringPlayerId: msg.scoringPlayerId,
-    launchX: msg.launchX,
-    launchY: msg.launchY,
-    launchAltitude: msg.launchAltitude,
-    impactX: msg.impactX,
-    impactY: msg.impactY,
-    impactRow: msg.impactRow,
-    impactCol: msg.impactCol,
-    impactAltitude: msg.impactAltitude,
-    vy0: msg.vy0,
-    flightTime: msg.flightTime,
-    elapsed: 0,
-    altitude: msg.launchAltitude,
-    incendiary: msg.incendiary,
-    mortar: msg.mortar,
-    whistleVariant: selectWhistleVariant(msg.flightTime),
-  });
+  applyCannonFired(state, msg);
   state.pendingCannonFires.delete(
     packPendingCannonFireKey(msg.playerId, msg.cannonIdx),
   );
@@ -559,22 +533,20 @@ export function nextReadyCannon(
   return null;
 }
 
-/** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events.
- *  Host path: `launchCannonball` pushes a ball and emits via `createCannonFiredMsg`. */
+/** Network-replay primitive for `BATTLE_MESSAGE.CANNON_FIRED` events
+ *  and the shared push used by `applyCannonFiredOriginator`.
+ *
+ *  Bumps `state.shotsFired` so shotsFired-gated logic (round-1
+ *  `spawnIdleFirstBattleGrunts` trigger, `precomputedDustStormJitters`
+ *  lookup) fires identically on host and watcher. Whistle variant is
+ *  picked locally — SFX uses `Math.random` rather than `state.rng`, so
+ *  the per-peer pick may differ but the descending-whistle event still
+ *  emits on both sides; cosmetic-only divergence is acceptable. */
 export function applyCannonFired(
   state: GameState,
   msg: CannonFiredMessage,
 ): void {
-  // Mirror host's fireCannon: bump shotsFired so spawnIdleFirstBattleGrunts
-  // (round-1 punishment trigger) and any other shotsFired-gated logic
-  // (e.g. `precomputedDustStormJitters` lookup) fire identically on host
-  // and watcher.
   state.shotsFired++;
-  // Watcher picks its own whistle variant locally — SFX is decoupled
-  // from `state.rng` (uses Math.random) so the watcher still emits the
-  // descending-whistle event without needing the wire to carry it.
-  // Pick may differ from host's; that's fine for cosmetic SFX.
-  const whistleVariant = selectWhistleVariant(msg.flightTime);
   state.cannonballs.push({
     cannonIdx: msg.cannonIdx,
     startX: msg.startX,
@@ -600,7 +572,7 @@ export function applyCannonFired(
     altitude: msg.launchAltitude,
     incendiary: msg.incendiary,
     mortar: msg.mortar,
-    whistleVariant,
+    whistleVariant: selectWhistleVariant(msg.flightTime),
   });
 }
 
