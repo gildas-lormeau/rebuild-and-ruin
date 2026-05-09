@@ -67,6 +67,8 @@
     "lint:applyat": "deno run -A scripts/lint-applyat.ts",
     "lint:test-timeouts": "deno run -A scripts/lint-test-timeouts.ts",
     "lint:raw-playwright": "deno run -A scripts/lint-raw-playwright.ts",
+    "lint:unused-iface": "deno run -A scripts/lint-unused-interface-fields.ts",
+    "lint:unused-iface:suggest": "deno run -A scripts/lint-unused-interface-fields.ts --suggest-targets",
     "lint:all": "bash scripts/lint-all.sh",
     "export-index": "deno run -A scripts/generate-export-index.ts --server",
     "export-map": "deno run -A scripts/generate-export-map.ts",

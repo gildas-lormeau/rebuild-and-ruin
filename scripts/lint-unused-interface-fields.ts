@@ -40,6 +40,7 @@
  * Exits 1 on confirmed unused fields.
  */
 
+import fs from "node:fs";
 import process from "node:process";
 import {
   type InterfaceDeclaration,
@@ -67,136 +68,59 @@ interface DeadCandidate {
   readonly line: number;
 }
 
-const TARGET_INTERFACES: readonly Target[] = [
-  // Top-level facade returned by createGameRuntime.
-  { file: "src/runtime/runtime-types.ts", interface: "GameRuntime" },
-  // Sub-system handles surfaced on GameRuntime — same risk shape: members
-  // exposed for hypothetical consumers that may never have landed.
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeSelection" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeLifeLost" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeUpgradePick" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeLobby" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeLifecycle" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimePhaseTicks" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeMusic" },
-  { file: "src/runtime/runtime-types.ts", interface: "RuntimeSfx" },
-  { file: "src/runtime/runtime-types.ts", interface: "CameraSystem" },
-  // Online-only contracts wired from outside the runtime package.
-  { file: "src/runtime/runtime-types.ts", interface: "OnlinePhaseTicks" },
-  { file: "src/runtime/runtime-types.ts", interface: "OnlineActions" },
-  { file: "src/runtime/runtime-types.ts", interface: "OnlineDialogDrains" },
-  { file: "src/runtime/runtime-types.ts", interface: "NetworkApi" },
-  // Per-subsystem dep-injection contracts (XxxDeps) and system handles.
-  // Each one is a candidate to grow stale as call sites change shape.
-  { file: "src/runtime/runtime-phase-ticks.ts", interface: "PhaseTicksSystem" },
-  {
-    file: "src/runtime/runtime-upgrade-pick.ts",
-    interface: "UpgradePickSystem",
-  },
-  { file: "src/runtime/runtime-contracts.ts", interface: "OverlayActionDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "DpadDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "QuitButtonDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "ZoomButtonDeps" },
-  {
-    file: "src/runtime/runtime-contracts.ts",
-    interface: "FloatingActionsDeps",
-  },
-  {
-    file: "src/runtime/runtime-contracts.ts",
-    interface: "FloatingActionsHandle",
-  },
-  {
-    file: "src/runtime/runtime-contracts.ts",
-    interface: "RegisterOnlineInputDeps",
-  },
-  { file: "src/runtime/runtime-contracts.ts", interface: "GameActionDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "PointerMoveDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "TouchControlsDeps" },
-  { file: "src/runtime/runtime-contracts.ts", interface: "TimingApi" },
-  {
-    file: "src/online/online-server-lifecycle.ts",
-    interface: "HandleServerLifecycleDeps",
-  },
-  {
-    file: "src/online/online-server-events.ts",
-    interface: "HandleServerIncrementalDeps",
-  },
-  // Game-domain extension contracts: each impl provides whichever hooks
-  // it needs and the runtime dispatches via the registry. A hook that
-  // grows stale (no dispatcher invokes it any more) leaves every impl
-  // exporting a dead method.
-  { file: "src/game/upgrades/upgrade-types.ts", interface: "UpgradeImpl" },
-  {
-    file: "src/game/upgrades/upgrade-types.ts",
-    interface: "BattleStartCannonDeps",
-  },
-  {
-    file: "src/game/modifiers/modifier-types.ts",
-    interface: "InstantModifier",
-  },
-  {
-    file: "src/game/modifiers/modifier-types.ts",
-    interface: "PermanentModifier",
-  },
-  {
-    file: "src/game/modifiers/modifier-types.ts",
-    interface: "RoundScopedModifier",
-  },
-  // Bus / scheduling primitives shared across runtime + game.
-  { file: "src/shared/core/game-event-bus.ts", interface: "GameEventBus" },
-  { file: "src/shared/core/action-schedule.ts", interface: "ActionSchedule" },
-  // Audio sub-systems: factory return types orchestrated by GameRuntime.
-  { file: "src/runtime/music-player.ts", interface: "MusicSubsystem" },
-  { file: "src/runtime/sfx-player.ts", interface: "SfxSubsystem" },
-  // Online composition root + battle-phase lifecycle facade.
-  { file: "src/online/online-stores.ts", interface: "OnlineClient" },
-  {
-    file: "src/runtime/runtime-phase-machine.ts",
-    interface: "BattleLifecycle",
-  },
-  // AI strategy — extension contract, multiple implementations.
-  { file: "src/ai/ai-strategy.ts", interface: "AiStrategy" },
-  // Controller / observer contracts: same shape — impls subscribe to a
-  // subset of hooks; runtime dispatches.
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "SelectionController",
-  },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "BuildController",
-  },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "CannonController",
-  },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "BattleController",
-  },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "UpgradePickController",
-  },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "LifeLostController",
-  },
-  { file: "src/shared/core/system-interfaces.ts", interface: "InputReceiver" },
-  { file: "src/shared/core/system-interfaces.ts", interface: "AiAnimatable" },
-  {
-    file: "src/shared/core/system-interfaces.ts",
-    interface: "HapticsObserver",
-  },
-  { file: "src/shared/core/system-interfaces.ts", interface: "MusicObserver" },
-  { file: "src/shared/core/system-interfaces.ts", interface: "SfxObserver" },
+interface TargetsFile {
+  readonly groups: readonly {
+    readonly label: string;
+    readonly targets: readonly Target[];
+  }[];
+}
+
+const TARGETS_FILE = ".unused-iface-targets.json";
+const TARGET_INTERFACES: readonly Target[] = loadTargets();
+/** Suffixes typical of facade-style interfaces — DI contracts, system
+ *  handles, extension hooks, lifecycle wiring. Cheap signal, ~80%
+ *  precision. The shape check below catches the rest. */
+const FACADE_SUFFIXES = [
+  "Deps",
+  "System",
+  "Api",
+  "Handle",
+  "Subsystem",
+  "Lifecycle",
+  "Bus",
+  "Client",
+  "Strategy",
+  "Controller",
+  "Receiver",
+  "Observer",
+  "Impl",
+  "Modifier",
+  "Schedule",
 ];
+/** Files that hold types we explicitly do NOT want to audit, regardless of
+ *  shape. Wire payloads, render-output shapes, and protocol message types
+ *  satisfy the shape heuristics for unrelated reasons. */
+const AUDIT_EXCLUDE_DIRS = ["src/protocol/", "src/render/3d/"];
+const AUDIT_EXCLUDE_FILE_SUFFIXES = [
+  "overlay-types.ts",
+  "render-view.ts",
+  "interaction-types.ts",
+  "ui-mode.ts",
+  "checkpoint.ts",
+];
+
+function loadTargets(): readonly Target[] {
+  const text = fs.readFileSync(TARGETS_FILE, "utf8");
+  const parsed = JSON.parse(text) as TargetsFile;
+  return parsed.groups.flatMap((g) => g.targets);
+}
 
 main();
 
 function main(): void {
   const args = process.argv.slice(2);
   const asJson = args.includes("--json");
+  const suggestTargets = args.includes("--suggest-targets");
   // `--changed-files=p1,p2,...` (typically passed by the pre-commit hook
   // with the staged file list) makes the lint a no-op when none of the
   // target interfaces' dependency closures contain a changed file: the
@@ -219,6 +143,11 @@ function main(): void {
   project.addSourceFilesAtPaths("src/**/*.ts");
   project.addSourceFilesAtPaths("server/**/*.ts");
   project.addSourceFilesAtPaths("test/**/*.ts");
+
+  if (suggestTargets) {
+    suggestNewTargets(project);
+    return;
+  }
 
   const findings: Finding[] = [];
 
@@ -260,6 +189,99 @@ function main(): void {
     }
   }
   process.exit(1);
+}
+
+/** Print a list of exported interfaces that look facade-shaped but aren't
+ *  in TARGETS yet. Audit-only — never fails CI; users review and add to
+ *  the JSON. Heuristics:
+ *    - At least 2 members.
+ *    - Either suffix-matches FACADE_SUFFIXES, OR ≥80% of members are
+ *      callable (function / method types), OR ≥3 members are optional
+ *      (the extension-hook fingerprint).
+ *    - Not in any AUDIT_EXCLUDE path.
+ *    - Not already in TARGETS. */
+function suggestNewTargets(project: Project): void {
+  const existing = new Set(
+    TARGET_INTERFACES.map((t) => `${t.file}::${t.interface}`),
+  );
+  const suggestions: { target: Target; reason: string }[] = [];
+  for (const sourceFile of project.getSourceFiles()) {
+    const fullPath = sourceFile.getFilePath();
+    const relPath = fullPath.replace(`${process.cwd()}/`, "");
+    if (!relPath.startsWith("src/")) continue;
+    if (AUDIT_EXCLUDE_DIRS.some((d) => relPath.startsWith(d))) continue;
+    if (AUDIT_EXCLUDE_FILE_SUFFIXES.some((s) => relPath.endsWith(s))) continue;
+
+    for (const iface of sourceFile.getInterfaces()) {
+      if (!iface.isExported()) continue;
+      const key = `${relPath}::${iface.getName()}`;
+      if (existing.has(key)) continue;
+      const reason = facadeScore(iface);
+      if (reason === null) continue;
+      suggestions.push({
+        target: { file: relPath, interface: iface.getName() },
+        reason,
+      });
+    }
+  }
+  if (suggestions.length === 0) {
+    console.log("lint-unused-interface-fields: no new candidates found");
+    return;
+  }
+  console.log(
+    `lint-unused-interface-fields: ${suggestions.length} candidate interfaces\n`,
+  );
+  console.log(
+    `Add the ones that are real facades to .unused-iface-targets.json:\n`,
+  );
+  for (const s of suggestions) {
+    console.log(`  ${s.target.interface}  (${s.target.file})  — ${s.reason}`);
+  }
+}
+
+/** Returns a short reason string when the interface looks facade-shaped,
+ *  null otherwise. Multiple signals can fire; the first match wins. The
+ *  optional-heavy branch *also* requires the interface to have non-trivial
+ *  callable density — without it, `Grunt`/`Cannon`-style data shapes with
+ *  many state-machine flags slip through. */
+function facadeScore(iface: InterfaceDeclaration): string | null {
+  const props = iface.getProperties();
+  if (props.length < 2) return null;
+
+  const name = iface.getName();
+  for (const suffix of FACADE_SUFFIXES) {
+    if (name.endsWith(suffix)) return `name ends with "${suffix}"`;
+  }
+
+  const callable = props.filter((p) => isCallableMember(p)).length;
+  const callableRatio = callable / props.length;
+  const optionalCount = props.filter((p) => p.hasQuestionToken()).length;
+
+  // Extension-hook shape: many optional fields AND most of them are functions.
+  if (optionalCount >= 3 && callableRatio >= 0.5) {
+    return `${optionalCount}/${props.length} optional, ${callable} callable (extension-hook shape)`;
+  }
+
+  // Pure facade: callable-heavy.
+  if (callableRatio >= 0.8 && callable >= 2) {
+    return `${callable}/${props.length} members callable`;
+  }
+
+  return null;
+}
+
+/** True when the property's declared type is a function — either a method
+ *  signature (`foo(x): T`), an arrow type (`foo: (x) => T`), or `() => T`
+ *  in any other shape. ts-morph exposes this via the type's call signatures. */
+function isCallableMember(prop: PropertySignature): boolean {
+  const typeNode = prop.getTypeNode();
+  if (!typeNode) return false;
+  const k = typeNode.getKind();
+  if (k === SyntaxKind.FunctionType) return true;
+  // MethodSignature is a different child of InterfaceDeclaration in TS, but
+  // when `getProperties()` returns it, ts-morph models it as a property
+  // whose type node is a function-ish kind. Fall back to call-signatures.
+  return prop.getType().getCallSignatures().length > 0;
 }
 
 function classify(

@@ -1,0 +1,110 @@
+{
+  "$schema": "Targets for scripts/lint-unused-interface-fields.ts. Each entry names a facade-style interface whose members the lint should probe for unused fields. Run `npm run lint:unused-iface-suggest` to see auto-discovered candidates worth adding.",
+  "groups": [
+    {
+      "label": "Top-level facade returned by createGameRuntime",
+      "targets": [
+        { "file": "src/runtime/runtime-types.ts", "interface": "GameRuntime" }
+      ]
+    },
+    {
+      "label": "Sub-system handles surfaced on GameRuntime",
+      "targets": [
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeSelection" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLifeLost" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeUpgradePick" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLobby" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeLifecycle" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimePhaseTicks" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeMusic" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "RuntimeSfx" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "CameraSystem" }
+      ]
+    },
+    {
+      "label": "Online-only contracts wired from outside the runtime package",
+      "targets": [
+        { "file": "src/runtime/runtime-types.ts", "interface": "OnlinePhaseTicks" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "OnlineActions" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "OnlineDialogDrains" },
+        { "file": "src/runtime/runtime-types.ts", "interface": "NetworkApi" }
+      ]
+    },
+    {
+      "label": "Per-subsystem dep-injection contracts (XxxDeps) and system handles",
+      "targets": [
+        { "file": "src/runtime/runtime-phase-ticks.ts", "interface": "PhaseTicksSystem" },
+        { "file": "src/runtime/runtime-upgrade-pick.ts", "interface": "UpgradePickSystem" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "OverlayActionDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "DpadDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "QuitButtonDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "ZoomButtonDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "FloatingActionsDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "FloatingActionsHandle" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "RegisterOnlineInputDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "GameActionDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "PointerMoveDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "TouchControlsDeps" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "TimingApi" },
+        { "file": "src/runtime/runtime-contracts.ts", "interface": "SeedField" },
+        { "file": "src/render/render-map.ts", "interface": "RenderMapDeps" },
+        { "file": "src/runtime/runtime-phase-machine.ts", "interface": "PhaseTransitionCtx" },
+        { "file": "src/online/online-server-lifecycle.ts", "interface": "HandleServerLifecycleDeps" },
+        { "file": "src/online/online-server-events.ts", "interface": "HandleServerIncrementalDeps" }
+      ]
+    },
+    {
+      "label": "Game-domain extension contracts (impl provides hooks, runtime dispatches)",
+      "targets": [
+        { "file": "src/game/upgrades/upgrade-types.ts", "interface": "UpgradeImpl" },
+        { "file": "src/game/upgrades/upgrade-types.ts", "interface": "BattleStartCannonDeps" },
+        { "file": "src/game/modifiers/modifier-types.ts", "interface": "InstantModifier" },
+        { "file": "src/game/modifiers/modifier-types.ts", "interface": "PermanentModifier" },
+        { "file": "src/game/modifiers/modifier-types.ts", "interface": "RoundScopedModifier" }
+      ]
+    },
+    {
+      "label": "Bus / scheduling primitives shared across runtime + game",
+      "targets": [
+        { "file": "src/shared/core/game-event-bus.ts", "interface": "GameEventBus" },
+        { "file": "src/shared/core/action-schedule.ts", "interface": "ActionSchedule" }
+      ]
+    },
+    {
+      "label": "Audio sub-systems",
+      "targets": [
+        { "file": "src/runtime/music-player.ts", "interface": "MusicSubsystem" },
+        { "file": "src/runtime/sfx-player.ts", "interface": "SfxSubsystem" }
+      ]
+    },
+    {
+      "label": "Online composition root + battle-phase lifecycle facade",
+      "targets": [
+        { "file": "src/online/online-stores.ts", "interface": "OnlineClient" },
+        { "file": "src/runtime/runtime-phase-machine.ts", "interface": "BattleLifecycle" }
+      ]
+    },
+    {
+      "label": "AI strategy — extension contract, multiple implementations",
+      "targets": [
+        { "file": "src/ai/ai-strategy.ts", "interface": "AiStrategy" }
+      ]
+    },
+    {
+      "label": "Controller / observer contracts: impls subscribe to a subset of hooks; runtime dispatches",
+      "targets": [
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "SelectionController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "BuildController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "CannonController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "BattleController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "UpgradePickController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "LifeLostController" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "InputReceiver" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "AiAnimatable" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "HapticsObserver" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "MusicObserver" },
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "SfxObserver" }
+      ]
+    }
+  ]
+}
