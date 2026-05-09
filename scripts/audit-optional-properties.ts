@@ -27,10 +27,12 @@ import {
   type InterfaceDeclaration,
   type MethodSignature,
   type Node,
+  type ObjectLiteralExpression,
   Project,
   type PropertySignature,
-  type SourceFile,
   SyntaxKind,
+  type Symbol as TsmSymbol,
+  type Type,
   type TypeAliasDeclaration,
 } from "ts-morph";
 
@@ -42,9 +44,11 @@ interface RefStats {
 
 type Classification =
   | "dead"
+  | "suspicious-dead"
   | "read-only"
   | "write-only"
   | "fake-optional"
+  | "ambiguous-fake"
   | "truly-optional";
 
 interface Item {
@@ -54,6 +58,13 @@ interface Item {
   line: number;
   classification: Classification;
   stats: RefStats;
+  /** Construction-site analysis (only meaningful for fake-optional + ambiguous-fake). */
+  constructionSites: number;
+  omittedAt: number;
+  /** Total identifier occurrences project-wide with this name (minus the
+   *  declaration itself). High values on a "dead" finding hint at structural-
+   *  typing false positives — references the symbol-search missed. */
+  stringMatches: number;
   rationale: string;
 }
 
@@ -73,11 +84,21 @@ type RefKind =
   | "type-only"
   | "other";
 
+type Container = InterfaceDeclaration | TypeAliasDeclaration;
+
+interface ContextCounts {
+  constructionSites: number;
+  omittedAt: number;
+  stringMatches: number;
+}
+
 const CLASS_ORDER: Classification[] = [
   "dead",
   "write-only",
   "read-only",
   "fake-optional",
+  "ambiguous-fake",
+  "suspicious-dead",
   "truly-optional",
 ];
 
@@ -98,14 +119,59 @@ function main(): void {
     "test/**/*.ts",
   ]);
 
-  const items: Item[] = [];
+  // Phase 1: index every interface / type-literal alias by its declaration
+  // symbol, so we can match contextual types back to their declaration node.
+  const containersBySymbol = new Map<TsmSymbol, Container>();
   for (const sf of project.getSourceFiles()) {
     for (const iface of sf.getInterfaces()) {
-      auditInterface(iface, items);
+      const sym = iface.getSymbol();
+      if (sym) containersBySymbol.set(sym, iface);
     }
     for (const alias of sf.getTypeAliases()) {
-      auditTypeAlias(alias, items);
+      const typeNode = alias.getTypeNode();
+      if (!typeNode || !typeNode.isKind(SyntaxKind.TypeLiteral)) continue;
+      const sym = alias.getSymbol();
+      if (sym) containersBySymbol.set(sym, alias);
     }
+  }
+
+  // Phase 2: walk every object literal in the project, ask for its contextual
+  // type, map back to the declaration node(s). Per-container literal lists are
+  // the input to the construction-site omission check.
+  const literalsByContainer = new Map<Container, ObjectLiteralExpression[]>();
+  for (const sf of project.getSourceFiles()) {
+    for (const obj of sf.getDescendantsOfKind(
+      SyntaxKind.ObjectLiteralExpression,
+    )) {
+      const ctxType = obj.getContextualType();
+      if (!ctxType) continue;
+      for (const c of resolveContainersFromType(ctxType, containersBySymbol)) {
+        let arr = literalsByContainer.get(c);
+        if (!arr) {
+          arr = [];
+          literalsByContainer.set(c, arr);
+        }
+        arr.push(obj);
+      }
+    }
+  }
+
+  // Phase 3: count identifier occurrences project-wide. Subtract 1 for the
+  // declaration when looking up a property name; whatever remains is the
+  // string-level reference count outside the symbol's resolution.
+  const identCountByName = new Map<string, number>();
+  for (const sf of project.getSourceFiles()) {
+    for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+      const name = id.getText();
+      identCountByName.set(name, (identCountByName.get(name) ?? 0) + 1);
+    }
+  }
+
+  // Phase 4: audit each optional member, augmented with omission + string-match
+  // counts.
+  const items: Item[] = [];
+  for (const [, container] of containersBySymbol) {
+    auditContainer(container, literalsByContainer, identCountByName, items);
   }
 
   const filtered = filter
@@ -124,9 +190,11 @@ function main(): void {
 
   const byClass: Record<Classification, number> = {
     dead: 0,
+    "suspicious-dead": 0,
     "write-only": 0,
     "read-only": 0,
     "fake-optional": 0,
+    "ambiguous-fake": 0,
     "truly-optional": 0,
   };
   for (const item of filtered) byClass[item.classification]++;
@@ -138,44 +206,78 @@ function main(): void {
   console.log(JSON.stringify(report, null, 2));
 }
 
-function auditInterface(iface: InterfaceDeclaration, out: Item[]): void {
-  const ifaceName = iface.getName();
-  for (const prop of iface.getProperties()) {
-    if (!prop.hasQuestionToken()) continue;
-    out.push(buildItem(ifaceName, prop));
+function auditContainer(
+  container: Container,
+  literalsByContainer: Map<Container, ObjectLiteralExpression[]>,
+  identCountByName: Map<string, number>,
+  out: Item[],
+): void {
+  const containerName = container.getName();
+  const literals = literalsByContainer.get(container) ?? [];
+  const properties: Array<PropertySignature | MethodSignature> = [];
+  if (container.isKind(SyntaxKind.InterfaceDeclaration)) {
+    properties.push(
+      ...container.getProperties().filter((p) => p.hasQuestionToken()),
+      ...container.getMethods().filter((m) => m.hasQuestionToken()),
+    );
+  } else {
+    const typeNode = container.getTypeNode();
+    if (typeNode?.isKind(SyntaxKind.TypeLiteral)) {
+      for (const member of typeNode.getMembers()) {
+        if (member.isKind(SyntaxKind.PropertySignature)) {
+          const prop = member.asKindOrThrow(SyntaxKind.PropertySignature);
+          if (prop.hasQuestionToken()) properties.push(prop);
+        } else if (member.isKind(SyntaxKind.MethodSignature)) {
+          const method = member.asKindOrThrow(SyntaxKind.MethodSignature);
+          if (method.hasQuestionToken()) properties.push(method);
+        }
+      }
+    }
   }
-  for (const method of iface.getMethods()) {
-    if (!method.hasQuestionToken()) continue;
-    out.push(buildItem(ifaceName, method));
+  for (const prop of properties) {
+    out.push(buildItem(containerName, prop, literals, identCountByName));
   }
 }
 
-function auditTypeAlias(alias: TypeAliasDeclaration, out: Item[]): void {
-  const typeNode = alias.getTypeNode();
-  if (!typeNode || !typeNode.isKind(SyntaxKind.TypeLiteral)) return;
-  const tl = typeNode.asKindOrThrow(SyntaxKind.TypeLiteral);
-  const aliasName = alias.getName();
-  for (const member of tl.getMembers()) {
-    if (member.isKind(SyntaxKind.PropertySignature)) {
-      const prop = member.asKindOrThrow(SyntaxKind.PropertySignature);
-      if (prop.hasQuestionToken()) out.push(buildItem(aliasName, prop));
-    } else if (member.isKind(SyntaxKind.MethodSignature)) {
-      const method = member.asKindOrThrow(SyntaxKind.MethodSignature);
-      if (method.hasQuestionToken()) out.push(buildItem(aliasName, method));
+/** Walk a contextual type and resolve every tracked container it points at,
+ *  recursing into unions. Intersections / Pick / Omit / Partial are skipped
+ *  in v1 — they preserve the underlying symbol but with modified property
+ *  shape, so naively counting them would mis-flag (e.g. \`Partial<X>\` literals
+ *  legitimately omit fields without the original \`?\` being load-bearing). */
+function resolveContainersFromType(
+  type: Type,
+  containers: Map<TsmSymbol, Container>,
+  visited: Set<Type> = new Set(),
+): Container[] {
+  if (visited.has(type)) return [];
+  visited.add(type);
+  const out: Container[] = [];
+  const sym = type.getSymbol() ?? type.getAliasSymbol();
+  if (sym && containers.has(sym)) out.push(containers.get(sym) as Container);
+  if (type.isUnion()) {
+    for (const m of type.getUnionTypes()) {
+      out.push(...resolveContainersFromType(m, containers, visited));
     }
   }
+  return out;
 }
 
 function buildItem(
   containerName: string,
   prop: PropertySignature | MethodSignature,
+  literals: ObjectLiteralExpression[],
+  identCountByName: Map<string, number>,
 ): Item {
   const sf = prop.getSourceFile();
   const file = path.relative(Deno.cwd(), sf.getFilePath());
   const line = sf.getLineAndColumnAtPos(prop.getStart()).line;
   const propName = prop.getName();
   const stats = collectStats(prop);
-  const classification = classify(stats);
+  const omittedAt = countOmissions(literals, propName);
+  // -1 to discount the declaration's own identifier; clamp to 0 to defend
+  // against weird cases (computed names, etc. that wouldn't show as Identifier).
+  const stringMatches = Math.max(0, (identCountByName.get(propName) ?? 0) - 1);
+  const classification = classify(stats, omittedAt, stringMatches);
   return {
     interface: containerName,
     property: propName,
@@ -183,8 +285,37 @@ function buildItem(
     line,
     classification,
     stats,
-    rationale: rationaleFor(classification, stats),
+    constructionSites: literals.length,
+    omittedAt,
+    stringMatches,
+    rationale: rationaleFor(classification, stats, {
+      constructionSites: literals.length,
+      omittedAt,
+      stringMatches,
+    }),
   };
+}
+
+/** Count construction-site literals that don't set this property. Literals
+ *  with a spread (`...rest`) are skipped — we can't tell statically whether
+ *  the spread provides the property. */
+function countOmissions(
+  literals: ObjectLiteralExpression[],
+  propName: string,
+): number {
+  let omitted = 0;
+  for (const lit of literals) {
+    let hasSpread = false;
+    for (const member of lit.getProperties()) {
+      if (member.isKind(SyntaxKind.SpreadAssignment)) {
+        hasSpread = true;
+        break;
+      }
+    }
+    if (hasSpread) continue;
+    if (lit.getProperty(propName) === undefined) omitted++;
+  }
+  return omitted;
 }
 
 function collectStats(prop: PropertySignature | MethodSignature): RefStats {
@@ -205,25 +336,46 @@ function collectStats(prop: PropertySignature | MethodSignature): RefStats {
   return stats;
 }
 
-function classify(stats: RefStats): Classification {
+function classify(
+  stats: RefStats,
+  omittedAt: number,
+  stringMatches: number,
+): Classification {
   const reads = stats.guardedReads + stats.unguardedReads;
-  if (stats.assigns === 0 && reads === 0) return "dead";
+  if (stats.assigns === 0 && reads === 0) {
+    // 0 symbol references, but identifiers with this name appear elsewhere —
+    // ts-morph likely missed references through structural / contextual typing
+    // (e.g. wire DTO assigned via object literal, or read through a sibling
+    // type with the same shape).
+    return stringMatches > 0 ? "suspicious-dead" : "dead";
+  }
   if (stats.assigns === 0 && reads > 0) return "read-only";
   if (stats.assigns > 0 && reads === 0) return "write-only";
   if (stats.guardedReads > 0) return "truly-optional";
-  return "fake-optional";
+  // Fake-optional pattern (no consumer defends), but if any construction site
+  // omits the field, dropping `?` would be a hard tsc error — surface as a
+  // separate class so the agent investigates the constructors first.
+  return omittedAt > 0 ? "ambiguous-fake" : "fake-optional";
 }
 
-function rationaleFor(c: Classification, s: RefStats): string {
+function rationaleFor(
+  c: Classification,
+  s: RefStats,
+  ctx: ContextCounts,
+): string {
   switch (c) {
     case "dead":
       return "no references found; likely safe to delete";
+    case "suspicious-dead":
+      return `0 symbol references but ${ctx.stringMatches} identifier match(es) with this name elsewhere — ts-morph likely missed references through structural / contextual typing; verify before deleting`;
     case "write-only":
       return `${s.assigns} assigns, 0 reads; declared but never observed`;
     case "read-only":
       return `${s.guardedReads + s.unguardedReads} reads, 0 assigns; always undefined at runtime`;
     case "fake-optional":
-      return `${s.unguardedReads} reads, none defended against undefined; consider dropping the \`?\``;
+      return `${s.unguardedReads} reads (none defended), ${ctx.constructionSites} construction site(s) all set the field; safe to drop \`?\``;
+    case "ambiguous-fake":
+      return `${s.unguardedReads} reads (none defended), but ${ctx.omittedAt} of ${ctx.constructionSites} construction site(s) omit the field — dropping \`?\` would tsc-error; either set the field at the omitting sites or add guards to the readers`;
     case "truly-optional":
       return `${s.guardedReads} guarded read(s), ${s.unguardedReads} unguarded; consumers handle undefined`;
   }
