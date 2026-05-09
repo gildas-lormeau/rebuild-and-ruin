@@ -319,6 +319,57 @@ keys) so its position is stable regardless of which expressions you
 captured. Built-in / unmapped frames render as `caller=<unknown>`
 rather than failing.
 
+### Single-call divergence finder (`debug diverge`)
+
+The `--partition-by --out` workflow above produces two files for an
+external `diff` — agents then have to scan the diff hunks, locate the
+first changed line, map it back to a capture point, and identify which
+field carried the divergence. `debug diverge` does all of that in one
+call and emits structured JSON:
+
+```sh
+$ debug capture src/game/battle-system.ts:660 \
+    state.debugTag  state.round  state.rng.state  state.scores  state.combos
+$ debug run
+$ debug diverge --partition-by state.debugTag
+{
+  "partitions": ["host", "watcher"],
+  "rowsPerPartition": { "host": 152, "watcher": 152 },
+  "alignment": "byIndex",
+  "firstDivergentRow": 31,
+  "lastSharedRow": 30,
+  "perField": [
+    { "field": "state.rng.state", "firstDivergentRow": 31, "values": { "host": 8392, "watcher": 8401 } },
+    { "field": "state.combos",    "firstDivergentRow": 31, "values": { "host": 3,    "watcher": 4    } },
+    { "field": "state.scores",    "firstDivergentRow": 47, "values": { "host": [1200,800], "watcher": [1180,800] } }
+  ],
+  "context": {
+    "before": [/* 3 shared rows leading up to row 30 */],
+    "at":     { "row": 31, "byPartition": { "host": {...}, "watcher": {...} } },
+    "after":  [/* 3 rows after, divergent */]
+  }
+}
+```
+
+`perField` is sorted by ascending `firstDivergentRow`, so an agent reads
+upstream causes first and downstream symptoms last. In the example
+above, RNG and combos drift at row 31; scores only diverges at row 47 —
+scores is the *symptom*, RNG is the *root*. That ordering is the whole
+point.
+
+| flag | required | default | notes |
+|---|---|---|---|
+| `--partition-by <expr>` | yes | — | the expression that distinguishes peers (typically `state.debugTag`) |
+| `--align-by <expr>` | no | by-index | match rows by a shared logical clock instead of arrival index. Use when peers may pace differently — `--align-by state.tickCount` keys rows by tick, reports `skippedRows` when a peer is missing one |
+| `--ignore <regex>` | no | — | drops captured fields whose name matches the regex (cosmetic-only fields like wobble/tween) |
+| `--context <N>` | no | 3 | rows before and after the pivot to embed in `context` |
+
+Limitations: exactly two partitions for now (errors if more); `--ignore`
+takes a single regex (use union: `--ignore 'wobble|tween|spritePos'`).
+The math is exercised by [diverge.test.ts](diverge.test.ts) — feed
+hand-crafted `TraceHit[]` to `buildDivergenceReport` directly, no CDP
+session required.
+
 ## Architecture
 
 ```
@@ -351,6 +402,8 @@ user code executes.
 | file | role |
 |---|---|
 | [cli.ts](cli.ts) | Subcommand dispatcher + IPC client |
+| [diverge.ts](diverge.ts) | Pure divergence-report builder (no I/O) — used by `debug diverge` |
+| [diverge.test.ts](diverge.test.ts) | Fixture-based tests for the divergence math |
 | [daemon.ts](daemon.ts) | Per-session daemon: spawns debuggee, holds CDP, serves IPC |
 | [cdp.ts](cdp.ts) | Minimal CDP WebSocket client (no deps) |
 | [source-map.ts](source-map.ts) | Source-map decoder (base64 + VLQ + reverse index) |

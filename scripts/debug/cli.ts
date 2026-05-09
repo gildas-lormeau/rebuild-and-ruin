@@ -18,6 +18,8 @@
  *   debug eval    [--session ID] <expr> [--frame N]
  *   debug trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
  *                 [--partition-by <expr> --out <prefix> [--sort] [--with-caller]]   # diffable per-partition logs
+ *   debug diverge [--session ID] --partition-by <expr> [--align-by <expr>] [--ignore <regex>] [--context N]
+ *                                                                                   # JSON: first cross-partition divergence + per-field ordering
  *   debug stacks  [--session ID] [--format json]
  *   debug stack   [--session ID] <hit#>
  *   debug status  [--session ID]
@@ -41,6 +43,8 @@
  * responsible for including --inspect-brk=127.0.0.1:0 (port 0 is required;
  * fixed ports collide across sessions).
  */
+
+import { buildDivergenceReport } from "./diverge.ts";
 
 interface ParsedArgs {
   session: string;
@@ -86,6 +90,7 @@ const dispatch: Record<string, (p: ParsedArgs) => Promise<void>> = {
   step: cmdStep,
   eval: cmdEval,
   trace: cmdTrace,
+  diverge: cmdDiverge,
   stacks: cmdStacks,
   stack: cmdStack,
   status: cmdStatus,
@@ -550,6 +555,26 @@ function writePartitionedTrace(
   }
 }
 
+async function cmdDiverge(parsed: ParsedArgs): Promise<void> {
+  const partitionExpr = parsed.flags.get("partition-by");
+  if (typeof partitionExpr !== "string") {
+    throw new Error("diverge requires --partition-by <expr>");
+  }
+  const alignByFlag = parsed.flags.get("align-by");
+  const ignoreRaw = parsed.flags.get("ignore");
+  const contextRaw = parsed.flags.get("context");
+  const result = (await sendIpc(parsed.session, "trace", {})) as {
+    hits: TraceHit[];
+  };
+  const report = buildDivergenceReport(result.hits, {
+    partitionExpr,
+    ...(typeof alignByFlag === "string" ? { alignBy: alignByFlag } : {}),
+    ignore: typeof ignoreRaw === "string" ? [new RegExp(ignoreRaw)] : [],
+    contextN: typeof contextRaw === "string" ? Number(contextRaw) : 3,
+  });
+  console.log(JSON.stringify(report, null, 2));
+}
+
 async function cmdStacks(parsed: ParsedArgs): Promise<void> {
   const result = (await sendIpc(parsed.session, "stacks")) as {
     stacks: Array<{
@@ -799,6 +824,8 @@ function usage(): never {
   eval    [--session ID] <expr> [--frame N]
   trace   [--session ID] [--since N] [--format json|table] [--mark-stack-changes]
           [--partition-by <expr> --out <prefix> [--sort] [--with-caller]]
+  diverge [--session ID] --partition-by <expr> [--align-by <expr>] [--ignore <regex>] [--context N]
+                                                                  # JSON: first cross-partition divergence + per-field ordering
   stacks  [--session ID] [--format json]                         # histogram of unique stacks across hits
   stack   [--session ID] <hit#>                                  # full call stack for one hit
   status  [--session ID]
