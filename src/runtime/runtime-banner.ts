@@ -6,18 +6,21 @@
  *   showBanner({ text, kind, onDone, subtitle?, paletteKey? })
  *   hideBanner()
  *
- * State machine (see `BannerStatus` in runtime-contracts.ts):
+ * Lifecycle (see `BannerState` in runtime-contracts.ts):
  *
- *   hidden ─showBanner→ sweeping ─progress=1→ swept ─hideBanner→ hidden
- *                         │                       │
- *                         └─showBanner (overwrite)┘
+ *   null ─showBanner→ active(progress=0..1) ─hideBanner→ null
+ *                       │
+ *                       └─showBanner (overwrite)┘
+ *
+ *   `progress` ramps 0 → 1 across `BANNER_DURATION`; once it reaches 1
+ *   the banner stops animating but stays on screen until hideBanner.
  *
  * Events:
  *   - BANNER_START on `showBanner` (synchronous).
- *   - BANNER_SWEEP_END on `sweeping → swept` (sweep animation done,
- *     banner still on screen). Fires synchronously; `onDone` runs on
- *     the same tick.
- *   - BANNER_HIDDEN on `hideBanner()` when status was non-hidden. The
+ *   - BANNER_SWEEP_END the tick `progress` crosses 1 (sweep animation
+ *     done, banner still on screen). Fires synchronously; `onDone`
+ *     runs on the same tick.
+ *   - BANNER_HIDDEN on `hideBanner()` when banner was active. The
  *     banner left the screen on its own schedule — not because another
  *     banner clobbered it.
  *   - BANNER_REPLACED when `showBanner` overwrites an active banner.
@@ -128,9 +131,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     // then emit BANNER_REPLACED with both identities so consumers that
     // care about the transition can trace it.
     const prev = runtimeState.banner;
-    if (prev.status !== "hidden") {
+    if (prev !== null) {
       log(
-        `showBanner "${opts.text}" while banner "${prev.text}" status=${prev.status}`,
+        `showBanner "${opts.text}" while banner "${prev.text}" progress=${prev.progress}`,
       );
       const state = runtimeState.state;
       emitGameEvent(state.bus, GAME_EVENT.BANNER_REPLACED, {
@@ -143,7 +146,6 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       });
     }
     const next: ActiveBannerState = {
-      status: "sweeping",
       progress: 0,
       text: opts.text,
       subtitle: opts.subtitle,
@@ -157,7 +159,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
     // Restore Mode.TRANSITION so the banner tick runs — subsystem dialogs
     // (life-lost, upgrade-pick) leave mode on their terminal value when
-    // handing off to a banner. Banner visibility is tracked via `banner.status`.
+    // handing off to a banner. Banner visibility is tracked via `banner !== null`.
     setMode(runtimeState, Mode.TRANSITION);
 
     const state = runtimeState.state;
@@ -172,7 +174,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function hideBanner(): void {
     const banner = runtimeState.banner;
-    if (banner.status === "hidden") return;
+    if (banner === null) return;
     const state = runtimeState.state;
     emitGameEvent(state.bus, GAME_EVENT.BANNER_HIDDEN, {
       bannerKind: banner.kind,
@@ -191,10 +193,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
 
   function tickBanner(dt: number) {
     const banner = runtimeState.banner;
-    if (banner.status === "sweeping") {
+    if (banner !== null && banner.progress < 1) {
       banner.progress = Math.min(1, banner.progress + dt / BANNER_DURATION);
       if (banner.progress >= 1) {
-        banner.status = "swept";
         emitGameEvent(runtimeState.state.bus, GAME_EVENT.BANNER_SWEEP_END, {
           bannerKind: banner.kind,
           text: banner.text,

@@ -230,39 +230,30 @@ export interface OnlineOverlayParams {
   gruntSurgeRevealIntensity?: number;
 }
 
-/** Banner lifecycle state:
- *  - `hidden`: no banner is on screen (and none scheduled).
- *  - `sweeping`: progress animates 0 → 1; banner strip is painted over
- *    prevScene.
- *  - `swept`: progress has reached 1 and the sweep-end callback has
- *    fired. The banner remains visually on screen (its text/subtitle
- *    are still readable) until a caller explicitly hides it or a new
- *    `showBanner` overwrites it. In practice `runDisplay` calls
- *    `hideBanner()` at the end of every display sequence, so `swept`
- *    is only visible for the tick window between sweep-end and that
- *    terminal hide.
- */
+/** Active banner — text/subtitle/kind from `BannerContent`, plus the
+ *  sweep `progress` (0 → 1) and two scene snapshots composited on
+ *  either side of the sweep line. `progress >= 1` means the sweep has
+ *  ended; the banner remains visible (text/subtitle still readable)
+ *  until a caller explicitly hides it. In practice `runDisplay` calls
+ *  `hideBanner()` at the end of every display sequence. */
 export interface ActiveBannerState extends BannerContent {
-  status: "sweeping" | "swept";
   progress: number;
-  /** Pixel snapshot of the scene composited below the sweep line during
-   *  animation — the old scene, captured before the phase mutation that
-   *  the banner is announcing. Supplied by the caller (`showBanner` opts)
+  /** Pixel snapshot of the scene composited below the sweep line —
+   *  the old scene, captured before the phase mutation that the
+   *  banner is announcing. Supplied by the caller (`showBanner` opts)
    *  because the mutation has not yet run at banner-show time. */
   prevScene?: SceneCapture;
-  /** Pixel snapshot of the scene revealed above the sweep line during
-   *  animation — the new scene, captured by `showBanner` itself after
-   *  the phase mutation + `postMutate` + one forced `render()`. Both
-   *  snapshots are frozen for the duration of the sweep; the live
-   *  renderer does not repaint world contents during a banner. */
+  /** Pixel snapshot of the scene revealed above the sweep line — the
+   *  new scene, captured by `showBanner` itself after the phase
+   *  mutation + `postMutate` + one forced `render()`. Both snapshots
+   *  are frozen for the duration of the sweep; the live renderer does
+   *  not repaint world contents during a banner. */
   newScene?: SceneCapture;
 }
 
-/** Banner state is a discriminated union: `hidden` carries no fields
- *  (no fictional defaults), while the `sweeping` / `swept` variants
- *  share `ActiveBannerState`. Consumers narrow on `status === "hidden"`
- *  before reading identity / progress fields. */
-export type BannerState = { readonly status: "hidden" } | ActiveBannerState;
+/** Banner is either active or absent. `null` is the "no banner on
+ *  screen" state; `ActiveBannerState` carries everything else. */
+export type BannerState = ActiveBannerState | null;
 
 export interface SeedField {
   focus: (currentValue: string) => void;
@@ -641,5 +632,5 @@ export interface TimingApi {
 }
 
 export function createBannerState(): BannerState {
-  return { status: "hidden" };
+  return null;
 }

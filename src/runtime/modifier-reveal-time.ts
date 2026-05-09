@@ -21,7 +21,7 @@ export function tickModifierRevealClock(
     runtimeState.modifierRevealPlayStartMs = undefined;
     return;
   }
-  if (runtimeState.banner.status === "sweeping") {
+  if (runtimeState.banner !== null && runtimeState.banner.progress < 1) {
     runtimeState.modifierRevealPlayStartMs = undefined;
     return;
   }
@@ -38,7 +38,9 @@ export function revealTimeFor(
   if (runtimeState.state.phase !== Phase.MODIFIER_REVEAL) return undefined;
   if (runtimeState.state.modern?.activeModifier !== modifierId)
     return undefined;
-  if (runtimeState.banner.status === "sweeping") return 0;
+  if (runtimeState.banner !== null && runtimeState.banner.progress < 1) {
+    return 0;
+  }
   const startMs = runtimeState.modifierRevealPlayStartMs;
   if (startMs === undefined) return undefined;
   return nowMs - startMs;

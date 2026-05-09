@@ -141,7 +141,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
   function refreshOverlay(): void {
     const banner = runtimeState.banner;
     const bannerUi =
-      banner.status === "hidden"
+      banner === null
         ? undefined
         : deps.createBannerUi(
             true,
@@ -286,7 +286,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       runtimeState.overlay,
       deps.updateViewport(),
       deps.timing.now(),
-      runtimeState.banner.status !== "hidden",
+      runtimeState.banner !== null,
     );
     deps.onRenderedFrame();
 

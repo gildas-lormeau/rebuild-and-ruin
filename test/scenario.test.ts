@@ -257,9 +257,9 @@ Deno.test(
       houseCount: sc.state.map.houses.length,
       banner: (() => {
         const banner = sc.banner();
-        return banner.status === "hidden"
-          ? { status: "hidden" as const, progress: 0, text: "" }
-          : { status: banner.status, progress: banner.progress, text: banner.text };
+        return banner === null
+          ? { active: false as const, progress: 0, text: "" }
+          : { active: true as const, progress: banner.progress, text: banner.text };
       })(),
       camera: {
         cameraZone: sc.camera.getCameraZone(),

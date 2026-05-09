@@ -3,7 +3,7 @@
  * `Mode.TRANSITION` means "a phase transition is in flight" — set at
  * `runTransition` entry during the pre-banner unzoom and held through
  * every banner/display step until postDisplay flips to the terminal mode.
- * Banner visibility is tracked separately via `banner.status` (authoritative).
+ * Banner visibility is tracked separately via `banner !== null` (authoritative).
  *
  * Classification table:
  * | Mode          | Gameplay | Interactive |

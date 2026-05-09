@@ -107,7 +107,7 @@ function clearAnimationState(mode: Mode): string | null {
       return "Cleared life-lost dialog → game mode";
     case Mode.TRANSITION:
     case Mode.BALLOON_ANIM:
-      // Tear down banner state (status + callback + prevScene). Without
+      // Tear down banner state (callback + prevScene). Without
       // this, the old host's banner callback would fire after promotion
       // and invoke a stale closure against freshly-rebuilt controllers.
       _runtime.hideBanner();
