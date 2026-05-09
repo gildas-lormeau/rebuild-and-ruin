@@ -127,10 +127,10 @@ If you hold those three in mind, the file structure makes sense.
 
 ### Serialization (1 file)
 - **`online-serialize.ts`** — `createFullStateMessage` /
-  `restoreFullStateSnapshot` (host-migration / late-join recovery) plus
-  the bare-marker phase-checkpoint factories
-  (`createBuildStartMessage`, `createCannonStartMessage`,
-  `createBattleStartMessage`, `BUILD_END`) and `createGameOverPayload`.
+  `restoreFullStateSnapshot` (host-migration / late-join recovery) and
+  `createGameOverPayload`. Phase-checkpoint markers (BUILD_START /
+  CANNON_START / BATTLE_START / BUILD_END) are inlined `{ type }` literals
+  at the broadcast call sites.
   Phase-marker checkpoints carry no game state — watchers derive
   everything locally. **Exhaustiveness is NOT automatic** —
   `lint-checkpoint-fields.ts` verifies every GameState field is

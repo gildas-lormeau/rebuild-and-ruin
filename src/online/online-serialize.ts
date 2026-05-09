@@ -44,35 +44,6 @@ interface FullStateResult {
 /** Returned when validation fails — no state was mutated. */
 type FullStateApplyResult = FullStateResult | null;
 
-/** Create a BUILD_START phase-marker message. The watcher runs
- *  `finalizeBattle` + `prepareNextRound` locally on receipt — see `BuildStartData` in
- *  checkpoint-data.ts for the contract. */
-export function createBuildStartMessage() {
-  return { type: MESSAGE.BUILD_START };
-}
-
-/** Create a CANNON_START phase-marker message. The watcher runs the
- *  source-phase prefix (`finalizeRoundCleanup` / `finalizeFreshCastles` /
- *  `finalizeCastleConstruction`, depending on which phase it's leaving) plus
- *  `enterCannonPhase` locally on receipt — see `CANNON_ENTRY_WATCHER_STEP`
- *  in `runtime-phase-machine.ts`. No payload: every cannon-entry mutation
- *  (cannon limits, default facings, timer, bonus squares, salvage slots,
- *  modifier tiles) is derived locally on both sides from synced state.
- *  RNG sync at the previous BATTLE_START is the defense-in-depth guarantee. */
-export function createCannonStartMessage() {
-  return { type: MESSAGE.CANNON_START };
-}
-
-/** Create a BATTLE_START phase-marker message. The watcher runs
- *  `prepareBattle` locally on receipt — every battle-start mutation
- *  (modifier tiles, captured cannons, grunt wall-attack flags, balloon
- *  flights, combo tracker) is derived locally on both sides from synced
- *  state + RNG. No payload: clone-everywhere model means RNG advances in
- *  lockstep across peers, no resync required. */
-export function createBattleStartMessage() {
-  return { type: MESSAGE.BATTLE_START };
-}
-
 export function createFullStateMessage(
   state: GameState,
   migrationSeq: number,

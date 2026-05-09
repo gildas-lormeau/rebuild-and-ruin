@@ -37,11 +37,6 @@ import {
   initDeps,
 } from "../src/online/online-runtime-deps.ts";
 import {
-  createBattleStartMessage,
-  createBuildStartMessage,
-  createCannonStartMessage,
-} from "../src/online/online-serialize.ts";
-import {
   createDedupMaps,
   createSession,
   type DedupMaps,
@@ -338,9 +333,9 @@ async function buildBidirectionalHost(
  *  watcher-originated phantoms back to the host. */
 function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks {
   return {
-    broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: () => send(createBattleStartMessage()),
-    broadcastBuildStart: () => send(createBuildStartMessage()),
+    broadcastCannonStart: () => send({ type: MESSAGE.CANNON_START }),
+    broadcastBattleStart: () => send({ type: MESSAGE.BATTLE_START }),
+    broadcastBuildStart: () => send({ type: MESSAGE.BUILD_START }),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     extendCrosshairs: (crosshairs) => [...crosshairs],
     tickMigrationAnnouncement: () => {},

@@ -1,16 +1,21 @@
 /**
- * Detect passthrough wrapper functions — functions whose entire body is a
- * single call to another function with the exact same arguments in order.
+ * Detect passthrough wrapper functions and trivial single-caller exports
+ * — LLM code smells where a delegation layer adds indirection without
+ * changing the abstraction level.
  *
- * These are an LLM code smell: delegation layers that add indirection
- * without changing the abstraction level. Also detects multi-level chains
- * (A calls B calls C, each a passthrough).
+ * Four patterns:
  *
- * Detection rules:
- *   - Function has 1+ parameters (all simple identifiers, no destructuring/rest)
- *   - Body is a single statement (or expression body for arrows)
- *   - That statement calls another function with the exact same args in order
- *   - No extra args added, no params with default initializers
+ * ARG_PASSTHROUGH    — `(a, b) => foo(a, b)`. Exact-arg delegation.
+ * SPREAD_PASSTHROUGH — `(...args) => foo(...args)`. Rest-spread delegation.
+ * ZERO_ARG_LITERAL   — `() => ({ type: X })`. Wraps a literal that's
+ *                      shorter than the call site, so the wrapper saves
+ *                      no typing and centralises nothing.
+ * SINGLE_CALLER      — exported function with a trivial body (arrow expr
+ *                      body, or block with ≤ 2 statements) that has
+ *                      exactly one caller in the project. Inlining
+ *                      removes the export without losing reuse.
+ *
+ * Multi-level chains (A → B → C, each a passthrough) are surfaced too.
  *
  * Usage:
  *   deno run -A scripts/lint-passthrough-wrappers.ts [options]
@@ -18,12 +23,11 @@
  * Options:
  *   --server            Include server/ files
  *   --test              Include test/ files
- *   --update-baseline   Write current detections to baseline (suppress in future runs)
+ *   --update-baseline   Write current detections to baseline
  *
- * Baseline: .passthrough-baseline.json — entries are "file:functionName" keys.
- * Baselined entries are intentional facades (e.g. upgrade-system dispatchers).
+ * Baseline: .passthrough-baseline.json — entries are "file:name:pattern".
  *
- * Exits 1 if non-baselined violations found.
+ * Exits 1 if non-baselined violations or stale baseline entries are found.
  */
 
 import fs from "node:fs";
@@ -34,14 +38,26 @@ import {
   type MethodDeclaration,
   Node,
   Project,
+  type Project as ProjectType,
+  type SourceFile,
   SyntaxKind,
 } from "ts-morph";
+
+type Pattern =
+  | "ARG_PASSTHROUGH"
+  | "SPREAD_PASSTHROUGH"
+  | "ZERO_ARG_LITERAL"
+  | "SINGLE_CALLER";
 
 interface Passthrough {
   file: string;
   line: number;
   name: string;
-  callee: string;
+  pattern: Pattern;
+  /** Identifier of the delegated callee (for *_PASSTHROUGH); null otherwise. */
+  callee: string | null;
+  /** Caller location for SINGLE_CALLER, literal description for ZERO_ARG_LITERAL. */
+  detail: string | null;
   exported: boolean;
 }
 
@@ -52,6 +68,12 @@ type CheckableFunction =
 
 interface Chain {
   links: Passthrough[];
+}
+
+interface BodyMatch {
+  pattern: Pattern;
+  callee: string | null;
+  detail: string | null;
 }
 
 const BASELINE_FILE = ".passthrough-baseline.json";
@@ -75,23 +97,25 @@ function main(): void {
   if (includeTest) globs.push("test/**/*.ts");
   for (const gl of globs) project.addSourceFilesAtPaths(gl);
 
-  // ── Scan ───────────────────────────────────────────────────────
+  // ── Body-shape scan: ARG / SPREAD / ZERO_ARG_LITERAL ─────────────
 
   const passthroughs: Passthrough[] = [];
 
   for (const sourceFile of project.getSourceFiles()) {
-    const relPath = sourceFile.getFilePath().replace(`${process.cwd()}/`, "");
+    const relPath = relPathOf(sourceFile);
 
     for (const fn of sourceFile.getFunctions()) {
       const name = fn.getName();
       if (!name) continue;
-      const result = checkPassthrough(fn);
-      if (result) {
+      const found = checkBodyShape(fn);
+      if (found) {
         passthroughs.push({
           file: relPath,
           line: fn.getStartLineNumber(),
           name,
-          callee: result,
+          pattern: found.pattern,
+          callee: found.callee,
+          detail: found.detail,
           exported: fn.isExported(),
         });
       }
@@ -100,35 +124,41 @@ function main(): void {
     for (const varDecl of sourceFile.getVariableDeclarations()) {
       const init = varDecl.getInitializerIfKind(SyntaxKind.ArrowFunction);
       if (!init) continue;
-      const name = varDecl.getName();
-      const result = checkPassthrough(init);
-      if (result) {
-        const varStmt = varDecl.getFirstAncestorByKind(
-          SyntaxKind.VariableStatement,
-        );
-        passthroughs.push({
-          file: relPath,
-          line: varDecl.getStartLineNumber(),
-          name,
-          callee: result,
-          exported: varStmt?.isExported() ?? false,
-        });
-      }
+      const found = checkBodyShape(init);
+      if (!found) continue;
+      const varStmt = varDecl.getFirstAncestorByKind(
+        SyntaxKind.VariableStatement,
+      );
+      passthroughs.push({
+        file: relPath,
+        line: varDecl.getStartLineNumber(),
+        name: varDecl.getName(),
+        pattern: found.pattern,
+        callee: found.callee,
+        detail: found.detail,
+        exported: varStmt?.isExported() ?? false,
+      });
     }
   }
 
-  // ── Chain detection ────────────────────────────────────────────
+  // ── Reference-count scan: SINGLE_CALLER ──────────────────────────
 
+  const alreadyFlagged = new Set(
+    passthroughs.map((pt) => `${pt.file}:${pt.name}`),
+  );
+  passthroughs.push(...findSingleCallerExports(project, alreadyFlagged));
+
+  // ── Chain detection (callable patterns only) ─────────────────────
+
+  const callable = passthroughs.filter((pt) => pt.callee !== null);
   const byName = new Map<string, Passthrough>();
-  for (const pt of passthroughs) {
-    byName.set(ptKey(pt), pt);
-  }
+  for (const pt of callable) byName.set(`${pt.file}:${pt.name}`, pt);
 
   const chains: Chain[] = [];
   const visited = new Set<string>();
 
-  for (const pt of passthroughs) {
-    const key = ptKey(pt);
+  for (const pt of callable) {
+    const key = `${pt.file}:${pt.name}`;
     if (visited.has(key)) continue;
 
     const links: Passthrough[] = [pt];
@@ -142,81 +172,341 @@ function main(): void {
       links.push(next);
       current = next;
     }
-    if (links.length >= 2) {
-      chains.push({ links });
-    }
+    if (links.length >= 2) chains.push({ links });
   }
 
-  // ── Baseline update mode ───────────────────────────────────────
+  // ── Baseline update mode ─────────────────────────────────────────
 
   if (updateBaseline) {
     const keys = passthroughs.map(ptKey).sort();
     fs.writeFileSync(BASELINE_FILE, JSON.stringify(keys, null, 2) + "\n");
-    console.log(`\u2714 Wrote ${keys.length} entries to ${BASELINE_FILE}`);
+    console.log(`✔ Wrote ${keys.length} entries to ${BASELINE_FILE}`);
     process.exit(0);
   }
 
-  // ── Filter by baseline ─────────────────────────────────────────
+  // ── Filter by baseline ───────────────────────────────────────────
 
   const newViolations = passthroughs.filter((pt) => !baseline.has(ptKey(pt)));
   const newChains = chains.filter((chain) =>
     chain.links.some((link) => !baseline.has(ptKey(link))),
   );
-
   const currentKeys = new Set(passthroughs.map(ptKey));
   const staleEntries = [...baseline].filter((key) => !currentKeys.has(key));
 
-  // ── Report ─────────────────────────────────────────────────────
+  // ── Report ───────────────────────────────────────────────────────
 
   const fileCount = project.getSourceFiles().length;
 
   if (newViolations.length === 0 && staleEntries.length === 0) {
-    const baselinedCount = passthroughs.length - newViolations.length;
-    const suffix = baselinedCount > 0 ? `, ${baselinedCount} baselined` : "";
+    const baselined = passthroughs.length - newViolations.length;
+    const suffix = baselined > 0 ? `, ${baselined} baselined` : "";
     console.log(
-      `\u2714 No passthrough wrappers (${fileCount} files checked${suffix})`,
+      `✔ No passthrough wrappers (${fileCount} files checked${suffix})`,
     );
     process.exit(0);
   }
 
   if (newViolations.length > 0) {
-    console.log(
-      `\u2718 ${newViolations.length} passthrough wrapper(s) found:\n`,
-    );
-    for (const pt of newViolations) {
-      const exp = pt.exported ? " (exported)" : "";
-      console.log(
-        `  ${pt.file}:${pt.line}: ${pt.name}${exp} \u2192 ${pt.callee}`,
-      );
+    console.log(`✘ ${newViolations.length} passthrough wrapper(s) found:`);
+    for (const pattern of [
+      "ARG_PASSTHROUGH",
+      "SPREAD_PASSTHROUGH",
+      "ZERO_ARG_LITERAL",
+      "SINGLE_CALLER",
+    ] as const) {
+      const group = newViolations.filter((pt) => pt.pattern === pattern);
+      if (group.length === 0) continue;
+      console.log(`\n  ${pattern} (${group.length}):`);
+      for (const pt of group) {
+        const exp = pt.exported ? " (exported)" : "";
+        const tail = pt.callee ?? pt.detail ?? "";
+        console.log(`    ${pt.file}:${pt.line}: ${pt.name}${exp} → ${tail}`);
+      }
     }
   }
 
   if (newChains.length > 0) {
-    console.log(`\n  Indirection chains (${newChains.length}):\n`);
+    console.log(`\n  Indirection chains (${newChains.length}):`);
     for (const chain of newChains) {
       const names = chain.links.map((link) => link.name);
       const last = chain.links[chain.links.length - 1]!;
-      names.push(last.callee);
+      if (last.callee) names.push(last.callee);
       console.log(
-        `  ${chain.links[0]!.file}:${chain.links[0]!.line}: ${names.join(" \u2192 ")}`,
+        `    ${chain.links[0]!.file}:${chain.links[0]!.line}: ${names.join(" → ")}`,
       );
     }
   }
 
   if (staleEntries.length > 0) {
     console.log(
-      `\n  \u2718 ${staleEntries.length} stale baseline entry/entries (remove from ${BASELINE_FILE}):\n`,
+      `\n  ✘ ${staleEntries.length} stale baseline entry/entries (remove from ${BASELINE_FILE}):`,
     );
-    for (const key of staleEntries) {
-      console.log(`  ${key}`);
-    }
+    for (const key of staleEntries) console.log(`    ${key}`);
   }
 
   process.exit(1);
 }
 
+function checkBodyShape(fn: CheckableFunction): BodyMatch | null {
+  const params = fn.getParameters();
+
+  if (params.length === 0) {
+    const literal = checkZeroArgLiteral(fn);
+    if (literal) {
+      return { pattern: "ZERO_ARG_LITERAL", callee: null, detail: literal };
+    }
+    return null;
+  }
+
+  // Single rest param: (...args) => foo(...args)
+  if (params.length === 1 && params[0]!.getDotDotDotToken()) {
+    const callee = checkSpreadPassthrough(fn);
+    if (callee) {
+      return { pattern: "SPREAD_PASSTHROUGH", callee, detail: null };
+    }
+    return null;
+  }
+
+  // Bail on any rest / default / destructured params for ARG check.
+  const paramNames: string[] = [];
+  for (const param of params) {
+    if (param.getDotDotDotToken()) return null;
+    if (param.hasInitializer()) return null;
+    const nameNode = param.getNameNode();
+    if (!Node.isIdentifier(nameNode)) return null;
+    paramNames.push(nameNode.getText());
+  }
+
+  const callee = checkArgPassthrough(fn, paramNames);
+  if (callee) return { pattern: "ARG_PASSTHROUGH", callee, detail: null };
+  return null;
+}
+
+function checkArgPassthrough(
+  fn: CheckableFunction,
+  paramNames: readonly string[],
+): string | null {
+  const callExpr = extractSingleCallBody(fn);
+  if (!callExpr) return null;
+
+  const callArgs = callExpr.getArguments();
+  if (callArgs.length !== paramNames.length) return null;
+  for (let i = 0; i < callArgs.length; i++) {
+    const arg = callArgs[i]!;
+    if (!Node.isIdentifier(arg)) return null;
+    if (arg.getText() !== paramNames[i]) return null;
+  }
+  return callExpr.getExpression().getText();
+}
+
+function checkSpreadPassthrough(fn: CheckableFunction): string | null {
+  const param = fn.getParameters()[0];
+  if (!param || !param.getDotDotDotToken()) return null;
+  if (param.hasInitializer()) return null;
+  const nameNode = param.getNameNode();
+  if (!Node.isIdentifier(nameNode)) return null;
+  const restName = nameNode.getText();
+
+  const callExpr = extractSingleCallBody(fn);
+  if (!callExpr) return null;
+
+  const callArgs = callExpr.getArguments();
+  if (callArgs.length !== 1) return null;
+  const onlyArg = callArgs[0]!;
+  if (!Node.isSpreadElement(onlyArg)) return null;
+  const inner = onlyArg.getExpression();
+  if (!Node.isIdentifier(inner)) return null;
+  if (inner.getText() !== restName) return null;
+
+  return callExpr.getExpression().getText();
+}
+
+function checkZeroArgLiteral(fn: CheckableFunction): string | null {
+  const body = fn.getBody();
+  if (!body) return null;
+
+  let returnExpr: Node | undefined;
+
+  if (Node.isBlock(body)) {
+    const stmts = body.getStatements();
+    if (stmts.length !== 1) return null;
+    const stmt = stmts[0]!;
+    if (!Node.isReturnStatement(stmt)) return null;
+    returnExpr = stmt.getExpression();
+  } else {
+    returnExpr = body;
+    while (returnExpr && Node.isParenthesizedExpression(returnExpr)) {
+      returnExpr = returnExpr.getExpression();
+    }
+  }
+
+  if (!returnExpr) return null;
+  if (!isTrivialLiteral(returnExpr)) return null;
+  return describeLiteral(returnExpr);
+}
+
+function extractSingleCallBody(fn: CheckableFunction) {
+  const body = fn.getBody();
+  if (!body) return null;
+
+  if (Node.isCallExpression(body)) return body;
+  if (!Node.isBlock(body)) return null;
+
+  const stmts = body.getStatements();
+  if (stmts.length !== 1) return null;
+  const stmt = stmts[0]!;
+
+  if (Node.isReturnStatement(stmt)) {
+    const expr = stmt.getExpression();
+    if (expr && Node.isCallExpression(expr)) return expr;
+    return null;
+  }
+  if (Node.isExpressionStatement(stmt)) {
+    const expr = stmt.getExpression();
+    if (Node.isCallExpression(expr)) return expr;
+  }
+  return null;
+}
+
+function isTrivialLiteral(expr: Node): boolean {
+  if (Node.isObjectLiteralExpression(expr)) {
+    for (const prop of expr.getProperties()) {
+      if (Node.isShorthandPropertyAssignment(prop)) continue;
+      if (Node.isPropertyAssignment(prop)) {
+        const init = prop.getInitializer();
+        if (!init || !isBareReference(init)) return false;
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+  if (Node.isArrayLiteralExpression(expr)) {
+    return expr.getElements().every(isBareReference);
+  }
+  return isBareReference(expr);
+}
+
+function isBareReference(expr: Node): boolean {
+  if (Node.isIdentifier(expr)) return true;
+  if (Node.isPropertyAccessExpression(expr)) {
+    return isBareReference(expr.getExpression());
+  }
+  if (
+    Node.isStringLiteral(expr) ||
+    Node.isNumericLiteral(expr) ||
+    Node.isBigIntLiteral(expr) ||
+    Node.isTrueLiteral(expr) ||
+    Node.isFalseLiteral(expr) ||
+    Node.isNullLiteral(expr) ||
+    Node.isNoSubstitutionTemplateLiteral(expr)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function describeLiteral(expr: Node): string {
+  if (Node.isObjectLiteralExpression(expr)) {
+    const keys = expr
+      .getProperties()
+      .map((prop) => {
+        if (Node.isShorthandPropertyAssignment(prop)) return prop.getName();
+        if (Node.isPropertyAssignment(prop)) return prop.getName();
+        return "?";
+      })
+      .join(",");
+    return `{ ${truncate(keys, 40)} }`;
+  }
+  if (Node.isArrayLiteralExpression(expr)) {
+    return `[${expr.getElements().length}]`;
+  }
+  return truncate(expr.getText(), 40);
+}
+
+function findSingleCallerExports(
+  project: ProjectType,
+  alreadyFlagged: Set<string>,
+): Passthrough[] {
+  const out: Passthrough[] = [];
+
+  for (const sourceFile of project.getSourceFiles()) {
+    const relPath = relPathOf(sourceFile);
+
+    for (const fn of sourceFile.getFunctions()) {
+      if (!fn.isExported()) continue;
+      const name = fn.getName();
+      if (!name) continue;
+      if (alreadyFlagged.has(`${relPath}:${name}`)) continue;
+      if (!isTrivialBody(fn)) continue;
+      const nameNode = fn.getNameNode();
+      if (!nameNode) continue;
+      const callerLoc = singleCallerLocation(nameNode);
+      if (!callerLoc) continue;
+      out.push({
+        file: relPath,
+        line: fn.getStartLineNumber(),
+        name,
+        pattern: "SINGLE_CALLER",
+        callee: null,
+        detail: callerLoc,
+        exported: true,
+      });
+    }
+
+    for (const varDecl of sourceFile.getVariableDeclarations()) {
+      const init = varDecl.getInitializerIfKind(SyntaxKind.ArrowFunction);
+      if (!init) continue;
+      const varStmt = varDecl.getFirstAncestorByKind(
+        SyntaxKind.VariableStatement,
+      );
+      if (!varStmt?.isExported()) continue;
+      const name = varDecl.getName();
+      if (alreadyFlagged.has(`${relPath}:${name}`)) continue;
+      if (!isTrivialBody(init)) continue;
+      const nameNode = varDecl.getNameNode();
+      if (!Node.isIdentifier(nameNode)) continue;
+      const callerLoc = singleCallerLocation(nameNode);
+      if (!callerLoc) continue;
+      out.push({
+        file: relPath,
+        line: varDecl.getStartLineNumber(),
+        name,
+        pattern: "SINGLE_CALLER",
+        callee: null,
+        detail: callerLoc,
+        exported: true,
+      });
+    }
+  }
+
+  return out;
+}
+
+function isTrivialBody(fn: CheckableFunction): boolean {
+  const body = fn.getBody();
+  if (!body) return false;
+  if (!Node.isBlock(body)) return true; // arrow expression body
+  return body.getStatements().length <= 2;
+}
+
+function singleCallerLocation(nameNode: Node): string | null {
+  const finder = nameNode as { findReferencesAsNodes?: () => Node[] };
+  if (typeof finder.findReferencesAsNodes !== "function") return null;
+  const refs = finder.findReferencesAsNodes();
+  const external = refs.filter((ref) => ref !== nameNode);
+  if (external.length !== 1) return null;
+  const ref = external[0]!;
+  const sf = ref.getSourceFile();
+  return `${relPathOf(sf)}:${ref.getStartLineNumber()}`;
+}
+
 function ptKey(pt: Passthrough): string {
-  return `${pt.file}:${pt.name}`;
+  return `${pt.file}:${pt.name}:${pt.pattern}`;
+}
+
+function relPathOf(sf: SourceFile): string {
+  return sf.getFilePath().replace(`${process.cwd()}/`, "");
 }
 
 function loadBaseline(): Set<string> {
@@ -228,73 +518,7 @@ function loadBaseline(): Set<string> {
   }
 }
 
-/**
- * Check if a function is a passthrough wrapper. Returns the callee name
- * if it is, or null if it isn't.
- */
-function checkPassthrough(fn: CheckableFunction): string | null {
-  const params = fn.getParameters();
-  if (params.length === 0) return null;
-
-  // Bail on destructured, rest, or default-value params
-  const paramNames: string[] = [];
-  for (const param of params) {
-    if (param.getDotDotDotToken()) return null;
-    if (param.hasInitializer()) return null;
-    const nameNode = param.getNameNode();
-    if (!Node.isIdentifier(nameNode)) return null;
-    paramNames.push(nameNode.getText());
-  }
-
-  const body = fn.getBody();
-  if (!body) return null;
-
-  // Arrow function with expression body: (a, b) => foo(a, b)
-  if (Node.isCallExpression(body)) {
-    return matchCall(body, paramNames);
-  }
-
-  // Block body — must have exactly 1 statement
-  if (!Node.isBlock(body)) return null;
-  const stmts = body.getStatements();
-  if (stmts.length !== 1) return null;
-  const stmt = stmts[0]!;
-
-  // return foo(a, b);
-  if (Node.isReturnStatement(stmt)) {
-    const expr = stmt.getExpression();
-    if (expr && Node.isCallExpression(expr)) {
-      return matchCall(expr, paramNames);
-    }
-    return null;
-  }
-
-  // foo(a, b);  (void passthrough)
-  if (Node.isExpressionStatement(stmt)) {
-    const expr = stmt.getExpression();
-    if (Node.isCallExpression(expr)) {
-      return matchCall(expr, paramNames);
-    }
-  }
-
-  return null;
-}
-
-/**
- * Check if a call expression passes exactly the given param names as
- * arguments, in order. Returns the callee name or null.
- */
-function matchCall(call: Node, paramNames: readonly string[]): string | null {
-  if (!Node.isCallExpression(call)) return null;
-
-  const callArgs = call.getArguments();
-  if (callArgs.length !== paramNames.length) return null;
-
-  for (let i = 0; i < callArgs.length; i++) {
-    const arg = callArgs[i]!;
-    if (!Node.isIdentifier(arg)) return null;
-    if (arg.getText() !== paramNames[i]) return null;
-  }
-
-  return call.getExpression().getText();
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1) + "…";
 }

@@ -16,11 +16,6 @@
 
 import { generateMap } from "../src/game/index.ts";
 import { Rng } from "../src/shared/platform/rng.ts";
-import {
-  createBattleStartMessage,
-  createBuildStartMessage,
-  createCannonStartMessage,
-} from "../src/online/online-serialize.ts";
 import { type GameMessage, MESSAGE, type ServerMessage } from "../src/protocol/protocol.ts";
 import {
   GAME_MODE_CLASSIC,
@@ -606,9 +601,9 @@ function buildHeadlessHostPhaseTicks(
   send: (msg: GameMessage) => void,
 ): OnlinePhaseTicks {
   return {
-    broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: () => send(createBattleStartMessage()),
-    broadcastBuildStart: () => send(createBuildStartMessage()),
+    broadcastCannonStart: () => send({ type: MESSAGE.CANNON_START }),
+    broadcastBattleStart: () => send({ type: MESSAGE.BATTLE_START }),
+    broadcastBuildStart: () => send({ type: MESSAGE.BUILD_START }),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
     broadcastLocalCrosshair: () => {},
     extendCrosshairs: (crosshairs) => [...crosshairs],

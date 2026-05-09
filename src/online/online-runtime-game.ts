@@ -35,12 +35,7 @@ import { initPromote } from "./online-runtime-promote.ts";
 import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
 import { initWs } from "./online-runtime-ws.ts";
 import { createOnlineSendActions } from "./online-send-actions.ts";
-import {
-  createBattleStartMessage,
-  createBuildStartMessage,
-  createCannonStartMessage,
-  createGameOverPayload,
-} from "./online-serialize.ts";
+import { createGameOverPayload } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
@@ -157,9 +152,9 @@ const runtime: GameRuntime = createGameRuntime({
     // ── Host: phase-transition checkpoint broadcasts ──────────────────
     // Direct imports — these are pure (state) → message factories with
     // no captured state, so they need no closure dance.
-    broadcastCannonStart: () => send(createCannonStartMessage()),
-    broadcastBattleStart: () => send(createBattleStartMessage()),
-    broadcastBuildStart: () => send(createBuildStartMessage()),
+    broadcastCannonStart: () => send({ type: MESSAGE.CANNON_START }),
+    broadcastBattleStart: () => send({ type: MESSAGE.BATTLE_START }),
+    broadcastBuildStart: () => send({ type: MESSAGE.BUILD_START }),
     broadcastBuildEnd: () => send({ type: MESSAGE.BUILD_END }),
 
     // ── Per-controller crosshair fan-out ──────────────────────────────

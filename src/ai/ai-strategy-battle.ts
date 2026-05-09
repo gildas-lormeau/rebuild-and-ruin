@@ -108,16 +108,6 @@ export function countUsableCannons(
   return count;
 }
 
-/** Plan a grunt sweep: chain-fire at enemy grunts on our territory. */
-export function planGruntSweep(
-  state: BattleViewState,
-  playerId: ValidPlayerSlot,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  return planGruntTargets(state, playerId, usableCannonCount, rng);
-}
-
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: BattleViewState,
@@ -129,7 +119,7 @@ export function planCharitySweep(
     if (enemy.id === playerId || isPlayerEliminated(enemy)) continue;
     if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD)
       continue;
-    const targets = planGruntTargets(state, enemy.id, usableCannonCount, rng);
+    const targets = planGruntSweep(state, enemy.id, usableCannonCount, rng);
     if (targets) return targets;
   }
   return null;
@@ -610,6 +600,46 @@ export function trackShot(
   }
 }
 
+/** Plan a grunt sweep: chain-fire at enemy grunts attacking a specific player,
+ *  ordered by nearest neighbor from a random start.
+ *  @param victimPlayerId — the player whose territory the grunts are attacking
+ *    (the AI when called for our own defense; an enemy when called by
+ *    `planCharitySweep` to clean up someone who can't fight back).
+ *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
+export function planGruntSweep(
+  state: BattleViewState,
+  victimPlayerId: ValidPlayerSlot,
+  usableCannonCount: number,
+  rng: Rng,
+): TilePos[] | null {
+  const frozenActive = state.modern?.frozenTiles != null;
+  const defenderZone = state.playerZones[victimPlayerId];
+  const grunts = state.grunts.filter((grunt) => {
+    if (grunt.victimPlayerId !== victimPlayerId) return false;
+    // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
+    // don't kill them. Only target grunts that are already in enemy territory heading back.
+    if (frozenActive) {
+      const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
+      if (gruntZone === defenderZone) return false;
+    }
+    return true;
+  });
+  const mod = state.modern?.activeModifier;
+  const threshold =
+    mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
+      ? GRUNT_SWEEP_THRESHOLD_MODIFIER
+      : GRUNT_SWEEP_THRESHOLD;
+  if (grunts.length <= threshold) return null;
+  const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
+  // Random starting point
+  const startIndex = rng.int(0, positions.length - 1);
+  [positions[0], positions[startIndex]] = [
+    positions[startIndex]!,
+    positions[0]!,
+  ];
+  return orderByNearest(positions, usableCannonCount);
+}
+
 function collectStrategicWallTargets(
   state: BattleViewState,
   playerId: ValidPlayerSlot,
@@ -933,43 +963,6 @@ function jitterWithinTile(
     x: centerX + (rand() - 0.5) * jitterRange,
     y: centerY + (rand() - 0.5) * jitterRange,
   };
-}
-
-/** Target grunts attacking a specific player, ordered by nearest neighbor from a random start.
- *  @param victimPlayerId — the player whose territory the grunts are attacking (not the AI).
- *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
-function planGruntTargets(
-  state: BattleViewState,
-  victimPlayerId: ValidPlayerSlot,
-  usableCannonCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const frozenActive = state.modern?.frozenTiles != null;
-  const defenderZone = state.playerZones[victimPlayerId];
-  const grunts = state.grunts.filter((grunt) => {
-    if (grunt.victimPlayerId !== victimPlayerId) return false;
-    // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
-    // don't kill them. Only target grunts that are already in enemy territory heading back.
-    if (frozenActive) {
-      const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
-      if (gruntZone === defenderZone) return false;
-    }
-    return true;
-  });
-  const mod = state.modern?.activeModifier;
-  const threshold =
-    mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
-      ? GRUNT_SWEEP_THRESHOLD_MODIFIER
-      : GRUNT_SWEEP_THRESHOLD;
-  if (grunts.length <= threshold) return null;
-  const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
-  // Random starting point
-  const startIndex = rng.int(0, positions.length - 1);
-  [positions[0], positions[startIndex]] = [
-    positions[startIndex]!,
-    positions[0]!,
-  ];
-  return orderByNearest(positions, usableCannonCount);
 }
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
