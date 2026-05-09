@@ -89,7 +89,6 @@ export function ailToWopl(ail: Uint8Array): Uint8Array {
       position,
       `Rampart melodic bank 0x${tag.toString(16).padStart(2, "0")} (${filled})`,
       index,
-      0,
     );
     position += WOPL_BANK_META_SIZE;
   }
@@ -97,7 +96,7 @@ export function ailToWopl(ail: Uint8Array): Uint8Array {
     (accumulator, entry) => accumulator + (entry ? 1 : 0),
     0,
   );
-  writeBankMeta(out, position, `Rampart drums (${drumsFilled})`, 0, 0);
+  writeBankMeta(out, position, `Rampart drums (${drumsFilled})`, 0);
   position += WOPL_BANK_META_SIZE;
 
   const blank = buildBlankInstrument();
@@ -218,12 +217,11 @@ function writeBankMeta(
   offset: number,
   name: string,
   lsb: number,
-  msb: number,
 ): void {
   const encoded = new TextEncoder().encode(name).slice(0, 32);
   out.set(encoded, offset);
   out[offset + 32] = lsb;
-  out[offset + 33] = msb;
+  out[offset + 33] = 0;
 }
 
 function buildBlankInstrument(): Uint8Array {
