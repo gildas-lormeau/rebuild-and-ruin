@@ -62,6 +62,7 @@ echo "lint:all: parallel checks..."
   run useless-guards    deno run -A scripts/lint-useless-guards.ts
   run if-chain          deno run -A scripts/lint-if-chain.ts
   run passthrough       deno run -A scripts/lint-passthrough-wrappers.ts
+  run internal-jsdoc    deno run -A scripts/lint-internal-jsdoc.ts
   run tile-mutators     deno run -A scripts/lint-tile-mutators.ts
   run shape-duplicates  deno run -A scripts/find-shape-duplicates.ts --exact-only --test --shared-subset 3
   run dead-params       deno run -A scripts/lint-dead-params.ts --min-callers=1

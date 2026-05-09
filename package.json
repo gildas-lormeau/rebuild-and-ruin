@@ -44,6 +44,7 @@
     "lint:guards": "deno run -A scripts/lint-useless-guards.ts",
     "lint:if-chain": "deno run -A scripts/lint-if-chain.ts",
     "lint:passthrough": "deno run -A scripts/lint-passthrough-wrappers.ts",
+    "lint:internal-jsdoc": "deno run -A scripts/lint-internal-jsdoc.ts",
     "lint:shapes": "deno run -A scripts/find-shape-duplicates.ts --exact-only --test",
     "lint:shapes:audit": "deno run -A scripts/find-shape-duplicates.ts --test",
     "lint:literals": "npm run find-literals",
