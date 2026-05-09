@@ -4,9 +4,6 @@
       "pair": "BarrelParams@src/render/3d/sprites/cannon-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "BarrelParams@src/render/3d/sprites/cannon-scene.ts ↔ GroundDiscParams@src/render/3d/sprites/balloon-scene.ts"
-    },
-    {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ BoltParams@src/render/3d/sprites/balloon-scene.ts"
     },
     {
@@ -145,14 +142,700 @@
       "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
-      "pair": "RuntimeUpgradePick@src/runtime/runtime-types.ts ↔ UpgradePickSystem@src/runtime/runtime-upgrade-pick.ts"
-    },
-    {
       "pair": "SerializedBonusSquare@src/protocol/checkpoint-data.ts ↔ SerializedHouse@src/protocol/checkpoint-data.ts"
     },
     {
       "pair": "TopParams@src/render/3d/sprites/rampart-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
     }
   ],
-  "inline": []
+  "inline": [],
+  "sharedSubsets": [
+    {
+      "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "AimUpdateMessage@src/protocol/protocol.ts ↔ Cannonball@src/shared/core/battle-types.ts"
+    },
+    {
+      "pair": "AimUpdateMessage@src/protocol/protocol.ts ↔ Crosshair@src/shared/core/battle-types.ts"
+    },
+    {
+      "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ AiStrategy@src/ai/ai-strategy.ts"
+    },
+    {
+      "pair": "AiPersonality@src/shared/core/ai-personality.ts ↔ PlacementOptions@src/ai/ai-build-types.ts"
+    },
+    {
+      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContext@src/shared/core/types.ts"
+    },
+    {
+      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+    },
+    {
+      "pair": "BallParams@src/render/3d/sprites/cannonball-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BallParams@src/render/3d/sprites/cannonball-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ LifeLostSystemDeps@src/runtime/runtime-life-lost.ts"
+    },
+    {
+      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+    },
+    {
+      "pair": "BannerSystemDeps@src/runtime/runtime-banner.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+    },
+    {
+      "pair": "BarrelParams@src/render/3d/sprites/cannon-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ BodyParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ RoofPlacement@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "BattleAnimState@src/shared/core/battle-types.ts ↔ BattleOverlay@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ BuildHost@src/ai/ai-phase-build.ts"
+    },
+    {
+      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ CannonHost@src/ai/ai-phase-cannon.ts"
+    },
+    {
+      "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+    },
+    {
+      "pair": "BattleOverlay@src/shared/ui/overlay-types.ts ↔ OnlineOverlayParams@src/runtime/runtime-contracts.ts"
+    },
+    {
+      "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
+    },
+    {
+      "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BodyParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ CannonHost@src/ai/ai-phase-cannon.ts"
+    },
+    {
+      "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+    },
+    {
+      "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ EntityOverlay@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
+    },
+    {
+      "pair": "BuildViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
+    },
+    {
+      "pair": "BurstHost@src/render/3d/effects/modifier-reveal-burst.ts ↔ ThawHost@src/render/3d/effects/thawing.ts"
+    },
+    {
+      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts"
+    },
+    {
+      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ PhaseTransitionCtx@src/runtime/runtime-phase-machine.ts"
+    },
+    {
+      "pair": "CameraSystem@src/runtime/runtime-types.ts ↔ ZoomButtonDeps@src/runtime/runtime-contracts.ts"
+    },
+    {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonPlacement@src/ai/ai-strategy-cannon.ts"
+    },
+    {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
+    },
+    {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedCannon@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "Cannon@src/render/3d/entities/cannons.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayBalloon@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "Cannonball@src/shared/core/battle-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ GruntVariant@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ PitVariant@src/render/3d/sprites/pit-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ RampartVariant@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ Variant@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CannonballVariant@src/render/3d/sprites/cannonball-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "CannonFiredMessage@src/shared/core/battle-events.ts ↔ Cannonball@src/shared/core/battle-types.ts"
+    },
+    {
+      "pair": "CannonHost@src/ai/ai-phase-cannon.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
+    },
+    {
+      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ FeatureDef@src/shared/core/feature-defs.ts"
+    },
+    {
+      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ ModifierDef@src/shared/core/modifier-defs.ts"
+    },
+    {
+      "pair": "CannonModeDef@src/shared/core/cannon-mode-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
+    },
+    {
+      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ CannonShapePayload@src/shared/core/phantom-types.ts"
+    },
+    {
+      "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ PlacePieceIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
+    },
+    {
+      "pair": "CannonShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ CannonballVariant@src/render/3d/sprites/cannonball-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ GruntVariant@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ PitVariant@src/render/3d/sprites/pit-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ RampartVariant@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ Variant@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CannonVariant@src/render/3d/sprites/cannon-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "CannonViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
+    },
+    {
+      "pair": "CastleData@src/shared/ui/overlay-types.ts ↔ Player@src/shared/core/player-types.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ CoreParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ DoorParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ WindowPlacement@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CoreParams@src/render/3d/sprites/rampart-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "DecorationDims@src/render/3d/sprites/cannon-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "DoorParams@src/render/3d/sprites/house-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "DoorParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "DoorPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ GameState@src/shared/core/types.ts"
+    },
+    {
+      "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
+    },
+    {
+      "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "FeatureDef@src/shared/core/feature-defs.ts ↔ ModifierDef@src/shared/core/modifier-defs.ts"
+    },
+    {
+      "pair": "FeatureDef@src/shared/core/feature-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
+    },
+    {
+      "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ HullParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"
+    },
+    {
+      "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+    },
+    {
+      "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/runtime-contracts.ts"
+    },
+    {
+      "pair": "FullStateMessage@src/protocol/protocol.ts ↔ ModifierTileData@src/game/modifiers/modifier-types.ts"
+    },
+    {
+      "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "GameState@src/shared/core/types.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
+    },
+    {
+      "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
+    },
+    {
+      "pair": "GameState@src/shared/core/types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "Grunt@src/shared/core/battle-types.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "GruntSpawnedMessage@src/shared/core/battle-events.ts ↔ SerializedGrunt@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ PitVariant@src/render/3d/sprites/pit-scene.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ RampartVariant@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ Variant@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "GruntVariant@src/render/3d/sprites/grunt-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "HullParams@src/render/3d/sprites/grunt-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+    },
+    {
+      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
+    },
+    {
+      "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+    },
+    {
+      "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
+    },
+    {
+      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ OptionsSystemDeps@src/runtime/runtime-options.ts"
+    },
+    {
+      "pair": "LobbySystemDeps@src/runtime/runtime-lobby.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+    },
+    {
+      "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"
+    },
+    {
+      "pair": "ModifierDef@src/shared/core/modifier-defs.ts ↔ UpgradeDef@src/shared/core/upgrade-defs.ts"
+    },
+    {
+      "pair": "MusicSubsystem@src/runtime/music-player.ts ↔ SfxSubsystem@src/runtime/sfx-player.ts"
+    },
+    {
+      "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+    },
+    {
+      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "PieceShape@src/shared/core/pieces.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ PlacePieceIntent@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
+    },
+    {
+      "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "PitCreatedMessage@src/shared/core/battle-events.ts ↔ SerializedBurningPit@src/protocol/checkpoint-data.ts"
+    },
+    {
+      "pair": "PitVariant@src/render/3d/sprites/pit-scene.ts ↔ RampartVariant@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "PitVariant@src/render/3d/sprites/pit-scene.ts ↔ Variant@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "PitVariant@src/render/3d/sprites/pit-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "PitVariant@src/render/3d/sprites/pit-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "PitVariant@src/render/3d/sprites/pit-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
+    },
+    {
+      "pair": "PlaceCannonIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
+    },
+    {
+      "pair": "PlacePieceIntent@src/shared/core/system-interfaces.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "PoleParams@src/render/3d/sprites/tower-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"
+    },
+    {
+      "pair": "PoleParams@src/render/3d/sprites/tower-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "QuitButtonDeps@src/runtime/runtime-contracts.ts ↔ QuitFlowDeps@src/input/input-dispatch.ts"
+    },
+    {
+      "pair": "RampartVariant@src/render/3d/sprites/rampart-scene.ts ↔ Variant@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "RampartVariant@src/render/3d/sprites/rampart-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "RampartVariant@src/render/3d/sprites/rampart-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "RampartVariant@src/render/3d/sprites/rampart-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "RegisterOnlineInputDeps@src/runtime/runtime-contracts.ts ↔ RuntimeConfig@src/runtime/runtime-types.ts"
+    },
+    {
+      "pair": "RenderViewShared@src/shared/core/render-view.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
+      "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "RuntimeState@src/runtime/runtime-state.ts ↔ UIContext@src/runtime/runtime-contracts.ts"
+    },
+    {
+      "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"
+    },
+    {
+      "pair": "SelectionSystemDeps@src/runtime/runtime-selection.ts ↔ UpgradePickSystemDeps@src/runtime/runtime-upgrade-pick.ts"
+    },
+    {
+      "pair": "SlabParams@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "SlabParams@src/render/3d/sprites/cannon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "SlabParams@src/render/3d/sprites/cannon-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "StakesParams@src/render/3d/sprites/balloon-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "TopParams@src/render/3d/sprites/rampart-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "TopParams@src/render/3d/sprites/rampart-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "TracksParams@src/render/3d/sprites/grunt-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "TracksParams@src/render/3d/sprites/grunt-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "TurretParams@src/render/3d/sprites/tower-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "TurretParams@src/render/3d/sprites/tower-scene.ts ↔ WindowPlacement@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "Variant@src/render/3d/sprites/tower-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "Variant@src/render/3d/sprites/tower-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "Variant@src/render/3d/sprites/tower-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "VariantDescriptor@src/render/3d/sprites/debris-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "VariantDescriptor@src/render/3d/sprites/debris-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "VariantDescriptor@src/render/3d/sprites/house-scene.ts ↔ VariantDescriptor@src/render/3d/sprites/wall-scene.ts"
+    },
+    {
+      "pair": "WindowPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
+    }
+  ]
 }

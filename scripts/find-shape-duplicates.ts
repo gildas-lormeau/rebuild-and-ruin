@@ -15,7 +15,14 @@
  *   --min-fields N      Minimum fields to consider (default: 3)
  *   --overlap N         Minimum overlap ratio 0-1 for subset detection (default: 0.8)
  *   --exact-only        Only report exact shape duplicates (no overlap pairs)
- *   --update-baseline   Write current overlap pairs to baseline file
+ *   --shared-subset N   Enable shared-subset detection. Reports pairs with ≥ N
+ *                       loose-typed field names in common (default N=3 if no
+ *                       value given). Catches the "co-evolved chunk of fields"
+ *                       pattern that strict subset and overlap miss — e.g.
+ *                       a wire DTO that should embed an existing checkpoint
+ *                       slice via intersection. Asymmetric: neither side is
+ *                       canonical; cleanup is "extract a third interface".
+ *   --update-baseline   Write current overlap + shared-subset pairs to baseline
  *   --json              Output as JSON
  */
 
@@ -31,6 +38,10 @@ interface ShapeEntry {
   hash: string;
   layer: number;
   exported: boolean;
+  /** name → loose type text (stripped of `readonly` + `?`). Used by the
+   *  shared-subset detector so trivially-different declarations of the same
+   *  conceptual field still match. */
+  looseFieldsByName: Map<string, string>;
 }
 
 interface DuplicateEntry {
@@ -44,6 +55,21 @@ interface Duplicate {
   entries: DuplicateEntry[];
   overlap?: number;
   fields: string[];
+}
+
+/** A pair of shapes whose field-name sets meaningfully overlap (not strict
+ *  subset, not the existing high-overlap class). The cleanup signal is
+ *  "consider extracting these N shared fields into a common sub-interface".
+ *  Distinct from `Duplicate` because the symmetry is different — neither side
+ *  is "canonical"; the suggestion is a third interface they both reference. */
+interface SharedSubset {
+  entries: [DuplicateEntry, DuplicateEntry];
+  /** Field names that appear in both shapes (after stripping `readonly`/`?`). */
+  sharedNames: string[];
+  /** How many of the shared field names had matching loose types. */
+  typeCompatibleCount: number;
+  /** Sample shared `name:looseType` lines, for the report. */
+  sample: string[];
 }
 
 /** An inline object literal in a signature that matches a named export. */
@@ -66,9 +92,14 @@ interface InlineBaselineEntry {
   key: string;
 }
 
+interface SharedSubsetBaselineEntry {
+  pair: string;
+}
+
 interface BaselineFile {
   overlaps: BaselineEntry[];
   inline: InlineBaselineEntry[];
+  sharedSubsets?: SharedSubsetBaselineEntry[];
 }
 
 interface LayerGroup {
@@ -86,6 +117,19 @@ const minFieldsIdx = args.indexOf("--min-fields");
 const minFields = minFieldsIdx >= 0 ? Number(args[minFieldsIdx + 1]) : 3;
 const overlapIdx = args.indexOf("--overlap");
 const overlapThreshold = overlapIdx >= 0 ? Number(args[overlapIdx + 1]) : 0.8;
+const sharedSubsetIdx = args.indexOf("--shared-subset");
+const sharedSubsetEnabled = sharedSubsetIdx >= 0;
+/** Minimum shared field-name count to flag a pair. ModifierTileData ↔
+ *  FullStateMessage shares 3 fields, so 3 is the lowest meaningful default;
+ *  raise via `--shared-subset N` if the noise floor is too high. */
+const sharedSubsetMinShared =
+  sharedSubsetEnabled && args[sharedSubsetIdx + 1]
+    ? Number(args[sharedSubsetIdx + 1])
+    : 3;
+/** Fraction of shared field names whose loose types must match. Below this,
+ *  the "shared subset" is just name collision (e.g. both have a `name:string`
+ *  by coincidence). */
+const sharedSubsetTypeMatchThreshold = 0.7;
 const BASELINE_FILE = ".shape-duplicates-baseline.json";
 const layerMap = loadLayerMap();
 const project = new Project({
@@ -102,7 +146,9 @@ const overlapDuplicates: Duplicate[] = [];
 /** Index of exported named shapes by hash → best canonical. */
 const exportedByHash = new Map<string, ShapeEntry>();
 const inlineMatches: InlineMatch[] = [];
+const sharedSubsets: SharedSubset[] = [];
 const inlineBaseline = loadBaseline().inline;
+const sharedSubsetBaseline = loadBaseline().sharedSubsets;
 
 /** Build a file→layer-index map from .import-layers.json. */
 function loadLayerMap(): Map<string, number> {
@@ -131,9 +177,9 @@ for (const sourceFile of project.getSourceFiles()) {
   const relPath = sourceFile.getFilePath().replace(`${process.cwd()}/`, "");
 
   for (const decl of sourceFile.getInterfaces()) {
-    const members = decl.getMembers();
+    const members = decl.getMembers() as TypeElementTypes[];
     const fields = members
-      .map((m) => normalizeMember(m as TypeElementTypes))
+      .map(normalizeMember)
       .filter((f): f is string => f !== null)
       .sort();
 
@@ -147,6 +193,7 @@ for (const sourceFile of project.getSourceFiles()) {
       hash: fields.join(";"),
       layer: layerMap.get(relPath) ?? Number.POSITIVE_INFINITY,
       exported: decl.isExported(),
+      looseFieldsByName: looseFieldMap(members),
     });
   }
 
@@ -154,9 +201,9 @@ for (const sourceFile of project.getSourceFiles()) {
     const typeNode = decl.getTypeNode();
     if (!typeNode || !typeNode.isKind(SyntaxKind.TypeLiteral)) continue;
 
-    const members = typeNode.getMembers();
+    const members = typeNode.getMembers() as TypeElementTypes[];
     const fields = members
-      .map((m) => normalizeMember(m as TypeElementTypes))
+      .map(normalizeMember)
       .filter((f): f is string => f !== null)
       .sort();
 
@@ -170,6 +217,7 @@ for (const sourceFile of project.getSourceFiles()) {
       hash: fields.join(";"),
       layer: layerMap.get(relPath) ?? Number.POSITIVE_INFINITY,
       exported: decl.isExported(),
+      looseFieldsByName: looseFieldMap(members),
     });
   }
 }
@@ -310,6 +358,43 @@ function extractTypeLiteralFields(
 }
 
 /** Normalize a single member to a canonical string (name + type text). */
+/** Build a name → loose-type map for shared-subset detection. "Loose" means
+ *  the type text is stripped of `readonly` modifiers and the name is stripped
+ *  of its `?` marker, so `readonly foo?: number[]` and `foo: number[]` match.
+ *  Methods are normalized to a `(params):ret` signature with the same
+ *  modifiers stripped from each param/return type. */
+function looseFieldMap(members: TypeElementTypes[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const member of members) {
+    if (member.isKind(SyntaxKind.PropertySignature)) {
+      const name = member.getName();
+      const typeText = member.getTypeNode()?.getText() ?? "unknown";
+      out.set(name, stripReadonly(typeText));
+    } else if (member.isKind(SyntaxKind.MethodSignature)) {
+      const name = member.getName();
+      const params = member
+        .getParameters()
+        .map((pm) => stripReadonly(pm.getTypeNode()?.getText() ?? "unknown"))
+        .join(",");
+      const ret = stripReadonly(
+        member.getReturnTypeNode()?.getText() ?? "void",
+      );
+      out.set(name, `(${params}):${ret}`);
+    }
+  }
+  return out;
+}
+
+/** Strip every `readonly` keyword anywhere in the type text. Whitespace
+ *  collapse afterwards keeps `readonly number[] | null` and `number[] | null`
+ *  comparable byte-for-byte. */
+function stripReadonly(typeText: string): string {
+  return typeText
+    .replace(/\breadonly\s+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeMember(member: TypeElementTypes): string | null {
   if (member.isKind(SyntaxKind.PropertySignature)) {
     const name = member.getName();
@@ -387,24 +472,54 @@ if (!exactOnly) {
   }
 }
 
-function loadBaseline(): { overlaps: Set<string>; inline: Set<string> } {
-  try {
-    const raw = fs.readFileSync(BASELINE_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    // Support both old format (array of {pair}) and new format ({overlaps, inline})
-    if (Array.isArray(parsed)) {
-      return {
-        overlaps: new Set(parsed.map((en: BaselineEntry) => en.pair)),
-        inline: new Set(),
-      };
+if (sharedSubsetEnabled) {
+  // Pass 4: shared-subset detection. For every pair of shapes with >=
+  // sharedSubsetMinShared field names in common (loose-typed), report when
+  // most of those shared fields have compatible types. Catches cases where
+  // two interfaces co-evolve a chunk of fields that should live in a shared
+  // sub-interface — e.g. `ModifierTileData` vs `FullStateMessage`, where the
+  // tile-set fields appear on both with semantically identical meaning but
+  // syntactically different declarations (`readonly`/`?` markers, missing
+  // entries). Strict subset detection (every name in A also in B) misses
+  // these because the smaller shape has fields the larger one omits.
+  for (let idx = 0; idx < shapes.length; idx++) {
+    const shapeA = shapes[idx];
+    const namesA = shapeA.looseFieldsByName;
+    for (let jdx = idx + 1; jdx < shapes.length; jdx++) {
+      const shapeB = shapes[jdx];
+      // Skip exact-shape twins: those are reported by the exact-duplicate
+      // pass and would noise up this report.
+      if (shapeA.hash === shapeB.hash) continue;
+      // Skip same-file pairs: adjacent declarations in one file are usually
+      // intentional (sibling DTOs, layered variants).
+      if (shapeA.file === shapeB.file) continue;
+      const namesB = shapeB.looseFieldsByName;
+      const sharedNames: string[] = [];
+      let typeCompatibleCount = 0;
+      for (const [name, looseTypeA] of namesA) {
+        const looseTypeB = namesB.get(name);
+        if (looseTypeB === undefined) continue;
+        sharedNames.push(name);
+        if (looseTypeA === looseTypeB) typeCompatibleCount++;
+      }
+      if (sharedNames.length < sharedSubsetMinShared) continue;
+      const typeRatio = typeCompatibleCount / sharedNames.length;
+      if (typeRatio < sharedSubsetTypeMatchThreshold) continue;
+
+      const key = pairKey(shapeA, shapeB);
+      if (!updateBaseline && sharedSubsetBaseline.has(key)) continue;
+
+      sharedNames.sort();
+      sharedSubsets.push({
+        entries: [
+          { name: shapeA.name, file: shapeA.file, line: shapeA.line },
+          { name: shapeB.name, file: shapeB.file, line: shapeB.line },
+        ],
+        sharedNames,
+        typeCompatibleCount,
+        sample: sharedNames.map((nm) => `${nm}: ${namesA.get(nm)}`),
+      });
     }
-    const file = parsed as BaselineFile;
-    return {
-      overlaps: new Set((file.overlaps ?? []).map((en) => en.pair)),
-      inline: new Set((file.inline ?? []).map((en) => en.key)),
-    };
-  } catch {
-    return { overlaps: new Set(), inline: new Set() };
   }
 }
 
@@ -417,15 +532,56 @@ if (updateBaseline) {
     key: inlineKey(match),
   }));
   inlineEntries.sort((en1, en2) => en1.key.localeCompare(en2.key));
+  // Preserve any existing sharedSubsets baseline when the user didn't run
+  // with --shared-subset; otherwise rewrite from the current findings.
+  const existingSharedSubsets = loadBaseline().sharedSubsets;
+  const sharedSubsetEntries: SharedSubsetBaselineEntry[] = sharedSubsetEnabled
+    ? sharedSubsets.map((ss) => ({
+        pair: pairKey(ss.entries[0], ss.entries[1]),
+      }))
+    : [...existingSharedSubsets].map((pair) => ({ pair }));
+  sharedSubsetEntries.sort((en1, en2) => en1.pair.localeCompare(en2.pair));
   const baselineFile: BaselineFile = {
     overlaps: overlapEntries,
     inline: inlineEntries,
+    sharedSubsets: sharedSubsetEntries,
   };
   fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(baselineFile, null, 2)}\n`);
   console.log(
-    `Wrote ${overlapEntries.length} overlap pairs + ${inlineEntries.length} inline matches to ${BASELINE_FILE}`,
+    `Wrote ${overlapEntries.length} overlap pairs + ${inlineEntries.length} inline matches + ${sharedSubsetEntries.length} shared-subset pairs to ${BASELINE_FILE}`,
   );
   process.exit(0);
+}
+
+function loadBaseline(): {
+  overlaps: Set<string>;
+  inline: Set<string>;
+  sharedSubsets: Set<string>;
+} {
+  try {
+    const raw = fs.readFileSync(BASELINE_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    // Support both old format (array of {pair}) and new format ({overlaps, inline, sharedSubsets?})
+    if (Array.isArray(parsed)) {
+      return {
+        overlaps: new Set(parsed.map((en: BaselineEntry) => en.pair)),
+        inline: new Set(),
+        sharedSubsets: new Set(),
+      };
+    }
+    const file = parsed as BaselineFile;
+    return {
+      overlaps: new Set((file.overlaps ?? []).map((en) => en.pair)),
+      inline: new Set((file.inline ?? []).map((en) => en.key)),
+      sharedSubsets: new Set((file.sharedSubsets ?? []).map((en) => en.pair)),
+    };
+  } catch {
+    return {
+      overlaps: new Set(),
+      inline: new Set(),
+      sharedSubsets: new Set(),
+    };
+  }
 }
 
 function inlineKey(match: InlineMatch): string {
@@ -445,6 +601,7 @@ if (jsonOutput) {
         exact: exactDuplicates,
         overlap: overlapDuplicates,
         inline: inlineMatches,
+        sharedSubsets,
       },
       null,
       2,
@@ -516,12 +673,38 @@ if (jsonOutput) {
     }
   }
 
+  if (sharedSubsets.length > 0) {
+    console.log(
+      `\n=== Shared-subset candidates (${sharedSubsets.length}, ≥${sharedSubsetMinShared} shared field names, ≥${Math.round(sharedSubsetTypeMatchThreshold * 100)}% type compat) ===\n`,
+    );
+    sharedSubsets.sort(
+      (s1, s2) => s2.sharedNames.length - s1.sharedNames.length,
+    );
+    for (const ss of sharedSubsets) {
+      const [entryA, entryB] = ss.entries;
+      const compatPct = Math.round(
+        (ss.typeCompatibleCount / ss.sharedNames.length) * 100,
+      );
+      console.log(
+        `  ${entryA.name} (${entryA.file}:${entryA.line}) ↔ ${entryB.name} (${entryB.file}:${entryB.line})`,
+      );
+      console.log(
+        `  ${ss.sharedNames.length} shared fields, ${compatPct}% type-compat — consider extracting a common sub-interface`,
+      );
+      for (const line of ss.sample.slice(0, 6)) console.log(`    ${line}`);
+      if (ss.sample.length > 6)
+        console.log(`    … (${ss.sample.length - 6} more)`);
+      console.log();
+    }
+  }
+
   const total =
     exactDuplicates.reduce((n, d) => n + d.entries.length, 0) +
     overlapDuplicates.length +
-    inlineMatches.length;
+    inlineMatches.length +
+    sharedSubsets.length;
   console.log(
-    `Total: ${exactDuplicates.length} exact groups, ${inlineMatches.length} inline matches, ${overlapDuplicates.length} new overlap pairs (${total} locations)`,
+    `Total: ${exactDuplicates.length} exact groups, ${inlineMatches.length} inline matches, ${overlapDuplicates.length} new overlap pairs, ${sharedSubsets.length} shared-subset candidates (${total} locations)`,
   );
 }
 
@@ -531,6 +714,7 @@ function hasIssues(): boolean {
   return (
     exactDuplicates.length > 0 ||
     overlapDuplicates.length > 0 ||
-    inlineMatches.length > 0
+    inlineMatches.length > 0 ||
+    sharedSubsets.length > 0
   );
 }
