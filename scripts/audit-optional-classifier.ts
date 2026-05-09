@@ -22,6 +22,65 @@ export type RefKind =
   | "type-only"
   | "other";
 
+export type Classification =
+  | "dead"
+  | "suspicious-dead"
+  | "read-only"
+  | "write-only"
+  | "suspicious-write-only"
+  | "fake-optional"
+  | "ambiguous-fake"
+  | "truly-optional";
+
+export interface RefStats {
+  assigns: number;
+  guardedReads: number;
+  unguardedReads: number;
+}
+
+/** Roll up per-reference stats + construction-site analysis + project-wide
+ *  identifier-match count into a Classification. Pure function — testable
+ *  independent of ts-morph. The audit driver feeds it the numbers it computed
+ *  via `classifyRef`, contextual-type literal walking, and identifier indexing.
+ *
+ *  Demotion rules (precision-first; we'd rather a fake-optional finding need
+ *  human review than have the agent drop `?` and hit a tsc error):
+ *  - dead → suspicious-dead when identifier occurrences exist elsewhere
+ *  - write-only → suspicious-write-only on the same signal
+ *  - fake-optional → ambiguous-fake when EITHER a construction site omits the
+ *    field (dropping `?` would tsc-error) OR identifier occurrences exist that
+ *    the symbol-search didn't account for (likely read through a structurally-
+ *    typed helper) */
+export function classifyProperty(
+  stats: RefStats,
+  omittedAt: number,
+  stringMatches: number,
+  constructionSites: number,
+): Classification {
+  const reads = stats.guardedReads + stats.unguardedReads;
+  // Construction-site literals that set the field count as "assigns" the
+  // symbol-search may have missed. Real example: `FullStateMessage.*` wire
+  // fields populated via a contextually-typed literal in `online-serialize.ts`
+  // — ts-morph misses the assigns, but the literal IS visible to us through
+  // `getContextualType()`.
+  const settingSites = Math.max(0, constructionSites - omittedAt);
+  const effectiveAssigns = Math.max(stats.assigns, settingSites);
+  // Identifier matches that the symbol-search didn't account for. Gross
+  // `stringMatches` includes the assigns/reads we already counted, so the
+  // suspicion signal is whatever's *left* once those are netted out.
+  const unaccountedMatches = Math.max(0, stringMatches - stats.assigns - reads);
+  if (effectiveAssigns === 0 && reads === 0) {
+    return unaccountedMatches > 0 ? "suspicious-dead" : "dead";
+  }
+  if (effectiveAssigns === 0 && reads > 0) return "read-only";
+  if (effectiveAssigns > 0 && reads === 0) {
+    return unaccountedMatches > 0 ? "suspicious-write-only" : "write-only";
+  }
+  if (stats.guardedReads > 0) return "truly-optional";
+  if (omittedAt > 0 || unaccountedMatches > 0) return "ambiguous-fake";
+  return "fake-optional";
+}
+
 /** Classify a single reference identifier returned by ts-morph's
  *  `findReferencesAsNodes()` on a property's NameNode. */
 export function classifyRef(node: Node): RefKind {

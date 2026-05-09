@@ -1,6 +1,11 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { Project, ScriptTarget, SyntaxKind } from "ts-morph";
-import { classifyRef, type RefKind } from "./audit-optional-classifier.ts";
+import {
+  classifyProperty,
+  classifyRef,
+  type RefKind,
+  type RefStats,
+} from "./audit-optional-classifier.ts";
 
 Deno.test("classifier: plain property access is unguarded read", () => {
   const kinds = classifyAllRefs(`
@@ -267,6 +272,67 @@ Deno.test("classifier: const alias with destructured RHS skips alias check", () 
   `);
   assertEquals(kinds, ["read-unguarded"]);
 });
+
+Deno.test("classifyProperty: 0 assigns + 0 reads + clean = dead", () => {
+  assertEquals(classifyProperty(stats(), 0, 0, 0), "dead");
+});
+
+Deno.test("classifyProperty: 0 assigns + 0 reads + extra ident matches = suspicious-dead", () => {
+  // One name-collision elsewhere → demote (likely a sibling type with the same
+  // field name, ts-morph's symbol search missed it).
+  assertEquals(classifyProperty(stats(), 0, 1, 0), "suspicious-dead");
+});
+
+Deno.test("classifyProperty: assigns + 0 reads + clean = write-only", () => {
+  assertEquals(classifyProperty(stats(2, 0, 0), 0, 2, 0), "write-only");
+});
+
+Deno.test("classifyProperty: assigns + 0 reads + extra ident matches = suspicious-write-only", () => {
+  assertEquals(
+    classifyProperty(stats(2, 0, 0), 0, 5, 0),
+    "suspicious-write-only",
+  );
+});
+
+Deno.test("classifyProperty: 0 assigns + reads = read-only", () => {
+  assertEquals(classifyProperty(stats(0, 0, 1), 0, 1, 0), "read-only");
+});
+
+Deno.test("classifyProperty: assigns + guarded reads = truly-optional", () => {
+  assertEquals(classifyProperty(stats(1, 1, 0), 0, 2, 1), "truly-optional");
+});
+
+Deno.test("classifyProperty: assigns + only unguarded reads + all sites set = fake-optional", () => {
+  // 1 assign + 1 unguarded read = 2 stringMatches accounted for, 0 unaccounted.
+  // 1 construction site, 0 omitted. The clean fake-optional path.
+  assertEquals(classifyProperty(stats(1, 0, 1), 0, 2, 1), "fake-optional");
+});
+
+Deno.test("classifyProperty: fake-optional pattern + omittedAt > 0 = ambiguous-fake", () => {
+  // Construction site omits the field — dropping `?` would tsc-error. Demote.
+  assertEquals(classifyProperty(stats(1, 0, 1), 1, 2, 2), "ambiguous-fake");
+});
+
+Deno.test("classifyProperty: fake-optional pattern + unaccounted matches = ambiguous-fake (structural-typing case)", () => {
+  // 1 assign + 1 unguarded read = 2 accounted; 5 stringMatches → 3 unaccounted.
+  // No omissions. The Cannonball.scoringPlayerId case: read via a structurally-
+  // typed helper (`getScoringPlayer(ball)`) that the symbol search can't see
+  // through, so the `??` guard inside the helper isn't counted. Demote.
+  assertEquals(classifyProperty(stats(1, 0, 1), 0, 5, 1), "ambiguous-fake");
+});
+
+Deno.test("classifyProperty: settingSites > assigns counts as effectively-assigned (wire DTO case)", () => {
+  // `FullStateMessage`-style wire field: ts-morph misses the assign through
+  // contextual typing, but the construction-site walk found 3 literals that
+  // all set the field. Should be treated as written, not write-only.
+  // 0 symbol assigns, 1 unguarded read, 3 sites all set, stringMatches matches
+  // (1 read accounted). Treated as fake-optional, not read-only.
+  assertEquals(classifyProperty(stats(0, 0, 1), 0, 1, 3), "fake-optional");
+});
+
+function stats(assigns = 0, guarded = 0, unguarded = 0): RefStats {
+  return { assigns, guardedReads: guarded, unguardedReads: unguarded };
+}
 
 /** Spin up an in-memory project, find references to `Foo.foo`, classify each
  *  non-declaration reference. Returns the list of RefKinds in source order
