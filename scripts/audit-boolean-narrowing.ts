@@ -53,6 +53,17 @@ interface WriteSite {
 
 type Proposal = "tighten-to-true" | "ambiguous" | "write-only";
 
+/** A read-site expression that becomes redundant or dead once the field
+ *  tightens from `?: boolean` to `?: true`. Reported alongside each
+ *  tighten-to-true proposal so the cascade is visible up front. */
+interface DeadGuard {
+  file: string;
+  line: number;
+  snippet: string;
+  pattern: string;
+  fix: string;
+}
+
 interface Finding {
   interface: string;
   property: string;
@@ -61,6 +72,9 @@ interface Finding {
   proposal: Proposal;
   writeCount: number;
   writes: WriteSite[];
+  /** Populated only when proposal === "tighten-to-true". Empty otherwise
+   *  (the guards on ambiguous fields are load-bearing). */
+  deadGuards: DeadGuard[];
 }
 
 const args = process.argv.slice(2);
@@ -129,20 +143,156 @@ function analyzeField(sig: PropertySignature, container: string): Finding {
   const nameNode = sig.getNameNode();
   const refs = (nameNode as Identifier).findReferencesAsNodes();
   const writes: WriteSite[] = [];
+  const reads: Node[] = [];
   for (const ref of refs) {
     if (ref === nameNode) continue;
     const valueNode = writeValueOf(ref);
-    if (!valueNode) continue;
-    writes.push(makeWriteSite(ref, valueNode));
+    if (valueNode) {
+      writes.push(makeWriteSite(ref, valueNode));
+      continue;
+    }
+    const access = readAccessOf(ref);
+    if (access) reads.push(access);
   }
+  const proposal = decideProposal(writes);
+  const deadGuards =
+    proposal === "tighten-to-true" ? collectDeadGuards(reads) : [];
   return {
     interface: container,
     property: nameNode.getText(),
     file: path.relative(process.cwd(), sig.getSourceFile().getFilePath()),
     line: sig.getStartLineNumber(),
-    proposal: decideProposal(writes),
+    proposal,
     writeCount: writes.length,
     writes,
+    deadGuards,
+  };
+}
+
+/** Return the PropertyAccessExpression node when `ref` is read through one
+ *  (i.e. the property name in `obj.prop`); null when `ref` is a write
+ *  target or another non-read context. Writes are filtered out so the
+ *  read-pattern matcher only sees genuine read positions. */
+function readAccessOf(ref: Node): Node | null {
+  const parent = ref.getParent();
+  if (!parent || !parent.isKind(SyntaxKind.PropertyAccessExpression)) {
+    return null;
+  }
+  const access = parent.asKindOrThrow(SyntaxKind.PropertyAccessExpression);
+  if (access.getNameNode() !== ref) return null;
+  // `obj.prop = value` — the access is a write target, not a read.
+  const grand = access.getParent();
+  if (grand?.isKind(SyntaxKind.BinaryExpression)) {
+    const bin = grand.asKindOrThrow(SyntaxKind.BinaryExpression);
+    if (
+      bin.getLeft() === access &&
+      bin.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+    ) {
+      return null;
+    }
+  }
+  return access;
+}
+
+function collectDeadGuards(accesses: Node[]): DeadGuard[] {
+  const out: DeadGuard[] = [];
+  for (const access of accesses) {
+    const guard = classifyDeadGuard(access);
+    if (guard) out.push(guard);
+  }
+  return out;
+}
+
+/** Match patterns whose semantics collapse once the underlying value can
+ *  only be `true | undefined`. Returns the surrounding expression as a
+ *  dead-guard finding when matched. */
+function classifyDeadGuard(access: Node): DeadGuard | null {
+  const parent = access.getParent();
+  if (!parent) return null;
+  const accessText = access.getText();
+  const where = {
+    file: path.relative(process.cwd(), access.getSourceFile().getFilePath()),
+    line: access.getStartLineNumber(),
+  };
+
+  if (parent.isKind(SyntaxKind.BinaryExpression)) {
+    const bin = parent.asKindOrThrow(SyntaxKind.BinaryExpression);
+    const op = bin.getOperatorToken().getKind();
+    const isLeft = bin.getLeft() === access;
+    const otherSide = isLeft ? bin.getRight() : bin.getLeft();
+    const otherText = otherSide.getText().trim();
+
+    if (isLeft && op === SyntaxKind.BarBarToken) {
+      if (otherText === "undefined") {
+        return makeGuard(where, parent, "x || undefined", accessText);
+      }
+      if (otherText === "false") {
+        return makeGuard(where, parent, "x || false", `!!${accessText}`);
+      }
+    }
+    if (
+      op === SyntaxKind.EqualsEqualsEqualsToken ||
+      op === SyntaxKind.EqualsEqualsToken
+    ) {
+      if (otherText === "false") {
+        return makeGuard(where, parent, "x === false (always false)", "false");
+      }
+      if (otherText === "true") {
+        return makeGuard(
+          where,
+          parent,
+          "x === true",
+          `${accessText} !== undefined`,
+        );
+      }
+    }
+    if (
+      op === SyntaxKind.ExclamationEqualsEqualsToken ||
+      op === SyntaxKind.ExclamationEqualsToken
+    ) {
+      if (otherText === "false") {
+        return makeGuard(where, parent, "x !== false (always true)", "true");
+      }
+      if (otherText === "true") {
+        return makeGuard(
+          where,
+          parent,
+          "x !== true",
+          `${accessText} === undefined`,
+        );
+      }
+    }
+  }
+
+  if (parent.isKind(SyntaxKind.ConditionalExpression)) {
+    const cond = parent.asKindOrThrow(SyntaxKind.ConditionalExpression);
+    if (cond.getCondition() === access) {
+      const whenTrue = cond.getWhenTrue().getText().trim();
+      const whenFalse = cond.getWhenFalse().getText().trim();
+      if (whenTrue === "true" && whenFalse === "undefined") {
+        return makeGuard(where, parent, "x ? true : undefined", accessText);
+      }
+      if (whenTrue === "true" && whenFalse === "false") {
+        return makeGuard(where, parent, "x ? true : false", `!!${accessText}`);
+      }
+    }
+  }
+
+  return null;
+}
+
+function makeGuard(
+  where: { file: string; line: number },
+  expr: Node,
+  pattern: string,
+  fix: string,
+): DeadGuard {
+  return {
+    file: where.file,
+    line: where.line,
+    snippet: expr.getText().replace(/\s+/g, " ").slice(0, 80),
+    pattern,
+    fix,
   };
 }
 
@@ -252,7 +402,13 @@ function printReport(items: Finding[]): void {
   for (const item of items) groups.get(item.proposal)?.push(item);
 
   const tighten = groups.get("tighten-to-true")!;
-  console.log(`\n=== Tighten to ?: true (${tighten.length}) ===`);
+  const totalDeadGuards = tighten.reduce(
+    (sum, item) => sum + item.deadGuards.length,
+    0,
+  );
+  console.log(
+    `\n=== Tighten to ?: true (${tighten.length} fields, ${totalDeadGuards} cascading dead guards) ===`,
+  );
   for (const item of tighten) {
     console.log(
       `  ${item.interface}.${item.property}  ${item.file}:${item.line}  (${item.writeCount} writes)`,
@@ -261,6 +417,16 @@ function printReport(items: Finding[]): void {
       console.log(
         `      ${write.value.padEnd(9)} ${write.file}:${write.line}  ${write.snippet}`,
       );
+    }
+    if (item.deadGuards.length > 0) {
+      console.log(
+        `    Dead guards after tightening (${item.deadGuards.length}):`,
+      );
+      for (const guard of item.deadGuards) {
+        console.log(
+          `      ${guard.pattern.padEnd(28)} ${guard.file}:${guard.line}  ${guard.snippet}  →  ${guard.fix}`,
+        );
+      }
     }
   }
 
