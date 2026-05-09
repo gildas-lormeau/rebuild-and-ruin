@@ -371,7 +371,7 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
   //    but only the deciding battle's contributors can claim a capture
   for (const player of state.players) {
     for (const cannon of player.cannons) {
-      if (cannon.balloonCapturerIds) cannon.balloonCapturerIds = undefined;
+      cannon.balloonCapturerIds = undefined;
     }
   }
 }
