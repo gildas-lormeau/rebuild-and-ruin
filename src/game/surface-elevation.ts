@@ -1,35 +1,10 @@
 /**
- * Host-only surface sampling for ballistic trajectory shaping.
- *
- * Given the full game state, returns the top altitude (in world units)
- * at any (x, y) position, treating walls, cannons, houses, and grunts
- * as solid obstacles. Used at fire time to:
- *
- *   1. Pin the cannonball's aim altitude (the surface top of the target
- *      tile) so the ball lands on the thing the player aimed at.
- *   2. Walk the trajectory and either lift the arc to clear obstacles
- *      OR — when lifting isn't feasible — pin an early impact at the
- *      first obstacle the natural arc intercepts.
- *
- * **Why host-only:** state reads here happen exactly once per shot (at
- * fire time), then the resulting trajectory is pinned onto the Cannonball
- * and shipped over the wire via `CannonFiredMessage`. The watcher never
- * calls this module — it replays the pinned trajectory deterministically.
- * State divergence between host and watcher therefore cannot leak into
- * the ball's flight path or impact point.
- *
- * **Tower rule:** towers are TRANSPARENT to cannonball *impact* (only
- * grunts kill towers). They are, however, OPAQUE to the *clearance solver*
- * — when the solver can lift the arc over a tower without exceeding the
- * slowdown floor, it will. This keeps the ball from visually phasing
- * through tower mass on shots where a higher arc is cheap. When the lift
- * would exceed `BALLISTIC_MAX_SLOWDOWN`, the solver gives up and the
- * ball flies its natural arc through the tower (impact still skipped).
- *
- * **Shooter-own rule:** the shooter's own walls and cannons are
- * TRANSPARENT during flight (the ball arcs over them) but OPAQUE at the
- * pinned aim tile — this preserves deliberate self-targeting (a player
- * aiming at their own cannon still destroys it).
+ * Host-only surface sampling for ballistic trajectory shaping; returns
+ * top altitude at any (x, y) treating walls/cannons/houses/grunts as
+ * obstacles. The fire-time trajectory is pinned onto `CannonFiredMessage`
+ * and watchers replay it deterministically without sampling state.
+ * Towers and shooter-own pieces are transparent to *flight* but opaque
+ * at the pinned aim tile.
  */
 
 import {

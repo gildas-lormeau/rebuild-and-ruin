@@ -1,22 +1,8 @@
 /**
- * Shared plumbing for the "extract-and-instance" bucket pattern used by
- * every entity manager (walls / cannons / debris / grunts). Each manager
- * builds one `InstancedMesh` per authored sub-part of a variant, bucketed
- * by a key (mask / variant name / cannon mode), and reconciles per-frame
- * against a fresh entity list.
- *
- * Exported surface:
- *   • `buildVariantBucket` — run a scratch builder, extract its sub-parts,
- *     optionally transform each, and wrap every one as an `InstancedMesh`
- *     under `root`. Replaces the identical per-manager buildBucket bodies.
- *   • `ensureBucketCapacity` — grow-or-create helper around a bucket map.
- *   • `fillBucket` — per-frame host-matrix composition + count commit.
- *   • `hideSubParts` — zero the live count of a bucket's sub-parts.
- *   • `disposeAllBuckets` — teardown path used by every manager's `dispose`.
- *
- * Anything variant-specific (rotation, scale, ordering tweaks like the
- * rampart shield plane) stays in the per-manager call site — only the
- * shape-agnostic pieces live here.
+ * Shared plumbing for the extract-and-instance bucket pattern (walls /
+ * cannons / debris / grunts). One `InstancedMesh` per authored sub-part
+ * per bucket key, reconciled per frame. Variant-specific concerns
+ * (rotation, scale, render-order tweaks) stay in the manager call site.
  */
 
 import * as THREE from "three";

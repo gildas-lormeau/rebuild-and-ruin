@@ -1,13 +1,7 @@
 /**
- * AI Strategy — build phase piece placement orchestrator.
- *
- * Coordinates the build placement pipeline:
- *   1. ai-build-target.ts  — select which tower ring to repair
- *   2. enumerateCandidates  — brute-force all rotations × positions
- *   3. ai-build-score.ts   — territory gain scoring and fat wall checks
- *   4. ai-build-fallback.ts — discard / extension when no gain
- *
- * Castle rectangle and gap analysis live in ai-castle-rect.ts.
+ * AI build-phase placement orchestrator: target ring (ai-build-target),
+ * enumerate candidates, score (ai-build-score), fall back (ai-build-fallback).
+ * Castle rectangle + gap analysis live in ai-castle-rect.
  */
 
 import { buildPlacementContext, canPlacePiece } from "../game/index.ts";

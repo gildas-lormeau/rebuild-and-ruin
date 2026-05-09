@@ -1,14 +1,10 @@
 /**
- * Upgrade-pick dialog primitives.
- *
- * Dialog state factory, tick, and focus/resolve helpers. Moved here from
- * game/ because they manage UI dialog state (focus, timers, per-entry
- * resolution), not game rules. The game rules (applyUpgradePicks,
- * generateUpgradeOffers, resetPlayerUpgrades) stay in game/upgrade-pick.ts
- * since they mutate game state based on resolved choices.
- *
- * Consumed by runtime-upgrade-pick.ts which wraps these into the dialog
- * subsystem.
+ * Upgrade-pick dialog primitives — state factory, tick, focus/resolve
+ * helpers. Lives in runtime/ because it manages UI dialog state (focus,
+ * timers, per-entry resolution), not game rules. The rules
+ * (applyUpgradePicks, generateUpgradeOffers, resetPlayerUpgrades) stay in
+ * game/upgrade-pick.ts since they mutate game state based on resolved
+ * choices. Consumed by runtime-upgrade-pick.ts.
  */
 
 import type { GameState } from "../shared/core/types.ts";

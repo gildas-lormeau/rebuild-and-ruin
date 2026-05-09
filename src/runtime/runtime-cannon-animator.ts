@@ -1,18 +1,10 @@
 /**
  * Cannon facing animator — owns the eased "displayed" rotation for every
- * live cannon. Reads authoritative `cannon.facing` from game state each
- * frame, sets that as the target, and eases the displayed value toward
- * it so abrupt facing changes (post-fire aim shifts, post-battle reset)
- * render as a rotation rather than a snap.
- *
- * Lives in the runtime (not the renderer) so the runtime's battle-end
- * gate can poll `allSettled()` without crossing into renderer-owned
- * state. Renderers read `getDisplayed(col, row)` per cannon when
- * painting — they observe the animator, they don't own its state.
- *
- * Same pattern as the score-delta / banner / castle-build animators:
- * closure-stored, ticked unconditionally each frame from `assembly.ts`,
- * reset on rematch teardown.
+ * live cannon. Reads authoritative `cannon.facing` per frame, eases the
+ * displayed value toward it so abrupt facing changes render as rotations.
+ * Lives in the runtime (not the renderer) so the battle-end gate can poll
+ * `allSettled()` without crossing into renderer state. Same closure-
+ * stored, per-frame, reset-on-rematch pattern as the other animators.
  */
 
 import { isBalloonCannon, isCannonAlive } from "../shared/core/spatial.ts";

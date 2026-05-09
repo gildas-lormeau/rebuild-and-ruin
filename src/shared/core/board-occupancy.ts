@@ -305,7 +305,6 @@ export function buildOccupancyCache(
   return { towerKeys, cannonKeys, gruntKeys, wallKeys, pitKeys };
 }
 
-/** Return a player's owned towers that are still alive. */
 export function filterAliveOwnedTowers(
   player: Player,
   state: { readonly towerAlive: readonly boolean[] },

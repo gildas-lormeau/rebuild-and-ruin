@@ -1,13 +1,10 @@
 /**
  * Re-flood-fill `state.map.zones` after a tile-mutating modifier changes
- * the grass topology. Stability strategy: each zone's ID is anchored on
- * the towers it contains, so a tower's `.zone` (and the player→zone
- * mapping in `state.playerZones`) stays valid across recomputes. Brand
- * new regions with no tower anchor (e.g. a low-water grass island) get
- * fresh IDs above the existing range.
- *
- * Bumps `state.map.mapVersion` so caches keyed on it (terrain bitmap,
- * sinkhole clusters, runtime camera zone-bounds) invalidate.
+ * grass topology. Zone IDs are anchored on contained towers so each
+ * tower's `.zone` (and `state.playerZones`) stays valid across recomputes;
+ * tower-less new regions get fresh IDs above the existing range. Bumps
+ * `state.map.mapVersion` to invalidate caches keyed on it (terrain bitmap,
+ * sinkhole clusters, camera zone-bounds).
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";

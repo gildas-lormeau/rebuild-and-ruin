@@ -1,11 +1,9 @@
 /**
- * Frostbite-reveal tint multiplier — runtime-side overlay derivation.
- * Lands a `[0, 1]` intensity in `overlay.battle.frostbiteRevealProgress`;
- * 0 = grunt authored color, 1 = full frostbite tint. Time gating lives
- * in `deriveModifierRamp` driven by `revealTimeMs`.
- *
- * Post-release the manager pins to 1 for the rest of the round via the
- * binary `frostbite` flag.
+ * Frostbite-reveal tint multiplier. Lands `[0, 1]` in
+ * `overlay.battle.frostbiteRevealProgress`; 0 = authored color, 1 = full
+ * frostbite tint. Time gating via `deriveModifierRamp` driven by
+ * `revealTimeMs`. Post-release the manager pins to 1 for the rest of the
+ * round via the binary `frostbite` flag.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

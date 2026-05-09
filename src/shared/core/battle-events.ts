@@ -71,7 +71,6 @@ export interface CannonDamagedMessage {
   shooterId?: number;
 }
 
-/** A grunt was killed by a cannonball. */
 export interface GruntKilledMessage {
   type: "gruntKilled";
   row: number;
@@ -88,7 +87,6 @@ export interface GruntChippedMessage {
   shooterId?: number;
 }
 
-/** A house was destroyed by a cannonball. */
 export interface HouseDestroyedMessage {
   type: "houseDestroyed";
   row: number;

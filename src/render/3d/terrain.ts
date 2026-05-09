@@ -1,43 +1,10 @@
 /**
- * 3D terrain mesh for the world renderer — paints every pixel of the map's
- * ground plane in a single shader patch on stock `MeshBasicMaterial`.
- *
- * One `BufferGeometry` of `GRID_ROWS * GRID_COLS` RGBA-vertex-colored quads
- * sitting at Y=ELEVATION_STACK.TERRAIN_MESH. Vertex colors carry castle
- * interior tints (alpha=1, opaque); raw terrain tiles get vertex
- * (rgba)=(0,0,0,0) and the fragment-shader patch paints them per-pixel:
- *
- *   - Default branch: paints grass / water / bank / ice using the SDF and
- *     the per-tile `FLAG_FROZEN` bit. Replaces the CPU-baked terrain
- *     bitmap that used to sit on a separate plane below this mesh
- *     (`effects/terrain-bitmap.ts`, deleted alongside `renderTerrainPixels`
- *     and the `GRASS_TEX` / `WATER_TEX` lookup tables in `render-map.ts`).
- *   - Owned-water branch: any water tile inside an owned interior
- *     (sinkhole, high-tide flooded, naturally enclosed bay) replaces the
- *     diffuse with the SDF-driven grass→bank→water gradient, owner-tinted
- *     (was `effects/sinkhole-overlay.ts`).
- *   - Open-water + battle: layers the drifting wave highlights on top of
- *     the flat water color (was `effects/water-waves.ts`). The flat-blue
- *     water in non-battle phases is the deliberate look — no static wave
- *     mask carries over from the old CPU bake.
- *
- * Per-pixel grass-blade pattern (battle only) comes from a static 16×16
- * R32F texture in `effects/terrain-pattern-textures.ts` — sampled, decoded
- * to an sRGB-byte offset, and applied to grass color via a sRGB round-trip
- * to match the byte-exact look of the original `texturedColor` bake.
- *
- * Per-tile vertex-color responsibilities:
- *   - Castle interiors: 2-shade checkered tint from the owning player's
- *     `interiorLight`/`interiorDark` palette, swapped to a uniform
- *     cobblestone-tinted-gray during battle. Sourced from the same
- *     `castle.interior` / `overlay.battle.battleTerritory` sets the 2D
- *     `drawCastleInterior` reads; the 2D `interiors` layer is flipped off
- *     in 3D mode so the mesh owns the visual outright.
- *   - Everything else: alpha=0; the shader patch owns the visual.
- *
- * Color parity: base RGB values mirror the original 2D renderer's tile
- * palette and the `bonus_square` / `burning_pit_*` sprites in
- * `scripts/generate-sprites.html`.
+ * 3D terrain mesh — vertex-colored quads at `ELEVATION_STACK.TERRAIN_MESH`
+ * with a `MeshBasicMaterial` fragment patch painting raw terrain
+ * (grass/water/bank/ice via SDF + `FLAG_FROZEN`), owned-water (sinkhole),
+ * and open-water waves during battle. Battle grass uses a 16×16 R32F
+ * pattern. Vertex colors carry castle-interior tints; other tiles set
+ * alpha=0 so the shader owns them. Palette = 2D tiles for byte parity.
  */
 
 import * as THREE from "three";

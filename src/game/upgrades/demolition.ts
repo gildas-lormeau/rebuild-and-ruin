@@ -1,13 +1,10 @@
 /**
- * Demolition upgrade — strips every non-load-bearing wall from all players
- * at pick time. A wall is "inner" if none of its 8-dir neighbors are
- * outside (reachable from map edges) — enclosures stay intact and thick
- * walls get thinned to a single-tile shell. Can merge adjacent castles.
- *
- * Hook implemented: onPick (per-entry side effect).
- * Wired through src/game/upgrade-system.ts. Uses deletePlayerWallsBatch
- * (skips markWallsDirty) — interior is rechecked at the next piece
- * placement or end-of-build via recheckTerritory.
+ * Demolition upgrade — at pick time strips every non-load-bearing wall
+ * from all players (a wall is inner when none of its 8-dir neighbors are
+ * outside). Enclosures stay intact, thick walls thin to a single shell,
+ * and adjacent castles can merge. Uses deletePlayerWallsBatch (skips
+ * markWallsDirty) — interior is rechecked at the next piece placement
+ * or end-of-build via recheckTerritory.
  */
 
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";

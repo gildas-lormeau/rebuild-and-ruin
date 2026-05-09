@@ -1,15 +1,10 @@
 /**
- * AI Strategy — pluggable interface for AI decision-making.
+ * Pluggable AiStrategy interface — separates decisions (what to do) from
+ * mechanics (timers/cursors/animation, owned by AiController). Phase logic:
  *
- * Separates strategy (what to do) from mechanics (how to execute it).
- * The AiController in player-controller.ts handles timers, cursors,
- * animation, and execution; the AiStrategy handles all decisions.
- *
- * DefaultStrategy contains the current/original AI behavior.
- * Phase-specific logic lives in:
- *   - ai-strategy-build.ts   — piece placement scoring
- *   - ai-strategy-cannon.ts  — cannon placement & tower selection
- *   - ai-strategy-battle.ts  — battle planning & target picking
+ * - ai-strategy-build.ts — piece placement scoring
+ * - ai-strategy-cannon.ts — cannon placement + tower selection
+ * - ai-strategy-battle.ts — battle planning + target picking
  */
 
 import type {

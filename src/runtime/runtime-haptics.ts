@@ -1,24 +1,10 @@
 /**
- * Haptic feedback sub-system — bus-driven vibration.
- *
- * Subscribes to the game event bus and fires `navigator.vibrate` on
- * lifecycle + battle events. No sibling subsystem sees a haptics "deps"
- * field — every trigger flows through the bus. All calls are no-ops on
- * devices without vibration support. Respects the on/off haptics setting.
- *
- * ### Wiring
- *
- * The composition root constructs the subsystem once and calls
- * `subscribeBus(state.bus)` from the bootstrap `onStateReady` hook so
- * every new game (first launch + rematch) binds to its fresh bus.
- * `subscribeBus` is idempotent per-bus identity.
- *
- * ### Test observer
- *
- * Tests pass an optional `observer` that captures every vibrate intent
- * (reason + ms) BEFORE the platform/level gate, so tests can assert
- * "this bus event would have triggered haptic X" independently of
- * `CAN_VIBRATE` and the haptics setting.
+ * Haptic feedback — bus-driven vibration. Subscribes to the game bus and
+ * fires `navigator.vibrate` on lifecycle + battle events; every trigger
+ * flows through the bus, no sibling deps. No-op without vibration;
+ * respects the haptics setting. The composition root calls
+ * `subscribeBus(state.bus)` from `onStateReady` so each new game binds
+ * fresh (idempotent per-bus). Tests pass an optional observer.
  */
 
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";

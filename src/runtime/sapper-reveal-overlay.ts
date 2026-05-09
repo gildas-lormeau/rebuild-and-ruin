@@ -1,15 +1,10 @@
 /**
- * Sapper-reveal tint intensity — runtime-side overlay derivation.
- * Lands in `overlay.battle.sapperRevealIntensity`; the walls manager
- * lerps targeted-wall material color toward copper by this multiplier.
- *
- * Replaces the legacy per-tile disc burst — the actual wall meshes
- * pulse copper instead of standing in with floating discs.
- *
- * Curve: bell envelope `sin(t * π)` modulated by a fast pulse wave so
- * the targeted walls flash a few times within a smooth peak-and-fade
- * window. Time gating lives in `deriveModifierRamp` driven by
- * `revealTimeMs`.
+ * Sapper-reveal tint intensity. Lands in
+ * `overlay.battle.sapperRevealIntensity`; the walls manager lerps
+ * targeted-wall material color toward copper by this multiplier (the
+ * actual wall meshes pulse, replacing a legacy per-tile disc burst).
+ * Curve: bell envelope `sin(t·π)` modulated by a fast pulse wave so
+ * targeted walls flash a few times within a smooth peak-and-fade window.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

@@ -1,11 +1,8 @@
 /**
- * Typed game event bus — unified pub/sub for all game-domain events.
- *
- * Events are organized in **categories** (discriminated unions). The master
- * GameEventMap is auto-derived from the union — adding a member to any
- * category union + a constant automatically registers it on the bus.
- *
- * Battle events reuse the existing BattleEvent union from battle-events.ts.
+ * Typed game event bus — unified pub/sub. Events are category unions; the
+ * master GameEventMap is auto-derived, so adding a member + constant
+ * registers it. Battle events reuse the BattleEvent union from
+ * `battle-events.ts`.
  */
 
 import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
@@ -263,7 +260,6 @@ export type CameraTargetSource =
   | "lifeLostHold"
   | "followCrosshair";
 
-/** All game events across all categories. */
 export type GameEvent =
   | BattleEvent
   | LifecycleEvent

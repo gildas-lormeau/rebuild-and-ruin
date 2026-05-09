@@ -1,13 +1,8 @@
 /**
- * Base shape for the registry pool pattern.
- *
- * The four extension-point registries (features, upgrades, modifiers, cannon
- * modes) each declare a `*Def` interface with these four fields plus
- * registry-specific extras. Each one extends `PoolDef<Id>` to document the
- * shared shape and so the `IMPLEMENTED_X = X_POOL.filter(d => d.implemented)`
- * pattern reads against a known contract.
- *
- * See CLAUDE.md "Extension point registries" for the pattern rationale.
+ * Base shape for the four extension-point registries (features, upgrades,
+ * modifiers, cannon modes). Each `*Def` extends this; the
+ * `IMPLEMENTED_X = X_POOL.filter(d => d.implemented)` pattern reads against
+ * the shared contract. See CLAUDE.md "Extension point registries".
  */
 
 export interface PoolDef<Id extends string> {

@@ -1,14 +1,9 @@
 /**
- * Master Builder upgrade — all hook implementations live in this file.
- *
- * Hooks implemented:
- *   - onBuildPhaseStart — configure masterBuilderOwners + masterBuilderLockout
- *   - tickBuild         — decrement the lockout timer each frame
- *   - canPlayerBuild    — locked-out players cannot build
- *   - buildTimerBonus   — +N seconds while any player owns MB
- *
- * Wired through src/game/upgrade-system.ts. Do NOT call these directly from
- * outside the dispatcher — call sites use the semantic dispatcher functions.
+ * Master Builder upgrade — all hook implementations: onBuildPhaseStart
+ * (configure owners/lockout), tickBuild (decrement lockout each frame),
+ * canPlayerBuild (locked-out players can't build), buildTimerBonus
+ * (+N seconds while any player owns MB). Do NOT call these directly
+ * from outside the upgrade-system dispatcher.
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";

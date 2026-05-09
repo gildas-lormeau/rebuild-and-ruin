@@ -176,7 +176,6 @@ const obstacleHitRule: ScoringRule = {
     );
   },
 };
-/** Penalty for creating 2×2 fat wall blocks. */
 const fatWallPenaltyRule: ScoringRule = {
   name: "fat-wall-penalty",
   apply(_candidate, env, ctx) {

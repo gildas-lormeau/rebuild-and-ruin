@@ -1,17 +1,10 @@
 /**
- * Linear ramp + damped sine wave — the shared shape used by both
- * `deriveFogRevealOpacity` (fog reveal) and `deriveRubbleClearingFade`
- * (rubble fade-out). Same recipe, different `start` / `end` endpoints.
- *
- * The base motion is a linear lerp from `start` to `end` over
- * `durationMs`. A sine wave is added on top with peak amplitude at
- * `t = 0` shrinking linearly to zero at `t = 1`, so the curve always
- * lands cleanly on the endpoint regardless of the wave phase. The
- * wave's frequency is `1 / wavePeriodMs`.
- *
- * Returns a value clamped to `[0, 1]` — meant for opacity / alpha
- * multipliers. Caller is responsible for stopping the ramp when
- * `elapsed >= durationMs`; this helper does NOT short-circuit.
+ * Linear ramp + damped sine wave shared by fog/rubble overlay derivations.
+ * Linear lerp from `start` to `end` over `durationMs`; a sine wave
+ * (frequency `1 / wavePeriodMs`) layers on top with peak amplitude at
+ * `t = 0`, decaying linearly to zero at `t = 1` so the curve always lands
+ * cleanly on the endpoint. Returns a `[0, 1]`-clamped opacity multiplier.
+ * Caller stops the ramp at `elapsed >= durationMs` — no short-circuit.
  */
 
 export function wavedRamp(opts: {
@@ -19,7 +12,7 @@ export function wavedRamp(opts: {
   readonly elapsed: number;
   /** Total ramp duration in ms. */
   readonly durationMs: number;
-  /** Start value (at elapsed = 0). */
+  /** Initial endpoint of the linear lerp. */
   readonly start: number;
   /** End value (at elapsed = durationMs). */
   readonly end: number;

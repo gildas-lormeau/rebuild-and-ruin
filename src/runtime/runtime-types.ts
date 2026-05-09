@@ -1,64 +1,10 @@
 /**
- * Public interfaces for the game runtime factory.
- *
- * Separated from runtime-composition.ts to keep the implementation file focused
- * on the factory closure, and to let consumers import just the types.
- *
- * ### Sub-system deps convention (all runtime-*.ts files)
- *
- * Each sub-system factory (`createXxxSystem(deps)`) follows:
- *   - Destructure `runtimeState` (and a few frequently-used deps) at the factory top.
- *   - Access other deps inline as `deps.xxx` — avoids stale captures and makes
- *     the dependency explicit at each call site.
- *   - Deps interfaces use getters/closures for late binding (e.g. `getState()`).
- *   - Sub-systems must not import from each other, only from runtime-types.ts
- *     and runtime-state.ts.
- *
- * State access patterns by sub-system:
- *   STANDARD (destructure runtimeState at top):
- *     runtime-banner.ts, runtime-human.ts, runtime-input.ts,
- *     runtime-life-lost.ts, runtime-lobby.ts, runtime-options.ts,
- *     runtime-phase-ticks.ts, runtime-render.ts, runtime-score-deltas.ts,
- *     runtime-selection.ts, runtime-upgrade-pick.ts
- *   BUILDER (runtimeState passed to dep-builder, not to orchestrator):
- *     runtime-game-lifecycle.ts — buildLifecycleDeps receives runtimeState,
- *     createGameLifecycle only sees its deps interface.
- *   ALL-GETTERS (no runtimeState access — late-bind everything):
- *     runtime-camera.ts — camera state can change during host migration,
- *     so every field must be re-read via getter to avoid stale values.
- *
- * For new sub-systems, prefer the standard `runtimeState` + inline deps pattern.
- * Only use all-getters if the sub-system's state is mutated externally (e.g. host migration).
- *
- * ### Overlay mutation patterns
- *
- * Three patterns exist for updating the render overlay:
- *   PERSISTENT (game phases): Mutate runtimeState.overlay.X in-place, then call render().
- *     Examples: selection highlighting, phase banners, battle overlays.
- *   TRANSIENT (modal screens): Create a fresh overlay via factory, pass to renderFrame().
- *     Examples: lobby, options, controls screens.
- *   INPUT-DELEGATED: input handlers call dispatch functions that internally call render.
- *
- * When adding a new UI modal, use the TRANSIENT pattern. Only game-phase overlays
- * that need to persist across ticks should use PERSISTENT.
- *
- * ### Readiness state guard (all runtime-*.ts sub-systems)
- *
- * `runtimeState.state` and `runtimeState.frameMeta` hold placeholder values
- * until `startGame()` runs (see runtime-state.ts). They are typed as their
- * real types but must not be read before the readiness flag flips via
- * `setRuntimeGameState`.
- *
- * Sub-system methods run exclusively from game-loop code after startGame(),
- * so they safely access runtimeState.state/frameMeta without null checks.
- * Do NOT call sub-system methods before startGame() completes.
- *
- * For code that MAY run before init (render, input), use:
- *   - `safeState(runtimeState)` → GameState | undefined
- *   - `isStateInstalled(runtimeState)` → bootstrap-only guard (sticky-once)
- *   - `isSessionLive(runtimeState)` → live-session guard (state installed AND
- *     in a gameplay mode). Use this for per-tick gameplay-derived work that
- *     must stop at `returnToLobby`.
+ * Public interfaces for the runtime factory (split from runtime-composition
+ * so consumers import types only). Convention: `createXxxSystem(deps)`
+ * destructures runtimeState at top; deps use getters for late binding;
+ * sub-systems import only runtime-types/runtime-state. Overlay updates:
+ * PERSISTENT / TRANSIENT / INPUT-DELEGATED. Pre-init code must guard reads
+ * via safeState / isStateInstalled / isSessionLive.
  */
 
 import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";

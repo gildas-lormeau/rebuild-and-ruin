@@ -1,11 +1,8 @@
 /**
  * Minimal hash-based SPA router with native back/forward support.
- *
- * Pages are `<main class="page" data-route="/path">` elements.
- * Only the page matching the current hash is visible.
- *
- * Route handlers registered via `onRoute()` are called when a route
- * activates — deduped so repeat navigations to the same route are ignored.
+ * Pages are `<main class="page" data-route="/path">` elements; only the
+ * one matching the current hash is visible. Handlers registered via
+ * `onRoute()` are deduped so repeat navigations to the same route fire once.
  */
 
 import { setActivePageByRoute } from "./online-dom.ts";

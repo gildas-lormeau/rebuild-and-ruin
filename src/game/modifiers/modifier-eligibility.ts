@@ -1,12 +1,9 @@
-/** Fresh-castle protection helpers for modifier targeting.
- *
- *  A player whose castle was just (re)built gets one battle of protection for
- *  the castle itself — `player.inGracePeriod` is set in `confirmTowerSelection`
- *  and cleared in `finalizeBattle` at end of the protected battle. The
- *  protection is tile-scoped (2x2 tower + castle-wall ring), not zone-scoped:
- *  modifiers still apply to the fresh player's zone, they just can't land on
- *  the castle footprint itself. Grunt surges still spawn, crumbling walls
- *  still crumble outer walls, wildfire still burns elsewhere in the zone. */
+/** Fresh-castle protection helpers for modifier targeting. A player
+ *  whose castle was just (re)built gets one battle of protection for the
+ *  castle footprint (2x2 tower + castle-wall ring) — `inGracePeriod` is
+ *  set in `confirmTowerSelection` and cleared in `finalizeBattle`. The
+ *  protection is tile-scoped, not zone-scoped: surges, crumbling walls
+ *  and wildfire still apply elsewhere in the zone. */
 
 import { TOWER_SIZE } from "../../shared/core/game-constants.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";

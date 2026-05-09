@@ -1,16 +1,9 @@
 /**
  * Ballistic trajectory math — closed-form 3D projectile under gravity.
- *
- * Pure functions. No state reads. Given launch/impact endpoints and a
- * horizontal speed, solve for the initial vertical velocity and flight
- * time that land the ball on the impact point. Both host and watcher
- * run identical inputs through these helpers, so trajectory playback
- * stays in sync frame-for-frame.
- *
- * Coordinate conventions:
- *   - (x, y) are map-pixel horizontal coordinates (world-pixels)
- *   - altitude is the vertical axis in world-units, orthogonal to (x, y)
- *   - gravity is positive and pulls altitude toward 0
+ * Pure: given launch/impact endpoints + horizontal speed, solve initial vy
+ * and flight time. Host and watcher run identical inputs for frame-perfect
+ * sync. Coords: (x, y) world-pixels horizontal; altitude world-units
+ * vertical; gravity positive (pulls altitude toward 0).
  */
 
 /** Trajectory parameters solved at fire time. */

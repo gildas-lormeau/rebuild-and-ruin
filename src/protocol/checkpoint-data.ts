@@ -1,15 +1,10 @@
 /**
- * Checkpoint data — network wire format for phase synchronization.
- *
- * These types are intentionally loose (strings, number arrays) for JSON
- * compatibility. Key differences from in-memory types:
- *  - `SerializedCannon.mode` is `string` (vs `CannonMode` enum in battle-types.ts)
- *  - `SerializedPlayer.upgrades` is `[string, number][]` (vs `Map<UpgradeId, number>`)
- *  - All tile key arrays (`walls`, `castleWallTiles`, `sinkholeTiles`, etc.) use
- *    packed tile indices: row * GRID_COLS + col (see grid.ts).
- *
- * Deserialization + validation happens in online-serialize.ts (restoreFullStateSnapshot).
- * Checkpoint apply functions (online-checkpoints.ts) trust host-provided data.
+ * Checkpoint data — JSON wire format for phase sync. Types are loose vs
+ * in-memory: enums become `string` (e.g. `SerializedCannon.mode`), Maps
+ * become `[k, v][]` (e.g. `SerializedPlayer.upgrades`), tile sets become
+ * packed `row * GRID_COLS + col` indices (see grid.ts). Deserialization +
+ * validation lives in online-serialize.ts; online-checkpoints.ts trusts
+ * host-provided data on apply.
  */
 
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";

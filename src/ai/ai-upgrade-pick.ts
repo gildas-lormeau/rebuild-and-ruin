@@ -1,30 +1,10 @@
 /**
- * AI upgrade-pick logic: per-entry auto-resolve tick (cycle → lock-in →
- * commit) and the contextual decision heuristic it uses.
- *
- * Exported surface:
- *   - tickAiUpgradePickEntry: per-entry animation tick (cycle → lock-in →
- *     commit). Called by AiController.tickUpgradePick (inherited by
- *     AssistedHumanController, which broadcasts the resulting pick).
- *   - precomputeAiUpgradePicks: drawn-from-`state.rng` AI pick per player,
- *     anchored at battle-done.mutate (called from `runtime-phase-machine`
- *     right after `prepareNextRound` populates `pendingUpgradeOffers`).
- *     The dialog tick then reads from `state.modern.precomputedUpgradePicks`
- *     instead of calling `aiPickUpgrade` lazily at lock-in.
- *
- * Why precompute: `aiPickUpgrade` ends in `state.rng.next()` for the
- * non-contextual fallback. If the draw fires inside the runtime-tick
- * dialog loop, *which peers tick which slots* is decided by
- * `shouldAutoResolve` — and that helper is asymmetric across peers
- * (host skips remote slots; non-host skips its own slot). Different
- * peers therefore consume different counts of `state.rng.next()` per
- * upgrade-pick window, drifting `state.rng`. Anchoring the draw to
- * battle-done.mutate (which already runs deterministically on every
- * peer to populate offers) gives every peer the same RNG sequence.
- *
- * The decision function (aiPickUpgrade) stays file-local. Max-timer
- * force-pick fallback (`plannedChoice ?? random`) lives on
- * BaseController.forceUpgradePick — pure arithmetic, no AI knowledge.
+ * AI upgrade-pick: per-entry auto-resolve tick + contextual decision heuristic.
+ * Determinism: `precomputeAiUpgradePicks` runs at `battle-done.mutate` so the
+ * `state.rng.next()` fallback inside `aiPickUpgrade` is drawn once per peer in
+ * lockstep — lazy draws in the dialog tick would drift across peers because
+ * `shouldAutoResolve` is asymmetric (host skips remote slots, non-host skips
+ * its own). Dialog tick reads `state.modern.precomputedUpgradePicks`.
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";

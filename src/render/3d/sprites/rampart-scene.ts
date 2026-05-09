@@ -1,22 +1,9 @@
 /**
- * rampart-scene.ts — rampart "cannon" (wall reinforcer).
- *
- * TypeScript conversion of the original `rampart-scene.mjs`. Despite the
- * name it isn't a cannon — it's a static structure that makes nearby
- * walls indestructible within a radius around it. So no barrel, no
- * bore, no carriage supports. The geometry leans into a "forge /
- * reinforcer" silhouette: heavy metal core on the standard blue base,
- * four corner reinforcement pillars hugging the core's outer corners,
- * and a stepped anvil-style cap on top. A single green band wraps the
- * core to echo the cannon palette.
- *
- * 2×2 tile sprite (canvasPx 64), same scale as the regular cannons.
- * Unlike actual cannons there's no blue base disc — the rampart never
- * rotates, so the swivel base would be visual dead weight.
- *
- * THREE is injected to `buildRampart(THREE, scene, params)` so this
- * module stays free of three.js as a static dependency — matches the
- * convention of the other `*-scene.ts` files.
+ * Rampart "cannon" — a static wall-reinforcer (no barrel/bore/supports).
+ * 2×2 sprite (canvasPx 64) with a "forge / reinforcer" silhouette: heavy
+ * metal core, four corner pillars, stepped anvil cap, single green band
+ * echoing the cannon palette. No swivel disc since the rampart never
+ * rotates.
  */
 
 import * as THREE from "three";

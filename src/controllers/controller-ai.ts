@@ -1,13 +1,7 @@
 /**
- * AiController — thin dispatcher that delegates each game phase to its
- * dedicated state-machine module (ai-phase-*.ts).
- *
- * Owns movement helpers, trait-derived getters, and lifecycle hooks.
- * The per-phase logic (types, constants, tick functions) lives in:
- *   ai-phase-select.ts  — tower browsing & confirmation
- *   ai-phase-build.ts   — piece placement with cursor animation
- *   ai-phase-cannon.ts  — cannon placement with mode switching
- *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
+ * Thin dispatcher delegating each phase to its `ai-phase-*` module
+ * (select / build / cannon / battle). Owns movement helpers, trait-derived
+ * getters, and lifecycle hooks.
  */
 
 import { secondsToTicks } from "../ai/ai-constants.ts";

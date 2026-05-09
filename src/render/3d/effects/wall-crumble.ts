@@ -1,11 +1,7 @@
 /**
- * 3D wall-crumble reveal — `crumbling_walls` modifier. Per-tile tan disc
- * grows + fades on each destroyed wall tile. Layered on top of the
- * runtime-driven cross-fade (walls fade out, debris fades in via
- * `overlay.battle.crumblingWallsFade`); the disc-burst punctuates *where*
- * walls vanished while the fade handles the *what*.
- *
- * Disc tint matches the `crumbling_walls` banner border for parity.
+ * `crumbling_walls` reveal — disc burst layered on top of the
+ * runtime-driven cross-fade (`overlay.battle.crumblingWallsFade`); the
+ * disc punctuates *where* walls vanished while the fade handles *what*.
  */
 
 import type * as THREE from "three";

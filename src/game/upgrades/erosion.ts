@@ -1,17 +1,9 @@
 /**
- * Erosion upgrade — sweeps one layer of exposed walls (≤1 orthogonal
- * neighbor) from every alive player. Global, one-shot effect fired at
- * pick time. Mirrors the end-of-build debris sweep but runs during
- * UPGRADE_PICK so the next build phase starts from a slightly cleaner
- * board for everyone.
- *
- * Hook implemented: onPick (per-entry side effect).
- * Wired through src/game/upgrade-system.ts. Idempotent across multiple
- * pickers via a flag-count guard — only the first picker runs the sweep
- * (each `sweepIsolatedWalls` call peels a layer, so naive re-run would
- * compound). Interior is rechecked by `applyUpgradePicksFromDialog`
- * after the entry batch resolves, so the dirty flag set by the sweep
- * is honored before any reader.
+ * Erosion upgrade — at pick time sweeps one layer of exposed walls
+ * (≤1 orthogonal neighbor) from every alive player. Idempotent across
+ * multiple pickers via a flag-count guard (each sweepIsolatedWalls peels
+ * a layer; naive re-run would compound). Interior is rechecked by
+ * `applyUpgradePicksFromDialog` after the entry batch resolves.
  */
 
 import { sweepIsolatedWalls } from "../../shared/core/board-occupancy.ts";

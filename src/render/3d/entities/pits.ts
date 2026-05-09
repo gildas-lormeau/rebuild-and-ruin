@@ -1,33 +1,8 @@
 /**
- * 3D burning-pit meshes — Phase 4 of the 3D renderer migration.
- *
- * Burning pits are 1×1 tile, ownerless hazards created by mortar /
- * super-gun (fire) cannonball impacts. Each pit lives 3 battle rounds,
- * fading through three authored variants as its `roundsLeft` counter
- * ticks down:
- *
- *   roundsLeft = 3 → `pit_fresh`  (tall flames + hot lava)
- *   roundsLeft = 2 → `pit_dim`    (shorter flames + warm lava)
- *   roundsLeft = 1 → `pit_embers` (no flames, cool embers only)
- *
- * This mirrors the 2D renderer's stage picker in
- * `drawBurningPits` (render-effects.ts), which uses sprites named
- * `burning_pit_3` / `_2` / `_1` keyed on the same counter.
- *
- * Reconciliation: a composite fingerprint of `col:row:variant` per pit
- * covers everything worth rebuilding for. A pit enters the set, its
- * variant swaps on a round decrement, or the set shrinks when the
- * counter hits zero — each of those flips the fingerprint and triggers
- * a full rebuild. Pit counts are bounded (only mortar/fire impacts
- * create them) so tear-down + rebuild is cheap enough here; Phase 8
- * can revisit if profiling warrants.
- *
- * Transparent background: the sprite's charred disc is a narrow ring
- * that does NOT fill the whole tile, so the terrain mesh underneath
- * (including the `PIT_COLOR` brown marker painted by `terrain.ts`)
- * shows through the tile corners. That brown tile-wide tint is kept to
- * frame the pit — the sprite provides the center detail (lava, flames,
- * rim debris).
+ * 3D burning-pit meshes — 1×1 hazards from mortar/fire impacts. Pits
+ * live 3 battle rounds; variant fades pit_fresh → pit_dim → pit_embers
+ * as `roundsLeft` ticks down (parity with `drawBurningPits`). Composite
+ * `col:row:variant` fingerprint triggers a rebuild on any change.
  */
 
 import * as THREE from "three";

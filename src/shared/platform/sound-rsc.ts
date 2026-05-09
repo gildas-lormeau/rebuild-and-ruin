@@ -1,24 +1,10 @@
 /**
- * Miles RSC bundle parser + Creative VOC → PCM converter for Rampart's
- * SOUND.RSC (37 digital-sample SFX: brick clunks, cannon shots, banner
- * whoosh, voice announcements, explosion variants, etc.). Sound Blaster
- * DSP samples, parallel to the OPL3/AdLib XMI tracks.
- *
- * Pure data transform — no DOM, audio, or IO. Safe at L1 leaf layer.
- *
- * RSC directory format (same bundle layout as RMUSIC.RSC): byte 0 holds the
- * chunk count; entries start at 0x14 and are 20 bytes each — 8-byte name
- * (NUL-padded), 4 bytes reserved, uint32 LE offset, uint32 LE size.
- *
- * VOC format:
- *   Header "Creative Voice File\x1A" + uint16 header_end + uint16 version + uint16 checksum.
- *   Then typed blocks until type=0 terminator:
- *     Block type 1 (sound data): byte divisor, byte codec, then raw samples.
- *       sampleRate = round(1_000_000 / (256 - divisor))
- *       codec 0 = unsigned 8-bit PCM (all Rampart uses)
- *     Block type 2: continuation of the previous type-1 block (same rate/codec).
- *     Other block types (silence, marker, text, repeat, extended info) are
- *     skipped — Rampart's SOUND.RSC doesn't use them.
+ * Miles RSC bundle parser + Creative VOC → PCM converter for SOUND.RSC
+ * (37 digital SFX). RSC directory (like RMUSIC.RSC): byte 0 = chunk count,
+ * 20-byte entries from 0x14 (8-byte name NUL-pad, 4 reserved, uint32 LE
+ * offset, uint32 LE size). VOC blocks: type 1 = divisor + codec + samples
+ * (`sampleRate = round(1_000_000 / (256 - divisor))`, codec 0 = u8 PCM),
+ * type 2 = continuation, type 0 = terminator. Pure data transform.
  */
 
 export interface PcmSample {

@@ -1,20 +1,10 @@
 /**
- * 3D terrain tile-data texture — per-tile metadata (`GRID_COLS × GRID_ROWS`
- * RGBA8) the terrain shader samples to find each fragment's owning player
- * and the frozen flag that gates the per-pixel ice-gradient override. The
- * owner channel alone gates the owner-tinted bank gradient — every owned
- * water tile (sinkhole, high-tide flooded, naturally enclosed bay, …)
- * paints the same way.
- *
- * Channels:
- *   - R: ownerId+1 (0 = unowned, 1..MAX_PLAYERS = player)
- *   - G: flag bits (`FLAG_FROZEN`; bit 0 reserved)
- *   - B/A: reserved
- *
- * Refreshed only when the per-player interior Set references / frozen
- * tiles / battle-mode flag change — fingerprint piggybacks on the same
- * `interiorRefsMatch` check the previous 2D second-plane sinkhole overlay
- * relied on.
+ * Per-tile metadata texture (`GRID_COLS × GRID_ROWS` RGBA8) sampled by
+ * the terrain shader: R = ownerId+1 (0 unowned, 1..MAX_PLAYERS player),
+ * G = flag bits (`FLAG_FROZEN`; bit 0 reserved), B/A reserved. The owner
+ * channel alone gates the owner-tinted bank gradient so every owned
+ * water tile paints the same way. Refreshed when interior Sets / frozen
+ * tiles / battle-mode change.
  */
 
 import * as THREE from "three";

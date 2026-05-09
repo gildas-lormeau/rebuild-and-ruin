@@ -1,11 +1,10 @@
 /**
  * Upgrade pick dialog sub-system factory. Tick scope: gated on
- * Mode.UPGRADE_PICK. Diverges from the other dialog sub-systems in
+ * Mode.UPGRADE_PICK. Diverges from the other dialog sub-systems by
  * having a `prepare()` pre-create step for progressive reveal during
- * the banner sweep, before tryShow() activates the mode. Follows the
- * same factory-with-deps pattern as runtime-life-lost.ts.
- * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
- * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
+ * the banner sweep, before tryShow() activates the mode. Owns the
+ * dialog lifecycle (create, tick, resolve); input handling lives in
+ * runtime-input.ts.
  */
 
 import {
@@ -68,7 +67,6 @@ export interface UpgradePickSystem {
   prepare: () => boolean;
   /** Navigate focus left/right. */
   moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
-  /** Confirm the currently focused choice. */
   confirmChoice: (playerId: ValidPlayerSlot) => void;
   /** Pick a specific card directly (e.g. from a click). */
   pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;

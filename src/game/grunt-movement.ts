@@ -1,13 +1,8 @@
 /**
- * Grunt movement — pathfinding, target locking, candidate evaluation,
- * and spatial queries for grunt-tower adjacency.
- *
- * Extracted from grunt-system.ts so movement (the complex spatial logic)
- * is separated from lifecycle (spawn, respawn, attack tracking).
- *
- * External consumers: runtime-phase-ticks.ts imports moveGrunts from here.
- * grunt-system.ts imports shared helpers (adjacentLivingTowerIndex,
- * getGruntTargetTower, etc.) for attack logic.
+ * Grunt pathfinding, target locking, and grunt-tower adjacency queries.
+ * Split from grunt-system.ts so the spatial logic is separate from
+ * lifecycle (spawn, respawn, attack tracking); grunt-system imports the
+ * shared adjacency helpers from here for its attack path.
  */
 
 import type { Grunt } from "../shared/core/battle-types.ts";

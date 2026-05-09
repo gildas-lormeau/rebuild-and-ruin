@@ -1,23 +1,8 @@
 /**
- * 3D house meshes — Phase 3 of the 3D renderer migration, with
- * per-variant InstancedMesh on top.
- *
- * Houses live on `GameMap.houses[]` (stable list for the duration of a
- * match — houses can be destroyed in battle but are never added). Each
- * house is a single 1×1 tile civilian dwelling with no directional
- * orientation, no player color, and no variants.
- *
- * Instancing: same `extract-and-instance` pattern as walls/cannons —
- * one bucket per variant (today only "house"), one `InstancedMesh` per
- * authored sub-part, capacity grown power-of-two on demand. With ~5
- * houses per player × 4 players × ~6 sub-parts/house, this collapses
- * ~120 separate meshes (one Group per house, each with its own mesh
- * tree) down to ~6 InstancedMeshes — same draw-call count regardless
- * of how many houses are live.
- *
- * Update cadence: the set of living houses changes only when a house
- * is destroyed (wildfire, etc.). A signature over `(col, row)` of the
- * live houses skips the rebuild on steady-state frames.
+ * 3D house meshes. 1×1 civilian dwellings, no orientation/color/variants.
+ * Extract-and-instance pattern (one bucket only). `(col,row)` signature
+ * over live houses skips rebuilds on steady-state frames; the live set
+ * changes only on destruction (wildfire, etc.).
  */
 
 import * as THREE from "three";

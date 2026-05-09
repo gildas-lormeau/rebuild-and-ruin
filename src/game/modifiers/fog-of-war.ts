@@ -1,11 +1,8 @@
 /**
- * Fog of War modifier — thick fog covers every merged castle during battle.
- *
- * Visual-only: no tile mutation, no entity spawning, no wall changes.
- * Players must remember cannon/tower positions to aim effectively.
- * Fog is painted by drawFogOfWar in render-effects.ts; this impl just
- * declares the modifier with a no-op apply so the registry can dispatch
- * banner/clear/zoneReset hooks uniformly.
+ * Fog of War modifier — visual-only fog over every merged castle during
+ * battle. No tile/entity mutation; fog is painted by drawFogOfWar in
+ * render-effects.ts and this impl declares a no-op apply so the registry
+ * can dispatch banner/clear/zoneReset hooks uniformly.
  */
 
 import type { ModifierImpl } from "./modifier-types.ts";

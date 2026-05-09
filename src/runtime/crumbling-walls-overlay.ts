@@ -1,13 +1,10 @@
 /**
- * Crumbling-walls fade-out multiplier — runtime-side overlay derivation.
- * Lands a `1 → 0` value in `overlay.battle.crumblingWallsFade` that the
- * walls + debris managers apply to held wall material alpha (walls
- * fading out, wall-debris cross-fading in). Held wall tile keys come
- * from `state.modern.crumblingWallsHeld`, captured by
- * `crumblingWallsImpl.apply` before the gameplay-state mutation.
- *
- * Time gating lives in `deriveModifierRamp` driven by `revealTimeMs`. The
- * wave on the ramp gives the fade a "wall crumbling away" feel.
+ * Crumbling-walls fade-out multiplier. Lands a `1 → 0` value in
+ * `overlay.battle.crumblingWallsFade` that the walls + debris managers
+ * apply to held wall material alpha (walls fade out, wall-debris
+ * cross-fades in). Held tile keys come from `state.modern.crumblingWallsHeld`,
+ * captured by `crumblingWallsImpl.apply` before the gameplay mutation.
+ * The wave on the ramp gives the fade a "wall crumbling away" feel.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

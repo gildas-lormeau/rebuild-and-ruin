@@ -44,7 +44,6 @@ export class Rng {
     return low + Math.floor(this.next() * (hi - low + 1));
   }
 
-  /** Returns true with the given probability (0–1). */
   bool(prob = 0.5): boolean {
     return this.next() < prob;
   }

@@ -1,14 +1,10 @@
 /**
- * Fog progressive-reveal opacity multiplier — runtime-side overlay
- * derivation. Lands in `overlay.battle.fogRevealOpacity`; the fog
- * manager applies it to material alpha. Time gating lives in
- * `deriveModifierRamp` driven by `revealTimeMs` from the runtime.
- *
- * The wave on the ramp gives the reveal a rolling-in feel — multiple
- * swells converging on full opacity rather than a monotonic slider.
- *
- * Ramp duration sits inside the post-sweep dwell of the modifier-reveal
- * window so the curve always completes before the phase advances.
+ * Fog progressive-reveal opacity multiplier. Lands in
+ * `overlay.battle.fogRevealOpacity`; fog manager applies it to material
+ * alpha. Time gating via `deriveModifierRamp` driven by `revealTimeMs`.
+ * The wave gives a rolling-in feel — multiple swells converging on full
+ * opacity rather than a monotonic slider. Ramp duration fits inside the
+ * post-sweep dwell so the curve completes before the phase advances.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

@@ -92,7 +92,6 @@ export function optionsScreenHitTest(
   return null;
 }
 
-/** Draw the options screen. */
 export function drawOptionsScreen(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
@@ -233,7 +232,6 @@ export function controlsScreenHitTest(
   return null;
 }
 
-/** Draw the controls rebinding screen. */
 export function drawControlsScreen(
   overlayCtx: CanvasRenderingContext2D,
   W: number,

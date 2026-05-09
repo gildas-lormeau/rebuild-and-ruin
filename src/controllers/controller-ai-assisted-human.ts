@@ -1,19 +1,10 @@
 /**
- * AiAssistedHumanController — an AI-driven controller that presents itself
- * as a human (kind: "human") and routes every placement through typed send
- * callbacks, so AI-driven gameplay exercises the same per-action wire
- * pathway humans use. Useful for protocol testing.
- *
- * Inherits all per-phase state machines from AiController; only overrides
- * the tick methods to inject broadcasting execute callbacks.
- *
- * The caller (e.g. the test scenario) supplies typed senders — this file
- * stays in the `controllers` domain with no `protocol` dependency. Message
- * construction lives at the call site that imports protocol freely.
- *
- * InputReceiver methods are stub no-ops — this v1 doesn't support
- * interleaving real human input. Future work: setHumanDriven(phase, bool)
- * to selectively delegate phases to actual input handlers.
+ * AI controller that presents as `kind: "human"` and routes placements through
+ * typed send callbacks, so AI play exercises the same wire path humans use.
+ * Inherits per-phase state machines from AiController; tick methods inject
+ * broadcasting execute callbacks. Senders are caller-supplied so this file
+ * stays in `controllers` with no `protocol` dependency. InputReceiver methods
+ * are no-ops — v1 doesn't interleave real human input.
  */
 
 import { tickBattle } from "../ai/ai-phase-battle.ts";

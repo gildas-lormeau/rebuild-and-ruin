@@ -1,25 +1,10 @@
 /**
- * Per-instance opacity + tint for THREE.InstancedMesh.
- *
- * three.js exposes per-instance matrix and per-instance color natively
- * but not opacity or tint. This module plumbs `instanceOpacity` (float)
- * and optionally `instanceTint` (float mix factor) through an
- * `onBeforeCompile` shader patch — the fragment shader multiplies
- * `diffuseColor.a` and lerps `diffuseColor.rgb` after the standard
- * alpha-map chunk so existing material features still compose.
- *
- * Two attachment helpers, one per shader variant:
- *
- *   const opacity = attachInstanceOpacity(mesh, capacity);
- *   // → opacity-only patch (one program shared across all callers)
- *
- *   const { opacity, tint } = attachInstanceTint(mesh, capacity, hex);
- *   // → opacity + tint patch (one program shared across all callers,
- *   //   per-material `instanceTintColor` uniform varies per call)
- *
- * Each helper installs a module-level patcher AND a stable
- * `customProgramCacheKey`, so three.js's program cache collapses every
- * material attached via the same helper into a single shader program.
+ * Per-instance opacity + tint for THREE.InstancedMesh. three.js exposes
+ * per-instance matrix/color natively but not opacity/tint; this plumbs
+ * `instanceOpacity` and optional `instanceTint` through `onBeforeCompile`,
+ * composed after the standard alpha-map chunk. Each helper sets a stable
+ * `customProgramCacheKey` so three.js's program cache collapses callers
+ * onto a single shader program.
  */
 
 import * as THREE from "three";

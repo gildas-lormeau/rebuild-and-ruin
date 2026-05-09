@@ -1,14 +1,9 @@
 /**
- * Online client factory and default instance.
- *
- * `createOnlineClient()` builds a fully isolated client — each instance owns
- * its own OnlineContext (session, dedup, watcher, reconnect) and utility
- * closures (send, devLog, etc.).  `defaultClient` is the singleton used by
- * the online runtime; consumers receive it via init injection or direct import.
- *
- * NOTE: devLog() and devLogThrottled() are dev-only (gated by IS_DEV).
- * They produce no output in production builds. Do not rely on them
- * for user-visible feedback or error handling.
+ * Online client factory and default instance. `createOnlineClient()` builds
+ * a fully isolated client — each owns its own OnlineContext (session, dedup,
+ * watcher, reconnect) and utility closures. `defaultClient` is the singleton
+ * used by the online runtime. `devLog`/`devLogThrottled` are gated by
+ * `IS_DEV` — never rely on them for user-visible feedback.
  */
 
 import type { GameMessage } from "../protocol/protocol.ts";

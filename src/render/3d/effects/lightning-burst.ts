@@ -1,13 +1,7 @@
 /**
- * 3D lightning-burst reveal — `dry_lightning` modifier. Per-tile yellow
- * disc grows + fades on each newly ignited grass tile, with a bright
- * white flash dominating each strike. Tiles fire one-by-one in
- * reading order (top-to-bottom, left-to-right) with delays evenly
- * spaced across the stagger window so each strike reads as its own
- * discrete bolt rather than blending into a burst field.
- *
- * Disc tint matches the `dry_lightning` palette pulseColor for parity
- * with the legacy 2D reveal indicator.
+ * `dry_lightning` reveal — tiles fire one-by-one in reading order with
+ * delays evenly spaced across the stagger window so each strike reads
+ * as its own discrete bolt rather than blending into a burst field.
  */
 
 import type * as THREE from "three";

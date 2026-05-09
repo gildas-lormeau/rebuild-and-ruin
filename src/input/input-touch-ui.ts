@@ -1,11 +1,10 @@
 /**
- * Touch UI — wires event handlers to the static touch controls in index.html.
+ * Wires event handlers to the static touch controls in index.html.
+ * Layout is pure CSS (landscape panels / portrait bars); this module only
+ * queries existing DOM elements and attaches behavior.
  *
- * Layout is handled entirely by CSS (landscape panels / portrait bars).
- * This module only queries existing DOM elements and attaches behavior.
- *
- * Left panel : loupe + d-pad
- * Right panel: quit + zoom + rotate + confirm
+ * - Left panel: loupe + d-pad
+ * - Right panel: quit + zoom + rotate + confirm
  */
 
 import type {

@@ -1,18 +1,10 @@
 /**
- * Registry of all per-modifier 3D effect managers.
- *
- * Three lifecycle shapes coexist in the same registry — each effect
- * owns its lifecycle internally via `update(ctx)`:
- *   - one-shot reveal bursts (gate on `overlay.ui.modifierReveal.modifierId`,
- *     animate from `revealTimeMs`, dispose hosts on modifier change)
- *   - persistent overlays (gate on a state flag, render continuously
- *     while active; fog reads `overlay.battle.fogRevealOpacity` for
- *     the runtime-driven progressive reveal)
- *   - event-driven bursts (consume `overlay.entities.X[]` entries with
- *     `.age` fields, dispose when the set empties)
- *
- * Adding a new modifier effect (any lifecycle): write the effect file,
- * add one entry here. No other touchpoints in scene.ts / renderer.ts.
+ * Registry of all per-modifier 3D effect managers. Each effect owns its
+ * lifecycle via `update(ctx)`; three shapes coexist (one-shot reveal
+ * bursts, persistent overlays, event-driven bursts) and each gates
+ * itself on the relevant `overlay.*` slice. Adding a new effect: write
+ * the file, add one entry here — no other touchpoints in scene.ts /
+ * renderer.ts.
  */
 
 import type * as THREE from "three";

@@ -1,13 +1,8 @@
 /**
  * Host-side crosshair networking — broadcasts local AI crosshairs and
- * merges remote human crosshairs into the frame.
- *
- * Both host and watcher render remote crosshairs with simple linear
- * interpolation toward the received target. Local AI crosshairs wobble
- * natively via the controller's getCrosshair(); the wire format does not
- * carry orbit params.
- *
- * Extracted from online-client.ts to keep that file focused on wiring.
+ * merges remote human crosshairs into the frame. Remote crosshairs render
+ * with linear interpolation toward the received target; local AI wobble
+ * comes from the controller's getCrosshair() and is not on the wire.
  */
 
 import { nextReadyCannon } from "../game/index.ts";

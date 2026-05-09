@@ -1,15 +1,8 @@
 /**
- * Feature capability registry — pool pattern with exhaustiveness check.
- *
- * Follows the same structure as upgrade-defs.ts and modifier-defs.ts.
- * When adding a new feature capability:
- *   1. Add the string literal to FeatureId union below
- *   2. Add a pool entry (set implemented: false until gameplay code exists)
- *   3. The PoolComplete check will fail at compile time if you forget step 2
- *   4. Add an entry to FEATURE_CONSUMERS listing the files that implement
- *      the feature (the `satisfies` clause makes this mandatory)
- *   5. Add hasFeature() guards in each consumer file — types alone don't
- *      catch a missing guard, but the failing gameplay + tests will
+ * Feature capability registry — pool pattern (FeatureId → FEATURE_POOL +
+ * FEATURE_CONSUMERS). See `pool-def.ts` for the shared structure.
+ * Consumers must add `hasFeature()` guards; types catch the registry side,
+ * not the gameplay side.
  */
 
 import type { PoolDef } from "./pool-def.ts";

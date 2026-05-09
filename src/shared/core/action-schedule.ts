@@ -1,17 +1,9 @@
 /**
- * Lockstep scheduled-actions queue.
- *
- * Every wire-broadcast input that mutates GameState is enqueued (on both
- * originator and receiver) with `applyAt = senderSimTick + SAFETY` and
- * applied at the corresponding tick on every peer. Within a tick, entries
- * are sorted by `(applyAt, playerId)` for deterministic ordering across
- * peers.
- *
- * This replaces the prior "apply locally now, broadcast, receiver applies
- * on receipt" pattern, which let the receiver process the same action at
- * a later tick than the originator — order-sensitive game logic
- * (recheckTerritory → removeEnclosedGruntsAndRespawn) consumed RNG against
- * different intermediate states on different peers, producing divergence.
+ * Lockstep scheduled-actions queue. Wire-broadcast inputs enqueue on
+ * originator + receiver with `applyAt = senderSimTick + SAFETY` and fire in
+ * `(applyAt, playerId)` order on every peer. Replaces "apply-now, broadcast,
+ * apply-on-receipt" — that pattern let order-sensitive logic
+ * (recheckTerritory → grunt RNG) diverge when the receiver applied later.
  */
 
 import type { ValidPlayerSlot } from "./player-slot.ts";

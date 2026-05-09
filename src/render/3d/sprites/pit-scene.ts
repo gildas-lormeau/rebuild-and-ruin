@@ -1,18 +1,8 @@
 /**
- * pit-scene.ts — burning-pit sprite (1×1 tile, transparent bg).
- *
- * TypeScript conversion of the original `pit-scene.mjs`. A pit exists
- * for 3 battle rounds, fading each round: fresh flames → dim flames →
- * embers. The engine swaps the sprite based on the pit's remaining-
- * rounds counter. Rendered with a transparent background so the
- * underlying terrain (grass, interior, cobbles, frozen water…) shows
- * through the burned area.
- *
- * Shared hole geometry across all 3 states. Flames & embers differ.
- *
- * THREE is injected to `buildPit(THREE, scene, params)` so this module
- * stays free of three.js as a static dependency — matches the
- * convention of the other `*-scene.ts` files.
+ * Burning-pit sprite (1×1 tile, transparent bg). A pit exists for 3
+ * battle rounds, fading each round: fresh flames → dim flames → embers,
+ * sprite swapped by remaining-rounds counter. Hole geometry is shared
+ * across the 3 states; flames + embers differ.
  */
 
 import type * as THREE from "three";
@@ -51,7 +41,6 @@ interface RimDebrisParams {
 interface FlameSpec {
   /** Cone base radius. */
   radius: number;
-  /** Cone height. */
   height: number;
   /** Horizontal offset (x, z) from pit center. */
   xz: readonly [number, number];

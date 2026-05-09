@@ -438,7 +438,6 @@ function spawnHousesInZone(state: GameState, zoneId: ZoneId): void {
   }
 }
 
-/** Build set of all 2×2 tower tile keys. */
 function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
   const towerTiles = new Set<number>();
   for (const tower of towers) {

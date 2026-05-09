@@ -1,14 +1,9 @@
 /**
- * Three.js implementation of `RendererInterface`.
- *
- * Hybrid design: the 3D renderer owns the WebGL context on `#world-canvas`
- * and renders all world content (terrain, walls, towers, cannons, grunts,
- * houses, debris, cannonballs, balloons, pits, burns, impacts, crosshairs,
- * phantoms, fog, water waves, sinkhole tint, bonus pulse — see scene.ts).
- * The 2D canvas renderer overlays UI (timers, placement cursor, dialogs,
- * modals, HUD) and replays banner snapshots. `drawFrame` renders both each
- * tick; `captureScene` / `captureSceneOffscreen` composite the WebGL world
- * canvas with the 2D UI canvas to produce banner prev/new-scene snapshots.
+ * Three.js implementation of `RendererInterface`. Hybrid: WebGL on
+ * `#world-canvas` renders all world content (see scene.ts); the 2D
+ * canvas renderer overlays UI + banner snapshots. `drawFrame` renders
+ * both each tick; `captureScene*` composites WebGL + 2D for banner
+ * prev/new-scene snapshots.
  */
 
 import type { GameMap, Viewport } from "../../shared/core/geometry-types.ts";

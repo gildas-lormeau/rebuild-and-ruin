@@ -1,20 +1,10 @@
 /**
  * Player-supplied music assets — IndexedDB persistence + validation.
- *
  * The game doesn't ship original Rampart music; players drop their own
  * RAMP.AD + RXMI_*.xmi from a legitimate DOS install via a file picker.
- * Files are cached in IndexedDB so the picker is a one-time chore per browser.
- *
- * Two object stores live in the same database:
- * - `assets`: raw uploaded files (RAMP.AD, SOUND.RSC, RXMI_*.xmi).
- * - `pcm`: rendered PCM tracks (one entry per bg/stinger track and per
- *   fanfare sub-song). Populated by [music-synth-loader.ts](./music-synth-loader.ts)'s
- *   `renderAllTracksToCache` after a successful upload, consumed by
- *   [music-player.ts](./music-player.ts) at activate-time. Wiping `assets`
- *   wipes `pcm` as well — the rendered audio is keyed off the raw files.
- *
- * Pure data module: only touches IndexedDB and the File API, no audio/engine
- * dependencies.
+ * Two stores: `assets` holds raw uploads, `pcm` holds rendered tracks
+ * keyed off them (wiping assets wipes pcm). Pure data module — only
+ * touches IndexedDB and the File API, no audio/engine dependencies.
  */
 
 import { unzipSync } from "fflate";

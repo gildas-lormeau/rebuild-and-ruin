@@ -1,10 +1,7 @@
 /**
- * Salvage upgrade — global effect. When ANY player picks Salvage, every
- * shooter who destroys an enemy cannon earns a salvage slot (cap 2) that
- * can be spent during the next cannon-place phase to place a bonus cannon.
- *
- * Hook implemented: onCannonKilled (awards slot to shooter).
- * Wired through src/game/upgrade-system.ts. State lives on
+ * Salvage upgrade — global. When ANY player picks Salvage, every shooter
+ * who destroys an enemy cannon earns a salvage slot (cap 2) spendable
+ * next cannon-place phase to place a bonus cannon. State lives on
  * state.salvageSlots (indexed by player id).
  */
 

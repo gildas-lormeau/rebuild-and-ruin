@@ -1,17 +1,9 @@
 /**
- * Online runtime session helpers — the four entry points for room/game
- * lifecycle transitions in the online client.
- *
- * UI navigation (triggered by user / router):
- * - showLobby — leave the current room and return to the /online lobby page
- * - showWaitingRoom — enter the in-game waiting room after creating/joining
- *
- * Server message handlers (triggered by WebSocket frames):
- * - initFromServer — server says the game is starting; bootstrap the runtime
- * - restoreFullState — full-state snapshot recovery after disconnect/migration
- *
- * The factory is a thin closure over the runtime/session/timing/container
- * deps it needs from online-runtime-game's composition root.
+ * Online runtime session helpers — four entry points for room/game
+ * lifecycle transitions over runtime/session/timing/container deps.
+ * `showLobby` / `showWaitingRoom` are user-driven UI navigation;
+ * `initFromServer` / `restoreFullState` are WebSocket-driven (game start
+ * and snapshot recovery after disconnect/migration).
  */
 
 import { generateMap } from "../game/index.ts";

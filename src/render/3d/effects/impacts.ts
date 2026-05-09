@@ -1,24 +1,10 @@
 /**
- * 3D impact effects — Phase 6 of the 3D renderer migration.
- *
- * Cannonball-hit flashes rendered as flat, camera-facing-up planes on the
- * ground (Y=0) at each impact's tile center. Mirrors the per-phase timeline
- * computed by `drawImpacts` in render-effects.ts:
- *
- *   0.0–0.25  core flash  (bright yellow disc, shrinks)
- *   0.0–0.6   shock ring  (yellow ring, expands)
- *   0.0–0.8   debris      (5 spark billboards flying outward)
- *   0.2–1.0   smoke puff  (dark disc, expands + rises)
- *
- * All phase progress math ports directly from the 2D impl — same constants,
- * same sin/cosine seeds. The 3D path swaps canvas strokes/fills for three
- * small meshes per impact that we size / colour / alpha each frame.
- *
- * Meshes are rebuilt whenever the impact set (fingerprinted by position)
- * changes; per-frame updates only rewrite material/alpha/scale/position. The
- * `Impact.age` timeline keeps ticking in game state, so the 3D path just
- * reads `age / IMPACT_FLASH_DURATION` to derive phase progress — identical
- * to 2D.
+ * Cannonball-hit flashes as flat ground-plane meshes per impact, layering
+ * a core flash (0.0–0.25), shock ring (0.0–0.6), debris sparks (0.0–0.8)
+ * and rising smoke puff (0.2–1.0). Phase math ports directly from
+ * `drawImpacts` in render-effects.ts (same constants + sin/cosine seeds).
+ * Meshes rebuild on impact-set fingerprint change; per-frame updates
+ * only rewrite material/alpha/scale/position.
  */
 
 import * as THREE from "three";

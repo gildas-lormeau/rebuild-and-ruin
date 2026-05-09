@@ -1,24 +1,10 @@
 /**
  * Generic incremental reconciliation between an entry list and per-entry
- * hosts, used by impacts / cannon-burns / fire-burst's tile-burst manager.
- *
- * The previous pattern in each of those managers was: hash the entry list
- * into a signature, and on any change (= every new entry, every aged-out
- * entry) tear down ALL hosts and rebuild from scratch. With cannonball
- * impacts arriving every ~100 ms during a battle peak, that thrashed
- * GPU resources and produced a steady stream of `THREE.Material` /
- * `THREE.Mesh` allocations that GC felt acutely on mobile.
- *
- * `createReconciler` takes a callback bundle (key, build, dispose,
- * animate) and returns an `update(entries)` that:
- *   - looks up each entry in a Map keyed by the caller's `keyOf`,
- *     calling `build(entry)` only for entries with no live host;
- *   - collects every host whose entry is no longer in the list and
- *     calls `dispose(host)` on each;
- *   - calls `animate(host, entry)` for every still-live pairing.
- *
- * Per-frame allocations drop to "one Map lookup per entry" — no fresh
- * meshes/materials unless a genuinely new entry is appearing.
+ * hosts (impacts / cannon-burns / tile-burst). `createReconciler` takes
+ * (keyOf, build, dispose, animate) and returns `update(entries)` that
+ * only builds new entries, disposes departed hosts, and animates every
+ * still-live pairing — replacing the earlier signature-rebuild pattern
+ * that thrashed GPU resources during battle peaks.
  */
 
 interface ReconcilerOpts<Entry, Host, Key = Entry> {

@@ -1,20 +1,10 @@
 /**
- * Host promotion orchestration for online play.
- *
- * Called when this client is promoted from watcher to host after the
- * previous host disconnects. Resets networking state, rebuilds controllers,
- * syncs accumulators, and broadcasts the authoritative full state.
- *
- * Does NOT import online-runtime-game.ts — the GameRuntime reference is
- * injected via initPromote() to avoid initialization coupling.
- *
- * ORDERING INVARIANT — initPromote() is the second of three init calls from
- * online-runtime-game.ts:initOnlineRuntime(). The required order is:
- *    1. initWs   (online-runtime-ws.ts)
- *    2. initPromote (this file)
- *    3. initDeps (online-runtime-deps.ts)
- * Calling promoteToHost() before initPromote() throws. Do not reorder the
- * call sequence in initOnlineRuntime without updating all three modules.
+ * Host promotion — runs when this client is promoted from watcher to host
+ * after the previous host disconnects. Resets networking, rebuilds
+ * controllers, syncs accumulators, broadcasts the authoritative full state.
+ * Runtime injected via `initPromote()` (second of three `initOnlineRuntime`
+ * init calls, between `initWs` and `initDeps`); `promoteToHost()` throws if
+ * called first.
  */
 
 import { createAiController } from "../runtime/runtime-bootstrap.ts";

@@ -1,11 +1,10 @@
 /**
- * Game lifecycle sub-system — owns game start, reset, end, rematch,
- * and return-to-lobby transitions.
- *
- * `createGameLifecycle` is a pure orchestrator: it sequences dep calls
- * without accessing runtimeState directly. The companion `buildLifecycleDeps`
- * assembles the deps object from subsystem handles + runtimeState, keeping
- * the composition root (runtime-composition.ts) lean.
+ * Game lifecycle sub-system — owns game start, reset, end, rematch, and
+ * return-to-lobby transitions. `createGameLifecycle` is a pure
+ * orchestrator: it sequences dep calls without accessing runtimeState
+ * directly. The companion `buildLifecycleDeps` assembles the deps object
+ * from subsystem handles + runtimeState, keeping the composition root
+ * lean.
  */
 
 import { DEMO_RETURN_DELAY_MS } from "../shared/core/game-constants.ts";

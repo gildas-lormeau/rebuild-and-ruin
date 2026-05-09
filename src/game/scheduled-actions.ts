@@ -1,18 +1,10 @@
 /**
  * Originator-side helpers for the lockstep scheduled-actions queue.
- *
- * Both wire-broadcast piece placements (network.send) and controller-driven
- * placements (AssistedHumanController.senders) follow the same recipe:
- *   1. Validate against current state.
- *   2. Stamp `applyAt = state.simTick + safetyTicks`.
- *   3. Enqueue an `apply` closure that calls `applyPiecePlacement` and
- *      clamps the originator's build cursor.
- *   4. Broadcast a wire message carrying the same `applyAt`.
- *
- * This module owns step 1-3; step 4 stays at the call site (the wire-message
- * shape varies between the runtime broadcast path and the controller-senders
- * path). Receivers re-use a slimmer enqueue inside `online-server-events.ts`
- * — same `applyAt`, no clamp.
+ * Both wire-broadcast and controller-driven placements: validate, stamp
+ * `applyAt = simTick + safetyTicks`, enqueue an apply closure (and
+ * cursor-clamp). Wire broadcast itself stays at the call site since the
+ * message shape differs. Receivers re-use a slimmer enqueue in
+ * `online-server-events.ts` — same applyAt, no clamp.
  */
 
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";

@@ -25,7 +25,6 @@ export interface Grunt extends TilePos {
   facing?: number;
 }
 
-/** Cannon placement mode. */
 export enum CannonMode {
   NORMAL = "normal",
   SUPER = "super",
@@ -203,7 +202,6 @@ export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
   return mode === CannonMode.SUPER;
 }
 
-/** True if the cannon mode is balloon. */
 export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
   return mode === CannonMode.BALLOON;
 }

@@ -1,29 +1,10 @@
 /**
- * tower-scene.ts — shared tower scene description.
- *
- * TypeScript conversion of the original `tower-scene.mjs` used by the
- * `build-tower-3d.html` sandbox. Two real variants are exported:
- * `home_tower` (with gate + 3 flags + door) and `secondary_tower`
- * (no gate, single main flag).
- *
- * Geometry model (from the user's ASCII schematic):
- *   • A wide rectangular main keep with a FLAT blue roof.
- *   • Two narrower, TALLER square turrets flanking the keep on its
- *     left and right sides (they rise above the keep's roof).
- *   • A small pole-platform centered on the keep's roof, with a thin
- *     pole and a small pennant flag attached near the top of the pole.
- *   • Optional door slit on the +Z face of the keep.
- *
- * No base disc — towers sit directly on the ground (yBase defaults 0).
- * THREE is injected so this module stays free of three.js as a static
- * dependency (matches wall-scene.ts's `buildWall(THREE, scene, params)`
- * convention).
- *
- * Per-player tinting (new in Phase 3): the pennant/flag meshes are
- * named `"flag"` on the THREE.Group so the towers entity manager can
- * recolor their material after `buildTower` returns without rewriting
- * scene geometry. Nothing else is recolored yet — the stone body keeps
- * its generic limestone look, matching the sprite previews.
+ * Shared tower scene description — `home_tower` (gate + 3 flags + door)
+ * and `secondary_tower` (no gate, single flag). Geometry: wide flat-
+ * roofed keep with two taller flanking turrets, a thin pole + pennant
+ * on the keep roof, optional +Z door slit. Pennant/flag meshes are
+ * named `"flag"` on the group so the entity manager can recolor them
+ * for per-player tinting without rewriting scene geometry.
  */
 
 import * as THREE from "three";

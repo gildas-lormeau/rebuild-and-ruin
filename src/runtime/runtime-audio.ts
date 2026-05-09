@@ -1,16 +1,10 @@
 /**
  * Audio orchestrator — owns asset loading, the music/sfx subsystems, the
- * sound modal, and the mute rule. Created once per runtime and lives for
- * the page lifetime.
- *
- * What lives here vs. composition:
- * - HERE: anything that coordinates music + sfx + assets + modal (asset
- *   slot, stopAll, modal close handlers, mute on hidden/silenced).
- * - composition (`runtime-composition.ts`): wiring the subsystem handles
- *   into lifecycle/render/UI deps, the bus-subscribe-on-state-ready
- *   sequencing, and the `visibilitychange` listener — that listener calls
- *   both `setVisibilityHidden` (a runtime-state concern) AND `applyMute`
- *   here, since `pausedBy` is not an audio responsibility.
+ * sound modal, and the mute rule. Created once per runtime, lives for the
+ * page lifetime. The composition root wires this into lifecycle/render/UI
+ * deps and the `visibilitychange` listener — that listener also calls
+ * `setVisibilityHidden` (runtime-state), since `pausedBy` is not an audio
+ * responsibility.
  */
 
 import { Mode } from "../shared/ui/ui-mode.ts";

@@ -1,16 +1,8 @@
 /**
- * 3D house-destroy burst — fire / smoke / sparks when a house is hit
- * by a cannonball. Reconciles `overlay.battle.houseDestroys` into
- * per-tile fire-burst hosts via the shared 1×1 factory in
- * `fire-burst.ts` (`createTileBurstManager`).
- *
- * Houses are 1×1-tile wooden buildings — the footprint matches
- * wall-burns, but the flame is taller and smokier (roof timbers
- * burning) and the life is slightly longer so the collapse reads as a
- * building coming down rather than a brick breaking.
- *
- * Lifetime is `HOUSE_DESTROY_DURATION` (~0.75 s). Aging happens in
- * `ageImpacts` on the runtime side.
+ * House-destroy burst on top of the shared 1×1 fire-burst kernel.
+ * Flame is taller and smokier (roof timbers burning) and life is
+ * slightly longer so the collapse reads as a building coming down
+ * rather than a brick breaking.
  */
 
 import type * as THREE from "three";

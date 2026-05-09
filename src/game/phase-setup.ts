@@ -1,43 +1,10 @@
 /**
- * Phase transition recipes, lifecycle, and preparation helpers.
- *
- * Owns the multi-step sequences that run when entering/leaving a phase:
- * wall sweeping, territory claiming, life penalties, castle construction,
- * cannon limits, grunt spawning, and battle cleanup.
- *
- * phase-entry.ts owns the per-phase `enter*Phase` helpers (which call
- * `setPhase` and prime entry-time timers); it imports the multi-step
- * recipes from here.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * Phase-entry vs start-phase contract — canonical source (applies to every
- * phase defined here, e.g. enterCannonPlacePhase, finalizeBattle,
- * prepareNextRound, prepareBattleState, enterBuildSkippingBattle):
- *
- *   enterXPhase(state)           — mutates state.phase + timer. Called by
- *                                  nextPhase() (local) or as the
- *                                  `applyCheckpoint` step of executeTransition
- *                                  (online watcher / host after checkpoint).
- *
- *   prepareXPhase(state)         — computes derived state (cannon limits,
- *                                  default facings, combo tracker, modifier
- *                                  roll). Lives in cannon-system.ts /
- *                                  battle-system.ts / phase-setup.ts as
- *                                  appropriate; must run BEFORE the checkpoint
- *                                  is serialized so the computed values ship
- *                                  to watchers.
- *
- *   startXPhase(state, ctrl)     — per-controller initialization (bag reset,
- *                                  cursor placement, battle init). Lives on
- *                                  BaseController. Called as the
- *                                  `initControllers` step of executeTransition
- *                                  after the phase is applied.
- *
- * The split is load-bearing for online play: the host computes `prepareXPhase`
- * state and broadcasts it inside the checkpoint payload; the watcher skips
- * `prepare` entirely and runs only `enter` + `start`. Do NOT collapse the
- * three into one function — the watcher would diverge from the host.
- * ─────────────────────────────────────────────────────────────────────────
+ * Multi-step phase transition recipes; phase-entry.ts wraps setPhase +
+ * timer priming around these. Phase lifecycle splits three ways:
+ * `prepareXPhase` (derived state, runs on host before checkpoint),
+ * `enterXPhase` (state.phase + timer, runs on host and watcher),
+ * `startXPhase` (per-controller init). The split is load-bearing for
+ * online — collapsing would diverge watcher from host.
  */
 
 import {

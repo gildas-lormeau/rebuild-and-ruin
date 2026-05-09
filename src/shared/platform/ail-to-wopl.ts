@@ -1,16 +1,10 @@
 /**
- * Convert a Miles AIL AdLib bank (.AD) to a WOPL v3 bank in memory.
- *
- * Used by the music subsystem so the game can accept a player-supplied RAMP.AD
- * (from a legitimate Rampart DOS install) and hand libadlmidi-js the WOPL form
- * it can actually read. Pure data transform — no DOM, audio, or IO dependencies,
- * safe at leaf layer L1. Reference implementations and both format specs live in
- * tmp/music-player/docs/{ail-ad-format,wopl-format}.md. Python mirror:
- * tmp/music-player/scripts/ail-to-wopl.py (produces byte-identical output).
- *
- * The one non-obvious invariant that tripped us up for hours: WOPL's op1 slot
- * stores the CARRIER and op2 stores the MODULATOR — inverse of AIL's naming.
- * Flip them and brass patches sound like chaotic percussion.
+ * Convert a Miles AIL AdLib bank (.AD) to a WOPL v3 bank in memory. Pure
+ * data transform; specs in tmp/music-player/docs/{ail-ad-format,wopl-format}.md,
+ * Python mirror at tmp/music-player/scripts/ail-to-wopl.py (byte-identical
+ * output). Non-obvious invariant: WOPL's op1 slot stores the CARRIER and
+ * op2 stores the MODULATOR — inverse of AIL's naming. Flip them and brass
+ * patches sound like percussion.
  */
 
 const MELODIC_TAGS = [0x00, 0x01, 0x02] as const;

@@ -1,28 +1,9 @@
 /**
- * balloon-scene.ts — balloon cannon: ground base + in-flight envelope.
- *
- * TypeScript conversion of the original `balloon-scene.mjs`. Two
- * variants matching the existing pixel sprites in
- * scripts/generate-sprites.html:
- *
- *   balloon_base (2×2 tile)   — empty mooring on the ground:
- *     • 4 corner wooden stakes
- *     • ropes outlining the square between stakes
- *     • central metal mooring disc + dark bolt
- *     • a deflated red balloon resting on the mooring
- *
- *   balloon_flight (2×2 tile wide × 3 tall) — deployed:
- *     • red ellipsoid envelope hovering above
- *     • 8 vertical gore seams along the envelope meridians
- *     • darker load ring just below the equator
- *     • wooden basket with top/bottom rims and a mid-band
- *     • 4 ropes connecting basket corners to envelope underside
- *       (each rope grazes the sphere at its tangent point)
- *
- * THREE is injected to `buildBalloon(THREE, scene, variant)` so this
- * module stays free of three.js as a static dependency — matches the
- * convention of the other `*-scene.ts` files. `buildBalloon` takes the
- * full variant (not just params) and routes internally by `variant.name`.
+ * Balloon cannon scene: ground mooring (`balloon_base`, 2×2) and the
+ * deployed envelope (`balloon_flight`, 2×2 wide × 3 tall). `buildBalloon`
+ * takes the full variant and routes internally by `variant.name`. THREE
+ * is injected so the module stays free of three.js as a static
+ * dependency, matching the other `*-scene.ts` files.
  */
 
 import type * as THREE from "three";

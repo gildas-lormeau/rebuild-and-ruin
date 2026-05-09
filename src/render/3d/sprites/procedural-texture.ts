@@ -1,16 +1,9 @@
 /**
- * Shared boilerplate for procedural `CanvasTexture` builders used by
- * sprite scenes (stone walls, wall-top allure, roof tiles). Each caller
- * paints a different pattern, but every one of them:
- *
- *   1. Returns `undefined` on SSR (no `document`).
- *   2. Creates a square canvas of the requested size.
- *   3. Runs an LCG to keep the output deterministic across browsers.
- *   4. Wraps the canvas as a repeating `THREE.CanvasTexture`.
- *
- * The helper takes a `paint` callback that receives the 2D context, the
- * canvas size, and the seeded random generator. Callers hand back no
- * value — the texture is built from the painted canvas.
+ * Shared boilerplate for procedural `CanvasTexture` builders (stone
+ * walls, wall-top allure, roof tiles). The helper bails on SSR, creates
+ * a square canvas, hands the caller's `paint` callback an LCG-backed
+ * seeded RNG for deterministic output, then wraps the result as a
+ * repeating `THREE.CanvasTexture`.
  */
 
 import type * as THREE from "three";

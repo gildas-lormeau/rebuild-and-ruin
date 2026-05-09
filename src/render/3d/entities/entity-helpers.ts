@@ -1,16 +1,7 @@
 /**
- * Shared lifecycle + tinting helpers for Phase 3 entity managers.
- *
- * Every per-entity manager (walls / towers / houses / debris) owns a
- * root `THREE.Group` under which reconciliation adds fresh host groups
- * per live entity. Several of them also clone a shared material to
- * re-color a signature mesh per owning player. These helpers factor
- * those patterns out so each manager stays focused on the state-to-
- * mesh mapping and not on disposal / material cloning boilerplate.
- *
- * Kept intentionally small — any manager-specific wrinkle (wall
- * `root.traverse` walks are identical, but e.g. debris also traverses
- * to find the "flag" chunk) stays in the manager itself.
+ * Shared disposal + material-tinting helpers for entity managers
+ * (walls/towers/houses/debris). Manager-specific traversal (e.g.
+ * locating the "flag" chunk in debris) stays in the manager.
  */
 
 import * as THREE from "three";

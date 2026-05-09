@@ -1,11 +1,6 @@
 /**
- * 3D grass-emergence reveal — `low_water` modifier. Per-tile green disc
- * grows + fades as river-edge water tiles convert to grass. Decorative
- * on top of the terrain bitmap, which already paints these tiles as
- * grass at apply time.
- *
- * Disc tint matches the `low_water` palette pulseColor for parity with
- * the legacy 2D reveal indicator.
+ * `low_water` reveal — decorative discs on top of the terrain bitmap,
+ * which already paints the converted tiles as grass at apply time.
  */
 
 import type * as THREE from "three";

@@ -1,25 +1,10 @@
 /**
- * SFX sub-system — plays PCM samples from Rampart's SOUND.RSC via Web Audio.
- *
- * Parallel to [music-player.ts](./music-player.ts) but for Sound Blaster
- * digital-sample SFX (brick clunks, cannon shots, banner whoosh, voice
- * announcements, firework whistles). The 37 VOC chunks are parsed once from
- * `assets.soundRsc`; each is decoded to an AudioBuffer lazily on first use
- * and cached for re-play. BufferSource per trigger = native polyphony for
- * free (rapid-fire brick hits can overlap).
- *
- * Two signal pathways:
- *   1. **Bus-event mappings (`SFX_EVENT_MAP`)** — one-shot cues tied to
- *      discrete domain events: cannonFired, bannerStart, towerEnclosed, etc.
- *   2. **Presentational derivation (`tickPresentation`)** — continuous
- *      signals computed each frame from `GameState`. The snare-roll loop
- *      is an observation of "we're in the last 6 displayed seconds of a
- *      timed phase", not a discrete transition, so it lives here rather
- *      than on the bus. Adding another continuous cue (e.g. "cannon
- *      charging", "life critically low") = one line in `deriveSfxSignals`.
- *
- * Observer hook mirrors music/haptics so scenario tests can assert
- * "wallPlaced emitted sample 'clunk1'" without needing an AudioContext.
+ * SFX sub-system — plays PCM samples from Rampart's SOUND.RSC. Parallel
+ * to music-player.ts but for Sound Blaster digital samples; VOC chunks
+ * decode to AudioBuffers lazily and cache. Two signal pathways:
+ * `SFX_EVENT_MAP` (one-shot bus-event cues) and `tickPresentation`
+ * (continuous signals computed from GameState — e.g. snare-roll on the
+ * last 6 seconds of a timed phase). Observer hook mirrors music/haptics.
  */
 
 import {

@@ -1,38 +1,10 @@
 /**
- * debris-scene.ts — destroyed cannon / tower / wall variants.
- *
- * TypeScript conversion of the original `debris-scene.mjs`. Nine variants:
- *   • cannon debris: `tier_1_debris`, `tier_2_debris`, `tier_3_debris`,
- *     `super_gun_debris`, `mortar_debris` (2×2 tile rubble piles).
- *   • tower debris: `secondary_tower_debris`, `home_tower_debris`
- *     (2×2 tile rubble piles).
- *   • wall debris: `wall_debris_a`, `wall_debris_b` (1×1 tile rubble piles
- *     — two seed variants so adjacent destroyed walls don't look identical).
- *
- * Each variant is a procedural rubble pile generated from a seeded RNG
- * so the layout is deterministic. The pile is a mix of:
- *   • Small "rocks" (boxes / icosahedra), randomly positioned within
- *     a footprint, randomly rotated and scaled. Material is sampled
- *     from the variant's `materials` list.
- *   • Optional hand-placed "chunks" (signature bits — broken barrel,
- *     leaning wall stub) that anchor the silhouette so the rubble
- *     stays recognizable at sprite size.
- *
- * The "pile" shape comes from a height envelope: max-y at the center,
- * dropping toward the edges. Each rock's y is a random fraction of the
- * envelope at its (x, z), so rocks cluster taller in the middle.
- *
- * Same shape as tower-scene.ts / wall-scene.ts / house-scene.ts:
- *   • `VARIANTS`, `PALETTE`
- *   • `buildDebris(THREE, scene, variant)` — THREE is injected so the
- *     module stays free of a static three.js dependency. Takes the FULL
- *     variant object (not just `.params`) because the internal
- *     `debrisLayout` inspects `.source` for ground-shadow decisions.
- *   • `variantReport` for sanity checks.
- *
- * The debris entity manager (see `../entities/debris.ts`) is the only
- * production caller — it picks the right variant per dead cannon /
- * tower / wall and positions one host group per debris instance.
+ * Destroyed-cannon / tower / wall rubble piles, nine seeded-deterministic
+ * variants. Each pile is small randomly-placed rocks plus hand-placed
+ * "chunks" (broken barrel, leaning wall stub) so the silhouette stays
+ * recognizable at sprite size; height follows a centered envelope so
+ * the pile cones toward the middle. `buildDebris` takes the full variant
+ * — its layout inspects `.source` for ground-shadow decisions.
  */
 
 import type * as THREE from "three";

@@ -1,16 +1,8 @@
 /**
- * 3D grunt-kill burst — fire / smoke / sparks when a grunt (tank) is
- * killed by a cannonball. Reconciles `overlay.battle.gruntKills` into
- * per-tile fire-burst hosts via the shared 1×1 factory in
- * `fire-burst.ts` (`createTileBurstManager`).
- *
- * Grunts are 1×1-tile tanks — the footprint matches wall-burns, but
- * the palette bumps the emissive glow (fuel cooking off) and the spark
- * count / velocity sits between a wall and a cannon so the blast reads
- * as "tank brewed up" rather than "brick broke".
- *
- * Lifetime is `GRUNT_KILL_DURATION` (~0.55 s). Aging happens in
- * `ageImpacts` on the runtime side.
+ * Grunt-kill burst on top of the shared 1×1 fire-burst kernel. Palette
+ * bumps the emissive glow (fuel cooking off) and the spark count /
+ * velocity sits between a wall and a cannon so the blast reads as
+ * "tank brewed up" rather than "brick broke".
  */
 
 import type * as THREE from "three";

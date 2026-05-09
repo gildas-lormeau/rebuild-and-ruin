@@ -82,7 +82,6 @@ export interface UpgradePickCard {
   readonly pulseAge: number;
 }
 
-/** Per-player upgrade pick entry for rendering. */
 export interface UpgradePickPlayerEntry {
   readonly playerName: string;
   readonly color: RGB;

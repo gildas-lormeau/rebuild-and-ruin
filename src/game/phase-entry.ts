@@ -1,21 +1,10 @@
 /**
- * Phase Entry — per-phase entry helpers + pre-battle composer.
- *
- * Each `enter*Phase` helper is the single way to flip `state.phase` to its
- * target value. Helpers also prime any entry-time `state.timer` value and
- * run any per-phase init that must happen before the first tick. Runtime
- * transitions (in `runtime-phase-machine.ts`) call these from their
- * `mutate` step — they do NOT call `setPhase` directly or write
- * `state.phase` / entry-time `state.timer` inline.
- *
- * `prepareBattle` is a pre-phase composer: it runs `prepareBattleState`
- * and `resolveBalloons` in RNG-load-bearing order before the phase flag
- * is flipped. The result feeds `enterModifierRevealPhase` (then later
- * `enterBattlePhase` after the reveal banner finishes).
- *
- * Match-lifecycle setup (createGameFromSeed, applyGameConfig) lives in
- * `game-init.ts`. Multi-step transition recipes (prepareNextRound,
- * finalizeRound, etc.) live in `phase-setup.ts`.
+ * Per-phase entry helpers + pre-battle composer. Each `enter*Phase` is
+ * the single way to flip `state.phase` and prime entry-time `timer` —
+ * runtime transitions call these from `mutate` rather than touching
+ * `setPhase` directly. `prepareBattle` sequences `prepareBattleState`
+ * then `resolveBalloons` in RNG-load-bearing order before the phase
+ * flips. Match setup is in `game-init.ts`; recipes in `phase-setup.ts`.
  */
 
 import type { BalloonFlight } from "../shared/core/battle-types.ts";

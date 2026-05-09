@@ -1,24 +1,10 @@
 /**
- * 3D fog-of-war overlay — Phase 6 of the 3D renderer migration.
- *
- * When fog-of-war is active, each castle's interior + walls (dilated by
- * one tile in all 8 directions) is blanketed with a near-opaque grey
- * layer so opponents must aim from memory. The 2D path paints this as
- * per-tile rectangles with a subtle drifting highlight band. The 3D
- * path reproduces it with two `InstancedMesh`es — one for the opaque
- * base, one for the drifting highlight band — so the whole overlay is
- * two draw calls regardless of fog footprint size.
- *
- * Per-instance animation: base tiles are static (one `setMatrixAt` per
- * tile at rebuild time). Band tiles update `setMatrixAt` each frame to
- * drift along Z, and `setColorAt` modulates per-tile brightness to
- * approximate the original alpha wave (material alpha stays constant;
- * per-instance color scales the highlight color from dim to full).
- *
- * Rebuild cadence: the fogged tile set only changes when walls are
- * destroyed/added or a castle's interior shifts. A cheap integer
- * fingerprint (size + running-xor of keys) gates rebuild so the hot
- * path allocates nothing.
+ * Fog-of-war overlay — two `InstancedMesh`es (opaque base + drifting
+ * highlight band) so the whole overlay is two draw calls regardless of
+ * footprint size. Base tiles are static; band tiles update matrix each
+ * frame to drift along Z, and `setColorAt` modulates per-tile
+ * brightness to approximate the original alpha wave. A size + xor-key
+ * fingerprint gates rebuild so the hot path allocates nothing.
  */
 
 import * as THREE from "three";

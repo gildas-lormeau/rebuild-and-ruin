@@ -1,11 +1,6 @@
 /**
- * Rebuild & Ruin — Map Generation
- *
- * Generates a Rampart-style map with:
- * - A Y-shaped river dividing the map into 3 zones
- * - 12 towers (4 per zone, each 2×2 tiles)
- *
- * Grid: 44×28 tiles
+ * Generates a Rampart-style 44×28 map: Y-shaped river dividing the
+ * board into 3 zones, with 12 2×2 towers (4 per zone).
  */
 
 // --- Constants ---
@@ -52,7 +47,6 @@ const TOWERS_PER_ZONE = 4;
 const MIN_ZONE_SIZE = 80;
 /** Maximum generation attempts before falling back. */
 const GENERATION_MAX_ATTEMPTS = 5000;
-/** Maximum fallback generation attempts. */
 const GENERATION_FALLBACK_ATTEMPTS = 2000;
 /** Zone balance: largest/smallest must be within this ratio (strict pass). */
 const ZONE_BALANCE_RATIO = 1.15;

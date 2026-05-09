@@ -585,7 +585,6 @@ export function drawUpgradePick(
   }
 }
 
-/** Draw the lobby screen. */
 export function drawLobby(
   overlayCtx: CanvasRenderingContext2D,
   W: number,

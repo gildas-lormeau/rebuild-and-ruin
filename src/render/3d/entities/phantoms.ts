@@ -1,37 +1,10 @@
 /**
- * 3D placement phantoms — migrates the 2D `drawPhantoms` overlay onto
- * the WebGL world canvas. Covers both piece phantoms (the tetromino
- * cell previews rendered during `WALL_BUILD`) and cannon phantoms
- * (the 2×2 / 3×3 footprint preview rendered during `CANNON_PLACE`).
- *
- * Piece phantoms render as tile-sized blocks in the player's wall
- * colour — saturated (like the 2D `PHANTOM_SATURATION` pass) and
- * semi-transparent. Each face gets a different shade so the block
- * reads with a natural bevel: top brighter, sides mid, bottom darker
- * (mirrors the 2D bevel of top/left highlight + bottom/right shadow
- * reduced to the axes a 3D camera actually sees). Invalid placements
- * blend toward red using the same `face * 0.15 + red-bias` recipe as
- * the 2D path.
- *
- * Cannon phantoms use the real authored cannon/rampart/balloon-base
- * sprite geometry (same builders as the live-entity path) rendered with
- * cloned transparent materials. The 2D path draws the actual cannon
- * sprite at alpha; the 3D phantom is the same idea applied to the 3D
- * sprite. Variant selection:
- *
- *   • BALLOON  → `balloon_base` via `buildBalloon`
- *   • RAMPART  → `rampart_cannon` via `buildRampart` (no rotation)
- *   • SUPER    → `super_gun` via `buildCannon` (3×3 footprint)
- *   • default  → `tier_1` via `buildCannon` (2×2 footprint)
- *
- * Rotation uses `defaultFacings.get(playerId)` — the player's last cannon
- * facing — so the ghost aims the same way the placed cannon will.
- * Rampart and balloon variants don't rotate (matches the 2D picker).
- *
- * Rebuild cadence: host groups are pooled per phantom slot and only
- * torn down when a slot's identity (variant/valid or playerId/valid)
- * flips. Position / rotation update every frame (positions follow
- * pointer motion).
+ * 3D placement phantoms — piece phantoms (WALL_BUILD tetromino) and
+ * cannon phantoms (CANNON_PLACE 2×2/3×3 footprint). Pieces are tile-sized
+ * beveled blocks in the player's wall color, blended toward red on
+ * invalid placement. Cannons reuse live-entity sprite geometry with
+ * transparent materials, rotated by `defaultFacings.get(playerId)`.
+ * Host groups pool per slot; positions rewrite every frame.
  */
 
 import * as THREE from "three";

@@ -1,25 +1,9 @@
 /**
- * Three.js scene + camera + lights bootstrap for the 3D world renderer.
- *
- * Phase 1 of the 3D renderer migration (see docs/3d-renderer-migration.md):
- * the scene now holds an ortho camera driven by `runtime-camera.ts`'s
- * `Viewport`, a hemispheric+directional light rig, and a placeholder
- * debug ground plane so we can visually verify the camera at all zoom
- * levels. Phase 2 replaces the debug ground with the real terrain mesh
- * (the `debugGround` handle on `Render3dContext` is there so Phase 2 can
- * swap/remove it cleanly).
- *
- * Coordinate convention (see `camera.ts` header for the long version):
- *   origin at map top-left, 1 world unit = 1 game-1× pixel, Y up, camera
- *   looks -Y. `Viewport { x, y, w, h }` maps directly: `vp.x/y` is the
- *   top-left of the visible rectangle in world XZ, `vp.w/h` its size.
- *
- * Textures note for Phase 2: three.js defaults texture filtering to
- * linear, which blurs our pixel-art atlas. When Phase 2 loads textures
- * it MUST set `tex.magFilter = THREE.NearestFilter` and `tex.minFilter
- * = THREE.NearestFilter` per-texture (there is no global "nearest by
- * default" knob). The renderer here sets everything else up so Phase 2
- * only has to add geometry + textures.
+ * Three.js scene + camera + lights bootstrap. Coordinate convention
+ * (see `camera.ts`): origin at map top-left, 1 world unit = 1 game-1×
+ * pixel, Y up, camera looks -Y; `Viewport { x, y, w, h }` maps directly
+ * to ortho XZ. Pixel-art atlases need per-texture
+ * `mag/minFilter = NearestFilter` since three.js defaults to linear.
  */
 
 import * as THREE from "three";

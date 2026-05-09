@@ -1,14 +1,9 @@
 /**
  * Entomb upgrade — walls can be placed over grunts, burying them.
  * Global: when any player owns Entomb, every player may overlap grunts
- * on piece placement, and the covered grunts are removed (no respawn,
- * no score — a pure denial tool).
- *
- * Hooks implemented:
- *   - canPlaceOverGrunt (piece-validation query, global)
- *   - onPiecePlaced     (post-placement grunt removal)
- *
- * Wired through src/game/upgrade-system.ts.
+ * on placement and the covered grunts are removed (no respawn, no
+ * score — a pure denial tool). Hooks: canPlaceOverGrunt (validation,
+ * global) + onPiecePlaced (removal).
  */
 
 import type { Player } from "../../shared/core/player-types.ts";

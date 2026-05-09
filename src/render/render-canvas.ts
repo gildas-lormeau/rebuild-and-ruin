@@ -1,8 +1,6 @@
 /**
- * Canvas 2D implementation of RendererInterface.
- *
- * Shared by main.ts (local play) and online-client.ts (online play) so
- * neither entry point needs to import individual render utilities.
+ * Canvas 2D implementation of RendererInterface, shared by main.ts and
+ * online-client.ts so neither entry imports individual render utilities.
  *
  * `deps` is the test seam: tests pass a recording `canvasFactory` and an
  * `observer` to capture terrain-draw intents. Production callers omit it.

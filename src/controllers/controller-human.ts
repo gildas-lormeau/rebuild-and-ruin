@@ -43,7 +43,6 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Pre-computed lowercase key → action map for fast matching. */
   private keyMap: Map<string, Action>;
 
-  /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
   /** Whether this game is modern mode (gates modern-only cannon modes). */
   private modern = false;

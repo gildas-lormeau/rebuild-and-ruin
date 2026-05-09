@@ -1,13 +1,10 @@
 /**
- * Rubble-clearing fade-out multiplier — runtime-side overlay derivation.
- * Lands a `1 → 0` value in `overlay.battle.rubbleClearingFade` that the
- * pit + debris managers apply to held material alpha. Held entries
- * themselves come from `state.modern.rubbleClearingHeld`, captured by
- * `rubbleClearingImpl.apply` before the gameplay-state mutation.
- *
- * Time gating lives in `deriveModifierRamp` driven by `revealTimeMs`. The
- * wave on the ramp gives the fade a "rubble crumbling away" feel — multiple
- * swells converging on zero rather than a monotonic slider.
+ * Rubble-clearing fade-out multiplier. Lands `1 → 0` in
+ * `overlay.battle.rubbleClearingFade`; pit + debris managers apply it to
+ * held material alpha. Held entries come from
+ * `state.modern.rubbleClearingHeld`, captured by `rubbleClearingImpl.apply`
+ * before the gameplay mutation. The wave on the ramp gives the fade a
+ * "rubble crumbling away" feel — swells converging on zero, not a slider.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

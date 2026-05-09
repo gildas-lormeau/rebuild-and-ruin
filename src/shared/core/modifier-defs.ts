@@ -1,14 +1,7 @@
 /**
- * Modifier registry — pool pattern with exhaustiveness check.
- *
- * Follows the same structure as upgrade-defs.ts (UpgradeId → UPGRADE_POOL).
- * When adding a new environmental modifier:
- *   1. Add the string literal to ModifierId union in game-constants.ts
- *   2. Add a MODIFIER_ID entry and MODIFIER_LABELS entry in game-constants.ts
- *   3. Add a pool entry here (set implemented: false until gameplay code exists)
- *   4. The PoolComplete check will fail at compile time if you forget step 3
- *   5. Add an entry to MODIFIER_CONSUMERS listing the files that implement
- *      the modifier (the `satisfies` clause enforces exhaustiveness)
+ * Modifier registry — pool pattern (ModifierId → MODIFIER_POOL +
+ * MODIFIER_CONSUMERS). See `pool-def.ts` for the shared structure;
+ * `ModifierId` + labels live in `game-constants.ts`.
  */
 
 import type { ModifierId } from "./game-constants.ts";

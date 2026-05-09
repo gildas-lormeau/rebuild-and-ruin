@@ -123,7 +123,6 @@ export function toggleLifeLostFocus(entry: LifeLostEntry): void {
       : LIFE_LOST_FOCUS_CONTINUE;
 }
 
-/** Confirm the currently focused choice. Returns the resolved choice. */
 export function confirmLifeLostFocusedChoice(
   entry: LifeLostEntry,
 ): ResolvedChoice {

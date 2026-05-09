@@ -1,13 +1,10 @@
 /**
- * Ricochet upgrade — after the initial impact, a cannonball bounces to 2
- * additional random positions within decaying radii. Each bounce processes
- * a full impact (walls, cannons, grunts) but a cannon that already took
- * damage in the initial hit can't be double-hit on a later bounce.
- *
- * Hook implemented: onImpactResolved (post-impact follow-up).
- * Wired through src/game/upgrade-system.ts. Battle-system supplies the
- * `applyBounce` callback, which owns the actual computeImpact + apply +
- * emit machinery — this file owns the upgrade-specific RNG + geometry.
+ * Ricochet upgrade — after the initial impact, a cannonball bounces to
+ * 2 additional random positions within decaying radii. Each bounce
+ * processes a full impact (walls/cannons/grunts) but a cannon already
+ * damaged in the initial hit can't be double-hit. Battle-system
+ * supplies the applyBounce callback (computeImpact + apply + emit);
+ * this file owns the upgrade-specific RNG + geometry.
  */
 
 import {

@@ -1,12 +1,10 @@
 /**
- * Loupe overlay for precision placement on touch devices.
+ * Loupe overlay for precision placement on touch devices: a medieval
+ * arrow-slit window magnifying the area around the cursor during
+ * WALL_BUILD and CANNON_PLACE.
  *
- * Medieval arrow-slit style window, rendered into a dedicated HTML canvas
- * placed in the left touch panel above the d-pad. Shows a magnified view
- * of the area around the cursor during WALL_BUILD and CANNON_PLACE phases.
- *
- * The loupe canvases are static in index.html (one landscape, one portrait).
- * This module finds them and draws to whichever is currently visible.
+ * Two static canvases live in index.html (landscape + portrait above the
+ * d-pad); this module finds them and draws to whichever is visible.
  */
 
 import { OFFSCREEN_SCALE, TILE_SIZE } from "../shared/core/grid.ts";

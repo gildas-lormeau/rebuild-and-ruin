@@ -1,11 +1,10 @@
 /**
- * Browser-DOM bindings shared by the composition root.
- *
- * Each helper here follows the same shape: read a DOM-derived value once,
- * observe changes via a DOM API, and surface the result through a small
- * runtime-friendly closure. All helpers self-gate on `typeof document` (or
- * the relevant global) so headless tests with the stub DOM stay green —
- * they fall back to a one-shot read with no observer registration.
+ * Browser-DOM bindings shared by the composition root. Each helper reads
+ * a DOM-derived value once, observes changes via a DOM API, and surfaces
+ * the result through a runtime-friendly closure. All helpers self-gate on
+ * `typeof document` (or the relevant global) so headless tests with the
+ * stub DOM stay green — they fall back to a one-shot read with no
+ * observer registration.
  */
 
 /** Cached container-height getter. `clientHeight` is a layout-triggering

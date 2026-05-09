@@ -82,7 +82,6 @@ export interface JoinedMessage {
   previousPlayerId?: ValidPlayerSlot;
 }
 
-/** Room was created successfully. */
 export interface RoomCreatedMessage {
   type: "roomCreated";
   code: string;
@@ -103,7 +102,6 @@ export interface RoomJoinedMessage {
   elapsedSec: number;
 }
 
-/** Another player joined the room. */
 export interface PlayerJoinedMessage {
   type: "playerJoined";
   playerId: ValidPlayerSlot;
@@ -113,7 +111,6 @@ export interface PlayerJoinedMessage {
   previousPlayerId?: ValidPlayerSlot;
 }
 
-/** A player left the room. */
 export interface PlayerLeftMessage {
   type: "playerLeft";
   playerId: ValidPlayerSlot;
@@ -167,7 +164,6 @@ export interface BuildEndMessage {
   type: "buildEnd";
 }
 
-/** Game over. */
 export interface GameOverMessage {
   type: "gameOver";
   winner: string;

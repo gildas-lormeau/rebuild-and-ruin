@@ -1,12 +1,10 @@
 /**
  * Shield Battery upgrade — at battle start, every cannon entirely inside
- * the home-tower's enclosed region is marked shielded. Shielded cannons
- * ignore wall hits in their absorption radius (the rampart shield code
- * treats `shielded` and `isRampartCannon` symmetrically).
- *
- * Hook implemented: shieldBatteryElectAll (battle-phase-start election).
- * Wired through src/game/upgrade-system.ts. The home-region BFS is
- * injected by cannon-system to avoid an L5 → L6 import cycle.
+ * the home-tower enclosed region is marked shielded; shielded cannons
+ * ignore wall hits in their absorption radius (rampart shield code
+ * treats `shielded` and `isRampartCannon` symmetrically). The
+ * home-region BFS is injected by cannon-system to avoid an L5 → L6
+ * import cycle.
  */
 
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";

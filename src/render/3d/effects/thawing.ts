@@ -1,22 +1,9 @@
 /**
- * 3D thawing-tile effect — Phase 6 of the 3D renderer migration.
- *
- * When a frozen-water tile thaws back to water, the 2D renderer plays a
- * short (~THAW_DURATION seconds) crack-and-fade animation: a soft radial
- * ice tint fades out, white crack rays burst outward from the tile
- * center, and a brief white flash pulses at the start.
- *
- * The 3D path reproduces this with three flat upward-facing meshes per
- * thawing tile: a fading blue disc, a white flash disc, and a cluster
- * of 6 thin white rays. Each frame scales/tints from the
- * `ThawingTile.age / THAW_DURATION` progress value — identical math to
- * `drawFrozenTiles` in render-effects.ts.
- *
- * Note: the base ICE_COLOR on frozen tiles is handled by `terrain.ts`
- * (it writes per-vertex colors for frozen water). This module only
- * handles the post-thaw break animation. The subtler per-frame shimmer
- * overlay on *still-frozen* tiles is deferred — terrain already shows
- * frozen water as flat ice and the shimmer was polish detail.
+ * Crack-and-fade animation when a frozen-water tile thaws back to
+ * water — fading blue disc, white flash disc, and a cluster of 6 thin
+ * white rays per tile. Math matches `drawFrozenTiles` in
+ * render-effects.ts. The base ICE_COLOR on still-frozen tiles is
+ * owned by `terrain.ts`; the still-frozen shimmer is deferred polish.
  */
 
 import * as THREE from "three";

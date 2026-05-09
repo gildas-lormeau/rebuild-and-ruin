@@ -1,14 +1,8 @@
 /**
- * Surface top-Y for every target kind (in world units). Shared between:
- *   - the 3D renderer (renders ball altitude on top of target geometry)
- *   - the sim's surface-elevation module (host-only impact sampling)
- *
- * The constants match the values derived in `render/3d/elevation.ts` for
- * the authored scene variants. They live here (shared/core) so sim code
- * can sample surface heights deterministically without depending on
- * three.js or the render layer.
- *
- * World units: 1 world unit = 1 game-1× pixel (scene.ts convention).
+ * Surface top-Y per target kind (world units; 1 wu = 1 game-1× pixel).
+ * Shared between the 3D renderer (ball altitude) and the sim's
+ * surface-elevation impact sampling — placed in shared/core so sim code
+ * never imports three.js. Values mirror `render/3d/elevation.ts`.
  */
 
 import { TILE_SIZE } from "./grid.ts";

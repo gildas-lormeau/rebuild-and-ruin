@@ -1,25 +1,10 @@
-/** Top-level UI mode — controls which screen/phase main loop renders.
- *
- * `Mode.TRANSITION` means "a phase transition is in flight" — set at
- * `runTransition` entry during the pre-banner unzoom and held through
- * every banner/display step until postDisplay flips to the terminal mode.
- * Banner visibility is tracked separately via `banner !== null` (authoritative).
- *
- * Classification table:
- * | Mode          | Gameplay | Interactive |
- * |---------------|----------|-------------|
- * | LOBBY         |          |             |
- * | OPTIONS       |          |             |
- * | CONTROLS      |          |             |
- * | SELECTION     | x        | x           |
- * | TRANSITION    | x        |             |
- * | BALLOON_ANIM  | x        |             |
- * | CASTLE_BUILD  | x        |             |
- * | LIFE_LOST     | x        |             |
- * | UPGRADE_PICK  | x        |             |
- * | GAME          | x        | x           |
- * | STOPPED       |          |             |
- */
+/** Top-level UI mode — which screen/phase the main loop renders.
+ *  Gameplay (ticks): SELECTION, TRANSITION, BALLOON_ANIM, CASTLE_BUILD,
+ *  LIFE_LOST, UPGRADE_PICK, GAME. Interactive: SELECTION, GAME only.
+ *  TRANSITION = "a phase transition is in flight" (held from pre-banner
+ *  unzoom through postDisplay). Banner visibility is tracked separately
+ *  via `banner !== null` (authoritative). See `isGameplayMode` /
+ *  `isInteractiveMode` / `isTransitionMode` predicates below. */
 
 export enum Mode {
   LOBBY,

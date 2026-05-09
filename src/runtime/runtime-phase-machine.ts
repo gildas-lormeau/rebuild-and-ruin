@@ -1,38 +1,10 @@
 /**
- * Phase transition state machine.
- *
- * Every phase transition (CASTLE_SELECT → CANNON_PLACE, WALL_BUILD →
- * CANNON_PLACE, CANNON_PLACE → BATTLE, BATTLE → WALL_BUILD, reselect, game
- * over) is an entry in `TRANSITIONS`. Each entry declares:
- *
- *   - `from`: source phase guard, asserted on every peer because every
- *     peer dispatches the transition from its own local tick. `"*"` opts
- *     out (game-over transitions may fire from any phase). Per-transition
- *     target phase lives in the docstring, not in a field, because several
- *     transitions don't enter a new phase themselves (`round-end` stays in
- *     WALL_BUILD; the continuation flips it). Phase entry is owned by
- *     game/ (`enter*Phase` helpers); the runtime only orchestrates them.
- *   - `mutate`: a single function run on every peer. Game-state mutation
- *     is identical across peers; the only role-gated effect is wire
- *     emission, expressed via `ctx.broadcast?.X?.()` — non-null only on
- *     the host (the peer that emits to the wire). Every other ctx field
- *     is uniform across peers.
- *   - `postMutate` (optional): shared sync that runs synchronously after
- *     `mutate` returns and BEFORE the first display step (e.g. rebuilding
- *     `battleAnim` snapshots from the freshly-mutated state).
- *   - `display`: ordered UI steps that play between mutation and the
- *     terminal frame (banner / score-overlay / life-lost-dialog /
- *     upgrade-pick).
- *   - `postDisplay` (optional): side-effects that complete the transition
- *     after the display steps (e.g. balloon-anim vs begin-battle). Same
- *     uniform-across-peers shape as `mutate`.
- *
- * `runTransition(id, ctx)` executes the entry: runs `mutate`, runs
- * `postMutate`, walks the display steps in order, then runs `postDisplay`.
- *
- * The bus is NOT used as control flow. Bus events (PHASE_START/END,
- * BANNER_START/END, SCORE_OVERLAY_START/END) remain pure observations
- * emitted from inside the mutate / display handlers.
+ * Phase transition state machine. Each `TRANSITIONS` entry declares:
+ * `from` guard (`"*"` = any), `mutate` (identical on every peer; only
+ * `ctx.broadcast?.X?.()` is host-gated), optional `postMutate` (sync after
+ * mutate, before display), `display` (ordered UI steps), optional
+ * `postDisplay`. Phase entry is owned by game/ via `enter*Phase`; bus
+ * events are observation-only — never control flow.
  */
 
 import { precomputeAiUpgradePicks } from "../ai/ai-upgrade-pick.ts";

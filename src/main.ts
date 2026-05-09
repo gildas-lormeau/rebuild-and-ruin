@@ -70,7 +70,6 @@ const runtime = createGameRuntime({
   },
 });
 
-/** Enter the local lobby. */
 export function enterLocalLobby(): void {
   renderer.container.classList.add(GAME_CONTAINER_ACTIVE);
   // Fire-and-forget: music is optional and should never block the lobby

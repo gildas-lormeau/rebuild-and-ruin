@@ -1,59 +1,10 @@
 /**
- * Pure projection math for the game camera.
- *
- * This module is intentionally state-light: {@link CameraState} holds only
- * the three parameters that fully describe a projection (center, zoom, pitch)
- * and every function is a pure transform over that state + a canvas size.
- *
- * Zoom semantics: `zoom = 1` means the visible world rect matches the
- * canvas size 1:1 in units, i.e. no zoom. The existing 2D renderer's
- * "no zoom" viewport is the full map (MAP_PX_W x MAP_PX_H) stretched over
- * a CANVAS_W x CANVAS_H canvas — that corresponds to `zoom = SCALE` here
- * (canvas.w / MAP_PX_W == SCALE).
- *
- * Canvas dimensions are passed per-call rather than baked into
- * {@link CameraState} because the same camera state is meaningful across
- * different render targets (the main canvas, the loupe, the e2e bridge
- * capture buffer). Keeping canvas out of state keeps the projection pure.
- *
- * {@link CameraState} uses a single `zoom` scalar, so the visible ground
- * rect always has the canvas's aspect ratio at pitch=0. This matches the
- * runtime invariant that every Viewport produced by
- * {@link fitTileBoundsToViewport} and the pinch handler is canvas-aspect;
- * {@link cameraStateFromViewport} is only well-defined for canvas-aspect
- * inputs.
- *
- * Pitch semantics (ortho + X-axis tilt):
- *   - World coords in this module: +X right, +Y down (screen-aligned at
- *     pitch=0). This matches the 2D renderer's `Viewport` convention —
- *     the row axis of the map is world Y.
- *   - Pitch rotates the camera around the world X-axis. Pitch = 0 means
- *     the camera looks straight down onto the ground (original behaviour).
- *     Pitch > 0 means the camera "leans back" so the viewer looks slightly
- *     forward. Orientation at pitch=0 is preserved — small-Y world points
- *     stay at the top of the screen.
- *   - Projection is orthographic (no perspective divide). The 3D renderer
- *     compensates its ortho frustum under tilt (`camera.top = halfH·cosP`)
- *     so the visible ground-Y rect stays `rect.h` regardless of pitch.
- *     Screen↔world Y is therefore pitch-independent here:
- *
- *         sx = canvas.w/2 + zoom * (worldX - center.x)
- *         sy = canvas.h/2 + zoom * (worldY - center.y)
- *
- *     The visible ground stays an axis-aligned rectangle — no trapezoid.
- *     What tilt *does* change visually is entity elevation (walls/towers
- *     project up on screen by `sin(pitch)·height`), but that's applied by
- *     the 3D renderer when positioning elevated geometry — it is not the
- *     ground-plane ↔ screen mapping implemented here.
- *   - Upper bound: pitch must satisfy |pitch| < MAX_PITCH. Currently unused
- *     by the ground-plane math but still enforced so callers can't drift
- *     into the edge-on regime where the 3D renderer's frustum shrink
- *     collapses.
- *
- * Nothing in the runtime constructs a pitched CameraState today; the
- * pitched branches exist so a later wiring step can turn tilt on without
- * touching this module again. Pitch=0 behaviour is byte-identical to the
- * untilted formulas.
+ * Pure projection math for the game camera. CameraState holds only
+ * center + zoom + pitch; canvas size is per-call so one camera feeds
+ * multiple render targets. Projection is orthographic with X-axis tilt;
+ * the 3D renderer compensates its frustum so the visible ground-Y extent
+ * stays `rect.h` regardless of pitch. Pitched branches exist for future
+ * wiring; pitch=0 is byte-identical to the untilted formulas.
  */
 
 import { MAX_ZOOM_VIEWPORT_RATIO } from "../shared/core/game-constants.ts";

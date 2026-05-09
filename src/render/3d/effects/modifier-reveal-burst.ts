@@ -1,12 +1,9 @@
 /**
- * Shared 3D modifier-reveal burst pattern. Each affected tile gets a colored
- * disc that scales 0 → max with easeOutQuad and an opacity that peaks at
- * midpoint then fades, plus a brief flash ring at the tile's stagger start.
- * Per-tile delay is seed-derived so the effect rolls across affected tiles
- * instead of snapping in uniformly. Triggered when the active modifier
- * matches `config.modifierId` and `revealTimeMs` is defined; the runtime
- * holds `revealTimeMs === 0` during the snapshot window so the per-tile
- * `tileElapsed = revealTimeMs - delayMs` is non-positive then (no draws).
+ * Shared modifier-reveal burst pattern: per-tile colored disc with a
+ * brief flash ring at the tile's stagger start. The runtime holds
+ * `revealTimeMs === 0` during the snapshot window so the per-tile
+ * `tileElapsed = revealTimeMs - delayMs` stays non-positive then (no
+ * draws), and rolls forward once the snapshot completes.
  */
 
 import * as THREE from "three";

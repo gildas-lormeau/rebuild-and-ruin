@@ -1,15 +1,10 @@
 /**
- * 3D billboard labels showing the owning player's name above each home
- * tower during battle. Mirrors the 2D `drawTowers` label pass, which is
- * gated behind `liveEnabled` and therefore skipped in 3D mode.
- *
- * Each label is a `THREE.Sprite` so it always faces the camera and stays
- * readable under battle tilt. One canvas texture is baked per player
- * (name + color are stable) and shared across any towers that player
- * owns. Sprite positions refresh per frame — towers are static during
- * battle, but ownership can change (e.g. `capturedCannons`-like flows
- * later), so the manager reconciles on every update instead of caching
- * a fingerprint.
+ * 3D billboard labels above home towers during battle. Mirrors the 2D
+ * `drawTowers` label pass (skipped under `liveEnabled` in 3D mode).
+ * `THREE.Sprite` keeps labels camera-facing under battle tilt; one canvas
+ * texture is baked per player (name + color are stable) and reused across
+ * that player's towers. Reconciles every frame — no fingerprint caching,
+ * since ownership can change mid-battle.
  */
 
 import * as THREE from "three";

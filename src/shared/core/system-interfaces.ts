@@ -175,7 +175,6 @@ export interface SelectionController {
 
 /** Wall build phase. */
 export interface BuildController {
-  /** Build cursor position. */
   buildCursor: TilePos;
 
   /** Controller-owned view of "what piece previews this player wants drawn
@@ -201,7 +200,6 @@ export interface BuildController {
    *  Contrast with cannonTick() which returns null when inactive. */
   buildTick(state: BuildViewState, dt: number): PiecePlacementPreview[];
 
-  /** Called at the end of the build phase. */
   finalizeBuildPhase(state: BuildViewState): void;
 
   /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping via state lookup. */
@@ -278,7 +276,6 @@ export interface CannonController {
   initCannons(state: CannonViewState, maxSlots: number): void;
 }
 
-/** Battle phase. */
 export interface BattleController {
   /** Round-robin index into combined cannon list. undefined = no cannon fired yet this round.
    *  Written by the orchestrator after executing a FireIntent. */
@@ -292,7 +289,6 @@ export interface BattleController {
    *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
   fire(state: BattleViewState): FireIntent | null;
 
-  /** Current crosshair for rendering. */
   getCrosshair(): Crosshair;
 
   /** Set crosshair to absolute pixel position (mouse). */
@@ -303,7 +299,6 @@ export interface BattleController {
    *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
   initBattleState(state?: BattleViewState): void;
 
-  /** Called at the end of the battle phase. */
   endBattle(): void;
 }
 
@@ -442,13 +437,11 @@ export interface InputReceiver {
    *  mutation via placePiece() then calls advancePlayerBag(player, true). */
   tryPlacePiece(state: BuildViewState): PlacePieceIntent | null;
 
-  /** Try to place a cannon at the cursor. */
   tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean;
 
   /** Cycle cannon placement mode (normal/super/balloon). */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void;
 
-  /** Current cannon placement mode. */
   getCannonPlaceMode(): CannonMode;
 }
 
@@ -481,7 +474,6 @@ export interface HapticsObserver {
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 
-/** True if the action is a directional movement. */
 export function isMovementAction(action: Action): boolean {
   return (
     action === Action.UP ||

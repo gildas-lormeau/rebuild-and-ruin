@@ -1,12 +1,7 @@
 /**
- * Centralized DOM element acquisition for the online runtime.
- *
- * Every getElementById call for the online client lives here so that:
- * - DOM access is a single, explicit boundary (not scattered across modules)
- * - Duplicate lookups are eliminated (create-error, join-error were in two files)
- * - Other online modules receive typed element references, not raw DOM queries
- *
- * No project imports — this file is a pure DOM boundary.
+ * Centralized DOM acquisition for the online runtime — a single, explicit
+ * boundary so other online modules receive typed element references instead
+ * of scattering getElementById calls. No project imports.
  */
 
 // ── Game elements ──────────────────────────────────────────────────

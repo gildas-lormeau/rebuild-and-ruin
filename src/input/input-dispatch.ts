@@ -1,23 +1,10 @@
 /**
- * Shared input dispatch helpers.
- *
- * Pure functions that translate pointer/tap events into game actions.
- * Used by mouse input (input.ts), touch input (input-touch-canvas.ts),
- * and touch UI controls (touch-ui.ts).
- *
- * ### Pointer-player convention
- *
- * Touch and mouse dispatchers target the pointer player only
- * (via `withPointerPlayer`). Keyboard input loops over ALL controllers
- * to support local multiplayer with distinct key bindings.
- *
- * ### Touch-suppression pairing
- *
- * Mobile browsers fire synthetic click events after touchend.
- * To prevent double-actions: touch handlers call `markTouchTime()`
- * on touchend, and mouse/click handlers call `isTouchSuppressed()`
- * at entry. Both sides of the pair are required — adding a new
- * mouse handler without the suppression check causes ghost clicks.
+ * Pure functions translating pointer/tap events into game actions.
+ * Pointer dispatchers target the pointer player only (via `withPointerPlayer`);
+ * keyboard loops over ALL controllers for local multiplayer.
+ * Touch-suppression: touch handlers call `markTouchTime()` on touchend; mouse
+ * handlers must call `isTouchSuppressed()` at entry — a missing check causes
+ * ghost-clicks from synthetic mobile clicks fired after touchend.
  */
 
 import { canPlayerBuild } from "../game/index.ts";

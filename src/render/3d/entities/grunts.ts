@@ -1,57 +1,10 @@
 /**
- * 3D grunt meshes — Phase 4 (initial) + Phase 8 (perf).
- *
- * Grunts are 1×1 tile, ownerless neutral hazards that pace toward
- * player castles during battle. A single battle can field 30+ grunts,
- * so this manager uses `THREE.InstancedMesh` to draw all grunts with
- * one draw call per sub-part, rather than a fresh `THREE.Group` per
- * grunt.
- *
- * Variant strategy: grunts author four cardinal variants in
- * `grunt-scene.ts` whose geometry is IDENTICAL — only `yawDegrees`
- * differs. We use the canonical `grunt_n` pose (barrel pointing −Z)
- * with `yawDegrees: 0` and rotate each instance by `-grunt.facing` on
- * Y. This matches the continuous-rotation convention cannons use.
- *
- * Rotation: the game's `grunt.facing` is in radians with 0 = up/north
- * and positive = clockwise (atan2-style). three.js Y rotations are
- * CCW viewed from +Y, so each instance's Y rotation is `-facing`.
- *
- * Instancing approach — "extract-and-instance" (Option A):
- *
- *   1. On first construction, run `buildGrunt` once into a throwaway
- *      Group. That Group contains one mesh per sub-part (hull, two
- *      track boxes, eight track end-caps, two accents, AO disc,
- *      turret, barrel). The scene builder sets `group.rotation.y =
- *      yawDegrees` on the outer Group — we zero yaw in the extraction
- *      call, so `updateMatrixWorld` gives each mesh its intrinsic
- *      local-space transform inside the grunt's ±1 frustum.
- *   2. Walk the throwaway Group, and for every `THREE.Mesh`, record
- *      `{ geometry, material, localMatrix }` where `localMatrix` is
- *      the mesh's resolved world matrix within the throwaway Group.
- *   3. For each sub-part, create one `InstancedMesh(geom, mat,
- *      maxCount)` under the manager's root group.
- *   4. Per-frame reconcile: compute each grunt's host matrix
- *      (translate to tile centre × Y-rotate by `-facing` × uniform
- *      scale `TILE_SIZE / 2`) and, for sub-part `s`, instance `i`,
- *      write `hostMatrix[i] * subPartLocalMatrix[s]` via
- *      `setMatrixAt(i, …)`. `instanceMatrix.needsUpdate = true` at
- *      the end of the update.
- *   5. `count` is set to `grunts.length` each update so unused slots
- *      don't render. When `grunts.length` exceeds current capacity
- *      we tear down and rebuild at a larger capacity.
- *
- * This keeps `buildGrunt`'s API untouched (sprite preview pages that
- * import it still work) and extracts purely via three.js runtime
- * inspection. The same pattern should generalise to any other entity
- * whose sub-part geometry is reused across instances — walls and
- * debris are candidates once profiled.
- *
- * Fingerprint: we retain the `col:row:facing` composite signature to
- * skip per-frame matrix writes when nothing has moved. Instance-count
- * changes implicitly invalidate the signature (different grunt array
- * → different fingerprint), so capacity growth is handled inside the
- * rebuild branch.
+ * 3D grunt meshes. 1×1 tile neutral hazards, often 30+ at once →
+ * `InstancedMesh` per sub-part. Geometry is the canonical `grunt_n`
+ * pose; per-instance Y rotation = `-facing`. Extract-and-instance
+ * pattern (see cannons.ts/walls.ts). Composite `col:row:facing`
+ * fingerprint skips matrix writes when nothing moved; capacity grows
+ * by tear-down-and-rebuild when `grunts.length` exceeds current cap.
  */
 
 import * as THREE from "three";

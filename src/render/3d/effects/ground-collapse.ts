@@ -1,11 +1,6 @@
 /**
- * 3D ground-collapse reveal — `sinkhole` modifier. Per-tile dark brown
- * disc grows + fades as grass tiles permanently collapse into water.
- * Decorative on top of the terrain bitmap, which already paints these
- * tiles as water at apply time.
- *
- * Disc tint matches the `sinkhole` palette pulseColor for parity with
- * the legacy 2D reveal indicator.
+ * `sinkhole` reveal — decorative discs on top of the terrain bitmap,
+ * which already paints the collapsed tiles as water at apply time.
  */
 
 import type * as THREE from "three";

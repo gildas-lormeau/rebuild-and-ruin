@@ -1,18 +1,10 @@
 /**
- * Sound settings modal — HTML overlay opened from the in-game options screen.
- *
- * Currently manages player-supplied Rampart music files (RAMP.AD + RXMI_*.xmi).
- * Future sound-mode selection (off / music / music+sfx) and SFX pickers will
- * live in the same modal — SFX samples are sourced from the same Rampart files
- * — so the entry point is named generically ("Sound") even while today's UI
- * is music-only.
- *
- * The DOM nodes live in index.html so Vite can rewrite asset paths at build
- * time; this file only wires events and proxies to [music-assets.ts](./music-assets.ts).
- *
- * The source URL is persisted in `localStorage` (not GameSettings) because the
- * binary payload it fetches is stored in IndexedDB — a single box labeled
- * "where to re-fetch from" that lives next to the data it points at.
+ * Sound settings modal — HTML overlay opened from the options screen.
+ * Manages player-supplied Rampart music files (RAMP.AD + RXMI_*.xmi);
+ * named generically ("Sound") so future SFX pickers can land here. DOM
+ * nodes live in index.html (Vite rewrites asset paths); this file wires
+ * events and proxies to music-assets.ts. The source URL persists in
+ * `localStorage` because the binary payload it fetches is in IndexedDB.
  */
 
 import {

@@ -1,17 +1,7 @@
 /**
- * 3D wall-burn effect — fire / smoke / sparks burst when a wall is
- * destroyed. Reconciles `overlay.battle.wallBurns: WallBurn[]` into per-tile
- * fire-burst hosts (see `fire-burst.ts` for the shared primitive bundle
- * + animation kernel, and `createTileBurstManager` for the 1×1 manager
- * shape shared with grunt-burns and house-burns).
- *
- * Effect lifetime is `WALL_BURN_DURATION` (~0.7 s). Aging happens in
- * `ageImpacts` on the runtime side; expired entries drop out of
- * `battleAnim.wallBurns` and the host is disposed on the next reconcile.
- *
- * Per-burn variation derives deterministically from `tileSeed(row, col)`
- * — same wall always animates identically — so no spawn-time random
- * state lives on `WallBurn` itself.
+ * Wall-destroy burst on top of the shared 1×1 fire-burst kernel
+ * (`fire-burst.ts`). Per-burn variation is `tileSeed`-derived so no
+ * spawn-time random state lives on `WallBurn` itself.
  */
 
 import type * as THREE from "three";

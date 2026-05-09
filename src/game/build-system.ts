@@ -333,7 +333,6 @@ export function replenishBonusSquares(state: GameState): void {
   }
 }
 
-/** Remove bonus squares that are covered by walls. */
 export function removeBonusSquaresCoveredByWalls(
   state: GameState,
   walls: ReadonlySet<number>,

@@ -1,24 +1,9 @@
 /**
- * Visual debugger for the directional sun rig.
- *
- * Toggled via `__dev.lightDebug(true)` (see `dev-console.ts`). When on,
- * adds:
- *   • A scaled-down dome above the map center showing the full sun
- *     arc (a polyline through `sunDirectionFromT(t)` for t ∈ [0, 1]).
- *     Yellow when the sun is active (battle), grey when inactive.
- *   • A small sphere on that dome at the current sun's position —
- *     orange when active, light grey when inactive.
- *   • An arrow from the map center toward the current sun direction
- *     (also scaled to dome size).
- *   • A `CameraHelper` showing the shadow camera's orthographic
- *     frustum projected onto the world (where shadow casting "covers").
- *   • A fixed-corner HUD with sunT, ambient/directional intensity, and
- *     whether shadow casting is currently enabled.
- *
- * The actual sun in the scene sits at SUN_DISTANCE = 1000 from the
- * map center, far outside the camera frustum — so we visualize a
- * shrunken proxy at DEBUG_DOME_RADIUS. The DIRECTION matches the real
- * sun exactly; only the rendered marker distance is shrunk for
+ * Visual debugger for the directional sun rig (toggled via
+ * `__dev.lightDebug(true)`). Renders a shrunken arc-dome proxy + sun
+ * marker, a direction arrow, the shadow-camera frustum, and a HUD with
+ * sunT/intensity. Direction matches the real sun; only the marker
+ * distance is shrunk from SUN_DISTANCE to DEBUG_DOME_RADIUS for
  * visibility.
  */
 

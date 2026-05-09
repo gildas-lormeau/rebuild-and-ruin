@@ -1,26 +1,10 @@
 /**
- * house-scene.ts — civilian dwelling sprite.
- *
- * TypeScript conversion of the original `house-scene.mjs`. Single variant:
- * `house` — a 1×1 tile civilian dwelling (half the cannon footprint) with
- * a stone body, gabled red roof (triangular prism), an optional door on
- * the +Z face, and up to four windows — one per face.
- *
- * Roof geometry is a triangular prism. The ridge runs along the configurable
- * `roof.ridgeAxis` (default `'z'` so the gable triangle shows above the
- * front door). Slopes run perpendicular to the ridge.
- *
- * Same shape as tower-scene.ts / wall-scene.ts:
- *   • `VARIANTS`, `PALETTE`
- *   • `buildHouse(THREE, scene, params)` — THREE is injected so the module
- *     stays free of a static three.js dependency.
- *   • Pure-math helpers: `bodyTopY`, `roofPlacement`, `doorPlacement`,
- *     `windowPlacements`.
- *   • `variantReport` for sanity checks.
- *
- * The houses entity manager (see `../entities/houses.ts`) is the only
- * production caller — it fetches the shared variant params and positions
- * one mesh per `House` on the `GameMap`.
+ * Civilian dwelling sprite (1×1 tile, half the cannon footprint): stone
+ * body, gabled red roof (triangular prism — ridge along `roof.ridgeAxis`,
+ * default `'z'` so the gable shows above the +Z door), optional door,
+ * up to one window per face. Same module shape as tower-scene.ts /
+ * wall-scene.ts (VARIANTS, PALETTE, builder, pure-math helpers,
+ * variantReport).
  */
 
 import * as THREE from "three";

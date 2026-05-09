@@ -1,28 +1,10 @@
 /**
- * Convert a Miles XMI (Miles Sound System) sub-song to a Standard MIDI File
- * in memory.
- *
- * Background: libADLMIDI has a native XMI parser, but it disagrees with Miles
- * AIL on same-tick note-off ordering — the library's queue re-fires percussion
- * voices when it processes the "wrong" note-off first, which comes out as
- * garbage noise on drum-channel SFX. Converting XMI → SMF up-front and feeding
- * libADLMIDI the SMF bytes sidesteps the bug entirely. TypeScript port of
- * `tmp/music-player/scripts/xmi-split.py`; `xmi-to-smf.js` in the prototype
- * produces byte-identical output (verified by
- * `tmp/music-player/scripts/diff-js-vs-python.mjs` across all 34 Rampart
- * sub-songs). Pure data transform — no DOM, audio, or IO.
- *
- * The XMI-specific transforms: (a) delay encoding sums bytes <0x80 where SMF
- * uses variable-length quantity; (b) XMI note-on carries an implicit note-off
- * duration after the velocity byte, which we schedule as an explicit 0x8n
- * event at `t + duration`; (c) XMI tempo metas are authoring metadata that
- * Miles AIL plays back at a fixed 120 Hz tick rate regardless, so we drop
- * them and inject a canonical 1_000_000 us/quarter + division 120 (matching
- * the Python reference).
- *
- * Same-tick note-off ordering MUST match Python's implicit tuple sort
- * (ascending tick, note, channel). Any other order causes libADLMIDI to play
- * the bytes differently.
+ * Convert a Miles XMI sub-song to in-memory SMF. Pre-converting sidesteps
+ * libADLMIDI's XMI parser (which re-fires percussion on same-tick note-offs
+ * vs Miles AIL). Transforms: delays sum bytes <0x80 (SMF uses VLQ); XMI
+ * note-on's implicit duration → explicit 0x8n at `t + duration`; drop tempo
+ * metas, inject 1_000_000 us/quarter + division 120 (Miles AIL plays 120 Hz).
+ * Same-tick note-offs MUST sort (tick, note, channel) ascending.
  */
 
 /** MIDI status-byte threshold (0x80). Bytes below this are running-status

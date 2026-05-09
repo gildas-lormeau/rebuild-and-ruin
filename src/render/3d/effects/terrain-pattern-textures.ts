@@ -1,25 +1,10 @@
 /**
- * 3D terrain pattern textures — static 16×16 R32F DataTextures holding
- * signed sRGB-byte brightness offsets the terrain shader applies to grass
- * (default + battle) and cobblestone (owned interiors in battle) tiles.
- *
- * Replaces the per-pixel pattern baking that used to live in `render-map.ts`'s
- * `GRASS_TEX` lookup table and the 2D `drawCobblestone()` sprite (which
- * stamped mortar / highlights / shadows / dirt-specks on top of the
- * cobblestone base). The shader samples each texture once per fragment and
- * shifts the linear color back to sRGB to add the offset, matching the
- * byte-exact look of the originals.
- *
- * Cobblestone faithfulness: 4 of the 5 original layers (mortar, highlights,
- * shadows, vertical mortar fragments) alpha-blend against the cobblestone
- * base in player-independent ways, so each reduces to a constant per-pixel
- * sRGB-byte offset. The 3 dirt/moss specks pull from `tintColor × 0.3` and
- * are approximated with a single −10 darkening (≤2 byte error on 3 of 256
- * pixels — imperceptible).
- *
- * One module-level texture per pattern, baked at construction.
- * NearestFilter so the 16-pixel pattern stays pixel-art crisp when sampled
- * per-tile.
+ * Static 16×16 R32F DataTextures of signed sRGB-byte brightness offsets
+ * the terrain shader applies to grass and cobblestone tiles, replacing
+ * the per-pixel pattern baking from 2D `render-map.ts`. Most cobblestone
+ * layers reduce cleanly; the 3 player-tinted dirt specks approximate as
+ * `−10` darkening (≤2-byte error on 3/256 pixels). NearestFilter keeps
+ * the pixel-art look when sampled per-tile.
  */
 
 import * as THREE from "three";

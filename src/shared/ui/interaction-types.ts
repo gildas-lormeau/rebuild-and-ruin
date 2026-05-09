@@ -1,7 +1,6 @@
 import type { PlayerSlotId, ValidPlayerSlot } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
 
-/** Life-lost types. */
 export enum LifeLostChoice {
   PENDING = "pending",
   CONTINUE = "continue",

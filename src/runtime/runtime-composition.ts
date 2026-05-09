@@ -1,29 +1,10 @@
 /**
- * Composition root for the game runtime.
- *
- * This is the ONE file in `src/runtime/` allowed to cross the runtime
- * purity contract. Every other runtime/ file imports only from shared/,
- * game/, and controllers/ (for controller factories), so the runtime
- * domain stays headless-testable. This file is the wiring seam where
- * input, render, ai, controllers, and game subsystems assemble into a
- * GameRuntime handle — `scripts/lint-architecture-non-runtime.ts`
- * hardcodes this file as an allowed importer for the input/render/online
- * subsystem rules, which is what enforces the "only this file" rule.
- * (The .import-layers.json group it sits in is determined mechanically
- * by its deepest dep, currently `src/render/3d/renderer.ts`.)
- *
- * When adding new runtime code: if it needs input/render/ai/online
- * imports, it almost certainly belongs here (or in a subsystem factory
- * whose deps are injected through this file). If it only needs shared/
- * and game/, put it in a new runtime-*.ts sibling.
- *
- * createGameRuntime(config) creates all subsystems (camera, score-delta,
- * banner, selection, render, lifecycle, life-lost, upgrade-pick, phase-ticks,
- * lobby, options, input, human-lookup), wires their deps, and returns a
- * narrow GameRuntime handle.
- *
- * Callers: src/main.ts (local), src/online/online-runtime-game.ts (online
- * host + watcher), test/runtime-headless.ts (tests).
+ * Composition root for the game runtime. The ONE file in `src/runtime/`
+ * allowed to import input/render/ai/online — every other runtime/ file
+ * imports only from shared/, game/, and controllers/, keeping runtime
+ * headless-testable. `lint-architecture-non-runtime.ts` hardcodes this
+ * file as the single allowed importer for those rules. New runtime code
+ * that needs input/render/ai/online belongs here.
  */
 
 import { executeCannonFire, executePlacePiece } from "../game/index.ts";

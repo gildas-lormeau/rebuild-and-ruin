@@ -1,66 +1,9 @@
 /**
- * 3D live-cannon meshes — Phase 4 of the 3D renderer migration, with
- * Phase 8c instancing on top.
- *
- * Renders every alive cannon across all castles. Dead cannons are owned
- * by `./debris.ts`; balloon-mode cannons are owned by `./balloons.ts`
- * (they have their own base/flight sprites that don't map onto the
- * regular cannon-scene variants).
- *
- * Variant selection by `CannonMode` + flags (mirrors the 2D picker in
- * `drawCastleCannons` — render-map.ts):
- *
- *   • RAMPART  → `rampart_cannon` (built by `buildRampart`). Static,
- *     never rotated. Ships with a shield-aura translucent ground plane
- *     as part of the sprite.
- *   • SUPER    → `super_gun`. 3×3 footprint so the anchor offset is
- *     1.5 tiles (vs the 2×2 offset of 1 tile).
- *   • default  → `mortar` when `cannon.mortar === true`, else `tier_1`.
- *     The live game doesn't carry a cannon "tier" in state — every
- *     regular cannon lands on `tier_1` (parity with the 2D sprites
- *     which also use a single "cannon" sprite regardless of tier).
- *
- * Rotation: the scene builder authors the barrel pointing toward −Z
- * (facing=0 in the game is "up"/north; terrain maps north to decreasing
- * row, which is −Z in world space). The game's `cannon.facing` is in
- * radians with 0 = up and positive = clockwise (atan2(dx, -dy)), so the
- * host matrix's Y rotation is `-facing`. Rampart cannons are not rotated.
- *
- * Player-color tinting: deferred (see towers.ts for the pattern used
- * elsewhere). The authored cannon scene has no tint-tagged mesh, so we
- * render one bucket per variant without per-player sub-buckets. If
- * tinting lands later the bucket key becomes `(variant, ownerId)`.
- *
- * Instancing approach — "extract-and-instance" (same pattern as walls.ts
- * and grunts.ts):
- *
- *   1. Lazily per variant: run `buildCannon` or `buildRampart` once
- *      into a throwaway Group. Extract each Mesh as
- *      `{ geometry, material, localMatrix }` via `extractSubParts`.
- *   2. For each sub-part of that variant, create one `InstancedMesh`
- *      attached to the manager's root group.
- *   3. Per fingerprint change: bucket cannons by variant, compute each
- *      cannon's host matrix (translate + rotate + scale), and write
- *      `hostMatrix * subPart.localMatrix` via `setMatrixAt`. Clamp
- *      `.count` to the live bucket size so unused slots don't render.
- *
- * Rampart shield aura: `buildRampart` authors the shield as a plain
- * `THREE.PlaneGeometry` with a basic opacity=0.32 material and
- * `renderOrder = -1`. The extracted mesh keeps the same geometry and
- * material, and `InstancedMesh` copies the source `renderOrder` through
- * its own `.renderOrder` field if we set it explicitly — `extractSubParts`
- * only captures geometry/material/matrix, so we preserve the authored
- * ordering when the extracted part is named "aura"/is the plane. The
- * transparent material is shared across instances by design; three.js
- * sorts transparent InstancedMesh draws as a single unit, which is
- * fine because every rampart aura lies on the same ground plane — no
- * intra-bucket depth to resolve. Verified visually against the 2D
- * shield tint — no z-fighting or ordering regressions.
- *
- * Update cadence: cannon set changes on placement, firing (facing
- * changes), destruction, and battle start (mortar flag). A composite
- * fingerprint (per cannon: playerId/col/row/mode/facing/mortar/shielded)
- * lets steady-state frames early-out.
+ * 3D live-cannon meshes (dead → `./debris.ts`, balloons → `./balloons.ts`).
+ * Variants by `CannonMode` (rampart/super/mortar/tier_1) mirror
+ * `drawCastleCannons`. Host Y-rotation = `-facing` (game facing 0 = north).
+ * Extract-and-instance pattern; per-cannon fingerprint
+ * (col/row/mode/facing/mortar/shielded) early-outs steady frames.
  */
 
 import * as THREE from "three";

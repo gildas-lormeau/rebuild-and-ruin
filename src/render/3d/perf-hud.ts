@@ -1,13 +1,8 @@
 /**
- * Minimal per-frame performance HUD for the 3D renderer. Renders a tiny
- * fixed-position overlay showing FPS plus three.js `renderer.info`
- * counters (draw calls, triangles, allocated geometries/textures/shader
- * programs). Invisible by default; toggled via `__dev.perfHud(true)`.
- *
- * The renderer calls `updatePerfHud` every frame; the update is an
- * early-return no-op when the HUD is disabled so the cost in
- * production (where `__dev` is never attached) is a pointer chase and
- * a branch. When enabled, the DOM element is created lazily.
+ * Minimal per-frame perf HUD: FPS + three.js `renderer.info` counters
+ * (draw calls / triangles / geometries / textures / programs). Off by
+ * default; toggled via `__dev.perfHud(true)`. Disabled path early-
+ * returns so production cost is a branch; DOM element created lazily.
  */
 
 interface PerfStats {

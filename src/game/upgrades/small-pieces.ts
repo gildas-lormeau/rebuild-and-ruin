@@ -1,11 +1,8 @@
 /**
  * Small Pieces upgrade — the picker's build bag draws from the
- * small-piece sub-pool for one round, making it easier to thread pieces
- * through narrow gaps. Read at build-phase start by the controller's
- * initBag hook (player/controller-types.ts).
- *
- * Hook implemented: useSmallPieces (controller query).
- * Wired through src/game/upgrade-system.ts.
+ * small-piece sub-pool for one round, easing thread-the-gap placements.
+ * Read at build-phase start by the controller's initBag hook
+ * (player/controller-types.ts).
  */
 
 import type { Player } from "../../shared/core/player-types.ts";

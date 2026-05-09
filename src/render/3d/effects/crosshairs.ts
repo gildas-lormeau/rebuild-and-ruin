@@ -1,22 +1,10 @@
 /**
- * 3D crosshair indicators — Phase 6 of the 3D renderer migration.
- *
- * During battle, each active player has a crosshair hovering over their
- * aim point. The 2D renderer draws eight arms (four cardinals + four
- * diagonals) with a pulsing alpha / arm length driven by `cannonReady`
- * state. The 3D path reproduces this as flat, upward-facing planes laid
- * on the ground plane — the same pulse / arm math from render-effects.ts
- * ports directly.
- *
- * Geometry strategy: each arm is a thin rectangle scaled per-frame to
- * `arm`/`diag` length and `gap` offset. Eight arms per crosshair: four
- * white cardinals + four colored diagonals (per-player colour). A bigger
- * darker "shadow" plane sits under each arm to mimic the 2D stroke's
- * black outer stroke.
- *
- * We rebuild the mesh set on count change only; positions + scales +
- * alphas update every frame because the pulse is continuous and the
- * aim point can drift between frames.
+ * Per-player aim crosshairs — eight arms (four white cardinals + four
+ * player-coloured diagonals), each a thin rectangle scaled per-frame to
+ * `arm`/`diag` length and `gap` offset. A darker "shadow" plane under
+ * each arm mimics the 2D stroke's black outer stroke. Mesh set is only
+ * rebuilt on player-count change; positions/scales/alphas update every
+ * frame (pulse is continuous, aim drifts).
  */
 
 import * as THREE from "three";

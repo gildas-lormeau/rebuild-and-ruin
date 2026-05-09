@@ -1,17 +1,11 @@
 /** Translate per-frame battle combat results into battleAnim render entries.
  *
- *  The engine tick (`tickBattlePhase` / `resolveBattleCombatStep`) returns a
- *  `BattleCombatResult` describing what happened in sim-space: impact tiles
- *  and emitted impact events. The render layer needs the same data with an
- *  `age` field for fade-out animation. Both host and watcher run the engine
- *  tick locally and must populate `battleAnim` identically — this helper is
- *  the shared translation step so neither side drifts.
- *
- *  Replaces the former bus-subscription path that pushed visuals from
- *  `BATTLE_MESSAGE.*` events: runtime control flow (battle-end gate) reads
- *  `battleAnim.*.length`, so the bus must not be the source of truth (see
- *  feedback_bus_observation_only). All visuals are now derived from the
- *  same engine return value the bus events were synthesised from. */
+ *  The engine tick returns a `BattleCombatResult` (impact tiles + impact
+ *  events). Both host and watcher run that tick locally and must populate
+ *  `battleAnim` identically — this helper is the shared translation step.
+ *  The bus is NOT the source of truth: runtime control flow (battle-end
+ *  gate) reads `battleAnim.*.length`, so visuals must derive from the
+ *  engine's return value, not from `BATTLE_MESSAGE.*` events. */
 
 import type { BattleCombatResult } from "../game/index.ts";
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";

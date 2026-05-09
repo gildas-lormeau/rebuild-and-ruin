@@ -1,25 +1,9 @@
 /**
- * grunt-scene.ts — grunt sprite (small WW2-style tank).
- *
- * TypeScript conversion of the original `grunt-scene.mjs`. Grunts are
- * 1×1 tile in Rampart (canvasPx=32, matching the house). The geometry
- * is a boxy tank silhouette — hull, two tracks with cylindrical end
- * caps (wheels), turret, barrel — that fills the available top-down
- * footprint.
- *
- * The scene ships four cardinal facings (`grunt_n`, `grunt_e`,
- * `grunt_s`, `grunt_w`) whose geometry is IDENTICAL — only
- * `params.yawDegrees` differs (0 / -90 / 180 / 90). For the 3D live
- * renderer the grunts manager uses a single base variant (`grunt_n`,
- * barrel pointing −Z) and rotates the host group by `-grunt.facing` on
- * Y, matching the continuous-rotation convention used by cannons.
- * The per-facing variants are kept here for parity with the 2D sprite
- * atlas and offline sprite verification, but production does not call
- * them with non-zero yaw.
- *
- * THREE is injected to `buildGrunt(THREE, scene, params)` so this
- * module stays free of three.js as a static dependency — matches the
- * convention of the other `*-scene.ts` files.
+ * Grunt sprite (small WW2-style tank, 1×1 tile, canvasPx=32) — boxy hull
+ * + two tracks with wheel caps + turret + barrel. Four cardinal facing
+ * variants ship for the 2D sprite atlas, but the 3D live renderer uses
+ * `grunt_n` only and rotates the host group by `-grunt.facing` to match
+ * the continuous-rotation convention used by cannons.
  */
 
 import * as THREE from "three";

@@ -62,7 +62,6 @@ export const MODIFIER_ROLL_CHANCE = 0.65;
 export const CANNON_MAX_HP = 3;
 /** Size of a normal cannon in tiles (2x2). */
 export const NORMAL_CANNON_SIZE = 2;
-/** Number of bonus squares per zone. */
 export const BONUS_SQUARES_PER_ZONE = 3;
 /** Minimum Manhattan distance between any two bonus squares. */
 export const BONUS_SQUARE_MIN_DISTANCE = 3;
@@ -136,7 +135,6 @@ export const ENCLOSED_GRUNT_RESPAWN_CHANCE = 0.5;
 export const INTERBATTLE_GRUNT_SPAWN_CHANCE = 0.1;
 /** Number of spawn attempts per player between battles. */
 export const INTERBATTLE_GRUNT_SPAWN_ATTEMPTS = 2;
-/** First round that spawns grunts between battles. */
 export const FIRST_GRUNT_SPAWN_ROUND = 2;
 /** Number of lives each player starts with. */
 export const STARTING_LIVES = 3;

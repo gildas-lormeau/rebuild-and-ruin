@@ -1,30 +1,10 @@
 /**
- * wall-scene.ts — fortification walls with corner-aware autotile.
- *
- * Each wall cell occupies its FULL 1×1 tile (a "fat wall" is just two
- * adjacent wall cells, not a thin-wall mesh). The cell's 4 outer
- * corners are independently rounded based on the 4-cardinal mask:
- *
- *   corner state    | adjacent cardinals  | visual
- *   ----------------|---------------------|----------------------------
- *   rounded outer   | both empty          | quarter-circle round
- *   square          | one or both walls   | sharp 90°, flush to edge
- *
- * This single rule handles both regimes:
- *   • fat walls — adjacent cells have square inner corners that meet
- *     edge-to-edge, so a 2×2 block reads as a single rounded mass.
- *   • diagonal gaps — two cells touching only diagonally each have
- *     rounded outer corners on the touching side, so a visible gap
- *     remains (matches the "diagonals don't enclose" game rule).
- *
- * Battlements (merlons) line every open edge — i.e. each cardinal
- * direction with no neighbor.
- *
- * The 4-cardinal mask gives 16 configurations → 6 unique meshes after
- * rotational symmetry (endpoint, stub, straight, L, T, cross). The
- * blob-tileset 47-tile system isn't needed here because the diagonal
- * cell either renders or it doesn't — the gap visual emerges naturally
- * from rounding rather than from per-cell diagonal logic.
+ * Fortification walls with corner-aware autotile. Each cell fills its
+ * 1×1 tile; the 4 outer corners round independently from the 4-cardinal
+ * mask — empty neighbours round, wall neighbours flush. Fat-wall masses
+ * meet edge-to-edge while diagonal-only contacts keep their rounded
+ * corners (matching "diagonals don't enclose"). Battlements line every
+ * open edge. 16 mask configs → 6 meshes after rotational symmetry.
  */
 
 import type * as THREE from "three";

@@ -1,12 +1,9 @@
 /**
- * Wall impact helpers — decides whether a wall hit is absorbed by
- * Reinforced Walls (upgrade) or a nearby allied Rampart, and (for
- * non-event-driven callers) applies the resulting side effects.
- *
- * Cannonball path: resolveWallShield → caller emits WALL_* events →
- *   applyImpactEvent applies mutations.
- * Grunt path: resolveWallShield → applyWallShield applies mutations
- *   directly (no bus events, matching today's silent wall removal).
+ * Wall impact helpers. resolveWallShield decides whether a hit is absorbed
+ * by Reinforced Walls (upgrade) or a nearby allied Rampart. Cannonballs
+ * emit WALL_* events and mutate via applyImpactEvent; grunts mutate
+ * directly through applyWallShield (no bus, matching today's silent wall
+ * removal).
  */
 
 import type { Cannon } from "../shared/core/battle-types.ts";

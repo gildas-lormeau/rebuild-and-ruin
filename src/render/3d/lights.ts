@@ -1,32 +1,9 @@
 /**
- * Scene lighting for the 3D world renderer.
- *
- * The rig has two visible "stances" the renderer lerps between via a
- * single `blend ∈ [0, 1]` factor:
- *
- *   • blend = 0 (camera flat): the prior pre-feature look. Ambient at
- *     full strength preserves the authored sprite palette byte-for-
- *     byte, low-intensity directional adds subtle vertical shading,
- *     shadow casting OFF. Non-battle phases (and the start/end of the
- *     camera's tilt animation) sit at this stance.
- *   • blend = 1 (camera fully tilted into the 3D battle view): ambient
- *     drops, directional rises, shadow casting ON — cast shadows from
- *     entities visibly darken the ground. The sun's direction is
- *     rewritten each frame from a `sunT ∈ [0, 1]` parameter (battle-
- *     elapsed / battle-duration), so shadows sweep across the 10-second
- *     battle from dawn-east through near-zenith to dusk-west.
- *
- * The `blend` factor is computed by the renderer from camera `pitch`
- * (`pitch / pitchMax`, clamped) so the lighting fades in lockstep with
- * the camera-tilt animation around battle entry / exit, not with the
- * battle timer directly.
- *
- * `setSunBlend(...)` lerps intensities + shadow casting from `blend`;
- * `updateSunDirection(...)` lerps the sun's position between the
- * inactive direction and the battle-arc direction along the same
- * `blend`. Both are pure functions of their inputs (no time, no RNG,
- * no per-peer state), so two peers on the same camera pitch + battle
- * timer see identical lighting — parity-safe.
+ * Scene lighting. `blend ∈ [0,1]` (from camera pitch) lerps between flat
+ * (high ambient, no shadows, preserves palette) and battle-tilt (lower
+ * ambient, shadows on, sun direction from `sunT ∈ [0,1]` sweeping
+ * dawn→zenith→dusk). `setSunBlend` and `updateSunDirection` are pure —
+ * peers at the same pitch + sunT see identical lighting (parity-safe).
  */
 
 import * as THREE from "three";

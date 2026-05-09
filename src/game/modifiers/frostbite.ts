@@ -1,11 +1,8 @@
 /**
- * Frostbite modifier — grunts spawn as immobile ice cubes that take two hits
- * to break. The first hit chips the ice (tracked in `chippedGrunts`); the
- * second kills normally. Lasts one battle.
- *
- * No tile mutation — `chippedGrunts` is the only state, mirrored into
- * checkpoints so host migrations mid-battle keep host/watcher in sync on
- * which grunts have already absorbed their first hit.
+ * Frostbite modifier — grunts spawn as immobile ice cubes that take two
+ * hits to break (first chips, tracked in `chippedGrunts`; second kills).
+ * Lasts one battle. `chippedGrunts` is mirrored into checkpoints so host
+ * migrations mid-battle keep host/watcher in sync.
  */
 
 import { packTile } from "../../shared/core/spatial.ts";

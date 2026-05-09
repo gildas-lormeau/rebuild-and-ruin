@@ -1,13 +1,6 @@
 /**
- * Cannon mode registry — pool pattern with exhaustiveness check.
- *
- * Follows the same structure as upgrade-defs.ts (UpgradeId → UPGRADE_POOL).
- * When adding a new cannon mode:
- *   1. Add the enum value to CannonMode in battle-types.ts
- *   2. Add a pool entry here (set implemented: false until gameplay code exists)
- *   3. The PoolComplete check will fail at compile time if you forget step 2
- *   4. Add an entry to CANNON_MODE_CONSUMERS listing the files that
- *      implement the mode (the `satisfies` clause enforces exhaustiveness)
+ * Cannon mode registry — pool pattern (CannonMode → CANNON_MODE_POOL +
+ * CANNON_MODE_CONSUMERS). See `pool-def.ts` for the shared structure.
  */
 
 import { CannonMode } from "./battle-types.ts";

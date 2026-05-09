@@ -1,15 +1,9 @@
-/** A flood-fill region identifier. Player zones are integers >= 1; the value
- *  0 is the water sentinel produced by `floodFillZones` (initial-fill cells
- *  that never received a region id). Branded so a raw grid lookup
+/** A flood-fill region identifier. Player zones are integers >= 1; `0` is
+ *  the water sentinel from `floodFillZones`. Branded so a raw grid lookup
  *  (`state.map.zones[r][c]`, type `ZoneCell`) cannot silently flow into
- *  APIs that expect a validated player zone.
- *
- *  Use `zoneAt(map, r, c)` to read a grid cell as `ZoneId | undefined`
- *  (the boundary that drops the water sentinel). `as ZoneId` casts are
- *  acceptable at trust boundaries:
- *  1. Wire deserialization: `msg.playerZones as ZoneId[]`
- *  2. Allocation in flood fill: a freshly-incremented `regionId as ZoneId`
- *  3. Test fixtures and constants */
+ *  APIs expecting a validated player zone. Read via `zoneAt(map, r, c)`
+ *  for `ZoneId | undefined`; `as ZoneId` is only OK at trust boundaries
+ *  (wire deserialization, fresh flood-fill allocation, test fixtures). */
 
 export type ZoneId = number & { readonly __zoneId: true };
 

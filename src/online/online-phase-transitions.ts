@@ -1,16 +1,8 @@
 /**
- * Game-over wire receiver.
- *
- * In the clone-everywhere model, every peer runs the same phase ticks
- * locally and dispatches phase transitions itself — there is no separate
- * watcher dispatch path for CANNON_START / BATTLE_START / BUILD_START /
- * BUILD_END (those wire messages are pure phase markers that the watcher
- * ignores; the local tick has already advanced state).
- *
- * GAME_OVER is the one exception: it carries the host's authoritative
- * scores and player names, used to paint the terminal frame. Watchers
- * may detect game-over locally too, but the wire frame is the
- * authoritative one.
+ * Game-over wire receiver. Phase-marker messages (cannonStart/battleStart/
+ * buildStart/buildEnd) are ignored by watchers under the clone-everywhere
+ * model; GAME_OVER is the one exception — it carries authoritative scores +
+ * names from the host and overrides any locally-detected outcome.
  */
 
 import { MESSAGE, type ServerMessage } from "../protocol/protocol.ts";

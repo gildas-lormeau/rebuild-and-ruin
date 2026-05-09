@@ -1,35 +1,10 @@
 /**
- * Online client dependency wiring.
- *
- * Builds the deps bags consumed by online-server-lifecycle.ts and
- * online-server-events.ts, and dispatches incoming server messages.
- *
- * Does NOT import online-runtime-game.ts — all runtime-dependent values
- * are injected via initDeps() to avoid initialization coupling with the
- * composition root.
- *
- * DI PATTERN: Mutable singletons (session, watcher) are passed directly as
- * Pick<> references — consumers read fields at call time, so values are always
- * current. Runtime-dependent state still uses closures for late binding.
- * - lifecycleDeps / incrementalDeps: built once via initDeps(), reused for session lifetime.
- * - Contrast with online-runtime-game.ts where checkpointDeps are built dynamically
- *   on each call (because checkpoint state changes frequently during play).
- *
- * MULTI-INSTANCE: `createMessageHandler(init)` returns a per-instance
- * `(msg) => Promise<void>` closure that captures its own deps, with no
- * shared module state. Production calls `initDeps(init)` (which delegates
- * to `createMessageHandler` and stores the result), then registers
- * `handleServerMessage` as a `network.onMessage` callback. Tests that
- * need TWO peers in the same process (bidirectional pair) build two
- * independent handlers via `createMessageHandler`.
- *
- * ORDERING INVARIANT — initDeps() is the last of three init calls from
- * online-runtime-game.ts:initOnlineRuntime(). The required order is:
- *    1. initWs (online-runtime-ws.ts)
- *    2. initPromote (online-runtime-promote.ts)
- *    3. initDeps (this file)
- * Calling handleServerMessage() before initDeps() throws. Do not reorder the
- * call sequence in initOnlineRuntime without updating all three modules.
+ * Online client dependency wiring — builds lifecycle/incremental deps bags
+ * and dispatches incoming server messages. Runtime values are injected via
+ * `initDeps()` (last of the three `initOnlineRuntime` init calls, after
+ * `initWs` + `initPromote`); `handleServerMessage()` throws if called first.
+ * `createMessageHandler(init)` returns a per-instance closure with no shared
+ * module state, so tests can drive two peers in one process.
  */
 
 import type {

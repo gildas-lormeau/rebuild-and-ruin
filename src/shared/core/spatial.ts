@@ -1,15 +1,9 @@
 /**
- * Shared spatial/geometric helpers used across multiple modules.
- *
- * These are pure functions that operate on tile coordinates and grid keys.
- * Centralised here to avoid scattering utilities across types.ts,
- * phase-build.ts, and other domain-specific modules.
- *
- * ## Tile encoding convention
- *
- * All Set<number> tile collections (walls, interior, frozenTiles, burningPits, etc.)
- * use flat-index encoding: `key = row * GRID_COLS + col`.
- * Always use packTile(r, c) / unpackTile(key) — never encode manually.
+ * Shared spatial/geometric helpers — pure functions on tile coordinates
+ * and grid keys. Tile encoding for every `Set<number>` collection (walls,
+ * interior, frozenTiles, burningPits…): `key = row * GRID_COLS + col`.
+ * Always go through `packTile(r, c)` / `unpackTile(key)` — never encode
+ * manually.
  */
 
 import { Action } from "../ui/input-action.ts";
@@ -226,14 +220,12 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
   return cannon.hp > 0;
 }
 
-/** True if a cannon is a balloon (propaganda balloon). */
 export function isBalloonCannon(cannon: {
   mode: CannonMode;
 }): cannon is { mode: CannonMode.BALLOON } {
   return isBalloonMode(cannon.mode);
 }
 
-/** True if a cannon is a super gun. */
 export function isSuperCannon(cannon: {
   mode: CannonMode;
 }): cannon is { mode: CannonMode.SUPER } {

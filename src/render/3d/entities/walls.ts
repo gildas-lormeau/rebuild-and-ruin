@@ -1,51 +1,10 @@
 /**
- * 3D wall meshes — Phase 3 of the 3D renderer migration, with Phase 8b
- * instancing on top.
- *
- * Walls live in `RenderOverlay.castles[].walls` (one `Set<packedTileKey>`
- * per player). The 2D renderer draws them inside `drawCastleWalls`. This
- * manager mirrors that placement using `THREE.InstancedMesh` — one bucket
- * per (mask, sub-part) pair — so ~80-120 walls × ~5 sub-parts each fold
- * down to ~16 masks × ~5 sub-parts = ≤80 draw calls worst-case, regardless
- * of wall count. Practically a battle visits only a handful of masks, so
- * the live bucket count is usually well below 20.
- *
- * Update cadence: the set of wall tiles only changes inside
- * `WALL_BUILD` (tiles added) and the battle wall-sweep phase (tiles
- * removed). To avoid per-frame rebuilds we hash the union of all
- * players' wall sets once per call; when the hash matches the last
- * build we skip the rebuild entirely.
- *
- * Instancing approach — "extract-and-instance" (same pattern as grunts.ts):
- *
- *   1. Lazily per unique mask value: run `buildWall` once with
- *      `uvOffset: [0, 0]` into a throwaway Group. The Group contains
- *      body + N merlons + corner merlons + per-merlon AO planes. Extract
- *      each Mesh as `{geometry, material, localMatrix}` via
- *      `extractSubParts`.
- *   2. For each sub-part of that mask, create an `InstancedMesh(geom,
- *      mat, capacity)` attached to the manager's root group.
- *   3. Per fingerprint change: bucket walls by mask, ensure capacity,
- *      compute each wall's host matrix (translate to tile centre ×
- *      uniform `TILE_SIZE / 2` scale) and write
- *      `hostMatrix * subPart.localMatrix` via `setMatrixAt`. Clamp
- *      `.count` to the live bucket size so unused slots don't render.
- *
- * UV-offset trade-off: the 2D renderer varies `uvOffset` per tile so the
- * brick/flagstone pattern flows continuously across adjacent walls. That
- * offset is baked into the `ExtrudeGeometry`'s UV attribute by
- * `stoneWallUVGenerator`, and into each merlon's `BoxGeometry.uv`
- * attribute by `applyBoxWallUV` — both at construction time. Piping a
- * per-instance UV offset through every wall material (standard lit
- * materials with procedural `map` textures) would require injecting an
- * `InstancedBufferAttribute` + `onBeforeCompile` shader patching for
- * each, which is a sizeable refactor. We instead share one
- * `uvOffset = [0, 0]` geometry per mask across all instances: texture
- * continuity ACROSS adjacent tiles is lost, but each tile still shows
- * the full brick/flagstone pattern within its own footprint. Given
- * walls are viewed from mid-distance and the 64 px texture tiles twice
- * per tile, the difference is subtle. Revisit if the seam becomes
- * visually obvious during playtesting.
+ * 3D wall meshes — `RenderOverlay.castles[].walls` via the extract-and-
+ * instance pattern, one `InstancedMesh` per (mask, sub-part). A union-set
+ * hash skips rebuilds; the set only changes in WALL_BUILD and the battle
+ * wall-sweep. One shared `uvOffset = [0,0]` per mask loses cross-tile
+ * texture continuity but avoids `onBeforeCompile`-patching every wall
+ * material.
  */
 
 import * as THREE from "three";

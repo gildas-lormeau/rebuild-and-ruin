@@ -1,15 +1,10 @@
 /**
- * 3D terrain SDF texture upload — provides the blurred signed-distance
- * field (positive in water, negative in grass, magnitude = pixel distance
- * from the water/grass boundary) as a single-channel `R32F` DataTexture
- * for the terrain shader to sample per-fragment.
- *
- * The shader uses this to compute the per-pixel grass→bank→water gradient
- * inside owned-sinkhole tiles instead of consuming a CPU-baked second-plane
- * overlay (the previous `effects/sinkhole-overlay.ts` approach).
- *
- * Re-uploads only on `mapVersion` change — the SDF shape depends on the
- * map's tile geometry, not on territory or freeze state.
+ * Blurred signed-distance field (positive in water, negative in grass,
+ * magnitude = pixel distance from the water/grass boundary) uploaded as
+ * an `R32F` DataTexture. The shader uses it to compute the per-pixel
+ * grass→bank→water gradient inside owned-sinkhole tiles, replacing the
+ * earlier CPU-baked second-plane overlay. Re-uploads only on
+ * `mapVersion` change.
  */
 
 import * as THREE from "three";

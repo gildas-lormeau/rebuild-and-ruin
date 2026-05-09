@@ -1,15 +1,9 @@
 /**
- * Grunt-surge tint intensity — runtime-side overlay derivation.
- * Lands in `overlay.battle.gruntSurgeRevealIntensity`; the grunt
- * manager lerps fresh-surge-grunt material color toward red by this
- * multiplier (per-instance via `attachInstanceTint`).
- *
- * Replaces the legacy per-tile spawn-burst — the actual fresh grunts
- * pulse red instead of standing in with floating discs.
- *
- * Curve: bell envelope `sin(t * π)` modulated by a fast pulse wave
- * (same shape as sapper's threat tint). Time gating lives in
- * `deriveModifierRamp` driven by `revealTimeMs`.
+ * Grunt-surge tint intensity. Lands in
+ * `overlay.battle.gruntSurgeRevealIntensity`; grunt manager lerps fresh
+ * surge-grunt material color toward red per-instance. Curve: bell envelope
+ * `sin(t·π)` modulated by a fast pulse wave (same shape as sapper threat
+ * tint). Time gating via `deriveModifierRamp` driven by `revealTimeMs`.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

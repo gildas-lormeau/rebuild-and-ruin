@@ -1,11 +1,7 @@
 /**
- * Pre-rolled AI personality data type — defined here (rather than in
- * `src/ai/ai-strategy.ts`) so `ControllerFactory` in `system-interfaces.ts`
- * can reference it without crossing layer boundaries upward into `ai/`.
- *
- * The actual rolling logic, archetype trait profiles, and difficulty bias
- * remain in `src/ai/ai-strategy.ts`'s `rollPersonality`. This file holds
- * only the shape that callers exchange.
+ * Pre-rolled AI personality shape. Lives here so `ControllerFactory` in
+ * `system-interfaces.ts` can reference it without importing upward into
+ * `ai/`. Rolling logic + trait profiles stay in `src/ai/ai-strategy.ts`.
  */
 
 /** Archetype string literals — must stay in sync with the `Archetype` const

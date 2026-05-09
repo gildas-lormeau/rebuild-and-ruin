@@ -1,13 +1,8 @@
 /**
  * Foundations upgrade — pieces can be placed over burning pits, and the
- * placement extinguishes those pits as a side effect. Converts a hazard
- * into opportunity space.
- *
- * Hooks implemented:
- *   - canPlaceOverBurningPit (piece-validation query)
- *   - onPiecePlaced          (post-placement pit clearing)
- *
- * Wired through src/game/upgrade-system.ts.
+ * placement extinguishes those pits as a side effect (turning a hazard
+ * into opportunity space). Hooks: canPlaceOverBurningPit (validation)
+ * and onPiecePlaced (pit clearing).
  */
 
 import type { Player } from "../../shared/core/player-types.ts";

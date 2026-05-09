@@ -1,67 +1,10 @@
 /**
- * 3D debris meshes — Phase 3 of the 3D renderer migration, with Phase 8d
- * instancing on top.
- *
- * One entity manager covers all three debris kinds because they share a
- * single sprite scene (`debris-scene.ts`) and the same mesh lifecycle:
- *
- *   • **Wall debris** — tiles in a castle's original wall set that are
- *     no longer present in the live wall set (the 2D renderer calls
- *     these out via `drawWallDebris`). 1×1 tile footprint; two seed
- *     variants (`wall_debris_a`/`wall_debris_b`) picked by a stable
- *     hash of (col, row) so adjacent ruins don't mirror.
- *   • **Cannon debris** — `castle.cannons[]` entries where
- *     `isCannonAlive(cannon) === false`. 2×2 tile footprint; variant
- *     picked from mode/flags (super → super_gun_debris, mortar →
- *     mortar_debris, otherwise tier_1_debris).
- *   • **Tower debris** — towers with `overlay.entities.towerAlive[i] === false`.
- *     2×2 tile footprint; variant = `home_tower_debris` if the tower
- *     was a home tower, else `secondary_tower_debris`.
- *
- * The live-entity managers (`walls.ts`, `towers.ts`) intentionally
- * ignore the dead/ruined entries — they're drawn here so a single
- * disposal path owns every rubble mesh.
- *
- * Instancing approach — "extract-and-instance" (same pattern as
- * cannons.ts, walls.ts, grunts.ts):
- *
- *   1. Lazily per bucket key: run `buildDebris` once with the full
- *      variant descriptor into a throwaway Group. Each pile contains a
- *      procedural pool of 20-60 rocks + a few hand-placed chunks
- *      (~25-65 meshes) plus an optional ground shadow+AO pair for
- *      cannon-source variants. Extract every Mesh as
- *      `{geometry, material, localMatrix, name}` via `extractSubParts`.
- *   2. For each sub-part, create one `InstancedMesh` attached to the
- *      manager's root group. Initial capacity 16, grown power-of-two
- *      via `ensureBucket`.
- *   3. Per fingerprint change: bucket debris entries by key, compute
- *      each entry's host matrix (translate to centre × uniform scale),
- *      and write `hostMatrix * subPart.localMatrix` via `setMatrixAt`.
- *      Clamp `.count` to the live bucket size so unused slots don't
- *      render.
- *
- * Procedural pile tradeoff: each variant bakes in an RNG seed, so one
- * extraction produces one canonical pile shape. Instancing means every
- * rubble tile sharing a bucket renders an IDENTICAL layout of rocks.
- * That's already the case in the pre-instancing path — the layout is
- * deterministic in the seed — and wall debris specifically has two
- * seed variants (`wall_debris_a`/`_b`) to break up the uniformity
- * across tiles.
- *
- * Player-color tinting (home tower flag): only the `home_tower_debris`
- * variant carries a chunk named "flag" (tagged inside debris-scene.ts
- * when its material === FLAG_BASE). We fork that one variant into per-
- * ownerId buckets (`home_tower_debris:<ownerId>`): when building such a
- * bucket we clone+tint the flag sub-part's material to the owner's
- * interior-light color. At most 4 home-tower-debris buckets (one per
- * `ValidPlayerSlot`) coexist. All other variants remain single-bucket.
- *
- * Update cadence: the three input sets change rarely — walls and
- * cannons transition between states only on battle wall/cannon kills
- * and zone resets; towers transition only on tower kills. A composite
- * signature (dead-tower indices + dead-cannon positions + destroyed-
- * wall keys + debris variants + flag owners) lets every steady-state
- * frame early-out.
+ * 3D debris meshes (wall + cannon + tower rubble). One manager because all
+ * three share `debris-scene.ts`; live-entity managers skip dead entries so
+ * this file owns every rubble mesh. Variants pick by hashed (col,row) for
+ * walls, mode/flags for cannons, home vs secondary for towers. Extract-
+ * and-instance bucket pattern; `home_tower_debris` forks per ownerId so
+ * the flag tints to the owning player.
  */
 
 import * as THREE from "three";

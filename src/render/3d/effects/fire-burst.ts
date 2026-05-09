@@ -1,25 +1,10 @@
 /**
- * Shared fire/smoke/spark burst kernel — the primitive bundle and
- * animation math behind wall-burns and cannon-burns.
- *
- * Each burst is a small scene-graph bundle:
- *   - N flame clusters (3-layer teardrop LatheGeometry). Crackle driven
- *     by compound sin jitter on Y-scale + emissive intensity.
- *   - M stacked camera-facing smoke puffs (radial-gradient texture).
- *     Rise + expand + fade in the back half of life.
- *   - K spark billboards on a true ballistic arc (units/sec velocities,
- *     gravity in units/sec²). Settle on the ground as they age.
- *   - 1 brief flash disc in the first ~12% of life.
- *
- * Per-burst variation (cluster offsets, flame sizes, spark angles,
- * smoke jitter) is seeded deterministically from the caller's `seed`
- * (typically `tileSeed(row, col)`). No per-burst random state lives on
- * the caller's payload — the same `seed` always animates identically.
- *
- * Shared lathe geometry, smoke texture, and flash disc geometry are
- * created once per renderer instance (via `ensureFireBurstResources`)
- * and reused across every host + every caller. Per-host materials are
- * owned by each host — dispose them when the host is removed.
+ * Shared fire/smoke/spark burst kernel behind wall-burns and cannon-burns.
+ * Each burst combines N sin-jittered flame clusters, M camera-facing
+ * smoke puffs, K ballistic spark billboards, and a brief flash disc.
+ * Variation seeds from the caller's `seed` (typically `tileSeed`);
+ * shared geometry + textures live behind `ensureFireBurstResources`
+ * while per-host materials are owned by each host.
  */
 
 import * as THREE from "three";

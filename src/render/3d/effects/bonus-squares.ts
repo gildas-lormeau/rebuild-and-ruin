@@ -1,12 +1,8 @@
 /**
- * 3D bonus-square indicators — an inset 8×8 square painted in the
- * *alternative* checker-grass color so each bonus tile reads as a
- * smaller inner tile of the opposite shade from its surround.
- *
- * Depth-tested at `ELEVATION_STACK.BONUS_DISCS` so grunts and other
- * standing entities occlude the inset naturally. `renderOrder` is set
- * high to beat the transparent terrain mesh in the sort; depth test
- * still does the right thing against opaque standing geometry.
+ * Inset 8×8 square in the *alternative* checker-grass shade so each
+ * bonus tile reads as a smaller inner tile of the opposite shade.
+ * High `renderOrder` beats the transparent terrain mesh; depth-test
+ * against opaque standing geometry still occludes naturally.
  */
 
 import * as THREE from "three";

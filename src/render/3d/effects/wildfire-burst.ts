@@ -1,11 +1,7 @@
 /**
- * 3D wildfire-burst reveal — `wildfire` modifier. Per-tile orange disc
- * grows + fades on each burn-scar tile, ordered as a left-to-right wave
- * across the affected columns so the reveal reads as fire propagating
- * with the wind rather than a uniform burst field.
- *
- * Disc tint matches the `wildfire` palette pulseColor for parity with
- * the legacy 2D reveal indicator.
+ * `wildfire` reveal — discs ordered as a left-to-right wave across the
+ * affected columns so the reveal reads as fire propagating with the
+ * wind rather than a uniform burst field.
  */
 
 import type * as THREE from "three";

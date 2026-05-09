@@ -1,31 +1,10 @@
 /**
  * Music sub-system — PCM playback of player-supplied Rampart music.
- *
- * ### Topology
- *
- * Every track (title / cannon-bg / build-bg / score-bg / life-lost / jaws)
- * and every fanfare variant is rendered once at upload-time
- * ([sound-modal.ts](./sound-modal.ts) → `renderAllTracksToCache` in
- * [music-synth-loader.ts](./music-synth-loader.ts)) and persisted as PCM
- * in IndexedDB. The in-game `activate()` path just reads the cache and
- * builds `AudioBuffer`s — no WASM, no synth, ready in ~10 ms instead of
- * the 5–10 s a fresh render takes on mobile. Playback creates a fresh
- * `AudioBufferSourceNode` per trigger; looping is handled by the browser
- * (`source.loop` + XMI `loopStart` / `loopEnd` when present), volume +
- * fades by a per-trigger `GainNode`. No live AudioWorklet, free overlap
- * of fanfares with bg.
- *
- * Plays RXMI_TITLE.xmi from the moment the subsystem is bound to a game bus
- * (first launch + rematch) until the first WALL_BUILD phase starts. Silent
- * if the cache is empty (player hasn't dropped in their Rampart files yet,
- * or the render after their last upload failed). Mirrors the observer+bus
- * pattern used by [runtime-haptics.ts](./runtime-haptics.ts).
- *
- * ### Autoplay policy
- *
- * Browsers suspend a fresh AudioContext until a user gesture. The first
- * `activate()` call is wired to the home-page "Play" button so the context
- * resumes inside that gesture.
+ * Tracks + fanfares are rendered once at upload-time and persisted in
+ * IndexedDB; in-game `activate()` reads the cache and builds
+ * `AudioBuffer`s — no WASM, no live synth. Plays RXMI_TITLE on bus-bind
+ * through the first WALL_BUILD start; silent if cache is empty. Autoplay:
+ * the first `activate()` must run inside a user gesture (Play button).
  */
 
 import {

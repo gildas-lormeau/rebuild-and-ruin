@@ -1,30 +1,9 @@
 /**
- * Orthographic world camera for the 3D renderer.
- *
- * Coordinate system:
- *   - Origin at map top-left: world X ∈ [0, MAP_PX_W], world Z ∈ [0, MAP_PX_H].
- *   - Y is up; the ground plane lies at Y=0.
- *   - 1 world unit = 1 game-1× pixel. A tile is TILE_SIZE (16) units square.
- *   - Camera looks straight down (-Y) with `up = (0, 0, -1)` so that a smaller
- *     Z (world top of map) renders at the top of the screen. This matches the
- *     2D renderer's "map-top = screen-top" convention, so `Viewport.x/y/w/h`
- *     (from `runtime-camera.ts`) translate into camera params with no axis
- *     flips: `vp.x/y` = top-left of the visible world rectangle, `vp.w/h` =
- *     its size in world units.
- *
- * The camera's ortho frustum is centered on the look-at point with half-widths
- * `vp.w/2` (X) and `vp.h/2` (Z-as-vertical). `updateCameraFromViewport(null)`
- * shows the whole map, equivalent to `Viewport { x: 0, y: 0, w: MAP_PX_W,
- * h: MAP_PX_H }`.
- *
- * Pitch support: `updateCameraFromViewport(camera, viewport, pitch)` tilts the
- * ortho camera around its look-at point on the world X-axis. Pitch > 0 leans
- * the camera back so far-map rows (small Z) compress toward the top of the
- * screen, matching the classic Rampart 3/4 view. Under tilt the frustum's Y
- * extent foreshortens by cos(pitch); the X extent is unchanged (tilt is
- * X-only, no yaw/roll, so the visible ground stays an axis-aligned rect). The
- * math mirrors `src/runtime/camera-projection.ts`, so screen↔world round-trips
- * in the runtime line up with what the 3D renderer draws.
+ * Ortho camera mirroring the 2D renderer's coords:
+ * - origin at map top-left, 1 world unit = 1 game-1× pixel
+ * - Y up, look -Y, up=(0,0,-1) so map-top renders at screen-top
+ * - pitch tilts on world X (positive = Rampart 3/4 view)
+ * Math mirrors `runtime/camera-projection.ts` for screen↔world parity.
  */
 
 import * as THREE from "three";

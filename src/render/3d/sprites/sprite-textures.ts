@@ -1,29 +1,10 @@
 /**
- * sprite-textures.ts — shared procedural texture library + material factory.
- *
- * Every scene file that wanted a texture map used to ship its own
- * `makeMaterial` wrapper around `createMaterial` plus one or more
- * cached `getXxxTexture(three)` helpers. The wrappers all did the same
- * thing — build the base material, then attach a lazy per-id
- * `CanvasTexture`. Each scene kept its own cache variable and its own
- * "stone" id (wall and tower both had a `texture: "stone"` spec, but
- * the builders were intentionally different — wall-stone is darker +
- * has weathering streaks, tower-stone is lighter + cleaner).
- *
- * This module factors the wrapper into one `buildTexturedMaterial`
- * function and hosts every procedural builder behind a module-level
- * `Map<TextureId, THREE.Texture>` cache. Scene files keep their texture
- * intent by naming a disambiguated `TextureId` (`wall_stone` vs
- * `tower_stone`, etc.) in their spec's `texture` field — the visual
- * output is unchanged because every builder was lifted verbatim.
- *
- * Not moved here: `createMaterial` (lives in sprite-kit.ts — it's the
- * color-only factory), `createTiledCanvasTexture` (lives in
- * procedural-texture.ts — it's the square-canvas + seeded-LCG wrapper
- * that most of these builders call). The cannon wood / metal-grip and
- * the tower door textures use a direct canvas rather than the seeded
- * wrapper (deterministic `Math.sin` drifts / rectangular canvas), so
- * those keep their direct `new three.CanvasTexture(canvas)` bodies.
+ * Shared procedural-texture library + textured-material factory. One
+ * `buildTexturedMaterial` plus a module-level `Map<TextureId, Texture>`
+ * cache replaces the per-scene wrappers and caches; scenes preserve
+ * their visual intent by naming a disambiguated `TextureId` (e.g.
+ * `wall_stone` vs `tower_stone`). Color-only material lives in
+ * sprite-kit.ts; the seeded-LCG canvas wrapper in procedural-texture.ts.
  */
 
 import type * as THREE from "three";

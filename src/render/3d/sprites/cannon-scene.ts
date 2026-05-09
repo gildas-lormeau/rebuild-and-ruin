@@ -1,24 +1,10 @@
 /**
- * cannon-scene.ts — shared cannon scene description.
- *
- * TypeScript conversion of the original `cannon-scene.mjs`. Single
- * source of truth for:
- *   • VARIANTS — the per-cannon dimension registry
- *   • PALETTE  — the quantization palette
- *
- * Five variants: `tier_1` / `tier_2` / `tier_3` (escalating 2×2
- * cannons), `super_gun` (3×3 incendiary), `mortar` (2×2 ballistic).
- *
- * Each part of a cannon (base, barrel, bore, bands, supports) is
- * described by a MaterialSpec object plus optional texture identifier.
- * Decorations are authored per-variant as a flat list at
- * `params.decorations` (see DecorationSpec below). They are pure data:
- * the builder iterates the list and adds one Mesh per entry, so adding
- * cosmetic detail is a data-only change.
- *
- * THREE is injected to `buildCannon(THREE, scene, params)` so the
- * module stays free of three.js as a static dependency (matches the
- * convention of the other `*-scene.ts` files).
+ * Shared cannon scene description — single source of truth for VARIANTS
+ * (the per-cannon dimension registry: `tier_1`/`tier_2`/`tier_3` 2×2
+ * cannons, `super_gun` 3×3 incendiary, `mortar` 2×2 ballistic) and
+ * PALETTE. Per-variant decorations are pure data at `params.decorations`
+ * — the builder iterates the list, so adding cosmetic detail is a
+ * data-only change. THREE is injected for parity with sibling scenes.
  */
 
 import * as THREE from "three";

@@ -1,18 +1,9 @@
 /**
- * Game Init — match-lifecycle setup.
- *
- * Two exported entry points run once per match:
- *   - `createGameFromSeed`  builds the map (or reuses one), picks zones,
- *                           and creates the initial GameState.
- *   - `applyGameConfig`     stamps per-match config (max rounds, timers,
- *                           game mode) onto the freshly created state.
- *
- * Both are called from `runtime-bootstrap.ts` during game boot. The
- * private `createGameState` factory is the single source of truth for
- * GameState's initial field values.
- *
- * Per-round and per-phase setup lives in `phase-entry.ts` and
- * `phase-setup.ts`.
+ * Match-lifecycle setup. `createGameFromSeed` and `applyGameConfig` run
+ * once per match (called from `runtime-bootstrap.ts`); the private
+ * `createGameState` factory is the single source of truth for
+ * GameState's initial field values. Per-round and per-phase setup lives
+ * in `phase-entry.ts` and `phase-setup.ts`.
  */
 
 import { EMPTY_FEATURES } from "../shared/core/feature-defs.ts";

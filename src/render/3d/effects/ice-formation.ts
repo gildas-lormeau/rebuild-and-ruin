@@ -1,11 +1,6 @@
 /**
- * 3D ice-formation reveal — `frozen_river` modifier. Per-tile frosty disc
- * grows + fades over ~1.1 s with a brief white flash ring at each tile's
- * stagger start. Decorative on top of the terrain bitmap, which already
- * paints these tiles as frozen at apply time.
- *
- * All animation logic lives in `createModifierRevealBurstManager`; this
- * file just supplies the per-modifier config.
+ * `frozen_river` reveal — decorative discs on top of the terrain
+ * bitmap, which already paints the frozen tiles at apply time.
  */
 
 import type * as THREE from "three";

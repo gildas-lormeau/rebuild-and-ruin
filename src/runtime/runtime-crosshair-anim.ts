@@ -1,14 +1,10 @@
-/** Per-frame visual interpolation for remote crosshairs.
- *
- *  Both online roles (host + watcher) animate remote-player crosshairs the
- *  same way: lazy-init a visual-position cache, lerp toward the latest
- *  network target at a fixed speed, and sync each player's cannons to the
- *  visual point. Local controllers animate natively via getCrosshair() —
- *  only remote crosshairs go through this loop.
- *
- *  Lives in runtime/ rather than online/ because it's render-prep, not
- *  networking — both roles call it identically; only `online/` happens to
- *  hold the maps that feed it. */
+/** Per-frame visual interpolation for remote crosshairs. Host + watcher
+ *  animate remote-player crosshairs the same way: lazy-init a visual-
+ *  position cache, lerp toward the latest network target at a fixed
+ *  speed, and sync each player's cannons to the visual point. Local
+ *  controllers animate natively via getCrosshair(); only remote ones go
+ *  through this loop. Lives in runtime/ rather than online/ because it's
+ *  render-prep — both roles call it identically. */
 
 import { aimCannons, canPlayerFire } from "../game/index.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";

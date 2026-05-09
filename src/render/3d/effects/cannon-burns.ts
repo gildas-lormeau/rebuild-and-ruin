@@ -1,17 +1,8 @@
 /**
- * 3D cannon-destroy burst — heavier cousin of wall-burns. Reconciles
- * `overlay.battle.cannonDestroys: CannonDestroy[]` into per-cannon
- * fire-burst hosts sized to the cannon's footprint (2×2 normal /
- * balloon / rampart, 3×3 super gun).
- *
- * Same primitive bundle as wall-burns (see `fire-burst.ts`) but ~1.5×
- * scale and density — 5 flame clusters / 18 sparks / 7 smoke puffs,
- * sparks spawn from a small ring inside the footprint instead of a
- * single point, and the burst lives a hair longer
- * (`CANNON_DESTROY_DURATION`) so the heavier blast has room to read.
- *
- * Per-burst variation derives deterministically from `tileSeed(row,
- * col)` of the cannon's top-left tile.
+ * Cannon-destroy burst — heavier cousin of wall-burns sized to the
+ * cannon footprint (2×2 normal / balloon / rampart, 3×3 super gun).
+ * ~1.5× scale and density of the wall burst, sparks spawn from a small
+ * ring inside the footprint instead of a single point.
  */
 
 import * as THREE from "three";

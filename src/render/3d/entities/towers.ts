@@ -1,41 +1,9 @@
 /**
- * 3D tower meshes — Phase 3 of the 3D renderer migration.
- *
- * Towers live on the `GameMap` (stable list, one entry per selectable
- * keep) and the overlay attaches per-frame ownership data:
- *
- *   • `overlay.entities.ownedTowers` — Map<towerIdx, playerId> for every
- *     tower a player has claimed (their original home tower + any
- *     secondary towers they've enclosed). Drives per-player tinting of
- *     flag, roof, body, and parapets.
- *   • `overlay.entities.homeTowerIndices` — set of tower indices that are
- *     a player's *original* home tower. Selects `home_tower` geometry
- *     (gate, corner flags, taller main flag); other towers use the
- *     `secondary_tower` geometry even when claimed.
- *   • `overlay.entities.towerAlive` — boolean[] indexed by towerIdx.
- *     Dead towers (false) are skipped here — the 3D `debris` entity
- *     manager (see `./debris.ts`) renders their rubble piles under a
- *     separate layer flag.
- *
- * The 2D renderer draws towers inside `drawTowers` (render-towers.ts),
- * picking one of three per-player baked sprites per tower. This
- * manager builds a shared tower model and recolours named meshes per
- * owner: "flag" uses the vivid `interiorLight` team tint, "body" and
- * "parapet" use the muted `wall` stone tint. Roofs stay on their
- * neutral pale palette (cool slate on home, warm terracotta on
- * secondary) so the team identity reads via the flag and wall tone
- * without a saturated roof. Captured secondary towers keep the
- * sandstone geometry and pick up the tint on body + flag.
- *
- * Update cadence: the set of towers only changes across castle-
- * selection phases (ownership) and battle deaths. A small fingerprint
- * of the (variant, ownerId, tower index) triples skips the rebuild on
- * steady-state frames.
- *
- * Reconciliation is teardown+rebuild (dispose every mesh and material
- * the manager owns, rebuild from scratch). Towers top out at 6 per
- * map; this is well below the threshold where incremental
- * reconciliation starts paying off.
+ * 3D tower meshes. Variant: `home_tower` vs `secondary_tower` from
+ * `overlay.entities.homeTowerIndices`; ownership tints flag/body/parapet.
+ * Roofs stay neutral so identity reads via flag + wall tone. Dead towers
+ * skip — `./debris.ts` owns rubble. Teardown+rebuild on a
+ * `(variant, ownerId, idx)` fingerprint; ≤6 towers per map.
  */
 
 import * as THREE from "three";

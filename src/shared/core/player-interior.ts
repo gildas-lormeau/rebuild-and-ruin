@@ -1,21 +1,10 @@
 /**
- * Interior freshness tracking — lazy epoch pairs (wallsEpoch, interiorEpoch).
- *
- * Extracted from board-occupancy.ts so that modules touching only the epoch
- * state machine can depend on `player-types.ts` (L3) without pulling in the
- * full occupancy helpers. Keeps the fire/crumbling-walls modifier impls at L6.
- *
- * CONTRACT:
- *   1. markWallsDirty(player) after any wall mutation (bumps wallsEpoch).
- *   2. recomputeInterior(player) to recompute interior (syncs interiorEpoch).
- *   3. assertInteriorFresh(player) before reading interior (checks epochs match).
- *
- * Epochs are undefined until the first markWallsDirty() call — this is safe:
- * assertInteriorFresh() returns early (no-op) when epochs are uninitialized,
- * allowing tests and code that never mutates walls to skip the overhead.
- *
- * BATTLE EXCEPTION: Interior is intentionally stale while walls are destroyed
- * frame-by-frame. It is rebuilt at the next build phase via recheckTerritory().
+ * Interior freshness — lazy epoch pairs (wallsEpoch, interiorEpoch).
+ * Contract: `markWallsDirty` after wall mutation, `recomputeInterior` to
+ * refresh, `assertInteriorFresh` before reading (no-op while epochs are
+ * undefined — first-write lazy init). Battle keeps interior intentionally
+ * stale while walls are destroyed frame-by-frame; rebuilt at the next
+ * build via recheckTerritory.
  */
 
 import {

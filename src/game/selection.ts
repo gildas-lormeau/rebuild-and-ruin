@@ -31,7 +31,6 @@ export function initTowerSelection(
   if (tower) selectPlayerTower(player, tower);
 }
 
-/** Highlight a tower for selection. Returns true if the highlight changed. */
 export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,

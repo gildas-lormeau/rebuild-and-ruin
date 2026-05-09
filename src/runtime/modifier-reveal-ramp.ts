@@ -1,24 +1,10 @@
 /**
- * Shared driver for runtime-side modifier-reveal ramps.
- *
- * Per-modifier overlay files (fog, rubble_clearing, frostbite, crumbling
- * walls, sapper, grunt_surge, ...) declare a curve `compute(elapsedMs)` and
- * a `durationMs` budget. This helper turns the runtime-supplied
- * `revealTimeMs` (see `modifier-reveal-time.ts` — the single banner-aware
- * site) into a per-frame value:
- *
- *   revealTimeMs === undefined  → undefined  (release; manager pins or
- *                                              falls back to steady state)
- *   revealTimeMs === 0          → compute(0) (snapshot capture window)
- *   0 < revealTimeMs < duration → compute(revealTimeMs)
- *   revealTimeMs >= duration    → undefined
- *
- * Continuity guarantee: the snapshot frame and the first playing frame
- * both call `compute(0)`, so the rendered value is identical across the
- * sweep boundary by construction. There is no separate "sweep value" to
- * drift from `compute(0)`.
- *
- * This file imports nothing about the banner.
+ * Shared driver for runtime-side modifier-reveal ramps. Per-modifier
+ * overlay files declare a curve `compute(elapsedMs)` + `durationMs`. Map:
+ * undefined → undefined (release); inside → compute(elapsed); past
+ * duration → undefined. Continuity: snapshot and first playing frame both
+ * call compute(0), so the value is identical across the sweep boundary
+ * by construction. No banner imports here.
  */
 
 interface ModifierRampConfig {

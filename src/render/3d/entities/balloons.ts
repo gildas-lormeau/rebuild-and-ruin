@@ -1,50 +1,9 @@
 /**
- * 3D balloon meshes — Phase 4 of the 3D renderer migration.
- *
- * Balloons are a special kind of cannon (`CannonMode.BALLOON`) with two
- * visual states:
- *
- *   • `balloon_base`  — grounded mooring (2×2 tile). Rendered for every
- *     live balloon cannon that is NOT currently in flight. Anchored on
- *     the cannon's tile the same way regular 2×2 cannons are (top-left
- *     tile + 1-tile inward offset on both axes).
- *
- *   • `balloon_flight` — deployed envelope + basket (2×2 tile wide ×
- *     3 tiles tall). Rendered once per active flight in
- *     `overlay.battle.balloons`. The flight's basket is interpolated
- *     from the balloon's base position toward the target cannon along
- *     a parabolic arc (matches the 2D `drawBalloons` formula).
- *
- * Dispatch rule: a balloon cannon and a flight are NEVER rendered
- * together — during a flight the balloon is "taking off" and the 2D
- * path hides the base sprite. The cannons entity manager already
- * skips BALLOON cannons, so it's this manager's job to show the base
- * when grounded. Because flights only exist briefly between battles
- * and reference their own source position (overlay `x, y`), the set of
- * grounded balloons during a flight is unaffected — both visuals can
- * safely render in parallel if the game state ever produces both.
- *
- * Flight interpolation (matches `drawBalloons` in render-effects.ts):
- *   basketX = b.x + (b.targetX − b.x) · progress
- *   basketZ = b.y + (b.targetY − b.y) · progress
- *   liftY   = sin(progress · π) · ARC_MAX
- * Basket Y is driven by `liftY`; the rest of the envelope rides along
- * with the host group because the authored basket sits at
- * `yCenter=-1.375` and the host's world Y places that basket at ground
- * + liftY. The 2D path interpolates the envelope center with a basket
- * offset baked in; in 3D the authored scene already contains the
- * envelope/basket offset so we only need to lift the whole host.
- *
- * Cadence: we rebuild the mesh set only when the combined base/flight
- * fingerprint changes (count + per-entry position/flight-state). For
- * flights, `progress` is NOT part of the fingerprint — we rewrite the
- * host position per-frame (same pattern as `cannonballs.ts`). Balloon
- * counts are tiny (≤ a handful per round) so a teardown-and-rebuild on
- * set changes is fine.
- *
- * Tinting: balloons are neutral across owners (the 2D path uses one
- * sprite for all players). Future owner-tinting is deferred — same
- * reason as cannons.
+ * 3D meshes for `CannonMode.BALLOON` cannons. `balloon_base` for live
+ * grounded cannons; `balloon_flight` for entries in
+ * `overlay.battle.balloons` (host rewrites per frame on a parabolic arc
+ * matching `drawBalloons`). Mesh-set rebuilds on count/position
+ * fingerprint changes. Owner tinting deferred — balloons are neutral.
  */
 
 import * as THREE from "three";

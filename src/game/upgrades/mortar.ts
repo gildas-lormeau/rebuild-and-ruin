@@ -1,16 +1,10 @@
 /**
  * Mortar upgrade — at battle start, one normal cannon per Mortar-owning
- * player is randomly elected to fire mortar shots (slow, splash, leaves
- * a burning pit). Speed is encoded via the ballSpeedMult dispatcher,
- * which intentionally cancels out with Rapid Fire.
- *
- * Hooks implemented:
- *   - mortarSpeedMult            (cannonball speed contribution — direct export)
- *   - onBattlePhaseStart         (battle-phase-start election — via registry)
- *
- * Wired through src/game/upgrade-system.ts. Election helpers (filter
- * active firing cannons, isCannonEnclosed) are injected by cannon-system
- * to avoid an L5 → L6 import cycle.
+ * player is elected to fire slow splash shots that leave a burning pit.
+ * Speed flows via the ballSpeedMult dispatcher (intentionally cancels
+ * with Rapid Fire). Hooks: mortarSpeedMult (direct export) +
+ * onBattlePhaseStart (election); election helpers are injected by
+ * cannon-system to avoid an L5 → L6 import cycle.
  */
 
 import { type Cannon, CannonMode } from "../../shared/core/battle-types.ts";

@@ -1,45 +1,10 @@
 /**
- * Shared types and utilities for phase/battle tick functions.
- *
- * Extracted from phase-ticks.ts so that battle-ticks.ts can import
- * without creating a peer dependency on phase-ticks.
- *
- * ### State mutation phases (applies across all game code)
- *
- * Game state is mutated in three distinct phases per frame. The order is
- * load-bearing — reordering causes silent correctness bugs.
- *
- * 1. **APPLY** (message handlers) — Incremental mutations from remote
- *    players. Guards ensure valid state transitions. Runs as messages
- *    arrive (may be zero or many per frame).
- *    Examples: applyPiecePlacement, applyImpactEvent, applyCannonPlacement.
- *
- * 2. **TICK** (main game loop) — Deterministic per-frame simulation:
- *    cannonball physics, grunt movement, battle timers, phase countdowns.
- *    Runs exactly once per frame.
- *    Examples: tickCannonballs, moveGrunts, advancePhaseTimer.
- *
- * 3. **CHECKPOINT** (phase transitions) — Full state reset from host
- *    checkpoint. Replaces entire subsystem state. Runs at most once per
- *    frame, only when the phase changes.
- *    Examples: applyBattleStartCheckpoint, applyBuildStartCheckpoint.
- *
- * Within a single frame: APPLY → TICK → CHECKPOINT (if phase change).
- *
- * ### Phase lifecycle terminology (three distinct terms, NOT interchangeable)
- *
- *   "done"     — query:    "is this phase finished?"  (isCannonPhaseDone checks slots/timer)
- *   "finalize" — action:   run end-of-phase cleanup   (finalizeRound sweeps + scores)
- *   "ended"    — callback: signal that phase is over   (onBattlePhaseEnded notifies tick system)
- *
- * Use the term that matches the operation: query → done, cleanup → finalize, signal → ended.
- * Not every phase has all three stages (battle has no "finalize" — it ends on timer).
- *
- * Finalize functions may have internal sub-steps that must NOT be called directly:
- *   finalizeCannonPhase() = flushCannons() + initCannons()  (see controller-types.ts)
- *   finalizeRound()       = wall sweep + territory scoring   (see build-system.ts)
- * The composite function guarantees correct ordering; calling sub-steps individually
- * skips prerequisites (e.g. flush before init, sweep before score).
+ * Shared types/utilities for phase+battle ticks (split from phase-ticks).
+ * Per-frame mutation order is APPLY (remote msgs, 0..N) → TICK (sim, once)
+ * → CHECKPOINT (phase-change reset, at most once); reordering = silent
+ * bugs. Phase terms are distinct: "done" = query (isXPhaseDone), "finalize"
+ * = cleanup action, "ended" = callback signal. Composite finalize fns own
+ * sub-step ordering — never call sub-steps directly.
  */
 
 import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";

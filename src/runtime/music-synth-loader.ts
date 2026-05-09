@@ -1,17 +1,10 @@
 /**
  * Music render path — drives the headless libadlmidi WASM core to convert
- * player-supplied Rampart XMIs into raw PCM, and wraps the persistence
- * layer that caches the result in IndexedDB.
- *
- * Music playback is fully PCM-based: every track (bg loops, one-shot
- * stingers, tower-enclosure fanfares) is rendered once at upload-time
- * (`renderAllTracksToCache`) so the in-game `activate()` path is a pure
- * IDB read + `AudioBuffer` construction. No live AudioWorklet, no
- * per-frame synth CPU. Browser-native loop support handles XMI `FOR/NEXT`
- * markers at playback via `source.loop` / `loopStart` / `loopEnd`.
- *
- * Vite-specific `?url` import is isolated here so the Deno test harness
- * never resolves it (Deno doesn't understand the `?url` suffix).
+ * player-supplied Rampart XMIs into raw PCM, then caches the result in
+ * IndexedDB via `renderAllTracksToCache`. Playback (music-player.ts) is
+ * pure cache-read + `AudioBuffer` construction; browser-native looping
+ * handles XMI FOR/NEXT markers. The Vite `?url` imports are isolated
+ * here so the Deno test harness never has to resolve them.
  */
 
 import coreUrl from "libadlmidi-js/dist/libadlmidi.dosbox.slim.core.js?url";

@@ -1,17 +1,7 @@
 /**
- * Ground elevation helpers for the 3D renderer.
- *
- * Cannonballs and crosshair cursors treat the world as a flat Y=0 ground
- * plane by default, but the 3D scene has real geometric height for walls.
- * Players aim at the tops of walls (and expect balls to land there), so
- * sprites whose tile happens to sit on a wall need to be lifted to that
- * wall's top — otherwise they visually pass through the wall and hit the
- * ground below.
- *
- * This module keeps the elevation constants + per-(x,y) lookup in one
- * place so both `crosshairs` and `cannonballs` read the same numbers.
- * Walls, towers, cannons, houses, and grunts are each modelled with a
- * tuned top-Y; `targetTopAt` picks the tallest one at a given tile.
+ * Ground elevation helpers. Cannonballs and crosshairs treat the world as
+ * flat Y=0, but walls have real height; `targetTopAt` picks the tallest
+ * occupant at a given tile so crosshair + ball aim agree.
  */
 
 import type { GameMap } from "../../shared/core/geometry-types.ts";

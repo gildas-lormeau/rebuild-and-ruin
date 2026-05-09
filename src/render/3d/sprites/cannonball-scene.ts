@@ -1,26 +1,9 @@
 /**
- * cannonball-scene.ts — in-flight cannonball sprites (1×1 tile, transparent bg).
- *
- * TypeScript conversion of the original `cannonball-scene.mjs`. The
- * engine scales these sprites at runtime based on the ball's altitude
- * (apex = smallest, just-fired / about-to-hit = largest), so each
- * sprite is a single static reference. Three visually distinct types
- * so the player can tell them apart in flight:
- *
- *   cannonball_iron    — standard shot (tier 1/2/3). Plain iron ball.
- *   cannonball_fire    — super-gun shot. Glowing red-orange body +
- *                        small flame puffs; creates a burning pit on
- *                        impact.
- *   cannonball_mortar  — mortar shot. Larger, darker iron with an
- *                        equatorial steel band; creates a pit AND
- *                        splash damage around impact.
- *
- * 1×1 tile sprite → canvasPx=32. Frustum ±1 in X/Z. Balls sit at the
- * scene origin; the renderer positions them in-world per-frame.
- *
- * THREE is injected into `buildCannonball(THREE, scene, params)` so
- * this module stays free of three.js as a static dependency — matches
- * the convention of the other `*-scene.ts` files.
+ * In-flight cannonball sprites (1×1 tile, transparent bg, canvasPx=32).
+ * Three visually distinct variants — `cannonball_iron` (plain),
+ * `cannonball_fire` (super-gun, glowing + creates pit), `cannonball_mortar`
+ * (steel-banded, larger, splash + pit) — so players can tell shots apart
+ * in flight. The renderer scales each sprite by altitude per frame.
  */
 
 import type * as THREE from "three";

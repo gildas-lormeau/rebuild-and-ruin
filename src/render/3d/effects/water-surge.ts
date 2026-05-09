@@ -1,11 +1,6 @@
 /**
- * 3D water-surge reveal — `high_tide` modifier. Per-tile blue disc grows
- * + fades as river-bank grass tiles flood with water. Decorative on top
- * of the terrain bitmap, which already paints these tiles as water at
- * apply time.
- *
- * Disc tint matches the `high_tide` palette pulseColor for parity with
- * the legacy 2D reveal indicator.
+ * `high_tide` reveal — decorative discs on top of the terrain bitmap,
+ * which already paints the flooded tiles as water at apply time.
  */
 
 import type * as THREE from "three";
