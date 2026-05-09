@@ -128,6 +128,20 @@ main();
 function main(): void {
   const args = process.argv.slice(2);
   const asJson = args.includes("--json");
+  // `--changed-files=p1,p2,...` (typically passed by the pre-commit hook
+  // with the staged file list) makes the lint a no-op when none of the
+  // target interfaces' dependency closures contain a changed file: the
+  // result can't differ from the previous run.
+  const changedArg = args.find((a) => a.startsWith("--changed-files="));
+  const changedSet = changedArg
+    ? new Set(
+        changedArg
+          .split("=")[1]!
+          .split(",")
+          .filter((p) => p.length > 0)
+          .map((p) => `${process.cwd()}/${p}`),
+      )
+    : null;
 
   const project = new Project({
     tsConfigFilePath: "tsconfig.json",
@@ -154,7 +168,13 @@ function main(): void {
       );
       process.exit(2);
     }
-    classify(target, iface, project, findings);
+    const affected = affectedFiles(src);
+    if (changedSet !== null && !affected.some((p) => changedSet.has(p))) {
+      // No staged file in this target's dependency closure → result for this
+      // target can't have changed. Skip both static and probe passes.
+      continue;
+    }
+    classify(target, iface, affected, project, findings);
   }
 
   if (findings.length === 0) {
@@ -176,6 +196,7 @@ function main(): void {
 function classify(
   target: Target,
   iface: InterfaceDeclaration,
+  affected: readonly string[],
   project: Project,
   findings: Finding[],
 ): void {
@@ -200,6 +221,7 @@ function classify(
     interfaceFilePath,
     interfaceName,
     candidates,
+    affected,
     project,
   );
   for (const dead of confirmed) {
@@ -252,19 +274,41 @@ function collectExternalReads(
   return reads;
 }
 
+/** Closure of files reachable from `root` by `getReferencingSourceFiles`
+ *  (transitive consumers via `import` statements). The diagnostic for a
+ *  removed property can only appear in a file that imports the interface
+ *  declaration, directly or transitively, so the probe only needs to
+ *  re-type-check this set instead of the whole project. */
+function affectedFiles(root: SourceFile): readonly string[] {
+  const seen = new Set<string>([root.getFilePath()]);
+  const queue: SourceFile[] = [root];
+  while (queue.length > 0) {
+    const cur = queue.pop()!;
+    for (const ref of cur.getReferencingSourceFiles()) {
+      const path = ref.getFilePath();
+      if (!seen.has(path)) {
+        seen.add(path);
+        queue.push(ref);
+      }
+    }
+  }
+  return [...seen];
+}
+
 /** Bisecting in-memory delete probe: try removing all `candidates` from the
- *  interface; if the program still type-checks, every candidate is dead.
- *  Otherwise split and recurse. Returns the subset confirmed dead. Identity
- *  is by `name` so repeated reslicing across probe iterations stays valid
- *  even though the underlying nodes are recreated each time. */
+ *  interface; if the affected file set still type-checks, every candidate
+ *  is dead. Otherwise split and recurse. Returns the subset confirmed dead.
+ *  Identity is by `name` so repeated reslicing across probe iterations stays
+ *  valid even though the underlying nodes are recreated each time. */
 function bisectProbe(
   filePath: string,
   interfaceName: string,
   candidates: readonly DeadCandidate[],
+  affected: readonly string[],
   project: Project,
 ): DeadCandidate[] {
   if (candidates.length === 0) return [];
-  if (probeRemoveAll(filePath, interfaceName, candidates, project)) {
+  if (probeRemoveAll(filePath, interfaceName, candidates, affected, project)) {
     return [...candidates];
   }
   if (candidates.length === 1) return [];
@@ -273,24 +317,29 @@ function bisectProbe(
     filePath,
     interfaceName,
     candidates.slice(0, mid),
+    affected,
     project,
   );
   const right = bisectProbe(
     filePath,
     interfaceName,
     candidates.slice(mid),
+    affected,
     project,
   );
   return [...left, ...right];
 }
 
-/** Try removing every candidate from the interface and re-check. Restores
+/** Try removing every candidate from the interface and re-check the affected
+ *  files only (transitive consumers of the interface declaration). Restores
  *  the file's text on exit so subsequent probes see a pristine project.
- *  Returns true iff removing all candidates leaves the program error-free. */
+ *  Returns true iff removing all candidates leaves the program error-free
+ *  in the affected set — pre-existing diagnostics elsewhere are ignored. */
 function probeRemoveAll(
   filePath: string,
   interfaceName: string,
   candidates: readonly DeadCandidate[],
+  affected: readonly string[],
   project: Project,
 ): boolean {
   const sourceFile = project.getSourceFileOrThrow(filePath);
@@ -300,18 +349,27 @@ function probeRemoveAll(
   for (const member of liveIface.getProperties()) {
     if (namesToRemove.has(member.getName())) member.remove();
   }
-  const diagnostics = project.getPreEmitDiagnostics();
-  // A removal is "load-bearing" iff it produces a diagnostic mentioning the
-  // removed name. Other diagnostics (pre-existing noise from incremental
-  // edits) don't count.
-  const causedByRemoval = diagnostics.some((d) => {
-    const msg = d.getMessageText();
-    const text = typeof msg === "string" ? msg : msg.getMessageText();
-    for (const name of namesToRemove) {
-      if (text.includes(`'${name}'`) || text.includes(`"${name}"`)) return true;
+  // Per-file diagnostics scoped to the dependency closure of the interface.
+  // Calling `project.getPreEmitDiagnostics()` would re-check every file in
+  // the project (~280) on every probe; per-file iteration shrinks that to
+  // the actual consumers (~20-50 typically), a 5-10x speedup.
+  let causedByRemoval = false;
+  for (const path of affected) {
+    const sf = project.getSourceFileOrThrow(path);
+    const diags = sf.getPreEmitDiagnostics();
+    for (const d of diags) {
+      const msg = d.getMessageText();
+      const text = typeof msg === "string" ? msg : msg.getMessageText();
+      for (const name of namesToRemove) {
+        if (text.includes(`'${name}'`) || text.includes(`"${name}"`)) {
+          causedByRemoval = true;
+          break;
+        }
+      }
+      if (causedByRemoval) break;
     }
-    return false;
-  });
+    if (causedByRemoval) break;
+  }
   // Restore file text so subsequent probes start from a clean state.
   sourceFile.replaceWithText(originalText);
   return !causedByRemoval;
