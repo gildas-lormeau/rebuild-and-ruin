@@ -65,15 +65,6 @@ export interface PieceDims {
   heightSegments?: number;
 }
 
-export interface ChunkSpec {
-  shape: PieceShape;
-  dims: PieceDims;
-  pos: readonly [number, number, number];
-  rot?: readonly [number, number, number];
-  scale?: readonly [number, number, number];
-  material: MaterialSpec;
-}
-
 export interface RocksSpec {
   count: number;
   footprint: { width: number; depth: number };
@@ -88,7 +79,7 @@ export interface RocksSpec {
 export interface VariantParams {
   seed: number;
   rocks: RocksSpec;
-  chunks?: ChunkSpec[];
+  chunks?: LayoutPiece[];
 }
 
 export interface VariantDescriptor {

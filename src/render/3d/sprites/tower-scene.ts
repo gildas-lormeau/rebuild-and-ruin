@@ -187,7 +187,6 @@ interface PolePlatformPlacement {
     height: number;
     pos: [number, number, number];
   };
-  poleMaterial?: MaterialSpec;
   flag?: {
     width: number;
     height: number;
@@ -215,7 +214,6 @@ interface CornerFlagPlacement {
 
 interface PoleFlagResult {
   pole: { radius: number; height: number; pos: [number, number, number] };
-  material: MaterialSpec;
   flag?: {
     width: number;
     height: number;
@@ -1245,7 +1243,6 @@ export function polePlatformPlacement(
   const platformTopY = roofTopY + pp.height;
   const pf = _makePoleFlag(pp.pole, cx, platformTopY, cz);
   result.pole = pf.pole;
-  result.poleMaterial = pf.material;
   if (pf.flag) result.flag = pf.flag;
   return result;
 }
@@ -1346,7 +1343,6 @@ function _makePoleFlag(
       height: pole.height,
       pos: [cx, baseY + pole.height / 2, cz],
     },
-    material: pole.material,
   };
   if (pole.flag) {
     const f = pole.flag;
