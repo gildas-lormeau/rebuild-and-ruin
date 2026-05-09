@@ -145,7 +145,7 @@ export async function handleServerLifecycleMessage(
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
       ) {
-        clearLobbySlot(msg.previousPlayerId as ValidPlayerSlot);
+        clearLobbySlot(msg.previousPlayerId);
       } else {
         const currentPlayerId = deps.session.myPlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
@@ -153,7 +153,7 @@ export async function handleServerLifecycleMessage(
         }
       }
       deps.session.myPlayerId = msg.playerId;
-      occupyLobbySlot(msg.playerId as ValidPlayerSlot);
+      occupyLobbySlot(msg.playerId);
       return true;
 
     case MESSAGE.PLAYER_JOINED:
@@ -161,9 +161,9 @@ export async function handleServerLifecycleMessage(
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
       ) {
-        clearLobbySlot(msg.previousPlayerId as ValidPlayerSlot);
+        clearLobbySlot(msg.previousPlayerId);
       }
-      occupyLobbySlot(msg.playerId as ValidPlayerSlot);
+      occupyLobbySlot(msg.playerId);
       return true;
 
     case MESSAGE.PLAYER_LEFT: {

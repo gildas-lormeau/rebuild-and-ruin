@@ -382,20 +382,20 @@ export function createGameEventBus(): GameEventBus {
 
   return {
     emit<K extends keyof GameEventMap>(type: K, event: GameEventMap[K]): void {
-      const set = typed.get(type as string);
+      const set = typed.get(type);
       if (set) for (const handler of set) handler(event);
       for (const handler of wildcard) {
-        handler(type, event as GameEventMap[keyof GameEventMap]);
+        handler(type, event);
       }
     },
     on<K extends keyof GameEventMap>(
       type: K,
       handler: GameEventHandler<K>,
     ): void {
-      let set = typed.get(type as string);
+      let set = typed.get(type);
       if (!set) {
         set = new Set();
-        typed.set(type as string, set);
+        typed.set(type, set);
       }
       set.add(handler as InternalHandler);
     },
@@ -403,7 +403,7 @@ export function createGameEventBus(): GameEventBus {
       type: K,
       handler: GameEventHandler<K>,
     ): void {
-      typed.get(type as string)?.delete(handler as InternalHandler);
+      typed.get(type)?.delete(handler as InternalHandler);
     },
     onAny(handler: AnyEventHandler): void {
       wildcard.add(handler);

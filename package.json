@@ -82,6 +82,7 @@
     "audit:optional": "deno run -A scripts/audit-optional-properties.ts",
     "audit:bool-narrow": "deno run -A scripts/audit-boolean-narrowing.ts",
     "audit:union-members": "deno run -A scripts/audit-union-members.ts",
+    "audit:redundant-casts": "deno run -A scripts/audit-redundant-casts.ts",
     "graph": "deno run -A scripts/layer-graph.ts",
     "graph:files": "deno run -A scripts/file-graph.ts --layout fdp"
   },
