@@ -9,9 +9,9 @@
  * Usage:
  *   debug launch  [--session ID] [--restart] [--node | --deno-test | --deno-run] -- <cmd> [args...]
  *   debug rerun   [--session ID]                       # close + relaunch with prior cmd
- *   debug bp      [--session ID] <file>:<line> [--cond <expr>]
- *   debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
- *   debug rm      [--session ID] <bpId | file:line>
+ *   debug bp      [--session ID] <file>:<line-or-snippet> [--cond <expr>]
+ *   debug capture [--session ID] <file>:<line-or-snippet> <expr> [<expr>...] [--cond <expr>]
+ *   debug rm      [--session ID] <bpId | file:line-or-snippet>
  *   debug run     [--session ID] [--wait <ms>]   # resume + wait for exit
  *   debug continue [--session ID]
  *   debug step    [--session ID] [over|into|out]
@@ -24,6 +24,13 @@
  *   debug logs    [--session ID] [--stderr | --stdout | --daemon]
  *   debug close   [--session ID]
  *   debug list                                    # list active sessions
+ *
+ * Targets (bp/capture/rm) accept either `file:N` (line number) or
+ * `file:snippet` (substring of the line's source — line-drift-resistant).
+ * Snippet form reads the file at command time, finds the unique line, and
+ * submits that line number; errors on 0 or >1 matches. Quote in shell to
+ * preserve spaces/parens, e.g.
+ *   debug capture 'src/foo.ts:if (state.phase ===' state.phase
  *
  * Convenience launch flags inject --inspect-brk in the right position:
  *   --node       node --inspect-brk=127.0.0.1:0 ARGS...
@@ -276,24 +283,24 @@ function buildLaunchCmd(parsed: ParsedArgs): string[] {
 
 async function cmdBp(parsed: ParsedArgs): Promise<void> {
   const target = parsed.positional[0];
-  if (!target) throw new Error("bp requires <file>:<line>");
-  const { file, line } = parseFileLine(target);
+  if (!target) throw new Error("bp requires <file>:<line-or-snippet>");
+  const { file, line, via } = await resolveTarget(target);
   const condition = parsed.flags.get("cond");
   const result = await sendIpc(parsed.session, "setBreakpoint", {
     file,
     line,
     ...(typeof condition === "string" ? { condition } : {}),
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(enrichWithResolved(result, via, line)));
 }
 
 async function cmdCapture(parsed: ParsedArgs): Promise<void> {
   const target = parsed.positional[0];
   const exprs = parsed.positional.slice(1);
-  if (!target) throw new Error("capture requires <file>:<line>");
+  if (!target) throw new Error("capture requires <file>:<line-or-snippet>");
   if (exprs.length === 0)
     throw new Error("capture requires at least one expression");
-  const { file, line } = parseFileLine(target);
+  const { file, line, via } = await resolveTarget(target);
   const condition = parsed.flags.get("cond");
   const result = await sendIpc(parsed.session, "setCapture", {
     file,
@@ -301,20 +308,86 @@ async function cmdCapture(parsed: ParsedArgs): Promise<void> {
     exprs,
     ...(typeof condition === "string" ? { condition } : {}),
   });
-  console.log(JSON.stringify(result));
+  console.log(JSON.stringify(enrichWithResolved(result, via, line)));
 }
 
-function parseFileLine(arg: string): { file: string; line: number } {
-  const m = arg.match(/^(.+):(\d+)$/);
-  if (!m) throw new Error(`expected <file>:<line>, got "${arg}"`);
-  return { file: m[1], line: Number(m[2]) };
+function enrichWithResolved(
+  result: unknown,
+  via: { snippet: string } | undefined,
+  line: number,
+): unknown {
+  if (!via) return result;
+  if (typeof result !== "object" || result === null) return result;
+  return {
+    ...(result as Record<string, unknown>),
+    resolvedFrom: { snippet: via.snippet, line },
+  };
 }
 
 async function cmdRm(parsed: ParsedArgs): Promise<void> {
-  const bpId = parsed.positional[0];
-  if (!bpId) throw new Error("rm requires <bpId>");
+  const arg = parsed.positional[0];
+  if (!arg) throw new Error("rm requires <bpId> or <file>:<line-or-snippet>");
+  // V8-issued bpIds can contain colons (e.g. "1:0:0:file:///..."), so we only
+  // attempt snippet resolution when the prefix names a real file. This keeps
+  // opaque bpIds passing straight through to the daemon.
+  let bpId = arg;
+  const idx = arg.indexOf(":");
+  if (idx > 0 && !/^.+:\d+$/.test(arg)) {
+    const candidateFile = arg.slice(0, idx);
+    const stat = await Deno.stat(candidateFile).catch(() => null);
+    if (stat?.isFile) {
+      const { file, line } = await resolveTarget(arg);
+      bpId = `${file}:${line}`;
+    }
+  }
   const result = await sendIpc(parsed.session, "removeBreakpoint", { bpId });
   console.log(JSON.stringify(result));
+}
+
+async function resolveTarget(
+  arg: string,
+): Promise<{ file: string; line: number; via?: { snippet: string } }> {
+  // Line form is tried first so existing `file:N` invocations are unchanged.
+  const lineMatch = arg.match(/^(.+):(\d+)$/);
+  if (lineMatch) return { file: lineMatch[1], line: Number(lineMatch[2]) };
+  // First-colon split: paths on darwin/linux don't contain colons, but a
+  // snippet might (e.g. `state.phase: BATTLE`), so split on the first one.
+  const idx = arg.indexOf(":");
+  if (idx <= 0) {
+    throw new Error(`expected <file>:<line> or <file>:<snippet>, got "${arg}"`);
+  }
+  const file = arg.slice(0, idx);
+  const snippet = arg.slice(idx + 1);
+  const line = await resolveSnippet(file, snippet);
+  return { file, line, via: { snippet } };
+}
+
+async function resolveSnippet(file: string, snippet: string): Promise<number> {
+  let text: string;
+  try {
+    text = await Deno.readTextFile(file);
+  } catch (e) {
+    throw new Error(`cannot read ${file}: ${(e as Error).message}`);
+  }
+  const lines = text.split("\n");
+  const matches: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes(snippet)) matches.push(i + 1);
+  }
+  if (matches.length === 0) {
+    throw new Error(`no line matched ${JSON.stringify(snippet)} in ${file}`);
+  }
+  if (matches.length > 1) {
+    const preview = matches
+      .slice(0, 10)
+      .map((l) => `${file}:${l}`)
+      .join(", ");
+    const rest = matches.length > 10 ? `, … (${matches.length - 10} more)` : "";
+    throw new Error(
+      `snippet ${JSON.stringify(snippet)} matched ${matches.length} lines: ${preview}${rest}; refine`,
+    );
+  }
+  return matches[0];
 }
 
 async function cmdRun(parsed: ParsedArgs): Promise<void> {

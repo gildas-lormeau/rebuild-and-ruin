@@ -22,9 +22,9 @@ Real interactive primitives (eval, frames, step) are also exposed.
 ```
 debug launch  [--session ID] [--restart] [--node|--deno-run|--deno-test] -- <cmd> [args...]
 debug rerun   [--session ID]                          # close + relaunch with prior cmd
-debug capture [--session ID] <file>:<line> <expr> [<expr>...] [--cond <expr>]
-debug bp      [--session ID] <file>:<line> [--cond <expr>]
-debug rm      [--session ID] <bpId | file:line>     # bpId removes one; file:line removes every capture at that site
+debug capture [--session ID] <file>:<line-or-snippet> <expr> [<expr>...] [--cond <expr>]
+debug bp      [--session ID] <file>:<line-or-snippet> [--cond <expr>]
+debug rm      [--session ID] <bpId | file:line-or-snippet>   # bpId removes one; file:line removes every capture at that site
 debug run     [--session ID] [--wait <ms>]        # resume + wait for exit
 debug continue [--session ID]
 debug step    [--session ID] [over|into|out]
@@ -42,6 +42,33 @@ debug list
 Sessions are identified by a short id (default `default`). Multiple
 concurrent sessions are supported — each gets its own daemon and Unix
 socket under `/tmp/debug-sessions/<id>/`.
+
+## Targets: line or snippet
+
+`bp`, `capture`, and `rm` accept two target forms after the file:
+
+- **`file:N`** — line number (existing behavior).
+- **`file:snippet`** — substring of the line's source. The CLI reads the
+  file at command time, finds the unique line containing the substring,
+  and submits that line number; errors if 0 or >1 lines match.
+
+Snippet form is line-drift-resistant: the number rebinds at each command,
+so a capture set during exploration still points at the right statement
+after a refactor inserts lines above it. Quote in shell to preserve
+spaces and parens:
+
+```sh
+$ debug capture 'src/game/phase-setup.ts:setPhase(state' state.phase phase
+{"bpId":"…","via":"sourceMap","resolvedFrom":{"snippet":"setPhase(state","line":253}}
+
+$ debug bp 'src/game/battle-system.ts:if (impact.kind === "tower")'
+$ debug rm 'src/game/phase-setup.ts:setPhase(state'   # also accepts snippet form
+```
+
+The result includes a `resolvedFrom` field showing what was matched and
+to which line, so the agent can record it for later use. Match is
+substring-based; for ambiguous snippets the error lists every matching
+line so the call can be tightened.
 
 ## Convenience launch flags
 
