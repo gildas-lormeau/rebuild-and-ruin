@@ -33,7 +33,7 @@ interface ModifierDef extends PoolDef<ModifierId> {
    *
    *  This is the single source of truth for the snapshot revert tile,
    *  consumed by `buildModifierSnapshotMap` via the renderer in
-   *  `drawBannerPrevScene`. Adding a new modifier that mutates terrain to
+   *  `drawBannerSnapshot`. Adding a new modifier that mutates terrain to
    *  a non-Grass tile (e.g. Grass→Road, Water→Grass) only requires
    *  setting the right value here — no renderer changes. */
   readonly tileMutationPrev: number | null;

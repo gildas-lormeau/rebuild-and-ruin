@@ -323,63 +323,39 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     }
   }
 
-  // Banner prev-scene is a display-resolution snapshot. It paints onto
-  // the DISPLAY canvas at 1:1 — never through the offscreen-scene →
-  // display blit — because a tilted or viewport-cropped camera has no
-  // "full-map" rect to re-crop from. The banner strip itself is drawn
-  // in the offscreen at map coords and carried to the display by the
-  // normal blit, so we clip the snapshot to the region BELOW the
-  // banner strip to keep the strip visible on top.
-  function drawBannerPrevScene(
+  // Banner scene snapshots paint at display resolution onto the DISPLAY
+  // canvas — never through the offscreen-scene → display blit — because
+  // a tilted or viewport-cropped camera has no "full-map" rect to re-crop
+  // from. The banner strip itself is drawn in the offscreen at map coords
+  // and carried to the display by the normal blit; the snapshot clips to
+  // the region above (`newScene`) or below (`prevScene`) the strip to
+  // keep the strip visible on top. During a banner the viewport is
+  // always at fullMapVp (awaitCameraFlat gates the banner display chain
+  // on convergence), so map→display is a uniform SCALE multiply.
+  // Together, the two sides form a progressive reveal of the new scene
+  // over the old — both frozen for the duration of the sweep, so the
+  // live renderer never repaints world contents during a banner.
+  function drawBannerSnapshot(
     displayCtx: CanvasRenderingContext2D,
     displayW: number,
     displayH: number,
     overlay: RenderOverlay | undefined,
+    side: "above" | "below",
   ): void {
-    if (!overlay?.ui?.banner?.prevScene) return;
-    const prev = overlay.ui.banner.prevScene;
-
-    // Banner strip bounds are map-pixel coords. During a banner the
-    // viewport is always at fullMapVp (awaitCameraFlat gates the banner
-    // display chain on convergence), so map→display is a uniform SCALE
-    // multiply.
-    const bannerBottomMap = overlay.ui.banner.bottom;
-    const clipY = bannerBottomMap * SCALE;
-    if (clipY >= displayH) return;
+    const banner = overlay?.ui?.banner;
+    if (!banner) return;
+    const snapshot = side === "above" ? banner.newScene : banner.prevScene;
+    if (!snapshot) return;
+    const edgePx = (side === "above" ? banner.top : banner.bottom) * SCALE;
+    const clipY = side === "above" ? 0 : edgePx;
+    const clipH = side === "above" ? edgePx : displayH - edgePx;
+    if (clipH <= 0) return;
 
     displayCtx.save();
     displayCtx.beginPath();
-    displayCtx.rect(0, clipY, displayW, displayH - clipY);
+    displayCtx.rect(0, clipY, displayW, clipH);
     displayCtx.clip();
-    displayCtx.drawImage(prev.canvas, 0, 0, displayW, displayH);
-    displayCtx.restore();
-  }
-
-  // Companion to `drawBannerPrevScene`: paints the NEW scene (post-mutation
-  // snapshot) into the region ABOVE the banner strip. Together, the two
-  // snapshots form a progressive reveal of the new scene over the old
-  // scene — both frozen for the duration of the sweep, so the live
-  // renderer never repaints world contents during a banner.
-  function drawBannerNewScene(
-    displayCtx: CanvasRenderingContext2D,
-    displayW: number,
-    displayH: number,
-    overlay: RenderOverlay | undefined,
-  ): void {
-    if (!overlay?.ui?.banner?.newScene) return;
-    const next = overlay.ui.banner.newScene;
-
-    // Banner strip bounds in display pixels. Above the top edge is the
-    // region we reveal to — clip to [0, topPx).
-    const bannerTopMap = overlay.ui.banner.top;
-    const topPx = bannerTopMap * SCALE;
-    if (topPx <= 0) return;
-
-    displayCtx.save();
-    displayCtx.beginPath();
-    displayCtx.rect(0, 0, displayW, topPx);
-    displayCtx.clip();
-    displayCtx.drawImage(next.canvas, 0, 0, displayW, displayH);
+    displayCtx.drawImage(snapshot.canvas, 0, 0, displayW, displayH);
     displayCtx.restore();
   }
 
@@ -482,8 +458,8 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // Clips are disjoint — new scene above the banner top, old scene below
     // the banner bottom — so paint order doesn't matter. New-above-prev
     // mirrors the top-to-bottom reading order of the sweep.
-    drawBannerNewScene(canvasCtx, cw, gameH, overlay);
-    drawBannerPrevScene(canvasCtx, cw, gameH, overlay);
+    drawBannerSnapshot(canvasCtx, cw, gameH, overlay, "above");
+    drawBannerSnapshot(canvasCtx, cw, gameH, overlay, "below");
 
     // HUD text drawn at display resolution (screen-relative, not affected by zoom)
     canvasCtx.save();
