@@ -28,7 +28,6 @@
 
 import * as THREE from "three";
 import type { BoltParams } from "./balloon-scene.ts";
-import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   applyBoxWallUV,
   CELL,
@@ -40,9 +39,9 @@ import {
 import { FLAG_BASE, MERLON_AO, WOOD_DARK } from "./sprite-materials.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
-export type FlagSide = "+x" | "-x" | "+z" | "-z";
+type FlagSide = "+x" | "-x" | "+z" | "-z";
 
-export interface FlagParams {
+interface FlagParams {
   width: number;
   height: number;
   /** Pennant Y center, measured from the pole's top (negative → below tip). */
@@ -52,14 +51,14 @@ export interface FlagParams {
   material: MaterialSpec;
 }
 
-export interface PoleParams {
+interface PoleParams {
   radius: number;
   height: number;
   material: MaterialSpec;
   flag?: FlagParams;
 }
 
-export interface PolePlatformParams {
+interface PolePlatformParams {
   width: number;
   depth: number;
   height: number;
@@ -69,27 +68,27 @@ export interface PolePlatformParams {
   pole?: PoleParams;
 }
 
-export type Corner = "NW" | "NE" | "SW" | "SE";
+type Corner = "NW" | "NE" | "SW" | "SE";
 
-export interface CornerFlagSpec {
+interface CornerFlagSpec {
   corner: Corner;
   pole: PoleParams;
 }
 
-export interface ParapetClipSideSpec {
+interface ParapetClipSideSpec {
   exclude?: { lo: number; hi: number }[];
 }
 
-export interface ParapetClipSpec {
+interface ParapetClipSpec {
   N?: ParapetClipSideSpec;
   S?: ParapetClipSideSpec;
   E?: ParapetClipSideSpec;
   W?: ParapetClipSideSpec;
 }
 
-export type ParapetSide = "N" | "S" | "E" | "W";
+type ParapetSide = "N" | "S" | "E" | "W";
 
-export interface ParapetParams {
+interface ParapetParams {
   height: number;
   thickness: number;
   material: MaterialSpec;
@@ -98,7 +97,7 @@ export interface ParapetParams {
   clip?: ParapetClipSpec;
 }
 
-export interface RoofParams {
+interface RoofParams {
   thickness: number;
   /** Default 1.06 — roof footprint is slightly larger than the walls. */
   eaveScale?: number;
@@ -106,7 +105,7 @@ export interface RoofParams {
   parapet?: ParapetParams;
 }
 
-export interface TurretParams {
+interface TurretParams {
   name?: string;
   /** World-X center of the turret. */
   x: number;
@@ -134,22 +133,15 @@ export interface TurretParams {
   cornerFlags?: CornerFlagSpec[];
 }
 
-export interface TowerParams {
+interface TowerParams {
   turrets: TurretParams[];
 }
 
-export interface Variant {
+interface Variant {
   name: string;
   label: string;
   canvasPx: number;
   params: TowerParams;
-}
-
-interface TurretFootprint {
-  xMin: number;
-  xMax: number;
-  zMin: number;
-  zMax: number;
 }
 
 interface RoofPlacement {
@@ -217,21 +209,6 @@ interface PoleFlagResult {
     yaw: number;
     material: MaterialSpec;
   };
-}
-
-export interface VariantReport {
-  name: string;
-  turrets: {
-    name: string | undefined;
-    x: number;
-    z: number;
-    width: number;
-    depth: number;
-    height: number;
-    footprint: TurretFootprint;
-    wallTopY: number;
-  }[];
-  warnings: string[];
 }
 
 interface UVGenerator {
@@ -689,58 +666,6 @@ export function getTowerVariant(name: string): Variant | undefined {
   return findVariant(VARIANTS, name);
 }
 
-export function variantReport(variant: Variant): VariantReport {
-  const warnings: string[] = [];
-  const turrets = variant.params.turrets.map((t) => ({
-    ...t,
-    footprint: turretFootprint(t),
-  }));
-
-  for (const t of turrets) {
-    const fp = t.footprint;
-    if (
-      fp.xMin < -FRUSTUM_HALF - BOUND_EPS ||
-      fp.xMax > FRUSTUM_HALF + BOUND_EPS ||
-      fp.zMin < -FRUSTUM_HALF - BOUND_EPS ||
-      fp.zMax > FRUSTUM_HALF + BOUND_EPS
-    ) {
-      warnings.push(
-        `turret "${t.name}" roof leaves the ±${FRUSTUM_HALF} canvas: ` +
-          `x=[${fp.xMin.toFixed(3)}, ${fp.xMax.toFixed(3)}], ` +
-          `z=[${fp.zMin.toFixed(3)}, ${fp.zMax.toFixed(3)}]`,
-      );
-    }
-  }
-
-  return {
-    name: variant.name,
-    turrets: turrets.map((t) => ({
-      name: t.name,
-      x: t.x,
-      z: t.z,
-      width: t.width,
-      depth: t.depth,
-      height: t.height,
-      footprint: t.footprint,
-      wallTopY: wallTopY(t),
-    })),
-    warnings,
-  };
-}
-
-/** Top-down footprint of a turret including eave overhang. */
-export function turretFootprint(turret: TurretParams): TurretFootprint {
-  const eaveScale = turret.roof.eaveScale ?? 1.06;
-  const halfW = (turret.width / 2) * eaveScale;
-  const halfD = (turret.depth / 2) * eaveScale;
-  return {
-    xMin: turret.x - halfW,
-    xMax: turret.x + halfW,
-    zMin: turret.z - halfD,
-    zMax: turret.z + halfD,
-  };
-}
-
 /**
  * Build the turret stack authored in `params` into `scene`. A fresh
  * `THREE.Group` wraps every mesh and applies (TOWER_XZ_SCALE,
@@ -1062,7 +987,7 @@ export function buildTower(
   }
 }
 
-export function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
+function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
   if (!turret.roof.parapet) return [];
   const p = turret.roof.parapet;
   const skip = new Set<ParapetSide>(p.skipSides ?? []);
@@ -1177,7 +1102,7 @@ export function parapetPlacements(turret: TurretParams): ParapetPlacement[] {
   return out;
 }
 
-export function windowPlacement(turret: TurretParams): WindowPlacement | null {
+function windowPlacement(turret: TurretParams): WindowPlacement | null {
   if (!turret.window) return null;
   const yBase = turret.yBase ?? 0;
   return {
@@ -1191,7 +1116,7 @@ export function windowPlacement(turret: TurretParams): WindowPlacement | null {
   };
 }
 
-export function polePlatformPlacement(
+function polePlatformPlacement(
   turret: TurretParams,
 ): PolePlatformPlacement | null {
   if (!turret.polePlatform) return null;
@@ -1219,9 +1144,7 @@ export function polePlatformPlacement(
   return result;
 }
 
-export function cornerFlagPlacements(
-  turret: TurretParams,
-): CornerFlagPlacement[] {
+function cornerFlagPlacements(turret: TurretParams): CornerFlagPlacement[] {
   if (!turret.cornerFlags || turret.cornerFlags.length === 0) return [];
   const roof = roofPlacement(turret);
   const roofTopY = roof.yCenter + roof.thickness / 2;
@@ -1247,7 +1170,7 @@ export function cornerFlagPlacements(
   });
 }
 
-export function roofPlacement(turret: TurretParams): RoofPlacement {
+function roofPlacement(turret: TurretParams): RoofPlacement {
   const eaveScale = turret.roof.eaveScale ?? 1.06;
   const t = turret.roof.thickness;
   return {
@@ -1259,7 +1182,7 @@ export function roofPlacement(turret: TurretParams): RoofPlacement {
 }
 
 /** Y of the top of the wall (where the roof slab rests). */
-export function wallTopY(turret: TurretParams): number {
+function wallTopY(turret: TurretParams): number {
   return (turret.yBase ?? 0) + turret.height;
 }
 

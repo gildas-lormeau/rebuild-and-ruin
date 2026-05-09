@@ -15,7 +15,7 @@
 
 import type * as THREE from "three";
 
-export interface ProceduralTextureContext {
+interface ProceduralTextureContext {
   readonly ctx: CanvasRenderingContext2D;
   readonly size: number;
   readonly rand: () => number;

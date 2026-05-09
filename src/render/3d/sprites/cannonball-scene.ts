@@ -24,7 +24,6 @@
  */
 
 import type * as THREE from "three";
-import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
   cells,
   createMaterial,
@@ -32,26 +31,26 @@ import {
   type MaterialSpec,
 } from "./sprite-kit.ts";
 
-export interface BallParams {
+interface BallParams {
   radius: number;
   material: MaterialSpec;
   widthSegments?: number;
   heightSegments?: number;
 }
 
-export interface BandParams {
+interface BandParams {
   radius: number;
   tube: number;
   material: MaterialSpec;
 }
 
-export interface FlamePuffParams {
+interface FlamePuffParams {
   radius: number;
   pos: readonly [number, number, number];
   material: MaterialSpec;
 }
 
-export interface CannonballParams {
+interface CannonballParams {
   ball: BallParams;
   /** Optional equatorial band (mortar only). */
   band?: BandParams;
@@ -59,16 +58,11 @@ export interface CannonballParams {
   flamePuffs?: readonly FlamePuffParams[];
 }
 
-export interface CannonballVariant {
+interface CannonballVariant {
   name: string;
   label: string;
   canvasPx: number;
   params: CannonballParams;
-}
-
-export interface CannonballVariantReport {
-  name: string;
-  warnings: string[];
 }
 
 // Iron ball — standard shot. Mid-metalness so it reads as cast iron.
@@ -189,37 +183,6 @@ export function getCannonballVariant(
   name: string,
 ): CannonballVariant | undefined {
   return findVariant(VARIANTS, name);
-}
-
-export function variantReport(
-  variant: CannonballVariant,
-): CannonballVariantReport {
-  const warnings: string[] = [];
-  const p = variant.params;
-  if (p.ball.radius > FRUSTUM_HALF + BOUND_EPS) {
-    warnings.push(fmtBound("ball radius", p.ball.radius));
-  }
-  if (p.band && Math.abs(p.band.radius - p.ball.radius) > 0.01) {
-    warnings.push(
-      `band radius ${p.band.radius} should match ball radius ${p.ball.radius}`,
-    );
-  }
-  for (const puff of p.flamePuffs ?? []) {
-    // Axis-aligned bounding reach — the flame puff's extent in whichever
-    // axis (X, Y, Z) it sits farthest from the origin on, plus its radius.
-    // Not a radial reach: puffs can sit along any axis and we want to
-    // bound each one independently against ±1.
-    const reach =
-      Math.max(
-        Math.abs(puff.pos[0]),
-        Math.abs(puff.pos[1]),
-        Math.abs(puff.pos[2]),
-      ) + puff.radius;
-    if (reach > FRUSTUM_HALF + BOUND_EPS) {
-      warnings.push(fmtBound("flame puff", reach));
-    }
-  }
-  return { name: variant.name, warnings };
 }
 
 export function buildCannonball(

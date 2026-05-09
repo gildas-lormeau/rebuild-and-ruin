@@ -31,13 +31,13 @@ import {
 import { BORE_DARK } from "./sprite-materials.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
-export interface BaseParams {
+interface BaseParams {
   radius: number;
   height: number;
   material: TexturedSpec;
 }
 
-export interface BarrelParams {
+interface BarrelParams {
   length: number;
   radius: number;
   radiusBreech?: number;
@@ -48,25 +48,25 @@ export interface BarrelParams {
   material: MaterialSpec;
 }
 
-export interface BoreParams {
+interface BoreParams {
   radius: number;
   material: MaterialSpec;
 }
 
-export interface BandsParams {
+interface BandsParams {
   positions: readonly number[];
   flare: number;
   height: number;
   material: MaterialSpec;
 }
 
-export interface BevelSpec {
+interface BevelSpec {
   size?: number;
   thickness?: number;
   segments?: number;
 }
 
-export interface CheeksSupportsParams {
+interface CheeksSupportsParams {
   kind?: "cheeks";
   width: number;
   height: number;
@@ -78,7 +78,7 @@ export interface CheeksSupportsParams {
   material: TexturedSpec;
 }
 
-export interface SlabParams {
+interface SlabParams {
   width: number;
   depth: number;
   height: number;
@@ -87,18 +87,18 @@ export interface SlabParams {
   material?: MaterialSpec;
 }
 
-export interface StackSupportsParams {
+interface StackSupportsParams {
   kind: "stack";
   zOffset: number;
   slabs: readonly SlabParams[];
   material: MaterialSpec;
 }
 
-export type SupportsParams = CheeksSupportsParams | StackSupportsParams;
+type SupportsParams = CheeksSupportsParams | StackSupportsParams;
 
-export type DecorationShape = "box" | "cylinder" | "torus" | "sphere" | "disc";
+type DecorationShape = "box" | "cylinder" | "torus" | "sphere" | "disc";
 
-export interface DecorationDims {
+interface DecorationDims {
   width?: number;
   height?: number;
   depth?: number;
@@ -114,7 +114,7 @@ export interface DecorationDims {
   heightSegments?: number;
 }
 
-export interface DecorationSpec {
+interface DecorationSpec {
   name?: string;
   shape: DecorationShape;
   dims: DecorationDims;
@@ -130,7 +130,7 @@ export interface DecorationSpec {
   readonly tags?: readonly string[];
 }
 
-export interface CannonParams {
+interface CannonParams {
   base: BaseParams;
   barrel: BarrelParams;
   bore: BoreParams;
@@ -139,7 +139,7 @@ export interface CannonParams {
   decorations?: readonly DecorationSpec[];
 }
 
-export interface CannonVariant {
+interface CannonVariant {
   name: string;
   label: string;
   canvasPx: number;

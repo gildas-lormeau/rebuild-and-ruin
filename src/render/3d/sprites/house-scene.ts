@@ -24,7 +24,6 @@
  */
 
 import * as THREE from "three";
-import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   type BoxShapeParams,
   cells,
@@ -33,11 +32,11 @@ import {
 } from "./sprite-kit.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
-export type WindowSide = "+x" | "-x" | "+z" | "-z";
+type WindowSide = "+x" | "-x" | "+z" | "-z";
 
-export type BodyParams = BoxShapeParams<TexturedSpec>;
+type BodyParams = BoxShapeParams<TexturedSpec>;
 
-export interface RoofParams {
+interface RoofParams {
   /** X extent of the roof footprint. Overhang past body width reads as
    *  the eave (no separate `eaveScale`). */
   width: number;
@@ -51,7 +50,7 @@ export interface RoofParams {
   material: TexturedSpec;
 }
 
-export interface DoorParams {
+interface DoorParams {
   width: number;
   height: number;
   /** Lateral offset from the +Z face center. Default 0. */
@@ -59,7 +58,7 @@ export interface DoorParams {
   material: TexturedSpec;
 }
 
-export interface WindowParams {
+interface WindowParams {
   side: WindowSide;
   width: number;
   height: number;
@@ -70,28 +69,21 @@ export interface WindowParams {
   material: TexturedSpec;
 }
 
-export interface HouseParams {
+interface HouseParams {
   body: BodyParams;
   roof: RoofParams;
   door?: DoorParams;
   windows?: WindowParams[];
 }
 
-export interface VariantDescriptor {
+interface VariantDescriptor {
   name: string;
   label: string;
   canvasPx: number;
   params: HouseParams;
 }
 
-export interface VariantReport {
-  name: string;
-  body: { width: number; depth: number; height: number };
-  roof: { width: number; depth: number; height: number; ridgeAxis: "x" | "z" };
-  warnings: string[];
-}
-
-export interface RoofPlacement {
+interface RoofPlacement {
   perpHalf: number;
   ridgeLen: number;
   height: number;
@@ -100,13 +92,13 @@ export interface RoofPlacement {
   ridgeAxis: "x" | "z";
 }
 
-export interface DoorPlacement {
+interface DoorPlacement {
   width: number;
   height: number;
   pos: readonly [number, number, number];
 }
 
-export interface WindowPlacement {
+interface WindowPlacement {
   width: number;
   height: number;
   pos: readonly [number, number, number];
@@ -229,45 +221,6 @@ export function getHouseVariant(name: string): VariantDescriptor | undefined {
   return findVariant(VARIANTS, name);
 }
 
-export function variantReport(variant: VariantDescriptor): VariantReport {
-  const warnings: string[] = [];
-  const p = variant.params;
-  const body = p.body;
-  const roof = p.roof;
-  if (
-    body.width / 2 > FRUSTUM_HALF + BOUND_EPS ||
-    body.depth / 2 > FRUSTUM_HALF + BOUND_EPS
-  ) {
-    warnings.push(
-      `body (${body.width}×${body.depth}) extends past the ±${FRUSTUM_HALF} canvas`,
-    );
-  }
-  const roofHalfW = roof.width / 2;
-  const roofHalfD = roof.depth / 2;
-  if (
-    roofHalfW > FRUSTUM_HALF + BOUND_EPS ||
-    roofHalfD > FRUSTUM_HALF + BOUND_EPS
-  ) {
-    warnings.push(
-      `roof footprint (${roof.width}×${roof.depth}) extends past the ±${FRUSTUM_HALF} canvas`,
-    );
-  }
-  if (p.door && p.door.height > body.height + BOUND_EPS) {
-    warnings.push(`door height ${p.door.height} > wall height ${body.height}`);
-  }
-  return {
-    name: variant.name,
-    body: { width: body.width, depth: body.depth, height: body.height },
-    roof: {
-      width: roof.width,
-      depth: roof.depth,
-      height: roof.height,
-      ridgeAxis: roof.ridgeAxis ?? "z",
-    },
-    warnings,
-  };
-}
-
 export function buildHouse(
   three: typeof THREE,
   scene: THREE.Scene | THREE.Group,
@@ -352,7 +305,7 @@ export function buildHouse(
  * `perpHalf` is the half-width in the direction PERPENDICULAR to the
  * ridge; `ridgeLen` is the extrusion length.
  */
-export function roofPlacement(params: HouseParams): RoofPlacement {
+function roofPlacement(params: HouseParams): RoofPlacement {
   const r = params.roof;
   const ridgeAxis = r.ridgeAxis ?? "z";
   // Whichever footprint dimension is perpendicular to the ridge becomes
@@ -371,11 +324,11 @@ export function roofPlacement(params: HouseParams): RoofPlacement {
   };
 }
 
-export function bodyTopY(params: HouseParams): number {
+function bodyTopY(params: HouseParams): number {
   return params.body.yBase + params.body.height;
 }
 
-export function doorPlacement(params: HouseParams): DoorPlacement | null {
+function doorPlacement(params: HouseParams): DoorPlacement | null {
   if (!params.door) return null;
   const yBase = params.body.yBase;
   const x = params.door.xOffset ?? 0;
@@ -391,7 +344,7 @@ export function doorPlacement(params: HouseParams): DoorPlacement | null {
  * — `rotY` orients the flat window plane so its +Z face points outward from
  * the wall it sits on.
  */
-export function windowPlacements(params: HouseParams): WindowPlacement[] {
+function windowPlacements(params: HouseParams): WindowPlacement[] {
   if (!params.windows || params.windows.length === 0) return [];
   const yBase = params.body.yBase;
   const halfW = params.body.width / 2;

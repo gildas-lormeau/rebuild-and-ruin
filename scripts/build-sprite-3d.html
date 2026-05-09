@@ -78,6 +78,7 @@
 
 <script type="module">
 import * as THREE from "three";
+import { SPRITE_SCENES } from "/scripts/sprite-debug-registry.ts";
 import { PLAYER_COLORS } from "/src/shared/ui/player-config.ts";
 import { createSpritePage } from "./sprites-pipeline.mjs";
 
@@ -133,46 +134,17 @@ const BUILD_SCENE_ADAPTERS = {
   rampart: (build) => (scene, variant) => build(THREE, scene, variant.params),
 };
 
-const SCENE_MODULES = {
-  tower: () => import("/src/render/3d/sprites/tower-scene.ts"),
-  cannon: () => import("/src/render/3d/sprites/cannon-scene.ts"),
-  wall: () => import("/src/render/3d/sprites/wall-scene.ts"),
-  house: () => import("/src/render/3d/sprites/house-scene.ts"),
-  debris: () => import("/src/render/3d/sprites/debris-scene.ts"),
-  grunt: () => import("/src/render/3d/sprites/grunt-scene.ts"),
-  cannonball: () => import("/src/render/3d/sprites/cannonball-scene.ts"),
-  pit: () => import("/src/render/3d/sprites/pit-scene.ts"),
-  balloon: () => import("/src/render/3d/sprites/balloon-scene.ts"),
-  rampart: () => import("/src/render/3d/sprites/rampart-scene.ts"),
-};
-
-const BUILD_FN_NAMES = {
-  tower: "buildTower",
-  cannon: "buildCannon",
-  wall: "buildWall",
-  house: "buildHouse",
-  debris: "buildDebris",
-  grunt: "buildGrunt",
-  cannonball: "buildCannonball",
-  pit: "buildPit",
-  balloon: "buildBalloon",
-  rampart: "buildRampart",
-};
-
 let currentPage = null;
 let playerIdx = null; // null = neutral (no per-player tint)
 const select = document.getElementById("sceneSelect");
 const playerSelect = document.getElementById("playerSelect");
 
-async function loadScene(key) {
+function loadScene(key) {
   if (currentPage) currentPage.dispose();
   currentPage = null;
-  const mod = await SCENE_MODULES[key]();
-  const buildFn = mod[BUILD_FN_NAMES[key]];
-  if (typeof buildFn !== "function") {
-    throw new Error(`scene ${key}: missing ${BUILD_FN_NAMES[key]}`);
-  }
-  const baseBuild = BUILD_SCENE_ADAPTERS[key](buildFn);
+  const entry = SPRITE_SCENES[key];
+  if (!entry) throw new Error(`unknown scene ${key}`);
+  const baseBuild = BUILD_SCENE_ADAPTERS[key](entry.build);
   const buildScene = (scene, variant) => {
     baseBuild(scene, variant);
     if (key === "tower" && playerIdx !== null) {
@@ -181,28 +153,34 @@ async function loadScene(key) {
   };
   currentPage = createSpritePage({
     THREE,
-    variants: mod.VARIANTS,
-    palette: mod.PALETTE,
+    variants: entry.VARIANTS,
+    palette: entry.PALETTE,
     buildScene,
   });
 }
 
 select.addEventListener("change", () => {
-  loadScene(select.value).catch((err) => {
+  try {
+    loadScene(select.value);
+  } catch (err) {
     console.error(err);
     alert(`Failed to load ${select.value}: ${err.message}`);
-  });
+  }
 });
 
 playerSelect.addEventListener("change", () => {
   playerIdx = playerSelect.value === "" ? null : Number(playerSelect.value);
-  loadScene(select.value).catch(console.error);
+  try {
+    loadScene(select.value);
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // Initial scene from URL hash (e.g., #cannon) or default to tower.
 const initial = (location.hash.replace(/^#/, "") || select.value);
-if (Object.hasOwn(SCENE_MODULES, initial)) select.value = initial;
-loadScene(select.value).catch(console.error);
+if (Object.hasOwn(SPRITE_SCENES, initial)) select.value = initial;
+loadScene(select.value);
 
 // Sync hash on change for shareable links.
 select.addEventListener("change", () => {

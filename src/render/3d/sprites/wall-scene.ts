@@ -37,9 +37,9 @@ import {
 import { MERLON_AO, WALL_STONE_LIGHT } from "./sprite-materials.ts";
 import { buildTexturedMaterial, type TexturedSpec } from "./sprite-textures.ts";
 
-export type UVOffset = readonly [number, number];
+type UVOffset = readonly [number, number];
 
-export interface WallCellParams {
+interface WallCellParams {
   mask: number;
   uvOffset?: UVOffset;
   /** When true, one merlon is replaced by a broken stump + rubble pile to
@@ -50,38 +50,18 @@ export interface WallCellParams {
   damaged?: boolean;
 }
 
-export interface WallMazeParams {
+interface WallMazeParams {
   grid: string[] | number[][];
 }
 
-export type WallParams = WallCellParams | WallMazeParams;
+type WallParams = WallCellParams | WallMazeParams;
 
-export interface VariantDescriptor {
+interface VariantDescriptor {
   name: string;
   label: string;
   canvasPx: number;
   params: WallParams;
 }
-
-export type VariantReport =
-  | {
-      name: string;
-      kind: "maze";
-      gridSize: string;
-      cells: number;
-      apex: number;
-      warnings: string[];
-    }
-  | {
-      name: string;
-      kind: "cell";
-      mask: number;
-      cardinalsConnected: number;
-      openEdges: number;
-      roundedCorners: number;
-      apex: number;
-      warnings: string[];
-    };
 
 // Textured stone. The material color acts as a multiplier on the
 // canvas texture — this combination was tuned against two palettes:
@@ -293,38 +273,6 @@ export const PALETTE: [number, number, number][] = [
   [0x2a, 0x2a, 0x28],
 ];
 
-export function variantReport(variant: VariantDescriptor): VariantReport {
-  const p = variant.params;
-  const warnings: string[] = [];
-  if ("grid" in p) {
-    const grid = parseGrid(p.grid);
-    let cells = 0;
-    for (const row of grid) for (const c of row) if (c) cells++;
-    return {
-      name: variant.name,
-      kind: "maze",
-      gridSize: `${grid[0]?.length ?? 0}×${grid.length}`,
-      cells,
-      apex: H + M_H,
-      warnings,
-    };
-  }
-  const m = p.mask;
-  const cardinals = CARDINALS.filter((d) => m & d).length;
-  const opens = 4 - cardinals;
-  const roundedCorners = countRoundedCorners(m);
-  return {
-    name: variant.name,
-    kind: "cell",
-    mask: m,
-    cardinalsConnected: cardinals,
-    openEdges: opens,
-    roundedCorners,
-    apex: H + M_H,
-    warnings,
-  };
-}
-
 /**
  * Top-level build dispatch. Looks at the variant params: `grid` →
  * maze; otherwise `mask` → single cell.
@@ -350,16 +298,6 @@ export function buildWall(
 function maskFromDirs(dirs: Dir[]): number {
   const lookup: Record<Dir, number> = { N, E, S, W };
   return dirs.reduce((m, d) => m | lookup[d], 0);
-}
-
-function countRoundedCorners(mask: number): number {
-  let n = 0;
-  // NE corner: rounded if N AND E are empty
-  if (!(mask & N) && !(mask & E)) n++;
-  if (!(mask & N) && !(mask & W)) n++;
-  if (!(mask & S) && !(mask & E)) n++;
-  if (!(mask & S) && !(mask & W)) n++;
-  return n;
 }
 
 function buildMaze(
@@ -409,11 +347,7 @@ function buildMaze(
  * Build the 4-cardinal mask for cell (col,row) in a 2D grid (0/1 cells).
  * Out-of-bounds and 0 cells are treated as empty.
  */
-export function maskFromGrid(
-  grid: number[][],
-  col: number,
-  row: number,
-): number {
+function maskFromGrid(grid: number[][], col: number, row: number): number {
   let m = 0;
   if (grid[row - 1]?.[col]) m |= N;
   if (grid[row + 1]?.[col]) m |= S;

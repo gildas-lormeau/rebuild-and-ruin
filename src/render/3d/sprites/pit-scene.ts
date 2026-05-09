@@ -17,12 +17,6 @@
 
 import type * as THREE from "three";
 import {
-  BOUND_EPS,
-  FRUSTUM_HALF,
-  fmtBound,
-  radialReach,
-} from "./sprite-bounds.ts";
-import {
   CELL,
   cells,
   createMaterial,
@@ -30,7 +24,7 @@ import {
   type MaterialSpec,
 } from "./sprite-kit.ts";
 
-export interface HoleParams {
+interface HoleParams {
   outerRadius: number;
   innerRadius: number;
   /** Offset of the inner hole from the outer-disc center, breaking the
@@ -39,22 +33,22 @@ export interface HoleParams {
   outerMaterial: MaterialSpec;
 }
 
-export interface LavaParams {
+interface LavaParams {
   radius: number;
   material: MaterialSpec;
 }
 
-export interface LavaSplatterParams {
+interface LavaSplatterParams {
   radius: number;
   pos: readonly [number, number];
 }
 
-export interface RimDebrisParams {
+interface RimDebrisParams {
   size: number;
   pos: readonly [number, number, number];
 }
 
-export interface FlameSpec {
+interface FlameSpec {
   /** Cone base radius. */
   radius: number;
   /** Cone height. */
@@ -64,13 +58,13 @@ export interface FlameSpec {
   material: MaterialSpec;
 }
 
-export interface EmberSpec {
+interface EmberSpec {
   /** Box edge length. */
   size: number;
   pos: readonly [number, number, number];
 }
 
-export interface PitParams {
+interface PitParams {
   hole: HoleParams;
   lava?: LavaParams;
   lavaSplatters?: readonly LavaSplatterParams[];
@@ -79,16 +73,11 @@ export interface PitParams {
   embers: readonly EmberSpec[];
 }
 
-export interface PitVariant {
+interface PitVariant {
   name: string;
   label: string;
   canvasPx: number;
   params: PitParams;
-}
-
-export interface PitVariantReport {
-  name: string;
-  warnings: string[];
 }
 
 // Charred soil around the rim — three shades, one per state.
@@ -323,23 +312,6 @@ export const PALETTE: [number, number, number][] = [
 /** Look up a pit variant by name (pit_fresh / pit_dim / pit_embers). */
 export function getPitVariant(name: string): PitVariant | undefined {
   return findVariant(VARIANTS, name);
-}
-
-export function variantReport(variant: PitVariant): PitVariantReport {
-  const warnings: string[] = [];
-  const p = variant.params;
-  if (p.hole.innerRadius >= p.hole.outerRadius) {
-    warnings.push("inner hole radius must be smaller than outer");
-  }
-  if (p.hole.outerRadius > FRUSTUM_HALF + BOUND_EPS) {
-    warnings.push(fmtBound("outer radius", p.hole.outerRadius));
-  }
-  for (const flame of p.flames) {
-    const reach = radialReach(flame.xz[0], flame.xz[1], flame.radius);
-    if (reach > FRUSTUM_HALF + BOUND_EPS)
-      warnings.push(fmtBound("flame", reach));
-  }
-  return { name: variant.name, warnings };
 }
 
 export function buildPit(

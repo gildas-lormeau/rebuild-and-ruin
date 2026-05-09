@@ -80,19 +80,6 @@ export const MERLON_AO: MaterialSpec = {
   roughness: 1.0,
   metalness: 0.0,
 };
-// Soft/hard shadow discs dropped on the ground under free-standing
-// sprites (balloon base, cannon/tower rubble) so they don't look like
-// they're floating above the grass tile.
-export const GROUND_SHADOW: MaterialSpec = {
-  kind: "basic",
-  color: 0x1a1510,
-  side: "double",
-};
-export const GROUND_AO: MaterialSpec = {
-  kind: "basic",
-  color: 0x141008,
-  side: "double",
-};
 /** Near-black cap used for cannon bore / vent interiors. Rendered
  *  double-sided so the ring reads as a deep hole from any angle. */
 export const BORE_DARK: MaterialSpec = {

@@ -23,7 +23,6 @@
  */
 
 import * as THREE from "three";
-import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   type BoxShapeParams,
   cells,
@@ -33,9 +32,9 @@ import {
   measureVariantBoundsY,
 } from "./sprite-kit.ts";
 
-export type HullParams = BoxShapeParams;
+type HullParams = BoxShapeParams;
 
-export interface TracksParams {
+interface TracksParams {
   width: number;
   depth: number;
   height: number;
@@ -47,20 +46,20 @@ export interface TracksParams {
   accentMaterial?: MaterialSpec;
 }
 
-export interface TurretParams {
+interface TurretParams {
   radius: number;
   height: number;
   segments?: number;
   material: MaterialSpec;
 }
 
-export interface BarrelParams {
+interface BarrelParams {
   radius: number;
   length: number;
   material: MaterialSpec;
 }
 
-export interface GruntParams {
+interface GruntParams {
   hull: HullParams;
   tracks: TracksParams;
   turret: TurretParams;
@@ -69,20 +68,11 @@ export interface GruntParams {
   yawDegrees?: number;
 }
 
-export interface GruntVariant {
+interface GruntVariant {
   name: string;
   label: string;
   canvasPx: number;
   params: GruntParams;
-}
-
-export interface GruntVariantReport {
-  name: string;
-  yaw: number;
-  xExtent: number;
-  forwardExtent: number;
-  hullTop: number;
-  warnings: string[];
 }
 
 const HULL_GREEN: MaterialSpec = {
@@ -184,36 +174,6 @@ export function boundsYOf(
 /** Look up a grunt variant by name. */
 export function getGruntVariant(name: string): GruntVariant | undefined {
   return findVariant(VARIANTS, name);
-}
-
-export function variantReport(variant: GruntVariant): GruntVariantReport {
-  const warnings: string[] = [];
-  const p = variant.params;
-  // Aggregate footprint = max of (hull + tracks side-by-side) in both
-  // X and Z, with the rig rotated by yaw. Since rotation around Y can
-  // be 90°, just take the larger of the two extents and check ≤ 1.
-  const hullMaxX = p.hull.width / 2;
-  const trackMaxX = p.tracks.xOffset + p.tracks.width / 2;
-  const xExtent = Math.max(hullMaxX, trackMaxX);
-  const zExtent = Math.max(p.hull.depth, p.tracks.depth) / 2;
-  // Barrel can stick out past the hull / tracks in front (depends on
-  // turret radius + barrel length). Account for it in the FORWARD direction.
-  const barrelTipZ = -p.turret.radius - p.barrel.length;
-  const forwardExtent = Math.max(zExtent, -barrelTipZ);
-  if (Math.max(xExtent, forwardExtent) > FRUSTUM_HALF + BOUND_EPS) {
-    warnings.push(
-      `extent exceeds ±${FRUSTUM_HALF}: xExtent=${xExtent.toFixed(3)}, ` +
-        `forwardExtent=${forwardExtent.toFixed(3)}`,
-    );
-  }
-  return {
-    name: variant.name,
-    yaw: p.yawDegrees ?? 0,
-    xExtent,
-    forwardExtent,
-    hullTop: hullTopY(p),
-    warnings,
-  };
 }
 
 export function buildGrunt(
@@ -325,7 +285,7 @@ export function buildGrunt(
  * cylinder's center position and the X-rotation needed so the barrel's
  * axis points along −Z.
  */
-export function barrelPlacement(params: GruntParams): {
+function barrelPlacement(params: GruntParams): {
   pos: readonly [number, number, number];
   rotateXBy: number;
 } {
@@ -339,14 +299,12 @@ export function barrelPlacement(params: GruntParams): {
   return { pos: center, rotateXBy: Math.PI / 2 };
 }
 
-export function turretCenter(
-  params: GruntParams,
-): readonly [number, number, number] {
+function turretCenter(params: GruntParams): readonly [number, number, number] {
   // Turret sits centered on top of the hull.
   return [0, hullTopY(params) + params.turret.height / 2, 0];
 }
 
-export function hullTopY(params: GruntParams): number {
+function hullTopY(params: GruntParams): number {
   return params.hull.yBase + params.hull.height;
 }
 

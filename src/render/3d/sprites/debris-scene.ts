@@ -36,7 +36,6 @@
  */
 
 import type * as THREE from "three";
-import { BOUND_EPS, FRUSTUM_HALF } from "./sprite-bounds.ts";
 import {
   createMaterial,
   findVariant,
@@ -51,9 +50,9 @@ import {
   WOOD_DARK,
 } from "./sprite-materials.ts";
 
-export type PieceShape = "box" | "cylinder" | "icosahedron" | "sphere";
+type PieceShape = "box" | "cylinder" | "icosahedron" | "sphere";
 
-export interface PieceDims {
+interface PieceDims {
   width?: number;
   height?: number;
   depth?: number;
@@ -65,7 +64,7 @@ export interface PieceDims {
   heightSegments?: number;
 }
 
-export interface RocksSpec {
+interface RocksSpec {
   count: number;
   footprint: { width: number; depth: number };
   sizeRange: readonly [number, number];
@@ -76,13 +75,13 @@ export interface RocksSpec {
   shapes?: readonly ("box" | "icosahedron")[];
 }
 
-export interface VariantParams {
+interface VariantParams {
   seed: number;
   rocks: RocksSpec;
   chunks?: LayoutPiece[];
 }
 
-export interface VariantDescriptor {
+interface VariantDescriptor {
   name: string;
   label: string;
   /** Reference to the cannon/tower/wall the debris replaces. Consumed by
@@ -93,22 +92,13 @@ export interface VariantDescriptor {
   params: VariantParams;
 }
 
-export interface LayoutPiece {
+interface LayoutPiece {
   shape: PieceShape;
   dims: PieceDims;
   pos: readonly [number, number, number];
   rot?: readonly [number, number, number];
   scale?: readonly [number, number, number];
   material: MaterialSpec;
-}
-
-export interface VariantReport {
-  name: string;
-  source: string;
-  pieceCount: number;
-  rockCount: number;
-  chunkCount: number;
-  warnings: string[];
 }
 
 // ---------- scene-local materials ----------
@@ -1019,40 +1009,6 @@ export function getDebrisVariant(name: string): VariantDescriptor | undefined {
 }
 
 /**
- * Sanity-check footprint vs ±1 canvas. Doesn't try to validate the
- * pile's "realism" — that's a visual judgment.
- */
-export function variantReport(variant: VariantDescriptor): VariantReport {
-  const warnings: string[] = [];
-  const footprint = variant.params.rocks.footprint;
-  const halfW = footprint.width / 2;
-  const halfD = footprint.depth / 2;
-  if (halfW > FRUSTUM_HALF + BOUND_EPS || halfD > FRUSTUM_HALF + BOUND_EPS) {
-    warnings.push(
-      `footprint (${footprint.width}×${footprint.depth}) leaves the ±${FRUSTUM_HALF} canvas`,
-    );
-  }
-  // Chunks should also stay roughly inside the canvas (rough bound: pos ± 0.6).
-  for (const chunk of variant.params.chunks ?? []) {
-    const [xPos, , zPos] = chunk.pos;
-    if (Math.abs(xPos) > 0.95 || Math.abs(zPos) > 0.95) {
-      warnings.push(
-        `chunk at (${xPos.toFixed(2)}, ${zPos.toFixed(2)}) sits near/past canvas edge`,
-      );
-    }
-  }
-  const layout = debrisLayout(variant);
-  return {
-    name: variant.name,
-    source: variant.source,
-    pieceCount: layout.length,
-    rockCount: variant.params.rocks.count,
-    chunkCount: variant.params.chunks?.length ?? 0,
-    warnings,
-  };
-}
-
-/**
  * Build the rubble pile for `variant` under `scene`. Takes the FULL
  * variant object (not just `.params`) because ground-shadow gating
  * consults `.source`.
@@ -1099,7 +1055,7 @@ export function buildDebris(
  * Generate a deterministic list of pieces (rocks + chunks) to render.
  * Each entry has the shape: { shape, dims, pos, rot, scale?, material }.
  */
-export function debrisLayout(variant: VariantDescriptor): LayoutPiece[] {
+function debrisLayout(variant: VariantDescriptor): LayoutPiece[] {
   const params = variant.params;
   const rocks = params.rocks;
   const rng = mulberry32(params.seed);

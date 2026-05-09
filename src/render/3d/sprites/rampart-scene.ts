@@ -21,41 +21,39 @@
 
 import * as THREE from "three";
 import type { StakesParams } from "./balloon-scene.ts";
-import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
   type BoxShapeParams,
   cells,
   createMaterial,
   findVariant,
   type MaterialSpec,
-  measureVariantBoundsY,
 } from "./sprite-kit.ts";
 import { BAND_GREEN } from "./sprite-materials.ts";
 
-export type CoreParams = BoxShapeParams;
+type CoreParams = BoxShapeParams;
 
-export interface TopParams {
+interface TopParams {
   width: number;
   depth: number;
   height: number;
   material: MaterialSpec;
 }
 
-export interface BandParams {
+interface BandParams {
   yPos: number;
   thickness: number;
   flare: number;
   material: MaterialSpec;
 }
 
-export interface EmblemParams {
+interface EmblemParams {
   barLength: number;
   barThickness: number;
   barHeight: number;
   material: MaterialSpec;
 }
 
-export interface RampartParams {
+interface RampartParams {
   core: CoreParams;
   corners: StakesParams;
   top: TopParams;
@@ -63,18 +61,11 @@ export interface RampartParams {
   emblem?: EmblemParams;
 }
 
-export interface RampartVariant {
+interface RampartVariant {
   name: string;
   label: string;
   canvasPx: number;
   params: RampartParams;
-}
-
-export interface RampartVariantReport {
-  name: string;
-  coreTop: number;
-  apex: number;
-  warnings: string[];
 }
 
 // ---------- scene-local materials ----------
@@ -104,7 +95,6 @@ const EMBLEM_GREEN: MaterialSpec = {
   roughness: 0.55,
   metalness: 0.4,
 };
-const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
 // ---------- variant registry ------------------------------------------
 export const VARIANTS: RampartVariant[] = [
   {
@@ -173,58 +163,11 @@ export const PALETTE: readonly [number, number, number][] = [
   [0x0a, 0x0a, 0x0a],
 ];
 
-/** Authored Y-bounds of a rampart variant, in authored world units (±1
- *  frustum frame — no internal scale applied). Rampart shares the cannon
- *  footprint, so callers multiply by the same entity-manager scale
- *  (TILE_SIZE) to get world Y. */
-export function boundsYOf(
-  name: string,
-): { minY: number; maxY: number } | undefined {
-  const cached = _boundsYCache.get(name);
-  if (cached) return cached;
-  const variant = getRampartVariant(name);
-  if (!variant) return undefined;
-  const bounds = measureVariantBoundsY((scratch) => {
-    buildRampart(THREE, scratch, variant.params);
-  });
-  _boundsYCache.set(name, bounds);
-  return bounds;
-}
-
 /** Look up a rampart variant by name. Matches `getCannonVariant` / other
  *  scene file helpers — lets the entity manager fetch the params
  *  dictionary when variant selection is data-driven. */
 export function getRampartVariant(name: string): RampartVariant | undefined {
   return findVariant(VARIANTS, name);
-}
-
-export function variantReport(variant: RampartVariant): RampartVariantReport {
-  const warnings: string[] = [];
-  const params = variant.params;
-  // Corner pillars must stay inside the ±1 canvas.
-  const cornerOuter = params.corners.footprintHalf + params.corners.radius;
-  if (cornerOuter > FRUSTUM_HALF + BOUND_EPS) {
-    warnings.push(fmtBound("corner pillars", cornerOuter));
-  }
-  // Core should sit inside the corner ring.
-  const coreHalf = Math.max(params.core.width, params.core.depth) / 2;
-  if (coreHalf > params.corners.footprintHalf + BOUND_EPS) {
-    warnings.push(
-      `core (half=${coreHalf.toFixed(3)}) extends past the corner pillars (` +
-        `footprintHalf=${params.corners.footprintHalf})`,
-    );
-  }
-  // Top cap should be smaller than the core.
-  const topHalf = Math.max(params.top.width, params.top.depth) / 2;
-  if (topHalf > coreHalf + BOUND_EPS) {
-    warnings.push(`top cap extends past the core`);
-  }
-  return {
-    name: variant.name,
-    coreTop: coreTopY(params),
-    apex: coreTopY(params) + params.top.height,
-    warnings,
-  };
 }
 
 export function buildRampart(
@@ -323,13 +266,11 @@ export function buildRampart(
   }
 }
 
-export function coreTopY(params: RampartParams): number {
+function coreTopY(params: RampartParams): number {
   return params.core.yBase + params.core.height;
 }
 
-export function cornerPositions(
-  params: RampartParams,
-): readonly [number, number][] {
+function cornerPositions(params: RampartParams): readonly [number, number][] {
   const f = params.corners.footprintHalf;
   return [
     [-f, -f],

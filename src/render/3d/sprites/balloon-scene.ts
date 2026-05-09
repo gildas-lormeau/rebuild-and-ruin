@@ -26,7 +26,6 @@
  */
 
 import type * as THREE from "three";
-import { BOUND_EPS, FRUSTUM_HALF, fmtBound } from "./sprite-bounds.ts";
 import {
   cells,
   createMaterial,
@@ -34,14 +33,14 @@ import {
   type MaterialSpec,
 } from "./sprite-kit.ts";
 
-export interface EnvelopeParams {
+interface EnvelopeParams {
   radius: number;
   yScale: number;
   yCenter: number;
   material: MaterialSpec;
 }
 
-export interface BasketParams {
+interface BasketParams {
   width: number;
   depth: number;
   height: number;
@@ -50,25 +49,25 @@ export interface BasketParams {
   rimMaterial?: MaterialSpec;
 }
 
-export interface FlightRopesParams {
+interface FlightRopesParams {
   radius: number;
   material: MaterialSpec;
 }
 
-export interface GoresParams {
+interface GoresParams {
   count: number;
   tubeRadius: number;
   material: MaterialSpec;
 }
 
-export interface LoadRingParams {
+interface LoadRingParams {
   yRelativeToCenter: number;
   radiusScale: number;
   tubeRadius: number;
   material: MaterialSpec;
 }
 
-export interface BalloonFlightParams {
+interface BalloonFlightParams {
   envelope: EnvelopeParams;
   basket: BasketParams;
   ropes: FlightRopesParams;
@@ -83,12 +82,12 @@ export interface StakesParams {
   material: MaterialSpec;
 }
 
-export interface StakeRopesParams {
+interface StakeRopesParams {
   radius: number;
   material: MaterialSpec;
 }
 
-export interface MooringParams {
+interface MooringParams {
   outerRadius: number;
   height: number;
   material: MaterialSpec;
@@ -100,13 +99,13 @@ export interface BoltParams {
   material: MaterialSpec;
 }
 
-export interface DeflatedBalloonParams {
+interface DeflatedBalloonParams {
   radius: number;
   ySquash: number;
   material: MaterialSpec;
 }
 
-export interface BalloonBaseParams {
+interface BalloonBaseParams {
   stakes: StakesParams;
   stakeRopes: StakeRopesParams;
   mooring: MooringParams;
@@ -114,9 +113,7 @@ export interface BalloonBaseParams {
   deflatedBalloon: DeflatedBalloonParams;
 }
 
-export type BalloonParams = BalloonFlightParams | BalloonBaseParams;
-
-export interface BalloonFlightVariant {
+interface BalloonFlightVariant {
   name: "balloon_flight";
   label: string;
   canvasPx: number;
@@ -124,27 +121,22 @@ export interface BalloonFlightVariant {
   params: BalloonFlightParams;
 }
 
-export interface BalloonBaseVariant {
+interface BalloonBaseVariant {
   name: "balloon_base";
   label: string;
   canvasPx: number;
   params: BalloonBaseParams;
 }
 
-export type BalloonVariant = BalloonFlightVariant | BalloonBaseVariant;
+type BalloonVariant = BalloonFlightVariant | BalloonBaseVariant;
 
-export interface BalloonVariantReport {
-  name: string;
-  warnings: string[];
-}
-
-export interface StakePosition {
+interface StakePosition {
   name: "NW" | "NE" | "SE" | "SW";
   x: number;
   z: number;
 }
 
-export interface StakeRopeSegment {
+interface StakeRopeSegment {
   from: StakePosition;
   to: StakePosition;
   length: number;
@@ -336,41 +328,6 @@ export const PALETTE: [number, number, number][] = [
  *  helper so the entity manager can fetch params by variant string. */
 export function getBalloonVariant(name: string): BalloonVariant | undefined {
   return findVariant(VARIANTS, name);
-}
-
-export function variantReport(variant: BalloonVariant): BalloonVariantReport {
-  const warnings: string[] = [];
-  // Canvas aspect (height / width). Top-view frustum extends to ±aspect
-  // in Z; tilted view's vertical extent is ±aspect·1.15 (the +15%
-  // padding the pipeline applies for the tilted camera). This tilted-Y
-  // bound is specific to the tall balloon_flight sprite and isn't
-  // shared with any other scene, so it stays inline here.
-  if (variant.name === "balloon_base") {
-    const p = variant.params;
-    const f = p.stakes.footprintHalf;
-    if (f > FRUSTUM_HALF + BOUND_EPS)
-      warnings.push(fmtBound("stake footprint half", f));
-    const balloonR = p.deflatedBalloon.radius;
-    if (balloonR > FRUSTUM_HALF + BOUND_EPS)
-      warnings.push(fmtBound("deflated balloon r", balloonR));
-  } else {
-    const p = variant.params;
-    const aspect = variant.canvasPxH / variant.canvasPx;
-    const yBound = aspect * 1.15;
-    const r = p.envelope.radius;
-    if (r > FRUSTUM_HALF + BOUND_EPS)
-      warnings.push(fmtBound("envelope r (X)", r));
-    const eTop = p.envelope.yCenter + p.envelope.radius * p.envelope.yScale;
-    const eBottom = p.envelope.yCenter - p.envelope.radius * p.envelope.yScale;
-    const bBottom = p.basket.yCenter - p.basket.height / 2;
-    if (bBottom < -yBound - BOUND_EPS)
-      warnings.push(`basket bottom y=${bBottom} past −${yBound.toFixed(3)}`);
-    if (eTop > yBound + BOUND_EPS)
-      warnings.push(`envelope top y=${eTop} past +${yBound.toFixed(3)}`);
-    if (eBottom <= bBottom)
-      warnings.push("envelope bottom must sit above basket bottom");
-  }
-  return { name: variant.name, warnings };
 }
 
 export function buildBalloon(
@@ -569,7 +526,7 @@ function buildBalloonFlight(
  * For modest yScale (~1.1–1.2) the visual error is negligible and the
  * math stays simple.
  */
-export function flightRopeAnchors(params: BalloonFlightParams): {
+function flightRopeAnchors(params: BalloonFlightParams): {
   basket: [number, number, number][];
   envelope: [number, number, number][];
 } {
@@ -684,9 +641,7 @@ function buildBalloonBase(
  * Four horizontal rope segments between adjacent stakes (top-of-stake
  * height). Each entry: { from, to, length, midpoint, axis: 'x'|'z' }.
  */
-export function stakeRopeSegments(
-  params: BalloonBaseParams,
-): StakeRopeSegment[] {
+function stakeRopeSegments(params: BalloonBaseParams): StakeRopeSegment[] {
   const positions = stakePositions(params);
   const yTop = params.stakes.height;
   const segs: StakeRopeSegment[] = [];
@@ -709,7 +664,7 @@ export function stakeRopeSegments(
 /**
  * Stake corner positions (NW, NE, SE, SW) at world Y=0 ground.
  */
-export function stakePositions(params: BalloonBaseParams): StakePosition[] {
+function stakePositions(params: BalloonBaseParams): StakePosition[] {
   const f = params.stakes.footprintHalf;
   return [
     { name: "NW", x: -f, z: -f },
