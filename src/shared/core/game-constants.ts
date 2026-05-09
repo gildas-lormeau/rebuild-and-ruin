@@ -220,12 +220,11 @@ export const PHASE_ENDING_THRESHOLD = 1.5;
 export const DIFFICULTY_EASY = 0;
 export const DIFFICULTY_NORMAL = 1;
 export const DIFFICULTY_HARD = 2;
-export const DIFFICULTY_VERY_HARD = 3;
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // DIFFICULTY_EASY
   { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // DIFFICULTY_NORMAL
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
-  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
+  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // Very Hard (idx 3)
 ];
 /** Haptics toggle encoding shared across settings UI and subsystem.
  *  0=off, 1=on. */

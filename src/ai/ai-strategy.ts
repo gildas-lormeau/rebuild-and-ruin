@@ -21,7 +21,6 @@ import {
   DIFFICULTY_EASY,
   DIFFICULTY_HARD,
   DIFFICULTY_NORMAL,
-  DIFFICULTY_VERY_HARD,
 } from "../shared/core/game-constants.ts";
 import type {
   GameMap,
@@ -299,8 +298,7 @@ export function rollPersonality(
     if (difficulty <= DIFFICULTY_EASY) return Math.max(1, range[0] - 1);
     if (difficulty === DIFFICULTY_NORMAL) return range[0];
     if (difficulty === DIFFICULTY_HARD) return rng.int(...range);
-    if (difficulty >= DIFFICULTY_VERY_HARD) return Math.min(cap, range[1] + 1);
-    return rng.int(...range);
+    return Math.min(cap, range[1] + 1); // VERY_HARD or higher
   };
   return {
     archetype: chosen,
@@ -496,7 +494,7 @@ export class DefaultStrategy implements AiStrategy {
     }
 
     // Grunt sweep: enough grunts targeting us and enough usable cannons
-    if (usableCannonCount > CHAIN_ATTACK_MIN_CANNONS) {
+    if (usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS) {
       const gruntTargets = planGruntSweep(
         state,
         playerId,
@@ -517,7 +515,7 @@ export class DefaultStrategy implements AiStrategy {
     ]);
     if (
       !chainTargets &&
-      usableCannonCount > CHAIN_ATTACK_MIN_CANNONS &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(charityProb)
     ) {
       const charityTargets = planCharitySweep(
