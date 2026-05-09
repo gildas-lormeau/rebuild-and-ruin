@@ -316,11 +316,6 @@ export interface E2EPerf {
 
 /** Options for `sc.perf.writeEventLog`. */
 export interface EventLogOpts {
-  /** Whitelist of event types to keep. Pass a list of `GAME_EVENT.*`
-   *  string values (e.g. `["phaseStart", "modifierApplied"]`) to emit
-   *  only those. Mutually exclusive with `exclude`; if both are
-   *  given, `include` wins. */
-  include?: readonly string[];
   /** Event types to drop. Defaults to high-volume per-frame events
    *  (`tick`) so the file stays readable. Pass `[]` to keep everything. */
   exclude?: readonly string[];
@@ -812,16 +807,10 @@ export async function createE2EScenario(
         });
       });
 
-      const includeSet = eventOpts.include
-        ? new Set(eventOpts.include)
-        : null;
       const excludeSet = new Set(
         eventOpts.exclude ?? DEFAULT_EVENT_LOG_EXCLUDE,
       );
-      const kept = entries.filter((entry) => {
-        if (includeSet) return includeSet.has(entry.type);
-        return !excludeSet.has(entry.type);
-      });
+      const kept = entries.filter((entry) => !excludeSet.has(entry.type));
 
       const originMs = kept.length > 0 ? kept[0]._tMs : 0;
       const typeCounts: Record<string, number> = {};
@@ -842,9 +831,7 @@ export async function createE2EScenario(
           originMs,
           totalEvents: entries.length,
           keptEvents: kept.length,
-          droppedTypes: [...excludeSet].filter(
-            (type) => !includeSet || !includeSet.has(type),
-          ),
+          droppedTypes: [...excludeSet],
           typeCounts,
         }),
       );

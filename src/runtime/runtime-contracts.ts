@@ -569,7 +569,6 @@ export interface GameActionDeps {
   ) => boolean;
   onPieceRotated?: () => void;
   onPiecePlaced?: () => void;
-  onPieceFailed?: () => void;
   onCannonPlaced?: () => void;
   fire: (ctrl: PlayerController, state: BattleViewState) => void;
 }

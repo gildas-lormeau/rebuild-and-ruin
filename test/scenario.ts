@@ -41,7 +41,7 @@
 import "./test-globals.ts";
 import { createCanvasRenderer } from "../src/render/render-canvas.ts";
 import { SCALE, TILE_SIZE } from "../src/shared/core/grid.ts";
-import type { RenderObserver, RenderOverlay } from "../src/shared/ui/overlay-types.ts";
+import type { RenderOverlay } from "../src/shared/ui/overlay-types.ts";
 import type {
   HapticsObserver,
 } from "../src/shared/core/system-interfaces.ts";
@@ -128,11 +128,7 @@ export interface ScenarioOptions {
    *  minLevel)` call BEFORE the platform/level gate. Threaded through to
    *  `createHapticsSubsystem({ observer })` via the runtime's `observers` bag. */
   hapticsObserver?: HapticsObserver;
-  /** Test observer for sound intents. Receives every `played(reason)` call
-   *  BEFORE the platform/level gate. */
-  renderer?:
-    | "ascii"
-    | { canvas: CanvasRecorder; observer?: RenderObserver };
+  renderer?: "ascii" | { canvas: CanvasRecorder };
   /** Slots that should be driven by `AiAssistedHumanController` instead of
    *  the default `AiController`. AI logic still picks placements, but every
    *  outcome flows through `network.send`, producing wire messages on
@@ -406,7 +402,6 @@ export function buildHeadlessOptions(
     const rec = opts.renderer;
     renderer = createCanvasRenderer(rec.canvas.displayCanvas, {
       canvasFactory: rec.canvas.factory,
-      observer: rec.observer,
     });
   }
   return {

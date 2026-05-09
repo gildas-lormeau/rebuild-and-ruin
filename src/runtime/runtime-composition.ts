@@ -241,10 +241,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getPovPlayerId: () => runtimeState.frameMeta.povPlayerId,
     observer: config.observers?.haptics,
   });
-  const audio = createAudioOrchestrator({
-    runtimeState,
-    observers: config.observers,
-  });
+  const audio = createAudioOrchestrator({ runtimeState });
   // Pause music (and the game loop) when the tab is backgrounded, resume on
   // return. rAF throttling already freezes the game on hidden tabs, but music
   // keeps looping on Web Audio — not acceptable for a single ~30s title track

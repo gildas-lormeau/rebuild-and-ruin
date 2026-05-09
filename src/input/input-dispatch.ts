@@ -239,11 +239,7 @@ export function dispatchPlacement(
     ) => void;
     gameAction: Pick<
       GameActionDeps,
-      | "tryPlacePiece"
-      | "tryPlaceCannon"
-      | "onPiecePlaced"
-      | "onPieceFailed"
-      | "onCannonPlaced"
+      "tryPlacePiece" | "tryPlaceCannon" | "onPiecePlaced" | "onCannonPlaced"
     >;
   },
 ): void {
@@ -470,7 +466,6 @@ function dispatchPlacementAction(
     | "tryPlaceCannon"
     | "onPieceRotated"
     | "onPiecePlaced"
-    | "onPieceFailed"
     | "onCannonPlaced"
   >,
 ): boolean {
@@ -500,18 +495,13 @@ export function dispatchPlacementConfirm(
   state: GameState,
   deps: Pick<
     GameActionDeps,
-    | "tryPlacePiece"
-    | "tryPlaceCannon"
-    | "onPiecePlaced"
-    | "onPieceFailed"
-    | "onCannonPlaced"
+    "tryPlacePiece" | "tryPlaceCannon" | "onPiecePlaced" | "onCannonPlaced"
   >,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
     if (!canPlayerBuild(state, ctrl.playerId)) return;
     const placed = deps.tryPlacePiece(ctrl, state);
     if (placed) deps.onPiecePlaced?.();
-    else deps.onPieceFailed?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     const placed = deps.tryPlaceCannon(ctrl, state, max);

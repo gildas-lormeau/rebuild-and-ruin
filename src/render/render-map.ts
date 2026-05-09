@@ -21,10 +21,7 @@ import {
   TOP_MARGIN_CANVAS_PX,
 } from "../shared/core/grid.ts";
 import { isGrass, isWater, pxToTile } from "../shared/core/spatial.ts";
-import type {
-  RenderObserver,
-  RenderOverlay,
-} from "../shared/ui/overlay-types.ts";
+import type { RenderOverlay } from "../shared/ui/overlay-types.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -63,22 +60,18 @@ interface OffscreenPair {
 
 /** Construction-time deps for `createRenderMap`. Both fields are optional —
  *  production callers (`createCanvasRenderer`) typically pass nothing and get
- *  the browser-default canvas factory. Tests pass a recording canvas factory
- *  and an observer to capture terrain-draw intents.
+ *  the browser-default canvas factory. Tests pass a recording canvas factory.
  *
- *  The deps bag replaces the previous module-level `setCanvasFactory` /
- *  `setRenderObserver` seams: each `createRenderMap` call owns its own
- *  scene/banner/cache state, so multiple test scenarios in the same file
- *  remain isolated without any cleanup step. */
+ *  The deps bag replaces the previous module-level `setCanvasFactory` seam:
+ *  each `createRenderMap` call owns its own scene/banner/cache state, so
+ *  multiple test scenarios in the same file remain isolated without any
+ *  cleanup step. */
 export interface RenderMapDeps {
   /** Factory used to create offscreen canvases. Defaults to
    *  `document.createElement("canvas")` in browsers; tests inject a
    *  recording mock so the module can be loaded in environments without
    *  `document` (deno). */
   canvasFactory?: () => HTMLCanvasElement;
-  /** Test observer — receives every `terrainDrawn` intent. Production
-   *  callers omit it. */
-  observer?: RenderObserver;
   /** Reserve a TOP_MARGIN_CANVAS_PX strip at the top of the display
    *  canvas and translate game-area drawing down by the strip height.
    *  Construction-level flag (not per-frame) so the canvas size stays
@@ -93,7 +86,7 @@ export interface RenderMapDeps {
 
 /** Per-renderer instance returned by `createRenderMap`. Holds the closure
  *  state previously kept at module scope (scene canvases, banner cache,
- *  observer, terrain cache). Created once per `createCanvasRenderer` call. */
+ *  terrain cache). Created once per `createCanvasRenderer` call. */
 interface RenderMap {
   drawMap: (
     map: GameMap,
@@ -150,7 +143,6 @@ const CHAMFER_DIAG = 1.414;
 export const NEAREST_WATER_NONE = 0xffff;
 
 export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
-  const observer = deps.observer;
   const createOffscreenCanvas =
     deps.canvasFactory ?? (() => document.createElement("canvas"));
 
@@ -351,9 +343,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     // viewport is always at fullMapVp (awaitCameraFlat gates the banner
     // display chain on convergence), so map→display is a uniform SCALE
     // multiply.
-    const bannerTopMap = overlay.ui.banner.top;
     const bannerBottomMap = overlay.ui.banner.bottom;
-    const bannerHMap = bannerBottomMap - bannerTopMap;
     const clipY = bannerBottomMap * SCALE;
     if (clipY >= displayH) return;
 
@@ -363,12 +353,6 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     displayCtx.clip();
     displayCtx.drawImage(prev.canvas, 0, 0, displayW, displayH);
     displayCtx.restore();
-    observer?.bannerComposited?.({
-      clipY,
-      H: displayH,
-      W: displayW,
-      bannerH: bannerHMap * SCALE,
-    });
   }
 
   // Companion to `drawBannerPrevScene`: paints the NEW scene (post-mutation

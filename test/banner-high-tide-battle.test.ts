@@ -24,7 +24,7 @@ Deno.test("battle banner follows high_tide modifier banner", async () => {
   const recorder = createCanvasRecorder({ discardCalls: true });
 
   using sc = await loadSeed("modifier:high_tide", {
-    renderer: { canvas: recorder, observer: { terrainDrawn: () => {} } },
+    renderer: { canvas: recorder },
   });
 
   let highTideApplied = false;

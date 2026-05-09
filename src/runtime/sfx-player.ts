@@ -31,7 +31,6 @@ import {
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
-import type { SfxObserver } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
@@ -79,7 +78,6 @@ interface SfxSignals {
 interface SfxSubsystemDeps {
   readonly getAssets: () => MusicAssets | undefined;
   readonly assetsReady?: Promise<void>;
-  readonly observer?: SfxObserver;
   /** Live accessor for the current GameState — the final-battle handler
    *  needs `phase` / `round` / `maxRounds` at BANNER_START time to decide
    *  whether to layer the "final" stinger. Kept out of the banner event
@@ -335,10 +333,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     if (disposed || paused) return undefined;
     const samples = ensureSamples();
     const sample = samples?.get(name);
-    if (!sample) {
-      deps.observer?.onMissing?.(name);
-      return undefined;
-    }
+    if (!sample) return undefined;
     const context = ensureContext();
     if (!context) return undefined;
     if (context.state === AUDIO_CONTEXT_SUSPENDED) {
@@ -354,7 +349,6 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
     source.connect(context.destination);
     trackSource(source);
     source.start(0);
-    deps.observer?.onPlaySample?.(name);
     return source;
   }
 

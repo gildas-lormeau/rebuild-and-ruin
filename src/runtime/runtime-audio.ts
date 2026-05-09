@@ -17,13 +17,11 @@ import { Mode } from "../shared/ui/ui-mode.ts";
 import { loadStoredAssets, type MusicAssets } from "./music-assets.ts";
 import { createMusicSubsystem, type MusicSubsystem } from "./music-player.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
-import type { RuntimeConfig } from "./runtime-types.ts";
 import { createSfxSubsystem, type SfxSubsystem } from "./sfx-player.ts";
 import { createSoundModal } from "./sound-modal.ts";
 
 interface AudioOrchestratorDeps {
   runtimeState: RuntimeState;
-  observers?: RuntimeConfig["observers"];
 }
 
 interface AudioOrchestrator {
@@ -46,7 +44,7 @@ interface AudioOrchestrator {
 export function createAudioOrchestrator(
   deps: AudioOrchestratorDeps,
 ): AudioOrchestrator {
-  const { runtimeState, observers } = deps;
+  const { runtimeState } = deps;
 
   // Music assets are loaded asynchronously from IndexedDB (null until ready
   // / if the player hasn't dropped Rampart files into the settings dialog).
@@ -61,9 +59,7 @@ export function createAudioOrchestrator(
       console.error("[music] loadStoredAssets failed:", error);
     });
 
-  const music = createMusicSubsystem({
-    observer: observers?.music,
-  });
+  const music = createMusicSubsystem();
 
   // SFX lives in a separate AudioContext from the music synth — Web Audio
   // is natively polyphonic via BufferSource-per-trigger, so fast-firing
@@ -73,7 +69,6 @@ export function createAudioOrchestrator(
   const sfx = createSfxSubsystem({
     getAssets: () => musicAssets,
     assetsReady: musicAssetsReady,
-    observer: observers?.sfx,
     getState: () => safeState(runtimeState),
     // First tower enclosure of a phase → player-specific fanfare sub-song.
     // SFX has already played elechit1 and delayed the callback by the

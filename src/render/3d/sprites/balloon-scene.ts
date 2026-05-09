@@ -106,20 +106,12 @@ export interface DeflatedBalloonParams {
   material: MaterialSpec;
 }
 
-export interface GroundDiscParams {
-  radius: number;
-  yPos: number;
-  material: MaterialSpec;
-}
-
 export interface BalloonBaseParams {
   stakes: StakesParams;
   stakeRopes: StakeRopesParams;
   mooring: MooringParams;
   bolt: BoltParams;
   deflatedBalloon: DeflatedBalloonParams;
-  groundShadow?: GroundDiscParams;
-  groundAO?: GroundDiscParams;
 }
 
 export type BalloonParams = BalloonFlightParams | BalloonBaseParams;
@@ -614,29 +606,6 @@ function buildBalloonBase(
   scene: THREE.Scene | THREE.Group,
   params: BalloonBaseParams,
 ): void {
-  // Ground shadow (broad, tile-wide) + tight AO disc. Drawn first so
-  // the stakes and mooring render on top. Matches cannon pattern.
-  if (params.groundShadow) {
-    const gs = params.groundShadow;
-    const disc = new three.Mesh(
-      new three.CircleGeometry(gs.radius, 32),
-      createMaterial(gs.material),
-    );
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(0, gs.yPos, 0);
-    scene.add(disc);
-  }
-  if (params.groundAO) {
-    const ao = params.groundAO;
-    const disc = new three.Mesh(
-      new three.CircleGeometry(ao.radius, 32),
-      createMaterial(ao.material),
-    );
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(0, ao.yPos, 0);
-    scene.add(disc);
-  }
-
   // 4 corner stakes
   const stakeMat = createMaterial(params.stakes.material);
   for (const p of stakePositions(params)) {

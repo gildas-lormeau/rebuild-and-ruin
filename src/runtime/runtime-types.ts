@@ -83,8 +83,6 @@ import type {
   ControllerIdentity,
   HapticsObserver,
   InputReceiver,
-  MusicObserver,
-  SfxObserver,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
@@ -317,8 +315,6 @@ export interface RuntimeConfig {
    *  this entirely. */
   observers?: {
     haptics?: HapticsObserver;
-    music?: MusicObserver;
-    sfx?: SfxObserver;
   };
 
   /** Enables the camera pitch animation for battle tilt. Defaults to `true`

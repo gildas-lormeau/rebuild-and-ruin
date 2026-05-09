@@ -478,22 +478,6 @@ export interface HapticsObserver {
   vibrate?(reason: HapticReason, ms: number): void;
 }
 
-/** Test observer for the music subsystem. Captures play/stop intents + init
- *  errors BEFORE the platform gate (no AudioContext / WASM boot), so tests
- *  can assert music would start on lobby and stop on first WALL_BUILD. */
-export interface MusicObserver {
-  onPlay?(track: string): void;
-  onStop?(reason: "phase" | "rematch" | "dispose"): void;
-}
-
-/** Test observer for the SFX (PCM sample) subsystem. Captures playSample()
- *  intents so scenario tests can assert that bus events triggered the right
- *  samples without decoding audio. */
-export interface SfxObserver {
-  onPlaySample?(name: string): void;
-  onMissing?(name: string): void;
-}
-
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 

@@ -53,12 +53,6 @@ export interface BandParams {
   material: MaterialSpec;
 }
 
-export interface ShieldParams {
-  halfSide: number;
-  yPos: number;
-  material: MaterialSpec;
-}
-
 export interface EmblemParams {
   barLength: number;
   barThickness: number;
@@ -71,7 +65,6 @@ export interface RampartParams {
   corners: StakesParams;
   top: TopParams;
   band?: BandParams;
-  shield?: ShieldParams;
   emblem?: EmblemParams;
 }
 
@@ -245,21 +238,6 @@ export function buildRampart(
   params: RampartParams,
 ): void {
   const mat = (spec: MaterialSpec): THREE.Material => createMaterial(spec);
-
-  // Shield aura — flat green square projected on the ground. Drawn
-  // FIRST so later opaque meshes render over it with no z-fight.
-  // renderOrder=-1 is a belt-and-braces hint for the transparent sort.
-  if (params.shield) {
-    const shieldSpec = params.shield;
-    const side = shieldSpec.halfSide * 2;
-    const auraGeom = new three.PlaneGeometry(side, side);
-    const aura = new three.Mesh(auraGeom, mat(shieldSpec.material));
-    aura.rotation.x = -Math.PI / 2;
-    aura.position.set(0, shieldSpec.yPos, 0);
-    aura.renderOrder = -1;
-    aura.userData.tags = ["render-behind", "battle-hidden"];
-    scene.add(aura);
-  }
 
   // Core block.
   const core = new three.Mesh(

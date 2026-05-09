@@ -101,9 +101,7 @@
         { "file": "src/shared/core/system-interfaces.ts", "interface": "LifeLostController" },
         { "file": "src/shared/core/system-interfaces.ts", "interface": "InputReceiver" },
         { "file": "src/shared/core/system-interfaces.ts", "interface": "AiAnimatable" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "HapticsObserver" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "MusicObserver" },
-        { "file": "src/shared/core/system-interfaces.ts", "interface": "SfxObserver" }
+        { "file": "src/shared/core/system-interfaces.ts", "interface": "HapticsObserver" }
       ]
     }
   ]

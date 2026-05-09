@@ -26,10 +26,8 @@
  *
  *     const recorder = createCanvasRecorder({ discardCalls: true });
  *     const sc = await createScenario({
- *       renderer: { canvas: recorder, observer: { terrainDrawn: (target, mapRef) => { ... } } },
+ *       renderer: { canvas: recorder },
  *     });
- *     // ... drive scenario ...
- *     // assertions via the observer callbacks, not recorder.log
  */
 
 // ── ImageData polyfill ──────────────────────────────────────────────
@@ -52,9 +50,8 @@ export interface RecordedCall {
 export interface CanvasRecorderOptions {
   /** When true, the mock context's methods are no-ops and recording is
    *  skipped entirely. Use this for long-running tests that drive many
-   *  thousands of frames and observe the renderer through the
-   *  `renderer.observer` scenario option rather than the call log —
-   *  recording every context call would dwarf the test's CPU budget. */
+   *  thousands of frames and don't need the call log — recording every
+   *  context call would dwarf the test's CPU budget. */
   discardCalls?: boolean;
 }
 

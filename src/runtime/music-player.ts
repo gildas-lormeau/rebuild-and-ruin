@@ -26,12 +26,6 @@
  * Browsers suspend a fresh AudioContext until a user gesture. The first
  * `activate()` call is wired to the home-page "Play" button so the context
  * resumes inside that gesture.
- *
- * ### Test observer
- *
- * Tests pass an optional `observer` that captures `onPlay(track)` / `onStop`
- * intents, so a scenario can assert "binding this bus would trigger title
- * music" without booting an AudioContext or reading IndexedDB.
  */
 
 import {
@@ -42,7 +36,6 @@ import {
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import type { MusicObserver } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
@@ -96,10 +89,6 @@ export interface MusicSubsystem {
    *  triggering phase. Bypasses the bus (works in lobby too). Remove once
    *  the music render path is settled. */
   debugPlayBg(trackId: BgTrackId): Promise<void>;
-}
-
-interface MusicSubsystemDeps {
-  readonly observer?: MusicObserver;
 }
 
 type BgTrackId = "title" | "cannon" | "build" | "score" | "lifeLost" | "jaws";
@@ -188,7 +177,6 @@ const BG_TRACK_JAWS: BgTrack = {
   loop: false,
   volume: TRACK_VOLUMES.jaws,
 };
-const FANFARE_TRACK: XmiFileKey = "RXMI_TETRIS.xmi";
 // Tower-enclosure fanfares live at 0-indexed sub-songs 4/5/6 of
 // RXMI_TETRIS.xmi (mapping.txt lists them 1-indexed as 5/6/7). One
 // variant per player slot; a hypothetical 4th player reuses slot 0's.
@@ -202,10 +190,8 @@ const FANFARE_SONG_BY_SLOT: readonly number[] = [4, 5, 6, 4];
 // cross-fade with mirrored ramps.
 const BUILD_BG_FADE_START_SEC = 6.72;
 const BUILD_BG_FADE_DURATION_SEC = 1;
-const STOP_REASON_PHASE = "phase" as const;
-const STOP_REASON_DISPOSE = "dispose" as const;
 
-export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
+export function createMusicSubsystem(): MusicSubsystem {
   // Single AudioContext shared by every bg track + every fanfare. Created
   // lazily inside `activate()` so the constructor never touches Web Audio
   // outside a user gesture. No worklet, no WASM at runtime.
@@ -397,17 +383,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       activeGain = gain;
       bgPlaying = track;
       buildBgFadeTriggered = false;
-      deps.observer?.onPlay?.(track.id);
     } catch (error) {
       console.error(`[music] ${track.id} playback failed:`, error);
     }
   }
 
-  function stopBg(reason: "phase" | "rematch" | "dispose"): void {
-    const wasPlaying = bgPlaying !== undefined;
+  function stopBg(): void {
     bgPlaying = undefined;
     stopActiveSource();
-    if (wasPlaying) deps.observer?.onStop?.(reason);
   }
 
   function fadeOutBg(): void {
@@ -430,7 +413,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
 
   function stopAll(): void {
     wantsTitle = false;
-    stopBg(STOP_REASON_DISPOSE);
+    stopBg();
     for (const source of activeFanfareSources) {
       try {
         source.stop();
@@ -461,7 +444,6 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         activeFanfareSources.delete(source);
       });
       source.start(0);
-      deps.observer?.onPlay?.(`${FANFARE_TRACK}#slot${playerId}`);
     } catch (error) {
       console.error(
         `[music] fanfare playback failed for slot ${playerId}:`,
@@ -477,7 +459,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // bgPlaying so we don't cut off the next phase's music (cannon-bg may
     // already have started by the time this frame runs).
     if (buildBgLastPhase === Phase.WALL_BUILD && phase !== Phase.WALL_BUILD) {
-      if (bgPlaying === BG_TRACK_BUILD) stopBg(STOP_REASON_PHASE);
+      if (bgPlaying === BG_TRACK_BUILD) stopBg();
       buildBgFadeTriggered = false;
     }
     buildBgLastPhase = phase;
@@ -523,7 +505,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
     // so the no-op stop is harmless.
     bind(GAME_EVENT.CASTLE_PLACED, () => {
       wantsTitle = false;
-      stopBg(STOP_REASON_PHASE);
+      stopBg();
     });
 
     // Cannon-phase bg music: starts when the CANNON_PLACE banner begins
@@ -538,14 +520,14 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
         event.bannerKind === "battle" ||
         event.bannerKind === "modifier-reveal"
       ) {
-        stopBg(STOP_REASON_PHASE);
+        stopBg();
       } else if (
         event.bannerKind === "build" &&
         bgPlaying === BG_TRACK_CANNON
       ) {
         // Upgrade-pick flow started cannon-bg early to cover the dialog;
         // stop it here so build-bg can take over at bannerSweepEnd.
-        stopBg(STOP_REASON_PHASE);
+        stopBg();
       }
     });
 
@@ -566,7 +548,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       void playBg(BG_TRACK_SCORE);
     });
     bind(GAME_EVENT.SCORE_OVERLAY_END, () => {
-      stopBg(STOP_REASON_PHASE);
+      stopBg();
     });
 
     // Life-lost popup: one-shot track. Plays through the dialog and into
@@ -586,7 +568,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
       void playBg(BG_TRACK_JAWS);
     });
     bind(GAME_EVENT.BALLOON_ANIM_END, () => {
-      stopBg(STOP_REASON_PHASE);
+      stopBg();
     });
 
     // Upgrade-pick dialog: play cannon-bg through the whole screen —
@@ -622,7 +604,7 @@ export function createMusicSubsystem(deps: MusicSubsystemDeps): MusicSubsystem {
 
   async function dispose(): Promise<void> {
     unbindCurrentBus();
-    stopBg(STOP_REASON_DISPOSE);
+    stopBg();
     wantsTitle = false;
     if (audioContext) {
       await audioContext.close().catch(() => {});
