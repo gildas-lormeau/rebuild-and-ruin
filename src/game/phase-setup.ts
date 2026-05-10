@@ -74,10 +74,10 @@ import {
 } from "./grunt-system.ts";
 import {
   clearActiveModifiers,
+  dispatchModifierBattleEnd,
   MODIFIER_REGISTRY,
   rollModifier,
 } from "./modifier-system.ts";
-import { precomputeDustStormJitters } from "./modifiers/dust-storm.ts";
 import {
   generateUpgradeOffers,
   onBattlePhaseStart,
@@ -122,21 +122,8 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   preBattleSweep(state);
   recheckTerritory(state);
   clearActiveModifiers(state);
-  // Last round's rubble_clearing snapshots live only
-  // for the duration of their modifier-reveal fades. Drop both before the
-  // next modifier rolls so the wire payload doesn't carry stale held
-  // entries.
-  if (state.modern) {
-    state.modern.rubbleClearingHeld = null;
-  }
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
-    // Precompute the dust-storm jitter buffer (no-op when the rolled
-    // modifier isn't dust-storm — clears the buffer to []). Anchors all
-    // dust-storm rng draws to a single deterministic state-mutation
-    // point, removing the per-fire schedule-vs-apply rng draw asymmetry
-    // that the lockstep cannon-fire schedule introduced.
-    precomputeDustStormJitters(state);
   }
   const diff = applyBattleStartModifiers(state);
   // Emit AFTER apply so consumers can read post-apply state.modern.*Held
@@ -208,6 +195,10 @@ export function finalizeBattle(state: GameState): void {
   // Reset per-battle grunt decisions — fresh `targetedWall` is recomputed
   // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD).
   for (const grunt of state.grunts) grunt.targetedWall = undefined;
+  // Drop modifier state whose useful lifetime ended at BATTLE_END
+  // (dust-storm jitter buffer, rubble-clearing held snapshot) so the
+  // WALL_BUILD + next-CANNON_PLACE checkpoints don't carry stale entries.
+  dispatchModifierBattleEnd(state);
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
   // Must happen here (not in prepareBattleState) so watchers see the same

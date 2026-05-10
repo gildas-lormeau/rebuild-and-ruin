@@ -90,6 +90,19 @@ export function applyCheckpointModifierTiles(
   }
 }
 
+/** Dispatch the active modifier's `onBattleEnd` hook (if any). Called from
+ *  `finalizeBattle` to let battle-only modifiers (dust-storm's jitter
+ *  buffer, rubble-clearing's held snapshot) drop their state at BATTLE_END
+ *  rather than carrying it through WALL_BUILD + the next CANNON_PLACE in
+ *  checkpoints. No-op for modifiers without the hook or when the modifiers
+ *  feature is inactive. */
+export function dispatchModifierBattleEnd(state: GameState): void {
+  if (!hasFeature(state, FID.MODIFIERS)) return;
+  const activeMod = state.modern?.activeModifier;
+  if (!activeMod) return;
+  MODIFIER_REGISTRY.get(activeMod)?.onBattleEnd?.(state);
+}
+
 /** Clear all round-scoped modifier state (frozen tiles, high tide, low
  *  water, frostbite chip). Called from `prepareBattleState` (next round's
  *  CANNON_PLACE-done, just before `rollModifier`) so each round-scoped

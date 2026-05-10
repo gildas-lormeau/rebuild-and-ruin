@@ -27,6 +27,12 @@ export const rubbleClearingImpl: ModifierImpl = {
     changedTiles: applyRubbleClearing(state),
     gruntsSpawned: 0,
   }),
+  onBattleEnd: (state: GameState) => {
+    // The held snapshot only powers the post-reveal fade animation, which
+    // completes well before BATTLE_END. Drop it so checkpoints through the
+    // rest of the round don't carry the stale entries.
+    if (state.modern) state.modern.rubbleClearingHeld = null;
+  },
   // Removes dead cannons + burning pits — neither affects walls or interior.
   skipsRecheck: true,
 };
