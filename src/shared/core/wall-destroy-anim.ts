@@ -49,10 +49,9 @@ const SNAPSHOT: WallDestroyAnim = {
   dustOpacity: 0,
   debrisOpacity: 0,
 };
-/** Total duration of the sink + tail-fade window (ms). Sized to read
- *  as a real collapse — long enough to land the motion + dust, short
- *  enough not to delay battle entry. */
-const WALL_DESTROY_ANIM_DURATION_MS = 1200;
+/** Total duration of the sink + tail-fade window (ms). Punchy enough
+ *  to read as an impact-driven collapse without slowing battle pace. */
+const WALL_DESTROY_ANIM_DURATION_MS = 400;
 /** World-units the held wall descends over the animation window. The
  *  wall body's authored top sits at ~26 world units (3.22 sprite units
  *  × `TILE_SIZE / 2` scale; see `elevation.ts`); dropping by `TILE_SIZE

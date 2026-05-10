@@ -218,7 +218,7 @@ export const THAW_DURATION = 0.6;
  *  wall-burns manager filters `destroyedWalls` to entries with
  *  `age < WALL_BURN_DURATION` so the fire kernel only animates during
  *  this window, while the entry itself lives the full anim duration. */
-export const WALL_BURN_DURATION = 0.7;
+export const WALL_BURN_DURATION = 0.25;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
 export const CANNON_DESTROY_DURATION = 0.9;
