@@ -78,8 +78,8 @@ export interface GruntKilledMessage {
   shooterId?: number;
 }
 
-/** A frosted grunt absorbed its first hit (ice chip — grunt survives, marked
- *  in `state.modern.chippedGrunts`; the next hit on the same tile kills). */
+/** A frosted grunt absorbed its first hit (ice chip — grunt survives with
+ *  `grunt.chipped = true`; the next hit on the same tile kills). */
 export interface GruntChippedMessage {
   type: "gruntChipped";
   row: number;

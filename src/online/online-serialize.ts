@@ -405,9 +405,6 @@ function serializeModifierTileSets(state: GameState) {
     lowWaterTiles: state.modern?.lowWaterTiles
       ? [...state.modern.lowWaterTiles]
       : null,
-    chippedGrunts: state.modern?.chippedGrunts
-      ? [...state.modern.chippedGrunts]
-      : null,
   };
 }
 
@@ -480,6 +477,7 @@ function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
   return {
     ...grunt,
     blockedRounds: grunt.blockedRounds ?? 0,
+    chipped: grunt.chipped ? true : undefined,
   };
 }
 
@@ -496,6 +494,7 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     blockedRounds: grunt.blockedRounds,
     attackingWall: grunt.attackingWall,
     facing: grunt.facing,
+    chipped: grunt.chipped,
   };
 }
 

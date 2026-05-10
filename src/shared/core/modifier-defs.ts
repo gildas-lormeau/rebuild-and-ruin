@@ -143,9 +143,9 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
       "Grunts spawn as ice cubes — fully immobile and require two hits to break",
     weight: 2,
     implemented: true,
-    // Tracks per-grunt chipped state (one tile-key set on ModernState) that
-    // must survive host migration mid-battle. No tile mutation.
-    needsCheckpoint: true,
+    // Chip state rides on `grunt.chipped`, which is already serialized as part
+    // of each grunt's wire fields — no separate modifier-owned checkpoint.
+    needsCheckpoint: false,
     tileMutationPrev: null,
   },
   {
@@ -205,7 +205,7 @@ export const MODIFIER_CONSUMERS = {
   },
   frostbite: {
     impl: "src/game/modifiers/frostbite.ts",
-    serialize: "src/online/online-serialize.ts",
+    chipFlag: "src/shared/core/battle-types.ts",
   },
   sapper: {
     impl: "src/game/modifiers/sapper.ts",

@@ -1,36 +1,27 @@
 /**
  * Frostbite modifier — grunts spawn as immobile ice cubes that take two
- * hits to break (first chips, tracked in `chippedGrunts`; second kills).
- * Lasts one battle. `chippedGrunts` is mirrored into checkpoints so host
- * migrations mid-battle keep host/watcher in sync.
+ * hits to break (first hit sets `grunt.chipped`; second kills). Chip state
+ * rides on the grunt itself, so it dies with the grunt and survives host
+ * migration via the standard grunt serialization.
  */
 
 import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
+import type { ModifierImpl } from "./modifier-types.ts";
 
 export const frostbiteImpl: ModifierImpl = {
-  lifecycle: "round-scoped",
+  lifecycle: "instant",
   apply: (state: GameState) => {
-    if (state.modern) state.modern.chippedGrunts = new Set();
-    // Pulse the existing grunt tiles — those are the units about to freeze
-    // into immobile ice cubes for the battle.
-    const changedTiles = state.grunts.map((grunt) =>
-      packTile(grunt.row, grunt.col),
-    );
+    // Reset stale chip flags from a prior frostbite round so the new battle
+    // starts with every grunt at full ice-cube health. Then pulse the
+    // existing grunt tiles — those are the units about to freeze.
+    const changedTiles: number[] = [];
+    for (const grunt of state.grunts) {
+      grunt.chipped = undefined;
+      changedTiles.push(packTile(grunt.row, grunt.col));
+    }
     return { changedTiles, gruntsSpawned: 0 };
   },
   // No walls touched, no tile passability change — pure entity-level effect.
   skipsRecheck: true,
-  clear: (state: GameState) => {
-    if (state.modern) state.modern.chippedGrunts = null;
-  },
-  restore: (state: GameState, data: ModifierTileData) => {
-    if (!("chippedGrunts" in data)) return;
-    if (state.modern) {
-      state.modern.chippedGrunts = data.chippedGrunts
-        ? new Set(data.chippedGrunts)
-        : null;
-    }
-  },
 };

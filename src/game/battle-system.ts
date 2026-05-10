@@ -795,7 +795,6 @@ function applyImpactEvent(
       state.grunts = state.grunts.filter(
         (grunt) => !isAtTile(grunt, event.row, event.col),
       );
-      state.modern?.chippedGrunts?.delete(packTile(event.row, event.col));
       if (shooter) {
         shooter.score +=
           DESTROY_GRUNT_POINTS +
@@ -804,7 +803,9 @@ function applyImpactEvent(
       break;
     }
     case BATTLE_MESSAGE.GRUNT_CHIPPED:
-      state.modern?.chippedGrunts?.add(packTile(event.row, event.col));
+      for (const grunt of state.grunts) {
+        if (isAtTile(grunt, event.row, event.col)) grunt.chipped = true;
+      }
       break;
     case BATTLE_MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
@@ -1310,10 +1311,9 @@ function collectHouseImpacts(
 }
 
 /** Collect grunt kill events at a tile.
- *  Frostbite: a frosted grunt's first hit is absorbed (chip event marks the
- *  tile in `state.modern.chippedGrunts`); subsequent hits kill normally.
- *  `heavy` (super gun / mortar center) deals 2 HP — bypasses the chip step
- *  and kills frosted grunts in one shot.
+ *  Frostbite: a frosted grunt's first hit is absorbed (marks `grunt.chipped`);
+ *  subsequent hits kill normally. `heavy` (super gun / mortar center) deals
+ *  2 HP — bypasses the chip step and kills frosted grunts in one shot.
  *  Conscription: killed grunts have a chance to respawn on a random enemy zone. */
 function collectGruntImpacts(
   state: GameState,
@@ -1327,12 +1327,7 @@ function collectGruntImpacts(
     state.modern?.activeModifier === MODIFIER_ID.FROSTBITE;
   for (const grunt of state.grunts) {
     if (!isAtTile(grunt, row, col)) continue;
-    const tileKey = packTile(grunt.row, grunt.col);
-    if (
-      !heavy &&
-      frostbiteActive &&
-      !state.modern?.chippedGrunts?.has(tileKey)
-    ) {
+    if (!heavy && frostbiteActive && !grunt.chipped) {
       events.push({
         type: BATTLE_MESSAGE.GRUNT_CHIPPED,
         row: grunt.row,

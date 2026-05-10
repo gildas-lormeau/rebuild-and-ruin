@@ -24,6 +24,12 @@ export interface Grunt extends TilePos {
   targetedWall?: number;
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
+  /** True after this grunt has absorbed one frostbite hit (next hit kills).
+   *  Set only when frostbite is the active modifier; otherwise ignored. Lives
+   *  on the grunt itself so chip state dies when the grunt dies — no separate
+   *  tile-key tracker to keep in sync. Stale flags from a prior frostbite
+   *  round are reset in `frostbiteImpl.apply` if frostbite re-rolls. */
+  chipped?: true;
 }
 
 export enum CannonMode {

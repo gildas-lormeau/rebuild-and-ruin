@@ -41,6 +41,7 @@ export interface SerializedGrunt {
   blockedRounds?: number;
   attackingWall?: boolean;
   facing?: number;
+  chipped?: boolean;
 }
 
 export interface SerializedPlayer {

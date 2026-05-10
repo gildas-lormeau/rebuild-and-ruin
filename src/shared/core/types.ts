@@ -230,10 +230,6 @@ export interface ModernState {
   /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
    *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
   lowWaterTiles: Set<number> | null;
-  /** Grunt tile keys that have absorbed one frostbite hit (the ice "chip" from
-   *  reinforced-walls-style two-hit kill). Populated when frostbite is active;
-   *  cleared between battles. null = no frostbite this round. */
-  chippedGrunts: Set<number> | null;
   /** Precomputed dust-storm jitter angles (radians) drawn from `state.rng` at
    *  `prepareBattleState` when the rolled modifier is dust-storm. Indexed by
    *  `state.shotsFired` at fire time so both peers compute identical jitter
@@ -383,7 +379,6 @@ function createModernState(): ModernState {
     sinkholeTiles: null,
     highTideTiles: null,
     lowWaterTiles: null,
-    chippedGrunts: null,
     precomputedDustStormJitters: [],
     rubbleClearingHeld: null,
   };
