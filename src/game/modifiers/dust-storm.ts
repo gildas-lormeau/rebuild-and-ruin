@@ -3,8 +3,8 @@
  * precomputes a 1024-entry buffer from `state.rng` at BATTLE_START
  * (identical across peers at the same sim tick); each fire reads
  * `buffer[shotsFired % length]` via `applyDustStormJitter` (no per-fire
- * rng draws → no schedule-vs-apply asymmetry under lockstep).
- * `onBattleEnd` clears the buffer.
+ * rng draws → no schedule-vs-apply asymmetry under lockstep). `clear`
+ * fires at BATTLE_END (instant lifecycle) and drops the buffer.
  */
 
 import { MODIFIER_ID } from "../../shared/core/game-constants.ts";
@@ -29,7 +29,7 @@ export const dustStormImpl: ModifierImpl = {
     state.modern!.precomputedDustStormJitters = jitters;
     return { changedTiles: [], gruntsSpawned: 0 };
   },
-  onBattleEnd: (state: GameState) => {
+  clear: (state: GameState) => {
     if (state.modern) state.modern.precomputedDustStormJitters = [];
   },
   // Trajectory jitter only — no map / wall mutation.

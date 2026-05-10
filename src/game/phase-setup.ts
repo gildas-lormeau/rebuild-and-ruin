@@ -73,8 +73,8 @@ import {
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
 import {
+  clearActiveInstantModifier,
   clearActiveModifiers,
-  dispatchModifierBattleEnd,
   MODIFIER_REGISTRY,
   rollModifier,
 } from "./modifier-system.ts";
@@ -195,10 +195,10 @@ export function finalizeBattle(state: GameState): void {
   // Reset per-battle grunt decisions — fresh `targetedWall` is recomputed
   // for the next battle in `finalizeRoundCleanup` (end of WALL_BUILD).
   for (const grunt of state.grunts) grunt.targetedWall = undefined;
-  // Drop modifier state whose useful lifetime ended at BATTLE_END
-  // (dust-storm jitter buffer, rubble-clearing held snapshot) so the
-  // WALL_BUILD + next-CANNON_PLACE checkpoints don't carry stale entries.
-  dispatchModifierBattleEnd(state);
+  // Clear the active instant modifier (dust-storm jitter buffer,
+  // rubble-clearing held snapshot) so WALL_BUILD + next-CANNON_PLACE
+  // checkpoints don't carry stale battle-only state.
+  clearActiveInstantModifier(state);
   // Save activeModifier as lastModifierId BEFORE the build-start checkpoint
   // is created — rollModifier reads lastModifierId to prevent back-to-back repeats.
   // Must happen here (not in prepareBattleState) so watchers see the same

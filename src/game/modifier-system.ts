@@ -90,25 +90,27 @@ export function applyCheckpointModifierTiles(
   }
 }
 
-/** Dispatch the active modifier's `onBattleEnd` hook (if any). Called from
+/** Clear the active instant modifier at BATTLE_END. Called from
  *  `finalizeBattle` to let battle-only modifiers (dust-storm's jitter
- *  buffer, rubble-clearing's held snapshot) drop their state at BATTLE_END
- *  rather than carrying it through WALL_BUILD + the next CANNON_PLACE in
- *  checkpoints. No-op for modifiers without the hook or when the modifiers
- *  feature is inactive. */
-export function dispatchModifierBattleEnd(state: GameState): void {
+ *  buffer, rubble-clearing's held snapshot) drop their state before the
+ *  WALL_BUILD + next-CANNON_PLACE checkpoints carry it. No-op for
+ *  modifiers without a `clear` or when the modifiers feature is inactive.
+ *  Round-scoped clears fire later, via `clearActiveModifiers`. */
+export function clearActiveInstantModifier(state: GameState): void {
   if (!hasFeature(state, FID.MODIFIERS)) return;
   const activeMod = state.modern?.activeModifier;
   if (!activeMod) return;
-  MODIFIER_REGISTRY.get(activeMod)?.onBattleEnd?.(state);
+  const impl = MODIFIER_REGISTRY.get(activeMod);
+  if (impl?.lifecycle === "instant") impl.clear?.(state);
 }
 
 /** Clear all round-scoped modifier state (frozen tiles, high tide, low
- *  water, frostbite chip). Called from `prepareBattleState` (next round's
- *  CANNON_PLACE-done, just before `rollModifier`) so each round-scoped
- *  modifier is active for exactly one round (its battle through next
- *  CANNON_PLACE). Instant + permanent modifiers are skipped — they have
- *  no per-round state to clean up. Each clear function is idempotent. */
+ *  water). Called from `prepareBattleState` (next round's CANNON_PLACE-done,
+ *  just before `rollModifier`) so each round-scoped modifier is active for
+ *  exactly one round (its battle through next CANNON_PLACE). Instant +
+ *  permanent modifiers are skipped — instant clears fire at BATTLE_END via
+ *  `clearActiveInstantModifier`, permanent modifiers never clear. Each
+ *  clear function is idempotent. */
 export function clearActiveModifiers(state: GameState): void {
   for (const impl of MODIFIER_REGISTRY.values()) {
     if (impl.lifecycle === "round-scoped") impl.clear(state);

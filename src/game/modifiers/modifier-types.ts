@@ -22,13 +22,15 @@ interface ModifierImplBase {
    *  recheck on a tile-mutating modifier would silently desync host vs
    *  watcher territory. Default-on closes that footgun. */
   skipsRecheck?: true;
-  /** Drop any modifier-owned state whose useful lifetime ends at BATTLE_END
-   *  — precomputed battle-only buffers (dust-storm jitters), held entity
-   *  snapshots for post-reveal fades (rubble-clearing), etc. Dispatched
-   *  from `finalizeBattle` on the active modifier only. Optional: most
-   *  modifiers either keep state alive longer (round-scoped, permanent)
-   *  or have no state at all. */
-  onBattleEnd?(state: GameState): void;
+  /** Drop modifier-owned state at the lifecycle's expiry point. Required on
+   *  round-scoped (narrowed below); optional on instant (most instant
+   *  modifiers have nothing to clean up); not used on permanent. Timing is
+   *  derived from `lifecycle`:
+   *   - `instant`     → fires at BATTLE_END (from `finalizeBattle`)
+   *   - `round-scoped` → fires at next CANNON_PLACE-done (from
+   *                      `clearActiveModifiers` in `prepareBattleState`)
+   *   - `permanent`   → never fires (state persists across rounds) */
+  clear?(state: GameState): void;
 }
 
 /** Instant modifier: side effects flow through normal game state at
