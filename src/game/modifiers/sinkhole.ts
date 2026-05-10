@@ -16,6 +16,7 @@ import {
   packTile,
   setWater,
   unpackTile,
+  zoneAt,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
@@ -241,15 +242,14 @@ function findValidShapePlacements(
 /** Build a predicate for whether a tile can become a sinkhole in a specific zone. */
 function buildCanSinkPredicate(
   state: GameState,
-  targetZone: number,
+  targetZone: ZoneId,
 ): (row: number, col: number) => boolean {
   const tiles = state.map.tiles;
-  const zones = state.map.zones;
   const existingSinkhole = state.modern?.sinkholeTiles ?? new Set<number>();
   const protectedTiles = getProtectedCastleTiles(state);
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
-    if (zones[row]?.[col] !== targetZone) return false;
+    if (zoneAt(state.map, row, col) !== targetZone) return false;
     if (protectedTiles.has(packTile(row, col))) return false;
     if (existingSinkhole.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;

@@ -35,6 +35,7 @@ import {
   packTile,
   setGrass,
   unpackTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -442,9 +443,10 @@ function sweepGruntsInDeadZones(state: GameState): void {
     if (zone !== undefined) deadZones.add(zone);
   }
   if (deadZones.size === 0) return;
-  state.grunts = state.grunts.filter(
-    (grunt) => !deadZones.has(state.map.zones[grunt.row]?.[grunt.col] ?? -1),
-  );
+  state.grunts = state.grunts.filter((grunt) => {
+    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
+    return gruntZone === undefined || !deadZones.has(gruntZone);
+  });
 }
 
 function sweepAllPlayersWalls(state: GameState): void {
@@ -507,7 +509,7 @@ function applyLifePenalties(state: GameState): {
  *  by definition; only their per-zone footprint goes away here. */
 function resetZoneState(state: GameState, zone: ZoneId): void {
   state.grunts = state.grunts.filter((grunt) => {
-    if (state.map.zones[grunt.row]?.[grunt.col] === zone) return false;
+    if (zoneAt(state.map, grunt.row, grunt.col) === zone) return false;
     // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
     if (grunt.targetTowerIdx !== undefined) {
       if (state.map.towers[grunt.targetTowerIdx]?.zone === zone) return false;
@@ -519,7 +521,7 @@ function resetZoneState(state: GameState, zone: ZoneId): void {
     (bonus) => bonus.zone !== zone,
   );
   state.burningPits = state.burningPits.filter(
-    (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
+    (pit) => zoneAt(state.map, pit.row, pit.col) !== zone,
   );
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {

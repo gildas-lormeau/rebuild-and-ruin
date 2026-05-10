@@ -20,6 +20,7 @@ import {
   isGrass,
   packTile,
   unpackTile,
+  zoneAt,
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
@@ -156,17 +157,16 @@ function generateWildfireScar(state: GameState, zone: ZoneId): Set<number> {
  *  land on the castle tower or its wall ring. */
 function buildCanBurnPredicate(
   state: GameState,
-  targetZone: number,
+  targetZone: ZoneId,
 ): (row: number, col: number) => boolean {
   const protectedTiles = getProtectedCastleTiles(state);
   const tiles = state.map.tiles;
-  const zones = state.map.zones;
   const burningSet = new Set(
     state.burningPits.map((pit) => packTile(pit.row, pit.col)),
   );
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
-    if (zones[row]?.[col] !== targetZone) return false;
+    if (zoneAt(state.map, row, col) !== targetZone) return false;
     if (protectedTiles.has(packTile(row, col))) return false;
     if (burningSet.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;

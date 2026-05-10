@@ -45,6 +45,7 @@ import {
   manhattanDistance,
   packTile,
   unpackTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
@@ -105,8 +106,8 @@ export function findGruntSpawnNear(
   posRow: number,
   posCol: number,
 ): TilePos | null {
-  const zone = state.map.zones[posRow]?.[posCol];
-  if (zone === undefined || zone < 0) return null;
+  const zone = zoneAt(state.map, posRow, posCol);
+  if (zone === undefined) return null;
 
   for (let radius = 1; radius <= NEAR_SPAWN_RADIUS; radius++) {
     let best: TilePos | undefined;
@@ -117,7 +118,7 @@ export function findGruntSpawnNear(
         const row = posRow + dr;
         const col = posCol + dc;
         if (!inBounds(row, col)) continue;
-        if (state.map.zones[row]![col] !== zone) continue;
+        if (zoneAt(state.map, row, col) !== zone) continue;
         if (!isValidGruntSpawnTile(state, row, col)) continue;
         const dist = manhattanDistance(row, col, posRow, posCol);
         if (dist < bestDist) {
@@ -469,7 +470,7 @@ function findGruntSpawnPositions(
   const edge: { row: number; col: number }[] = [];
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
-      if (state.map.zones[row]![col] !== zone) continue;
+      if (zoneAt(state.map, row, col) !== zone) continue;
       if (!isValidGruntSpawnTile(state, row, col)) continue;
       if (minWaterDistance(state, row, col) <= 1) {
         bank.push({ row, col });

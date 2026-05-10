@@ -18,6 +18,7 @@ import {
   isWater,
   packTile,
   unpackTile,
+  zoneAt,
 } from "./spatial.ts";
 import type { GameViewState } from "./system-interfaces.ts";
 
@@ -267,7 +268,8 @@ export function zoneOwnerIdAt(
   row: number,
   col: number,
 ): ValidPlayerSlot {
-  const zone = state.map.zones[row]?.[col] ?? -1;
+  const zone = zoneAt(state.map, row, col);
+  if (zone === undefined) return 0 as ValidPlayerSlot;
   for (let pid = 0; pid < state.playerZones.length; pid++) {
     if (state.playerZones[pid] === zone) return pid as ValidPlayerSlot;
   }

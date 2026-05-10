@@ -49,6 +49,7 @@ import {
   isGrass,
   manhattanDistance,
   packTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -125,7 +126,7 @@ export function canPlacePiece(
     if (!inBounds(r, c)) return false;
     if (!isGrass(state.map.tiles, r, c)) return false;
     // Must be within the player's zone
-    if (zone !== undefined && state.map.zones[r]![c] !== zone) return false;
+    if (zone !== undefined && zoneAt(state.map, r, c) !== zone) return false;
     const key = packTile(r, c);
 
     // AI callers pass excludeInterior to prevent placing inside enclosed zones

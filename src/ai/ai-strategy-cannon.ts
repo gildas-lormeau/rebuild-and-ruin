@@ -31,6 +31,7 @@ import {
   packTile,
   towerCenter,
   unpackTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { CannonViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -119,7 +120,7 @@ export function autoSelectTower(
       count = 0;
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
-        if (map.zones[r]![c] === zone) {
+        if (zoneAt(map, r, c) === zone) {
           sumRow += r;
           sumCol += c;
           count++;

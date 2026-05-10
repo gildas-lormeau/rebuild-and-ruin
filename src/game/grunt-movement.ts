@@ -26,6 +26,7 @@ import {
   isTowerTile,
   manhattanDistance,
   packTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 
@@ -136,7 +137,7 @@ function lockGruntTarget(
     }
   }
 
-  const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
+  const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
   const frozenActive = state.modern?.frozenTiles != null;
 
   let bestDist = Infinity;

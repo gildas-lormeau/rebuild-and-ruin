@@ -29,6 +29,7 @@ import {
   packTile,
   pxToTile,
   unpackTile,
+  zoneAt,
 } from "../shared/core/spatial.ts";
 import type { BattleViewState } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
@@ -308,7 +309,7 @@ export function planIceTrench(
   // (pre-retarget), so we check location only.
   const bankGrunts: TilePos[] = [];
   for (const grunt of state.grunts) {
-    const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
+    const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
     if (gruntZone === undefined || gruntZone === playerZone) continue;
     for (const [dr, dc] of DIRS_4) {
       if (frozenTiles.has(packTile(grunt.row + dr, grunt.col + dc))) {
@@ -329,7 +330,7 @@ export function planIceTrench(
       if (!inBounds(nr, nc)) continue;
       if (
         isGrass(state.map.tiles, nr, nc) &&
-        state.map.zones[nr]?.[nc] === playerZone
+        zoneAt(state.map, nr, nc) === playerZone
       ) {
         shoreline.push(key);
         break;
@@ -362,7 +363,7 @@ export function planIceTrench(
     const nr = anchor.r + dr;
     const nc = anchor.c + dc;
     if (!inBounds(nr, nc)) continue;
-    if (state.map.zones[nr]?.[nc] === playerZone) {
+    if (zoneAt(state.map, nr, nc) === playerZone) {
       inward = [-dr, -dc] as const;
       break;
     }
@@ -619,7 +620,7 @@ export function planGruntSweep(
     // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
     // don't kill them. Only target grunts that are already in enemy territory heading back.
     if (frozenActive) {
-      const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
+      const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
       if (gruntZone === defenderZone) return false;
     }
     return true;
