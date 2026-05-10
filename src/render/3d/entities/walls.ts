@@ -132,12 +132,15 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
-    // Held walls union into the mask-compute set ONLY while the fade
-    // is active, so live neighbours keep their merlons during the
-    // fade. Post-fade the debris manager carries the rubble.
-    const heldWalls = overlay?.battle?.heldDestroyedWalls;
+    // Held walls = the `decay`-cause entries on `destroyedWalls`
+    // (currently only the crumbling-walls modifier — see
+    // `runtime-phase-machine.ts` `syncBattleAnim`). They union into the
+    // mask-compute set ONLY while `crumblingWallsFade` is in flight, so
+    // live neighbours keep their merlons during the fade. Post-fade the
+    // debris manager carries the rubble.
+    const destroyedWalls = overlay?.battle?.destroyedWalls;
     const crumblingFade = overlay?.battle?.crumblingWallsFade;
-    const renderHeldWalls = heldWalls && crumblingFade !== undefined;
+    const renderHeldWalls = destroyedWalls && crumblingFade !== undefined;
     const fade = crumblingFade ?? 1;
     const sapperIntensity = overlay?.battle?.sapperRevealIntensity ?? 0;
     const sapperTargetedRaw = overlay?.battle?.sapperTargetedWalls;
@@ -163,9 +166,11 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     const heldKeys: number[] = [];
     const heldDamagedKeys = new Set<number>();
     if (renderHeldWalls) {
-      for (const held of heldWalls) {
-        heldKeys.push(held.tileKey);
-        if (held.damaged) heldDamagedKeys.add(held.tileKey);
+      for (const wall of destroyedWalls) {
+        if (wall.cause !== "decay") continue;
+        const tileKey = wall.row * GRID_COLS + wall.col;
+        heldKeys.push(tileKey);
+        if (wall.damaged) heldDamagedKeys.add(tileKey);
       }
     }
 

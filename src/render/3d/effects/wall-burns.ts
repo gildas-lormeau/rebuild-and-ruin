@@ -8,7 +8,7 @@
  */
 
 import type * as THREE from "three";
-import { WALL_DESTROY_DURATION } from "../../../shared/core/battle-types.ts";
+import { WALL_BURN_DURATION } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   createTileBurstManager,
@@ -55,7 +55,7 @@ export function createWallBurnsManager(scene: THREE.Scene): WallBurnsManager {
   return createTileBurstManager(scene, {
     name: "wall-burns",
     config: WALL_BURST_CONFIG,
-    duration: WALL_DESTROY_DURATION,
+    duration: WALL_BURN_DURATION,
     selectEntries: (ctx) =>
       ctx.overlay?.battle?.destroyedWalls?.filter(
         (destroyedWall) => destroyedWall.cause === "impact",

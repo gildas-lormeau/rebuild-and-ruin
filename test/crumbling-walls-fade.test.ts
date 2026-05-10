@@ -64,7 +64,10 @@ Deno.test("crumbling_walls fade: opacity multiplier per tick after banner", asyn
     samples.push({
       elapsed,
       value: overlay?.battle?.crumblingWallsFade,
-      heldWalls: overlay?.battle?.heldDestroyedWalls?.length ?? 0,
+      heldWalls:
+        overlay?.battle?.destroyedWalls?.filter(
+          (wall) => wall.cause === "decay",
+        ).length ?? 0,
     });
     if (
       stopSamplingAt === undefined &&

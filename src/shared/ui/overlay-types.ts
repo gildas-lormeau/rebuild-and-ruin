@@ -259,20 +259,10 @@ export interface BattleOverlay {
    *  the modifier reveal, in [0, 1]. `1` = full opacity (snapshot
    *  capture); ramps to `0` over the post-banner window so the walls
    *  visibly fade out before disappearing. `undefined` outside the
-   *  crumbling_walls reveal window. The walls manager unions
-   *  `heldDestroyedWalls` into its mask-set and writes per-instance
-   *  opacity from this value for held slots. */
+   *  crumbling_walls reveal window. The walls manager unions the
+   *  `decay`-cause entries from `destroyedWalls` into its mask-set and
+   *  writes per-instance opacity from this value for held slots. */
   crumblingWallsFade?: number;
-  /** Held wall tile keys (with `damaged` flag captured at destruction
-   *  time) to keep rendering during the crumbling-walls fade even
-   *  though gameplay state has dropped them. Same shape as
-   *  `state.modern.crumblingWallsHeld` so the runtime can pass it
-   *  through without reshape. */
-  heldDestroyedWalls?: readonly {
-    playerId: ValidPlayerSlot;
-    tileKey: number;
-    damaged: boolean;
-  }[];
   /** Sapper threat-tint mix factor [0, 1] during the modifier reveal —
    *  walls in `sapperTargetedWalls` lerp toward copper by this amount.
    *  Undefined outside the reveal window. */

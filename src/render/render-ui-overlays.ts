@@ -337,7 +337,15 @@ export function createOnlineOverlay(
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
       impacts: inBattle ? battleAnim.impacts : undefined,
-      destroyedWalls: inBattle ? battleAnim.destroyedWalls : undefined,
+      // Exposed during BATTLE for the per-tick `cause: "impact"` push
+      // (cannonball / grunt fire bursts) AND during MODIFIER_REVEAL for
+      // the `cause: "decay"` entries seeded by `syncBattleAnim` from the
+      // crumbling-walls held snapshot (the walls + debris managers
+      // render them through the modifier-reveal fade window).
+      destroyedWalls:
+        inBattle || view.phase === Phase.MODIFIER_REVEAL
+          ? battleAnim.destroyedWalls
+          : undefined,
       cannonDestroys: inBattle ? battleAnim.cannonDestroys : undefined,
       gruntKills: inBattle ? battleAnim.gruntKills : undefined,
       houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
@@ -370,15 +378,6 @@ export function createOnlineOverlay(
       // prepareBattleState reassigns activeModifier.
       frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
       crumblingWallsFade,
-      // Exposed for the whole MODIFIER_REVEAL phase. The walls manager
-      // renders held tiles only while `crumblingWallsFade` is in flight;
-      // the debris manager keeps the rubble visible through the fade
-      // and post-fade until BATTLE entry, where `snapshotAllWalls`
-      // unions the held set into `battleWalls` and takes over.
-      heldDestroyedWalls:
-        view.phase === Phase.MODIFIER_REVEAL
-          ? (view.modern?.crumblingWallsHeld ?? undefined)
-          : undefined,
       sapperRevealIntensity,
       sapperTargetedWalls:
         sapperRevealIntensity !== undefined

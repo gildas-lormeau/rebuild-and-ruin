@@ -42,14 +42,6 @@ interface RenderModernSlice {
       readonly tier: 1 | 2 | 3;
     }[];
   } | null;
-  /** Mirror of `ModernState.crumblingWallsHeld` — see types.ts. */
-  readonly crumblingWallsHeld:
-    | readonly {
-        readonly playerId: ValidPlayerSlot;
-        readonly tileKey: number;
-        readonly damaged: boolean;
-      }[]
-    | null;
 }
 
 /** Shared fields the renderer reads regardless of phase.

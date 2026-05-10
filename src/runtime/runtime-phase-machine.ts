@@ -30,7 +30,10 @@ import {
   recheckTerritory,
   snapshotTerritory,
 } from "../game/index.ts";
-import type { BalloonFlight } from "../shared/core/battle-types.ts";
+import type {
+  BalloonFlight,
+  DestroyedWall,
+} from "../shared/core/battle-types.ts";
 import { snapshotAllWalls } from "../shared/core/board-occupancy.ts";
 import type { ModifierDiff } from "../shared/core/game-constants.ts";
 import {
@@ -42,6 +45,7 @@ import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
+import { unpackTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -157,6 +161,11 @@ export interface BattleLifecycle {
   readonly setTerritory: (territory: readonly Set<number>[]) => void;
   readonly setWalls: (walls: readonly Set<number>[]) => void;
   readonly clearImpacts: () => void;
+  /** Push a single `DestroyedWall` entry into the runtime's animation
+   *  buffer. Used by `syncBattleAnim` to seed `cause: "decay"` entries
+   *  from the crumbling-walls modifier's pre-removal snapshot, alongside
+   *  the per-tick `cause: "impact"` push from `recordBattleVisualEvents`. */
+  readonly addDestroyedWall: (entry: DestroyedWall) => void;
   readonly begin: () => void;
 }
 
@@ -898,6 +907,27 @@ function syncBattleAnim(
   ctx.battle.setFlights(
     result.flights.map((flight) => ({ flight, progress: 0 })),
   );
+  // Seed decay-cause DestroyedWall entries for the crumbling-walls
+  // modifier from the pre-removal snapshot captured by
+  // `crumblingWallsImpl.apply`. The walls manager renders the held
+  // tiles from `overlay.battle.destroyedWalls` filtered to
+  // `cause === "decay"`; the visual fade timing remains anchored to
+  // `crumblingWallsFade` (revealTimeMs-derived) for B-1 and shifts to
+  // per-tile age in B-2. Entries auto-purge after `WALL_DECAY_LIFETIME`. */
+  const held = ctx.state.modern?.crumblingWallsHeld;
+  if (held) {
+    for (const entry of held) {
+      const { r, c } = unpackTile(entry.tileKey);
+      ctx.battle.addDestroyedWall({
+        row: r,
+        col: c,
+        age: 0,
+        cause: "decay",
+        damaged: entry.damaged,
+        playerId: entry.playerId,
+      });
+    }
+  }
 }
 
 /** Shared post-mutation sync for EXITING a battle (battle-done, ceasefire)

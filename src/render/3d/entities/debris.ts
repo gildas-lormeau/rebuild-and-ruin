@@ -10,7 +10,7 @@
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
@@ -236,13 +236,15 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
 
     // Crumbling-walls cross-fade: wall fades 1→0 in walls.ts, debris
     // fades 0→1 here. Post-fade we render at full opacity until BATTLE
-    // entry, where battleWalls (with the held union) takes over.
-    const heldDestroyedWalls = overlay.battle?.heldDestroyedWalls;
-    if (heldDestroyedWalls) {
+    // entry, where battleWalls (with the held union) takes over. Held
+    // tiles come from `destroyedWalls` filtered to `cause === "decay"`.
+    const destroyedWalls = overlay.battle?.destroyedWalls;
+    if (destroyedWalls) {
       const debrisOpacity =
         crumblingWallsFade !== undefined ? 1 - crumblingWallsFade : 1;
-      for (const held of heldDestroyedWalls) {
-        const { row, col } = unpackTileKey(held.tileKey);
+      for (const wall of destroyedWalls) {
+        if (wall.cause !== "decay") continue;
+        const { row, col } = wall;
         const variantName = wallDebrisVariantName(col, row);
         entries.push({
           key: variantName,
@@ -401,12 +403,17 @@ function computeStructuralSignature(
     }
   }
 
-  const heldDestroyedWalls = overlay.battle?.heldDestroyedWalls;
-  if (heldDestroyedWalls) {
+  const destroyedWalls = overlay.battle?.destroyedWalls;
+  if (destroyedWalls) {
     const keys: number[] = [];
-    for (const held of heldDestroyedWalls) keys.push(held.tileKey);
-    keys.sort((low, high) => low - high);
-    parts.push(`cw:${keys.join(",")}`);
+    for (const wall of destroyedWalls) {
+      if (wall.cause !== "decay") continue;
+      keys.push(wall.row * GRID_COLS + wall.col);
+    }
+    if (keys.length > 0) {
+      keys.sort((low, high) => low - high);
+      parts.push(`cw:${keys.join(",")}`);
+    }
   }
 
   return parts.join("|");

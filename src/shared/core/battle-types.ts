@@ -201,14 +201,21 @@ export interface BattleAnimState {
   houseDestroys: HouseDestroy[];
 }
 
+/** Lifetime of a `decay`-cause `DestroyedWall` entry (seconds). Sized
+ *  to outlast the modifier-reveal banner sweep (~1.5s) plus the
+ *  crumbling-walls fade ramp (~1.1s) with margin, so the held-mesh
+ *  render driven by `crumblingWallsFade` (revealTimeMs-anchored) sees
+ *  the entries throughout the visual. Phase B-2 unifies both lifetimes
+ *  on per-tile age once the visual fade is age-derived. */
+const WALL_DECAY_LIFETIME = 4.0;
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
-/** Duration of the destroyed-wall animation (seconds). Currently sized
- *  to match the legacy fire/smoke burst window — long enough to read as
- *  a real burst, short enough to not delay the post-battle banner. The
- *  unified destruction animation (sink + dust + held-mesh + optional
- *  fire) ages each `DestroyedWall` entry to this lifetime. */
-export const WALL_DESTROY_DURATION = 0.7;
+/** Lifetime of an `impact`-cause `DestroyedWall` entry (seconds). Sized
+ *  to the fire/smoke burst window — long enough to read as a real
+ *  burst, short enough to not delay the post-battle banner. Phase B/C
+ *  will widen this when the shared sink + dust base layers get added
+ *  on top of the impact fire. */
+export const WALL_BURN_DURATION = 0.7;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
 export const CANNON_DESTROY_DURATION = 0.9;
@@ -287,8 +294,10 @@ export function ageImpacts(
     (th) => th.age < THAW_DURATION,
   );
   for (const wall of battleAnim.destroyedWalls) wall.age += dt;
-  battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter(
-    (wall) => wall.age < WALL_DESTROY_DURATION,
+  battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter((wall) =>
+    wall.cause === "impact"
+      ? wall.age < WALL_BURN_DURATION
+      : wall.age < WALL_DECAY_LIFETIME,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
   battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(
