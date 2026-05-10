@@ -74,9 +74,9 @@ export function attachInstanceTint(
 /** Same as `attachInstanceTint` plus an `instanceSinkY` float attribute
  *  that subtracts from the vertex Y in object space (after the
  *  authored mesh is positioned). Used by the walls manager to drive
- *  the crumbling-walls held-mesh sink without recomposing the per-
- *  instance matrix every frame — only the per-slot float attribute
- *  changes. Sink defaults to 0 (no offset). */
+ *  the impact held-mesh sink without recomposing the per-instance
+ *  matrix every frame — only the per-slot float attribute changes.
+ *  Sink defaults to 0 (no offset). */
 export function attachInstanceTintAndSink(
   mesh: THREE.InstancedMesh,
   capacity: number,

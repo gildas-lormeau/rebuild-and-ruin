@@ -95,7 +95,6 @@ Reverse-engineered from the implementation. Describes *what* the system does, no
 | **Game Mode** | Classic (original Rampart rules) or Modern (environmental modifiers + upgrades). Set at match start, immutable. |
 | **Modifier** | An environmental event that alters the battlefield between rounds (from round 3, 65% chance). No repeat of last round's modifier. |
 | **Wildfire** | Modifier: burns grass tiles, blocking placement. |
-| **Crumbling Walls** | Modifier: randomly destroys existing wall tiles. |
 | **Grunt Surge** | Modifier: spawns extra grunts on the map. |
 | **Frozen River** | Modifier: water tiles become traversable by grunts. Thawed by cannonball impact. |
 | **Upgrade** | A per-player power-up drafted between rounds (from round 3, modern mode only). 3 offered, 1 picked. Weighted rarity (common/uncommon/rare). Some persist, some are one-use. |

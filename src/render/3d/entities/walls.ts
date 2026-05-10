@@ -376,10 +376,10 @@ function buildBucket(
     },
     namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
   });
-  // Per-instance opacity (crumbling-walls held-mesh tail-fade) +
-  // tint (sapper threat pulse) + sinkY (crumbling-walls held-mesh
-  // descent). All default to no-op (opacity=1, tint=0, sinkY=0); the
-  // manager writes per slot when a multiplier is in flight.
+  // Per-instance opacity (impact held-mesh tail-fade) + tint (sapper
+  // threat pulse) + sinkY (impact held-mesh descent). All default to
+  // no-op (opacity=1, tint=0, sinkY=0); the manager writes per slot
+  // when a multiplier is in flight.
   const opacityAttrs: THREE.InstancedBufferAttribute[] = [];
   const tintAttrs: THREE.InstancedBufferAttribute[] = [];
   const sinkAttrs: THREE.InstancedBufferAttribute[] = [];

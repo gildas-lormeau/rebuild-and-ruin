@@ -10,7 +10,6 @@
  *
  * Built-in conditions (RNG-driven, observable on GameState):
  *   wildfire               — wildfire modifier active at battle start
- *   crumblingWalls         — crumbling walls modifier active
  *   gruntSurge             — grunt surge modifier active
  *   frozenRiver            — frozen river modifier active
  *   highTide               — high tide modifier active
@@ -54,7 +53,6 @@ interface CliConfig {
 
 const CONDITIONS: Record<string, Condition> = {
   wildfire: (state) => state.modern?.activeModifier === "wildfire",
-  crumblingWalls: (state) => state.modern?.activeModifier === "crumbling_walls",
   gruntSurge: (state) => state.modern?.activeModifier === "grunt_surge",
   frozenRiver: (state) => state.modern?.activeModifier === "frozen_river",
   highTide: (state) => state.modern?.activeModifier === "high_tide",

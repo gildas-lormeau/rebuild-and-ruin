@@ -173,7 +173,7 @@ npm run find-seed -- --condition frozenRiver --rounds 5
 npm run find-seed -- --expr "state.grunts.length > 10" --rounds 4
 ```
 
-Built-in conditions: `wildfire`, `crumblingWalls`, `gruntSurge`, `frozenRiver`, `anyModifier`, `manyGrunts`. Runs headless scenarios and checks the predicate per tick. Good for throwaway exploration, bad for committed tests (seeds drift silently when RNG changes).
+Built-in conditions: `wildfire`, `gruntSurge`, `frozenRiver`, `anyModifier`, `manyGrunts`. Runs headless scenarios and checks the predicate per tick. Good for throwaway exploration, bad for committed tests (seeds drift silently when RNG changes).
 
 ### Drift-safe seeds — `loadSeed` + seed registry
 

@@ -63,7 +63,7 @@ Modern mode adds two conditional phases: **MODIFIER_REVEAL** between CANNON_PLAC
 - Feature gates use `hasFeature(state, "featureId")` instead of `state.modern !== null`
 - `activeFeatures: ReadonlySet<FeatureId>` on GameState determines which subsystems are active
 - Three feature capabilities (`FeatureId` in `feature-defs.ts`):
-  - **modifiers** — environmental effects (wildfire, crumbling walls, grunt surge, frozen river). Roll + apply in phase-setup.ts. State: activeModifier, lastModifierId, frozenTiles.
+  - **modifiers** — environmental effects (wildfire, grunt surge, frozen river). Roll + apply in phase-setup.ts. State: activeModifier, lastModifierId, frozenTiles.
   - **upgrades** — draft/pick system. Offer generation in prepareNextRound, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
   - **combos** — scoring streaks during battle. Init/clear in phase-setup.ts, tracker logic in combos.ts (scored from battle-system.ts impact handlers). State: comboTracker.
 - Upgrade offer generation happens in `prepareNextRound()` (battle-done) using synced RNG before the BUILD_START checkpoint; modifier roll happens in `prepareBattleState()` (cannon-place-done) before BATTLE_START.

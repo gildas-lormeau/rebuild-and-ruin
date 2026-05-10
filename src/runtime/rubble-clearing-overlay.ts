@@ -4,7 +4,7 @@
  * held material alpha. Held entries come from
  * `state.modern.rubbleClearingHeld`, captured by `rubbleClearingImpl.apply`
  * before the gameplay mutation. The wave on the ramp gives the fade a
- * "rubble crumbling away" feel — swells converging on zero, not a slider.
+ * "rubble fading away" feel — swells converging on zero, not a slider.
  */
 
 import { deriveModifierRamp } from "./modifier-reveal-ramp.ts";

@@ -103,8 +103,8 @@ the determinism fixtures (`test/determinism-fixtures/`) work.
   in `prepareBattleState`, scoring in `scoreImpactCombo`, final
   awards in `awardComboBonuses`. Gated by `hasFeature(state, "combos")`.
 - **`modifier-system.ts`** — Environmental modifiers (wildfire,
-  crumbling walls, grunt surge, frozen river, sinkhole, high tide,
-  dust storm, rubble clearing). Each has an `apply` function.
+  grunt surge, frozen river, sinkhole, high tide, dust storm,
+  rubble clearing). Each has an `apply` function.
   `rollModifier()` picks the next one using seeded RNG. Gated by
   `hasFeature(state, "modifiers")`.
 - **`upgrade-system.ts`** + **[upgrades/](./upgrades/)** — Upgrade

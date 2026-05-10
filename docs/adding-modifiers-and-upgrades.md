@@ -8,8 +8,7 @@ and registry-driven dispatch.
 
 Modifiers fire once per battle start in modern mode (round 3+, 65% chance).
 They range from tile mutations (high tide, sinkhole, low water) to entity
-effects (grunt surge, crumbling walls) to passive overlays (frozen river,
-dust storm).
+effects (grunt surge) to passive overlays (frozen river, dust storm).
 
 ### Files to touch
 
@@ -42,7 +41,6 @@ src/game/
   modifiers/
     modifier-types.ts       — ModifierImpl discriminated union + ModifierTileData
     fire.ts                 — wildfire + dry_lightning impls (shared burn predicate + scar applicator)
-    crumbling-walls.ts
     grunt-surge.ts
     frozen-river.ts
     sinkhole.ts
@@ -62,7 +60,7 @@ checker enforces that the right hooks are present.
 
 | Lifecycle | Active for | Required hooks | Optional hooks | Examples |
 |-----------|------------|----------------|----------------|----------|
-| `"instant"` | apply at battle-start, no own state afterwards | `apply` | `skipsRecheck` | wildfire, dry_lightning, crumbling_walls, rubble_clearing, grunt_surge, dust_storm, fog_of_war |
+| `"instant"` | apply at battle-start, no own state afterwards | `apply` | `skipsRecheck` | wildfire, dry_lightning, rubble_clearing, grunt_surge, dust_storm, fog_of_war |
 | `"permanent"` | forever (or until zone reset) | `apply`, `restore` | `zoneReset`, `skipsRecheck` | sinkhole |
 | `"round-scoped"` | this round's BATTLE → next CANNON_PLACE-done | `apply`, `clear` | `restore`, `zoneReset`, `skipsRecheck` | frozen_river, high_tide, low_water, frostbite |
 
@@ -222,9 +220,9 @@ appears in the serialization file.
 
 ### Instant modifiers are simpler
 
-Modifiers like grunt surge, crumbling walls, rubble clearing, dust storm,
-fog of war, and the fire variants are `lifecycle: "instant"` — they fire
-once at battle-start and any side effects flow through normal game state
+Modifiers like grunt surge, rubble clearing, dust storm, fog of war,
+and the fire variants are `lifecycle: "instant"` — they fire once at
+battle-start and any side effects flow through normal game state
 (spawned grunts, destroyed walls, ignited burning pits). They need:
 1. The ID in `ModifierId` + `MODIFIER_ID`
 2. A pool entry in `modifier-defs.ts` (`needsCheckpoint: false`)
@@ -239,7 +237,7 @@ never call.
 If the effect provably leaves walls and tile passability alone (visual-only
 like dust storm, or grunt-spawn-only like grunt surge), set
 `skipsRecheck: true` on the impl — see the `skipsRecheck` section above.
-Crumbling walls is the counter-example: it destroys walls, so it takes the
+Wildfire is the counter-example: it destroys walls, so it takes the
 default (recheck runs).
 
 ---

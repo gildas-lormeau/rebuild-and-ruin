@@ -62,7 +62,6 @@
       "src/game/phase-setup.ts",
       "src/game/scheduled-actions.ts",
       "src/game/combos.ts",
-      "src/game/modifiers/crumbling-walls.ts",
       "src/game/modifiers/dust-storm.ts",
       "src/game/modifiers/fire.ts",
       "src/game/modifiers/fog-of-war.ts",
@@ -263,7 +262,6 @@
     "runtime": [
       "src/runtime/banner-messages.ts",
       "src/runtime/camera-projection.ts",
-      "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/frostbite-reveal-overlay.ts",
       "src/runtime/grunt-surge-reveal-overlay.ts",
