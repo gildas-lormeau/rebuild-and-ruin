@@ -30,7 +30,6 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // entry here — their runtime-derived overlay multipliers piggyback on
   // the existing entity managers (grunts.ts / walls.ts / debris.ts /
   // pits.ts). See `src/runtime/*-overlay.ts` for the derive functions.
-  // between walls and rubble at banner sweep-end, gated in walls.ts /
   // Owned-sinkhole bank tinting is now a fragment-shader override on the
   // terrain mesh — see `terrain.ts` + `effects/terrain-sdf-texture.ts` +
   // `effects/terrain-tile-data.ts`. No registry entry needed.)

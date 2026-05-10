@@ -1,6 +1,6 @@
 import type { Player } from "./player-types.ts";
 
-/** Batch-delete wall keys during a modifier (e.g. crumbling walls).
+/** Batch-delete wall keys during a modifier.
  *  Intentionally skips dirty-marking — modifier runs between phases. */
 export function deletePlayerWallsBatch(
   player: Player,
