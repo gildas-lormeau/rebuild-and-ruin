@@ -201,53 +201,85 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
   MODIFIER_POOL.filter((def) => def.implemented);
 /** Consumer files for each modifier, keyed by the role the file plays.
- *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale. */
+ *  See FEATURE_CONSUMERS in feature-defs.ts for the pattern rationale.
+ *
+ *  Role conventions (all values are paths from repo root):
+ *   - `impl`            modifier's apply/clear/restore lives here
+ *   - `serialize`       wire-state read/write for host migration
+ *   - `behavior_*`      gameplay code outside the impl file (multiple
+ *                       allowed — suffix names the system it lives in)
+ *   - `render`          primary 3D effect (overlay or persistent)
+ *   - `render_burst`    modifier-reveal-burst factory (per-tile reveal)
+ *   - `render_thaw`     extra event-driven render (frozen-river only)
+ *   - `reveal`          runtime-side reveal-overlay scalar deriver
+ *   - `aiStrategy`      ai-strategy code that branches on this modifier
+ *   - `chipFlag`        per-grunt state field (frostbite only) */
 export const MODIFIER_CONSUMERS = {
   wildfire: {
     impl: "src/game/modifiers/fire.ts",
+    render_burst: "src/render/3d/effects/wildfire-burst.ts",
   },
   grunt_surge: {
     impl: "src/game/modifiers/grunt-surge.ts",
+    behavior_spawn: "src/game/grunt-system.ts",
+    reveal: "src/runtime/grunt-surge-reveal-overlay.ts",
+    aiStrategy: "src/ai/ai-strategy-battle.ts",
   },
   frozen_river: {
     impl: "src/game/modifiers/frozen-river.ts",
     serialize: "src/online/online-serialize.ts",
+    behavior_movement: "src/game/grunt-movement.ts",
+    behavior_battle: "src/game/battle-system.ts",
+    render_burst: "src/render/3d/effects/ice-formation.ts",
+    render_thaw: "src/render/3d/effects/thawing.ts",
+    aiStrategy: "src/ai/ai-strategy-battle.ts",
   },
   sinkhole: {
     impl: "src/game/modifiers/sinkhole.ts",
     serialize: "src/online/online-serialize.ts",
+    render_burst: "src/render/3d/effects/ground-collapse.ts",
   },
   high_tide: {
     impl: "src/game/modifiers/high-tide.ts",
     serialize: "src/online/online-serialize.ts",
+    render_burst: "src/render/3d/effects/water-surge.ts",
   },
   dust_storm: {
     impl: "src/game/modifiers/dust-storm.ts",
-    jitter: "src/game/battle-system.ts",
+    behavior_battle: "src/game/battle-system.ts",
     render: "src/render/3d/effects/dust-storm.ts",
     reveal: "src/runtime/dust-storm-reveal-overlay.ts",
   },
   rubble_clearing: {
     impl: "src/game/modifiers/rubble-clearing.ts",
+    reveal: "src/runtime/rubble-clearing-overlay.ts",
   },
   low_water: {
     impl: "src/game/modifiers/low-water.ts",
     serialize: "src/online/online-serialize.ts",
+    render_burst: "src/render/3d/effects/grass-emergence.ts",
   },
   dry_lightning: {
     impl: "src/game/modifiers/fire.ts",
+    render_burst: "src/render/3d/effects/lightning-burst.ts",
   },
   fog_of_war: {
     impl: "src/game/modifiers/fog-of-war.ts",
     render: "src/render/3d/effects/fog.ts",
+    reveal: "src/runtime/fog-reveal-overlay.ts",
   },
   frostbite: {
     impl: "src/game/modifiers/frostbite.ts",
     chipFlag: "src/shared/core/battle-types.ts",
+    behavior_movement: "src/game/grunt-movement.ts",
+    behavior_attack: "src/game/grunt-system.ts",
+    behavior_battle: "src/game/battle-system.ts",
+    reveal: "src/runtime/frostbite-reveal-overlay.ts",
   },
   sapper: {
     impl: "src/game/modifiers/sapper.ts",
-    behavior: "src/game/grunt-system.ts",
+    behavior_attack: "src/game/grunt-system.ts",
+    reveal: "src/runtime/sapper-reveal-overlay.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 
