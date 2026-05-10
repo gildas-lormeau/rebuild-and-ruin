@@ -40,7 +40,6 @@ interface CrosshairHost {
   color: number;
 }
 
-// Pulse timing + geometry — mirror render-effects.ts exactly.
 const CROSSHAIR_READY_CYCLE_MS = 16;
 const CROSSHAIR_IDLE_CYCLE_MS = 4;
 const CROSSHAIR_ARM_READY = 14;
@@ -53,7 +52,7 @@ const CROSSHAIR_ALPHA_IDLE_BASE = 0.35;
 const CROSSHAIR_ALPHA_IDLE_AMP = 0.15;
 const CROSSHAIR_GAP_READY = 5;
 const CROSSHAIR_GAP_IDLE = 3;
-// Per-player crosshair colors — parity with CROSSHAIR_COLORS in render-effects.ts.
+// Per-player crosshair colors.
 const CROSSHAIR_COLORS: number[] = [
   0xff3232, // P1 red
   0x3c82ff, // P2 blue
@@ -299,8 +298,7 @@ export function createCrosshairsManager(scene: THREE.Scene): CrosshairsManager {
   return { update, dispose };
 }
 
-/** Compute animated crosshair dimensions from ready state and time.
- *  Mirrors crosshairGeometry() in render-effects.ts. */
+/** Compute animated crosshair dimensions from ready state and time. */
 function crosshairGeometry(
   ready: boolean,
   time: number,

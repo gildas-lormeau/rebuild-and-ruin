@@ -31,7 +31,6 @@ interface FogTile {
   seed: number;
 }
 
-// Fog visual — mirror render-effects.ts constants.
 const FOG_BASE_ALPHA = 0.95;
 // 120, 128, 140 → 0x78808c
 const FOG_BASE_COLOR = 0x78808c;
@@ -219,8 +218,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
 }
 
 /** Add to `out` every tile in the castle footprint (interior ∪ walls)
- *  dilated by one tile in all 8 directions. Mirrors `dilateFogRegion`
- *  in render-effects.ts. */
+ *  dilated by one tile in all 8 directions. */
 function dilateInto(
   out: Set<number>,
   interior: ReadonlySet<number>,

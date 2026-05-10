@@ -1,8 +1,7 @@
 /**
  * Crack-and-fade animation when a frozen-water tile thaws back to
  * water — fading blue disc, white flash disc, and a cluster of 6 thin
- * white rays per tile. Math matches `drawFrozenTiles` in
- * render-effects.ts. The base ICE_COLOR on still-frozen tiles is
+ * white rays per tile. The base ICE_COLOR on still-frozen tiles is
  * owned by `terrain.ts`; the still-frozen shimmer is deferred polish.
  */
 
@@ -36,7 +35,7 @@ interface ThawHost {
   seed: number;
 }
 
-// Radial crack burst count + length — mirror render-effects.ts.
+// Radial crack burst count + length.
 const THAW_CRACK_COUNT = 6;
 const THAW_CRACK_LEN = 10;
 // Lift above terrain to avoid z-fighting.

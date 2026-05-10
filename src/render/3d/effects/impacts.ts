@@ -1,10 +1,9 @@
 /**
  * Cannonball-hit flashes as flat ground-plane meshes per impact, layering
  * a core flash (0.0–0.25), shock ring (0.0–0.6), debris sparks (0.0–0.8)
- * and rising smoke puff (0.2–1.0). Phase math ports directly from
- * `drawImpacts` in render-effects.ts (same constants + sin/cosine seeds).
- * Meshes rebuild on impact-set fingerprint change; per-frame updates
- * only rewrite material/alpha/scale/position.
+ * and rising smoke puff (0.2–1.0). Meshes rebuild on impact-set
+ * fingerprint change; per-frame updates only rewrite material / alpha /
+ * scale / position.
  */
 
 import * as THREE from "three";
@@ -38,7 +37,6 @@ interface ImpactHost {
   seed: number;
 }
 
-// Phase boundaries — mirror render-effects.ts exactly.
 const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
 const IMPACT_DEBRIS_END = 0.8;
