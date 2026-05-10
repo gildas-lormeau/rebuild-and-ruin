@@ -65,6 +65,7 @@ echo "lint:all: parallel checks..."
   run internal-jsdoc    deno run -A scripts/lint-internal-jsdoc.ts
   run tile-mutators     deno run -A scripts/lint-tile-mutators.ts
   run zone-access       deno run -A scripts/lint-zone-access.ts
+  run accessor-bypasses deno run -A scripts/lint-accessor-bypasses.ts
   run shape-duplicates  deno run -A scripts/find-shape-duplicates.ts --exact-only --test --shared-subset 3
   run dead-params       deno run -A scripts/lint-dead-params.ts --min-callers=1
   run unused-iface      deno run -A scripts/lint-unused-interface-fields.ts

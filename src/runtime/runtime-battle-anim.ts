@@ -10,6 +10,7 @@
 import type { BattleCombatResult } from "../game/index.ts";
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
+import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { cannonSize, packTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 
@@ -56,7 +57,7 @@ export function recordBattleVisualEvents(
         break;
       case BATTLE_MESSAGE.CANNON_DAMAGED: {
         if (evt.newHp > 0) break;
-        const cannon = state.players[evt.playerId]?.cannons[evt.cannonIdx];
+        const cannon = getCannon(state, evt.playerId, evt.cannonIdx);
         if (!cannon) break;
         battleAnim.cannonDestroys.push({
           row: cannon.row,

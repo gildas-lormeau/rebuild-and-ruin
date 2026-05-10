@@ -46,7 +46,7 @@ export {
   emitGameEnd,
   peekGameOverOutcome,
 } from "./game-over.ts";
-export { moveGrunts } from "./grunt-movement.ts";
+export { getGruntTargetTower, moveGrunts } from "./grunt-movement.ts";
 export { generateMap } from "./map-generation.ts";
 export { applyCheckpointModifierTiles } from "./modifier-system.ts";
 export {

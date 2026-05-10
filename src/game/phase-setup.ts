@@ -64,6 +64,7 @@ import {
   createComboTracker,
   isCombosEnabled,
 } from "./combos.ts";
+import { getGruntTargetTower } from "./grunt-movement.ts";
 import {
   recomputeGruntTargetedWalls,
   rollGruntWallAttacks,
@@ -512,7 +513,7 @@ function resetZoneState(state: GameState, zone: ZoneId): void {
     if (zoneAt(state.map, grunt.row, grunt.col) === zone) return false;
     // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
     if (grunt.targetTowerIdx !== undefined) {
-      if (state.map.towers[grunt.targetTowerIdx]?.zone === zone) return false;
+      if (getGruntTargetTower(state, grunt)?.zone === zone) return false;
     }
     return true;
   });

@@ -67,7 +67,12 @@ function scanDir(dir: string) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       const trimmed = line.trim();
-      if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+      if (
+        trimmed.startsWith("//") ||
+        trimmed.startsWith("*") ||
+        trimmed.startsWith("/*")
+      )
+        continue;
       if (PATTERN.test(line)) {
         violations.push({ file: rel, line: i + 1, text: trimmed });
       }

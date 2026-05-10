@@ -151,7 +151,6 @@
       "src/render/render-loupe.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/music-player.ts",
-      "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-haptics.ts",
       "src/runtime/runtime-life-lost-core.ts",
@@ -221,6 +220,7 @@
       "src/render/3d/entities/tower-labels.ts",
       "src/render/3d/entities/towers.ts",
       "src/render/3d/terrain.ts",
+      "src/runtime/runtime-battle-anim.ts",
       "src/runtime/runtime-contracts.ts",
       "src/shared/core/board-occupancy.ts"
     ]

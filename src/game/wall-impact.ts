@@ -9,6 +9,7 @@
 import type { Cannon } from "../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
+import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { isCannonAlive, isRampartCannon } from "../shared/core/spatial.ts";
@@ -99,7 +100,7 @@ export function applyWallShield(
     state.players[result.playerId]?.damagedWalls.add(result.tileKey);
     return;
   }
-  const cannon = state.players[result.playerId]?.cannons[result.cannonIdx];
+  const cannon = getCannon(state, result.playerId, result.cannonIdx);
   if (cannon)
     cannon.shieldHp = result.newShieldHp > 0 ? result.newShieldHp : undefined;
 }

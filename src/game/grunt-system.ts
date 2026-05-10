@@ -275,8 +275,10 @@ export function gruntAttackTowers(
     // attack any adjacent living tower.
     let attackTarget: number | undefined;
     if (grunt.targetTowerIdx !== undefined) {
+      const targetTower = getGruntTargetTower(state, grunt);
       if (
-        !deadZones.has(state.map.towers[grunt.targetTowerIdx]!.zone) &&
+        targetTower !== null &&
+        !deadZones.has(targetTower.zone) &&
         isAdjacentToLivingTower(
           state,
           grunt.row,

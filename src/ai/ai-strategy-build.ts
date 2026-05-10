@@ -7,6 +7,7 @@
 import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
 import {
   buildOccupancyCache,
+  hasAliveHouseAt,
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
 import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
@@ -473,12 +474,7 @@ function enumerateCandidates(
         for (const [dr, dc] of rotated.offsets) {
           const pr = r + dr,
             pc = c + dc;
-          if (
-            state.map.houses.some(
-              (h) => h.alive && h.row === pr && h.col === pc,
-            )
-          )
-            housesHit++;
+          if (hasAliveHouseAt(state, pr, pc)) housesHit++;
           if (
             state.bonusSquares.some(
               (bonus) => bonus.row === pr && bonus.col === pc,

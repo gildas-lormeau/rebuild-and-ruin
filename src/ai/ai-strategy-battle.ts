@@ -1,4 +1,8 @@
-import { canFireOwnCannon, filterActiveFiringCannons } from "../game/index.ts";
+import {
+  canFireOwnCannon,
+  filterActiveFiringCannons,
+  getGruntTargetTower,
+} from "../game/index.ts";
 import type { Cannonball } from "../shared/core/battle-types.ts";
 import {
   computeCardinalObstacleMask,
@@ -676,7 +680,7 @@ function collectGruntBlockingWallTargets(
   for (const grunt of state.grunts) {
     if (grunt.victimPlayerId === playerId) continue;
     if (grunt.targetTowerIdx == null) continue;
-    const tower = state.map.towers[grunt.targetTowerIdx];
+    const tower = getGruntTargetTower(state, grunt);
     if (!tower) continue;
     const enemy = state.players[grunt.victimPlayerId];
     if (!enemy || isPlayerEliminated(enemy)) continue;

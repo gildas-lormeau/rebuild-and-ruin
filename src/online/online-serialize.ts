@@ -25,6 +25,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
+import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
@@ -516,8 +517,8 @@ function serializeBonusSquares(state: GameState) {
 
 /** Restore cannonballs from a full-state message, dropping any with stale cannon references. */
 function restoreCannonballs(state: GameState, msg: FullStateMessage): void {
-  const validBalls = msg.cannonballs.filter(
-    (b) => state.players[b.playerId]?.cannons[b.cannonIdx],
+  const validBalls = msg.cannonballs.filter((b) =>
+    getCannon(state, b.playerId, b.cannonIdx),
   );
   if (validBalls.length < msg.cannonballs.length) {
     console.warn(

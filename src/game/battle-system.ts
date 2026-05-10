@@ -37,6 +37,7 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
+import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
@@ -752,7 +753,7 @@ function applyImpactEvent(
       break;
     }
     case BATTLE_MESSAGE.CANNON_DAMAGED: {
-      const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
+      const cannon = getCannon(state, event.playerId, event.cannonIdx);
       if (cannon) {
         cannon.hp = event.newHp;
         if (!isCannonAlive(cannon)) {
@@ -815,7 +816,7 @@ function applyImpactEvent(
       break;
     }
     case BATTLE_MESSAGE.WALL_SHIELDED: {
-      const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
+      const cannon = getCannon(state, event.playerId, event.cannonIdx);
       // Normalize 0 → undefined so serialization roundtrips are lossless
       if (cannon)
         cannon.shieldHp = event.newShieldHp > 0 ? event.newShieldHp : undefined;

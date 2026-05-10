@@ -14,7 +14,7 @@ import {
   hasWallAt,
 } from "../shared/core/board-occupancy.ts";
 import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
@@ -129,7 +129,7 @@ function lockGruntTarget(
 ): void {
   // Drop stale target if it points at an eliminated player's zone
   if (grunt.targetTowerIdx !== undefined) {
-    const targetZone = state.map.towers[grunt.targetTowerIdx]?.zone;
+    const targetZone = getGruntTargetTower(state, grunt)?.zone;
     if (targetZone !== undefined && deadZones.has(targetZone)) {
       grunt.targetTowerIdx = undefined;
     } else {
@@ -296,9 +296,9 @@ function gruntTargetPos(state: GameState, grunt: Grunt): TilePos | null {
 }
 
 export function getGruntTargetTower(
-  state: GameState,
+  state: { readonly map: { readonly towers: readonly Tower[] } },
   grunt: Pick<Grunt, "targetTowerIdx">,
-) {
+): Tower | null {
   if (grunt.targetTowerIdx === undefined) return null;
   return state.map.towers[grunt.targetTowerIdx] ?? null;
 }
