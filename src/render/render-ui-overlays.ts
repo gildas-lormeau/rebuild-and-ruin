@@ -306,6 +306,8 @@ export function createOnlineOverlay(
   } = params;
   const {
     fogRevealOpacity,
+    dustStormSwayAmplitude,
+    dustStormSwayPhaseRad,
     rubbleClearingFade,
     frostbiteRevealProgress,
     sapperRevealIntensity,
@@ -352,6 +354,15 @@ export function createOnlineOverlay(
         (inBattle || view.phase === Phase.MODIFIER_REVEAL) &&
         view.modern?.activeModifier === MODIFIER_ID.FOG_OF_WAR,
       fogRevealOpacity,
+      // Dust storm covers reveal banner + battle, then lifts when battle
+      // ends (same gating shape as fog — dwelling through post-battle
+      // banner / upgrade pick would obscure state the player needs to
+      // see).
+      dustStorm:
+        (inBattle || view.phase === Phase.MODIFIER_REVEAL) &&
+        view.modern?.activeModifier === MODIFIER_ID.DUST_STORM,
+      dustStormSwayAmplitude,
+      dustStormSwayPhaseRad,
       rubbleClearingFade,
       // Held rubble entries gate on the fade ramp directly — they fade
       // out and stay gone (no bridge needed; gameplay state already

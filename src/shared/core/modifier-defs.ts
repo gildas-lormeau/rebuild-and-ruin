@@ -186,6 +186,8 @@ export const MODIFIER_CONSUMERS = {
   dust_storm: {
     impl: "src/game/modifiers/dust-storm.ts",
     jitter: "src/game/battle-system.ts",
+    render: "src/render/3d/effects/dust-storm.ts",
+    reveal: "src/runtime/dust-storm-reveal-overlay.ts",
   },
   rubble_clearing: {
     impl: "src/game/modifiers/rubble-clearing.ts",

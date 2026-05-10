@@ -9,6 +9,10 @@
 
 import { MODIFIER_ID, type ModifierId } from "../shared/core/game-constants.ts";
 import type { BattleOverlay } from "../shared/ui/overlay-types.ts";
+import {
+  deriveDustStormSwayAmplitude,
+  deriveDustStormSwayPhaseRad,
+} from "./dust-storm-reveal-overlay.ts";
 import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
 import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
 import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
@@ -18,6 +22,8 @@ import { deriveSapperRevealIntensity } from "./sapper-reveal-overlay.ts";
 export type RevealOverlayBattleFields = Pick<
   BattleOverlay,
   | "fogRevealOpacity"
+  | "dustStormSwayAmplitude"
+  | "dustStormSwayPhaseRad"
   | "rubbleClearingFade"
   | "frostbiteRevealProgress"
   | "sapperRevealIntensity"
@@ -36,6 +42,13 @@ const REVEAL_OVERLAY_DERIVERS: readonly RevealOverlayDeriver[] = [
     modifierId: MODIFIER_ID.FOG_OF_WAR,
     derive: (revealTimeMs) => ({
       fogRevealOpacity: deriveFogRevealOpacity(revealTimeMs),
+    }),
+  },
+  {
+    modifierId: MODIFIER_ID.DUST_STORM,
+    derive: (revealTimeMs) => ({
+      dustStormSwayAmplitude: deriveDustStormSwayAmplitude(revealTimeMs),
+      dustStormSwayPhaseRad: deriveDustStormSwayPhaseRad(revealTimeMs),
     }),
   },
   {

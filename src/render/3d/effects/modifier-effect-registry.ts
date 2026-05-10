@@ -8,6 +8,7 @@
  */
 
 import type * as THREE from "three";
+import { createDustStormManager } from "./dust-storm.ts";
 import type { EffectManager } from "./fire-burst.ts";
 import { createFogManager } from "./fog.ts";
 import { createGrassEmergenceManager } from "./grass-emergence.ts";
@@ -40,6 +41,7 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   // multiplier), but via this dedicated manager rather than an
   // existing entity one.
   createFogManager,
+  createDustStormManager,
   // Event-driven bursts (per-entry in overlay.entities.X[]).
   createThawingManager,
 ];

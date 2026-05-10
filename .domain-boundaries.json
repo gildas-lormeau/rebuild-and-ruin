@@ -187,6 +187,7 @@
       "src/render/3d/effects/bonus-squares.ts",
       "src/render/3d/effects/cannon-burns.ts",
       "src/render/3d/effects/crosshairs.ts",
+      "src/render/3d/effects/dust-storm.ts",
       "src/render/3d/effects/fire-burst.ts",
       "src/render/3d/effects/fog.ts",
       "src/render/3d/effects/grass-emergence.ts",
@@ -262,6 +263,7 @@
     "runtime": [
       "src/runtime/banner-messages.ts",
       "src/runtime/camera-projection.ts",
+      "src/runtime/dust-storm-reveal-overlay.ts",
       "src/runtime/fog-reveal-overlay.ts",
       "src/runtime/frostbite-reveal-overlay.ts",
       "src/runtime/grunt-surge-reveal-overlay.ts",

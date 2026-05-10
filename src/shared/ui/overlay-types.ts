@@ -223,6 +223,28 @@ export interface BattleOverlay {
    *  Steady-state (no reveal in flight) is `undefined` — the manager
    *  treats undefined as 1 (no override). */
   fogRevealOpacity?: number;
+  /** True when Dust Storm is active — renderer blankets the playfield
+   *  with a translucent sand-tinted haze and shader-driven streaks
+   *  that oscillate left-right to telegraph the symmetric ±15° launch
+   *  jitter. */
+  dustStorm?: boolean;
+  /** Sway-amplitude multiplier for the dust-storm streak oscillation
+   *  during the modifier reveal, in [0, ~1]. Computed runtime-side in
+   *  `deriveDustStormSwayAmplitude` (cosine bell `PEAK · sin²(t·π)`:
+   *  0 → peak → 0 across the reveal window so the streaks are settled
+   *  at the BATTLE-banner snapshot moment). Steady-state (no reveal
+   *  in flight) is `undefined` — the manager treats undefined as 1
+   *  and lerps to it, giving a smooth ramp-in to full battle swing. */
+  dustStormSwayAmplitude?: number;
+  /** Sway phase (radians) during the dust-storm modifier reveal —
+   *  advances linearly 0 → π across the reveal window via
+   *  `deriveDustStormSwayPhaseRad`. Locked to the same `revealTimeMs`
+   *  source as the amplitude so the two stay synchronized; the
+   *  manager assigns this directly to its phase accumulator while
+   *  the field is defined. Once it goes `undefined` (battle), the
+   *  manager continues advancing its accumulator at the same angular
+   *  speed from wherever reveal left off. */
+  dustStormSwayPhaseRad?: number;
   /** Global opacity multiplier for held rubble-clearing entities (pits +
    *  dead cannon debris) during the modifier reveal, in [0, 1]. `1` =
    *  full opacity (snapshot capture); ramps to `0` (invisible) over the
