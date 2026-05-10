@@ -32,7 +32,17 @@ export function recordBattleVisualEvents(
         battleAnim.thawing.push({ row: evt.row, col: evt.col, age: 0 });
         break;
       case BATTLE_MESSAGE.WALL_DESTROYED:
-        battleAnim.wallBurns.push({ row: evt.row, col: evt.col, age: 0 });
+        battleAnim.destroyedWalls.push({
+          row: evt.row,
+          col: evt.col,
+          age: 0,
+          cause: "impact",
+          // Phase A: damaged-state plumbing is deferred until the held-mesh
+          // path consumes impact entries (Phase C). The fire-burst layer
+          // doesn't read this field. Default false; not load-bearing.
+          damaged: false,
+          playerId: evt.playerId,
+        });
         break;
       case BATTLE_MESSAGE.GRUNT_KILLED:
         battleAnim.gruntKills.push({ row: evt.row, col: evt.col, age: 0 });

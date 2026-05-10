@@ -2,11 +2,11 @@ import type {
   BalloonFlight,
   CannonDestroy,
   Crosshair,
+  DestroyedWall,
   GruntKill,
   HouseDestroy,
   Impact,
   ThawingTile,
-  WallBurn,
 } from "../shared/core/battle-types.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
@@ -178,7 +178,7 @@ export interface OnlineOverlayParams {
     flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>;
     impacts: Impact[];
     thawing: ThawingTile[];
-    wallBurns: WallBurn[];
+    destroyedWalls: DestroyedWall[];
     cannonDestroys: CannonDestroy[];
     gruntKills: GruntKill[];
     houseDestroys: HouseDestroy[];

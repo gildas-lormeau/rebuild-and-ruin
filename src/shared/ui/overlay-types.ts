@@ -4,12 +4,12 @@ import type {
   CannonDestroy,
   CannonMode,
   Crosshair,
+  DestroyedWall,
   Grunt,
   GruntKill,
   HouseDestroy,
   Impact,
   ThawingTile,
-  WallBurn,
 } from "../core/battle-types.ts";
 import type { ModifierId } from "../core/game-constants.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
@@ -206,7 +206,7 @@ export interface BattleOverlay {
   cannonballs?: readonly OverlayCannonball[];
   crosshairs?: readonly Crosshair[];
   impacts?: readonly Impact[];
-  wallBurns?: readonly WallBurn[];
+  destroyedWalls?: readonly DestroyedWall[];
   cannonDestroys?: readonly CannonDestroy[];
   gruntKills?: readonly GruntKill[];
   houseDestroys?: readonly HouseDestroy[];

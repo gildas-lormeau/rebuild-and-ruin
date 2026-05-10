@@ -1,11 +1,14 @@
 /**
- * Wall-destroy burst on top of the shared 1×1 fire-burst kernel
- * (`fire-burst.ts`). Per-burn variation is `tileSeed`-derived so no
- * spawn-time random state lives on `WallBurn` itself.
+ * Impact-destruction fire burst on top of the shared 1×1 fire-burst
+ * kernel (`fire-burst.ts`). Subscribes to `overlay.battle.destroyedWalls`
+ * filtered by `cause === "impact"` (cannonball / grunt) — `decay`-cause
+ * entries (crumbling modifier) get the shared sink+dust base only, no
+ * fire layer. Per-burn variation is `tileSeed`-derived so no spawn-time
+ * random state lives on the entry itself.
  */
 
 import type * as THREE from "three";
-import { WALL_BURN_DURATION } from "../../../shared/core/battle-types.ts";
+import { WALL_DESTROY_DURATION } from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   createTileBurstManager,
@@ -52,7 +55,10 @@ export function createWallBurnsManager(scene: THREE.Scene): WallBurnsManager {
   return createTileBurstManager(scene, {
     name: "wall-burns",
     config: WALL_BURST_CONFIG,
-    duration: WALL_BURN_DURATION,
-    selectEntries: (ctx) => ctx.overlay?.battle?.wallBurns,
+    duration: WALL_DESTROY_DURATION,
+    selectEntries: (ctx) =>
+      ctx.overlay?.battle?.destroyedWalls?.filter(
+        (destroyedWall) => destroyedWall.cause === "impact",
+      ),
   });
 }

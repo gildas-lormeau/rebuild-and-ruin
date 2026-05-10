@@ -2,6 +2,12 @@ import type { BallisticTrajectory } from "./battle-events.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
+/** What caused a wall to be destroyed. Drives renderer layering: `impact`
+ *  (cannonball or grunt) stacks the fire/smoke burst on top of the shared
+ *  sink + dust + held-mesh animation; `decay` (crumbling modifier) renders
+ *  only the shared base. */
+export type WallDestroyCause = "impact" | "decay";
+
 export interface Grunt extends TilePos {
   /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
   victimPlayerId: ValidPlayerSlot;
@@ -135,12 +141,27 @@ export interface ThawingTile extends TilePos {
   age: number;
 }
 
-/** A tile where a wall was recently destroyed — drives the fire/smoke
- *  burst animation. Pure visual state; renderer derives all per-flame
- *  variation from `(row, col)` via tileSeed. */
-export interface WallBurn extends TilePos {
+/** A tile where a wall was recently destroyed — drives the unified
+ *  destruction animation (sink + dust + held-mesh + cause-specific
+ *  layers). Pure visual state; renderer derives per-tile variation from
+ *  `(row, col)` via tileSeed.
+ *
+ *  `cause` selects the optional layers: `impact` adds the fire/smoke
+ *  burst on top of the shared base; `decay` renders only the base.
+ *  `damaged` and `playerId` are captured at destruction time so the
+ *  held-mesh path can render the correct shell variant + ownership tint
+ *  while the wall is mid-animation (the live wall set has already
+ *  dropped this tile). */
+export interface DestroyedWall extends TilePos {
   /** Seconds since the wall was destroyed. */
   age: number;
+  cause: WallDestroyCause;
+  /** True if the wall was in the damaged-shell state at destruction
+   *  time (reinforced-walls upgrade). Drives the held-mesh shell variant. */
+  damaged: boolean;
+  /** Owner of the destroyed wall — used by the held-mesh path for the
+   *  per-player material tint. */
+  playerId: ValidPlayerSlot;
 }
 
 /** A cannon footprint where the cannon was just destroyed — drives a
@@ -174,7 +195,7 @@ export interface BattleAnimState {
   flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
   thawing: ThawingTile[];
-  wallBurns: WallBurn[];
+  destroyedWalls: DestroyedWall[];
   cannonDestroys: CannonDestroy[];
   gruntKills: GruntKill[];
   houseDestroys: HouseDestroy[];
@@ -182,10 +203,12 @@ export interface BattleAnimState {
 
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
-/** Duration of the destroyed-wall fire/smoke burst (seconds). Matches
- *  the demo TTL — long enough to read as a real burst, short enough to
- *  not delay the post-battle banner. */
-export const WALL_BURN_DURATION = 0.7;
+/** Duration of the destroyed-wall animation (seconds). Currently sized
+ *  to match the legacy fire/smoke burst window — long enough to read as
+ *  a real burst, short enough to not delay the post-battle banner. The
+ *  unified destruction animation (sink + dust + held-mesh + optional
+ *  fire) ages each `DestroyedWall` entry to this lifetime. */
+export const WALL_DESTROY_DURATION = 0.7;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
 export const CANNON_DESTROY_DURATION = 0.9;
@@ -218,7 +241,7 @@ export function createBattleAnimState(): BattleAnimState {
     flights: [],
     impacts: [],
     thawing: [],
-    wallBurns: [],
+    destroyedWalls: [],
     cannonDestroys: [],
     gruntKills: [],
     houseDestroys: [],
@@ -229,14 +252,14 @@ export function createBattleAnimState(): BattleAnimState {
 export function clearImpacts(battleAnim: {
   impacts: Impact[];
   thawing: ThawingTile[];
-  wallBurns: WallBurn[];
+  destroyedWalls: DestroyedWall[];
   cannonDestroys: CannonDestroy[];
   gruntKills: GruntKill[];
   houseDestroys: HouseDestroy[];
 }): void {
   battleAnim.impacts = [];
   battleAnim.thawing = [];
-  battleAnim.wallBurns = [];
+  battleAnim.destroyedWalls = [];
   battleAnim.cannonDestroys = [];
   battleAnim.gruntKills = [];
   battleAnim.houseDestroys = [];
@@ -247,7 +270,7 @@ export function ageImpacts(
   battleAnim: {
     impacts: Impact[];
     thawing: ThawingTile[];
-    wallBurns: WallBurn[];
+    destroyedWalls: DestroyedWall[];
     cannonDestroys: CannonDestroy[];
     gruntKills: GruntKill[];
     houseDestroys: HouseDestroy[];
@@ -263,9 +286,9 @@ export function ageImpacts(
   battleAnim.thawing = battleAnim.thawing.filter(
     (th) => th.age < THAW_DURATION,
   );
-  for (const burn of battleAnim.wallBurns) burn.age += dt;
-  battleAnim.wallBurns = battleAnim.wallBurns.filter(
-    (burn) => burn.age < WALL_BURN_DURATION,
+  for (const wall of battleAnim.destroyedWalls) wall.age += dt;
+  battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter(
+    (wall) => wall.age < WALL_DESTROY_DURATION,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
   battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(

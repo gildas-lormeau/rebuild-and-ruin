@@ -53,7 +53,7 @@ export interface E2EBannerSnapshot {
 export interface E2EBattleSnapshot {
   cannonballs: number;
   impacts: number;
-  wallBurns: number;
+  destroyedWalls: number;
   cannonDestroys: number;
   gruntKills: number;
   houseDestroys: number;
@@ -518,7 +518,7 @@ function snapshotBattle(runtimeState: RuntimeState): E2EBattleSnapshot | null {
   return {
     cannonballs: battle.cannonballs?.length ?? 0,
     impacts: battle.impacts?.length ?? 0,
-    wallBurns: battle.wallBurns?.length ?? 0,
+    destroyedWalls: battle.destroyedWalls?.length ?? 0,
     cannonDestroys: battle.cannonDestroys?.length ?? 0,
     gruntKills: battle.gruntKills?.length ?? 0,
     houseDestroys: battle.houseDestroys?.length ?? 0,

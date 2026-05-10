@@ -663,7 +663,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
-      battleAnim.wallBurns.length > 0 ||
+      battleAnim.destroyedWalls.length > 0 ||
       battleAnim.cannonDestroys.length > 0 ||
       battleAnim.gruntKills.length > 0 ||
       battleAnim.houseDestroys.length > 0

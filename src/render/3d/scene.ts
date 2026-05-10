@@ -143,11 +143,12 @@ export interface Render3dContext {
    *  phase timeline per frame. */
   readonly impacts: ImpactsManager;
   /** Wall-burn manager — fire / smoke / sparks burst when a wall is
-   *  destroyed. Reconciles `overlay.battle.wallBurns` into per-tile
-   *  hosts of flame cones + smoke sprites + spark sprites + a brief
-   *  flash. Per-frame animation reads the burn's `age` field for envelope
-   *  + crackle math; deterministic per-tile variation derives from
-   *  `tileSeed`. */
+   *  destroyed by impact (cannonball or grunt). Reconciles
+   *  `overlay.battle.destroyedWalls` filtered by `cause === "impact"`
+   *  into per-tile hosts of flame cones + smoke sprites + spark sprites
+   *  + a brief flash. Per-frame animation reads the entry's `age` field
+   *  for envelope + crackle math; deterministic per-tile variation
+   *  derives from `tileSeed`. */
   readonly wallBurns: WallBurnsManager;
   /** Cannon-burn manager — heavier sibling of `wallBurns`, fired when a
    *  cannon is destroyed. Reconciles `overlay.battle.cannonDestroys`

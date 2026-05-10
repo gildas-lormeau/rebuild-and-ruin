@@ -337,7 +337,7 @@ export function createOnlineOverlay(
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
       impacts: inBattle ? battleAnim.impacts : undefined,
-      wallBurns: inBattle ? battleAnim.wallBurns : undefined,
+      destroyedWalls: inBattle ? battleAnim.destroyedWalls : undefined,
       cannonDestroys: inBattle ? battleAnim.cannonDestroys : undefined,
       gruntKills: inBattle ? battleAnim.gruntKills : undefined,
       houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
