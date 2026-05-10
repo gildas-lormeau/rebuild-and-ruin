@@ -24,6 +24,7 @@ import {
   ageImpacts,
   type Crosshair,
   clearImpacts,
+  WALL_BURN_DURATION,
 } from "../shared/core/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -662,11 +663,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // Safe margin: let impact flashes, ice-thaw, and wall-burn animations
     // finish before capturing the "old scene" snapshot for the Build banner.
     // Without this, mid-animation explosion/thaw/burn visuals bake into the
-    // prev-scene image.
+    // prev-scene image. For destroyedWalls we gate only on the fire-burst
+    // window (`cause === "impact" && age < WALL_BURN_DURATION`); the sink +
+    // dust + tail-fade beyond that point is continuous visual state — fine
+    // to capture mid-anim — and the entry itself lives the full
+    // `WALL_DESTROY_ANIM_DURATION` (1.2s).
     if (
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
-      battleAnim.destroyedWalls.length > 0 ||
+      battleAnim.destroyedWalls.some(
+        (wall) => wall.cause === "impact" && wall.age < WALL_BURN_DURATION,
+      ) ||
       battleAnim.cannonDestroys.length > 0 ||
       battleAnim.gruntKills.length > 0 ||
       battleAnim.houseDestroys.length > 0

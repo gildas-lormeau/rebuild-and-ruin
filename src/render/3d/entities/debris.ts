@@ -13,6 +13,7 @@ import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
+import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -131,6 +132,24 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     const rubbleClearingFade = overlay.battle?.rubbleClearingFade ?? 1;
     const crumblingAnim = overlay.battle?.crumblingWallsAnim;
 
+    // Per-tile debris-opacity overrides from active destroyedWalls
+    // entries (cross-fade-in matching the held mesh's sink). For decay
+    // tiles, the global crumblingAnim.debrisOpacity drives the cross-
+    // fade; for impact tiles, the per-tile age does. The battleWalls
+    // loop below picks up the override; tiles not in destroyedWalls
+    // render at full opacity (default rubble).
+    const destroyedWalls = overlay.battle?.destroyedWalls;
+    const debrisOpacityByTileKey = new Map<number, number>();
+    if (destroyedWalls) {
+      for (const wall of destroyedWalls) {
+        const opacity =
+          wall.cause === "decay"
+            ? (crumblingAnim?.debrisOpacity ?? 1)
+            : wallDestroyAnimAt(wall.age * 1000).debrisOpacity;
+        debrisOpacityByTileKey.set(wall.row * GRID_COLS + wall.col, opacity);
+      }
+    }
+
     // Wall debris: (playerId) × (tile in battleWalls but not in current walls).
     const battleWalls = overlay.battle?.battleWalls;
     if (battleWalls && overlay.castles) {
@@ -148,7 +167,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
             centerPxZ: (row + 0.5) * TILE_SIZE,
             scale: DEBRIS_SCALE_1X1,
             ownerId: undefined,
-            opacity: 1,
+            opacity: debrisOpacityByTileKey.get(key) ?? 1,
           });
         }
       }
@@ -234,14 +253,13 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
       }
     }
 
-    // Crumbling-walls cross-fade: held mesh sinks + tail-fades in
-    // walls.ts; debris fades in here on the same window. Post-anim we
-    // render at full opacity until BATTLE entry, where battleWalls
-    // (with the held union) takes over. Held tiles come from
-    // `destroyedWalls` filtered to `cause === "decay"`; the per-frame
-    // `debrisOpacity` multiplier comes from `crumblingWallsAnim`.
-    const destroyedWalls = overlay.battle?.destroyedWalls;
-    if (destroyedWalls && crumblingAnim) {
+    // Crumbling-walls cross-fade outside BATTLE: during MODIFIER_REVEAL
+    // there's no battleWalls snapshot yet (set at battle entry by
+    // `syncBattleAnim`), so the held tiles need their own debris entries
+    // here so the rubble fades in beneath the sinking wall. Once BATTLE
+    // begins the loop above takes over (snapshotAllWalls unions the
+    // held set into battleWalls).
+    if (destroyedWalls && crumblingAnim && !battleWalls) {
       const debrisOpacity = crumblingAnim.debrisOpacity;
       for (const wall of destroyedWalls) {
         if (wall.cause !== "decay") continue;
@@ -268,12 +286,20 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
     const rubbleFade = overlay?.battle?.rubbleClearingFade ?? 1;
     const crumblingDebrisOpacity =
       overlay?.battle?.crumblingWallsAnim?.debrisOpacity;
+    // Any impact-cause destroyedWalls entries advance their per-tile
+    // age every frame, so we can't gate on a single scalar like the
+    // global crumblingAnim — when any are present, force a refresh so
+    // the per-tile cross-fade-in writes opacity each frame.
+    const hasImpactDestroyed =
+      overlay?.battle?.destroyedWalls?.some(
+        (wall) => wall.cause === "impact",
+      ) ?? false;
     const structuralSignature = computeStructuralSignature(overlay, towers);
     const structuralChanged = structuralSignature !== lastStructuralSignature;
     const fadeChanged =
       rubbleFade !== lastRubbleFade ||
       crumblingDebrisOpacity !== lastCrumblingDebrisOpacity;
-    if (!structuralChanged && !fadeChanged) return;
+    if (!structuralChanged && !fadeChanged && !hasImpactDestroyed) return;
     lastRubbleFade = rubbleFade;
     lastCrumblingDebrisOpacity = crumblingDebrisOpacity;
 

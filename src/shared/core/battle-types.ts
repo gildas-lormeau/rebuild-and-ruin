@@ -1,6 +1,7 @@
 import type { BallisticTrajectory } from "./battle-events.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
 /** What caused a wall to be destroyed. Drives renderer layering: `impact`
  *  (cannonball or grunt) stacks the fire/smoke burst on top of the shared
@@ -210,11 +211,13 @@ export interface BattleAnimState {
 const WALL_DECAY_LIFETIME = 4.0;
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
-/** Lifetime of an `impact`-cause `DestroyedWall` entry (seconds). Sized
- *  to the fire/smoke burst window — long enough to read as a real
- *  burst, short enough to not delay the post-battle banner. Phase B/C
- *  will widen this when the shared sink + dust base layers get added
- *  on top of the impact fire. */
+/** Duration of the fire/smoke burst layered on top of `impact`-cause
+ *  destructions (seconds). Shorter than the unified destruction
+ *  animation — fire ends mid-sink; the wall continues sinking + dust +
+ *  tail-fading for the rest of `WALL_DESTROY_ANIM_DURATION`. The
+ *  wall-burns manager filters `destroyedWalls` to entries with
+ *  `age < WALL_BURN_DURATION` so the fire kernel only animates during
+ *  this window, while the entry itself lives the full anim duration. */
 export const WALL_BURN_DURATION = 0.7;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
@@ -296,7 +299,7 @@ export function ageImpacts(
   for (const wall of battleAnim.destroyedWalls) wall.age += dt;
   battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter((wall) =>
     wall.cause === "impact"
-      ? wall.age < WALL_BURN_DURATION
+      ? wall.age < WALL_DESTROY_ANIM_DURATION
       : wall.age < WALL_DECAY_LIFETIME,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;

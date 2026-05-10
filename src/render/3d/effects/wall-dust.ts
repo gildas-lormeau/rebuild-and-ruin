@@ -1,14 +1,14 @@
 /**
- * Crumbling-walls dust puff — a vertical billboard sprite per
- * `decay`-cause `DestroyedWall` entry, fading + scaling on the global
- * `crumblingWallsAnim.dustOpacity` multiplier. Reads the held tile set
- * straight from the overlay; sizing/seeding is `tileSeed`-derived for
- * deterministic per-tile variation. The wall-burns manager handles
- * impact-cause fire on its own — this manager is decay-only.
+ * Wall-destruction dust puff — vertical billboard per `DestroyedWall`
+ * entry, faded by per-tile `wallDestroyAnimAt(age).dustOpacity` for
+ * `impact`-cause and the global `crumblingWallsAnim.dustOpacity` for
+ * `decay`-cause. Sizing/seeding is `tileSeed`-derived. Shared dust
+ * layer for both causes; wall-burns stacks fire on impact entries.
  */
 
 import * as THREE from "three";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import type { EffectManager } from "./fire-burst.ts";
@@ -82,10 +82,9 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
   }
 
   function update(ctx: FrameCtx): void {
-    const anim = ctx.overlay?.battle?.crumblingWallsAnim;
+    const decayAnim = ctx.overlay?.battle?.crumblingWallsAnim;
     const destroyedWalls = ctx.overlay?.battle?.destroyedWalls;
-    if (!anim || !destroyedWalls || anim.dustOpacity <= 0) {
-      // No active dust: drop everything.
+    if (!destroyedWalls) {
       if (hosts.size > 0) {
         for (const host of hosts.values()) disposeHost(host);
         hosts.clear();
@@ -95,21 +94,24 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
 
     seenThisFrame.clear();
     for (const wall of destroyedWalls) {
-      if (wall.cause !== "decay") continue;
+      const dustOpacity =
+        wall.cause === "decay"
+          ? (decayAnim?.dustOpacity ?? 0)
+          : wallDestroyAnimAt(wall.age * 1000).dustOpacity;
+      if (dustOpacity <= 0) continue;
       const tileKey = wall.row * GRID_COLS + wall.col;
       seenThisFrame.add(tileKey);
       const host = hosts.get(tileKey) ?? buildHost(tileKey, wall.row, wall.col);
-      // Per-tile size + opacity from the global multiplier.
       const radius = DUST_BASE_RADIUS * host.scaleMul;
       const height = DUST_HEIGHT_BASE + DUST_HEIGHT_RANGE * host.heightOffset;
       host.mesh.scale.set(radius * 2, height, 1);
       // Lift mesh so its base sits at host.group.position (so the puff
       // grows upward from the tile rather than centering through ground).
       host.mesh.position.y = height / 2;
-      host.material.opacity = anim.dustOpacity;
+      host.material.opacity = dustOpacity;
     }
 
-    // Reap hosts whose tiles no longer have a decay entry.
+    // Reap hosts whose tiles no longer have an active dust puff.
     for (const [tileKey, host] of hosts) {
       if (!seenThisFrame.has(tileKey)) {
         disposeHost(host);

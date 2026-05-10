@@ -36,12 +36,12 @@ import type {
 import type {
   BannerContent,
   BannerUi,
-  CrumblingWallsAnim,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
   RenderOverlay,
   SceneCapture,
+  WallDestroyAnim,
 } from "../shared/ui/overlay-types.ts";
 import type {
   GameSettings,
@@ -223,7 +223,7 @@ export interface OnlineOverlayParams {
   /** Crumbling-walls reveal animation multipliers — sink + opacities
    *  for the held-mesh, dust, and debris cross-fade-in. Threaded into
    *  `overlay.battle.crumblingWallsAnim`. */
-  crumblingWallsAnim?: CrumblingWallsAnim;
+  crumblingWallsAnim?: WallDestroyAnim;
   /** Sapper-reveal tint pulse intensity (0..1); threaded into
    *  `overlay.battle.sapperRevealIntensity`. */
   sapperRevealIntensity?: number;

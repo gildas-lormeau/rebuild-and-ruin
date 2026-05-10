@@ -74,6 +74,7 @@
       "src/shared/core/modifier-defs.ts",
       "src/shared/core/pieces.ts",
       "src/shared/core/upgrade-defs.ts",
+      "src/shared/core/wall-destroy-anim.ts",
       "src/shared/ui/theme.ts"
     ]
   },
@@ -93,6 +94,7 @@
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts",
       "src/runtime/camera-projection.ts",
+      "src/runtime/crumbling-walls-overlay.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
       "src/shared/ui/interaction-types.ts",
@@ -147,7 +149,6 @@
       "src/render/3d/entities/entity-helpers.ts",
       "src/render/3d/frame-ctx.ts",
       "src/render/render-loupe.ts",
-      "src/runtime/crumbling-walls-overlay.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/music-player.ts",
       "src/runtime/runtime-battle-anim.ts",
