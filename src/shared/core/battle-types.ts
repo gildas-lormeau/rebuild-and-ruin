@@ -212,13 +212,18 @@ const WALL_DECAY_LIFETIME = 4.0;
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
 /** Duration of the fire/smoke burst layered on top of `impact`-cause
- *  destructions (seconds). Shorter than the unified destruction
- *  animation — fire ends mid-sink; the wall continues sinking + dust +
- *  tail-fading for the rest of `WALL_DESTROY_ANIM_DURATION`. The
- *  wall-burns manager filters `destroyedWalls` to entries with
- *  `age < WALL_BURN_DURATION` so the fire kernel only animates during
- *  this window, while the entry itself lives the full anim duration. */
+ *  destructions (seconds). The fire plays AFTER the sink + dust + tail-
+ *  fade window completes, so the wall has visibly collapsed before the
+ *  explosion flash + smoke. The wall-burns manager filters
+ *  `destroyedWalls` to entries with `age >= WALL_DESTROY_ANIM_DURATION`
+ *  AND `age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`, and
+ *  re-bases each entry's `age` to fire-relative time so the kernel sees
+ *  a normal 0..duration timeline. */
 export const WALL_BURN_DURATION = 0.25;
+/** Total impact-entry lifetime: sink phase + fire phase. The entry is
+ *  kept alive long enough for both visual phases to play; ageImpacts
+ *  purges past this. */
+const IMPACT_ENTRY_LIFETIME = WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION;
 /** Duration of the destroyed-cannon fire/smoke burst (seconds). Slightly
  *  longer than wall-burns so the heavier blast has time to read. */
 export const CANNON_DESTROY_DURATION = 0.9;
@@ -299,7 +304,7 @@ export function ageImpacts(
   for (const wall of battleAnim.destroyedWalls) wall.age += dt;
   battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter((wall) =>
     wall.cause === "impact"
-      ? wall.age < WALL_DESTROY_ANIM_DURATION
+      ? wall.age < IMPACT_ENTRY_LIFETIME
       : wall.age < WALL_DECAY_LIFETIME,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;

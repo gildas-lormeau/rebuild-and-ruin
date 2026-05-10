@@ -52,6 +52,7 @@ import {
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
 import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
@@ -672,7 +673,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
       battleAnim.destroyedWalls.some(
-        (wall) => wall.cause === "impact" && wall.age < WALL_BURN_DURATION,
+        (wall) =>
+          wall.cause === "impact" &&
+          wall.age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION,
       ) ||
       battleAnim.cannonDestroys.length > 0 ||
       battleAnim.gruntKills.length > 0 ||

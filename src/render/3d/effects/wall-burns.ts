@@ -1,14 +1,18 @@
 /**
- * Impact-destruction fire burst on the 1×1 fire-burst kernel. Filters
- * `destroyedWalls` to `cause === "impact"` AND `age < WALL_BURN_DURATION`:
- * fire ends at 0.7s while the entry continues sinking + dusting + tail-
- * fading until 1.2s. `decay`-cause entries get the shared base only.
- * Per-burn variation is `tileSeed`-derived.
+ * Impact-destruction fire burst — plays AFTER the sink + dust + tail-
+ * fade window. Filters impact entries to the post-sink window and
+ * re-bases age to fire-relative time. Sequence: wall collapses
+ * (0..0.4s), then explosion flash from rubble (0.4..0.65s).
+ * Decay-cause entries get no fire layer.
  */
 
 import type * as THREE from "three";
-import { WALL_BURN_DURATION } from "../../../shared/core/battle-types.ts";
+import {
+  type DestroyedWall,
+  WALL_BURN_DURATION,
+} from "../../../shared/core/battle-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { WALL_DESTROY_ANIM_DURATION } from "../../../shared/core/wall-destroy-anim.ts";
 import {
   createTileBurstManager,
   type EffectManager,
@@ -55,11 +59,19 @@ export function createWallBurnsManager(scene: THREE.Scene): WallBurnsManager {
     name: "wall-burns",
     config: WALL_BURST_CONFIG,
     duration: WALL_BURN_DURATION,
-    selectEntries: (ctx) =>
-      ctx.overlay?.battle?.destroyedWalls?.filter(
-        (destroyedWall) =>
-          destroyedWall.cause === "impact" &&
-          destroyedWall.age < WALL_BURN_DURATION,
-      ),
+    selectEntries: (ctx) => {
+      const all = ctx.overlay?.battle?.destroyedWalls;
+      if (!all) return undefined;
+      const out: DestroyedWall[] = [];
+      for (const wall of all) {
+        if (wall.cause !== "impact") continue;
+        const fireAge = wall.age - WALL_DESTROY_ANIM_DURATION;
+        if (fireAge < 0 || fireAge >= WALL_BURN_DURATION) continue;
+        // Re-base age to fire-relative time so the kernel's animation
+        // pipeline sees a standard 0..duration timeline.
+        out.push({ ...wall, age: fireAge });
+      }
+      return out;
+    },
   });
 }
