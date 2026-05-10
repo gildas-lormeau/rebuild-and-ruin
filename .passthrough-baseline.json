@@ -4,6 +4,7 @@
   "src/main.ts:activateMusic:SINGLE_CALLER",
   "src/online/online-router.ts:onRoute:ARG_PASSTHROUGH",
   "src/render/3d/entities/instance-modulation.ts:opacityProgramCacheKey:ZERO_ARG_LITERAL",
+  "src/render/3d/entities/instance-modulation.ts:tintAndSinkProgramCacheKey:ZERO_ARG_LITERAL",
   "src/render/3d/entities/instance-modulation.ts:tintProgramCacheKey:ZERO_ARG_LITERAL",
   "src/render/3d/light-debug.ts:isLightDebugEnabled:ZERO_ARG_LITERAL",
   "src/render/3d/perf-hud.ts:isPerfHudEnabled:ZERO_ARG_LITERAL",

@@ -255,14 +255,16 @@ export interface BattleOverlay {
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */
   frostbite?: boolean;
-  /** Global opacity multiplier for held crumbling-walls entries during
-   *  the modifier reveal, in [0, 1]. `1` = full opacity (snapshot
-   *  capture); ramps to `0` over the post-banner window so the walls
-   *  visibly fade out before disappearing. `undefined` outside the
-   *  crumbling_walls reveal window. The walls manager unions the
-   *  `decay`-cause entries from `destroyedWalls` into its mask-set and
-   *  writes per-instance opacity from this value for held slots. */
-  crumblingWallsFade?: number;
+  /** Crumbling-walls reveal animation multipliers — sink amount, held
+   *  wall opacity, dust opacity, debris opacity. Derived from
+   *  `revealTimeMs` (the only banner-aware boundary); `undefined`
+   *  outside the crumbling_walls reveal window. The walls manager
+   *  applies `sinkOffset` + `wallOpacity` to the `decay`-cause entries
+   *  in `destroyedWalls`; the wall-dust manager uses `dustOpacity`;
+   *  the debris manager uses `debrisOpacity` for the cross-fade-in
+   *  (held at 1 through the post-fade bridge until BATTLE entry takes
+   *  over via `battleWalls`). */
+  crumblingWallsAnim?: CrumblingWallsAnim;
   /** Sapper threat-tint mix factor [0, 1] during the modifier reveal —
    *  walls in `sapperTargetedWalls` lerp toward copper by this amount.
    *  Undefined outside the reveal window. */
@@ -280,6 +282,30 @@ export interface BattleOverlay {
    *  which slots to tint. Stable across the MODIFIER_REVEAL phase
    *  (grunts don't move pre-battle). */
   gruntSurgeSpawnTiles?: readonly number[];
+}
+
+/** Crumbling-walls reveal animation multipliers — produced by
+ *  `deriveCrumblingWallsAnim` in `runtime/crumbling-walls-overlay.ts`.
+ *  Lives here (in overlay-types) so producer (runtime) and consumers
+ *  (walls.ts, debris.ts, wall-dust.ts) share the shape without
+ *  introducing a runtime → render layer-cycle dependency. */
+export interface CrumblingWallsAnim {
+  /** World-units the held wall is translated DOWN by. 0 during the
+   *  banner snapshot; eased ramp from 0 to the configured sink drop
+   *  during animation; held at full drop through the post-fade bridge. */
+  readonly sinkOffset: number;
+  /** Held wall material alpha multiplier in [0, 1]. 1 during snapshot
+   *  + most of the animation; tail-fades to 0 in the last fraction of
+   *  the window; 0 through the bridge. */
+  readonly wallOpacity: number;
+  /** Dust puff alpha multiplier in [0, 1]. Quick ramp-up to peak,
+   *  longer ramp-down, 0 through the bridge. */
+  readonly dustOpacity: number;
+  /** Debris cross-fade-in alpha multiplier in [0, 1]. 0 during snapshot
+   *  + the early animation; ramps from 0 to 1 across the cross-fade
+   *  window; 1 through the bridge so the rubble stays visible until
+   *  BATTLE entry hands it off to the `battleWalls` snapshot. */
+  readonly debrisOpacity: number;
 }
 
 /** Display content carried by a banner unchanged across its three layers

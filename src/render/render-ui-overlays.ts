@@ -305,7 +305,7 @@ export function createOnlineOverlay(
     fogRevealOpacity,
     rubbleClearingFade,
     frostbiteRevealProgress,
-    crumblingWallsFade,
+    crumblingWallsAnim,
     sapperRevealIntensity,
     gruntSurgeRevealIntensity,
   } = params;
@@ -377,7 +377,7 @@ export function createOnlineOverlay(
       // banner and the next build/cannon phases. Clears when the next
       // prepareBattleState reassigns activeModifier.
       frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
-      crumblingWallsFade,
+      crumblingWallsAnim,
       sapperRevealIntensity,
       sapperTargetedWalls:
         sapperRevealIntensity !== undefined

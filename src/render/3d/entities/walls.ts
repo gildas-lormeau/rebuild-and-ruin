@@ -21,7 +21,7 @@ import {
   hideSubParts,
   writeBucketAttribute,
 } from "./instance-bucket.ts";
-import { attachInstanceTint } from "./instance-modulation.ts";
+import { attachInstanceTintAndSink } from "./instance-modulation.ts";
 
 export interface WallsManager {
   /** Reconcile wall meshes with the current overlay. Cheap no-op when
@@ -43,6 +43,11 @@ interface MaskBucket {
    *  Mix factor in [0, 1] toward the bucket's `instanceTintColor`
    *  uniform (copper for sapper-targeted walls). */
   tintAttrs: THREE.InstancedBufferAttribute[];
+  /** Per-sub-part instance-sink attribute (parallel to `subParts`).
+   *  Object-space Y offset subtracted from the vertex (multiply by
+   *  `WALL_SCALE` for world-space sink amount). Drives the
+   *  crumbling-walls held-mesh sink without recomposing matrices. */
+  sinkAttrs: THREE.InstancedBufferAttribute[];
   capacity: number;
 }
 
@@ -50,12 +55,19 @@ interface WallEntry {
   readonly col: number;
   readonly row: number;
   readonly tileKey: number;
+  /** True for held `decay`-cause entries (crumbling-walls modifier);
+   *  false for live walls. Drives the per-frame anim-attribute writes
+   *  in the cheap path — only held entries get sink + tail-fade. */
+  readonly held: boolean;
   /** Per-instance alpha multiplier in [0, 1]. Live walls = 1; held
-   *  crumbling-walls entries = the runtime-derived fade multiplier. */
+   *  crumbling-walls entries = `crumblingWallsAnim.wallOpacity`. */
   readonly opacity: number;
   /** Per-instance tint mix in [0, 1]. 0 for non-targeted walls;
    *  sapper-targeted walls = the runtime-derived pulse intensity. */
   readonly tint: number;
+  /** Per-instance object-space Y sink. 0 for live walls; held entries
+   *  carry `crumblingWallsAnim.sinkOffset / WALL_SCALE`. */
+  readonly sinkY: number;
 }
 
 /** Copper-brown tint for sapper-targeted walls — matches the
@@ -93,13 +105,15 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
   // on dispose.
   const ownedMaterials: THREE.Material[] = [];
   // Two-tier cache: structural signature gates the expensive bucket
-  // rebuild + matrix recompose; fade is tracked separately so the 1.1s
-  // crumbling-walls ramp only triggers a per-slot opacity rewrite per
-  // frame (skipping mask compute, ensureBucket, fillBucket).
-  // `lastByBucket` retains the per-bucket entry lists from the most
-  // recent structural rebuild — opacity-only frames walk these.
+  // rebuild + matrix recompose; the crumbling-walls anim values
+  // (sinkOffset + wallOpacity) are tracked separately so the ramp only
+  // triggers per-slot attribute rewrites (skipping mask compute,
+  // ensureBucket, fillBucket). `lastByBucket` retains the per-bucket
+  // entry lists from the most recent structural rebuild — anim-only
+  // frames walk these to update sink + opacity in place.
   let lastStructuralSignature: string | undefined;
-  let lastFade = 1;
+  let lastWallOpacity = 1;
+  let lastSinkY = 0;
   let lastSapperIntensity = 0;
   let lastSapperTargetedSig = "";
   let lastByBucket: Map<number, WallEntry[]> = new Map();
@@ -135,13 +149,17 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     // Held walls = the `decay`-cause entries on `destroyedWalls`
     // (currently only the crumbling-walls modifier — see
     // `runtime-phase-machine.ts` `syncBattleAnim`). They union into the
-    // mask-compute set ONLY while `crumblingWallsFade` is in flight, so
-    // live neighbours keep their merlons during the fade. Post-fade the
+    // mask-compute set ONLY while `crumblingWallsAnim` is defined, so
+    // live neighbours keep their merlons during the fall. Post-anim the
     // debris manager carries the rubble.
     const destroyedWalls = overlay?.battle?.destroyedWalls;
-    const crumblingFade = overlay?.battle?.crumblingWallsFade;
-    const renderHeldWalls = destroyedWalls && crumblingFade !== undefined;
-    const fade = crumblingFade ?? 1;
+    const crumblingAnim = overlay?.battle?.crumblingWallsAnim;
+    const renderHeldWalls = destroyedWalls && crumblingAnim !== undefined;
+    const wallOpacity = crumblingAnim?.wallOpacity ?? 1;
+    // sinkY attribute is in object-space (pre-scale); divide by WALL_SCALE
+    // so a `sinkOffset = 16` world units becomes `instanceSinkY = 2`
+    // and the shader's `transformed.y -= 2` × WALL_SCALE = 16 world.
+    const sinkY = (crumblingAnim?.sinkOffset ?? 0) / WALL_SCALE;
     const sapperIntensity = overlay?.battle?.sapperRevealIntensity ?? 0;
     const sapperTargetedRaw = overlay?.battle?.sapperTargetedWalls;
     const sapperTargeted: ReadonlySet<number> =
@@ -180,17 +198,20 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     const heldDamagedList = [...heldDamagedKeys].sort((a, b) => a - b);
     const structuralSignature = `${liveKeys.join(",")}|${damagedList.join(",")}|${heldKeys.join(",")}|${heldDamagedList.join(",")}`;
     const structuralChanged = structuralSignature !== lastStructuralSignature;
-    const fadeChanged = fade !== lastFade;
+    const wallOpacityChanged = wallOpacity !== lastWallOpacity;
+    const sinkChanged = sinkY !== lastSinkY;
     const sapperTargetedChanged = sapperTargetedSig !== lastSapperTargetedSig;
     const sapperIntensityChanged = sapperIntensity !== lastSapperIntensity;
     if (
       !structuralChanged &&
-      !fadeChanged &&
+      !wallOpacityChanged &&
+      !sinkChanged &&
       !sapperTargetedChanged &&
       !sapperIntensityChanged
     )
       return;
-    lastFade = fade;
+    lastWallOpacity = wallOpacity;
+    lastSinkY = sinkY;
     lastSapperIntensity = sapperIntensity;
     lastSapperTargetedSig = sapperTargetedSig;
 
@@ -210,10 +231,10 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       const sources: ReadonlyArray<{
         readonly keys: readonly number[];
         readonly damagedSet: ReadonlySet<number>;
-        readonly opacity: number;
+        readonly held: boolean;
       }> = [
-        { keys: liveKeys, damagedSet: damagedKeys, opacity: 1 },
-        { keys: heldKeys, damagedSet: heldDamagedKeys, opacity: fade },
+        { keys: liveKeys, damagedSet: damagedKeys, held: false },
+        { keys: heldKeys, damagedSet: heldDamagedKeys, held: true },
       ];
       for (const source of sources) {
         for (const key of source.keys) {
@@ -231,8 +252,10 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
             col,
             row,
             tileKey: key,
-            opacity: source.opacity,
+            held: source.held,
+            opacity: source.held ? wallOpacity : 1,
             tint,
+            sinkY: source.held ? sinkY : 0,
           });
         }
       }
@@ -254,15 +277,20 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       }
       lastByBucket = byBucket;
     } else {
-      // Fade-only / sapper-intensity-only change: refresh per-entry
-      // opacity + tint in place; structural buckets unchanged.
+      // Anim-only / sapper-intensity-only change: refresh per-entry
+      // opacity + tint + sinkY in place; structural buckets unchanged.
       for (const list of lastByBucket.values()) {
         for (let i = 0; i < list.length; i++) {
           const entry = list[i]!;
-          const opacity = entry.opacity !== 1 ? fade : 1;
+          const opacity = entry.held ? wallOpacity : 1;
           const tint = sapperTargeted.has(entry.tileKey) ? sapperIntensity : 0;
-          if (opacity !== entry.opacity || tint !== entry.tint) {
-            list[i] = { ...entry, opacity, tint };
+          const entrySinkY = entry.held ? sinkY : 0;
+          if (
+            opacity !== entry.opacity ||
+            tint !== entry.tint ||
+            entrySinkY !== entry.sinkY
+          ) {
+            list[i] = { ...entry, opacity, tint, sinkY: entrySinkY };
           }
         }
       }
@@ -279,6 +307,12 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       lastByBucket,
       (bucket) => bucket.tintAttrs,
       (entry) => entry.tint,
+    );
+    writeBucketAttribute(
+      buckets,
+      lastByBucket,
+      (bucket) => bucket.sinkAttrs,
+      (entry) => entry.sinkY,
     );
   }
 
@@ -327,19 +361,30 @@ function buildBucket(
     },
     namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
   });
-  // Per-instance opacity (crumbling-walls fade) + tint (sapper threat
-  // pulse). Both default to no-op (opacity=1, tint=0); the manager
-  // writes per slot when a multiplier is in flight.
+  // Per-instance opacity (crumbling-walls held-mesh tail-fade) +
+  // tint (sapper threat pulse) + sinkY (crumbling-walls held-mesh
+  // descent). All default to no-op (opacity=1, tint=0, sinkY=0); the
+  // manager writes per slot when a multiplier is in flight.
   const opacityAttrs: THREE.InstancedBufferAttribute[] = [];
   const tintAttrs: THREE.InstancedBufferAttribute[] = [];
+  const sinkAttrs: THREE.InstancedBufferAttribute[] = [];
   for (const part of subParts) {
-    const { opacity, tint } = attachInstanceTint(
+    const { opacity, tint, sinkY } = attachInstanceTintAndSink(
       part.instanced,
       capacity,
       SAPPER_TINT_HEX,
     );
     opacityAttrs.push(opacity);
     tintAttrs.push(tint);
+    sinkAttrs.push(sinkY);
   }
-  return { mask, damaged, subParts, opacityAttrs, tintAttrs, capacity };
+  return {
+    mask,
+    damaged,
+    subParts,
+    opacityAttrs,
+    tintAttrs,
+    sinkAttrs,
+    capacity,
+  };
 }

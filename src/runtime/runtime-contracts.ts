@@ -36,6 +36,7 @@ import type {
 import type {
   BannerContent,
   BannerUi,
+  CrumblingWallsAnim,
   GameOverOverlay,
   LoupeHandle,
   RendererInterface,
@@ -219,9 +220,10 @@ export interface OnlineOverlayParams {
    *  the grunt manager lerps material colors against the cached
    *  authored color by this multiplier. */
   frostbiteRevealProgress?: number;
-  /** Crumbling-walls fade multiplier (1..0); threaded into
-   *  `overlay.battle.crumblingWallsFade`. */
-  crumblingWallsFade?: number;
+  /** Crumbling-walls reveal animation multipliers — sink + opacities
+   *  for the held-mesh, dust, and debris cross-fade-in. Threaded into
+   *  `overlay.battle.crumblingWallsAnim`. */
+  crumblingWallsAnim?: CrumblingWallsAnim;
   /** Sapper-reveal tint pulse intensity (0..1); threaded into
    *  `overlay.battle.sapperRevealIntensity`. */
   sapperRevealIntensity?: number;

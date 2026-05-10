@@ -52,6 +52,7 @@ import {
   createWallBurnsManager,
   type WallBurnsManager,
 } from "./effects/wall-burns.ts";
+import { createWallDustManager } from "./effects/wall-dust.ts";
 import {
   type BalloonsManager,
   createBalloonsManager,
@@ -150,6 +151,12 @@ export interface Render3dContext {
    *  for envelope + crackle math; deterministic per-tile variation
    *  derives from `tileSeed`. */
   readonly wallBurns: WallBurnsManager;
+  /** Wall-dust manager — vertical billboard puffs per `decay`-cause
+   *  destroyed wall (crumbling-walls modifier). Reads
+   *  `overlay.battle.crumblingWallsAnim.dustOpacity` for the global
+   *  fade and the held tile set from `destroyedWalls`. Sibling of
+   *  `wallBurns` (which handles impact-cause fire). */
+  readonly wallDust: EffectManager;
   /** Cannon-burn manager — heavier sibling of `wallBurns`, fired when a
    *  cannon is destroyed. Reconciles `overlay.battle.cannonDestroys`
    *  into per-cannon hosts sized to the 2×2 / 3×3 footprint with ~1.5×
@@ -291,6 +298,7 @@ export function createRender3dScene(
   const phantoms = createPhantomsManager(scene);
   const impacts = createImpactsManager(scene);
   const wallBurns = createWallBurnsManager(scene);
+  const wallDust = createWallDustManager(scene);
   const cannonBurns = createCannonBurnsManager(scene);
   const gruntBurns = createGruntBurnsManager(scene);
   const houseBurns = createHouseBurnsManager(scene);
@@ -397,6 +405,7 @@ export function createRender3dScene(
     phantoms,
     impacts,
     wallBurns,
+    wallDust,
     cannonBurns,
     gruntBurns,
     houseBurns,

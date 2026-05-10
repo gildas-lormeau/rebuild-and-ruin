@@ -230,6 +230,7 @@ export function createRender3d(
     ctx.phantoms.update(frame);
     ctx.impacts.update(frame);
     ctx.wallBurns.update(frame);
+    ctx.wallDust.update(frame);
     ctx.cannonBurns.update(frame);
     ctx.gruntBurns.update(frame);
     ctx.houseBurns.update(frame);

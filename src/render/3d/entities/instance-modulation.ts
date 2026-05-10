@@ -11,6 +11,7 @@ import * as THREE from "three";
 
 const OPACITY_PROGRAM_KEY = "instance-modulation-opacity-v1";
 const TINT_PROGRAM_KEY = "instance-modulation-tint-v1";
+const TINT_AND_SINK_PROGRAM_KEY = "instance-modulation-tint-sink-v1";
 
 /** Attach a `Float32` per-instance opacity attribute to `mesh.geometry`,
  *  patch every material on `mesh` to multiply final alpha by it, and
@@ -70,6 +71,41 @@ export function attachInstanceTint(
   return { opacity, tint };
 }
 
+/** Same as `attachInstanceTint` plus an `instanceSinkY` float attribute
+ *  that subtracts from the vertex Y in object space (after the
+ *  authored mesh is positioned). Used by the walls manager to drive
+ *  the crumbling-walls held-mesh sink without recomposing the per-
+ *  instance matrix every frame — only the per-slot float attribute
+ *  changes. Sink defaults to 0 (no offset). */
+export function attachInstanceTintAndSink(
+  mesh: THREE.InstancedMesh,
+  capacity: number,
+  tintHex: number,
+): {
+  opacity: THREE.InstancedBufferAttribute;
+  tint: THREE.InstancedBufferAttribute;
+  sinkY: THREE.InstancedBufferAttribute;
+} {
+  const opacity = createUnitAttribute(capacity, 1);
+  const tint = createUnitAttribute(capacity, 0);
+  const sinkY = createUnitAttribute(capacity, 0);
+  mesh.geometry.setAttribute("instanceOpacity", opacity);
+  mesh.geometry.setAttribute("instanceTint", tint);
+  mesh.geometry.setAttribute("instanceSinkY", sinkY);
+
+  const tintColor = new THREE.Color(tintHex);
+  for (const material of materialsOf(mesh)) {
+    material.transparent = true;
+    material.customProgramCacheKey = tintAndSinkProgramCacheKey;
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.instanceTintColor = { value: tintColor };
+      patchInstanceOpacityTintAndSink(shader);
+    };
+    material.needsUpdate = true;
+  }
+  return { opacity, tint, sinkY };
+}
+
 function createUnitAttribute(
   capacity: number,
   fillValue: number,
@@ -91,6 +127,10 @@ function opacityProgramCacheKey(): string {
 
 function tintProgramCacheKey(): string {
   return TINT_PROGRAM_KEY;
+}
+
+function tintAndSinkProgramCacheKey(): string {
+  return TINT_AND_SINK_PROGRAM_KEY;
 }
 
 /** Module-level shader patcher: opacity-only variant. */
@@ -129,6 +169,32 @@ function patchInstanceOpacityAndTint(
     .replace(
       "#include <begin_vertex>",
       "#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;\nvInstanceTint = instanceTint;",
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      "#include <common>\nvarying float vInstanceOpacity;\nvarying float vInstanceTint;\nuniform vec3 instanceTintColor;",
+    )
+    .replace(
+      "#include <alphamap_fragment>",
+      "#include <alphamap_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, instanceTintColor, vInstanceTint);\ndiffuseColor.a *= vInstanceOpacity;",
+    );
+}
+
+/** Module-level shader patcher: opacity + tint + sink variant. The sink
+ *  is applied AFTER the per-instance matrix transforms the vertex (so
+ *  the offset is in world-space Y, independent of mesh orientation). */
+function patchInstanceOpacityTintAndSink(
+  shader: THREE.WebGLProgramParametersWithUniforms,
+): void {
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      "#include <common>\nattribute float instanceOpacity;\nattribute float instanceTint;\nattribute float instanceSinkY;\nvarying float vInstanceOpacity;\nvarying float vInstanceTint;",
+    )
+    .replace(
+      "#include <begin_vertex>",
+      "#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;\nvInstanceTint = instanceTint;\ntransformed.y -= instanceSinkY;",
     );
   shader.fragmentShader = shader.fragmentShader
     .replace(
