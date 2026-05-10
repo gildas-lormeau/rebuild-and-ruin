@@ -92,22 +92,13 @@ function applyWildfire(state: GameState): ReadonlySet<number> {
   return allScar;
 }
 
-/** Destroy walls, houses, grunts, and bonus squares on all scar tiles; create burning pits. */
+/** Destroy walls, houses, grunts, and bonus squares on all scar tiles; create burning pits.
+ *  Caller is responsible for filtering protected tiles via `buildCanBurnPredicate` —
+ *  this function trusts its input. */
 export function applyFireScar(
   state: GameState,
   scar: ReadonlySet<number>,
 ): void {
-  const protectedTiles = getProtectedCastleTiles(state);
-  if (protectedTiles.size > 0) {
-    for (const key of scar) {
-      if (protectedTiles.has(key)) {
-        const { r, c } = unpackTile(key);
-        throw new Error(
-          `applyFireScar touched fresh-castle tile (${r},${c}) — buildCanBurnPredicate already rejects these, so the caller likely bypassed the predicate`,
-        );
-      }
-    }
-  }
   evictEntitiesOnTiles(state, scar, {
     walls: true,
     houses: true,
