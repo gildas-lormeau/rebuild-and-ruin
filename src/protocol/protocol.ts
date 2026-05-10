@@ -20,6 +20,9 @@ import {
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
+// Serialized sub-types and checkpoint data — defined in the game layer
+// (src/checkpoint-data.ts). Import here for local use in message types.
+import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import type {
   CannonPhantomPayload,
   CannonPlacedPayload,
@@ -28,8 +31,6 @@ import type {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
-// Serialized sub-types and checkpoint data — defined in the game layer
-// (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
   SerializedBonusSquare,
   SerializedBurningPit,
@@ -180,7 +181,7 @@ export interface HostLeftMessage {
 }
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
-export interface FullStateMessage {
+export interface FullStateMessage extends SerializedModifierTiles {
   type: "fullState";
   /** Monotonic host-migration sequence used to reject stale snapshots. */
   migrationSeq?: number;
@@ -228,9 +229,8 @@ export interface FullStateMessage {
   precomputedDustStormJitters?: number[];
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
-  frozenTiles: number[] | null;
-  highTideTiles?: number[] | null;
-  sinkholeTiles?: number[] | null;
+  // Modifier tile sets (frozenTiles, highTideTiles, sinkholeTiles,
+  // lowWaterTiles) come from `extends SerializedModifierTiles` above.
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerSlot;

@@ -5,6 +5,7 @@
 
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../../shared/core/grid.ts";
+import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 // jscpd:ignore-start
 import {
   DIRS_4,
@@ -18,7 +19,7 @@ import {
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
+import type { ModifierImpl } from "./modifier-types.ts";
 
 export const lowWaterImpl: ModifierImpl = {
   lifecycle: "round-scoped",
@@ -27,7 +28,7 @@ export const lowWaterImpl: ModifierImpl = {
     gruntsSpawned: 0,
   }),
   clear: clearLowWater,
-  restore: (state: GameState, data: ModifierTileData) => {
+  restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.lowWaterTiles = data.lowWaterTiles
       ? new Set(data.lowWaterTiles)
       : null;

@@ -8,9 +8,10 @@
 
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import { isWater, packTile } from "../../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
+import type { ModifierImpl } from "./modifier-types.ts";
 
 export const frozenRiverImpl: ModifierImpl = {
   lifecycle: "round-scoped",
@@ -22,7 +23,7 @@ export const frozenRiverImpl: ModifierImpl = {
   // (water stays water, just walkable). Interior is unaffected.
   skipsRecheck: true,
   clear: clearFrozenRiver,
-  restore: (state: GameState, data: ModifierTileData) => {
+  restore: (state: GameState, data: SerializedModifierTiles) => {
     if ("frozenTiles" in data) {
       state.modern!.frozenTiles = data.frozenTiles
         ? new Set(data.frozenTiles)

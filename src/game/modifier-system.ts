@@ -12,7 +12,10 @@ import {
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
 } from "../shared/core/game-constants.ts";
-import { IMPLEMENTED_MODIFIERS } from "../shared/core/modifier-defs.ts";
+import {
+  IMPLEMENTED_MODIFIERS,
+  type SerializedModifierTiles,
+} from "../shared/core/modifier-defs.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
@@ -23,10 +26,7 @@ import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
 import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
 import { highTideImpl } from "./modifiers/high-tide.ts";
 import { lowWaterImpl } from "./modifiers/low-water.ts";
-import type {
-  ModifierImpl,
-  ModifierTileData,
-} from "./modifiers/modifier-types.ts";
+import type { ModifierImpl } from "./modifiers/modifier-types.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
 import { sapperImpl } from "./modifiers/sapper.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";
@@ -81,7 +81,7 @@ export function rollModifier(state: GameState): ModifierId | null {
  *  No-op if the modifiers feature is not active for this match. */
 export function applyCheckpointModifierTiles(
   state: GameState,
-  data: ModifierTileData,
+  data: SerializedModifierTiles,
 ): void {
   if (!hasFeature(state, FID.MODIFIERS)) return;
   for (const impl of MODIFIER_REGISTRY.values()) {

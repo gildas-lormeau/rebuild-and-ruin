@@ -1,5 +1,6 @@
 /** Shared types for modifier implementations. */
 
+import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import type { GameState } from "../../shared/core/types.ts";
 
 /** Result shape returned by every modifier's apply function. */
@@ -38,7 +39,7 @@ export interface PermanentModifier extends ModifierImplBase {
   readonly lifecycle: "permanent";
   /** Restore tile-mutating state from checkpoint data and re-apply tile
    *  mutations on a map regenerated from seed. */
-  restore(state: GameState, data: ModifierTileData): void;
+  restore(state: GameState, data: SerializedModifierTiles): void;
 }
 
 /** Round-scoped modifier: active from this round's BATTLE through next
@@ -53,7 +54,7 @@ export interface RoundScopedModifier extends ModifierImplBase {
    *  mutations on a map regenerated from seed. Optional — only needed
    *  when the modifier carries serializable state (see `needsCheckpoint`
    *  in modifier-defs.ts). */
-  restore?(state: GameState, data: ModifierTileData): void;
+  restore?(state: GameState, data: SerializedModifierTiles): void;
 }
 
 /** Discriminated union of all modifier impls. The `lifecycle` field
@@ -63,11 +64,3 @@ export type ModifierImpl =
   | InstantModifier
   | PermanentModifier
   | RoundScopedModifier;
-
-/** Checkpoint data shape — the subset of checkpoint fields this helper reads. */
-export interface ModifierTileData {
-  readonly frozenTiles?: readonly number[] | null;
-  readonly highTideTiles?: readonly number[] | null;
-  readonly sinkholeTiles?: readonly number[] | null;
-  readonly lowWaterTiles?: readonly number[] | null;
-}

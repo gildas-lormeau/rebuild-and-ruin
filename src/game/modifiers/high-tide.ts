@@ -5,6 +5,7 @@
 
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import { hasTowerAt } from "../../shared/core/occupancy-queries.ts";
 import {
   DIRS_4,
@@ -19,7 +20,7 @@ import {
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
+import type { ModifierImpl } from "./modifier-types.ts";
 
 export const highTideImpl: ModifierImpl = {
   lifecycle: "round-scoped",
@@ -28,7 +29,7 @@ export const highTideImpl: ModifierImpl = {
     gruntsSpawned: 0,
   }),
   clear: clearHighTide,
-  restore: (state: GameState, data: ModifierTileData) => {
+  restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.highTideTiles = data.highTideTiles
       ? new Set(data.highTideTiles)
       : null;

@@ -4,6 +4,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import {
   hasCannonAt,
   hasTowerAt,
@@ -25,7 +26,7 @@ import {
   getActiveZones,
   getProtectedCastleTiles,
 } from "./modifier-eligibility.ts";
-import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
+import type { ModifierImpl } from "./modifier-types.ts";
 
 /** A sinkhole shape is a list of (row, col) offsets from a top-left anchor.
  *  Only shapes that render as recognizable pools through the SDF terrain
@@ -112,7 +113,7 @@ export const sinkholeImpl: ModifierImpl = {
     changedTiles: [...applySinkhole(state)],
     gruntsSpawned: 0,
   }),
-  restore: (state: GameState, data: ModifierTileData) => {
+  restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.sinkholeTiles = data.sinkholeTiles
       ? new Set(data.sinkholeTiles)
       : null;

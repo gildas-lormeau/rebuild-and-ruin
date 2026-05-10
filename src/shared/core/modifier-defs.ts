@@ -7,6 +7,19 @@
 import type { ModifierId } from "./game-constants.ts";
 import type { PoolDef } from "./pool-def.ts";
 
+/** Wire payload for tile-mutating modifier state — packed `row * GRID_COLS +
+ *  col` keys per active modifier, or null when inactive. Single source of
+ *  truth: emitted by `serializeModifierTileSets` (host) and consumed by
+ *  modifier `restore` impls (watcher). Lives in shared/ so both protocol/
+ *  (wire payload) and game/ (restorers) can import it; adding a new
+ *  tile-mutating modifier trips the compiler on both sides at once. */
+export interface SerializedModifierTiles {
+  frozenTiles: number[] | null;
+  highTideTiles: number[] | null;
+  sinkholeTiles: number[] | null;
+  lowWaterTiles: number[] | null;
+}
+
 interface ModifierDef extends PoolDef<ModifierId> {
   /** Pool weight for random selection (higher = more likely). */
   readonly weight: number;

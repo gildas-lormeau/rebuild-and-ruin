@@ -25,6 +25,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
+import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -391,7 +392,7 @@ function serializeModernFields(state: GameState) {
   };
 }
 
-function serializeModifierTileSets(state: GameState) {
+function serializeModifierTileSets(state: GameState): SerializedModifierTiles {
   return {
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
