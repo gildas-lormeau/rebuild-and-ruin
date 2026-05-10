@@ -6,14 +6,12 @@
  * burn predicate and scar applicator sit at the same layer as their callers.
  */
 
-import type { BurningPit } from "../../shared/core/battle-types.ts";
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import {
   hasCannonAt,
   hasTowerAt,
 } from "../../shared/core/occupancy-queries.ts";
-import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_4,
   hasEnclosableMargin,
@@ -24,6 +22,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
+import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,
@@ -109,24 +108,20 @@ export function applyFireScar(
       }
     }
   }
-  const newPits: BurningPit[] = [];
+  evictEntitiesOnTiles(state, scar, {
+    walls: true,
+    houses: true,
+    grunts: true,
+    bonusSquares: true,
+  });
   for (const key of scar) {
     const { r, c } = unpackTile(key);
-    newPits.push({ row: r, col: c, roundsLeft: BURNING_PIT_DURATION });
-    removeWallFromAllPlayers(state, key);
-    for (const house of state.map.houses) {
-      if (house.alive && house.row === r && house.col === c) {
-        house.alive = false;
-      }
-    }
+    state.burningPits.push({
+      row: r,
+      col: c,
+      roundsLeft: BURNING_PIT_DURATION,
+    });
   }
-  state.grunts = state.grunts.filter(
-    (gr) => !scar.has(packTile(gr.row, gr.col)),
-  );
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonus) => !scar.has(packTile(bonus.row, bonus.col)),
-  );
-  state.burningPits.push(...newPits);
 }
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.

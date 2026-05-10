@@ -137,6 +137,7 @@
       "src/game/combos.ts",
       "src/game/game-over.ts",
       "src/game/map-generation.ts",
+      "src/game/modifiers/evict-tiles.ts",
       "src/game/modifiers/modifier-eligibility.ts",
       "src/game/modifiers/modifier-types.ts",
       "src/game/selection.ts",

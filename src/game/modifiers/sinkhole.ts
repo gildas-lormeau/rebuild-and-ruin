@@ -8,7 +8,6 @@ import {
   hasCannonAt,
   hasTowerAt,
 } from "../../shared/core/occupancy-queries.ts";
-import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   DIRS_8,
   hasEnclosableMargin,
@@ -21,6 +20,7 @@ import {
 import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
+import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,
@@ -184,25 +184,15 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
     setWater(tiles, r, c);
   }
 
-  // Destroy structures on sinkhole tiles
-  for (const key of allSunk) {
-    const { r, c } = unpackTile(key);
-    removeWallFromAllPlayers(state, key);
-    for (const house of state.map.houses) {
-      if (house.alive && house.row === r && house.col === c) {
-        house.alive = false;
-      }
-    }
-  }
-  state.grunts = state.grunts.filter(
-    (gr) => !allSunk.has(packTile(gr.row, gr.col)),
-  );
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonus) => !allSunk.has(packTile(bonus.row, bonus.col)),
-  );
-  state.burningPits = state.burningPits.filter(
-    (pit) => !allSunk.has(packTile(pit.row, pit.col)),
-  );
+  // `buildCanSinkPredicate` already rejects cannon tiles, so no cannon
+  // eviction is needed.
+  evictEntitiesOnTiles(state, allSunk, {
+    walls: true,
+    houses: true,
+    grunts: true,
+    bonusSquares: true,
+    burningPits: true,
+  });
 
   // Track cumulative sinkhole tiles
   if (!modern.sinkholeTiles) modern.sinkholeTiles = new Set();

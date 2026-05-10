@@ -508,6 +508,21 @@ function applyLifePenalties(state: GameState): {
  *  tiles aren't owned by this zone) is untouched — modifiers are global
  *  by definition; only their per-zone footprint goes away here. */
 function resetZoneState(state: GameState, zone: ZoneId): void {
+  evictEntitiesInZone(state, zone);
+  for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
+    if (state.map.towers[towerIndex]!.zone === zone) {
+      state.towerAlive[towerIndex] = true;
+    }
+  }
+  restoreZoneGrass(state, zone);
+  recomputeMapZones(state);
+}
+
+/** Remove every entity bound to `zone` — grunts (in-zone or targeting an
+ *  in-zone tower), houses, bonus squares, burning pits. Towers are NOT
+ *  evicted; the caller revives them. Zone-keyed counterpart to
+ *  `evictEntitiesOnTiles` (which is tile-set-keyed). */
+function evictEntitiesInZone(state: GameState, zone: ZoneId): void {
   state.grunts = state.grunts.filter((grunt) => {
     if (zoneAt(state.map, grunt.row, grunt.col) === zone) return false;
     // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
@@ -523,13 +538,6 @@ function resetZoneState(state: GameState, zone: ZoneId): void {
   state.burningPits = state.burningPits.filter(
     (pit) => zoneAt(state.map, pit.row, pit.col) !== zone,
   );
-  for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
-    if (state.map.towers[towerIndex]!.zone === zone) {
-      state.towerAlive[towerIndex] = true;
-    }
-  }
-  restoreZoneGrass(state, zone);
-  recomputeMapZones(state);
 }
 
 /** Force every non-grass tile inside `zone`'s territory back to grass and
