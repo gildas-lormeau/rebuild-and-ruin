@@ -247,6 +247,17 @@ export interface BattleOverlay {
     mortar?: true;
     tier: 1 | 2 | 3;
   }[];
+  /** Held crumbling-walls tiles to render as live walls during the
+   *  banner sweep. Exposed only while the crumbling_walls reveal is
+   *  pre-sweep (snapshot or sweep-in-progress); dropped post-sweep so
+   *  the rubble appears via the `battleWalls` diff. The walls manager
+   *  folds these into its live render set; `damaged` selects the
+   *  reinforced-wall shell variant. */
+  crumblingWallsHeld?: readonly {
+    playerId: ValidPlayerSlot;
+    tileKey: number;
+    damaged: boolean;
+  }[];
   /** Frostbite-reveal tint intensity in `[0, 1]` while the modifier
    *  reveal is in flight. `0` = grunts at authored color, `1` = full
    *  frostbite tint. `undefined` outside the reveal window — the

@@ -225,6 +225,11 @@ export interface OnlineOverlayParams {
   /** Grunt-surge tint pulse intensity (0..1); threaded into
    *  `overlay.battle.gruntSurgeRevealIntensity`. */
   gruntSurgeRevealIntensity?: number;
+  /** True once the crumbling-walls modifier-reveal banner sweep has
+   *  completed. Drives the binary snap between rendering the held
+   *  tiles as walls (pre-sweep) and rendering them as rubble via the
+   *  `battleWalls` diff (post-sweep). */
+  crumblingRevealComplete?: boolean;
 }
 
 /** Active banner — text/subtitle/kind from `BannerContent`, plus the

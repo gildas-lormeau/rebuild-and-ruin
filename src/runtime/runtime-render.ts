@@ -216,6 +216,18 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     const gruntSurgeRevealIntensity = deriveGruntSurgeRevealIntensity(
       revealTimeFor(runtimeState, MODIFIER_ID.GRUNT_SURGE, nowMs),
     );
+    // Crumbling-walls reveal is a binary snap: held tiles render as
+    // walls until the banner sweep completes, then as rubble. Anything
+    // > 0 means the sweep ended; 0 means the sweep is in progress;
+    // undefined means we're not in the crumbling reveal window.
+    const crumblingWallsRevealTimeMs = revealTimeFor(
+      runtimeState,
+      MODIFIER_ID.CRUMBLING_WALLS,
+      nowMs,
+    );
+    const crumblingRevealComplete =
+      crumblingWallsRevealTimeMs !== undefined &&
+      crumblingWallsRevealTimeMs > 0;
 
     runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
@@ -237,6 +249,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       frostbiteRevealProgress,
       sapperRevealIntensity,
       gruntSurgeRevealIntensity,
+      crumblingRevealComplete,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
