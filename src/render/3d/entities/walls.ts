@@ -150,9 +150,13 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     // from the global `crumblingWallsAnim`) and `impact`-cause
     // (cannonball / grunt destructions, multipliers from per-tile age
     // via the shared `wallDestroyAnimAt` helper). Both feed the same
-    // sink + tail-fade visual; live neighbour walls compute their mask
-    // against the union (so they keep merlons on the destroyed side
-    // through the fall). Post-anim the debris manager carries the rubble.
+    // sink + tail-fade visual. Mask computation uses two sets: live
+    // neighbours compute against `liveSet` only, so merlons appear on
+    // the destroyed side AT animation start (no pop when the held
+    // entry finally purges); held walls themselves compute against the
+    // union, so their own appearance during the sink stays consistent
+    // (no pop at the start either). Post-anim the debris manager
+    // carries the rubble.
     const destroyedWalls = overlay?.battle?.destroyedWalls;
     const crumblingAnim = overlay?.battle?.crumblingWallsAnim;
     const sapperIntensity = overlay?.battle?.sapperRevealIntensity ?? 0;
@@ -235,8 +239,9 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
         return;
       }
 
-      const wallSet = new Set<number>(liveKeys);
-      for (const key of heldKeys) wallSet.add(key);
+      const liveSet = new Set<number>(liveKeys);
+      const unionSet = new Set<number>(liveKeys);
+      for (const key of heldKeys) unionSet.add(key);
 
       const byBucket = new Map<number, WallEntry[]>();
       const sources: ReadonlyArray<{
@@ -248,9 +253,10 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
         { keys: heldKeys, damagedSet: heldDamagedKeys, held: true },
       ];
       for (const source of sources) {
+        const maskSet = source.held ? unionSet : liveSet;
         for (const key of source.keys) {
           const { row, col } = unpackTileKey(key);
-          const mask = computeMask(wallSet, col, row);
+          const mask = computeMask(maskSet, col, row);
           const bucketKey =
             mask | (source.damagedSet.has(key) ? DAMAGED_BIT : 0);
           let list = byBucket.get(bucketKey);
