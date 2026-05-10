@@ -5,10 +5,8 @@
 
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../../shared/core/grid.ts";
-import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 // jscpd:ignore-start
 import {
-  cannonSize,
   DIRS_4,
   isGrass,
   isWater,
@@ -19,6 +17,7 @@ import {
 } from "../../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
+import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const lowWaterImpl: ModifierImpl = {
@@ -133,33 +132,14 @@ function clearLowWater(state: GameState): void {
     const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
-  // Destroy walls and structures that players built on the now-reflooded tiles
-  for (const key of modern.lowWaterTiles) {
-    removeWallFromAllPlayers(state, key);
-  }
-  state.grunts = state.grunts.filter(
-    (gr) => !modern.lowWaterTiles!.has(packTile(gr.row, gr.col)),
-  );
-  state.burningPits = state.burningPits.filter(
-    (pit) => !modern.lowWaterTiles!.has(packTile(pit.row, pit.col)),
-  );
-  // Remove cannons on reflooded tiles
-  for (const player of state.players) {
-    player.cannons = player.cannons.filter((cannon) => {
-      const sz = cannonSize(cannon.mode);
-      for (let dr = 0; dr < sz; dr++) {
-        for (let dc = 0; dc < sz; dc++) {
-          if (
-            modern.lowWaterTiles!.has(
-              packTile(cannon.row + dr, cannon.col + dc),
-            )
-          )
-            return false;
-        }
-      }
-      return true;
-    });
-  }
+  // Houses and bonus squares never spawned on these tiles (they were
+  // water at map-gen time), so no need to evict them.
+  evictEntitiesOnTiles(state, modern.lowWaterTiles, {
+    walls: true,
+    grunts: true,
+    burningPits: true,
+    cannons: true,
+  });
   modern.lowWaterTiles = null;
   recomputeMapZones(state);
 }

@@ -6,9 +6,7 @@
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import { hasTowerAt } from "../../shared/core/occupancy-queries.ts";
-import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
-  cannonSize,
   DIRS_4,
   isGrass,
   isWater,
@@ -20,6 +18,7 @@ import {
 // (jscpd: high-tide imports are intentionally similar to low-water — same shape, mirror modifiers)
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
+import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import type { ModifierImpl, ModifierTileData } from "./modifier-types.ts";
 
 export const highTideImpl: ModifierImpl = {
@@ -76,39 +75,14 @@ function applyHighTide(state: GameState): ReadonlySet<number> {
     const { r, c } = unpackTile(key);
     setWater(tiles, r, c);
   }
-  // Destroy structures on flooded tiles
-  for (const key of flooded) {
-    removeWallFromAllPlayers(state, key);
-  }
-  for (const key of flooded) {
-    const { r, c } = unpackTile(key);
-    for (const house of state.map.houses) {
-      if (house.alive && house.row === r && house.col === c)
-        house.alive = false;
-    }
-  }
-  state.grunts = state.grunts.filter(
-    (gr) => !flooded.has(packTile(gr.row, gr.col)),
-  );
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonus) => !flooded.has(packTile(bonus.row, bonus.col)),
-  );
-  state.burningPits = state.burningPits.filter(
-    (pit) => !flooded.has(packTile(pit.row, pit.col)),
-  );
-  // Remove cannons on flooded tiles
-  for (const player of state.players) {
-    player.cannons = player.cannons.filter((cannon) => {
-      const sz = cannonSize(cannon.mode);
-      for (let dr = 0; dr < sz; dr++) {
-        for (let dc = 0; dc < sz; dc++) {
-          if (flooded.has(packTile(cannon.row + dr, cannon.col + dc)))
-            return false;
-        }
-      }
-      return true;
-    });
-  }
+  evictEntitiesOnTiles(state, flooded, {
+    walls: true,
+    houses: true,
+    grunts: true,
+    bonusSquares: true,
+    burningPits: true,
+    cannons: true,
+  });
   modern.highTideTiles = flooded;
   recomputeMapZones(state);
   return flooded;

@@ -63,6 +63,7 @@
       "src/game/scheduled-actions.ts",
       "src/game/combos.ts",
       "src/game/modifiers/dust-storm.ts",
+      "src/game/modifiers/evict-tiles.ts",
       "src/game/modifiers/fire.ts",
       "src/game/modifiers/fog-of-war.ts",
       "src/game/modifiers/frostbite.ts",
