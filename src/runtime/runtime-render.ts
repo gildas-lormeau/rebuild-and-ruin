@@ -21,7 +21,6 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { deriveCrumblingWallsAnim } from "./crumbling-walls-overlay.ts";
 import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
 import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
 import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
@@ -211,9 +210,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
     const frostbiteRevealProgress = deriveFrostbiteRevealProgress(
       revealTimeFor(runtimeState, MODIFIER_ID.FROSTBITE, nowMs),
     );
-    const crumblingWallsAnim = deriveCrumblingWallsAnim(
-      revealTimeFor(runtimeState, MODIFIER_ID.CRUMBLING_WALLS, nowMs),
-    );
     const sapperRevealIntensity = deriveSapperRevealIntensity(
       revealTimeFor(runtimeState, MODIFIER_ID.SAPPER, nowMs),
     );
@@ -239,7 +235,6 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       fogRevealOpacity,
       rubbleClearingFade,
       frostbiteRevealProgress,
-      crumblingWallsAnim,
       sapperRevealIntensity,
       gruntSurgeRevealIntensity,
     });

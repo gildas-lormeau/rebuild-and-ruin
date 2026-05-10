@@ -64,7 +64,6 @@ export function createWallBurnsManager(scene: THREE.Scene): WallBurnsManager {
       if (!all) return undefined;
       const out: DestroyedWall[] = [];
       for (const wall of all) {
-        if (wall.cause !== "impact") continue;
         const fireAge = wall.age - WALL_DESTROY_ANIM_DURATION;
         if (fireAge < 0 || fireAge >= WALL_BURN_DURATION) continue;
         // Re-base age to fire-relative time so the kernel's animation

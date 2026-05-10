@@ -26,13 +26,13 @@ export const MODIFIER_EFFECT_FACTORIES: readonly ModifierEffectFactory[] = [
   createGrassEmergenceManager,
   createWaterSurgeManager,
   createGroundCollapseManager,
-  // (frostbite, rubble_clearing, sapper, grunt_surge, crumbling_walls
-  // have NO factory entry here — their runtime-derived overlay
-  // multipliers piggyback on the existing entity managers (grunts.ts /
-  // walls.ts / debris.ts / pits.ts). See `src/runtime/*-overlay.ts` for
-  // the derive functions. crumbling_walls drives the held-mesh fade in
-  // walls.ts via `crumblingWallsFade` + the `decay`-cause entries on
-  // `destroyedWalls`; the legacy disc burst was dropped in Phase B-1.
+  // (frostbite, rubble_clearing, sapper, grunt_surge have NO factory
+  // entry here — their runtime-derived overlay multipliers piggyback on
+  // the existing entity managers (grunts.ts / walls.ts / debris.ts /
+  // pits.ts). See `src/runtime/*-overlay.ts` for the derive functions.
+  // crumbling_walls also has no factory entry — its visual is a snap
+  // between walls and rubble at banner sweep-end, gated in walls.ts /
+  // debris.ts via `crumblingWallsHeld` (commit 2 wires this).
   // Owned-sinkhole bank tinting is now a fragment-shader override on the
   // terrain mesh — see `terrain.ts` + `effects/terrain-sdf-texture.ts` +
   // `effects/terrain-tile-data.ts`. No registry entry needed.)

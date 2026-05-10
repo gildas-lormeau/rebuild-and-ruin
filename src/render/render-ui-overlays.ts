@@ -305,7 +305,6 @@ export function createOnlineOverlay(
     fogRevealOpacity,
     rubbleClearingFade,
     frostbiteRevealProgress,
-    crumblingWallsAnim,
     sapperRevealIntensity,
     gruntSurgeRevealIntensity,
   } = params;
@@ -337,15 +336,7 @@ export function createOnlineOverlay(
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(inBattle, view.cannonballs),
       impacts: inBattle ? battleAnim.impacts : undefined,
-      // Exposed during BATTLE for the per-tick `cause: "impact"` push
-      // (cannonball / grunt fire bursts) AND during MODIFIER_REVEAL for
-      // the `cause: "decay"` entries seeded by `syncBattleAnim` from the
-      // crumbling-walls held snapshot (the walls + debris managers
-      // render them through the modifier-reveal fade window).
-      destroyedWalls:
-        inBattle || view.phase === Phase.MODIFIER_REVEAL
-          ? battleAnim.destroyedWalls
-          : undefined,
+      destroyedWalls: inBattle ? battleAnim.destroyedWalls : undefined,
       cannonDestroys: inBattle ? battleAnim.cannonDestroys : undefined,
       gruntKills: inBattle ? battleAnim.gruntKills : undefined,
       houseDestroys: inBattle ? battleAnim.houseDestroys : undefined,
@@ -377,7 +368,6 @@ export function createOnlineOverlay(
       // banner and the next build/cannon phases. Clears when the next
       // prepareBattleState reassigns activeModifier.
       frostbite: view.modern?.activeModifier === MODIFIER_ID.FROSTBITE,
-      crumblingWallsAnim,
       sapperRevealIntensity,
       sapperTargetedWalls:
         sapperRevealIntensity !== undefined

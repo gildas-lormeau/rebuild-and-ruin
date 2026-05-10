@@ -21,11 +21,10 @@ import type {
 } from "../core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../core/player-slot.ts";
 import type { FreshInterior } from "../core/player-types.ts";
-import type { WallDestroyAnim } from "../core/wall-destroy-anim.ts";
 import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
 
-export type { RenderCannonPhantom, RenderPiecePhantom, WallDestroyAnim };
+export type { RenderCannonPhantom, RenderPiecePhantom };
 
 /** A renderer-produced scene snapshot used for the banner prev/new-scene
  *  sweep. Wraps a dedicated offscreen canvas owned by the renderer — not
@@ -256,19 +255,6 @@ export interface BattleOverlay {
   /** True when Frostbite is active — renderer tints all grunts pale cyan
    *  to read as ice cubes (immobile, two hits to break). */
   frostbite?: boolean;
-  /** Crumbling-walls reveal animation multipliers — sink amount, held
-   *  wall opacity, dust opacity, debris opacity. Derived from
-   *  `revealTimeMs` (the only banner-aware boundary); `undefined`
-   *  outside the crumbling_walls reveal window. The walls manager
-   *  applies `sinkOffset` + `wallOpacity` to the `decay`-cause entries
-   *  in `destroyedWalls`; the wall-dust manager uses `dustOpacity`;
-   *  the debris manager uses `debrisOpacity` for the cross-fade-in
-   *  (held at 1 through the post-fade bridge until BATTLE entry takes
-   *  over via `battleWalls`). Impact-cause entries pull the same
-   *  multiplier shape from per-tile entry age via the shared
-   *  `wallDestroyAnimAt` helper — see walls.ts / wall-dust.ts /
-   *  debris.ts. */
-  crumblingWallsAnim?: WallDestroyAnim;
   /** Sapper threat-tint mix factor [0, 1] during the modifier reveal —
    *  walls in `sapperTargetedWalls` lerp toward copper by this amount.
    *  Undefined outside the reveal window. */

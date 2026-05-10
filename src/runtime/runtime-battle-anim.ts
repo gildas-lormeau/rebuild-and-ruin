@@ -37,7 +37,6 @@ export function recordBattleVisualEvents(
           row: evt.row,
           col: evt.col,
           age: 0,
-          cause: "impact",
           // damagedWalls accumulates on WALL_ABSORBED and isn't cleared
           // by destruction (only by the per-round upgrade reset), so it
           // still reflects pre-destruction state here. Drives the held-

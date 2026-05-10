@@ -340,9 +340,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           battleAnim.walls = walls.map((set) => new Set(set));
         },
         clearImpacts: () => clearImpacts(battleAnim),
-        addDestroyedWall: (entry) => {
-          battleAnim.destroyedWalls.push(entry);
-        },
         begin: beginBattle,
       },
       initLocalCannonControllers: () => {
@@ -665,17 +662,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     // finish before capturing the "old scene" snapshot for the Build banner.
     // Without this, mid-animation explosion/thaw/burn visuals bake into the
     // prev-scene image. For destroyedWalls we gate only on the fire-burst
-    // window (`cause === "impact" && age < WALL_BURN_DURATION`); the sink +
-    // dust + tail-fade beyond that point is continuous visual state — fine
-    // to capture mid-anim — and the entry itself lives the full
-    // `WALL_DESTROY_ANIM_DURATION` (1.2s).
+    // window (`age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION`); the
+    // sink + dust + tail-fade beyond that point is continuous visual state
+    // — fine to capture mid-anim — and the entry itself lives the full
+    // `IMPACT_ENTRY_LIFETIME`.
     if (
       battleAnim.impacts.length > 0 ||
       battleAnim.thawing.length > 0 ||
       battleAnim.destroyedWalls.some(
-        (wall) =>
-          wall.cause === "impact" &&
-          wall.age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION,
+        (wall) => wall.age < WALL_DESTROY_ANIM_DURATION + WALL_BURN_DURATION,
       ) ||
       battleAnim.cannonDestroys.length > 0 ||
       battleAnim.gruntKills.length > 0 ||

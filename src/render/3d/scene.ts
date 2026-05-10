@@ -145,17 +145,15 @@ export interface Render3dContext {
   readonly impacts: ImpactsManager;
   /** Wall-burn manager — fire / smoke / sparks burst when a wall is
    *  destroyed by impact (cannonball or grunt). Reconciles
-   *  `overlay.battle.destroyedWalls` filtered by `cause === "impact"`
-   *  into per-tile hosts of flame cones + smoke sprites + spark sprites
-   *  + a brief flash. Per-frame animation reads the entry's `age` field
-   *  for envelope + crackle math; deterministic per-tile variation
-   *  derives from `tileSeed`. */
+   *  `overlay.battle.destroyedWalls` into per-tile hosts of flame cones
+   *  + smoke sprites + spark sprites + a brief flash. Per-frame
+   *  animation reads the entry's `age` field for envelope + crackle
+   *  math; deterministic per-tile variation derives from `tileSeed`. */
   readonly wallBurns: WallBurnsManager;
-  /** Wall-dust manager — vertical billboard puffs per `decay`-cause
-   *  destroyed wall (crumbling-walls modifier). Reads
-   *  `overlay.battle.crumblingWallsAnim.dustOpacity` for the global
-   *  fade and the held tile set from `destroyedWalls`. Sibling of
-   *  `wallBurns` (which handles impact-cause fire). */
+  /** Wall-dust manager — vertical billboard puffs per destroyed wall.
+   *  Reads `wallDestroyAnimAt(age).dustOpacity` per entry from
+   *  `overlay.battle.destroyedWalls`. Sibling of `wallBurns` (which
+   *  handles the fire/smoke layer). */
   readonly wallDust: EffectManager;
   /** Cannon-burn manager — heavier sibling of `wallBurns`, fired when a
    *  cannon is destroyed. Reconciles `overlay.battle.cannonDestroys`

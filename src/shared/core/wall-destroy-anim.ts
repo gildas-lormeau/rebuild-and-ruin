@@ -8,7 +8,7 @@
 
 import { TILE_SIZE } from "./grid.ts";
 
-export interface WallDestroyAnim {
+interface WallDestroyAnim {
   /** World-units the held wall is translated DOWN by. 0 during the
    *  banner snapshot; eased ramp from 0 to `WALL_DESTROY_SINK_DROP`
    *  during animation; held at full drop through the post-anim bridge. */

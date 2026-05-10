@@ -3,12 +3,6 @@ import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
-/** What caused a wall to be destroyed. Drives renderer layering: `impact`
- *  (cannonball or grunt) stacks the fire/smoke burst on top of the shared
- *  sink + dust + held-mesh animation; `decay` (crumbling modifier) renders
- *  only the shared base. */
-export type WallDestroyCause = "impact" | "decay";
-
 export interface Grunt extends TilePos {
   /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
   victimPlayerId: ValidPlayerSlot;
@@ -142,13 +136,11 @@ export interface ThawingTile extends TilePos {
   age: number;
 }
 
-/** A tile where a wall was recently destroyed — drives the unified
- *  destruction animation (sink + dust + held-mesh + cause-specific
- *  layers). Pure visual state; renderer derives per-tile variation from
- *  `(row, col)` via tileSeed.
+/** A tile where a wall was recently destroyed by cannonball or grunt
+ *  impact — drives the unified destruction animation (sink + dust +
+ *  held-mesh + fire/smoke burst). Pure visual state; renderer derives
+ *  per-tile variation from `(row, col)` via tileSeed.
  *
- *  `cause` selects the optional layers: `impact` adds the fire/smoke
- *  burst on top of the shared base; `decay` renders only the base.
  *  `damaged` and `playerId` are captured at destruction time so the
  *  held-mesh path can render the correct shell variant + ownership tint
  *  while the wall is mid-animation (the live wall set has already
@@ -156,7 +148,6 @@ export interface ThawingTile extends TilePos {
 export interface DestroyedWall extends TilePos {
   /** Seconds since the wall was destroyed. */
   age: number;
-  cause: WallDestroyCause;
   /** True if the wall was in the damaged-shell state at destruction
    *  time (reinforced-walls upgrade). Drives the held-mesh shell variant. */
   damaged: boolean;
@@ -295,10 +286,8 @@ export function ageImpacts(
     (th) => th.age < THAW_DURATION,
   );
   for (const wall of battleAnim.destroyedWalls) wall.age += dt;
-  battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter((wall) =>
-    wall.cause === "impact"
-      ? wall.age < IMPACT_ENTRY_LIFETIME
-      : wall.age < WALL_DESTROY_ANIM_DURATION,
+  battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter(
+    (wall) => wall.age < IMPACT_ENTRY_LIFETIME,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
   battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(

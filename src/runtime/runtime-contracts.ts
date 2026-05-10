@@ -41,7 +41,6 @@ import type {
   RendererInterface,
   RenderOverlay,
   SceneCapture,
-  WallDestroyAnim,
 } from "../shared/ui/overlay-types.ts";
 import type {
   GameSettings,
@@ -220,10 +219,6 @@ export interface OnlineOverlayParams {
    *  the grunt manager lerps material colors against the cached
    *  authored color by this multiplier. */
   frostbiteRevealProgress?: number;
-  /** Crumbling-walls reveal animation multipliers — sink + opacities
-   *  for the held-mesh, dust, and debris cross-fade-in. Threaded into
-   *  `overlay.battle.crumblingWallsAnim`. */
-  crumblingWallsAnim?: WallDestroyAnim;
   /** Sapper-reveal tint pulse intensity (0..1); threaded into
    *  `overlay.battle.sapperRevealIntensity`. */
   sapperRevealIntensity?: number;

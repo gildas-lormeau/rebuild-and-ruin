@@ -1,10 +1,9 @@
 /**
  * Wall-destruction dust puff — camera-facing sprite per `DestroyedWall`
- * entry, faded by per-tile `wallDestroyAnimAt(age).dustOpacity` for
- * `impact`-cause and the global `crumblingWallsAnim.dustOpacity` for
- * `decay`-cause. Sprite (not Mesh) so the puff is always camera-facing
- * and reads from the game's tilted overhead view; sized + lifted so it
- * blooms around the wall body instead of sitting buried at its base.
+ * entry, faded by per-tile `wallDestroyAnimAt(age).dustOpacity`. Sprite
+ * (not Mesh) so the puff is always camera-facing and reads from the
+ * game's tilted overhead view; sized + lifted so it blooms around the
+ * wall body instead of sitting buried at its base.
  */
 
 import * as THREE from "three";
@@ -78,7 +77,6 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
   }
 
   function update(ctx: FrameCtx): void {
-    const decayAnim = ctx.overlay?.battle?.crumblingWallsAnim;
     const destroyedWalls = ctx.overlay?.battle?.destroyedWalls;
     if (!destroyedWalls) {
       if (hosts.size > 0) {
@@ -90,10 +88,7 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
 
     seenThisFrame.clear();
     for (const wall of destroyedWalls) {
-      const dustOpacity =
-        wall.cause === "decay"
-          ? (decayAnim?.dustOpacity ?? 0)
-          : wallDestroyAnimAt(wall.age * 1000).dustOpacity;
+      const dustOpacity = wallDestroyAnimAt(wall.age * 1000).dustOpacity;
       if (dustOpacity <= 0) continue;
       const tileKey = wall.row * GRID_COLS + wall.col;
       seenThisFrame.add(tileKey);

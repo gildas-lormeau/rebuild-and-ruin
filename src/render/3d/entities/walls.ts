@@ -46,8 +46,8 @@ interface MaskBucket {
   tintAttrs: THREE.InstancedBufferAttribute[];
   /** Per-sub-part instance-sink attribute (parallel to `subParts`).
    *  Object-space Y offset subtracted from the vertex (multiply by
-   *  `WALL_SCALE` for world-space sink amount). Drives the
-   *  crumbling-walls held-mesh sink without recomposing matrices. */
+   *  `WALL_SCALE` for world-space sink amount). Drives the held-mesh
+   *  sink for impact destructions without recomposing matrices. */
   sinkAttrs: THREE.InstancedBufferAttribute[];
   capacity: number;
 }
@@ -56,18 +56,19 @@ interface WallEntry {
   readonly col: number;
   readonly row: number;
   readonly tileKey: number;
-  /** True for held `decay`-cause entries (crumbling-walls modifier);
-   *  false for live walls. Drives the per-frame anim-attribute writes
-   *  in the cheap path — only held entries get sink + tail-fade. */
+  /** True for impact-destroyed walls held during the post-destruction
+   *  animation; false for live walls. Drives the per-frame
+   *  anim-attribute writes in the cheap path — only held entries get
+   *  sink + tail-fade. */
   readonly held: boolean;
   /** Per-instance alpha multiplier in [0, 1]. Live walls = 1; held
-   *  crumbling-walls entries = `crumblingWallsAnim.wallOpacity`. */
+   *  entries = `wallDestroyAnimAt(age).wallOpacity`. */
   readonly opacity: number;
   /** Per-instance tint mix in [0, 1]. 0 for non-targeted walls;
    *  sapper-targeted walls = the runtime-derived pulse intensity. */
   readonly tint: number;
   /** Per-instance object-space Y sink. 0 for live walls; held entries
-   *  carry `crumblingWallsAnim.sinkOffset / WALL_SCALE`. */
+   *  carry `wallDestroyAnimAt(age).sinkOffset / WALL_SCALE`. */
   readonly sinkY: number;
 }
 
@@ -107,8 +108,7 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
   const ownedMaterials: THREE.Material[] = [];
   // Two-tier cache: structural signature gates the expensive bucket
   // rebuild + matrix recompose; per-tile anim values for held entries
-  // (sinkOffset + wallOpacity from `wallDestroyAnimAt(age)` for impact
-  // entries, or from the global `crumblingWallsAnim` for decay) get
+  // (sinkOffset + wallOpacity from `wallDestroyAnimAt(age)`) get
   // refreshed every frame any held entries exist (cheap per-attribute
   // rewrites — no mask compute, no ensureBucket, no fillBucket).
   // `lastByBucket` retains the per-bucket entry lists from the most
@@ -146,19 +146,16 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
-    // Held walls = both `decay`-cause (crumbling modifier, multipliers
-    // from the global `crumblingWallsAnim`) and `impact`-cause
-    // (cannonball / grunt destructions, multipliers from per-tile age
-    // via the shared `wallDestroyAnimAt` helper). Both feed the same
-    // sink + tail-fade visual. Mask computation uses two sets: live
-    // neighbours compute against `liveSet` only, so merlons appear on
-    // the destroyed side AT animation start (no pop when the held
-    // entry finally purges); held walls themselves compute against the
-    // union, so their own appearance during the sink stays consistent
-    // (no pop at the start either). Post-anim the debris manager
-    // carries the rubble.
+    // Held walls = `impact`-cause (cannonball / grunt destructions),
+    // multipliers from per-tile age via the shared `wallDestroyAnimAt`
+    // helper. Drives the sink + tail-fade visual. Mask computation uses
+    // two sets: live neighbours compute against `liveSet` only, so
+    // merlons appear on the destroyed side AT animation start (no pop
+    // when the held entry finally purges); held walls themselves
+    // compute against the union, so their own appearance during the
+    // sink stays consistent (no pop at the start either). Post-anim the
+    // debris manager carries the rubble.
     const destroyedWalls = overlay?.battle?.destroyedWalls;
-    const crumblingAnim = overlay?.battle?.crumblingWallsAnim;
     const sapperIntensity = overlay?.battle?.sapperRevealIntensity ?? 0;
     const sapperTargetedRaw = overlay?.battle?.sapperTargetedWalls;
     const sapperTargeted: ReadonlySet<number> =
@@ -192,11 +189,7 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     >();
     if (destroyedWalls) {
       for (const wall of destroyedWalls) {
-        const multipliers =
-          wall.cause === "decay"
-            ? crumblingAnim
-            : wallDestroyAnimAt(wall.age * 1000);
-        if (!multipliers) continue;
+        const multipliers = wallDestroyAnimAt(wall.age * 1000);
         const tileKey = wall.row * GRID_COLS + wall.col;
         heldKeys.push(tileKey);
         if (wall.damaged) heldDamagedKeys.add(tileKey);
