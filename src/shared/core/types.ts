@@ -7,7 +7,6 @@ import type { Mode } from "../ui/ui-mode.ts";
 import type {
   BurningPit,
   Cannonball,
-  CannonMode,
   CapturedCannon,
   Grunt,
 } from "./battle-types.ts";
@@ -24,6 +23,7 @@ import {
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { RubbleClearingHeld } from "./modifier-defs.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
@@ -245,21 +245,7 @@ export interface ModernState {
    *  null when no rubble_clearing reveal is in flight; cleared at the
    *  NEXT round's `prepareBattleState` (so the held set persists
    *  through battle, wall-build, and the next cannon-place phase). */
-  rubbleClearingHeld: {
-    pits: readonly BurningPit[];
-    deadCannons: readonly {
-      ownerId: ValidPlayerSlot;
-      col: number;
-      row: number;
-      mode: CannonMode;
-      /** Mortar flag at capture time — drives debris-variant choice
-       *  (mortar_debris vs tier_n_debris). */
-      mortar?: true;
-      /** Owner's cannon tier at capture time — drives the
-       *  tier_n_debris variant for non-special cannons. */
-      tier: 1 | 2 | 3;
-    }[];
-  } | null;
+  rubbleClearingHeld: RubbleClearingHeld | null;
 }
 
 /** Player selection lobby state. */

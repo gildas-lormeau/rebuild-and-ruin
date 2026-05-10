@@ -4,7 +4,9 @@
  * `ModifierId` + labels live in `game-constants.ts`.
  */
 
+import type { BurningPit, CannonMode } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { PoolDef } from "./pool-def.ts";
 
 /** Wire payload for tile-mutating modifier state — packed `row * GRID_COLS +
@@ -18,6 +20,29 @@ export interface SerializedModifierTiles {
   highTideTiles: number[] | null;
   sinkholeTiles: number[] | null;
   lowWaterTiles: number[] | null;
+}
+
+/** Pre-removal snapshot for the rubble_clearing modifier — the entities
+ *  that were on the map at battle-start, captured by `rubbleClearingImpl.apply`
+ *  before the live entities were filtered out. The runtime fades them out
+ *  post-banner via `overlay.battle.rubbleClearingFade`. Used as both the
+ *  in-memory `ModernState.rubbleClearingHeld` shape and the wire payload
+ *  (`FullStateMessage.rubbleClearingHeld`) so a host migration during the
+ *  reveal window preserves the fade on the new host. */
+export interface RubbleClearingHeld {
+  readonly pits: readonly BurningPit[];
+  readonly deadCannons: readonly {
+    readonly ownerId: ValidPlayerSlot;
+    readonly col: number;
+    readonly row: number;
+    readonly mode: CannonMode;
+    /** Mortar flag at capture time — drives debris-variant choice
+     *  (mortar_debris vs tier_n_debris). */
+    readonly mortar?: true;
+    /** Owner's cannon tier at capture time — drives the tier_n_debris
+     *  variant for non-special cannons. */
+    readonly tier: 1 | 2 | 3;
+  }[];
 }
 
 interface ModifierDef extends PoolDef<ModifierId> {

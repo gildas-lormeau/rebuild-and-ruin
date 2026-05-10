@@ -22,7 +22,10 @@ import {
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
-import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
+import type {
+  RubbleClearingHeld,
+  SerializedModifierTiles,
+} from "../shared/core/modifier-defs.ts";
 import type {
   CannonPhantomPayload,
   CannonPlacedPayload,
@@ -231,6 +234,11 @@ export interface FullStateMessage extends SerializedModifierTiles {
   masterBuilderOwners?: number[] | null;
   // Modifier tile sets (frozenTiles, highTideTiles, sinkholeTiles,
   // lowWaterTiles) come from `extends SerializedModifierTiles` above.
+  /** Pre-removal entity snapshot from `rubble_clearing` modifier — drives
+   *  the post-reveal fade animation. Cleared at BATTLE_END so most
+   *  checkpoints carry null; only present on a host migration during the
+   *  brief reveal window. */
+  rubbleClearingHeld?: RubbleClearingHeld | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerSlot;

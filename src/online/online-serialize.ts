@@ -144,6 +144,7 @@ export function restoreFullStateSnapshot(
       >["lastModifierId"]) ?? null;
     state.modern!.precomputedDustStormJitters =
       (msg.precomputedDustStormJitters as readonly number[] | undefined) ?? [];
+    state.modern!.rubbleClearingHeld = msg.rubbleClearingHeld ?? null;
   }
   applyCheckpointModifierTiles(state, msg);
   if (hasFeature(state, FID.UPGRADES)) {
@@ -388,6 +389,7 @@ function serializeModernFields(state: GameState) {
     masterBuilderOwners: state.modern?.masterBuilderOwners
       ? [...state.modern.masterBuilderOwners]
       : null,
+    rubbleClearingHeld: state.modern?.rubbleClearingHeld ?? null,
     ...serializeModifierTileSets(state),
   };
 }

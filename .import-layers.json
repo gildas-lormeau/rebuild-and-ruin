@@ -72,7 +72,6 @@
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",
-      "src/shared/core/modifier-defs.ts",
       "src/shared/core/pieces.ts",
       "src/shared/core/upgrade-defs.ts",
       "src/shared/core/wall-destroy-anim.ts",
@@ -106,6 +105,7 @@
     "tier": "types",
     "files": [
       "src/shared/core/cannon-mode-defs.ts",
+      "src/shared/core/modifier-defs.ts",
       "src/shared/core/phantom-types.ts",
       "src/shared/core/player-types.ts",
       "src/shared/ui/settings-ui.ts"
