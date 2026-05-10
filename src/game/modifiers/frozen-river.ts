@@ -50,8 +50,12 @@ function applyFrozenRiver(state: GameState): ReadonlySet<number> {
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
+  // Null every target-derived field so stale handles from before the freeze
+  // don't outlive their target tower.
   for (const grunt of state.grunts) {
     grunt.targetTowerIdx = undefined;
+    grunt.targetedWall = undefined;
+    grunt.attackCountdown = undefined;
   }
   return frozen;
 }
@@ -67,8 +71,13 @@ function clearFrozenRiver(state: GameState): void {
     state.grunts = state.grunts.filter(
       (gr) => !modern.frozenTiles!.has(packTile(gr.row, gr.col)),
     );
+    // Same symmetric reset as apply — null every target-derived field so
+    // grunts stranded on the far bank don't carry a cross-zone targetedWall
+    // (read by the sapper reveal banner) into the next round.
     for (const grunt of state.grunts) {
       grunt.targetTowerIdx = undefined;
+      grunt.targetedWall = undefined;
+      grunt.attackCountdown = undefined;
     }
   }
   modern.frozenTiles = null;
