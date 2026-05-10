@@ -23,7 +23,7 @@ const FEATURE_POOL: readonly FeatureDef[] = [
     id: "modifiers",
     label: "Modifiers",
     description:
-      "Environmental round modifiers (wildfire, crumbling walls, grunt surge, frozen river)",
+      "Environmental round modifiers (wildfire, grunt surge, frozen river)",
     implemented: true,
   },
   {

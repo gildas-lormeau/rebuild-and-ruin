@@ -121,7 +121,6 @@ const LOCKOUT_PULSE_MS = 300;
  *  managers in src/render/3d/effects/. */
 const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
   wildfire: { title: "#ff8040", border: "#ff5010" },
-  crumbling_walls: { title: "#d0a060", border: "#a07030" },
   grunt_surge: { title: "#ff6060", border: "#c02020" },
   frozen_river: { title: "#80d0ff", border: "#4090d0" },
   sinkhole: { title: "#d0a070", border: "#704020" },

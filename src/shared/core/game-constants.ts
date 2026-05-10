@@ -9,7 +9,6 @@ export type GameMode = "classic" | "modern";
 /** Identifier for a round modifier (modern mode only). */
 export type ModifierId =
   | "wildfire"
-  | "crumbling_walls"
   | "grunt_surge"
   | "frozen_river"
   | "sinkhole"
@@ -40,7 +39,6 @@ const US_PER_SEC = 1_000_000;
 /** String identifiers for modifiers. Labels live in modifier-defs.ts (MODIFIER_POOL). */
 export const MODIFIER_ID = {
   WILDFIRE: "wildfire",
-  CRUMBLING_WALLS: "crumbling_walls",
   GRUNT_SURGE: "grunt_surge",
   FROZEN_RIVER: "frozen_river",
   SINKHOLE: "sinkhole",

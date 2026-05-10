@@ -3,7 +3,7 @@
  * sources feed it: revealTimeMs (decay-cause, banner-aware via the
  * runtime derive) and per-tile entry age (impact-cause). Same curve
  * either way — sink + dust + tail-fade + debris cross-fade-in — so
- * cannonball, grunt, and crumbling destructions read identically.
+ * cannonball, grunt read identically.
  */
 
 import { TILE_SIZE } from "./grid.ts";

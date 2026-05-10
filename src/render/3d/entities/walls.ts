@@ -177,17 +177,6 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
         }
       }
     }
-    // Crumbling-walls reveal: while the banner sweep is in progress,
-    // gameplay state has already removed these tiles from `player.walls`
-    // but we render them as live walls so the snap to rubble lands at
-    // sweep-end (when the overlay drops `crumblingWallsHeld`).
-    const crumblingHeld = overlay?.battle?.crumblingWallsHeld;
-    if (crumblingHeld) {
-      for (const entry of crumblingHeld) {
-        liveKeys.push(entry.tileKey);
-        if (entry.damaged) damagedKeys.add(entry.tileKey);
-      }
-    }
 
     // Held entries: per-tile multipliers (sinkY in object-space, divided
     // by WALL_SCALE so the shader's `transformed.y -= instanceSinkY`

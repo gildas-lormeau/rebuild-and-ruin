@@ -122,13 +122,12 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
   preBattleSweep(state);
   recheckTerritory(state);
   clearActiveModifiers(state);
-  // Last round's rubble_clearing + crumbling_walls snapshots live only
+  // Last round's rubble_clearing snapshots live only
   // for the duration of their modifier-reveal fades. Drop both before the
   // next modifier rolls so the wire payload doesn't carry stale held
   // entries.
   if (state.modern) {
     state.modern.rubbleClearingHeld = null;
-    state.modern.crumblingWallsHeld = null;
   }
   if (hasFeature(state, FID.MODIFIERS)) {
     state.modern!.activeModifier = rollModifier(state);
@@ -191,7 +190,7 @@ export function enterBuildSkippingBattle(state: GameState): void {
  *  tide, low water, frostbite chip) stay live through UPGRADE_PICK +
  *  WALL_BUILD + next CANNON_PLACE and clear in `prepareBattleState` just
  *  before the next roll. Permanent map mutations (sinkhole grass→water,
- *  wildfire scars, crumbling walls) have no `clear` hook.
+ *  wildfire scars) have no `clear` hook.
  *
  *  Does NOT emit `ROUND_END` (that fires from `finalizeRound` once the
  *  build-phase score is computed) and does NOT increment `state.round`

@@ -41,28 +41,6 @@ type PoolComplete = ModifierId extends PoolIds ? true : never;
 const poolComplete: PoolComplete = true;
 const MODIFIER_POOL: readonly ModifierDef[] = [
   {
-    id: "wildfire",
-    label: "Wildfire",
-    description:
-      "Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares",
-    weight: 3,
-    implemented: true,
-    needsCheckpoint: false,
-    // Burn scars don't change the underlying tile (it's still grass, just
-    // covered in burning pits drawn as an overlay). No snapshot needed.
-    tileMutationPrev: null,
-  },
-  {
-    id: "crumbling_walls",
-    label: "Crumbling Walls",
-    description: "Destroys 15-20% of outer walls, protects castle walls",
-    weight: 3,
-    implemented: true,
-    needsCheckpoint: false,
-    // Walls are entity-layer, not tile-layer. No terrain mutation.
-    tileMutationPrev: null,
-  },
-  {
     id: "grunt_surge",
     label: "Grunt Surge",
     description: "Spawns 6-10 extra grunts distributed across alive towers",
@@ -189,9 +167,6 @@ export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
 export const MODIFIER_CONSUMERS = {
   wildfire: {
     impl: "src/game/modifiers/fire.ts",
-  },
-  crumbling_walls: {
-    impl: "src/game/modifiers/crumbling-walls.ts",
   },
   grunt_surge: {
     impl: "src/game/modifiers/grunt-surge.ts",

@@ -15,7 +15,6 @@ import {
 import { IMPLEMENTED_MODIFIERS } from "../shared/core/modifier-defs.ts";
 import { type GameState, hasFeature } from "../shared/core/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
-import { crumblingWallsImpl } from "./modifiers/crumbling-walls.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
 import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
 import { fogOfWarImpl } from "./modifiers/fog-of-war.ts";
@@ -35,7 +34,6 @@ import { sinkholeImpl } from "./modifiers/sinkhole.ts";
 /** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
 const MODIFIER_IMPLS = {
   wildfire: wildfireImpl,
-  crumbling_walls: crumblingWallsImpl,
   grunt_surge: createGruntSurgeImpl(spawnGruntSurgeOnZone),
   frozen_river: frozenRiverImpl,
   sinkhole: sinkholeImpl,

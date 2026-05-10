@@ -42,17 +42,6 @@ interface RenderModernSlice {
       readonly tier: 1 | 2 | 3;
     }[];
   } | null;
-  /** Pre-removal snapshot for crumbling_walls — read by the overlay
-   *  composer to render the held tiles as live walls during the banner
-   *  sweep, then dropped post-sweep so the rubble appears via the
-   *  `battleWalls` diff. */
-  readonly crumblingWallsHeld:
-    | readonly {
-        readonly playerId: ValidPlayerSlot;
-        readonly tileKey: number;
-        readonly damaged: boolean;
-      }[]
-    | null;
 }
 
 /** Shared fields the renderer reads regardless of phase.

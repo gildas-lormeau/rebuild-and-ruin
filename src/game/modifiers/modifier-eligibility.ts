@@ -2,7 +2,7 @@
  *  whose castle was just (re)built gets one battle of protection for the
  *  castle footprint (2x2 tower + castle-wall ring) — `inGracePeriod` is
  *  set in `confirmTowerSelection` and cleared in `finalizeBattle`. The
- *  protection is tile-scoped, not zone-scoped: surges, crumbling walls
+ *  protection is tile-scoped, not zone-scoped: surges
  *  and wildfire still apply elsewhere in the zone. */
 
 import { TOWER_SIZE } from "../../shared/core/game-constants.ts";
@@ -12,7 +12,7 @@ import type { GameState } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 
 /** Zones owned by a seated (non-eliminated) player. Modifiers that target
- *  territory (wildfire, dry lightning, sinkhole, grunt surge, crumbling walls)
+ *  territory (wildfire, dry lightning, sinkhole, grunt surge)
  *  must never mutate an eliminated player's zone. */
 export function getActiveZones(state: GameState): ZoneId[] {
   const zones: ZoneId[] = [];

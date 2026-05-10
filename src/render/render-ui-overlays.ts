@@ -307,30 +307,13 @@ export function createOnlineOverlay(
     frostbiteRevealProgress,
     sapperRevealIntensity,
     gruntSurgeRevealIntensity,
-    crumblingRevealComplete,
   } = params;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
   const homeTowerIndices = buildHomeTowerIndices(view);
   const masterBuilderLockout = view.modern?.masterBuilderLockout ?? 0;
   const battleTerritory = inBattle ? battleAnim.territory : undefined;
-  // Rubble (battleWalls minus current player.walls) is exposed during
-  // BATTLE for cannonball / grunt destructions, AND during the post-
-  // sweep half of the crumbling_walls reveal so the held tiles show
-  // as rubble the moment the banner finishes.
-  const inCrumblingPostSweep =
-    view.phase === Phase.MODIFIER_REVEAL && crumblingRevealComplete === true;
-  const battleWalls =
-    inBattle || inCrumblingPostSweep ? battleAnim.walls : undefined;
-  // Pre-sweep: render held crumbling tiles as live walls. Drops as soon
-  // as the banner sweep ends so `battleWalls` takes over and the diff
-  // shows them as rubble.
-  const crumblingWallsHeld =
-    view.phase === Phase.MODIFIER_REVEAL &&
-    !crumblingRevealComplete &&
-    view.modern?.activeModifier === MODIFIER_ID.CRUMBLING_WALLS
-      ? (view.modern?.crumblingWallsHeld ?? undefined)
-      : undefined;
+  const battleWalls = inBattle ? battleAnim.walls : undefined;
 
   return {
     phase: view.phase,
@@ -379,7 +362,6 @@ export function createOnlineOverlay(
         rubbleClearingFade !== undefined
           ? view.modern?.rubbleClearingHeld?.deadCannons
           : undefined,
-      crumblingWallsHeld,
       frostbiteRevealProgress,
       // Frostbite tint follows the modifier's full lifetime: surviving
       // frosted grunts must keep reading as ice through the post-battle
