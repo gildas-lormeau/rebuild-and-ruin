@@ -77,7 +77,25 @@ type PoolIds = (typeof MODIFIER_POOL)[number]["id"];
 type PoolComplete = ModifierId extends PoolIds ? true : never;
 
 const poolComplete: PoolComplete = true;
-const MODIFIER_POOL: readonly ModifierDef[] = [
+// `as const satisfies` (not a `readonly ModifierDef[]` annotation) so the
+// element `id` types stay as their string literals — that's what makes
+// `PoolIds` narrow and `PoolComplete` catch missing entries at compile
+// time. A plain annotation widens each id to `ModifierId` and PoolComplete
+// becomes vacuously `true` — that's how wildfire's pool entry vanished
+// silently in commit 4868af14 and only got caught by inspection later.
+const MODIFIER_POOL = [
+  {
+    id: "wildfire",
+    label: "Wildfire",
+    description:
+      "Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares",
+    weight: 3,
+    implemented: true,
+    needsCheckpoint: false,
+    // Burn scars don't change the underlying tile (it's still grass, just
+    // covered in burning pits drawn as an overlay). No snapshot needed.
+    tileMutationPrev: null,
+  },
   {
     id: "grunt_surge",
     label: "Grunt Surge",
@@ -196,7 +214,7 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     needsCheckpoint: false,
     tileMutationPrev: null,
   },
-];
+] as const satisfies readonly ModifierDef[];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
   MODIFIER_POOL.filter((def) => def.implemented);
