@@ -911,9 +911,10 @@ function syncBattleAnim(
   // modifier from the pre-removal snapshot captured by
   // `crumblingWallsImpl.apply`. The walls manager renders the held
   // tiles from `overlay.battle.destroyedWalls` filtered to
-  // `cause === "decay"`; the visual fade timing remains anchored to
-  // `crumblingWallsFade` (revealTimeMs-derived) for B-1 and shifts to
-  // per-tile age in B-2. Entries auto-purge after `WALL_DECAY_LIFETIME`. */
+  // `cause === "decay"`; the visual is driven by `crumblingWallsAnim`
+  // (revealTimeMs → shared `wallDestroyAnimAt`). Entries auto-purge
+  // after `WALL_DESTROY_ANIM_DURATION` — the same window the shared
+  // anim takes to reach BRIDGE state.
   const held = ctx.state.modern?.crumblingWallsHeld;
   if (held) {
     for (const entry of held) {

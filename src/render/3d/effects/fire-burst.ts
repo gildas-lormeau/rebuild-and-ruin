@@ -9,7 +9,7 @@
 
 import * as THREE from "three";
 import type { TilePos } from "../../../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import { ELEVATION_STACK } from "../elevation.ts";
 import { attachInstanceOpacity } from "../entities/instance-modulation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -272,7 +272,11 @@ export function createTileBurstManager<T extends TilePos & { age: number }>(
 
   const pools = createBurstPools(root);
 
-  const reconciler = createReconciler<T, FireBurstHost>({
+  // Key by (row, col) so callers that recreate entry objects each frame
+  // (e.g. wall-burns re-bases age and spreads) reuse the same host across
+  // frames instead of paying a build/dispose cycle every tick.
+  const reconciler = createReconciler<T, FireBurstHost, number>({
+    keyOf: (entry) => entry.row * GRID_COLS + entry.col,
     build: (entry) =>
       createFireBurstHost(
         root,
@@ -431,6 +435,14 @@ export function animateFireBurst(
     );
     pools.flash.append(flashScratchMatrix, flashOpacity);
   }
+}
+
+/** Soft puff texture shared with adjacent dust effects (wall-dust). Same
+ *  authoring as the fire-burst smoke — radial gradient + a few jittered
+ *  blobs on top — so dust and smoke read as one material family. */
+export function getSharedSmokeTexture(): THREE.CanvasTexture {
+  ensureFireBurstResources();
+  return sharedSmokeTexture!;
 }
 
 /** Build a manager-shared flash pool. Same instancing shape as

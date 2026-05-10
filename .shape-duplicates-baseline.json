@@ -1,6 +1,9 @@
 {
   "overlaps": [
     {
+      "pair": "ActiveBannerState@src/runtime/runtime-contracts.ts ↔ BannerUi@src/shared/ui/overlay-types.ts"
+    },
+    {
       "pair": "BarrelParams@src/render/3d/sprites/cannon-scene.ts ↔ BarrelParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
@@ -413,6 +416,9 @@
     },
     {
       "pair": "DoorPlacement@src/render/3d/sprites/house-scene.ts ↔ WindowPlacement@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "DustHost@src/render/3d/effects/wall-dust.ts ↔ SmokePuff@src/render/3d/effects/fire-burst.ts"
     },
     {
       "pair": "E2EScenarioOptions@test/e2e-scenario.ts ↔ HeadlessRuntimeOptions@test/runtime-headless.ts"

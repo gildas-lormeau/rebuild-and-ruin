@@ -10,7 +10,7 @@
 import type { BattleCombatResult } from "../game/index.ts";
 import { BATTLE_MESSAGE } from "../shared/core/battle-events.ts";
 import type { BattleAnimState } from "../shared/core/battle-types.ts";
-import { cannonSize } from "../shared/core/spatial.ts";
+import { cannonSize, packTile } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 
 /** Push impact-position + ice-thaw + destruction-burst entries from a
@@ -37,10 +37,14 @@ export function recordBattleVisualEvents(
           col: evt.col,
           age: 0,
           cause: "impact",
-          // Phase A: damaged-state plumbing is deferred until the held-mesh
-          // path consumes impact entries (Phase C). The fire-burst layer
-          // doesn't read this field. Default false; not load-bearing.
-          damaged: false,
+          // damagedWalls accumulates on WALL_ABSORBED and isn't cleared
+          // by destruction (only by the per-round upgrade reset), so it
+          // still reflects pre-destruction state here. Drives the held-
+          // mesh merlon-removed bucket variant in walls.ts.
+          damaged:
+            state.players[evt.playerId]?.damagedWalls.has(
+              packTile(evt.row, evt.col),
+            ) ?? false,
           playerId: evt.playerId,
         });
         break;

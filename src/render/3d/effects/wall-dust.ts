@@ -1,84 +1,80 @@
 /**
- * Wall-destruction dust puff — vertical billboard per `DestroyedWall`
+ * Wall-destruction dust puff — camera-facing sprite per `DestroyedWall`
  * entry, faded by per-tile `wallDestroyAnimAt(age).dustOpacity` for
  * `impact`-cause and the global `crumblingWallsAnim.dustOpacity` for
- * `decay`-cause. Sizing/seeding is `tileSeed`-derived. Shared dust
- * layer for both causes; wall-burns stacks fire on impact entries.
+ * `decay`-cause. Sprite (not Mesh) so the puff is always camera-facing
+ * and reads from the game's tilted overhead view; sized + lifted so it
+ * blooms around the wall body instead of sitting buried at its base.
  */
 
 import * as THREE from "three";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
-import { ELEVATION_STACK, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
-import type { EffectManager } from "./fire-burst.ts";
+import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
 import { tileSeed } from "./helpers.ts";
 
 interface DustHost {
-  group: THREE.Group;
-  mesh: THREE.Mesh;
-  material: THREE.MeshBasicMaterial;
-  scaleMul: number;
-  heightOffset: number;
+  sprite: THREE.Sprite;
+  material: THREE.SpriteMaterial;
+  baseSize: number;
+  centerY: number;
 }
 
 const DUST_COLOR = 0xc8b890;
-const DUST_BASE_RADIUS = TILE_SIZE * 0.45;
-const DUST_HEIGHT_BASE = TILE_SIZE * 0.4;
-const DUST_HEIGHT_RANGE = TILE_SIZE * 0.5;
-const DUST_SCALE_MIN = 0.7;
-const DUST_SCALE_RANGE = 0.5;
+/** Wall body top in world units (matches `WALL_TOP_Y` in elevation.ts:
+ *  authored 3.22 sprite units × `TILE_SIZE / 2 = 8`). Dust is centered
+ *  around half of this so the puff straddles the wall body — readable
+ *  on either side under camera tilt instead of buried inside it. */
+const WALL_TOP_Y = 3.22 * (TILE_SIZE / 2);
+/** Sprite center Y. Slightly under wall mid-height so the puff reads as
+ *  kicking up from the base rather than crowning the wall. */
+const DUST_CENTER_Y_BASE = WALL_TOP_Y * 0.45;
+const DUST_CENTER_Y_RANGE = WALL_TOP_Y * 0.15;
+/** Base sprite size (world units). 1.6× tile so the puff visibly blooms
+ *  past the wall's footprint on both sides under tilt. */
+const DUST_SIZE_BASE = TILE_SIZE * 1.6;
+const DUST_SIZE_RANGE = TILE_SIZE * 0.4;
 
 export function createWallDustManager(scene: THREE.Scene): EffectManager {
   const root = new THREE.Group();
   root.name = "wall-dust";
   scene.add(root);
 
-  // Vertical billboard plane — faces the camera (Y-up rotation only).
-  const geometry = new THREE.PlaneGeometry(1, 1);
+  const texture = getSharedSmokeTexture();
   const hosts = new Map<number, DustHost>();
   const seenThisFrame = new Set<number>();
 
   function buildHost(tileKey: number, row: number, col: number): DustHost {
     const seed = tileSeed(row, col);
-    // Deterministic per-tile variation from tileSeed: scale, height,
-    // tint jitter. Same per-tile values every frame — no randomness
-    // bleeds into game state.
-    const scaleMul =
-      DUST_SCALE_MIN + (((seed >>> 4) & 0xff) / 255) * DUST_SCALE_RANGE;
-    const heightOffset = ((seed >>> 12) & 0xff) / 255;
+    const sizeRand = ((seed >>> 4) & 0xff) / 255;
+    const centerRand = ((seed >>> 12) & 0xff) / 255;
+    const baseSize = DUST_SIZE_BASE + DUST_SIZE_RANGE * sizeRand;
+    const centerY = DUST_CENTER_Y_BASE + DUST_CENTER_Y_RANGE * centerRand;
 
-    const material = new THREE.MeshBasicMaterial({
+    const material = new THREE.SpriteMaterial({
       color: DUST_COLOR,
+      map: texture,
       transparent: true,
       opacity: 0,
       depthWrite: false,
     });
-    const mesh = new THREE.Mesh(geometry, material);
-
-    const group = new THREE.Group();
-    group.position.set(
+    const sprite = new THREE.Sprite(material);
+    sprite.position.set(
       (col + 0.5) * TILE_SIZE,
-      ELEVATION_STACK.WALL_BURNS + Z_FIGHT_MARGIN,
+      centerY,
       (row + 0.5) * TILE_SIZE,
     );
-    group.add(mesh);
-    root.add(group);
+    root.add(sprite);
 
-    const host: DustHost = {
-      group,
-      mesh,
-      material,
-      scaleMul,
-      heightOffset,
-    };
+    const host: DustHost = { sprite, material, baseSize, centerY };
     hosts.set(tileKey, host);
     return host;
   }
 
   function disposeHost(host: DustHost): void {
     host.material.dispose();
-    root.remove(host.group);
+    root.remove(host.sprite);
   }
 
   function update(ctx: FrameCtx): void {
@@ -102,16 +98,10 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
       const tileKey = wall.row * GRID_COLS + wall.col;
       seenThisFrame.add(tileKey);
       const host = hosts.get(tileKey) ?? buildHost(tileKey, wall.row, wall.col);
-      const radius = DUST_BASE_RADIUS * host.scaleMul;
-      const height = DUST_HEIGHT_BASE + DUST_HEIGHT_RANGE * host.heightOffset;
-      host.mesh.scale.set(radius * 2, height, 1);
-      // Lift mesh so its base sits at host.group.position (so the puff
-      // grows upward from the tile rather than centering through ground).
-      host.mesh.position.y = height / 2;
+      host.sprite.scale.set(host.baseSize, host.baseSize, 1);
       host.material.opacity = dustOpacity;
     }
 
-    // Reap hosts whose tiles no longer have an active dust puff.
     for (const [tileKey, host] of hosts) {
       if (!seenThisFrame.has(tileKey)) {
         disposeHost(host);
@@ -123,7 +113,6 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
   function dispose(): void {
     for (const host of hosts.values()) disposeHost(host);
     hosts.clear();
-    geometry.dispose();
     scene.remove(root);
   }
 

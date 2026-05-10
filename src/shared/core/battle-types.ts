@@ -202,13 +202,6 @@ export interface BattleAnimState {
   houseDestroys: HouseDestroy[];
 }
 
-/** Lifetime of a `decay`-cause `DestroyedWall` entry (seconds). Sized
- *  to outlast the modifier-reveal banner sweep (~1.5s) plus the
- *  crumbling-walls fade ramp (~1.1s) with margin, so the held-mesh
- *  render driven by `crumblingWallsFade` (revealTimeMs-anchored) sees
- *  the entries throughout the visual. Phase B-2 unifies both lifetimes
- *  on per-tile age once the visual fade is age-derived. */
-const WALL_DECAY_LIFETIME = 4.0;
 /** Duration of the ice-thaw crack-and-fade animation (seconds). */
 export const THAW_DURATION = 0.6;
 /** Duration of the fire/smoke burst layered on top of `impact`-cause
@@ -305,7 +298,7 @@ export function ageImpacts(
   battleAnim.destroyedWalls = battleAnim.destroyedWalls.filter((wall) =>
     wall.cause === "impact"
       ? wall.age < IMPACT_ENTRY_LIFETIME
-      : wall.age < WALL_DECAY_LIFETIME,
+      : wall.age < WALL_DESTROY_ANIM_DURATION,
   );
   for (const destroy of battleAnim.cannonDestroys) destroy.age += dt;
   battleAnim.cannonDestroys = battleAnim.cannonDestroys.filter(
