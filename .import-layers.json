@@ -149,6 +149,7 @@
       "src/render/3d/frame-ctx.ts",
       "src/render/render-loupe.ts",
       "src/runtime/dev-console-grid.ts",
+      "src/runtime/modifier-reveal-overlay-registry.ts",
       "src/runtime/music-player.ts",
       "src/runtime/runtime-crosshair-anim.ts",
       "src/runtime/runtime-haptics.ts",

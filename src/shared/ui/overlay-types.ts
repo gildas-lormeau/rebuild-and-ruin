@@ -332,8 +332,9 @@ export interface UIOverlay {
   banner?: BannerUi;
   /** Active modifier's reveal data — drives the pulsing tile overlay
    *  during the `MODIFIER_REVEAL` dwell phase. Populated by
-   *  `refreshOverlay` from `state.modern` + `revealTimeFor` when the
-   *  phase is active; undefined otherwise. */
+   *  `refreshOverlay` from `state.modern` plus the resolved
+   *  `revealTimeMs` scalar; undefined otherwise. The single banner-aware
+   *  resolution lives in `modifier-reveal-time.ts`. */
   modifierReveal?: {
     /** Active modifier id — burst managers gate on this. */
     modifierId: ModifierId;

@@ -5,7 +5,6 @@
  * Extracted from runtime-composition.ts to reduce composition-root fan-out.
  */
 
-import { MODIFIER_ID } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import type {
@@ -21,14 +20,11 @@ import type {
 } from "../shared/core/system-interfaces.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/ui/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/ui/player-config.ts";
-import { deriveFogRevealOpacity } from "./fog-reveal-overlay.ts";
-import { deriveFrostbiteRevealProgress } from "./frostbite-reveal-overlay.ts";
-import { deriveGruntSurgeRevealIntensity } from "./grunt-surge-reveal-overlay.ts";
+import { deriveRevealOverlayFields } from "./modifier-reveal-overlay-registry.ts";
 import {
   revealTimeFor,
   tickModifierRevealClock,
 } from "./modifier-reveal-time.ts";
-import { deriveRubbleClearingFade } from "./rubble-clearing-overlay.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -44,7 +40,6 @@ import {
   isStateInstalled,
   type RuntimeState,
 } from "./runtime-state.ts";
-import { deriveSapperRevealIntensity } from "./sapper-reveal-overlay.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -201,20 +196,18 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
 
     const nowMs = deps.timing.now();
     tickModifierRevealClock(runtimeState, nowMs);
-    const fogRevealOpacity = deriveFogRevealOpacity(
-      revealTimeFor(runtimeState, MODIFIER_ID.FOG_OF_WAR, nowMs),
-    );
-    const rubbleClearingFade = deriveRubbleClearingFade(
-      revealTimeFor(runtimeState, MODIFIER_ID.RUBBLE_CLEARING, nowMs),
-    );
-    const frostbiteRevealProgress = deriveFrostbiteRevealProgress(
-      revealTimeFor(runtimeState, MODIFIER_ID.FROSTBITE, nowMs),
-    );
-    const sapperRevealIntensity = deriveSapperRevealIntensity(
-      revealTimeFor(runtimeState, MODIFIER_ID.SAPPER, nowMs),
-    );
-    const gruntSurgeRevealIntensity = deriveGruntSurgeRevealIntensity(
-      revealTimeFor(runtimeState, MODIFIER_ID.GRUNT_SURGE, nowMs),
+    // `revealTimeFor` is the single banner-read site for modifier-reveal
+    // timing (see `modifier-reveal-time.ts`). Resolved once here and fed
+    // to both downstream consumers: the 2D-overlay registry (path B) and
+    // the path-A `overlay.ui.modifierReveal` publication that the 3D
+    // burst managers read.
+    const activeModifier = runtimeState.state.modern?.activeModifier;
+    const revealTimeMs = activeModifier
+      ? revealTimeFor(runtimeState, activeModifier, nowMs)
+      : undefined;
+    const revealOverlayFields = deriveRevealOverlayFields(
+      activeModifier,
+      revealTimeMs,
     );
 
     runtimeState.overlay = deps.createOnlineOverlay({
@@ -232,11 +225,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
-      fogRevealOpacity,
-      rubbleClearingFade,
-      frostbiteRevealProgress,
-      sapperRevealIntensity,
-      gruntSurgeRevealIntensity,
+      revealOverlayFields,
     });
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
@@ -248,18 +237,13 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
       runtimeState.overlay.ui.scoreDeltaProgress = deps.scoreDeltaProgress();
     }
 
-    // Expose modifier-reveal data when the phase is active. The 3D
-    // burst managers in src/render/3d/effects/ read from overlay.ui
-    // and never touch game state directly. `revealTimeMs` is the only
-    // banner-derived value here; it comes from `revealTimeFor`, which
-    // owns the single banner read for reveal timing.
-    const modifier = runtimeState.state.modern?.activeModifier;
-    const revealTimeMs = modifier
-      ? revealTimeFor(runtimeState, modifier, nowMs)
-      : undefined;
-    if (modifier && revealTimeMs !== undefined && runtimeState.overlay.ui) {
+    if (
+      activeModifier &&
+      revealTimeMs !== undefined &&
+      runtimeState.overlay.ui
+    ) {
       runtimeState.overlay.ui.modifierReveal = {
-        modifierId: modifier,
+        modifierId: activeModifier,
         revealTimeMs,
         tiles: runtimeState.state.modern!.activeModifierChangedTiles,
       };

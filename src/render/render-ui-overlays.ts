@@ -302,12 +302,15 @@ export function createOnlineOverlay(
     playerNames,
     playerColors,
     getLifeLostPanelPos,
+    revealOverlayFields,
+  } = params;
+  const {
     fogRevealOpacity,
     rubbleClearingFade,
     frostbiteRevealProgress,
     sapperRevealIntensity,
     gruntSurgeRevealIntensity,
-  } = params;
+  } = revealOverlayFields;
 
   const ownedTowers = buildOwnedTowersByIndex(view);
   const homeTowerIndices = buildHomeTowerIndices(view);

@@ -49,6 +49,7 @@ import type {
 } from "../shared/ui/player-config.ts";
 import type { RGB } from "../shared/ui/theme.ts";
 import type { Mode } from "../shared/ui/ui-mode.ts";
+import type { RevealOverlayBattleFields } from "./modifier-reveal-overlay-registry.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -202,29 +203,14 @@ export interface OnlineOverlayParams {
     px: number;
     py: number;
   };
-  /** Fog-of-war reveal opacity multiplier (0..1) computed runtime-side
-   *  by `deriveFogRevealOpacity`, or undefined when no reveal is in
-   *  flight. Threaded into `overlay.battle.fogRevealOpacity` so the fog
-   *  manager can apply it to material alpha. */
-  fogRevealOpacity?: number;
-  /** Rubble-clearing fade-out multiplier (1..0) computed runtime-side by
-   *  `deriveRubbleClearingFade`, or undefined outside the reveal window.
-   *  Threaded into `overlay.battle.rubbleClearingFade`; the pit + debris
-   *  managers also iterate `state.modern.rubbleClearingHeld` to render
-   *  the held entries that gameplay state has already dropped. */
-  rubbleClearingFade?: number;
-  /** Frostbite-reveal tint progress (0..1) computed runtime-side by
-   *  `deriveFrostbiteRevealProgress`, or undefined outside the reveal
-   *  window. Threaded into `overlay.battle.frostbiteRevealProgress`;
-   *  the grunt manager lerps material colors against the cached
-   *  authored color by this multiplier. */
-  frostbiteRevealProgress?: number;
-  /** Sapper-reveal tint pulse intensity (0..1); threaded into
-   *  `overlay.battle.sapperRevealIntensity`. */
-  sapperRevealIntensity?: number;
-  /** Grunt-surge tint pulse intensity (0..1); threaded into
-   *  `overlay.battle.gruntSurgeRevealIntensity`. */
-  gruntSurgeRevealIntensity?: number;
+  /** 2D-overlay scalars driven by the active modifier-reveal pulse, one
+   *  field per consumer (`fogRevealOpacity`, `rubbleClearingFade`,
+   *  `frostbiteRevealProgress`, `sapperRevealIntensity`,
+   *  `gruntSurgeRevealIntensity`). Built by
+   *  `deriveRevealOverlayFields` in `runtime-render.ts` from the single
+   *  resolved `revealTimeMs` — bespoke per-modifier `revealTimeFor`
+   *  plumbing does not live here. Spread into `overlay.battle`. */
+  revealOverlayFields: RevealOverlayBattleFields;
 }
 
 /** Active banner — text/subtitle/kind from `BannerContent`, plus the

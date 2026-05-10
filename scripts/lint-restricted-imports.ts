@@ -40,6 +40,15 @@
  *    no-op when the feature is inactive) rather than branching on capability
  *    flags. Zero-hit today; tripwire for future leaks.
  *
+ * 6. `modifier-reveal-time.ts` (which resolves the banner-aware
+ *    `revealTimeMs` scalar) must only be imported by `runtime-render.ts`.
+ *    Modifier-effect code receives `revealTimeMs` already-resolved; it must
+ *    never call `revealTimeFor` / `tickModifierRevealClock` itself, nor
+ *    inspect `runtimeState.banner` to derive reveal timing. New 2D overlay
+ *    effects register in `modifier-reveal-overlay-registry.ts`; new 3D
+ *    burst effects read `overlay.ui.modifierReveal.revealTimeMs` from the
+ *    `MODIFIER_EFFECT_FACTORIES` registry.
+ *
  * Usage:
  *   deno run -A scripts/lint-restricted-imports.ts
  *
@@ -142,6 +151,11 @@ const GAME_DEEP_IMPORT_ALLOWLIST: Record<
     "../game/phase-setup.ts": new Set(["setPhase"]),
   },
 };
+/** Sole importer of `modifier-reveal-time.ts` — the banner-aware reveal-
+ *  timing resolver. Modifier-effect code receives `revealTimeMs` already
+ *  resolved (via the 2D registry or the path-A `overlay.ui.modifierReveal`
+ *  publication) and must never read banner state itself. */
+const MODIFIER_REVEAL_TIME_IMPORTER = "src/runtime/runtime-render.ts";
 
 main();
 
@@ -157,6 +171,7 @@ function main(): void {
     checkUidImports(filePath, content, violations);
     checkRuntimeMutatorImports(filePath, content, violations);
     checkRuntimeHasFeatureCalls(filePath, content, violations);
+    checkModifierRevealTimeImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
@@ -332,6 +347,29 @@ function checkRuntimeHasFeatureCalls(
       line: idx + 1,
       message:
         "Runtime must not call `hasFeature(` directly — feature gating belongs in the game layer. Ask the game layer to run the gated path (or expose a semantic function) instead.",
+    });
+  }
+}
+
+function checkModifierRevealTimeImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const rel = relative(process.cwd(), file);
+  if (rel === MODIFIER_REVEAL_TIME_IMPORTER) return;
+
+  for (const imp of parseImports(content)) {
+    if (
+      !imp.source.endsWith("/modifier-reveal-time.ts") &&
+      !imp.source.endsWith("/modifier-reveal-time")
+    ) {
+      continue;
+    }
+    violations.push({
+      file: rel,
+      line: imp.line,
+      message: `Import from "${imp.source}" — only ${MODIFIER_REVEAL_TIME_IMPORTER} may resolve modifier-reveal timing. Effect code consumes \`revealTimeMs\` already-resolved via the 2D overlay registry or \`overlay.ui.modifierReveal\`.`,
     });
   }
 }
