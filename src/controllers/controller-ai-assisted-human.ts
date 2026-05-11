@@ -25,14 +25,17 @@ import type {
 } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
+  BattleViewState,
   BuildViewState,
   CannonPlacementPreview,
   CannonViewState,
   FireIntent,
+  GameViewState,
   InputReceiver,
   PiecePlacementPreview,
   PlaceCannonIntent,
   PlacePieceIntent,
+  UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
@@ -85,11 +88,14 @@ export class AiAssistedHumanController
 
   // ── Build phase: AI ticks; placements scheduled with lockstep applyAt ──
 
-  override buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
+  override buildTick(
+    state: BuildViewState,
+    _dt: number,
+  ): PiecePlacementPreview[] {
     const executePlace = (intent: PlacePieceIntent): boolean => {
       const stamped = schedulePiecePlacement({
         schedule: this.schedule,
-        state,
+        state: state as GameState,
         intent,
         safetyTicks: this.safetyTicks,
         clampBuildCursor: (piece) => this.clampBuildCursor(piece),
@@ -106,13 +112,13 @@ export class AiAssistedHumanController
   // ── Cannon phase: AI ticks; placements broadcast via senders.sendCannonPlaced ──
 
   override cannonTick(
-    state: GameState,
+    state: CannonViewState,
     _dt: number,
   ): CannonPlacementPreview | undefined {
     const executePlace = (intent: PlaceCannonIntent): boolean => {
       const stamped = scheduleCannonPlacement({
         schedule: this.schedule,
-        state,
+        state: state as GameState,
         intent,
         maxSlots: this._cannonPhase.maxSlots,
         safetyTicks: this.safetyTicks,
@@ -126,11 +132,11 @@ export class AiAssistedHumanController
     return result ?? undefined;
   }
 
-  override flushCannons(state: GameState, maxSlots: number): void {
+  override flushCannons(state: CannonViewState, maxSlots: number): void {
     const executePlace = (intent: PlaceCannonIntent): boolean => {
       const stamped = scheduleCannonPlacement({
         schedule: this.schedule,
-        state,
+        state: state as GameState,
         intent,
         maxSlots,
         safetyTicks: this.safetyTicks,
@@ -144,11 +150,11 @@ export class AiAssistedHumanController
 
   // ── Battle phase: AI ticks; fires broadcast via senders.sendCannonFired ──
 
-  override battleTick(state: GameState, _dt: number): void {
+  override battleTick(state: BattleViewState, _dt: number): void {
     const executeFire = (intent: FireIntent): boolean => {
       const fired = scheduleCannonFire({
         schedule: this.schedule,
-        state,
+        state: state as GameState,
         intent,
         ctrl: this,
         safetyTicks: this.safetyTicks,
@@ -168,7 +174,7 @@ export class AiAssistedHumanController
     entryIdx: number,
     autoDelaySeconds: number,
     dialogTimer: number,
-    state: GameState,
+    state: UpgradePickViewState,
   ): void {
     const wasCommitted = entry.choice !== null;
     super.tickUpgradePick(
@@ -185,7 +191,7 @@ export class AiAssistedHumanController
 
   override forceUpgradePick(
     entry: UpgradePickEntry,
-    state: GameState,
+    state: UpgradePickViewState,
   ): UpgradeId {
     const choice = super.forceUpgradePick(entry, state);
     this.senders.sendUpgradePick(choice);
@@ -198,7 +204,7 @@ export class AiAssistedHumanController
     entry: LifeLostEntry,
     dt: number,
     autoDelaySeconds: number,
-    state: GameState,
+    state: GameViewState,
   ): void {
     const wasPending = entry.choice === LifeLostChoice.PENDING;
     super.tickLifeLost(entry, dt, autoDelaySeconds, state);

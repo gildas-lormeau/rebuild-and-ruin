@@ -10,6 +10,7 @@
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
+import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { UID, type UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { UpgradePickEntry } from "../shared/ui/interaction-types.ts";
@@ -41,7 +42,7 @@ export function tickAiUpgradePickEntry(
   entryIdx: number,
   autoDelayTicks: number,
   dialogTimer: number,
-  state: GameState,
+  state: UpgradePickViewState,
 ): void {
   entry.autoTimer++;
   const effectiveDelay = autoDelayTicks + entryIdx * UPGRADE_PICK_STAGGER;
@@ -95,7 +96,10 @@ export function precomputeAiUpgradePicks(state: GameState): void {
  *  precomputed value (drawn from `state.rng` at battle-done.mutate), falls
  *  back to a fresh `aiPickUpgrade` call if precompute didn't run (unit
  *  tests that build the dialog without going through battle-done). */
-function resolveAiPick(entry: UpgradePickEntry, state: GameState): UpgradeId {
+function resolveAiPick(
+  entry: UpgradePickEntry,
+  state: UpgradePickViewState,
+): UpgradeId {
   return (
     state.modern?.precomputedUpgradePicks?.get(entry.playerId) ??
     aiPickUpgrade(entry.offers, state, entry.playerId)
@@ -107,7 +111,7 @@ function resolveAiPick(entry: UpgradePickEntry, state: GameState): UpgradeId {
  *  battle-done anchor) and by `resolveAiPick` as a defensive fallback. */
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): UpgradeId {
   const hasDeadTowers = playerHasDeadTowers(state, playerId);
@@ -154,7 +158,7 @@ function aiPickUpgrade(
 }
 
 function playerTerritoryRatio(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): number {
   const player = state.players[playerId];
@@ -170,7 +174,7 @@ function playerTerritoryRatio(
 }
 
 function playerHasDeadTowers(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
   const player = state.players[playerId];
@@ -179,7 +183,7 @@ function playerHasDeadTowers(
 }
 
 function playerHasGruntsInZone(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
   const player = state.players[playerId];
@@ -191,7 +195,7 @@ function playerHasGruntsInZone(
 }
 
 function playerHasBurningPitsInZone(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
   const player = state.players[playerId];
@@ -203,7 +207,7 @@ function playerHasBurningPitsInZone(
 }
 
 function playerHasDeadCannons(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
   const player = state.players[playerId];
@@ -213,7 +217,7 @@ function playerHasDeadCannons(
 
 /** True if the player has many non-load-bearing (inner) walls — Demolition would hurt them. */
 function playerHasThickWalls(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): boolean {
   const player = state.players[playerId];
@@ -223,7 +227,7 @@ function playerHasThickWalls(
 }
 
 function playerCannonCount(
-  state: GameState,
+  state: UpgradePickViewState,
   playerId: ValidPlayerSlot,
 ): number {
   const player = state.players[playerId];

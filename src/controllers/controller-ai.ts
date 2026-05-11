@@ -51,12 +51,17 @@ import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   type AiAnimatable,
+  type BattleViewState,
+  type BuildViewState,
   type CannonPlacementPreview,
+  type CannonViewState,
   CROSSHAIR_SPEED,
   type FireIntent,
+  type GameViewState,
   type PiecePlacementPreview,
   type PlaceCannonIntent,
   type PlacePieceIntent,
+  type UpgradePickViewState,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -177,11 +182,11 @@ export class AiController extends BaseController implements AiAnimatable {
   // Selection phase
   // -----------------------------------------------------------------------
 
-  override selectTower(state: GameState, zone: ZoneId): void {
+  override selectTower(state: GameViewState, zone: ZoneId): void {
     initSelection(this, this.selectionPhase, state, zone);
   }
 
-  override selectionTick(_dt: number, state?: GameState): boolean {
+  override selectionTick(_dt: number, state?: GameViewState): boolean {
     return tickSelection(this, this.selectionPhase, state);
   }
 
@@ -189,7 +194,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Build phase
   // -----------------------------------------------------------------------
 
-  protected override onStartBuildPhase(state: GameState): void {
+  protected override onStartBuildPhase(state: BuildViewState): void {
     initBuild(this, this._buildPhase, state);
     // Leave currentBuildPhantoms at the base-class empty default here.
     // tickBuild() decrements timers, advances rotation frames, steps the
@@ -198,15 +203,15 @@ export class AiController extends BaseController implements AiAnimatable {
     // call will populate currentBuildPhantoms.
   }
 
-  buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
+  buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
     const executePlace = (intent: PlacePieceIntent): boolean =>
-      executePlacePiece(state, intent, this);
+      executePlacePiece(state as GameState, intent, this);
     const result = tickBuild(this, this._buildPhase, state, executePlace);
     this.currentBuildPhantoms = result;
     return result;
   }
 
-  protected override onFinalizeBuildPhase(state: GameState): void {
+  protected override onFinalizeBuildPhase(state: BuildViewState): void {
     finalizeBuild(this, this._buildPhase, state);
   }
 
@@ -214,20 +219,27 @@ export class AiController extends BaseController implements AiAnimatable {
   // Cannon phase
   // -----------------------------------------------------------------------
 
-  override placeCannons(state: GameState, maxSlots: number): void {
+  override placeCannons(state: CannonViewState, maxSlots: number): void {
     initCannon(this, this._cannonPhase, state, maxSlots);
   }
 
-  override isCannonPhaseDone(_state: GameState, _maxSlots: number): boolean {
+  override isCannonPhaseDone(
+    _state: CannonViewState,
+    _maxSlots: number,
+  ): boolean {
     return isCannonDone(this._cannonPhase);
   }
 
   cannonTick(
-    state: GameState,
+    state: CannonViewState,
     _dt: number,
   ): CannonPlacementPreview | undefined {
     const executePlace = (intent: PlaceCannonIntent): boolean =>
-      executePlaceCannon(state, intent, this._cannonPhase.maxSlots);
+      executePlaceCannon(
+        state as GameState,
+        intent,
+        this._cannonPhase.maxSlots,
+      );
     const result = tickCannon(this, this._cannonPhase, state, executePlace);
     // Leave currentCannonPhantom populated by the startCannonPhase hook
     // empty on init (see note there): AI's tickCannon decrements timers
@@ -237,9 +249,9 @@ export class AiController extends BaseController implements AiAnimatable {
     return result ?? undefined;
   }
 
-  flushCannons(state: GameState, maxSlots: number): void {
+  flushCannons(state: CannonViewState, maxSlots: number): void {
     const executePlace = (intent: PlaceCannonIntent): boolean =>
-      executePlaceCannon(state, intent, maxSlots);
+      executePlaceCannon(state as GameState, intent, maxSlots);
     flushCannon(this, this._cannonPhase, state, executePlace);
   }
 
@@ -247,7 +259,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Battle phase
   // -----------------------------------------------------------------------
 
-  protected override onResetBattle(state?: GameState): void {
+  protected override onResetBattle(state?: BattleViewState): void {
     // Re-roll orbit each battle. Fires only for local controllers (the
     // template runs on `localControllers(...)` per phase-ticks), so remote
     // placeholders never draw — host/watcher stay in lockstep regardless
@@ -256,10 +268,10 @@ export class AiController extends BaseController implements AiAnimatable {
     initBattle(this, this._battlePhase, state);
   }
 
-  battleTick(state: GameState, _dt: number): void {
+  battleTick(state: BattleViewState, _dt: number): void {
     const executeFire = (intent: FireIntent): boolean => {
       const fired = fireNextReadyCannon(
-        state,
+        state as GameState,
         intent.playerId,
         this.cannonRotationIdx,
         intent.targetRow,
@@ -285,7 +297,7 @@ export class AiController extends BaseController implements AiAnimatable {
     entryIdx: number,
     autoDelaySeconds: number,
     dialogTimer: number,
-    state: GameState,
+    state: UpgradePickViewState,
   ): void {
     tickAiUpgradePickEntry(
       entry,
@@ -308,7 +320,7 @@ export class AiController extends BaseController implements AiAnimatable {
     entry: LifeLostEntry,
     dt: number,
     autoDelaySeconds: number,
-    state: GameState,
+    state: GameViewState,
   ): void {
     // Decision/commit split — see UpgradePickEntry.plannedChoice and
     // tickAiUpgradePickEntry. The local tick advances `autoTimer` and

@@ -7,7 +7,7 @@
  * abandon low-score games) hook in here.
  */
 
-import type { GameState } from "../shared/core/types.ts";
+import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import {
   LifeLostChoice,
   type LifeLostEntry,
@@ -17,7 +17,7 @@ import {
 /** AI decision for a pending life-lost entry. */
 export function aiChooseLifeLost(
   _entry: LifeLostEntry,
-  _state: GameState,
+  _state: GameViewState,
 ): ResolvedChoice {
   return LifeLostChoice.CONTINUE;
 }

@@ -13,10 +13,10 @@ import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
 import type {
+  BuildViewState,
   PiecePlacementPreview,
   PlacePieceIntent,
 } from "../shared/core/system-interfaces.ts";
-import type { GameState } from "../shared/core/types.ts";
 import { STEP, secondsToTicks } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 
@@ -97,7 +97,7 @@ export function resetBuildPhase(phase: BuildPhase): void {
 export function initBuild(
   host: BuildHost,
   phase: BuildPhase,
-  state: GameState,
+  state: BuildViewState,
 ): void {
   const target = computeNextPlacement(host, state);
   if (target) {
@@ -114,7 +114,7 @@ export function initBuild(
 export function finalizeBuild(
   host: BuildHost,
   phase: BuildPhase,
-  state: GameState,
+  state: BuildViewState,
 ): void {
   phase.state = { step: STEP.IDLE };
   host.strategy.assessBuildEnd(state, host.playerId);
@@ -123,7 +123,7 @@ export function finalizeBuild(
 export function tickBuild(
   host: BuildHost,
   phase: BuildPhase,
-  state: GameState,
+  state: BuildViewState,
   executePlace: (intent: PlacePieceIntent) => boolean,
 ): PiecePlacementPreview[] {
   const currentPiece = state.players[host.playerId]?.currentPiece;
@@ -240,7 +240,7 @@ export function tickBuild(
 function tickMoving(
   host: BuildHost,
   phase: BuildPhase,
-  state: GameState,
+  state: BuildViewState,
 ): PiecePlacementPreview[] {
   const phaseState = phase.state as Extract<BuildState, { step: "moving" }>;
   const { target, rotation } = phaseState;
@@ -309,7 +309,7 @@ function tickMoving(
 /** Build rotation animation sequence from current bag piece to target orientation. */
 function buildRotationFor(
   host: BuildHost,
-  state: GameState,
+  state: BuildViewState,
   target: BuildTarget,
 ): BuildRotation {
   const bag = state.players[host.playerId]!.currentPiece!;
@@ -336,7 +336,7 @@ function buildRotationFor(
 
 function phantomAtCursor(
   host: BuildHost,
-  state: GameState,
+  state: BuildViewState,
 ): PiecePlacementPreview {
   const piece = state.players[host.playerId]!.currentPiece!;
   const row = Math.round(host.buildCursor.row);
@@ -362,7 +362,7 @@ function makePhantom(
 
 function computeNextPlacement(
   host: BuildHost,
-  state: GameState,
+  state: BuildViewState,
 ): BuildTarget | null {
   const currentPiece = state.players[host.playerId]?.currentPiece;
   if (!currentPiece) return null;
