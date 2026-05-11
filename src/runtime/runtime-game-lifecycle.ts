@@ -18,10 +18,10 @@ import type {
   GameOverOverlay,
   PlayerStats,
 } from "../shared/ui/overlay-types.ts";
+import { MAX_PLAYERS } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
 import {
-  createEmptyGameStats,
   type RuntimeState,
   resetTransientState,
   setMode,
@@ -310,4 +310,12 @@ export function buildLifecycleDeps(
       runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
     isTouchDevice: wiringDeps.isTouchDevice,
   };
+}
+
+/** Create zeroed per-player game stats array for a new match. */
+function createEmptyGameStats(): PlayerStats[] {
+  return Array.from({ length: MAX_PLAYERS }, () => ({
+    wallsDestroyed: 0,
+    cannonsKilled: 0,
+  }));
 }

@@ -190,14 +190,6 @@ export interface RuntimeState {
 /** Default frame delta time (assumes 60fps). */
 const DEFAULT_FRAME_DT = 1 / 60;
 
-/** Create zeroed per-player game stats array for a new match. */
-export function createEmptyGameStats(): PlayerStats[] {
-  return Array.from({ length: MAX_PLAYERS }, () => ({
-    wallsDestroyed: 0,
-    cannonsKilled: 0,
-  }));
-}
-
 /** Centralized mode transition — all mode changes MUST go through this function.
  * Single mutation point makes the state machine traceable and validatable. */
 export function setMode(runtimeState: RuntimeState, mode: Mode): void {
