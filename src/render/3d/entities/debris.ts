@@ -9,10 +9,13 @@
 
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
+import {
+  isCannonAlive,
+  isSuperCannon,
+} from "../../../shared/core/battle-types.ts";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
-import { isCannonAlive, isSuperCannon } from "../../../shared/core/spatial.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";

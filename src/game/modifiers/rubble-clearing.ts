@@ -7,17 +7,16 @@
  * `overlay.battle.rubbleClearingFade` multiplier.
  */
 
-import type { CannonMode } from "../../shared/core/battle-types.ts";
+import {
+  type CannonMode,
+  isCannonAlive,
+} from "../../shared/core/battle-types.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import {
   cannonTier,
   isPlayerEliminated,
 } from "../../shared/core/player-types.ts";
-import {
-  cannonSize,
-  isCannonAlive,
-  packTile,
-} from "../../shared/core/spatial.ts";
+import { cannonSize, packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 

@@ -7,14 +7,7 @@
  */
 
 import { Action } from "../ui/input-action.ts";
-import {
-  type BurningPit,
-  type Cannon,
-  CannonMode,
-  isBalloonMode,
-  isRampartMode,
-  isSuperMode,
-} from "./battle-types.ts";
+import { type BurningPit, type Cannon, CannonMode } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { GameMap, PixelPos, TilePos, Tower } from "./geometry-types.ts";
@@ -213,30 +206,6 @@ export function towerReachesOutsideCardinal(
 /** Get the tile size of a cannon mode (2 for normal/balloon, 3 for super). */
 export function cannonSize(mode: CannonMode): number {
   return cannonModeDef(mode).size;
-}
-
-/** True if a cannon still has hit points remaining. */
-export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
-  return cannon.hp > 0;
-}
-
-export function isBalloonCannon(cannon: {
-  mode: CannonMode;
-}): cannon is { mode: CannonMode.BALLOON } {
-  return isBalloonMode(cannon.mode);
-}
-
-export function isSuperCannon(cannon: {
-  mode: CannonMode;
-}): cannon is { mode: CannonMode.SUPER } {
-  return isSuperMode(cannon.mode);
-}
-
-/** True if a cannon is a rampart (defensive wall shield). */
-export function isRampartCannon(cannon: {
-  mode: CannonMode;
-}): cannon is { mode: CannonMode.RAMPART } {
-  return isRampartMode(cannon.mode);
 }
 
 /** True if (r,c) is occupied by a burning pit. */

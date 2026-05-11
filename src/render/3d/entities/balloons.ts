@@ -8,11 +8,11 @@
 
 import * as THREE from "three";
 import type { Cannon } from "../../../shared/core/battle-types.ts";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import {
   isBalloonCannon,
   isCannonAlive,
-} from "../../../shared/core/spatial.ts";
+} from "../../../shared/core/battle-types.ts";
+import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type {
   OverlayBalloon,
   RenderOverlay,

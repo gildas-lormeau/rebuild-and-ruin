@@ -17,6 +17,12 @@ import type {
   CombinedCannonResult,
 } from "../shared/core/battle-types.ts";
 import {
+  isBalloonCannon,
+  isCannonAlive,
+  isRampartCannon,
+  isSuperCannon,
+} from "../shared/core/battle-types.ts";
+import {
   filterActiveEnemies,
   zoneOwnerIdAt,
 } from "../shared/core/board-occupancy.ts";
@@ -50,11 +56,7 @@ import {
   hasPitAt,
   inBounds,
   isAtTile,
-  isBalloonCannon,
-  isCannonAlive,
   isCannonTile,
-  isRampartCannon,
-  isSuperCannon,
   isWater,
   packTile,
   pxToTile,

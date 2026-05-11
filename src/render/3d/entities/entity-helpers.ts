@@ -6,13 +6,13 @@
 
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import {
   isBalloonCannon,
   isRampartCannon,
   isSuperCannon,
-} from "../../../shared/core/spatial.ts";
+} from "../../../shared/core/battle-types.ts";
+import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
 

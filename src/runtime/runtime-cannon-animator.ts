@@ -1,13 +1,4 @@
-/**
- * Cannon facing animator — owns the eased "displayed" rotation for every
- * live cannon. Reads authoritative `cannon.facing` per frame, eases the
- * displayed value toward it so abrupt facing changes render as rotations.
- * Lives in the runtime (not the renderer) so the battle-end gate can poll
- * `allSettled()` without crossing into renderer state. Same closure-
- * stored, per-frame, reset-on-rematch pattern as the other animators.
- */
-
-import { isBalloonCannon, isCannonAlive } from "../shared/core/spatial.ts";
+import { isBalloonCannon, isCannonAlive } from "../shared/core/battle-types.ts";
 import { isSessionLive, type RuntimeState } from "./runtime-state.ts";
 
 interface FacingState {

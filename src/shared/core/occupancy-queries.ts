@@ -1,7 +1,7 @@
-import type { Cannon } from "./battle-types.ts";
+import { type Cannon, isBalloonCannon } from "./battle-types.ts";
 import type { Tower } from "./geometry-types.ts";
 import type { Player } from "./player-types.ts";
-import { isBalloonCannon, isCannonTile, isTowerTile } from "./spatial.ts";
+import { isCannonTile, isTowerTile } from "./spatial.ts";
 
 export function hasTowerAt(
   state: { readonly map: { readonly towers: readonly Tower[] } },

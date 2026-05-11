@@ -7,6 +7,7 @@
  * online — collapsing would diverge watcher from host.
  */
 
+import { isBalloonCannon } from "../shared/core/battle-types.ts";
 import {
   clearPlayerWalls,
   collectAllWalls,
@@ -30,7 +31,6 @@ import {
 } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
-  isBalloonCannon,
   isGrass,
   packTile,
   setGrass,

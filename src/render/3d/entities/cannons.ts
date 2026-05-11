@@ -8,14 +8,14 @@
 
 import * as THREE from "three";
 import type { CannonMode } from "../../../shared/core/battle-types.ts";
+import {
+  isBalloonCannon,
+  isCannonAlive,
+} from "../../../shared/core/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import {
-  cannonSize,
-  isBalloonCannon,
-  isCannonAlive,
-} from "../../../shared/core/spatial.ts";
+import { cannonSize } from "../../../shared/core/spatial.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import {

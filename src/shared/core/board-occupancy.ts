@@ -1,4 +1,9 @@
-import type { BurningPit, Cannon, Grunt } from "./battle-types.ts";
+import {
+  type BurningPit,
+  type Cannon,
+  type Grunt,
+  isBalloonCannon,
+} from "./battle-types.ts";
 import type { BonusSquare } from "./geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
@@ -13,7 +18,6 @@ import {
   hasPitAt,
   inBounds,
   isAtTile,
-  isBalloonCannon,
   isTowerTile,
   isWater,
   packTile,

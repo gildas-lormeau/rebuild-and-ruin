@@ -6,13 +6,16 @@
  * removal).
  */
 
-import type { Cannon } from "../shared/core/battle-types.ts";
+import {
+  type Cannon,
+  isCannonAlive,
+  isRampartCannon,
+} from "../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
-import { isCannonAlive, isRampartCannon } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { shouldAbsorbWallHit } from "./upgrade-system.ts";
 

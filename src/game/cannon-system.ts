@@ -6,6 +6,9 @@ import {
   type BurningPit,
   type Cannon,
   CannonMode,
+  isBalloonCannon,
+  isCannonAlive,
+  isRampartCannon,
 } from "../shared/core/battle-types.ts";
 import {
   filterAliveOwnedTowers,
@@ -38,10 +41,7 @@ import {
   FACING_90_STEP,
   hasPitAt,
   inBounds,
-  isBalloonCannon,
-  isCannonAlive,
   isCannonTile,
-  isRampartCannon,
   isTowerTile,
   isWater,
   packTile,

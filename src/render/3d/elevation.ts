@@ -4,9 +4,12 @@
  * occupant at a given tile so crosshair + ball aim agree.
  */
 
+import {
+  isCannonAlive,
+  isSuperCannon,
+} from "../../shared/core/battle-types.ts";
 import type { GameMap } from "../../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../../shared/core/grid.ts";
-import { isCannonAlive, isSuperCannon } from "../../shared/core/spatial.ts";
 import type {
   CastleData,
   RenderOverlay,

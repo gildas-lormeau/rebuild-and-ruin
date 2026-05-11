@@ -3,7 +3,11 @@ import {
   filterActiveFiringCannons,
   getGruntTargetTower,
 } from "../game/index.ts";
-import type { Cannonball } from "../shared/core/battle-types.ts";
+import {
+  type Cannonball,
+  isBalloonCannon,
+  isCannonAlive,
+} from "../shared/core/battle-types.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
@@ -24,8 +28,6 @@ import {
   DIRS_4,
   DIRS_8,
   inBounds,
-  isBalloonCannon,
-  isCannonAlive,
   isCannonTile,
   isGrass,
   manhattanDistance,

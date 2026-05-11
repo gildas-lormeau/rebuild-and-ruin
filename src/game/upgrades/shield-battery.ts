@@ -7,14 +7,13 @@
  * import cycle.
  */
 
-import { isPlayerEliminated } from "../../shared/core/player-types.ts";
 import {
-  cannonSize,
   isBalloonCannon,
   isCannonAlive,
   isRampartCannon,
-  packTile,
-} from "../../shared/core/spatial.ts";
+} from "../../shared/core/battle-types.ts";
+import { isPlayerEliminated } from "../../shared/core/player-types.ts";
+import { cannonSize, packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 import type { BattleStartCannonDeps, UpgradeImpl } from "./upgrade-types.ts";

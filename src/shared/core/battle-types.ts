@@ -225,20 +225,6 @@ export const GRUNT_KILL_DURATION = 0.55;
  *  tile exploding. */
 export const HOUSE_DESTROY_DURATION = 0.75;
 
-/** True if the cannon mode is super gun. */
-export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
-  return mode === CannonMode.SUPER;
-}
-
-export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
-  return mode === CannonMode.BALLOON;
-}
-
-/** True if the cannon mode is rampart (defensive wall shield). */
-export function isRampartMode(mode: CannonMode): mode is CannonMode.RAMPART {
-  return mode === CannonMode.RAMPART;
-}
-
 export function createBattleAnimState(): BattleAnimState {
   return {
     territory: [],
@@ -307,4 +293,29 @@ export function ageImpacts(
   battleAnim.houseDestroys = battleAnim.houseDestroys.filter(
     (destroy) => destroy.age < HOUSE_DESTROY_DURATION,
   );
+}
+
+/** True if a cannon still has hit points remaining. */
+export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
+  return cannon.hp > 0;
+}
+
+export function isBalloonCannon(cannon: {
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.BALLOON } {
+  return cannon.mode === CannonMode.BALLOON;
+}
+
+/** True if a cannon is a super gun (3×3 incendiary). */
+export function isSuperCannon(cannon: {
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.SUPER } {
+  return cannon.mode === CannonMode.SUPER;
+}
+
+/** True if a cannon is a rampart (defensive wall shield). */
+export function isRampartCannon(cannon: {
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.RAMPART } {
+  return cannon.mode === CannonMode.RAMPART;
 }

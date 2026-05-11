@@ -11,7 +11,11 @@ import {
   canPlaceCannon,
   isCannonEnclosed,
 } from "../game/index.ts";
-import { CannonMode } from "../shared/core/battle-types.ts";
+import {
+  CannonMode,
+  isCannonAlive,
+  isSuperCannon,
+} from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
@@ -24,8 +28,6 @@ import {
   DIRS_4,
   forEachCannonTile,
   inBounds,
-  isCannonAlive,
-  isSuperCannon,
   isWater,
   manhattanDistance,
   packTile,

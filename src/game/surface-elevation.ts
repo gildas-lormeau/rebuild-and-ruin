@@ -7,6 +7,7 @@
  * at the pinned aim tile.
  */
 
+import { isCannonAlive } from "../shared/core/battle-types.ts";
 import {
   BALLISTIC_CLEARANCE_MARGIN,
   BALLISTIC_MAX_SLOWDOWN,
@@ -20,7 +21,6 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   isAtTile,
-  isCannonAlive,
   isCannonTile,
   isTowerTile,
   packTile,
