@@ -45,6 +45,7 @@
     "lint:if-chain": "deno run -A scripts/lint-if-chain.ts",
     "lint:passthrough": "deno run -A scripts/lint-passthrough-wrappers.ts",
     "lint:helper-reuse": "deno run -A scripts/lint-helper-reuse.ts",
+    "lint:modifier-lifecycle": "deno run -A scripts/lint-modifier-lifecycle.ts",
     "lint:internal-jsdoc": "deno run -A scripts/lint-internal-jsdoc.ts",
     "lint:shapes": "deno run -A scripts/find-shape-duplicates.ts --exact-only --test",
     "lint:shapes:audit": "deno run -A scripts/find-shape-duplicates.ts --test",
