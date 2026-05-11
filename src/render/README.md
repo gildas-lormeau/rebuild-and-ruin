@@ -1,207 +1,217 @@
-# `src/render/` — Canvas rendering + UI overlays
+# `src/render/` — Hybrid 3D + 2D rendering
 
-The **render** domain owns everything that paints pixels: the Canvas
-2D renderer, the sprite atlas, map drawing (terrain + entities),
-cannon/tower sprites, visual effects (phantoms, loupes, cannonballs),
-and the UI overlay builders (options, controls, lobby, banner,
-status bar, game-over).
+The **render** domain owns everything that paints pixels. The game is
+rendered as a hybrid: a WebGL `worldCanvas` carries all world content
+(terrain, walls, towers, cannons, grunts, houses, debris, cannonballs,
+balloons, pits, effects), and a stacked 2D canvas carries the UI/HUD
+overlay (banner, dialogs, status bar, modal screens, HUD text). The two
+canvases share dimensions and aspect ratio so they stack 1:1 under CSS
+`object-fit: contain`.
 
-Render code **never mutates game state**. Every function here takes
-a render payload (map + overlay + viewport) and draws it. The game
-decides what to draw; render decides how. If a render function seems
-to need to mutate state, the fix is usually to lift the decision out
-to the runtime subsystem and pass the result in.
+Render code **never mutates game state**. Every function takes a render
+payload (map + overlay + viewport + now) and draws it. The game decides
+what to draw; render decides how.
 
 ## Read these first
 
-1. **[render-canvas.ts](./render-canvas.ts)** — `createCanvasRenderer(canvas)`
-   — the `RendererInterface` implementation. Exposes
-   `drawFrame(map, overlay, viewport, now)`. Every draw call goes
-   through this. **Start here to see what a render payload looks
-   like.**
+1. **[render-canvas.ts](./render-canvas.ts)** — `createCanvasRenderer(canvas)`,
+   the 2D-only `RendererInterface` implementation. Used directly in 2D
+   mode and as the UI/HUD delegate by the 3D renderer.
 
-2. **[render-map.ts](./render-map.ts)** — `drawTerrain()`,
-   `drawEntities()` — the bulk of the rendering. Also owns
-   `warmMapCache()`, which pre-rasterizes the static terrain layer
-   for fast re-draws.
+2. **[render-map.ts](./render-map.ts)** — `createRenderMap()`, the 2D
+   draw orchestrator. Owns the offscreen scene canvas, the banner
+   prev/new-scene snapshot bridges, and the terrain SDF / nearest-water
+   caches (consumed by the 3D shader, even though the SDF computation
+   lives in 2D-land). The header comment at the top of `drawMap` is the
+   canonical inventory of what stays in 2D.
 
-3. **[render-composition.ts](./render-composition.ts)** — UI overlay
-   composition helpers: banner UI, online overlay, render summary,
-   status bar, lobby layout, hit-tests for the game-over / life-lost /
-   upgrade-pick dialogs. The **glue between runtime state and UI
-   draw calls**.
+3. **[3d/renderer.ts](./3d/renderer.ts)** — `createRender3d(worldCanvas,
+   uiCanvas)`, the WebGL `RendererInterface` implementation. Delegates
+   UI/HUD to a `createCanvasRenderer` wrapped with the reserved top-strip
+   flag, then renders the world via Three.js into the world canvas.
+
+4. **[render-ui-overlays.ts](./render-ui-overlays.ts)** — the per-frame
+   overlay factories + hit-tests that the runtime composition root wires
+   in: `createBannerUi`, `createOnlineOverlay`, `buildGameOverOverlay`,
+   `updateSelectionOverlay`, click hit-tests for life-lost / upgrade-pick
+   / lobby / game-over dialogs.
 
 ## File categories
 
-### Core renderer
-- **`render-canvas.ts`** — Canvas 2D implementation of
-  `RendererInterface`. Exposes `drawFrame`, `warmMapCache`,
-  `clientToSurface`, `screenToContainerCSS`, `eventTarget`, `container`.
-- **`render-sprites.ts`** — Sprite atlas loader. `loadAtlas()`
-  fetches + parses the PNG sprite sheet. `drawSprite()` paints a
-  sprite by name.
-- **`render-snapshot.ts`** — Pre-render snapshot construction. The
-  renderer calls this internally to build the per-frame draw list
-  from the overlay + viewport.
+### 2D rendering
+- **`render-canvas.ts`** — `RendererInterface` impl for 2D-only rendering.
+  Exposes `drawFrame`, `warmMapCache`, `clientToSurface`,
+  `screenToContainerCSS`, `captureScene`, `captureSceneOffscreen`,
+  `createLoupe`. In 3D mode this is wrapped (not replaced) — see
+  `3d/renderer.ts`.
+- **`render-map.ts`** — `createRenderMap()`: 2D draw pipeline + scene
+  canvas + banner snapshot bridges + terrain SDF computation (uploaded
+  to the 3D shader as a `DataTexture`, see `3d/effects/terrain-sdf-texture.ts`).
+- **`render-layout.ts`** — letterbox math (`clientToCanvas`,
+  `computeLetterboxLayout`).
+- **`render-loupe.ts`** — `createLoupe()`: mobile magnifier overlay for
+  precision tile selection on touch devices. In 3D mode it samples a
+  WebGL+2D composite (assembled in `3d/renderer.ts` `loupeCompositeSource`).
 
-### Map + entity layers
-- **`render-map.ts`** — Terrain tile drawing (grass/water/sand/wall),
-  entity drawing (grunts, cannonballs, castles, houses, bonus
-  squares, modifier tiles). Caches the static terrain layer via
-  `warmMapCache()` for fast redraws during BATTLE phase.
-- **`render-towers.ts`** — Tower rendering: alive/dead state, color
-  tinting by owner, selection highlight.
-- **`render-effects.ts`** — Phantom preview drawing (cannon
-  placement preview, piece placement preview), upgrade lockout
-  timer animation, modifier reveal animation.
-- **`render-loupe.ts`** — Mobile loupe (magnifier) overlay for
-  precision tile selection on touch devices. Triggered by long-press.
+### UI / HUD overlays (2D)
+- **`render-ui.ts`** — concrete draw functions for the 2D layer:
+  `drawPhaseTimer`, `drawSelectionCursor`, `drawAnnouncement`,
+  `drawBanner`, `drawScoreDeltas`, `drawStatusBar`, `drawGameOver`,
+  `drawLifeLostDialog`, `drawComboFloats`, `drawUpgradePick`, `drawLobby`.
+- **`render-ui-overlays.ts`** — per-frame overlay factories + hit-tests
+  consumed by the runtime composition root (banner UI, online overlay,
+  game-over overlay, lobby layout, dialog click handlers, selection
+  overlay updater).
+- **`render-ui-screens.ts`** — overlay constructors for the modal
+  screens: `createOptionsOverlay`, `createControlsOverlay`,
+  `createLobbyOverlay`, plus `visibleOptions`.
+- **`render-ui-settings.ts`** — options + controls screen *drawing* and
+  matching hit-tests (`optionsScreenHitTest`, `controlsScreenHitTest`).
+- **`render-ui-theme.ts`** — shared drawing primitives (`drawPanel`,
+  `drawButton`, `beginModalScreen`).
 
-### UI overlays (options / controls / lobby / banner / etc.)
-- **`render-ui.ts`** — Top-level UI overlay composer. Used by the
-  runtime render subsystem to produce the per-frame overlay.
-- **`render-ui-screens.ts`** — Screen overlay builders: options,
-  controls, lobby, banner, life-lost dialog, upgrade-pick dialog,
-  game-over panel. Each returns a structured overlay for the
-  renderer to draw.
-- **`render-ui-settings.ts`** — Options + controls screen rendering,
-  plus hit-testing functions (`controlsScreenHitTest`,
-  `optionsScreenHitTest`). The runtime uses the hit-tests to route
-  clicks.
-- **`render-ui-theme.ts`** — Shared constants, types, and drawing
-  primitives for all `render-ui-*.ts` files: drawButton,
-  drawPanel, standard colors, text sizes.
-- **`render-composition.ts`** — Composition root for UI overlays.
-  Builds banner UI, status bar, render summary message, online
-  overlay. Provides hit-testers for life-lost / upgrade-pick /
-  game-over dialogs.
+### 3D rendering (`3d/`)
+- **`3d/renderer.ts`** — `createRender3d`: `RendererInterface` impl
+  backed by Three.js, including the FBO-readback path for banner
+  B-snapshots and the WebGL+2D loupe composite.
+- **`3d/scene.ts`** — `createRender3dScene`: scene graph construction,
+  fullscreen-quad blit pass for FBO → default-framebuffer.
+- **`3d/camera.ts`** — viewport → camera transform under pitch.
+- **`3d/lights.ts`** — ambient + directional sun, pitch-blended shadow
+  intensity, sun-arc direction (`updateSunDirection`).
+- **`3d/elevation.ts`** — Y-elevation helper for walls/towers under
+  fog/sinkhole; also exports `pickHitWorld` for cursor hit-testing
+  against tilted geometry.
+- **`3d/terrain.ts`** — terrain mesh + shader (consumes the blurred SDF
+  + tile-data textures).
+- **`3d/entities/`** — per-entity-type managers (walls, towers, houses,
+  cannons, grunts, cannonballs, balloons, pits, debris, phantoms,
+  tower-labels). Each exposes `update(frameCtx)`.
+- **`3d/effects/`** — visual effects (bonus squares, crosshairs, fog,
+  impacts, wall burns, modifier-driven effects, etc.). Each exposes
+  `update(frameCtx)`.
+- **`3d/sprites/`** — sprite scene builders (`*-scene.ts`) and procedural
+  `CanvasTexture` builders for entity materials. See
+  `3d/sprites/CONVENTIONS.md`.
+- **`3d/frame-ctx.ts`** — per-frame `FrameCtx` passed to every manager.
+- **`3d/pixel-snap.ts`**, **`3d/light-debug.ts`**, **`3d/perf-hud.ts`** —
+  ancillary helpers.
 
 ## The render payload contract
 
-Render functions consume three things:
-
 ```ts
 drawFrame(
-  map: GameMap,           // static terrain (zones, rivers, tiles)
-  overlay: RenderOverlay, // per-frame entities + UI overlays
-  viewport: Viewport | null, // camera / zoom / pan (or null for default)
-  now: number,            // frame timestamp for animation
+  map: GameMap,               // static terrain (zones, rivers, tile grid)
+  overlay: RenderOverlay,     // per-frame entities + UI overlays
+  viewport: Viewport | null,  // camera / zoom / pan (null = full map)
+  now: number,                // performance.now() — for animations
+  pitch?: number,             // camera tilt (3D only; 2D ignores)
+  skip3DScene?: boolean,      // banner-frame optimization (3D only)
+  sunT?: number,              // battle-progress sun arc (3D only)
+  pitchMax?: number,          // pitch normalization (3D only)
 ): void
 ```
 
+The full surface (including `captureScene`, `captureSceneOffscreen`,
+`setCannonFacingProvider`, etc.) is defined in
+`src/shared/ui/overlay-types.ts` as `RendererInterface`.
+
 - **`GameMap`** is built once at game start and cached in
-  `runtimeState.lobby.map` / `state.map`. Static terrain tiles,
-  zone bounds, tower positions.
-- **`RenderOverlay`** is rebuilt every frame from
-  `runtimeState.overlay`. Dynamic entities (grunts, cannonballs,
-  walls, castles with damage state), plus UI overlay flags (show
-  banner? show options? show life-lost dialog?).
-- **`Viewport`** comes from the camera subsystem. If `null`, use
-  the default (full map, no zoom).
+  `runtimeState.lobby.map` / `state.map`.
+- **`RenderOverlay`** is rebuilt every frame from `runtimeState.overlay`.
+  Dynamic entities, dialogs, banner state, UI flags.
+- **`Viewport`** comes from the camera subsystem.
 - **`now`** is `performance.now()` at the start of the frame.
-  Render uses it for animations (banner cross-fade, cannonball
-  trail, score delta pulse).
 
 **Render functions are pure:** they take these inputs and draw. No
-mutation, no side effects beyond canvas writes. If a render
-function needs to decide "should I draw X?", the decision should
-be encoded in the overlay fields by a runtime subsystem before
-`drawFrame` is called.
+mutation, no side effects beyond canvas writes. If a render function
+needs to decide "should I draw X?", the decision should be encoded in
+the overlay fields by a runtime subsystem before `drawFrame` is called.
 
 ## How the runtime wires render
 
-The runtime has a `runtime-render.ts` subsystem that:
+`src/runtime/runtime-composition.ts` is the composition root. It picks
+the renderer factory (`createCanvasRenderer` for 2D, `createRender3d`
+for 3D) and injects the per-frame overlay factories from
+`render-ui-overlays.ts` / `render-ui-screens.ts` into the runtime's
+render subsystem via a deps bag.
 
+`src/runtime/runtime-render.ts` then:
 1. Builds the `RenderOverlay` from `runtimeState` each frame.
 2. Computes the current viewport from the camera subsystem.
-3. Calls `renderer.drawFrame(map, overlay, viewport, now)`.
+3. Calls `renderer.drawFrame(map, overlay, viewport, now, pitch, ...)`.
 4. Updates touch controls via `input-touch-update.ts`.
-
-The composition root (`runtime-composition.ts`) wires a bunch of
-`render/*` factory functions into the render subsystem via the
-`deps` bag: `createBannerUi`, `createOnlineOverlay`,
-`createStatusBar`, `createLobbyOverlay`, `createOptionsOverlay`,
-`createControlsOverlay`, `visibleOptions`, `updateSelectionOverlay`.
-These factories return the overlay structures that get merged into
-the per-frame render payload.
 
 ## Common operations
 
 ### Add a new UI overlay
-1. Add an overlay factory function to `render-ui-screens.ts` (or a
-   new file if it's large).
-2. Export it so `runtime-composition.ts` can import + inject it.
-3. Add a render slot in the composition (via the existing deps
-   pattern).
-4. Add a hit-test function if the overlay has interactive elements;
-   wire it in `runtime-render.ts` or `runtime-input.ts`.
+1. Add an overlay factory to `render-ui-screens.ts` (or
+   `render-ui-overlays.ts` if it's a thin transformer of runtime state).
+2. Export it; `runtime-composition.ts` imports + wires it via deps.
+3. Add an `overlay.ui.xxx` field in
+   `src/shared/ui/overlay-types.ts` and populate it from the runtime
+   subsystem that owns the state.
+4. Add a draw function in `render-ui.ts` (or `render-ui-settings.ts` for
+   modal screens) and call it from `render-map.ts` `drawMap`.
+5. If interactive, add a hit-test and wire it in the appropriate
+   `runtime-*.ts` input handler.
 
-### Add a new visual effect
-Effects usually live in `render-effects.ts`. Add a new draw
-function that takes an overlay field (e.g. `overlay.myNewEffect`)
-and draws it. Then add the overlay field to `RenderOverlay` in
-`src/shared/ui/overlay-types.ts` and populate it in whichever
-runtime subsystem owns the state.
+### Add a new world entity / visual effect
+World content lives in 3D. Add a manager under `3d/entities/` (entity)
+or `3d/effects/` (effect) exposing `update(frameCtx)`. Wire it into
+`3d/scene.ts` `createRender3dScene` and call its `update` from
+`3d/renderer.ts` `renderSceneToFBO`. Author the visual via a sprite
+scene (`3d/sprites/*-scene.ts`) and/or a procedural `CanvasTexture` in
+`3d/sprites/sprite-textures.ts`.
 
-### Add a new sprite
-1. Update the sprite atlas PNG + its JSON manifest.
-2. Add a draw call using `drawSprite("new-name", x, y)`.
-3. `render-sprites.ts` handles loading and caching.
-
-### Debug a missing draw call
-Add logging inside `drawFrame` in `render-canvas.ts` — it's called
-once per frame. If the per-frame call is happening but nothing
-appears, the issue is in the overlay (missing data from the
-runtime). If the call isn't happening, the issue is upstream in
-`runtime-render.ts` or the main loop.
+For one-shot modifier effects, prefer the `MODIFIER_EFFECT_FACTORIES`
+registry in `3d/effects/modifier-effect-registry.ts` — one factory entry
+adds an effect without touching the scene assembly.
 
 ## Gotchas
 
 - **`render/` is type-only from `runtime/` except through the
   composition root.** The `typeOnlyFrom` rule in
-  `.domain-boundaries.json` says runtime can import render TYPES
-  (e.g., `RendererInterface`) but can't import render FUNCTIONS.
-  The composition root is the one file allowed to import render
-  functions and thread them into the runtime via deps. Don't try
-  to import `render-composition.ts` from a runtime subsystem — the
-  lint will reject it.
+  `.domain-boundaries.json` says runtime can import render TYPES (e.g.
+  `RendererInterface`) but not render FUNCTIONS. The composition root
+  (`runtime/runtime-composition.ts`) is the one place allowed to import
+  render functions and thread them into the runtime via deps.
 
-- **Terrain caching is a correctness gotcha.** `warmMapCache(map)`
-  pre-rasterizes the static terrain layer. If you mutate the map
-  (e.g., high-tide modifier adds water tiles), you must re-warm the
-  cache. Existing modifier code does this; new modifiers must too.
+- **Terrain SDF cache is keyed by `mapVersion`.** Freeze/thaw or any
+  other tile mutation bumps `mapVersion`, which invalidates both the 2D
+  cache (`render-map.ts`) and the 3D shader's uploaded `DataTexture`
+  (`3d/effects/terrain-sdf-texture.ts`).
 
-- **Sprite atlas is fetched over HTTP.** Loading is async; the
-  entry point awaits `loadAtlas()` before showing the game. In
-  tests, the atlas is stubbed in `test/runtime-headless.ts`.
+- **`drawFrame` must be called EVEN WHEN NOTHING CHANGED.** Neither the
+  2D context nor the WebGL default framebuffer persists between frames
+  reliably (WebGL is double-buffered). The runtime's main loop calls it
+  unconditionally.
 
-- **`drawFrame` must be called EVEN WHEN NOTHING CHANGED.** The
-  canvas context doesn't persist between frames — if you skip a
-  frame, the previous frame's contents vanish. The runtime's main
-  loop calls it unconditionally; don't try to optimize by skipping
-  frames on identity-unchanged state.
+- **`skip3DScene` only affects the WebGL pipeline.** During banners the
+  2D layer composites pre-captured snapshots, so re-rendering the live
+  3D scene would be fully occluded. The 2D-only renderer ignores the
+  flag.
 
-- **Hit-tests are separate from drawing.** A button drawn at
-  `(x, y)` needs a matching hit-test function that checks if a
-  click at `(mx, my)` is inside the button rect. Keep them
-  consistent — if you change a button position, update both.
+- **Hit-tests are separate from drawing.** A button drawn at `(x, y)`
+  needs a matching hit-test function. Keep them consistent — if you
+  move a button, update both.
 
-- **UI overlays use scaled coordinates.** The canvas is drawn at
-  a logical resolution (MAP_PX_W × MAP_PX_H) and scaled to the
-  physical canvas. Hit-tests receive physical coords and divide by
-  SCALE. If your new UI element misfires on high-DPR displays, the
-  scale factor is probably wrong.
+- **UI overlays use scaled coordinates.** The 2D canvas is drawn at a
+  logical resolution and scaled to the physical canvas; hit-tests
+  receive physical coords and divide by `SCALE`.
 
 ## Related reading
 
 - **[src/runtime/runtime-render.ts](../runtime/runtime-render.ts)** —
-  The runtime subsystem that calls into this folder.
-- **[src/shared/ui/overlay-types.ts](../shared/ui/overlay-types.ts)**
-  — `RenderOverlay`, `EntityOverlay`, `CastleData`, `GameOverOverlay`,
-  `RendererInterface`. The types render consumes.
-- **[src/shared/ui/theme.ts](../shared/ui/theme.ts)** — Color
-  constants used by all render files.
-- **[src/shared/ui/canvas-layout.ts](../shared/ui/canvas-layout.ts)**
-  — Letterbox math for the canvas aspect ratio.
-- **[CLAUDE.md](../../CLAUDE.md)** — "Render" references under the
-  domain boundaries section.
+  Runtime subsystem that calls into this folder.
+- **[src/runtime/runtime-composition.ts](../runtime/runtime-composition.ts)** —
+  Composition root that picks the renderer and wires overlay factories.
+- **[src/shared/ui/overlay-types.ts](../shared/ui/overlay-types.ts)** —
+  `RendererInterface`, `RenderOverlay`, `UIOverlay`, `CastleData`,
+  `GameOverOverlay`, `BannerUi`, etc.
+- **[src/shared/ui/theme.ts](../shared/ui/theme.ts)** — color + font
+  constants shared by every draw function.
+- **[3d/sprites/CONVENTIONS.md](./3d/sprites/CONVENTIONS.md)** — sprite
+  scene authoring conventions.
+- **[CLAUDE.md](../../CLAUDE.md)** — "Directory structure" + "Module
+  layers" sections.

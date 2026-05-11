@@ -3,8 +3,7 @@
  * body, gabled red roof (triangular prism — ridge along `roof.ridgeAxis`,
  * default `'z'` so the gable shows above the +Z door), optional door,
  * up to one window per face. Same module shape as tower-scene.ts /
- * wall-scene.ts (VARIANTS, PALETTE, builder, pure-math helpers,
- * variantReport).
+ * wall-scene.ts (VARIANTS, PALETTE, builder, pure-math helpers).
  */
 
 import * as THREE from "three";

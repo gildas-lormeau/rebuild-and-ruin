@@ -102,10 +102,10 @@ export function createRender3d(
 
   // Loupe source canvas — a WebGL+2D composite. The loupe samples this
   // each frame to magnify "what the user sees", which in 3D mode is the
-  // world canvas (terrain + entities) overlaid with whatever the 2D
-  // renderer still draws (castles, UI). Lazily created on first access;
-  // sized to the 2D scene canvas so the magnification math in
-  // `render-loupe.ts` stays unchanged.
+  // world canvas (terrain + entities) overlaid with the 2D renderer's
+  // UI/HUD layer. Lazily created on first access; sized to the 2D scene
+  // canvas so the magnification math in `render-loupe.ts` stays
+  // unchanged.
   let loupeCompositeCanvas: HTMLCanvasElement | undefined;
   let loupeCompositeCtx: CanvasRenderingContext2D | undefined;
   function loupeCompositeSource(): HTMLCanvasElement {
@@ -368,10 +368,9 @@ export function createRender3d(
       canvas2d.screenToContainerCSS(sx, sy + TOP_MARGIN_CANVAS_PX),
     // Banner prev-scene snapshot in 3D mode: composite the live WebGL
     // world canvas (already viewport-cropped + tilted from the last
-    // `drawFrame`) with the 2D display canvas (castles, UI, anything not
-    // yet migrated) at display resolution. The snapshot therefore
-    // reflects exactly what was on screen at capture time — no camera
-    // reset, no re-render. `captureScene` runs synchronously from the
+    // `drawFrame`) with the 2D display canvas (UI/HUD overlay) at
+    // display resolution. The snapshot therefore reflects exactly what
+    // was on screen at capture time — no camera reset, no re-render. `captureScene` runs synchronously from the
     // phase-transition hook immediately after the most recent
     // `drawFrame`, so `worldCanvas` is live — no need for
     // `preserveDrawingBuffer` or an FBO readback. `drawImage(worldCanvas)`
