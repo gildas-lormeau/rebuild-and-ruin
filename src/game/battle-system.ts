@@ -81,7 +81,7 @@ import {
 } from "./combos.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifiers/dust-storm.ts";
-import { tickSupplyShips } from "./modifiers/supply-ship.ts";
+import { tickSupplyShips, tryHitSupplyShip } from "./modifiers/supply-ship.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,
@@ -698,6 +698,11 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
           },
         );
       }
+      // Supply-ship collision: any ship within HIT_RADIUS of the impact
+      // tile takes a hit. Mortar splash uses the center tile (single hit
+      // per shot, no splash-radius bonus). No-op when no supply_ship
+      // modifier is active.
+      tryHitSupplyShip(state, hit.col, hit.row, shooterId);
       impacts.push(hit);
     } else {
       remaining.push(ball);

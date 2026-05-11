@@ -72,6 +72,10 @@ export interface SupplyShip {
   readonly bonus: SupplyBonusId;
   /** Sink animation progress (0 → 1). Undefined while alive. */
   sinking?: { progress: number };
+  /** Player who landed the most recent hit. Reads as the kill credit
+   *  on sink. Undefined if the ship has not been hit (auto-sink at
+   *  junction). */
+  lastHitterId?: ValidPlayerSlot;
 }
 
 interface ModifierDef extends PoolDef<ModifierId> {

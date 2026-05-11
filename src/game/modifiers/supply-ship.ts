@@ -9,6 +9,7 @@ import type {
   SupplyBonusId,
   SupplyShip,
 } from "../../shared/core/modifier-defs.ts";
+import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
@@ -25,6 +26,10 @@ const SUPPLY_SHIP_SPEED = 1.8;
 const SUPPLY_SHIP_SINK_DURATION = 1.2;
 /** Distance threshold (tiles) for "arrived at junction" detection. */
 const JUNCTION_ARRIVAL_RADIUS = 1.0;
+/** Distance threshold (tiles) for a cannonball impact to count as a ship
+ *  hit. Generous (~1 tile) so leading a moving target feels rewarding
+ *  rather than punishing. Tuned with playtest. */
+const HIT_RADIUS = 1.0;
 /** One-round bonus pool. Each ship rolls one at spawn (hidden until
  *  sunk). Bonus application lands in the follow-up collision commit. */
 const BONUS_POOL: readonly SupplyBonusId[] = [
@@ -76,6 +81,43 @@ export function tickSupplyShips(state: GameState, dt: number): void {
       ship.sinking = { progress: 0 };
     }
   }
+}
+
+/** Register a cannonball hit on the supply ship nearest the impact tile,
+ *  if any are within `HIT_RADIUS`. Sinking ships and ships at hp 0 are
+ *  ignored (already done). Returns the hit outcome or null if no ship
+ *  was in range. Called by `tickCannonballs` after each impact resolves.
+ *
+ *  Deterministic: positions and hp are mirror-simulated, so host and
+ *  watcher reach the same hit/sink result without wire traffic. */
+export function tryHitSupplyShip(
+  state: GameState,
+  impactCol: number,
+  impactRow: number,
+  shooterId: ValidPlayerSlot,
+): void {
+  const ships = state.modern?.supplyShips;
+  if (!ships || ships.length === 0) return;
+
+  let closestIndex = -1;
+  let closestDistSq = HIT_RADIUS * HIT_RADIUS;
+  for (let i = 0; i < ships.length; i++) {
+    const ship = ships[i]!;
+    if (ship.sinking || ship.hp <= 0) continue;
+    const deltaCol = ship.position.col - impactCol;
+    const deltaRow = ship.position.row - impactRow;
+    const distSq = deltaCol * deltaCol + deltaRow * deltaRow;
+    if (distSq <= closestDistSq) {
+      closestDistSq = distSq;
+      closestIndex = i;
+    }
+  }
+  if (closestIndex < 0) return;
+
+  const ship = ships[closestIndex]!;
+  ship.hp -= 1;
+  ship.lastHitterId = shooterId;
+  if (ship.hp <= 0) ship.sinking = { progress: 0 };
 }
 
 function applySupplyShip(state: GameState): readonly number[] {
