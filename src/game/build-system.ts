@@ -37,6 +37,7 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import {
   advancePlayerBag,
   type FreshInterior,
+  findTowerOwner,
   isPlayerEliminated,
   isPlayerSeated,
   type Player,
@@ -484,10 +485,9 @@ function clearUnenclosedPendingRevives(state: GameState): void {
       toRemove.push(towerIdx);
       continue;
     }
-    const isEnclosed = state.players.some((player) =>
-      player.ownedTowers.includes(state.map.towers[towerIdx]!),
-    );
-    if (!isEnclosed) toRemove.push(towerIdx);
+    if (findTowerOwner(state.players, towerIdx) === undefined) {
+      toRemove.push(towerIdx);
+    }
   }
   for (const towerIdx of toRemove) state.towerPendingRevive.delete(towerIdx);
 }
