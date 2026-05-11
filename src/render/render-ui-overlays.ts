@@ -222,20 +222,18 @@ export function lifeLostButtonLayout(
 /** Pure spatial hit-test for upgrade pick cards.
  *  Returns the playerId and card index of the clicked card, or null. */
 export function handleUpgradePickClick(params: {
-  W: number;
-  H: number;
   dialog: UpgradePickDialogState;
   /** Canvas-pixel X coordinate (divided by SCALE internally for game-space hit testing). */
   screenX: number;
   /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
 }): { playerId: ValidPlayerSlot; cardIdx: number } | null {
-  const { W, H, dialog, screenX, screenY } = params;
+  const { dialog, screenX, screenY } = params;
   const gameX = screenX / SCALE;
   const gameY = screenY / SCALE;
   const entryH = upgradePickEntryH();
-  const startY = upgradePickStartY(H, dialog.entries.length);
-  const rowX = (W - UPGRADE_ROW_W) / 2;
+  const startY = upgradePickStartY(MAP_PX_H, dialog.entries.length);
+  const rowX = (MAP_PX_W - UPGRADE_ROW_W) / 2;
 
   for (let entryIdx = 0; entryIdx < dialog.entries.length; entryIdx++) {
     const entry = dialog.entries[entryIdx]!;
@@ -454,15 +452,20 @@ export function buildGameOverOverlay(
   };
 }
 
-/** Hit-test the game-over Rematch / Menu buttons. Coordinates in tile-pixel space. */
+/** Hit-test the game-over Rematch / Menu buttons.
+ *  Accepts canvas-pixel coords (divided by SCALE internally for game-space hit testing). */
 export function gameOverButtonHitTest(
-  tileX: number,
-  tileY: number,
-  W: number,
-  H: number,
+  canvasX: number,
+  canvasY: number,
   gameOver: GameOverOverlay,
 ): GameOverFocus | null {
-  const { btnW, btnY, rematchX, menuX } = gameOverLayout(W, H, gameOver.scores);
+  const tileX = canvasX / SCALE;
+  const tileY = canvasY / SCALE;
+  const { btnW, btnY, rematchX, menuX } = gameOverLayout(
+    MAP_PX_W,
+    MAP_PX_H,
+    gameOver.scores,
+  );
 
   if (
     tileX >= rematchX &&

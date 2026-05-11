@@ -49,16 +49,14 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
-import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
 import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import { selectRenderView } from "../shared/core/render-view.ts";
+import { selectRenderView, sunTFromState } from "../shared/core/render-view.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import type {
@@ -363,21 +361,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       timing.now(),
       camera.getPitch(),
       false,
-      computeSunT(),
+      sunTFromState(runtimeState.state),
       camera.getPitchMax(),
     );
-  }
-
-  /** Returns the sun-arc parameter the 3D renderer expects: `[0, 1]`
-   *  as battle progresses (`1 − timer / BATTLE_TIMER`), or `undefined`
-   *  in every other phase (which puts the lighting rig back into the
-   *  pre-feature "no shadow, full ambient" stance). State may not be
-   *  installed yet during early frames, hence the optional chain. */
-  function computeSunT(): number | undefined {
-    const state = runtimeState.state;
-    if (!state || state.phase !== Phase.BATTLE) return undefined;
-    const elapsed = BATTLE_TIMER - state.timer;
-    return Math.min(Math.max(elapsed / BATTLE_TIMER, 0), 1);
   }
 
   // -------------------------------------------------------------------------
@@ -508,7 +494,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         now,
         camera.getPitch(),
         skip3DScene,
-        computeSunT(),
+        sunTFromState(runtimeState.state),
         camera.getPitchMax(),
       ),
     captureSceneOffscreen: (map, overlay, viewport, now) =>
@@ -518,7 +504,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         viewport,
         now,
         camera.getPitch(),
-        computeSunT(),
+        sunTFromState(runtimeState.state),
         camera.getPitchMax(),
       ),
     onRenderedFrame: camera.onRenderedFrame,
@@ -588,13 +574,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       hitTestGameOver: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;
         if (!gameOver) return null;
-        return gameOverButtonHitTest(
-          canvasX / SCALE,
-          canvasY / SCALE,
-          MAP_PX_W,
-          MAP_PX_H,
-          gameOver,
-        );
+        return gameOverButtonHitTest(canvasX, canvasY, gameOver);
       },
       isTouchDevice: IS_TOUCH_DEVICE,
       buildGameOverOverlay,
@@ -829,8 +809,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       upgradePickClick: (screenX, screenY) => {
         if (!runtimeState.dialogs.upgradePick) return null;
         return handleUpgradePickClick({
-          W: MAP_PX_W,
-          H: MAP_PX_H,
           dialog: runtimeState.dialogs.upgradePick,
           screenX,
           screenY,

@@ -4,7 +4,7 @@ import type {
   CannonMode,
   Grunt,
 } from "./battle-types.ts";
-import type { ModifierId } from "./game-constants.ts";
+import { BATTLE_TIMER, type ModifierId } from "./game-constants.ts";
 import { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
@@ -117,4 +117,17 @@ export function selectRenderView(state: GameState): RenderView {
     case Phase.UPGRADE_PICK:
       return state as UpgradePickRenderView;
   }
+}
+
+/** Project GameState onto the sun-arc parameter the 3D renderer expects:
+ *  `[0, 1]` as battle progresses (`1 − timer / BATTLE_TIMER`), or `undefined`
+ *  in every other phase (which puts the lighting rig back into the
+ *  pre-feature "no shadow, full ambient" stance). Accepts a nullable state
+ *  so callers don't need to gate on pre-install frames. */
+export function sunTFromState(
+  state: GameState | null | undefined,
+): number | undefined {
+  if (!state || state.phase !== Phase.BATTLE) return undefined;
+  const elapsed = BATTLE_TIMER - state.timer;
+  return Math.min(Math.max(elapsed / BATTLE_TIMER, 0), 1);
 }
