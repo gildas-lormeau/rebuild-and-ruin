@@ -262,9 +262,7 @@ export function towerAtPixel(
   return bestIdx;
 }
 
-/** Drop every item whose tile lies inside `tiles`. Used by tile-set
- *  evictors (entomb, frozen-river thaw, foundations, modifier eviction)
- *  to remove grunts / bonus squares / burning pits at a set of positions. */
+/** Drop every item whose tile lies inside `tiles`. */
 export function filterOffTiles<T extends TilePos>(
   items: readonly T[],
   tiles: ReadonlySet<number>,

@@ -68,9 +68,6 @@ function clearFrozenRiver(state: GameState): void {
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (modern.frozenTiles) {
     state.grunts = filterOffTiles(state.grunts, modern.frozenTiles);
-    // Same symmetric reset as apply — survivors otherwise carry a
-    // cross-zone targetedWall (read by the sapper reveal banner) into
-    // the next round.
     state.grunts.forEach(resetGruntTargeting);
   }
   modern.frozenTiles = null;
