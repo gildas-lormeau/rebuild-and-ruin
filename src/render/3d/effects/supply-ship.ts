@@ -8,14 +8,17 @@
  */
 
 import * as THREE from "three";
+import { MODIFIER_ID } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
 import type { OverlaySupplyShip } from "../../../shared/ui/overlay-types.ts";
+import { Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import {
   buildSupplyShip,
   getSupplyShipVariant,
 } from "../sprites/supply-ship-scene.ts";
 import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
+import { createFlatDisc } from "./helpers.ts";
 
 interface BubbleSprite {
   sprite: THREE.Sprite;
@@ -34,6 +37,14 @@ interface ShipHost {
   id: number;
   /** Bubble billboards owned by this host (live under `group`). */
   bubbles: BubbleSprite[];
+  /** Reveal-halo sub-group — sibling of `group` under `root` so it
+   *  inherits no scale from the TILE-scaled ship group. Positioned to
+   *  the ship's world coords each frame. */
+  haloGroup: THREE.Group;
+  haloDisc: THREE.Mesh;
+  haloDiscMaterial: THREE.MeshBasicMaterial;
+  haloFlash: THREE.Mesh;
+  haloFlashMaterial: THREE.MeshBasicMaterial;
 }
 
 /** Waterline elevation. Authored locally rather than via
@@ -79,6 +90,22 @@ const BUBBLE_RISE_SPEED = 6;
 const BUBBLE_BASE_SIZE = 3;
 const BUBBLE_SIZE_GROWTH = 4;
 const BUBBLE_COLOR = 0xc8d6dc;
+/** Reveal-halo pulse — one-shot per ship during MODIFIER_REVEAL. Plays
+ *  exactly once when `ctx.overlay.ui.modifierReveal.modifierId` matches
+ *  this modifier, then hides until the next reveal. `revealTimeMs`
+ *  stays 0 during the banner-snapshot capture window and rolls forward
+ *  post-sweep — so the halo is invisible in the static snapshot and
+ *  fires during the post-sweep dwell as intended. */
+const HALO_PULSE_DURATION_MS = 800;
+const HALO_FLASH_DURATION_MS = 200;
+const HALO_DISC_MIN_RADIUS = TILE_SIZE * 0.8;
+const HALO_DISC_MAX_RADIUS = TILE_SIZE * 2.4;
+const HALO_FLASH_MIN_RADIUS = TILE_SIZE * 0.4;
+const HALO_FLASH_MAX_RADIUS = TILE_SIZE * 2.0;
+const HALO_DISC_PEAK_OPACITY = 0.5;
+const HALO_FLASH_PEAK_OPACITY = 1.0;
+const HALO_DISC_COLOR = 0xffd84a;
+const HALO_FLASH_COLOR = 0xffffff;
 
 export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
   const root = new THREE.Group();
@@ -92,6 +119,10 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
   // a soft radial gradient with a few overlay blobs, which doubles
   // cleanly as an air-bubble billboard under a cool tint.
   const bubbleTexture = getSharedSmokeTexture();
+  // Shared geometry for the reveal-halo disc + flash ring — both meshes
+  // animate via material opacity + scale, never via geometry replacement,
+  // so a single circle does for every ship.
+  const haloGeometry = createFlatDisc();
 
   /** Fingerprint of the current ship-id set — cheap rebuild guard. The
    *  expensive per-host work (geometry build + material allocation)
@@ -137,7 +168,40 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       });
     }
 
-    return { group, id, bubbles };
+    // Reveal-halo lives as a sibling of `group` under `root` so the
+    // host group's TILE_SIZE scale doesn't leak into the halo radii —
+    // they're authored directly in world units.
+    const haloGroup = new THREE.Group();
+    haloGroup.visible = false;
+    const haloDiscMaterial = new THREE.MeshBasicMaterial({
+      color: HALO_DISC_COLOR,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const haloDisc = new THREE.Mesh(haloGeometry, haloDiscMaterial);
+    haloGroup.add(haloDisc);
+    const haloFlashMaterial = new THREE.MeshBasicMaterial({
+      color: HALO_FLASH_COLOR,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const haloFlash = new THREE.Mesh(haloGeometry, haloFlashMaterial);
+    haloFlash.position.y = Z_FIGHT_MARGIN;
+    haloGroup.add(haloFlash);
+    root.add(haloGroup);
+
+    return {
+      group,
+      id,
+      bubbles,
+      haloGroup,
+      haloDisc,
+      haloDiscMaterial,
+      haloFlash,
+      haloFlashMaterial,
+    };
   }
 
   function disposeHost(host: ShipHost): void {
@@ -154,6 +218,9 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       }
     });
     root.remove(host.group);
+    host.haloDiscMaterial.dispose();
+    host.haloFlashMaterial.dispose();
+    root.remove(host.haloGroup);
   }
 
   function animateBubbles(host: ShipHost, dtSec: number): void {
@@ -213,6 +280,14 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       lastIdFingerprint = fingerprint;
     }
 
+    // Reveal-halo: active only when the current modifier reveal targets
+    // `supply_ship`. `revealTimeMs` is `0` during the snapshot capture
+    // window and rolls forward post-sweep, so the halo stays hidden in
+    // the static snapshot and animates during the post-sweep dwell.
+    const reveal = ctx.overlay?.ui?.modifierReveal;
+    const revealTimeMs =
+      reveal?.modifierId === MODIFIER_ID.SUPPLY_SHIP ? reveal.revealTimeMs : -1;
+
     seen.clear();
     for (const ship of ships) {
       seen.add(ship.id);
@@ -222,6 +297,8 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
         hosts.set(ship.id, host);
       }
       animateShip(host, ship, ctx.now, dtSec);
+      if (revealTimeMs >= 0) animateHalo(host, ship, revealTimeMs);
+      else hideHalo(host);
     }
 
     // Dispose any host whose ship has vanished from the overlay. The
@@ -301,9 +378,57 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     void ship.hpFrac;
   }
 
+  function animateHalo(
+    host: ShipHost,
+    ship: OverlaySupplyShip,
+    revealTimeMs: number,
+  ): void {
+    // <=0 catches the snapshot window (revealTimeMs holds at 0 there);
+    // >=duration ends the one-shot pulse.
+    if (revealTimeMs <= 0 || revealTimeMs >= HALO_PULSE_DURATION_MS) {
+      hideHalo(host);
+      return;
+    }
+    host.haloGroup.visible = true;
+    // Pin to the ship's world XZ at the waterline. Independent of the
+    // ship group's bob/sink Y so the halo always reads as "on the water".
+    host.haloGroup.position.set(ship.x, WATER_Y + Z_FIGHT_MARGIN, ship.y);
+
+    // Disc: grows linearly, opacity peaks at the pulse midpoint then fades.
+    const progress = revealTimeMs / HALO_PULSE_DURATION_MS;
+    const discRadius =
+      HALO_DISC_MIN_RADIUS +
+      (HALO_DISC_MAX_RADIUS - HALO_DISC_MIN_RADIUS) * progress;
+    const discAlpha =
+      (progress < 0.5 ? progress * 2 : (1 - progress) * 2) *
+      HALO_DISC_PEAK_OPACITY;
+    host.haloDiscMaterial.opacity = discAlpha;
+    host.haloDisc.scale.set(discRadius, 1, discRadius);
+    host.haloDisc.visible = true;
+
+    // Flash ring: sharp burst that expires before the disc fade-out.
+    if (revealTimeMs < HALO_FLASH_DURATION_MS) {
+      const flashProgress = revealTimeMs / HALO_FLASH_DURATION_MS;
+      const flashRadius =
+        HALO_FLASH_MIN_RADIUS +
+        (HALO_FLASH_MAX_RADIUS - HALO_FLASH_MIN_RADIUS) * flashProgress;
+      host.haloFlashMaterial.opacity =
+        (1 - flashProgress) * HALO_FLASH_PEAK_OPACITY;
+      host.haloFlash.scale.set(flashRadius, 1, flashRadius);
+      host.haloFlash.visible = true;
+    } else {
+      host.haloFlash.visible = false;
+    }
+  }
+
+  function hideHalo(host: ShipHost): void {
+    host.haloGroup.visible = false;
+  }
+
   function dispose(): void {
     for (const host of hosts.values()) disposeHost(host);
     hosts.clear();
+    haloGeometry.dispose();
     scene.remove(root);
   }
 
