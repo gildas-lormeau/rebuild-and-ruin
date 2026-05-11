@@ -1362,8 +1362,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     onPinchEnd,
     centerCameraOnTap,
     povPlayerId,
-    getMyZone,
-    getBestEnemyZone,
     getEnemyZones,
     awaitCameraFlat,
     awaitPitchSettled,

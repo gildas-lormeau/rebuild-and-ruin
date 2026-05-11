@@ -327,8 +327,6 @@ export interface CameraSystem {
 
   // Zone queries
   povPlayerId: () => number;
-  getMyZone: () => ZoneId | null;
-  getBestEnemyZone: () => ZoneId | null;
   getEnemyZones: () => ZoneId[];
 
   // Zoom state
