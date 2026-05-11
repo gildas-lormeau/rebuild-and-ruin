@@ -6,6 +6,7 @@
  * Thaw kills grunts stranded on water tiles.
  */
 
+import type { Grunt } from "../../shared/core/battle-types.ts";
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
@@ -54,13 +55,7 @@ function applyFrozenRiver(state: GameState): ReadonlySet<number> {
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
-  // Null every target-derived field so stale handles from before the freeze
-  // don't outlive their target tower.
-  for (const grunt of state.grunts) {
-    grunt.targetTowerIdx = undefined;
-    grunt.targetedWall = undefined;
-    grunt.attackCountdown = undefined;
-  }
+  state.grunts.forEach(resetGruntTargeting);
   return frozen;
 }
 
@@ -73,15 +68,20 @@ function clearFrozenRiver(state: GameState): void {
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (modern.frozenTiles) {
     state.grunts = filterOffTiles(state.grunts, modern.frozenTiles);
-    // Same symmetric reset as apply — null every target-derived field so
-    // grunts stranded on the far bank don't carry a cross-zone targetedWall
-    // (read by the sapper reveal banner) into the next round.
-    for (const grunt of state.grunts) {
-      grunt.targetTowerIdx = undefined;
-      grunt.targetedWall = undefined;
-      grunt.attackCountdown = undefined;
-    }
+    // Same symmetric reset as apply — survivors otherwise carry a
+    // cross-zone targetedWall (read by the sapper reveal banner) into
+    // the next round.
+    state.grunts.forEach(resetGruntTargeting);
   }
   modern.frozenTiles = null;
   state.map.mapVersion++;
+}
+
+/** Clear every target-derived field on a grunt. Used by frozen-river
+ *  apply (zones opening invalidates same-zone targets) and thaw (zones
+ *  closing invalidates cross-zone targets). */
+function resetGruntTargeting(grunt: Grunt): void {
+  grunt.targetTowerIdx = undefined;
+  grunt.targetedWall = undefined;
+  grunt.attackCountdown = undefined;
 }
