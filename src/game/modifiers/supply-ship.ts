@@ -30,6 +30,10 @@ const JUNCTION_ARRIVAL_RADIUS = 1.0;
  *  hit. Generous (~1 tile) so leading a moving target feels rewarding
  *  rather than punishing. Tuned with playtest. */
 const HIT_RADIUS = 1.0;
+/** Seconds added to WALL_BUILD timer per consumed `extra_build_time`
+ *  bonus. Matches Master Builder's `MASTER_BUILDER_BONUS_SECONDS` so
+ *  the player intuition of "+5s build" is consistent across sources. */
+const EXTRA_BUILD_TIME_SECONDS = 5;
 /** One-round bonus pool. Each ship rolls one at spawn (hidden until
  *  sunk). Bonus application lands in the follow-up collision commit. */
 const BONUS_POOL: readonly SupplyBonusId[] = [
@@ -117,7 +121,65 @@ export function tryHitSupplyShip(
   const ship = ships[closestIndex]!;
   ship.hp -= 1;
   ship.lastHitterId = shooterId;
-  if (ship.hp <= 0) ship.sinking = { progress: 0 };
+  if (ship.hp <= 0) {
+    ship.sinking = { progress: 0 };
+    queueSupplyBonus(state, shooterId, ship.bonus);
+  }
+}
+
+/** Total seconds added to the WALL_BUILD timer this round from supply
+ *  ship `extra_build_time` bonuses across all players. Each consumed
+ *  bonus contributes `EXTRA_BUILD_TIME_SECONDS`. Called from
+ *  `enterWallBuildPhase`. Drains the consumed entries. */
+export function supplyShipBuildTimerBonus(state: GameState): number {
+  const pending = state.modern?.pendingSupplyBonuses;
+  if (!pending) return 0;
+  let totalSeconds = 0;
+  for (const playerId of [...pending.keys()]) {
+    const consumed = consumeSupplyBonuses(state, playerId, "extra_build_time");
+    totalSeconds += consumed * EXTRA_BUILD_TIME_SECONDS;
+  }
+  return totalSeconds;
+}
+
+/** Consume all queued bonuses of `bonusType` for `playerId`, returning
+ *  the count. Each call drains the matching entries; subsequent calls
+ *  return 0 until new bonuses are queued. Used by phase-entry hooks
+ *  (e.g. cannon-limit computation) to materialize one-round effects. */
+export function consumeSupplyBonuses(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  bonusType: SupplyBonusId,
+): number {
+  const pending = state.modern?.pendingSupplyBonuses;
+  if (!pending) return 0;
+  const queue = pending.get(playerId);
+  if (!queue) return 0;
+  let count = 0;
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (queue[i] === bonusType) {
+      count += 1;
+      queue.splice(i, 1);
+    }
+  }
+  if (queue.length === 0) pending.delete(playerId);
+  if (pending.size === 0 && state.modern)
+    state.modern.pendingSupplyBonuses = null;
+  return count;
+}
+
+function queueSupplyBonus(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  bonus: SupplyBonusId,
+): void {
+  if (!state.modern) return;
+  if (!state.modern.pendingSupplyBonuses) {
+    state.modern.pendingSupplyBonuses = new Map();
+  }
+  const queue = state.modern.pendingSupplyBonuses.get(playerId) ?? [];
+  queue.push(bonus);
+  state.modern.pendingSupplyBonuses.set(playerId, queue);
 }
 
 function applySupplyShip(state: GameState): readonly number[] {

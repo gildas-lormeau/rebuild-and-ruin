@@ -51,6 +51,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import { type GameState } from "../shared/core/types.ts";
+import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import { cannonSlotsBonus, onCannonPlaced } from "./upgrade-system.ts";
 import { rapidEmplacementDiscount } from "./upgrades/rapid-emplacement.ts";
 
@@ -408,7 +409,12 @@ function computeCannonLimitsForPhase(state: GameState): void {
   state.cannonLimits = state.players.map((player, idx) => {
     const base = cannonSlotsForRound(player, state);
     const salvage = state.salvageSlots[idx] ?? 0;
-    return base + cannonSlotsBonus(player) + salvage;
+    const supplyShipBonus = consumeSupplyBonuses(
+      state,
+      idx as ValidPlayerSlot,
+      "extra_cannon",
+    );
+    return base + cannonSlotsBonus(player) + salvage + supplyShipBonus;
   });
   state.salvageSlots = state.players.map(() => 0);
 }

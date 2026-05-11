@@ -23,7 +23,11 @@ import {
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
-import type { RubbleClearingHeld, SupplyShip } from "./modifier-defs.ts";
+import type {
+  RubbleClearingHeld,
+  SupplyBonusId,
+  SupplyShip,
+} from "./modifier-defs.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
@@ -252,6 +256,13 @@ export interface ModernState {
    *  Cleared back to null at battle end. AI ignores these entries by
    *  design — the modifier is a human-favoring catch-up bonus. */
   supplyShips: SupplyShip[] | null;
+  /** Per-player queue of one-round supply-ship bonuses pending
+   *  consumption. Pushed onto by `tryHitSupplyShip` when a ship sinks
+   *  (credited to `lastHitterId`); drained by each bonus type's
+   *  consumer at the relevant phase entry. Spans round boundaries
+   *  (not cleared in the modifier's `clear`) so a sink late in a
+   *  battle still benefits the closing/next phase. */
+  pendingSupplyBonuses: Map<ValidPlayerSlot, SupplyBonusId[]> | null;
 }
 
 /** Player selection lobby state. */
@@ -374,5 +385,6 @@ function createModernState(): ModernState {
     precomputedDustStormJitters: [],
     rubbleClearingHeld: null,
     supplyShips: null,
+    pendingSupplyBonuses: null,
   };
 }

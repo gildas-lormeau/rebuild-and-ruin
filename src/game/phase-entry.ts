@@ -21,6 +21,7 @@ import {
   prepareCannonPhase,
   prepareControllerCannonPhase,
 } from "./cannon-system.ts";
+import { supplyShipBuildTimerBonus } from "./modifiers/supply-ship.ts";
 import { prepareBattleState, setPhase } from "./phase-setup.ts";
 import { initSelectionTimer, initTowerSelection } from "./selection.ts";
 import { buildTimerBonus } from "./upgrade-system.ts";
@@ -94,7 +95,10 @@ export function enterUpgradePickPhase(state: GameState): void {
  *  PREVIOUS round's bonuses and diverge host vs watcher on phase length. */
 export function enterWallBuildPhase(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
-  state.timer = state.buildTimer + buildTimerBonus(state);
+  state.timer =
+    state.buildTimer +
+    buildTimerBonus(state) +
+    supplyShipBuildTimerBonus(state);
 }
 
 /** Enter the cannon placement phase. Sets the phase flag, computes cannon
