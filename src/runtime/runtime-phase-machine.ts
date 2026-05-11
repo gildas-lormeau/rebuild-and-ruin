@@ -150,7 +150,7 @@ interface Transition {
 
 /** Minimal battle-lifecycle hooks the machine needs to drive the post-
  *  battle-banner step (balloon anim or beginBattle). */
-export interface BattleLifecycle {
+interface BattleLifecycle {
   readonly setFlights: (
     flights: { flight: BalloonFlight; progress: number }[],
   ) => void;
