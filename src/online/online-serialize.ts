@@ -169,6 +169,16 @@ export function restoreFullStateSnapshot(
       ? new Set(msg.masterBuilderOwners as ValidPlayerSlot[])
       : null;
   }
+  if (hasFeature(state, FID.COMBOS)) {
+    // Counters only — cosmetic events are not wired (late joiners don't
+    // render streak floats they missed; see protocol.ts comboTracker doc).
+    state.modern!.comboTracker = msg.comboTracker
+      ? {
+          players: msg.comboTracker.map((player) => ({ ...player })),
+          events: [],
+        }
+      : null;
+  }
   state.burningPits = msg.burningPits.map((pit) => ({
     row: pit.row,
     col: pit.col,
@@ -390,6 +400,15 @@ function serializeModernFields(state: GameState) {
       ? [...state.modern.masterBuilderOwners]
       : null,
     rubbleClearingHeld: state.modern?.rubbleClearingHeld ?? null,
+    comboTracker: state.modern?.comboTracker
+      ? state.modern.comboTracker.players.map((player) => ({
+          lastWallHitTime: player.lastWallHitTime,
+          wallStreak: player.wallStreak,
+          lastGruntKillTime: player.lastGruntKillTime,
+          gruntStreak: player.gruntStreak,
+          wallsDestroyedThisRound: player.wallsDestroyedThisRound,
+        }))
+      : null,
     ...serializeModifierTileSets(state),
   };
 }

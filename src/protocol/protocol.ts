@@ -232,6 +232,23 @@ export interface FullStateMessage extends SerializedModifierTiles {
   precomputedDustStormJitters?: number[];
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
+  /** Per-player combo counters from `state.modern.comboTracker.players`.
+   *  Late-joiners mid-battle need these to compute the demolition bonus
+   *  correctly at battle-end — the tracker is created on every peer at
+   *  battle start and populated via mirror-simulated impact events, but
+   *  a peer joining mid-battle misses the early impacts and would
+   *  otherwise see `wallsDestroyedThisRound: 0`. Cosmetic `events`
+   *  (floating-text queue) intentionally omitted — late joiners don't
+   *  need to render streak floats they missed. */
+  comboTracker?:
+    | {
+        lastWallHitTime: number;
+        wallStreak: number;
+        lastGruntKillTime: number;
+        gruntStreak: number;
+        wallsDestroyedThisRound: number;
+      }[]
+    | null;
   // Modifier tile sets (frozenTiles, highTideTiles, sinkholeTiles,
   // lowWaterTiles) come from `extends SerializedModifierTiles` above.
   /** Pre-removal entity snapshot from `rubble_clearing` modifier — drives
