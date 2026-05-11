@@ -5,7 +5,11 @@
  */
 
 import type { TouchControlsDeps } from "../runtime/runtime-contracts.ts";
-import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
+import {
+  isPlacementPhase,
+  isTimedPhase,
+  Phase,
+} from "../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
@@ -128,9 +132,7 @@ export function updateTouchControls(deps: TouchControlsDeps): void {
 function updateLoupe(deps: TouchControlsDeps): void {
   if (!deps.loupeHandle) return;
   const phase = deps.state.phase;
-  const loupeVisible =
-    deps.mode === Mode.GAME &&
-    (isPlacementPhase(phase) || phase === Phase.BATTLE);
+  const loupeVisible = deps.mode === Mode.GAME && isTimedPhase(phase);
   const human = deps.pointerPlayer();
   let wx = 0;
   let wy = 0;

@@ -13,6 +13,7 @@ import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   hasPitAt,
+  inBounds,
   isCannonTile,
   isTowerTile,
   isWater,
@@ -191,7 +192,7 @@ export function buildGrid(
   for (const ball of state.cannonballs) {
     const row = Math.round(ball.y / TILE_SIZE);
     const col = Math.round(ball.x / TILE_SIZE);
-    if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+    if (inBounds(row, col)) {
       setCell(grid, row, col, CellKind.Cannonball, "o", -1);
     }
   }

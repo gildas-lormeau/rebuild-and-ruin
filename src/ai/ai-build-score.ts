@@ -17,6 +17,7 @@ import {
   computeOutsideAfterAdd,
   DIRS_4,
   isWater,
+  manhattanDistance,
   packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -442,9 +443,12 @@ function computeTowerProximityBonus(
   for (const tower of zoneTowers) {
     if (ownedTowers.includes(tower)) continue;
     for (const [dr, dc] of candidate.piece.offsets) {
-      const distance =
-        Math.abs(candidate.row + dr - (tower.row + 0.5)) +
-        Math.abs(candidate.col + dc - (tower.col + 0.5));
+      const distance = manhattanDistance(
+        candidate.row + dr,
+        candidate.col + dc,
+        tower.row + 0.5,
+        tower.col + 0.5,
+      );
       towerProximityBonus = Math.max(
         towerProximityBonus,
         Math.max(0, TOWER_PROXIMITY_RANGE - distance) * TOWER_PROXIMITY_FACTOR,
@@ -491,9 +495,12 @@ function computeCursorProximityBonus(
 
   let avgDistance = 0;
   for (const [dr, dc] of candidate.piece.offsets) {
-    avgDistance +=
-      Math.abs(candidate.row + dr - cursorPos.row) +
-      Math.abs(candidate.col + dc - cursorPos.col);
+    avgDistance += manhattanDistance(
+      candidate.row + dr,
+      candidate.col + dc,
+      cursorPos.row,
+      cursorPos.col,
+    );
   }
   avgDistance /= candidate.piece.offsets.length;
   return (

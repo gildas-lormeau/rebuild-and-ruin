@@ -20,7 +20,7 @@ import {
   type CameraTargetSource,
   GAME_EVENT,
 } from "../shared/core/game-event-bus.ts";
-import { Phase } from "../shared/core/game-phase.ts";
+import { isPlacementPhase, Phase } from "../shared/core/game-phase.ts";
 import type {
   GameMap,
   TileBounds,
@@ -623,7 +623,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function focusBoundsForEdgePan(
     phase: Phase,
   ): { minX: number; minY: number; maxX: number; maxY: number } | null {
-    if (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) {
+    if (isPlacementPhase(phase)) {
       const tile = pointerPhantomTileBounds(phase);
       if (!tile) return null;
       return {

@@ -13,8 +13,10 @@ import type {
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../shared/core/grid.ts";
 import {
+  inBounds,
   isGrass,
   isWater,
+  manhattanDistance,
   packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -390,9 +392,12 @@ function placeTowers(
     let bestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < validPositions.length; i++) {
-      const distance =
-        Math.abs(validPositions[i]![0] - centroidC) +
-        Math.abs(validPositions[i]![1] - centroidR);
+      const distance = manhattanDistance(
+        validPositions[i]![0],
+        validPositions[i]![1],
+        centroidC,
+        centroidR,
+      );
       if (distance < bestDist) {
         bestDist = distance;
         bestIdx = i;
@@ -548,14 +553,7 @@ export function floodFillZones(tiles: readonly Tile[][]): {
   const queue: number[] = [];
 
   const tryEnqueue = (r: number, c: number, rid: number): void => {
-    if (
-      r >= 0 &&
-      r < GRID_ROWS &&
-      c >= 0 &&
-      c < GRID_COLS &&
-      zones[r]![c] === 0 &&
-      isGrass(tiles, r, c)
-    ) {
+    if (inBounds(r, c) && zones[r]![c] === 0 && isGrass(tiles, r, c)) {
       zones[r]![c] = rid;
       queue.push(packTile(r, c));
     }

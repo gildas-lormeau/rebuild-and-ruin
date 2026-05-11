@@ -14,6 +14,7 @@ import {
   isCannonTile,
   isGrass,
   isTowerTile,
+  manhattanDistance,
   packTile,
   unpackTile,
 } from "../shared/core/spatial.ts";
@@ -382,8 +383,12 @@ function candidateRingDistanceForTower(
 
   const centerR = tower.row + 0.5;
   const centerC = tower.col + 0.5;
-  const distance =
-    Math.abs(candidate.row - centerR) + Math.abs(candidate.col - centerC);
+  const distance = manhattanDistance(
+    candidate.row,
+    candidate.col,
+    centerR,
+    centerC,
+  );
 
   return { distance, tooClose };
 }
