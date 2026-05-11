@@ -8,7 +8,7 @@ import type { BonusSquare } from "./geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import { isPlayerAlive, type Player } from "./player-types.ts";
+import { isPlayerAlive, type Player, playerByZone } from "./player-types.ts";
 import {
   cannonSize,
   computeCannonTileSet,
@@ -25,6 +25,7 @@ import {
   zoneAt,
 } from "./spatial.ts";
 import type { GameViewState } from "./system-interfaces.ts";
+import type { ZoneId } from "./zone-id.ts";
 
 /** Pre-built tile-key Sets for fast O(1) occupancy checks.
  *  Build once via `buildOccupancyCache`, then pass to `canPlacePiece`
@@ -255,16 +256,13 @@ export function computeCardinalObstacleMask(
 /** Return the player id that owns the zone at (row, col), or 0 if no owner found.
  *  Uses playerZones (stable across elimination) rather than homeTower (nulled on elimination). */
 export function zoneOwnerIdAt(
-  state: GameViewState & { readonly playerZones: readonly number[] },
+  state: GameViewState & { readonly playerZones: readonly ZoneId[] },
   row: number,
   col: number,
 ): ValidPlayerSlot {
   const zone = zoneAt(state.map, row, col);
   if (zone === undefined) return 0 as ValidPlayerSlot;
-  for (let pid = 0; pid < state.playerZones.length; pid++) {
-    if (state.playerZones[pid] === zone) return pid as ValidPlayerSlot;
-  }
-  return 0 as ValidPlayerSlot;
+  return (playerByZone(state.playerZones, zone) ?? 0) as ValidPlayerSlot;
 }
 
 export function buildOccupancyCache(
