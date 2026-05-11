@@ -7,6 +7,7 @@ import type {
 import { BATTLE_TIMER, type ModifierId } from "./game-constants.ts";
 import { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { SupplyShip } from "./modifier-defs.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { ComboEvent, GameState } from "./types.ts";
@@ -42,6 +43,9 @@ interface RenderModernSlice {
       readonly tier: 1 | 2 | 3;
     }[];
   } | null;
+  /** Active supply ships — read by the overlay composer to project
+   *  position + heading + hp + sink progress to the 3D ship manager. */
+  readonly supplyShips: readonly SupplyShip[] | null;
 }
 
 /** Shared fields the renderer reads regardless of phase.

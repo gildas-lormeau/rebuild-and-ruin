@@ -201,6 +201,24 @@ export interface OverlayBalloon {
   progress: number;
 }
 
+/** Supply-ship render projection. Bonus is intentionally NOT carried
+ *  to the renderer — it's hidden until the ship sinks. The 3D manager
+ *  reads position + facing each frame, drives idle bob, and runs the
+ *  sink animation when `sinking` is present. */
+export interface OverlaySupplyShip {
+  readonly id: number;
+  /** World-pixel position (col * TILE_SIZE + offset). */
+  readonly x: number;
+  /** World-pixel position (row * TILE_SIZE + offset). Maps to scene Z. */
+  readonly y: number;
+  /** Facing direction in radians; 0 = +X. */
+  readonly headingRad: number;
+  /** Remaining HP as a fraction (1 = pristine, 0.5 = damaged, 0 = sinking). */
+  readonly hpFrac: number;
+  /** Sink animation progress (0 → 1). Absent while alive. */
+  readonly sinking?: { readonly progress: number };
+}
+
 /** Battle phase — projectiles, effects, territory state. */
 export interface BattleOverlay {
   cannonballs?: readonly OverlayCannonball[];
@@ -294,6 +312,9 @@ export interface BattleOverlay {
    *  which slots to tint. Stable across the MODIFIER_REVEAL phase
    *  (grunts don't move pre-battle). */
   gruntSurgeSpawnTiles?: readonly number[];
+  /** Supply ships sailing the Y-river during battle. Undefined when no
+   *  supply_ship modifier is active or when the ship list is empty. */
+  supplyShips?: readonly OverlaySupplyShip[];
 }
 
 /** Display content carried by a banner unchanged across its three layers

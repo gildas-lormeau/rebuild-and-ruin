@@ -66,6 +66,8 @@ const MODERN_STATE_EXCLUSIONS: Record<string, string> = {
     "transient — created at battle start, cleared at battle end; scoring is already reflected in player.score",
   rubbleClearingHeld:
     "purely presentational — captured deterministically by `rubbleClearingImpl.apply` on every peer (same input state → same snapshot), drives the renderer's fade-out via `overlay.battle.rubbleClearingFade` for ~1.1s post-banner-sweep, then cleared at next prepareBattleState. Late-joining watchers may miss the fade animation but gameplay state is unaffected (the entities are already removed)",
+  supplyShips:
+    "scaffolding — field exists ahead of the supply_ship modifier's gameplay impl. Always null today (no producer). Wire payload will land alongside the impl in the follow-up commit; remove this exclusion at that point.",
 };
 
 main();

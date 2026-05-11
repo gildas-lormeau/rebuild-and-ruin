@@ -16,10 +16,16 @@
       "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
@@ -52,6 +58,9 @@
       "pair": "CannonPlacement@src/ai/ai-strategy-cannon.ts ↔ PlaceCannonIntent@src/shared/core/system-interfaces.ts"
     },
     {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
       "pair": "Castle@src/shared/core/geometry-types.ts ↔ TileRect@src/shared/core/geometry-types.ts"
     },
     {
@@ -70,13 +79,31 @@
       "pair": "FlamePool@src/render/3d/effects/fire-burst.ts ↔ FlashPool@src/render/3d/effects/fire-burst.ts"
     },
     {
+      "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ MastParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
+      "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"
+    },
+    {
       "pair": "GameState@src/shared/core/types.ts ↔ ResolvedGameConfig@src/runtime/runtime-bootstrap.ts"
     },
     {
       "pair": "LobbySystem@src/runtime/runtime-lobby.ts ↔ RuntimeLobby@src/runtime/runtime-types.ts"
     },
     {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"
+    },
+    {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
       "pair": "OverlayBalloon@src/shared/ui/overlay-types.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
+    },
+    {
+      "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ TouchPoint@src/input/input-recorder.ts"
     },
     {
       "pair": "PieceShapePayload@src/shared/core/phantom-types.ts ↔ ScheduledPiecePlacement@src/game/scheduled-actions.ts"
@@ -145,6 +172,9 @@
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ BoxShapeParams@src/render/3d/sprites/sprite-kit.ts"
     },
     {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
     },
     {
@@ -152,6 +182,9 @@
     },
     {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ HullParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
@@ -164,6 +197,9 @@
     },
     {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ RoofPlacement@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "BasketParams@src/render/3d/sprites/balloon-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
@@ -193,19 +229,22 @@
       "pair": "BattleHost@src/ai/ai-phase-battle.ts ↔ SelectionHost@src/ai/ai-phase-select.ts"
     },
     {
-      "pair": "BattleOverlay@src/shared/ui/overlay-types.ts ↔ OnlineOverlayParams@src/runtime/runtime-contracts.ts"
-    },
-    {
       "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
     },
     {
       "pair": "BattleViewState@src/shared/core/system-interfaces.ts ↔ RenderViewShared@src/shared/core/render-view.ts"
     },
     {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
@@ -215,6 +254,9 @@
     },
     {
       "pair": "BoltParams@src/render/3d/sprites/balloon-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "BoxShapeParams@src/render/3d/sprites/sprite-kit.ts ↔ CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "BoxShapeParams@src/render/3d/sprites/sprite-kit.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
@@ -242,6 +284,9 @@
     },
     {
       "pair": "BoxShapeParams@src/render/3d/sprites/sprite-kit.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "BubbleSprite@src/render/3d/effects/supply-ship.ts ↔ FlameDescriptor@src/render/3d/effects/fire-burst.ts"
     },
     {
       "pair": "BuildHost@src/ai/ai-phase-build.ts ↔ CannonHost@src/ai/ai-phase-cannon.ts"
@@ -358,6 +403,36 @@
       "pair": "CannonViewState@src/shared/core/system-interfaces.ts ↔ GameState@src/shared/core/types.ts"
     },
     {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ DecorationDims@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ FlagParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PieceDims@src/render/3d/sprites/debris-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "CargoCrateParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
       "pair": "CastleData@src/shared/ui/overlay-types.ts ↔ Player@src/shared/core/player-types.ts"
     },
     {
@@ -371,6 +446,9 @@
     },
     {
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
+      "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "CheeksSupportsParams@src/render/3d/sprites/cannon-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
@@ -436,6 +514,9 @@
       "pair": "EntityOverlay@src/shared/ui/overlay-types.ts ↔ UpgradePickViewState@src/shared/core/system-interfaces.ts"
     },
     {
+      "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
     },
     {
@@ -443,6 +524,9 @@
     },
     {
       "pair": "FlagParams@src/render/3d/sprites/tower-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ MastParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
@@ -458,9 +542,6 @@
     },
     {
       "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/runtime-contracts.ts"
-    },
-    {
-      "pair": "FullStateMessage@src/protocol/protocol.ts ↔ ModifierTileData@src/game/modifiers/modifier-types.ts"
     },
     {
       "pair": "GameState@src/shared/core/types.ts ↔ GameViewState@src/shared/core/system-interfaces.ts"
@@ -508,6 +589,9 @@
       "pair": "HeadlessRuntimeOptions@test/runtime-headless.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
+      "pair": "HullParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
+    },
+    {
       "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
@@ -529,10 +613,28 @@
       "pair": "MaskBucket@src/render/3d/entities/walls.ts ↔ VariantBucket@src/render/3d/entities/debris.ts"
     },
     {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ PoleParams@src/render/3d/sprites/tower-scene.ts"
+    },
+    {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ StakesParams@src/render/3d/sprites/balloon-scene.ts"
+    },
+    {
+      "pair": "MastParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
       "pair": "MusicSubsystem@src/runtime/music-player.ts ↔ SfxSubsystem@src/runtime/sfx-player.ts"
     },
     {
       "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
+    },
+    {
+      "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ SupplyShip@src/shared/core/modifier-defs.ts"
+    },
+    {
+      "pair": "OverlaySupplyShip@src/shared/ui/overlay-types.ts ↔ TouchPoint@src/input/input-recorder.ts"
+    },
+    {
+      "pair": "ParapetParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
     },
     {
       "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
@@ -616,6 +718,9 @@
       "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ RoofParams@src/render/3d/sprites/house-scene.ts"
     },
     {
+      "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "PolePlatformParams@src/render/3d/sprites/tower-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
     },
     {
@@ -658,7 +763,22 @@
       "pair": "RoofParams@src/render/3d/sprites/house-scene.ts ↔ TurretParams@src/render/3d/sprites/tower-scene.ts"
     },
     {
+      "pair": "RoofPlacement@src/render/3d/sprites/tower-scene.ts ↔ SailParams@src/render/3d/sprites/supply-ship-scene.ts"
+    },
+    {
       "pair": "RuntimeState@src/runtime/runtime-state.ts ↔ UIContext@src/runtime/runtime-contracts.ts"
+    },
+    {
+      "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ SlabParams@src/render/3d/sprites/cannon-scene.ts"
+    },
+    {
+      "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TopParams@src/render/3d/sprites/rampart-scene.ts"
+    },
+    {
+      "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ TracksParams@src/render/3d/sprites/grunt-scene.ts"
+    },
+    {
+      "pair": "SailParams@src/render/3d/sprites/supply-ship-scene.ts ↔ WindowParams@src/render/3d/sprites/house-scene.ts"
     },
     {
       "pair": "ScheduledPiecePlacement@src/game/scheduled-actions.ts ↔ WallDestroyedMessage@src/shared/core/battle-events.ts"

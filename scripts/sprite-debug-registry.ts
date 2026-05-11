@@ -51,6 +51,11 @@ import {
   VARIANTS as rampartVariants,
 } from "../src/render/3d/sprites/rampart-scene.ts";
 import {
+  buildSupplyShip,
+  PALETTE as supplyShipPalette,
+  VARIANTS as supplyShipVariants,
+} from "../src/render/3d/sprites/supply-ship-scene.ts";
+import {
   buildTower,
   PALETTE as towerPalette,
   VARIANTS as towerVariants,
@@ -103,6 +108,11 @@ export const SPRITE_SCENES = {
     VARIANTS: rampartVariants,
     PALETTE: rampartPalette,
     build: buildRampart,
+  },
+  supply_ship: {
+    VARIANTS: supplyShipVariants,
+    PALETTE: supplyShipPalette,
+    build: buildSupplyShip,
   },
   tower: {
     VARIANTS: towerVariants,

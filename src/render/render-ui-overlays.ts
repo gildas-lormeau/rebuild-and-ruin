@@ -16,8 +16,9 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   SCALE,
+  TILE_SIZE,
 } from "../shared/core/grid.ts";
-import { modifierDef } from "../shared/core/modifier-defs.ts";
+import { modifierDef, type SupplyShip } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
@@ -41,6 +42,7 @@ import {
   type LifeLostDialogOverlay,
   type OverlayBalloon,
   type OverlayCannonball,
+  type OverlaySupplyShip,
   type PlayerStats,
   type RenderOverlay,
   type SceneCapture,
@@ -390,6 +392,10 @@ export function createOnlineOverlay(
         gruntSurgeRevealIntensity !== undefined
           ? view.modern?.activeModifierChangedTiles
           : undefined,
+      supplyShips: buildBattleSupplyShipsPayload(
+        inBattle,
+        view.modern?.supplyShips,
+      ),
     },
     phantoms: frame.phantoms,
     ui: {
@@ -774,6 +780,21 @@ function buildBattleCannonballsPayload(
       mortar: b.mortar,
     };
   });
+}
+
+function buildBattleSupplyShipsPayload(
+  inBattle: boolean,
+  ships: readonly SupplyShip[] | null | undefined,
+): readonly OverlaySupplyShip[] | undefined {
+  if (!inBattle || !ships || ships.length === 0) return undefined;
+  return ships.map((ship) => ({
+    id: ship.id,
+    x: ship.position.col * TILE_SIZE + TILE_SIZE / 2,
+    y: ship.position.row * TILE_SIZE + TILE_SIZE / 2,
+    headingRad: ship.headingRad,
+    hpFrac: ship.hp / 2,
+    sinking: ship.sinking,
+  }));
 }
 
 function buildBattleBalloonsPayload(

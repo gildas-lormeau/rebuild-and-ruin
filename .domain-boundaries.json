@@ -223,8 +223,10 @@
       "src/render/3d/sprites/procedural-texture.ts",
       "src/render/3d/sprites/rampart-scene.ts",
       "src/render/3d/sprites/sprite-textures.ts",
+      "src/render/3d/sprites/supply-ship-scene.ts",
       "src/render/3d/sprites/tower-scene.ts",
-      "src/render/3d/sprites/wall-scene.ts"
+      "src/render/3d/sprites/wall-scene.ts",
+      "src/render/3d/effects/supply-ship.ts"
     ],
     "online": [
       "src/online/online-router.ts",

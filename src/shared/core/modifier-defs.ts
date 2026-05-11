@@ -45,6 +45,35 @@ export interface RubbleClearingHeld {
   }[];
 }
 
+/** One-round bonus a supply ship can carry. Hidden until the ship is
+ *  sunk; the last-hitter's player receives it for the following round
+ *  (lifecycle parallels Master Builder / Rapid Fire). */
+export type SupplyBonusId =
+  | "extra_cannon"
+  | "extra_build_time"
+  | "mortar_shot"
+  | "small_pieces_bias";
+
+/** A neutral supply ship sailing along the Y-river during battle.
+ *  Three ships spawn at the river-mouth of each arm and sail toward
+ *  the central junction; sinking one awards `bonus` to the last-hitter.
+ *  Survivors at battle end are swept away by the battle-end banner. */
+export interface SupplyShip {
+  readonly id: number;
+  /** Which of the three Y-river arms this ship enters from. */
+  readonly spawnArm: 0 | 1 | 2;
+  /** Sub-tile position (col, row as floats). */
+  position: { col: number; row: number };
+  /** Facing direction in radians; 0 = +col axis. */
+  headingRad: number;
+  /** Remaining hit points. Starts at 2; 0 triggers the sink animation. */
+  hp: number;
+  /** Hidden bonus revealed on sink. */
+  readonly bonus: SupplyBonusId;
+  /** Sink animation progress (0 → 1). Undefined while alive. */
+  sinking?: { progress: number };
+}
+
 interface ModifierDef extends PoolDef<ModifierId> {
   /** Pool weight for random selection (higher = more likely). */
   readonly weight: number;
