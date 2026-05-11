@@ -81,6 +81,7 @@ import {
 } from "./combos.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifiers/dust-storm.ts";
+import { tickSupplyShips } from "./modifiers/supply-ship.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,
@@ -269,6 +270,9 @@ export function tickBattlePhase(
     state,
     dt,
   );
+  // Cheap early-out when no supply_ship is active (ships=null); cannonball
+  // collision + bonus award land in a follow-up commit.
+  tickSupplyShips(state, dt);
   // Grunt-broken walls flow through the same `impactEvents` channel as
   // cannonball-driven WALL_DESTROYED so they reach the watcher via the
   // shared broadcast loop in `runtime-phase-ticks.ts`.

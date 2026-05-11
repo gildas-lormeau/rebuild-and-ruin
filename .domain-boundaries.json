@@ -77,6 +77,7 @@
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
       "src/game/modifiers/sinkhole.ts",
+      "src/game/modifiers/supply-ship.ts",
       "src/game/zone-recompute.ts",
       "src/game/game-init.ts",
       "src/game/phase-entry.ts",

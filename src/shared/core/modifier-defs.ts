@@ -243,6 +243,19 @@ const MODIFIER_POOL = [
     needsCheckpoint: false,
     tileMutationPrev: null,
   },
+  {
+    id: "supply_ship",
+    label: "Supply Ship",
+    description:
+      "Three neutral cargo ships sail the Y-river — sink one for a hidden one-round bonus",
+    weight: 2,
+    // Gameplay impl + bonus award + wire payload land in follow-up commits;
+    // flip to true once the modifier is online-safe end-to-end.
+    implemented: false,
+    needsCheckpoint: false,
+    // Ships are entity-layer; no tile mutation to revert in the banner snapshot.
+    tileMutationPrev: null,
+  },
 ] as const satisfies readonly ModifierDef[];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =
@@ -327,6 +340,13 @@ export const MODIFIER_CONSUMERS = {
     impl: "src/game/modifiers/sapper.ts",
     behavior_attack: "src/game/grunt-system.ts",
     reveal: "src/runtime/sapper-reveal-overlay.ts",
+  },
+  // AI ignores supply ships by design — no aiStrategy entry. The modifier
+  // favors human players (free bonus when AI skips the moving target).
+  supply_ship: {
+    impl: "src/game/modifiers/supply-ship.ts",
+    behavior_battle: "src/game/battle-system.ts",
+    render: "src/render/3d/effects/supply-ship.ts",
   },
 } as const satisfies Record<ModifierId, Readonly<Record<string, string>>>;
 

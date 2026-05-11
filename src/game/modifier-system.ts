@@ -30,6 +30,7 @@ import type { ModifierImpl } from "./modifiers/modifier-types.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
 import { sapperImpl } from "./modifiers/sapper.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";
+import { supplyShipImpl } from "./modifiers/supply-ship.ts";
 
 /** Compile-time exhaustiveness: every ModifierId must have an impl entry. */
 const MODIFIER_IMPLS = {
@@ -45,6 +46,7 @@ const MODIFIER_IMPLS = {
   fog_of_war: fogOfWarImpl,
   frostbite: frostbiteImpl,
   sapper: sapperImpl,
+  supply_ship: supplyShipImpl,
 } as const satisfies Record<ModifierId, ModifierImpl>;
 /** Registry map for dispatching modifier lifecycle hooks by id. */
 export const MODIFIER_REGISTRY = new Map<ModifierId, ModifierImpl>(

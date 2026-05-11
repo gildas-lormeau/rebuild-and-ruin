@@ -181,6 +181,7 @@
       "src/game/modifiers/grunt-surge.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
+      "src/game/modifiers/supply-ship.ts",
       "src/game/upgrades/architect.ts",
       "src/game/upgrades/ceasefire.ts",
       "src/game/upgrades/clear-the-field.ts",

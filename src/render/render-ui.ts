@@ -132,6 +132,7 @@ const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
   fog_of_war: { title: "#c8d0d8", border: "#6c7480" },
   frostbite: { title: "#b8e8ff", border: "#5098c8" },
   sapper: { title: "#c89878", border: "#785838" },
+  supply_ship: { title: "#d8c090", border: "#806840" },
 };
 
 /** Draw announcement text centered on screen. */
