@@ -1,0 +1,4 @@
+[
+  "src/ai/ai-phase-build.ts:379:candidateToPlacement",
+  "src/runtime/runtime-camera.ts:937:manhattanDistance"
+]
