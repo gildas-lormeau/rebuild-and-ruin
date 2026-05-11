@@ -79,8 +79,9 @@ interface InputSystemDeps {
   readonly network: Pick<NetworkApi, "amHost">;
 
   // Action surface (online action wrappers + local fallbacks).
-  // NOT NetworkApi — see RuntimeInputAdapters in assembly.ts for why
-  // this is named `actions` rather than `network`.
+  // NOT NetworkApi — named `actions` rather than `network` because
+  // offline games use the same surface; the wrappers collapse to
+  // local-only fallbacks when `RuntimeConfig.onlineActions` is absent.
   readonly actions: {
     readonly maybeSendAimUpdate?: (x: number, y: number) => void;
     readonly tryPlaceCannon?: (

@@ -142,8 +142,9 @@ exempt from the "sub-systems must not import from each other" rule.
   build the `PhaseTransitionCtx`; the machine picks the role-specific
   fn off `ctx.role`.
 - **`banner-messages.ts`** — Phase transition banner string constants.
-- **`assembly.ts`** — `createRuntimeLoop(deps)` + input adapter wiring.
-  Called once by the composition root.
+- **`runtime-main-loop.ts`** — `createRuntimeLoop(deps)`: the rAF main
+  loop, sub-stepping, frame-context derivation. Called once by the
+  composition root.
 
 ### Dev tools (3 files, excluded from non-dev builds by `IS_DEV`)
 - **`dev-console.ts`** — Exposes dev commands to the browser console

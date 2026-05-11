@@ -108,9 +108,9 @@ export interface OnlinePhaseTicks {
  *  the local action AND broadcasts the result to peers if applicable.
  *
  *  When this is undefined (local play), the input system installs local
- *  fallbacks in `assembly.ts:createRuntimeInputAdapters` that just execute
- *  the action without sending — the "AndSend" suffix is a misnomer in that
- *  case but kept for symmetry with the online versions. */
+ *  fallbacks inline at `runtime-composition.ts`'s `inputActions` object,
+ *  which just execute the action without sending — the "AndSend" suffix
+ *  is a misnomer in that case but kept for symmetry with the online versions. */
 export interface OnlineActions {
   /** Send aim_update for the local pointer's crosshair (deduped). */
   maybeSendAimUpdate: (x: number, y: number) => void;
@@ -244,7 +244,7 @@ export interface RuntimeConfig {
   onlinePhaseTicks?: OnlinePhaseTicks;
   /** Online-only action wrappers consumed by the input dispatcher.
    *  See `OnlineActions`. When undefined, local fallbacks are installed
-   *  in `assembly.ts:createRuntimeInputAdapters`. */
+   *  inline in `runtime-composition.ts`'s `inputActions` object. */
   onlineActions?: OnlineActions;
   /** Online-only drain hooks for wire-arrived dialog choices that landed
    *  before the local sim made the dialog interactable. See

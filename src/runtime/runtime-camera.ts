@@ -75,7 +75,7 @@ interface CameraDeps {
   getCtx: () => FrameContext;
   /** "Is a human player driving the pointer right now?" — the gate inside
    *  `mobileAutoZoomActive()`. Must be cache-independent because the
-   *  predicate runs both from `assembly.ts` while `FrameContext` is itself
+   *  predicate runs both from `runtime-main-loop.ts` while `FrameContext` is itself
    *  being assembled (`frameMeta` may still be null on the first tick) and
    *  from between-frame paths (bootstrap → enterTowerSelection →
    *  setSelectionViewport on lobby expiry, where the per-frame
