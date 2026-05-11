@@ -52,6 +52,9 @@ type UpgradePickModernView = {
  *  The views document the actual field contract per phase — not a runtime guard. */
 export interface GameViewState {
   readonly phase: Phase;
+  /** Monotonic simulation tick.  Universal across phases — used by
+   *  scheduled-actions helpers to stamp `applyAt = simTick + safetyTicks`. */
+  readonly simTick: number;
   readonly players: readonly Player[];
   readonly map: GameMap;
   readonly bus: GameEventBus;

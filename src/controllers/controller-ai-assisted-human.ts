@@ -95,7 +95,7 @@ export class AiAssistedHumanController
     const executePlace = (intent: PlacePieceIntent): boolean => {
       const stamped = schedulePiecePlacement({
         schedule: this.schedule,
-        state: state as GameState,
+        state,
         intent,
         safetyTicks: this.safetyTicks,
         clampBuildCursor: (piece) => this.clampBuildCursor(piece),

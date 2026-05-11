@@ -18,6 +18,7 @@ import type { PieceShape } from "../shared/core/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import type {
   BattleController,
+  BuildViewState,
   FireIntent,
   PlaceCannonIntent,
   PlacePieceIntent,
@@ -50,7 +51,11 @@ interface ScheduledPiecePlacement {
  *  (caller should treat as a no-op — no enqueue, no broadcast). */
 export function schedulePiecePlacement(args: {
   schedule: (action: ScheduledAction) => void;
-  state: GameState;
+  /** Read-only at schedule time — the apply closure receives the mutable
+   *  `GameState` separately at drain time.  `BuildViewState` covers
+   *  `canPlacePiece` and inherits `simTick` from `GameViewState` for the
+   *  `applyAt` stamp. */
+  state: BuildViewState;
   intent: PlacePieceIntent;
   safetyTicks: number;
   clampBuildCursor: (piece: PieceShape | undefined) => void;
