@@ -6,13 +6,7 @@ import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/core/battle-types.ts";
-import { PHASE_ENDING_THRESHOLD } from "../shared/core/game-constants.ts";
-import { isTimedPhase, Phase } from "../shared/core/game-phase.ts";
-import {
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
 import { type PlayerController } from "../shared/core/system-interfaces.ts";
 import {
   type FrameContext,
@@ -36,11 +30,7 @@ import {
   loadSettings,
   MAX_PLAYERS,
 } from "../shared/ui/player-config.ts";
-import {
-  isGameplayMode,
-  isTransitionMode,
-  Mode,
-} from "../shared/ui/ui-mode.ts";
+import { isGameplayMode, Mode } from "../shared/ui/ui-mode.ts";
 import { type BannerState, createBannerState } from "./runtime-contracts.ts";
 import { createTimerAccums, type TimerAccums } from "./runtime-tick-context.ts";
 
@@ -195,39 +185,6 @@ export interface RuntimeState {
    *  constant instead of computing from wall-clock timestamps — makes the
    *  browser simulation deterministic so seeds reproduce across environments. */
   fixedStepMs: number | undefined;
-}
-
-/** Modes that have tick handlers. STOPPED is handled by early-return. */
-type TickableMode = Exclude<Mode, Mode.STOPPED>;
-
-/** Single per-frame tick dispatcher. The composition root implements this
- *  as a `switch (mode)` with an `assertNever` default so an unhandled
- *  Mode is a loud runtime failure rather than a silent no-op. The
- *  `TickableMode`-typed parameter also forces a compile error if a new
- *  Mode is added without a corresponding case. */
-type TickDispatch = (mode: TickableMode, dt: number) => void;
-
-interface FrameContextInputs {
-  mode: Mode;
-  phase: Phase;
-  timer: number;
-  paused: boolean;
-  quitPending: boolean;
-  hasLifeLostDialog: boolean;
-  /** True iff the life-lost dialog is open AND the local pov player has an
-   *  unresolved entry. Drives the keep-zoom-on-local-zone branch in the
-   *  camera. Computed by the caller (assembly) so this layer doesn't depend
-   *  on dialog internals. */
-  lifeLostLocalPending: boolean;
-  isSelectionReady: boolean;
-  hasPointerPlayer: boolean;
-  pointerPlayerId: ValidPlayerSlot | null;
-  myPlayerId: PlayerSlotId;
-  hostAtFrameStart: boolean;
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
-  mobileAutoZoom: boolean;
-  humanCannonsComplete: boolean;
-  humanCastleConfirmed: boolean;
 }
 
 /** Default frame delta time (assumes 60fps). */
@@ -394,112 +351,4 @@ export function setRuntimeGameState(
 ): void {
   runtimeState.state = state;
   runtimeState.stateInstalled = true;
-}
-
-/** Run the main loop tick: quit countdown, pause check, mode dispatch.
- *  No-ops in `Mode.STOPPED` (no active session). */
-export function tickMainLoop(params: {
-  readonly dt: number;
-  readonly mode: Mode;
-  readonly paused: boolean;
-  readonly quitPending: boolean;
-  readonly quitTimer: number;
-  readonly quitMessage?: string;
-  readonly frame: { announcement?: string };
-  readonly setQuitPending: (quitPending: boolean) => void;
-  readonly setQuitTimer: (quitTimer: number) => void;
-  readonly requestRender: () => void;
-  readonly tickMode: TickDispatch;
-}): void {
-  const { dt, mode, frame, tickMode } = params;
-
-  // Tick ESC-to-quit countdown
-  if (params.quitPending) {
-    const next = params.quitTimer - dt;
-    if (next <= 0) {
-      params.setQuitPending(false);
-    } else {
-      params.setQuitTimer(next);
-      if (params.quitMessage) frame.announcement = params.quitMessage;
-    }
-  }
-
-  // Pause: keep rendering but skip all game ticks
-  if (params.paused && isGameplayMode(mode)) {
-    if (!frame.announcement) frame.announcement = "PAUSED";
-    params.requestRender();
-    return;
-  }
-
-  if (mode === Mode.STOPPED) return;
-
-  tickMode(mode, dt);
-}
-
-export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
-  const {
-    mode,
-    phase,
-    timer,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    lifeLostLocalPending,
-    isSelectionReady,
-    hasPointerPlayer,
-    pointerPlayerId,
-    myPlayerId,
-    hostAtFrameStart,
-    remotePlayerSlots,
-    mobileAutoZoom,
-    humanCannonsComplete,
-    humanCastleConfirmed,
-  } = inputs;
-
-  const uiBlocking = paused || quitPending || hasLifeLostDialog;
-  // The local player has an unresolved life-lost entry: the camera should
-  // hold their home zone instead of unzooming. Gated on mobileAutoZoom — on
-  // desktop the popup sits over a fullMap view as before.
-  const lifeLostKeepZoom = mobileAutoZoom && lifeLostLocalPending;
-
-  const phaseEnding =
-    !mobileAutoZoom &&
-    timer > 0 &&
-    timer <= PHASE_ENDING_THRESHOLD &&
-    isTimedPhase(phase);
-
-  const inBattle = phase === Phase.BATTLE;
-  const isTransition = isTransitionMode(mode);
-  const shouldUnzoom =
-    paused ||
-    quitPending ||
-    (hasLifeLostDialog && !lifeLostKeepZoom) ||
-    phaseEnding ||
-    isTransition ||
-    (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
-
-  // Online: myPlayerId. Local: pointer player slot. Demo: 0.
-  const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
-    ? myPlayerId
-    : (pointerPlayerId ?? (0 as ValidPlayerSlot));
-
-  return {
-    myPlayerId,
-    povPlayerId,
-    hostAtFrameStart,
-    remotePlayerSlots,
-    mode,
-    phase,
-    inBattle,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    isSelectionReady,
-    hasPointerPlayer,
-    uiBlocking,
-    phaseEnding,
-    shouldUnzoom,
-    lifeLostKeepZoom,
-    isTransition,
-  };
 }

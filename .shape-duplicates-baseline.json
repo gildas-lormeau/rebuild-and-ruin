@@ -118,7 +118,7 @@
       "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContext@src/shared/core/types.ts"
     },
     {
-      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+      "pair": "AutoResolveDeps@src/shared/ui/interaction-types.ts ↔ FrameContextInputs@src/runtime/runtime-main-loop.ts"
     },
     {
       "pair": "BallisticTrajectory@src/shared/core/battle-events.ts ↔ OverlayCannonball@src/shared/ui/overlay-types.ts"
@@ -454,7 +454,7 @@
       "pair": "FlameSpec@src/render/3d/sprites/pit-scene.ts ↔ TurretParams@src/render/3d/sprites/grunt-scene.ts"
     },
     {
-      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/runtime-state.ts"
+      "pair": "FrameContext@src/shared/core/types.ts ↔ FrameContextInputs@src/runtime/runtime-main-loop.ts"
     },
     {
       "pair": "FrameContext@src/shared/core/types.ts ↔ OnlineOverlayParams@src/runtime/runtime-contracts.ts"
