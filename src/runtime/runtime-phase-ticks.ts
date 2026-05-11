@@ -17,10 +17,6 @@ import {
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
 import {
-  BATTLE_MESSAGE,
-  type ImpactEvent,
-} from "../shared/core/battle-events.ts";
-import {
   ageImpacts,
   type Crosshair,
   clearImpacts,
@@ -54,9 +50,11 @@ import {
 import type { GameState } from "../shared/core/types.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "../shared/core/wall-destroy-anim.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
-import type { PlayerStats } from "../shared/ui/overlay-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { recordBattleVisualEvents } from "./runtime-battle-anim.ts";
+import {
+  accumulateBattleStats,
+  recordBattleVisualEvents,
+} from "./runtime-battle-anim.ts";
 import type { BannerShow, TimingApi } from "./runtime-contracts.ts";
 import {
   type PhaseTransitionCtx,
@@ -810,30 +808,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         break;
     }
     online?.tickMigrationAnnouncement?.(dt);
-  }
-
-  /** Accumulate per-player battle stats (walls destroyed, cannons killed) from
-   *  the engine's impact-event list. Driven from `result.impactEvents` on
-   *  every tick — never from a bus subscription, since `gameStats` is in
-   *  `runtimeState` and runtime state must not depend on the bus. */
-  function accumulateBattleStats(
-    events: ReadonlyArray<ImpactEvent>,
-    gameStats: readonly PlayerStats[],
-  ): void {
-    for (const evt of events) {
-      if (evt.type === BATTLE_MESSAGE.WALL_DESTROYED) {
-        const stats =
-          evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
-        if (stats) stats.wallsDestroyed++;
-      } else if (
-        evt.type === BATTLE_MESSAGE.CANNON_DAMAGED &&
-        evt.newHp === 0
-      ) {
-        const stats =
-          evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
-        if (stats) stats.cannonsKilled++;
-      }
-    }
   }
 
   return {
