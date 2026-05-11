@@ -143,6 +143,28 @@ export interface TowerKilledMessage {
   playerId?: ValidPlayerSlot;
 }
 
+/** A supply ship was hit by a cannonball. `shipId` is stable across
+ *  ticks; `shooterId` is the scoring player (cannonball.scoringPlayerId
+ *  for captured-cannon fires, else cannonball.playerId). */
+export interface ShipHitMessage {
+  type: "shipHit";
+  shipId: number;
+  shooterId: ValidPlayerSlot;
+  /** Remaining HP after this hit. 0 means the hit also triggered sink
+   *  — a `shipSunk` event follows for the same shipId. */
+  newHp: number;
+}
+
+/** A supply ship's HP reached zero and the sink animation started.
+ *  Awarded `bonus` queues for the last-hitter (`shooterId`) via
+ *  `pendingSupplyBonuses`; consumption happens at the relevant
+ *  phase-entry hook. */
+export interface ShipSunkMessage {
+  type: "shipSunk";
+  shipId: number;
+  shooterId: ValidPlayerSlot;
+}
+
 /** Impact events — effects from cannonball/grunt interactions. */
 export type ImpactEvent =
   | WallDestroyedMessage
@@ -158,7 +180,12 @@ export type ImpactEvent =
 
 /** All events emitted during battle — fire, tower kill, and impact.
  *  Discriminated on `type` (BATTLE_MESSAGE.* string literal). */
-export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
+export type BattleEvent =
+  | CannonFiredMessage
+  | TowerKilledMessage
+  | ShipHitMessage
+  | ShipSunkMessage
+  | ImpactEvent;
 
 /** Launch payload — every CannonFiredMessage field except the `type` tag. */
 type CannonFiredPayload = Omit<CannonFiredMessage, "type">;
@@ -176,6 +203,8 @@ export const BATTLE_MESSAGE = {
   TOWER_KILLED: "towerKilled",
   WALL_ABSORBED: "wallAbsorbed",
   WALL_SHIELDED: "wallShielded",
+  SHIP_HIT: "shipHit",
+  SHIP_SUNK: "shipSunk",
 } as const;
 /** Consumer files for each battle event, keyed by the role the file plays.
  *
@@ -253,6 +282,17 @@ export const BATTLE_EVENT_CONSUMERS = {
     haptics: "src/runtime/runtime-haptics.ts",
     networkHandle: "src/online/online-server-events.ts",
     networkRelay: "server/game-room.ts",
+  },
+  // Supply-ship events are mirror-simulated on every peer (positions +
+  // hp + bonus credit derive deterministically from RNG + tick +
+  // CANNON_FIRED stream), so no networkHandle/networkRelay entries —
+  // they're emitted locally on each peer via the bus from
+  // tryHitSupplyShip and observed by sound/haptics consumers only.
+  shipHit: {
+    emit: "src/game/modifiers/supply-ship.ts",
+  },
+  shipSunk: {
+    emit: "src/game/modifiers/supply-ship.ts",
   },
 } as const satisfies Record<
   BattleEvent["type"],

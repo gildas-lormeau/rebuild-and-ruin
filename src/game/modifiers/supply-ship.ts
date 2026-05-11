@@ -5,6 +5,8 @@
  * detection + bonus award land in a follow-up commit.
  */
 
+import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
+import type { TilePos } from "../../shared/core/geometry-types.ts";
 import type {
   SupplyBonusId,
   SupplyShip,
@@ -56,8 +58,15 @@ export const supplyShipImpl: ModifierImpl = {
 };
 
 /** Advance ship positions during battle. Called from `tickBattlePhase`
- *  each frame; cheap early-out when no ships are active. */
-export function tickSupplyShips(state: GameState, dt: number): void {
+ *  each frame; cheap early-out when no ships are active. Pushes one
+ *  `TilePos` to `impactsOut` per ship reaching sink-completion (sinking
+ *  progress crossing ≥ 1) so the runtime's existing impact-splash
+ *  pipeline renders the foam ring without a dedicated effect manager. */
+export function tickSupplyShips(
+  state: GameState,
+  dt: number,
+  impactsOut: TilePos[],
+): void {
   const ships = state.modern?.supplyShips;
   if (!ships || ships.length === 0) return;
 
@@ -69,7 +78,13 @@ export function tickSupplyShips(state: GameState, dt: number): void {
 
     if (ship.sinking) {
       ship.sinking.progress += dt / SUPPLY_SHIP_SINK_DURATION;
-      if (ship.sinking.progress >= 1) ships.splice(i, 1);
+      if (ship.sinking.progress >= 1) {
+        impactsOut.push({
+          row: Math.round(ship.position.row),
+          col: Math.round(ship.position.col),
+        });
+        ships.splice(i, 1);
+      }
       continue;
     }
 
@@ -121,9 +136,20 @@ export function tryHitSupplyShip(
   const ship = ships[closestIndex]!;
   ship.hp -= 1;
   ship.lastHitterId = shooterId;
+  state.bus.emit(BATTLE_MESSAGE.SHIP_HIT, {
+    type: BATTLE_MESSAGE.SHIP_HIT,
+    shipId: ship.id,
+    shooterId,
+    newHp: ship.hp,
+  });
   if (ship.hp <= 0) {
     ship.sinking = { progress: 0 };
     queueSupplyBonus(state, shooterId, ship.bonus);
+    state.bus.emit(BATTLE_MESSAGE.SHIP_SUNK, {
+      type: BATTLE_MESSAGE.SHIP_SUNK,
+      shipId: ship.id,
+      shooterId,
+    });
   }
 }
 

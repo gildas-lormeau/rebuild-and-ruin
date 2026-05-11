@@ -275,9 +275,11 @@ export function tickBattlePhase(
     state,
     dt,
   );
-  // Cheap early-out when no supply_ship is active (ships=null); cannonball
-  // collision + bonus award land in a follow-up commit.
-  tickSupplyShips(state, dt);
+  // Cheap early-out when no supply_ship is active (ships=null). Sinks
+  // reaching progress=1 push a TilePos into newImpacts so the existing
+  // impact-splash pipeline renders the foam ring — no dedicated foam
+  // code in the supply-ship effect manager.
+  tickSupplyShips(state, dt, newImpacts);
   // Grunt-broken walls flow through the same `impactEvents` channel as
   // cannonball-driven WALL_DESTROYED so they reach the watcher via the
   // shared broadcast loop in `runtime-phase-ticks.ts`.

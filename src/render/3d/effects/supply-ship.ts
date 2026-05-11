@@ -1,10 +1,10 @@
 /**
- * Supply-ship effect manager — renders the neutral cargo ships from
- * the `supply_ship` modifier. Reads `overlay.battle?.supplyShips`,
- * reconciles one THREE.Group per ship by id, drives motion + sink
- * via root-group transforms. Sink driven by `ship.sinking.progress`
- * (0→0.4: roll to 20°; 0.4→1.0: hold tilt + descend below waterline
- * + bubbles; 1.0: one-shot foam ring). No hit-detection, no RNG.
+ * Supply-ship effect manager — renders the neutral cargo ships.
+ * Reconciles one THREE.Group per ship by id, drives motion + sink
+ * via root-group transforms. Sink: 0→0.4 roll 20°; 0.4→1.0 hold tilt
+ * + descend + bubbles. Foam splash on sink-completion is rendered by
+ * the shared ImpactsManager — gameplay pushes a TilePos to
+ * newImpacts; this manager owns the hull/bubbles only.
  */
 
 import * as THREE from "three";
@@ -34,20 +34,6 @@ interface ShipHost {
   id: number;
   /** Bubble billboards owned by this host (live under `group`). */
   bubbles: BubbleSprite[];
-  /** Highest sink progress observed so far — used to fire the foam
-   *  splash exactly once when progress first reaches ≥ 1.0. */
-  maxProgressSeen: number;
-  /** Last known position (refreshed every frame the ship is in the
-   *  overlay). Used as the splash anchor when the ship leaves the
-   *  overlay between frames. */
-  lastX: number;
-  lastZ: number;
-}
-
-interface FoamRing {
-  mesh: THREE.Mesh;
-  material: THREE.MeshBasicMaterial;
-  age: number;
 }
 
 /** Waterline elevation. Authored locally rather than via
@@ -93,15 +79,6 @@ const BUBBLE_RISE_SPEED = 6;
 const BUBBLE_BASE_SIZE = 3;
 const BUBBLE_SIZE_GROWTH = 4;
 const BUBBLE_COLOR = 0xc8d6dc;
-/** Foam splash — local kernel triggered one-shot when sink progress
- *  crosses ≥ 1.0. A widening, fading flat ring at the waterline;
- *  authored here because the existing `ImpactsManager` is overlay-
- *  driven (reads `overlay.battle.impacts`) and we can't push synthetic
- *  entries from the render layer. */
-const FOAM_LIFE_SEC = 0.9;
-const FOAM_START_RADIUS = TILE_SIZE * 0.35;
-const FOAM_END_RADIUS = TILE_SIZE * 0.95;
-const FOAM_COLOR = 0xe0eef4;
 
 export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
   const root = new THREE.Group();
@@ -110,13 +87,6 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
 
   const hosts = new Map<number, ShipHost>();
   const seen = new Set<number>();
-
-  // Foam-ring resources (local kernel — see FOAM_* constants above).
-  // Shared ring geometry across every live splash; per-splash materials
-  // own the fading opacity so each animates independently.
-  const foamGeometry = new THREE.RingGeometry(0.85, 1.0, 24);
-  foamGeometry.rotateX(-Math.PI / 2);
-  const foams: FoamRing[] = [];
 
   // Bubble texture is borrowed from the fire-burst smoke kernel — it's
   // a soft radial gradient with a few overlay blobs, which doubles
@@ -167,14 +137,7 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       });
     }
 
-    return {
-      group,
-      id,
-      bubbles,
-      maxProgressSeen: 0,
-      lastX: 0,
-      lastZ: 0,
-    };
+    return { group, id, bubbles };
   }
 
   function disposeHost(host: ShipHost): void {
@@ -191,21 +154,6 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       }
     });
     root.remove(host.group);
-  }
-
-  function spawnFoamSplash(worldX: number, worldZ: number): void {
-    const material = new THREE.MeshBasicMaterial({
-      color: FOAM_COLOR,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    const mesh = new THREE.Mesh(foamGeometry, material);
-    mesh.position.set(worldX, WATER_Y + 0.05, worldZ);
-    mesh.scale.set(FOAM_START_RADIUS, 1, FOAM_START_RADIUS);
-    root.add(mesh);
-    foams.push({ mesh, material, age: 0 });
   }
 
   function animateBubbles(host: ShipHost, dtSec: number): void {
@@ -241,25 +189,6 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     }
   }
 
-  function animateFoams(dtSec: number): void {
-    // Iterate from the back so we can splice without skipping entries.
-    for (let i = foams.length - 1; i >= 0; i--) {
-      const foam = foams[i]!;
-      foam.age += dtSec;
-      const lifeT = foam.age / FOAM_LIFE_SEC;
-      if (lifeT >= 1) {
-        root.remove(foam.mesh);
-        foam.material.dispose();
-        foams.splice(i, 1);
-        continue;
-      }
-      const radius =
-        FOAM_START_RADIUS + (FOAM_END_RADIUS - FOAM_START_RADIUS) * lifeT;
-      foam.mesh.scale.set(radius, 1, radius);
-      foam.material.opacity = 0.85 * (1 - lifeT);
-    }
-  }
-
   let lastNowMs: number | undefined;
 
   function update(ctx: FrameCtx): void {
@@ -268,16 +197,12 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       lastNowMs === undefined ? 0 : Math.max(0, (ctx.now - lastNowMs) / 1000);
     lastNowMs = ctx.now;
 
-    // No ships: dispose all hosts, keep foam rings alive until they
-    // fade (a ship can sink and then leave the overlay on the same
-    // frame the foam was spawned).
     if (!ships || ships.length === 0) {
       if (hosts.size > 0) {
         for (const host of hosts.values()) disposeHost(host);
         hosts.clear();
       }
       lastIdFingerprint = "";
-      animateFoams(dtSec);
       return;
     }
 
@@ -300,15 +225,13 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     }
 
     // Dispose any host whose ship has vanished from the overlay. The
-    // foam splash (if its sink completed earlier this frame) is
-    // already in the `foams` list and lives on its own clock.
+    // foam splash on sink-completion comes from the gameplay-emitted
+    // Impact entry, rendered by the shared ImpactsManager.
     for (const [id, host] of hosts) {
       if (seen.has(id)) continue;
       disposeHost(host);
       hosts.delete(id);
     }
-
-    animateFoams(dtSec);
   }
 
   function animateShip(
@@ -317,17 +240,8 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     nowMs: number,
     dtSec: number,
   ): void {
-    host.lastX = ship.x;
-    host.lastZ = ship.y;
-
     const sinkProgress = ship.sinking?.progress ?? 0;
     const isSinking = ship.sinking !== undefined;
-
-    // One-shot foam splash on progress crossing ≥ 1.0.
-    if (sinkProgress >= 1 && host.maxProgressSeen < 1) {
-      spawnFoamSplash(ship.x, ship.y);
-    }
-    host.maxProgressSeen = Math.max(host.maxProgressSeen, sinkProgress);
 
     // Heading: scene-Z maps to world-Y (row axis), matching
     // `cannonballs.ts` (`position.z = ball.y`). The overlay's
@@ -373,7 +287,6 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       host.group.position.set(ship.x, WATER_Y + bobY, ship.y);
       host.group.rotation.z = roll;
       hideBubbles(host);
-      host.maxProgressSeen = 0;
     }
 
     // hpFrac is in the overlay shape but not consumed visually here —
@@ -386,12 +299,6 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
   function dispose(): void {
     for (const host of hosts.values()) disposeHost(host);
     hosts.clear();
-    for (const foam of foams) {
-      root.remove(foam.mesh);
-      foam.material.dispose();
-    }
-    foams.length = 0;
-    foamGeometry.dispose();
     scene.remove(root);
   }
 
