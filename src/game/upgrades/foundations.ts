@@ -6,7 +6,7 @@
  */
 
 import type { Player } from "../../shared/core/player-types.ts";
-import { packTile } from "../../shared/core/spatial.ts";
+import { filterOffTiles } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 import type { UpgradeImpl } from "./upgrade-types.ts";
@@ -24,9 +24,7 @@ function onPiecePlaced(
   pieceKeys: ReadonlySet<number>,
 ): void {
   if (!canPlaceOverBurningPit(player)) return;
-  state.burningPits = state.burningPits.filter(
-    (pit) => !pieceKeys.has(packTile(pit.row, pit.col)),
-  );
+  state.burningPits = filterOffTiles(state.burningPits, pieceKeys);
 }
 
 /** True when this player owns Foundations and can place pieces on burning pits. */

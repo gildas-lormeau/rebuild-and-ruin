@@ -44,6 +44,7 @@ import {
 } from "../shared/core/player-types.ts";
 import {
   computeOutside,
+  filterOffTiles,
   hasEnclosableMargin,
   hasPitAt,
   inBounds,
@@ -220,9 +221,7 @@ export function applyPiecePlacement(
       });
     }
   }
-  state.bonusSquares = state.bonusSquares.filter(
-    (b) => !pieceKeys.has(packTile(b.row, b.col)),
-  );
+  state.bonusSquares = filterOffTiles(state.bonusSquares, pieceKeys);
   onPiecePlaced(state, player, pieceKeys);
   recheckTerritory(state);
   for (const pos of destroyedHousePositions) {
@@ -336,9 +335,7 @@ export function removeBonusSquaresCoveredByWalls(
   state: GameState,
   walls: ReadonlySet<number>,
 ): void {
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
-  );
+  state.bonusSquares = filterOffTiles(state.bonusSquares, walls);
 }
 
 /** Recompute interior + ownedTowers for every player. Used by checkpoint

@@ -6,7 +6,11 @@
  */
 
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
-import { cannonSize, packTile } from "../../shared/core/spatial.ts";
+import {
+  cannonSize,
+  filterOffTiles,
+  packTile,
+} from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 
 interface EvictOptions {
@@ -38,19 +42,13 @@ export function evictEntitiesOnTiles(
     }
   }
   if (opts.grunts) {
-    state.grunts = state.grunts.filter(
-      (grunt) => !tiles.has(packTile(grunt.row, grunt.col)),
-    );
+    state.grunts = filterOffTiles(state.grunts, tiles);
   }
   if (opts.bonusSquares) {
-    state.bonusSquares = state.bonusSquares.filter(
-      (bonus) => !tiles.has(packTile(bonus.row, bonus.col)),
-    );
+    state.bonusSquares = filterOffTiles(state.bonusSquares, tiles);
   }
   if (opts.burningPits) {
-    state.burningPits = state.burningPits.filter(
-      (pit) => !tiles.has(packTile(pit.row, pit.col)),
-    );
+    state.burningPits = filterOffTiles(state.burningPits, tiles);
   }
   if (opts.cannons) {
     for (const player of state.players) {

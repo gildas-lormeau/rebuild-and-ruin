@@ -9,7 +9,11 @@
 import { FID } from "../../shared/core/feature-defs.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
-import { isWater, packTile } from "../../shared/core/spatial.ts";
+import {
+  filterOffTiles,
+  isWater,
+  packTile,
+} from "../../shared/core/spatial.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
@@ -68,9 +72,7 @@ function clearFrozenRiver(state: GameState): void {
   const modern = state.modern;
   if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
   if (modern.frozenTiles) {
-    state.grunts = state.grunts.filter(
-      (gr) => !modern.frozenTiles!.has(packTile(gr.row, gr.col)),
-    );
+    state.grunts = filterOffTiles(state.grunts, modern.frozenTiles);
     // Same symmetric reset as apply — null every target-derived field so
     // grunts stranded on the far bank don't carry a cross-zone targetedWall
     // (read by the sapper reveal banner) into the next round.

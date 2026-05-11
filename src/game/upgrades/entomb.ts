@@ -7,7 +7,7 @@
  */
 
 import type { Player } from "../../shared/core/player-types.ts";
-import { packTile } from "../../shared/core/spatial.ts";
+import { filterOffTiles } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
 import type { UpgradeImpl } from "./upgrade-types.ts";
@@ -25,9 +25,7 @@ function onPiecePlaced(
   pieceKeys: ReadonlySet<number>,
 ): void {
   if (!isGlobalUpgradeActive(state.players, UID.ENTOMB)) return;
-  state.grunts = state.grunts.filter(
-    (grunt) => !pieceKeys.has(packTile(grunt.row, grunt.col)),
-  );
+  state.grunts = filterOffTiles(state.grunts, pieceKeys);
 }
 
 /** True when any alive player owns Entomb. Effect applies to every player. */
