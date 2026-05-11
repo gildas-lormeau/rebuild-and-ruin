@@ -10,13 +10,6 @@ import {
   type PlayerSlotId,
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
-import type {
-  BattleViewState,
-  BuildViewState,
-  CannonViewState,
-  InputReceiver,
-  PlayerController,
-} from "../shared/core/system-interfaces.ts";
 import { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import type { TimingApi } from "./runtime-contracts.ts";
@@ -27,26 +20,6 @@ import {
   type RuntimeState,
   tickMainLoop,
 } from "./runtime-state.ts";
-import type { RuntimeConfig } from "./runtime-types.ts";
-
-/** Action adapters executed locally; online callers wrap them to also
- *  broadcast. Named `actions` (not `network`) because offline games use
- *  the same surface — adapters collapse to local-only fallbacks. */
-interface RuntimeInputAdapters {
-  actions: {
-    maybeSendAimUpdate?: (x: number, y: number) => void;
-    tryPlaceCannon?: (
-      ctrl: PlayerController & InputReceiver,
-      gameState: CannonViewState,
-      max: number,
-    ) => boolean;
-    tryPlacePiece: (
-      ctrl: PlayerController & InputReceiver,
-      gameState: BuildViewState,
-    ) => boolean;
-    fire: (ctrl: PlayerController, gameState: BattleViewState) => void;
-  };
-}
 
 interface RuntimeLoopDeps {
   runtimeState: RuntimeState;
@@ -255,29 +228,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   }
 
   return { clearFrameData, mainLoop };
-}
-
-export function createRuntimeInputAdapters(params: {
-  config: RuntimeConfig;
-  localPlacePiece: (
-    ctrl: PlayerController & InputReceiver,
-    gameState: BuildViewState,
-  ) => boolean;
-  localFire: (ctrl: PlayerController, gameState: BattleViewState) => void;
-}): RuntimeInputAdapters {
-  const { config } = params;
-  return {
-    actions: {
-      maybeSendAimUpdate: config.onlineActions?.maybeSendAimUpdate,
-      tryPlaceCannon: config.onlineActions?.tryPlaceCannon,
-      tryPlacePiece:
-        config.onlineActions?.tryPlacePiece ??
-        ((ctrl, gameState) => params.localPlacePiece(ctrl, gameState)),
-      fire:
-        config.onlineActions?.fire ??
-        ((ctrl, gameState) => params.localFire(ctrl, gameState)),
-    },
-  };
 }
 
 /** True when this client's human has confirmed a castle. Used to trigger a

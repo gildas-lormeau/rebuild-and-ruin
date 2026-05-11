@@ -295,7 +295,7 @@
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
-      "src/runtime/assembly.ts",
+      "src/runtime/runtime-main-loop.ts",
       "src/runtime/runtime-composition.ts",
       "src/runtime/dev-console.ts",
       "src/runtime/dev-console-grid.ts",

@@ -508,7 +508,7 @@
       "pair": "HeadlessRuntimeOptions@test/runtime-headless.ts ↔ ScenarioOptions@test/scenario.ts"
     },
     {
-      "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+      "pair": "LifecycleWiringDeps@src/runtime/runtime-game-lifecycle.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
       "pair": "LifeLostSystemDeps@src/runtime/runtime-life-lost.ts ↔ SelectionSystemDeps@src/runtime/runtime-selection.ts"
@@ -532,10 +532,10 @@
       "pair": "MusicSubsystem@src/runtime/music-player.ts ↔ SfxSubsystem@src/runtime/sfx-player.ts"
     },
     {
-      "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+      "pair": "NetworkApi@src/runtime/runtime-types.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
-      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/assembly.ts"
+      "pair": "PhaseTicksDeps@src/runtime/runtime-phase-ticks.ts ↔ RuntimeLoopDeps@src/runtime/runtime-main-loop.ts"
     },
     {
       "pair": "PieceDims@src/render/3d/sprites/debris-scene.ts ↔ PolePlatformParams@src/render/3d/sprites/tower-scene.ts"

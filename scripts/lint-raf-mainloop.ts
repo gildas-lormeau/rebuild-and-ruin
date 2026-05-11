@@ -2,7 +2,7 @@
  * lint-raf-mainloop — ensure `mainLoop` is scheduled from exactly two sites.
  *
  * The runtime owns a single rAF chain. `mainLoop` self-schedules from
- * inside itself (assembly.ts), and `createGameRuntime` kicks the chain
+ * inside itself (runtime-main-loop.ts), and `createGameRuntime` kicks the chain
  * once at startup (runtime-composition.ts). Any other site that calls
  * `requestFrame(...mainLoop...)` would create a parallel chain — the
  * exact bug class that motivated this rule (see commit history around
@@ -26,10 +26,10 @@ interface Violation {
 
 const SCAN_DIRS = [join(process.cwd(), "src"), join(process.cwd(), "server")];
 /** Files allowed to call `requestFrame(mainLoop)`:
- *  - assembly.ts: the self-schedule inside `mainLoop` itself.
+ *  - runtime-main-loop.ts: the self-schedule inside `mainLoop` itself.
  *  - runtime-composition.ts: the single kickoff inside `createGameRuntime`. */
 const ALLOWED_FILES = new Set([
-  "src/runtime/assembly.ts",
+  "src/runtime/runtime-main-loop.ts",
   "src/runtime/runtime-composition.ts",
 ]);
 /** Match `requestFrame(...mainLoop...)` across multiple lines. The argument

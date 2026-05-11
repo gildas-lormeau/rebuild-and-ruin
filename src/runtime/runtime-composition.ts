@@ -57,6 +57,12 @@ import {
   type ValidPlayerSlot,
 } from "../shared/core/player-slot.ts";
 import { selectRenderView, sunTFromState } from "../shared/core/render-view.ts";
+import type {
+  BattleViewState,
+  BuildViewState,
+  InputReceiver,
+  PlayerController,
+} from "../shared/core/system-interfaces.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
 import { assertNever } from "../shared/platform/utils.ts";
 import type {
@@ -66,7 +72,6 @@ import type {
 import { MAX_SEED_LENGTH, SEED_CUSTOM } from "../shared/ui/player-config.ts";
 import { cycleOption } from "../shared/ui/settings-ui.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
-import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
 import { createAudioOrchestrator } from "./runtime-audio.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
@@ -92,6 +97,7 @@ import {
   type LifeLostSystem,
 } from "./runtime-life-lost.ts";
 import { createLobbySystem } from "./runtime-lobby.ts";
+import { createRuntimeLoop } from "./runtime-main-loop.ts";
 import { createOptionsSystem } from "./runtime-options.ts";
 import {
   createPhaseTicksSystem,
@@ -722,19 +728,27 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline,
     getSoundReady: audio.getSoundReady,
   };
-  const inputAdapters = createRuntimeInputAdapters({
-    config,
-    localPlacePiece: (ctrl, gameState) => {
-      const intent = ctrl.tryPlacePiece(gameState);
-      if (!intent) return false;
-      return executePlacePiece(runtimeState.state, intent, ctrl);
-    },
-    localFire: (ctrl, gameState) => {
-      const intent = ctrl.fire(gameState);
-      if (!intent) return;
-      executeCannonFire(runtimeState.state, intent, ctrl);
-    },
-  });
+  // Action adapters: online overrides local where present, local fallback
+  // otherwise. The wrapping makes offline + online callers share the same
+  // surface — online callers also broadcast inside their adapter.
+  const inputActions = {
+    maybeSendAimUpdate: config.onlineActions?.maybeSendAimUpdate,
+    tryPlaceCannon: config.onlineActions?.tryPlaceCannon,
+    tryPlacePiece:
+      config.onlineActions?.tryPlacePiece ??
+      ((ctrl: PlayerController & InputReceiver, gameState: BuildViewState) => {
+        const intent = ctrl.tryPlacePiece(gameState);
+        if (!intent) return false;
+        return executePlacePiece(runtimeState.state, intent, ctrl);
+      }),
+    fire:
+      config.onlineActions?.fire ??
+      ((ctrl: PlayerController, gameState: BattleViewState) => {
+        const intent = ctrl.fire(gameState);
+        if (!intent) return;
+        executeCannonFire(runtimeState.state, intent, ctrl);
+      }),
+  };
   const optionsDeps = {
     runtimeState,
     uiCtx,
@@ -818,7 +832,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     isOnline,
     network: { amHost: config.network.amHost },
-    actions: inputAdapters.actions,
+    actions: inputActions,
     lobby,
     options,
     lifeLost,
