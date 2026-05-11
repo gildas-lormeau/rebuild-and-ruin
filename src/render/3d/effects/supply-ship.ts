@@ -246,11 +246,16 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     // Heading: scene-Z maps to world-Y (row axis), matching
     // `cannonballs.ts` (`position.z = ball.y`). The overlay's
     // `headingRad` is "0 = facing +X (world)"; the ship's long axis is
-    // its local +Z. The host's rotation.y in three.js is a CCW rotation
-    // about +Y, which rotates local +Z toward +X when set to +π/2 (we
-    // want the long axis to point along +X when heading = 0). So:
-    //   yaw = headingRad − π/2
-    host.group.rotation.y = ship.headingRad - Math.PI / 2;
+    // its local +Z (bow). A rotation.y of θ moves local +Z to
+    // (sin θ, 0, cos θ), so for the bow to point along the world +X
+    // axis when heading = 0 we need rotation.y = +π/2, and for the bow
+    // to point along the world +Z axis when heading = π/2 we need
+    // rotation.y = 0. The closed form is:
+    //   yaw = π/2 − headingRad
+    // Earlier this was `headingRad − π/2`, which mirrors the ship
+    // across the Z axis — the bow read as perpendicular to motion on
+    // diagonals, like the ship was drifting sideways.
+    host.group.rotation.y = Math.PI / 2 - ship.headingRad;
 
     // Position + bob + roll.
     if (isSinking) {

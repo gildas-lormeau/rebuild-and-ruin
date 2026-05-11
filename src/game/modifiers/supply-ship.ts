@@ -19,10 +19,19 @@ import type { ModifierImpl } from "./modifier-types.ts";
 const SUPPLY_SHIP_COUNT = 3;
 /** HP at spawn. First hit reveals damage; second hit triggers sink. */
 const SUPPLY_SHIP_HP = 2;
-/** Speed in tiles per second. Calibrated so a ship traverses arm-mouth
- *  → junction in roughly the BATTLE_TIMER window (10s on a ~15-tile
- *  arm). Tuned to land at junction just before battle end if untouched. */
-const SUPPLY_SHIP_SPEED = 1.8;
+/** Speed in tiles per second. Tuned slow enough that a ship cannot
+ *  auto-sink at the junction during a normal 10s battle (a ship
+ *  covers ~9 tiles, minimum arm length ≈ 13 tiles after the spawn
+ *  inset). Ships that aren't hit are swept off by the battle-end
+ *  banner — the auto-sink at junction is a safety net for outlier
+ *  battles only. */
+const SUPPLY_SHIP_SPEED = 0.9;
+/** Distance (tiles) along the heading direction to inset the spawn
+ *  position from the river-mouth `exit`. The exits are 1 tile outside
+ *  the grid (`exit.y = -1` for top edges, etc.); inset 3 tiles inward
+ *  along heading so the entire 1×2 hull is on-screen the moment the
+ *  modifier-reveal banner captures the post-apply scene snapshot. */
+const SUPPLY_SHIP_SPAWN_INSET = 3;
 /** Sink animation duration in seconds — drives `sinking.progress` from
  *  0 → 1. Matches the renderer's tilt-then-descend window. */
 const SUPPLY_SHIP_SINK_DURATION = 1.2;
@@ -250,11 +259,15 @@ function applySupplyShip(state: GameState): readonly number[] {
   for (let armIndex = 0; armIndex < armCount; armIndex++) {
     const exit = exits[armIndex]!;
     const bonus = BONUS_POOL[state.rng.int(0, BONUS_POOL.length - 1)]!;
+    const headingRad = Math.atan2(junction.y - exit.y, junction.x - exit.x);
     ships.push({
       id: armIndex,
       spawnArm: armIndex as 0 | 1 | 2,
-      position: { col: exit.x, row: exit.y },
-      headingRad: Math.atan2(junction.y - exit.y, junction.x - exit.x),
+      position: {
+        col: exit.x + Math.cos(headingRad) * SUPPLY_SHIP_SPAWN_INSET,
+        row: exit.y + Math.sin(headingRad) * SUPPLY_SHIP_SPAWN_INSET,
+      },
+      headingRad,
       hp: SUPPLY_SHIP_HP,
       bonus,
     });
