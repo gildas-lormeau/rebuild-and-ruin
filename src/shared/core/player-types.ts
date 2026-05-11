@@ -210,6 +210,17 @@ export function playerByZone(
   return pid >= 0 ? pid : undefined;
 }
 
+/** Return the zone owned by player `pid`, or `null` when state is absent or
+ *  the slot has no assigned zone. Pure helper consumed by camera and touch-UI
+ *  to derive the local human's home zone from a frame snapshot. */
+export function zoneByPlayer(
+  state: { readonly playerZones: readonly ZoneId[] } | null | undefined,
+  pid: number,
+): ZoneId | null {
+  if (!state) return null;
+  return state.playerZones[pid] ?? null;
+}
+
 /** Return the distinct zones of all non-eliminated enemies. */
 export function enemyZones(
   players: readonly { eliminated: boolean }[],

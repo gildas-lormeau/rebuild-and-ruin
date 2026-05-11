@@ -19,7 +19,7 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import { playerByZone } from "../shared/core/player-types.ts";
+import { playerByZone, zoneByPlayer } from "../shared/core/player-types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";
@@ -155,15 +155,8 @@ export function createZoneCycleButton(
 } {
   const buttons = queryAll(container, "zoom-zone");
 
-  function getMyZone(): ZoneId | null {
-    const state = deps.getState();
-    if (!state) return null;
-    const pid = deps.povPlayerId();
-    return pid >= 0 ? (state.playerZones[pid] ?? null) : null;
-  }
-
   function getCycle(): ZoneId[] {
-    const myZone = getMyZone();
+    const myZone = zoneByPlayer(deps.getState(), deps.povPlayerId());
     const enemies = deps.getEnemyZones();
     return myZone !== null ? [myZone, ...enemies] : enemies;
   }
@@ -175,7 +168,11 @@ export function createZoneCycleButton(
    *  on enemy B previews enemy C as the next cycle step, and an unzoomed
    *  view previews enemy 1 (cycling out from home). */
   function effectiveCurrentZone(): ZoneId | undefined {
-    return deps.getViewedZone() ?? getMyZone() ?? undefined;
+    return (
+      deps.getViewedZone() ??
+      zoneByPlayer(deps.getState(), deps.povPlayerId()) ??
+      undefined
+    );
   }
 
   function nextZone(): ZoneId | undefined {

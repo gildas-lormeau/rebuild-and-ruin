@@ -48,6 +48,7 @@ import {
   enemyZones,
   isPlayerEliminated,
   playerByZone,
+  zoneByPlayer,
 } from "../shared/core/player-types.ts";
 import {
   cannonSize,
@@ -324,12 +325,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return deps.getCtx().povPlayerId;
   }
 
-  function getMyZone(): ZoneId | null {
-    const state = deps.getState();
-    if (!state) return null;
-    return state.playerZones[povPlayerId()] ?? null;
-  }
-
   function getBestEnemyZone(): ZoneId | null {
     const state = deps.getState();
     if (!state) return null;
@@ -490,7 +485,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function holdLifeLostZoom(_state: GameState, frameCtx: FrameContext): void {
     if (!frameCtx.lifeLostKeepZoom) return;
     if (!mobileAutoZoomActive()) return;
-    const myZone = getMyZone();
+    const myZone = zoneByPlayer(deps.getState(), povPlayerId());
     if (myZone === null) return;
     if (target.kind === "zone" && target.zone === myZone) return;
     setCameraZoneInternal(myZone, "lifeLostHold");
@@ -828,7 +823,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function defaultTargetForPhase(phase: Phase): UserTarget | null {
     const slot = phaseSlot(phase);
     if (!slot) return null;
-    const zoneId = slot === "battle" ? getBestEnemyZone() : getMyZone();
+    const zoneId =
+      slot === "battle"
+        ? getBestEnemyZone()
+        : zoneByPlayer(deps.getState(), povPlayerId());
     if (zoneId === null) return null;
     return { kind: "zone", zone: zoneId };
   }
