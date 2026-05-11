@@ -34,6 +34,13 @@ const SUPPLY_SHIP_SPAWN_INSET = 3;
 /** Sink animation duration in seconds — drives `sinking.progress` from
  *  0 → 1. Matches the renderer's tilt-then-descend window. */
 const SUPPLY_SHIP_SINK_DURATION = 1.2;
+/** Battle-timer threshold (seconds remaining) at which any still-alive
+ *  ship starts auto-sinking. Set ~0.3s above SUPPLY_SHIP_SINK_DURATION
+ *  so the sink animation completes before the battle banner kicks in.
+ *  Replaces the old junction-arrival distance check — auto-sink is now
+ *  driven by the battle clock so behavior is consistent across all map
+ *  layouts (short arms used to cause ships to reach the junction). */
+const AUTO_SINK_AT_TIMER = 1.5;
 /** Distance threshold (tiles) for a cannonball impact to count as a ship
  *  hit. Generous (~1 tile) so leading a moving target feels rewarding
  *  rather than punishing. Tuned with playtest. */
@@ -98,20 +105,27 @@ export function tickSupplyShips(
       continue;
     }
 
+    // Auto-sink near the end of the battle window so ships don't ride
+    // out the final seconds clipped to the screen edge. Driven by the
+    // battle timer (not by junction arrival) so behavior is uniform
+    // across all map layouts.
+    if (state.timer < AUTO_SINK_AT_TIMER) {
+      ship.sinking = { progress: 0 };
+      continue;
+    }
+
     const exit = exits[ship.spawnArm]!;
     const midpoint = riverMidpoints[ship.spawnArm]!;
     const sample = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
     // Advance by exact arc-length step: dt_param = (speed · dt) / |B'(t)|.
     // Keeps the ship at a constant tiles/sec regardless of local curve
     // tangent magnitude (which varies along quadratic Beziers when the
-    // midpoint is off-chord).
+    // midpoint is off-chord). pathT is clamped at 1 as a safety cap
+    // against numerical drift — speed × battle-length never reaches the
+    // far end of the shortest arm in normal play.
     const stepT =
       sample.tangentMag > 0 ? (SUPPLY_SHIP_SPEED * dt) / sample.tangentMag : 0;
-    ship.pathT += stepT;
-    if (ship.pathT >= 1) {
-      ship.pathT = 1;
-      ship.sinking = { progress: 0 };
-    }
+    ship.pathT = Math.min(1, ship.pathT + stepT);
     const advanced = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
     ship.position.col = advanced.col;
     ship.position.row = advanced.row;
