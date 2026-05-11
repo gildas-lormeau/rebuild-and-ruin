@@ -7,12 +7,14 @@
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
 import type { PixelPos, TilePos } from "../../shared/core/geometry-types.ts";
+import { TILE_SIZE } from "../../shared/core/grid.ts";
 import type {
   SupplyBonusId,
   SupplyShip,
 } from "../../shared/core/modifier-defs.ts";
 import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
+import type { Rng } from "../../shared/platform/rng.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Three ships per battle — one per Y-river arm (map.exits has 3 entries). */
@@ -195,6 +197,28 @@ export function supplyShipBuildTimerBonus(state: GameState): number {
     totalSeconds += consumed * EXTRA_BUILD_TIME_SECONDS;
   }
   return totalSeconds;
+}
+
+/** Pick a non-sinking supply ship as a shot target for AI cannons.
+ *  Returns the ship's current pixel position with no lead prediction —
+ *  cannonball flight time + ship motion provide natural miss-chance, so
+ *  AIs occasionally land a hit without reliably sniping the bonuses
+ *  away from human players. Returns null when no targetable ship exists
+ *  (modifier inactive, ships cleared, or all sinking). Takes the ships
+ *  array directly so the AI's read-only `BattleViewState` slice fits
+ *  without exposing the full GameState surface. */
+export function pickSupplyShipTarget(
+  ships: readonly SupplyShip[] | null | undefined,
+  rng: Rng,
+): PixelPos | null {
+  if (!ships || ships.length === 0) return null;
+  const targetable = ships.filter((ship) => !ship.sinking && ship.hp > 0);
+  if (targetable.length === 0) return null;
+  const ship = rng.pick(targetable);
+  return {
+    x: ship.position.col * TILE_SIZE,
+    y: ship.position.row * TILE_SIZE,
+  };
 }
 
 /** Peek: does the player have at least one bonus of `type` queued?

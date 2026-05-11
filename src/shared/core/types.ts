@@ -252,9 +252,10 @@ export interface ModernState {
   rubbleClearingHeld: RubbleClearingHeld | null;
   /** Neutral supply ships active during the current battle. Spawned by
    *  the supply_ship modifier's `apply` at battle start; advanced by the
-   *  battle tick; sunk by cannonball hits or auto-sunk at the Y-junction.
-   *  Cleared back to null at battle end. AI ignores these entries by
-   *  design — the modifier is a human-favoring catch-up bonus. */
+   *  battle tick; sunk by cannonball hits or auto-sunk near battle end.
+   *  Cleared back to null at battle end. AIs target these occasionally
+   *  (no lead prediction), so the modifier still favours humans who can
+   *  time and lead their shots. */
   supplyShips: SupplyShip[] | null;
   /** Per-player queue of one-round supply-ship bonuses pending
    *  consumption. Pushed onto by `tryHitSupplyShip` when a ship sinks

@@ -2,6 +2,7 @@ import {
   canFireOwnCannon,
   filterActiveFiringCannons,
   getGruntTargetTower,
+  pickSupplyShipTarget,
 } from "../game/index.ts";
 import {
   type Cannonball,
@@ -86,6 +87,12 @@ const BATTLE_SECOND_HALF_TIMER = 5;
 const TARGET_SWITCH_PROBABILITY = 0.25;
 /** Chance to target a strategic wall tile (flanked by 2+ obstacles). */
 const STRATEGIC_TARGET_PROBABILITY = 1 / 4;
+/** Chance to target a supply ship sailing the river. No lead prediction —
+ *  the AI fires at the ship's current position, so cannonball flight
+ *  time + ship motion create natural miss-chance. Bonuses still
+ *  favour humans (who can lead and time shots), but AIs occasionally
+ *  land a hit. */
+const SUPPLY_SHIP_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a wall tile blocking a grunt's path to its tower. */
 const GRUNT_WALL_TARGET_PROBABILITY = 1 / 8;
 /** Chance to target a fresh (undamaged) enemy cannon before defaulting to
@@ -478,6 +485,28 @@ export function pickTarget(
 
   const currentRow = crosshair.y / TILE_SIZE;
   const currentCol = crosshair.x / TILE_SIZE;
+
+  // Supply-ship targeting — first early gate so it competes fairly with
+  // the other tactical picks. Skipped during `wallsOnly` (grunt-sweep
+  // mode) since that mode is explicitly about clearing grunts off our
+  // territory, not chasing river bonuses. Gated on `supplyShips != null`
+  // so the rng roll only happens when ships are actually present —
+  // preserves classic-mode determinism (no extra rng consumption when
+  // the modifier is inactive).
+  const supplyShips = state.modern?.supplyShips;
+  if (!wallsOnly && supplyShips != null) {
+    const shipProb = traitLookup(battleTactics, [
+      0,
+      SUPPLY_SHIP_TARGET_PROBABILITY,
+      2 * SUPPLY_SHIP_TARGET_PROBABILITY,
+    ] as const);
+    if (rand() < shipProb) {
+      const shipTarget = pickSupplyShipTarget(supplyShips, rng);
+      if (shipTarget) {
+        return { x: shipTarget.x, y: shipTarget.y };
+      }
+    }
+  }
 
   // Strategic targeting — controlled by battleTactics
   const strategicProb = traitLookup(battleTactics, [

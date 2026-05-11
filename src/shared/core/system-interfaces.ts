@@ -23,6 +23,7 @@ import type {
   PixelPos,
   TilePos,
 } from "./geometry-types.ts";
+import type { SupplyShip } from "./modifier-defs.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
@@ -118,6 +119,7 @@ export interface BattleViewState extends GameViewState {
   readonly modern: {
     readonly frozenTiles: ReadonlySet<number> | null;
     readonly activeModifier: ModifierId | null;
+    readonly supplyShips: readonly SupplyShip[] | null;
   } | null;
 }
 
