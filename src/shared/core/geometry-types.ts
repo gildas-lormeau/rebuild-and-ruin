@@ -52,6 +52,11 @@ export interface GameMap {
   zones: ZoneCell[][];
   junction: PixelPos;
   exits: PixelPos[];
+  /** Per-arm quadratic-Bezier midpoints used when painting the river,
+   *  parallel to `exits`. Stored so consumers (e.g. supply-ship
+   *  motion) can re-evaluate the same curve and stay in the painted
+   *  water lane. */
+  riverMidpoints: PixelPos[];
   /** Bumped when tiles are mutated in place (e.g., sinkhole).
    *  Render terrain cache uses this to detect stale ImageData. */
   mapVersion: number;

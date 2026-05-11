@@ -56,15 +56,26 @@ export type SupplyBonusId =
 
 /** A neutral supply ship sailing along the Y-river during battle.
  *  Three ships spawn at the river-mouth of each arm and sail toward
- *  the central junction; sinking one awards `bonus` to the last-hitter.
- *  Survivors at battle end are swept away by the battle-end banner. */
+ *  the central junction along the quadratic Bezier the map generator
+ *  painted (control points: `exit`, `riverMidpoints[arm]`, `junction`).
+ *  Sinking one awards `bonus` to the last-hitter; survivors at battle
+ *  end are swept away by the battle-end banner. */
 export interface SupplyShip {
   readonly id: number;
-  /** Which of the three Y-river arms this ship enters from. */
+  /** Which of the three Y-river arms this ship enters from. Indexes
+   *  into `map.exits` and `map.riverMidpoints`. */
   readonly spawnArm: 0 | 1 | 2;
-  /** Sub-tile position (col, row as floats). */
+  /** Progress along the river arm's Bezier curve, 0 = exit,
+   *  1 = junction. Canonical motion state; `position` and
+   *  `headingRad` are re-derived from this each tick so the ship
+   *  stays centered in the painted water lane. */
+  pathT: number;
+  /** Sub-tile position (col, row as floats) — derived from `pathT`
+   *  via the arm's Bezier each tick. Cached so collision detection
+   *  and the render projection don't re-evaluate the curve. */
   position: { col: number; row: number };
-  /** Facing direction in radians; 0 = +col axis. */
+  /** Facing direction in radians; 0 = +col axis. Derived from the
+   *  Bezier tangent at the current `pathT`. */
   headingRad: number;
   /** Remaining hit points. Starts at 2; 0 triggers the sink animation. */
   hp: number;

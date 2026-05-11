@@ -6,7 +6,7 @@
  */
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
-import type { TilePos } from "../../shared/core/geometry-types.ts";
+import type { PixelPos, TilePos } from "../../shared/core/geometry-types.ts";
 import type {
   SupplyBonusId,
   SupplyShip,
@@ -26,17 +26,14 @@ const SUPPLY_SHIP_HP = 2;
  *  banner — the auto-sink at junction is a safety net for outlier
  *  battles only. */
 const SUPPLY_SHIP_SPEED = 0.9;
-/** Distance (tiles) along the heading direction to inset the spawn
- *  position from the river-mouth `exit`. The exits are 1 tile outside
- *  the grid (`exit.y = -1` for top edges, etc.); inset 3 tiles inward
- *  along heading so the entire 1×2 hull is on-screen the moment the
+/** Distance (tiles) along the river Bezier to inset the spawn from
+ *  the `exit` point. Exits sit 1 tile outside the grid; inset ~3 tiles
+ *  along the curve so the entire 1×2 hull is fully on-screen when the
  *  modifier-reveal banner captures the post-apply scene snapshot. */
 const SUPPLY_SHIP_SPAWN_INSET = 3;
 /** Sink animation duration in seconds — drives `sinking.progress` from
  *  0 → 1. Matches the renderer's tilt-then-descend window. */
 const SUPPLY_SHIP_SINK_DURATION = 1.2;
-/** Distance threshold (tiles) for "arrived at junction" detection. */
-const JUNCTION_ARRIVAL_RADIUS = 1.0;
 /** Distance threshold (tiles) for a cannonball impact to count as a ship
  *  hit. Generous (~1 tile) so leading a moving target feels rewarding
  *  rather than punishing. Tuned with playtest. */
@@ -70,7 +67,12 @@ export const supplyShipImpl: ModifierImpl = {
  *  each frame; cheap early-out when no ships are active. Pushes one
  *  `TilePos` to `impactsOut` per ship reaching sink-completion (sinking
  *  progress crossing ≥ 1) so the runtime's existing impact-splash
- *  pipeline renders the foam ring without a dedicated effect manager. */
+ *  pipeline renders the foam ring without a dedicated effect manager.
+ *
+ *  Ships follow the river's Bezier curve (control points: exit,
+ *  midpoint, junction) rather than a straight line — straight motion
+ *  would clip onto grass at the curve's peak where the painted river
+ *  bends 1–3 tiles off the chord. */
 export function tickSupplyShips(
   state: GameState,
   dt: number,
@@ -79,8 +81,7 @@ export function tickSupplyShips(
   const ships = state.modern?.supplyShips;
   if (!ships || ships.length === 0) return;
 
-  const junctionCol = state.map.junction.x;
-  const junctionRow = state.map.junction.y;
+  const { exits, junction, riverMidpoints } = state.map;
 
   for (let i = ships.length - 1; i >= 0; i--) {
     const ship = ships[i]!;
@@ -97,17 +98,24 @@ export function tickSupplyShips(
       continue;
     }
 
-    ship.position.col += Math.cos(ship.headingRad) * SUPPLY_SHIP_SPEED * dt;
-    ship.position.row += Math.sin(ship.headingRad) * SUPPLY_SHIP_SPEED * dt;
-
-    const deltaCol = junctionCol - ship.position.col;
-    const deltaRow = junctionRow - ship.position.row;
-    if (
-      deltaCol * deltaCol + deltaRow * deltaRow <=
-      JUNCTION_ARRIVAL_RADIUS * JUNCTION_ARRIVAL_RADIUS
-    ) {
+    const exit = exits[ship.spawnArm]!;
+    const midpoint = riverMidpoints[ship.spawnArm]!;
+    const sample = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
+    // Advance by exact arc-length step: dt_param = (speed · dt) / |B'(t)|.
+    // Keeps the ship at a constant tiles/sec regardless of local curve
+    // tangent magnitude (which varies along quadratic Beziers when the
+    // midpoint is off-chord).
+    const stepT =
+      sample.tangentMag > 0 ? (SUPPLY_SHIP_SPEED * dt) / sample.tangentMag : 0;
+    ship.pathT += stepT;
+    if (ship.pathT >= 1) {
+      ship.pathT = 1;
       ship.sinking = { progress: 0 };
     }
+    const advanced = sampleRiverBezier(exit, midpoint, junction, ship.pathT);
+    ship.position.col = advanced.col;
+    ship.position.row = advanced.row;
+    ship.headingRad = advanced.headingRad;
   }
 }
 
@@ -253,21 +261,28 @@ function queueSupplyBonus(
 }
 
 function applySupplyShip(state: GameState): readonly number[] {
-  const { exits, junction } = state.map;
+  const { exits, junction, riverMidpoints } = state.map;
   const ships: SupplyShip[] = [];
   const armCount = Math.min(SUPPLY_SHIP_COUNT, exits.length);
   for (let armIndex = 0; armIndex < armCount; armIndex++) {
     const exit = exits[armIndex]!;
+    const midpoint = riverMidpoints[armIndex]!;
     const bonus = BONUS_POOL[state.rng.int(0, BONUS_POOL.length - 1)]!;
-    const headingRad = Math.atan2(junction.y - exit.y, junction.x - exit.x);
+    // Initial pathT = inset_tiles / approx_arc_length. Quadratic Bezier
+    // arc length is within a few % of chord length for the small
+    // midpoint jitter the map generator uses (±3 cols, ±2 rows), so
+    // the chord makes a good cheap approximation.
+    const chordCol = junction.x - exit.x;
+    const chordRow = junction.y - exit.y;
+    const chordLen = Math.sqrt(chordCol * chordCol + chordRow * chordRow) || 1;
+    const pathT = SUPPLY_SHIP_SPAWN_INSET / chordLen;
+    const sample = sampleRiverBezier(exit, midpoint, junction, pathT);
     ships.push({
       id: armIndex,
       spawnArm: armIndex as 0 | 1 | 2,
-      position: {
-        col: exit.x + Math.cos(headingRad) * SUPPLY_SHIP_SPAWN_INSET,
-        row: exit.y + Math.sin(headingRad) * SUPPLY_SHIP_SPAWN_INSET,
-      },
-      headingRad,
+      pathT,
+      position: { col: sample.col, row: sample.row },
+      headingRad: sample.headingRad,
       hp: SUPPLY_SHIP_HP,
       bonus,
     });
@@ -275,4 +290,42 @@ function applySupplyShip(state: GameState): readonly number[] {
   if (state.modern) state.modern.supplyShips = ships;
   // Entity-layer modifier — no tile mutation to surface in the reveal banner.
   return [];
+}
+
+/** Evaluate the quadratic Bezier `B(t) = (1−t)²·P0 + 2(1−t)·t·P1 + t²·P2`
+ *  along a river arm. Returns position + heading (atan2 of the tangent)
+ *  + tangent magnitude so callers can advance `t` at constant
+ *  arc-length speed. Matches the same Bezier the map generator paints
+ *  in `interpolatePath`. */
+function sampleRiverBezier(
+  exit: PixelPos,
+  midpoint: PixelPos,
+  junction: PixelPos,
+  t: number,
+): {
+  col: number;
+  row: number;
+  headingRad: number;
+  tangentMag: number;
+} {
+  const oneMinusT = 1 - t;
+  const col =
+    oneMinusT * oneMinusT * exit.x +
+    2 * oneMinusT * t * midpoint.x +
+    t * t * junction.x;
+  const row =
+    oneMinusT * oneMinusT * exit.y +
+    2 * oneMinusT * t * midpoint.y +
+    t * t * junction.y;
+  // B'(t) = 2(1−t)·(P1−P0) + 2t·(P2−P1)
+  const tangentCol =
+    2 * oneMinusT * (midpoint.x - exit.x) + 2 * t * (junction.x - midpoint.x);
+  const tangentRow =
+    2 * oneMinusT * (midpoint.y - exit.y) + 2 * t * (junction.y - midpoint.y);
+  return {
+    col,
+    row,
+    headingRad: Math.atan2(tangentRow, tangentCol),
+    tangentMag: Math.sqrt(tangentCol * tangentCol + tangentRow * tangentRow),
+  };
 }

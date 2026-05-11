@@ -183,6 +183,7 @@ function makeAllGrassMap(): GameMap {
     ),
     junction: { x: 0, y: 0 },
     exits: [],
+    riverMidpoints: [],
     mapVersion: 0,
   };
 }
