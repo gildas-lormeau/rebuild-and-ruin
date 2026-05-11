@@ -1,11 +1,6 @@
-import { FID } from "../shared/core/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
-import {
-  type GameState,
-  hasFeature,
-  type ModernState,
-} from "../shared/core/types.ts";
+import type { GameState, ModernState } from "../shared/core/types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
 type ComboTracker = NonNullable<ModernState["comboTracker"]>;
@@ -57,11 +52,6 @@ export function createComboTracker(playerCount: number): ComboTracker {
     });
   }
   return { players, events: [] };
-}
-
-/** Check if combo scoring is active for this game. */
-export function isCombosEnabled(state: GameState): boolean {
-  return hasFeature(state, FID.COMBOS);
 }
 
 /** Facade: score combo bonus for an impact event. Returns bonus points (0 in classic mode). */

@@ -95,7 +95,6 @@ export const FEATURE_CONSUMERS = {
     "render:lockoutTimer": "src/runtime/runtime-render.ts",
   },
   combos: {
-    "gate:isCombosEnabled": "src/game/combos.ts",
     "gate:prepareBattleState": "src/game/phase-setup.ts",
     "stateAccess:scoreImpactCombo": "src/game/combos.ts",
     "stateAccess:tickComboTracking": "src/game/combos.ts",

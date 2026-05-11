@@ -59,11 +59,7 @@ import {
   orderCastleWallsForAnimation,
   startOfBuildPhaseHousekeeping,
 } from "./castle-generation.ts";
-import {
-  comboDemolitionBonus,
-  createComboTracker,
-  isCombosEnabled,
-} from "./combos.ts";
+import { comboDemolitionBonus, createComboTracker } from "./combos.ts";
 import { getDeadZones, getGruntTargetTower } from "./grunt-movement.ts";
 import {
   recomputeGruntTargetedWalls,
@@ -148,9 +144,7 @@ export function prepareBattleState(state: GameState): ModifierDiff | null {
     homeEnclosedRegion,
   });
   if (hasFeature(state, FID.COMBOS)) {
-    state.modern!.comboTracker = isCombosEnabled(state)
-      ? createComboTracker(state.players.length)
-      : null;
+    state.modern!.comboTracker = createComboTracker(state.players.length);
   }
   return diff;
 }
