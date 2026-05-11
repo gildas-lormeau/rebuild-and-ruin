@@ -591,5 +591,6 @@ function copyCannonballCore(b: Cannonball): Cannonball {
     elapsed: b.elapsed,
     altitude: b.altitude,
     incendiary: b.incendiary,
+    mortar: b.mortar,
   };
 }
