@@ -6,13 +6,12 @@
  * manually.
  */
 
-import { Action } from "../ui/input-action.ts";
 import { type BurningPit, type Cannon, CannonMode } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { GameMap, PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
-import { isPlayerEliminated, type Player } from "./player-types.ts";
+import { type Player, playerByZone } from "./player-types.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
 /** 90° angle step (π/2 radians) — used for 4-direction snapping. */
@@ -263,58 +262,6 @@ export function towerAtPixel(
   return bestIdx;
 }
 
-/** Find the nearest tower to a given tower in a direction (for spatial navigation). */
-export function findNearestTower(
-  towers: readonly Tower[],
-  currentIdx: number,
-  direction: Action,
-  zone?: ZoneId,
-): number {
-  const current = towers[currentIdx]!;
-  let bestIdx = currentIdx;
-  let bestScore = Infinity;
-
-  for (let i = 0; i < towers.length; i++) {
-    if (i === currentIdx) continue;
-    const tower = towers[i]!;
-    if (zone !== undefined && tower.zone !== zone) continue;
-    const dr = tower.row - current.row;
-    const dc = tower.col - current.col;
-
-    let primary: number;
-    let secondary: number;
-    switch (direction) {
-      case Action.UP:
-        primary = -dr;
-        secondary = Math.abs(dc);
-        break;
-      case Action.DOWN:
-        primary = dr;
-        secondary = Math.abs(dc);
-        break;
-      case Action.LEFT:
-        primary = -dc;
-        secondary = Math.abs(dr);
-        break;
-      case Action.RIGHT:
-        primary = dc;
-        secondary = Math.abs(dr);
-        break;
-      default:
-        continue;
-    }
-
-    if (primary <= 0) continue;
-    const score = secondary * 2 + primary;
-    if (score < bestScore) {
-      bestScore = score;
-      bestIdx = i;
-    }
-  }
-
-  return bestIdx;
-}
-
 /** Order items by greedy nearest-neighbor (Manhattan distance). */
 export function orderByNearest<T extends TilePos>(
   items: readonly T[],
@@ -552,62 +499,6 @@ export function isAtTile(obj: TilePos, row: number, col: number): boolean {
   return obj.row === row && obj.col === col;
 }
 
-/** Return the distinct zones of all non-eliminated enemies. */
-export function enemyZones(
-  players: readonly { eliminated: boolean }[],
-  playerZones: readonly ZoneId[],
-  myPid: number,
-): ZoneId[] {
-  const zones: ZoneId[] = [];
-  for (let i = 0; i < players.length; i++) {
-    if (i === myPid || isPlayerEliminated(players[i])) continue;
-    const zone = playerZones[i];
-    if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
-  }
-  return zones;
-}
-
-/** Compute the crosshair target for battle start (touch devices).
- *  - If `lastPos` targets a living enemy, return it.
- *  - Otherwise aim at the best enemy's home tower.
- *  Returns null when no valid target exists. */
-export function battleTargetPosition(
-  players: readonly {
-    eliminated: boolean;
-    score: number;
-    homeTower: TilePos | null;
-  }[],
-  playerZones: readonly ZoneId[],
-  zones: readonly (readonly ZoneCell[])[],
-  myPid: number,
-  lastPos: { x: number; y: number } | undefined,
-): { x: number; y: number } | null {
-  // Restore last position if targeted opponent is alive
-  if (lastPos) {
-    const row = pxToTile(lastPos.y);
-    const col = pxToTile(lastPos.x);
-    const zone = zones[row]?.[col];
-    if (zone !== undefined && zone !== 0) {
-      const pid = playerByZone(playerZones, zone);
-      if (
-        pid !== undefined &&
-        pid !== myPid &&
-        !isPlayerEliminated(players[pid])
-      ) {
-        return { x: lastPos.x, y: lastPos.y };
-      }
-    }
-  }
-
-  // First battle or opponent died: aim at best enemy's home tower
-  const zone = bestEnemyZone(players, playerZones, myPid);
-  if (zone === null) return null;
-  const pid = playerByZone(playerZones, zone);
-  const tower = pid !== undefined ? players[pid]?.homeTower : null;
-  if (!tower) return null;
-  return towerCenterPx(tower);
-}
-
 /** Boundary helper: read a cell from `map.zones` and return it as a `ZoneId`,
  *  or `undefined` for out-of-bounds and water cells (the `0` sentinel).
  *  All grid reads should go through this so the water sentinel cannot leak
@@ -695,18 +586,6 @@ export function unpackTile(key: number): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
 }
 
-/** Return the player slot whose zone matches `zone`, or `undefined` if no
- *  player is assigned to that zone. Encodes the data-model invariant that
- *  zones are exclusive: at most one player per zone (river isolation).
- *  Use this in place of `playerZones.indexOf(zone)`. */
-export function playerByZone(
-  playerZones: readonly ZoneId[],
-  zone: ZoneId,
-): number | undefined {
-  const pid = playerZones.indexOf(zone);
-  return pid >= 0 ? pid : undefined;
-}
-
 /** Pixel center of a tower footprint. */
 export function towerCenterPx(tilePos: TilePos): PixelPos {
   const half = TOWER_SIZE / 2;
@@ -719,25 +598,6 @@ export function towerCenterPx(tilePos: TilePos): PixelPos {
 /** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
 export function pxToTile(px: number): number {
   return Math.floor(px / TILE_SIZE);
-}
-
-/** Return the zone of the highest-scoring non-eliminated enemy, or null. */
-export function bestEnemyZone(
-  players: readonly { eliminated: boolean; score: number }[],
-  playerZones: readonly ZoneId[],
-  myPid: number,
-): ZoneId | null {
-  let bestPid = -1;
-  let bestScore = -1;
-  for (let i = 0; i < players.length; i++) {
-    if (i === myPid || isPlayerEliminated(players[i])) continue;
-    if (players[i]!.score > bestScore) {
-      bestScore = players[i]!.score;
-      bestPid = i;
-    }
-  }
-  if (bestPid < 0) return null;
-  return playerZones[bestPid] ?? null;
 }
 
 /** Visit all 8 in-bounds neighbors of (r, c). Passes neighbor (row, col, key)

@@ -19,7 +19,7 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import { playerByZone } from "../shared/core/spatial.ts";
+import { playerByZone } from "../shared/core/player-types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import { PLAYER_COLORS } from "../shared/ui/player-config.ts";

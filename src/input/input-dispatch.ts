@@ -18,16 +18,17 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import type { WorldPos } from "../shared/core/geometry-types.ts";
+import type { Tower, WorldPos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import { findNearestTower, towerAtPixel } from "../shared/core/spatial.ts";
+import { towerAtPixel } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,
   isMovementAction,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
+import type { ZoneId } from "../shared/core/zone-id.ts";
 import { Action } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,
@@ -427,6 +428,58 @@ export function dispatchPointerMoveWorld(
       maybeSendAimUpdate(wx, wy);
     }
   });
+}
+
+/** Find the nearest tower to a given tower in a direction (for spatial navigation). */
+function findNearestTower(
+  towers: readonly Tower[],
+  currentIdx: number,
+  direction: Action,
+  zone?: ZoneId,
+): number {
+  const current = towers[currentIdx]!;
+  let bestIdx = currentIdx;
+  let bestScore = Infinity;
+
+  for (let i = 0; i < towers.length; i++) {
+    if (i === currentIdx) continue;
+    const tower = towers[i]!;
+    if (zone !== undefined && tower.zone !== zone) continue;
+    const dr = tower.row - current.row;
+    const dc = tower.col - current.col;
+
+    let primary: number;
+    let secondary: number;
+    switch (direction) {
+      case Action.UP:
+        primary = -dr;
+        secondary = Math.abs(dc);
+        break;
+      case Action.DOWN:
+        primary = dr;
+        secondary = Math.abs(dc);
+        break;
+      case Action.LEFT:
+        primary = -dc;
+        secondary = Math.abs(dr);
+        break;
+      case Action.RIGHT:
+        primary = dc;
+        secondary = Math.abs(dr);
+        break;
+      default:
+        continue;
+    }
+
+    if (primary <= 0) continue;
+    const score = secondary * 2 + primary;
+    if (score < bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
 }
 
 /** Dispatch any action for a single controller in a placement phase. Returns true if handled. */
