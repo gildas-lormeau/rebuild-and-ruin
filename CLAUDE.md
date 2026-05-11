@@ -3,6 +3,22 @@
 Rampart multiplayer remake for the web, tournament-style. Vite + TypeScript, no framework.
 Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migration, watcher ticks).
 
+## Non-targets
+
+What this project is NOT. Reject or push back on proposals in these directions:
+
+- **No framework migration.** Vite + vanilla TypeScript is load-bearing. Don't propose React/Vue/Svelte/etc.
+- **No persistent accounts / progression.** Per-match state only — no profiles, cosmetics, unlockables, ranks, or stats history.
+- **No authoritative server.** Server is a checkpoint relay for host-migration; clients are authoritative for their own input. Anti-cheat / server-side validation is out of scope.
+- **No matchmaking / tournament platform.** "Tournament-style" refers to the original Rampart's gameplay format (1v1-into-finals inside a match), not a platform feature. No brackets, lobbies-of-lobbies, or ranked queues.
+- **No native ports.** Web-first; touch input is the mobile surface. No iOS/Android apps, no Electron.
+- **No level editor or content authoring tools.** Maps are seed-generated; upgrades/modifiers/cannon modes live in pool registries and only the dev adds entries.
+- **No new game modes beyond `classic` and `modern`.** New mechanics go into FEATURE_POOL gated by `hasFeature(state, ...)`, not a parallel mode.
+- **No spectator/esports features.** Watcher ticks exist for host-migration recovery, not for an audience product.
+- **No retired-Rampart features** (4-player, additional unit types, drawbridges) **unless explicitly scoped into modern mode.** `reference_modern_ideas` is a parking lot of considered extensions — don't proactively implement from it.
+
+Modern mode is the explicit exception channel: features with a `FeatureId`, pool entry, and consumer map are fair game. Anything outside that mechanism is a non-target.
+
 ## Commands
 
 - Build: `npm run build` (runs `tsc --noEmit && vite build` — always use this, never `npx vite build` alone)
