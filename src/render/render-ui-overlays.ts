@@ -392,10 +392,7 @@ export function createOnlineOverlay(
         gruntSurgeRevealIntensity !== undefined
           ? view.modern?.activeModifierChangedTiles
           : undefined,
-      supplyShips: buildBattleSupplyShipsPayload(
-        inBattle,
-        view.modern?.supplyShips,
-      ),
+      supplyShips: buildBattleSupplyShipsPayload(view.modern?.supplyShips),
     },
     phantoms: frame.phantoms,
     ui: {
@@ -783,10 +780,15 @@ function buildBattleCannonballsPayload(
 }
 
 function buildBattleSupplyShipsPayload(
-  inBattle: boolean,
   ships: readonly SupplyShip[] | null | undefined,
 ): readonly OverlaySupplyShip[] | undefined {
-  if (!inBattle || !ships || ships.length === 0) return undefined;
+  // No phase gate: `state.modern.supplyShips` is null outside the
+  // battle window (apply() spawns at battle start, clear() nulls at
+  // BATTLE_END), so the field nullness IS the gate. Including the
+  // overlay during MODIFIER_REVEAL is essential — that's the phase
+  // whose banner sweep snapshots the post-apply scene and reveals the
+  // ships in place.
+  if (!ships || ships.length === 0) return undefined;
   return ships.map((ship) => ({
     id: ship.id,
     x: ship.position.col * TILE_SIZE + TILE_SIZE / 2,
