@@ -6,9 +6,17 @@
  * Why: when several call sites repeat the same `state.X.Y[Z]?.W[V]`
  * shape, a typo or stale-index handling drift in one of them is invisible
  * at review time. A named helper (`getCannon`, `getGruntTargetTower`,
- * `hasAliveHouseAt`) gives a single place to evolve the contract — but
- * only if the lint pins new code to it. Pure type-safety can't catch this
- * because the inlined shape and the helper return the same type.
+ * `hasAliveHouseAt`, `zoneAt`) gives a single place to evolve the contract
+ * — but only if the lint pins new code to it. Pure type-safety can't catch
+ * this because the inlined shape and the helper return the same type.
+ *
+ * The `map.zones` rule additionally bans raw aliases (`const zones =
+ * state.map.zones`): aliasing the 2D array is the same loophole, just one
+ * indirection later. `state.map.zones[row][col]` returns a `ZoneCell`
+ * (`ZoneId | 0`, where `0` is the water sentinel); direct grid reads
+ * silently let that sentinel flow into APIs expecting a validated
+ * `ZoneId`. `zoneAt` filters water + out-of-bounds and returns
+ * `ZoneId | undefined`, encoding the intent at the type level.
  *
  * Usage:
  *   deno run -A scripts/lint-accessor-bypasses.ts
@@ -49,6 +57,29 @@ const RULES: Rule[] = [
     pattern: /state\.map\.houses\.some\(/,
     helper: "hasAliveHouseAt(state, r, c)",
     allow: new Set(["src/shared/core/board-occupancy.ts"]),
+  },
+  {
+    // Catches both `map.zones[r][c]` reads and `const zones = state.map.zones`
+    // aliases. Allow-list:
+    //   - spatial.ts        — defines `zoneAt`; the in-allow-list raw access
+    //   - zone-id.ts        — docstring reference
+    //   - map-generation.ts — fresh flood-fill allocates raw ids
+    //   - zone-recompute.ts — re-flood-fill writes raw cells (trust boundary)
+    //   - dev-console-grid.ts — debug surface for raw cells
+    //   - runtime-camera.ts, render-ui-overlays.ts — pass the raw 2D array
+    //     into `castleCenterPx` (a spatial helper that takes the array shape).
+    //     If `castleCenterPx` is ever refactored to take `GameMap`, drop these.
+    pattern: /\bmap\.zones\b/,
+    helper: "zoneAt(map, row, col)",
+    allow: new Set([
+      "src/shared/core/spatial.ts",
+      "src/shared/core/zone-id.ts",
+      "src/game/map-generation.ts",
+      "src/game/zone-recompute.ts",
+      "src/runtime/dev-console-grid.ts",
+      "src/runtime/runtime-camera.ts",
+      "src/render/render-ui-overlays.ts",
+    ]),
   },
 ];
 const violations: Violation[] = [];
