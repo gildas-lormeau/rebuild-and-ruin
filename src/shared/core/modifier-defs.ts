@@ -253,9 +253,7 @@ const MODIFIER_POOL = [
     description:
       "Three neutral cargo ships sail the Y-river — sink one for a hidden one-round bonus",
     weight: 2,
-    // Gameplay impl + bonus award + wire payload land in follow-up commits;
-    // flip to true once the modifier is online-safe end-to-end.
-    implemented: false,
+    implemented: true,
     needsCheckpoint: false,
     // Ships are entity-layer; no tile mutation to revert in the banner snapshot.
     tileMutationPrev: null,

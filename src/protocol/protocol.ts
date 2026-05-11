@@ -25,6 +25,8 @@ import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type {
   RubbleClearingHeld,
   SerializedModifierTiles,
+  SupplyBonusId,
+  SupplyShip,
 } from "../shared/core/modifier-defs.ts";
 import type {
   CannonPhantomPayload,
@@ -256,6 +258,18 @@ export interface FullStateMessage extends SerializedModifierTiles {
    *  checkpoints carry null; only present on a host migration during the
    *  brief reveal window. */
   rubbleClearingHeld?: RubbleClearingHeld | null;
+  /** Active supply ships during battle. Positions are mirror-simulated
+   *  from RNG + tick, so every peer reaches the same state without this
+   *  field — but late joiners need the snapshot to render in-flight
+   *  ships and to credit subsequent sinks correctly. Cleared at
+   *  BATTLE_END. */
+  supplyShips?: SupplyShip[] | null;
+  /** Per-player queue of one-round supply-ship bonuses pending
+   *  consumption. Serialized as `[playerId, bonusIds[]][]` (Map →
+   *  entries array). Same checkpoint rationale as `supplyShips` — the
+   *  field is mirror-simulated cross-peer but joiners need the
+   *  snapshot. */
+  pendingSupplyBonuses?: [number, SupplyBonusId[]][] | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerSlot;

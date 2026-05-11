@@ -145,6 +145,15 @@ export function restoreFullStateSnapshot(
     state.modern!.precomputedDustStormJitters =
       (msg.precomputedDustStormJitters as readonly number[] | undefined) ?? [];
     state.modern!.rubbleClearingHeld = msg.rubbleClearingHeld ?? null;
+    state.modern!.supplyShips = msg.supplyShips ?? null;
+    state.modern!.pendingSupplyBonuses = msg.pendingSupplyBonuses
+      ? new Map(
+          msg.pendingSupplyBonuses.map(([pid, bonuses]) => [
+            pid as ValidPlayerSlot,
+            [...bonuses],
+          ]),
+        )
+      : null;
   }
   applyCheckpointModifierTiles(state, msg);
   if (hasFeature(state, FID.UPGRADES)) {
@@ -400,6 +409,10 @@ function serializeModernFields(state: GameState) {
       ? [...state.modern.masterBuilderOwners]
       : null,
     rubbleClearingHeld: state.modern?.rubbleClearingHeld ?? null,
+    supplyShips: state.modern?.supplyShips ?? null,
+    pendingSupplyBonuses: state.modern?.pendingSupplyBonuses
+      ? [...state.modern.pendingSupplyBonuses.entries()]
+      : null,
     comboTracker: state.modern?.comboTracker
       ? state.modern.comboTracker.players.map((player) => ({
           lastWallHitTime: player.lastWallHitTime,
