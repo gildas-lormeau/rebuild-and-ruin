@@ -81,7 +81,12 @@ import {
 } from "./combos.ts";
 import { findGruntSpawnNear, gruntAttackTowers } from "./grunt-system.ts";
 import { applyDustStormJitter } from "./modifiers/dust-storm.ts";
-import { tickSupplyShips, tryHitSupplyShip } from "./modifiers/supply-ship.ts";
+import {
+  consumeOneSupplyBonus,
+  hasSupplyBonus,
+  tickSupplyShips,
+  tryHitSupplyShip,
+} from "./modifiers/supply-ship.ts";
 import {
   aimSurfaceAltitude,
   solveBallisticClearing,
@@ -445,6 +450,10 @@ export function prepareCannonFireForLockstep(
     if (isPlayerEliminated(state.players[playerId])) return null;
     if (!canFireOwnCannon(state, playerId, result.ownIdx)) return null;
     const cannon = state.players[playerId]!.cannons[result.ownIdx]!;
+    // Peek only — consume runs symmetrically on every peer in
+    // applyCannonFired so pendingSupplyBonuses stays sync'd.
+    const overrideMortar =
+      !cannon.mortar && hasSupplyBonus(state, playerId, "mortar_shot");
     ball = launchCannonball(
       state,
       cannon,
@@ -452,6 +461,8 @@ export function prepareCannonFireForLockstep(
       playerId,
       targetRow,
       targetCol,
+      undefined,
+      overrideMortar || undefined,
     );
     state.pendingCannonFires.add(
       packPendingCannonFireKey(playerId, result.ownIdx),
@@ -554,6 +565,18 @@ export function applyCannonFired(
   msg: CannonFiredMessage,
 ): void {
   state.shotsFired++;
+  // Supply-ship `mortar_shot` bonus consumption — runs on every peer
+  // (originator via applyCannonFiredOriginator, watchers from wire
+  // receipt) so pendingSupplyBonuses stays sync'd cross-peer. The
+  // signal that this fire consumed a bonus: ball is mortar but the
+  // cannon mode wasn't. The legacy fireCannon path consumes inline
+  // (doesn't go through this function) — see fireCannon.
+  if (msg.mortar) {
+    const cannon = getCannon(state, msg.playerId, msg.cannonIdx);
+    if (!cannon?.mortar) {
+      consumeOneSupplyBonus(state, msg.playerId, "mortar_shot");
+    }
+  }
   state.cannonballs.push({
     cannonIdx: msg.cannonIdx,
     startX: msg.startX,
@@ -918,6 +941,8 @@ function fireCannon(
   if (isPlayerEliminated(state.players[playerId])) return false;
   if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
+  const overrideMortar =
+    !cannon.mortar && hasSupplyBonus(state, playerId, "mortar_shot");
   const ball = launchCannonball(
     state,
     cannon,
@@ -925,9 +950,12 @@ function fireCannon(
     playerId,
     targetRow,
     targetCol,
+    undefined,
+    overrideMortar || undefined,
   );
   state.cannonballs.push(ball);
   state.shotsFired++;
+  if (overrideMortar) consumeOneSupplyBonus(state, playerId, "mortar_shot");
   state.bus.emit(BATTLE_MESSAGE.CANNON_FIRED, createCannonFiredMsg(ball));
   return true;
 }
@@ -1024,6 +1052,7 @@ function launchCannonball(
   targetRow: number,
   targetCol: number,
   scoringPlayerId?: ValidPlayerSlot,
+  overrideMortar?: boolean,
 ): Cannonball {
   const { x: launchX, y: launchY } = cannonCenter(cannon);
   const initialAimX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
@@ -1036,7 +1065,11 @@ function launchCannonball(
     initialAimY,
   );
   cannon.facing = Math.atan2(aimX - launchX, -(aimY - launchY));
-  const isMortar = !!cannon.mortar;
+  // overrideMortar promotes a non-mortar cannon to a single mortar shot
+  // via the supply_ship `mortar_shot` bonus. Bonus consumption happens
+  // on every peer in applyCannonFired so pendingSupplyBonuses stays
+  // sync'd cross-peer; the fire paths only peek.
+  const isMortar = overrideMortar ?? !!cannon.mortar;
   const speedMult = ballSpeedMult(state.players[playerId]!, isMortar);
   const speed = BALL_SPEED * speedMult;
 
@@ -1091,7 +1124,7 @@ function launchCannonball(
     elapsed: 0,
     altitude: launchAltitude,
     incendiary: isSuperCannon(cannon) ? true : undefined,
-    mortar: cannon.mortar,
+    mortar: isMortar ? true : undefined,
     whistleVariant,
   };
 }

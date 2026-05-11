@@ -74,6 +74,7 @@ import {
   MODIFIER_REGISTRY,
   rollModifier,
 } from "./modifier-system.ts";
+import { consumeSupplyBonuses } from "./modifiers/supply-ship.ts";
 import {
   generateUpgradeOffers,
   onBattlePhaseStart,
@@ -253,7 +254,14 @@ export function prepareNextRound(state: GameState): void {
   // belongs in the engine. Iterate in slot order for deterministic RNG.
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    initPlayerBag(player, upcomingRound, state.rng, useSmallPieces(player));
+    // Small-pieces draw bag flag: union of the Small Pieces upgrade and
+    // a queued supply-ship `small_pieces_bias` bonus for this player.
+    // consumeSupplyBonuses drains the queue so the bias only applies
+    // for this one bag init.
+    const smallPiecesBonus =
+      consumeSupplyBonuses(state, player.id, "small_pieces_bias") > 0;
+    const smallPieces = useSmallPieces(player) || smallPiecesBonus;
+    initPlayerBag(player, upcomingRound, state.rng, smallPieces);
   }
 }
 

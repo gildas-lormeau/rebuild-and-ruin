@@ -142,6 +142,41 @@ export function supplyShipBuildTimerBonus(state: GameState): number {
   return totalSeconds;
 }
 
+/** Peek: does the player have at least one bonus of `type` queued?
+ *  Used by fire paths to decide whether to elevate a normal cannon shot
+ *  to a mortar shot WITHOUT consuming yet — the consume runs on every
+ *  peer in `applyCannonFired` for cross-peer parity. */
+export function hasSupplyBonus(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  bonusType: SupplyBonusId,
+): boolean {
+  const queue = state.modern?.pendingSupplyBonuses?.get(playerId);
+  return queue !== undefined && queue.includes(bonusType);
+}
+
+/** Consume exactly one bonus of `type` for `playerId` if any are queued.
+ *  Returns true if a bonus was drained. Drives per-use consumables
+ *  (e.g. mortar_shot) where each event consumes one — contrast with
+ *  `consumeSupplyBonuses` which drains all of a type at once. */
+export function consumeOneSupplyBonus(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  bonusType: SupplyBonusId,
+): boolean {
+  const pending = state.modern?.pendingSupplyBonuses;
+  const queue = pending?.get(playerId);
+  if (!queue) return false;
+  const idx = queue.indexOf(bonusType);
+  if (idx < 0) return false;
+  queue.splice(idx, 1);
+  if (queue.length === 0) pending!.delete(playerId);
+  if (pending && pending.size === 0 && state.modern) {
+    state.modern.pendingSupplyBonuses = null;
+  }
+  return true;
+}
+
 /** Consume all queued bonuses of `bonusType` for `playerId`, returning
  *  the count. Each call drains the matching entries; subsequent calls
  *  return 0 until new bonuses are queued. Used by phase-entry hooks
