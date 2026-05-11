@@ -60,6 +60,7 @@ echo "lint:all: parallel checks..."
   run null-init         deno run -A scripts/lint-null-init.ts
   run registries        deno run -A scripts/lint-registries.ts
   run mod-lifecycle     deno run -A scripts/lint-modifier-lifecycle.ts
+  run monotone-state    deno run -A scripts/lint-monotone-state.ts
   run useless-guards    deno run -A scripts/lint-useless-guards.ts
   run if-chain          deno run -A scripts/lint-if-chain.ts
   run passthrough       deno run -A scripts/lint-passthrough-wrappers.ts
