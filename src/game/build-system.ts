@@ -54,6 +54,7 @@ import {
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
+import { getDeadZones } from "./grunt-movement.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import {
@@ -287,11 +288,7 @@ export function replenishBonusSquares(state: GameState): void {
   const { tiles, zones } = map;
 
   // Identify the 3 main zones, skip zones of eliminated players
-  const eliminatedZones = new Set(
-    state.players
-      .filter((player) => isPlayerEliminated(player))
-      .map((player) => state.playerZones[player.id]),
-  );
+  const eliminatedZones = getDeadZones(state);
   const mainZones = topZonesBySize(map, 3)
     .map(({ zone }) => zone)
     .filter((zone) => !eliminatedZones.has(zone));

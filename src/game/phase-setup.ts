@@ -64,7 +64,7 @@ import {
   createComboTracker,
   isCombosEnabled,
 } from "./combos.ts";
-import { getGruntTargetTower } from "./grunt-movement.ts";
+import { getDeadZones, getGruntTargetTower } from "./grunt-movement.ts";
 import {
   recomputeGruntTargetedWalls,
   rollGruntWallAttacks,
@@ -427,12 +427,7 @@ function preBattleSweep(state: GameState): void {
  *  stragglers that drift into a dead zone in subsequent rounds (e.g.
  *  frozen-river crossings when the zone owner was already eliminated). */
 function sweepGruntsInDeadZones(state: GameState): void {
-  const deadZones = new Set<number>();
-  for (const player of state.players) {
-    if (!isPlayerEliminated(player)) continue;
-    const zone = state.playerZones[player.id];
-    if (zone !== undefined) deadZones.add(zone);
-  }
+  const deadZones = getDeadZones(state);
   if (deadZones.size === 0) return;
   state.grunts = state.grunts.filter((grunt) => {
     const gruntZone = zoneAt(state.map, grunt.row, grunt.col);
