@@ -19,12 +19,13 @@ import type { ModifierImpl } from "./modifier-types.ts";
 const SUPPLY_SHIP_COUNT = 3;
 /** HP at spawn. First hit reveals damage; second hit triggers sink. */
 const SUPPLY_SHIP_HP = 2;
-/** Speed in tiles per second. Tuned so ships travel only ~30–40%
- *  along even the shortest arm during a 10s battle, leaving a clear
- *  gap to the junction so multiple ships never visibly collide there.
- *  Ships that aren't hit are swept off by the battle-end banner —
- *  the auto-sink at junction is a safety net for outlier battles only. */
-const SUPPLY_SHIP_SPEED = 0.45;
+/** Speed in tiles per second. A ship covers ~7 tiles per 10s
+ *  battle — short enough that even the shortest arm (~12–13 tiles
+ *  after the spawn inset) leaves a clear gap to the junction so
+ *  multiple ships never visibly collide there. Survivors are swept
+ *  off by the battle-end banner; auto-sink at junction is a safety
+ *  net for outlier battles only. */
+const SUPPLY_SHIP_SPEED = 0.7;
 /** Distance (tiles) along the river Bezier to inset the spawn from
  *  the `exit` point. Exits sit 1 tile outside the grid; inset ~3 tiles
  *  along the curve so the entire 1×2 hull is fully on-screen when the
