@@ -19,12 +19,11 @@ import type { ModifierImpl } from "./modifier-types.ts";
 const SUPPLY_SHIP_COUNT = 3;
 /** HP at spawn. First hit reveals damage; second hit triggers sink. */
 const SUPPLY_SHIP_HP = 2;
-/** Speed in tiles per second. A ship covers ~7 tiles per 10s
- *  battle — short enough that even the shortest arm (~12–13 tiles
- *  after the spawn inset) leaves a clear gap to the junction so
- *  multiple ships never visibly collide there. Survivors are swept
- *  off by the battle-end banner; auto-sink at junction is a safety
- *  net for outlier battles only. */
+/** Speed in tiles per second. A ship covers ~9 tiles per 10s battle.
+ *  Ships that aren't hit start sinking when the battle timer falls
+ *  below AUTO_SINK_AT_TIMER (well before they could reach the
+ *  junction on any arm), so the sink animation completes inside the
+ *  battle window and the post-battle banner snapshot is clean. */
 const SUPPLY_SHIP_SPEED = 0.9;
 /** Distance (tiles) along the river Bezier to inset the spawn from
  *  the `exit` point. Exits sit 1 tile outside the grid; inset ~3 tiles
@@ -166,7 +165,6 @@ export function tryHitSupplyShip(
 
   const ship = ships[closestIndex]!;
   ship.hp -= 1;
-  ship.lastHitterId = shooterId;
   state.bus.emit(BATTLE_MESSAGE.SHIP_HIT, {
     type: BATTLE_MESSAGE.SHIP_HIT,
     shipId: ship.id,

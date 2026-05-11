@@ -258,10 +258,10 @@ export interface ModernState {
   supplyShips: SupplyShip[] | null;
   /** Per-player queue of one-round supply-ship bonuses pending
    *  consumption. Pushed onto by `tryHitSupplyShip` when a ship sinks
-   *  (credited to `lastHitterId`); drained by each bonus type's
-   *  consumer at the relevant phase entry. Spans round boundaries
-   *  (not cleared in the modifier's `clear`) so a sink late in a
-   *  battle still benefits the closing/next phase. */
+   *  (credited to the cannonball's scoring player); drained by each
+   *  bonus type's consumer at the relevant phase entry. Spans round
+   *  boundaries (not cleared in the modifier's `clear`) so a sink
+   *  late in a battle still benefits the closing/next phase. */
   pendingSupplyBonuses: Map<ValidPlayerSlot, SupplyBonusId[]> | null;
 }
 
