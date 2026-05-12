@@ -59,7 +59,11 @@ export type ClientMessage =
   // Lobby (in room)
   | { type: "selectSlot"; playerId: ValidPlayerSlot }
   // In-game
-  | { type: "lifeLostChoice"; choice: ResolvedChoice; playerId?: number }
+  | {
+      type: "lifeLostChoice";
+      choice: ResolvedChoice;
+      playerId?: ValidPlayerSlot;
+    }
   | { type: "upgradePick"; playerId: ValidPlayerSlot; choice: string }
   | { type: "ping" };
 

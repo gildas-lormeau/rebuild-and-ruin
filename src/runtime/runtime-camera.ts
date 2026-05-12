@@ -321,7 +321,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Helpers ---
 
-  function povPlayerId(): number {
+  function povPlayerId(): ValidPlayerSlot {
     return deps.getCtx().povPlayerId;
   }
 

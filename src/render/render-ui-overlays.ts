@@ -820,13 +820,10 @@ function buildBattleBalloonsPayload(
 
 function formatComboFloats(
   events: readonly ComboEvent[] | undefined,
-  povPlayerId: number,
+  povPlayerId: ValidPlayerSlot,
 ): { text: string; age: number }[] | undefined {
   if (!events || events.length === 0) return undefined;
-  const filtered =
-    povPlayerId < 0
-      ? events
-      : events.filter((event) => event.playerId === povPlayerId);
+  const filtered = events.filter((event) => event.playerId === povPlayerId);
   if (filtered.length === 0) return undefined;
   return filtered.map((event) => ({
     text: formatComboText(event),

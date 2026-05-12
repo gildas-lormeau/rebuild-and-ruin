@@ -1,5 +1,6 @@
 import { type Cannon, isBalloonCannon } from "./battle-types.ts";
 import type { Tower } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import { isCannonTile, isTowerTile } from "./spatial.ts";
 
@@ -31,7 +32,7 @@ export function hasCannonAt(
  *  is stale (player slot or cannon slot vacated). */
 export function getCannon(
   state: { readonly players: readonly Player[] },
-  playerId: number,
+  playerId: ValidPlayerSlot,
   cannonIdx: number,
 ): Cannon | undefined {
   return state.players[playerId]?.cannons[cannonIdx];

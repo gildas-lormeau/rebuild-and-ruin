@@ -9,7 +9,10 @@
 import type { CannonMode } from "../shared/core/battle-types.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type {
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   hasPitAt,
@@ -45,7 +48,10 @@ export const enum CellKind {
 export interface Cell {
   kind: CellKind;
   char: string;
-  playerId: number;
+  /** Owning player slot, or -1 for cells without an owner (terrain,
+   *  bonus squares, burning pits, dead/alive houses, towers, grunts,
+   *  cannonballs). Use `isActivePlayer()` before treating as an index. */
+  playerId: PlayerSlotId;
 }
 
 export interface Rect {
@@ -93,6 +99,9 @@ const CELL_LAYER_PRIORITY: Record<CellKind, number> = {
 const LEGEND_LINE_COUNT = 4;
 /** Maximum diff lines emitted by `diffAsciiSnapshots` before truncating. */
 const DIFF_LINE_LIMIT = 100;
+/** Sentinel for Cell.playerId when the cell has no owner (terrain,
+ *  bonus square, pit, house, tower, grunt, cannonball). */
+const NO_OWNER = -1 as PlayerSlotId;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
@@ -107,9 +116,9 @@ export function buildGrid(
     const rowCells: Cell[] = [];
     for (let col = 0; col < GRID_COLS; col++) {
       if (isWater(state.map.tiles, row, col)) {
-        rowCells.push({ kind: CellKind.Water, char: "~", playerId: -1 });
+        rowCells.push({ kind: CellKind.Water, char: "~", playerId: NO_OWNER });
       } else {
-        rowCells.push({ kind: CellKind.Grass, char: ".", playerId: -1 });
+        rowCells.push({ kind: CellKind.Grass, char: ".", playerId: NO_OWNER });
       }
     }
     grid.push(rowCells);
@@ -120,7 +129,7 @@ export function buildGrid(
   if (frozenTiles) {
     for (const key of frozenTiles) {
       const { r, c } = unpackTile(key);
-      setCell(grid, r, c, CellKind.FrozenWater, "f", -1);
+      setCell(grid, r, c, CellKind.FrozenWater, "f", NO_OWNER);
     }
   }
 
@@ -146,18 +155,18 @@ export function buildGrid(
 
   // Bonus squares
   for (const bonus of state.bonusSquares) {
-    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", -1);
+    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", NO_OWNER);
   }
 
   // Burning pits
   for (const pit of state.burningPits) {
-    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", -1);
+    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", NO_OWNER);
   }
 
   // Houses (alive and dead)
   for (const house of state.map.houses) {
     const char = house.alive ? "H" : "h";
-    setCell(grid, house.row, house.col, CellKind.House, char, -1);
+    setCell(grid, house.row, house.col, CellKind.House, char, NO_OWNER);
   }
 
   // Towers (2×2)
@@ -168,7 +177,7 @@ export function buildGrid(
     const char = alive ? "T" : "t";
     for (let dr = 0; dr < TOWER_SIZE; dr++) {
       for (let dc = 0; dc < TOWER_SIZE; dc++) {
-        setCell(grid, tower.row + dr, tower.col + dc, kind, char, -1);
+        setCell(grid, tower.row + dr, tower.col + dc, kind, char, NO_OWNER);
       }
     }
   }
@@ -185,7 +194,7 @@ export function buildGrid(
 
   // Grunts
   for (const grunt of state.grunts) {
-    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", -1);
+    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", NO_OWNER);
   }
 
   // Cannonballs (snap to nearest tile)
@@ -193,7 +202,7 @@ export function buildGrid(
     const row = Math.round(ball.y / TILE_SIZE);
     const col = Math.round(ball.x / TILE_SIZE);
     if (inBounds(row, col)) {
-      setCell(grid, row, col, CellKind.Cannonball, "o", -1);
+      setCell(grid, row, col, CellKind.Cannonball, "o", NO_OWNER);
     }
   }
 
@@ -410,7 +419,7 @@ function setCell(
   col: number,
   kind: CellKind,
   char: string,
-  playerId: number,
+  playerId: PlayerSlotId,
 ): void {
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
   const existing = grid[row]![col]!;
