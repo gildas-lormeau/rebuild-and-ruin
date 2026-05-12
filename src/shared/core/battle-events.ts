@@ -36,6 +36,13 @@ export interface BallisticTrajectory {
   flightTime: number;
   incendiary?: true;
   mortar?: true;
+  /** True only when this shot's mortar mode came from the supply_ship
+   *  `mortar_shot` bonus (the cannon itself is non-mortar at fire time).
+   *  Drives the cross-peer bonus consume in applyCannonFired without
+   *  depending on the cannon being alive at apply time — see the bug
+   *  this replaces, where a natively-mortar cannon destroyed mid-flight
+   *  caused `!cannon?.mortar` to spuriously consume a queued bonus. */
+  mortarBonus?: true;
 }
 
 /** A cannon was fired (own or opponent). Client creates local cannonball.
@@ -335,5 +342,6 @@ export function createCannonFiredMsg(
     flightTime: ball.flightTime,
     incendiary: ball.incendiary,
     mortar: ball.mortar,
+    mortarBonus: ball.mortarBonus,
   };
 }

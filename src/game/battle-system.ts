@@ -570,14 +570,15 @@ export function applyCannonFired(
   // Supply-ship `mortar_shot` bonus consumption — runs on every peer
   // (originator via applyCannonFiredOriginator, watchers from wire
   // receipt) so pendingSupplyBonuses stays sync'd cross-peer. The
-  // signal that this fire consumed a bonus: ball is mortar but the
-  // cannon mode wasn't. The legacy fireCannon path consumes inline
-  // (doesn't go through this function) — see fireCannon.
-  if (msg.mortar) {
-    const cannon = getCannon(state, msg.playerId, msg.cannonIdx);
-    if (!cannon?.mortar) {
-      consumeOneSupplyBonus(state, msg.playerId, "mortar_shot");
-    }
+  // `mortarBonus` flag is set at fire time in launchCannonball when
+  // overrideMortar promotes a non-mortar cannon; the apply side trusts
+  // the flag and never reads cannon state — which used to wrongly
+  // consume the bonus when a natively-mortar cannon got destroyed
+  // mid-flight (cannon = undefined → `!cannon?.mortar` was true).
+  // The legacy fireCannon path consumes inline (bypasses this function
+  // on the originator) — see fireCannon.
+  if (msg.mortarBonus) {
+    consumeOneSupplyBonus(state, msg.playerId, "mortar_shot");
   }
   state.cannonballs.push({
     cannonIdx: msg.cannonIdx,
@@ -1127,6 +1128,7 @@ function launchCannonball(
     altitude: launchAltitude,
     incendiary: isSuperCannon(cannon) ? true : undefined,
     mortar: isMortar ? true : undefined,
+    mortarBonus: overrideMortar ? true : undefined,
     whistleVariant,
   };
 }
