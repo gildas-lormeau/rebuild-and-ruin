@@ -1,5 +1,6 @@
-import { Node, type SourceFile } from "ts-morph";
+import { Node } from "ts-morph";
 import { resolveAll, toRel } from "./addressing.ts";
+import { resolveImportsForFiles } from "./import-resolver.ts";
 import { assertNotPinned } from "./pinned.ts";
 import type { CommandContext, CommandResult, FileChange } from "./types.ts";
 
@@ -83,15 +84,10 @@ async function handleChangeType(ctx: CommandContext): Promise<CommandResult> {
     setTypeOnNode(target.node, newType);
   }
 
-  if (importFrom) {
-    const baseName = extractBaseTypeName(newType);
-    if (baseName) {
-      for (const file of touchedFiles) {
-        const sf = ctx.project.getSourceFile(file);
-        if (sf) ensureImport(sf, baseName, importFrom, importTypeOnly);
-      }
-    }
-  }
+  resolveImportsForFiles(ctx.project, touchedFiles, {
+    importFromOverride: importFrom,
+    typeOnly: importTypeOnly || importFrom === undefined,
+  });
 
   const changes: FileChange[] = [];
   for (const file of touchedFiles) {
@@ -276,32 +272,6 @@ function setTypeOnNode(node: Node, newType: string): void {
     node.setType(newType);
     return;
   }
-}
-
-function ensureImport(
-  sourceFile: SourceFile,
-  name: string,
-  modulePath: string,
-  typeOnly: boolean,
-): void {
-  for (const importDecl of sourceFile.getImportDeclarations()) {
-    if (importDecl.getModuleSpecifierValue() !== modulePath) continue;
-    for (const specifier of importDecl.getNamedImports()) {
-      if (specifier.getName() === name) return;
-    }
-    importDecl.addNamedImport(name);
-    return;
-  }
-  sourceFile.addImportDeclaration({
-    moduleSpecifier: modulePath,
-    namedImports: [name],
-    isTypeOnly: typeOnly,
-  });
-}
-
-function extractBaseTypeName(typeText: string): string | undefined {
-  const match = typeText.match(/[A-Z][A-Za-z0-9_]*/);
-  return match?.[0];
 }
 
 function unique<T>(items: readonly T[]): T[] {
