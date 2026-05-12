@@ -21,6 +21,7 @@
       "src/shared/core/player-slot.ts",
       "src/shared/core/player-types.ts",
       "src/shared/core/player-walls.ts",
+      "src/shared/core/controller-guards.ts",
       "src/shared/core/pool-def.ts",
       "src/shared/core/spatial.ts",
       "src/shared/core/system-interfaces.ts",
@@ -149,6 +150,7 @@
       "src/input/input.ts"
     ],
     "render": [
+      "src/render/overlay-helpers.ts",
       "src/render/render-layout.ts",
       "src/render/render-sprites.ts",
       "src/render/render-loupe.ts",

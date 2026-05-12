@@ -28,12 +28,11 @@ import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerAtPixel } from "../shared/core/spatial.ts";
 import {
   type InputReceiver,
-  isMovementAction,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import { Action } from "../shared/ui/input-action.ts";
+import { Action, isMovementAction } from "../shared/ui/input-action.ts";
 import type {
   ControlsState,
   LifeLostDialogState,

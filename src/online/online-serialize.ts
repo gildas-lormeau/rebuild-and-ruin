@@ -18,6 +18,7 @@ import type {
   Cannon,
   Cannonball,
 } from "../shared/core/battle-types.ts";
+import { toCannonMode } from "../shared/core/cannon-mode-defs.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import {
   GAME_MODE_CLASSIC,
@@ -43,7 +44,6 @@ import {
 } from "../shared/core/types.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
-import { toCannonMode } from "./online-types.ts";
 
 interface FullStateResult {
   balloonFlights?: { flight: BalloonFlight; progress: number }[];

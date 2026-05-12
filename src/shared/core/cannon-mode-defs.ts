@@ -122,4 +122,11 @@ export function cannonModeDef(mode: CannonMode): CannonModeDef {
   return CANNON_MODE_POOL.find((def) => def.id === mode)!;
 }
 
+/** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
+export function toCannonMode(value: string | undefined): CannonMode {
+  if (value && (CANNON_MODE_IDS as ReadonlySet<string>).has(value))
+    return value as CannonMode;
+  return CannonMode.NORMAL;
+}
+
 void poolComplete;

@@ -9,6 +9,7 @@ import {
 } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import { cannonModesForGame } from "../shared/core/cannon-mode-defs.ts";
+import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -25,7 +26,6 @@ import {
   type BuildViewState,
   type CannonPlacementPreview,
   type CannonViewState,
-  CROSSHAIR_SPEED,
   type GameViewState,
   type InputReceiver,
   type PiecePlacementPreview,

@@ -46,7 +46,7 @@ import {
   executePlacePiece,
   fireNextReadyCannon,
 } from "../game/index.ts";
-import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
+import { CROSSHAIR_SPEED, SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -55,7 +55,6 @@ import {
   type BuildViewState,
   type CannonPlacementPreview,
   type CannonViewState,
-  CROSSHAIR_SPEED,
   type FireIntent,
   type GameViewState,
   type PiecePlacementPreview,

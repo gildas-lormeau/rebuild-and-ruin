@@ -22,6 +22,7 @@ import {
   clearImpacts,
   WALL_BURN_DURATION,
 } from "../shared/core/battle-types.ts";
+import { isHuman } from "../shared/core/controller-guards.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -45,7 +46,6 @@ import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type CannonController,
-  isHuman,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";

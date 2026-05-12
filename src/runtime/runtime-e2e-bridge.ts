@@ -9,6 +9,7 @@
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
+import { isHuman } from "../shared/core/controller-guards.ts";
 import type {
   GameEventBus,
   GameEventMap,
@@ -19,10 +20,7 @@ import { TILE_SIZE } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { tileCenterPx, unpackTile } from "../shared/core/spatial.ts";
-import {
-  type GameViewState,
-  isHuman,
-} from "../shared/core/system-interfaces.ts";
+import { type GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
 import { IS_DEV } from "../shared/platform/platform.ts";

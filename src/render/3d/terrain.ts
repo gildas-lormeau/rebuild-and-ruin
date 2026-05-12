@@ -19,9 +19,9 @@ import {
   Tile,
 } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import { interiorOwnersFromOverlay } from "../../shared/ui/overlay-types.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
+import { interiorOwnersFromOverlay } from "../overlay-helpers.ts";
 import { ELEVATION_STACK } from "./elevation.ts";
 import type { FrameCtx } from "./frame-ctx.ts";
 

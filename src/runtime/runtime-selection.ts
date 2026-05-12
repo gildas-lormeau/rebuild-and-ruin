@@ -9,6 +9,7 @@ import {
   recheckTerritory,
 } from "../game/index.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
+import { isHuman } from "../shared/core/controller-guards.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -19,7 +20,6 @@ import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type InputReceiver,
-  isHuman,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { SelectionState } from "../shared/core/types.ts";

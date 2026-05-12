@@ -11,3 +11,12 @@ export enum Action {
   /** Rotate piece (build), cycle cannon mode (cannon), sprint crosshair (battle). */
   ROTATE = "rotate",
 }
+
+export function isMovementAction(action: Action): boolean {
+  return (
+    action === Action.UP ||
+    action === Action.DOWN ||
+    action === Action.LEFT ||
+    action === Action.RIGHT
+  );
+}

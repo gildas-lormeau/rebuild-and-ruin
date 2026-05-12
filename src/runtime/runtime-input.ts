@@ -1,3 +1,4 @@
+import { isHuman } from "../shared/core/controller-guards.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -7,7 +8,6 @@ import {
   type BuildViewState,
   type CannonViewState,
   type InputReceiver,
-  isHuman,
   type PlayerController,
 } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";

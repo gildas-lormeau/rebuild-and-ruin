@@ -12,7 +12,10 @@ import {
   isRemotePlayer,
 } from "../runtime/runtime-tick-context.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
-import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
+import {
+  CANNON_MODE_IDS,
+  toCannonMode,
+} from "../shared/core/cannon-mode-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
@@ -23,7 +26,7 @@ import {
   type ResolvedChoice,
 } from "../shared/ui/interaction-types.ts";
 import type { OnlineSession } from "./online-session.ts";
-import { type RemoteCrosshairTargets, toCannonMode } from "./online-types.ts";
+import { type RemoteCrosshairTargets } from "./online-types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: ValidPlayerId;

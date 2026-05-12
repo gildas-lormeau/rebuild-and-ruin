@@ -14,7 +14,7 @@ import {
   interiorOwnersFromOverlay,
   interiorRefsMatch,
   snapshotInteriorRefs,
-} from "../../../shared/ui/overlay-types.ts";
+} from "../../overlay-helpers.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 
 export interface TerrainTileDataManager {

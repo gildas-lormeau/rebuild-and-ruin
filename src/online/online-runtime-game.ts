@@ -14,13 +14,13 @@ import {
 } from "../runtime/runtime-tick-context.ts";
 import type { GameRuntime, NetworkApi } from "../runtime/runtime-types.ts";
 import { DEFAULT_ACTION_SCHEDULE_SAFETY_TICKS } from "../shared/core/action-schedule.ts";
+import { isHuman } from "../shared/core/controller-guards.ts";
 import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/ui/player-config.ts";

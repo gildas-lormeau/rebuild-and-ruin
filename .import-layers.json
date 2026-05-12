@@ -81,6 +81,7 @@
     "tier": "types",
     "files": [
       "src/entry.ts",
+      "src/online/online-types.ts",
       "src/protocol/checkpoint-data.ts",
       "src/render/3d/camera.ts",
       "src/render/3d/effects/terrain-sdf-texture.ts",
@@ -103,6 +104,7 @@
     "name": "wire payloads & shared definitions",
     "tier": "types",
     "files": [
+      "src/online/online-presence-state.ts",
       "src/shared/core/battle-types.ts",
       "src/shared/core/game-event-bus.ts",
       "src/shared/ui/settings-ui.ts"
@@ -123,7 +125,6 @@
     "name": "first logic",
     "tier": "logic",
     "files": [
-      "src/online/online-types.ts",
       "src/protocol/protocol.ts",
       "src/render/3d/entities/instance-bucket.ts",
       "src/shared/core/player-interior.ts",
@@ -153,10 +154,10 @@
       "src/game/surface-elevation.ts",
       "src/game/upgrades/upgrade-types.ts",
       "src/online/online-lobby-ui.ts",
-      "src/online/online-presence-state.ts",
       "src/online/online-session.ts",
       "src/render/3d/elevation.ts",
       "src/render/3d/frame-ctx.ts",
+      "src/render/overlay-helpers.ts",
       "src/render/render-loupe.ts",
       "src/runtime/dev-console-grid.ts",
       "src/runtime/modifier-reveal-overlay-registry.ts",
@@ -168,6 +169,7 @@
       "src/runtime/runtime-upgrade-pick-core.ts",
       "src/runtime/sfx-player.ts",
       "src/shared/core/action-schedule.ts",
+      "src/shared/core/controller-guards.ts",
       "src/shared/core/occupancy-queries.ts",
       "src/shared/core/render-view.ts"
     ]
@@ -352,7 +354,7 @@
     ]
   },
   {
-    "name": "wiring & local entry",
+    "name": "wiring",
     "tier": "assembly",
     "files": [
       "src/ai/ai-phase-battle.ts",
@@ -368,7 +370,7 @@
     ]
   },
   {
-    "name": "composition roots",
+    "name": "composition roots & local entry",
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai.ts",
@@ -378,7 +380,7 @@
     ]
   },
   {
-    "name": "online deps wiring",
+    "name": "online session lifecycle",
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
@@ -387,21 +389,22 @@
     ]
   },
   {
-    "name": "online runtime composition",
+    "name": "online deps wiring",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts"
     ]
   },
   {
-    "name": "online client entry",
+    "name": "online runtime composition",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "layer 18",
+    "name": "online client entry",
+    "tier": "roots",
     "files": [
       "src/online-client.ts"
     ]

@@ -7,13 +7,11 @@
  *  render-prep — both roles call it identically. */
 
 import { aimCannons, canPlayerFire } from "../game/index.ts";
+import { CROSSHAIR_SPEED } from "../shared/core/game-constants.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
-import {
-  type BattleViewState,
-  CROSSHAIR_SPEED,
-} from "../shared/core/system-interfaces.ts";
+import { type BattleViewState } from "../shared/core/system-interfaces.ts";
 
 /** Remote crosshairs lerp at this multiple of base speed to mask wire-rate
  *  staleness — local controllers update every frame, remote targets arrive

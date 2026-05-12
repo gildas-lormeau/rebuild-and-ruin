@@ -10,13 +10,13 @@ import { type GameMessage, MESSAGE } from "../protocol/protocol.ts";
 import { tickRemoteCrosshair } from "../runtime/runtime-crosshair-anim.ts";
 import { isRemotePlayer } from "../runtime/runtime-tick-context.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
+import { isAiAnimatable } from "../shared/core/controller-guards.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { DedupChannel } from "../shared/core/phantom-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
-import {
-  type BattleViewState,
-  type ControllerIdentity,
-  isAiAnimatable,
+import type {
+  BattleViewState,
+  ControllerIdentity,
 } from "../shared/core/system-interfaces.ts";
 import { formatAimDedupKey } from "./online-session.ts";
 

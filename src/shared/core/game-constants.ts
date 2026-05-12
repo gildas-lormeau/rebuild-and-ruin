@@ -235,6 +235,8 @@ export const UPGRADE_PICK_MAX_TIMER = 15;
  *  pulse on the final card actually gets draw frames. The render layer uses
  *  the same constant to drive the expanding ring animation. */
 export const UPGRADE_PICK_PULSE_DURATION = 0.45;
+/** Battle crosshair movement speed in pixels per second. */
+export const CROSSHAIR_SPEED = 80;
 
 /** Accumulator that converts variable frame dt into a deterministic
  *  number of fixed-size simulation ticks. Uses integer microsecond
