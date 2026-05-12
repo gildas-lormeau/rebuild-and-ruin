@@ -45,6 +45,17 @@ interface ShipHost {
   haloDiscMaterial: THREE.MeshBasicMaterial;
   haloFlash: THREE.Mesh;
   haloFlashMaterial: THREE.MeshBasicMaterial;
+  /** Damage-flash sprite billboarded above the deck. Parented to
+   *  `group` so it tracks the ship's bob + position automatically. */
+  damageFlash: THREE.Sprite;
+  damageFlashMaterial: THREE.SpriteMaterial;
+  /** Remaining ms of the active flash; 0 means hidden. */
+  flashRemainingMs: number;
+  /** Last observed hpFrac — used to detect the drop edge that triggers
+   *  a new flash. Initialised from the ship's first projection (not a
+   *  sentinel) so a late-joiner arriving at hp=1 doesn't see a
+   *  spurious flash on host construction. */
+  lastHpFrac: number;
 }
 
 /** Waterline elevation. Authored locally rather than via
@@ -90,6 +101,18 @@ const BUBBLE_RISE_SPEED = 6;
 const BUBBLE_BASE_SIZE = 3;
 const BUBBLE_SIZE_GROWTH = 4;
 const BUBBLE_COLOR = 0xc8d6dc;
+/** Damage-flash billboard — fires whenever `hpFrac` drops on an
+ *  alive ship (sinking ships have the full sink animation as feedback
+ *  and don't need a flash). One-shot fade from peak alpha to 0 over
+ *  FLASH_DURATION_MS, with a slight scale-up to read as a burst. */
+const FLASH_DURATION_MS = 250;
+const FLASH_SIZE_WORLD = 18;
+const FLASH_PEAK_OPACITY = 0.85;
+const FLASH_COLOR = 0xffffff;
+/** Authored Y offset for the flash sprite (units before host scale).
+ *  Sits at deck level so the burst reads as the hull taking the hit
+ *  rather than the water around it. */
+const FLASH_LOCAL_Y = 0.3;
 /** Reveal-halo pulse — one-shot per ship during MODIFIER_REVEAL. Plays
  *  exactly once when `ctx.overlay.ui.modifierReveal.modifierId` matches
  *  this modifier, then hides until the next reveal. `revealTimeMs`
@@ -192,6 +215,21 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     haloGroup.add(haloFlash);
     root.add(haloGroup);
 
+    // Damage-flash billboard — soft radial sprite (bubble texture
+    // doubles as a hit-glow kernel under a white tint) parented to
+    // `group` so it tracks the ship's bob + position for free.
+    const damageFlashMaterial = new THREE.SpriteMaterial({
+      color: FLASH_COLOR,
+      map: bubbleTexture,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const damageFlash = new THREE.Sprite(damageFlashMaterial);
+    damageFlash.visible = false;
+    damageFlash.position.set(0, FLASH_LOCAL_Y, 0);
+    group.add(damageFlash);
+
     return {
       group,
       id,
@@ -201,6 +239,13 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       haloDiscMaterial,
       haloFlash,
       haloFlashMaterial,
+      damageFlash,
+      damageFlashMaterial,
+      flashRemainingMs: 0,
+      // Sentinel — overwritten with the real value on the host's first
+      // animateShip call so the projection drives the seed (avoids
+      // spurious flashes for late-joiners arriving at hp=1).
+      lastHpFrac: 1,
     };
   }
 
@@ -221,6 +266,7 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
     host.haloDiscMaterial.dispose();
     host.haloFlashMaterial.dispose();
     root.remove(host.haloGroup);
+    host.damageFlashMaterial.dispose();
   }
 
   function animateBubbles(host: ShipHost, dtSec: number): void {
@@ -294,6 +340,9 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       let host = hosts.get(ship.id);
       if (!host) {
         host = buildHost(ship.id);
+        // Seed lastHpFrac from the projection so late-joiners arriving
+        // at hp=1 don't trigger a spurious damage flash on first frame.
+        host.lastHpFrac = ship.hpFrac;
         hosts.set(ship.id, host);
       }
       animateShip(host, ship, ctx.now, dtSec);
@@ -371,11 +420,28 @@ export function createSupplyShipManager(scene: THREE.Scene): EffectManager {
       hideBubbles(host);
     }
 
-    // hpFrac is in the overlay shape but not consumed visually here —
-    // hit-feedback (flash on hpFrac change, debris on hpFrac = 0) is
-    // handled gameplay-side via the existing `impacts` overlay slice.
-    // Leaving this as a no-op consumer for forward compatibility.
-    void ship.hpFrac;
+    // Damage-flash trigger: a drop in hpFrac on an alive ship fires
+    // the white-glow billboard. Sinking ships skip the trigger — the
+    // sink animation is its own feedback. `lastHpFrac` is seeded from
+    // the first projection at host creation, so a late-joiner arriving
+    // at hp=1 doesn't see a phantom flash.
+    if (!isSinking && ship.hpFrac < host.lastHpFrac - 0.01) {
+      host.flashRemainingMs = FLASH_DURATION_MS;
+    }
+    host.lastHpFrac = ship.hpFrac;
+
+    if (host.flashRemainingMs > 0) {
+      host.flashRemainingMs = Math.max(0, host.flashRemainingMs - dtSec * 1000);
+      const lifeT = host.flashRemainingMs / FLASH_DURATION_MS;
+      host.damageFlash.visible = true;
+      host.damageFlashMaterial.opacity = lifeT * FLASH_PEAK_OPACITY;
+      // Scale slightly grows as the flash fades — burst feel.
+      const sizeAuthored =
+        (FLASH_SIZE_WORLD * (1 + (1 - lifeT) * 0.5)) / SUPPLY_SHIP_SCALE;
+      host.damageFlash.scale.set(sizeAuthored, sizeAuthored, 1);
+    } else {
+      host.damageFlash.visible = false;
+    }
   }
 
   function animateHalo(
