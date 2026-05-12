@@ -11,6 +11,15 @@ export interface PixelPos {
   y: number;
 }
 
+/** Tile-grid coordinate with x/y axes (x = column, y = row).
+ *  Used for river control points where x/y math is natural;
+ *  values may be off-map sentinels (e.g. x: -1 or y: GRID_ROWS)
+ *  to mark exits at the map edge. */
+export interface TileGridPos {
+  x: number;
+  y: number;
+}
+
 export interface TileRect {
   top: number;
   bottom: number;
@@ -50,13 +59,13 @@ export interface GameMap {
   towers: Tower[];
   houses: House[];
   zones: ZoneCell[][];
-  junction: PixelPos;
-  exits: PixelPos[];
+  junction: TileGridPos;
+  exits: TileGridPos[];
   /** Per-arm quadratic-Bezier midpoints used when painting the river,
    *  parallel to `exits`. Stored so consumers (e.g. supply-ship
    *  motion) can re-evaluate the same curve and stay in the painted
    *  water lane. */
-  riverMidpoints: PixelPos[];
+  riverMidpoints: TileGridPos[];
   /** Bumped when tiles are mutated in place (e.g., sinkhole).
    *  Render terrain cache uses this to detect stale ImageData. */
   mapVersion: number;

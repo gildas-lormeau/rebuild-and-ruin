@@ -8,7 +8,7 @@
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type {
   GameMap,
-  PixelPos,
+  TileGridPos,
   Tower,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../shared/core/grid.ts";
@@ -84,11 +84,11 @@ export function generateMap(rng: Rng): GameMap {
     new Array(GRID_COLS).fill(Tile.Grass),
   );
 
-  let junction!: PixelPos;
-  let exits!: PixelPos[];
+  let junction!: TileGridPos;
+  let exits!: TileGridPos[];
   let zones!: ZoneCell[][];
   let regionSizes!: Map<ZoneId, number>;
-  let riverMidpoints!: PixelPos[];
+  let riverMidpoints!: TileGridPos[];
 
   // Both retry paths return the same buildMapResult shape from the same
   // locals — factored to one closure so jscpd doesn't see the call as
@@ -209,9 +209,9 @@ function buildMapResult(
   tiles: Tile[][],
   towers: Tower[],
   zones: ZoneCell[][],
-  junction: PixelPos,
-  exits: PixelPos[],
-  riverMidpoints: PixelPos[],
+  junction: TileGridPos,
+  exits: TileGridPos[],
+  riverMidpoints: TileGridPos[],
 ): GameMap {
   return {
     tiles,
@@ -282,7 +282,7 @@ function collectZoneStats(
   return result;
 }
 
-function pickExits(rng: Rng): PixelPos[] {
+function pickExits(rng: Rng): TileGridPos[] {
   const edges = [EDGE_TOP, EDGE_RIGHT, EDGE_BOTTOM, EDGE_LEFT];
   rng.shuffle(edges);
   const chosen = edges.slice(0, 3);
@@ -315,7 +315,7 @@ function pickExits(rng: Rng): PixelPos[] {
   });
 }
 
-function pickJunction(rng: Rng): PixelPos {
+function pickJunction(rng: Rng): TileGridPos {
   // Keep junction roughly central so all 3 zones have enough room for towers.
   // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
   return {
@@ -536,13 +536,13 @@ function towerRectDistance(
  */
 function generateRiverAndZones(
   tiles: readonly Tile[][],
-  junction: PixelPos,
-  exits: readonly PixelPos[],
+  junction: TileGridPos,
+  exits: readonly TileGridPos[],
   rng: Rng,
 ): {
   zones: ZoneCell[][];
   regionSizes: Map<ZoneId, number>;
-  riverMidpoints: PixelPos[];
+  riverMidpoints: TileGridPos[];
 } {
   resetTilesToGrass(tiles);
   const riverMidpoints = paintRiver(tiles, junction, exits, rng);
@@ -615,17 +615,17 @@ function resetTilesToGrass(tiles: readonly Tile[][]): void {
  */
 function paintRiver(
   tiles: readonly Tile[][],
-  junction: PixelPos,
-  exits: readonly PixelPos[],
+  junction: TileGridPos,
+  exits: readonly TileGridPos[],
   rng: Rng,
-): PixelPos[] {
+): TileGridPos[] {
   const setWater = (x: number, y: number) => {
     if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
       tiles[y]![x] = Tile.Water;
     }
   };
 
-  const midpoints: PixelPos[] = [];
+  const midpoints: TileGridPos[] = [];
   for (const exit of exits) {
     const { points: path, midpoint } = interpolatePath(junction, exit, rng);
     midpoints.push(midpoint);
@@ -671,17 +671,17 @@ function paintRiver(
  * Returns a list of integer (col, row) center points.
  */
 function interpolatePath(
-  from: PixelPos,
-  target: PixelPos,
+  from: TileGridPos,
+  target: TileGridPos,
   rng: Rng,
-): { points: PixelPos[]; midpoint: PixelPos } {
+): { points: TileGridPos[]; midpoint: TileGridPos } {
   // Add a random midpoint for gentle curvature
   const midX = (from.x + target.x) / 2 + rng.int(-3, 3);
   const midY = (from.y + target.y) / 2 + rng.int(-2, 2);
 
-  const midpoint: PixelPos = { x: midX, y: midY };
+  const midpoint: TileGridPos = { x: midX, y: midY };
   const controlPoints = [from, midpoint, target];
-  const points: PixelPos[] = [];
+  const points: TileGridPos[] = [];
 
   // Walk along the quadratic bezier at small steps
   const steps = Math.max(GRID_COLS, GRID_ROWS) * 2;

@@ -6,7 +6,11 @@
  */
 
 import { BATTLE_MESSAGE } from "../../shared/core/battle-events.ts";
-import type { PixelPos, TilePos } from "../../shared/core/geometry-types.ts";
+import type {
+  PixelPos,
+  TileGridPos,
+  TilePos,
+} from "../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../shared/core/grid.ts";
 import type {
   SupplyBonusId,
@@ -334,9 +338,9 @@ function applySupplyShip(state: GameState): readonly number[] {
  *  arc-length speed. Matches the same Bezier the map generator paints
  *  in `interpolatePath`. */
 function sampleRiverBezier(
-  exit: PixelPos,
-  midpoint: PixelPos,
-  junction: PixelPos,
+  exit: TileGridPos,
+  midpoint: TileGridPos,
+  junction: TileGridPos,
   t: number,
 ): {
   col: number;

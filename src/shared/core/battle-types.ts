@@ -1,5 +1,5 @@
 import type { BallisticTrajectory } from "./battle-events.ts";
-import type { TilePos } from "./geometry-types.ts";
+import type { PixelPos, TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
@@ -129,9 +129,7 @@ export interface BurningPit extends TilePos {
   roundsLeft: number;
 }
 
-export interface Crosshair {
-  x: number;
-  y: number;
+export interface Crosshair extends PixelPos {
   playerId: ValidPlayerSlot;
   cannonReady?: boolean;
 }
