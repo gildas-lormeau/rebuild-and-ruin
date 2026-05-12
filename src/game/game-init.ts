@@ -20,7 +20,7 @@ import {
 import { createGameEventBus } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   emptyFreshInterior,
   type Player,
@@ -79,7 +79,7 @@ function createGameState(
   const players: Player[] = [];
   for (let i = 0; i < playerCount; i++) {
     players.push({
-      id: i as ValidPlayerSlot,
+      id: i as ValidPlayerId,
       homeTower: null,
       castle: null,
       ownedTowers: [],

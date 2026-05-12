@@ -18,7 +18,7 @@ import {
   TILE_SIZE,
   Tile,
 } from "../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { interiorOwnersFromOverlay } from "../../shared/ui/overlay-types.ts";
 import { getPlayerColor, MAX_PLAYERS } from "../../shared/ui/player-config.ts";
 import type { RGB } from "../../shared/ui/theme.ts";
@@ -305,7 +305,7 @@ function writeTileColor(
  *  (light on even parity, dark on odd); battle uses a uniform
  *  cobblestone-tinted-gray per player. */
 function interiorTileColor(
-  ownerId: ValidPlayerSlot,
+  ownerId: ValidPlayerId,
   row: number,
   col: number,
   inBattle: boolean,
@@ -350,13 +350,13 @@ function sRGBToLinear(value: number): number {
 }
 
 /** Snapshot the player palette into per-player `{ light, dark }` sRGB
- *  triples. Indexed by `ValidPlayerSlot` (0..MAX_PLAYERS-1) — the shader
+ *  triples. Indexed by `ValidPlayerId` (0..MAX_PLAYERS-1) — the shader
  *  reads at `ownerId - 1` after subtracting the +1 sentinel offset stored
  *  in the tile-data texture. */
 function buildLinearPlayerPalette(): { light: RGB; dark: RGB }[] {
   const out: { light: RGB; dark: RGB }[] = [];
   for (let pid = 0; pid < MAX_PLAYERS; pid++) {
-    const colors = getPlayerColor(pid as ValidPlayerSlot);
+    const colors = getPlayerColor(pid as ValidPlayerId);
     out.push({ light: colors.interiorLight, dark: colors.interiorDark });
   }
   return out;

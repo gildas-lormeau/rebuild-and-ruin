@@ -9,7 +9,7 @@
 import { aimCannons, nextReadyCannon } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { packTile, tileCenterPx } from "../shared/core/spatial.ts";
 import type {
   BattleViewState,
@@ -27,7 +27,7 @@ type ExecuteFireFn = (intent: FireIntent) => boolean;
  *  Exported so controller-ai.ts can statically assert AiController implements
  *  every phase's Host (see the `satisfies` check at the bottom of that file). */
 export interface BattleHost {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   crosshair: { x: number; y: number };
   readonly cannonRotationIdx: number | undefined;

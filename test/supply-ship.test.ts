@@ -21,7 +21,7 @@
 import { assert, assertEquals } from "@std/assert";
 import { Phase } from "../src/shared/core/game-phase.ts";
 import { GAME_EVENT } from "../src/shared/core/game-event-bus.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { loadSeed } from "./scenario.ts";
 
 const MAX_TIMEOUT_MS = 1_200_000;
@@ -98,7 +98,7 @@ Deno.test("supply_ship: ships clear at battle end and credit any sinks", async (
 
   let supplyShipApplied = false;
   let battleEntered = false;
-  const shipsSunkByShooter = new Map<ValidPlayerSlot, number>();
+  const shipsSunkByShooter = new Map<ValidPlayerId, number>();
 
   sc.bus.on(GAME_EVENT.MODIFIER_APPLIED, (ev) => {
     if (ev.modifierId === "supply_ship") supplyShipApplied = true;

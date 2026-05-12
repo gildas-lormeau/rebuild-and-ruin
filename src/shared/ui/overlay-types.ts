@@ -20,7 +20,7 @@ import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
 } from "../core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../core/player-slot.ts";
+import type { ValidPlayerId } from "../core/player-slot.ts";
 import type { FreshInterior } from "../core/player-types.ts";
 import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type { RGB } from "./theme.ts";
@@ -110,7 +110,7 @@ export interface UpgradePickOverlay {
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
 export interface LifeLostDialogOverlay {
   entries: {
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     name: string;
     lives: number;
     color: RGB;
@@ -132,7 +132,7 @@ export interface SelectionOverlay {
   /** Per-player tower highlights for parallel castle selection. */
   highlights?: {
     towerIdx: number;
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     confirmed?: boolean;
   }[];
 }
@@ -286,7 +286,7 @@ export interface BattleOverlay {
    *  the debris manager alongside the live `player.cannons` dead
    *  entries; faded by `rubbleClearingFade`. */
   heldDeadCannons?: readonly {
-    ownerId: ValidPlayerSlot;
+    ownerId: ValidPlayerId;
     col: number;
     row: number;
     mode: CannonMode;
@@ -397,7 +397,7 @@ export interface UIOverlay {
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     delta: number;
     total: number;
     cx: number;
@@ -578,7 +578,7 @@ export interface CastleData {
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
   /** Player index (for color). */
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
    *  Rendered with a crack overlay so players can see which walls are weakened. */
   damagedWalls?: ReadonlySet<number>;
@@ -602,8 +602,8 @@ export interface PlayerStats {
  *  are NOT included — callers that need them build a separate set. */
 export function interiorOwnersFromOverlay(
   overlay: RenderOverlay | undefined,
-): Map<number, ValidPlayerSlot> {
-  const owners = new Map<number, ValidPlayerSlot>();
+): Map<number, ValidPlayerId> {
+  const owners = new Map<number, ValidPlayerId>();
   if (!overlay) return owners;
   if (overlay.phase === Phase.BATTLE) {
     const territories = overlay.battle?.battleTerritory;
@@ -611,7 +611,7 @@ export function interiorOwnersFromOverlay(
       for (let pid = 0; pid < territories.length; pid++) {
         const territory = territories[pid];
         if (!territory) continue;
-        const playerSlot = pid as unknown as ValidPlayerSlot;
+        const playerSlot = pid as unknown as ValidPlayerId;
         for (const key of territory) owners.set(key, playerSlot);
       }
     }

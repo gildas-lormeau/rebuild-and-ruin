@@ -16,7 +16,7 @@ import {
   nextPiece,
   type PieceShape,
 } from "./pieces.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
 
@@ -32,7 +32,7 @@ export type FreshInterior = ReadonlySet<number> & {
 };
 
 export interface Player {
-  id: ValidPlayerSlot;
+  id: ValidPlayerId;
   /** The tower this player selected as home castle. */
   homeTower: Tower | null;
   /** The castle built around the home tower. */
@@ -182,7 +182,7 @@ export function selectPlayerTower(player: Player, tower: Tower): void {
 export function findTowerOwner(
   players: readonly Player[],
   towerIdx: number,
-): ValidPlayerSlot | undefined {
+): ValidPlayerId | undefined {
   for (const player of players) {
     if (player.ownedTowers.some((tower) => tower.index === towerIdx)) {
       return player.id;

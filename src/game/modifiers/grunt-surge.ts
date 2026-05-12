@@ -5,7 +5,7 @@
  * (grunt-system.ts), so it's injected by modifier-system.ts via applyGruntSurge.
  */
 
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { packTile } from "../../shared/core/spatial.ts";
 import type { GameState } from "../../shared/core/types.ts";
@@ -22,7 +22,7 @@ const GRUNT_SURGE_COUNT_MAX = 10;
 export function createGruntSurgeImpl(
   spawnOnZone: (
     state: GameState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     count: number,
   ) => void,
 ): ModifierImpl {
@@ -47,7 +47,7 @@ function applyGruntSurge(
   state: GameState,
   spawnOnZone: (
     state: GameState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     count: number,
   ) => void,
 ): { count: number; spawnTiles: number[] } {

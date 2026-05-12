@@ -6,7 +6,7 @@
 
 import type { BurningPit, CannonMode } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { PoolDef } from "./pool-def.ts";
 
 /** Wire payload for tile-mutating modifier state — packed `row * GRID_COLS +
@@ -32,7 +32,7 @@ export interface SerializedModifierTiles {
 export interface RubbleClearingHeld {
   readonly pits: readonly BurningPit[];
   readonly deadCannons: readonly {
-    readonly ownerId: ValidPlayerSlot;
+    readonly ownerId: ValidPlayerId;
     readonly col: number;
     readonly row: number;
     readonly mode: CannonMode;

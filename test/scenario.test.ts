@@ -10,7 +10,7 @@ import { Phase } from "../src/shared/core/game-phase.ts";
 import { unpackTile } from "../src/shared/core/spatial.ts";
 import { diffAsciiSnapshots } from "../src/runtime/dev-console-grid.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
 Deno.test("scenario: boots from a seed and exposes game state", async () => {
   const sc = await createScenario({ seed: 42 });
@@ -165,7 +165,7 @@ Deno.test(
     const sc = await createScenario({
       seed: 42,
       rounds: 3,
-      assistedSlots: [1 as ValidPlayerSlot],
+      assistedSlots: [1 as ValidPlayerId],
     });
 
     // Round 1 auto-builds castles in CASTLE_SELECT. The first player-driven

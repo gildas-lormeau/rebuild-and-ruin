@@ -6,7 +6,7 @@ import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/core/battle-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type PlayerController } from "../shared/core/system-interfaces.ts";
 import {
   type FrameContext,
@@ -39,7 +39,7 @@ export type PauseReason = "none" | "user" | "visibility";
 
 export interface ScoreDisplayState {
   deltas: {
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     delta: number;
     total: number;
     cx: number;

@@ -19,7 +19,7 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { modifierDef, type SupplyShip } from "../shared/core/modifier-defs.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import { castleCenterPx } from "../shared/core/spatial.ts";
@@ -160,7 +160,7 @@ export function updateSelectionOverlay(
     if (visiblePlayers && !visiblePlayers.has(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: selectionState.highlighted,
-      playerId: pid as ValidPlayerSlot,
+      playerId: pid as ValidPlayerId,
       confirmed: false,
     });
   }
@@ -175,7 +175,7 @@ export function handleLifeLostDialogClick(params: {
   gameX: number;
   /** World-pixel Y coordinate. See gameX. */
   gameY: number;
-}): { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null {
+}): { playerId: ValidPlayerId; choice: ResolvedChoice } | null {
   const { view, lifeLostDialog, gameX, gameY } = params;
 
   for (const entry of lifeLostDialog.entries) {
@@ -229,7 +229,7 @@ export function handleUpgradePickClick(params: {
   screenX: number;
   /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
-}): { playerId: ValidPlayerSlot; cardIdx: number } | null {
+}): { playerId: ValidPlayerId; cardIdx: number } | null {
   const { dialog, screenX, screenY } = params;
   const gameX = screenX / SCALE;
   const gameY = screenY / SCALE;
@@ -265,7 +265,7 @@ export function handleUpgradePickClick(params: {
  *  inside the tile-space edges so it never crosses the map boundary. */
 export function lifeLostPanelPos(
   view: RenderView,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): { px: number; py: number } {
   const zone = view.playerZones[playerId];
   const center =
@@ -434,7 +434,7 @@ export function createOnlineOverlay(
 export function buildGameOverOverlay(
   winnerId: number,
   players: readonly {
-    id: ValidPlayerSlot;
+    id: ValidPlayerId;
     score: number;
     eliminated: boolean;
     interior: ReadonlySet<number>;
@@ -561,7 +561,7 @@ export function lobbyClickHitTest(params: {
   for (let i = 0; i < slotCount; i++) {
     const rx = gap + i * (rectW + gap);
     if (x >= rx && x <= rx + rectW && y >= rectY && y <= rectY + rectH) {
-      return { type: "slot", slotId: i as ValidPlayerSlot };
+      return { type: "slot", slotId: i as ValidPlayerId };
     }
   }
   return null;
@@ -606,7 +606,7 @@ function buildCastleOverlay(view: RenderView): CastleData[] {
 
 function buildStatusBar(
   view: RenderView,
-  povPlayerId: ValidPlayerSlot,
+  povPlayerId: ValidPlayerId,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UIOverlay["statusBar"] {
   if (view.phase === Phase.CASTLE_SELECT || view.phase === Phase.BATTLE) {
@@ -662,7 +662,7 @@ function buildLifeLostDialogUi(
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
   maxTimer: number,
-  getPanelPos: (playerId: ValidPlayerSlot) => { px: number; py: number },
+  getPanelPos: (playerId: ValidPlayerId) => { px: number; py: number },
 ): LifeLostDialogOverlay | undefined {
   if (!dialog) return undefined;
 
@@ -687,7 +687,7 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  interactiveSlots: ReadonlySet<ValidPlayerSlot>,
+  interactiveSlots: ReadonlySet<ValidPlayerId>,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
   bannerUi: BannerUi | undefined,
@@ -820,7 +820,7 @@ function buildBattleBalloonsPayload(
 
 function formatComboFloats(
   events: readonly ComboEvent[] | undefined,
-  povPlayerId: ValidPlayerSlot,
+  povPlayerId: ValidPlayerId,
 ): { text: string; age: number }[] | undefined {
   if (!events || events.length === 0) return undefined;
   const filtered = events.filter((event) => event.playerId === povPlayerId);

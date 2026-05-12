@@ -8,7 +8,7 @@ import { BATTLE_TIMER, type ModifierId } from "./game-constants.ts";
 import { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { SupplyShip } from "./modifier-defs.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { ComboEvent, GameState } from "./types.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -35,7 +35,7 @@ interface RenderModernSlice {
   readonly rubbleClearingHeld: {
     readonly pits: readonly BurningPit[];
     readonly deadCannons: readonly {
-      readonly ownerId: ValidPlayerSlot;
+      readonly ownerId: ValidPlayerId;
       readonly col: number;
       readonly row: number;
       readonly mode: CannonMode;

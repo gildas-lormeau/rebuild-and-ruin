@@ -15,7 +15,7 @@
 
 import { assert, assertAlmostEquals, assertEquals } from "@std/assert";
 import { HumanController } from "../src/controllers/controller-human.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import {
   type BattleViewState,
   CROSSHAIR_SPEED,
@@ -23,7 +23,7 @@ import {
 import { Action } from "../src/shared/ui/input-action.ts";
 import { PLAYER_KEY_BINDINGS } from "../src/shared/ui/player-config.ts";
 
-const PID = 0 as ValidPlayerSlot;
+const PID = 0 as ValidPlayerId;
 const TOLERANCE = 0.0001;
 
 Deno.test(

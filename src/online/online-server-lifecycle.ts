@@ -18,7 +18,7 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { OnlineSession } from "./online-session.ts";
 
@@ -86,7 +86,7 @@ export async function handleServerLifecycleMessage(
   /** Atomically update all three slot-tracking structures (clear).
    *  Invariant: occupiedSlots, remotePlayerSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
-  const clearLobbySlot = (playerId: ValidPlayerSlot) => {
+  const clearLobbySlot = (playerId: ValidPlayerId) => {
     deps.lobby.joined[playerId] = false;
     deps.session.occupiedSlots.delete(playerId);
     deps.session.remotePlayerSlots.delete(playerId);
@@ -95,7 +95,7 @@ export async function handleServerLifecycleMessage(
   /** Atomically update all three slot-tracking structures (occupy).
    *  Invariant: occupiedSlots, remotePlayerSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
-  const occupyLobbySlot = (playerId: ValidPlayerSlot) => {
+  const occupyLobbySlot = (playerId: ValidPlayerId) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
     if (playerId !== deps.session.myPlayerId) {
@@ -149,7 +149,7 @@ export async function handleServerLifecycleMessage(
       } else {
         const currentPlayerId = deps.session.myPlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
-          clearLobbySlot(currentPlayerId as ValidPlayerSlot);
+          clearLobbySlot(currentPlayerId as ValidPlayerId);
         }
       }
       deps.session.myPlayerId = msg.playerId;

@@ -8,7 +8,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneAt } from "../shared/core/spatial.ts";
 import type { UpgradePickViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -85,7 +85,7 @@ export function tickAiUpgradePickEntry(
 export function precomputeAiUpgradePicks(state: GameState): void {
   const offers = state.modern?.pendingUpgradeOffers;
   if (!offers) return;
-  const picks = new Map<ValidPlayerSlot, UpgradeId>();
+  const picks = new Map<ValidPlayerId, UpgradeId>();
   for (const [playerId, playerOffers] of offers) {
     picks.set(playerId, aiPickUpgrade(playerOffers, state, playerId));
   }
@@ -112,7 +112,7 @@ function resolveAiPick(
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): UpgradeId {
   const hasDeadTowers = playerHasDeadTowers(state, playerId);
   if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
@@ -159,7 +159,7 @@ function aiPickUpgrade(
 
 function playerTerritoryRatio(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): number {
   const player = state.players[playerId];
   if (!player?.homeTower || player.interior.size === 0) return 0;
@@ -175,7 +175,7 @@ function playerTerritoryRatio(
 
 function playerHasDeadTowers(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const player = state.players[playerId];
   if (!player) return false;
@@ -184,7 +184,7 @@ function playerHasDeadTowers(
 
 function playerHasGruntsInZone(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const player = state.players[playerId];
   if (!player?.homeTower) return false;
@@ -196,7 +196,7 @@ function playerHasGruntsInZone(
 
 function playerHasBurningPitsInZone(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const player = state.players[playerId];
   if (!player?.homeTower) return false;
@@ -208,7 +208,7 @@ function playerHasBurningPitsInZone(
 
 function playerHasDeadCannons(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const player = state.players[playerId];
   if (!player) return false;
@@ -218,7 +218,7 @@ function playerHasDeadCannons(
 /** True if the player has many non-load-bearing (inner) walls — Demolition would hurt them. */
 function playerHasThickWalls(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const player = state.players[playerId];
   if (!player || player.walls.size === 0) return false;
@@ -228,7 +228,7 @@ function playerHasThickWalls(
 
 function playerCannonCount(
   state: UpgradePickViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): number {
   const player = state.players[playerId];
   if (!player) return 0;

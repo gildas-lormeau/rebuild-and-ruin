@@ -28,7 +28,7 @@ import type {
   SupplyBonusId,
   SupplyShip,
 } from "./modifier-defs.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -108,7 +108,7 @@ export interface GameState {
    *  (2) wire `OPPONENT_CANNON_PHASE_DONE` from a remote-driven slot.
    *  Phase exits when every non-eliminated slot is in this set, OR the timer hits 0.
    *  Cleared on CANNON_PLACE entry (`enterCannonPlacePhase`). */
-  cannonPlaceDone: Set<ValidPlayerSlot>;
+  cannonPlaceDone: Set<ValidPlayerId>;
   /** Bonus cannon slots earned via Salvage upgrade (cannon kills during battle).
    *  Consumed by computeCannonLimitsForPhase at cannon phase start, then zeroed. */
   salvageSlots: number[];
@@ -158,7 +158,7 @@ export interface GameState {
    *  in the SAFETY window between schedule and apply. Per-peer transient
    *  (only the originator ever populates it; receivers never need it).
    *  Cleared on rematch and at cannon-phase setup. */
-  pendingCannonPlaceDone: Set<ValidPlayerSlot>;
+  pendingCannonPlaceDone: Set<ValidPlayerId>;
 }
 
 /** Upgrade offer triple — 3 unique upgrade choices offered to a player. */
@@ -172,7 +172,7 @@ export interface ComboEvent {
   streak: number;
   bonus: number;
   age: number;
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
 }
 
 export interface ModernState {
@@ -193,7 +193,7 @@ export interface ModernState {
   masterBuilderLockout: number;
   /** Players who picked Master Builder this round. null = nobody.
    *  Persists through the build phase (needed to compute buildMax for advancePhaseTimer). */
-  masterBuilderOwners: ReadonlySet<ValidPlayerSlot> | null;
+  masterBuilderOwners: ReadonlySet<ValidPlayerId> | null;
   /** Combo scoring tracker (transient during battle, not serialized).
    *  Created at battle start, cleared at battle end. */
   comboTracker: {
@@ -209,7 +209,7 @@ export interface ModernState {
   /** Pre-generated upgrade offers per player for the current round.
    *  Generated in prepareNextRound using synced RNG, consumed by the upgrade pick dialog.
    *  null before UPGRADE_FIRST_ROUND. */
-  pendingUpgradeOffers: Map<ValidPlayerSlot, UpgradeOfferTuple> | null;
+  pendingUpgradeOffers: Map<ValidPlayerId, UpgradeOfferTuple> | null;
   /** Pre-computed AI upgrade pick per player, drawn from `state.rng` at
    *  battle-done.mutate (right after `pendingUpgradeOffers` is generated)
    *  so `state.rng` is consumed at a deterministic state-mutation point.
@@ -221,7 +221,7 @@ export interface ModernState {
    *  The dialog tick reads from this map instead of computing on-the-fly,
    *  making the draw both deterministic and peer-symmetric.
    *  null before UPGRADE_FIRST_ROUND or for non-modern modes. */
-  precomputedUpgradePicks: Map<ValidPlayerSlot, UpgradeId> | null;
+  precomputedUpgradePicks: Map<ValidPlayerId, UpgradeId> | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
   frozenTiles: Set<number> | null;
@@ -263,7 +263,7 @@ export interface ModernState {
    *  bonus type's consumer at the relevant phase entry. Spans round
    *  boundaries (not cleared in the modifier's `clear`) so a sink
    *  late in a battle still benefits the closing/next phase. */
-  pendingSupplyBonuses: Map<ValidPlayerSlot, SupplyBonusId[]> | null;
+  pendingSupplyBonuses: Map<ValidPlayerId, SupplyBonusId[]> | null;
 }
 
 /** Player selection lobby state. */
@@ -295,13 +295,13 @@ export interface SelectionState {
 
 export interface FrameContext {
   // Identity
-  readonly myPlayerId: PlayerSlotId;
+  readonly myPlayerId: PlayerId;
   /** Point-of-view player for camera, sound, and haptics.
    *  Online: myPlayerId. Local: pointer player slot. Demo: 0. */
-  readonly povPlayerId: ValidPlayerSlot;
+  readonly povPlayerId: ValidPlayerId;
   readonly hostAtFrameStart: boolean;
   /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
-  readonly remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
+  readonly remotePlayerSlots: ReadonlySet<ValidPlayerId>;
 
   // Mode / Phase
   readonly mode: Mode;
@@ -348,7 +348,7 @@ const MAX_CANNON_SLOT_KEY = 256;
 /** Pack a `(playerId, cannonIdx)` pair into the key shape used by
  *  `state.pendingCannonFires`. */
 export function packPendingCannonFireKey(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   cannonIdx: number,
 ): number {
   return playerId * MAX_CANNON_SLOT_KEY + cannonIdx;

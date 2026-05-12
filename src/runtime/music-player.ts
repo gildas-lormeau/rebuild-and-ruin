@@ -14,7 +14,7 @@ import {
   type GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   AUDIO_CONTEXT_RUNNING,
@@ -48,7 +48,7 @@ export interface MusicSubsystem {
   /** Play the one-shot tower-enclosure fanfare for a player. Picks a
    *  TETRIS sub-song by player slot (5/6/7 cycle). Plays through a fresh
    *  AudioBufferSourceNode so it overlaps any in-flight bg track for free. */
-  playFanfare(playerId: ValidPlayerSlot): Promise<void>;
+  playFanfare(playerId: ValidPlayerId): Promise<void>;
   /** Bind to the supplied game bus so PHASE_START=WALL_BUILD auto-stops the
    *  title track when the first castle goes down. Re-binding to a different
    *  bus (rematch) unbinds the previous one. */
@@ -403,7 +403,7 @@ export function createMusicSubsystem(): MusicSubsystem {
     activeFanfareSources.clear();
   }
 
-  async function playFanfare(playerId: ValidPlayerSlot): Promise<void> {
+  async function playFanfare(playerId: ValidPlayerId): Promise<void> {
     if (paused) return;
     await activateOnce();
     if (paused) return;

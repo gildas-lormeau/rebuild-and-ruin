@@ -11,7 +11,7 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier, isPlayerEliminated } from "../shared/core/player-types.ts";
 import { selectRenderView } from "../shared/core/render-view.ts";
 import type {
@@ -84,9 +84,9 @@ interface RenderSystemDeps {
   readonly onRenderedFrame: () => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly scoreDeltaProgress: () => number;
-  readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerSlot>;
+  readonly upgradePickInteractiveSlots: () => ReadonlySet<ValidPlayerId>;
   readonly syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
-  readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
+  readonly getLifeLostPanelPos: (playerId: ValidPlayerId) => {
     px: number;
     py: number;
   };
@@ -318,7 +318,7 @@ export function createRenderSystem(deps: RenderSystemDeps): RenderSystem {
  *  `overlay.phantoms.piecePhantoms` undefined in non-build phases. */
 function buildPiecePhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     currentBuildPhantoms: readonly PiecePhantom[];
   }>;
   state: { players: readonly { eliminated?: boolean }[] };
@@ -339,7 +339,7 @@ function buildPiecePhantomsUnion(runtimeState: {
  *  `overlay.phantoms.cannonPhantoms` undefined in non-cannon phases. */
 function buildCannonPhantomsUnion(runtimeState: {
   controllers: ReadonlyArray<{
-    playerId: ValidPlayerSlot;
+    playerId: ValidPlayerId;
     currentCannonPhantom: CannonPhantom | undefined;
   }>;
   state: { players: readonly { eliminated?: boolean }[] };

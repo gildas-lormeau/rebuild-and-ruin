@@ -20,7 +20,7 @@ import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
   initPlayerBag,
@@ -85,7 +85,7 @@ import {
 import { recomputeMapZones } from "./zone-recompute.ts";
 
 interface ScoreDelta {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   delta: number;
   total: number;
 }
@@ -318,7 +318,7 @@ export function computeScoreDeltas(
 ): ScoreDelta[] {
   return players
     .map((player, idx) => ({
-      playerId: idx as ValidPlayerSlot,
+      playerId: idx as ValidPlayerId,
       delta: player.score - (preScores[idx] ?? 0),
       total: player.score,
     }))
@@ -331,8 +331,8 @@ export function computeScoreDeltas(
  *  for animated construction. Sets castle but does NOT add walls or interior. */
 export function prepareCastleWallsForPlayer(
   state: GameState,
-  playerId: ValidPlayerSlot,
-): { playerId: ValidPlayerSlot; tiles: number[] } | null {
+  playerId: ValidPlayerId,
+): { playerId: ValidPlayerId; tiles: number[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
   const castle = createCastle(
@@ -378,8 +378,8 @@ export function prepareCastleWallsForPlayer(
  *  sweeps reveal under the cannons banner rather than popping during the
  *  score overlay. */
 export function finalizeRound(state: GameState): {
-  needsReselect: ValidPlayerSlot[];
-  eliminated: ValidPlayerSlot[];
+  needsReselect: ValidPlayerId[];
+  eliminated: ValidPlayerId[];
 } {
   finalizeTerritoryWithScoring(state);
   const result = applyLifePenalties(state);
@@ -448,11 +448,11 @@ function sweepAllPlayersWalls(state: GameState): void {
  * Returns { needsReselect, eliminated } — caller handles controller notifications.
  */
 function applyLifePenalties(state: GameState): {
-  needsReselect: ValidPlayerSlot[];
-  eliminated: ValidPlayerSlot[];
+  needsReselect: ValidPlayerId[];
+  eliminated: ValidPlayerId[];
 } {
-  const needsReselect: ValidPlayerSlot[] = [];
-  const eliminated: ValidPlayerSlot[] = [];
+  const needsReselect: ValidPlayerId[] = [];
+  const eliminated: ValidPlayerId[] = [];
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;

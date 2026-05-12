@@ -34,7 +34,7 @@ import { assert, assertEquals } from "@std/assert";
 import { createScenario, type Scenario } from "./scenario.ts";
 import { createNetworkedPair } from "./network-setup.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { PieceShape } from "../src/shared/core/pieces.ts";
 
 interface PlayerSnapshot {
@@ -198,7 +198,7 @@ Deno.test(
     const seed = 42;
     const mode = "classic" as const;
     const rounds = 3;
-    const assistedSlot = 1 as ValidPlayerSlot;
+    const assistedSlot = 1 as ValidPlayerId;
 
     // Local baseline — assisted human runs locally, broadcasts land in
     // `local.sentMessages` but are never delivered to any peer.
@@ -255,7 +255,7 @@ for (const stress of ASSISTED_STRESS) {
   Deno.test(
     `network vs local (assisted human stress, seed=${stress.seed} ${stress.mode} r${stress.rounds}): watcher mirrors host`,
     async () => {
-      const slot = 1 as ValidPlayerSlot;
+      const slot = 1 as ValidPlayerId;
       const local = await createScenario({
         seed: stress.seed,
         mode: stress.mode,

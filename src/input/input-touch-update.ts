@@ -11,7 +11,7 @@ import {
   Phase,
 } from "../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 
@@ -235,8 +235,8 @@ function pointerPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,
   phantoms: {
-    piecePhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
-    cannonPhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
+    piecePhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
+    cannonPhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
   },
 ): boolean | undefined {
   if (!human) return undefined;

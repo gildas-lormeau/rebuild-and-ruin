@@ -11,7 +11,7 @@ import type {
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import type {
   BattleViewState,
@@ -163,7 +163,7 @@ export type LobbyClickHitTestFn = (params: {
 /** Result of a lobby click hit-test. */
 export type LobbyHit =
   | { type: "gear" }
-  | { type: "slot"; slotId: ValidPlayerSlot };
+  | { type: "slot"; slotId: ValidPlayerId };
 
 export type CreateOnlineOverlayFn = (
   params: OnlineOverlayParams,
@@ -194,12 +194,12 @@ export interface OnlineOverlayParams {
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
   inBattle: boolean;
-  povPlayerId: ValidPlayerSlot;
+  povPlayerId: ValidPlayerId;
   hasPointerPlayer: boolean;
-  upgradePickInteractiveSlots: ReadonlySet<ValidPlayerSlot>;
+  upgradePickInteractiveSlots: ReadonlySet<ValidPlayerId>;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
-  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
+  getLifeLostPanelPos: (playerId: ValidPlayerId) => {
     px: number;
     py: number;
   };
@@ -487,7 +487,7 @@ export interface RegisterOnlineInputDeps {
   /** Dispatch a player action to whichever per-player dialog is active.
    *  Returns true if consumed. Input handlers resolve the playerId upstream
    *  (keyboard: match key → controller, mouse/touch: pointer player). */
-  dialogAction: (playerId: ValidPlayerSlot, action: Action) => boolean;
+  dialogAction: (playerId: ValidPlayerId, action: Action) => boolean;
 
   // --- Life-lost dialog (click + get) ---
   lifeLost: {
@@ -528,9 +528,9 @@ export interface GameActionDeps {
   highlightTowerForPlayer: (
     idx: number,
     zone: ZoneId,
-    pid: ValidPlayerSlot,
+    pid: ValidPlayerId,
   ) => void;
-  confirmSelectionAndStartBuild: (pid: ValidPlayerSlot) => boolean;
+  confirmSelectionAndStartBuild: (pid: ValidPlayerId) => boolean;
   tryPlacePiece: (
     ctrl: PlayerController & InputReceiver,
     state: BuildViewState,
@@ -570,8 +570,8 @@ export interface TouchControlsDeps {
    *  controller's `currentBuildPhantoms` / `currentCannonPhantom` + the
    *  runtime's remote slot). */
   phantoms: {
-    piecePhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
-    cannonPhantoms?: readonly { playerId: ValidPlayerSlot; valid: boolean }[];
+    piecePhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
+    cannonPhantoms?: readonly { playerId: ValidPlayerId; valid: boolean }[];
   };
   leftHanded: boolean;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;

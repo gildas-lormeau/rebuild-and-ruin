@@ -1,5 +1,5 @@
 import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
 import {
   type BattleViewState,
@@ -63,11 +63,11 @@ interface InputSystemDeps {
     readonly lifeLostDialogClick: (
       screenX: number,
       screenY: number,
-    ) => { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null;
+    ) => { playerId: ValidPlayerId; choice: ResolvedChoice } | null;
     readonly upgradePickClick: (
       screenX: number,
       screenY: number,
-    ) => { playerId: ValidPlayerSlot; cardIdx: number } | null;
+    ) => { playerId: ValidPlayerId; cardIdx: number } | null;
     readonly visibleOptionCount: () => number;
   };
 
@@ -119,20 +119,20 @@ interface InputSystemDeps {
   readonly lifeLost: {
     sendLifeLostChoice: (
       choice: ResolvedChoice,
-      playerId: ValidPlayerSlot,
+      playerId: ValidPlayerId,
     ) => void;
-    toggleFocus: (playerId: ValidPlayerSlot) => void;
-    confirmChoice: (playerId: ValidPlayerSlot) => void;
-    applyChoice: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => void;
+    toggleFocus: (playerId: ValidPlayerId) => void;
+    confirmChoice: (playerId: ValidPlayerId) => void;
+    applyChoice: (playerId: ValidPlayerId, choice: ResolvedChoice) => void;
   };
   readonly upgradePick: {
-    moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
-    confirmChoice: (playerId: ValidPlayerSlot) => void;
-    pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
+    moveFocus: (playerId: ValidPlayerId, dir: number) => void;
+    confirmChoice: (playerId: ValidPlayerId) => void;
+    pickDirect: (playerId: ValidPlayerId, cardIdx: number) => void;
   };
   readonly selection: {
-    highlight: (idx: number, zone: ZoneId, pid: ValidPlayerSlot) => void;
-    confirmAndStartBuild: (pid: ValidPlayerSlot) => boolean;
+    highlight: (idx: number, zone: ZoneId, pid: ValidPlayerId) => void;
+    confirmAndStartBuild: (pid: ValidPlayerId) => boolean;
     isReady: () => boolean;
   };
   readonly camera: Pick<
@@ -395,7 +395,7 @@ function buildDialogActionHandler(
   lifeLost: InputSystemDeps["lifeLost"],
   upgradePick: InputSystemDeps["upgradePick"],
 ): RegisterOnlineInputDeps["dialogAction"] {
-  return (playerId: ValidPlayerSlot, action: Action) => {
+  return (playerId: ValidPlayerId, action: Action) => {
     if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.dialogs.lifeLost) {
       if (action === Action.LEFT || action === Action.RIGHT) {
         lifeLost.toggleFocus(playerId);
@@ -455,7 +455,7 @@ function buildUpgradePickClickDeps(
   };
 }
 
-function guardedDialogClick<TH extends { playerId: ValidPlayerSlot }>(
+function guardedDialogClick<TH extends { playerId: ValidPlayerId }>(
   pointerPlayer: InputSystemDeps["pointerPlayer"],
   hitTest: (x: number, y: number) => TH | null,
   onHit: (hit: TH) => void,

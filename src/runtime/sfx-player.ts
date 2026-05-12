@@ -14,7 +14,7 @@ import {
   type GameEventMap,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
@@ -71,7 +71,7 @@ interface SfxSubsystemDeps {
   /** Called once per player per build/select phase, scheduled to fire right
    *  as the enclosure stinger (elechit1) finishes — the composition root
    *  wires this to the music subsystem's fanfare playback. */
-  readonly onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
+  readonly onFirstEnclosure?: (playerId: ValidPlayerId) => void;
 }
 
 interface SfxMapping<K extends keyof GameEventMap> {
@@ -248,7 +248,7 @@ export function createSfxSubsystem(deps: SfxSubsystemDeps): SfxSubsystem {
   // ≥ 1 enclosed alive tower get pre-added so additional enclosures in
   // that phase stay silent — the fanfare is an intro cue, not a
   // repeat-landmark cue.
-  const fanfarePlayedThisPhase = new Set<ValidPlayerSlot>();
+  const fanfarePlayedThisPhase = new Set<ValidPlayerId>();
   // Phase from the previous tick — used in tickPresentation to detect
   // entries into WALL_BUILD for the fanfare pre-seed.
   let lastPhase: Phase | undefined;

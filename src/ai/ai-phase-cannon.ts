@@ -9,7 +9,7 @@
 import { canPlaceCannon } from "../game/index.ts";
 import { CannonMode } from "../shared/core/battle-types.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type Player } from "../shared/core/player-types.ts";
 import type {
   CannonPlacementPreview,
@@ -27,7 +27,7 @@ import type {
  *  Exported so controller-ai.ts can statically assert AiController implements
  *  every phase's Host (see the `satisfies` check at the bottom of that file). */
 export interface CannonHost {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   cannonCursor: TilePos;
   readonly cannonCursorSpeed: number;
@@ -298,7 +298,7 @@ function tickMoving(
 }
 
 function phantomAt(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   phase: CannonPhase,
   row: number,
   col: number,

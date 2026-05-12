@@ -10,7 +10,7 @@
 import * as THREE from "three";
 import { Phase } from "../../../shared/core/game-phase.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import {
   getPlayerColor,
   PLAYER_NAMES,
@@ -59,7 +59,7 @@ export function createTowerLabelsManager(
   const textures = new Map<number, THREE.CanvasTexture>();
   const sprites = new Map<number, THREE.Sprite>();
 
-  function ensureMaterial(playerId: ValidPlayerSlot): THREE.SpriteMaterial {
+  function ensureMaterial(playerId: ValidPlayerId): THREE.SpriteMaterial {
     const cached = materials.get(playerId);
     if (cached) return cached;
 
@@ -118,7 +118,7 @@ export function createTowerLabelsManager(
       const tower = towers[i]!;
       seen.add(i);
 
-      const material = ensureMaterial(ownerId as ValidPlayerSlot);
+      const material = ensureMaterial(ownerId as ValidPlayerId);
       let sprite = sprites.get(i);
       if (!sprite) {
         sprite = new THREE.Sprite(material);

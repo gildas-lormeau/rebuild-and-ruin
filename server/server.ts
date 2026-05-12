@@ -8,7 +8,7 @@ import {
   HEALTH_PATH,
   WS_PLAY_PATH,
 } from "../src/protocol/routes.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
 import { RoomManager } from "./room-manager.ts";
 
@@ -140,10 +140,7 @@ function handleMessage(
     }
 
     case MESSAGE.SELECT_SLOT: {
-      const selection = rooms.selectSlot(
-        socket,
-        msg.playerId as ValidPlayerSlot,
-      );
+      const selection = rooms.selectSlot(socket, msg.playerId as ValidPlayerId);
       if (!selection) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;

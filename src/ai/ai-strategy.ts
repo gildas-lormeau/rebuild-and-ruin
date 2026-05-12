@@ -24,7 +24,7 @@ import type {
   Tower,
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
@@ -83,13 +83,13 @@ export interface AiStrategy {
   /** Pick the best placement for the current piece. */
   pickPlacement(
     state: BuildViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null;
 
   /** Called at the end of the build phase — assess home tower status. */
-  assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void;
+  assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void;
 
   /** Initialize per-phase cannon-placement context — pre-rolls the
    *  probabilistic super/rampart/balloon decisions so subsequent
@@ -111,12 +111,12 @@ export interface AiStrategy {
   ): CannonPlacement | undefined;
 
   /** Plan the battle: pick focus target, decide chain attacks. */
-  planBattle(state: BattleViewState, playerId: ValidPlayerSlot): BattlePlan;
+  planBattle(state: BattleViewState, playerId: ValidPlayerId): BattlePlan;
 
   /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
   pickTarget(
     state: BattleViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     crosshair: PixelPos,
     wallsOnly?: boolean,
   ): StrategicPixelPos | null;
@@ -124,7 +124,7 @@ export interface AiStrategy {
   /** Record a shot at whatever cannon is at the crosshair position. */
   trackShot(
     state: BattleViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     crosshair: PixelPos,
   ): void;
 
@@ -315,7 +315,7 @@ export class DefaultStrategy implements AiStrategy {
    *  Keyed by (playerId << 8 | cannonIdx) to survive checkpoint cannon replacement. */
   private shotCounts = new Map<number, number>();
   /** Focus fire on this player during battle. */
-  private focusFirePlayerId: ValidPlayerSlot | undefined;
+  private focusFirePlayerId: ValidPlayerId | undefined;
   /** Sticky enclosure target — prevents per-shot oscillation between
    *  enclosures. Invalidated when the anchor tile leaves any eligible
    *  enemy's interior (breach, enemy eliminated, focus-fire switch). */
@@ -388,7 +388,7 @@ export class DefaultStrategy implements AiStrategy {
 
   pickPlacement(
     state: BuildViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
@@ -406,7 +406,7 @@ export class DefaultStrategy implements AiStrategy {
   /** Assess home tower enclosure at END of build phase. The result is stale
    *  by design — `_homeWasBroken` is consumed during the NEXT build phase's
    *  pickPlacement(), reflecting last round's outcome, not real-time state. */
-  assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void {
+  assessBuildEnd(state: GameViewState, playerId: ValidPlayerId): void {
     const player = state.players[playerId]!;
     this._homeWasBroken = false;
     if (player.homeTower) {
@@ -447,7 +447,7 @@ export class DefaultStrategy implements AiStrategy {
   // Battle
   // -----------------------------------------------------------------------
 
-  planBattle(state: BattleViewState, playerId: ValidPlayerSlot): BattlePlan {
+  planBattle(state: BattleViewState, playerId: ValidPlayerId): BattlePlan {
     // Focus fire probability scales with battleTactics
     const focusProb = traitLookup(this.battleTactics, [
       0.2,
@@ -596,7 +596,7 @@ export class DefaultStrategy implements AiStrategy {
 
   pickTarget(
     state: BattleViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     crosshair: PixelPos,
     wallsOnly?: boolean,
   ): StrategicPixelPos | null {
@@ -615,7 +615,7 @@ export class DefaultStrategy implements AiStrategy {
 
   trackShot(
     state: BattleViewState,
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     crosshair: PixelPos,
   ): void {
     trackShot(state, playerId, crosshair, this.shotCounts);
@@ -637,7 +637,7 @@ export class DefaultStrategy implements AiStrategy {
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
 export function pickPlacementStandalone(
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   piece: PieceShape,
   cursorPos?: TilePos,
 ): AiPlacement | null {

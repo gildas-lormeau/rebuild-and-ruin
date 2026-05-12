@@ -14,7 +14,7 @@ import {
   type ModifierDiff,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState, SelectionState } from "../shared/core/types.ts";
 import { resolveBalloons } from "./battle-system.ts";
 import {
@@ -113,7 +113,7 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
   enterCannonPlacePhase(state);
   prepareCannonPhase(state);
   const playerInit = state.players.map((_, idx) =>
-    prepareControllerCannonPhase(idx as ValidPlayerSlot, state),
+    prepareControllerCannonPhase(idx as ValidPlayerId, state),
   );
   return { playerInit };
 }
@@ -134,11 +134,11 @@ export function enterCannonPhase(state: GameState): CannonPhaseEntry {
 export function enterSelectionPhase(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  pids?: readonly ValidPlayerSlot[],
+  pids?: readonly ValidPlayerId[],
 ): void {
   setPhase(state, Phase.CASTLE_SELECT);
   selectionStates.clear();
-  const slots = pids ?? state.players.map((_, i) => i as ValidPlayerSlot);
+  const slots = pids ?? state.players.map((_, i) => i as ValidPlayerId);
   for (const pid of slots) {
     const zone = state.playerZones[pid];
     if (zone === undefined) continue;

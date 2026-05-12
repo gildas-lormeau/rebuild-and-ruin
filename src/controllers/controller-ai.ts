@@ -48,7 +48,7 @@ import {
 } from "../game/index.ts";
 import { SIM_TICK_DT } from "../shared/core/game-constants.ts";
 import type { PixelPos, TilePos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type AiAnimatable,
   type BattleViewState,
@@ -107,7 +107,7 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Fixed perpendicular jitter offset (tiles), set once per movement. */
   private tileJitterOffset = 0;
 
-  constructor(playerId: ValidPlayerSlot, strategy: AiStrategy) {
+  constructor(playerId: ValidPlayerId, strategy: AiStrategy) {
     super(playerId);
     this.strategy = strategy;
   }

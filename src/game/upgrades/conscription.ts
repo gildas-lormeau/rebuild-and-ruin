@@ -7,7 +7,7 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
@@ -25,7 +25,7 @@ export const conscriptionImpl: UpgradeImpl = { onGruntKilled };
  *  roll fails. Consumes state.rng (bool + pick) only when Conscription owns. */
 function onGruntKilled(
   state: GameState,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): ConscriptionRespawnTarget | null {
   const shooter = state.players[shooterId];
   if (!shooter?.upgrades.get(UID.CONSCRIPTION)) return null;

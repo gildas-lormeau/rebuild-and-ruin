@@ -10,7 +10,7 @@
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { type ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   cannonTier,
   isPlayerSeated,
@@ -107,7 +107,7 @@ export function shouldSkipBattle(state: GameState): boolean {
  *  Aggregates every upgrade that can gate a player's build tick. */
 export function canPlayerBuild(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   for (const impl of UPGRADE_REGISTRY.values()) {
     if (impl.canPlayerBuild && !impl.canPlayerBuild(state, playerId))
@@ -236,7 +236,7 @@ export function onCannonPlaced(player: Player): void {
  *  RNG-driven bounce geometry. */
 export function onImpactResolved(
   state: GameState,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   hitRow: number,
   hitCol: number,
   initialImpactEvents: readonly ImpactEvent[],
@@ -259,7 +259,7 @@ export function onImpactResolved(
  *  findGruntSpawnNear from there. First non-null wins. */
 export function onGruntKilled(
   state: GameState,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): ConscriptionRespawnTarget | null {
   for (const impl of UPGRADE_REGISTRY.values()) {
     const result = impl.onGruntKilled?.(state, shooterId);
@@ -272,7 +272,7 @@ export function onGruntKilled(
  *  destroys an enemy cannon. */
 export function onCannonKilled(
   state: GameState,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): void {
   for (const impl of UPGRADE_REGISTRY.values()) {
     impl.onCannonKilled?.(state, shooterId);
@@ -340,7 +340,7 @@ export function applyUpgradePicks(
 export function generateUpgradeOffers(
   state: GameState,
   upcomingRound: number,
-): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
+): Map<ValidPlayerId, UpgradeOfferTuple> | null {
   if (!hasFeature(state, FID.UPGRADES)) return null;
   if (upcomingRound < UPGRADE_FIRST_ROUND) return null;
   // No upgrades for the final round — they'd only affect a single battle
@@ -348,7 +348,7 @@ export function generateUpgradeOffers(
   // Infinity for unlimited-round games, so this never trips there.
   if (upcomingRound >= state.maxRounds) return null;
 
-  const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
+  const offers = new Map<ValidPlayerId, UpgradeOfferTuple>();
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
     offers.set(player.id, drawOffers(state));

@@ -15,7 +15,7 @@ import {
 import type { CannonMode } from "../shared/core/battle-types.ts";
 import type { CannonPlacedPayload } from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BattleController,
   BuildViewState,
@@ -40,7 +40,7 @@ import {
  *  the same `applyAt`. */
 interface ScheduledPiecePlacement {
   applyAt: number;
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   row: number;
   col: number;
   offsets: [number, number][];

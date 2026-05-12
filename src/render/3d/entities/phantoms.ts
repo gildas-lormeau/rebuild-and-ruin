@@ -10,7 +10,7 @@
 import * as THREE from "three";
 import { NORMAL_CANNON_SIZE } from "../../../shared/core/game-constants.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import type {
   RenderCannonPhantom,
   RenderPiecePhantom,
@@ -118,7 +118,7 @@ export function createPhantomsManager(scene: THREE.Scene): PhantomsManager {
   const cannonHosts: CannonHost[] = [];
 
   function ensurePieceMaterial(
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     valid: boolean,
   ): PieceMaterialSet {
     const key: PieceMaterialKey = `${playerId}:${valid ? 1 : 0}`;

@@ -40,7 +40,7 @@ import {
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import type { UpgradePickDialogState } from "../shared/ui/interaction-types.ts";
@@ -81,13 +81,13 @@ type TransitionId =
 interface TransitionResult {
   readonly modifierDiff: ModifierDiff | null;
   readonly flights: readonly BalloonFlight[];
-  readonly needsReselect?: readonly ValidPlayerSlot[];
-  readonly eliminated?: readonly ValidPlayerSlot[];
+  readonly needsReselect?: readonly ValidPlayerId[];
+  readonly eliminated?: readonly ValidPlayerId[];
   /** Populated by the `life-lost-dialog` display step once the dialog
    *  resolves (or immediately, for the all-pre-resolved path). Read by
    *  `ROUND_END`'s postDisplay to route via `resolveAfterLifeLost`.
    *  Mutable because it's written AFTER the mutate fn returns. */
-  continuing?: readonly ValidPlayerSlot[];
+  continuing?: readonly ValidPlayerId[];
   /** Set by `ROUND_END`'s mutate when `peekGameOverOutcome` detects the
    *  match has ended. Causes the `life-lost-dialog` step to short-circuit
    *  (no popup) and the postDisplay to fire `onGameOver` directly. */
@@ -209,9 +209,9 @@ export interface PhaseTransitionCtx {
    *  reads it and routes via `resolveAfterLifeLost` + `ctx.lifeLostRoute`. */
   readonly lifeLost?: {
     readonly show: (
-      needsReselect: readonly ValidPlayerSlot[],
-      eliminated: readonly ValidPlayerSlot[],
-      onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
+      needsReselect: readonly ValidPlayerId[],
+      eliminated: readonly ValidPlayerId[],
+      onResolved: (continuing: readonly ValidPlayerId[]) => void,
     ) => boolean;
   };
   /** Post-life-lost dispatch bundle. `ROUND_END`'s postDisplay runs
@@ -224,12 +224,12 @@ export interface PhaseTransitionCtx {
       winner: { id: number },
       reason: GameOverReason,
     ) => void;
-    readonly onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+    readonly onReselect: (continuing: readonly ValidPlayerId[]) => void;
     readonly onAdvance: () => void;
   };
   /** Notify a local controller that its player lost a life. Called per
    *  affected player after the score overlay, before the dialog shows. */
-  readonly notifyLifeLost?: (pid: ValidPlayerSlot) => void;
+  readonly notifyLifeLost?: (pid: ValidPlayerId) => void;
   /** Finalize local controllers' build-phase bag state. Used by
    *  `round-end` host mutate (remote humans are skipped — their
    *  controllers re-init via startBuildPhase at next round). */
@@ -1148,7 +1148,7 @@ function runLifeLostDialogStep(
   for (const pid of [...needsReselect, ...eliminated]) {
     ctx.notifyLifeLost?.(pid);
   }
-  const finish = (continuing: readonly ValidPlayerSlot[]): void => {
+  const finish = (continuing: readonly ValidPlayerId[]): void => {
     result.continuing = continuing;
     onDone();
   };

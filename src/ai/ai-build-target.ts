@@ -14,7 +14,7 @@ import {
   type PieceShape,
   rotateCW,
 } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
 import {
   DIRS_8,
@@ -27,7 +27,7 @@ import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 
 export function canPieceFillAnyGap(
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   piece: PieceShape,
   interior: ReadonlySet<number>,
   gaps: Set<number>,
@@ -47,7 +47,7 @@ export function plugUnreachableGaps(
   gaps: Set<number>,
   rect: TileRect | null,
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   walls: ReadonlySet<number>,
   interior: FreshInterior,
 ): boolean {
@@ -86,7 +86,7 @@ export function plugUnreachableGaps(
 /** Check if ANY standard piece shape (in any rotation) could fill a single gap tile. */
 function isGapFillableByAnyShape(
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   interior: ReadonlySet<number>,
   gapKey: number,
   rect?: TileRect | null,
@@ -130,7 +130,7 @@ function canAnyRotationFillGap(
   gaps: Set<number>,
   adjusted: ReadonlySet<number>,
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const cache = buildOccupancyCache(state);
   const placementCtx = buildPlacementContext(state, playerId);

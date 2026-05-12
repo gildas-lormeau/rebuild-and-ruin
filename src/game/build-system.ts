@@ -33,7 +33,7 @@ import {
   getInterior,
   markInteriorFresh,
 } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   advancePlayerBag,
   type FreshInterior,
@@ -82,7 +82,7 @@ interface PlacementContext {
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   piece: PieceShape,
   row: number,
   col: number,
@@ -110,7 +110,7 @@ export function canPlacePiece(
     readonly grunts: readonly Grunt[];
     readonly burningPits: readonly BurningPit[];
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   offsets: readonly [number, number][],
   row: number,
   col: number,
@@ -167,7 +167,7 @@ export function canPlacePiece(
  *  grunt overlap permission) out of per-candidate loops. */
 export function buildPlacementContext(
   state: GameViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): PlacementContext | null {
   const player = state.players[playerId];
   if (!player) return null;
@@ -193,7 +193,7 @@ export function buildPlacementContext(
  *  showing up later as desynced grunt/house spawn positions. */
 export function applyPiecePlacement(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   offsets: readonly [number, number][],
   row: number,
   col: number,

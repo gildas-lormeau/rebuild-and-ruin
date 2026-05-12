@@ -29,7 +29,7 @@ import {
   assertInteriorFresh,
   getInterior,
 } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   isPlayerSeated,
@@ -79,7 +79,7 @@ export function autoPlaceRound1Cannons(
     readonly pendingCannonSlotCost: readonly number[];
     readonly round?: number;
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   maxSlots: number,
 ): void {
   if (state.round !== 1) return;
@@ -171,7 +171,7 @@ export function allCannonPlaceDone(state: GameState): boolean {
  *  drain time today). */
 export function applyCannonAtDrain(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   row: number,
   col: number,
   mode: CannonMode,
@@ -246,7 +246,7 @@ export function resetCannonFacings(state: GameViewState): void {
  *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase).
  *  Returns null for eliminated players (no init needed). */
 export function prepareControllerCannonPhase(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   state: GameState,
 ): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
   if (state.phase !== Phase.CANNON_PLACE) {
@@ -411,7 +411,7 @@ function computeCannonLimitsForPhase(state: GameState): void {
     const salvage = state.salvageSlots[idx] ?? 0;
     const supplyShipBonus = consumeSupplyBonuses(
       state,
-      idx as ValidPlayerSlot,
+      idx as ValidPlayerId,
       "extra_cannon",
     );
     return base + cannonSlotsBonus(player) + salvage + supplyShipBonus;

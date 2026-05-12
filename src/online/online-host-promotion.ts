@@ -13,10 +13,7 @@ import type { MutableAccums } from "../runtime/runtime-tick-context.ts";
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
@@ -34,9 +31,9 @@ const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 export function rebuildControllersForPhase(
   state: GameState,
   controllers: readonly PlayerController[],
-  myPlayerId: PlayerSlotId,
+  myPlayerId: PlayerId,
   createAiController: (
-    id: ValidPlayerSlot,
+    id: ValidPlayerId,
     rng: Rng,
     personality: AiPersonality,
   ) => Promise<PlayerController>,
@@ -48,7 +45,7 @@ export function rebuildControllersForPhase(
       const player = state.players[i];
       if (!player || isPlayerEliminated(player)) return existing;
 
-      const pid = i as ValidPlayerSlot;
+      const pid = i as ValidPlayerId;
       const strategyRng = new Rng(
         deriveAiStrategySeed(state.rng.seed, state.round, pid),
       );

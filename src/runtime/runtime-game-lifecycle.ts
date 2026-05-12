@@ -8,7 +8,7 @@
  */
 
 import { DEMO_RETURN_DELAY_MS } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -118,7 +118,7 @@ interface LifecycleWiringDeps {
   readonly buildGameOverOverlay: (
     winnerId: number,
     players: readonly {
-      id: ValidPlayerSlot;
+      id: ValidPlayerId;
       score: number;
       eliminated: boolean;
       interior: ReadonlySet<number>;

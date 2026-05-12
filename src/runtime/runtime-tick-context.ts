@@ -8,7 +8,7 @@
  */
 
 import { GRUNT_TICK_INTERVAL } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { ControllerIdentity } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
 
@@ -17,7 +17,7 @@ import type { GameState } from "../shared/core/types.ts";
  *  Always read inline — never cache in a local variable across ticks. */
 interface HostNetContext {
   /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   isHost: boolean;
 }
 
@@ -139,7 +139,7 @@ export function localControllers<
   T extends ControllerIdentity = ControllerIdentity,
 >(
   controllers: readonly T[],
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): T[] {
   return controllers.filter(
     (ctrl) => !isRemotePlayer(ctrl.playerId, remotePlayerSlots),
@@ -149,8 +149,8 @@ export function localControllers<
 /** True if this player slot is controlled by a remote human (not local).
  *  Use this instead of inline `remotePlayerSlots.has(pid)` to make intent explicit. */
 export function isRemotePlayer(
-  playerId: ValidPlayerSlot,
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  playerId: ValidPlayerId,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): boolean {
   return remotePlayerSlots.has(playerId);
 }

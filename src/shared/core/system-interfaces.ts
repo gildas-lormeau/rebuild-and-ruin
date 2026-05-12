@@ -26,7 +26,7 @@ import type {
 import type { SupplyShip } from "./modifier-defs.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { PieceShape } from "./pieces.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -37,7 +37,7 @@ import type { ZoneId } from "./zone-id.ts";
  *  types.ts import. */
 type UpgradePickModernView = {
   readonly precomputedUpgradePicks: ReadonlyMap<
-    ValidPlayerSlot,
+    ValidPlayerId,
     UpgradeId
   > | null;
 } | null;
@@ -125,14 +125,14 @@ export interface BattleViewState extends GameViewState {
 
 /** Intent to fire a cannon — returned by BattleController.fire() for the orchestrator to execute. */
 export interface FireIntent {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly targetRow: number;
   readonly targetCol: number;
 }
 
 /** Intent to place a build piece — returned by InputReceiver.tryPlacePiece() for the orchestrator to execute. */
 export interface PlacePieceIntent {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly piece: PieceShape;
   readonly row: number;
   readonly col: number;
@@ -143,7 +143,7 @@ export interface PlacePieceIntent {
  *  schedule + broadcast (online). Distinct from `CannonPlacedPayload`,
  *  which carries the lockstep `applyAt` stamp added at schedule time. */
 export interface PlaceCannonIntent {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly row: number;
   readonly col: number;
   readonly mode: CannonMode;
@@ -157,7 +157,7 @@ export type CannonPlacementPreview = CannonPhantom;
 
 /** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
 export interface ControllerIdentity {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   /** Discriminant for isHuman/isAiAnimatable type guards (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
@@ -416,7 +416,7 @@ export interface PlayerController
  *  passed to every AI slot regardless of variant so all peers consume
  *  `state.rng` identically at bootstrap. */
 export type ControllerFactory = (
-  slot: ValidPlayerSlot,
+  slot: ValidPlayerId,
   isAi: boolean,
   keys: KeyBindings | undefined,
   sharedRng: Rng | undefined,

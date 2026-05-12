@@ -45,7 +45,7 @@
 import { createScenario, type Scenario } from "./scenario.ts";
 import { assert, assertEquals } from "@std/assert";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { createBidirectionalNetworkedPair } from "./network-setup.ts";
 
 interface PlayerSnapshot {
@@ -114,8 +114,8 @@ for (const trial of SWEEP) {
         seed: trial.seed,
         mode: trial.mode,
         rounds: trial.rounds,
-        assistedSlotsHost: [0 as ValidPlayerSlot],
-        assistedSlotsWatcher: [1 as ValidPlayerSlot],
+        assistedSlotsHost: [0 as ValidPlayerId],
+        assistedSlotsWatcher: [1 as ValidPlayerId],
         wireDelayFrames: WIRE_DELAY_FRAMES,
       });
       const dumpEnv = Deno.env.get("BIDIR_DUMP");
@@ -162,8 +162,8 @@ for (const delay of ALL_HUMAN_DELAYS) {
           seed: trial.seed,
           mode: trial.mode,
           rounds: trial.rounds,
-          assistedSlotsHost: [0 as ValidPlayerSlot, 2 as ValidPlayerSlot],
-          assistedSlotsWatcher: [1 as ValidPlayerSlot],
+          assistedSlotsHost: [0 as ValidPlayerId, 2 as ValidPlayerId],
+          assistedSlotsWatcher: [1 as ValidPlayerId],
           wireDelayFrames: delay,
         });
         // Opt-in state-snapshot dump for first-divergence investigation.

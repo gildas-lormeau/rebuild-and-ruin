@@ -10,7 +10,7 @@ import { canPlacePiece } from "../game/index.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { towerCenterTile } from "../shared/core/spatial.ts";
 import type {
   BuildViewState,
@@ -24,7 +24,7 @@ import type { AiStrategy } from "./ai-strategy.ts";
  *  Exported so controller-ai.ts can statically assert AiController implements
  *  every phase's Host (see the `satisfies` check at the bottom of that file). */
 export interface BuildHost {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   buildCursor: TilePos;
   readonly buildCursorSpeed: number;
@@ -351,7 +351,7 @@ function phantomAtCursor(
 }
 
 function makePhantom(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   shape: PieceShape,
   row: number,
   col: number,

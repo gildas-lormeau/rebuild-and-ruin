@@ -2,31 +2,29 @@
  *  Branded to prevent raw numbers from silently entering the player-identity pipeline.
  *  Always check with `isActivePlayer()` before using as an array index.
  *
- *  `as PlayerSlotId` casts are acceptable at trust boundaries:
- *  1. Wire protocol deserialization: `msg.playerId as PlayerSlotId`
- *  2. Constants: `SPECTATOR_SLOT = -1 as PlayerSlotId` */
+ *  `as PlayerId` casts are acceptable at trust boundaries:
+ *  1. Wire protocol deserialization: `msg.playerId as PlayerId`
+ *  2. Constants: `SPECTATOR_SLOT = -1 as PlayerId` */
 
-export type PlayerSlotId = number & { readonly __playerSlot: true };
+export type PlayerId = number & { readonly __playerId: true };
 
-/** Narrowed PlayerSlotId that passed the `isActivePlayer()` guard (>= 0).
+/** Narrowed PlayerId that passed the `isActivePlayer()` guard (>= 0).
  *  Safe to use as an index into `state.players` or `controllers`.
  *
- *  `as ValidPlayerSlot` casts are acceptable in three cases:
+ *  `as ValidPlayerId` casts are acceptable in three cases:
  *  1. Loop index bounded by playerCount: `for (let i = 0; i < playerCount; i++)`
- *  2. Server-validated message field: `msg.playerId as ValidPlayerSlot`
- *  3. Value just checked locally: `if (id >= 0) … id as ValidPlayerSlot`
+ *  2. Server-validated message field: `msg.playerId as ValidPlayerId`
+ *  3. Value just checked locally: `if (id >= 0) … id as ValidPlayerId`
  *  Prefer `isActivePlayer()` type guard when possible. */
-export type ValidPlayerSlot = PlayerSlotId & { readonly __validSlot: true };
+export type ValidPlayerId = PlayerId & { readonly __validId: true };
 
 /** Sentinel value for myPlayerId: client joined but did not select a slot.
  *  Spectators can watch the game but not control any player. If promoted to host
  *  (original host disconnects), all players become AI. */
-export const SPECTATOR_SLOT = -1 as PlayerSlotId;
+export const SPECTATOR_SLOT = -1 as PlayerId;
 
 /** Type guard: true if this is a valid player slot (not spectating).
- *  Narrows `PlayerSlotId` to `ValidPlayerSlot` in the true branch. */
-export function isActivePlayer(
-  playerId: PlayerSlotId,
-): playerId is ValidPlayerSlot {
+ *  Narrows `PlayerId` to `ValidPlayerId` in the true branch. */
+export function isActivePlayer(playerId: PlayerId): playerId is ValidPlayerId {
   return playerId >= 0;
 }

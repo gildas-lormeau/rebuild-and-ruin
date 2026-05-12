@@ -12,7 +12,7 @@ import { isRemotePlayer } from "../runtime/runtime-tick-context.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
 import type { DedupChannel } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type BattleViewState,
   type ControllerIdentity,
@@ -28,7 +28,7 @@ interface BroadcastDeps {
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
   smoothedCrosshairPos: Map<number, PixelPos>;
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   logThrottled: (key: string, msg: string) => void;
 }
 
@@ -63,7 +63,7 @@ export function extendWithRemoteCrosshairs(
   );
   const remote: Crosshair[] = [];
   for (const [rawPid, target] of deps.remoteCrosshairs) {
-    const pid = rawPid as ValidPlayerSlot;
+    const pid = rawPid as ValidPlayerId;
     if (!isRemotePlayer(pid, deps.remotePlayerSlots)) continue;
     const visualPos = tickRemoteCrosshair(
       pid,

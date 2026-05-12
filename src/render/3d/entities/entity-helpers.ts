@@ -12,7 +12,7 @@ import {
   isSuperCannon,
 } from "../../../shared/core/battle-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
 
@@ -134,7 +134,7 @@ export function disposeGroupSubtree(
 export function tintNamedMeshes(
   host: THREE.Group,
   meshName: string,
-  ownerId: ValidPlayerSlot,
+  ownerId: ValidPlayerId,
   ownedMaterials: THREE.Material[],
   colorVariant: "interiorLight" | "wall" = "interiorLight",
 ): void {

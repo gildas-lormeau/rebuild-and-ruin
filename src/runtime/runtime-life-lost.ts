@@ -3,7 +3,7 @@ import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   LifeLostChoice,
   type LifeLostDialogState,
@@ -27,14 +27,11 @@ import type { RuntimeLifeLost } from "./runtime-types.ts";
 interface LifeLostSystemDeps {
   runtimeState: RuntimeState;
 
-  sendLifeLostChoice: (
-    choice: ResolvedChoice,
-    playerId: ValidPlayerSlot,
-  ) => void;
+  sendLifeLostChoice: (choice: ResolvedChoice, playerId: ValidPlayerId) => void;
   log: (msg: string) => void;
 
   requestRender: () => void;
-  panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
+  panelPos: (playerId: ValidPlayerId) => { px: number; py: number };
 
   /** Online-only drain for wire-arrived choices that landed before the
    *  local sim built the dialog. Called once inside `show()` immediately
@@ -43,27 +40,24 @@ interface LifeLostSystemDeps {
    *  the queue. The system owns the find/validate/write of each entry.
    *  Undefined in local play. */
   applyEarlyChoices?: (
-    apply: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => boolean,
+    apply: (playerId: ValidPlayerId, choice: ResolvedChoice) => boolean,
   ) => void;
 }
 
 /** Callback signature used by every resolution path (immediate skip
  *  or dialog-tick). Receives the list of players who chose CONTINUE;
  *  the caller (phase machine) routes the next transition based on it. */
-type OnLifeLostResolved = (continuing: readonly ValidPlayerSlot[]) => void;
+type OnLifeLostResolved = (continuing: readonly ValidPlayerId[]) => void;
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
-  sendLifeLostChoice: (
-    choice: ResolvedChoice,
-    playerId: ValidPlayerSlot,
-  ) => void;
+  sendLifeLostChoice: (choice: ResolvedChoice, playerId: ValidPlayerId) => void;
   /** Toggle continue/abandon focus for a player's pending entry. */
-  toggleFocus: (playerId: ValidPlayerSlot) => void;
+  toggleFocus: (playerId: ValidPlayerId) => void;
   /** Confirm the currently focused choice for a player (applies the focused option). */
-  confirmChoice: (playerId: ValidPlayerSlot) => void;
+  confirmChoice: (playerId: ValidPlayerId) => void;
   /** Apply a direct choice (e.g. from spatial click on a specific button). */
-  applyChoice: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => void;
+  applyChoice: (playerId: ValidPlayerId, choice: ResolvedChoice) => void;
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
@@ -73,7 +67,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *  tick loop reads it to invoke the caller's onResolved callback.
    *  Tick is gated on Mode.LIFE_LOST. */
   let onResolvedCb:
-    | ((continuing: readonly ValidPlayerSlot[]) => void)
+    | ((continuing: readonly ValidPlayerId[]) => void)
     | undefined;
 
   /** Drive the life-lost flow to completion. Either resolves
@@ -87,8 +81,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    *
    *  Returns true when a dialog was actually shown. */
   function show(
-    needsReselect: readonly ValidPlayerSlot[],
-    eliminated: readonly ValidPlayerSlot[],
+    needsReselect: readonly ValidPlayerId[],
+    eliminated: readonly ValidPlayerId[],
     onResolved: OnLifeLostResolved,
   ): boolean {
     const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
@@ -171,11 +165,11 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     callback?.(continuing);
   }
 
-  function toggleFocus(playerId: ValidPlayerSlot): void {
+  function toggleFocus(playerId: ValidPlayerId): void {
     withPendingEntry(playerId, (entry) => toggleLifeLostFocus(entry));
   }
 
-  function confirmChoice(playerId: ValidPlayerSlot): void {
+  function confirmChoice(playerId: ValidPlayerId): void {
     withPendingEntry(playerId, (entry) => {
       const choice = confirmLifeLostFocusedChoice(entry);
       deps.sendLifeLostChoice(choice, entry.playerId);
@@ -184,10 +178,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
    *  Unlike confirmChoice, this sets the choice directly without reading focus. */
-  function applyChoice(
-    playerId: ValidPlayerSlot,
-    choice: ResolvedChoice,
-  ): void {
+  function applyChoice(playerId: ValidPlayerId, choice: ResolvedChoice): void {
     withPendingEntry(playerId, (entry) => {
       applyLifeLostChoice(entry, choice);
       deps.sendLifeLostChoice(choice, playerId);
@@ -195,7 +186,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function findPendingEntry(
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
   ): LifeLostEntry | undefined {
     return runtimeState.dialogs.lifeLost?.entries.find(
       (entry) =>
@@ -204,7 +195,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function withPendingEntry(
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     action: (entry: LifeLostEntry) => void,
   ): void {
     const entry = findPendingEntry(playerId);

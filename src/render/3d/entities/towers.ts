@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildTower, getTowerVariant } from "../sprites/tower-scene.ts";
 import { disposeGroupSubtree, tintNamedMeshes } from "./entity-helpers.ts";
@@ -77,30 +77,25 @@ export function createTowersManager(scene: THREE.Scene): TowersManager {
       // tint so the whole silhouette feels player-coloured without
       // washing out the stonework.
       if (ownerId !== undefined) {
-        tintNamedMeshes(
-          host,
-          "flag",
-          ownerId as ValidPlayerSlot,
-          ownedMaterials,
-        );
+        tintNamedMeshes(host, "flag", ownerId as ValidPlayerId, ownedMaterials);
         tintNamedMeshes(
           host,
           "body",
-          ownerId as ValidPlayerSlot,
+          ownerId as ValidPlayerId,
           ownedMaterials,
           "wall",
         );
         tintNamedMeshes(
           host,
           "parapet",
-          ownerId as ValidPlayerSlot,
+          ownerId as ValidPlayerId,
           ownedMaterials,
           "wall",
         );
         tintNamedMeshes(
           host,
           "pole_base",
-          ownerId as ValidPlayerSlot,
+          ownerId as ValidPlayerId,
           ownedMaterials,
           "wall",
         );

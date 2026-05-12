@@ -2,7 +2,7 @@ import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   selectPlayerTower,
@@ -13,7 +13,7 @@ import type { ZoneId } from "../shared/core/zone-id.ts";
 export function initTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   zone: ZoneId,
 ): void {
   const player = state.players[playerId]!;
@@ -36,7 +36,7 @@ export function highlightTowerSelection(
   selectionStates: Map<number, SelectionState>,
   idx: number,
   zone: ZoneId,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   const tower = state.map.towers[idx];
   if (!tower || tower.zone !== zone) return false;
@@ -62,7 +62,7 @@ export function highlightTowerSelection(
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   onConfirmed?: (row: number, col: number) => void,
 ): { towerIdx: number; allDone: boolean } | null {
   const selectionState = selectionStates.get(playerId);

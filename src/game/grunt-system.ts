@@ -28,7 +28,7 @@ import {
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   findTowerOwner,
   isPlayerEliminated,
@@ -70,7 +70,7 @@ const NEAR_SPAWN_RADIUS = 8;
  *  Skips if excludePlayerId is the only non-eliminated player. */
 export function spawnGruntNearPos(
   state: GameState,
-  excludePlayerId: ValidPlayerSlot,
+  excludePlayerId: ValidPlayerId,
   posRow: number,
   posCol: number,
 ): void {
@@ -135,7 +135,7 @@ export function findGruntSpawnNear(
 /** Spawn a group of grunts on a player's zone (bank-first). */
 export function spawnGruntGroupOnZone(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   count: number,
 ): void {
   const player = state.players[playerId];
@@ -159,7 +159,7 @@ export function spawnGruntGroupOnZone(
  *  round-robin assigns each position to the nearest alive tower. */
 export function spawnGruntSurgeOnZone(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   totalCount: number,
 ): void {
   const player = state.players[playerId];
@@ -403,7 +403,7 @@ export function spawnInterbattleGrunts(
 /** Spawn a single grunt on the given player's zone (bank-first). */
 export function spawnGruntOnZone(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;

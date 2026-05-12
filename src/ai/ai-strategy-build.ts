@@ -14,7 +14,7 @@ import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   computeOutside,
@@ -126,7 +126,7 @@ const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
 
 export function pickPlacement(
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   piece: PieceShape,
   options?: PlacementOptions,
 ): AiPlacement | null {
@@ -420,7 +420,7 @@ function getBuildSkillConfig(buildSkill: number): BuildSkillConfig {
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
 function enumerateCandidates(
   state: BuildViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   piece: PieceShape,
   walls: ReadonlySet<number>,
   outside: Set<number>,

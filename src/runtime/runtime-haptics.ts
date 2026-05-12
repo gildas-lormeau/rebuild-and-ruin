@@ -13,7 +13,7 @@ import {
   GAME_EVENT,
   type GameEventBus,
 } from "../shared/core/game-event-bus.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   HapticReason,
   HapticsObserver,
@@ -26,7 +26,7 @@ interface HapticsSubsystemDeps {
   getLevel: () => number;
   /** Point-of-view player, used to filter battle events to the local
    *  perspective (camera follows pov in shared-screen mode). */
-  getPovPlayerId: () => ValidPlayerSlot;
+  getPovPlayerId: () => ValidPlayerId;
   /** Test observer — production callers omit. */
   observer?: HapticsObserver;
 }

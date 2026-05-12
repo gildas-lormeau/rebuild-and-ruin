@@ -15,7 +15,7 @@ import {
 } from "../../../shared/core/battle-types.ts";
 import type { Tower } from "../../../shared/core/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { RenderOverlay } from "../../../shared/ui/overlay-types.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
@@ -66,7 +66,7 @@ interface DebrisEntry {
   readonly centerPxX: number;
   readonly centerPxZ: number;
   readonly scale: number;
-  readonly ownerId: ValidPlayerSlot | undefined;
+  readonly ownerId: ValidPlayerId | undefined;
   /** Per-instance alpha multiplier in [0, 1]. 1 for live entries;
    *  held entries carry the runtime-derived fade multiplier. */
   readonly opacity: number;
@@ -113,7 +113,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
   function ensureBucket(
     key: string,
     variantName: string,
-    ownerId: ValidPlayerSlot | undefined,
+    ownerId: ValidPlayerId | undefined,
     required: number,
   ): VariantBucket | undefined {
     return ensureBucketCapacity(
@@ -203,7 +203,7 @@ export function createDebrisManager(scene: THREE.Scene): DebrisManager {
       for (let i = 0; i < towers.length; i++) {
         if (aliveMask[i] !== false) continue;
         const tower = towers[i]!;
-        const ownerId = ownedTowers?.get(i) as ValidPlayerSlot | undefined;
+        const ownerId = ownedTowers?.get(i) as ValidPlayerId | undefined;
         const variantName =
           ownerId !== undefined
             ? "home_tower_debris"
@@ -442,7 +442,7 @@ function cannonDebrisVariantName(
 function buildBucket(
   key: string,
   variantName: string,
-  ownerId: ValidPlayerSlot | undefined,
+  ownerId: ValidPlayerId | undefined,
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],

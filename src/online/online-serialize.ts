@@ -27,7 +27,7 @@ import { Phase } from "../shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import {
   type GameState,
@@ -122,7 +122,7 @@ export function restoreFullStateSnapshot(
   state.shotsFired = msg.shotsFired;
   state.simTick = msg.simTick;
   state.cannonLimits = msg.cannonLimits;
-  state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerSlot[]);
+  state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerId[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
   state.playerZones = msg.playerZones as ZoneId[];
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
@@ -149,7 +149,7 @@ export function restoreFullStateSnapshot(
     state.modern!.pendingSupplyBonuses = msg.pendingSupplyBonuses
       ? new Map(
           msg.pendingSupplyBonuses.map(([pid, bonuses]) => [
-            pid as ValidPlayerSlot,
+            pid as ValidPlayerId,
             [...bonuses],
           ]),
         )
@@ -160,7 +160,7 @@ export function restoreFullStateSnapshot(
     state.modern!.pendingUpgradeOffers = msg.pendingUpgradeOffers
       ? new Map(
           msg.pendingUpgradeOffers.map(([pid, offers]) => [
-            pid as ValidPlayerSlot,
+            pid as ValidPlayerId,
             offers as UpgradeOfferTuple,
           ]),
         )
@@ -168,14 +168,14 @@ export function restoreFullStateSnapshot(
     state.modern!.precomputedUpgradePicks = msg.precomputedUpgradePicks
       ? new Map(
           msg.precomputedUpgradePicks.map(([pid, choice]) => [
-            pid as ValidPlayerSlot,
+            pid as ValidPlayerId,
             choice as UpgradeId,
           ]),
         )
       : null;
     state.modern!.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
     state.modern!.masterBuilderOwners = msg.masterBuilderOwners
-      ? new Set(msg.masterBuilderOwners as ValidPlayerSlot[])
+      ? new Set(msg.masterBuilderOwners as ValidPlayerId[])
       : null;
   }
   if (hasFeature(state, FID.COMBOS)) {
@@ -343,8 +343,8 @@ function applyCapturedCannons(
     state.capturedCannons.push({
       cannon: victim.cannons[captured.cannonIdx]!,
       cannonIdx: captured.cannonIdx,
-      victimId: captured.victimId as ValidPlayerSlot,
-      capturerId: captured.capturerId as ValidPlayerSlot,
+      victimId: captured.victimId as ValidPlayerId,
+      capturerId: captured.capturerId as ValidPlayerId,
     });
   }
 }

@@ -1,5 +1,5 @@
 import { BATTLE_TIMER } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState, ModernState } from "../shared/core/types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
@@ -58,7 +58,7 @@ export function createComboTracker(playerCount: number): ComboTracker {
 export function scoreImpactCombo(
   state: GameState,
   kind: ComboKind,
-  sid: ValidPlayerSlot | undefined,
+  sid: ValidPlayerId | undefined,
 ): number {
   if (sid === undefined) return 0;
   const tracker = state.modern?.comboTracker;

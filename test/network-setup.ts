@@ -47,7 +47,7 @@ import {
   createOnlinePresenceState,
   type OnlinePresenceState,
 } from "../src/online/online-presence-state.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { OnlinePhaseTicks } from "../src/runtime/runtime-types.ts";
 import {
   createHeadlessRuntime,
@@ -102,10 +102,10 @@ export interface BidirectionalNetworkedPair {
 export interface BidirectionalNetworkedPairOptions extends ScenarioOptions {
   /** Slots driven by an assisted-human controller on the HOST runtime.
    *  Their actions broadcast to the watcher via wire. */
-  readonly assistedSlotsHost: readonly ValidPlayerSlot[];
+  readonly assistedSlotsHost: readonly ValidPlayerId[];
   /** Slots driven by an assisted-human controller on the WATCHER runtime.
    *  Their actions broadcast to the host via wire. */
-  readonly assistedSlotsWatcher: readonly ValidPlayerSlot[];
+  readonly assistedSlotsWatcher: readonly ValidPlayerId[];
   /** Number of simulation ticks each wire message is held before being
    *  delivered. 0 = zero-RTT loopback. Defaults to 0. */
   readonly wireDelayFrames?: number;
@@ -159,8 +159,8 @@ export async function createBidirectionalNetworkedPair(
 ): Promise<BidirectionalNetworkedPair> {
   const hostAssisted = opts.assistedSlotsHost;
   const watcherAssisted = opts.assistedSlotsWatcher;
-  const hostRemote = new Set<ValidPlayerSlot>(watcherAssisted);
-  const watcherRemote = new Set<ValidPlayerSlot>(hostAssisted);
+  const hostRemote = new Set<ValidPlayerId>(watcherAssisted);
+  const watcherRemote = new Set<ValidPlayerId>(hostAssisted);
   const wireDelay = opts.wireDelayFrames ?? 0;
 
   const hostBuild = await buildBidirectionalHost(opts, hostAssisted, hostRemote);
@@ -250,7 +250,7 @@ async function buildWatcherRuntime(
   // skips these slots in the tick loop, so the wire is the only mutation
   // path for them. For pure-AI tests this is empty — no remote humans,
   // every slot ticks locally as deterministic AI.
-  const remoteHumans = new Set<ValidPlayerSlot>(opts.assistedSlots ?? []);
+  const remoteHumans = new Set<ValidPlayerId>(opts.assistedSlots ?? []);
 
   const client = buildWatcherClient(remoteHumans);
   const headless = await createHeadlessRuntime({
@@ -287,15 +287,15 @@ async function buildWatcherRuntime(
  *  else is a no-op stub. `session.isHost` stays `false` — this is a
  *  pure watcher, never promoted. */
 function buildWatcherClient(
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): OnlineClient {
   return buildPeerClient(remotePlayerSlots, false);
 }
 
 async function buildBidirectionalHost(
   opts: ScenarioOptions,
-  assistedSlots: readonly ValidPlayerSlot[],
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  assistedSlots: readonly ValidPlayerId[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): Promise<RuntimeBuild> {
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
@@ -344,8 +344,8 @@ function buildHostPhaseTicks(send: (msg: GameMessage) => void): OnlinePhaseTicks
 
 async function buildBidirectionalWatcher(
   opts: ScenarioOptions,
-  assistedSlots: readonly ValidPlayerSlot[],
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  assistedSlots: readonly ValidPlayerId[],
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
 ): Promise<RuntimeBuild> {
   const sentMessages: GameMessage[] = [];
   const peerOpts: ScenarioOptions = { ...opts, assistedSlots };
@@ -390,7 +390,7 @@ function buildWatcherPhaseTicks(): OnlinePhaseTicks {
  *  remote-human-slot actions; watcher accepts everything) routes
  *  correctly on each peer. */
 function buildPeerClient(
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>,
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>,
   isHost: boolean,
 ): OnlineClient {
   const session: OnlineSession = createSession();

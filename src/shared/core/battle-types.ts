@@ -1,11 +1,11 @@
 import type { BallisticTrajectory } from "./battle-events.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
 export interface Grunt extends TilePos {
   /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
-  victimPlayerId: ValidPlayerSlot;
+  victimPlayerId: ValidPlayerId;
   /** Locked target tower index. Stays until the tower is destroyed. */
   targetTowerIdx?: number;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
@@ -99,9 +99,9 @@ export interface CapturedCannon {
   /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
   cannonIdx: number;
   /** The player who owns the captured cannon (victim). */
-  victimId: ValidPlayerSlot;
+  victimId: ValidPlayerId;
   /** The player who owns the balloon (capturer). */
-  capturerId: ValidPlayerSlot;
+  capturerId: ValidPlayerId;
 }
 
 /** Result from nextReadyCannon — either an own cannon or a captured one. */
@@ -130,7 +130,7 @@ export interface BurningPit extends TilePos {
 }
 
 export interface Crosshair extends PixelPos {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   cannonReady?: boolean;
 }
 
@@ -157,7 +157,7 @@ export interface DestroyedWall extends TilePos {
   damaged: boolean;
   /** Owner of the destroyed wall — used by the held-mesh path for the
    *  per-player material tint. */
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
 }
 
 /** A cannon footprint where the cannon was just destroyed — drives a

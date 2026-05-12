@@ -12,27 +12,27 @@ import { createDedupChannel } from "../src/shared/core/phantom-types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import type { GameMode } from "../src/shared/core/game-constants.ts";
 import type { GameState } from "../src/shared/core/types.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../src/shared/core/player-slot.ts";
 
 Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
-  assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "duplicate should return false");
+  ch.shouldSend(0 as ValidPlayerId, "5,3,normal");
+  assert(ch.shouldSend(0 as ValidPlayerId, "5,3,normal") === false, "duplicate should return false");
 });
 
 Deno.test("DedupChannel.shouldSend tracks players independently", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
-  assert(ch.shouldSend(1 as ValidPlayerSlot, "5,3,normal") === true, "different player same key should return true");
-  assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "player 0 unchanged should return false");
+  ch.shouldSend(0 as ValidPlayerId, "5,3,normal");
+  assert(ch.shouldSend(1 as ValidPlayerId, "5,3,normal") === true, "different player same key should return true");
+  assert(ch.shouldSend(0 as ValidPlayerId, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
 Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0 as ValidPlayerSlot, "first");
-  ch.shouldSend(0 as ValidPlayerSlot, "second");
-  assert(ch.shouldSend(0 as ValidPlayerSlot, "second") === false, "stored key should be 'second' after change");
-  assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
+  ch.shouldSend(0 as ValidPlayerId, "first");
+  ch.shouldSend(0 as ValidPlayerId, "second");
+  assert(ch.shouldSend(0 as ValidPlayerId, "second") === false, "stored key should be 'second' after change");
+  assert(ch.shouldSend(0 as ValidPlayerId, "first") === true, "reverting to 'first' should be a change");
 });
 
 Deno.test("lifecycle drops stale full_state after host migration", () => {
@@ -44,7 +44,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     now: () => 0,
     session: {
       isHost: false,
-      myPlayerId: 0 as PlayerSlotId,
+      myPlayerId: 0 as PlayerId,
       get hostMigrationSeq() { return migrationSeq; },
       set hostMigrationSeq(seq: number) { migrationSeq = seq; },
       roomWaitTimerSec: 0,
@@ -52,8 +52,8 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
       roomCannonMaxHp: 3,
       roomGameMode: "classic" as GameMode,
       lobbyStartTime: 0,
-      occupiedSlots: new Set<ValidPlayerSlot>(),
-      remotePlayerSlots: new Set<ValidPlayerSlot>(),
+      occupiedSlots: new Set<ValidPlayerId>(),
+      remotePlayerSlots: new Set<ValidPlayerId>(),
     },
     lobby: {
       showWaitingRoom: () => {},

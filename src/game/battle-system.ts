@@ -45,7 +45,7 @@ import type { TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isPlayerEliminated,
   type Player,
@@ -209,7 +209,7 @@ export function canPlayerFire(
     readonly cannonballs: readonly Cannonball[];
     readonly pendingCannonFires: ReadonlySet<number>;
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): boolean {
   if (nextReadyCannon(state, playerId)) return true;
   return state.cannonballs.some(
@@ -225,7 +225,7 @@ export function aimCannons(
   state: GameViewState & {
     readonly capturedCannons: readonly CapturedCannon[];
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   cx: number,
   cy: number,
 ): void {
@@ -303,7 +303,7 @@ export function tickBattlePhase(
 export function resolveBalloons(state: GameState): BalloonFlight[] {
   const flights: BalloonFlight[] = [];
   const allBalloons = collectAllBalloons(state);
-  const thisRoundTargets = new Map<Cannon, { victimId: ValidPlayerSlot }>();
+  const thisRoundTargets = new Map<Cannon, { victimId: ValidPlayerId }>();
   const balloonCountPerTarget = new Map<Cannon, number>();
 
   // Assign each balloon to a target (deferred to avoid double-counting)
@@ -311,7 +311,7 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
     balloon: Cannon;
     ownerId: number;
     target: Cannon;
-    victimId: ValidPlayerSlot;
+    victimId: ValidPlayerId;
   }[] = [];
 
   for (const { balloon, ownerId } of allBalloons) {
@@ -407,7 +407,7 @@ export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
  */
 export function fireNextReadyCannon(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   rotationIdx: number | undefined,
   targetRow: number,
   targetCol: number,
@@ -440,7 +440,7 @@ export function fireNextReadyCannon(
  */
 export function prepareCannonFireForLockstep(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   rotationIdx: number | undefined,
   targetRow: number,
   targetCol: number,
@@ -524,7 +524,7 @@ export function nextReadyCannon(
     readonly cannonballs: readonly Cannonball[];
     readonly pendingCannonFires: ReadonlySet<number>;
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   after?: number,
 ): CombinedCannonResult | null {
   const player = state.players[playerId];
@@ -767,7 +767,7 @@ function applyImpactEvent(
     "shooterId" in event && event.shooterId !== undefined
       ? event.shooterId
       : shooterId
-  ) as ValidPlayerSlot | undefined;
+  ) as ValidPlayerId | undefined;
   switch (event.type) {
     case BATTLE_MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
@@ -936,7 +936,7 @@ function maybeEmitDescendingWhistle(state: GameState, ball: Cannonball): void {
  */
 function fireCannon(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   cannonIdx: number,
   targetRow: number,
   targetCol: number,
@@ -972,7 +972,7 @@ export function canFireOwnCannon(
     readonly cannonballs: readonly Cannonball[];
     readonly pendingCannonFires: ReadonlySet<number>;
   },
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   cannonIdx: number,
 ): boolean {
   const player = state.players[playerId];
@@ -1007,9 +1007,9 @@ export function canFireOwnCannon(
 /** The player who gets credit for this cannonball's effects.
  *  For captured cannons, scoringPlayerId is the capturer (not the cannon's original owner). */
 function getCannonballScorer(ball: {
-  playerId: ValidPlayerSlot;
-  scoringPlayerId?: ValidPlayerSlot;
-}): ValidPlayerSlot {
+  playerId: ValidPlayerId;
+  scoringPlayerId?: ValidPlayerId;
+}): ValidPlayerId {
   return ball.scoringPlayerId ?? ball.playerId;
 }
 
@@ -1051,10 +1051,10 @@ function launchCannonball(
   state: GameState,
   cannon: Cannon,
   cannonIdx: number,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   targetRow: number,
   targetCol: number,
-  scoringPlayerId?: ValidPlayerSlot,
+  scoringPlayerId?: ValidPlayerId,
   overrideMortar?: boolean,
 ): Cannonball {
   const { x: launchX, y: launchY } = cannonCenter(cannon);
@@ -1189,7 +1189,7 @@ function computeImpact(
   state: GameState,
   row: number,
   col: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   incendiary?: boolean,
 ): ImpactEvent[] {
   if (!inBounds(row, col)) return [];
@@ -1257,7 +1257,7 @@ function collectWallImpacts(
   key: number,
   row: number,
   col: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   heavy?: boolean,
 ): { events: ImpactEvent[]; hitWall: boolean } {
   const events: ImpactEvent[] = [];
@@ -1307,7 +1307,7 @@ function collectCannonImpacts(
   state: GameState,
   row: number,
   col: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
@@ -1367,7 +1367,7 @@ function collectGruntImpacts(
   state: GameState,
   row: number,
   col: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   heavy?: boolean,
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
@@ -1429,8 +1429,8 @@ function collectFrozenWaterImpacts(
 /** Collect all active balloons across all players. */
 function collectAllBalloons(
   state: GameState,
-): { balloon: Cannon; ownerId: ValidPlayerSlot }[] {
-  const result: { balloon: Cannon; ownerId: ValidPlayerSlot }[] = [];
+): { balloon: Cannon; ownerId: ValidPlayerId }[] {
+  const result: { balloon: Cannon; ownerId: ValidPlayerId }[] = [];
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     for (const c of player.cannons) {
@@ -1444,9 +1444,9 @@ function collectAllBalloons(
 /** Find the best enemy cannon target for a balloon owned by ownerId. */
 function findBestBalloonTarget(
   state: GameState,
-  ownerId: ValidPlayerSlot,
+  ownerId: ValidPlayerId,
   balloonCountPerTarget: Map<Cannon, number>,
-): { cannon: Cannon; victimId: ValidPlayerSlot } | null {
+): { cannon: Cannon; victimId: ValidPlayerId } | null {
   let bestCannon: Cannon | undefined;
   let bestVictimId = VICTIM_ID_UNKNOWN;
   let bestScore = -1;
@@ -1470,14 +1470,14 @@ function findBestBalloonTarget(
   }
 
   return bestCannon
-    ? { cannon: bestCannon, victimId: bestVictimId as ValidPlayerSlot }
+    ? { cannon: bestCannon, victimId: bestVictimId as ValidPlayerId }
     : null;
 }
 
 /** Resolve balloon captures from accumulated hits. */
 function resolveBalloonCaptures(
   state: GameState,
-  thisRoundTargets: Map<Cannon, { victimId: ValidPlayerSlot }>,
+  thisRoundTargets: Map<Cannon, { victimId: ValidPlayerId }>,
 ): void {
   state.capturedCannons = [];
   for (const player of state.players) {
@@ -1493,8 +1493,8 @@ function resolveBalloonCaptures(
       state.capturedCannons.push({
         cannon,
         cannonIdx,
-        victimId: victimId as ValidPlayerSlot,
-        capturerId: winnerId as ValidPlayerSlot,
+        victimId: victimId as ValidPlayerId,
+        capturerId: winnerId as ValidPlayerId,
       });
     }
   }

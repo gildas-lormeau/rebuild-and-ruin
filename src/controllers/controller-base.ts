@@ -7,7 +7,7 @@ import type {
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   pxToTile,
   towerCenter,
@@ -60,7 +60,7 @@ const EMPTY_PIECE_PHANTOMS: readonly PiecePhantom[] = Object.freeze([]);
  *  call sites in controller-ai.ts for the contained casts.  See
  *  shared/core/system-interfaces.ts for the canonical bivariance note. */
 export abstract class BaseController implements PlayerController {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   abstract readonly kind: "human" | "ai";
   buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
@@ -77,7 +77,7 @@ export abstract class BaseController implements PlayerController {
    *  Reset in initBattleState() and onLifeLost(). */
   cannonRotationIdx: number | undefined;
 
-  constructor(playerId: ValidPlayerSlot) {
+  constructor(playerId: ValidPlayerId) {
     this.playerId = playerId;
   }
 

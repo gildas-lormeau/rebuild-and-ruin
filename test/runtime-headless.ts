@@ -29,7 +29,7 @@ import type {
   RendererInterface,
   RenderOverlay,
 } from "../src/shared/ui/overlay-types.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type {
   ControllerFactory,
   HapticsObserver,
@@ -111,7 +111,7 @@ interface HeadlessRuntimeOptions {
    *  to a "remote" player's selection state aren't immediately overwritten
    *  by that slot's local AI. Defaults to the empty set (every slot is
    *  local AI), preserving existing test behavior. */
-  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots?: ReadonlySet<ValidPlayerId>;
   /** Test observer for haptics intents. Receives every `vibrate(reason, ms,
    *  minLevel)` call BEFORE the platform/level gate, so tests can assert on
    *  game-event → haptic mappings without a real `navigator.vibrate`. */
@@ -136,7 +136,7 @@ interface HeadlessRuntimeOptions {
    *  is wired at bootstrap so the assisted controller is the SLOT 1
    *  controller from the first `selectTower` call onward — no
    *  mid-game swap, no asymmetric RNG advance. */
-  assistedSlots?: readonly ValidPlayerSlot[];
+  assistedSlots?: readonly ValidPlayerId[];
 }
 
 export interface RunOpts {
@@ -532,12 +532,12 @@ export async function createHeadlessRuntime(
  *  protocol message types. Used at bootstrap so the assisted controller is
  *  the slot's controller from the very first phase init — no mid-game swap. */
 function buildAssistedControllerFactory(
-  assistedSlots: readonly ValidPlayerSlot[],
+  assistedSlots: readonly ValidPlayerId[],
   send: (msg: GameMessage) => void,
   getSchedule: () => (action: ScheduledAction) => void,
   safetyTicks: number,
 ): ControllerFactory {
-  const assistedSet = new Set<ValidPlayerSlot>(assistedSlots);
+  const assistedSet = new Set<ValidPlayerId>(assistedSlots);
   return async (slot, isAi, keys, sharedRng, privateSeed, personality) => {
     if (!isAi || !assistedSet.has(slot)) {
       const { createController } = await import(

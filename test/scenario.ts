@@ -64,7 +64,7 @@ import {
 } from "../src/shared/core/game-event-bus.ts";
 import type { Phase } from "../src/shared/core/game-phase.ts";
 import type { GameMessage, ServerMessage } from "../src/protocol/protocol.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import type { BannerState } from "../src/runtime/runtime-contracts.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import type { Mode } from "../src/shared/ui/ui-mode.ts";
@@ -137,7 +137,7 @@ export interface ScenarioOptions {
    *  controller at bootstrap, so the slot's first `selectTower` runs
    *  on the assisted controller (no mid-game swap, no asymmetric RNG
    *  advance vs. a watcher peer). */
-  assistedSlots?: readonly ValidPlayerSlot[];
+  assistedSlots?: readonly ValidPlayerId[];
   /** When true, enables mobile auto-zoom on the camera so per-phase memory,
    *  edge-pan, follow-crosshair, and CAMERA_TARGET event emission all run.
    *  Camera-determinism tests opt in. Defaults to false (matches the

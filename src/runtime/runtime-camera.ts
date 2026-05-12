@@ -42,7 +42,7 @@ import type {
   CannonPhantom,
   PiecePhantom,
 } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   bestEnemyZone,
   enemyZones,
@@ -321,7 +321,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Helpers ---
 
-  function povPlayerId(): ValidPlayerSlot {
+  function povPlayerId(): ValidPlayerId {
     return deps.getCtx().povPlayerId;
   }
 
@@ -375,7 +375,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  interior bounds), not the actual wall plan — clumsy-builder variations
    *  are intentionally ignored so the viewport is deterministic and the
    *  camera doesn't tightly hug the noisy wall layout during auto-build. */
-  function computeCastleBuildViewport(playerId: ValidPlayerSlot): Viewport {
+  function computeCastleBuildViewport(playerId: ValidPlayerId): Viewport {
     const state = deps.getState();
     const castle = state?.players[playerId]?.castle;
     if (!castle) return fullMapVp;
@@ -1295,7 +1295,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     selectionTargetVp = { row: towerRow, col: towerCol };
   }
 
-  function setCastleBuildViewport(playerId: ValidPlayerSlot): void {
+  function setCastleBuildViewport(playerId: ValidPlayerId): void {
     if (!mobileAutoZoomActive()) return;
     castleFrameVp = computeCastleBuildViewport(playerId);
   }

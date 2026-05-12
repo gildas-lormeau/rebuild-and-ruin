@@ -5,7 +5,7 @@
  * state.salvageSlots (indexed by player id).
  */
 
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
 import type { UpgradeImpl } from "./upgrade-types.ts";
@@ -17,7 +17,7 @@ export const salvageImpl: UpgradeImpl = { onCannonKilled };
 
 /** Award a salvage slot to the shooter that just killed an enemy cannon.
  *  No-op when Salvage is not globally active. Caps at SALVAGE_CAP. */
-function onCannonKilled(state: GameState, shooterId: ValidPlayerSlot): void {
+function onCannonKilled(state: GameState, shooterId: ValidPlayerId): void {
   if (!isGlobalUpgradeActive(state.players, UID.SALVAGE)) return;
   state.salvageSlots[shooterId] = Math.min(
     (state.salvageSlots[shooterId] ?? 0) + 1,

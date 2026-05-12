@@ -2,14 +2,14 @@
 
 import type { ImpactEvent } from "../../shared/core/battle-events.ts";
 import type { Cannon } from "../../shared/core/battle-types.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { Player } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
 
 /** Respawn target returned by onGruntKilled. Anchor coords are the victim's
  *  home tower — the caller runs findGruntSpawnNear from there. */
 export interface ConscriptionRespawnTarget {
-  readonly victimId: ValidPlayerSlot;
+  readonly victimId: ValidPlayerId;
   readonly anchorRow: number;
   readonly anchorCol: number;
 }
@@ -66,7 +66,7 @@ export interface UpgradeImpl {
   /** Post-impact follow-ups (e.g. ricochet bounces). */
   onImpactResolved?: (
     state: GameState,
-    shooterId: ValidPlayerSlot,
+    shooterId: ValidPlayerId,
     hitRow: number,
     hitCol: number,
     initialImpactEvents: readonly ImpactEvent[],
@@ -75,10 +75,10 @@ export interface UpgradeImpl {
   /** Query for a grunt respawn target after a kill. First non-null wins. */
   onGruntKilled?: (
     state: GameState,
-    shooterId: ValidPlayerSlot,
+    shooterId: ValidPlayerId,
   ) => ConscriptionRespawnTarget | null;
   /** Side effects after a cannon kill (e.g. salvage slots). */
-  onCannonKilled?: (state: GameState, shooterId: ValidPlayerSlot) => void;
+  onCannonKilled?: (state: GameState, shooterId: ValidPlayerId) => void;
   /** Side effects after a cannon is placed (e.g. consume one-shot upgrades).
    *  Runs from both originator (synchronous + scheduled drain) and receiver
    *  (scheduled drain) paths via `applyCannonAtDrain` / `placeCannon`.
@@ -92,7 +92,7 @@ export interface UpgradeImpl {
   /** True → skip battle this round (boolean OR). */
   shouldSkipBattle?: (state: GameState) => boolean;
   /** False → block this player's build tick (boolean AND). */
-  canPlayerBuild?: (state: GameState, playerId: ValidPlayerSlot) => boolean;
+  canPlayerBuild?: (state: GameState, playerId: ValidPlayerId) => boolean;
   /** Extra build seconds (additive). */
   buildTimerBonus?: (state: GameState) => number;
   /** True → wall survives this hit (boolean OR). */

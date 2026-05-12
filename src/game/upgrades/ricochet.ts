@@ -12,7 +12,7 @@ import {
   type ImpactEvent,
 } from "../../shared/core/battle-events.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
 import type { RicochetApplyBounce, UpgradeImpl } from "./upgrade-types.ts";
@@ -27,7 +27,7 @@ export const ricochetImpl: UpgradeImpl = { onImpactResolved };
  *  doesn't own Ricochet. Consumes state.rng twice per bounce (dr, dc). */
 function onImpactResolved(
   state: GameState,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
   hitRow: number,
   hitCol: number,
   initialImpactEvents: readonly ImpactEvent[],

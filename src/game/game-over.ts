@@ -1,5 +1,5 @@
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   eliminatePlayer,
   isPlayerAlive,
@@ -12,7 +12,7 @@ import type { GameState } from "../shared/core/types.ts";
 export type GameOverReason = "last-player-standing" | "round-limit-reached";
 
 export interface GameOverOutcome {
-  winner: { id: ValidPlayerSlot };
+  winner: { id: ValidPlayerId };
   reason: GameOverReason;
 }
 
@@ -66,7 +66,7 @@ export function emitGameEnd(state: GameState, outcome: GameOverOutcome): void {
  *  which players to eliminate (e.g. life-lost ABANDON choice). */
 export function eliminatePlayers(
   state: GameState,
-  playerIds: readonly ValidPlayerSlot[],
+  playerIds: readonly ValidPlayerId[],
 ): void {
   for (const playerId of playerIds) {
     const player = state.players[playerId];

@@ -20,7 +20,7 @@
 
 import { assert, assertGreater } from "@std/assert";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { MESSAGE } from "../src/protocol/protocol.ts";
 import { createScenario, waitForPhase } from "./scenario.ts";
 
@@ -64,7 +64,7 @@ Deno.test(
     using sc = await createScenario({
       seed: 42,
       hostMode: true,
-      assistedSlots: [0 as ValidPlayerSlot],
+      assistedSlots: [0 as ValidPlayerId],
     });
     waitForPhase(sc, Phase.BATTLE);
 

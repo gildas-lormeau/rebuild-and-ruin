@@ -11,7 +11,7 @@ import {
   type GameMode,
   HAPTICS_ON,
 } from "../core/game-constants.ts";
-import type { ValidPlayerSlot } from "../core/player-slot.ts";
+import type { ValidPlayerId } from "../core/player-slot.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "../platform/platform.ts";
 import type { RGB } from "./theme.ts";
 
@@ -154,7 +154,7 @@ export function computeGameSeed(
 }
 
 /** Get player color with safe modulo wrapping. */
-export function getPlayerColor(playerId: ValidPlayerSlot): PlayerColor {
+export function getPlayerColor(playerId: ValidPlayerId): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
 }
 

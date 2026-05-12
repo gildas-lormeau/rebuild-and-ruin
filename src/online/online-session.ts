@@ -22,9 +22,9 @@ import {
   type DedupChannel,
 } from "../shared/core/phantom-types.ts";
 import {
-  type PlayerSlotId,
+  type PlayerId,
   SPECTATOR_SLOT,
-  type ValidPlayerSlot,
+  type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import type { LifeLostChoice } from "../shared/ui/interaction-types.ts";
 
@@ -32,7 +32,7 @@ export interface OnlineSession {
   socket: WebSocket | null;
   /** This player's slot id. SPECTATOR_SLOT (-1) = watcher/spectator.
    *  Use `isActivePlayer(myPlayerId)` to check, not raw comparisons. */
-  myPlayerId: PlayerSlotId;
+  myPlayerId: PlayerId;
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
    *  Never cache across tick boundaries, awaits, or phase transitions.
@@ -46,11 +46,11 @@ export interface OnlineSession {
    *  INVARIANT: remotePlayerSlots ⊆ occupiedSlots.
    *  Both sets are maintained atomically by clearLobbySlot/occupyLobbySlot in
    *  online-server-lifecycle.ts — never mutate one without the other. */
-  occupiedSlots: Set<ValidPlayerSlot>;
+  occupiedSlots: Set<ValidPlayerId>;
   /** Non-local player slots (excludes self; includes both remote humans and
    *  AI-controlled remote players). Used for auto-resolve logic and POV.
    *  INVARIANT: remotePlayerSlots ⊆ occupiedSlots. */
-  remotePlayerSlots: Set<ValidPlayerSlot>;
+  remotePlayerSlots: Set<ValidPlayerId>;
   roomWaitTimerSec: number;
   roomSeed: number;
   roomMaxRounds: number;
@@ -133,9 +133,9 @@ export function sendAimUpdate(
   dedup: DedupMaps,
   x: number,
   y: number,
-  playerId?: ValidPlayerSlot,
+  playerId?: ValidPlayerId,
 ): void {
-  const pid = playerId ?? (session.myPlayerId as ValidPlayerSlot);
+  const pid = playerId ?? (session.myPlayerId as ValidPlayerId);
   if (!dedup.aimTarget.shouldSend(pid, formatAimDedupKey(x, y))) return;
   sendMessage(session, {
     type: MESSAGE.AIM_UPDATE,

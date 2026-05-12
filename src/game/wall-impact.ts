@@ -14,7 +14,7 @@ import {
 import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type { GameState } from "../shared/core/types.ts";
 import { shouldAbsorbWallHit } from "./upgrade-system.ts";
@@ -28,19 +28,19 @@ type WallShieldResult =
   | {
       absorbed: true;
       kind: ShieldKind.Reinforced;
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       tileKey: number;
     }
   | {
       absorbed: true;
       kind: ShieldKind.Rampart;
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       cannonIdx: number;
       newShieldHp: number;
     }
   | {
       absorbed: false;
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       // Heavy hit blew through a shield<2 rampart: wall is destroyed AND the
       // rampart's last point of shield is consumed (drained to 0).
       rampartConsumed?: { cannonIdx: number };

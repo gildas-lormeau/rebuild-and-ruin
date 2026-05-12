@@ -20,7 +20,7 @@ The shared surface of the `game` domain. Types, enums, pool
 registries, interfaces that `game/` and everyone else agree on.
 
 - **State**: `types.ts` (GameState), `player-types.ts` (Player),
-  `player-slot.ts` (PlayerSlotId, ValidPlayerSlot), `battle-types.ts`
+  `player-slot.ts` (PlayerId, ValidPlayerId), `battle-types.ts`
   (Cannon, Cannonball, Grunt, BurningPit).
 - **Constants + enums**: `game-constants.ts` (balance tuning),
   `game-phase.ts` (Phase enum + predicates), `grid.ts` (dimensions +

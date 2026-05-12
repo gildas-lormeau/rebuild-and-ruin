@@ -7,7 +7,7 @@
  * host-provided data on apply.
  */
 
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 
 export interface SerializedCannon {
   row: number;
@@ -35,7 +35,7 @@ export interface SerializedHouse {
 export interface SerializedGrunt {
   row: number;
   col: number;
-  victimPlayerId: ValidPlayerSlot;
+  victimPlayerId: ValidPlayerId;
   targetTowerIdx?: number;
   attackCountdown?: number;
   blockedRounds?: number;

@@ -1,11 +1,11 @@
 import { CannonMode } from "./battle-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 
 /** Common positional fields shared between the cannon placement event and
  *  the preview phantom. Split out because the placement event carries an
  *  `applyAt` lockstep stamp that the phantom (a render preview) does not. */
 interface CannonShapePayload {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   row: number;
   col: number;
   mode: CannonMode;
@@ -32,7 +32,7 @@ export type CannonPhantomPayload = CannonPhantom;
  *  preview phantom. Split out because the placement event carries an
  *  `applyAt` lockstep stamp that the phantom (a render preview) does not. */
 interface PieceShapePayload {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   row: number;
   col: number;
   offsets: [number, number][];
@@ -62,7 +62,7 @@ export type PiecePhantomPayload = PiecePhantom;
 export interface DedupChannel {
   /** Check-then-update: returns true if the key differs from the last call
    *  (caller should send). MUTATES internal state — stores the new key. */
-  shouldSend(playerId: ValidPlayerSlot, key: string): boolean;
+  shouldSend(playerId: ValidPlayerId, key: string): boolean;
   /** Clear all tracked values (call on phase transition or host promotion). */
   clear(): void;
 }
@@ -77,7 +77,7 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
 export function createDedupChannel(): DedupChannel {
   const map = new Map<number, string>();
   return {
-    shouldSend(playerId: ValidPlayerSlot, key: string): boolean {
+    shouldSend(playerId: ValidPlayerId, key: string): boolean {
       if (map.get(playerId) === key) return false;
       map.set(playerId, key);
       return true;

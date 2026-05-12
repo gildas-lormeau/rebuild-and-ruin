@@ -1,4 +1,4 @@
-import type { PlayerSlotId, ValidPlayerSlot } from "../core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../core/player-slot.ts";
 import type { UpgradeId } from "../core/upgrade-defs.ts";
 
 export enum LifeLostChoice {
@@ -10,7 +10,7 @@ export enum LifeLostChoice {
 export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
 
 export interface LifeLostEntry {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   lives: number;
   /** True when this entry auto-resolves (no local human input needed). */
   autoResolve: boolean;
@@ -35,7 +35,7 @@ export interface LifeLostDialogState {
 }
 
 export interface UpgradePickEntry {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   offers: readonly [UpgradeId, UpgradeId, UpgradeId];
   choice: UpgradeId | null;
   /** True when this entry auto-resolves (no local human input needed). */
@@ -69,13 +69,13 @@ export type GameOverFocus = "rematch" | "menu";
 
 export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
-  readonly myPlayerId: PlayerSlotId;
-  readonly remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
+  readonly myPlayerId: PlayerId;
+  readonly remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   /** True if this player's entry waits for local UI input (i.e. should
    *  NOT auto-resolve). Wired from the controller's
    *  `autoResolvesUpgradePick()` / `isHuman()` check depending on the
    *  dialog. */
-  readonly needsLocalInput: (playerId: ValidPlayerSlot) => boolean;
+  readonly needsLocalInput: (playerId: ValidPlayerId) => boolean;
 }
 
 export interface CastleBuildState {
@@ -86,7 +86,7 @@ export interface CastleBuildState {
 }
 
 export interface CastleWallPlan {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   /** Ordered wall tiles for castle construction animation.
    *  Encoded as packed tile keys: row * GRID_COLS + col.
    *  Use unpackTile() from spatial.ts to convert to (row, col). */
@@ -102,7 +102,7 @@ export const FOCUS_MENU: GameOverFocus = "menu";
 /** True when this player's dialog entry should auto-resolve (no local input needed).
  *  Host checks controller identity; non-host only resolves its own slot. */
 export function shouldAutoResolve(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   deps: AutoResolveDeps,
 ): boolean {
   return deps.hostAtFrameStart

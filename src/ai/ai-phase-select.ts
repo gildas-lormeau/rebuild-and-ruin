@@ -5,7 +5,7 @@
  * readable and testable.
  */
 
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { selectPlayerTower } from "../shared/core/player-types.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { ZoneId } from "../shared/core/zone-id.ts";
@@ -18,7 +18,7 @@ import type { AiStrategy } from "./ai-strategy.ts";
  *  Exported so controller-ai.ts can statically assert AiController implements
  *  every phase's Host (see the `satisfies` check at the bottom of that file). */
 export interface SelectionHost {
-  readonly playerId: ValidPlayerSlot;
+  readonly playerId: ValidPlayerId;
   readonly strategy: AiStrategy;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;

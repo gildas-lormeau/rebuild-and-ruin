@@ -8,7 +8,7 @@
 import type { UIContext } from "../runtime/runtime-contracts.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { cannonTier } from "../shared/core/player-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform/platform.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/ui/overlay-types.ts";
@@ -134,7 +134,7 @@ export function createControlsOverlay(frameCtx: UIContext): {
     const keyBinding = frameCtx.settings.keyBindings[player]!;
     return {
       name: name!,
-      color: getPlayerColor(player as ValidPlayerSlot).wall,
+      color: getPlayerColor(player as ValidPlayerId).wall,
       bindings: ACTION_KEYS.map((key) =>
         formatKeyName(keyBinding[key as keyof KeyBindings]),
       ),
@@ -166,7 +166,7 @@ export function createLobbyOverlay(frameCtx: UIContext): {
       lobby: {
         players: PLAYER_NAMES.map((name, i) => ({
           name: `${name} Player`,
-          color: getPlayerColor(i as ValidPlayerSlot).wall,
+          color: getPlayerColor(i as ValidPlayerId).wall,
           joined: frameCtx.lobby.joined[i]!,
           keyHint: frameCtx.settings.keyBindings[i]
             ? formatKeyHint(frameCtx.settings.keyBindings[i])

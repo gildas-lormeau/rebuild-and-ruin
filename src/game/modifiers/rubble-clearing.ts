@@ -11,7 +11,7 @@ import {
   type CannonMode,
   isCannonAlive,
 } from "../../shared/core/battle-types.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import {
   cannonTier,
   isPlayerEliminated,
@@ -43,7 +43,7 @@ export const rubbleClearingImpl: ModifierImpl = {
 function applyRubbleClearing(state: GameState): readonly number[] {
   const cleared: number[] = [];
   const heldDeadCannons: {
-    ownerId: ValidPlayerSlot;
+    ownerId: ValidPlayerId;
     col: number;
     row: number;
     mode: CannonMode;

@@ -34,7 +34,7 @@ import type {
   PiecePhantomPayload,
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
 import type {
   SerializedBonusSquare,
@@ -57,14 +57,14 @@ export type ClientMessage =
   | { type: "createRoom"; settings: RoomSettings }
   | { type: "joinRoom"; code: string }
   // Lobby (in room)
-  | { type: "selectSlot"; playerId: ValidPlayerSlot }
+  | { type: "selectSlot"; playerId: ValidPlayerId }
   // In-game
   | {
       type: "lifeLostChoice";
       choice: ResolvedChoice;
-      playerId?: ValidPlayerSlot;
+      playerId?: ValidPlayerId;
     }
-  | { type: "upgradePick"; playerId: ValidPlayerSlot; choice: string }
+  | { type: "upgradePick"; playerId: ValidPlayerId; choice: string }
   | { type: "ping" };
 
 /** Sent once when a client connects. All clients derive map/houses/zones from the seed. */
@@ -85,11 +85,11 @@ export interface InitMessage {
 /** Sent when a player joins and is assigned a slot. */
 export interface JoinedMessage {
   type: "joined";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   /** Slot the player occupied before this selection, or undefined if this is
    *  their first slot pick. Set to undefined in broadcasts when the player
    *  reselected the same slot (avoids UI thrashing on no-op reselections). */
-  previousPlayerId?: ValidPlayerSlot;
+  previousPlayerId?: ValidPlayerId;
 }
 
 export interface RoomCreatedMessage {
@@ -103,7 +103,7 @@ export interface RoomCreatedMessage {
 export interface RoomJoinedMessage {
   type: "roomJoined";
   code: string;
-  players: { playerId: ValidPlayerSlot; name: string }[];
+  players: { playerId: ValidPlayerId; name: string }[];
   settings: RoomSettings;
   /** PlayerId of the host, or null if the host hasn't selected a slot yet. */
   hostId: number | null;
@@ -114,16 +114,16 @@ export interface RoomJoinedMessage {
 
 export interface PlayerJoinedMessage {
   type: "playerJoined";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   name: string;
   /** Slot the player occupied before this selection, or undefined if this is
    *  their first slot pick. Undefined when reselecting the same slot. */
-  previousPlayerId?: ValidPlayerSlot;
+  previousPlayerId?: ValidPlayerId;
 }
 
 export interface PlayerLeftMessage {
   type: "playerLeft";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
 }
 
 /** Lobby error (room not found, full, etc.). */
@@ -184,9 +184,9 @@ export interface GameOverMessage {
 export interface HostLeftMessage {
   type: "hostLeft";
   /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
-  newHostPlayerId: ValidPlayerSlot | null;
+  newHostPlayerId: ValidPlayerId | null;
   /** PlayerId of the departed host, or null if the host never selected a slot. */
-  disconnectedPlayerId: ValidPlayerSlot | null;
+  disconnectedPlayerId: ValidPlayerId | null;
 }
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
@@ -276,7 +276,7 @@ export interface FullStateMessage extends SerializedModifierTiles {
   pendingSupplyBonuses?: [number, SupplyBonusId[]][] | null;
   towerPendingRevive: number[];
   capturedCannons: {
-    victimId: ValidPlayerSlot;
+    victimId: ValidPlayerId;
     capturerId: number;
     cannonIdx: number;
   }[];
@@ -326,7 +326,7 @@ export interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
 /** An opponent confirmed their tower selection. */
 export interface OpponentTowerSelectedMessage {
   type: "opponentTowerSelected";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   towerIdx: number;
   confirmed?: boolean;
   /** Lockstep apply tick: `senderSimTick + SAFETY`. Only set when
@@ -356,28 +356,28 @@ export interface OpponentTowerSelectedMessage {
  *  roll, AI upgrade-pick, grunt spawn) by exactly that gap. */
 export interface OpponentCannonPhaseDoneMessage {
   type: "opponentCannonPhaseDone";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   applyAt: number;
 }
 
 /** Life-lost choice forwarded from a non-host client to the host. */
 export interface LifeLostChoiceForwardedMessage {
   type: "lifeLostChoice";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   choice: ResolvedChoice;
 }
 
 /** Upgrade pick choice forwarded from a non-host client to the host. */
 export interface UpgradePickForwardedMessage {
   type: "upgradePick";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   choice: string;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */
 export interface AimUpdateMessage {
   type: "aimUpdate";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   x: number;
   y: number;
 }

@@ -1,6 +1,6 @@
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
@@ -46,7 +46,7 @@ interface OptionsSystemDeps {
   setDpadLeftHanded: (left: boolean) => void;
   refreshLobbySeed: () => void;
   isOnline: boolean;
-  remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots: () => ReadonlySet<ValidPlayerId>;
   onCloseOptions?: () => void;
   /** Open the HTML Sound modal (player-supplied Rampart file loader). */
   showSoundModal: () => void;

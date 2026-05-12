@@ -21,7 +21,7 @@ import type {
   TilePos,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   cannonSize,
@@ -53,7 +53,7 @@ type TargetCandidate = PrioritizedTilePos & { isCannon?: boolean };
  *  interior tile of the chosen enclosure; reuse lasts as long as that tile is
  *  still inside an eligible enemy's interior. */
 export type BattleTargetMemory = {
-  ownerId: ValidPlayerSlot | undefined;
+  ownerId: ValidPlayerId | undefined;
   anchorTileKey: number | undefined;
 };
 
@@ -112,7 +112,7 @@ const ICE_TRENCH_ARM_LENGTH = 1;
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): number {
   const player = state.players[playerId]!;
   let count = 0;
@@ -125,7 +125,7 @@ export function countUsableCannons(
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -146,7 +146,7 @@ export function planCharitySweep(
  *  Pocket detection uses the last-known enclosure state to pick wall targets. */
 export function planPocketDestruction(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
   const interior = getBattleInterior(player);
@@ -203,7 +203,7 @@ export function planPocketDestruction(
 /** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
 export function planSuperAttack(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -222,7 +222,7 @@ export function planSuperAttack(
 /** Plan a wall demolition run: find connected enemy wall segment. */
 export function planWallDemolition(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -263,7 +263,7 @@ export function planWallDemolition(
  *  nearest-neighbor for chain execution. */
 export function planStructuralHit(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   maxHits: number,
 ): TilePos[] | null {
   const enemies = filterActiveEnemies(state, playerId);
@@ -307,7 +307,7 @@ export function planStructuralHit(
  *  Only fires when enemy grunts are on the opposite side heading toward us. */
 export function planIceTrench(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   rng: Rng,
 ): TilePos[] | null {
   const frozenTiles = state.modern?.frozenTiles;
@@ -444,9 +444,9 @@ export function planIceTrench(
 
 export function pickTarget(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   crosshair: PixelPos,
-  focusFirePlayerId: ValidPlayerSlot | undefined,
+  focusFirePlayerId: ValidPlayerId | undefined,
   shotCounts: Map<number, number>,
   targetMemory: BattleTargetMemory,
   rng: Rng,
@@ -617,7 +617,7 @@ export function pickTarget(
 
 export function trackShot(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   crosshair: PixelPos,
   shotCounts: Map<number, number>,
 ): void {
@@ -644,7 +644,7 @@ export function trackShot(
  *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
 export function planGruntSweep(
   state: BattleViewState,
-  victimPlayerId: ValidPlayerSlot,
+  victimPlayerId: ValidPlayerId,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -678,8 +678,8 @@ export function planGruntSweep(
 
 function collectStrategicWallTargets(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
-  focusFirePlayerId: ValidPlayerSlot | undefined,
+  playerId: ValidPlayerId,
+  focusFirePlayerId: ValidPlayerId | undefined,
 ): TilePos[] {
   const strategic: TilePos[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
@@ -705,7 +705,7 @@ function collectStrategicWallTargets(
 
 function collectGruntBlockingWallTargets(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
   for (const grunt of state.grunts) {
@@ -759,8 +759,8 @@ function collectGruntBlockingWallTargets(
 
 function collectEnemyTargets(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
-  focusFirePlayerId: ValidPlayerSlot | undefined,
+  playerId: ValidPlayerId,
+  focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
   shotCounts: Map<number, number>,
   wallsOnly?: boolean,
@@ -812,7 +812,7 @@ function collectEnemyTargets(
 }
 
 /** Stable numeric key for shotCounts: survives cannon object replacement. */
-function shotCountKey(playerId: ValidPlayerSlot, cannonIdx: number): number {
+function shotCountKey(playerId: ValidPlayerId, cannonIdx: number): number {
   return (playerId << 8) | cannonIdx;
 }
 
@@ -824,15 +824,15 @@ function shotCountKey(playerId: ValidPlayerSlot, cannonIdx: number): number {
  *  untargeted border walls. */
 function pickEnclosureWallTarget(
   state: BattleViewState,
-  playerId: ValidPlayerSlot,
-  focusFirePlayerId: ValidPlayerSlot | undefined,
+  playerId: ValidPlayerId,
+  focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
   targetMemory: BattleTargetMemory,
   rand: () => number,
 ): TilePos | null {
   // Collect all enclosures across eligible enemies, tagged with their owner
   type CachedEnclosure = {
-    ownerId: ValidPlayerSlot;
+    ownerId: ValidPlayerId;
     walls: ReadonlySet<number>;
     tiles: number[];
   };
@@ -923,7 +923,7 @@ function ballTargeting(
 
 function isEnemyEligibleForFocus(
   enemyId: number,
-  focusFirePlayerId: ValidPlayerSlot | undefined,
+  focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
 ): boolean {
   if (focusFirePlayerId == null) return true;

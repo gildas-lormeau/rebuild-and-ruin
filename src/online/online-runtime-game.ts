@@ -19,7 +19,7 @@ import {
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isHuman } from "../shared/core/system-interfaces.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type { ResolvedChoice } from "../shared/ui/interaction-types.ts";
@@ -117,7 +117,7 @@ const runtime: GameRuntime = createGameRuntime({
     return param ? Number(param) : 0;
   },
   showLobby: sessionHelpers.showLobby,
-  onLobbySlotJoined: (pid: ValidPlayerSlot) => {
+  onLobbySlotJoined: (pid: ValidPlayerId) => {
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
   onCloseOptions: () => {
@@ -206,7 +206,7 @@ const runtime: GameRuntime = createGameRuntime({
       const queue = ctx.session.earlyLifeLostChoices;
       if (queue.size === 0) return;
       for (const [pid, choice] of queue) {
-        const applied = apply(pid as ValidPlayerSlot, choice as ResolvedChoice);
+        const applied = apply(pid as ValidPlayerId, choice as ResolvedChoice);
         devLog(
           `drain life_lost queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
         );
@@ -217,7 +217,7 @@ const runtime: GameRuntime = createGameRuntime({
       const queue = ctx.session.earlyUpgradePickChoices;
       if (queue.size === 0) return;
       for (const [pid, choice] of queue) {
-        const applied = apply(pid as ValidPlayerSlot, choice as UpgradeId);
+        const applied = apply(pid as ValidPlayerId, choice as UpgradeId);
         devLog(
           `drain upgrade_pick queued P${pid}=${choice} -> ${applied ? "applied" : "stale"}`,
         );

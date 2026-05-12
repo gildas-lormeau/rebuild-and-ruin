@@ -9,10 +9,7 @@
 import type { CannonMode } from "../shared/core/battle-types.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   hasPitAt,
@@ -51,7 +48,7 @@ export interface Cell {
   /** Owning player slot, or -1 for cells without an owner (terrain,
    *  bonus squares, burning pits, dead/alive houses, towers, grunts,
    *  cannonballs). Use `isActivePlayer()` before treating as an index. */
-  playerId: PlayerSlotId;
+  playerId: PlayerId;
 }
 
 export interface Rect {
@@ -65,12 +62,12 @@ export interface TileInspection {
   row: number;
   col: number;
   terrain: "grass" | "water" | "frozenWater" | "lowWater";
-  wall: { playerId: ValidPlayerSlot } | null;
+  wall: { playerId: ValidPlayerId } | null;
   tower: { index: number; alive: boolean } | null;
-  cannon: { playerId: ValidPlayerSlot; hp: number; mode: CannonMode } | null;
-  grunt: { playerId: ValidPlayerSlot } | null;
+  cannon: { playerId: ValidPlayerId; hp: number; mode: CannonMode } | null;
+  grunt: { playerId: ValidPlayerId } | null;
   burningPit: boolean;
-  interior: readonly ValidPlayerSlot[];
+  interior: readonly ValidPlayerId[];
   zone: number | null;
 }
 
@@ -101,7 +98,7 @@ const LEGEND_LINE_COUNT = 4;
 const DIFF_LINE_LIMIT = 100;
 /** Sentinel for Cell.playerId when the cell has no owner (terrain,
  *  bonus square, pit, house, tower, grunt, cannonball). */
-const NO_OWNER = -1 as PlayerSlotId;
+const NO_OWNER = -1 as PlayerId;
 /** Default layer for map-rendering helpers — shows every layer stacked. */
 export const DEFAULT_MAP_LAYER: MapLayer = "all";
 
@@ -260,7 +257,7 @@ export function inspectTile(
   }
 
   let wall: TileInspection["wall"] = null;
-  const interior: ValidPlayerSlot[] = [];
+  const interior: ValidPlayerId[] = [];
   let cannon: TileInspection["cannon"] = null;
   let grunt: TileInspection["grunt"] = null;
   for (const player of state.players) {
@@ -419,7 +416,7 @@ function setCell(
   col: number,
   kind: CellKind,
   char: string,
-  playerId: PlayerSlotId,
+  playerId: PlayerId,
 ): void {
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
   const existing = grid[row]![col]!;

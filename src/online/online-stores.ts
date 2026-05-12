@@ -10,7 +10,7 @@ import type { GameMessage } from "../protocol/protocol.ts";
 import { isHostInContext } from "../runtime/runtime-tick-context.ts";
 import {
   isActivePlayer,
-  type ValidPlayerSlot,
+  type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import { IS_DEV } from "../shared/platform/platform.ts";
 import {
@@ -45,7 +45,7 @@ interface OnlineContext {
 export interface OnlineClient {
   readonly ctx: OnlineContext;
   send(msg: GameMessage): void;
-  maybeSendAimUpdate(x: number, y: number, playerId?: ValidPlayerSlot): void;
+  maybeSendAimUpdate(x: number, y: number, playerId?: ValidPlayerId): void;
   resetNetworking(scope: ResetScope): void;
   clearReconnect(): void;
   devLog(msg: string): void;

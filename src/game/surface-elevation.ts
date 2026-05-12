@@ -18,7 +18,7 @@ import {
   WALL_TOP_Y,
 } from "../shared/core/elevation-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   isAtTile,
   isCannonTile,
@@ -38,7 +38,7 @@ interface SurfaceOpts {
   /** Id of the player firing the shot. Their walls / cannons are
    *  transparent during flight (treated as altitude 0) except at the
    *  pinned aim tile, where they remain opaque. */
-  readonly shooterId: ValidPlayerSlot;
+  readonly shooterId: ValidPlayerId;
   /** The aim tile — where shooter-owned walls / cannons stay opaque.
    *  Undefined during trajectory sweep (every in-flight sample treats
    *  shooter-owned geometry as transparent); set by the impact finder
@@ -67,7 +67,7 @@ export function aimSurfaceAltitude(
   state: GameState,
   aimX: number,
   aimY: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): number {
   const row = pxToTile(aimY);
   const col = pxToTile(aimX);
@@ -112,7 +112,7 @@ export function solveBallisticClearing(
   aimAlt: number,
   baselineSpeed: number,
   gravity: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): {
   flightTime: number;
   vy0: number;

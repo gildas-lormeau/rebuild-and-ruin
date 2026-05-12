@@ -4,7 +4,7 @@
 // Network protocol (protocol.ts) re-exports these via MESSAGE spread.
 // ---------------------------------------------------------------------------
 
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 
 /** Originator-pinned trajectory parameters for a cannonball. Computed at
  *  fire time and frozen — every peer that re-runs the parametric flight
@@ -14,11 +14,11 @@ import type { ValidPlayerSlot } from "./player-slot.ts";
  *  shared trajectory fields live in one place. */
 export interface BallisticTrajectory {
   cannonIdx: number;
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   /** Set when fired through a captured-cannon path: the capturer who scores
    *  for this ball's effects. `playerId` stays the original cannon owner so
    *  receiver-side `canFireOwnCannon` lookups resolve against the right slot. */
-  scoringPlayerId?: ValidPlayerSlot;
+  scoringPlayerId?: ValidPlayerId;
   startX: number;
   startY: number;
   targetX: number;
@@ -65,14 +65,14 @@ export interface WallDestroyedMessage {
   type: "wallDestroyed";
   row: number;
   col: number;
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   shooterId?: number;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
 export interface CannonDamagedMessage {
   type: "cannonDamaged";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   cannonIdx: number;
   newHp: number;
   shooterId?: number;
@@ -106,7 +106,7 @@ export interface GruntSpawnedMessage {
   type: "gruntSpawned";
   row: number;
   col: number;
-  victimPlayerId: ValidPlayerSlot;
+  victimPlayerId: ValidPlayerId;
 }
 
 /** A burning pit was created by an incendiary cannonball. */
@@ -127,14 +127,14 @@ export interface IceThawedMessage {
 /** A reinforced wall absorbed a hit (first hit only — wall survives, marked as damaged). */
 export interface WallAbsorbedMessage {
   type: "wallAbsorbed";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   tileKey: number;
 }
 
 /** A rampart shielded a nearby wall from destruction (wall survives, rampart loses 1 shield HP). */
 export interface WallShieldedMessage {
   type: "wallShielded";
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   cannonIdx: number;
   newShieldHp: number;
 }
@@ -147,7 +147,7 @@ export interface WallShieldedMessage {
 export interface TowerKilledMessage {
   type: "towerKilled";
   towerIdx: number;
-  playerId?: ValidPlayerSlot;
+  playerId?: ValidPlayerId;
 }
 
 /** A supply ship was hit by a cannonball. `shipId` is stable across
@@ -156,7 +156,7 @@ export interface TowerKilledMessage {
 export interface ShipHitMessage {
   type: "shipHit";
   shipId: number;
-  shooterId: ValidPlayerSlot;
+  shooterId: ValidPlayerId;
   /** Remaining HP after this hit. 0 means the hit also triggered sink
    *  — a `shipSunk` event follows for the same shipId. */
   newHp: number;
@@ -169,7 +169,7 @@ export interface ShipHitMessage {
 export interface ShipSunkMessage {
   type: "shipSunk";
   shipId: number;
-  shooterId: ValidPlayerSlot;
+  shooterId: ValidPlayerId;
 }
 
 /** Impact events — effects from cannonball/grunt interactions. */

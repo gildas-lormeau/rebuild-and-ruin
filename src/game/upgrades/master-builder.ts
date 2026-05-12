@@ -7,7 +7,7 @@
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
 import { type GameState, hasFeature } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
@@ -54,7 +54,7 @@ function tickBuild(state: GameState, dt: number): void {
 /** Whether this player is allowed to build this frame under Master Builder.
  *  Returns true unless exactly one player owns MB, the lockout is still
  *  running, and this player is not the owner. */
-function canPlayerBuild(state: GameState, playerId: ValidPlayerSlot): boolean {
+function canPlayerBuild(state: GameState, playerId: ValidPlayerId): boolean {
   if (!hasFeature(state, FID.UPGRADES)) return true;
   const modern = state.modern;
   if (!modern || modern.masterBuilderLockout <= 0) return true;

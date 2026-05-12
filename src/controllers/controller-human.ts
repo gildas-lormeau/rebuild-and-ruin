@@ -17,7 +17,7 @@ import {
   TILE_SIZE,
 } from "../shared/core/grid.ts";
 import { rotateCW } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import { cannonSize } from "../shared/core/spatial.ts";
 import {
@@ -54,7 +54,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  touch handler normalizes (with a center dead-zone) before writing. */
   private dpadVector: { x: number; y: number } | undefined;
 
-  constructor(playerId: ValidPlayerSlot, keys: KeyBindings) {
+  constructor(playerId: ValidPlayerId, keys: KeyBindings) {
     super(playerId);
     this.keyMap = buildKeyMap(keys);
   }

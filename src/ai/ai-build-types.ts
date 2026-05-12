@@ -13,7 +13,7 @@ import type {
   Tower,
 } from "../shared/core/geometry-types.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
 import type { BuildViewState } from "../shared/core/system-interfaces.ts";
 
@@ -44,7 +44,7 @@ export type TargetResult = {
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
 export interface TargetContext {
   state: BuildViewState;
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   player: Player;
   castle: Castle;
   piece: PieceShape;

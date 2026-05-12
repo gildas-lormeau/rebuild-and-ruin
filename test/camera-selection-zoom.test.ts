@@ -2,7 +2,7 @@ import { assert } from "@std/assert";
 import { SELECT_ANNOUNCEMENT_DURATION } from "../src/shared/core/game-constants.ts";
 import { MAP_PX_W } from "../src/shared/core/grid.ts";
 import { Phase } from "../src/shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../src/shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../src/shared/core/player-slot.ts";
 import { Mode } from "../src/shared/ui/ui-mode.ts";
 import { createScenario } from "./scenario.ts";
 
@@ -11,7 +11,7 @@ Deno.test(
   async () => {
     using sc = await createScenario({
       seed: 42,
-      assistedSlots: [0 as ValidPlayerSlot],
+      assistedSlots: [0 as ValidPlayerId],
       mobileZoomEnabled: true,
     });
 

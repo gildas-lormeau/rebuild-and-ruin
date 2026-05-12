@@ -15,7 +15,7 @@ import type {
 import { Phase } from "../shared/core/game-phase.ts";
 import type { Viewport } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { tileCenterPx, unpackTile } from "../shared/core/spatial.ts";
 import {
@@ -58,7 +58,7 @@ export interface E2EBattleSnapshot {
   cannonDestroys: number;
   gruntKills: number;
   houseDestroys: number;
-  crosshairs: { x: number; y: number; playerId: ValidPlayerSlot }[];
+  crosshairs: { x: number; y: number; playerId: ValidPlayerId }[];
 }
 
 export interface E2EUISnapshot {
@@ -70,7 +70,7 @@ export interface E2EUISnapshot {
   } | null;
   gameOver: { winner: string } | null;
   lifeLostDialog: {
-    entries: { playerId: ValidPlayerSlot; choice: string }[];
+    entries: { playerId: ValidPlayerId; choice: string }[];
   } | null;
   upgradePick: {
     entries: { playerName: string; resolved: boolean }[];

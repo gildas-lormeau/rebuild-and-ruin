@@ -10,7 +10,7 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   ControllerFactory,
   PlayerController,
@@ -79,7 +79,7 @@ interface InitGameDeps extends BootstrapFromSettingsDeps, ResolvedGameConfig {
  *  the new host (asymmetric across peers, so it must not draw from
  *  `state.rng`). Initial-bootstrap pure-AI calls the factory directly. */
 export function createAiController(
-  id: ValidPlayerSlot,
+  id: ValidPlayerId,
   rng: Rng,
   personality: AiPersonality,
 ): Promise<PlayerController> {
@@ -187,7 +187,7 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
         ? aiStrategy!.rollPersonality(state.rng, deps.difficulty)
         : undefined;
       return factory(
-        i as ValidPlayerSlot,
+        i as ValidPlayerId,
         isAi,
         deps.keyBindings[i],
         isAi ? state.rng : undefined,

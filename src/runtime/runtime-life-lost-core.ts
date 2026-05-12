@@ -1,4 +1,4 @@
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { GameState } from "../shared/core/types.ts";
 import {
   type AutoResolveDeps,
@@ -13,14 +13,14 @@ import {
 import { tickDialogWithFallback } from "./dialog-tick.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
-  needsReselect: readonly ValidPlayerSlot[];
-  eliminated: readonly ValidPlayerSlot[];
+  needsReselect: readonly ValidPlayerId[];
+  eliminated: readonly ValidPlayerId[];
   state: GameState;
 }
 
 interface ResolveAfterLifeLostDeps {
-  continuing: readonly ValidPlayerSlot[];
-  onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+  continuing: readonly ValidPlayerId[];
+  onReselect: (continuing: readonly ValidPlayerId[]) => void;
   onAdvance: () => void;
 }
 
@@ -70,7 +70,7 @@ export function isLifeLostAllResolved(dialog: LifeLostDialogState): boolean {
 /** Extract the player IDs that chose CONTINUE from a resolved dialog. */
 export function continuingPlayers(
   dialog: LifeLostDialogState,
-): ValidPlayerSlot[] {
+): ValidPlayerId[] {
   return dialog.entries
     .filter((e) => e.choice === LifeLostChoice.CONTINUE)
     .map((e) => e.playerId);
@@ -107,9 +107,7 @@ export function createLifeLostDialogState(
 }
 
 /** Extract the player IDs that chose ABANDON from a resolved dialog. */
-export function abandonedPlayers(
-  dialog: LifeLostDialogState,
-): ValidPlayerSlot[] {
+export function abandonedPlayers(dialog: LifeLostDialogState): ValidPlayerId[] {
   return dialog.entries
     .filter((e) => e.choice === LifeLostChoice.ABANDON)
     .map((e) => e.playerId);

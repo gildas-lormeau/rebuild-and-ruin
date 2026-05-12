@@ -40,7 +40,7 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type CannonController,
@@ -105,7 +105,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  enqueue and the receiver's wire-receipt enqueue land on the same
    *  logical sim tick. */
   sendOpponentCannonPhaseDone: (
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     applyAt: number,
   ) => void;
 
@@ -144,7 +144,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  its own route bundle in `online-phase-transitions.ts`. */
   lifeLostRoute: {
     onGameOver: (winner: { id: number }, reason: GameOverReason) => void;
-    onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+    onReselect: (continuing: readonly ValidPlayerId[]) => void;
     onAdvance: () => void;
   };
   scoreDelta: {
@@ -834,7 +834,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
  *  `initCannons` directly on a local controller would skip the flush and
  *  corrupt cannon state. */
 function finalizeLocalCannonController(
-  ctrl: CannonController & { readonly playerId: ValidPlayerSlot },
+  ctrl: CannonController & { readonly playerId: ValidPlayerId },
   state: GameState,
 ): void {
   const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;
@@ -848,7 +848,7 @@ function finalizeLocalCannonController(
  *  empty local queue — a no-op today, but it couples the remote path to
  *  local-only queue semantics and is explicitly not the contract. */
 function finalizeRemoteCannonController(
-  ctrl: CannonController & { readonly playerId: ValidPlayerSlot },
+  ctrl: CannonController & { readonly playerId: ValidPlayerId },
   state: GameState,
 ): void {
   const maxSlots = state.cannonLimits[ctrl.playerId] ?? 0;

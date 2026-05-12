@@ -8,8 +8,8 @@ import {
 import { isTimedPhase, Phase } from "../shared/core/game-phase.ts";
 import {
   isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
+  type PlayerId,
+  type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import type { FrameContext } from "../shared/core/types.ts";
 import { LifeLostChoice } from "../shared/ui/interaction-types.ts";
@@ -45,10 +45,10 @@ interface FrameContextInputs {
   lifeLostLocalPending: boolean;
   isSelectionReady: boolean;
   hasPointerPlayer: boolean;
-  pointerPlayerId: ValidPlayerSlot | null;
-  myPlayerId: PlayerSlotId;
+  pointerPlayerId: ValidPlayerId | null;
+  myPlayerId: PlayerId;
   hostAtFrameStart: boolean;
-  remotePlayerSlots: ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots: ReadonlySet<ValidPlayerId>;
   mobileAutoZoom: boolean;
   humanCannonsComplete: boolean;
   humanCastleConfirmed: boolean;
@@ -59,10 +59,10 @@ interface RuntimeLoopDeps {
   /** Injected timing primitives — replaces bare `requestAnimationFrame` access
    *  when scheduling the next main-loop tick. */
   timing: TimingApi;
-  myPlayerId: () => PlayerSlotId;
+  myPlayerId: () => PlayerId;
   amHost: () => boolean;
-  remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
-  getPointerPlayer: () => { playerId: ValidPlayerSlot } | null;
+  remotePlayerSlots: () => ReadonlySet<ValidPlayerId>;
+  getPointerPlayer: () => { playerId: ValidPlayerId } | null;
   clearHumanCache: () => void;
   isSelectionReady: () => boolean;
   isMobileAutoZoom: () => boolean;
@@ -163,16 +163,16 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
 
     const pointer = deps.getPointerPlayer();
     const myId = deps.myPlayerId();
-    const humanId: ValidPlayerSlot | null = isActivePlayer(myId)
+    const humanId: ValidPlayerId | null = isActivePlayer(myId)
       ? myId
       : (pointer?.playerId ?? null);
     // Mirrors the povPlayerId derivation inside computeFrameContext:
     // online → myId, local → pointer slot, demo → 0. Keeps the dialog
     // membership check off the lifeLost types tier (interaction-types
     // is a leaf, runtime-state shouldn't import it) by computing here.
-    const povSlot: ValidPlayerSlot = isActivePlayer(myId)
+    const povSlot: ValidPlayerId = isActivePlayer(myId)
       ? myId
-      : ((pointer?.playerId ?? 0) as ValidPlayerSlot);
+      : ((pointer?.playerId ?? 0) as ValidPlayerId);
     const lifeLostDialog = deps.runtimeState.dialogs.lifeLost;
     const lifeLostLocalPending =
       lifeLostDialog !== null &&
@@ -346,9 +346,9 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     (mobileAutoZoom && (humanCannonsComplete || humanCastleConfirmed));
 
   // Online: myPlayerId. Local: pointer player slot. Demo: 0.
-  const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
+  const povPlayerId: ValidPlayerId = isActivePlayer(myPlayerId)
     ? myPlayerId
-    : (pointerPlayerId ?? (0 as ValidPlayerSlot));
+    : (pointerPlayerId ?? (0 as ValidPlayerId));
 
   return {
     myPlayerId,
@@ -376,7 +376,7 @@ function computeFrameContext(inputs: FrameContextInputs): FrameContext {
  *  for the global phase dispatch (which waits for all players + animations). */
 function computeHumanCastleConfirmed(
   runtimeState: RuntimeState,
-  humanId: ValidPlayerSlot | null,
+  humanId: ValidPlayerId | null,
 ): boolean {
   if (humanId === null) return false;
   if (!isSessionLive(runtimeState)) return false;
@@ -394,7 +394,7 @@ function computeHumanCastleConfirmed(
  *  without waiting for the global phase dispatch. */
 function computeHumanCannonsComplete(
   runtimeState: RuntimeState,
-  humanId: ValidPlayerSlot | null,
+  humanId: ValidPlayerId | null,
 ): boolean {
   if (humanId === null) return false;
   if (!isSessionLive(runtimeState)) return false;

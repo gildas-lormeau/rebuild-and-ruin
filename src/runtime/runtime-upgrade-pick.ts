@@ -12,7 +12,7 @@ import {
   UPGRADE_PICK_MAX_TIMER,
   UPGRADE_PICK_PULSE_DURATION,
 } from "../shared/core/game-constants.ts";
-import { type ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import { type ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { UpgradeId } from "../shared/core/upgrade-defs.ts";
 import type {
   UpgradePickDialogState,
@@ -36,7 +36,7 @@ interface UpgradePickSystemDeps {
   readonly log: (msg: string) => void;
   readonly requestRender: () => void;
   readonly sendUpgradePick: (
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     choice: UpgradeId,
   ) => void;
 
@@ -49,7 +49,7 @@ interface UpgradePickSystemDeps {
    *  owns the find/validate/write of each entry.
    *  Undefined in local play. */
   readonly applyEarlyChoices?: (
-    apply: (playerId: ValidPlayerSlot, choice: UpgradeId) => boolean,
+    apply: (playerId: ValidPlayerId, choice: UpgradeId) => boolean,
   ) => void;
 }
 
@@ -66,16 +66,16 @@ export interface UpgradePickSystem {
    *  Does NOT set Mode.UPGRADE_PICK — call tryShow after the banner ends. */
   prepare: () => boolean;
   /** Navigate focus left/right. */
-  moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
-  confirmChoice: (playerId: ValidPlayerSlot) => void;
+  moveFocus: (playerId: ValidPlayerId, dir: number) => void;
+  confirmChoice: (playerId: ValidPlayerId) => void;
   /** Pick a specific card directly (e.g. from a click). */
-  pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
+  pickDirect: (playerId: ValidPlayerId, cardIdx: number) => void;
   /** Slots whose entries accept input from this machine (one slot online,
    *  every local human in shared-screen mode). Empty if none. */
-  interactiveSlots: () => ReadonlySet<ValidPlayerSlot>;
+  interactiveSlots: () => ReadonlySet<ValidPlayerId>;
 }
 
-const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerSlot> = new Set();
+const EMPTY_SLOT_SET: ReadonlySet<ValidPlayerId> = new Set();
 
 export function createUpgradePickSystem(
   deps: UpgradePickSystemDeps,
@@ -189,7 +189,7 @@ export function createUpgradePickSystem(
     callback?.();
   }
 
-  function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
+  function moveFocus(playerId: ValidPlayerId, dir: number): void {
     withPendingEntry(playerId, (entry) => moveUpgradePickFocus(entry, dir));
   }
 
@@ -200,14 +200,14 @@ export function createUpgradePickSystem(
     deps.sendUpgradePick(entry.playerId, choice);
   }
 
-  function confirmChoice(playerId: ValidPlayerSlot): void {
+  function confirmChoice(playerId: ValidPlayerId): void {
     withPendingEntry(playerId, (entry) =>
       resolveAndSend(entry, entry.focusedCard),
     );
   }
 
   /** Pick a specific card directly (e.g. from a click on a card). */
-  function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
+  function pickDirect(playerId: ValidPlayerId, cardIdx: number): void {
     withPendingEntry(playerId, (entry) => {
       if (cardIdx < 0 || cardIdx >= entry.offers.length) return;
       resolveAndSend(entry, cardIdx);
@@ -215,7 +215,7 @@ export function createUpgradePickSystem(
   }
 
   function findPendingEntry(
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
   ): UpgradePickEntry | undefined {
     return runtimeState.dialogs.upgradePick?.entries.find(
       (entry) => entry.playerId === playerId && entry.choice === null,
@@ -223,7 +223,7 @@ export function createUpgradePickSystem(
   }
 
   function withPendingEntry(
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     action: (entry: UpgradePickEntry) => void,
   ): void {
     const entry = findPendingEntry(playerId);
@@ -235,11 +235,11 @@ export function createUpgradePickSystem(
    *  driven when it doesn't auto-resolve and isn't owned by a remote peer —
    *  that resolves to `{myPlayerId}` online and to every local-human slot in
    *  shared-screen play. */
-  function interactiveSlots(): ReadonlySet<ValidPlayerSlot> {
+  function interactiveSlots(): ReadonlySet<ValidPlayerId> {
     const dialog = runtimeState.dialogs.upgradePick;
     if (!dialog) return EMPTY_SLOT_SET;
     const remote = runtimeState.frameMeta.remotePlayerSlots;
-    const slots = new Set<ValidPlayerSlot>();
+    const slots = new Set<ValidPlayerId>();
     for (const entry of dialog.entries) {
       if (entry.autoResolve || remote.has(entry.playerId)) continue;
       slots.add(entry.playerId);

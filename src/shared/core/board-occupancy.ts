@@ -7,7 +7,7 @@ import {
 import type { BonusSquare } from "./geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import { isPlayerAlive, type Player, playerByZone } from "./player-types.ts";
 import {
   cannonSize,
@@ -165,7 +165,7 @@ export function hasWallAt(state: GameViewState, r: number, c: number): boolean {
 
 export function hasEnemyWallAt(
   state: GameViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   r: number,
   c: number,
 ): boolean {
@@ -259,10 +259,10 @@ export function zoneOwnerIdAt(
   state: GameViewState & { readonly playerZones: readonly ZoneId[] },
   row: number,
   col: number,
-): ValidPlayerSlot {
+): ValidPlayerId {
   const zone = zoneAt(state.map, row, col);
-  if (zone === undefined) return 0 as ValidPlayerSlot;
-  return (playerByZone(state.playerZones, zone) ?? 0) as ValidPlayerSlot;
+  if (zone === undefined) return 0 as ValidPlayerId;
+  return (playerByZone(state.playerZones, zone) ?? 0) as ValidPlayerId;
 }
 
 export function buildOccupancyCache(
@@ -306,7 +306,7 @@ export function filterAliveOwnedTowers(
 /** Return all players that are not `playerId` and not eliminated. */
 export function filterActiveEnemies(
   state: GameViewState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
 ) {
   return state.players.filter(
     (player) => player.id !== playerId && isPlayerAlive(player),

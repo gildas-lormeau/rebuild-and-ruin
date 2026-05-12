@@ -8,7 +8,7 @@
 
 import { aimCannons, canPlayerFire } from "../game/index.ts";
 import type { PixelPos } from "../shared/core/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
   type BattleViewState,
@@ -31,7 +31,7 @@ const REMOTE_CROSSHAIR_SPEED = CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
  *  Side effects: lazy-initializes `visualPosCache[pid]`, mutates the cached
  *  visualPos in place, calls `aimCannons` to keep cannons tracking. */
 export function tickRemoteCrosshair(
-  pid: ValidPlayerSlot,
+  pid: ValidPlayerId,
   target: PixelPos,
   state: BattleViewState,
   dt: number,

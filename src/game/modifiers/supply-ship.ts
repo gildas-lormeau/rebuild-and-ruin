@@ -16,7 +16,7 @@ import type {
   SupplyBonusId,
   SupplyShip,
 } from "../../shared/core/modifier-defs.ts";
-import type { ValidPlayerSlot } from "../../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { GameState } from "../../shared/core/types.ts";
 import type { Rng } from "../../shared/platform/rng.ts";
 import type { ModifierImpl } from "./modifier-types.ts";
@@ -149,7 +149,7 @@ export function tryHitSupplyShip(
   state: GameState,
   impactCol: number,
   impactRow: number,
-  shooterId: ValidPlayerSlot,
+  shooterId: ValidPlayerId,
 ): void {
   const ships = state.modern?.supplyShips;
   if (!ships || ships.length === 0) return;
@@ -231,7 +231,7 @@ export function pickSupplyShipTarget(
  *  peer in `applyCannonFired` for cross-peer parity. */
 export function hasSupplyBonus(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   bonusType: SupplyBonusId,
 ): boolean {
   const queue = state.modern?.pendingSupplyBonuses?.get(playerId);
@@ -244,7 +244,7 @@ export function hasSupplyBonus(
  *  `consumeSupplyBonuses` which drains all of a type at once. */
 export function consumeOneSupplyBonus(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   bonusType: SupplyBonusId,
 ): boolean {
   const pending = state.modern?.pendingSupplyBonuses;
@@ -266,7 +266,7 @@ export function consumeOneSupplyBonus(
  *  (e.g. cannon-limit computation) to materialize one-round effects. */
 export function consumeSupplyBonuses(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   bonusType: SupplyBonusId,
 ): number {
   const pending = state.modern?.pendingSupplyBonuses;
@@ -288,7 +288,7 @@ export function consumeSupplyBonuses(
 
 function queueSupplyBonus(
   state: GameState,
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   bonus: SupplyBonusId,
 ): void {
   if (!state.modern) return;

@@ -8,7 +8,7 @@
  */
 
 import type { AiPersonality } from "../shared/core/ai-personality.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 import type { KeyBindings } from "../shared/ui/player-config.ts";
@@ -23,7 +23,7 @@ export function ensureAiModulesLoaded(): Promise<unknown> {
 }
 
 export async function createController(
-  playerId: ValidPlayerSlot,
+  playerId: ValidPlayerId,
   isAi: boolean,
   keys?: KeyBindings,
   sharedRng?: Rng,

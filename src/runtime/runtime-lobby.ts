@@ -5,7 +5,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/core/grid.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   CURSOR_DEFAULT,
   CURSOR_POINTER,
@@ -41,7 +41,7 @@ interface LobbySystemDeps {
   showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void | Promise<void>;
-  onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
+  onLobbySlotJoined: (pid: ValidPlayerId) => void;
 
   // Render-domain functions (injected from composition root)
   createLobbyOverlay: CreateLobbyOverlayFn;
@@ -61,7 +61,7 @@ interface LobbySystem {
    *  (browser: title music). */
   show: () => void;
   /** Mark a slot joined and re-render the lobby preview. */
-  markJoined: (pid: ValidPlayerSlot) => void;
+  markJoined: (pid: ValidPlayerId) => void;
   /** Recompute `lobby.seed` from settings and regenerate the map preview
    *  when either the seed changed or no preview exists yet. Called from
    *  the options screen on close (settings may have changed) and from
@@ -117,7 +117,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     }
   }
 
-  async function onLobbyJoin(pid: ValidPlayerSlot): Promise<void> {
+  async function onLobbyJoin(pid: ValidPlayerId): Promise<void> {
     deps.onLobbySlotJoined(pid);
     renderLobby();
     // On touch devices in local mode, start immediately after joining
@@ -135,7 +135,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       lobbySkipStep();
       return true;
     }
-    void onLobbyJoin(pid as ValidPlayerSlot);
+    void onLobbyJoin(pid as ValidPlayerId);
     return true;
   }
 
@@ -204,7 +204,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     setMode(runtimeState, Mode.LOBBY);
   }
 
-  function markJoined(pid: ValidPlayerSlot): void {
+  function markJoined(pid: ValidPlayerId): void {
     runtimeState.lobby.joined[pid] = true;
     renderLobby();
   }

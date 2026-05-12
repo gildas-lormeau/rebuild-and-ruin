@@ -54,7 +54,7 @@ import { Phase } from "../shared/core/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/core/geometry-types.ts";
 import {
   SPECTATOR_SLOT,
-  type ValidPlayerSlot,
+  type ValidPlayerId,
 } from "../shared/core/player-slot.ts";
 import { selectRenderView, sunTFromState } from "../shared/core/render-view.ts";
 import type {
@@ -126,9 +126,9 @@ import {
 
 /** Singleton empty set so repeated calls with no remotes return the same
  *  instance — runtime sub-systems read this through the `NetworkApi.remotePlayerSlots`
- *  seam, which is `ReadonlySet<ValidPlayerSlot>`, so the shared instance is
+ *  seam, which is `ReadonlySet<ValidPlayerId>`, so the shared instance is
  *  immutable from every caller's perspective. */
-const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerSlot> = new Set();
+const EMPTY_REMOTE_SLOTS: ReadonlySet<ValidPlayerId> = new Set();
 /** Explicit no-op sender for pure-local play (no peers to notify).
  *  Named so call sites communicate intent rather than silently swallow
  *  messages via a default. */
@@ -183,7 +183,7 @@ export function createLocalNetworkApi(opts: {
   onMessage?: (
     handler: (msg: ServerMessage) => void | Promise<void>,
   ) => () => void;
-  remotePlayerSlots?: ReadonlySet<ValidPlayerSlot>;
+  remotePlayerSlots?: ReadonlySet<ValidPlayerId>;
   /** Optional override — defaults to `true` to match local/test "no peers"
    *  play where the runtime is the only authority. Network tests that
    *  build a host + watcher pair set `false` on the watcher side; this

@@ -15,7 +15,7 @@ import {
   WALL_BUILD_INTERVAL,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -46,7 +46,7 @@ interface SelectionSystemDeps {
 
   // Networking (named sends — protocol knowledge stays in composition root)
   sendTowerSelected: (
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     towerIdx: number,
     confirmed: boolean,
     applyAt?: number,
@@ -111,7 +111,7 @@ export function createSelectionSystem(
    *  cycle = bootstrap path: runs once at game start (round 1) and on
    *  watcher SELECT_START. Reselect cycle = mid-game; the queue is
    *  precomputed by the life-lost dialog. */
-  function enterTowerSelection(cycleQueue?: readonly ValidPlayerSlot[]): void {
+  function enterTowerSelection(cycleQueue?: readonly ValidPlayerId[]): void {
     const { state } = runtimeState;
     const { remotePlayerSlots } = runtimeState.frameMeta;
 
@@ -120,8 +120,8 @@ export function createSelectionSystem(
     );
     setMode(runtimeState, Mode.SELECTION);
 
-    const slots: readonly ValidPlayerSlot[] =
-      cycleQueue ?? state.players.map((_, i) => i as ValidPlayerSlot);
+    const slots: readonly ValidPlayerId[] =
+      cycleQueue ?? state.players.map((_, i) => i as ValidPlayerId);
 
     resetSelectionState();
 
@@ -181,7 +181,7 @@ export function createSelectionSystem(
   function highlightTowerForPlayer(
     idx: number,
     zone: ZoneId,
-    pid: ValidPlayerSlot,
+    pid: ValidPlayerId,
   ): void {
     const changed = highlightTowerSelection(
       runtimeState.state,
@@ -221,7 +221,7 @@ export function createSelectionSystem(
    *  — locally driven human confirmations and network-received confirms
    *  defer this to the lockstep `applyAt`; AI / non-human local
    *  confirmations apply immediately. */
-  function applyConfirmedSelection(pid: ValidPlayerSlot): void {
+  function applyConfirmedSelection(pid: ValidPlayerId): void {
     const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selection.states,
@@ -239,7 +239,7 @@ export function createSelectionSystem(
   }
 
   function confirmSelectionAndStartBuild(
-    pid: ValidPlayerSlot,
+    pid: ValidPlayerId,
     source: "local" | "network" = "local",
     applyAtFromWire?: number,
   ): boolean {
@@ -326,7 +326,7 @@ export function createSelectionSystem(
     // sequences without wire chatter. Remote-human selections come in via
     // OPPONENT_TOWER_SELECTED from the input handler on the owning peer.
     for (const [rawPid, selectionState] of selection.states) {
-      const pid = rawPid as ValidPlayerSlot;
+      const pid = rawPid as ValidPlayerId;
       if (selectionState.confirmed) continue;
       if (isRemotePlayer(pid, remotePlayerSlots)) continue;
 
@@ -359,7 +359,7 @@ export function createSelectionSystem(
     if (accum.select >= SELECT_TIMER) {
       for (const [rawPid, selectionState] of selection.states) {
         if (selectionState.confirmed) continue;
-        const pid = rawPid as ValidPlayerSlot;
+        const pid = rawPid as ValidPlayerId;
         if (isRemotePlayer(pid, remotePlayerSlots)) continue;
         confirmSelectionAndStartBuild(pid);
       }
@@ -409,7 +409,7 @@ export function createSelectionSystem(
    *  identical RNG sequence on both sides keeps state in sync. No wire
    *  broadcast: every confirmation path (local AI, local human, network
    *  remote-human) runs this locally on every peer. */
-  function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
+  function startPlayerCastleBuild(playerId: ValidPlayerId): void {
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
     const human = deps.pointerPlayer();

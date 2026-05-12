@@ -14,10 +14,7 @@ import type {
   Viewport,
   WorldPos,
 } from "../shared/core/geometry-types.ts";
-import type {
-  PlayerSlotId,
-  ValidPlayerSlot,
-} from "../shared/core/player-slot.ts";
+import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BattleController,
   BattleViewState,
@@ -88,9 +85,9 @@ export interface OnlinePhaseTicks {
    *  true if the runtime should emit. The implementation gates by
    *  ownership (only the local human emits) and dedups by `key` (skips
    *  if the key matches the last emission for this player). */
-  shouldSendCannonPhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
+  shouldSendCannonPhantom?: (playerId: ValidPlayerId, key: string) => boolean;
   /** Same contract as `shouldSendCannonPhantom`, for piece-phantoms. */
-  shouldSendPiecePhantom?: (playerId: ValidPlayerSlot, key: string) => boolean;
+  shouldSendPiecePhantom?: (playerId: ValidPlayerId, key: string) => boolean;
 
   // ── Cross-machine merging ──────────────────────────────────────────────
   /** Both: extend the locally collected crosshair list with remote-human
@@ -143,10 +140,10 @@ export interface OnlineActions {
  *  each pending entry, then clears the queue. */
 export interface OnlineDialogDrains {
   drainLifeLost: (
-    apply: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => boolean,
+    apply: (playerId: ValidPlayerId, choice: ResolvedChoice) => boolean,
   ) => void;
   drainUpgradePick: (
-    apply: (playerId: ValidPlayerSlot, choice: UpgradeId) => boolean,
+    apply: (playerId: ValidPlayerId, choice: UpgradeId) => boolean,
   ) => void;
 }
 
@@ -200,10 +197,10 @@ export interface NetworkApi {
   /** This client's player slot in online mode, or SPECTATOR_SLOT (-1) in
    *  local (shared-screen) mode. Only meaningful for online play — local
    *  consumers should use povPlayerId instead. */
-  readonly myPlayerId: () => PlayerSlotId;
+  readonly myPlayerId: () => PlayerId;
   /** Slots controlled by other machines (need network sync). Empty set
    *  for local play. */
-  readonly remotePlayerSlots: () => ReadonlySet<ValidPlayerSlot>;
+  readonly remotePlayerSlots: () => ReadonlySet<ValidPlayerId>;
 }
 
 export interface RuntimeConfig {
@@ -233,7 +230,7 @@ export interface RuntimeConfig {
   /** Each mode provides its own. */
   showLobby: () => void;
   /** local: set joined; online: send select_slot. */
-  onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
+  onLobbySlotJoined: (pid: ValidPlayerId) => void;
   /** Optional extra action on close (e.g., reset timer). */
   onCloseOptions?: () => void;
   /** local: startGame; online: host sends init. */
@@ -364,7 +361,7 @@ export interface CameraSystem {
 
   // Castle build viewport
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  setCastleBuildViewport: (playerId: ValidPlayerSlot) => void;
+  setCastleBuildViewport: (playerId: ValidPlayerId) => void;
   clearCastleBuildViewport: () => void;
 
   // Mobile zoom
@@ -384,11 +381,11 @@ export interface RuntimeSelection {
   /** Enter CASTLE_SELECT. Omit `queue` for the initial cycle (bootstrap
    *  path: round 1 / watcher SELECT_START); pass an explicit queue for
    *  the lifeLostRoute reselect cycle. */
-  enter: (queue?: readonly ValidPlayerSlot[]) => void;
+  enter: (queue?: readonly ValidPlayerId[]) => void;
   syncOverlay: () => void;
-  highlight: (idx: number, zone: ZoneId, pid: ValidPlayerSlot) => void;
+  highlight: (idx: number, zone: ZoneId, pid: ValidPlayerId) => void;
   confirmAndStartBuild: (
-    pid: ValidPlayerSlot,
+    pid: ValidPlayerId,
     source?: "local" | "network",
     applyAt?: number,
   ) => boolean;
@@ -435,12 +432,12 @@ export interface RuntimeLifeLost {
    *
    *  Returns true when a dialog was actually shown. */
   show: (
-    needsReselect: readonly ValidPlayerSlot[],
-    eliminated: readonly ValidPlayerSlot[],
-    onResolved: (continuing: readonly ValidPlayerSlot[]) => void,
+    needsReselect: readonly ValidPlayerId[],
+    eliminated: readonly ValidPlayerId[],
+    onResolved: (continuing: readonly ValidPlayerId[]) => void,
   ) => boolean;
   tick: (dt: number) => void;
-  panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
+  panelPos: (playerId: ValidPlayerId) => { px: number; py: number };
 }
 
 export interface RuntimeUpgradePick {
@@ -457,7 +454,7 @@ export interface RuntimeLobby {
    *  bind `showLobby` straight to this. */
   show: () => void;
   /** Mark a slot joined and re-render the lobby. */
-  markJoined: (pid: ValidPlayerSlot) => void;
+  markJoined: (pid: ValidPlayerId) => void;
 }
 
 export interface RuntimeLifecycle {

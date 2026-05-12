@@ -13,7 +13,7 @@ import {
 } from "../runtime/runtime-tick-context.ts";
 import type { ScheduledAction } from "../shared/core/action-schedule.ts";
 import { CANNON_MODE_IDS } from "../shared/core/cannon-mode-defs.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { inBoundsStrict } from "../shared/core/spatial.ts";
 import type { PlayerController } from "../shared/core/system-interfaces.ts";
@@ -26,7 +26,7 @@ import type { OnlineSession } from "./online-session.ts";
 import { type RemoteCrosshairTargets, toCannonMode } from "./online-types.ts";
 
 interface LifeLostChoiceEntry {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   choice: LifeLostChoice;
 }
 
@@ -35,7 +35,7 @@ interface LifeLostChoiceDialog {
 }
 
 interface UpgradePickChoiceEntry {
-  playerId: ValidPlayerSlot;
+  playerId: ValidPlayerId;
   choice: string | null;
   offers: readonly string[];
 }
@@ -65,7 +65,7 @@ export interface HandleServerIncrementalDeps {
   selectionStates: Map<number, SelectionState>;
   syncSelectionOverlay: () => void;
   confirmSelectionAndStartBuild: (
-    playerId: ValidPlayerSlot,
+    playerId: ValidPlayerId,
     source?: "local" | "network",
     applyAt?: number,
   ) => void;
@@ -448,7 +448,7 @@ function handleUpgradePick(
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */
 function isRemoteHumanAction(
-  pid: ValidPlayerSlot,
+  pid: ValidPlayerId,
   deps: Pick<HandleServerIncrementalDeps, "session">,
 ): boolean {
   return (

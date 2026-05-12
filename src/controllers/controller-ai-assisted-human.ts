@@ -23,7 +23,7 @@ import type {
   CannonPlacedPayload,
   PiecePlacedPayload,
 } from "../shared/core/phantom-types.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   BattleViewState,
   BuildViewState,
@@ -79,7 +79,7 @@ export class AiAssistedHumanController
   private readonly schedule: (action: ScheduledAction) => void;
   private readonly safetyTicks: number;
 
-  constructor(playerId: ValidPlayerSlot, opts: AssistedControllerOptions) {
+  constructor(playerId: ValidPlayerId, opts: AssistedControllerOptions) {
     super(playerId, opts.strategy);
     this.senders = opts.senders;
     this.schedule = opts.schedule;

@@ -9,7 +9,7 @@ import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
 import type { Viewport } from "./geometry-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
 
@@ -30,11 +30,11 @@ export type LifecycleEvent =
   | { type: "phaseEnd"; phase: Phase; round: number }
   | { type: "roundStart"; round: number }
   | { type: "roundEnd"; round: number }
-  | { type: "gameEnd"; round: number; winner: ValidPlayerSlot }
-  | { type: "playerEliminated"; playerId: ValidPlayerSlot; round: number }
+  | { type: "gameEnd"; round: number; winner: ValidPlayerId }
+  | { type: "playerEliminated"; playerId: ValidPlayerId; round: number }
   | {
       type: "lifeLost";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       livesRemaining: number;
       round: number;
     }
@@ -43,8 +43,8 @@ export type LifecycleEvent =
    *  double-triggering on per-player `lifeLost` events. */
   | {
       type: "lifeLostDialogShow";
-      needsReselect: readonly ValidPlayerSlot[];
-      eliminated: readonly ValidPlayerSlot[];
+      needsReselect: readonly ValidPlayerId[];
+      eliminated: readonly ValidPlayerId[];
       round: number;
     }
   /** Phase-transition banner started. Emitted synchronously from
@@ -190,13 +190,13 @@ export type LifecycleEvent =
 export type EntityEvent =
   | {
       type: "castlePlaced";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       row: number;
       col: number;
     }
   | {
       type: "wallPlaced";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       tileKeys: readonly number[];
     }
   /** One tile of a castle prebuild animation (round-1 autobuild /
@@ -204,17 +204,17 @@ export type EntityEvent =
    *  castle = N events. Separate from `wallPlaced` (which is for
    *  player-driven build-phase placement) so consumers can disambiguate
    *  the two gameplay beats — cosmetic-only event for SFX pacing. */
-  | { type: "castleBuildTile"; playerId: ValidPlayerSlot; tileKey: number }
+  | { type: "castleBuildTile"; playerId: ValidPlayerId; tileKey: number }
   /** A tower transitioned from un-enclosed to enclosed by a player (all
    *  footprint tiles became interior-or-wall). Fires from inside the
    *  territory flood-fill, so prebuild animations AND player-driven wall
    *  placement both trigger it identically. Consumers decide whether to
    *  dedupe — the SFX layer tracks "first this phase per player" locally
    *  to gate the fanfare. */
-  | { type: "towerEnclosed"; playerId: ValidPlayerSlot; towerIndex: number }
+  | { type: "towerEnclosed"; playerId: ValidPlayerId; towerIndex: number }
   | {
       type: "cannonPlaced";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       row: number;
       col: number;
       cannonIdx: number;
@@ -223,11 +223,11 @@ export type EntityEvent =
       type: "gruntSpawn";
       row: number;
       col: number;
-      victimPlayerId: ValidPlayerSlot;
+      victimPlayerId: ValidPlayerId;
     }
   | {
       type: "gruntSpawnBlocked";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       requested: number;
       placed: number;
     };
@@ -240,7 +240,7 @@ export type ModernEvent =
     }
   | {
       type: "upgradePicked";
-      playerId: ValidPlayerSlot;
+      playerId: ValidPlayerId;
       upgradeId: UpgradeId;
     };
 

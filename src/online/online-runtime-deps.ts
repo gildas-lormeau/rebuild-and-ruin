@@ -15,7 +15,7 @@ import type {
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/core/game-constants.ts";
-import type { ValidPlayerSlot } from "../shared/core/player-slot.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { PLAYER_NAMES } from "../shared/ui/player-config.ts";
 import { Mode } from "../shared/ui/ui-mode.ts";
 import { createError, joinError } from "./online-dom.ts";
@@ -115,7 +115,7 @@ function buildIncrementalDeps(
     selectionStates: init.runtime.selection.getStates(),
     syncSelectionOverlay: () => init.runtime.selection.syncOverlay(),
     confirmSelectionAndStartBuild: (
-      playerId: ValidPlayerSlot,
+      playerId: ValidPlayerId,
       source?: "local" | "network",
       applyAt?: number,
     ) => {
