@@ -2,6 +2,7 @@
  * Cannon placement and management — validation, slot counting, placement.
  */
 
+import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type BurningPit,
   type Cannon,
@@ -141,7 +142,7 @@ export function placeCannon(
     playerId: player.id,
     row,
     col,
-    cannonIdx: player.cannons.length - 1,
+    cannonIdx: (player.cannons.length - 1) as CannonIdx,
   });
   return true;
 }

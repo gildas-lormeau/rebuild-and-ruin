@@ -4,6 +4,7 @@ import {
   getGruntTargetTower,
   pickSupplyShipTarget,
 } from "../game/index.ts";
+import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type Cannonball,
   isBalloonCannon,
@@ -117,7 +118,7 @@ export function countUsableCannons(
   const player = state.players[playerId]!;
   let count = 0;
   for (let i = 0; i < player.cannons.length; i++) {
-    if (canFireOwnCannon(state, playerId, i)) count++;
+    if (canFireOwnCannon(state, playerId, i as CannonIdx)) count++;
   }
   return count;
 }
@@ -628,7 +629,7 @@ export function trackShot(
       const cannon = other.cannons[idx]!;
       if (isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
-        const key = shotCountKey(other.id, idx);
+        const key = shotCountKey(other.id, idx as CannonIdx);
         shotCounts.set(key, (shotCounts.get(key) ?? 0) + 1);
         return;
       }
@@ -782,7 +783,7 @@ function collectEnemyTargets(
           continue;
         }
         // Skip if we've already fired enough shots to destroy it
-        const key = shotCountKey(other.id, idx);
+        const key = shotCountKey(other.id, idx as CannonIdx);
         const shots = shotCounts.get(key) ?? 0;
         if (shots >= state.cannonMaxHp) continue;
         const size = cannonSize(cannon.mode);
@@ -812,7 +813,7 @@ function collectEnemyTargets(
 }
 
 /** Stable numeric key for shotCounts: survives cannon object replacement. */
-function shotCountKey(playerId: ValidPlayerId, cannonIdx: number): number {
+function shotCountKey(playerId: ValidPlayerId, cannonIdx: CannonIdx): number {
   return (playerId << 8) | cannonIdx;
 }
 

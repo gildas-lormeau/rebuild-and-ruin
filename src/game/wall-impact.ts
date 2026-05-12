@@ -6,6 +6,7 @@
  * removal).
  */
 
+import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type Cannon,
   isCannonAlive,
@@ -35,7 +36,7 @@ type WallShieldResult =
       absorbed: true;
       kind: ShieldKind.Rampart;
       playerId: ValidPlayerId;
-      cannonIdx: number;
+      cannonIdx: CannonIdx;
       newShieldHp: number;
     }
   | {
@@ -43,7 +44,7 @@ type WallShieldResult =
       playerId: ValidPlayerId;
       // Heavy hit blew through a shield<2 rampart: wall is destroyed AND the
       // rampart's last point of shield is consumed (drained to 0).
-      rampartConsumed?: { cannonIdx: number };
+      rampartConsumed?: { cannonIdx: CannonIdx };
     }
   | null;
 
@@ -112,7 +113,7 @@ function findShieldingRampart(
   wallOwner: Player,
   wallRow: number,
   wallCol: number,
-): { cannon: Cannon; idx: number } | null {
+): { cannon: Cannon; idx: CannonIdx } | null {
   for (let idx = 0; idx < wallOwner.cannons.length; idx++) {
     const cannon = wallOwner.cannons[idx]!;
     if (!isCannonAlive(cannon) || !isRampartCannon(cannon)) continue;
@@ -123,7 +124,7 @@ function findShieldingRampart(
       Math.abs(wallRow - (cannon.row + 1)),
       Math.abs(wallCol - (cannon.col + 1)),
     );
-    if (dist <= RAMPART_SHIELD_RADIUS) return { cannon, idx };
+    if (dist <= RAMPART_SHIELD_RADIUS) return { cannon, idx: idx as CannonIdx };
   }
   return null;
 }

@@ -4,6 +4,7 @@
 
 import type { Rng } from "../platform/rng.ts";
 import type { Mode } from "../ui/ui-mode.ts";
+import type { CannonIdx } from "./battle-events.ts";
 import type {
   BurningPit,
   Cannonball,
@@ -349,7 +350,7 @@ const MAX_CANNON_SLOT_KEY = 256;
  *  `state.pendingCannonFires`. */
 export function packPendingCannonFireKey(
   playerId: ValidPlayerId,
-  cannonIdx: number,
+  cannonIdx: CannonIdx,
 ): number {
   return playerId * MAX_CANNON_SLOT_KEY + cannonIdx;
 }

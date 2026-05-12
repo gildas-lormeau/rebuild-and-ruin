@@ -8,6 +8,7 @@ import {
   type BallisticTrajectory,
   type CannonDamagedMessage,
   type CannonFiredMessage,
+  type CannonIdx,
   type GruntChippedMessage,
   type GruntKilledMessage,
   type GruntSpawnedMessage,
@@ -278,7 +279,7 @@ export interface FullStateMessage extends SerializedModifierTiles {
   capturedCannons: {
     victimId: ValidPlayerId;
     capturerId: number;
-    cannonIdx: number;
+    cannonIdx: CannonIdx;
   }[];
   cannonballs: (BallisticTrajectory & {
     /** Current parametric cursor — needed so a checkpoint restores

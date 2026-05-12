@@ -6,6 +6,12 @@
 
 import type { ValidPlayerId } from "./player-slot.ts";
 
+/** Index into `player.cannons[]` for a given player. Branded so a raw
+ *  number can't accidentally substitute for one (e.g. a tower index or
+ *  card index of the same shape). Pair with a `playerId: ValidPlayerId`
+ *  to resolve to a concrete `Cannon` via `getCannon(state, …)`. */
+export type CannonIdx = number & { readonly __cannonIdx: true };
+
 /** Originator-pinned trajectory parameters for a cannonball. Computed at
  *  fire time and frozen — every peer that re-runs the parametric flight
  *  must see the same values. Both the runtime `Cannonball` (with its
@@ -13,7 +19,7 @@ import type { ValidPlayerId } from "./player-slot.ts";
  *  `CannonFiredMessage` (with type tag + applyAt) extend this so the 20
  *  shared trajectory fields live in one place. */
 export interface BallisticTrajectory {
-  cannonIdx: number;
+  cannonIdx: CannonIdx;
   playerId: ValidPlayerId;
   /** Set when fired through a captured-cannon path: the capturer who scores
    *  for this ball's effects. `playerId` stays the original cannon owner so
@@ -73,7 +79,7 @@ export interface WallDestroyedMessage {
 export interface CannonDamagedMessage {
   type: "cannonDamaged";
   playerId: ValidPlayerId;
-  cannonIdx: number;
+  cannonIdx: CannonIdx;
   newHp: number;
   shooterId?: number;
 }
@@ -135,7 +141,7 @@ export interface WallAbsorbedMessage {
 export interface WallShieldedMessage {
   type: "wallShielded";
   playerId: ValidPlayerId;
-  cannonIdx: number;
+  cannonIdx: CannonIdx;
   newShieldHp: number;
 }
 

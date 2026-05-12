@@ -1,4 +1,4 @@
-import type { BallisticTrajectory } from "./battle-events.ts";
+import type { BallisticTrajectory, CannonIdx } from "./battle-events.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
@@ -97,7 +97,7 @@ export interface CapturedCannon {
   /** The captured cannon reference. */
   cannon: Cannon;
   /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
-  cannonIdx: number;
+  cannonIdx: CannonIdx;
   /** The player who owns the captured cannon (victim). */
   victimId: ValidPlayerId;
   /** The player who owns the balloon (capturer). */
@@ -106,7 +106,7 @@ export interface CapturedCannon {
 
 /** Result from nextReadyCannon — either an own cannon or a captured one. */
 export type CombinedCannonResult =
-  | { type: "own"; combinedIdx: number; ownIdx: number }
+  | { type: "own"; combinedIdx: number; ownIdx: CannonIdx }
   | { type: "captured"; combinedIdx: number; captured: CapturedCannon };
 
 /** Flight path for a balloon animation. */

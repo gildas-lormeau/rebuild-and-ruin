@@ -13,6 +13,7 @@ import type {
   SerializedPlayer,
 } from "../protocol/checkpoint-data.ts";
 import { type FullStateMessage, MESSAGE } from "../protocol/protocol.ts";
+import type { CannonIdx } from "../shared/core/battle-events.ts";
 import type {
   BalloonFlight,
   Cannon,
@@ -330,7 +331,7 @@ function applyCapturedCannons(
   entries: readonly {
     victimId: number;
     capturerId: number;
-    cannonIdx: number;
+    cannonIdx: CannonIdx;
   }[],
 ): void {
   state.capturedCannons = [];

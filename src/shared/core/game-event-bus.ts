@@ -5,7 +5,11 @@
  * `battle-events.ts`.
  */
 
-import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
+import {
+  BATTLE_MESSAGE,
+  type BattleEvent,
+  type CannonIdx,
+} from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
 import type { Viewport } from "./geometry-types.ts";
@@ -217,7 +221,7 @@ export type EntityEvent =
       playerId: ValidPlayerId;
       row: number;
       col: number;
-      cannonIdx: number;
+      cannonIdx: CannonIdx;
     }
   | {
       type: "gruntSpawn";

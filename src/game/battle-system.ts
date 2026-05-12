@@ -5,6 +5,7 @@
 import {
   BATTLE_MESSAGE,
   type CannonFiredMessage,
+  type CannonIdx,
   createCannonFiredMsg,
   type ImpactEvent,
   type TowerKilledMessage,
@@ -158,7 +159,7 @@ const FIRE_STEP: AnnouncementStep = {
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
-const CANNON_NOT_FOUND = -1;
+const CANNON_NOT_FOUND = -1 as CannonIdx;
 
 /** Called by both the host tick and the watcher recompute after they
  *  mutate `state.timer`. If the timer just crossed from > 0 to 0 during
@@ -540,8 +541,8 @@ export function nextReadyCannon(
   for (let j = 0; j < total; j++) {
     const i = (start + j) % total;
     if (i < ownCount) {
-      if (canFireOwnCannon(state, playerId, i)) {
-        return { type: "own", combinedIdx: i, ownIdx: i };
+      if (canFireOwnCannon(state, playerId, i as CannonIdx)) {
+        return { type: "own", combinedIdx: i, ownIdx: i as CannonIdx };
       }
     } else {
       const cannon = captured[i - ownCount]!;
@@ -937,7 +938,7 @@ function maybeEmitDescendingWhistle(state: GameState, ball: Cannonball): void {
 function fireCannon(
   state: GameState,
   playerId: ValidPlayerId,
-  cannonIdx: number,
+  cannonIdx: CannonIdx,
   targetRow: number,
   targetCol: number,
 ): boolean {
@@ -973,7 +974,7 @@ export function canFireOwnCannon(
     readonly pendingCannonFires: ReadonlySet<number>;
   },
   playerId: ValidPlayerId,
-  cannonIdx: number,
+  cannonIdx: CannonIdx,
 ): boolean {
   const player = state.players[playerId];
   if (!player) return false;
@@ -1050,7 +1051,7 @@ function fireCapturedCannon(
 function launchCannonball(
   state: GameState,
   cannon: Cannon,
-  cannonIdx: number,
+  cannonIdx: CannonIdx,
   playerId: ValidPlayerId,
   targetRow: number,
   targetCol: number,
@@ -1321,7 +1322,7 @@ function collectCannonImpacts(
         events.push({
           type: BATTLE_MESSAGE.CANNON_DAMAGED,
           playerId: player.id,
-          cannonIdx,
+          cannonIdx: cannonIdx as CannonIdx,
           newHp: Math.max(0, cannon.hp - damage),
           shooterId,
         });
@@ -1492,7 +1493,7 @@ function resolveBalloonCaptures(
       const winnerId = state.rng.pick(capturerIds);
       state.capturedCannons.push({
         cannon,
-        cannonIdx,
+        cannonIdx: cannonIdx as CannonIdx,
         victimId: victimId as ValidPlayerId,
         capturerId: winnerId as ValidPlayerId,
       });

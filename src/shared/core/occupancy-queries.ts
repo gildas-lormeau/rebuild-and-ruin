@@ -1,3 +1,4 @@
+import type { CannonIdx } from "./battle-events.ts";
 import { type Cannon, isBalloonCannon } from "./battle-types.ts";
 import type { Tower } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
@@ -33,7 +34,7 @@ export function hasCannonAt(
 export function getCannon(
   state: { readonly players: readonly Player[] },
   playerId: ValidPlayerId,
-  cannonIdx: number,
+  cannonIdx: CannonIdx,
 ): Cannon | undefined {
   return state.players[playerId]?.cannons[cannonIdx];
 }
