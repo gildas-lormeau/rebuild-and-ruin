@@ -9,9 +9,12 @@
 
 import { type Cannon, CannonMode } from "../../shared/core/battle-types.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type {
+  BattleStartCannonDeps,
+  GameState,
+  UpgradeImpl,
+} from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { BattleStartCannonDeps, UpgradeImpl } from "./upgrade-types.ts";
 
 /** Mortar cannonball speed multiplier (half speed). */
 const MORTAR_SPEED_MULT = 0.5;

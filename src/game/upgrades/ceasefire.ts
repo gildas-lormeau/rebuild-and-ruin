@@ -5,9 +5,8 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { GameState } from "../../shared/core/types.ts";
+import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 export const ceasefireImpl: UpgradeImpl = { shouldSkipBattle };
 

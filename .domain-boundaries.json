@@ -73,7 +73,6 @@
       "src/game/modifiers/high-tide.ts",
       "src/game/modifiers/low-water.ts",
       "src/game/modifiers/modifier-eligibility.ts",
-      "src/game/modifiers/modifier-types.ts",
       "src/game/modifier-system.ts",
       "src/game/modifiers/rubble-clearing.ts",
       "src/game/modifiers/sapper.ts",
@@ -110,7 +109,6 @@
       "src/game/upgrades/small-pieces.ts",
       "src/game/upgrades/supply-drop.ts",
       "src/game/upgrades/territorial-ambition.ts",
-      "src/game/upgrades/upgrade-types.ts",
       "src/game/index.ts"
     ],
     "ai": [

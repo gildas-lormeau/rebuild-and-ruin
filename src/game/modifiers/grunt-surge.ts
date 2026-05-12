@@ -8,8 +8,7 @@
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
 import { packTile } from "../../shared/core/spatial.ts";
-import type { GameState } from "../../shared/core/types.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
+import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,

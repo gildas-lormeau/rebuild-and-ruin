@@ -1,11 +1,4 @@
-/**
- * Fog of War modifier — visual-only fog over every merged castle during
- * battle. No tile/entity mutation; the fog effect is rendered by
- * `createFogManager` in `src/render/3d/effects/fog.ts`. This impl declares
- * a no-op apply so the registry can dispatch hooks uniformly.
- */
-
-import type { ModifierImpl } from "./modifier-types.ts";
+import type { ModifierImpl } from "../../shared/core/types.ts";
 
 export const fogOfWarImpl: ModifierImpl = {
   lifecycle: "instant",

@@ -56,11 +56,11 @@
     {
       "label": "Game-domain extension contracts (impl provides hooks, runtime dispatches)",
       "targets": [
-        { "file": "src/game/upgrades/upgrade-types.ts", "interface": "UpgradeImpl" },
-        { "file": "src/game/upgrades/upgrade-types.ts", "interface": "BattleStartCannonDeps" },
-        { "file": "src/game/modifiers/modifier-types.ts", "interface": "InstantModifier" },
-        { "file": "src/game/modifiers/modifier-types.ts", "interface": "PermanentModifier" },
-        { "file": "src/game/modifiers/modifier-types.ts", "interface": "RoundScopedModifier" }
+        { "file": "src/shared/core/types.ts", "interface": "UpgradeImpl" },
+        { "file": "src/shared/core/types.ts", "interface": "BattleStartCannonDeps" },
+        { "file": "src/shared/core/types.ts", "interface": "InstantModifier" },
+        { "file": "src/shared/core/types.ts", "interface": "PermanentModifier" },
+        { "file": "src/shared/core/types.ts", "interface": "RoundScopedModifier" }
       ]
     },
     {

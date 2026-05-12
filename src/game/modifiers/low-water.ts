@@ -21,10 +21,13 @@ import {
   setWater,
   unpackTile,
 } from "../../shared/core/spatial.ts";
-import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type ModifierImpl,
+} from "../../shared/core/types.ts";
 import { recomputeMapZones } from "../zone-recompute.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
 
 export const lowWaterImpl: ModifierImpl = {
   lifecycle: "round-scoped",

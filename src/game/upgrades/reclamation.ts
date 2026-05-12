@@ -9,8 +9,7 @@
 
 import { isCannonAlive } from "../../shared/core/battle-types.ts";
 import type { Player } from "../../shared/core/player-types.ts";
-import type { GameState } from "../../shared/core/types.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
+import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 
 export const reclamationImpl: UpgradeImpl = { onPick };
 

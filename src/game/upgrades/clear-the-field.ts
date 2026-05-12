@@ -6,8 +6,7 @@
  * Wired through src/game/upgrade-system.ts.
  */
 
-import type { GameState } from "../../shared/core/types.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
+import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 
 export const clearTheFieldImpl: UpgradeImpl = { onPick };
 

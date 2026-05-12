@@ -6,8 +6,8 @@
  */
 
 import type { Player } from "../../shared/core/player-types.ts";
+import type { UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Extra cannon slots granted by Supply Drop. */
 const SUPPLY_DROP_BONUS = 2;

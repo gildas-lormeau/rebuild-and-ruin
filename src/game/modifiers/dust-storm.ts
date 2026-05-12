@@ -8,8 +8,7 @@
  */
 
 import { MODIFIER_ID } from "../../shared/core/game-constants.ts";
-import type { GameState } from "../../shared/core/types.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
+import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 
 /** Maximum trajectory jitter (degrees) applied by Dust Storm. */
 const DUST_STORM_JITTER_DEG = 15;

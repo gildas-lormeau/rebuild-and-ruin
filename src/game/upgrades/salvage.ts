@@ -6,9 +6,8 @@
  */
 
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Maximum banked salvage slots per player. Caps runaway snowball if a player
  *  keeps destroying enemy cannons in a single round. */

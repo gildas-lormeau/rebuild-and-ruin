@@ -8,9 +8,8 @@
 
 import { sweepIsolatedWalls } from "../../shared/core/board-occupancy.ts";
 import { isPlayerEliminated } from "../../shared/core/player-types.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type { GameState, UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 export const erosionImpl: UpgradeImpl = { onPick };
 

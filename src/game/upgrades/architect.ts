@@ -8,8 +8,8 @@
  */
 
 import type { Player } from "../../shared/core/player-types.ts";
+import type { UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Number of own-wall tiles an Architect-owning player may overlap per piece. */
 const ARCHITECT_OVERLAP_LIMIT = 1;

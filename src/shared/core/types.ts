@@ -4,8 +4,10 @@
 
 import type { Rng } from "../platform/rng.ts";
 import type { Mode } from "../ui/ui-mode.ts";
+import type { ImpactEvent } from "./battle-events.ts";
 import type {
   BurningPit,
+  Cannon,
   Cannonball,
   CapturedCannon,
   Grunt,
@@ -31,6 +33,7 @@ import type {
 import type { TileKey } from "./grid.ts";
 import type {
   RubbleClearingHeld,
+  SerializedModifierTiles,
   SupplyBonusId,
   SupplyShip,
 } from "./modifier-defs.ts";
@@ -344,6 +347,183 @@ export interface FrameContext {
   readonly lifeLostKeepZoom: boolean;
   /** Non-interactive transition — camera suppresses auto-zoom. */
   readonly isTransition: boolean;
+}
+
+/** Result shape returned by every modifier's apply function. */
+export interface ModifierApplyResult {
+  readonly changedTiles: readonly number[];
+  readonly gruntsSpawned: number;
+}
+
+/** Hooks shared across all lifecycle variants. */
+export interface ModifierImplBase {
+  /** Apply the modifier at battle start. */
+  apply(state: GameState): ModifierApplyResult;
+  /** Opt-out flag: set `true` ONLY when the modifier provably leaves
+   *  walls and tile passability untouched (no map mutation, no wall
+   *  destruction, no grunt enclosure changes). The default — recheck —
+   *  matches the watcher's `applyBattleStartCheckpoint`, which always
+   *  recomputes territory after restoring modifier tiles. Forgetting to
+   *  opt out is harmless (one extra recheck); forgetting to opt IN to a
+   *  recheck on a tile-mutating modifier would silently desync host vs
+   *  watcher territory. Default-on closes that footgun. */
+  skipsRecheck?: true;
+  /** Drop modifier-owned state at the lifecycle's expiry point. Required on
+   *  round-scoped (narrowed below); optional on instant (most instant
+   *  modifiers have nothing to clean up); not used on permanent. Timing is
+   *  derived from `lifecycle`:
+   *   - `instant`     → fires at BATTLE_END (from `finalizeBattle`)
+   *   - `round-scoped` → fires at next CANNON_PLACE-done (from
+   *                      `clearActiveModifiers` in `prepareBattleState`)
+   *   - `permanent`   → never fires (state persists across rounds) */
+  clear?(state: GameState): void;
+}
+
+/** Instant modifier: side effects flow through normal game state at
+ *  apply-time. No persistent modifier-owned state to clean up. */
+export interface InstantModifier extends ModifierImplBase {
+  readonly lifecycle: "instant";
+}
+
+/** Permanent modifier: tile-mutating state survives until the next modifier
+ *  rolls (or, for permanent map mutations, forever). `restore` is required
+ *  because the watcher rebuilds the map from seed and must reapply the
+ *  mutation. Modifiers are global — life loss / zone teardown does not
+ *  touch their state. */
+export interface PermanentModifier extends ModifierImplBase {
+  readonly lifecycle: "permanent";
+  /** Restore tile-mutating state from checkpoint data and re-apply tile
+   *  mutations on a map regenerated from seed. */
+  restore(state: GameState, data: SerializedModifierTiles): void;
+}
+
+/** Round-scoped modifier: active from this round's BATTLE through next
+ *  CANNON_PLACE, cleared just before the next modifier rolls. Global —
+ *  life loss / zone teardown does not touch their state. */
+export interface RoundScopedModifier extends ModifierImplBase {
+  readonly lifecycle: "round-scoped";
+  /** Revert per-modifier state at next round's CANNON_PLACE-done.
+   *  Idempotent. */
+  clear(state: GameState): void;
+  /** Restore tile-mutating state from checkpoint data and re-apply tile
+   *  mutations on a map regenerated from seed. Optional — only needed
+   *  when the modifier carries serializable state (see `needsCheckpoint`
+   *  in modifier-defs.ts). */
+  restore?(state: GameState, data: SerializedModifierTiles): void;
+}
+
+/** Discriminated union of all modifier impls. The `lifecycle` field
+ *  tags each variant and the type system enforces that the right hooks
+ *  are present (e.g. `clear` is required iff `lifecycle === "round-scoped"`). */
+export type ModifierImpl =
+  | InstantModifier
+  | PermanentModifier
+  | RoundScopedModifier;
+
+/** Respawn target returned by onGruntKilled. Anchor coords are the victim's
+ *  home tower — the caller runs findGruntSpawnNear from there. */
+export interface ConscriptionRespawnTarget {
+  readonly victimId: ValidPlayerId;
+  readonly anchorRow: number;
+  readonly anchorCol: number;
+}
+
+/** Dedup key set: identifies cannons already damaged in a ricochet chain. */
+export type RicochetHitSet = Set<string>;
+
+/** Callback supplied by battle-system to apply an impact at a bounce position.
+ *  Receives the same hitCannons set on every call so the caller can skip
+ *  cannon events for cannons already hit earlier in the chain. */
+export type RicochetApplyBounce = (
+  row: number,
+  col: number,
+  hitCannons: RicochetHitSet,
+) => void;
+
+/** Helpers from cannon-system that battle-start hooks need. Injected by
+ *  phase-setup.ts so the dispatcher doesn't have to import from
+ *  cannon-system (cycle avoidance). */
+export interface BattleStartCannonDeps {
+  readonly filterActiveFiringCannons: (player: Player) => Cannon[];
+  readonly isCannonEnclosed: (cannon: Cannon, player: Player) => boolean;
+  readonly homeEnclosedRegion: (player: Player) => Set<number>;
+}
+
+/** Implementation hooks for a single upgrade. All hooks are optional —
+ *  upgrades only implement the hooks relevant to their mechanic.
+ *  Dispatchers in upgrade-system.ts iterate the registry and call each
+ *  hook with the appropriate aggregation strategy. */
+export interface UpgradeImpl {
+  /* ── Pick-time ─────────────────────────────────────────────── */
+
+  /** One-shot effect applied when this upgrade is picked. Registry lookup
+   *  by choice ID means no UID guard is needed inside the implementation. */
+  onPick?: (state: GameState, player: Player) => void;
+
+  /* ── Phase lifecycle ───────────────────────────────────────── */
+
+  /** Configure state at build phase start (e.g. lockout timers). */
+  onBuildPhaseStart?: (state: GameState) => void;
+  /** Run elections/configuration at battle phase start (e.g. mortar pick). */
+  onBattlePhaseStart?: (state: GameState, deps: BattleStartCannonDeps) => void;
+  /** Advance timers each build frame. */
+  tickBuild?: (state: GameState, dt: number) => void;
+
+  /* ── Event hooks ───────────────────────────────────────────── */
+
+  /** Side effects after a piece is placed. */
+  onPiecePlaced?: (
+    state: GameState,
+    player: Player,
+    pieceKeys: ReadonlySet<number>,
+  ) => void;
+  /** Post-impact follow-ups (e.g. ricochet bounces). */
+  onImpactResolved?: (
+    state: GameState,
+    shooterId: ValidPlayerId,
+    hitRow: number,
+    hitCol: number,
+    initialImpactEvents: readonly ImpactEvent[],
+    applyBounce: RicochetApplyBounce,
+  ) => void;
+  /** Query for a grunt respawn target after a kill. First non-null wins. */
+  onGruntKilled?: (
+    state: GameState,
+    shooterId: ValidPlayerId,
+  ) => ConscriptionRespawnTarget | null;
+  /** Side effects after a cannon kill (e.g. salvage slots). */
+  onCannonKilled?: (state: GameState, shooterId: ValidPlayerId) => void;
+  /** Side effects after a cannon is placed (e.g. consume one-shot upgrades).
+   *  Runs from both originator (synchronous + scheduled drain) and receiver
+   *  (scheduled drain) paths via `applyCannonAtDrain` / `placeCannon`.
+   *  Player-only signature (no state) so callers with the narrow
+   *  `CannonViewState` shape can dispatch without a cast. Widen if a future
+   *  consumer needs state — none today. */
+  onCannonPlaced?: (player: Player) => void;
+
+  /* ── Query hooks (aggregated by dispatchers) ───────────────── */
+
+  /** True → skip battle this round (boolean OR). */
+  shouldSkipBattle?: (state: GameState) => boolean;
+  /** False → block this player's build tick (boolean AND). */
+  canPlayerBuild?: (state: GameState, playerId: ValidPlayerId) => boolean;
+  /** Extra build seconds (additive). */
+  buildTimerBonus?: (state: GameState) => number;
+  /** True → wall survives this hit (boolean OR). */
+  shouldAbsorbWallHit?: (player: Player, tileKey: TileKey) => boolean;
+  /** Territory score multiplier (multiplicative). */
+  territoryScoreMult?: (player: Player) => number;
+  /** Extra cannon slots (additive). */
+  cannonSlotsBonus?: (player: Player) => number;
+  /** True → draw from small-piece pool (boolean OR). */
+  useSmallPieces?: (player: Player) => boolean;
+  /** Own-wall tiles allowed to overlap per piece (additive). */
+  wallOverlapAllowance?: (player: Player) => number;
+  /** True → pieces may cover burning pits (boolean OR). */
+  canPlaceOverBurningPit?: (player: Player) => boolean;
+  /** True → pieces may cover grunts (boolean OR). Takes the players array
+   *  because global upgrades (Entomb) need access to every owner. */
+  canPlaceOverGrunt?: (players: readonly Player[], player: Player) => boolean;
 }
 
 /** Pack `(playerId, cannonIdx)` into a single number for the

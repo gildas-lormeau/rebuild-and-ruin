@@ -13,9 +13,12 @@ import {
 } from "../../shared/core/battle-events.ts";
 import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type {
+  GameState,
+  RicochetApplyBounce,
+  UpgradeImpl,
+} from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { RicochetApplyBounce, UpgradeImpl } from "./upgrade-types.ts";
 
 /** Number of random bounces after a ricochet impact. */
 const RICOCHET_BOUNCES = 2;

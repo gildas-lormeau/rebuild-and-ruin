@@ -18,8 +18,12 @@ import {
   type Player,
 } from "../shared/core/player-types.ts";
 import {
+  type BattleStartCannonDeps,
+  type ConscriptionRespawnTarget,
   type GameState,
   hasFeature,
+  type RicochetApplyBounce,
+  type UpgradeImpl,
   type UpgradeOfferTuple,
 } from "../shared/core/types.ts";
 import {
@@ -51,12 +55,6 @@ import { shieldBatteryImpl } from "./upgrades/shield-battery.ts";
 import { smallPiecesImpl } from "./upgrades/small-pieces.ts";
 import { supplyDropImpl } from "./upgrades/supply-drop.ts";
 import { territorialAmbitionImpl } from "./upgrades/territorial-ambition.ts";
-import type {
-  BattleStartCannonDeps,
-  ConscriptionRespawnTarget,
-  RicochetApplyBounce,
-  UpgradeImpl,
-} from "./upgrades/upgrade-types.ts";
 
 /** Compile-time exhaustiveness: every UpgradeId must have an impl entry. */
 const UPGRADE_IMPLS = {

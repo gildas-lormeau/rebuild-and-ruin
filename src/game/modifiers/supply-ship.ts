@@ -17,9 +17,8 @@ import type {
   SupplyShip,
 } from "../../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { Rng } from "../../shared/platform/rng.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Three ships per battle — one per Y-river arm (map.exits has 3 entries). */
 const SUPPLY_SHIP_COUNT = 3;

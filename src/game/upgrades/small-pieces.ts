@@ -6,8 +6,8 @@
  */
 
 import type { Player } from "../../shared/core/player-types.ts";
+import type { UpgradeImpl } from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 export const smallPiecesImpl: UpgradeImpl = { useSmallPieces };
 

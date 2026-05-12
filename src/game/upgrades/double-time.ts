@@ -6,9 +6,12 @@
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
-import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeImpl,
+} from "../../shared/core/types.ts";
 import { isGlobalUpgradeActive, UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Extra build seconds granted by Double Time (global — applies to every
  *  player when any single owner picks it). Internal: callers go through

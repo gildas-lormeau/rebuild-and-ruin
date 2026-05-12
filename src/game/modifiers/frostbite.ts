@@ -6,8 +6,7 @@
  */
 
 import { packTile } from "../../shared/core/spatial.ts";
-import type { GameState } from "../../shared/core/types.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
+import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 
 export const frostbiteImpl: ModifierImpl = {
   lifecycle: "instant",

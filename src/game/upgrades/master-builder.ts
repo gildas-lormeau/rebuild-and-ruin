@@ -9,9 +9,12 @@
 import { FID } from "../../shared/core/feature-defs.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerAlive } from "../../shared/core/player-types.ts";
-import { type GameState, hasFeature } from "../../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeImpl,
+} from "../../shared/core/types.ts";
 import { UID } from "../../shared/core/upgrade-defs.ts";
-import type { UpgradeImpl } from "./upgrade-types.ts";
 
 /** Extra build seconds granted by Master Builder. With 1 owner, that owner
  *  gets these seconds as an exclusive head-start (others locked out). With

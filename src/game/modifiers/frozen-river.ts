@@ -15,8 +15,11 @@ import {
   isWater,
   packTile,
 } from "../../shared/core/spatial.ts";
-import { type GameState, hasFeature } from "../../shared/core/types.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type ModifierImpl,
+} from "../../shared/core/types.ts";
 
 export const frozenRiverImpl: ModifierImpl = {
   lifecycle: "round-scoped",

@@ -16,7 +16,11 @@ import {
   IMPLEMENTED_MODIFIERS,
   type SerializedModifierTiles,
 } from "../shared/core/modifier-defs.ts";
-import { type GameState, hasFeature } from "../shared/core/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type ModifierImpl,
+} from "../shared/core/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 import { dustStormImpl } from "./modifiers/dust-storm.ts";
 import { dryLightningImpl, wildfireImpl } from "./modifiers/fire.ts";
@@ -26,7 +30,6 @@ import { frozenRiverImpl } from "./modifiers/frozen-river.ts";
 import { createGruntSurgeImpl } from "./modifiers/grunt-surge.ts";
 import { highTideImpl } from "./modifiers/high-tide.ts";
 import { lowWaterImpl } from "./modifiers/low-water.ts";
-import type { ModifierImpl } from "./modifiers/modifier-types.ts";
 import { rubbleClearingImpl } from "./modifiers/rubble-clearing.ts";
 import { sapperImpl } from "./modifiers/sapper.ts";
 import { sinkholeImpl } from "./modifiers/sinkhole.ts";

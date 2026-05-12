@@ -20,14 +20,13 @@ import {
   unpackTile,
   zoneAt,
 } from "../../shared/core/spatial.ts";
-import type { GameState } from "../../shared/core/types.ts";
+import type { GameState, ModifierImpl } from "../../shared/core/types.ts";
 import type { ZoneId } from "../../shared/core/zone-id.ts";
 import { evictEntitiesOnTiles } from "./evict-tiles.ts";
 import {
   getActiveZones,
   getProtectedCastleTiles,
 } from "./modifier-eligibility.ts";
-import type { ModifierImpl } from "./modifier-types.ts";
 
 /** Dry lightning: random scattered strikes per active zone. */
 const DRY_LIGHTNING_MIN = 3;

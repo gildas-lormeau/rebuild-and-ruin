@@ -9,12 +9,12 @@
 
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import { isPlayerSeated } from "../../shared/core/player-types.ts";
-import type { GameState } from "../../shared/core/types.ts";
-import { UID } from "../../shared/core/upgrade-defs.ts";
 import type {
   ConscriptionRespawnTarget,
+  GameState,
   UpgradeImpl,
-} from "./upgrade-types.ts";
+} from "../../shared/core/types.ts";
+import { UID } from "../../shared/core/upgrade-defs.ts";
 
 /** Probability that a killed grunt triggers a Conscription respawn. */
 const CONSCRIPTION_SPAWN_CHANCE = 0.75;
