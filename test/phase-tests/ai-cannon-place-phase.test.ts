@@ -19,6 +19,7 @@ import {
   recomputeFixtureDerivedState,
 } from "./loader.ts";
 import { packTile } from "../../src/shared/core/spatial.ts";
+import { cannonModeDef } from "../../src/shared/core/cannon-mode-defs.ts";
 import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
@@ -34,6 +35,34 @@ Deno.test("phase-test: cannon-place round-1 fixture lands at CANNON_PLACE with c
       `Player ${player.id} should have a castle after the AI-driven CASTLE_SELECT`,
     );
   }
+});
+
+Deno.test("phase-test: AI places every cannon inside its own enclosed interior", async () => {
+  const sc = await createPhaseScenario(roundOneDefault as FixtureFile);
+  // Drive the AI through CANNON_PLACE — entering BATTLE is the signal that
+  // every active player finished placement.
+  waitForPhase(sc, Phase.BATTLE);
+
+  let totalCannons = 0;
+  for (const player of sc.state.players) {
+    if (player.eliminated) continue;
+    for (const cannon of player.cannons) {
+      totalCannons++;
+      const size = cannonModeDef(cannon.mode).size;
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          const key = packTile(cannon.row + dr, cannon.col + dc);
+          assert(
+            player.interior.has(key),
+            `player ${player.id} cannon at (${cannon.row},${cannon.col}) ` +
+              `mode=${cannon.mode} has footprint tile (${cannon.row + dr},${cannon.col + dc}) ` +
+              `that is NOT inside the player's interior`,
+          );
+        }
+      }
+    }
+  }
+  assertGreater(totalCannons, 0, "expected at least one cannon to be placed");
 });
 
 Deno.test("phase-test: cannon-place round-1 fixture progresses to BATTLE under AI", async () => {
