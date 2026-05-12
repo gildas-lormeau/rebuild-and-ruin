@@ -143,7 +143,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  dispatches `advance-to-cannon`. Host-only — watcher path builds
    *  its own route bundle in `online-phase-transitions.ts`. */
   lifeLostRoute: {
-    onGameOver: (winner: { id: number }, reason: GameOverReason) => void;
+    onGameOver: (winner: { id: ValidPlayerId }, reason: GameOverReason) => void;
     onReselect: (continuing: readonly ValidPlayerId[]) => void;
     onAdvance: () => void;
   };
@@ -180,7 +180,7 @@ interface PhaseTicksDeps extends Pick<RuntimeConfig, "log"> {
    *  Mode.STOPPED, arm demo timer). Wired to `lifecycle.endGame` from
    *  composition. The machine's `round-limit-reached` /
    *  `last-player-standing` mutate calls this through `ctx.endGame`. */
-  endGame: (winner: { id: number }) => void;
+  endGame: (winner: { id: ValidPlayerId }) => void;
   /** Request an immediate untilt ease at battle-end. Called every tick
    *  while the phase-ticks system waits for `getPitchState() === "flat"`
    *  before firing the battle-done banner capture. */
@@ -214,7 +214,10 @@ export interface PhaseTicksSystem {
   dispatchCastleDone: () => void;
   /** Dispatch the game-over transition (`last-player-standing` or
    *  `round-limit-reached`); the mutate calls `ctx.endGame(winner)`. */
-  dispatchGameOver: (winner: { id: number }, reason: GameOverReason) => void;
+  dispatchGameOver: (
+    winner: { id: ValidPlayerId },
+    reason: GameOverReason,
+  ) => void;
   startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
   beginBattle: () => void;
@@ -284,7 +287,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     runTransition("castle-done", buildHostPhaseCtx());
   }
 
-  function dispatchGameOver(winner: { id: number }, reason: GameOverReason) {
+  function dispatchGameOver(
+    winner: { id: ValidPlayerId },
+    reason: GameOverReason,
+  ) {
     runTransition(reason, {
       ...buildHostPhaseCtx(),
       winner,

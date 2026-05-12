@@ -221,7 +221,7 @@ export interface PhaseTransitionCtx {
    *  life-lost-dialog step can omit. */
   readonly lifeLostRoute?: {
     readonly onGameOver: (
-      winner: { id: number },
+      winner: { id: ValidPlayerId },
       reason: GameOverReason,
     ) => void;
     readonly onReselect: (continuing: readonly ValidPlayerId[]) => void;
@@ -308,10 +308,10 @@ export interface PhaseTransitionCtx {
   /** End-game side effects (set game-over frame, stop sound, switch to
    *  Mode.STOPPED, arm demo timer). Used by `round-limit-reached` /
    *  `last-player-standing` transitions. Host-only. */
-  readonly endGame?: (winner: { id: number }) => void;
+  readonly endGame?: (winner: { id: ValidPlayerId }) => void;
   /** Winner determined by the life-lost resolution. Threaded through via
    *  ctx so the mutate can pass it to `endGame`. */
-  readonly winner?: { id: number };
+  readonly winner?: { id: ValidPlayerId };
 }
 
 /** Default "no battle-entry data" result. Every transition whose mutate

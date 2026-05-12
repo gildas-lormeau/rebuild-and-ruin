@@ -312,7 +312,7 @@ export class RoomManager {
   }
 
   /** Get the slot occupied by the host, or null if host hasn't selected a slot. */
-  getHostId(entry: RoomEntry): number | null {
+  getHostId(entry: RoomEntry): ValidPlayerId | null {
     return entry.slotAssignments.get(entry.hostSocket) ?? null;
   }
 

@@ -229,7 +229,7 @@ export function restoreFullStateSnapshot(
 }
 
 export function createGameOverPayload(
-  winner: { id: number },
+  winner: { id: ValidPlayerId },
   state: GameState,
   playerNames: ReadonlyArray<string>,
 ) {
@@ -329,8 +329,8 @@ function applyGruntsCheckpoint(
 function applyCapturedCannons(
   state: GameState,
   entries: readonly {
-    victimId: number;
-    capturerId: number;
+    victimId: ValidPlayerId;
+    capturerId: ValidPlayerId;
     cannonIdx: CannonIdx;
   }[],
 ): void {

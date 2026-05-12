@@ -72,7 +72,7 @@ export interface WallDestroyedMessage {
   row: number;
   col: number;
   playerId: ValidPlayerId;
-  shooterId?: number;
+  shooterId?: ValidPlayerId;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
@@ -81,14 +81,14 @@ export interface CannonDamagedMessage {
   playerId: ValidPlayerId;
   cannonIdx: CannonIdx;
   newHp: number;
-  shooterId?: number;
+  shooterId?: ValidPlayerId;
 }
 
 export interface GruntKilledMessage {
   type: "gruntKilled";
   row: number;
   col: number;
-  shooterId?: number;
+  shooterId?: ValidPlayerId;
 }
 
 /** A frosted grunt absorbed its first hit (ice chip — grunt survives with
@@ -97,7 +97,7 @@ export interface GruntChippedMessage {
   type: "gruntChipped";
   row: number;
   col: number;
-  shooterId?: number;
+  shooterId?: ValidPlayerId;
 }
 
 export interface HouseDestroyedMessage {

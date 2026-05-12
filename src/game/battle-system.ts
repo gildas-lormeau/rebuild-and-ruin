@@ -310,7 +310,7 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
   // Assign each balloon to a target (deferred to avoid double-counting)
   const assignments: {
     balloon: Cannon;
-    ownerId: number;
+    ownerId: ValidPlayerId;
     target: Cannon;
     victimId: ValidPlayerId;
   }[] = [];
@@ -760,7 +760,7 @@ function tickCannonballs(state: GameState, dt: number): CannonballUpdateResult {
 function applyImpactEvent(
   state: GameState,
   event: ImpactEvent,
-  shooterId?: number,
+  shooterId?: ValidPlayerId,
   suppressCombo?: boolean,
 ): void {
   // Prefer shooterId from event (network payload) over parameter (host fallback)

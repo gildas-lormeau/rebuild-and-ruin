@@ -923,7 +923,7 @@ function ballTargeting(
 }
 
 function isEnemyEligibleForFocus(
-  enemyId: number,
+  enemyId: ValidPlayerId,
   focusFirePlayerId: ValidPlayerId | undefined,
   switchTarget: boolean,
 ): boolean {

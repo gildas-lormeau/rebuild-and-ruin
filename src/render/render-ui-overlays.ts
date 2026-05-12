@@ -432,7 +432,7 @@ export function createOnlineOverlay(
 
 /** Build the game-over overlay from the winner, per-player snapshots, and stats. */
 export function buildGameOverOverlay(
-  winnerId: number,
+  winnerId: ValidPlayerId,
   players: readonly {
     id: ValidPlayerId;
     score: number;

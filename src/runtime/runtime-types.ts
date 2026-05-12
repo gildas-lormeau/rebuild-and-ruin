@@ -249,7 +249,7 @@ export interface RuntimeConfig {
   onlineDialogDrains?: OnlineDialogDrains;
   /** Online-only game-over broadcast hook. Fires once when the game ends,
    *  before the frame's gameOver payload is set. */
-  onEndGame?: (winner: { id: number }, state: GameState) => void;
+  onEndGame?: (winner: { id: ValidPlayerId }, state: GameState) => void;
 
   /** Test-only sub-system observers. Threaded from the test scenario
    *  through `createHeadlessRuntime` so tests can capture intents

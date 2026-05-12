@@ -107,7 +107,7 @@ export interface RoomJoinedMessage {
   players: { playerId: ValidPlayerId; name: string }[];
   settings: RoomSettings;
   /** PlayerId of the host, or null if the host hasn't selected a slot yet. */
-  hostId: number | null;
+  hostId: ValidPlayerId | null;
   seed: number;
   /** Seconds elapsed since room creation (for lobby timer sync). */
   elapsedSec: number;
@@ -278,7 +278,7 @@ export interface FullStateMessage extends SerializedModifierTiles {
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerId;
-    capturerId: number;
+    capturerId: ValidPlayerId;
     cannonIdx: CannonIdx;
   }[];
   cannonballs: (BallisticTrajectory & {

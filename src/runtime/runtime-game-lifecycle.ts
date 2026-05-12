@@ -42,8 +42,8 @@ interface GameLifecycleDeps {
   readonly bootstrapNewGame: () => void | Promise<void>;
 
   // Game end
-  readonly setGameOverFrame: (winner: { id: number }) => void;
-  readonly onEndGame?: (winner: { id: number }) => void;
+  readonly setGameOverFrame: (winner: { id: ValidPlayerId }) => void;
+  readonly onEndGame?: (winner: { id: ValidPlayerId }) => void;
   readonly isAllAi: () => boolean;
   readonly isModeStopped: () => boolean;
 
@@ -83,7 +83,7 @@ interface GameLifecycleDeps {
 }
 
 interface GameLifecycleSystem extends RuntimeLifecycle {
-  endGame: (winner: { id: number }) => void;
+  endGame: (winner: { id: ValidPlayerId }) => void;
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
 }
@@ -116,7 +116,7 @@ interface LifecycleWiringDeps {
 
   // Render-domain (injected from composition root)
   readonly buildGameOverOverlay: (
-    winnerId: number,
+    winnerId: ValidPlayerId,
     players: readonly {
       id: ValidPlayerId;
       score: number;
@@ -161,7 +161,7 @@ export function createGameLifecycle(
     deps.setModeStopped();
   }
 
-  function endGame(winner: { id: number }): void {
+  function endGame(winner: { id: ValidPlayerId }): void {
     finalizeGameOver(() => deps.setGameOverFrame(winner));
     deps.onEndGame?.(winner);
 
