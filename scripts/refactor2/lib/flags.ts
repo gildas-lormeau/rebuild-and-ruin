@@ -18,6 +18,7 @@ const BOOL_FLAGS = new Set([
   "force",
   "idempotent",
   "no-idempotent",
+  "import-type",
 ]);
 const MULTI_FLAGS = new Set(["include", "exclude", "symbol", "files"]);
 const VALID_OUTPUTS: ReadonlySet<OutputFormat> = new Set<OutputFormat>([
