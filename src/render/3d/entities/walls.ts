@@ -8,7 +8,11 @@
  */
 
 import * as THREE from "three";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { buildWall } from "../sprites/wall-scene.ts";
@@ -55,7 +59,7 @@ interface MaskBucket {
 interface WallEntry {
   readonly col: number;
   readonly row: number;
-  readonly tileKey: number;
+  readonly tileKey: TileKey;
   /** True for impact-destroyed walls held during the post-destruction
    *  animation; false for live walls. Drives the per-frame
    *  anim-attribute writes in the cheap path — only held entries get
@@ -167,13 +171,14 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
         ? ""
         : [...sapperTargeted].sort((a, b) => a - b).join(",");
 
-    const liveKeys: number[] = [];
-    const damagedKeys = new Set<number>();
+    const liveKeys: TileKey[] = [];
+    const damagedKeys = new Set<TileKey>();
     if (overlay?.castles) {
       for (const castle of overlay.castles) {
-        for (const key of castle.walls) liveKeys.push(key);
+        for (const key of castle.walls) liveKeys.push(key as TileKey);
         if (castle.damagedWalls) {
-          for (const key of castle.damagedWalls) damagedKeys.add(key);
+          for (const key of castle.damagedWalls)
+            damagedKeys.add(key as TileKey);
         }
       }
     }
@@ -181,8 +186,8 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     // Held entries: per-tile multipliers (sinkY in object-space, divided
     // by WALL_SCALE so the shader's `transformed.y -= instanceSinkY`
     // produces a world-space sink in pre-scale units).
-    const heldKeys: number[] = [];
-    const heldDamagedKeys = new Set<number>();
+    const heldKeys: TileKey[] = [];
+    const heldDamagedKeys = new Set<TileKey>();
     const heldByKey = new Map<
       number,
       { sinkY: number; opacity: number; damaged: boolean }
@@ -191,8 +196,8 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
       for (const wall of destroyedWalls) {
         const multipliers = wallDestroyAnimAt(wall.age * 1000);
         const tileKey = wall.row * GRID_COLS + wall.col;
-        heldKeys.push(tileKey);
-        if (wall.damaged) heldDamagedKeys.add(tileKey);
+        heldKeys.push(tileKey as TileKey);
+        if (wall.damaged) heldDamagedKeys.add(tileKey as TileKey);
         heldByKey.set(tileKey, {
           sinkY: multipliers.sinkOffset / WALL_SCALE,
           opacity: multipliers.wallOpacity,
@@ -232,14 +237,14 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
         return;
       }
 
-      const liveSet = new Set<number>(liveKeys);
-      const unionSet = new Set<number>(liveKeys);
+      const liveSet = new Set<TileKey>(liveKeys);
+      const unionSet = new Set<TileKey>(liveKeys);
       for (const key of heldKeys) unionSet.add(key);
 
       const byBucket = new Map<number, WallEntry[]>();
       const sources: ReadonlyArray<{
-        readonly keys: readonly number[];
-        readonly damagedSet: ReadonlySet<number>;
+        readonly keys: readonly TileKey[];
+        readonly damagedSet: ReadonlySet<TileKey>;
         readonly held: boolean;
       }> = [
         { keys: liveKeys, damagedSet: damagedKeys, held: false },
@@ -262,7 +267,7 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
           list.push({
             col,
             row,
-            tileKey: key,
+            tileKey: key as TileKey,
             held: source.held,
             opacity: heldData?.opacity ?? 1,
             tint,

@@ -9,6 +9,7 @@
 import { buildPlacementContext, canPlacePiece } from "../game/index.ts";
 import { buildOccupancyCache } from "../shared/core/board-occupancy.ts";
 import type { TileRect } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import {
   ALL_PIECE_SHAPES,
   type PieceShape,
@@ -62,7 +63,7 @@ export function plugUnreachableGaps(
   for (const gapKey of unreachable) gaps.delete(gapKey);
   // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
   for (const gapKey of unreachable) {
-    const { r: gr, c: gc } = unpackTile(gapKey);
+    const { r: gr, c: gc } = unpackTile(gapKey as TileKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = gr + dr,
         nc = gc + dc;
@@ -139,7 +140,7 @@ function canAnyRotationFillGap(
     let rot = shape;
     for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
       for (const gapKey of gaps) {
-        const { r: gr, c: gc } = unpackTile(gapKey);
+        const { r: gr, c: gc } = unpackTile(gapKey as TileKey);
         for (const [dr, dc] of rot.offsets) {
           if (
             canPlacePiece(

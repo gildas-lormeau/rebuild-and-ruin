@@ -5,6 +5,7 @@ import {
   isBalloonCannon,
 } from "./battle-types.ts";
 import type { BonusSquare, TowerIdx } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
@@ -64,7 +65,7 @@ export const HOUSE_SPAWN_BLOCKED = {
   includeBonusSquares: true,
 } as const;
 
-export function isTileOwnedByPlayer(player: Player, key: number): boolean {
+export function isTileOwnedByPlayer(player: Player, key: TileKey): boolean {
   assertInteriorFresh(player);
   return player.interior.has(key) || player.walls.has(key);
 }
@@ -138,7 +139,7 @@ export function collectOccupiedTiles(
 }
 
 /** Snapshot each player's wall set (independent copies). */
-export function snapshotAllWalls(state: GameViewState): Set<number>[] {
+export function snapshotAllWalls(state: GameViewState): Set<TileKey>[] {
   return state.players.map((player) => new Set(player.walls));
 }
 
@@ -173,7 +174,7 @@ export function hasEnemyWallAt(
   return hasWallMatching(state, key, (player) => player.id !== playerId);
 }
 
-export function hasInteriorAt(state: GameViewState, key: number): boolean {
+export function hasInteriorAt(state: GameViewState, key: TileKey): boolean {
   return state.players.some((player) => {
     assertInteriorFresh(player);
     return player.interior.has(key);
@@ -313,7 +314,7 @@ export function filterActiveEnemies(
   );
 }
 
-export function addPlayerWall(player: Player, key: number): void {
+export function addPlayerWall(player: Player, key: TileKey): void {
   mutableWalls(player).add(key);
   markWallsDirty(player);
 }
@@ -388,7 +389,7 @@ function collectAllCannonTiles(
 function removeIsolatedWalls(walls: Set<number>): void {
   const toRemove: number[] = [];
   for (const key of walls) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
   }
   for (const key of toRemove) walls.delete(key);
@@ -396,12 +397,12 @@ function removeIsolatedWalls(walls: Set<number>): void {
 
 /** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
 function mutableWalls(player: Player): Set<number> {
-  return player.walls as Set<number>;
+  return player.walls as Set<TileKey>;
 }
 
 function hasWallMatching(
   state: GameViewState,
-  key: number,
+  key: TileKey,
   predicate: (player: Player) => boolean,
 ): boolean {
   return state.players.some(

@@ -27,7 +27,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import type { TilePos, TowerIdx } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   findTowerOwner,
@@ -232,8 +232,13 @@ export function gruntAttackTowers(
           // Rampart shields it; shield side effects applied directly (no bus
           // events — matches today's silent grunt wall removal).
           // Interior-staleness contract: see battle-system.ts applyImpactEvent JSDoc.
-          const { r, c } = unpackTile(grunt.targetedWall);
-          const result = resolveWallShield(state, r, c, grunt.targetedWall);
+          const { r, c } = unpackTile(grunt.targetedWall as TileKey);
+          const result = resolveWallShield(
+            state,
+            r,
+            c,
+            grunt.targetedWall as TileKey,
+          );
           if (result?.absorbed) {
             applyWallShield(state, result);
           } else if (result) {
@@ -245,7 +250,8 @@ export function gruntAttackTowers(
             // `tickBattlePhase` via `wallEvents` for wire broadcast and
             // watcher-side `applyImpactEvent`.
             const owner = state.players[result.playerId];
-            if (owner) deletePlayerWallBattle(owner, grunt.targetedWall);
+            if (owner)
+              deletePlayerWallBattle(owner, grunt.targetedWall as TileKey);
             // Mirror applyImpactEvent: clear targetedWall on every grunt
             // that was aiming at this wall (grunts don't move, no repick).
             const destroyedKey = grunt.targetedWall;
@@ -619,7 +625,7 @@ function pickAdjacentWallKeyForAttack(
   let bestWallKey = -1;
   let bestDist = Infinity;
   for (const wallKey of walls) {
-    const { r: nr, c: nc } = unpackTile(wallKey);
+    const { r: nr, c: nc } = unpackTile(wallKey as TileKey);
     const distance = manhattanDistance(nr, nc, target.row, target.col);
     if (distance < bestDist) {
       bestDist = distance;

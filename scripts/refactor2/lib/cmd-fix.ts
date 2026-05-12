@@ -4,6 +4,7 @@ import {
   Node,
   type SourceFile,
 } from "ts-morph";
+import { resolveImportsForFiles } from "./import-resolver.ts";
 import { assertNotPinned } from "./pinned.ts";
 import type { CommandContext, CommandResult, FileChange } from "./types.ts";
 
@@ -111,6 +112,11 @@ async function handleFixAssignability(
 
   const touched = [...visitedFiles];
   assertNotPinned(touched, ctx.pinned, ctx.flags.force);
+
+  // Auto-import any new type names the casts introduced. Without this,
+  // `(x as TileKey)` succeeds in-memory but tsc errors "Cannot find name
+  // 'TileKey'" because the type isn't in scope.
+  resolveImportsForFiles(ctx.project, [...touched]);
 
   const changes: FileChange[] = [];
   for (const file of touched) {

@@ -31,6 +31,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import {
   type CannonPhantomPayload,
   type CannonPlacedPayload,
@@ -338,10 +339,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           battleAnim.flights = [...flights];
         },
         setTerritory: (territory) => {
-          battleAnim.territory = territory.map((set) => new Set(set));
+          battleAnim.territory = territory.map((set) => new Set<TileKey>(set));
         },
         setWalls: (walls) => {
-          battleAnim.walls = walls.map((set) => new Set(set));
+          battleAnim.walls = walls.map((set) => new Set<TileKey>(set));
         },
         clearImpacts: () => clearImpacts(battleAnim),
         begin: beginBattle,

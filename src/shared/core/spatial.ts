@@ -16,7 +16,7 @@ import type {
   Tower,
   TowerIdx,
 } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile, type TileKey } from "./grid.ts";
 import { type Player, playerByZone } from "./player-types.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
 
@@ -51,7 +51,7 @@ export const TILE_CENTER_OFFSET = 0.5;
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
   tilePos: TilePos,
-  callback: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: TileKey) => void,
 ): void {
   forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, callback);
 }
@@ -73,7 +73,7 @@ export function computeCannonTileSet(
 /** Call `fn` for each tile of a cannon footprint (size based on mode). */
 export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "mode">,
-  callback: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: TileKey) => void,
 ): void {
   forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.mode), callback);
 }
@@ -596,7 +596,7 @@ export function castleCenterPx(
 }
 
 /** Convert a packed tile key back to row/column coordinates. */
-export function unpackTile(key: number): { r: number; c: number } {
+export function unpackTile(key: TileKey): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
 }
 
@@ -652,7 +652,7 @@ function forEachSquareTile(
   top: number,
   left: number,
   size: number,
-  callback: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: TileKey) => void,
 ): void {
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
@@ -665,9 +665,9 @@ function forEachSquareTile(
 
 /** Pack row/column into a flat tile key (row * GRID_COLS + col).
  *  Use this instead of manual encoding.
- *  Used for all Set<number> tile collections. See unpackTile() for reverse. */
-export function packTile(r: number, c: number): number {
-  return r * GRID_COLS + c;
+ *  Used for all Set<TileKey> tile collections. See unpackTile() for reverse. */
+export function packTile(r: number, c: number): TileKey {
+  return (r * GRID_COLS + c) as TileKey;
 }
 
 /** True if tile is on the outer map border. */

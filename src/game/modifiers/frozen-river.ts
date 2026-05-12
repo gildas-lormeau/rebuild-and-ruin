@@ -8,7 +8,7 @@
 
 import type { Grunt } from "../../shared/core/battle-types.ts";
 import { FID } from "../../shared/core/feature-defs.ts";
-import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import {
   filterOffTiles,
@@ -31,7 +31,7 @@ export const frozenRiverImpl: ModifierImpl = {
   restore: (state: GameState, data: SerializedModifierTiles) => {
     if ("frozenTiles" in data) {
       state.modern!.frozenTiles = data.frozenTiles
-        ? new Set(data.frozenTiles)
+        ? new Set(data.frozenTiles as TileKey[])
         : null;
     }
   },
@@ -39,10 +39,10 @@ export const frozenRiverImpl: ModifierImpl = {
 
 /** Apply frozen river: freeze the entire river, allowing grunts to walk
  *  across zones and target any tower. Returns the set of frozen tile keys. */
-function applyFrozenRiver(state: GameState): ReadonlySet<number> {
+function applyFrozenRiver(state: GameState): ReadonlySet<TileKey> {
   const modern = state.modern;
   if (!modern) return new Set();
-  const frozen = new Set<number>();
+  const frozen = new Set<TileKey>();
   const tiles = state.map.tiles;
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {

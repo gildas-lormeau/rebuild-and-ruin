@@ -43,7 +43,7 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
-import { TILE_SIZE } from "../shared/core/grid.ts";
+import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -396,7 +396,7 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
  *  including them here would paint cobblestone under destroyed walls
  *  once the wall sprite/mesh is removed. With walls out of the set, a
  *  destroyed-wall tile falls back to plain grass (its real terrain). */
-export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
+export function snapshotTerritory(players: readonly Player[]): Set<TileKey>[] {
   return players.map((player) => new Set(getInterior(player)));
 }
 
@@ -1255,7 +1255,7 @@ function computeImpact(
  *  consumes 2 rampart shield HP (destroys wall + drains shield when shield<2). */
 function collectWallImpacts(
   state: GameState,
-  key: number,
+  key: TileKey,
   row: number,
   col: number,
   shooterId: ValidPlayerId,
@@ -1269,7 +1269,7 @@ function collectWallImpacts(
     events.push({
       type: BATTLE_MESSAGE.WALL_ABSORBED,
       playerId: result.playerId,
-      tileKey: result.tileKey,
+      tileKey: result.tileKey as TileKey,
     });
     return { events, hitWall: false };
   }

@@ -10,6 +10,7 @@
 import type { ImpactEvent } from "../shared/core/battle-events.ts";
 import { FID } from "../shared/core/feature-defs.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import { type ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   cannonTier,
@@ -145,7 +146,7 @@ export function ballSpeedMult(player: Player, isMortar: boolean): number {
 /** True when a wall hit should be absorbed (wall survives this shot).
  *  Caller is responsible for emitting WALL_ABSORBED and marking the tile
  *  in damagedWalls via the event dispatch. */
-export function shouldAbsorbWallHit(player: Player, tileKey: number): boolean {
+export function shouldAbsorbWallHit(player: Player, tileKey: TileKey): boolean {
   for (const impl of UPGRADE_REGISTRY.values()) {
     if (impl.shouldAbsorbWallHit?.(player, tileKey)) return true;
   }

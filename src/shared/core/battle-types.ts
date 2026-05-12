@@ -1,5 +1,6 @@
 import type { BallisticTrajectory, CannonIdx } from "./battle-events.ts";
 import type { PixelPos, TilePos, TowerIdx } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
@@ -186,8 +187,8 @@ export interface HouseDestroy extends TilePos {
 
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
-  territory: Set<number>[];
-  walls: Set<number>[];
+  territory: Set<TileKey>[];
+  walls: Set<TileKey>[];
   flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
   thawing: ThawingTile[];

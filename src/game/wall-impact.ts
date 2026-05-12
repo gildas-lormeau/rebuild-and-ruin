@@ -14,6 +14,7 @@ import {
 } from "../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -57,7 +58,7 @@ export function resolveWallShield(
   state: GameState,
   row: number,
   col: number,
-  key: number,
+  key: TileKey,
   heavy?: boolean,
 ): WallShieldResult {
   for (const player of state.players) {
@@ -101,7 +102,7 @@ export function applyWallShield(
 ): void {
   if (!result || !result.absorbed) return;
   if (result.kind === ShieldKind.Reinforced) {
-    state.players[result.playerId]?.damagedWalls.add(result.tileKey);
+    state.players[result.playerId]?.damagedWalls.add(result.tileKey as TileKey);
     return;
   }
   const cannon = getCannon(state, result.playerId, result.cannonIdx);

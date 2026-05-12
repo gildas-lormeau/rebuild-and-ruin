@@ -11,7 +11,7 @@ import {
   hasGruntAt,
 } from "../shared/core/board-occupancy.ts";
 import type { Castle, TileRect, Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/core/pieces.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -197,7 +197,8 @@ export function pickPlacement(
   // freely inside an open (gapped) enclosure. Without this exclusion, scoring
   // would penalize placements near gaps that need filling.
   const interiorExcludingGaps = new Set(getInterior(player));
-  for (const gapKey of targetGaps) interiorExcludingGaps.delete(gapKey);
+  for (const gapKey of targetGaps)
+    interiorExcludingGaps.delete(gapKey as TileKey);
   if (targetRect) {
     for (let r = targetRect.top; r <= targetRect.bottom; r++) {
       for (let c = targetRect.left; c <= targetRect.right; c++) {
@@ -573,7 +574,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     let expanded = false;
 
     for (const key of gaps) {
-      const { r, c } = unpackTile(key);
+      const { r, c } = unpackTile(key as TileKey);
       // Only expand for temporary blockers (grunts, burning pits).
       // Water is permanent terrain — expanding just creates more water gaps.
       if (!isGrass(state.map.tiles, r, c)) continue;

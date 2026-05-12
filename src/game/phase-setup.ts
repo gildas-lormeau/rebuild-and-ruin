@@ -18,7 +18,7 @@ import { FID } from "../shared/core/feature-defs.ts";
 import { type ModifierDiff } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { markInteriorFresh } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -550,11 +550,11 @@ function restoreZoneGrass(state: GameState, zone: ZoneId): void {
   visited.add(queue[0]!);
   while (queue.length > 0) {
     const key = queue.shift()!;
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (!isGrass(tiles, r, c)) {
       setGrass(tiles, r, c);
-      sinkholeTiles?.delete(key);
-      highTideTiles?.delete(key);
+      sinkholeTiles?.delete(key as TileKey);
+      highTideTiles?.delete(key as TileKey);
     }
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr;

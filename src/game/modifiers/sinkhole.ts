@@ -3,7 +3,7 @@
  * Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  */
 
-import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import {
   hasCannonAt,
@@ -115,7 +115,7 @@ export const sinkholeImpl: ModifierImpl = {
   }),
   restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.sinkholeTiles = data.sinkholeTiles
-      ? new Set(data.sinkholeTiles)
+      ? new Set(data.sinkholeTiles as TileKey[])
       : null;
     reapplySinkholeTiles(state);
     recomputeMapZones(state);
@@ -131,7 +131,7 @@ function reapplySinkholeTiles(state: GameState): void {
   if (!sinkhole || sinkhole.size === 0) return;
   const tiles = state.map.tiles;
   for (const key of sinkhole) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setWater(tiles, r, c);
   }
 }
@@ -168,7 +168,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   }
   if (chosenSize === 0) return new Set();
 
-  const allSunk = new Set<number>();
+  const allSunk = new Set<TileKey>();
   for (let i = 0; i < activeZones.length; i++) {
     const placements = placementsPerZone[i]!;
     const pick = state.rng.pick(placements);
@@ -181,7 +181,7 @@ function applySinkhole(state: GameState): ReadonlySet<number> {
   // Mutate tiles to water
   const tiles = state.map.tiles;
   for (const key of allSunk) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setWater(tiles, r, c);
   }
 
@@ -236,7 +236,7 @@ function buildCanSinkPredicate(
   targetZone: ZoneId,
 ): (row: number, col: number) => boolean {
   const tiles = state.map.tiles;
-  const existingSinkhole = state.modern?.sinkholeTiles ?? new Set<number>();
+  const existingSinkhole = state.modern?.sinkholeTiles ?? new Set<TileKey>();
   const protectedTiles = getProtectedCastleTiles(state);
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;

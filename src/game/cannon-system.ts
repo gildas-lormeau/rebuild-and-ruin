@@ -26,6 +26,7 @@ import {
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import {
   assertInteriorFresh,
   getInterior,
@@ -314,7 +315,7 @@ export function homeEnclosedRegion(player: Player): Set<number> {
   // Flood through traversable tiles using 4-dir connectivity
   while (queue.length > 0) {
     const key = queue.pop()!;
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     for (const [dr, dc] of DIRS_4) {
       const neighborKey = packTile(r + dr, c + dc);
       if (!visited.has(neighborKey) && traversable.has(neighborKey)) {
@@ -366,7 +367,7 @@ function findFirstLegalCannonPlacement(
 ): TilePos | null {
   const interior = getInterior(player);
   for (const key of interior) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (canPlaceCannon(player, r, c, mode, state)) return { row: r, col: c };
   }
   return null;
@@ -385,7 +386,7 @@ function findLegalCannonPlacements(
   const interior = getInterior(player);
   const candidates: TilePos[] = [];
   for (const key of interior) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (canPlaceCannon(player, r, c, mode, state)) {
       candidates.push({ row: r, col: c });
     }

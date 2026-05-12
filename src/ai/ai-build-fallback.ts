@@ -7,7 +7,7 @@
 
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type { Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import {
   computeOutsideAfterAdd,
@@ -188,7 +188,7 @@ export function createsSmallEnclosure(
       if (preExisting) continue;
       let hasOccupant = false;
       for (const pocketKey of pocket) {
-        const { r: pr, c: pc } = unpackTile(pocketKey);
+        const { r: pr, c: pc } = unpackTile(pocketKey as TileKey);
         for (const tower of state.map.towers) {
           if (isTowerTile(tower, pr, pc)) {
             hasOccupant = true;

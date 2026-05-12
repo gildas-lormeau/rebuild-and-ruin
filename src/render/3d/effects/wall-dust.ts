@@ -7,7 +7,11 @@
  */
 
 import * as THREE from "three";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import { wallDestroyAnimAt } from "../../../shared/core/wall-destroy-anim.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
 import { type EffectManager, getSharedSmokeTexture } from "./fire-burst.ts";
@@ -44,7 +48,7 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
   const hosts = new Map<number, DustHost>();
   const seenThisFrame = new Set<number>();
 
-  function buildHost(tileKey: number, row: number, col: number): DustHost {
+  function buildHost(tileKey: TileKey, row: number, col: number): DustHost {
     const seed = tileSeed(row, col);
     const sizeRand = ((seed >>> 4) & 0xff) / 255;
     const centerRand = ((seed >>> 12) & 0xff) / 255;
@@ -92,7 +96,8 @@ export function createWallDustManager(scene: THREE.Scene): EffectManager {
       if (dustOpacity <= 0) continue;
       const tileKey = wall.row * GRID_COLS + wall.col;
       seenThisFrame.add(tileKey);
-      const host = hosts.get(tileKey) ?? buildHost(tileKey, wall.row, wall.col);
+      const host =
+        hosts.get(tileKey) ?? buildHost(tileKey as TileKey, wall.row, wall.col);
       host.sprite.scale.set(host.baseSize, host.baseSize, 1);
       host.material.opacity = dustOpacity;
     }

@@ -8,7 +8,12 @@
 import type { BurningPit } from "../shared/core/battle-types.ts";
 import { hasEnemyWallAt, hasGruntAt } from "../shared/core/board-occupancy.ts";
 import type { TileRect, Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { FreshInterior } from "../shared/core/player-types.ts";
@@ -133,7 +138,7 @@ export function filterUnfillableGaps(
   interior?: ReadonlySet<number>,
 ): void {
   for (const key of gaps) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (
       !isGrass(state.map.tiles, r, c) ||
       hasPitAt(state.burningPits, r, c) ||
@@ -159,7 +164,7 @@ export function floodPocket(
   const pocket: number[] = [startKey];
   visited.add(startKey);
   for (let queueIndex = 0; queueIndex < pocket.length; queueIndex++) {
-    const { r: pr, c: pc } = unpackTile(pocket[queueIndex]!);
+    const { r: pr, c: pc } = unpackTile(pocket[queueIndex]! as TileKey);
     for (const [dr, dc] of DIRS_4) {
       const nr = pr + dr,
         nc = pc + dc;
@@ -460,7 +465,7 @@ function addBankPlugGaps(
   }
   // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
   for (const wallKey of unfillableRing) {
-    const { r: wr, c: wc } = unpackTile(wallKey);
+    const { r: wr, c: wc } = unpackTile(wallKey as TileKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = wr + dr,
         nc = wc + dc;

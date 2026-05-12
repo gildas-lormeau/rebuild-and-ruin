@@ -8,7 +8,7 @@
  */
 
 import * as THREE from "three";
-import { TILE_SIZE } from "../../../shared/core/grid.ts";
+import { TILE_SIZE, type TileKey } from "../../../shared/core/grid.ts";
 import { DIRS_8, packTile, unpackTile } from "../../../shared/core/spatial.ts";
 import { ELEVATION_STACK, RENDER_ORDER, Z_FIGHT_MARGIN } from "../elevation.ts";
 import type { FrameCtx } from "../frame-ctx.ts";
@@ -122,7 +122,7 @@ export function createFogManager(scene: THREE.Scene): FogManager {
   function rebuild(): void {
     tiles.length = 0;
     for (const key of keys) {
-      const { r, c } = unpackTile(key);
+      const { r, c } = unpackTile(key as TileKey);
       tiles.push({ row: r, col: c, seed: tileSeed(r, c) });
     }
     ensureCapacity(tiles.length);
@@ -224,11 +224,11 @@ function dilateInto(
   interior: ReadonlySet<number>,
   walls: ReadonlySet<number>,
 ): void {
-  for (const key of interior) dilateKey(out, key);
-  for (const key of walls) dilateKey(out, key);
+  for (const key of interior) dilateKey(out, key as TileKey);
+  for (const key of walls) dilateKey(out, key as TileKey);
 }
 
-function dilateKey(out: Set<number>, key: number): void {
+function dilateKey(out: Set<number>, key: TileKey): void {
   out.add(key);
   const { r, c } = unpackTile(key);
   for (const [dr, dc] of DIRS_8) {

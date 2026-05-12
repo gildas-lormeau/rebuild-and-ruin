@@ -12,6 +12,12 @@ export enum Tile {
   Water = 1,
 }
 
+/** Branded type for a packed (row, col) tile coordinate. Branded so a
+ *  raw number can't accidentally substitute for one (e.g. a cannon idx
+ *  or player slot). Always produced by `packTile()` and consumed by
+ *  `unpackTile()`. */
+export type TileKey = number & { readonly __tileKey: true };
+
 /** True when the game booted on a touch device whose screen is in portrait
  *  orientation. The grid axes flip so the playfield matches the screen
  *  aspect (28×44 portrait vs 44×28 landscape). Resolved once at module

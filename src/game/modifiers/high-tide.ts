@@ -4,7 +4,7 @@
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
-import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 import { hasTowerAt } from "../../shared/core/occupancy-queries.ts";
 import {
@@ -31,7 +31,7 @@ export const highTideImpl: ModifierImpl = {
   clear: clearHighTide,
   restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.highTideTiles = data.highTideTiles
-      ? new Set(data.highTideTiles)
+      ? new Set(data.highTideTiles as TileKey[])
       : null;
     reapplyHighTideTiles(state);
     recomputeMapZones(state);
@@ -46,7 +46,7 @@ function reapplyHighTideTiles(state: GameState): void {
   if (!highTide || highTide.size === 0) return;
   const tiles = state.map.tiles;
   for (const key of highTide) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setWater(tiles, r, c);
   }
 }
@@ -56,7 +56,7 @@ function applyHighTide(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const tiles = state.map.tiles;
-  const flooded = new Set<number>();
+  const flooded = new Set<TileKey>();
   // Find all grass tiles that are 4-dir adjacent to water
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -73,7 +73,7 @@ function applyHighTide(state: GameState): ReadonlySet<number> {
   if (flooded.size === 0) return flooded;
   // Convert to water
   for (const key of flooded) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setWater(tiles, r, c);
   }
   evictEntitiesOnTiles(state, flooded, {
@@ -96,7 +96,7 @@ function clearHighTide(state: GameState): void {
   if (!modern.highTideTiles) return;
   const tiles = state.map.tiles;
   for (const key of modern.highTideTiles) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setGrass(tiles, r, c);
   }
   modern.highTideTiles = null;

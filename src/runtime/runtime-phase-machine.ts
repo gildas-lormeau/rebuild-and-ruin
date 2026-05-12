@@ -39,6 +39,7 @@ import {
   GAME_EVENT,
 } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import { modifierDef } from "../shared/core/modifier-defs.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { clearAllPlayerBags } from "../shared/core/player-types.ts";
@@ -154,8 +155,8 @@ interface BattleLifecycle {
   readonly setFlights: (
     flights: { flight: BalloonFlight; progress: number }[],
   ) => void;
-  readonly setTerritory: (territory: readonly Set<number>[]) => void;
-  readonly setWalls: (walls: readonly Set<number>[]) => void;
+  readonly setTerritory: (territory: readonly Set<TileKey>[]) => void;
+  readonly setWalls: (walls: readonly Set<TileKey>[]) => void;
   readonly clearImpacts: () => void;
   readonly begin: () => void;
 }

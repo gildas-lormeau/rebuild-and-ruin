@@ -20,6 +20,7 @@ import type {
   TowerIdx,
   Viewport,
 } from "../core/geometry-types.ts";
+import type { TileKey } from "../core/grid.ts";
 import type { SupplyBonusId } from "../core/modifier-defs.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
@@ -241,7 +242,7 @@ export interface BattleOverlay {
   houseDestroys?: readonly HouseDestroy[];
   balloons?: readonly OverlayBalloon[];
   battleTerritory?: readonly Set<number>[];
-  battleWalls?: readonly Set<number>[];
+  battleWalls?: readonly ReadonlySet<TileKey>[];
   /** True when Fog of War is active — renderer blankets each castle's
    *  walls + interior with an animated fog layer so players must aim
    *  from memory. */

@@ -8,7 +8,12 @@
 
 import type { CannonMode } from "../shared/core/battle-types.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  TILE_SIZE,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import type { PlayerId, ValidPlayerId } from "../shared/core/player-slot.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
@@ -139,7 +144,7 @@ export function buildGrid(
     // Intentionally reads player.interior directly (no getInterior) —
     // debug grid must work during battle when interior is stale by design.
     for (const key of player.interior) {
-      const { r, c } = unpackTile(key);
+      const { r, c } = unpackTile(key as TileKey);
       setCell(grid, r, c, CellKind.Interior, "░", player.id);
     }
     for (const key of player.walls) {

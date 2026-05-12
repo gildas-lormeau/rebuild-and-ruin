@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import type { TowerIdx } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 
 /** Index into `player.cannons[]` for a given player. Branded so a raw
@@ -135,7 +136,7 @@ export interface IceThawedMessage {
 export interface WallAbsorbedMessage {
   type: "wallAbsorbed";
   playerId: ValidPlayerId;
-  tileKey: number;
+  tileKey: TileKey;
 }
 
 /** A rampart shielded a nearby wall from destruction (wall survives, rampart loses 1 shield HP). */

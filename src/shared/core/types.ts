@@ -24,6 +24,7 @@ import {
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
 import type { BonusSquare, GameMap, TowerIdx } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import type {
   RubbleClearingHeld,
   SupplyBonusId,
@@ -225,16 +226,16 @@ export interface ModernState {
   precomputedUpgradePicks: Map<ValidPlayerId, UpgradeId> | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
-  frozenTiles: Set<number> | null;
+  frozenTiles: Set<TileKey> | null;
   /** Sinkhole tiles (packed tile keys) — grass tiles permanently converted to water.
    *  Cumulative across rounds. null = no sinkholes yet. */
-  sinkholeTiles: Set<number> | null;
+  sinkholeTiles: Set<TileKey> | null;
   /** High tide tiles (packed tile keys) — grass tiles temporarily flooded.
    *  Set when high_tide modifier fires, cleared at next battle start. null otherwise. */
-  highTideTiles: Set<number> | null;
+  highTideTiles: Set<TileKey> | null;
   /** Low water tiles (packed tile keys) — water tiles temporarily converted to grass.
    *  Set when low_water modifier fires, cleared at next battle start. null otherwise. */
-  lowWaterTiles: Set<number> | null;
+  lowWaterTiles: Set<TileKey> | null;
   /** Precomputed dust-storm jitter angles (radians) drawn from `state.rng` at
    *  `prepareBattleState` when the rolled modifier is dust-storm. Indexed by
    *  `state.shotsFired` at fire time so both peers compute identical jitter

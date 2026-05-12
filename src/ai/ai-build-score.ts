@@ -11,7 +11,12 @@ import type {
   TileRect,
   Tower,
 } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import {
   CORNERS_2X2,
   computeOutsideAfterAdd,
@@ -298,7 +303,7 @@ export function countFatBlocks(
   );
   let blocks = 0;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (tileCreatesFatBlock(r, c, isWall)) blocks++;
   }
   return blocks;
@@ -318,7 +323,7 @@ export function checkFatWall(
   let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (!tileCreatesFatBlock(r, c, isWall)) continue;
     if (candidate.gapsFilled > 0) {
       gapClosingFat = true;

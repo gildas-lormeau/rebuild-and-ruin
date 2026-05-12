@@ -10,6 +10,7 @@ import type { Rng } from "../platform/rng.ts";
 import type { Cannon } from "./battle-types.ts";
 import { STARTING_LIVES } from "./game-constants.ts";
 import type { Castle, Tower, TowerIdx } from "./geometry-types.ts";
+import type { TileKey } from "./grid.ts";
 import {
   type BagState,
   createBag,
@@ -20,14 +21,14 @@ import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
 
-/** Branded ReadonlySet<number> proving that interior was recomputed after the
+/** Branded ReadonlySet<TileKey> proving that interior was recomputed after the
  *  last wall mutation. Only produced by:
  *  - `recomputeInterior()` in board-occupancy.ts (after wall mutations)
  *  - `emptyFreshInterior()` below (initial player creation)
  *  - `brandFreshInterior()` below (checkpoint deserialization of trusted data)
  *  Consumers can read `.has()` / `.size` / iterate freely — the brand carries
- *  through because FreshInterior extends ReadonlySet<number>. */
-export type FreshInterior = ReadonlySet<number> & {
+ *  through because FreshInterior extends ReadonlySet<TileKey>. */
+export type FreshInterior = ReadonlySet<TileKey> & {
   readonly __brand: "FreshInterior";
 };
 
@@ -48,7 +49,7 @@ export interface Player {
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col).
    *  ReadonlySet at the type level — mutations must go through board-occupancy
    *  helpers (addPlayerWall, clearPlayerWalls, etc.) which maintain epoch tracking. */
-  walls: ReadonlySet<number>;
+  walls: ReadonlySet<TileKey>;
   /** All tiles fully enclosed by walls (flood-fill). Used for territory scoring,
    *  cannon placement eligibility, and grunt blocking. Encoded as row*COLS+col.
    *  Branded as FreshInterior — only recomputeInterior(), resetCastle(),
@@ -67,12 +68,12 @@ export interface Player {
   /** Wall tiles forming the home castle perimeter (from castle construction).
    *  Used for tower revival and rebuild. Distinct from interior — these are wall
    *  tiles, not enclosed grass. Includes clumsy extras; protected from debris sweep. */
-  castleWallTiles: ReadonlySet<number>;
+  castleWallTiles: ReadonlySet<TileKey>;
   /** Active upgrades for this player (modern mode only). Key = upgrade id, value = stack count. */
   upgrades: Map<UpgradeId, number>;
   /** Wall tiles that have absorbed one hit (reinforced walls upgrade).
    *  Cleared at build phase start. Second hit destroys normally. */
-  damagedWalls: Set<number>;
+  damagedWalls: Set<TileKey>;
   /** True for one battle after the player's castle is freshly (re)built.
    *  Modifiers still apply to this player's zone, but tile-placing effects
    *  (wildfire, dry lightning, sinkhole) skip the castle tower + wall ring via

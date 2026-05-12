@@ -12,7 +12,12 @@ import type {
   Tower,
   TowerIdx,
 } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, Tile } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import {
   inBounds,
   isGrass,
@@ -346,7 +351,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   let head = 0;
   while (head < queue.length) {
     const idx = queue[head++]!;
-    const { r, c } = unpackTile(idx);
+    const { r, c } = unpackTile(idx as TileKey);
     const d1 = dist[r]![c]! + 1;
     if (r > 0 && dist[r - 1]![c]! > d1) {
       dist[r - 1]![c] = d1;
@@ -587,7 +592,7 @@ export function floodFillZones(tiles: readonly Tile[][]): {
 
       while (head < queue.length) {
         const idx = queue[head++]!;
-        const { r: cr, c: cc } = unpackTile(idx);
+        const { r: cr, c: cc } = unpackTile(idx as TileKey);
         size++;
         tryEnqueue(cr - 1, cc, regionId);
         tryEnqueue(cr + 1, cc, regionId);

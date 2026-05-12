@@ -11,7 +11,11 @@ import {
   isRampartCannon,
   isSuperCannon,
 } from "../../../shared/core/battle-types.ts";
-import { GRID_COLS, TILE_SIZE } from "../../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  TILE_SIZE,
+  type TileKey,
+} from "../../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../../shared/core/player-slot.ts";
 import { getPlayerColor } from "../../../shared/ui/player-config.ts";
 import type { RGB } from "../../../shared/ui/theme.ts";
@@ -48,7 +52,7 @@ export const TILE_3X3_CENTER_OFFSET = TILE_SIZE * 1.5;
 /** Unpack a `row * GRID_COLS + col` tile key into (row, col). Inverse of
  *  the packing both `walls.ts` and `debris.ts` use for battleWalls /
  *  interior sets. */
-export function unpackTileKey(key: number): { row: number; col: number } {
+export function unpackTileKey(key: TileKey): { row: number; col: number } {
   const row = Math.floor(key / GRID_COLS);
   return { row, col: key - row * GRID_COLS };
 }

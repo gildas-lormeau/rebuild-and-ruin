@@ -246,10 +246,22 @@ function addTypeImport(
     for (const spec of id.getNamedImports()) {
       if (spec.getName() === name) return;
     }
-    id.addNamedImport(name);
+    // If the existing import declaration is already `import type { … }`,
+    // a plain `addNamedImport(name)` suffices — every specifier inherits
+    // the declaration-level type-only modifier. Otherwise, mark this one
+    // specifier as `type`-prefixed so `verbatimModuleSyntax` is happy.
+    if (typeOnly && !id.isTypeOnly()) {
+      id.addNamedImport({ name, isTypeOnly: true });
+    } else {
+      id.addNamedImport(name);
+    }
     return;
   }
-  const moduleSpecifier = sf.getRelativePathAsModuleSpecifierTo(targetSf);
+  const rawSpec = sf.getRelativePathAsModuleSpecifierTo(targetSf);
+  // Append `.ts` to match the project convention (tsconfig has
+  // `allowImportingTsExtensions: true`). ts-morph drops the extension
+  // by default — same shim v1 (refactor.ts) uses.
+  const moduleSpecifier = rawSpec.endsWith(".ts") ? rawSpec : `${rawSpec}.ts`;
   sf.addImportDeclaration({
     moduleSpecifier,
     namedImports: [name],

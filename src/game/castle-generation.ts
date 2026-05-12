@@ -11,7 +11,12 @@ import {
 } from "../shared/core/board-occupancy.ts";
 import { HOUSE_MIN_DISTANCE } from "../shared/core/game-constants.ts";
 import type { Castle, House, Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import { isPlayerSeated } from "../shared/core/player-types.ts";
 import {
   DIRS_4,
@@ -289,7 +294,7 @@ export function applyClumsyBuilders(
   const currentWalls = [...walls];
   for (const key of currentWalls) {
     if (!rng.bool(CLUMSY_WALL_CHANCE * clumsyScale)) continue;
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
 
     // Collect candidate neighbors (4-connected) that aren't already walls or tower
     const candidates: [number, number][] = [];
@@ -311,7 +316,7 @@ export function applyClumsyBuilders(
   // Sweep: remove completely isolated extra tiles (0 wall neighbors).
   // Tiles with 1+ neighbors are valid bumps from clumsy builders.
   for (const key of [...walls]) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     let neighbors = 0;
     for (const [dr, dc] of DIRS_4) {
       if (walls.has(packTile(r + dr, c + dc))) neighbors++;
@@ -597,7 +602,7 @@ function interleaveExtras(
     if (placed.has(k)) continue;
     ordered.push(k);
     placed.add(k);
-    const { r, c } = unpackTile(k);
+    const { r, c } = unpackTile(k as TileKey);
     for (const [dr, dc] of DIRS_4) {
       const neighborKey = packTile(r + dr, c + dc);
       if (extras.has(neighborKey) && !placed.has(neighborKey)) {

@@ -15,6 +15,7 @@ import type {
   TowerIdx,
   WorldPos,
 } from "../shared/core/geometry-types.ts";
+import type { TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import type {
@@ -178,8 +179,8 @@ export interface OnlineOverlayParams {
   previousSelection: RenderOverlay["selection"];
   view: RenderView;
   battleAnim: {
-    territory: Set<number>[];
-    walls: Set<number>[];
+    territory: Set<TileKey>[];
+    walls: Set<TileKey>[];
     flights: ReadonlyArray<{ flight: BalloonFlight; progress: number }>;
     impacts: Impact[];
     thawing: ThawingTile[];

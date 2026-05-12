@@ -7,7 +7,7 @@
  */
 
 import { BURNING_PIT_DURATION } from "../../shared/core/game-constants.ts";
-import { GRID_COLS, GRID_ROWS } from "../../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../../shared/core/grid.ts";
 import {
   hasCannonAt,
   hasTowerAt,
@@ -106,7 +106,7 @@ export function applyFireScar(
     bonusSquares: true,
   });
   for (const key of scar) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     state.burningPits.push({
       row: r,
       col: c,

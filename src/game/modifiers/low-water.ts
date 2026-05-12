@@ -4,7 +4,12 @@
  */
 
 import { FID } from "../../shared/core/feature-defs.ts";
-import { GRID_COLS, GRID_ROWS, type Tile } from "../../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  type Tile,
+  type TileKey,
+} from "../../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../../shared/core/modifier-defs.ts";
 // jscpd:ignore-start
 import {
@@ -30,7 +35,7 @@ export const lowWaterImpl: ModifierImpl = {
   clear: clearLowWater,
   restore: (state: GameState, data: SerializedModifierTiles) => {
     state.modern!.lowWaterTiles = data.lowWaterTiles
-      ? new Set(data.lowWaterTiles)
+      ? new Set(data.lowWaterTiles as TileKey[])
       : null;
     reapplyLowWaterTiles(state);
     recomputeMapZones(state);
@@ -45,7 +50,7 @@ function reapplyLowWaterTiles(state: GameState): void {
   if (!lowWater || lowWater.size === 0) return;
   const tiles = state.map.tiles;
   for (const key of lowWater) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setGrass(tiles, r, c);
   }
 }
@@ -56,7 +61,7 @@ function applyLowWater(state: GameState): ReadonlySet<number> {
   const modern = state.modern;
   if (!modern) return new Set();
   const tiles = state.map.tiles;
-  const converted = new Set<number>();
+  const converted = new Set<TileKey>();
   // Snapshot bank tiles before any mutations.
   const banks: number[] = [];
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -73,7 +78,7 @@ function applyLowWater(state: GameState): ReadonlySet<number> {
   // Greedy erosion: convert each bank tile only if every remaining water
   // neighbor still belongs to at least one 2×2 water block afterwards.
   for (const key of banks) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (!isWater(tiles, r, c)) continue;
     // Tentatively convert
     setGrass(tiles, r, c);
@@ -89,7 +94,7 @@ function applyLowWater(state: GameState): ReadonlySet<number> {
       }
     }
     if (safe) {
-      converted.add(key);
+      converted.add(key as TileKey);
     } else {
       // Revert
       setWater(tiles, r, c);
@@ -130,7 +135,7 @@ function clearLowWater(state: GameState): void {
   if (!modern.lowWaterTiles) return;
   const tiles = state.map.tiles;
   for (const key of modern.lowWaterTiles) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     setWater(tiles, r, c);
   }
   // Houses and bonus squares never spawned on these tiles (they were

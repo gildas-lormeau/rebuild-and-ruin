@@ -26,7 +26,12 @@ import {
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
 import type { TowerIdx } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  TILE_COUNT,
+  type TileKey,
+} from "../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
@@ -274,7 +279,7 @@ function applyPlayersCheckpoint(
     const player = state.players[entry.id];
     if (!player) continue;
 
-    player.walls = new Set(entry.walls);
+    player.walls = new Set(entry.walls as TileKey[]);
     player.cannons = entry.cannons.map((c) => ({
       row: c.row,
       col: c.col,
@@ -306,13 +311,13 @@ function applyPlayersCheckpoint(
         : null;
     }
     if (entry.castleWallTiles !== undefined) {
-      player.castleWallTiles = new Set(entry.castleWallTiles);
+      player.castleWallTiles = new Set(entry.castleWallTiles as TileKey[]);
     }
     player.lives = entry.lives;
     player.eliminated = entry.eliminated;
     player.score = entry.score;
     player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
-    player.damagedWalls = new Set(entry.damagedWalls ?? []);
+    player.damagedWalls = new Set((entry.damagedWalls ?? []) as TileKey[]);
     player.inGracePeriod = entry.inGracePeriod ?? false;
   }
 }

@@ -18,7 +18,7 @@ import {
 } from "../shared/core/battle-types.ts";
 import { filterActiveEnemies } from "../shared/core/board-occupancy.ts";
 import type { GameMap, TilePos, Tower } from "../shared/core/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
+import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import { hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { Player } from "../shared/core/player-types.ts";
@@ -287,7 +287,7 @@ function collectCannonCandidates(
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
   for (const key of getInterior(player)) {
-    const { r, c } = unpackTile(key);
+    const { r, c } = unpackTile(key as TileKey);
     if (!canPlaceCannon(player, r, c, mode, state)) continue;
     candidates.push({
       row: r,

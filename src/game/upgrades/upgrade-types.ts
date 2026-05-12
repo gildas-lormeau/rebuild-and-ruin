@@ -2,6 +2,7 @@
 
 import type { ImpactEvent } from "../../shared/core/battle-events.ts";
 import type { Cannon } from "../../shared/core/battle-types.ts";
+import type { TileKey } from "../../shared/core/grid.ts";
 import type { ValidPlayerId } from "../../shared/core/player-slot.ts";
 import type { Player } from "../../shared/core/player-types.ts";
 import type { GameState } from "../../shared/core/types.ts";
@@ -96,7 +97,7 @@ export interface UpgradeImpl {
   /** Extra build seconds (additive). */
   buildTimerBonus?: (state: GameState) => number;
   /** True → wall survives this hit (boolean OR). */
-  shouldAbsorbWallHit?: (player: Player, tileKey: number) => boolean;
+  shouldAbsorbWallHit?: (player: Player, tileKey: TileKey) => boolean;
   /** Territory score multiplier (multiplicative). */
   territoryScoreMult?: (player: Player) => number;
   /** Extra cannon slots (additive). */

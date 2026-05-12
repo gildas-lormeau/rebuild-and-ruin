@@ -5,6 +5,7 @@
  * of entities could plausibly sit on their target tiles.
  */
 
+import type { TileKey } from "../../shared/core/grid.ts";
 import { removeWallFromAllPlayers } from "../../shared/core/player-walls.ts";
 import {
   cannonSize,
@@ -33,7 +34,7 @@ export function evictEntitiesOnTiles(
 ): void {
   if (tiles.size === 0) return;
   if (opts.walls) {
-    for (const key of tiles) removeWallFromAllPlayers(state, key);
+    for (const key of tiles) removeWallFromAllPlayers(state, key as TileKey);
   }
   if (opts.houses) {
     for (const house of state.map.houses) {
