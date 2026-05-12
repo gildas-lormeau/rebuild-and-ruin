@@ -24,7 +24,7 @@ import {
   unpackTile,
 } from "../shared/core/spatial.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
+import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import type { Rng } from "../shared/platform/rng.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
@@ -449,7 +449,7 @@ function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
 /** Check if a position is a valid house candidate (grass, correct zone, away from water and towers). */
 function isValidHousePos(
   tiles: readonly Tile[][],
-  zones: readonly number[][],
+  zones: readonly ZoneCell[][],
   towerTiles: Set<number>,
   r: number,
   c: number,

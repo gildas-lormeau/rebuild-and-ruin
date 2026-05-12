@@ -17,8 +17,8 @@ export function recomputeMapZones(state: GameState): void {
 
   // Anchor each raw region back to the tower's prior zone ID so cached
   // `tower.zone` and `state.playerZones[pid]` stay valid.
-  const remap = new Map<number, ZoneId>();
-  let nextId = 0;
+  const remap = new Map<ZoneId, ZoneId>();
+  let nextId = 0 as ZoneId;
   for (const tower of state.map.towers) {
     const rawId = rawZones[tower.row]?.[tower.col] ?? 0;
     if (rawId === 0) continue;
@@ -34,7 +34,8 @@ export function recomputeMapZones(state: GameState): void {
     for (let c = 0; c < GRID_COLS; c++) {
       const rawId = row[c]!;
       if (rawId === 0 || remap.has(rawId)) continue;
-      remap.set(rawId, ++nextId as ZoneId);
+      nextId = (nextId + 1) as ZoneId;
+      remap.set(rawId, nextId);
     }
   }
 

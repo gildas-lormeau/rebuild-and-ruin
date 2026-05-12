@@ -55,7 +55,7 @@ import {
 } from "../shared/core/spatial.ts";
 import type { GameViewState } from "../shared/core/system-interfaces.ts";
 import type { GameState } from "../shared/core/types.ts";
-import type { ZoneId } from "../shared/core/zone-id.ts";
+import type { ZoneCell, ZoneId } from "../shared/core/zone-id.ts";
 import { getDeadZones } from "./grunt-movement.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
@@ -358,7 +358,7 @@ function recomputeTerritoryFromWalls(state: GameState, player: Player): void {
 /** Collect valid grass tiles for bonus square placement in a single zone. */
 function findBonusSpawnCandidates(
   tiles: readonly (readonly Tile[])[],
-  zones: readonly (readonly number[])[],
+  zones: readonly (readonly ZoneCell[])[],
   zoneId: ZoneId,
   occupied: ReadonlySet<number>,
   enclosed: ReadonlySet<number>,

@@ -86,8 +86,8 @@ export function generateMap(rng: Rng): GameMap {
 
   let junction!: PixelPos;
   let exits!: PixelPos[];
-  let zones!: number[][];
-  let regionSizes!: Map<number, number>;
+  let zones!: ZoneCell[][];
+  let regionSizes!: Map<ZoneId, number>;
   let riverMidpoints!: PixelPos[];
 
   // Both retry paths return the same buildMapResult shape from the same
@@ -187,19 +187,19 @@ export function topZonesBySize(
   map: GameMap,
   count: number,
 ): { zone: ZoneId; count: number }[] {
-  const counts = new Map<number, number>();
+  const counts = new Map<ZoneId, number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (isGrass(map.tiles, r, c)) {
-        const zone = map.zones[r]![c]!;
-        counts.set(zone, (counts.get(zone) ?? 0) + 1);
-      }
+      if (!isGrass(map.tiles, r, c)) continue;
+      const zone = map.zones[r]![c]!;
+      if (zone === 0) continue;
+      counts.set(zone, (counts.get(zone) ?? 0) + 1);
     }
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, count)
-    .map(([zone, count]) => ({ zone: zone as ZoneId, count }));
+    .map(([zone, count]) => ({ zone, count }));
 }
 
 /** Pack a freshly generated map into a `GameMap`. Extracted so the
@@ -208,7 +208,7 @@ export function topZonesBySize(
 function buildMapResult(
   tiles: Tile[][],
   towers: Tower[],
-  zones: number[][],
+  zones: ZoneCell[][],
   junction: PixelPos,
   exits: PixelPos[],
   riverMidpoints: PixelPos[],
@@ -217,7 +217,7 @@ function buildMapResult(
     tiles,
     towers,
     houses: [],
-    zones: zones as ZoneCell[][],
+    zones,
     junction,
     exits,
     riverMidpoints,
@@ -232,7 +232,7 @@ function nextMapVersion(): number {
 }
 
 function hasThreeBalancedZones(
-  regionSizes: Map<number, number>,
+  regionSizes: Map<ZoneId, number>,
   maxRatio: number,
 ): boolean {
   const bigZones = [...regionSizes.values()]
@@ -244,11 +244,11 @@ function hasThreeBalancedZones(
 
 /** Single-pass: collect row bounds + centroid for the given zone IDs. */
 function collectZoneStats(
-  zones: readonly number[][],
-  zoneIds: readonly number[],
-): Map<number, ZoneStats> {
+  zones: readonly ZoneCell[][],
+  zoneIds: readonly ZoneId[],
+): Map<ZoneId, ZoneStats> {
   const acc = new Map<
-    number,
+    ZoneId,
     { minR: number; maxR: number; sumR: number; count: number }
   >();
   for (const zid of zoneIds) {
@@ -258,7 +258,9 @@ function collectZoneStats(
   for (let r = 0; r < GRID_ROWS; r++) {
     const row = zones[r]!;
     for (let c = 0; c < GRID_COLS; c++) {
-      const a = acc.get(row[c]!);
+      const cell = row[c]!;
+      if (cell === 0) continue;
+      const a = acc.get(cell);
       if (a === undefined) continue;
       if (r < a.minR) a.minR = r;
       if (r > a.maxR) a.maxR = r;
@@ -267,7 +269,7 @@ function collectZoneStats(
     }
   }
 
-  const result = new Map<number, ZoneStats>();
+  const result = new Map<ZoneId, ZoneStats>();
   for (const [zid, a] of acc) {
     if (a.count === 0) continue;
     result.set(zid, {
@@ -367,16 +369,15 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
 }
 
 function placeTowers(
-  zones: readonly number[][],
-  regionSizes: Map<number, number>,
+  zones: readonly ZoneCell[][],
+  regionSizes: Map<ZoneId, number>,
   riverDist: readonly number[][],
 ): Tower[] {
   const sortedRegions = topZoneIds(regionSizes);
 
   const towers: Tower[] = [];
 
-  for (const rawZoneId of sortedRegions) {
-    const zoneId = rawZoneId as ZoneId;
+  for (const zoneId of sortedRegions) {
     // Collect all valid positions in this zone
     const validPositions: [number, number][] = [];
     for (let r = 0; r < GRID_ROWS - 1; r++) {
@@ -470,7 +471,7 @@ function findFarthestPosition(
   return bestPos;
 }
 
-function topZoneIds(regionSizes: Map<number, number>): number[] {
+function topZoneIds(regionSizes: Map<ZoneId, number>): ZoneId[] {
   return [...regionSizes.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
@@ -539,8 +540,8 @@ function generateRiverAndZones(
   exits: readonly PixelPos[],
   rng: Rng,
 ): {
-  zones: number[][];
-  regionSizes: Map<number, number>;
+  zones: ZoneCell[][];
+  regionSizes: Map<ZoneId, number>;
   riverMidpoints: PixelPos[];
 } {
   resetTilesToGrass(tiles);
@@ -554,18 +555,18 @@ function generateRiverAndZones(
  *  stays at 0). Exported so post-modifier code can recompute zones after
  *  tile mutations — see `recomputeMapZones` in `zone-recompute.ts`. */
 export function floodFillZones(tiles: readonly Tile[][]): {
-  zones: number[][];
-  regionSizes: Map<number, number>;
+  zones: ZoneCell[][];
+  regionSizes: Map<ZoneId, number>;
 } {
-  const zones: number[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(0),
+  const zones: ZoneCell[][] = Array.from({ length: GRID_ROWS }, () =>
+    new Array<ZoneCell>(GRID_COLS).fill(0),
   );
-  let regionId = 0;
-  const regionSizes = new Map<number, number>();
+  let regionId = 0 as ZoneId;
+  const regionSizes = new Map<ZoneId, number>();
   // Reusable flat-index queue across all fills (cleared per region)
   const queue: number[] = [];
 
-  const tryEnqueue = (r: number, c: number, rid: number): void => {
+  const tryEnqueue = (r: number, c: number, rid: ZoneId): void => {
     if (inBounds(r, c) && zones[r]![c] === 0 && isGrass(tiles, r, c)) {
       zones[r]![c] = rid;
       queue.push(packTile(r, c));
@@ -576,7 +577,7 @@ export function floodFillZones(tiles: readonly Tile[][]): {
     for (let c = 0; c < GRID_COLS; c++) {
       if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
 
-      regionId++;
+      regionId = (regionId + 1) as ZoneId;
       queue.length = 0;
       zones[r]![c] = regionId;
       queue.push(packTile(r, c));
