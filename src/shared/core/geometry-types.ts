@@ -95,3 +95,9 @@ export interface TileBounds {
 export interface BonusSquare extends TilePos {
   zone: ZoneId;
 }
+
+/** Index into `player.cannons[]` for a given player. Branded so a raw
+ *  number can't accidentally substitute for one (e.g. a tower index or
+ *  card index of the same shape). Pair with a `playerId: ValidPlayerId`
+ *  to resolve to a concrete `Cannon` via `getCannon(state, …)`. */
+export type CannonIdx = number & { readonly __cannonIdx: true };

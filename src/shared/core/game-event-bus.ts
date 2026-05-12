@@ -5,14 +5,10 @@
  * `battle-events.ts`.
  */
 
-import {
-  BATTLE_MESSAGE,
-  type BattleEvent,
-  type CannonIdx,
-} from "./battle-events.ts";
+import { BATTLE_MESSAGE, type BattleEvent } from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
-import type { TowerIdx, Viewport } from "./geometry-types.ts";
+import type { CannonIdx, TowerIdx, Viewport } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";

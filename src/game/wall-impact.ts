@@ -1,12 +1,3 @@
-/**
- * Wall impact helpers. resolveWallShield decides whether a hit is absorbed
- * by Reinforced Walls (upgrade) or a nearby allied Rampart. Cannonballs
- * emit WALL_* events and mutate via applyImpactEvent; grunts mutate
- * directly through applyWallShield (no bus, matching today's silent wall
- * removal).
- */
-
-import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type Cannon,
   isCannonAlive,
@@ -14,6 +5,7 @@ import {
 } from "../shared/core/battle-types.ts";
 import { isCannonEnclosed } from "../shared/core/board-occupancy.ts";
 import { RAMPART_SHIELD_RADIUS } from "../shared/core/game-constants.ts";
+import type { CannonIdx } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";

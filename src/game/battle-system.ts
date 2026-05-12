@@ -5,7 +5,6 @@
 import {
   BATTLE_MESSAGE,
   type CannonFiredMessage,
-  type CannonIdx,
   createCannonFiredMsg,
   type ImpactEvent,
   type TowerKilledMessage,
@@ -42,7 +41,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE, type TileKey } from "../shared/core/grid.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
 import { getInterior } from "../shared/core/player-interior.ts";

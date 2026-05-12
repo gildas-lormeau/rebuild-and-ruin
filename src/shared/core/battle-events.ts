@@ -4,15 +4,9 @@
 // Network protocol (protocol.ts) re-exports these via MESSAGE spread.
 // ---------------------------------------------------------------------------
 
-import type { TowerIdx } from "./geometry-types.ts";
+import type { CannonIdx, TowerIdx } from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
-
-/** Index into `player.cannons[]` for a given player. Branded so a raw
- *  number can't accidentally substitute for one (e.g. a tower index or
- *  card index of the same shape). Pair with a `playerId: ValidPlayerId`
- *  to resolve to a concrete `Cannon` via `getCannon(state, …)`. */
-export type CannonIdx = number & { readonly __cannonIdx: true };
 
 /** Originator-pinned trajectory parameters for a cannonball. Computed at
  *  fire time and frozen — every peer that re-runs the parametric flight

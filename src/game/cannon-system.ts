@@ -1,8 +1,3 @@
-/**
- * Cannon placement and management — validation, slot counting, placement.
- */
-
-import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type BurningPit,
   type Cannon,
@@ -25,7 +20,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { CannonIdx, TilePos } from "../shared/core/geometry-types.ts";
 import type { TileKey } from "../shared/core/grid.ts";
 import {
   assertInteriorFresh,

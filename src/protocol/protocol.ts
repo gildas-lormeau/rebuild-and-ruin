@@ -8,7 +8,6 @@ import {
   type BallisticTrajectory,
   type CannonDamagedMessage,
   type CannonFiredMessage,
-  type CannonIdx,
   type GruntChippedMessage,
   type GruntKilledMessage,
   type GruntSpawnedMessage,
@@ -21,7 +20,7 @@ import {
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
-import type { TowerIdx } from "../shared/core/geometry-types.ts";
+import type { CannonIdx, TowerIdx } from "../shared/core/geometry-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {

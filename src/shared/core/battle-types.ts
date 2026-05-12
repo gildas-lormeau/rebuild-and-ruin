@@ -1,5 +1,10 @@
-import type { BallisticTrajectory, CannonIdx } from "./battle-events.ts";
-import type { PixelPos, TilePos, TowerIdx } from "./geometry-types.ts";
+import type { BallisticTrajectory } from "./battle-events.ts";
+import type {
+  CannonIdx,
+  PixelPos,
+  TilePos,
+  TowerIdx,
+} from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";

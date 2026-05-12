@@ -13,7 +13,6 @@ import type {
   SerializedPlayer,
 } from "../protocol/checkpoint-data.ts";
 import { type FullStateMessage, MESSAGE } from "../protocol/protocol.ts";
-import type { CannonIdx } from "../shared/core/battle-events.ts";
 import type {
   BalloonFlight,
   Cannon,
@@ -25,7 +24,7 @@ import {
   GAME_MODE_MODERN,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { TowerIdx } from "../shared/core/geometry-types.ts";
+import type { CannonIdx, TowerIdx } from "../shared/core/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,

@@ -4,7 +4,6 @@ import {
   getGruntTargetTower,
   pickSupplyShipTarget,
 } from "../game/index.ts";
-import type { CannonIdx } from "../shared/core/battle-events.ts";
 import {
   type Cannonball,
   isBalloonCannon,
@@ -17,6 +16,7 @@ import {
 } from "../shared/core/board-occupancy.ts";
 import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
 import type {
+  CannonIdx,
   GameMap,
   PixelPos,
   TilePos,

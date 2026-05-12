@@ -4,7 +4,6 @@
 
 import type { Rng } from "../platform/rng.ts";
 import type { Mode } from "../ui/ui-mode.ts";
-import type { CannonIdx } from "./battle-events.ts";
 import type {
   BurningPit,
   Cannonball,
@@ -23,7 +22,12 @@ import {
 } from "./game-constants.ts";
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
-import type { BonusSquare, GameMap, TowerIdx } from "./geometry-types.ts";
+import type {
+  BonusSquare,
+  CannonIdx,
+  GameMap,
+  TowerIdx,
+} from "./geometry-types.ts";
 import type { TileKey } from "./grid.ts";
 import type {
   RubbleClearingHeld,

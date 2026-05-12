@@ -1,6 +1,5 @@
-import type { CannonIdx } from "./battle-events.ts";
 import { type Cannon, isBalloonCannon } from "./battle-types.ts";
-import type { Tower } from "./geometry-types.ts";
+import type { CannonIdx, Tower } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
 import { isCannonTile, isTowerTile } from "./spatial.ts";
