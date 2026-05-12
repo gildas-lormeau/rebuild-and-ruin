@@ -27,7 +27,15 @@ import {
 } from "ts-morph";
 
 interface ImportInfo {
+  /** Original module specifier from the source file (e.g. "./foo", "node:path").
+   *  Used as the fallback when `resolved` is null (external/built-in modules). */
   moduleSpecifier: string;
+  /** Canonical absolute path of the imported file, or null if the module
+   *  doesn't resolve to a project file (node:, npm:, external packages).
+   *  Carried so consumers identify the module by SourceFile identity instead
+   *  of by literal specifier — specifier strings are relative to the source
+   *  file that produced them and become wrong when copied to another file. */
+  resolvedPath: string | null;
   namedImports: string[];
   isTypeOnly: boolean;
 }
@@ -1888,6 +1896,8 @@ function collectDeclImports(
 
   for (const imp of sourceFile.getImportDeclarations()) {
     const moduleSpec = imp.getModuleSpecifierValue();
+    const resolvedPath =
+      imp.getModuleSpecifierSourceFile()?.getFilePath() ?? null;
     const matchingImports: string[] = [];
     const isTypeOnly = imp.isTypeOnly();
 
@@ -1901,6 +1911,7 @@ function collectDeclImports(
     if (matchingImports.length > 0) {
       result.push({
         moduleSpecifier: moduleSpec,
+        resolvedPath,
         namedImports: matchingImports,
         isTypeOnly,
       });
@@ -1931,6 +1942,7 @@ function mergeImportInfos(infos: ImportInfo[][]): ImportInfo[] {
   }
   return [...byKey.values()].map(({ template, names }) => ({
     moduleSpecifier: template.moduleSpecifier,
+    resolvedPath: template.resolvedPath,
     namedImports: [...names],
     isTypeOnly: template.isTypeOnly,
   }));
@@ -1942,26 +1954,38 @@ function addImportsToFile(
   _fromFile: SourceFile,
 ): void {
   const targetPath = targetFile.getFilePath();
+  const project = targetFile.getProject();
   for (const imp of imports) {
-    // Skip self-imports: if the module resolves to the target file itself,
-    // the symbols are already local — no import needed.
-    const resolved = targetFile
-      .getProject()
-      .getSourceFile(
-        path.resolve(
-          path.dirname(targetFile.getFilePath()),
-          imp.moduleSpecifier.replace(/\.ts$/, "") + ".ts",
-        ),
-      );
-    if (resolved?.getFilePath() === targetPath) continue;
+    // Self-import: the module resolves to the target file itself — skip.
+    // Identity-by-path because the specifier string was collected from
+    // fromFile and is relative to *it*, not to targetFile.
+    if (imp.resolvedPath === targetPath) continue;
 
-    // Check if target already has an import from this module
-    const existing = targetFile
-      .getImportDeclarations()
-      .find((d) => d.getModuleSpecifierValue() === imp.moduleSpecifier);
+    // Compute the specifier we'll use *in toFile*. For project files,
+    // recompute relative to targetFile via ts-morph; for external modules
+    // (node:, npm:, packages) the original string is portable as-is.
+    const resolvedSf = imp.resolvedPath
+      ? project.getSourceFile(imp.resolvedPath)
+      : undefined;
+    const moduleSpecForTarget = resolvedSf
+      ? toModuleSpecifier(targetFile, resolvedSf)
+      : imp.moduleSpecifier;
+
+    // Match an existing import by resolved SourceFile identity when
+    // available so the same module referenced under different specifier
+    // strings (e.g. "./foo.ts" vs "../bar/foo.ts") dedups instead of
+    // producing a duplicate import. Fall back to literal-string match
+    // for unresolved external modules.
+    const existing = targetFile.getImportDeclarations().find((d) => {
+      if (imp.resolvedPath) {
+        return (
+          d.getModuleSpecifierSourceFile()?.getFilePath() === imp.resolvedPath
+        );
+      }
+      return d.getModuleSpecifierValue() === imp.moduleSpecifier;
+    });
 
     if (existing) {
-      // Add missing named imports
       const existingNames = new Set(
         existing.getNamedImports().map((n) => n.getText()),
       );
@@ -1972,7 +1996,7 @@ function addImportsToFile(
       }
     } else {
       targetFile.addImportDeclaration({
-        moduleSpecifier: imp.moduleSpecifier,
+        moduleSpecifier: moduleSpecForTarget,
         namedImports: imp.namedImports,
         isTypeOnly: imp.isTypeOnly,
       });
