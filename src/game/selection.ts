@@ -145,9 +145,8 @@ function isSelectionPending(
   return state !== undefined && !state.confirmed;
 }
 
-function zoneTowerIndices(state: GameState, zone: ZoneId): number[] {
+function zoneTowerIndices(state: GameState, zone: ZoneId): TowerIdx[] {
   return state.map.towers
-    .map((tower, i) => ({ tower, i }))
-    .filter(({ tower }) => tower.zone === zone)
-    .map(({ i }) => i);
+    .filter((tower) => tower.zone === zone)
+    .map((tower) => tower.index);
 }

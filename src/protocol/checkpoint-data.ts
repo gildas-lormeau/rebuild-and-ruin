@@ -51,7 +51,7 @@ export interface SerializedPlayer {
   cannons: SerializedCannon[];
   /** Home tower index — immutable after selection. Omitted in checkpoint messages;
    *  present only in full-state (join/reconnect). */
-  homeTowerIdx?: number | null;
+  homeTowerIdx?: TowerIdx | null;
   /** Castle wall tiles protected from debris sweep (includes clumsy extras).
    *  Immutable after selection. Omitted in checkpoint messages. */
   castleWallTiles?: number[];
