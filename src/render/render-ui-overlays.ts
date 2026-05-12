@@ -796,6 +796,11 @@ function buildBattleSupplyShipsPayload(
     headingRad: ship.headingRad,
     hpFrac: ship.hp / 2,
     sinking: ship.sinking,
+    // Reveal the bonus only once the ship is sinking — alive ships
+    // keep their cargo hidden so the player has to read which one to
+    // chase. Without this gate the bonus would leak to the UI/cheat
+    // surface during gameplay.
+    bonus: ship.sinking ? ship.bonus : undefined,
   }));
 }
 

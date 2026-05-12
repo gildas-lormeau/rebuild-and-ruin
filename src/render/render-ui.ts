@@ -4,6 +4,7 @@ import {
 } from "../shared/core/game-constants.ts";
 import type { GameMap } from "../shared/core/geometry-types.ts";
 import { TILE_SIZE } from "../shared/core/grid.ts";
+import type { SupplyBonusId } from "../shared/core/modifier-defs.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerCenterPx } from "../shared/core/spatial.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform/platform.ts";
@@ -133,6 +134,14 @@ const MODIFIER_COLORS: Record<ModifierId, { title: string; border: string }> = {
   frostbite: { title: "#b8e8ff", border: "#5098c8" },
   sapper: { title: "#c89878", border: "#785838" },
   supply_ship: { title: "#d8c090", border: "#806840" },
+};
+/** Short reveal-label text per supply-ship bonus. Drawn floating above
+ *  a sinking ship while its hull goes under. */
+const SUPPLY_BONUS_LABEL: Record<SupplyBonusId, string> = {
+  extra_cannon: "+1 CANNON",
+  extra_build_time: "+5s BUILD",
+  mortar_shot: "MORTAR SHOT",
+  small_pieces_bias: "SMALL PIECES",
 };
 
 /** Draw announcement text centered on screen. */
@@ -304,6 +313,42 @@ export function drawScoreDeltas(
       delta.cx,
       delta.cy + 8,
       SHADOW_COLOR,
+      GOLD_LIGHT,
+    );
+  }
+  overlayCtx.restore();
+}
+
+/** Draw floating bonus reveals over sinking supply ships. Driven by
+ *  `ship.sinking.progress` (0 → 1 across the 1.2s sink animation), so
+ *  the label appears the moment the ship is hit-to-death, rises away
+ *  from the descending hull, and fades out as the ship goes under. */
+export function drawSupplyShipBonusLabels(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  const ships = overlay?.battle?.supplyShips;
+  if (!ships || ships.length === 0) return;
+  overlayCtx.save();
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.font = FONT_FLOAT_MD;
+  for (const ship of ships) {
+    if (!ship.sinking || !ship.bonus) continue;
+    const progress = ship.sinking.progress;
+    let alpha: number;
+    if (progress < 0.15) alpha = progress / 0.15;
+    else if (progress > 0.7) alpha = Math.max(0, 1 - (progress - 0.7) / 0.3);
+    else alpha = 1;
+    // Rise ~14px over the sink so the label drifts away from the hull.
+    const rise = 14 * progress;
+    overlayCtx.globalAlpha = alpha;
+    drawShadowText(
+      overlayCtx,
+      SUPPLY_BONUS_LABEL[ship.bonus],
+      ship.x,
+      ship.y - TILE_SIZE - rise,
+      SHADOW_COLOR_DENSE,
       GOLD_LIGHT,
     );
   }

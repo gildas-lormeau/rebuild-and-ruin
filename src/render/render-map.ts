@@ -29,6 +29,7 @@ import {
   drawScoreDeltas,
   drawSelectionCursor,
   drawStatusBar,
+  drawSupplyShipBonusLabels,
   drawUpgradePick,
 } from "./render-ui.ts";
 import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
@@ -412,6 +413,7 @@ export function createRenderMap(deps: RenderMapDeps = {}): RenderMap {
     drawPhaseTimer(overlayCtx, map, overlay, now);
     drawSelectionCursor(overlayCtx, map, overlay, now);
     drawScoreDeltas(overlayCtx, overlay);
+    drawSupplyShipBonusLabels(overlayCtx, overlay);
     drawBanner(overlayCtx, W, H, overlay);
     drawGameOver(overlayCtx, W, H, overlay);
     drawLifeLostDialog(overlayCtx, W, H, overlay, now);

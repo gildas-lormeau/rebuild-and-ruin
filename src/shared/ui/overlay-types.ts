@@ -15,6 +15,7 @@ import type { ModifierId } from "../core/game-constants.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
 import { Phase } from "../core/game-phase.ts";
 import type { GameMap, TilePos, Viewport } from "../core/geometry-types.ts";
+import type { SupplyBonusId } from "../core/modifier-defs.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
@@ -201,10 +202,12 @@ export interface OverlayBalloon {
   progress: number;
 }
 
-/** Supply-ship render projection. Bonus is intentionally NOT carried
- *  to the renderer — it's hidden until the ship sinks. The 3D manager
- *  reads position + facing each frame, drives idle bob, and runs the
- *  sink animation when `sinking` is present. */
+/** Supply-ship render projection. `bonus` is populated only when the
+ *  ship is sinking — alive ships keep their bonus hidden from the
+ *  renderer (and therefore from the player). The 3D manager reads
+ *  position + facing each frame, drives idle bob, and runs the sink
+ *  animation when `sinking` is present. The 2D UI layer reads `bonus`
+ *  during the sink to render a floating reveal label. */
 export interface OverlaySupplyShip {
   readonly id: number;
   /** World-pixel position (col * TILE_SIZE + offset). */
@@ -217,6 +220,9 @@ export interface OverlaySupplyShip {
   readonly hpFrac: number;
   /** Sink animation progress (0 → 1). Absent while alive. */
   readonly sinking?: { readonly progress: number };
+  /** Awarded bonus, revealed when the ship is sinking. Absent while alive
+   *  so the cargo stays hidden through gameplay. */
+  readonly bonus?: SupplyBonusId;
 }
 
 /** Battle phase — projectiles, effects, territory state. */

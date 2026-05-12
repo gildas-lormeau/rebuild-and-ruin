@@ -180,6 +180,14 @@ const SFX_EVENT_MAP: SfxEventMap = {
   // Mid-sized splat — between wall hits (exp3) and cannon destruction
   // (explrg1). Fits a grunt getting crushed by a cannonball.
   gruntKilled: { sample: "exp2" },
+  // Ship hit (hp -1, not yet sinking): a snappy wood-on-wood impact.
+  // Reuses `exp3` (also wallDestroyed) — the ship cargo crate cracking
+  // reads similarly enough that introducing a new sample isn't worth it.
+  shipHit: { sample: "exp3" },
+  // Ship sunk (hp=0 → sink animation starts): the climactic wooden
+  // crunch as the hull breaks up. Same `woodcrus` used for house
+  // destruction, which fits a wooden cargo ship going under.
+  shipSunk: { sample: "woodcrus" },
   // woodcrus — wooden-crunch sample fires in both phases: build-phase
   // wall-on-top-of-house (via houseCrushed) and battle-phase cannonball
   // destroying a house (via houseDestroyed).
