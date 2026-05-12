@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "seed": 42,
+  "mode": "classic",
+  "rounds": 3,
+  "entryPhase": "CANNON_PLACE",
+  "round": 1,
+  "notes": "Baseline cannon-place entry: default seed 42, classic mode. Runtime plays through CASTLE_SELECT (AI picks castles), then the fixture hands control to the test at CANNON_PLACE."
+}

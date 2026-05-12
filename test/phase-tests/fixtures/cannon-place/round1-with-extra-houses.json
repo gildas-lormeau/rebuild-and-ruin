@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "seed": 42,
+  "mode": "classic",
+  "rounds": 3,
+  "entryPhase": "CANNON_PLACE",
+  "round": 1,
+  "houses": [
+    { "row": 0, "col": 0 },
+    { "row": 0, "col": 2 }
+  ],
+  "notes": "Cannon-place entry with two extra hand-authored houses on top of the seed-generated map. Verifies the loader's house-override apply step."
+}

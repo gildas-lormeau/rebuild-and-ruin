@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "seed": 42,
+  "mode": "classic",
+  "rounds": 3,
+  "entryPhase": "CANNON_PLACE",
+  "round": 1,
+  "bonusSquares": [
+    { "row": 0, "col": 4 },
+    { "row": 0, "col": 6 }
+  ],
+  "notes": "Cannon-place entry with two extra hand-authored bonus squares on top of the seed-generated set. Verifies the loader's bonus-square apply step."
+}

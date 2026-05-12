@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "seed": 42,
+  "mode": "classic",
+  "rounds": 3,
+  "entryPhase": "CANNON_PLACE",
+  "round": 1,
+  "walls": [
+    {
+      "row": 0,
+      "col": 8,
+      "ownerId": 0
+    },
+    {
+      "row": 0,
+      "col": 10,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 25,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 26,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 27,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 28,
+      "ownerId": 0
+    },
+    {
+      "row": 8,
+      "col": 25,
+      "ownerId": 0
+    },
+    {
+      "row": 9,
+      "col": 25,
+      "ownerId": 0
+    },
+    {
+      "row": 10,
+      "col": 25,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 25,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 26,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 28,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 27,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 29,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 30,
+      "ownerId": 0
+    },
+    {
+      "row": 11,
+      "col": 31,
+      "ownerId": 0
+    },
+    {
+      "row": 10,
+      "col": 31,
+      "ownerId": 0
+    },
+    {
+      "row": 9,
+      "col": 31,
+      "ownerId": 0
+    },
+    {
+      "row": 8,
+      "col": 31,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 31,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 30,
+      "ownerId": 0
+    },
+    {
+      "row": 7,
+      "col": 29,
+      "ownerId": 0
+    }
+  ],
+  "notes": "Cannon-place entry with two isolated walls authored for player 0. The loader does NOT recompute derived state (interior, ownedTowers, territory) — call recomputeFixtureDerivedState(sc.state) before advancing the runtime."
+}
