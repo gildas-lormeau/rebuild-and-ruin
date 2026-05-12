@@ -10,7 +10,11 @@ import type {
 } from "../shared/core/battle-types.ts";
 import type { BannerKind } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
-import type { GameMap, WorldPos } from "../shared/core/geometry-types.ts";
+import type {
+  GameMap,
+  TowerIdx,
+  WorldPos,
+} from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type { RenderView } from "../shared/core/render-view.ts";
 import type {
@@ -526,7 +530,7 @@ export interface RegisterOnlineInputDeps {
 export interface GameActionDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (
-    idx: number,
+    idx: TowerIdx,
     zone: ZoneId,
     pid: ValidPlayerId,
   ) => void;

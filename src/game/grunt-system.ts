@@ -26,7 +26,7 @@ import {
   MODIFIER_ID,
 } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { TilePos, TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -273,7 +273,7 @@ export function gruntAttackTowers(
     // Grunts with a locked target only attack that specific tower.
     // Untargeted grunts (e.g. spawned by grunt-surge modifier at battle start)
     // attack any adjacent living tower.
-    let attackTarget: number | undefined;
+    let attackTarget: TowerIdx | undefined;
     if (grunt.targetTowerIdx !== undefined) {
       const targetTower = getGruntTargetTower(state, grunt);
       if (

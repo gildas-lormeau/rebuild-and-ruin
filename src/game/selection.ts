@@ -1,6 +1,7 @@
 import { SELECT_TIMER } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { getInterior } from "../shared/core/player-interior.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -17,11 +18,13 @@ export function initTowerSelection(
   zone: ZoneId,
 ): void {
   const player = state.players[playerId]!;
-  const towerIdx = player.homeTower
-    ? // Identity check (===) is safe: tower refs are stable within a game session.
-      // Online mode uses indices for serialization (see online-phase-transitions.ts).
-      state.map.towers.findIndex((tower) => tower === player.homeTower)
-    : (zoneTowerIndices(state, zone)[0] ?? 0);
+  const towerIdx = (
+    player.homeTower
+      ? // Identity check (===) is safe: tower refs are stable within a game session.
+        // Online mode uses indices for serialization (see online-phase-transitions.ts).
+        state.map.towers.findIndex((tower) => tower === player.homeTower)
+      : (zoneTowerIndices(state, zone)[0] ?? 0)
+  ) as TowerIdx;
   selectionStates.set(playerId, {
     highlighted: towerIdx,
     confirmed: false,
@@ -34,7 +37,7 @@ export function initTowerSelection(
 export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  idx: number,
+  idx: TowerIdx,
   zone: ZoneId,
   playerId: ValidPlayerId,
 ): boolean {
@@ -64,7 +67,7 @@ export function confirmTowerSelection(
   selectionStates: Map<number, SelectionState>,
   playerId: ValidPlayerId,
   onConfirmed?: (row: number, col: number) => void,
-): { towerIdx: number; allDone: boolean } | null {
+): { towerIdx: TowerIdx; allDone: boolean } | null {
   const selectionState = selectionStates.get(playerId);
   if (!isSelectionPending(selectionState)) return null;
   selectionState.confirmed = true;

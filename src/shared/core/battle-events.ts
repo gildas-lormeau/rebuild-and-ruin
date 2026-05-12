@@ -4,6 +4,7 @@
 // Network protocol (protocol.ts) re-exports these via MESSAGE spread.
 // ---------------------------------------------------------------------------
 
+import type { TowerIdx } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 
 /** Index into `player.cannons[]` for a given player. Branded so a raw
@@ -152,7 +153,7 @@ export interface WallShieldedMessage {
  *  secondary tower (no owner to notify). */
 export interface TowerKilledMessage {
   type: "towerKilled";
-  towerIdx: number;
+  towerIdx: TowerIdx;
   playerId?: ValidPlayerId;
 }
 

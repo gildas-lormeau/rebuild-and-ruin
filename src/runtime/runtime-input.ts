@@ -1,3 +1,4 @@
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_PORTRAIT_LAUNCHED } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { zoneTowerCenterPx } from "../shared/core/spatial.ts";
@@ -131,7 +132,7 @@ interface InputSystemDeps {
     pickDirect: (playerId: ValidPlayerId, cardIdx: number) => void;
   };
   readonly selection: {
-    highlight: (idx: number, zone: ZoneId, pid: ValidPlayerId) => void;
+    highlight: (idx: TowerIdx, zone: ZoneId, pid: ValidPlayerId) => void;
     confirmAndStartBuild: (pid: ValidPlayerId) => boolean;
     isReady: () => boolean;
   };

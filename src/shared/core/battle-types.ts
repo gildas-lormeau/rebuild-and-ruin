@@ -1,5 +1,5 @@
 import type { BallisticTrajectory, CannonIdx } from "./battle-events.ts";
-import type { PixelPos, TilePos } from "./geometry-types.ts";
+import type { PixelPos, TilePos, TowerIdx } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import { WALL_DESTROY_ANIM_DURATION } from "./wall-destroy-anim.ts";
 
@@ -7,7 +7,7 @@ export interface Grunt extends TilePos {
   /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
   victimPlayerId: ValidPlayerId;
   /** Locked target tower index. Stays until the tower is destroyed. */
-  targetTowerIdx?: number;
+  targetTowerIdx?: TowerIdx;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
   attackCountdown?: number;
   /** Number of consecutive battles the grunt has been blocked (not adjacent to target tower).

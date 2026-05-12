@@ -9,7 +9,7 @@
 import type { Rng } from "../platform/rng.ts";
 import type { Cannon } from "./battle-types.ts";
 import { STARTING_LIVES } from "./game-constants.ts";
-import type { Castle, Tower } from "./geometry-types.ts";
+import type { Castle, Tower, TowerIdx } from "./geometry-types.ts";
 import {
   type BagState,
   createBag,
@@ -181,7 +181,7 @@ export function selectPlayerTower(player: Player, tower: Tower): void {
  *  need this in a hot loop should cache their own inverse map. */
 export function findTowerOwner(
   players: readonly Player[],
-  towerIdx: number,
+  towerIdx: TowerIdx,
 ): ValidPlayerId | undefined {
   for (const player of players) {
     if (player.ownedTowers.some((tower) => tower.index === towerIdx)) {

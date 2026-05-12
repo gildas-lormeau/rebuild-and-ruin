@@ -14,7 +14,11 @@ import {
   hasWallAt,
 } from "../shared/core/board-occupancy.ts";
 import { MODIFIER_ID, TOWER_SIZE } from "../shared/core/game-constants.ts";
-import type { TilePos, Tower } from "../shared/core/geometry-types.ts";
+import type {
+  TilePos,
+  Tower,
+  TowerIdx,
+} from "../shared/core/geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import {
@@ -107,7 +111,7 @@ export function adjacentLivingTowerIndex(
   row: number,
   col: number,
   deadZones?: ReadonlySet<number>,
-): number | null {
+): TowerIdx | null {
   for (const [dr, dc] of DIRS_4) {
     const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
     if (towerIndex === null) continue;
@@ -141,7 +145,7 @@ function lockGruntTarget(
   const frozenActive = state.modern?.frozenTiles != null;
 
   let bestDist = Infinity;
-  let bestIdx: number | undefined;
+  let bestIdx: TowerIdx | undefined;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const tower = state.map.towers[i]!;
@@ -154,7 +158,7 @@ function lockGruntTarget(
     const dist = distanceToTower(tower, grunt.row, grunt.col);
     if (dist < bestDist) {
       bestDist = dist;
-      bestIdx = i;
+      bestIdx = i as TowerIdx;
     }
   }
 
@@ -168,7 +172,7 @@ function lockGruntTarget(
       const dist = distanceToTower(tower, grunt.row, grunt.col);
       if (dist < bestDist) {
         bestDist = dist;
-        bestIdx = i;
+        bestIdx = i as TowerIdx;
       }
     }
   }
@@ -231,7 +235,7 @@ export function isAdjacentToLivingTower(
   state: GameState,
   row: number,
   col: number,
-  towerIndex: number,
+  towerIndex: TowerIdx,
 ): boolean {
   if (!state.towerAlive[towerIndex]) return false;
   const tower = state.map.towers[towerIndex]!;
@@ -417,7 +421,7 @@ function isCardinalAdjacentToTower(
   state: GameState,
   row: number,
   col: number,
-  towerIndex: number,
+  towerIndex: TowerIdx,
 ): boolean {
   const tower = state.map.towers[towerIndex];
   if (!tower) return false;

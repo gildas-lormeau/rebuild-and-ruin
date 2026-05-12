@@ -25,7 +25,7 @@ import {
   TOWER_SIZE,
 } from "../shared/core/game-constants.ts";
 import { emitGameEvent, GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { TilePos } from "../shared/core/geometry-types.ts";
+import type { TilePos, TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/core/grid.ts";
 import { hasCannonAt, hasTowerAt } from "../shared/core/occupancy-queries.ts";
 import type { PieceShape } from "../shared/core/pieces.ts";
@@ -476,7 +476,7 @@ function removeEnclosedGruntsAndRespawn(
 /** Remove tower indices from towerPendingRevive if no longer enclosed by any player.
  *  Called at end of build to prevent reviving towers that lost enclosure. */
 function clearUnenclosedPendingRevives(state: GameState): void {
-  const toRemove: number[] = [];
+  const toRemove: TowerIdx[] = [];
   for (const towerIdx of state.towerPendingRevive) {
     if (towerIdx < 0 || towerIdx >= state.map.towers.length) {
       toRemove.push(towerIdx);

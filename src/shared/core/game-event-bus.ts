@@ -12,7 +12,7 @@ import {
 } from "./battle-events.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
-import type { Viewport } from "./geometry-types.ts";
+import type { TowerIdx, Viewport } from "./geometry-types.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 import type { ZoneId } from "./zone-id.ts";
@@ -215,7 +215,7 @@ export type EntityEvent =
    *  placement both trigger it identically. Consumers decide whether to
    *  dedupe — the SFX layer tracks "first this phase per player" locally
    *  to gate the fanfare. */
-  | { type: "towerEnclosed"; playerId: ValidPlayerId; towerIndex: number }
+  | { type: "towerEnclosed"; playerId: ValidPlayerId; towerIndex: TowerIdx }
   | {
       type: "cannonPlaced";
       playerId: ValidPlayerId;

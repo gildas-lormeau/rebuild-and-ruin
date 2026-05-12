@@ -33,10 +33,15 @@ export interface WorldPos {
   wy: number;
 }
 
+/** Index into `GameMap.towers[]` (stable after generation). Branded so a
+ *  raw number can't accidentally substitute for one (e.g. a cannon index
+ *  or card index of the same shape). */
+export type TowerIdx = number & { readonly __towerIdx: true };
+
 export interface Tower extends TilePos {
   zone: ZoneId;
   /** Index into the GameMap.towers array (stable after generation). */
-  index: number;
+  index: TowerIdx;
 }
 
 export interface Castle {

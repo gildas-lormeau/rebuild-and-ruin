@@ -21,6 +21,7 @@ import {
   type WallShieldedMessage,
 } from "../shared/core/battle-events.ts";
 import { GAME_MODE_MODERN } from "../shared/core/game-constants.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
@@ -328,7 +329,7 @@ export interface OpponentCannonPhantomMessage extends CannonPhantomPayload {
 export interface OpponentTowerSelectedMessage {
   type: "opponentTowerSelected";
   playerId: ValidPlayerId;
-  towerIdx: number;
+  towerIdx: TowerIdx;
   confirmed?: boolean;
   /** Lockstep apply tick: `senderSimTick + SAFETY`. Only set when
    *  `confirmed=true` — highlight-only messages are cosmetic and apply

@@ -9,7 +9,13 @@
 import { type BurningPit, type Cannon, CannonMode } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
-import type { GameMap, PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import type {
+  GameMap,
+  PixelPos,
+  TilePos,
+  Tower,
+  TowerIdx,
+} from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { type Player, playerByZone } from "./player-types.ts";
 import type { ZoneCell, ZoneId } from "./zone-id.ts";
@@ -240,12 +246,12 @@ export function towerAtPixel(
   towers: readonly TilePos[],
   worldX: number,
   worldY: number,
-): number | undefined {
+): TowerIdx | undefined {
   const tileCol = pxToTile(worldX);
   const tileRow = pxToTile(worldY);
 
   const HIT_RADIUS = 2;
-  let bestIdx: number | undefined;
+  let bestIdx: TowerIdx | undefined;
   let bestDist = Infinity;
 
   for (let i = 0; i < towers.length; i++) {
@@ -255,7 +261,7 @@ export function towerAtPixel(
     const dist = Math.sqrt(dr * dr + dc * dc);
     if (dist < HIT_RADIUS && dist < bestDist) {
       bestDist = dist;
-      bestIdx = i;
+      bestIdx = i as TowerIdx;
     }
   }
 

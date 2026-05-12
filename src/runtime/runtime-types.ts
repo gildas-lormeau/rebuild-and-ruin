@@ -11,6 +11,7 @@ import type { GameMessage, ServerMessage } from "../protocol/protocol.ts";
 import type { Crosshair } from "../shared/core/battle-types.ts";
 import type {
   GameMap,
+  TowerIdx,
   Viewport,
   WorldPos,
 } from "../shared/core/geometry-types.ts";
@@ -383,7 +384,7 @@ export interface RuntimeSelection {
    *  the lifeLostRoute reselect cycle. */
   enter: (queue?: readonly ValidPlayerId[]) => void;
   syncOverlay: () => void;
-  highlight: (idx: number, zone: ZoneId, pid: ValidPlayerId) => void;
+  highlight: (idx: TowerIdx, zone: ZoneId, pid: ValidPlayerId) => void;
   confirmAndStartBuild: (
     pid: ValidPlayerId,
     source?: "local" | "network",

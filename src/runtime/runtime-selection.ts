@@ -15,6 +15,7 @@ import {
   WALL_BUILD_INTERVAL,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
   type InputReceiver,
@@ -47,7 +48,7 @@ interface SelectionSystemDeps {
   // Networking (named sends — protocol knowledge stays in composition root)
   sendTowerSelected: (
     playerId: ValidPlayerId,
-    towerIdx: number,
+    towerIdx: TowerIdx,
     confirmed: boolean,
     applyAt?: number,
   ) => void;
@@ -179,7 +180,7 @@ export function createSelectionSystem(
 
   /** Highlight a tower for a player's selection UI. */
   function highlightTowerForPlayer(
-    idx: number,
+    idx: TowerIdx,
     zone: ZoneId,
     pid: ValidPlayerId,
   ): void {
@@ -247,7 +248,6 @@ export function createSelectionSystem(
     const allConfirmed = () =>
       allSelectionsConfirmed(runtimeState.selection.states);
     if (!selectionState || selectionState.confirmed) return allConfirmed();
-    if (selectionState.highlighted === undefined) return allConfirmed();
 
     const ctrl = runtimeState.controllers[pid]!;
     const isLocalHumanBroadcast = source === "local" && isHuman(ctrl);

@@ -23,7 +23,7 @@ import {
 } from "./game-constants.ts";
 import type { GameEventBus } from "./game-event-bus.ts";
 import type { Phase } from "./game-phase.ts";
-import type { BonusSquare, GameMap } from "./geometry-types.ts";
+import type { BonusSquare, GameMap, TowerIdx } from "./geometry-types.ts";
 import type {
   RubbleClearingHeld,
   SupplyBonusId,
@@ -83,7 +83,7 @@ export interface GameState {
   /** Whether each tower is alive (indexed same as map.towers). */
   towerAlive: boolean[];
   /** Dead towers that were enclosed last build phase — revive if still enclosed next build phase. */
-  towerPendingRevive: Set<number>;
+  towerPendingRevive: Set<TowerIdx>;
   /** Burning pits left by super gun incendiary cannonballs. Block placement. */
   burningPits: BurningPit[];
   /** Cannons captured by propaganda balloons this round (lasts one battle). */
@@ -286,7 +286,7 @@ export interface LobbyState {
 
 /** Per-player state during castle selection (highlighted tower, confirm status). */
 export interface SelectionState {
-  highlighted: number;
+  highlighted: TowerIdx;
   confirmed: boolean;
   /** True once the user has tapped/clicked the highlighted tower once,
    *  enabling confirmation on the second tap. Reset on pointer-move to a

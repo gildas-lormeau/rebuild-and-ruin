@@ -51,7 +51,6 @@
     "files": [
       "src/online/online-config.ts",
       "src/online/online-router.ts",
-      "src/protocol/checkpoint-data.ts",
       "src/render/3d/effects/terrain-pattern-textures.ts",
       "src/render/3d/lights.ts",
       "src/render/3d/sprites/balloon-scene.ts",
@@ -68,7 +67,6 @@
       "src/runtime/rubble-clearing-overlay.ts",
       "src/runtime/sapper-reveal-overlay.ts",
       "src/runtime/sound-modal.ts",
-      "src/shared/core/battle-events.ts",
       "src/shared/core/elevation-constants.ts",
       "src/shared/core/feature-defs.ts",
       "src/shared/core/geometry-types.ts",
@@ -83,6 +81,7 @@
     "tier": "types",
     "files": [
       "src/entry.ts",
+      "src/protocol/checkpoint-data.ts",
       "src/render/3d/camera.ts",
       "src/render/3d/effects/terrain-sdf-texture.ts",
       "src/render/3d/light-debug.ts",
@@ -95,8 +94,7 @@
       "src/render/3d/sprites/wall-scene.ts",
       "src/render/render-ui-theme.ts",
       "src/runtime/camera-projection.ts",
-      "src/shared/core/battle-types.ts",
-      "src/shared/core/game-event-bus.ts",
+      "src/shared/core/battle-events.ts",
       "src/shared/ui/interaction-types.ts",
       "src/shared/ui/player-config.ts"
     ]
@@ -105,17 +103,25 @@
     "name": "wire payloads & shared definitions",
     "tier": "types",
     "files": [
-      "src/render/3d/entities/entity-helpers.ts",
-      "src/shared/core/cannon-mode-defs.ts",
-      "src/shared/core/modifier-defs.ts",
-      "src/shared/core/phantom-types.ts",
-      "src/shared/core/player-types.ts",
+      "src/shared/core/battle-types.ts",
+      "src/shared/core/game-event-bus.ts",
       "src/shared/ui/settings-ui.ts"
     ]
   },
   {
     "name": "core state & adjacent types",
     "tier": "types",
+    "files": [
+      "src/render/3d/entities/entity-helpers.ts",
+      "src/shared/core/cannon-mode-defs.ts",
+      "src/shared/core/modifier-defs.ts",
+      "src/shared/core/phantom-types.ts",
+      "src/shared/core/player-types.ts"
+    ]
+  },
+  {
+    "name": "first logic",
+    "tier": "logic",
     "files": [
       "src/online/online-types.ts",
       "src/protocol/protocol.ts",
@@ -129,7 +135,7 @@
     ]
   },
   {
-    "name": "first logic",
+    "name": "upgrades, modifiers & runtime contracts",
     "tier": "logic",
     "files": [
       "server/game-room.ts",
@@ -167,8 +173,8 @@
     ]
   },
   {
-    "name": "upgrades, modifiers & runtime contracts",
-    "tier": "logic",
+    "name": "cross-domain handlers",
+    "tier": "systems",
     "files": [
       "server/room-manager.ts",
       "src/controllers/controller-human.ts",
@@ -234,7 +240,7 @@
     ]
   },
   {
-    "name": "cross-domain handlers",
+    "name": "subsystems",
     "tier": "systems",
     "files": [
       "server/server.ts",
@@ -269,7 +275,7 @@
     ]
   },
   {
-    "name": "subsystems",
+    "name": "system implementations",
     "tier": "systems",
     "files": [
       "src/ai/ai-build-score.ts",
@@ -304,8 +310,8 @@
     ]
   },
   {
-    "name": "system implementations",
-    "tier": "systems",
+    "name": "mid-depth assembly",
+    "tier": "assembly",
     "files": [
       "src/ai/ai-build-fallback.ts",
       "src/game/cannon-system.ts",
@@ -325,7 +331,7 @@
     ]
   },
   {
-    "name": "mid-depth assembly",
+    "name": "system composition",
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy-build.ts",
@@ -335,7 +341,7 @@
     ]
   },
   {
-    "name": "system composition",
+    "name": "phase orchestration",
     "tier": "assembly",
     "files": [
       "src/ai/ai-strategy.ts",
@@ -346,7 +352,7 @@
     ]
   },
   {
-    "name": "phase orchestration",
+    "name": "wiring & local entry",
     "tier": "assembly",
     "files": [
       "src/ai/ai-phase-battle.ts",
@@ -362,8 +368,8 @@
     ]
   },
   {
-    "name": "wiring & local entry",
-    "tier": "assembly",
+    "name": "composition roots",
+    "tier": "roots",
     "files": [
       "src/controllers/controller-ai.ts",
       "src/game/phase-entry.ts",
@@ -372,7 +378,7 @@
     ]
   },
   {
-    "name": "composition roots",
+    "name": "online deps wiring",
     "tier": "roots",
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
@@ -381,22 +387,21 @@
     ]
   },
   {
-    "name": "online deps wiring",
+    "name": "online runtime composition",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-deps.ts"
     ]
   },
   {
-    "name": "online runtime composition",
+    "name": "online client entry",
     "tier": "roots",
     "files": [
       "src/online/online-runtime-game.ts"
     ]
   },
   {
-    "name": "online client entry",
-    "tier": "roots",
+    "name": "layer 18",
     "files": [
       "src/online-client.ts"
     ]

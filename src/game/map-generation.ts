@@ -10,6 +10,7 @@ import type {
   GameMap,
   TileGridPos,
   Tower,
+  TowerIdx,
 } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../shared/core/grid.ts";
 import {
@@ -418,7 +419,7 @@ function placeTowers(
       col: validPositions[bestIdx]![0],
       row: validPositions[bestIdx]![1],
       zone: zoneId,
-      index: towers.length,
+      index: towers.length as TowerIdx,
     });
 
     // Remaining towers: farthest from existing zone towers
@@ -435,7 +436,7 @@ function placeTowers(
           col: bestPos[0],
           row: bestPos[1],
           zone: zoneId,
-          index: towers.length,
+          index: towers.length as TowerIdx,
         });
       }
     }

@@ -7,6 +7,7 @@
  * host-provided data on apply.
  */
 
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 
 export interface SerializedCannon {
@@ -36,7 +37,7 @@ export interface SerializedGrunt {
   row: number;
   col: number;
   victimPlayerId: ValidPlayerId;
-  targetTowerIdx?: number;
+  targetTowerIdx?: TowerIdx;
   attackCountdown?: number;
   blockedRounds?: number;
   attackingWall?: boolean;

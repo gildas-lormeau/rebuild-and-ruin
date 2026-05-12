@@ -14,7 +14,12 @@ import type {
 import type { ModifierId } from "../core/game-constants.ts";
 import type { BannerKind } from "../core/game-event-bus.ts";
 import { Phase } from "../core/game-phase.ts";
-import type { GameMap, TilePos, Viewport } from "../core/geometry-types.ts";
+import type {
+  GameMap,
+  TilePos,
+  TowerIdx,
+  Viewport,
+} from "../core/geometry-types.ts";
 import type { SupplyBonusId } from "../core/modifier-defs.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
@@ -126,12 +131,12 @@ export interface LifeLostDialogOverlay {
 /** Castle selection phase — tower highlighting and confirmation. */
 export interface SelectionOverlay {
   /** Tower index in map.towers to highlight (cursor hover). */
-  highlighted: number | null;
+  highlighted: TowerIdx | null;
   /** Tower index in map.towers that is selected (confirmed). */
-  selected: number | null;
+  selected: TowerIdx | null;
   /** Per-player tower highlights for parallel castle selection. */
   highlights?: {
-    towerIdx: number;
+    towerIdx: TowerIdx;
     playerId: ValidPlayerId;
     confirmed?: boolean;
   }[];

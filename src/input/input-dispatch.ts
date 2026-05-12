@@ -18,7 +18,11 @@ import {
   isSelectionPhase,
   Phase,
 } from "../shared/core/game-phase.ts";
-import type { Tower, WorldPos } from "../shared/core/geometry-types.ts";
+import type {
+  Tower,
+  TowerIdx,
+  WorldPos,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/core/grid.ts";
 import { isPlayerEliminated } from "../shared/core/player-types.ts";
 import { towerAtPixel } from "../shared/core/spatial.ts";
@@ -433,12 +437,12 @@ export function dispatchPointerMoveWorld(
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
 function findNearestTower(
   towers: readonly Tower[],
-  currentIdx: number,
+  currentIdx: TowerIdx,
   direction: Action,
   zone?: ZoneId,
-): number {
+): TowerIdx {
   const current = towers[currentIdx]!;
-  let bestIdx = currentIdx;
+  let bestIdx: TowerIdx = currentIdx;
   let bestScore = Infinity;
 
   for (let i = 0; i < towers.length; i++) {
@@ -475,7 +479,7 @@ function findNearestTower(
     const score = secondary * 2 + primary;
     if (score < bestScore) {
       bestScore = score;
-      bestIdx = i;
+      bestIdx = i as TowerIdx;
     }
   }
 

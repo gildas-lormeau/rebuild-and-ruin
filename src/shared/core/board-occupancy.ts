@@ -4,7 +4,7 @@ import {
   type Grunt,
   isBalloonCannon,
 } from "./battle-types.ts";
-import type { BonusSquare } from "./geometry-types.ts";
+import type { BonusSquare, TowerIdx } from "./geometry-types.ts";
 import { hasCannonAt, hasTowerAt } from "./occupancy-queries.ts";
 import { assertInteriorFresh, markWallsDirty } from "./player-interior.ts";
 import type { ValidPlayerId } from "./player-slot.ts";
@@ -201,10 +201,10 @@ export function findLivingTowerIndexAt(
   state: GameViewState & { readonly towerAlive: readonly boolean[] },
   r: number,
   c: number,
-): number | null {
+): TowerIdx | null {
   for (let i = 0; i < state.map.towers.length; i++) {
     if (!state.towerAlive[i]) continue;
-    if (isTowerTile(state.map.towers[i]!, r, c)) return i;
+    if (isTowerTile(state.map.towers[i]!, r, c)) return i as TowerIdx;
   }
   return null;
 }

@@ -25,6 +25,7 @@ import {
   GAME_MODE_MODERN,
 } from "../shared/core/game-constants.ts";
 import { Phase } from "../shared/core/game-phase.ts";
+import type { TowerIdx } from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "../shared/core/grid.ts";
 import type { SerializedModifierTiles } from "../shared/core/modifier-defs.ts";
 import { getCannon } from "../shared/core/occupancy-queries.ts";
@@ -126,7 +127,7 @@ export function restoreFullStateSnapshot(
   state.cannonPlaceDone = new Set(msg.cannonPlaceDone as ValidPlayerId[]);
   state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
   state.playerZones = msg.playerZones as ZoneId[];
-  state.towerPendingRevive = new Set(msg.towerPendingRevive);
+  state.towerPendingRevive = new Set(msg.towerPendingRevive as TowerIdx[]);
   state.towerAlive = msg.towerAlive;
   setGameMode(
     state,
