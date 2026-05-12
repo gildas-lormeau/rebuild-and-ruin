@@ -8,6 +8,7 @@
  */
 
 import { computeLetterboxLayout } from "../render/render-layout.ts";
+import type { Crosshair } from "../shared/core/battle-types.ts";
 import type {
   GameEventBus,
   GameEventMap,
@@ -58,7 +59,7 @@ export interface E2EBattleSnapshot {
   cannonDestroys: number;
   gruntKills: number;
   houseDestroys: number;
-  crosshairs: { x: number; y: number; playerId: ValidPlayerId }[];
+  crosshairs: Pick<Crosshair, "x" | "y" | "playerId">[];
 }
 
 export interface E2EUISnapshot {
