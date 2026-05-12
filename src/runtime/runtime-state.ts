@@ -278,7 +278,11 @@ export function createRuntimeState(): RuntimeState {
     optionsUI: { returnMode: null, cursor: 0 },
 
     settings: loadSettings(),
-    controlsState: { playerIdx: 0, actionIdx: 0, rebinding: false },
+    controlsState: {
+      playerIdx: 0 as ValidPlayerId,
+      actionIdx: 0,
+      rebinding: false,
+    },
 
     scoreDisplay: {
       deltas: [],

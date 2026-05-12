@@ -174,7 +174,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function showControls(): void {
-    uiCtx.controlsState.playerIdx = 0;
+    uiCtx.controlsState.playerIdx = 0 as ValidPlayerId;
     uiCtx.controlsState.actionIdx = 0;
     uiCtx.controlsState.rebinding = false;
     uiCtx.setMode(Mode.CONTROLS);

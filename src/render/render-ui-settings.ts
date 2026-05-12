@@ -6,6 +6,7 @@
  */
 
 import type { ControlsHit, OptionsHit } from "../runtime/runtime-contracts.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import type {
   ControlsPlayer,
   RenderOverlay,
@@ -224,7 +225,11 @@ export function controlsScreenHitTest(
       const cellX = tableX + labelColW + playerIdx * playerColW + PAD / 2;
       const cellW = playerColW - PAD;
       if (x >= cellX && x <= cellX + cellW) {
-        return { type: HIT_CELL, playerIdx, actionIdx: a };
+        return {
+          type: HIT_CELL,
+          playerIdx: playerIdx as ValidPlayerId,
+          actionIdx: a,
+        };
       }
     }
   }
@@ -391,7 +396,7 @@ function drawControlsTable(
   H: number,
   players: readonly ControlsPlayer[],
   actionNames: readonly string[],
-  selectedPlayerIdx: number,
+  selectedPlayerIdx: ValidPlayerId,
   selectedActionIdx: number,
   rebinding: boolean,
   tableX: number,

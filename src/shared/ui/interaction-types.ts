@@ -59,7 +59,7 @@ export interface UpgradePickDialogState {
 
 /** Mutable state for the controls-rebinding screen. */
 export interface ControlsState {
-  playerIdx: number;
+  playerIdx: ValidPlayerId;
   actionIdx: number;
   rebinding: boolean;
 }

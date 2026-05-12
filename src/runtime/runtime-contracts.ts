@@ -130,7 +130,7 @@ export type OptionsHit =
 /** Hit-test result for a tap/click on the controls screen. */
 export type ControlsHit =
   | { type: "close" }
-  | { type: "cell"; playerIdx: number; actionIdx: number }
+  | { type: "cell"; playerIdx: ValidPlayerId; actionIdx: number }
   | null;
 
 export type CreateBannerUiFn = (

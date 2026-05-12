@@ -1,4 +1,5 @@
 import type { RegisterOnlineInputDeps } from "../runtime/runtime-contracts.ts";
+import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import { type GameState } from "../shared/core/types.ts";
 import {
   IS_TOUCH_DEVICE,
@@ -186,12 +187,13 @@ function handleKeyControls(
       e.preventDefault();
     } else if (e.key === KEY_LEFT) {
       const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
-      controlsState.playerIdx =
-        (controlsState.playerIdx - 1 + colCount) % colCount;
+      controlsState.playerIdx = ((controlsState.playerIdx - 1 + colCount) %
+        colCount) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_RIGHT) {
       const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
-      controlsState.playerIdx = (controlsState.playerIdx + 1) % colCount;
+      controlsState.playerIdx = ((controlsState.playerIdx + 1) %
+        colCount) as ValidPlayerId;
       e.preventDefault();
     } else if (e.key === KEY_ENTER || e.key === " ") {
       controlsState.rebinding = true;

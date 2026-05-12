@@ -445,7 +445,7 @@ export interface UIOverlay {
   };
   controlsScreen?: {
     players: ControlsPlayer[];
-    playerIdx: number;
+    playerIdx: ValidPlayerId;
     actionIdx: number;
     rebinding: boolean;
     actionNames: readonly string[];
