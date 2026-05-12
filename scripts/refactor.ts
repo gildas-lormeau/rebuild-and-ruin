@@ -1567,35 +1567,46 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
 
   console.log(`Moving "${name}" from ${fromPath} → ${toPath}`);
 
-  const decl = declarations[0]!;
-
-  // Detect re-exports: the actual declaration lives in a different file
-  const declSourceFile = decl.getSourceFile();
-  if (declSourceFile.getFilePath() !== fromFile.getFilePath()) {
-    const canonicalPath = path.relative(
-      process.cwd(),
-      declSourceFile.getFilePath(),
-    );
-    console.error(
-      `❌ "${name}" in ${fromPath} is a re-export from ${canonicalPath}`,
-    );
-    console.error(
-      `   Move it from the canonical source instead: move-export --from ${canonicalPath} --to ${toPath} --symbol ${name}`,
-    );
-    process.exit(1);
+  // Detect re-exports: every declaration must live in fromFile. Overloaded
+  // functions and declaration merging (function + namespace, function +
+  // interface, etc.) produce multiple ExportedDeclarations entries for the
+  // same name — all of them have to move together.
+  for (const decl of declarations) {
+    const declSourceFile = decl.getSourceFile();
+    if (declSourceFile.getFilePath() !== fromFile.getFilePath()) {
+      const canonicalPath = path.relative(
+        process.cwd(),
+        declSourceFile.getFilePath(),
+      );
+      console.error(
+        `❌ "${name}" in ${fromPath} is a re-export from ${canonicalPath}`,
+      );
+      console.error(
+        `   Move it from the canonical source instead: move-export --from ${canonicalPath} --to ${toPath} --symbol ${name}`,
+      );
+      process.exit(1);
+    }
   }
 
-  // Get the full text including JSDoc and export keyword
-  const fullText = getDeclarationFullText(decl);
+  // Sort by source position so overload signatures emit before the
+  // implementation in the target file.
+  const sortedDecls = [...declarations].sort(
+    (a, b) => a.getStart() - b.getStart(),
+  );
 
-  // Collect imports that the moved declaration needs
-  const neededImports = collectDeclImports(decl, fromFile);
+  // Collect text and imports for every declaration BEFORE any removal —
+  // once a node is removed its references and positions are invalidated.
+  const fullTexts = sortedDecls.map(getDeclarationFullText);
+  const neededImports = mergeImportInfos(
+    sortedDecls.map((decl) => collectDeclImports(decl, fromFile)),
+  );
 
-  // Remove from source file
-  removeDeclaration(decl);
+  for (const decl of sortedDecls) {
+    removeDeclaration(decl);
+  }
 
   // Add to target file
-  toFile.addStatements(`\n${fullText}\n`);
+  toFile.addStatements(`\n${fullTexts.join("\n")}\n`);
 
   // Remove dummy export if we seeded one for an empty file
   removeDummyExport(toFile);
@@ -1615,7 +1626,11 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   cleanSelfImport(toFile, name);
 
   const changedFiles = saveChanges(project);
-  console.log(`✅ Moved "${name}" — ${changedFiles} file(s) changed`);
+  const declDetail =
+    sortedDecls.length > 1 ? ` (${sortedDecls.length} declarations)` : "";
+  console.log(
+    `✅ Moved "${name}"${declDetail} — ${changedFiles} file(s) changed`,
+  );
 }
 
 /** Get an existing source file or create it if it doesn't exist / has no
@@ -1893,6 +1908,32 @@ function collectDeclImports(
   }
 
   return result;
+}
+
+/** Dedupe ImportInfo lists collected from multiple declarations (overloads,
+ *  declaration merging). Imports with the same (moduleSpecifier, isTypeOnly)
+ *  collapse into one entry whose namedImports is the union of the inputs. */
+function mergeImportInfos(infos: ImportInfo[][]): ImportInfo[] {
+  const byKey = new Map<string, { template: ImportInfo; names: Set<string> }>();
+  for (const list of infos) {
+    for (const imp of list) {
+      const key = `${imp.isTypeOnly ? "type:" : "value:"}${imp.moduleSpecifier}`;
+      const existing = byKey.get(key);
+      if (existing) {
+        for (const named of imp.namedImports) existing.names.add(named);
+      } else {
+        byKey.set(key, {
+          template: imp,
+          names: new Set(imp.namedImports),
+        });
+      }
+    }
+  }
+  return [...byKey.values()].map(({ template, names }) => ({
+    moduleSpecifier: template.moduleSpecifier,
+    namedImports: [...names],
+    isTypeOnly: template.isTypeOnly,
+  }));
 }
 
 function addImportsToFile(
