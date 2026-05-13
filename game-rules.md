@@ -6,7 +6,7 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 
 ## Map
 
-- **Grid**: 42 columns × 28 rows.
+- **Grid**: 44 columns × 28 rows.
 - **Terrain**: Grass (buildable) and Water (impassable).
 - **River**: A Y-shaped river divides the map into **3 zones** of roughly equal size. Generated via Bezier curves from a central junction to 3 map edges; 3 tiles wide.
 - **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 5-tile gap between towers and a safe zone around each.
@@ -18,12 +18,13 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 ## Game Flow
 
 ```
-CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE
-                    ↑                           │
-                    └───────────────────────────┘
+CASTLE_SELECT → CANNON_PLACE → BATTLE → WALL_BUILD
+  (round 1)         ↑                        │
+                    └────────────────────────┘
+                        (round 2+ loop)
 ```
 
-The game loops through Build → Cannon → Battle until one player remains or the round limit is reached.
+Round 1 opens with Castle Select; the castle walls are auto-built before play begins. Each subsequent round loops Cannon → Battle → Build. Wall Build is the **closing** phase of every round — scoring, tower revival, and life checks are finalized there. The game ends when only one player remains, or when the round limit is reached.
 
 ### Configurable Settings
 
@@ -44,63 +45,7 @@ After all players confirm, the game auto-builds castle walls: a rectangular wall
 
 ---
 
-## Phase 2: Wall Build (Repair)
-
-**Timer**: 25 seconds (first round: 0 seconds, walls are auto-built).
-
-Players place Tetris-like wall pieces to repair or extend their fortifications.
-
-### Pieces
-
-13 piece shapes, drawn from a weighted bag system:
-
-| Tier | Pieces | Early rounds | Late rounds |
-|------|--------|-------------|-------------|
-| Simple (tier 1) | 1×1, 1×2, 1×3, Corner | High weight | Low weight |
-| Medium (tier 2) | T, L, J, S, SR | Low weight | Medium weight |
-| Hard (tier 3) | C, Z, ZR, + | Not available | High weight |
-
-Weights interpolate linearly from "early" (round 2) to "late" (round 8+). Each player has their own bag; when exhausted, it refills. Simple pieces are drawn first, hard pieces last. **Relief**: after building the tiered queue, each simple piece has a 30% chance to be swapped into the harder section, so occasional easy pieces appear among the hard ones.
-
-Pieces can be **rotated** 90° clockwise. They always start in their widest orientation.
-
-### Placement Rules
-
-A piece can be placed if **every tile** of the piece:
-- Is on grass
-- Is within the player's zone
-- Does not overlap any player's walls, towers, cannons, grunts, or burning pits
-
-### Territory Claiming (Inverse Flood-Fill)
-
-After each piece placement, territory is recalculated:
-
-1. Flood from map edges through non-wall tiles to find "outside"
-2. Everything not outside and not a wall = **interior** (territory)
-3. A tower is **owned** if all 4 of its tiles are interior or wall
-
-### Houses
-
-- Placing a wall on a house **destroys** it and spawns a grunt near the location targeting the player who destroyed it.
-- Enclosing a house also destroys it and spawns 1 grunt on **each opponent's** zone.
-
-### Grunts Enclosed by Walls
-
-Grunts caught inside enclosed territory are killed (awards 16 points). Each has a **50% chance** to respawn, distributed evenly across enemy zones (round-robin).
-
-### End of Build Phase
-
-When the timer expires:
-1. **Isolated wall sweep**: Wall tiles with ≤1 orthogonal wall neighbor are removed (one layer).
-2. Territory is reclaimed with end-of-build-phase flag.
-3. **Territory points** are awarded (see Scoring).
-4. **Castle bonus** is awarded (see Scoring).
-5. **Tower revival** check (see Towers).
-6. **Life check**: Any player who does not enclose at least one alive tower loses a life.
-
----
-
-## Phase 3: Cannon Placement
+## Phase 2: Cannon Placement
 
 **Timer**: 15 seconds. Ends when all players have filled their slots or the timer expires.
 
@@ -146,7 +91,7 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 
 ---
 
-## Phase 4: Battle
+## Phase 3: Battle
 
 **Timer**: 10 seconds, preceded by a "Ready / Aim / Fire" countdown.
 
@@ -156,7 +101,7 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 - Cannons must be **enclosed** (all tiles inside interior) to fire.
 - Each cannon can have only **one cannonball in flight** at a time.
 - Cannonball speed: 150 pixels/second.
-- Cannon facing snaps to **45° increments** toward the target.
+- Cannon facing rotates smoothly toward the target (stored as a continuous angle).
 - Captured cannons are appended to the capturer's firing queue (after their own cannons) and fire in the same round-robin order.
 
 ### Impact Damage
@@ -225,6 +170,62 @@ Grunts move 1 tile per second during the build phase:
 
 ---
 
+## Phase 4: Wall Build (Repair)
+
+**Timer**: 25 seconds. Wall Build is the closing phase of every round; round 1 has no opening Wall Build phase (the auto-built castle from Castle Select fills that role).
+
+Players place Tetris-like wall pieces to repair or extend their fortifications.
+
+### Pieces
+
+13 piece shapes, drawn from a weighted bag system:
+
+| Tier | Pieces | Early rounds | Late rounds |
+|------|--------|-------------|-------------|
+| Simple (tier 1) | 1×1, 1×2, 1×3, Corner | High weight | Low weight |
+| Medium (tier 2) | T, L, J, S, SR | Low weight | Medium weight |
+| Hard (tier 3) | C, Z, ZR, + | Not available | High weight |
+
+Weights interpolate linearly from "early" (round 2) to "late" (round 8+). Each player has their own bag; when exhausted, it refills. Simple pieces are drawn first, hard pieces last. **Relief**: after building the tiered queue, each simple piece has a 30% chance to be swapped into the harder section, so occasional easy pieces appear among the hard ones.
+
+Pieces can be **rotated** 90° clockwise. They always start in their widest orientation.
+
+### Placement Rules
+
+A piece can be placed if **every tile** of the piece:
+- Is on grass
+- Is within the player's zone
+- Does not overlap any player's walls, towers, cannons, grunts, or burning pits
+
+### Territory Claiming (Inverse Flood-Fill)
+
+After each piece placement, territory is recalculated:
+
+1. Flood from map edges through non-wall tiles to find "outside"
+2. Everything not outside and not a wall = **interior** (territory)
+3. A tower is **owned** if all 4 of its tiles are interior or wall
+
+### Houses
+
+- Placing a wall on a house **destroys** it and spawns a grunt near the location targeting the player who destroyed it.
+- Enclosing a house also destroys it and spawns 1 grunt on **each opponent's** zone.
+
+### Grunts Enclosed by Walls
+
+Grunts caught inside enclosed territory are killed (awards 16 points). Each has a **50% chance** to respawn, distributed evenly across enemy zones (round-robin).
+
+### End of Build Phase
+
+When the timer expires:
+1. **Isolated wall sweep**: Wall tiles with ≤1 orthogonal wall neighbor are removed (one layer).
+2. Territory is reclaimed with end-of-build-phase flag.
+3. **Territory points** are awarded (see Scoring).
+4. **Castle bonus** is awarded (see Scoring).
+5. **Tower revival** check (see Towers).
+6. **Life check**: Any player who does not enclose at least one alive tower loses a life.
+
+---
+
 ## Towers
 
 - **Size**: 2×2 tiles.
@@ -247,7 +248,7 @@ Dead towers can be revived by enclosing them, but it takes **two consecutive bui
 - Each player starts with **3 lives**.
 - A life is lost when a player **fails to enclose any alive tower** at the end of a build phase.
 - When a life is lost (but lives remain):
-  - A **continue/abandon dialog** appears over the player's zone. Human players choose with confirm (continue) or rotate (abandon) keys, or click the buttons. AI players auto-continue after 2 seconds. The dialog times out after 10 seconds (auto-continue).
+  - A **continue/abandon dialog** appears over the player's zone. Players choose with confirm (continue) or rotate (abandon) keys, or click the buttons. The dialog times out after 10 seconds (auto-continue).
   - If the player continues:
     - All walls, interior, cannons, and owned towers are cleared.
     - The player enters **Castle Reselection**: they pick a new home tower and walls are rebuilt with the construction animation.
@@ -324,6 +325,91 @@ At the end of both the build phase and cannon phase, **isolated wall tiles** (wi
 
 ---
 
+## Modern Mode
+
+Modern is an optional ruleset selected per match (immutable once the match starts). It layers three capabilities on top of the classic rules: environmental **modifiers**, between-round **upgrades**, and battle **combos**. Classic disables all three.
+
+### Modified Phase Flow
+
+```
+CASTLE_SELECT → CANNON_PLACE → [MODIFIER_REVEAL] → BATTLE → [UPGRADE_PICK] → WALL_BUILD
+  (round 1)         ↑                                                              │
+                    └──────────────────────────────────────────────────────────────┘
+                                        (round 2+ loop)
+```
+
+Bracketed phases are conditional:
+
+- **MODIFIER_REVEAL** — a 2-second banner shown before Battle whenever a modifier rolled. Modifier rolls start at round 3 with a 65% chance per round; a modifier never repeats consecutively.
+- **UPGRADE_PICK** — inserted before Wall Build from round 3 onward (skipped in the final round). Each player picks 1 of 3 offered upgrades; controls are Left/Right to move focus, Confirm to lock in, or click/tap a card directly. The 15-second timer is shared across all players. Any player who hasn't chosen when the timer expires is auto-assigned a random offer.
+
+### Modifiers
+
+One modifier may roll each round from round 3 onward (65% chance, no consecutive repeats, weighted random draw from 13 implemented). Most clear at the end of the battle; **Frozen River**, **High Tide**, and **Low Water** persist for the round and clear at the next Cannon Place transition; **Sinkhole** terrain changes are permanent.
+
+| Modifier | Effect |
+|----------|--------|
+| Wildfire | Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares |
+| Grunt Surge | Spawns 6–10 extra grunts distributed across alive towers |
+| Frozen River | Water tiles become traversable by grunts; thawed by cannonball impact |
+| Sinkhole | Cluster of grass tiles permanently collapses into water, destroying structures |
+| High Tide | River widens 1 tile, flooding banks and destroying structures. Recedes next round |
+| Low Water | Shallow river-edge tiles become grass for one round, expanding buildable land |
+| Dust Storm | All cannonballs gain ±15° angle jitter on launch |
+| Rubble Clearing | All dead cannon debris and burning pits are removed from the map |
+| Dry Lightning | Random grass tiles ignite as burning pits without needing wall destruction |
+| Fog of War | Thick fog covers every merged castle during battle — aim from memory |
+| Frostbite | Grunts spawn as ice cubes — fully immobile and require two hits to break |
+| Sapper | Grunts attack any adjacent wall on sight — no blocked-rounds requirement |
+| Supply Ship | Three neutral cargo ships sail the river — sink one for a hidden one-round bonus |
+
+### Upgrades
+
+From round 3 onward (and not in the final round), each non-eliminated player is offered **3 upgrades** during UPGRADE_PICK. Offers are drawn from a weighted pool (Common ×3, Uncommon ×2, Rare ×1) using the synced RNG. Effects last for one round — through the closing Wall Build, the next Cannon Place, and the next Battle — and reset before the following round's upgrade pick.
+
+| Category | Upgrade | Effect |
+|----------|---------|--------|
+| Battle | Mortar | Slow cannon, 3×3 splash (2 HP at center), creates burning pits |
+| Battle | Rapid Fire | Cannonballs travel 2× faster |
+| Battle | Ricochet | Cannonballs bounce twice after impact |
+| Battle | Shield Battery | Cannons in home castle region are immune for one battle |
+| Battle | Rapid Emplacement | Next cannon costs 1 fewer slot (min 1) |
+| Build | Reinforced Walls | Walls take 2 hits to destroy (one battle) |
+| Build | Master Builder | +5s exclusive build time (see below) |
+| Build | Small Pieces | Only simple pieces (1×1, 1×2, 1×3, corner) |
+| Build | Double Time | +10s build time for all players |
+| Build | Architect | Pieces can overlap 1 own wall tile |
+| Build | Foundations | Walls can be placed on burning pits |
+| Build | Reclamation | Dead cannon debris auto-cleared at build start |
+| Build | Restoration Crew | One dead tower revives immediately when enclosed |
+| Build | Entomb | All players can bury grunts under placed walls |
+| Strategic | Territorial Ambition | Territory points doubled at end of build |
+| Strategic | Conscription | Killed grunts have 75% chance to respawn on an enemy zone |
+| Strategic | Salvage | Destroying enemy cannons gives +1 slot (max +2) |
+| One-use | Ceasefire | Skip the next battle phase |
+| One-use | Supply Drop | 2 free cannons bypassing slot limit |
+| One-use | Second Wind | Revive all towers for all players |
+| One-use | Demolition | Strip all non-load-bearing walls (can merge castles) |
+| One-use | Erosion | Sweep one layer of exposed walls from every player |
+| One-use | Clear the Field | Remove all grunts from the map |
+
+**Master Builder** special-cases by owner count: **1 owner** gets a +5s *exclusive* build window (other players are locked out during it). **2+ owners** cancel the lockout — instead, +5s is added to every player's timer.
+
+### Combos
+
+During battle, chained destruction earns bonus points on top of base destruction scoring. The combo tracker is per-player and resets each battle.
+
+| Trigger | Bonus |
+|---------|-------|
+| Wall hit within 1.5s of the previous wall hit (streak of 3+) | +50 per additional wall |
+| Grunt kill within 1.5s of the previous grunt kill (streak of 2+) | +75 per additional grunt |
+| Enemy cannon destroyed | +100 |
+| 5+ walls destroyed in one battle | +150 demolition bonus (awarded at end of battle) |
+
+Wall and grunt streak windows reset if the next hit lands outside the 1.5-second window.
+
+---
+
 ## AI Players
 
 Any player slot not controlled by a human is run by an AI opponent. In local play, slots that no one joins default to AI. In online play, unfilled slots are also AI-controlled.
@@ -336,6 +422,7 @@ AI players go through every phase automatically:
 - **Wall Build**: Continuously places pieces to maximize enclosed territory, fill gaps, and avoid creating trapped pockets. A phantom piece shows where the AI will place next.
 - **Cannon Place**: Places a mix of normal cannons, super guns, and propaganda balloons to best use available slots.
 - **Battle**: Selects targets (walls, cannons, grunts), animates the crosshair smoothly toward each target, pauses briefly, then fires. Picks the next target while the cannonball is in flight.
+- **Upgrade Pick** (modern mode): Auto-picks from the 3 offers after a 1.5-second decision delay.
 
 ### AI Skill Levels
 
