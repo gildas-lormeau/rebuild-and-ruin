@@ -12,13 +12,13 @@ import type { FixtureFile } from "./types.ts";
 import { waitForPhase } from "../scenario.ts";
 
 Deno.test("phase-test: wall-build round-2 fixture lands at WALL_BUILD", async () => {
-  const sc = await createPhaseScenario(roundTwoDefault as FixtureFile);
+  const sc = await createPhaseScenario(roundTwoDefault as unknown as FixtureFile);
   assertEquals(sc.state.round, 2);
   assertEquals(sc.state.phase, Phase.WALL_BUILD);
 });
 
 Deno.test("phase-test: 10 fixture-authored edge grunts move during WALL_BUILD", async () => {
-  const fixture = roundTwoWithEdgeGrunts as FixtureFile;
+  const fixture = roundTwoWithEdgeGrunts as unknown as FixtureFile;
   // Hard-encode the contract: the fixture must declare exactly 10 grunts.
   // If a future re-bake changes the count, this assertion fails loud and
   // the test author updates the expected number deliberately.
