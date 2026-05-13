@@ -1,9 +1,9 @@
 /**
- * Grunt sprite (small WW2-style tank, 1×1 tile, canvasPx=32) — boxy hull
- * + two tracks with wheel caps + turret + barrel. Four cardinal facing
- * variants ship for the 2D sprite atlas, but the 3D live renderer uses
- * `grunt_n` only and rotates the host group by `-grunt.facing` to match
- * the continuous-rotation convention used by cannons.
+ * Grunt sprite (small WW2-style tank, 1×1 tile, canvasPx=32) — hull +
+ * tracks + a top rig. The top is either a turret + horizontal barrel
+ * (regular grunt) or a tilted launcher arm + payload bucket (catapult —
+ * siege engine on the same chassis). Four cardinal facings ship per
+ * kind; the 3D renderer uses the `_n` variant and rotates by `-facing`.
  */
 
 import * as THREE from "three";
@@ -43,11 +43,54 @@ interface BarrelParams {
   material: MaterialSpec;
 }
 
+interface BasePlateParams {
+  width: number;
+  depth: number;
+  height: number;
+  /** Distance along −Z (forward) from the hull center to the plate
+   *  center. Positive values push the pivot point toward the front of
+   *  the hull so the arm tips read as projecting beyond the chassis. */
+  forwardOffset: number;
+  material: MaterialSpec;
+}
+
+interface ArmParams {
+  /** Arm length from the pivot at the base plate's top to the bucket
+   *  center (cylinder length along its local +Y before rotation). */
+  length: number;
+  radius: number;
+  /** Pitch above the horizontal plane, in degrees. The arm rotates
+   *  around its base pivot on the X axis so the tip lifts toward −Z; 0
+   *  would point straight up, 90 would lie flat forward. The siege-engine
+   *  read wants the tip clearly above horizontal but well short of vertical. */
+  pitchDegrees: number;
+  material: MaterialSpec;
+}
+
+interface TurretTop {
+  kind: "turret";
+  turret: TurretParams;
+  barrel: BarrelParams;
+}
+
+interface LauncherTop {
+  kind: "launcher";
+  basePlate: BasePlateParams;
+  arm: ArmParams;
+  bucket: {
+    width: number;
+    height: number;
+    depth: number;
+    material: MaterialSpec;
+  };
+}
+
+type GruntTop = TurretTop | LauncherTop;
+
 interface GruntParams {
   hull: HullParams;
   tracks: TracksParams;
-  turret: TurretParams;
-  barrel: BarrelParams;
+  top: GruntTop;
   /** Rotation around Y for the whole rig (degrees, CCW viewed from +Y). */
   yawDegrees?: number;
 }
@@ -84,15 +127,16 @@ const TRACK_MID: MaterialSpec = {
   metalness: 0.2,
 };
 // Gunmetal — clearly non-green so the barrel reads as a steel gun
-// muzzle, not an extension of the green hull.
+// muzzle, not an extension of the green hull. Also used for the
+// catapult's launcher arm (steel siege beam).
 const BARREL_DARK: MaterialSpec = {
   kind: "standard",
   color: 0x717171,
   roughness: 0.5,
   metalness: 0.7,
 };
-// Matte dark material painted on the hull top under the turret — fakes
-// the AO contact shadow where the turret meets the hull.
+// Matte dark material painted on the hull top under the turret / base
+// plate — fakes the AO contact shadow where the upper rig meets the hull.
 const TURRET_AO: MaterialSpec = {
   kind: "standard",
   color: 0x1a1a1a,
@@ -112,16 +156,24 @@ const FACINGS: Readonly<Record<"N" | "E" | "S" | "W", number>> = {
   W: 90,
 };
 const _boundsYCache = new Map<string, { minY: number; maxY: number }>();
-export const VARIANTS: GruntVariant[] = (["N", "E", "S", "W"] as const).map(
-  (dir) => ({
-    name: `grunt_${dir.toLowerCase()}`,
-    label: `grunt (facing ${dir})`,
-    canvasPx: 32,
-    params: gruntParams(FACINGS[dir]),
-  }),
+export const VARIANTS: GruntVariant[] = (["N", "E", "S", "W"] as const).flatMap(
+  (dir) => [
+    {
+      name: `grunt_${dir.toLowerCase()}`,
+      label: `grunt (facing ${dir})`,
+      canvasPx: 32,
+      params: gruntParams(FACINGS[dir]),
+    },
+    {
+      name: `catapult_${dir.toLowerCase()}`,
+      label: `catapult (facing ${dir})`,
+      canvasPx: 32,
+      params: catapultParams(FACINGS[dir]),
+    },
+  ],
 );
 // ---------- palette ---------------------------------------------------
-// Olive greens (hull / turret), dark grays (tracks), barrel dark.
+// Olive greens (hull / turret), dark grays (tracks), barrel/arm dark.
 export const PALETTE: [number, number, number][] = [
   // olive greens
   [0x3a, 0x4a, 0x2a], // dark
@@ -218,49 +270,141 @@ export function buildGrunt(
     }
   }
 
+  if (params.top.kind === "turret") {
+    buildTurretTop(three, group, params, params.top);
+  } else {
+    buildLauncherTop(three, group, params, params.top);
+  }
+
+  // Yaw the whole rig.
+  group.rotation.y = three.MathUtils.degToRad(params.yawDegrees ?? 0);
+  scene.add(group);
+}
+
+function buildTurretTop(
+  three: typeof THREE,
+  group: THREE.Group,
+  params: GruntParams,
+  top: TurretTop,
+): void {
   // AO shadow disc under the turret — sits on the hull top, half a
   // cell larger than the turret so a thin dark halo reads at the
   // turret-hull contact. +0.001 Y offset wins z-fighting with the
   // hull's top face.
-  const aoRadius = params.turret.radius + cells(0.5);
-  const aoGeom = new three.CircleGeometry(aoRadius, 24);
-  aoGeom.rotateX(-Math.PI / 2);
-  const aoDisc = new three.Mesh(aoGeom, createMaterial(TURRET_AO));
-  aoDisc.position.set(0, hullTopY(params) + 0.001, 0);
-  group.add(aoDisc);
+  const aoRadius = top.turret.radius + cells(0.5);
+  addAoDisc(three, group, params, aoRadius, 0);
 
   // Turret — vertical cylinder (axis = Y).
   const turret = new three.Mesh(
     new three.CylinderGeometry(
-      params.turret.radius,
-      params.turret.radius,
-      params.turret.height,
-      params.turret.segments ?? 24,
+      top.turret.radius,
+      top.turret.radius,
+      top.turret.height,
+      top.turret.segments ?? 24,
     ),
-    createMaterial(params.turret.material),
+    createMaterial(top.turret.material),
   );
-  const [tx, ty, tz] = turretCenter(params);
+  const [tx, ty, tz] = turretCenter(params, top);
   turret.position.set(tx, ty, tz);
   group.add(turret);
 
   // Barrel — cylinder rotated to lie along Z, extending forward (−Z).
   const barrel = new three.Mesh(
     new three.CylinderGeometry(
-      params.barrel.radius,
-      params.barrel.radius,
-      params.barrel.length,
+      top.barrel.radius,
+      top.barrel.radius,
+      top.barrel.length,
       12,
     ),
-    createMaterial(params.barrel.material),
+    createMaterial(top.barrel.material),
   );
-  const place = barrelPlacement(params);
+  const place = barrelPlacement(params, top);
   barrel.position.set(place.pos[0], place.pos[1], place.pos[2]);
   barrel.rotation.x = place.rotateXBy;
   group.add(barrel);
+}
 
-  // Yaw the whole rig.
-  group.rotation.y = three.MathUtils.degToRad(params.yawDegrees ?? 0);
-  scene.add(group);
+function buildLauncherTop(
+  three: typeof THREE,
+  group: THREE.Group,
+  params: GruntParams,
+  top: LauncherTop,
+): void {
+  // AO disc spans the base plate footprint plus a small halo so the
+  // pivot mount reads as planted on the hull.
+  const aoRadius =
+    Math.max(top.basePlate.width, top.basePlate.depth) / 2 + cells(0.5);
+  const aoCenterZ = -top.basePlate.forwardOffset;
+  addAoDisc(three, group, params, aoRadius, aoCenterZ);
+
+  // Base plate — small box mount that sits on the hull top toward the
+  // front, marking the pivot point of the launcher arm.
+  const plateY = hullTopY(params) + top.basePlate.height / 2;
+  const plate = new three.Mesh(
+    new three.BoxGeometry(
+      top.basePlate.width,
+      top.basePlate.height,
+      top.basePlate.depth,
+    ),
+    createMaterial(top.basePlate.material),
+  );
+  plate.position.set(0, plateY, -top.basePlate.forwardOffset);
+  group.add(plate);
+
+  // Arm — cylinder. Authored along its local +Y, then rotated around X
+  // so the tip lifts forward-and-up by `pitchDegrees` past horizontal.
+  // Pivot sits at the top-front edge of the base plate.
+  const pivotY = hullTopY(params) + top.basePlate.height;
+  const pivotZ = -top.basePlate.forwardOffset - top.basePlate.depth / 2;
+  const armPitchRad = three.MathUtils.degToRad(top.arm.pitchDegrees);
+  // Rotate the cylinder so its axis points along (−sin(p)·−Z, cos(p)·+Y)
+  // — i.e. up-and-forward when p > 0. Three.js rotates a Y-axis cylinder
+  // by `rotation.x = +p` to tilt the +Y end toward −Z.
+  const armPivot = new three.Group();
+  armPivot.position.set(0, pivotY, pivotZ);
+  armPivot.rotation.x = armPitchRad;
+  group.add(armPivot);
+
+  const arm = new three.Mesh(
+    new three.CylinderGeometry(
+      top.arm.radius,
+      top.arm.radius,
+      top.arm.length,
+      12,
+    ),
+    createMaterial(top.arm.material),
+  );
+  // Cylinder authored centered on its origin; shift so the base sits at
+  // the pivot and the tip is at +length along the rotated +Y axis.
+  arm.position.set(0, top.arm.length / 2, 0);
+  armPivot.add(arm);
+
+  // Bucket / payload cradle at the tip. A small box mounted just past
+  // the tip in the arm's local frame; rotated with the arm group.
+  const bucket = new three.Mesh(
+    new three.BoxGeometry(
+      top.bucket.width,
+      top.bucket.height,
+      top.bucket.depth,
+    ),
+    createMaterial(top.bucket.material),
+  );
+  bucket.position.set(0, top.arm.length + top.bucket.height / 2, 0);
+  armPivot.add(bucket);
+}
+
+function addAoDisc(
+  three: typeof THREE,
+  group: THREE.Group,
+  params: GruntParams,
+  radius: number,
+  centerZ: number,
+): void {
+  const aoGeom = new three.CircleGeometry(radius, 24);
+  aoGeom.rotateX(-Math.PI / 2);
+  const aoDisc = new three.Mesh(aoGeom, createMaterial(TURRET_AO));
+  aoDisc.position.set(0, hullTopY(params) + 0.001, centerZ);
+  group.add(aoDisc);
 }
 
 /**
@@ -269,23 +413,29 @@ export function buildGrunt(
  * cylinder's center position and the X-rotation needed so the barrel's
  * axis points along −Z.
  */
-function barrelPlacement(params: GruntParams): {
+function barrelPlacement(
+  params: GruntParams,
+  top: TurretTop,
+): {
   pos: readonly [number, number, number];
   rotateXBy: number;
 } {
-  const [tx, ty, tz] = turretCenter(params);
-  const turretFrontZ = tz - params.turret.radius;
+  const [tx, ty, tz] = turretCenter(params, top);
+  const turretFrontZ = tz - top.turret.radius;
   const center: readonly [number, number, number] = [
     tx,
     ty,
-    turretFrontZ - params.barrel.length / 2,
+    turretFrontZ - top.barrel.length / 2,
   ];
   return { pos: center, rotateXBy: Math.PI / 2 };
 }
 
-function turretCenter(params: GruntParams): readonly [number, number, number] {
+function turretCenter(
+  params: GruntParams,
+  top: TurretTop,
+): readonly [number, number, number] {
   // Turret sits centered on top of the hull.
-  return [0, hullTopY(params) + params.turret.height / 2, 0];
+  return [0, hullTopY(params) + top.turret.height / 2, 0];
 }
 
 function hullTopY(params: GruntParams): number {
@@ -321,19 +471,78 @@ function gruntParams(yawDegrees: number): GruntParams {
       material: TRACK_DARK,
       accentMaterial: TRACK_MID,
     },
-    turret: {
-      // Cylindrical turret (vertical axis) centred on the hull.
-      radius: cells(3),
-      height: cells(3),
-      segments: 24,
-      material: TURRET_GREEN,
+    top: {
+      kind: "turret",
+      turret: {
+        // Cylindrical turret (vertical axis) centred on the hull.
+        radius: cells(3),
+        height: cells(3),
+        segments: 24,
+        material: TURRET_GREEN,
+      },
+      barrel: {
+        // Sticks out from the turret's −Z face. Length 4 cells → tip at
+        //   z = −(turret.radius 3 + barrel.length 4) cells = −7 cells.
+        radius: cells(0.5),
+        length: cells(4),
+        material: BARREL_DARK,
+      },
     },
-    barrel: {
-      // Sticks out from the turret's −Z face. Length 4 cells → tip at
-      //   z = −(turret.radius 3 + barrel.length 4) cells = −7 cells.
-      radius: cells(0.5),
-      length: cells(4),
-      material: BARREL_DARK,
+    yawDegrees,
+  };
+}
+
+function catapultParams(yawDegrees: number): GruntParams {
+  return {
+    // Same hull + tracks as the regular grunt — siege engines ride on
+    // the same chassis (same army, different role). The visual
+    // distinction is the top: a tilted launcher arm instead of a
+    // turret + horizontal barrel.
+    hull: {
+      width: cells(10),
+      depth: cells(13),
+      height: cells(5),
+      yBase: cells(1),
+      material: HULL_GREEN,
+    },
+    tracks: {
+      width: cells(2),
+      depth: cells(14),
+      height: cells(2),
+      endRadius: cells(1),
+      xOffset: cells(6),
+      material: TRACK_DARK,
+      accentMaterial: TRACK_MID,
+    },
+    top: {
+      kind: "launcher",
+      // Small mount near the front of the hull where the arm pivots.
+      // Sits ~1.5 cells forward of hull center so the arm clearly
+      // anchors at the front shoulder rather than dead-centre.
+      basePlate: {
+        width: cells(5),
+        depth: cells(3),
+        height: cells(1.5),
+        forwardOffset: cells(1.5),
+        material: TURRET_GREEN,
+      },
+      // Inclined steel beam — 7 cells long, pitched 40° above horizontal
+      // so the tip lifts well clear of the hull but well short of
+      // vertical. Reads as an onager arm at a glance.
+      arm: {
+        length: cells(7),
+        radius: cells(0.6),
+        pitchDegrees: 40,
+        material: BARREL_DARK,
+      },
+      // Payload bucket at the tip — a small box that catches the eye as
+      // the projectile cradle.
+      bucket: {
+        width: cells(2.5),
+        height: cells(1.5),
+        depth: cells(2.5),
+        material: HULL_GREEN,
+      },
     },
     yawDegrees,
   };

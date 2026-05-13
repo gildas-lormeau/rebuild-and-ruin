@@ -1,10 +1,10 @@
 /**
- * 3D grunt meshes. 1×1 tile neutral hazards, often 30+ at once →
- * `InstancedMesh` per sub-part. Geometry is the canonical `grunt_n`
- * pose; per-instance Y rotation = `-facing`. Extract-and-instance
- * pattern (see cannons.ts/walls.ts). Composite `col:row:facing`
- * fingerprint skips matrix writes when nothing moved; capacity grows
- * by tear-down-and-rebuild when `grunts.length` exceeds current cap.
+ * 3D grunt meshes. 1×1 tile neutral hazards (30+ at once → InstancedMesh
+ * per sub-part). Two buckets — regular grunts (turret + barrel) and
+ * catapults (launcher arm). Each extracts sub-parts from its `_n`
+ * variant and instances them; per-instance Y rotation = `-facing`.
+ * Per-bucket `col:row:facing` fingerprint skips matrix writes when
+ * nothing moved; capacity grows by rebuild when slice size exceeds cap.
  */
 
 import * as THREE from "three";
@@ -27,6 +27,19 @@ export interface GruntsManager {
   dispose(): void;
 }
 
+interface GruntBucket {
+  subParts: BucketSubPart[];
+  /** Per-instance grunt-surge tint attribute (one per sub-part).
+   *  Defaults to 0 (no tint) — written each frame the surge ramp is in
+   *  flight, with surge intensity at slot indices whose grunt occupies
+   *  a tile in `gruntSurgeSpawnTiles`. */
+  surgeTintAttrs: THREE.InstancedBufferAttribute[];
+  capacity: number;
+  lastSignature: string | undefined;
+  lastSurgeTilesSig: string;
+  lastSurgeIntensity: number;
+}
+
 /** Grunt scene is authored in the ±1 frustum spanning a 2-tile (canvasPx
  *  32, game 1× = 16 px, internal 4× = 128). Scaling by TILE_SIZE / 2
  *  makes 1 authored unit = half a tile so the full sprite (±1 world
@@ -36,13 +49,14 @@ const GRUNT_SCALE = TILE_SIZE / 2;
 /** 1×1 grunts anchor at their single tile; center sits half a tile
  *  inward. */
 const TILE_1X1_CENTER_OFFSET = TILE_SIZE / 2;
-/** The N-facing variant is the canonical pose (barrel pointing −Z); we
- *  rotate each instance for every other facing rather than switching
- *  variants. */
-const BASE_VARIANT_NAME = "grunt_n";
-/** Initial InstancedMesh capacity. Battles top out at ~30 grunts per
- *  docs; 64 gives headroom without noticeable overhead (each slot is a
- *  4×4 float matrix = 64 bytes per sub-part — ~1 KB per sub-part). */
+/** Canonical north-facing variant per kind — every other facing comes
+ *  from per-instance Y rotation, not a variant swap. */
+const REGULAR_VARIANT_NAME = "grunt_n";
+const CATAPULT_VARIANT_NAME = "catapult_n";
+/** Initial InstancedMesh capacity per bucket. Battles top out at ~30
+ *  grunts per docs; spawn ratio is ~75% regular / 25% catapult, so 64
+ *  per bucket covers the common case for both without churn. Each slot
+ *  is a 4×4 float matrix = 64 bytes per sub-part — ~1 KB per sub-part. */
 const INITIAL_CAPACITY = 64;
 /** Pale-cyan ice tint applied to grunt materials when the Frostbite
  *  modifier is active for the round. Multiplied into each owned
@@ -70,21 +84,15 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   root.name = "grunts";
   scene.add(root);
 
-  // Owned materials — populated by buildSubParts. Kept around so the
+  // Owned materials — populated by buildBucket. Kept around so the
   // dispose path can free them and so per-frame tinting (Frostbite ice
   // cube) can mutate `.color` against a stashed `userData` baseline.
+  // Shared across both buckets — frostbite tints every grunt material
+  // regardless of kind in one pass.
   const ownedMaterials: THREE.Material[] = [];
-  let subParts: BucketSubPart[] = [];
-  /** Per-instance grunt-surge tint attribute (one per sub-part).
-   *  Defaults to 0 (no tint) — written each frame the surge ramp is
-   *  in flight, with surge intensity at slot indices whose grunt
-   *  occupies a tile in `gruntSurgeSpawnTiles`. */
-  let surgeTintAttrs: THREE.InstancedBufferAttribute[] = [];
-  let capacity = 0;
-  let lastSignature: string | undefined;
+  const regularBucket = createEmptyBucket();
+  const catapultBucket = createEmptyBucket();
   let lastFrostbiteIntensity = 0;
-  let lastSurgeIntensity = 0;
-  let lastSurgeTilesSig = "";
 
   // Scratch objects re-used inside `update` to avoid per-frame
   // allocations. Not shared across managers — each closure owns its
@@ -96,40 +104,44 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
   const hostQuaternion = new THREE.Quaternion();
   const yAxis = new THREE.Vector3(0, 1, 0);
 
-  function ensureCapacity(required: number): void {
-    if (required <= capacity && subParts.length > 0) return;
+  function ensureBucketCapacity(
+    bucket: GruntBucket,
+    variantName: string,
+    required: number,
+  ): void {
+    if (required <= bucket.capacity && bucket.subParts.length > 0) return;
     // Grow to the next power-of-two step above `required`, starting at
     // INITIAL_CAPACITY. Rebuilds discard + recreate InstancedMeshes
     // because `InstancedMesh.count` is fixed at construction.
     const next = Math.max(INITIAL_CAPACITY, nextPowerOfTwo(required));
-    disposeSubParts();
-    subParts = buildSubParts(next, root, ownedMaterials);
-    surgeTintAttrs = subParts.map(
+    disposeBucket(bucket);
+    bucket.subParts = buildBucket(variantName, next, root, ownedMaterials);
+    bucket.surgeTintAttrs = bucket.subParts.map(
       (part) =>
         attachInstanceTint(part.instanced, next, GRUNT_SURGE_TINT_HEX, {
           keepOpaque: true,
         }).tint,
     );
-    capacity = next;
+    bucket.capacity = next;
   }
 
-  function disposeSubParts(): void {
-    for (const part of subParts) {
+  function disposeBucket(bucket: GruntBucket): void {
+    for (const part of bucket.subParts) {
       root.remove(part.instanced);
       part.instanced.geometry.dispose();
       part.instanced.dispose();
     }
-    subParts = [];
-    surgeTintAttrs = [];
-    capacity = 0;
-    for (const mat of ownedMaterials) mat.dispose();
-    ownedMaterials.length = 0;
+    bucket.subParts = [];
+    bucket.surgeTintAttrs = [];
+    bucket.capacity = 0;
+    bucket.lastSignature = undefined;
+    bucket.lastSurgeIntensity = 0;
+    bucket.lastSurgeTilesSig = "";
   }
 
   function update(ctx: FrameCtx): void {
     const { overlay } = ctx;
     const grunts = overlay?.entities?.grunts;
-    const count = grunts?.length ?? 0;
     // Reveal-window override (`frostbiteRevealProgress` in [0, 1]) wins
     // when present; outside the reveal window, fall back to the binary
     // active flag (1 when frostbite is on, 0 otherwise).
@@ -150,23 +162,59 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
         : EMPTY_KEY_SET;
     const surgeTilesSig =
       spawnTiles.size === 0 ? "" : [...spawnTiles].join(",");
+
+    const { regular, catapults } = partitionByKind(grunts);
+    updateBucket(
+      regularBucket,
+      REGULAR_VARIANT_NAME,
+      regular,
+      frostbiteIntensity,
+      surgeIntensity,
+      spawnTiles,
+      surgeTilesSig,
+    );
+    updateBucket(
+      catapultBucket,
+      CATAPULT_VARIANT_NAME,
+      catapults,
+      frostbiteIntensity,
+      surgeIntensity,
+      spawnTiles,
+      surgeTilesSig,
+    );
+  }
+
+  function updateBucket(
+    bucket: GruntBucket,
+    variantName: string,
+    grunts: readonly Grunt[],
+    frostbiteIntensity: number,
+    surgeIntensity: number,
+    spawnTiles: ReadonlySet<number>,
+    surgeTilesSig: string,
+  ): void {
+    const count = grunts.length;
     const surgeChanged =
-      surgeIntensity !== lastSurgeIntensity ||
-      surgeTilesSig !== lastSurgeTilesSig;
+      surgeIntensity !== bucket.lastSurgeIntensity ||
+      surgeTilesSig !== bucket.lastSurgeTilesSig;
 
     const signature = computeSignature(grunts);
-    if (signature === lastSignature && !surgeChanged) return;
+    if (signature === bucket.lastSignature && !surgeChanged) return;
+    bucket.lastSignature = signature;
 
     if (count === 0) {
       // Hide all instances by clamping count to zero — keep the
       // InstancedMeshes around so we don't churn GPU buffers on the
       // common "grunts come and go" path.
-      for (const part of subParts) part.instanced.count = 0;
+      for (const part of bucket.subParts) part.instanced.count = 0;
+      bucket.lastSurgeIntensity = surgeIntensity;
+      bucket.lastSurgeTilesSig = surgeTilesSig;
       return;
     }
 
-    const grewCapacity = count > capacity || subParts.length === 0;
-    ensureCapacity(count);
+    const grewCapacity =
+      count > bucket.capacity || bucket.subParts.length === 0;
+    ensureBucketCapacity(bucket, variantName, count);
     // Capacity growth rebuilds materials from scratch — reapply any
     // active frostbite tint so the fresh materials don't render at
     // their authored color for one frame.
@@ -179,8 +227,8 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     // The per-grunt compose writes translation (tile centre) + Y-yaw
     // (from `-facing`, game CW vs three.js CCW) + uniform scale.
     fillBucket(
-      { subParts },
-      grunts!,
+      { subParts: bucket.subParts },
+      grunts,
       hostMatrix,
       instanceMatrix,
       (grunt, matrix) => {
@@ -198,38 +246,70 @@ export function createGruntsManager(scene: THREE.Scene): GruntsManager {
     // `gruntSurgeSpawnTiles` lerp toward red by `surgeIntensity`.
     // Stable across MODIFIER_REVEAL (grunts don't move pre-battle).
     if (surgeChanged || grewCapacity) {
-      for (const attr of surgeTintAttrs) {
+      for (const attr of bucket.surgeTintAttrs) {
         const data = attr.array as Float32Array;
         for (let i = 0; i < count; i++) {
-          const grunt = grunts![i]!;
+          const grunt = grunts[i]!;
           const tileKey = grunt.row * GRID_COLS + grunt.col;
           data[i] = spawnTiles.has(tileKey) ? surgeIntensity : 0;
         }
         attr.needsUpdate = true;
       }
-      lastSurgeIntensity = surgeIntensity;
-      lastSurgeTilesSig = surgeTilesSig;
+      bucket.lastSurgeIntensity = surgeIntensity;
+      bucket.lastSurgeTilesSig = surgeTilesSig;
     }
   }
 
   function dispose(): void {
-    disposeSubParts();
+    disposeBucket(regularBucket);
+    disposeBucket(catapultBucket);
+    for (const mat of ownedMaterials) mat.dispose();
+    ownedMaterials.length = 0;
     scene.remove(root);
   }
 
   return { update, dispose };
 }
 
-/** Run `buildGrunt` once into a throwaway Group, walk the result, and
- *  create one `InstancedMesh` per sub-mesh. Returns the set of
- *  sub-parts (geometry + material are handed to the InstancedMesh;
- *  the throwaway Group is discarded and garbage-collected). */
-function buildSubParts(
+function createEmptyBucket(): GruntBucket {
+  return {
+    subParts: [],
+    surgeTintAttrs: [],
+    capacity: 0,
+    lastSignature: undefined,
+    lastSurgeTilesSig: "",
+    lastSurgeIntensity: 0,
+  };
+}
+
+/** Split overlay grunts into the two render buckets in a single pass.
+ *  Empty arrays are reused per call (cheap GC) — callers immediately
+ *  consume them, no need to pool. */
+function partitionByKind(grunts: readonly Grunt[] | undefined): {
+  regular: Grunt[];
+  catapults: Grunt[];
+} {
+  const regular: Grunt[] = [];
+  const catapults: Grunt[] = [];
+  if (!grunts) return { regular, catapults };
+  for (const grunt of grunts) {
+    if (grunt.kind === "catapult") catapults.push(grunt);
+    else regular.push(grunt);
+  }
+  return { regular, catapults };
+}
+
+/** Run `buildGrunt` once into a throwaway Group for the given variant,
+ *  walk the result, and create one `InstancedMesh` per sub-mesh. Returns
+ *  the set of sub-parts (geometry + material are handed to the
+ *  InstancedMesh; the throwaway Group is discarded and garbage-collected). */
+function buildBucket(
+  variantName: string,
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
 ): BucketSubPart[] {
-  const variant = getGruntVariant(BASE_VARIANT_NAME);
+  const variant = getGruntVariant(variantName);
   if (!variant) return [];
   // Strip authored yaw off the base variant — instance rotation is
   // handled at instance time, not at extraction time. N has
@@ -348,10 +428,12 @@ function hasColor(
   return (material as { color?: unknown }).color instanceof THREE.Color;
 }
 
-/** Composite signature across every grunt. Rebuilds only when one of
- *  the watched fields changes (position or facing). */
-function computeSignature(grunts: readonly Grunt[] | undefined): string {
-  if (!grunts || grunts.length === 0) return "";
+/** Composite signature across every grunt in a bucket. Rebuilds only
+ *  when one of the watched fields changes (position or facing). Kind is
+ *  not included — each bucket already holds a single kind, so a swap
+ *  would manifest as a removal in one bucket + an add in the other. */
+function computeSignature(grunts: readonly Grunt[]): string {
+  if (grunts.length === 0) return "";
   const parts: string[] = [];
   for (const grunt of grunts) {
     parts.push(`${grunt.col}:${grunt.row}:${grunt.facing ?? 0}`);
