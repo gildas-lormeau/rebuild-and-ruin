@@ -94,6 +94,8 @@ At the transition from Cannon Place to Battle, all placed balloons are resolved:
 
 From round 2 onward, at the end of cannon placement, each non-eliminated player has 2 chances of 10% each to have a grunt spawned in their zone.
 
+In modern mode, each spawned grunt has a **25%** chance to be a **catapult** variant (slower, range-3 tower attack — see Modern Mode > Catapults).
+
 ---
 
 ## Phase 3: Battle
@@ -137,7 +139,7 @@ When an incendiary cannonball (from a super gun) destroys a wall tile, a **burni
 
 ### Grunts
 
-Grunts **move during the build phase** (not during battle) and **attack during the battle phase**.
+Grunts **move during the build phase** (not during battle) and **attack during the battle phase**. Modern mode adds a **catapult** variant (slower siege grunt with a 3-tile tower-attack range) — the rules below describe the regular grunt; catapult differences are summarized in Modern Mode > Catapults.
 
 #### Targeting
 
@@ -166,11 +168,13 @@ Grunts move 1 tile per second during the build phase:
 #### Wall Attacks (Battle Phase, blocked grunts)
 
 - At each battle's end, the `blockedRounds` counter updates per grunt:
-  - Target alive **and** grunt adjacent → counter resets to 0.
-  - Target alive **and** grunt not adjacent → counter += 1.
+  - Target alive **and** grunt in attack range → counter resets to 0.
+  - Target alive **and** grunt not in attack range → counter += 1.
   - Target dead → counter **frozen** (no change; the grunt stays put).
+- "Attack range" is adjacency (Manhattan distance 1) for regular grunts and Manhattan distance ≤ 3 for catapults — a catapult parked behind a 2-deep cannon row is **not** blocked.
 - At the **start** of the next battle, one roll per eligible grunt: 25% chance to attack an adjacent wall. Eligibility: `blockedRounds ≥ 2` AND target tower still alive AND a wall is adjacent. (The Sapper modifier bypasses both the count requirement and the roll.)
 - Wall attack uses the same 3-second timer; destroys one wall tile closest to the target tower.
+- **Catapults bypass this roll entirely** when a wall lies in their line of fire — they siege the wall directly every tick they're in range. See Modern Mode > Catapults.
 
 ### End of Battle
 
@@ -351,7 +355,7 @@ Each pass peels **one layer**: tiles newly exposed by the removal survive until 
 
 ## Modern Mode
 
-Modern is an optional ruleset selected per match (immutable once the match starts). It layers three capabilities on top of the classic rules: environmental **modifiers**, between-round **upgrades**, and battle **combos**. Classic disables all three.
+Modern is an optional ruleset selected per match (immutable once the match starts). It layers four capabilities on top of the classic rules: environmental **modifiers**, between-round **upgrades**, battle **combos**, and the **catapult** grunt variant. Classic disables all four.
 
 ### Modified Phase Flow
 
@@ -431,6 +435,23 @@ During battle, chained destruction earns bonus points on top of base destruction
 | 5+ walls destroyed in one battle | +150 demolition bonus (awarded at end of battle) |
 
 Wall and grunt streak windows reset if the next hit lands outside the 1.5-second window.
+
+### Catapults
+
+A grunt variant rolled per spawn (25%) that fires from up to **3 tiles away** from the target tower — the design counter to a deep cannon row in front of a tower.
+
+| Field | Regular grunt | Catapult |
+|-------|---------------|----------|
+| Movement speed | 1 tile / second | 1 tile / 2 seconds (skips every other tick) |
+| Tower-attack range | Adjacent (Manhattan ≤ 1) | Manhattan ≤ 3 (= up to 2-tile gap) |
+| Wall-attack trigger | Random 25% per battle after 2 blocked rounds | Deterministic — any wall in the line of fire is sieged every tick |
+| Mesh | Olive tank, turret + horizontal barrel | Weathered olive chassis, wooden launcher arm + iron payload bucket (40° pitch) |
+
+**Line of fire** is the canonical Manhattan path from catapult to the nearest tile of its target tower (greater-axis-first). Cannons in the path do **not** block the shot — that's the whole point — but a wall on the path diverts the catapult to siege the wall. Once that wall is destroyed the catapult re-evaluates next tick: either the path is clear (attack tower) or another wall is up next.
+
+Attack countdown is the same 3 seconds whether attacking a tower or a wall. The countdown resets when the target switches so a freshly-routed siege doesn't insta-destroy a wall with leftover timer from a prior target.
+
+For the "blocked" counter that gates the regular-grunt wall-attack roll, a catapult parked at Manhattan ≤ 3 from its target is **not** blocked even if it's nowhere near adjacent. The catapult doesn't accumulate `blockedRounds` from a successful range-3 standoff.
 
 ---
 
