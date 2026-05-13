@@ -26,9 +26,14 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MODIFIER_ID,
+  TOWER_SIZE,
 } from "../shared/core/game-constants.ts";
 import { GAME_EVENT } from "../shared/core/game-event-bus.ts";
-import type { TilePos, TowerIdx } from "../shared/core/geometry-types.ts";
+import type {
+  TilePos,
+  Tower,
+  TowerIdx,
+} from "../shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type TileKey } from "../shared/core/grid.ts";
 import type { ValidPlayerId } from "../shared/core/player-slot.ts";
 import {
@@ -223,10 +228,22 @@ export function gruntAttackTowers(
   const events: TowerKilledMessage[] = [];
   const wallEvents: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
-    // Wall attack: executing decision made by rollGruntWallAttacks() at battle start.
-    // Target wall was picked at end-of-build (`recomputeGruntTargetedWalls`)
-    // and is cleared on destruction in applyImpactEvent — no per-tick repick
-    // since grunts don't move during battle.
+    // Catapult path-blocking: a wall between a catapult and its target
+    // tower diverts the shot to the wall. Detected per-tick (cheap, only
+    // for catapults) so that after destroying one wall, the next wall in
+    // path is automatically picked up next tick. Routes through the
+    // existing wall-attack flow below by setting attackingWall +
+    // targetedWall; resets countdown when the target switches.
+    if (grunt.kind === "catapult") {
+      maybeRouteCatapultToBlockingWall(state, grunt, deadZones);
+    }
+
+    // Wall attack: executing decision made by rollGruntWallAttacks() at
+    // battle start (regular grunts), or set this tick by the catapult
+    // path-block pre-pass above. Regular grunts' targetedWall was picked
+    // at end-of-build (`recomputeGruntTargetedWalls`) and is cleared on
+    // destruction in applyImpactEvent — they don't move during battle.
+    // Catapults re-evaluate every tick via the pre-pass.
     if (grunt.attackingWall) {
       if (grunt.targetedWall !== undefined) {
         if (tickGruntAttackTimer(grunt, dt)) {
@@ -450,6 +467,83 @@ function computeGruntTargetedWall(
     target,
   );
   return wallKey >= 0 ? wallKey : undefined;
+}
+
+/** Per-tick check for catapults: if a wall sits between the catapult and
+ *  its target tower (within attack range), tag that wall as the attack
+ *  target so the existing wall-attack flow handles destruction. When the
+ *  blocking wall changes or disappears, reset the attack countdown so the
+ *  catapult starts a fresh swing on the new target. */
+function maybeRouteCatapultToBlockingWall(
+  state: GameState,
+  grunt: Grunt,
+  deadZones: ReadonlySet<number>,
+): void {
+  if (grunt.targetTowerIdx === undefined) return;
+  const tower = getGruntTargetTower(state, grunt);
+  if (tower === null) return;
+  if (deadZones.has(tower.zone)) return;
+  if (!state.towerAlive[grunt.targetTowerIdx]) return;
+  if (
+    !isInTowerAttackRange(
+      state,
+      grunt.row,
+      grunt.col,
+      grunt.targetTowerIdx,
+      "catapult",
+    )
+  ) {
+    return;
+  }
+  const blockingWall = findCatapultBlockingWall(
+    state,
+    grunt.row,
+    grunt.col,
+    tower,
+  );
+  if (blockingWall !== null) {
+    if (grunt.targetedWall !== blockingWall) {
+      grunt.targetedWall = blockingWall;
+      grunt.attackCountdown = undefined;
+    }
+    grunt.attackingWall = true;
+  } else if (grunt.attackingWall) {
+    grunt.attackingWall = false;
+    grunt.targetedWall = undefined;
+    grunt.attackCountdown = undefined;
+  }
+}
+
+/** Walk the canonical Manhattan path from (catapultRow, catapultCol) to the
+ *  nearest tile of `tower` (greater-axis-first). Return the tile key of the
+ *  first wall encountered, or null if the path is clear. Both endpoints are
+ *  excluded — the catapult's own tile and the tower's nearest tile are
+ *  never tested. */
+function findCatapultBlockingWall(
+  state: GameState,
+  catapultRow: number,
+  catapultCol: number,
+  tower: Tower,
+): TileKey | null {
+  const targetRow = Math.max(
+    tower.row,
+    Math.min(catapultRow, tower.row + TOWER_SIZE - 1),
+  );
+  const targetCol = Math.max(
+    tower.col,
+    Math.min(catapultCol, tower.col + TOWER_SIZE - 1),
+  );
+  let row = catapultRow;
+  let col = catapultCol;
+  while (row !== targetRow || col !== targetCol) {
+    const remainingRow = Math.abs(targetRow - row);
+    const remainingCol = Math.abs(targetCol - col);
+    if (remainingRow > remainingCol) row += Math.sign(targetRow - row);
+    else col += Math.sign(targetCol - col);
+    if (row === targetRow && col === targetCol) break;
+    if (hasWallAt(state, row, col)) return packTile(row, col) as TileKey;
+  }
+  return null;
 }
 
 /** Add a grunt at (row, col). Validates position is in-bounds and on passable grass.
