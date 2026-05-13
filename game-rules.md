@@ -389,7 +389,7 @@ One modifier may roll each round from round 3 onward (65% chance, no consecutive
 
 ### Upgrades
 
-From round 3 onward (and not in the final round), each non-eliminated player is offered **3 upgrades** during UPGRADE_PICK. Offers are drawn from a weighted pool (Common ×3, Uncommon ×2, Rare ×1) using the synced RNG. Effects last for one round — through the closing Wall Build, the next Cannon Place, and the next Battle — and reset before the following round's upgrade pick.
+From round 3 onward (and not in the final round), each non-eliminated player is offered **3 upgrades** during UPGRADE_PICK. Offers are drawn from a weighted pool (Common ×3, Uncommon ×2, Rare ×1) using the synced RNG. Effects last for one round — through the closing Wall Build, the next Cannon Place, and the next Battle — and reset before the following round's upgrade pick. (**Salvage is the exception**: its banked slots persist past expiry and are spent at the cannon-place *after* the upgrade is gone — see the entry below.)
 
 | Category | Upgrade | Effect |
 |----------|---------|--------|
@@ -409,7 +409,7 @@ From round 3 onward (and not in the final round), each non-eliminated player is 
 | Build | Entomb | All players can bury grunts under placed walls |
 | Strategic | Territorial Ambition | Territory points doubled at end of build |
 | Strategic | Conscription | When the owner **shoots** a grunt dead, 75% chance to respawn it on a random enemy zone (does not trigger on enclosure-kills — those follow the base 50% respawn rule) |
-| Strategic | Salvage | Each enemy-cannon kill banks +1 future-cannon slot (cap 2 banked per player). Banked slots are added to the next cannon-place budget and the bank then resets to 0 |
+| Strategic | Salvage | While active, each enemy-cannon kill banks +1 future-cannon slot (cap 2 banked per player). The bank persists across upgrade expiry and is consumed at the **next** cannon-place phase (typically the round after the kills, when Salvage itself is no longer owned). Bank then resets to 0 |
 | One-use | Ceasefire | Skip the next battle phase |
 | One-use | Supply Drop | 2 free cannons bypassing slot limit |
 | One-use | Second Wind | Revive all towers for all players |
