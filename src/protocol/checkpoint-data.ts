@@ -43,6 +43,8 @@ export interface SerializedGrunt {
   attackingWall?: boolean;
   facing?: number;
   chipped?: boolean;
+  /** Variant tag — omitted for regular grunts. */
+  kind?: "catapult";
 }
 
 export interface SerializedPlayer {

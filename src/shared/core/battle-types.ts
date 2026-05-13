@@ -36,6 +36,10 @@ export interface Grunt extends TilePos {
    *  tile-key tracker to keep in sync. Stale flags from a prior frostbite
    *  round are reset in `frostbiteImpl.apply` if frostbite re-rolls. */
   chipped?: true;
+  /** Optional variant tag. Absence = regular grunt. "catapult" = slower
+   *  variant that can attack towers from Manhattan distance ≤ 2 (bypasses
+   *  cannon-row shielding). Gated by the "catapults" feature. */
+  kind?: "catapult";
 }
 
 export enum CannonMode {

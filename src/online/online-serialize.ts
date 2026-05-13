@@ -536,6 +536,7 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     attackingWall: grunt.attackingWall,
     facing: grunt.facing,
     chipped: grunt.chipped,
+    kind: grunt.kind,
   };
 }
 

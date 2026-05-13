@@ -7,7 +7,7 @@
 
 import type { PoolDef } from "./pool-def.ts";
 
-export type FeatureId = "modifiers" | "upgrades" | "combos";
+export type FeatureId = "modifiers" | "upgrades" | "combos" | "catapults";
 
 type FeatureDef = PoolDef<FeatureId>;
 
@@ -38,6 +38,13 @@ const FEATURE_POOL: readonly FeatureDef[] = [
     description: "Battle scoring streaks and demolition bonuses",
     implemented: true,
   },
+  {
+    id: "catapults",
+    label: "Catapults",
+    description:
+      "Slow tank variant that attacks towers from up to 2 tiles away",
+    implemented: false,
+  },
 ];
 /** Features with gameplay code — used for mode composition. */
 const IMPLEMENTED_FEATURES: readonly FeatureDef[] = FEATURE_POOL.filter(
@@ -48,6 +55,7 @@ export const FID = {
   MODIFIERS: "modifiers",
   UPGRADES: "upgrades",
   COMBOS: "combos",
+  CATAPULTS: "catapults",
 } as const satisfies Record<string, FeatureId>;
 /** Feature set for modern mode — derived from the pool (all implemented features). */
 export const MODERN_FEATURES: ReadonlySet<FeatureId> = new Set<FeatureId>(
@@ -100,6 +108,10 @@ export const FEATURE_CONSUMERS = {
     "stateAccess:tickComboTracking": "src/game/combos.ts",
     "stateAccess:awardComboBonuses": "src/game/phase-setup.ts",
     "render:comboEvents": "src/render/render-ui-overlays.ts",
+  },
+  catapults: {
+    "data:gruntKind": "src/shared/core/battle-types.ts",
+    "serialize:gruntKind": "src/online/online-serialize.ts",
   },
 } as const satisfies Record<FeatureId, Readonly<Record<string, string>>>;
 
