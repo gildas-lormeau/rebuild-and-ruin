@@ -127,13 +127,30 @@ const TRACK_MID: MaterialSpec = {
   metalness: 0.2,
 };
 // Gunmetal — clearly non-green so the barrel reads as a steel gun
-// muzzle, not an extension of the green hull. Also used for the
-// catapult's launcher arm (steel siege beam).
+// muzzle, not an extension of the green hull.
 const BARREL_DARK: MaterialSpec = {
   kind: "standard",
   color: 0x717171,
   roughness: 0.5,
   metalness: 0.7,
+};
+// Warm saddle-brown wood for the catapult arm — contrasts the olive-green
+// chassis from any camera angle so the silhouette also reads as colour-
+// distinct, not just shape-distinct. Matte (rope-bound timber).
+const CATAPULT_ARM_WOOD: MaterialSpec = {
+  kind: "standard",
+  color: 0x8b5a2b,
+  roughness: 0.95,
+  metalness: 0.05,
+};
+// Darker iron-brown for the payload bucket — reads as a hammered metal
+// cradle. One step darker than the arm so the bucket pops as a separate
+// part rather than blending into the beam.
+const CATAPULT_BUCKET_IRON: MaterialSpec = {
+  kind: "standard",
+  color: 0x4a3018,
+  roughness: 0.85,
+  metalness: 0.25,
 };
 // Matte dark material painted on the hull top under the turret / base
 // plate — fakes the AO contact shadow where the upper rig meets the hull.
@@ -526,22 +543,24 @@ function catapultParams(yawDegrees: number): GruntParams {
         forwardOffset: cells(1.5),
         material: TURRET_GREEN,
       },
-      // Inclined steel beam — 7 cells long, pitched 40° above horizontal
+      // Inclined wooden beam — 7 cells long, pitched 40° above horizontal
       // so the tip lifts well clear of the hull but well short of
-      // vertical. Reads as an onager arm at a glance.
+      // vertical. Warm saddle-brown timber so the silhouette reads as
+      // colour-distinct against the olive chassis from top-down too.
       arm: {
         length: cells(7),
         radius: cells(0.6),
         pitchDegrees: 40,
-        material: BARREL_DARK,
+        material: CATAPULT_ARM_WOOD,
       },
-      // Payload bucket at the tip — a small box that catches the eye as
-      // the projectile cradle.
+      // Iron-cradled payload bucket at the tip — one step darker than the
+      // arm so it reads as a separate hammered-metal part, not an
+      // extension of the wooden beam.
       bucket: {
         width: cells(2.5),
         height: cells(1.5),
         depth: cells(2.5),
-        material: HULL_GREEN,
+        material: CATAPULT_BUCKET_IRON,
       },
     },
     yawDegrees,
