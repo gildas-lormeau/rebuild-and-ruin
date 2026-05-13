@@ -339,9 +339,9 @@ export interface UpgradePickController {
   autoResolvesUpgradePick(): boolean;
 
   /** Per-frame tick for an auto-resolving entry. Mutates
-   *  `entry.autoTimer` / `focusedCard` / `plannedChoice` / `choice` /
-   *  `pickedAtTimer` in place. No-op for controllers that return `false`
-   *  from `autoResolvesUpgradePick`. */
+   *  `entry.autoTimer` / `focusedCard` / `choice` / `pickedAtTimer` in
+   *  place. No-op for controllers that return `false` from
+   *  `autoResolvesUpgradePick`. */
   tickUpgradePick(
     entry: UpgradePickEntry,
     entryIdx: number,

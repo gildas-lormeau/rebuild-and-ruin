@@ -321,23 +321,12 @@ export class AiController extends BaseController implements AiAnimatable {
     autoDelaySeconds: number,
     state: GameViewState,
   ): void {
-    // Decision/commit split — see UpgradePickEntry.plannedChoice and
-    // tickAiUpgradePickEntry. The local tick advances `autoTimer` and
-    // computes `plannedChoice` once (caching whatever RNG draws
-    // `aiChooseLifeLost` would consume), regardless of whether the wire
-    // has filled `entry.choice` first. Without this split, a wire-arrived
-    // choice on the watcher would short-circuit the local tick and skip
-    // the RNG draw that the host's local tick performed — drifting
-    // `state.rng` between peers.
     entry.autoTimer += dt;
-    if (entry.plannedChoice === null) {
-      entry.plannedChoice = aiChooseLifeLost(entry, state);
-    }
     if (
       entry.choice === LifeLostChoice.PENDING &&
       entry.autoTimer >= autoDelaySeconds
     ) {
-      entry.choice = entry.plannedChoice;
+      entry.choice = aiChooseLifeLost(entry, state);
     }
   }
 

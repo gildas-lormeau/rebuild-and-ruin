@@ -1,10 +1,10 @@
 /**
- * AI life-lost decision.
- *
- * Mirrors ai-upgrade-pick.ts — owns the AI decision for the life-lost
- * dialog so `game/life-lost.ts` doesn't hard-code a choice. Today the
- * AI always picks CONTINUE; future strategies (surrender when hopeless,
- * abandon low-score games) hook in here.
+ * AI life-lost decision. Today always CONTINUE; future surrender /
+ * abandon strategies hook in here. Determinism contract: must stay
+ * pure — no `state.rng` draws (runtime calls this lazily at commit,
+ * no cache; a wire-arrived choice would skip a watcher's draw and
+ * drift state). If a future strategy needs RNG, mirror
+ * `precomputeAiUpgradePicks` via `state.precomputedLifeLostChoices`.
  */
 
 import type { GameViewState } from "../shared/core/system-interfaces.ts";

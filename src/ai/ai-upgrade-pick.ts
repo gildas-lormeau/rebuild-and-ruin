@@ -34,9 +34,10 @@ const UPGRADE_PICK_LOCK_IN = secondsToTicks(0.35);
  *
  *  Phases of the animation:
  *    1. Cycling — focus steps through offers while autoTimer < lockInStart.
- *    2. Lock-in — resolves plannedChoice via aiPickUpgrade and freezes focus
- *                 on it for the final LOCK_IN window.
- *    3. Commit — applies plannedChoice to entry.choice, records pickedAtTimer. */
+ *    2. Lock-in — points focusedCard at the eventual pick (from
+ *                 precomputedUpgradePicks, idempotent) for the final
+ *                 LOCK_IN window.
+ *    3. Commit — applies the pick to entry.choice, records pickedAtTimer. */
 export function tickAiUpgradePickEntry(
   entry: UpgradePickEntry,
   entryIdx: number,
@@ -59,10 +60,7 @@ export function tickAiUpgradePickEntry(
   }
 
   if (entry.autoTimer >= lockInStart) {
-    if (entry.plannedChoice === null) {
-      entry.plannedChoice = resolveAiPick(entry, state);
-    }
-    entry.focusedCard = entry.offers.indexOf(entry.plannedChoice);
+    entry.focusedCard = entry.offers.indexOf(resolveAiPick(entry, state));
     return;
   }
 

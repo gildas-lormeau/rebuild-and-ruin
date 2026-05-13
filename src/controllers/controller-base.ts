@@ -323,15 +323,15 @@ export abstract class BaseController implements PlayerController {
     _state: UpgradePickViewState,
   ): void {}
 
-  /** Deterministic max-timer fallback shared by every controller: prefer
-   *  the AI's pre-cached `plannedChoice` (set during the lock-in window),
-   *  otherwise roll `state.rng` — synced across host/peer so the fallback
-   *  converges without a broadcast. Pure arithmetic, no AI imports. */
+  /** Deterministic max-timer fallback: random offer drawn from `state.rng`
+   *  so host and peer converge without a broadcast. Auto-resolving
+   *  controllers commit `entry.choice` long before max-timer expiry, so
+   *  this path is reached only for entries still pending at the deadline
+   *  (typically humans who didn't pick). */
   forceUpgradePick(
     entry: UpgradePickEntry,
     state: UpgradePickViewState,
   ): UpgradeId {
-    if (entry.plannedChoice !== null) return entry.plannedChoice;
     return entry.offers[Math.floor(state.rng.next() * entry.offers.length)]!;
   }
 }

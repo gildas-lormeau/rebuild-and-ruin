@@ -18,15 +18,6 @@ export interface LifeLostEntry {
   autoTimer: number;
   /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
   focusedButton: number;
-  /** AI's cached decision, computed once and reused. Mirrors the
-   *  decision/commit split in `UpgradePickEntry.plannedChoice`: the AI
-   *  tick reads `state` to decide, caches here, and only commits to
-   *  `choice` after the auto-delay. The cache makes the local tick
-   *  RNG-stable across peers — a wire-arrived `choice` never short-
-   *  circuits the local decision computation, so any RNG draws inside
-   *  the decision happen identically on every peer. null until the
-   *  AI decides; null forever for human-driven entries. */
-  plannedChoice: ResolvedChoice | null;
 }
 
 export interface LifeLostDialogState {
@@ -46,10 +37,6 @@ export interface UpgradePickEntry {
   /** Dialog.timer value when `choice` flipped from null to set — drives the
    *  reveal pulse animation. null while pending. */
   pickedAtTimer: number | null;
-  /** The AI's decided pick, cached during the lock-in window before the
-   *  choice is committed. Used to point focusedCard at the final card so the
-   *  reveal snap is smooth. null during the cycling window and for humans. */
-  plannedChoice: UpgradeId | null;
 }
 
 export interface UpgradePickDialogState {
