@@ -40,10 +40,14 @@ import type {
   HouseOverride,
   WallOverride,
 } from "../test/phase-tests/types.ts";
+import type { Scenario } from "../test/scenario.ts";
 
 type Tool = "house" | "bonus" | "wall";
 
+type Mode = "author" | "replay";
+
 interface EditorState {
+  mode: Mode;
   fixturePath: string;
   fixture: FixtureFile;
   baseline: Cell[][];
@@ -58,6 +62,19 @@ interface EditorState {
   message: string;
   messageKind: "info" | "ok" | "error";
   undoStack: FixtureFile[];
+  /** Live replay scenario — non-null only when `mode === "replay"`. The
+   *  scenario is booted from the current in-memory fixture (saved or not)
+   *  on `enterReplay` and disposed on `exitReplay`. */
+  replayScenario?: Scenario;
+  /** Current frame's cells from `replayScenario.state`. Rebuilt on every
+   *  step so the canvas mirrors the live state. */
+  replayCells?: Cell[][];
+  /** Total frames advanced since replay started. Surfaced in the status
+   *  bar so you can correlate observed state to a tick count. */
+  replayTicks?: number;
+  /** `replayScenario.now()` captured at replay start — sim-time deltas in
+   *  the status bar are `now() - replayStartTimeMs`. */
+  replayStartTimeMs?: number;
 }
 
 type Action =
@@ -69,10 +86,12 @@ type Action =
   | "tool:house"
   | "tool:bonus"
   | "tool:wall"
-  | "place"
+  | "primary"
   | "remove"
   | "undo"
   | "save"
+  | "enter-replay"
+  | "exit-replay"
   | { kind: "owner"; value: number }
   | "ignore";
 
@@ -109,6 +128,7 @@ async function main(): Promise<void> {
   const playerCount = sc.state.players.length;
 
   const state: EditorState = {
+    mode: "author",
     fixturePath: path,
     fixture,
     baseline,
@@ -187,13 +207,17 @@ function decodeKey(bytes: Uint8Array): Action {
       case " ":
       case "\r":
       case "\n":
-        return "place";
+        return "primary";
       case "x":
         return "remove";
       case "u":
         return "undo";
       case "s":
         return "save";
+      case "r":
+        return "enter-replay";
+      case "e":
+        return "exit-replay";
     }
     if (ch >= "0" && ch <= "9") {
       return { kind: "owner", value: Number(ch) };
@@ -244,34 +268,98 @@ async function handleAction(state: EditorState, action: Action): Promise<void> {
       state.cursorCol = Math.min(GRID_COLS - 1, state.cursorCol + 1);
       return;
     case "tool:house":
+      if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "house";
       state.message = "tool = house";
       state.messageKind = "info";
       return;
     case "tool:bonus":
+      if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "bonus";
       state.message = "tool = bonus";
       state.messageKind = "info";
       return;
     case "tool:wall":
+      if (state.mode === "replay") return rejectInReplay(state);
       state.tool = "wall";
       state.message = "tool = wall";
       state.messageKind = "info";
       return;
-    case "place":
-      placeAtCursor(state);
+    case "primary":
+      if (state.mode === "replay") stepReplay(state, 1);
+      else placeAtCursor(state);
       return;
     case "remove":
+      if (state.mode === "replay") return rejectInReplay(state);
       removeAtCursor(state);
       return;
     case "undo":
+      if (state.mode === "replay") return rejectInReplay(state);
       undo(state);
       return;
     case "save":
+      if (state.mode === "replay") return rejectInReplay(state);
       await save(state);
+      return;
+    case "enter-replay":
+      if (state.mode === "author") await enterReplay(state);
+      return;
+    case "exit-replay":
+      if (state.mode === "replay") exitReplay(state);
       return;
     case "ignore":
       return;
+  }
+}
+
+function rejectInReplay(state: EditorState): void {
+  state.message = "not available in replay mode — press e to exit replay";
+  state.messageKind = "error";
+}
+
+async function enterReplay(state: EditorState): Promise<void> {
+  try {
+    const sc = await createPhaseScenario(state.fixture);
+    if (state.fixture.walls && state.fixture.walls.length > 0) {
+      recomputeFixtureDerivedState(sc.state);
+    }
+    state.replayScenario = sc;
+    state.replayCells = buildGrid(sc.state, "all", undefined);
+    state.replayTicks = 0;
+    state.replayStartTimeMs = sc.now();
+    state.mode = "replay";
+    state.message = "entered replay — space steps a frame, e exits";
+    state.messageKind = "ok";
+  } catch (err) {
+    state.message = `cannot enter replay: ${err instanceof Error ? err.message : String(err)}`;
+    state.messageKind = "error";
+  }
+}
+
+function exitReplay(state: EditorState): void {
+  state.replayScenario = undefined;
+  state.replayCells = undefined;
+  state.replayTicks = undefined;
+  state.replayStartTimeMs = undefined;
+  state.mode = "author";
+  state.message = "exited replay";
+  state.messageKind = "info";
+}
+
+function stepReplay(state: EditorState, frames: number): void {
+  const sc = state.replayScenario;
+  if (!sc) {
+    state.message = "no live replay scenario";
+    state.messageKind = "error";
+    return;
+  }
+  try {
+    sc.tick(frames);
+    state.replayTicks = (state.replayTicks ?? 0) + frames;
+    state.replayCells = buildGrid(sc.state, "all", undefined);
+  } catch (err) {
+    state.message = `tick failed: ${err instanceof Error ? err.message : String(err)}`;
+    state.messageKind = "error";
   }
 }
 
@@ -482,16 +570,19 @@ function renderFrame(state: EditorState): string {
   lines.push(statusLine(state));
   lines.push(tileInfoLine(state));
   lines.push(messageLine(state));
-  lines.push(helpLine());
+  lines.push(helpLine(state));
   return lines.join("\n");
 }
 
 function headerLine(state: EditorState): string {
   const dirty = state.dirty ? `${FG_YELLOW}*dirty*${RESET} ` : "";
-  return `${BOLD}fixture editor${RESET}  ${dirty}${state.fixturePath}`;
+  const modeTag =
+    state.mode === "replay" ? `${BOLD}${FG_CYAN}[REPLAY]${RESET} ` : "";
+  return `${BOLD}fixture editor${RESET}  ${modeTag}${dirty}${state.fixturePath}`;
 }
 
 function statusLine(state: EditorState): string {
+  if (state.mode === "replay") return replayStatusLine(state);
   const ownerName = PLAYER_NAMES[state.owner] ?? `?${state.owner}`;
   const cursor = `cursor (${state.cursorRow},${state.cursorCol})`;
   const tool = `tool ${state.tool.toUpperCase()}`;
@@ -503,10 +594,29 @@ function statusLine(state: EditorState): string {
   return `${cursor}   ${tool}${owner}   ${counts}`;
 }
 
+function replayStatusLine(state: EditorState): string {
+  const sc = state.replayScenario;
+  const cursor = `cursor (${state.cursorRow},${state.cursorCol})`;
+  if (!sc) return `${cursor}   replay: (no scenario)`;
+  const phase = sc.state.phase;
+  const round = sc.state.round;
+  const ticks = state.replayTicks ?? 0;
+  const elapsedMs = Math.round(sc.now() - (state.replayStartTimeMs ?? 0));
+  const simTime = (elapsedMs / 1000).toFixed(2);
+  return `${cursor}   round ${round} phase ${phase}   tick ${ticks}   sim-time ${simTime}s`;
+}
+
 function tileInfoLine(state: EditorState): string {
   const row = state.cursorRow;
   const col = state.cursorCol;
-  const inspection = inspectTile(state.baselineState, row, col);
+  // In replay mode, inspect the LIVE replay state — overrides have already
+  // been folded into the runtime, so the "fixture vs seed" distinction
+  // doesn't apply (everything's just live state).
+  const liveState =
+    state.mode === "replay" && state.replayScenario
+      ? state.replayScenario.state
+      : state.baselineState;
+  const inspection = inspectTile(liveState, row, col);
   const parts: string[] = [];
   parts.push(inspection.terrain);
   if (inspection.zone !== null && inspection.zone !== 0) {
@@ -515,41 +625,57 @@ function tileInfoLine(state: EditorState): string {
   if (inspection.tower) {
     parts.push(inspection.tower.alive ? "tower" : "tower(dead)");
   }
-  const seedHouse = state.baselineState.map.houses.find(
+  const liveHouse = liveState.map.houses.find(
     (house) => house.row === row && house.col === col,
   );
-  if (seedHouse) {
-    parts.push(seedHouse.alive ? "seed-house" : "seed-house(dead)");
+  if (liveHouse) {
+    const label = state.mode === "replay" ? "house" : "seed-house";
+    parts.push(liveHouse.alive ? label : `${label}(dead)`);
   }
-  const seedBonus = state.baselineState.bonusSquares.find(
+  const liveBonus = liveState.bonusSquares.find(
     (bonus) => bonus.row === row && bonus.col === col,
   );
-  if (seedBonus) parts.push("seed-bonus");
+  if (liveBonus) parts.push(state.mode === "replay" ? "bonus" : "seed-bonus");
   if (inspection.wall) {
-    parts.push(`seed-wall(${playerLabel(inspection.wall.playerId)})`);
+    const label = state.mode === "replay" ? "wall" : "seed-wall";
+    parts.push(`${label}(${playerLabel(inspection.wall.playerId)})`);
   }
+  if (inspection.cannon) {
+    parts.push(
+      `cannon(${playerLabel(inspection.cannon.playerId)},hp=${inspection.cannon.hp})`,
+    );
+  }
+  if (inspection.grunt) {
+    parts.push(`grunt(${playerLabel(inspection.grunt.playerId)})`);
+  }
+  if (inspection.burningPit) parts.push("burning-pit");
   if (inspection.interior.length > 0) {
     parts.push(`interior(${inspection.interior.map(playerLabel).join("/")})`);
   }
 
-  const fixtureHouse = (state.fixture.houses ?? []).find(
-    (house) => house.row === row && house.col === col,
-  );
-  if (fixtureHouse) {
-    parts.push(`${BOLD}${FG_MAGENTA}fixture-house${RESET}`);
-  }
-  const fixtureBonus = (state.fixture.bonusSquares ?? []).find(
-    (bonus) => bonus.row === row && bonus.col === col,
-  );
-  if (fixtureBonus) parts.push(`${BOLD}${FG_MAGENTA}fixture-bonus${RESET}`);
-  const fixtureWalls = (state.fixture.walls ?? []).filter(
-    (wall) => wall.row === row && wall.col === col,
-  );
-  for (const wall of fixtureWalls) {
-    const color = OWNER_COLORS[wall.ownerId] ?? "";
-    parts.push(
-      `${BOLD}${color}fixture-wall(${playerLabel(wall.ownerId)})${RESET}`,
+  // Fixture-override descriptors only meaningful in author mode — once the
+  // replay runtime has consumed them, what's authored vs. seed-baked
+  // collapses into "what's currently in the live state".
+  if (state.mode === "author") {
+    const fixtureHouse = (state.fixture.houses ?? []).find(
+      (house) => house.row === row && house.col === col,
     );
+    if (fixtureHouse) {
+      parts.push(`${BOLD}${FG_MAGENTA}fixture-house${RESET}`);
+    }
+    const fixtureBonus = (state.fixture.bonusSquares ?? []).find(
+      (bonus) => bonus.row === row && bonus.col === col,
+    );
+    if (fixtureBonus) parts.push(`${BOLD}${FG_MAGENTA}fixture-bonus${RESET}`);
+    const fixtureWalls = (state.fixture.walls ?? []).filter(
+      (wall) => wall.row === row && wall.col === col,
+    );
+    for (const wall of fixtureWalls) {
+      const color = OWNER_COLORS[wall.ownerId] ?? "";
+      parts.push(
+        `${BOLD}${color}fixture-wall(${playerLabel(wall.ownerId)})${RESET}`,
+      );
+    }
   }
 
   return `tile (${row},${col}): ${parts.join(", ")}`;
@@ -570,7 +696,15 @@ function messageLine(state: EditorState): string {
   return `${color}${state.message}${RESET}`;
 }
 
-function helpLine(): string {
+function helpLine(state: EditorState): string {
+  if (state.mode === "replay") {
+    return [
+      "arrows: move cursor",
+      "space: step 1 frame",
+      "e: exit replay",
+      "q: quit",
+    ].join("  |  ");
+  }
   return [
     "arrows: move",
     "h/b/w: tool",
@@ -579,6 +713,7 @@ function helpLine(): string {
     "0-2: owner",
     "u: undo",
     "s: save",
+    "r: replay",
     "q: quit",
   ].join("  |  ");
 }
@@ -592,6 +727,18 @@ function renderRow(state: EditorState, row: number): string {
 }
 
 function renderCell(state: EditorState, row: number, col: number): string {
+  // Replay mode renders the live grid directly — overrides have already
+  // been folded into the runtime, so there's no fixture-overlay to apply.
+  if (state.mode === "replay" && state.replayCells) {
+    const liveCell = state.replayCells[row]![col]!;
+    const liveStyle = baseCellStyle(liveCell);
+    if (row === state.cursorRow && col === state.cursorCol) {
+      return `${INVERSE}${liveStyle}${liveCell.char}${RESET}`;
+    }
+    if (liveStyle) return `${liveStyle}${liveCell.char}${RESET}`;
+    return liveCell.char;
+  }
+
   const baseCell = state.baseline[row]![col]!;
   let char = baseCell.char;
   let style = baseCellStyle(baseCell);
