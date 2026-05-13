@@ -5,6 +5,16 @@
  *   deno run -A scripts/fixture-cli.ts <command> [flags]
  *
  * Commands:
+ *   create            Emits a minimal round-1 fixture skeleton (no checkpoint).
+ *                     See `printUsage()` for required flags.
+ *
+ *   create-checkpoint Emits a round-≥2 fixture with a synthesized
+ *                     `FullStateMessage` checkpoint: one hand-built castle per
+ *                     zone (square ring of `--castle-size` outer tiles around
+ *                     the picked home tower), empty cannons, lives=3.
+ *                     Scans seeds when `--auto-seed` is set, otherwise uses
+ *                     `--seed N` and fails if the ring doesn't fit.
+ *
  *   show       --fixture <path>
  *       Boots the scenario, applies all overrides, renders ASCII to stdout.
  *
@@ -26,6 +36,8 @@
  * needing interactive state.
  */
 
+import { generateMap, topZonesBySize } from "../src/game/map-generation.ts";
+import type { FullStateMessage } from "../src/protocol/protocol.ts";
 import {
   buildGrid,
   buildLegend,
@@ -33,7 +45,12 @@ import {
   CellKind,
   formatGrid,
 } from "../src/runtime/dev-console-grid.ts";
+import { CANNON_PLACE_TIMER } from "../src/shared/core/game-constants.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
+import type { GameMap, Tower } from "../src/shared/core/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
+import { isGrass } from "../src/shared/core/spatial.ts";
+import { Rng } from "../src/shared/platform/rng.ts";
 import {
   createPhaseScenario,
   recomputeFixtureDerivedState,
@@ -41,6 +58,7 @@ import {
 import type {
   BonusSquareOverride,
   FixtureFile,
+  FixtureMode,
   GruntOverride,
   HouseOverride,
   WallOverride,
@@ -53,6 +71,18 @@ interface Flags {
   owner?: number;
   color?: boolean;
   noColor?: boolean;
+  out?: string;
+  seed?: number;
+  autoSeed?: boolean;
+  mode?: FixtureMode;
+  rounds?: number;
+  round?: number;
+  entryPhase?: Phase;
+  castleSize?: number;
+  players?: number;
+  maxSeeds?: number;
+  force?: boolean;
+  notes?: string;
 }
 
 interface FixtureKeySets {
@@ -62,6 +92,27 @@ interface FixtureKeySets {
   fixtureGrunts: ReadonlySet<number>;
 }
 
+interface PickedSeed {
+  seed: number;
+  zones: number[];
+  homeTowers: Tower[];
+  towerCount: number;
+  castleSize: number;
+}
+
+const DEFAULT_CREATE_CHECKPOINT_ROUNDS = 5;
+const DEFAULT_CREATE_CHECKPOINT_ROUND = 2;
+const DEFAULT_CREATE_CHECKPOINT_CASTLE_SIZE = 10;
+const DEFAULT_CREATE_CHECKPOINT_MAX_SEEDS = 500;
+const DEFAULT_CREATE_CHECKPOINT_LIVES = 3;
+const DEFAULT_CREATE_CHECKPOINT_CANNONS_PER_PLAYER = 2;
+/** Bootstrap always creates one player per top-3 zone — see
+ *  `createGameFromSeed(seed, maxPlayers)` and `topZonesBySize(map, 3)`. The
+ *  checkpoint must match this slot count or `validateFullState` rejects it.
+ *  `--players N` (N < 3) is honoured by padding the unused slots as
+ *  `eliminated: true` stubs with no castle, walls, or cannons. */
+const FIXED_PLAYER_COUNT = 3;
+const DEFAULT_CREATE_CHECKPOINT_PLAYERS = 3;
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
@@ -83,6 +134,12 @@ async function main(): Promise<void> {
   const flags = parseFlags(rest);
   try {
     switch (command) {
+      case "create":
+        await runCreate(flags);
+        break;
+      case "create-checkpoint":
+        await runCreateCheckpoint(flags);
+        break;
       case "show":
         await runShow(flags);
         break;
@@ -118,6 +175,331 @@ async function main(): Promise<void> {
     console.error(err instanceof Error ? err.message : String(err));
     Deno.exit(1);
   }
+}
+
+async function runCreate(flags: Flags): Promise<void> {
+  const out = requireOut(flags);
+  const seed = requireInt(flags, "seed");
+  const mode = flags.mode ?? "classic";
+  const rounds = flags.rounds ?? 3;
+  const round = flags.round ?? 1;
+  const entryPhase = flags.entryPhase ?? Phase.CANNON_PLACE;
+  if (round !== 1) {
+    throw new Error(
+      `create only emits round-1 fixtures (got --round ${round}); ` +
+        `use create-checkpoint for round-≥2 scenarios`,
+    );
+  }
+  await refuseExistingUnlessForce(out, flags);
+  const fixture: FixtureFile = {
+    version: 1,
+    seed,
+    mode,
+    rounds,
+    entryPhase,
+    round,
+    ...(flags.notes ? { notes: flags.notes } : {}),
+  };
+  await writeAndValidate(out, fixture);
+  console.log(
+    `created ${out} (seed=${seed} mode=${mode} round=${round} entry=${entryPhase})`,
+  );
+}
+
+async function runCreateCheckpoint(flags: Flags): Promise<void> {
+  const out = requireOut(flags);
+  const mode = flags.mode ?? "classic";
+  const rounds = flags.rounds ?? DEFAULT_CREATE_CHECKPOINT_ROUNDS;
+  const round = flags.round ?? DEFAULT_CREATE_CHECKPOINT_ROUND;
+  const entryPhase = flags.entryPhase ?? Phase.CANNON_PLACE;
+  const castleSize = flags.castleSize ?? DEFAULT_CREATE_CHECKPOINT_CASTLE_SIZE;
+  const players = flags.players ?? DEFAULT_CREATE_CHECKPOINT_PLAYERS;
+  const maxSeeds = flags.maxSeeds ?? DEFAULT_CREATE_CHECKPOINT_MAX_SEEDS;
+
+  if (round < 2) {
+    throw new Error(
+      `create-checkpoint requires --round ≥ 2 (got ${round}); ` +
+        `use create for round-1 fixtures`,
+    );
+  }
+  if (entryPhase !== Phase.CANNON_PLACE && entryPhase !== Phase.WALL_BUILD) {
+    throw new Error(
+      `create-checkpoint only supports --entry-phase CANNON_PLACE or WALL_BUILD ` +
+        `(got ${entryPhase})`,
+    );
+  }
+  if (castleSize < 4 || castleSize % 2 !== 0) {
+    throw new Error(
+      `--castle-size must be an even integer ≥ 4 (got ${castleSize}); ` +
+        `4 = 2×2 tower + 1-tile ring with no gap, 10 = 8×8 interior + ring`,
+    );
+  }
+  if (players < 1 || players > FIXED_PLAYER_COUNT) {
+    throw new Error(
+      `--players must be 1, 2, or 3 (got ${players}); ` +
+        `inactive slots are padded as eliminated stubs`,
+    );
+  }
+  await refuseExistingUnlessForce(out, flags);
+
+  const picked = flags.autoSeed
+    ? scanSeeds(maxSeeds, castleSize, players)
+    : pickSingleSeed(requireInt(flags, "seed"), castleSize, players);
+
+  const checkpoint = buildCheckpoint(picked, {
+    mode,
+    rounds,
+    round,
+    entryPhase,
+  });
+  const fixture: FixtureFile = {
+    version: 1,
+    seed: picked.seed,
+    mode,
+    rounds,
+    entryPhase,
+    round,
+    checkpoint,
+    notes:
+      flags.notes ??
+      `${players} hand-placed ${castleSize}×${castleSize} home castle(s) at seed ` +
+        `${picked.seed} (${FIXED_PLAYER_COUNT - players} eliminated stub(s)). ` +
+        `Generated by \`fixture create-checkpoint\`.`,
+  };
+  await writeAndValidate(out, fixture);
+  console.log(
+    `created ${out} (seed=${picked.seed} players=${players}/${FIXED_PLAYER_COUNT} size=${castleSize})`,
+  );
+  for (let i = 0; i < picked.homeTowers.length; i++) {
+    const tower = picked.homeTowers[i]!;
+    console.log(
+      `  P${i} zone=${tower.zone} towerIdx=${tower.index} at (${tower.row},${tower.col})`,
+    );
+  }
+  for (let i = picked.homeTowers.length; i < FIXED_PLAYER_COUNT; i++) {
+    console.log(`  P${i} zone=${picked.zones[i]} (eliminated stub)`);
+  }
+}
+
+function scanSeeds(
+  maxAttempts: number,
+  castleSize: number,
+  players: number,
+): PickedSeed {
+  for (let seed = 0; seed < maxAttempts; seed++) {
+    const result = trySeed(seed, castleSize, players);
+    if (result) return result;
+  }
+  throw new Error(
+    `no viable seed found in 0..${maxAttempts} for castleSize=${castleSize} players=${players}`,
+  );
+}
+
+function pickSingleSeed(
+  seed: number,
+  castleSize: number,
+  players: number,
+): PickedSeed {
+  const result = trySeed(seed, castleSize, players);
+  if (!result) {
+    throw new Error(
+      `seed ${seed} does not fit ${players}× ${castleSize}×${castleSize} castle(s) ` +
+        `(use --auto-seed to scan)`,
+    );
+  }
+  return result;
+}
+
+/** Look for a seed where the runtime's 3-zone bootstrap succeeds AND the
+ *  largest `players` zones each contain a ring-fitting tower. The remaining
+ *  3 − `players` zones still need to exist (the checkpoint slot count is
+ *  fixed at 3) but their towers don't need to fit a ring — those slots
+ *  become eliminated stubs. */
+function trySeed(
+  seed: number,
+  castleSize: number,
+  players: number,
+): PickedSeed | null {
+  const rng = new Rng(seed);
+  const map = generateMap(rng);
+  const top = topZonesBySize(map, FIXED_PLAYER_COUNT);
+  if (top.length < FIXED_PLAYER_COUNT) return null;
+  const zones = top.map((entry) => entry.zone);
+  const homeTowers: Tower[] = [];
+  for (let i = 0; i < players; i++) {
+    const zone = zones[i]!;
+    const fits = map.towers.filter(
+      (tower) => tower.zone === zone && ringFits(map, tower, castleSize),
+    );
+    if (fits.length === 0) return null;
+    homeTowers.push(fits[0]!);
+  }
+  return {
+    seed,
+    zones,
+    homeTowers,
+    towerCount: map.towers.length,
+    castleSize,
+  };
+}
+
+function ringFits(map: GameMap, tower: Tower, castleSize: number): boolean {
+  for (const { row, col } of ringTiles(tower, castleSize)) {
+    if (row < 0 || row >= GRID_ROWS) return false;
+    if (col < 0 || col >= GRID_COLS) return false;
+    if (!isGrass(map.tiles, row, col)) return false;
+  }
+  const gap = castleSize / 2 - 2;
+  const top = tower.row - gap;
+  const bottom = tower.row + 1 + gap;
+  const left = tower.col - gap;
+  const right = tower.col + 1 + gap;
+  for (const other of map.towers) {
+    if (other === tower) continue;
+    const r0 = other.row;
+    const r1 = other.row + 1;
+    const c0 = other.col;
+    const c1 = other.col + 1;
+    if (
+      r1 >= top - 1 &&
+      r0 <= bottom + 1 &&
+      c1 >= left - 1 &&
+      c0 <= right + 1
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function buildCheckpoint(
+  picked: PickedSeed,
+  opts: {
+    mode: FixtureMode;
+    rounds: number;
+    round: number;
+    entryPhase: Phase;
+  },
+): FullStateMessage {
+  const { zones, homeTowers, towerCount, castleSize } = picked;
+  const activeCount = homeTowers.length;
+  const players = [];
+  for (let idx = 0; idx < activeCount; idx++) {
+    const tower = homeTowers[idx]!;
+    const wallKeys = ringTiles(tower, castleSize).map(
+      (t) => t.row * GRID_COLS + t.col,
+    );
+    players.push({
+      id: idx,
+      walls: wallKeys,
+      cannons: [],
+      homeTowerIdx: tower.index,
+      castleWallTiles: wallKeys,
+      lives: DEFAULT_CREATE_CHECKPOINT_LIVES,
+      eliminated: false,
+      score: 0,
+    });
+  }
+  for (let idx = activeCount; idx < FIXED_PLAYER_COUNT; idx++) {
+    players.push({
+      id: idx,
+      walls: [],
+      cannons: [],
+      homeTowerIdx: null,
+      castleWallTiles: [],
+      lives: 0,
+      eliminated: true,
+      score: 0,
+    });
+  }
+  const towerAlive = new Array(towerCount).fill(true);
+  // CANNON_PLACE entry: only active slots are awaited; eliminated slots are
+  // skipped by `allCannonPlaceDone` via `isPlayerEliminated`.
+  // WALL_BUILD entry: active slots must already be "done"; eliminated slots
+  // are again skipped.
+  const cannonPlaceDone =
+    opts.entryPhase === Phase.WALL_BUILD ? homeTowers.map((_, idx) => idx) : [];
+  const cannonLimits: number[] = [];
+  for (let idx = 0; idx < FIXED_PLAYER_COUNT; idx++) {
+    cannonLimits.push(
+      idx < activeCount ? DEFAULT_CREATE_CHECKPOINT_CANNONS_PER_PLAYER : 0,
+    );
+  }
+  return {
+    type: "fullState",
+    migrationSeq: 0,
+    phase: opts.entryPhase,
+    round: opts.round,
+    timer: CANNON_PLACE_TIMER,
+    battleCountdown: 0,
+    maxRounds: opts.rounds,
+    shotsFired: 0,
+    rngState: picked.seed,
+    simTick: 0,
+    players,
+    grunts: [],
+    houses: [],
+    bonusSquares: [],
+    towerAlive,
+    burningPits: [],
+    cannonLimits,
+    cannonPlaceDone,
+    playerZones: zones,
+    gameMode: opts.mode,
+    activeModifier: null,
+    activeModifierChangedTiles: [],
+    lastModifierId: null,
+    frozenTiles: null,
+    highTideTiles: null,
+    sinkholeTiles: null,
+    lowWaterTiles: null,
+    towerPendingRevive: [],
+    capturedCannons: [],
+    cannonballs: [],
+  };
+}
+
+/** All perimeter tiles of an N×N wall ring around a 2×2 tower, where N =
+ *  `castleSize`. With N=10 the gap between tower edge and wall is 3 tiles. */
+function ringTiles(
+  tower: Tower,
+  castleSize: number,
+): { row: number; col: number }[] {
+  const gap = castleSize / 2 - 2;
+  const offset = gap + 1;
+  const top = tower.row - offset;
+  const bottom = tower.row + 1 + offset;
+  const left = tower.col - offset;
+  const right = tower.col + 1 + offset;
+  const tiles: { row: number; col: number }[] = [];
+  for (let c = left; c <= right; c++) {
+    tiles.push({ row: top, col: c });
+    tiles.push({ row: bottom, col: c });
+  }
+  for (let r = top + 1; r < bottom; r++) {
+    tiles.push({ row: r, col: left });
+    tiles.push({ row: r, col: right });
+  }
+  return tiles;
+}
+
+async function refuseExistingUnlessForce(
+  path: string,
+  flags: Flags,
+): Promise<void> {
+  try {
+    await Deno.stat(path);
+  } catch {
+    return;
+  }
+  if (!flags.force) {
+    throw new Error(`refusing to overwrite ${path} (pass --force to replace)`);
+  }
+}
+
+function requireOut(flags: Flags): string {
+  if (!flags.out) throw new Error("missing --out <path>");
+  return flags.out;
 }
 
 async function runShow(flags: Flags): Promise<void> {
@@ -439,6 +821,58 @@ function parseFlags(argv: readonly string[]): Flags {
       case "--no-color":
         out.noColor = true;
         break;
+      case "--out":
+        out.out = argv[++i];
+        break;
+      case "--seed":
+        out.seed = Number(argv[++i]);
+        break;
+      case "--auto-seed":
+        out.autoSeed = true;
+        break;
+      case "--mode": {
+        const value = argv[++i];
+        if (value !== "classic" && value !== "modern") {
+          throw new Error(`--mode must be classic|modern (got "${value}")`);
+        }
+        out.mode = value;
+        break;
+      }
+      case "--rounds":
+        out.rounds = Number(argv[++i]);
+        break;
+      case "--round":
+        out.round = Number(argv[++i]);
+        break;
+      case "--entry-phase": {
+        const value = argv[++i];
+        const match = (Object.values(Phase) as Phase[]).find(
+          (phase) => phase === value,
+        );
+        if (!match) {
+          throw new Error(
+            `--entry-phase must be one of ${Object.values(Phase).join("|")} ` +
+              `(got "${value}")`,
+          );
+        }
+        out.entryPhase = match;
+        break;
+      }
+      case "--castle-size":
+        out.castleSize = Number(argv[++i]);
+        break;
+      case "--players":
+        out.players = Number(argv[++i]);
+        break;
+      case "--max-seeds":
+        out.maxSeeds = Number(argv[++i]);
+        break;
+      case "--force":
+        out.force = true;
+        break;
+      case "--notes":
+        out.notes = argv[++i];
+        break;
       default:
         throw new Error(`unknown flag: ${arg}`);
     }
@@ -452,6 +886,22 @@ function printUsage(): void {
       "Usage: deno run -A scripts/fixture-cli.ts <command> [flags]",
       "",
       "Commands:",
+      "  create            --out <path> --seed N [--mode classic|modern]",
+      '                    [--rounds R] [--entry-phase P] [--notes "..."] [--force]',
+      "                      Emit a minimal round-1 fixture skeleton.",
+      "",
+      "  create-checkpoint --out <path> (--seed N | --auto-seed)",
+      "                    [--mode classic|modern] [--rounds R] [--round R]",
+      "                    [--entry-phase CANNON_PLACE|WALL_BUILD]",
+      "                    [--castle-size N] [--players N] [--max-seeds N]",
+      '                    [--notes "..."] [--force]',
+      "                      Synthesize a round-≥2 fixture with one hand-built",
+      "                      N×N castle per active player. --players 1..3",
+      "                      builds N castles; remaining slots are emitted",
+      "                      as eliminated stubs (lives=0, no walls/cannons,",
+      "                      AI skipped). Defaults: round=2, players=3,",
+      "                      castle-size=10, entry=CANNON_PLACE.",
+      "",
       "  show       --fixture <path>",
       "  add-house  --fixture <path> --row N --col N",
       "  add-bonus  --fixture <path> --row N --col N",
