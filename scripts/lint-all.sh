@@ -75,7 +75,7 @@ echo "lint:all: parallel checks..."
 
 # Lane 5 — deno type-check + lint
 (
-  run deno-check deno check src server/*.ts test/*.ts
+  run deno-check deno check --quiet src server/ test/
   run deno-lint  deno lint src test/ server/
 ) &
 

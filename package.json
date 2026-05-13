@@ -57,7 +57,7 @@
     "lint:shapes:audit": "deno run -A scripts/find-shape-duplicates.ts --test",
     "lint:literals": "npm run find-literals",
     "find-literals": "deno run -A scripts/find-duplicate-literals.ts",
-    "lint:deno": "deno check src server/*.ts test/*.ts",
+    "lint:deno": "deno check --quiet src server/ test/",
     "lint:deno-lint": "deno lint src test/ server/",
     "lint:layers": "deno run -A scripts/generate-import-layers.ts --check",
     "lint:lateral": "deno run -A scripts/lint-lateral-imports.ts",
