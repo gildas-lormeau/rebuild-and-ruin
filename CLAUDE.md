@@ -109,7 +109,7 @@ The single `lint-registries.ts` pre-commit check iterates all 4 `*_CONSUMERS` ma
 - Tower revival: delayed — enclosed dead tower marked pending at end of build, revived only if still enclosed at end of *next* build (towerPendingRevive set)
 - Dead cannons persist as debris (block space), cleared only on zone reset
 - Burning pits: grass tiles blocked for 3 battle rounds
-- Wall sweep: batch collect-then-delete, one layer per call, twice per battle
+- Wall sweep: batch collect-then-delete, one layer per call, twice per round (end-of-cannon + deferred end-of-build)
 - `recheckTerritory()` for mid-build use, `finalizeTerritoryWithScoring()` at end-of-build adds scoring + tower revival; final grunt sweep fixes race condition
 - Grunt movement: no retargeting after tower kill, pace back-and-forth when blocked by walls, stay put once adjacent to target tower
 - Grunt distance: computed to nearest tile of 2x2 tower (not top-left corner)

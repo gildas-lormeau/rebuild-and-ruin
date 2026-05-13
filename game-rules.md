@@ -63,11 +63,11 @@ Players place cannons inside their enclosed territory (interior tiles only).
 
 **Round 1**: 3 slots for all players.
 
-**Round 2+**: Existing alive cannons carry over. New slots awarded:
+**Round 2+**: Total budget = slot cost of surviving alive cannons + newly awarded slots. New slots awarded:
 - Home castle enclosed with alive tower: **2 new slots**
 - Each additional enclosed alive tower: **1 new slot**
 
-**After reselection** (lost a life): `min(3 + livesLost, 8)` new slots.
+**After reselection** (lost a life): formula **replaces** the tower-based award above (a reselecting player has no cannons to carry over). New budget = `min(3 + livesLost, 8)`.
 
 ### Placement Rules
 
@@ -79,10 +79,10 @@ All tiles of the cannon must be:
 
 At the transition from Cannon Place to Battle, all placed balloons are resolved:
 
-1. Each balloon targets the **most dangerous** enemy cannon (super guns strongly preferred, ties broken by HP).
-2. Balloon hits **accumulate across battles** - a normal cannon needs 1 hit, a super gun needs 2.
-3. When enough hits accumulate, the cannon is **captured**: it fires for the capturer during battle.
-4. Multiple players contributing balloon hits → winner chosen randomly among contributors.
+1. Each balloon targets the **most dangerous** enemy cannon. Priority: super guns first (large weight), then **highest HP** among same-type candidates.
+2. Balloon **hit counts persist across battles** — a normal cannon needs 1 hit, a super gun needs 2. A single player can spread the hits required for a super gun across multiple rounds.
+3. The cannon is **captured** in the round the threshold is crossed and immediately fires for the capturer in that battle.
+4. Multiple players contributing balloon hits in the **same** deciding round → winner chosen randomly among that round's contributors. **Contributions from prior rounds do not grant claim** — only the deciding round's contributors are in the lottery (hit counts persist, but contributor lists reset every end-of-battle).
 5. Balloon bases are removed after battle (one-time use).
 
 ### Grunt Spawning
@@ -95,6 +95,14 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 
 **Timer**: 10 seconds, preceded by a "Ready / Aim / Fire" countdown.
 
+### Pre-Battle Setup
+
+At the cannon-place → battle transition, before the countdown:
+
+- Burning pits decay by 1 (pits at 0 are removed — see Burning Pits).
+- Isolated walls are swept (one layer — see Wall Sweep).
+- Bonus squares now covered by newly placed walls are removed.
+
 ### Firing
 
 - Players aim and fire their cannons at enemy territory.
@@ -102,7 +110,7 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 - Each cannon can have only **one cannonball in flight** at a time.
 - Cannonball speed: 150 pixels/second.
 - Cannon facing rotates smoothly toward the target (stored as a continuous angle).
-- Captured cannons are appended to the capturer's firing queue (after their own cannons) and fire in the same round-robin order.
+- Each player has their own firing queue: own cannons first, then captured cannons (in capture order). Pressing fire advances that player's round-robin index to the next ready cannon in their queue. A captured cannon only fires when its capturer pulls the trigger.
 
 ### Impact Damage
 
@@ -118,9 +126,9 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 ### Burning Pits (Super Gun)
 
 When an incendiary cannonball (from a super gun) destroys a wall tile, a **burning pit** is created:
-- Lasts **3 battle rounds**
+- Lasts **3 battle rounds** (exists during the battle of creation and the next two)
 - Blocks piece placement, cannon placement, and grunt movement
-- Decays by 1 round at the end of each battle
+- Decays by 1 at the **start** of each subsequent battle — pits created mid-battle remain at full intensity through the closing build and the next cannon placement
 
 ### Grunts
 
@@ -151,8 +159,11 @@ Grunts move 1 tile per second during the build phase:
 
 #### Wall Attacks (Battle Phase, blocked grunts)
 
-- At each battle's end, grunts that were blocked (not adjacent to their alive target tower) increment a `blockedRounds` counter.
-- At the start of the next battle, grunts blocked for **≥2 battles** with an adjacent wall have a **25% chance** to attack that wall.
+- At each battle's end, the `blockedRounds` counter updates per grunt:
+  - Target alive **and** grunt adjacent → counter resets to 0.
+  - Target alive **and** grunt not adjacent → counter += 1.
+  - Target dead → counter **frozen** (no change; the grunt stays put).
+- At the **start** of the next battle, one roll per eligible grunt: 25% chance to attack an adjacent wall. Eligibility: `blockedRounds ≥ 2` AND target tower still alive AND a wall is adjacent. (The Sapper modifier bypasses both the count requirement and the roll.)
 - Wall attack uses the same 3-second timer; destroys one wall tile closest to the target tower.
 
 ### End of Battle
@@ -165,8 +176,6 @@ Grunts move 1 tile per second during the build phase:
 6. Territory is reclaimed.
 7. Round counter increments.
 8. Bonus squares are replenished.
-
-> **Note**: Burning pits decay at the **start** of each battle (not at the end), so pits created during a battle remain at full intensity through the repair and cannon phases.
 
 ---
 
@@ -312,7 +321,12 @@ Replenished immediately after capture.
 
 ## Wall Sweep
 
-At the end of both the build phase and cannon phase, **isolated wall tiles** (with ≤1 orthogonal wall neighbor) are swept away in a single batch pass. This cleans up debris fragments.
+**Isolated wall tiles** (with ≤1 orthogonal wall neighbor) are removed **twice per round**:
+
+- At the end of cannon placement (revealed at battle start, alongside burning-pit decay).
+- At the end of wall build (deferred — revealed under the next round's cannons banner).
+
+Each pass peels **one layer**: tiles newly exposed by the removal survive until the next pass. This cleans up debris fragments without dissolving thin walls in a single tick.
 
 ---
 
@@ -378,14 +392,14 @@ From round 3 onward (and not in the final round), each non-eliminated player is 
 | Build | Master Builder | +5s exclusive build time (see below) |
 | Build | Small Pieces | Only simple pieces (1×1, 1×2, 1×3, corner) |
 | Build | Double Time | +10s build time for all players |
-| Build | Architect | Pieces can overlap 1 own wall tile |
+| Build | Architect | Each piece placed may overlap up to 1 of the placer's own wall tiles (enemy walls still block) |
 | Build | Foundations | Walls can be placed on burning pits |
 | Build | Reclamation | Dead cannon debris auto-cleared at build start |
 | Build | Restoration Crew | One dead tower revives immediately when enclosed |
 | Build | Entomb | All players can bury grunts under placed walls |
 | Strategic | Territorial Ambition | Territory points doubled at end of build |
-| Strategic | Conscription | Killed grunts have 75% chance to respawn on an enemy zone |
-| Strategic | Salvage | Destroying enemy cannons gives +1 slot (max +2) |
+| Strategic | Conscription | When the owner **shoots** a grunt dead, 75% chance to respawn it on a random enemy zone (does not trigger on enclosure-kills — those follow the base 50% respawn rule) |
+| Strategic | Salvage | Each enemy-cannon kill banks +1 future-cannon slot (cap 2 banked per player). Banked slots are added to the next cannon-place budget and the bank then resets to 0 |
 | One-use | Ceasefire | Skip the next battle phase |
 | One-use | Supply Drop | 2 free cannons bypassing slot limit |
 | One-use | Second Wind | Revive all towers for all players |
@@ -403,7 +417,7 @@ During battle, chained destruction earns bonus points on top of base destruction
 |---------|-------|
 | Wall hit within 1.5s of the previous wall hit (streak of 3+) | +50 per additional wall |
 | Grunt kill within 1.5s of the previous grunt kill (streak of 2+) | +75 per additional grunt |
-| Enemy cannon destroyed | +100 |
+| Enemy cannon destroyed | +100 (every kill — no streak required, stacks on the 16 base destruction points → 116 total) |
 | 5+ walls destroyed in one battle | +150 demolition bonus (awarded at end of battle) |
 
 Wall and grunt streak windows reset if the next hit lands outside the 1.5-second window.
