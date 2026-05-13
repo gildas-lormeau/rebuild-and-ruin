@@ -383,14 +383,15 @@
     "files": [
       "src/controllers/controller-ai-assisted-human.ts",
       "src/online/online-runtime-promote.ts",
-      "src/online/online-runtime-session.ts"
+      "src/runtime/runtime-rehydrate.ts"
     ]
   },
   {
     "name": "online deps wiring",
     "tier": "roots",
     "files": [
-      "src/online/online-runtime-deps.ts"
+      "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-session.ts"
     ]
   },
   {

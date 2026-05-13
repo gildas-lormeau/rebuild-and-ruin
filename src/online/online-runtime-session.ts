@@ -11,6 +11,7 @@ import type { FullStateMessage, InitMessage } from "../protocol/protocol.ts";
 import { ROUTE_ONLINE } from "../protocol/routes.ts";
 import { bootstrapGame } from "../runtime/runtime-bootstrap.ts";
 import type { TimingApi } from "../runtime/runtime-contracts.ts";
+import { resolveModeAfterFullState } from "../runtime/runtime-rehydrate.ts";
 import { setMode, setRuntimeGameState } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import type { GameMode } from "../shared/core/game-constants.ts";
@@ -143,10 +144,4 @@ export function createOnlineRuntimeSessionHelpers(
     showLobby,
     showWaitingRoom,
   };
-}
-
-function resolveModeAfterFullState(phase: Phase, hasBalloons: boolean): Mode {
-  if (phase === Phase.CASTLE_SELECT) return Mode.SELECTION;
-  if (phase === Phase.BATTLE && hasBalloons) return Mode.BALLOON_ANIM;
-  return Mode.GAME;
 }

@@ -5,12 +5,16 @@
  * loader applies it through the real runtime (same path production uses),
  * stopping at `entryPhase`, where the test then takes over.
  *
- * V1 is the minimum viable format: seed + mode + rounds + entryPhase. Future
- * slices grow this to carry tile overrides (post-seed map deltas), mid-game
- * scoring/zone state, and modern-mode upgrades/modifiers — without breaking
- * v1 fixtures (loader rejects unknown `version` values explicitly).
+ * Two entry paths:
+ *   - Round 1: the loader boots a fresh runtime and AI-drives it to
+ *     `entryPhase`. No serialized state required.
+ *   - Round ≥ 2: the fixture carries a `checkpoint` (a captured
+ *     `FullStateMessage`). The loader boots a fresh runtime, then applies
+ *     the snapshot via `applyMidGameCheckpoint` so the runtime can continue
+ *     ticking from that moment.
  */
 
+import type { FullStateMessage } from "../../src/protocol/protocol.ts";
 import type { Phase } from "../../src/shared/core/game-phase.ts";
 
 export type FixtureMode = "classic" | "modern";
@@ -25,10 +29,19 @@ export interface FixtureFile {
   /** Match length in rounds. */
   rounds: number;
   /** Phase the loader stops at before handing the scenario to the test.
-   *  V1: runtime plays through prior phases (AI-driven) to reach this entry. */
+   *  Without `checkpoint`: runtime plays through prior phases (AI-driven)
+   *  to reach this entry. With `checkpoint`: the captured snapshot decides
+   *  the phase; this field must match `checkpoint.phase`. */
   entryPhase: Phase;
-  /** Round at which `entryPhase` should be reached. V1: round 1 only. */
-  round: 1;
+  /** Round at which `entryPhase` should be reached. 1 when authored as a
+   *  fresh boot; >1 requires a `checkpoint` (no support for AI-replaying
+   *  multiple rounds before hand-off — too slow to be useful in tests). */
+  round: number;
+  /** Captured mid-game state. When present, the loader applies it via
+   *  `applyMidGameCheckpoint` instead of AI-driving from round 1. Required
+   *  for `round > 1`. The checkpoint's `round` / `phase` must match the
+   *  fixture's `round` / `entryPhase`. */
+  checkpoint?: FullStateMessage;
   /** House additions applied on top of the seed-generated map, after the
    *  runtime has played through to `entryPhase`. Each entry is validated
    *  for in-bounds row/col, grass tile, no tower overlap, and no duplicate

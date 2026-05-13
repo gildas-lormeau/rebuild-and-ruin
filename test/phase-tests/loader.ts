@@ -1,11 +1,15 @@
 /**
- * Phase-test fixture loader. Translates a `FixtureFile` into a real `Scenario`
- * by booting the runtime and advancing it (AI-driven) to the declared
- * `entryPhase`, then applying entity overrides on top of the settled state.
+ * Phase-test fixture loader. Translates a `FixtureFile` into a real `Scenario`.
  *
- * V1 supports round-1 entry only. Overrides currently cover houses and
- * bonus squares — both grass-only, zone-derived, never repartition the map.
- * Future slices add walls (player-owned, triggers territory recompute).
+ * Two entry paths:
+ *   - No `checkpoint`: boot the runtime and AI-drive it to `entryPhase`.
+ *   - With `checkpoint`: boot the runtime, then apply the captured
+ *     `FullStateMessage` via `applyMidGameCheckpoint` so the runtime can
+ *     resume ticking from that moment. The fixture's `round` / `entryPhase`
+ *     must agree with the checkpoint's `round` / `phase`.
+ *
+ * After the entry point is reached, optional entity overrides (houses,
+ * bonus squares, walls) are applied on top of the settled state.
  */
 
 import { addPlayerWall } from "../../src/shared/core/board-occupancy.ts";
@@ -17,7 +21,16 @@ import { packTile } from "../../src/shared/core/spatial.ts";
 import type { GameState } from "../../src/shared/core/types.ts";
 import type { ZoneId } from "../../src/shared/core/zone-id.ts";
 import { recheckTerritory } from "../../src/game/build-system.ts";
-import { createScenario, type Scenario, waitForPhase } from "../scenario.ts";
+import { applyMidGameCheckpoint } from "../../src/runtime/runtime-rehydrate.ts";
+import { createHeadlessRuntime } from "../runtime-headless.ts";
+import {
+  buildHeadlessOptions,
+  createScenario,
+  type Scenario,
+  waitForPhase,
+  wrapHeadless,
+} from "../scenario.ts";
+import type { GameMessage } from "../../src/protocol/protocol.ts";
 import type {
   BonusSquareOverride,
   FixtureFile,
@@ -31,14 +44,9 @@ export async function createPhaseScenario(
   fixture: FixtureFile,
 ): Promise<Scenario> {
   validateFixture(fixture);
-  const sc = await createScenario({
-    seed: fixture.seed,
-    mode: fixture.mode,
-    rounds: fixture.rounds,
-  });
-  if (fixture.entryPhase !== Phase.CASTLE_SELECT) {
-    waitForPhase(sc, fixture.entryPhase);
-  }
+  const sc = fixture.checkpoint
+    ? await createCheckpointScenario(fixture)
+    : await createFreshScenario(fixture);
   if (fixture.houses && fixture.houses.length > 0) {
     applyHouseOverrides(sc.state, fixture.houses);
   }
@@ -173,10 +181,29 @@ export function validateFixture(fixture: FixtureFile): void {
       `Fixture version ${fixture.version} not supported (expected ${SUPPORTED_VERSION})`,
     );
   }
-  if (fixture.round !== 1) {
+  if (!Number.isInteger(fixture.round) || fixture.round < 1) {
     throw new Error(
-      `Fixture round ${fixture.round} not supported in v1 (only round 1)`,
+      `Fixture round must be a positive integer, got ${fixture.round}`,
     );
+  }
+  if (fixture.round > 1 && !fixture.checkpoint) {
+    throw new Error(
+      `Fixture round ${fixture.round} > 1 requires a checkpoint ` +
+        `(no AI-replay path past round 1 — it would be too slow to be useful)`,
+    );
+  }
+  if (fixture.checkpoint) {
+    if (fixture.checkpoint.round !== fixture.round) {
+      throw new Error(
+        `Fixture round ${fixture.round} disagrees with checkpoint round ${fixture.checkpoint.round}`,
+      );
+    }
+    const checkpointPhase = Phase[fixture.checkpoint.phase as keyof typeof Phase];
+    if (checkpointPhase !== fixture.entryPhase) {
+      throw new Error(
+        `Fixture entryPhase ${fixture.entryPhase} disagrees with checkpoint phase ${fixture.checkpoint.phase}`,
+      );
+    }
   }
   if (!Object.values(Phase).includes(fixture.entryPhase)) {
     throw new Error(
@@ -196,6 +223,49 @@ export function validateFixture(fixture: FixtureFile): void {
       `Fixture rounds must be a positive integer, got ${fixture.rounds}`,
     );
   }
+}
+
+/** Round-1 path: AI-drive from boot to `entryPhase`. */
+async function createFreshScenario(fixture: FixtureFile): Promise<Scenario> {
+  const sc = await createScenario({
+    seed: fixture.seed,
+    mode: fixture.mode,
+    rounds: fixture.rounds,
+  });
+  if (fixture.entryPhase !== Phase.CASTLE_SELECT) {
+    waitForPhase(sc, fixture.entryPhase);
+  }
+  return sc;
+}
+
+/** Round ≥ 2 path: boot a fresh runtime, then apply the captured snapshot
+ *  so it continues ticking from that moment. */
+async function createCheckpointScenario(
+  fixture: FixtureFile,
+): Promise<Scenario> {
+  if (!fixture.checkpoint) throw new Error("checkpoint required");
+  const sentMessages: GameMessage[] = [];
+  const headless = await createHeadlessRuntime(
+    buildHeadlessOptions(
+      {
+        seed: fixture.seed,
+        mode: fixture.mode,
+        rounds: fixture.rounds,
+      },
+      sentMessages,
+    ),
+  );
+  const result = await applyMidGameCheckpoint(
+    headless.runtime,
+    fixture.checkpoint,
+  );
+  if (!result) {
+    throw new Error(
+      "applyMidGameCheckpoint rejected the fixture's checkpoint " +
+        "(structural validation failed — see [checkpoint] error above)",
+    );
+  }
+  return wrapHeadless(headless, sentMessages);
 }
 
 /** Shared validation for grass-only entity placements (houses, bonus squares).
