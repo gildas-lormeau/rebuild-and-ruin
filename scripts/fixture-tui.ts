@@ -27,6 +27,7 @@ import {
   inspectTile,
 } from "../src/runtime/dev-console-grid.ts";
 import { TOWER_SIZE } from "../src/shared/core/game-constants.ts";
+import { Phase } from "../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/core/grid.ts";
 import type { GameState } from "../src/shared/core/types.ts";
 import { PLAYER_NAMES } from "../src/shared/ui/player-config.ts";
@@ -40,18 +41,36 @@ import type {
   HouseOverride,
   WallOverride,
 } from "../test/phase-tests/types.ts";
-import type { Scenario } from "../test/scenario.ts";
+import {
+  createScenario,
+  loadSeed,
+  type Scenario,
+  waitForPhase,
+} from "../test/scenario.ts";
 
 type Tool = "house" | "bonus" | "wall";
 
 type Mode = "author" | "replay";
 
+/** A human-readable label for what the editor is currently playing. */
+interface ScenarioSourceLabel {
+  /** Single-line description, e.g. `fixture: path/to.json`, `seed=42 mode=classic`. */
+  text: string;
+  /** True when the source has an on-disk fixture we can author against. */
+  canEdit: boolean;
+}
+
 interface EditorState {
   mode: Mode;
-  fixturePath: string;
-  fixture: FixtureFile;
-  baseline: Cell[][];
-  baselineState: GameState;
+  /** Identifies what's currently loaded — fixture path, seed args, etc. */
+  source: ScenarioSourceLabel;
+  /** Fixture-only fields. Populated when launched via `--fixture` so
+   *  author mode (place/remove/undo/save) works; absent for seed-based
+   *  launches which run in replay-only mode. */
+  fixturePath?: string;
+  fixture?: FixtureFile;
+  baseline?: Cell[][];
+  baselineState?: GameState;
   towerTiles: ReadonlySet<number>;
   playerCount: number;
   cursorRow: number;
@@ -95,6 +114,51 @@ type Action =
   | { kind: "owner"; value: number }
   | "ignore";
 
+/** Specification of which scenario the TUI should boot, parsed from CLI
+ *  args. One of three shapes:
+ *    - `--fixture <path>` → load fixture, boot baseline (authorable)
+ *    - `--seed N --mode M [--rounds R] [--entry-phase P]` → vanilla
+ *      createScenario, optionally advance to a phase (replay-only)
+ *    - `--seed-condition NAME [--entry-phase P]` → loadSeed from the
+ *      seed registry, optionally advance (replay-only)
+ */
+type ScenarioSpec =
+  | { kind: "fixture"; path: string }
+  | {
+      kind: "seed";
+      seed: number;
+      mode: "classic" | "modern";
+      rounds: number;
+      entryPhase: Phase;
+    }
+  | {
+      kind: "seed-condition";
+      name: string;
+      entryPhase: Phase;
+    };
+
+interface BootedSource {
+  scenario: Scenario;
+  sourceLabel: string;
+  canEdit: boolean;
+  towerTiles: ReadonlySet<number>;
+  playerCount: number;
+  // Fixture-only fields
+  fixturePath?: string;
+  fixture?: FixtureFile;
+  baseline?: Cell[][];
+  baselineState?: GameState;
+}
+
+interface ParsedFlags {
+  fixture?: string;
+  seed?: number;
+  mode?: "classic" | "modern";
+  rounds?: number;
+  entryPhase?: string;
+  seedCondition?: string;
+}
+
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const INVERSE = "\x1b[7m";
@@ -114,38 +178,192 @@ const OWNER_COLORS = [FG_RED, FG_BLUE, FG_YELLOW];
 await main();
 
 async function main(): Promise<void> {
-  const path = parseFixtureArg(Deno.args);
-  const fixture = await readFixture(path);
-  const baselineFixture: FixtureFile = {
-    ...fixture,
-    houses: undefined,
-    bonusSquares: undefined,
-    walls: undefined,
-  };
-  const sc = await createPhaseScenario(baselineFixture);
-  const baseline = buildGrid(sc.state, "all", undefined);
-  const towerTiles = collectTowerTileSet(sc.state.map.towers);
-  const playerCount = sc.state.players.length;
+  const spec = parseScenarioSpec(Deno.args);
+  const booted = await bootScenarioSource(spec);
 
   const state: EditorState = {
-    mode: "author",
-    fixturePath: path,
-    fixture,
-    baseline,
-    baselineState: sc.state,
-    towerTiles,
-    playerCount,
+    mode: booted.canEdit ? "author" : "replay",
+    source: { text: booted.sourceLabel, canEdit: booted.canEdit },
+    fixturePath: booted.fixturePath,
+    fixture: booted.fixture,
+    baseline: booted.baseline,
+    baselineState: booted.baselineState,
+    towerTiles: booted.towerTiles,
+    playerCount: booted.playerCount,
     cursorRow: Math.floor(GRID_ROWS / 2),
     cursorCol: Math.floor(GRID_COLS / 2),
     tool: "wall",
     owner: 0,
     dirty: false,
-    message: `loaded ${path}`,
+    message: `loaded ${booted.sourceLabel}`,
     messageKind: "info",
     undoStack: [],
+    // For seed-based launches we go straight into replay mode with the
+    // booted scenario already live — replay state mirrors what `enterReplay`
+    // would normally produce.
+    replayScenario: booted.canEdit ? undefined : booted.scenario,
+    replayCells: booted.canEdit
+      ? undefined
+      : buildGrid(booted.scenario.state, "all", undefined),
+    replayTicks: booted.canEdit ? undefined : 0,
+    replayStartTimeMs: booted.canEdit ? undefined : booted.scenario.now(),
   };
 
   await runEditorLoop(state);
+}
+
+async function bootScenarioSource(spec: ScenarioSpec): Promise<BootedSource> {
+  if (spec.kind === "fixture") {
+    const fixture = await readFixture(spec.path);
+    // Strip overrides so the baseline reflects only the seed-baked map —
+    // overrides re-layer on top in author mode via the renderer.
+    const baselineFixture: FixtureFile = {
+      ...fixture,
+      houses: undefined,
+      bonusSquares: undefined,
+      walls: undefined,
+    };
+    const sc = await createPhaseScenario(baselineFixture);
+    return {
+      scenario: sc,
+      sourceLabel: `fixture: ${spec.path}`,
+      canEdit: true,
+      towerTiles: collectTowerTileSet(sc.state.map.towers),
+      playerCount: sc.state.players.length,
+      fixturePath: spec.path,
+      fixture,
+      baseline: buildGrid(sc.state, "all", undefined),
+      baselineState: sc.state,
+    };
+  }
+  if (spec.kind === "seed") {
+    const sc = await createScenario({
+      seed: spec.seed,
+      mode: spec.mode,
+      rounds: spec.rounds,
+    });
+    if (spec.entryPhase !== Phase.CASTLE_SELECT) {
+      waitForPhase(sc, spec.entryPhase);
+    }
+    return {
+      scenario: sc,
+      sourceLabel: `seed=${spec.seed} mode=${spec.mode} rounds=${spec.rounds} entry=${spec.entryPhase}`,
+      canEdit: false,
+      towerTiles: collectTowerTileSet(sc.state.map.towers),
+      playerCount: sc.state.players.length,
+    };
+  }
+  // seed-condition
+  const sc = await loadSeed(spec.name);
+  if (spec.entryPhase !== Phase.CASTLE_SELECT) {
+    waitForPhase(sc, spec.entryPhase);
+  }
+  return {
+    scenario: sc,
+    sourceLabel: `seed-condition=${spec.name} entry=${spec.entryPhase}`,
+    canEdit: false,
+    towerTiles: collectTowerTileSet(sc.state.map.towers),
+    playerCount: sc.state.players.length,
+  };
+}
+
+function parseScenarioSpec(argv: readonly string[]): ScenarioSpec {
+  const flags = parseFlags(argv);
+  const entryPhase = parsePhase(flags.entryPhase) ?? Phase.CASTLE_SELECT;
+  if (flags.fixture) {
+    return { kind: "fixture", path: flags.fixture };
+  }
+  if (flags.seedCondition) {
+    return {
+      kind: "seed-condition",
+      name: flags.seedCondition,
+      entryPhase,
+    };
+  }
+  if (flags.seed !== undefined && flags.mode) {
+    return {
+      kind: "seed",
+      seed: flags.seed,
+      mode: flags.mode,
+      rounds: flags.rounds ?? 3,
+      entryPhase,
+    };
+  }
+  printUsageAndExit();
+}
+
+function parseFlags(argv: readonly string[]): ParsedFlags {
+  const out: ParsedFlags = {};
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    switch (arg) {
+      case "--fixture":
+        out.fixture = argv[++i];
+        break;
+      case "--seed":
+        out.seed = Number(argv[++i]);
+        break;
+      case "--mode": {
+        const value = argv[++i];
+        if (value !== "classic" && value !== "modern") {
+          console.error(
+            `--mode must be "classic" or "modern" (got "${value}")`,
+          );
+          Deno.exit(2);
+        }
+        out.mode = value;
+        break;
+      }
+      case "--rounds":
+        out.rounds = Number(argv[++i]);
+        break;
+      case "--entry-phase":
+        out.entryPhase = argv[++i];
+        break;
+      case "--seed-condition":
+        out.seedCondition = argv[++i];
+        break;
+      case "--help":
+      case "-h":
+        printUsageAndExit(0);
+        break;
+      default:
+        console.error(`unknown flag: ${arg}`);
+        printUsageAndExit();
+    }
+  }
+  return out;
+}
+
+function parsePhase(raw: string | undefined): Phase | undefined {
+  if (raw === undefined) return undefined;
+  const phases = Object.values(Phase) as Phase[];
+  const match = phases.find((phase) => phase === raw);
+  if (!match) {
+    console.error(
+      `--entry-phase must be one of ${phases.join("|")} (got "${raw}")`,
+    );
+    Deno.exit(2);
+  }
+  return match;
+}
+
+function printUsageAndExit(code = 2): never {
+  console.error(
+    [
+      "Usage: deno run -A scripts/fixture-tui.ts <source-flags>",
+      "",
+      "Source flags (one of):",
+      "  --fixture <path>",
+      "      Open a JSON fixture in author + replay mode.",
+      "  --seed N --mode classic|modern [--rounds R] [--entry-phase P]",
+      "      Boot a vanilla scenario from a seed (replay-only).",
+      "  --seed-condition NAME [--entry-phase P]",
+      "      Boot via loadSeed() against the seed-condition registry",
+      "      (replay-only). P defaults to CASTLE_SELECT (no advance).",
+    ].join("\n"),
+  );
+  Deno.exit(code);
 }
 
 async function runEditorLoop(state: EditorState): Promise<void> {
@@ -318,6 +536,11 @@ function rejectInReplay(state: EditorState): void {
 }
 
 async function enterReplay(state: EditorState): Promise<void> {
+  if (!state.fixture) {
+    state.message = "no fixture to replay — already in replay-only mode";
+    state.messageKind = "error";
+    return;
+  }
   try {
     const sc = await createPhaseScenario(state.fixture);
     if (state.fixture.walls && state.fixture.walls.length > 0) {
@@ -337,6 +560,11 @@ async function enterReplay(state: EditorState): Promise<void> {
 }
 
 function exitReplay(state: EditorState): void {
+  if (!state.source.canEdit) {
+    state.message = "no fixture to return to — press q to quit";
+    state.messageKind = "info";
+    return;
+  }
   state.replayScenario = undefined;
   state.replayCells = undefined;
   state.replayTicks = undefined;
@@ -364,6 +592,8 @@ function stepReplay(state: EditorState, frames: number): void {
 }
 
 function placeAtCursor(state: EditorState): void {
+  const fixture = state.fixture;
+  if (!fixture) return;
   const row = state.cursorRow;
   const col = state.cursorCol;
   const err = validatePlacement(state, row, col);
@@ -375,25 +605,25 @@ function placeAtCursor(state: EditorState): void {
   snapshotForUndo(state);
   switch (state.tool) {
     case "house": {
-      const houses: HouseOverride[] = [...(state.fixture.houses ?? [])];
+      const houses: HouseOverride[] = [...(fixture.houses ?? [])];
       houses.push({ row, col });
-      state.fixture = { ...state.fixture, houses };
+      state.fixture = { ...fixture, houses };
       state.message = `placed house at (${row},${col})`;
       break;
     }
     case "bonus": {
       const bonusSquares: BonusSquareOverride[] = [
-        ...(state.fixture.bonusSquares ?? []),
+        ...(fixture.bonusSquares ?? []),
       ];
       bonusSquares.push({ row, col });
-      state.fixture = { ...state.fixture, bonusSquares };
+      state.fixture = { ...fixture, bonusSquares };
       state.message = `placed bonus at (${row},${col})`;
       break;
     }
     case "wall": {
-      const walls: WallOverride[] = [...(state.fixture.walls ?? [])];
+      const walls: WallOverride[] = [...(fixture.walls ?? [])];
       walls.push({ row, col, ownerId: state.owner });
-      state.fixture = { ...state.fixture, walls };
+      state.fixture = { ...fixture, walls };
       state.message = `placed wall at (${row},${col}) owner=${state.owner}`;
       break;
     }
@@ -403,24 +633,26 @@ function placeAtCursor(state: EditorState): void {
 }
 
 function removeAtCursor(state: EditorState): void {
+  const fixture = state.fixture;
+  if (!fixture) return;
   const row = state.cursorRow;
   const col = state.cursorCol;
   const removed: string[] = [];
-  const houses = (state.fixture.houses ?? []).filter((house) => {
+  const houses = (fixture.houses ?? []).filter((house) => {
     if (house.row === row && house.col === col) {
       removed.push("house");
       return false;
     }
     return true;
   });
-  const bonusSquares = (state.fixture.bonusSquares ?? []).filter((bonus) => {
+  const bonusSquares = (fixture.bonusSquares ?? []).filter((bonus) => {
     if (bonus.row === row && bonus.col === col) {
       removed.push("bonus");
       return false;
     }
     return true;
   });
-  const walls = (state.fixture.walls ?? []).filter((wall) => {
+  const walls = (fixture.walls ?? []).filter((wall) => {
     if (wall.row === row && wall.col === col) {
       removed.push(`wall(owner=${wall.ownerId})`);
       return false;
@@ -434,7 +666,7 @@ function removeAtCursor(state: EditorState): void {
   }
   snapshotForUndo(state);
   state.fixture = {
-    ...state.fixture,
+    ...fixture,
     houses: houses.length > 0 ? houses : undefined,
     bonusSquares: bonusSquares.length > 0 ? bonusSquares : undefined,
     walls: walls.length > 0 ? walls : undefined,
@@ -445,6 +677,7 @@ function removeAtCursor(state: EditorState): void {
 }
 
 function undo(state: EditorState): void {
+  if (!state.fixture) return;
   const previous = state.undoStack.pop();
   if (!previous) {
     state.message = "nothing to undo";
@@ -460,9 +693,12 @@ function undo(state: EditorState): void {
 }
 
 async function save(state: EditorState): Promise<void> {
+  const fixture = state.fixture;
+  const path = state.fixturePath;
+  if (!fixture || !path) return;
   try {
-    const sc = await createPhaseScenario(state.fixture);
-    if (state.fixture.walls && state.fixture.walls.length > 0) {
+    const sc = await createPhaseScenario(fixture);
+    if (fixture.walls && fixture.walls.length > 0) {
       recomputeFixtureDerivedState(sc.state);
     }
     sc.tick(1);
@@ -471,13 +707,10 @@ async function save(state: EditorState): Promise<void> {
     state.messageKind = "error";
     return;
   }
-  await Deno.writeTextFile(
-    state.fixturePath,
-    `${JSON.stringify(state.fixture, null, 2)}\n`,
-  );
+  await Deno.writeTextFile(path, `${JSON.stringify(fixture, null, 2)}\n`);
   state.dirty = false;
   state.undoStack = [];
-  state.message = `saved ${state.fixturePath}`;
+  state.message = `saved ${path}`;
   state.messageKind = "ok";
 }
 
@@ -486,10 +719,13 @@ function validatePlacement(
   row: number,
   col: number,
 ): string | null {
+  const fixture = state.fixture;
+  const baseline = state.baseline;
+  if (!fixture || !baseline) return "no fixture loaded";
   if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) {
     return `(${row},${col}) out of bounds`;
   }
-  const baseCell = state.baseline[row]?.[col];
+  const baseCell = baseline[row]?.[col];
   if (!baseCell) return `(${row},${col}) has no baseline cell`;
   if (
     baseCell.kind === CellKind.Water ||
@@ -503,19 +739,19 @@ function validatePlacement(
     if (state.owner < 0 || state.owner >= state.playerCount) {
       return `owner ${state.owner} out of range (0..${state.playerCount - 1})`;
     }
-    const exists = (state.fixture.walls ?? []).some(
+    const exists = (fixture.walls ?? []).some(
       (wall) => wall.row === row && wall.col === col,
     );
     if (exists) return `wall already at (${row},${col})`;
   }
   if (state.tool === "house") {
-    const exists = (state.fixture.houses ?? []).some(
+    const exists = (fixture.houses ?? []).some(
       (house) => house.row === row && house.col === col,
     );
     if (exists) return `house already at (${row},${col})`;
   }
   if (state.tool === "bonus") {
-    const exists = (state.fixture.bonusSquares ?? []).some(
+    const exists = (fixture.bonusSquares ?? []).some(
       (bonus) => bonus.row === row && bonus.col === col,
     );
     if (exists) return `bonus already at (${row},${col})`;
@@ -524,6 +760,7 @@ function validatePlacement(
 }
 
 function snapshotForUndo(state: EditorState): void {
+  if (!state.fixture) return;
   state.undoStack.push(cloneFixture(state.fixture));
   if (state.undoStack.length > 100) state.undoStack.shift();
 }
@@ -578,7 +815,8 @@ function headerLine(state: EditorState): string {
   const dirty = state.dirty ? `${FG_YELLOW}*dirty*${RESET} ` : "";
   const modeTag =
     state.mode === "replay" ? `${BOLD}${FG_CYAN}[REPLAY]${RESET} ` : "";
-  return `${BOLD}fixture editor${RESET}  ${modeTag}${dirty}${state.fixturePath}`;
+  const title = state.source.canEdit ? "fixture editor" : "scenario player";
+  return `${BOLD}${title}${RESET}  ${modeTag}${dirty}${state.source.text}`;
 }
 
 function statusLine(state: EditorState): string {
@@ -590,7 +828,9 @@ function statusLine(state: EditorState): string {
     state.tool === "wall"
       ? ` owner ${state.owner} (${OWNER_COLORS[state.owner] ?? ""}${ownerName}${RESET})`
       : "";
-  const counts = summarizeOverrides(state.fixture);
+  const counts = state.fixture
+    ? summarizeOverrides(state.fixture)
+    : "overrides: (none)";
   return `${cursor}   ${tool}${owner}   ${counts}`;
 }
 
@@ -616,6 +856,7 @@ function tileInfoLine(state: EditorState): string {
     state.mode === "replay" && state.replayScenario
       ? state.replayScenario.state
       : state.baselineState;
+  if (!liveState) return `tile (${row},${col}): (no state)`;
   const inspection = inspectTile(liveState, row, col);
   const parts: string[] = [];
   parts.push(inspection.terrain);
@@ -656,18 +897,19 @@ function tileInfoLine(state: EditorState): string {
   // Fixture-override descriptors only meaningful in author mode — once the
   // replay runtime has consumed them, what's authored vs. seed-baked
   // collapses into "what's currently in the live state".
-  if (state.mode === "author") {
-    const fixtureHouse = (state.fixture.houses ?? []).find(
+  if (state.mode === "author" && state.fixture) {
+    const fixture = state.fixture;
+    const fixtureHouse = (fixture.houses ?? []).find(
       (house) => house.row === row && house.col === col,
     );
     if (fixtureHouse) {
       parts.push(`${BOLD}${FG_MAGENTA}fixture-house${RESET}`);
     }
-    const fixtureBonus = (state.fixture.bonusSquares ?? []).find(
+    const fixtureBonus = (fixture.bonusSquares ?? []).find(
       (bonus) => bonus.row === row && bonus.col === col,
     );
     if (fixtureBonus) parts.push(`${BOLD}${FG_MAGENTA}fixture-bonus${RESET}`);
-    const fixtureWalls = (state.fixture.walls ?? []).filter(
+    const fixtureWalls = (fixture.walls ?? []).filter(
       (wall) => wall.row === row && wall.col === col,
     );
     for (const wall of fixtureWalls) {
@@ -739,19 +981,23 @@ function renderCell(state: EditorState, row: number, col: number): string {
     return liveCell.char;
   }
 
-  const baseCell = state.baseline[row]![col]!;
+  // Author mode requires a baseline + fixture (guaranteed by main()'s mode
+  // wiring), but narrow defensively for tsc.
+  const baseCell = state.baseline?.[row]?.[col];
+  if (!baseCell) return " ";
+  const fixture = state.fixture;
   let char = baseCell.char;
   let style = baseCellStyle(baseCell);
 
   // Fixture overrides (bold + magenta for houses/bonuses, bold + owner color
   // for walls — visually distinct from seed-baked entities of the same kind).
-  const fixtureHouse = (state.fixture.houses ?? []).find(
+  const fixtureHouse = (fixture?.houses ?? []).find(
     (house) => house.row === row && house.col === col,
   );
-  const fixtureBonus = (state.fixture.bonusSquares ?? []).find(
+  const fixtureBonus = (fixture?.bonusSquares ?? []).find(
     (bonus) => bonus.row === row && bonus.col === col,
   );
-  const fixtureWall = (state.fixture.walls ?? []).find(
+  const fixtureWall = (fixture?.walls ?? []).find(
     (wall) => wall.row === row && wall.col === col,
   );
 
@@ -839,14 +1085,6 @@ function collectTowerTileSet(
     }
   }
   return set;
-}
-
-function parseFixtureArg(argv: readonly string[]): string {
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === "--fixture" && argv[i + 1]) return argv[i + 1]!;
-  }
-  console.error("usage: deno run -A scripts/fixture-tui.ts --fixture <path>");
-  Deno.exit(2);
 }
 
 async function readFixture(path: string): Promise<FixtureFile> {
