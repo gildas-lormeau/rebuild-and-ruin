@@ -7,6 +7,7 @@
  */
 
 import type { CannonMode } from "../shared/core/battle-types.ts";
+import { cannonModeDef } from "../shared/core/cannon-mode-defs.ts";
 import { TOWER_SIZE } from "../shared/core/game-constants.ts";
 import {
   GRID_COLS,
@@ -184,13 +185,28 @@ export function buildGrid(
     }
   }
 
-  // Cannons
+  // Cannons (paint the full size×size footprint, mirroring how towers
+  // render — previously only the top-left tile was painted, leaving the
+  // rest of the footprint reading as interior/grass which mismatched
+  // `inspectTile`'s `isCannonTile` view).
   for (const player of state.players) {
     if (isPlayerEliminated(player)) continue;
     if (playerFilter !== undefined && player.id !== playerFilter) continue;
     for (const cannon of player.cannons) {
       const char = cannon.hp <= 0 ? "x" : "C";
-      setCell(grid, cannon.row, cannon.col, CellKind.Cannon, char, player.id);
+      const size = cannonModeDef(cannon.mode).size;
+      for (let dr = 0; dr < size; dr++) {
+        for (let dc = 0; dc < size; dc++) {
+          setCell(
+            grid,
+            cannon.row + dr,
+            cannon.col + dc,
+            CellKind.Cannon,
+            char,
+            player.id,
+          );
+        }
+      }
     }
   }
 
