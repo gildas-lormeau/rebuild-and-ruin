@@ -30,12 +30,17 @@ Round 1 opens with Castle Select; the castle walls are auto-built before play be
 
 | Setting | Options |
 |---------|---------|
+| Game mode | Classic, Modern |
+| Difficulty | Easy, Normal (scales build timer, cannon placement timer, and round-1 cannon count) |
 | Battle length (max rounds) | 3, 5, 8, 12, or "To The Death" (∞) |
 | Cannon durability | 3, 6, 9, or 12 HP |
+| Lobby wait timer (online only) | 0–120s before auto-start (default 60) |
 
 ---
 
 ## Phase 1: Castle Select
+
+**Timer**: 16 seconds. Any player who hasn't confirmed when the timer expires is auto-confirmed on their currently-highlighted tower (defaulting to the zone's first candidate). The phase exits once all players have confirmed AND all castle-build animations have completed.
 
 Each player selects one tower as their **home castle**. Towers can only be selected from the zone assigned to that player.
 
@@ -117,7 +122,7 @@ At the cannon-place → battle transition, before the countdown:
 | Target | Damage |
 |--------|--------|
 | Wall tile | Destroyed in 1 hit |
-| Cannon (normal or super) | -1 HP per hit (destroyed at 0) |
+| Cannon (normal or super, including captured) | -1 HP per hit (destroyed at 0). Captured cannons take damage on their own HP like any other cannon |
 | Tower | **Immune** to cannonballs (only grunts can destroy towers) |
 | House | Destroyed in 1 hit; 50% chance to spawn a grunt |
 | Grunt | Killed in 1 hit |
@@ -149,6 +154,7 @@ Grunts move 1 tile per second during the build phase:
 - Walls, cannons (alive or dead), houses, towers, and burning pits block movement.
 - Once adjacent to the target tower, grunts **stay put** - unless a same-target grunt is blocked nearby (within 2 tiles), in which case the adjacent grunt slides along the tower perimeter to an unoccupied adjacent tile, creating natural encirclement.
 - Once adjacent to a dead target tower (distance ≤ 1 to 2×2 footprint), grunts stop.
+- When fully blocked by walls (no forward or sideways move available), a grunt paces back-and-forth between two adjacent tiles rather than freezing — this keeps the wall-attack eligibility live and produces visible motion.
 
 #### Tower Attacks (Battle Phase)
 
@@ -265,7 +271,11 @@ Dead towers can be revived by enclosing them, but it takes **two consecutive bui
     - Cannon allowance after reselection: `min(3 + livesLost, 8)`.
   - If the player abandons: they are immediately eliminated.
 - When lives reach 0: the player is **eliminated**.
-- **Game ends** when only 1 player remains (that player wins), or when the round limit is reached (highest score wins).
+- **Game ends** in either of two cases:
+  - **Last player standing**: 0 or 1 alive players remain after the closing round. The lone survivor wins. (Degenerate 0-alive case: highest score across all players, including eliminated.)
+  - **Round limit reached**: closing round equals the configured `maxRounds`. **Winner = highest score among alive players only.** Eliminated players cannot win while any opponent is still alive; remaining-life count doesn't break ties — only score does.
+- **Score tiebreak (current behavior):** on an exact score tie among eligible candidates, the lowest-slot player wins (Red > Blue > Gold by slot order). This is a placeholder — a shared-victory or sudden-death rule is on the wishlist.
+- **Game-over short-circuit:** if a closing round triggers game-over, the life-lost continue/abandon dialog is **suppressed** for the player(s) who would have seen it. GAME_END fires after the score overlay; `state.round` is left at the closing round (not incremented).
 
 ---
 
@@ -354,7 +364,7 @@ CASTLE_SELECT → CANNON_PLACE → [MODIFIER_REVEAL] → BATTLE → [UPGRADE_PIC
 
 Bracketed phases are conditional:
 
-- **MODIFIER_REVEAL** — a 2-second banner shown before Battle whenever a modifier rolled. Modifier rolls start at round 3 with a 65% chance per round; a modifier never repeats consecutively.
+- **MODIFIER_REVEAL** — a 2-second banner shown before Battle whenever a modifier rolled. Modifier rolls start at round 3 with a 65% chance per round; a modifier never repeats consecutively. The roll happens at the CANNON_PLACE → BATTLE transition, **after** cannon placement closes — so players do **not** know during cannon placement whether (or which) modifier will fire. The first signal is the reveal banner.
 - **UPGRADE_PICK** — inserted before Wall Build from round 3 onward (skipped in the final round). Each player picks 1 of 3 offered upgrades; controls are Left/Right to move focus, Confirm to lock in, or click/tap a card directly. The 15-second timer is shared across all players. Any player who hasn't chosen when the timer expires is auto-assigned a random offer.
 
 ### Modifiers
@@ -505,4 +515,6 @@ If the host disconnects:
 
 - When a player disconnects, the remaining players see an announcement and the game continues.
 - Spectator disconnections have no impact on the game.
-- If a non-host player loses connection, the game stops with a "Disconnected" message on their end.
+- If a non-host player loses connection mid-match, the client attempts **automatic reconnection** with exponential backoff: up to 3 attempts at 1s / 2s / 4s delays. A "Reconnecting…" announcement is shown during attempts. On successful reconnect, the client resumes from the latest checkpoint and the announcement clears.
+- If all 3 reconnect attempts fail, the game stops on that client with a "Disconnected" message. The remaining peers continue.
+- Reconnect is not attempted from the lobby or from a stopped session, or by the host (host migration handles host loss instead).
