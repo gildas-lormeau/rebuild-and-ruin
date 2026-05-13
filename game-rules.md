@@ -369,23 +369,23 @@ Bracketed phases are conditional:
 
 ### Modifiers
 
-One modifier may roll each round from round 3 onward (65% chance, no consecutive repeats, weighted random draw from 13 implemented). Most clear at the end of the battle; **Frozen River**, **High Tide**, and **Low Water** persist for the round and clear at the next Cannon Place transition; **Sinkhole** terrain changes are permanent.
+One modifier may roll each round from round 3 onward (65% chance, no consecutive repeats, weighted random draw from 13 implemented). Pool weights are tiered like upgrades: **Common ×3, Uncommon ×2, Rare ×1** — the most match-defining modifiers (Fog of War, Sapper, Frostbite, Sinkhole, Frozen River) appear least often. Most clear at the end of the battle; **Frozen River**, **High Tide**, and **Low Water** persist for the round and clear at the next Cannon Place transition; **Sinkhole** terrain changes are permanent.
 
-| Modifier | Effect |
-|----------|--------|
-| Wildfire | Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares |
-| Grunt Surge | Spawns 6–10 extra grunts distributed across alive towers |
-| Frozen River | Water tiles become traversable by grunts; thawed by cannonball impact |
-| Sinkhole | Cluster of grass tiles permanently collapses into water, destroying structures |
-| High Tide | River widens 1 tile, flooding banks and destroying structures. Recedes next round |
-| Low Water | Shallow river-edge tiles become grass for one round, expanding buildable land |
-| Dust Storm | All cannonballs gain ±15° angle jitter on launch |
-| Rubble Clearing | All dead cannon debris and burning pits are removed from the map |
-| Dry Lightning | Random grass tiles ignite as burning pits without needing wall destruction |
-| Fog of War | Thick fog covers every merged castle during battle — aim from memory |
-| Frostbite | Grunts spawn as ice cubes — fully immobile and require two hits to break |
-| Sapper | Grunts attack any adjacent wall on sight — no blocked-rounds requirement |
-| Supply Ship | Three neutral cargo ships sail the river — sink one for a hidden one-round bonus |
+| Modifier | Rarity | Effect |
+|----------|--------|--------|
+| Wildfire | Common | Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares |
+| Rubble Clearing | Common | All dead cannon debris and burning pits are removed from the map |
+| Low Water | Common | Shallow river-edge tiles become grass for one round, expanding buildable land |
+| Supply Ship | Common | Three neutral cargo ships sail the river — sink one for a hidden one-round bonus |
+| Grunt Surge | Uncommon | Spawns 6–10 extra grunts distributed across alive towers |
+| High Tide | Uncommon | River widens 1 tile, flooding banks and destroying structures. Recedes next round |
+| Dust Storm | Uncommon | All cannonballs gain ±15° angle jitter on launch |
+| Dry Lightning | Uncommon | Random grass tiles ignite as burning pits without needing wall destruction |
+| Frozen River | Rare | Water tiles become traversable by grunts; thawed by cannonball impact |
+| Sinkhole | Rare | Cluster of grass tiles permanently collapses into water, destroying structures |
+| Fog of War | Rare | Thick fog covers every merged castle during battle — aim from memory |
+| Frostbite | Rare | Grunts spawn as ice cubes — fully immobile and require two hits to break |
+| Sapper | Rare | Grunts attack any adjacent wall on sight — no blocked-rounds requirement |
 
 ### Upgrades
 

@@ -117,6 +117,14 @@ type PoolIds = (typeof MODIFIER_POOL)[number]["id"];
 type PoolComplete = ModifierId extends PoolIds ? true : never;
 
 const poolComplete: PoolComplete = true;
+/** Rarity weights for modifier rolls — mirrors `upgrade-defs.ts` so the two
+ *  pool systems share a tuning vocabulary. Higher = more likely to roll.
+ *  Common modifiers are mild / recoverable (rubble_clearing, supply_ship,
+ *  low_water, wildfire). Rare modifiers are match-defining or permanent
+ *  (fog_of_war, sapper, frostbite, sinkhole, frozen_river). */
+const WEIGHT_COMMON = 3;
+const WEIGHT_UNCOMMON = 2;
+const WEIGHT_RARE = 1;
 // `as const satisfies` (not a `readonly ModifierDef[]` annotation) so the
 // element `id` types stay as their string literals — that's what makes
 // `PoolIds` narrow and `PoolComplete` catch missing entries at compile
@@ -129,7 +137,7 @@ const MODIFIER_POOL = [
     label: "Wildfire",
     description:
       "Elongated burn scar (~10 tiles), destroys walls/grunts/houses/bonus squares",
-    weight: 3,
+    weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
     // Burn scars don't change the underlying tile (it's still grass, just
@@ -140,7 +148,7 @@ const MODIFIER_POOL = [
     id: "grunt_surge",
     label: "Grunt Surge",
     description: "Spawns 6-10 extra grunts distributed across alive towers",
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
     tileMutationPrev: null,
@@ -150,7 +158,7 @@ const MODIFIER_POOL = [
     label: "Frozen River",
     description:
       "Water tiles become traversable by grunts, thawed by cannonball impact",
-    weight: 2,
+    weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: true,
     // Tiles stay Water — the freeze is drawn as an overlay by drawFrozenTiles.
@@ -161,7 +169,7 @@ const MODIFIER_POOL = [
     label: "Sinkhole",
     description:
       "Cluster of grass tiles permanently collapses into water, destroying structures",
-    weight: 2,
+    weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: true,
     // Sinkhole tiles flood from grass to water — banner snapshot reverts.
@@ -172,7 +180,7 @@ const MODIFIER_POOL = [
     label: "High Tide",
     description:
       "River widens 1 tile, flooding banks and destroying structures. Recedes next round",
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: true,
     // Same as sinkhole — flooded river banks were grass before.
@@ -183,7 +191,7 @@ const MODIFIER_POOL = [
     label: "Dust Storm",
     description:
       "All cannonballs gain ±15° angle jitter on launch, reducing accuracy",
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
     tileMutationPrev: null,
@@ -193,7 +201,7 @@ const MODIFIER_POOL = [
     label: "Rubble Clearing",
     description:
       "All dead cannon debris and burning pits are removed from the map",
-    weight: 3,
+    weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
     // Dead cannons + burning pits are entity-layer. No tile mutation.
@@ -204,7 +212,7 @@ const MODIFIER_POOL = [
     label: "Low Water",
     description:
       "Shallow river-edge tiles become grass for one round, expanding buildable land",
-    weight: 2,
+    weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: true,
     // River bank tiles were water before — banner snapshot reverts to water.
@@ -215,7 +223,7 @@ const MODIFIER_POOL = [
     label: "Dry Lightning",
     description:
       "Random grass tiles ignite as burning pits without needing wall destruction",
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     implemented: true,
     needsCheckpoint: false,
     // Burning pits are entity-layer overlays, not tile mutations.
@@ -226,7 +234,7 @@ const MODIFIER_POOL = [
     label: "Fog of War",
     description:
       "Thick fog covers every merged castle during battle — players must aim from memory",
-    weight: 2,
+    weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: false,
     // Visual-only overlay drawn over castle walls + interior. No tile mutation.
@@ -237,7 +245,7 @@ const MODIFIER_POOL = [
     label: "Frostbite",
     description:
       "Grunts spawn as ice cubes — fully immobile and require two hits to break",
-    weight: 2,
+    weight: WEIGHT_RARE,
     implemented: true,
     // Chip state rides on `grunt.chipped`, which is already serialized as part
     // of each grunt's wire fields — no separate modifier-owned checkpoint.
@@ -249,7 +257,7 @@ const MODIFIER_POOL = [
     label: "Sapper",
     description:
       "Grunts attack any adjacent wall on sight — no blocked-rounds requirement, no random roll",
-    weight: 2,
+    weight: WEIGHT_RARE,
     implemented: true,
     needsCheckpoint: false,
     tileMutationPrev: null,
@@ -259,7 +267,7 @@ const MODIFIER_POOL = [
     label: "Supply Ship",
     description:
       "Three neutral cargo ships sail the Y-river — sink one for a hidden one-round bonus",
-    weight: 2,
+    weight: WEIGHT_COMMON,
     implemented: true,
     needsCheckpoint: false,
     // Ships are entity-layer; no tile mutation to revert in the banner snapshot.
