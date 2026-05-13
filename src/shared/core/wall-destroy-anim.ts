@@ -2,8 +2,8 @@
  * Shared math for the unified wall-destruction animation. Two timing
  * sources feed it: revealTimeMs (decay-cause, banner-aware via the
  * runtime derive) and per-tile entry age (impact-cause). Same curve
- * either way — sink + dust + tail-fade + debris cross-fade-in — so
- * cannonball, grunt read identically.
+ * either way — sink + dust + tail-fade, with debris pinned visible
+ * underneath the held mesh — so cannonball, grunt read identically.
  */
 
 import { TILE_SIZE } from "./grid.ts";
@@ -20,10 +20,12 @@ interface WallDestroyAnim {
   /** Dust puff alpha multiplier in [0, 1]. Quick ramp-up to peak,
    *  longer ramp-down, 0 through the bridge. */
   readonly dustOpacity: number;
-  /** Debris cross-fade-in alpha multiplier in [0, 1]. 0 during snapshot
-   *  + the early animation; ramps from 0 to 1 across the cross-fade
-   *  window; 1 through the bridge so the rubble stays visible until
-   *  the entry purges or BATTLE entry hands it off via `battleWalls`. */
+  /** Debris alpha multiplier in [0, 1]. Pinned to 1 for the entire
+   *  window so the rubble is present under the held mesh from frame 0
+   *  — otherwise the sinking wall would briefly reveal the bare ground
+   *  tile (grass) before debris faded in. The held wall is fully
+   *  opaque until `TAIL_FADE_START`, so the debris underneath is
+   *  occluded until the wall begins tail-fading and then hands off. */
   readonly debrisOpacity: number;
 }
 
@@ -32,12 +34,6 @@ interface WallDestroyAnim {
  *  "tail-clean" pass that hides the stub still poking out of terrain
  *  once the sink completes. */
 const TAIL_FADE_START = 0.75;
-/** Window over which the debris cross-fades in underneath the sinking
- *  wall, expressed as `[startProgress, endProgress]`. The ramp reaches
- *  full opacity well before the wall's tail-fade so the rubble is
- *  established by the time the held mesh disappears. */
-const DEBRIS_FADE_START = 0.3;
-const DEBRIS_FADE_END = 0.85;
 /** Dust puff opacity peak. Curve is a quick ramp-up to peak then a
  *  longer ramp-down, ending well before the visual closes. */
 const DUST_PEAK = 0.55;
@@ -47,7 +43,7 @@ const SNAPSHOT: WallDestroyAnim = {
   sinkOffset: 0,
   wallOpacity: 1,
   dustOpacity: 0,
-  debrisOpacity: 0,
+  debrisOpacity: 1,
 };
 /** Total duration of the sink + tail-fade window (ms). Punchy enough
  *  to read as an impact-driven collapse without slowing battle pace. */
@@ -82,7 +78,7 @@ export function wallDestroyAnimAt(progressMs: number): WallDestroyAnim {
     sinkOffset: easeInQuad(progress) * WALL_DESTROY_SINK_DROP,
     wallOpacity: tailFade(progress),
     dustOpacity: dustCurve(progress),
-    debrisOpacity: debrisFade(progress),
+    debrisOpacity: 1,
   };
 }
 
@@ -101,10 +97,4 @@ function dustCurve(progress: number): number {
   return (
     DUST_PEAK * (1 - (progress - DUST_RAMP_UP) / (DUST_END - DUST_RAMP_UP))
   );
-}
-
-function debrisFade(progress: number): number {
-  if (progress < DEBRIS_FADE_START) return 0;
-  if (progress > DEBRIS_FADE_END) return 1;
-  return (progress - DEBRIS_FADE_START) / (DEBRIS_FADE_END - DEBRIS_FADE_START);
 }

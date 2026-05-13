@@ -80,11 +80,14 @@ interface WallEntry {
  *  `sapper` palette pulseColor used by the reveal banner chrome. */
 const SAPPER_TINT_HEX = 0xa07050;
 const EMPTY_KEY_SET: ReadonlySet<number> = new Set();
-/** Pack (mask, damaged) into a single 5-bit key — 4 bits for the mask
- *  (0-15) plus one bit for the reinforced-wall absorbed-hit state. Used
- *  as the bucket map key so damaged walls get their own geometry (the
- *  scene builder needs to know up front whether to remove a merlon). */
+/** Pack (mask, damaged, held) into a single 6-bit key — 4 bits for the
+ *  mask (0-15), one bit for the reinforced-wall absorbed-hit state, and
+ *  one bit separating live walls from held (sinking) ones. Used as the
+ *  bucket map key so damaged walls get their own geometry (the scene
+ *  builder needs to know up front whether to remove a merlon), AND so
+ *  held buckets can opt out of depth-write without affecting live ones. */
 const DAMAGED_BIT = 1 << 4;
+const HELD_BIT = 1 << 5;
 /** Wall-scene authors each cell in a ±1 frustum (2 world units wide).
  *  We want 1 cell = 1 game tile, so we scale by TILE_SIZE / 2. */
 const WALL_SCALE = TILE_SIZE / 2;
@@ -136,12 +139,14 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
     // via fresh `buildWall` calls — cheap compared to per-wall rebuilds.
     const mask = bucketKey & 0x0f;
     const damaged = (bucketKey & DAMAGED_BIT) !== 0;
+    const held = (bucketKey & HELD_BIT) !== 0;
     const built = ensureBucketCapacity(
       buckets,
       bucketKey,
       required,
       INITIAL_CAPACITY,
-      (capacity) => buildBucket(mask, damaged, capacity, root, ownedMaterials),
+      (capacity) =>
+        buildBucket(mask, damaged, held, capacity, root, ownedMaterials),
     );
     // walls always build (no variant lookup can fail), so the narrower
     // return type here is always defined.
@@ -256,7 +261,9 @@ export function createWallsManager(scene: THREE.Scene): WallsManager {
           const { row, col } = unpackTileKey(key);
           const mask = computeMask(maskSet, col, row);
           const bucketKey =
-            mask | (source.damagedSet.has(key) ? DAMAGED_BIT : 0);
+            mask |
+            (source.damagedSet.has(key) ? DAMAGED_BIT : 0) |
+            (source.held ? HELD_BIT : 0);
           let list = byBucket.get(bucketKey);
           if (!list) {
             list = [];
@@ -368,6 +375,7 @@ function computeMask(
 function buildBucket(
   mask: number,
   damaged: boolean,
+  held: boolean,
   capacity: number,
   root: THREE.Group,
   ownedMaterials: THREE.Material[],
@@ -379,12 +387,14 @@ function buildBucket(
     scratchBuilder: (scratch) => {
       buildWall(THREE, scratch, { mask, uvOffset: [0, 0], damaged });
     },
-    namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}`,
+    namePrefix: `wall-mask-${mask}${damaged ? "-dmg" : ""}${held ? "-held" : ""}`,
   });
   // Per-instance opacity (impact held-mesh tail-fade) + tint (sapper
   // threat pulse) + sinkY (impact held-mesh descent). All default to
   // no-op (opacity=1, tint=0, sinkY=0); the manager writes per slot
-  // when a multiplier is in flight.
+  // when a multiplier is in flight. Held buckets disable depth-write so
+  // the fading wall doesn't leave a depth stamp that hides the debris
+  // base-plate rendered behind it.
   const opacityAttrs: THREE.InstancedBufferAttribute[] = [];
   const tintAttrs: THREE.InstancedBufferAttribute[] = [];
   const sinkAttrs: THREE.InstancedBufferAttribute[] = [];
@@ -393,6 +403,7 @@ function buildBucket(
       part.instanced,
       capacity,
       SAPPER_TINT_HEX,
+      held ? { depthWrite: false } : undefined,
     );
     opacityAttrs.push(opacity);
     tintAttrs.push(tint);

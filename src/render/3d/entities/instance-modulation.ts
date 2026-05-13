@@ -81,6 +81,7 @@ export function attachInstanceTintAndSink(
   mesh: THREE.InstancedMesh,
   capacity: number,
   tintHex: number,
+  options?: { readonly depthWrite?: boolean },
 ): {
   opacity: THREE.InstancedBufferAttribute;
   tint: THREE.InstancedBufferAttribute;
@@ -96,6 +97,11 @@ export function attachInstanceTintAndSink(
   const tintColor = new THREE.Color(tintHex);
   for (const material of materialsOf(mesh)) {
     material.transparent = true;
+    // Held (sinking) wall buckets opt out of depth-write so their fading
+    // alpha doesn't leave a depth stamp that occludes the debris base-
+    // plate behind them. Live buckets keep the THREE default to preserve
+    // ordering against other transparent geometry (cannonballs, dust).
+    if (options?.depthWrite === false) material.depthWrite = false;
     material.customProgramCacheKey = tintAndSinkProgramCacheKey;
     material.onBeforeCompile = (shader) => {
       shader.uniforms.instanceTintColor = { value: tintColor };
