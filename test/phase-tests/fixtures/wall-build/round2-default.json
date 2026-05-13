@@ -1,0 +1,810 @@
+{
+  "version": 1,
+  "seed": 42,
+  "mode": "classic",
+  "rounds": 5,
+  "entryPhase": "WALL_BUILD",
+  "round": 2,
+  "checkpoint": {
+    "type": "fullState",
+    "migrationSeq": 0,
+    "phase": "WALL_BUILD",
+    "round": 2,
+    "timer": 25,
+    "battleCountdown": 0,
+    "maxRounds": 5,
+    "shotsFired": 28,
+    "rngState": 2135185686,
+    "simTick": 6061,
+    "players": [
+      {
+        "id": 0,
+        "walls": [
+          399,
+          403,
+          406,
+          582,
+          714,
+          710,
+          708,
+          707,
+          487,
+          495,
+          663,
+          443,
+          451,
+          450,
+          407,
+          711,
+          312,
+          356,
+          408,
+          452,
+          496,
+          139,
+          144,
+          140,
+          141,
+          142,
+          143,
+          188,
+          276,
+          275,
+          232,
+          319,
+          363,
+          364,
+          357,
+          358,
+          359
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 1278,
+        "cannons": [
+          {
+            "row": 10,
+            "col": 4,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 10,
+            "col": 8,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 14,
+            "col": 4,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 14,
+            "col": 8,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          },
+          {
+            "row": 12,
+            "col": 4,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 1.5707963267948966
+          }
+        ],
+        "homeTowerIdx": 0,
+        "castleWallTiles": [
+          399,
+          400,
+          401,
+          402,
+          403,
+          404,
+          405,
+          406,
+          450,
+          494,
+          538,
+          582,
+          626,
+          670,
+          669,
+          714,
+          713,
+          712,
+          711,
+          710,
+          709,
+          708,
+          707,
+          663,
+          619,
+          575,
+          531,
+          487,
+          486,
+          443
+        ]
+      },
+      {
+        "id": 1,
+        "walls": [
+          766,
+          810,
+          854,
+          898,
+          942,
+          986,
+          989,
+          991,
+          993,
+          949,
+          905,
+          817,
+          729,
+          685,
+          684,
+          683,
+          682,
+          681,
+          680,
+          679,
+          678,
+          992,
+          1036,
+          1080,
+          774,
+          775,
+          776,
+          1124,
+          1168,
+          777,
+          779,
+          778,
+          1171,
+          1170,
+          1169,
+          1172,
+          1173,
+          1174,
+          780,
+          781,
+          825,
+          1175,
+          1176,
+          1177,
+          1089,
+          1133,
+          869,
+          913,
+          957,
+          1001,
+          1045,
+          871,
+          872,
+          914,
+          915,
+          1003,
+          1002,
+          959,
+          874,
+          875,
+          876,
+          877,
+          878,
+          873
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 1980,
+        "cannons": [
+          {
+            "row": 16,
+            "col": 19,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 20,
+            "col": 19,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 20,
+            "col": 23,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 18,
+            "col": 28,
+            "hp": 0,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 21,
+            "col": 31,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 0
+          },
+          {
+            "row": 18,
+            "col": 26,
+            "hp": 3,
+            "mode": "normal",
+            "facing": 0
+          }
+        ],
+        "homeTowerIdx": 7,
+        "castleWallTiles": [
+          722,
+          766,
+          765,
+          810,
+          854,
+          898,
+          942,
+          986,
+          987,
+          988,
+          989,
+          990,
+          991,
+          992,
+          993,
+          949,
+          905,
+          861,
+          817,
+          773,
+          729,
+          730,
+          685,
+          684,
+          683,
+          682,
+          681,
+          680,
+          679,
+          678
+        ]
+      },
+      {
+        "id": 2,
+        "walls": [
+          17,
+          18,
+          62,
+          19,
+          20,
+          21,
+          22,
+          23,
+          67,
+          24,
+          68,
+          112,
+          156,
+          200,
+          244,
+          288,
+          332,
+          331,
+          330,
+          329,
+          328,
+          327,
+          326,
+          325,
+          281,
+          237,
+          193,
+          149,
+          105,
+          61,
+          159,
+          160,
+          203,
+          424,
+          379,
+          423,
+          115,
+          116,
+          247,
+          291,
+          335,
+          117,
+          118,
+          119,
+          120,
+          121,
+          122,
+          425,
+          426,
+          166,
+          210,
+          428,
+          429,
+          386,
+          430,
+          253,
+          254,
+          297,
+          342,
+          341,
+          343,
+          344,
+          345,
+          346,
+          260,
+          304,
+          303,
+          347,
+          128,
+          172,
+          216,
+          38,
+          39,
+          40,
+          84,
+          33,
+          34,
+          77,
+          35,
+          36,
+          37,
+          305
+        ],
+        "lives": 3,
+        "eliminated": false,
+        "score": 2072,
+        "cannons": [
+          {
+            "row": 4,
+            "col": 21,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 5,
+            "col": 18,
+            "hp": 0,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 2,
+            "col": 22,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 7,
+            "col": 28,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 3,
+            "col": 32,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 7,
+            "col": 30,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          },
+          {
+            "row": 5,
+            "col": 35,
+            "hp": 3,
+            "mode": "normal",
+            "facing": -3.141592653589793
+          }
+        ],
+        "homeTowerIdx": 9,
+        "castleWallTiles": [
+          17,
+          16,
+          18,
+          62,
+          19,
+          20,
+          21,
+          22,
+          23,
+          67,
+          24,
+          68,
+          112,
+          156,
+          200,
+          244,
+          288,
+          332,
+          331,
+          375,
+          330,
+          329,
+          328,
+          327,
+          326,
+          325,
+          281,
+          237,
+          193,
+          149,
+          105,
+          61
+        ]
+      }
+    ],
+    "grunts": [
+      {
+        "row": 10,
+        "col": 27,
+        "victimPlayerId": 2,
+        "targetTowerIdx": 8,
+        "blockedRounds": 1,
+        "attackingWall": false
+      },
+      {
+        "row": 1,
+        "col": 32,
+        "victimPlayerId": 2,
+        "targetTowerIdx": 8,
+        "blockedRounds": 1,
+        "attackingWall": false
+      },
+      {
+        "row": 16,
+        "col": 28,
+        "victimPlayerId": 1,
+        "targetTowerIdx": 4,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": 1.5707963267948966
+      },
+      {
+        "row": 24,
+        "col": 38,
+        "victimPlayerId": 1,
+        "targetTowerIdx": 6,
+        "blockedRounds": 0,
+        "facing": 3.141592653589793
+      },
+      {
+        "row": 8,
+        "col": 40,
+        "victimPlayerId": 2,
+        "targetTowerIdx": 10,
+        "blockedRounds": 0,
+        "facing": 3.141592653589793
+      },
+      {
+        "row": 13,
+        "col": 11,
+        "victimPlayerId": 0,
+        "targetTowerIdx": 0,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": -1.5707963267948966
+      },
+      {
+        "row": 10,
+        "col": 31,
+        "victimPlayerId": 2,
+        "targetTowerIdx": 8,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": 1.5707963267948966
+      },
+      {
+        "row": 12,
+        "col": 11,
+        "victimPlayerId": 0,
+        "targetTowerIdx": 0,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": -1.5707963267948966
+      },
+      {
+        "row": 11,
+        "col": 30,
+        "victimPlayerId": 2,
+        "targetTowerIdx": 8,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": -1.5707963267948966
+      },
+      {
+        "row": 23,
+        "col": 37,
+        "victimPlayerId": 1,
+        "targetTowerIdx": 6,
+        "blockedRounds": 0,
+        "facing": 3.141592653589793
+      },
+      {
+        "row": 12,
+        "col": 12,
+        "victimPlayerId": 0,
+        "targetTowerIdx": 0,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": 0
+      },
+      {
+        "row": 16,
+        "col": 29,
+        "victimPlayerId": 1,
+        "targetTowerIdx": 4,
+        "blockedRounds": 1,
+        "attackingWall": false,
+        "facing": 1.5707963267948966
+      }
+    ],
+    "houses": [
+      {
+        "row": 21,
+        "col": 2,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 2,
+        "col": 10,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 14,
+        "col": 13,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 7,
+        "col": 2,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 24,
+        "col": 9,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 18,
+        "col": 7,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 7,
+        "col": 12,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 5,
+        "col": 6,
+        "zone": 1,
+        "alive": true
+      },
+      {
+        "row": 21,
+        "col": 41,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 21,
+        "col": 16,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 24,
+        "col": 20,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 4,
+        "col": 26,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 9,
+        "col": 20,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 12,
+        "col": 40,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 19,
+        "col": 31,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 24,
+        "col": 28,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 25,
+        "col": 15,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 21,
+        "col": 37,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 25,
+        "col": 22,
+        "zone": 3,
+        "alive": true
+      },
+      {
+        "row": 11,
+        "col": 33,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 9,
+        "col": 37,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 10,
+        "col": 25,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 11,
+        "col": 36,
+        "zone": 2,
+        "alive": true
+      },
+      {
+        "row": 9,
+        "col": 23,
+        "zone": 2,
+        "alive": true
+      }
+    ],
+    "bonusSquares": [
+      {
+        "row": 17,
+        "col": 9,
+        "zone": 1
+      },
+      {
+        "row": 4,
+        "col": 5,
+        "zone": 1
+      },
+      {
+        "row": 18,
+        "col": 3,
+        "zone": 1
+      },
+      {
+        "row": 24,
+        "col": 35,
+        "zone": 3
+      },
+      {
+        "row": 26,
+        "col": 38,
+        "zone": 3
+      },
+      {
+        "row": 8,
+        "col": 39,
+        "zone": 2
+      },
+      {
+        "row": 1,
+        "col": 28,
+        "zone": 2
+      },
+      {
+        "row": 23,
+        "col": 31,
+        "zone": 3
+      },
+      {
+        "row": 8,
+        "col": 19,
+        "zone": 2
+      }
+    ],
+    "towerAlive": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true
+    ],
+    "burningPits": [],
+    "cannonLimits": [
+      3,
+      4,
+      6
+    ],
+    "cannonPlaceDone": [
+      0,
+      1,
+      2
+    ],
+    "playerZones": [
+      1,
+      3,
+      2
+    ],
+    "gameMode": "classic",
+    "activeModifier": null,
+    "activeModifierChangedTiles": [],
+    "lastModifierId": null,
+    "pendingUpgradeOffers": null,
+    "precomputedUpgradePicks": null,
+    "precomputedDustStormJitters": [],
+    "masterBuilderLockout": 0,
+    "masterBuilderOwners": null,
+    "rubbleClearingHeld": null,
+    "supplyShips": null,
+    "pendingSupplyBonuses": null,
+    "comboTracker": null,
+    "frozenTiles": null,
+    "highTideTiles": null,
+    "sinkholeTiles": null,
+    "lowWaterTiles": null,
+    "towerPendingRevive": [],
+    "capturedCannons": [],
+    "cannonballs": []
+  }
+}

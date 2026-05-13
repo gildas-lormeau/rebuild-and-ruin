@@ -57,6 +57,11 @@ export interface FixtureFile {
    *  responsible for either running `recomputeFixtureDerivedState` or
    *  using `scripts/fixture-check.ts` to validate. */
   walls?: WallOverride[];
+  /** Grunt additions, applied after walls. `targetTowerIdx` is locked on
+   *  the next `moveGrunts` pass (build phase only); fixtures don't author
+   *  it. Position must be on grass, in bounds, and off any wall / tower /
+   *  existing grunt. */
+  grunts?: GruntOverride[];
   /** Free-form, ignored at runtime. Surfaced in the editor for context. */
   notes?: string;
 }
@@ -76,4 +81,14 @@ export interface WallOverride {
   col: number;
   /** Player slot index (0..state.players.length-1) that owns the wall. */
   ownerId: number;
+}
+
+export interface GruntOverride {
+  row: number;
+  col: number;
+  /** Optional — overrides the victim derived from zone ownership at
+   *  (row, col). Useful when authoring a cross-zone grunt (e.g. one that
+   *  spawned in zone A but is hunting a tower in zone B because A's
+   *  player is eliminated). Defaults to the zone owner. */
+  victimPlayerId?: number;
 }

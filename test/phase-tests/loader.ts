@@ -12,7 +12,10 @@
  * bonus squares, walls) are applied on top of the settled state.
  */
 
-import { addPlayerWall } from "../../src/shared/core/board-occupancy.ts";
+import {
+  addPlayerWall,
+  zoneOwnerIdAt,
+} from "../../src/shared/core/board-occupancy.ts";
 import { TOWER_SIZE } from "../../src/shared/core/game-constants.ts";
 import { Phase } from "../../src/shared/core/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "../../src/shared/core/grid.ts";
@@ -34,6 +37,7 @@ import type { GameMessage } from "../../src/protocol/protocol.ts";
 import type {
   BonusSquareOverride,
   FixtureFile,
+  GruntOverride,
   HouseOverride,
   WallOverride,
 } from "./types.ts";
@@ -55,6 +59,9 @@ export async function createPhaseScenario(
   }
   if (fixture.walls && fixture.walls.length > 0) {
     applyWallOverrides(sc.state, fixture.walls);
+  }
+  if (fixture.grunts && fixture.grunts.length > 0) {
+    applyGruntOverrides(sc.state, fixture.grunts);
   }
   return sc;
 }
@@ -164,6 +171,56 @@ export function applyWallOverrides(
   }
 }
 
+/** Append authored grunts to `state.grunts`. Each grunt must sit on a grass
+ *  tile, in bounds, off any tower's 2×2 footprint, off any wall (any owner),
+ *  and off any existing grunt position. `victimPlayerId` defaults to the
+ *  zone owner at the grunt's tile — override only when authoring a
+ *  cross-zone grunt. `targetTowerIdx` is intentionally NOT authored; the
+ *  next `moveGrunts` pass (build phase only) locks it via `lockGruntTarget`,
+ *  matching how production grunts behave after spawn. */
+export function applyGruntOverrides(
+  state: GameState,
+  overrides: readonly GruntOverride[],
+): void {
+  const towerTiles = collectTowerTiles(state);
+  const wallTiles = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) wallTiles.add(key);
+  }
+  const gruntTiles = new Set<number>();
+  for (const grunt of state.grunts) {
+    gruntTiles.add(packTile(grunt.row, grunt.col));
+  }
+  for (const override of overrides) {
+    const { row, col } = override;
+    validateGruntPos(state, towerTiles, wallTiles, gruntTiles, row, col);
+    const derivedVictim = zoneOwnerIdAt(state, row, col);
+    let victimId: ValidPlayerId;
+    if (override.victimPlayerId === undefined) {
+      victimId = derivedVictim;
+    } else {
+      if (
+        !Number.isInteger(override.victimPlayerId) ||
+        override.victimPlayerId < 0 ||
+        override.victimPlayerId >= state.players.length
+      ) {
+        throw new Error(
+          `grunt override (${row},${col}) has invalid victimPlayerId ${override.victimPlayerId} ` +
+            `(expected 0..${state.players.length - 1})`,
+        );
+      }
+      victimId = override.victimPlayerId as ValidPlayerId;
+    }
+    state.grunts.push({
+      row,
+      col,
+      victimPlayerId: victimId,
+      blockedRounds: 0,
+    });
+    gruntTiles.add(packTile(row, col));
+  }
+}
+
 /** Recompute every player's interior, owned-tower set, and territory-derived
  *  cleanup (enclosed grunts / houses / bonus squares). Wraps the game's
  *  `recheckTerritory` so callers don't have to import from `src/game/`.
@@ -266,6 +323,27 @@ async function createCheckpointScenario(
     );
   }
   return wrapHeadless(headless, sentMessages);
+}
+
+/** Grunt-specific validation. Grunts share house/bonus-square's grass +
+ *  tower-footprint checks but also reject wall and existing-grunt overlaps,
+ *  because grunts walk the same tiles walls occupy and two grunts can't
+ *  share a tile. Re-uses `validateGrassEntityPos` for the shared part. */
+function validateGruntPos(
+  state: GameState,
+  towerTiles: ReadonlySet<number>,
+  wallTiles: ReadonlySet<number>,
+  gruntTiles: ReadonlySet<number>,
+  row: number,
+  col: number,
+): void {
+  validateGrassEntityPos(state, towerTiles, gruntTiles, "grunt", row, col);
+  const key = packTile(row, col);
+  if (wallTiles.has(key)) {
+    throw new Error(
+      `grunt override (${row},${col}) overlaps an existing wall (any owner)`,
+    );
+  }
 }
 
 /** Shared validation for grass-only entity placements (houses, bonus squares).
