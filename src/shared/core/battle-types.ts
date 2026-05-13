@@ -37,8 +37,9 @@ export interface Grunt extends TilePos {
    *  round are reset in `frostbiteImpl.apply` if frostbite re-rolls. */
   chipped?: true;
   /** Optional variant tag. Absence = regular grunt. "catapult" = slower
-   *  variant that can attack towers from Manhattan distance ≤ 2 (bypasses
-   *  cannon-row shielding). Gated by the "catapults" feature. */
+   *  variant that can attack towers from Manhattan distance ≤ 3 (bypasses
+   *  up to two rows of cannons shielding the tower). Gated by the
+   *  "catapults" feature. */
   kind?: "catapult";
   /** Catapult-only: toggles each build-phase movement tick. When true, the
    *  catapult skips this tick (half movement speed). Cleared on skip; set

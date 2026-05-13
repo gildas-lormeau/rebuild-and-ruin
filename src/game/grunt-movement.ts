@@ -252,8 +252,9 @@ function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
 }
 
 /** Attack range from a tile to a tower, factoring in grunt kind.
- *  Catapults reach Manhattan distance ≤ CATAPULT_TOWER_ATTACK_RANGE; regular
- *  grunts must be cardinally adjacent. */
+ *  Catapults reach Manhattan distance ≤ CATAPULT_TOWER_ATTACK_RANGE (3 by
+ *  default = 2-tile gap, bypasses up to two rows of cannons); regular grunts
+ *  must be cardinally adjacent. */
 export function isInTowerAttackRange(
   state: GameState,
   row: number,

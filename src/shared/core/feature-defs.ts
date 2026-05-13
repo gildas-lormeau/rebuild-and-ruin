@@ -42,7 +42,7 @@ const FEATURE_POOL: readonly FeatureDef[] = [
     id: "catapults",
     label: "Catapults",
     description:
-      "Slow tank variant that attacks towers from up to 2 tiles away",
+      "Slow tank variant that attacks towers from up to 3 tiles away",
     implemented: true,
   },
 ];

@@ -144,8 +144,10 @@ export const BALL_SPEED = 150;
 export const GRUNT_TICK_INTERVAL = 1.0;
 /** Probability a spawned grunt becomes a catapult (modern mode + catapults feature). */
 export const CATAPULT_SPAWN_CHANCE = 0.25;
-/** Manhattan distance a catapult can attack a tower from (bypasses cannon-row shielding). */
-export const CATAPULT_TOWER_ATTACK_RANGE = 2;
+/** Manhattan distance a catapult can attack a tower from. Range 3 = 2-tile
+ *  gap between catapult and tower, so a catapult bypasses up to two rows of
+ *  cannons (or walls) shielding the tower. */
+export const CATAPULT_TOWER_ATTACK_RANGE = 3;
 /** Scoring weight for super guns in balloon threat evaluation. */
 export const SUPER_GUN_THREAT_WEIGHT = 100;
 /** Shield HP pool for rampart cannons (absorbs wall hits in 2-tile Chebyshev radius). */

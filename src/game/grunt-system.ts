@@ -331,7 +331,7 @@ export function gruntAttackTowers(
 /**
  * Called at end of battle: update blockedRounds counter for each grunt.
  * A grunt is "blocked" if it has an alive target tower but is not in attack
- * range (adjacent for grunts, Manhattan ≤ 2 for catapults).
+ * range (adjacent for grunts, Manhattan ≤ 3 for catapults).
  */
 export function updateGruntBlockedBattles(state: GameState): void {
   for (const grunt of state.grunts) {
